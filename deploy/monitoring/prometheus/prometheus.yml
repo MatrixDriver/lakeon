@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 15s
+
+rule_files:
+  - "alerts.yml"
+
+scrape_configs:
+  - job_name: 'lakeon-api'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['lakeon-api:8080']
+
+  - job_name: 'pageserver'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['pageserver:9898']
+
+  - job_name: 'safekeeper'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets:
+          - 'safekeeper-0.safekeeper:7676'
+          - 'safekeeper-1.safekeeper:7676'
+          - 'safekeeper-2.safekeeper:7676'
+
+  - job_name: 'proxy'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['proxy:7000']

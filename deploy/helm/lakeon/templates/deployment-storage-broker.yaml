@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storage-broker
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: storage-broker
+    {{- include "lakeon.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.storageBroker.replicas }}
+  selector:
+    matchLabels:
+      app: storage-broker
+  template:
+    metadata:
+      labels:
+        app: storage-broker
+    spec:
+      containers:
+        - name: storage-broker
+          image: "{{ .Values.neon.image.repository }}:{{ .Values.neon.image.tag }}"
+          imagePullPolicy: {{ .Values.neon.image.pullPolicy }}
+          command: ["storage_broker"]
+          args:
+            - "--listen-addr=0.0.0.0:{{ .Values.storageBroker.port }}"
+          ports:
+            - containerPort: {{ .Values.storageBroker.port }}
+              name: grpc

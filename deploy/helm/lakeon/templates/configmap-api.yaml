@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lakeon-api-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+data:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://{{ .Values.metadataDb.host }}:{{ .Values.metadataDb.port }}/{{ .Values.metadataDb.name }}"
+  SPRING_DATASOURCE_USERNAME: {{ .Values.metadataDb.user | quote }}
+  NEON_PAGESERVER_URL: "http://pageserver:{{ .Values.pageserver.httpPort }}"
+  NEON_SAFEKEEPER_URLS: {{ include "lakeon.safekeeperConnstrings" . | quote }}
+  NEON_COMPUTE_IMAGE: "{{ .Values.neon.computeImage.repository }}:{{ .Values.neon.computeImage.tag }}"
+  NEON_PROXY_HOST: "proxy"
+  NEON_PROXY_PORT: {{ .Values.proxy.listenPort | quote }}
+  SERVER_PORT: {{ .Values.api.port | quote }}

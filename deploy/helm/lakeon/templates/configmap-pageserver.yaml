@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pageserver-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+data:
+  pageserver.toml: |
+    listen_pg_addr = '0.0.0.0:{{ .Values.pageserver.pgPort }}'
+    listen_http_addr = '0.0.0.0:{{ .Values.pageserver.httpPort }}'
+    broker_endpoint = 'http://storage-broker:{{ .Values.storageBroker.port }}'
+    control_plane_emergency_mode = true
+
+    [remote_storage]
+    endpoint = '{{ .Values.obs.endpoint }}'
+    bucket_name = '{{ .Values.obs.bucket }}'
+    bucket_region = '{{ .Values.obs.region }}'
+    prefix_in_bucket = '/pageserver'

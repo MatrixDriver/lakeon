@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pageserver
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: pageserver
+    {{- include "lakeon.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.pageserver.replicas }}
+  selector:
+    matchLabels:
+      app: pageserver
+  template:
+    metadata:
+      labels:
+        app: pageserver
+    spec:
+      containers:
+        - name: pageserver
+          image: "{{ .Values.neon.image.repository }}:{{ .Values.neon.image.tag }}"
+          imagePullPolicy: {{ .Values.neon.image.pullPolicy }}
+          command: ["pageserver"]
+          args:
+            - "-D"
+            - "/data"
+            - "-c"
+            - "broker_endpoint='http://storage-broker:{{ .Values.storageBroker.port }}'"
+            - "-c"
+            - "listen_pg_addr='0.0.0.0:{{ .Values.pageserver.pgPort }}'"
+            - "-c"
+            - "listen_http_addr='0.0.0.0:{{ .Values.pageserver.httpPort }}'"
+            - "-c"
+            - "remote_storage={endpoint='{{ .Values.obs.endpoint }}', bucket_name='{{ .Values.obs.bucket }}', bucket_region='{{ .Values.obs.region }}', prefix_in_bucket='/pageserver'}"
+            - "-c"
+            - "control_plane_emergency_mode=true"
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: obs-credentials
+                  key: access-key
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: obs-credentials
+                  key: secret-key
+          ports:
+            - containerPort: {{ .Values.pageserver.httpPort }}
+              name: http
+            - containerPort: {{ .Values.pageserver.pgPort }}
+              name: pg
+          resources:
+            {{- toYaml .Values.pageserver.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir: {}

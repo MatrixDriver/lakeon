@@ -1,0 +1,450 @@
+package com.lakeon.service;
+
+import com.lakeon.config.LakeonProperties;
+import com.lakeon.k8s.ComputePodManager;
+import com.lakeon.model.dto.CreateDatabaseRequest;
+import com.lakeon.model.dto.UpdateDatabaseRequest;
+import com.lakeon.model.entity.BranchEntity;
+import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.model.entity.TenantEntity;
+import com.lakeon.model.enums.ComputeSize;
+import com.lakeon.model.enums.DatabaseStatus;
+import com.lakeon.neon.NeonApiClient;
+import com.lakeon.neon.dto.NeonTenant;
+import com.lakeon.neon.dto.NeonTimeline;
+import com.lakeon.repository.BranchRepository;
+import com.lakeon.repository.DatabaseRepository;
+import com.lakeon.service.exception.ConflictException;
+import com.lakeon.service.exception.NotFoundException;
+import com.lakeon.service.exception.ServiceException;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
+
+@ExtendWith(MockitoExtension.class)
+@DisplayName("DatabaseService 单元测试")
+class DatabaseServiceTest {
+
+    @Mock
+    private DatabaseRepository databaseRepository;
+
+    @Mock
+    private BranchRepository branchRepository;
+
+    @Mock
+    private NeonApiClient neonApiClient;
+
+    @Mock
+    private ComputePodManager computePodManager;
+
+    @Mock
+    private LakeonProperties props;
+
+    @InjectMocks
+    private DatabaseService databaseService;
+
+    private TenantEntity testTenant;
+
+    @BeforeEach
+    void setUp() {
+        testTenant = new TenantEntity();
+        testTenant.setId("tn_test001");
+        testTenant.setApiKey("test-api-key-32chars-long-enough!");
+
+        // Setup default properties (lenient because not all tests call create())
+        var defaults = new LakeonProperties.DefaultsConfig();
+        defaults.setComputeSize("1cu");
+        defaults.setSuspendTimeout("5m");
+        defaults.setStorageLimitGb(10);
+        lenient().when(props.getDefaults()).thenReturn(defaults);
+    }
+
+    // ========== UT-SVC-DB-001 ~ UT-SVC-DB-004: 创建实例 ==========
+
+    @Nested
+    @DisplayName("创建实例")
+    class CreateDatabase {
+
+        @Test
+        @DisplayName("UT-SVC-DB-001: 正常流程 — 创建 tenant + timeline + Pod，返回连接串")
+        void createDatabase_success() {
+            // Given
+            var request = new CreateDatabaseRequest("my-app-db", "1cu", "5m", 10);
+            when(databaseRepository.findByTenantIdAndName(anyString(), anyString()))
+                    .thenReturn(Optional.empty());
+            when(neonApiClient.createTenant(anyString()))
+                    .thenReturn(new NeonTenant("neon-tenant-abc"));
+            when(neonApiClient.createTimeline(eq("neon-tenant-abc"), any()))
+                    .thenReturn(new NeonTimeline("neon-timeline-main"));
+            when(computePodManager.createComputePod(any()))
+                    .thenReturn("10.0.1.5:5432");
+            when(databaseRepository.save(any(DatabaseEntity.class)))
+                    .thenAnswer(inv -> {
+                        DatabaseEntity entity = inv.getArgument(0);
+                        entity.setId("db_abc123");
+                        return entity;
+                    });
+
+            // When
+            var result = databaseService.create(testTenant, request);
+
+            // Then
+            assertThat(result).isNotNull();
+            assertThat(result.getId()).isEqualTo("db_abc123");
+            assertThat(result.getName()).isEqualTo("my-app-db");
+            assertThat(result.getConnectionUri()).isNotBlank();
+            assertThat(result.getConnectionUri()).startsWith("postgres://");
+            assertThat(result.getComputeSize()).isEqualTo("1cu");
+            assertThat(result.getSuspendTimeout()).isEqualTo("5m");
+            assertThat(result.getStorageLimitGb()).isEqualTo(10);
+
+            // 验证调用顺序：先 Neon → 后 K8s → 最后保存元数据
+            var inOrder = inOrder(neonApiClient, computePodManager, databaseRepository);
+            inOrder.verify(neonApiClient).createTenant(anyString());
+            inOrder.verify(neonApiClient).createTimeline(eq("neon-tenant-abc"), any());
+            inOrder.verify(computePodManager).createComputePod(any());
+            inOrder.verify(databaseRepository).save(any(DatabaseEntity.class));
+        }
+
+        @Test
+        @DisplayName("UT-SVC-DB-001a: 使用默认值创建 — compute_size/suspend_timeout/storage_limit 使用默认值")
+        void createDatabase_withDefaults() {
+            // Given
+            var request = new CreateDatabaseRequest("my-db", null, null, null);
+            when(databaseRepository.findByTenantIdAndName(anyString(), anyString()))
+                    .thenReturn(Optional.empty());
+            when(neonApiClient.createTenant(anyString()))
+                    .thenReturn(new NeonTenant("neon-tenant-def"));
+            when(neonApiClient.createTimeline(anyString(), any()))
+                    .thenReturn(new NeonTimeline("neon-timeline-main"));
+            when(computePodManager.createComputePod(any()))
+                    .thenReturn("10.0.1.6:5432");
+            when(databaseRepository.save(any(DatabaseEntity.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
+
+            // When
+            var result = databaseService.create(testTenant, request);
+
+            // Then
+            assertThat(result.getComputeSize()).isEqualTo("1cu");
+            assertThat(result.getSuspendTimeout()).isEqualTo("5m");
+            assertThat(result.getStorageLimitGb()).isEqualTo(10);
+        }
+
+        @Test
+        @DisplayName("UT-SVC-DB-002: Neon API 创建 tenant 失败 — 不创建 K8s Pod，不保存元数据")
+        void createDatabase_neonCreateTenantFails_noSideEffects() {
+            // Given
+            var request = new CreateDatabaseRequest("my-db", "1cu", "5m", 10);
+            when(databaseRepository.findByTenantIdAndName(anyString(), anyString()))
+                    .thenReturn(Optional.empty());
+            when(neonApiClient.createTenant(anyString()))
+                    .thenThrow(new RuntimeException("Pageserver unavailable"));
+
+            // When / Then
+            assertThatThrownBy(() -> databaseService.create(testTenant, request))
+                    .isInstanceOf(ServiceException.class)
+                    .hasMessageContaining("Pageserver");
+
+            verify(computePodManager, never()).createComputePod(any());
+            verify(databaseRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("UT-SVC-DB-003: K8s Pod 创建失败 — 回滚 Neon tenant")
+        void createDatabase_k8sPodFails_rollbackNeonTenant() {
+            // Given
+            var request = new CreateDatabaseRequest("my-db", "1cu", "5m", 10);
+            when(databaseRepository.findByTenantIdAndName(anyString(), anyString()))
+                    .thenReturn(Optional.empty());
+            when(neonApiClient.createTenant(anyString()))
+                    .thenReturn(new NeonTenant("neon-tenant-to-rollback"));
+            when(neonApiClient.createTimeline(anyString(), any()))
+                    .thenReturn(new NeonTimeline("neon-timeline-main"));
+            when(computePodManager.createComputePod(any()))
+                    .thenThrow(new RuntimeException("Insufficient resources"));
+
+            // When / Then
+            assertThatThrownBy(() -> databaseService.create(testTenant, request))
+                    .isInstanceOf(ServiceException.class);
+
+            // 验证回滚：Neon tenant 被删除
+            verify(neonApiClient).deleteTenant(eq("neon-tenant-to-rollback"));
+            verify(databaseRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("UT-SVC-DB-004: 名称重复 — 抛出 ConflictException")
+        void createDatabase_duplicateName_throwsConflict() {
+            // Given
+            var request = new CreateDatabaseRequest("existing-db", "1cu", "5m", 10);
+            when(databaseRepository.findByTenantIdAndName(testTenant.getId(), "existing-db"))
+                    .thenReturn(Optional.of(new DatabaseEntity()));
+
+            // When / Then
+            assertThatThrownBy(() -> databaseService.create(testTenant, request))
+                    .isInstanceOf(ConflictException.class)
+                    .hasMessageContaining("existing-db");
+
+            verify(neonApiClient, never()).createTenant(anyString());
+        }
+    }
+
+    // ========== UT-SVC-DB-005 ~ UT-SVC-DB-008: 删除/查询/列出实例 ==========
+
+    @Nested
+    @DisplayName("删除实例")
+    class DeleteDatabase {
+
+        @Test
+        @DisplayName("UT-SVC-DB-005: 正常流程 — 销毁 Pod，删除 Neon tenant，清除元数据")
+        void deleteDatabase_success() {
+            // Given
+            var dbEntity = createTestDatabaseEntity("db_del001", "to-delete", DatabaseStatus.RUNNING);
+            when(databaseRepository.findByIdAndTenantId("db_del001", testTenant.getId()))
+                    .thenReturn(Optional.of(dbEntity));
+            when(branchRepository.findAllByDatabaseId("db_del001"))
+                    .thenReturn(List.of());
+
+            // When
+            databaseService.delete(testTenant, "db_del001");
+
+            // Then
+            verify(computePodManager).deleteComputePod(dbEntity.getComputePodName());
+            verify(neonApiClient).deleteTenant(dbEntity.getNeonTenantId());
+            verify(databaseRepository).delete(dbEntity);
+        }
+
+        @Test
+        @DisplayName("UT-SVC-DB-005a: 删除带分支的实例 — 所有分支也被清理")
+        void deleteDatabase_withBranches_allCleaned() {
+            // Given
+            var dbEntity = createTestDatabaseEntity("db_del002", "with-branches", DatabaseStatus.RUNNING);
+            var branch = new BranchEntity();
+            branch.setId("br_xyz");
+            branch.setNeonTimelineId("timeline-branch");
+            branch.setComputePodName("pod-branch");
+            when(databaseRepository.findByIdAndTenantId("db_del002", testTenant.getId()))
+                    .thenReturn(Optional.of(dbEntity));
+            when(branchRepository.findAllByDatabaseId("db_del002"))
+                    .thenReturn(List.of(branch));
+
+            // When
+            databaseService.delete(testTenant, "db_del002");
+
+            // Then
+            verify(computePodManager).deleteComputePod("pod-branch");
+            verify(neonApiClient).deleteTimeline(dbEntity.getNeonTenantId(), "timeline-branch");
+            verify(branchRepository).delete(branch);
+            verify(computePodManager).deleteComputePod(dbEntity.getComputePodName());
+            verify(neonApiClient).deleteTenant(dbEntity.getNeonTenantId());
+            verify(databaseRepository).delete(dbEntity);
+        }
+
+        @Test
+        @DisplayName("UT-SVC-DB-006: 实例不存在 — 抛出 NotFoundException")
+        void deleteDatabase_notFound_throwsNotFound() {
+            // Given
+            when(databaseRepository.findByIdAndTenantId("db_nonexist", testTenant.getId()))
+                    .thenReturn(Optional.empty());
+
+            // When / Then
+            assertThatThrownBy(() -> databaseService.delete(testTenant, "db_nonexist"))
+                    .isInstanceOf(NotFoundException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("查询实例")
+    class GetDatabase {
+
+        @Test
+        @DisplayName("UT-SVC-DB-007: 查询实例详情 — 返回完整信息")
+        void getDatabase_success() {
+            // Given
+            var dbEntity = createTestDatabaseEntity("db_get001", "my-db", DatabaseStatus.RUNNING);
+            when(databaseRepository.findByIdAndTenantId("db_get001", testTenant.getId()))
+                    .thenReturn(Optional.of(dbEntity));
+
+            // When
+            var result = databaseService.get(testTenant, "db_get001");
+
+            // Then
+            assertThat(result).isNotNull();
+            assertThat(result.getId()).isEqualTo("db_get001");
+            assertThat(result.getName()).isEqualTo("my-db");
+            assertThat(result.getStatus()).isEqualTo(DatabaseStatus.RUNNING);
+            assertThat(result.getConnectionUri()).isNotBlank();
+        }
+
+        @Test
+        @DisplayName("UT-SVC-DB-008: 列出实例 — 仅返回当前租户的实例")
+        void listDatabases_tenantIsolation() {
+            // Given
+            var db1 = createTestDatabaseEntity("db_list001", "db-a", DatabaseStatus.RUNNING);
+            var db2 = createTestDatabaseEntity("db_list002", "db-b", DatabaseStatus.SUSPENDED);
+            when(databaseRepository.findAllByTenantId(testTenant.getId()))
+                    .thenReturn(List.of(db1, db2));
+
+            // When
+            var result = databaseService.list(testTenant);
+
+            // Then
+            assertThat(result).hasSize(2);
+            assertThat(result).extracting("name").containsExactly("db-a", "db-b");
+        }
+    }
+
+    // ========== UT-SVC-DB-009 ~ UT-SVC-DB-013: 启停 compute + 更新配置 ==========
+
+    @Nested
+    @DisplayName("Compute 启停")
+    class ComputeLifecycle {
+
+        @Test
+        @DisplayName("UT-SVC-DB-009: 启动 compute — 实例已休眠，创建 Pod，状态变 running")
+        void resumeCompute_fromSuspended() {
+            // Given
+            var dbEntity = createTestDatabaseEntity("db_resume001", "my-db", DatabaseStatus.SUSPENDED);
+            when(databaseRepository.findByIdAndTenantId("db_resume001", testTenant.getId()))
+                    .thenReturn(Optional.of(dbEntity));
+            when(computePodManager.createComputePod(any()))
+                    .thenReturn("10.0.1.10:5432");
+
+            // When
+            databaseService.resume(testTenant, "db_resume001");
+
+            // Then
+            verify(computePodManager).createComputePod(any());
+            ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
+            verify(databaseRepository).save(captor.capture());
+            assertThat(captor.getValue().getStatus()).isEqualTo(DatabaseStatus.RUNNING);
+        }
+
+        @Test
+        @DisplayName("UT-SVC-DB-010: 启动 compute — 实例已运行，幂等处理")
+        void resumeCompute_alreadyRunning_idempotent() {
+            // Given
+            var dbEntity = createTestDatabaseEntity("db_resume002", "my-db", DatabaseStatus.RUNNING);
+            when(databaseRepository.findByIdAndTenantId("db_resume002", testTenant.getId()))
+                    .thenReturn(Optional.of(dbEntity));
+
+            // When
+            databaseService.resume(testTenant, "db_resume002");
+
+            // Then
+            verify(computePodManager, never()).createComputePod(any());
+        }
+
+        @Test
+        @DisplayName("UT-SVC-DB-011: 停止 compute — 正常流程，销毁 Pod，状态变 suspended")
+        void suspendCompute_success() {
+            // Given
+            var dbEntity = createTestDatabaseEntity("db_suspend001", "my-db", DatabaseStatus.RUNNING);
+            // Save pod name before suspend() nullifies it
+            String podName = dbEntity.getComputePodName();
+            when(databaseRepository.findByIdAndTenantId("db_suspend001", testTenant.getId()))
+                    .thenReturn(Optional.of(dbEntity));
+
+            // When
+            databaseService.suspend(testTenant, "db_suspend001");
+
+            // Then
+            verify(computePodManager).deleteComputePod(podName);
+            ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
+            verify(databaseRepository).save(captor.capture());
+            assertThat(captor.getValue().getStatus()).isEqualTo(DatabaseStatus.SUSPENDED);
+        }
+    }
+
+    @Nested
+    @DisplayName("更新配置")
+    class UpdateConfig {
+
+        @Test
+        @DisplayName("UT-SVC-DB-012: 修改 compute 规格 — 更新元数据，触发 compute 重启")
+        void updateComputeSize_triggerRestart() {
+            // Given
+            var dbEntity = createTestDatabaseEntity("db_upd001", "my-db", DatabaseStatus.RUNNING);
+            dbEntity.setComputeSize("1cu");
+            when(databaseRepository.findByIdAndTenantId("db_upd001", testTenant.getId()))
+                    .thenReturn(Optional.of(dbEntity));
+            when(computePodManager.createComputePod(any()))
+                    .thenReturn("10.0.1.11:5432");
+            when(databaseRepository.save(any(DatabaseEntity.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
+
+            var request = new UpdateDatabaseRequest("2cu", null, null);
+
+            // When
+            databaseService.update(testTenant, "db_upd001", request);
+
+            // Then
+            // 验证旧 Pod 被销毁，新 Pod 被创建
+            verify(computePodManager).deleteComputePod(anyString());
+            verify(computePodManager).createComputePod(any());
+            ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
+            verify(databaseRepository).save(captor.capture());
+            assertThat(captor.getValue().getComputeSize()).isEqualTo("2cu");
+        }
+
+        @Test
+        @DisplayName("UT-SVC-DB-013: 修改休眠超时 — 仅更新元数据，不重启 compute")
+        void updateSuspendTimeout_noRestart() {
+            // Given
+            var dbEntity = createTestDatabaseEntity("db_upd002", "my-db", DatabaseStatus.RUNNING);
+            when(databaseRepository.findByIdAndTenantId("db_upd002", testTenant.getId()))
+                    .thenReturn(Optional.of(dbEntity));
+            when(databaseRepository.save(any(DatabaseEntity.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
+
+            var request = new UpdateDatabaseRequest(null, "10m", null);
+
+            // When
+            databaseService.update(testTenant, "db_upd002", request);
+
+            // Then
+            verify(computePodManager, never()).deleteComputePod(anyString());
+            verify(computePodManager, never()).createComputePod(any());
+            ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
+            verify(databaseRepository).save(captor.capture());
+            assertThat(captor.getValue().getSuspendTimeout()).isEqualTo("10m");
+        }
+    }
+
+    // ========== 辅助方法 ==========
+
+    private DatabaseEntity createTestDatabaseEntity(String id, String name, DatabaseStatus status) {
+        var entity = new DatabaseEntity();
+        entity.setId(id);
+        entity.setTenantId(testTenant.getId());
+        entity.setName(name);
+        entity.setStatus(status);
+        entity.setComputeSize("1cu");
+        entity.setSuspendTimeout("5m");
+        entity.setStorageLimitGb(10);
+        entity.setNeonTenantId("neon-tenant-" + id);
+        entity.setNeonTimelineId("neon-timeline-" + id);
+        entity.setComputePodName("compute-" + id);
+        entity.setConnectionUri("postgres://user:pass@proxy.lakeon.example.com/" + name);
+        return entity;
+    }
+}

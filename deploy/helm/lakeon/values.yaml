@@ -1,0 +1,74 @@
+global:
+  namespace: lakeon
+
+neon:
+  image:
+    repository: ghcr.io/neondatabase/neon
+    tag: latest
+    pullPolicy: IfNotPresent
+  computeImage:
+    repository: ghcr.io/neondatabase/compute-node-v17
+    tag: latest
+
+pageserver:
+  replicas: 1
+  httpPort: 9898
+  pgPort: 6400
+  resources:
+    requests:
+      cpu: "2"
+      memory: "4Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+
+safekeeper:
+  replicas: 3
+  pgPort: 5454
+  httpPort: 7676
+  resources:
+    requests:
+      cpu: "1"
+      memory: "2Gi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+
+storageBroker:
+  replicas: 1
+  port: 50051
+
+proxy:
+  replicas: 2
+  listenPort: 4432
+  httpPort: 7000
+  authBackend: control-plane
+  resources:
+    requests:
+      cpu: "1"
+      memory: "1Gi"
+
+api:
+  replicas: 2
+  port: 8080
+  image:
+    repository: lakeon/lakeon-api
+    tag: "0.1.0"
+  resources:
+    requests:
+      cpu: "1"
+      memory: "1Gi"
+
+obs:
+  endpoint: ""
+  bucket: "lakeon-neon"
+  region: "cn-north-4"
+  accessKey: ""
+  secretKey: ""
+
+metadataDb:
+  host: ""
+  port: 5432
+  name: "lakeon"
+  user: "lakeon"
+  password: ""

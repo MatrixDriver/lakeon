@@ -1,0 +1,25 @@
+# Java / Maven
+lakeon-api/target/
+*.class
+*.jar
+
+# Python
+lakeon-cli/__pycache__/
+lakeon-cli/**/__pycache__/
+*.pyc
+*.pyo
+lakeon-cli/.pytest_cache/
+lakeon-cli/.venv/
+*.egg-info/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+
+# Env / secrets
+.env
+.env.*

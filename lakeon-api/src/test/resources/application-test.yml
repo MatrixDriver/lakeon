@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+
+lakeon:
+  neon:
+    pageserver-url: http://localhost:9898
+    safekeeper-urls: localhost:5454
+    storage-broker-url: http://localhost:50051
+  k8s:
+    namespace: test-namespace
+    compute-image: test-image:latest
+  defaults:
+    compute-size: 1cu
+    suspend-timeout: 5m
+    storage-limit-gb: 10

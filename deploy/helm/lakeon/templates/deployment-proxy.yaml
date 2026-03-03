@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: proxy
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: proxy
+    {{- include "lakeon.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.proxy.replicas }}
+  selector:
+    matchLabels:
+      app: proxy
+  template:
+    metadata:
+      labels:
+        app: proxy
+    spec:
+      containers:
+        - name: proxy
+          image: "{{ .Values.neon.image.repository }}:{{ .Values.neon.image.tag }}"
+          imagePullPolicy: {{ .Values.neon.image.pullPolicy }}
+          command: ["proxy"]
+          args:
+            - "--proxy=0.0.0.0:{{ .Values.proxy.listenPort }}"
+            - "--auth-backend=control-plane"
+            - "--auth-endpoint=http://lakeon-api:{{ .Values.api.port }}/proxy"
+            - "--wss=0.0.0.0:{{ .Values.proxy.httpPort }}"
+          env:
+            - name: NEON_PROXY_TO_CONTROLPLANE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: proxy-token
+          ports:
+            - containerPort: {{ .Values.proxy.listenPort }}
+              name: pg
+            - containerPort: {{ .Values.proxy.httpPort }}
+              name: http
+          resources:
+            {{- toYaml .Values.proxy.resources | nindent 12 }}

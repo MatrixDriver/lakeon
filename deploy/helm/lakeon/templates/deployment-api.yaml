@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lakeon-api
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: lakeon-api
+    {{- include "lakeon.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels:
+      app: lakeon-api
+  template:
+    metadata:
+      labels:
+        app: lakeon-api
+    spec:
+      containers:
+        - name: lakeon-api
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          ports:
+            - containerPort: {{ .Values.api.port }}
+              name: http
+          envFrom:
+            - configMapRef:
+                name: lakeon-api-config
+          env:
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: db-password
+            - name: LAKEON_PROXY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: proxy-token
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 5

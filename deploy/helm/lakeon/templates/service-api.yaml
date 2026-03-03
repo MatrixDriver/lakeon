@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: lakeon-api
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: lakeon-api
+    {{- include "lakeon.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: lakeon-api
+  ports:
+    - name: http
+      port: {{ .Values.api.port }}
+      targetPort: http

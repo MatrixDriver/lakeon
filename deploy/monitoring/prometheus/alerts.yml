@@ -1,0 +1,47 @@
+groups:
+  - name: lakeon-alerts
+    rules:
+      - alert: ComputeWakeupFailed
+        expr: rate(lakeon_compute_wakeup_failures_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Compute wakeup failures detected"
+          description: "Instance {{ $labels.instance }} has compute wakeup failures."
+
+      - alert: PageserverDown
+        expr: up{job="pageserver"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pageserver is down"
+          description: "Pageserver {{ $labels.instance }} has been unreachable for 1 minute."
+
+      - alert: SafekeeperDown
+        expr: count(up{job="safekeeper"} == 1) < 2
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Safekeeper quorum at risk"
+          description: "Fewer than 2 safekeepers are running. WAL durability may be compromised."
+
+      - alert: HighStorageUsage
+        expr: lakeon_storage_used_bytes / lakeon_storage_limit_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Storage usage above 90%"
+          description: "Instance {{ $labels.instance }} storage is at {{ $value | humanizePercentage }}."
+
+      - alert: APIHighLatency
+        expr: histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{job="lakeon-api"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API P99 latency exceeds 2s"
+          description: "LakeOn API P99 latency is {{ $value }}s."

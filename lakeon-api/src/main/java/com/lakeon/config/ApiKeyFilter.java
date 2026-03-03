@@ -1,0 +1,92 @@
+package com.lakeon.config;
+
+import com.lakeon.config.LakeonProperties;
+import com.lakeon.model.entity.TenantEntity;
+import com.lakeon.service.TenantService;
+import jakarta.servlet.*;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+
+/**
+ * API Key authentication filter.
+ *
+ * Extracts API Key from Authorization: Bearer <api-key> header.
+ * After validation, stores the Tenant in the request attribute.
+ *
+ * /proxy/** endpoints require internal token (--control-plane-token).
+ * /actuator/** endpoints are excluded from auth.
+ * POST /api/v1/tenants is excluded from auth (create tenant).
+ */
+@Component
+@Order(1)
+public class ApiKeyFilter implements Filter {
+    private final TenantService tenantService;
+    private final LakeonProperties props;
+
+    public ApiKeyFilter(TenantService tenantService, LakeonProperties props) {
+        this.tenantService = tenantService;
+        this.props = props;
+    }
+
+    @Override
+    public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
+            throws IOException, ServletException {
+        HttpServletRequest request = (HttpServletRequest) req;
+        HttpServletResponse response = (HttpServletResponse) res;
+
+        String path = request.getRequestURI();
+
+        // Exclude actuator endpoints
+        if (path.startsWith("/actuator")) {
+            chain.doFilter(req, res);
+            return;
+        }
+
+        // Proxy adapter endpoints require internal token
+        if (path.startsWith("/proxy/")) {
+            String internalToken = props.getProxy().getInternalToken();
+            if (internalToken != null && !internalToken.isBlank()) {
+                String authHeader = request.getHeader("Authorization");
+                if (authHeader == null || !authHeader.equals("Bearer " + internalToken)) {
+                    response.setStatus(403);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\":{\"code\":\"FORBIDDEN\",\"message\":\"Invalid internal token\"}}");
+                    return;
+                }
+            }
+            chain.doFilter(req, res);
+            return;
+        }
+
+        // Creating a tenant doesn't need auth
+        if ("POST".equals(request.getMethod()) && "/api/v1/tenants".equals(path)) {
+            chain.doFilter(req, res);
+            return;
+        }
+
+        // Extract API Key
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            response.setStatus(401);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Missing or invalid Authorization header\"}}");
+            return;
+        }
+
+        String apiKey = authHeader.substring(7);
+        TenantEntity tenant = tenantService.authenticateByApiKey(apiKey);
+        if (tenant == null) {
+            response.setStatus(401);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Invalid API key\"}}");
+            return;
+        }
+
+        request.setAttribute("tenant", tenant);
+        chain.doFilter(req, res);
+    }
+}
