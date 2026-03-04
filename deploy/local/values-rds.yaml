@@ -1,0 +1,26 @@
+# Stage 2: 华为云 RDS PostgreSQL 覆盖配置
+# 禁用集群内 metadata-db Pod，指向外部 RDS 实例
+#
+# 用法:
+#   helm upgrade --install lakeon deploy/helm/lakeon \
+#     -f deploy/local/values-local.yaml \
+#     -f deploy/local/values-obs.yaml \
+#     -f deploy/local/values-rds.yaml \
+#     --set obs.accessKey=$OBS_AK --set obs.secretKey=$OBS_SK \
+#     --set metadataDb.host=$RDS_HOST \
+#     --set metadataDb.password=$RDS_PASSWORD \
+#     -n lakeon --timeout 5m --no-hooks
+#
+# 前置条件:
+#   1. 在华为云创建 RDS PostgreSQL 实例，创建数据库 lakeon 和用户 lakeon
+#   2. 手动初始化 schema:
+#      psql "postgresql://lakeon:<password>@<host>:5432/lakeon" \
+#        -f lakeon-api/src/main/resources/db/migration/V1__init_schema.sql
+
+metadataDb:
+  enabled: false
+  host: ""      # 通过 --set metadataDb.host=$RDS_HOST 传递，不入库
+  port: 5432
+  name: "lakeon"
+  user: "lakeon"
+  password: ""  # 通过 --set metadataDb.password=$RDS_PASSWORD 传递，不入库

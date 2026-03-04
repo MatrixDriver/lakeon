@@ -103,13 +103,16 @@ curl -s -X POST http://localhost:8080/api/v1/databases \
 
 📋 [验证报告](doc/verification/stage1-obs-storage.md)
 
-### 阶段 2：本地 K8s + OBS + 华为云 RDS
+### 阶段 2：本地 K8s + OBS + 华为云 RDS ✅
 
-用华为云 RDS PostgreSQL 替换 metadata-db Pod。
+用华为云 RDS PostgreSQL 替换 metadata-db Pod，提升元数据持久性。
 
-- [ ] 迁移元数据库到 RDS
-- [ ] 更新连接配置和 Secret 管理
-- [ ] 验证 API 和数据一致性
+- [x] 创建 RDS 覆盖配置 (`values-rds.yaml`)
+- [x] 华为云创建 RDS 实例并初始化 Schema
+- [x] 部署验证（集成测试 31 个用例全部通过）
+- [x] 数据持久化验证（Pod 重启后数据不丢失）
+
+📋 [验证报告](doc/verification/stage2-rds-metadata.md)
 
 ### 阶段 3：华为云 CCE 开发集群
 
