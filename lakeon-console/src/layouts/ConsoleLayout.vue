@@ -53,11 +53,21 @@
     <div class="console-body">
       <!-- Left Sidebar -->
       <aside class="console-sidebar">
-        <div class="sidebar-title">Lakeon 数据库</div>
+        <div class="sidebar-title">
+          <span>Lakeon 数据库</span>
+          <svg class="sidebar-search-icon" viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
+          </svg>
+        </div>
         <nav class="sidebar-nav">
-          <router-link to="/dashboard" class="nav-item" active-class="active">总览</router-link>
-          <router-link to="/databases" class="nav-item" active-class="active">数据库实例</router-link>
-          <router-link to="/apikey" class="nav-item" active-class="active">API Key</router-link>
+          <div class="nav-group">
+            <router-link to="/dashboard" class="nav-item" active-class="active">总览</router-link>
+            <router-link to="/databases" class="nav-item" active-class="active">数据库实例</router-link>
+          </div>
+          <div class="nav-group">
+            <div class="nav-group-title">安全管理</div>
+            <router-link to="/apikey" class="nav-item" active-class="active">API Key</router-link>
+          </div>
         </nav>
         <div class="sidebar-collapse">
           <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
@@ -226,9 +236,9 @@ function handleLogout() {
 }
 
 .console-sidebar {
-  width: 200px;
+  width: 220px;
   background-color: #fff;
-  border-right: 1px solid #e8e8e8;
+  border-right: 1px solid #e5e5e5;
   flex-shrink: 0;
   overflow-y: auto;
   display: flex;
@@ -236,11 +246,25 @@ function handleLogout() {
 }
 
 .sidebar-title {
-  padding: 20px 20px 16px;
-  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid #e5e5e5;
+  font-size: 18px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: #191919;
   line-height: 1.3;
+}
+
+.sidebar-search-icon {
+  color: #8a8e99;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.sidebar-search-icon:hover {
+  color: #191919;
 }
 
 .sidebar-nav {
@@ -248,11 +272,28 @@ function handleLogout() {
   padding: 0;
 }
 
+.nav-group {
+  padding: 8px 0;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.nav-group:last-child {
+  border-bottom: none;
+}
+
+.nav-group-title {
+  padding: 16px 24px 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #191919;
+  line-height: 1.4;
+}
+
 .nav-item {
   display: block;
-  padding: 0 20px;
-  height: 40px;
-  line-height: 40px;
+  padding: 0 24px;
+  height: 44px;
+  line-height: 44px;
   color: #333;
   text-decoration: none;
   font-size: 14px;
@@ -275,16 +316,14 @@ function handleLogout() {
 .sidebar-collapse {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 12px 0;
-  border-top: 1px solid #e8e8e8;
-  color: #999;
+  justify-content: flex-end;
+  padding: 16px 12px;
+  color: #c2c6cc;
   cursor: pointer;
 }
 
 .sidebar-collapse:hover {
   color: #0073e6;
-  background: #f5f7fa;
 }
 
 .console-main {
