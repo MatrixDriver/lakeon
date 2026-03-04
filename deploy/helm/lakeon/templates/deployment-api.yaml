@@ -46,6 +46,18 @@ spec:
                 secretKeyRef:
                   name: api-credentials
                   key: admin-token
+            {{- if .Values.obs.accessKey }}
+            - name: LAKEON_OBS_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: obs-credentials
+                  key: access-key
+            - name: LAKEON_OBS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: obs-credentials
+                  key: secret-key
+            {{- end }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
           livenessProbe:

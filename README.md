@@ -204,7 +204,7 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 ```
 
-### 阶段 4：用户接入与连接体验
+### 阶段 4：用户接入与连接体验 ✅
 
 完善用户接入层和连接体验，为邀请外部用户测试做准备。
 
@@ -220,11 +220,11 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
   - 租户级配额字段（max_databases / max_storage_gb / max_compute_cu）
   - 数据库创建时自动检查配额，超限返回 403
   - Admin API（`/api/v1/admin/`）+ Admin Token 认证
-- [ ] TLS 证书管理（ELB HTTPS 终止）
+- [ ] TLS 证书管理（ELB HTTPS 终止）→ 移至阶段 9
 
 #### 连接体验
 - [x] 用户文档（psql / JDBC / Python / Java / Go 连接示例 + FAQ）
-- [ ] 用量计量（为后续计费做准备）
+- [x] 用量计量（基于 operation_logs 生命周期事件计算实际 compute 运行时长）
 
 ### 阶段 5：SRE 运维控制台
 
@@ -347,6 +347,7 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 
 #### 安全与认证
 - [ ] 华为云 IAM 集成（单点登录，替代 API Key 登录）
+- [ ] TLS 证书管理（ELB HTTPS 终止，从阶段 4 移入）
 - [ ] 数据库连接 TLS 加密（端到端）
 - [ ] API 限流与错误重试策略
 - [ ] 安全审计日志

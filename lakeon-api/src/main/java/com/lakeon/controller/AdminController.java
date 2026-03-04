@@ -235,12 +235,16 @@ public class AdminController {
         return adminService.getCostByTenant();
     }
 
-    @GetMapping("/cost/cbc")
+    @GetMapping(value = "/cost/cbc", produces = "application/json")
+    @org.springframework.web.bind.annotation.ResponseBody
     public String getCbcBilling(@RequestParam(required = false, name = "bill_cycle") String billCycle) {
+        String result;
         if (billCycle == null || billCycle.isBlank()) {
-            return cbcBillingService.getCurrentMonthBilling();
+            result = cbcBillingService.getCurrentMonthBilling();
+        } else {
+            result = cbcBillingService.fetchMonthlyBillSummary(billCycle);
         }
-        return cbcBillingService.fetchMonthlyBillSummary(billCycle);
+        return result != null ? result : "{\"error\":\"Failed to fetch CBC billing\"}";
     }
 
     // ── Usage Metering ────────────────────────────────────────────

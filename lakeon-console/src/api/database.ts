@@ -32,4 +32,5 @@ export const databaseApi = {
   delete: (id: string) => client.delete(`/databases/${id}`),
   suspend: (id: string) => client.post(`/databases/${id}/suspend`),
   resume: (id: string) => client.post(`/databases/${id}/resume`),
+  resetPassword: (id: string) => client.post<{ password: string }>(`/databases/${id}/reset-password`),
 }

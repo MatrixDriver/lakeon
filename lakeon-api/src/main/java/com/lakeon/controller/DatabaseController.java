@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/databases")
@@ -53,6 +54,12 @@ public class DatabaseController {
     public void deleteDatabase(HttpServletRequest req, @PathVariable String dbId) {
         TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
         databaseService.delete(tenant, dbId);
+    }
+
+    @PostMapping("/{dbId}/reset-password")
+    public Map<String, String> resetPassword(HttpServletRequest req, @PathVariable String dbId) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return databaseService.resetPassword(tenant, dbId);
     }
 
     @PostMapping("/{dbId}/suspend")

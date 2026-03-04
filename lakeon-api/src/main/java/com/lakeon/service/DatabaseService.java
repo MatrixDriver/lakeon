@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -150,10 +151,8 @@ public class DatabaseService {
                 throw new ServiceException("Failed to create compute Pod: " + e.getMessage(), e);
             }
 
-            // Build connection URI without password (password-safe for storage)
-            String proxyHost = computeAddress.split(":")[0];
-            String connectionUriSafe = "postgres://" + dbUser + "@" + computeAddress + "/" + request.name();
-            entity.setConnectionUri(connectionUriSafe);
+            // Build connection URI pointing to proxy external address (user-facing)
+            entity.setConnectionUri(buildConnectionUri(dbUser, request.name()));
             entity.setStatus(DatabaseStatus.RUNNING);
             entity.setLastActiveAt(Instant.now());
             entity = databaseRepository.save(entity);
@@ -329,6 +328,7 @@ public class DatabaseService {
             computePodManager.createComputePod(entity);
             entity.setStatus(DatabaseStatus.RUNNING);
             entity.setLastActiveAt(Instant.now());
+            entity.setConnectionUri(buildConnectionUri(entity.getDbUser(), entity.getName()));
             databaseRepository.save(entity);
             operationLogService.completeOperation(opLog, null);
         } catch (Exception e) {
@@ -349,6 +349,7 @@ public class DatabaseService {
         String address = computePodManager.createComputePod(entity);
         entity.setStatus(DatabaseStatus.RUNNING);
         entity.setLastActiveAt(Instant.now());
+        entity.setConnectionUri(buildConnectionUri(entity.getDbUser(), entity.getName()));
         databaseRepository.save(entity);
         return address;
     }
@@ -394,6 +395,31 @@ public class DatabaseService {
         } catch (NumberFormatException e) {
             return 1;
         }
+    }
+
+    @Transactional
+    public Map<String, String> resetPassword(TenantEntity tenant, String dbId) {
+        DatabaseEntity entity = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
+            .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+        String rawPassword = generatePassword();
+        String scramHash = ScramUtils.generateScramHash(rawPassword);
+        entity.setDbPassword(scramHash);
+        databaseRepository.save(entity);
+        return Map.of("password", rawPassword);
+    }
+
+    private String buildConnectionUri(String dbUser, String dbName) {
+        String host = props.getProxy().getExternalHost();
+        int port = props.getProxy().getExternalPort();
+        String base;
+        if (host != null && !host.isBlank()) {
+            base = "postgres://" + dbUser + "@" + host + ":" + port + "/" + dbName;
+        } else {
+            base = "postgres://" + dbUser + "@proxy.lakeon.svc.cluster.local:" + port + "/" + dbName;
+        }
+        // Append endpoint option for Neon proxy routing (required when connecting via IP without SNI)
+        base += "?options=endpoint%3D" + dbName;
+        return base;
     }
 
     private String generatePassword() {

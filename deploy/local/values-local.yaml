@@ -22,6 +22,7 @@ pageserver:
 
 proxy:
   replicas: 1
+  externalHost: "localhost"
   resources:
     requests:
       cpu: "250m"

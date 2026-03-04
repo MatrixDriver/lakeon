@@ -24,6 +24,13 @@ public interface OperationLogRepository extends JpaRepository<OperationLogEntity
     Page<OperationLogEntity> findByTenantIdAndOperationTypeOrderByStartedAtDesc(
             String tenantId, OperationType type, Pageable pageable);
 
+    // Usage metering: lifecycle events for compute time calculation
+    List<OperationLogEntity> findByTenantIdAndOperationTypeInAndStatusAndStartedAtBetweenOrderByStartedAtAsc(
+            String tenantId, List<OperationType> types, OperationStatus status, Instant from, Instant to);
+
+    List<OperationLogEntity> findByDatabaseIdAndOperationTypeInAndStatusAndStartedAtBetweenOrderByStartedAtAsc(
+            String databaseId, List<OperationType> types, OperationStatus status, Instant from, Instant to);
+
     // Admin: stats
     List<OperationLogEntity> findByStartedAtAfter(Instant after);
     List<OperationLogEntity> findByOperationTypeInAndStatusAndDurationMsNotNull(

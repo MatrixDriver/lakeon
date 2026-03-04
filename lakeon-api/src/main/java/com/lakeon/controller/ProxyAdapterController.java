@@ -1,10 +1,13 @@
 package com.lakeon.controller;
 
+import com.lakeon.k8s.ComputePodManager;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.DatabaseService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -25,16 +28,20 @@ import java.util.Map;
 @RestController
 @RequestMapping("/proxy")
 public class ProxyAdapterController {
+    private static final Logger log = LoggerFactory.getLogger(ProxyAdapterController.class);
     private final DatabaseService databaseService;
     private final DatabaseRepository dbRepo;
     private final BranchRepository branchRepo;
+    private final ComputePodManager computePodManager;
 
     public ProxyAdapterController(DatabaseService databaseService,
                                   DatabaseRepository dbRepo,
-                                  BranchRepository branchRepo) {
+                                  BranchRepository branchRepo,
+                                  ComputePodManager computePodManager) {
         this.databaseService = databaseService;
         this.dbRepo = dbRepo;
         this.branchRepo = branchRepo;
+        this.computePodManager = computePodManager;
     }
 
     /**
@@ -61,6 +68,21 @@ public class ProxyAdapterController {
             && instance.getComputeHost() != null && instance.getComputePort() != null) {
             address = instance.getComputeHost() + ":" + instance.getComputePort();
             coldStartInfo = "warm";
+        } else if (instance.getStatus() == DatabaseStatus.RUNNING
+            && instance.getComputePodName() != null) {
+            // Pod is running but host/port not cached — look up pod IP directly
+            String podIp = computePodManager.getPodIp(instance.getComputePodName());
+            if (podIp != null) {
+                address = podIp + ":55433";
+                // Cache for next time
+                instance.setComputeHost(podIp);
+                instance.setComputePort(55433);
+                dbRepo.save(instance);
+                coldStartInfo = "warm";
+            } else {
+                address = databaseService.wakeCompute(instance);
+                coldStartInfo = "pool_miss";
+            }
         } else {
             address = databaseService.wakeCompute(instance);
             coldStartInfo = "pool_miss";

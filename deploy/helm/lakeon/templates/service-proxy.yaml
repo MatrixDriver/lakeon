@@ -6,8 +6,13 @@ metadata:
   labels:
     app: proxy
     {{- include "lakeon.labels" . | nindent 4 }}
+  {{- if and .Values.proxy.elb .Values.proxy.elb.id }}
+  annotations:
+    kubernetes.io/elb.id: {{ .Values.proxy.elb.id | quote }}
+    kubernetes.io/elb.class: {{ .Values.proxy.elb.class | default "union" | quote }}
+  {{- end }}
 spec:
-  type: LoadBalancer
+  type: {{ .Values.proxy.serviceType | default "LoadBalancer" }}
   selector:
     app: proxy
   ports:

@@ -5,6 +5,14 @@
     </div>
 
     <!-- CBC Actual Cost -->
+    <div class="section-card" v-if="cbcError">
+      <div class="section-header">
+        <h3>华为云实际账单</h3>
+      </div>
+      <div style="padding: 16px; color: #e37318; font-size: 14px;">
+        ⚠ 无法获取 CBC 账单数据。请确认 CCE 集群已配置 NAT 网关（SNAT 规则），使 Pod 能访问公网 API。
+      </div>
+    </div>
     <div class="section-card" v-if="cbcBills.length > 0">
       <div class="section-header">
         <h3>华为云实际账单（{{ cbcCycle }}）</h3>
@@ -154,6 +162,7 @@ const tenantCosts = ref<TenantCost[]>([])
 const cbcBills = ref<CbcBill[]>([])
 const cbcTotal = ref(0)
 const cbcCycle = ref('')
+const cbcError = ref(false)
 
 const hourlyCost = computed(() => {
   const m = summary.value.total_monthly_cost
@@ -182,7 +191,7 @@ onMounted(async () => {
     const [summaryRes, tenantRes, cbcRes] = await Promise.all([
       adminApi.costSummary(),
       adminApi.costByTenant(),
-      adminApi.costCbc().catch(() => ({ data: null })),
+      adminApi.costCbc().catch(() => { cbcError.value = true; return { data: null } }),
     ])
 
     // Estimated cost
@@ -201,7 +210,9 @@ onMounted(async () => {
 
     // CBC actual billing
     const cbc = typeof cbcRes.data === 'string' ? JSON.parse(cbcRes.data) : cbcRes.data
-    if (cbc && cbc.bill_sums) {
+    if (cbc && cbc.error) {
+      cbcError.value = true
+    } else if (cbc && cbc.bill_sums) {
       cbcTotal.value = cbc.consume_amount || 0
       cbcCycle.value = cbc.bill_sums[0]?.bill_cycle || ''
       cbcBills.value = cbc.bill_sums

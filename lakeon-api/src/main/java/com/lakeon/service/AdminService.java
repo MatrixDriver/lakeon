@@ -1,6 +1,7 @@
 package com.lakeon.service;
 
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.model.dto.TenantUsageSummary;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.OperationLogEntity;
 import com.lakeon.model.enums.DatabaseStatus;
@@ -33,19 +34,22 @@ public class AdminService {
     private final NeonApiClient neonApiClient;
     private final LakeonProperties props;
     private final DataSource dataSource;
+    private final UsageMeteringService usageMeteringService;
 
     public AdminService(TenantRepository tenantRepository,
                         DatabaseRepository databaseRepository,
                         OperationLogRepository operationLogRepository,
                         NeonApiClient neonApiClient,
                         LakeonProperties props,
-                        DataSource dataSource) {
+                        DataSource dataSource,
+                        UsageMeteringService usageMeteringService) {
         this.tenantRepository = tenantRepository;
         this.databaseRepository = databaseRepository;
         this.operationLogRepository = operationLogRepository;
         this.neonApiClient = neonApiClient;
         this.props = props;
         this.dataSource = dataSource;
+        this.usageMeteringService = usageMeteringService;
     }
 
     public Map<String, Object> getDashboard() {
@@ -151,18 +155,8 @@ public class AdminService {
                 .sum();
         double obsCost = totalStorageGb * cost.getObsPerGbMonthly();
 
-        // Compute cost from running databases
-        double computeHours = allDbs.stream()
-                .filter(db -> db.getStatus() == DatabaseStatus.RUNNING)
-                .mapToDouble(db -> {
-                    String size = db.getComputeSize();
-                    int cu = parseComputeUnits(size);
-                    return cu * 24 * 30; // assume always-on for running DBs
-                })
-                .sum();
-        double computeCost = computeHours * cost.getComputeCuHourly();
-
-        double total = cceNodeCost + elbCost + rdsCost + eipCost + obsCost + computeCost;
+        // Compute pods run on CCE nodes, so their cost is already included in cce_nodes
+        double total = cceNodeCost + elbCost + rdsCost + eipCost + obsCost;
 
         result.put("total", Math.round(total * 100.0) / 100.0);
         result.put("breakdown", Map.of(
@@ -170,8 +164,7 @@ public class AdminService {
                 "elb", elbCost,
                 "rds", rdsCost,
                 "eip", eipCost,
-                "obs", Math.round(obsCost * 100.0) / 100.0,
-                "compute", Math.round(computeCost * 100.0) / 100.0
+                "obs", Math.round(obsCost * 100.0) / 100.0
         ));
         return result;
     }
@@ -202,8 +195,11 @@ public class AdminService {
 
     public Map<String, Object> getCostByTenant() {
         var cost = props.getCost();
-        List<DatabaseEntity> allDbs = databaseRepository.findAll();
+        Instant monthStart = YearMonth.now(ZoneId.of("UTC")).atDay(1).atStartOfDay()
+                .atZone(ZoneId.of("UTC")).toInstant();
+        Instant now = Instant.now();
 
+        List<DatabaseEntity> allDbs = databaseRepository.findAll();
         Map<String, List<DatabaseEntity>> dbsByTenant = allDbs.stream()
                 .collect(Collectors.groupingBy(DatabaseEntity::getTenantId));
 
@@ -212,10 +208,8 @@ public class AdminService {
             String tenantId = entry.getKey();
             List<DatabaseEntity> dbs = entry.getValue();
 
-            double computeCost = dbs.stream()
-                    .filter(db -> db.getStatus() == DatabaseStatus.RUNNING)
-                    .mapToDouble(db -> parseComputeUnits(db.getComputeSize()) * 24 * 30 * cost.getComputeCuHourly())
-                    .sum();
+            double computeCuHours = usageMeteringService.getTenantComputeCuHours(tenantId, monthStart, now);
+            double computeCost = computeCuHours * cost.getComputeCuHourly();
             double storageCost = dbs.stream()
                     .mapToDouble(db -> db.getStorageLimitGb() * 0.1 * cost.getObsPerGbMonthly())
                     .sum();
@@ -223,6 +217,7 @@ public class AdminService {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("tenant_id", tenantId);
             item.put("database_count", dbs.size());
+            item.put("compute_cu_hours", Math.round(computeCuHours * 100.0) / 100.0);
             item.put("compute_cost", Math.round(computeCost * 100.0) / 100.0);
             item.put("storage_cost", Math.round(storageCost * 100.0) / 100.0);
             item.put("total_cost", Math.round((computeCost + storageCost) * 100.0) / 100.0);

@@ -47,6 +47,9 @@ proxy:
   httpPort: 7100
   mgmtPort: 7000
   authBackend: control-plane
+  # External host for user-facing connection URIs (e.g. ELB IP or domain)
+  # If empty, falls back to cluster-internal proxy DNS
+  externalHost: ""
   resources:
     requests:
       cpu: "1"

@@ -62,9 +62,15 @@ public class LakeonProperties {
 
     public static class ProxyConfig {
         private String internalToken;
+        private String externalHost;
+        private int externalPort = 4432;
 
         public String getInternalToken() { return internalToken; }
         public void setInternalToken(String internalToken) { this.internalToken = internalToken; }
+        public String getExternalHost() { return externalHost; }
+        public void setExternalHost(String externalHost) { this.externalHost = externalHost; }
+        public int getExternalPort() { return externalPort; }
+        public void setExternalPort(int externalPort) { this.externalPort = externalPort; }
     }
 
     public static class K8sConfig {

@@ -82,7 +82,6 @@ public class CbcBillingService {
             String url = "https://" + CBC_HOST + uri + "?" + query;
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
-                    .header("Host", CBC_HOST)
                     .header("X-Sdk-Date", dateStamp)
                     .header("Authorization", authorization)
                     .header("Content-Type", "application/json")

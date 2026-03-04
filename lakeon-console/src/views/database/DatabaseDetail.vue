@@ -1,5 +1,6 @@
 <template>
   <div class="page-db-detail" v-if="database">
+    <div v-if="copyTip" class="copy-toast">{{ copyTip }}</div>
     <div class="breadcrumb">
       <router-link to="/databases" class="breadcrumb-link">数据库实例</router-link>
       <span class="breadcrumb-sep">/</span>
@@ -80,6 +81,22 @@
                 <button class="copy-btn" @click="handleCopy(field.value)">复制</button>
               </div>
             </div>
+            <div class="info-row">
+              <span class="info-label">密码</span>
+              <div class="info-value-row" v-if="newPassword">
+                <code class="password-value">{{ newPassword }}</code>
+                <button class="copy-btn" @click="handleCopy(newPassword!)">复制</button>
+              </div>
+              <div class="info-value-row" v-else>
+                <code class="password-masked">••••••••</code>
+                <button class="btn btn-small btn-default" :disabled="resettingPassword" @click="handleResetPassword">
+                  {{ resettingPassword ? '重置中...' : '重置密码' }}
+                </button>
+              </div>
+            </div>
+          </div>
+          <div v-if="newPassword" class="password-warning">
+            请立即复制密码，刷新页面后将无法再次查看。
           </div>
         </div>
       </div>
@@ -236,6 +253,9 @@ const database = ref<Database | null>(null)
 const loadError = ref(false)
 const actionLoading = ref(false)
 
+const newPassword = ref<string | null>(null)
+const resettingPassword = ref(false)
+
 const activeTab = ref('info')
 const tabs = [
   { key: 'info', label: '基本信息' },
@@ -301,10 +321,26 @@ function durationColorClass(ms: number | null): string {
   return 'duration-slow'
 }
 
+const copyTip = ref('')
+let copyTipTimer: ReturnType<typeof setTimeout> | null = null
+
 async function handleCopy(text: string) {
   const ok = await copyToClipboard(text)
-  if (!ok) {
-    console.warn('Copy failed')
+  copyTip.value = ok ? '已复制' : '复制失败'
+  if (copyTipTimer) clearTimeout(copyTipTimer)
+  copyTipTimer = setTimeout(() => { copyTip.value = '' }, 2000)
+}
+
+async function handleResetPassword() {
+  if (!confirm('确定要重置密码吗？旧密码将立即失效。')) return
+  resettingPassword.value = true
+  try {
+    const res = await databaseApi.resetPassword(dbId.value)
+    newPassword.value = res.data.password
+  } catch (e) {
+    console.error('Failed to reset password', e)
+  } finally {
+    resettingPassword.value = false
   }
 }
 
@@ -613,6 +649,39 @@ onMounted(fetchDatabase)
   white-space: nowrap;
   flex: 1;
   min-width: 0;
+}
+
+.copy-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #222;
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 4px;
+  font-size: 14px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.password-masked {
+  color: #8a8e99;
+}
+
+.password-value {
+  color: #d4380d;
+  font-weight: 600;
+}
+
+.password-warning {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  border-radius: 2px;
+  color: #d46b08;
+  font-size: 13px;
 }
 
 .default-tag {
