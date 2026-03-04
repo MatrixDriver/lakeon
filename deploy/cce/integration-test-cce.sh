@@ -19,7 +19,7 @@ set -uo pipefail
 # ─── Config ──────────────────────────────────────────────────────────────────
 PROXY_HOST="${PROXY_HOST:-114.116.210.49}"
 PROXY_PORT="${PROXY_PORT:-4432}"
-API_URL="${API_URL:-http://${PROXY_HOST}:8080}"
+API_URL="${API_URL:-http://${PROXY_HOST}}"
 export no_proxy="${PROXY_HOST},localhost,127.0.0.1"
 export NO_PROXY="${PROXY_HOST},localhost,127.0.0.1"
 NAMESPACE="lakeon"
@@ -166,7 +166,7 @@ try:
     conn = psycopg2.connect(
         host='${PROXY_HOST}', port=${PROXY_PORT},
         dbname='${db_name}', user='${db_user}', password='${db_password}',
-        options='-c endpoint=${db_name}', sslmode='disable',
+        options='endpoint=${db_name}', sslmode='disable',
         connect_timeout=15
     )
     conn.autocommit = True
@@ -222,13 +222,13 @@ check_prerequisites() {
         exit 1
     fi
 
-    # Check API reachable via ELB
-    local health
-    health=$(curl -s --connect-timeout 5 "${API_URL}/actuator/health" 2>/dev/null || echo "")
-    if echo "$health" | grep -q "UP"; then
-        log "API reachable at ${API_URL}"
+    # Check API reachable via console nginx proxy
+    local health_code
+    health_code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "${API_URL}/api/v1/databases" 2>/dev/null || echo "000")
+    if [[ "$health_code" == "401" || "$health_code" == "200" ]]; then
+        log "API reachable at ${API_URL} (HTTP ${health_code})"
     else
-        echo "ERROR: Cannot reach lakeon-api at ${API_URL}" >&2
+        echo "ERROR: Cannot reach lakeon-api at ${API_URL} (HTTP ${health_code})" >&2
         exit 1
     fi
 

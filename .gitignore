@@ -30,3 +30,4 @@ lakeon-console/dist/
 lakeon-admin/node_modules/
 lakeon-admin/dist/
 .env.cce
+deploy/cce/.lakeon-cloud.json

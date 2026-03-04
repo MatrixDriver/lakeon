@@ -56,15 +56,28 @@ public class ComputePodManager {
         // Check if pod already exists (idempotent wake)
         Pod existingPod = k8sClient.pods().inNamespace(namespace).withName(podName).get();
         if (existingPod != null) {
-            log.info("Compute Pod already exists: {}/{}, reusing", namespace, podName);
-            String podIp = getPodIp(podName);
-            entity.setComputePodName(podName);
-            entity.setComputeHost(podIp);
-            entity.setComputePort(55433);
-            return (podIp != null ? podIp : podName + "." + namespace) + ":55433";
+            // Skip terminating pods — they'll be gone soon
+            if (existingPod.getMetadata().getDeletionTimestamp() != null) {
+                log.info("Compute Pod {}/{} is terminating, waiting for deletion", namespace, podName);
+                for (int i = 0; i < 30; i++) {
+                    var pod = k8sClient.pods().inNamespace(namespace).withName(podName).get();
+                    if (pod == null) break;
+                    try { Thread.sleep(1000); } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            } else {
+                log.info("Compute Pod already exists: {}/{}, reusing", namespace, podName);
+                String podIp = getPodIp(podName);
+                entity.setComputePodName(podName);
+                entity.setComputeHost(podIp);
+                entity.setComputePort(55433);
+                return (podIp != null ? podIp : podName + "." + namespace) + ":55433";
+            }
         }
 
-        k8sClient.configMaps().inNamespace(namespace).resource(configMap).create();
+        k8sClient.configMaps().inNamespace(namespace).resource(configMap).serverSideApply();
 
         Pod pod = new PodBuilder()
             .withNewMetadata()
