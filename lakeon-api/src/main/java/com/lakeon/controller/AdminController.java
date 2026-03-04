@@ -6,14 +6,18 @@ import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.OperationLogEntity;
 import com.lakeon.model.enums.OperationStatus;
 import com.lakeon.model.enums.OperationType;
+import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.OperationLogRepository;
+import com.lakeon.repository.TenantRepository;
 import com.lakeon.service.AdminService;
+import com.lakeon.service.DatabaseService;
 import com.lakeon.service.TenantService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,16 +27,22 @@ import java.util.Map;
 public class AdminController {
     private final TenantService tenantService;
     private final AdminService adminService;
+    private final DatabaseService databaseService;
     private final DatabaseRepository databaseRepository;
+    private final TenantRepository tenantRepository;
     private final OperationLogRepository operationLogRepository;
 
     public AdminController(TenantService tenantService,
                            AdminService adminService,
+                           DatabaseService databaseService,
                            DatabaseRepository databaseRepository,
+                           TenantRepository tenantRepository,
                            OperationLogRepository operationLogRepository) {
         this.tenantService = tenantService;
         this.adminService = adminService;
+        this.databaseService = databaseService;
         this.databaseRepository = databaseRepository;
+        this.tenantRepository = tenantRepository;
         this.operationLogRepository = operationLogRepository;
     }
 
@@ -60,6 +70,39 @@ public class AdminController {
         return tenantService.updateQuota(tenantId, request.maxDatabases(), request.maxStorageGb(), request.maxComputeCu());
     }
 
+    @DeleteMapping("/tenants/batch")
+    public Map<String, Object> batchDeleteTenants(@RequestBody Map<String, List<String>> body) {
+        List<String> ids = body.getOrDefault("ids", List.of());
+        List<String> deleted = new ArrayList<>();
+        List<Map<String, String>> errors = new ArrayList<>();
+        for (String id : ids) {
+            try {
+                // Delete all databases under this tenant first
+                TenantEntity tenant = tenantRepository.findById(id).orElse(null);
+                if (tenant == null) {
+                    errors.add(Map.of("id", id, "error", "Tenant not found"));
+                    continue;
+                }
+                List<DatabaseEntity> dbs = databaseRepository.findAllByTenantId(id);
+                for (DatabaseEntity db : dbs) {
+                    try {
+                        databaseService.delete(tenant, db.getId());
+                    } catch (Exception e) {
+                        errors.add(Map.of("id", id, "error", "Failed to delete database " + db.getName() + ": " + e.getMessage()));
+                    }
+                }
+                tenantRepository.delete(tenant);
+                deleted.add(id);
+            } catch (Exception e) {
+                errors.add(Map.of("id", id, "error", e.getMessage()));
+            }
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("deleted", deleted.size());
+        result.put("errors", errors);
+        return result;
+    }
+
     // ── Databases (global) ─────────────────────────────────────────
 
     @GetMapping("/databases")
@@ -76,6 +119,35 @@ public class AdminController {
             dbs = databaseRepository.findAll();
         }
         return dbs.stream().map(this::dbToMap).toList();
+    }
+
+    @DeleteMapping("/databases/batch")
+    public Map<String, Object> batchDeleteDatabases(@RequestBody Map<String, List<String>> body) {
+        List<String> ids = body.getOrDefault("ids", List.of());
+        List<String> deleted = new ArrayList<>();
+        List<Map<String, String>> errors = new ArrayList<>();
+        for (String id : ids) {
+            try {
+                DatabaseEntity db = databaseRepository.findById(id).orElse(null);
+                if (db == null) {
+                    errors.add(Map.of("id", id, "error", "Database not found"));
+                    continue;
+                }
+                TenantEntity tenant = tenantRepository.findById(db.getTenantId()).orElse(null);
+                if (tenant == null) {
+                    errors.add(Map.of("id", id, "error", "Tenant not found for database"));
+                    continue;
+                }
+                databaseService.delete(tenant, id);
+                deleted.add(id);
+            } catch (Exception e) {
+                errors.add(Map.of("id", id, "error", e.getMessage()));
+            }
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("deleted", deleted.size());
+        result.put("errors", errors);
+        return result;
     }
 
     // ── Compute Stats ──────────────────────────────────────────────

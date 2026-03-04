@@ -204,14 +204,9 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 ```
 
-### 阶段 4：生产加固与用户接入
+### 阶段 4：用户接入与连接体验
 
-生产环境加固，建立用户接入层，为邀请外部用户测试做准备。
-
-#### 基础设施加固
-- [ ] TLS 证书管理（ELB HTTPS 终止）
-- [ ] 高可用配置（多副本 pageserver / safekeeper）
-- [ ] 备份和恢复策略
+完善用户接入层和连接体验，为邀请外部用户测试做准备。
 
 #### 用户接入层
 - [x] Web 控制台（基于 Vue 3 + TinyVue，华为云风格）
@@ -225,11 +220,9 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
   - 租户级配额字段（max_databases / max_storage_gb / max_compute_cu）
   - 数据库创建时自动检查配额，超限返回 403
   - Admin API（`/api/v1/admin/`）+ Admin Token 认证
-- [ ] API 限流与错误重试策略
-- [ ] 华为云 IAM 集成（单点登录，替代 API Key 登录）
+- [ ] TLS 证书管理（ELB HTTPS 终止）
 
 #### 连接体验
-- [ ] 连接池（PgBouncer / Supavisor）
 - [x] 用户文档（psql / JDBC / Python / Java / Go 连接示例 + FAQ）
 - [ ] 用量计量（为后续计费做准备）
 
@@ -342,6 +335,27 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 #### 8c：Proxy 连接缓冲
 - [ ] Proxy 唤醒逻辑改为异步，连接立即成功
 - [ ] 首条 SQL 等待 compute 就绪后透明转发
+
+### 阶段 9：产品化加固
+
+面向正式上线的生产环境加固，完成安全、高可用和运维闭环。
+
+#### 高可用与容灾
+- [ ] 多副本 pageserver / safekeeper 部署
+- [ ] 备份和恢复策略（OBS 快照 + RDS 自动备份）
+- [ ] 故障转移验证（节点宕机、组件重启后自动恢复）
+
+#### 安全与认证
+- [ ] 华为云 IAM 集成（单点登录，替代 API Key 登录）
+- [ ] 数据库连接 TLS 加密（端到端）
+- [ ] API 限流与错误重试策略
+- [ ] 安全审计日志
+
+#### 连接与运营
+- [ ] 连接池（PgBouncer / Supavisor）
+- [ ] 用量计费系统（基于计量数据）
+- [ ] 租户 SLA 保障（自动扩缩容策略）
+- [ ] 运维 Runbook 和应急预案
 
 ## License
 

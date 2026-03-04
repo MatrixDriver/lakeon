@@ -14,7 +14,7 @@ metadata:
 spec:
   type: {{ .Values.admin.serviceType }}
   ports:
-    - port: {{ .Values.admin.port }}
+    - port: {{ if and .Values.admin.elb .Values.admin.elb.port }}{{ .Values.admin.elb.port }}{{ else }}{{ .Values.admin.port }}{{ end }}
       targetPort: {{ .Values.admin.port }}
       protocol: TCP
       {{- if and (eq .Values.admin.serviceType "NodePort") .Values.admin.nodePort }}
