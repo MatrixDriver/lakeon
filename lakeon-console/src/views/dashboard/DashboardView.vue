@@ -1,8 +1,6 @@
 <template>
   <div class="page-dashboard">
-    <div class="breadcrumb">
-      <span class="breadcrumb-item active">总览</span>
-    </div>
+    <h1 class="page-title">总览</h1>
 
     <!-- Stat Cards -->
     <div class="stat-cards">
@@ -112,17 +110,6 @@ onMounted(async () => {
   padding: 4px;
 }
 
-.breadcrumb {
-  margin-bottom: 20px;
-  font-size: 14px;
-  color: #999;
-}
-
-.breadcrumb-item.active {
-  color: #333;
-  font-weight: 500;
-}
-
 .stat-cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -132,13 +119,12 @@ onMounted(async () => {
 
 .stat-card {
   background: #fff;
-  border-radius: 6px;
+  border-radius: 4px;
   padding: 20px;
   display: flex;
   align-items: center;
   gap: 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  border: 1px solid #f0f0f0;
+  border: 1px solid #e8e8e8;
 }
 
 .stat-indicator {
@@ -163,83 +149,5 @@ onMounted(async () => {
   font-size: 13px;
   color: #999;
   margin-top: 4px;
-}
-
-.section-card {
-  background: #fff;
-  border-radius: 6px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  border: 1px solid #f0f0f0;
-  overflow: hidden;
-}
-
-.section-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.section-header h3 {
-  font-size: 15px;
-  font-weight: 500;
-  color: #333;
-  margin: 0;
-}
-
-.table-wrapper {
-  overflow-x: auto;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.data-table th {
-  padding: 12px 20px;
-  text-align: left;
-  font-size: 13px;
-  font-weight: 500;
-  color: #666;
-  background: #fafafa;
-  border-bottom: 1px solid #f0f0f0;
-  white-space: nowrap;
-}
-
-.data-table td {
-  padding: 12px 20px;
-  font-size: 14px;
-  color: #333;
-  border-bottom: 1px solid #f5f5f5;
-}
-
-.data-table tbody tr:hover {
-  background-color: #fafafa;
-}
-
-.status-tag {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.tag-green {
-  color: #52c41a;
-  background-color: #f6ffed;
-  border: 1px solid #b7eb8f;
-}
-
-.tag-red {
-  color: #ff4d4f;
-  background-color: #fff2f0;
-  border: 1px solid #ffccc7;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  color: #999;
-  font-size: 14px;
 }
 </style>

@@ -3,31 +3,44 @@
     <!-- Top Navigation Bar -->
     <header class="console-header">
       <div class="header-left">
-        <span class="logo">Lakeon</span>
-        <span class="subtitle">Serverless PostgreSQL</span>
+        <span class="logo-brand">Lakeon</span>
+        <span class="header-divider"></span>
+        <span class="header-console-text">控制台</span>
+        <span class="header-region">
+          <svg class="region-icon" viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+            <path d="M8 1a5.5 5.5 0 0 0-5.5 5.5c0 3.038 5.5 8.5 5.5 8.5s5.5-5.462 5.5-8.5A5.5 5.5 0 0 0 8 1zm0 7.5a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
+          </svg>
+          华北-北京四
+        </span>
       </div>
       <div class="header-right">
-        <span class="tenant-name">{{ authStore.tenantName || 'Tenant' }}</span>
-        <button class="logout-btn" @click="handleLogout">退出</button>
+        <span class="header-nav-item">{{ authStore.tenantName || 'Tenant' }}</span>
+        <button class="header-nav-item header-nav-btn" @click="handleLogout">退出</button>
       </div>
     </header>
 
     <div class="console-body">
       <!-- Left Sidebar -->
       <aside class="console-sidebar">
+        <div class="sidebar-title">
+          <span class="sidebar-service-name">Lakeon 数据库</span>
+        </div>
         <nav class="sidebar-nav">
-          <router-link to="/dashboard" class="nav-item" active-class="active">
-            <icon-bar-chart class="nav-icon" />
-            <span class="nav-text">总览</span>
-          </router-link>
-          <router-link to="/databases" class="nav-item" active-class="active">
-            <icon-data-source class="nav-icon" />
-            <span class="nav-text">数据库实例</span>
-          </router-link>
-          <router-link to="/apikey" class="nav-item" active-class="active">
-            <icon-lock class="nav-icon" />
-            <span class="nav-text">API Key</span>
-          </router-link>
+          <div class="nav-group">
+            <div class="nav-group-header">数据库服务</div>
+            <router-link to="/dashboard" class="nav-item" active-class="active">
+              <span class="nav-text">总览</span>
+            </router-link>
+            <router-link to="/databases" class="nav-item" active-class="active">
+              <span class="nav-text">数据库实例</span>
+            </router-link>
+          </div>
+          <div class="nav-group">
+            <div class="nav-group-header">安全管理</div>
+            <router-link to="/apikey" class="nav-item" active-class="active">
+              <span class="nav-text">API Key</span>
+            </router-link>
+          </div>
         </nav>
       </aside>
 
@@ -42,15 +55,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import {
-  iconBarChart,
-  iconDataSource,
-  iconLock,
-} from '@opentiny/vue-icon'
-
-const IconBarChart = iconBarChart()
-const IconDataSource = iconDataSource()
-const IconLock = iconLock()
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -70,8 +74,8 @@ function handleLogout() {
 }
 
 .console-header {
-  height: 48px;
-  background-color: #1a1a1a;
+  height: 50px;
+  background-color: #000;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -83,48 +87,64 @@ function handleLogout() {
 .header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 0;
 }
 
-.logo {
-  color: #fff;
+.logo-brand {
+  color: #e6393d;
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.5px;
+  margin-right: 16px;
 }
 
-.subtitle {
-  color: rgba(255, 255, 255, 0.6);
+.header-divider {
+  width: 1px;
+  height: 16px;
+  background-color: rgba(255, 255, 255, 0.2);
+  margin-right: 16px;
+}
+
+.header-console-text {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 400;
+  margin-right: 24px;
+}
+
+.header-region {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: rgba(255, 255, 255, 0.7);
   font-size: 13px;
-  padding-left: 12px;
-  border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.region-icon {
+  opacity: 0.7;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
 }
 
-.tenant-name {
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 14px;
+.header-nav-item {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 13px;
 }
 
-.logout-btn {
+.header-nav-btn {
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 13px;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: color 0.2s, background-color 0.2s;
+  padding: 4px 0;
+  transition: color 0.2s;
 }
 
-.logout-btn:hover {
+.header-nav-btn:hover {
   color: #fff;
-  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .console-body {
@@ -134,31 +154,53 @@ function handleLogout() {
 }
 
 .console-sidebar {
-  width: 200px;
+  width: 220px;
   background-color: #fff;
   border-right: 1px solid #e8e8e8;
   flex-shrink: 0;
   overflow-y: auto;
 }
 
+.sidebar-title {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.sidebar-service-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
 .sidebar-nav {
-  padding: 8px 0;
+  padding: 4px 0;
+}
+
+.nav-group {
+  margin-bottom: 4px;
+}
+
+.nav-group-header {
+  padding: 12px 20px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 8px;
   padding: 0 20px;
-  height: 40px;
-  color: #333;
+  height: 36px;
+  color: #666;
   text-decoration: none;
   font-size: 14px;
   border-left: 3px solid transparent;
-  transition: all 0.2s;
+  transition: all 0.15s;
 }
 
 .nav-item:hover {
+  color: #333;
   background-color: #f5f7fa;
 }
 
@@ -168,20 +210,14 @@ function handleLogout() {
   border-left-color: #0073e6;
 }
 
-.nav-icon {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
-
 .nav-text {
   white-space: nowrap;
 }
 
 .console-main {
   flex: 1;
-  background-color: #f5f5f5;
+  background-color: #fff;
   overflow-y: auto;
-  padding: 20px;
+  padding: 20px 24px;
 }
 </style>

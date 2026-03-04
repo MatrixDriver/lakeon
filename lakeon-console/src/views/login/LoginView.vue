@@ -84,14 +84,14 @@ async function handleLogin() {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #e8f4fd 0%, #f0f0f5 100%);
+  background: #f5f5f5;
 }
 
 .login-card {
   width: 420px;
   background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   padding: 48px 40px 36px;
 }
 
@@ -103,7 +103,7 @@ async function handleLogin() {
 .login-logo {
   font-size: 32px;
   font-weight: 700;
-  color: #0073e6;
+  color: #e6393d;
   margin-bottom: 8px;
   letter-spacing: 1px;
 }
@@ -181,7 +181,7 @@ async function handleLogin() {
 .login-btn {
   width: 100%;
   height: 40px;
-  background-color: #0073e6;
+  background-color: #1a1a1a;
   color: #fff;
   border: none;
   border-radius: 4px;
@@ -196,16 +196,16 @@ async function handleLogin() {
 }
 
 .login-btn:hover:not(:disabled) {
-  background-color: #005bb5;
+  background-color: #333;
 }
 
 .login-btn:disabled {
-  background-color: #a0cfff;
+  background-color: #999;
   cursor: not-allowed;
 }
 
 .login-btn.loading {
-  background-color: #3395ff;
+  background-color: #444;
 }
 
 .spinner {
@@ -225,7 +225,7 @@ async function handleLogin() {
   text-align: center;
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid #e8e8e8;
 }
 
 .login-footer p {

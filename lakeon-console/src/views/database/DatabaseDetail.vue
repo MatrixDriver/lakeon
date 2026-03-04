@@ -1,8 +1,6 @@
 <template>
   <div class="page-db-detail" v-if="database">
     <div class="breadcrumb">
-      <router-link to="/dashboard" class="breadcrumb-link">总览</router-link>
-      <span class="breadcrumb-sep">/</span>
       <router-link to="/databases" class="breadcrumb-link">数据库实例</router-link>
       <span class="breadcrumb-sep">/</span>
       <span class="breadcrumb-item active">{{ database.name }}</span>
@@ -432,38 +430,11 @@ onMounted(fetchDatabase)
   font-size: 14px;
 }
 
-/* Breadcrumb */
-.breadcrumb {
-  margin-bottom: 20px;
-  font-size: 14px;
-  color: #999;
-}
-
-.breadcrumb-link {
-  color: #0073e6;
-  text-decoration: none;
-}
-
-.breadcrumb-link:hover {
-  text-decoration: underline;
-}
-
-.breadcrumb-sep {
-  margin: 0 8px;
-  color: #d9d9d9;
-}
-
-.breadcrumb-item.active {
-  color: #333;
-  font-weight: 500;
-}
-
 /* Summary Card */
 .summary-card {
   background: #fff;
-  border-radius: 6px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  border: 1px solid #e8e8e8;
   padding: 24px;
   margin-bottom: 20px;
 }
@@ -476,7 +447,7 @@ onMounted(fetchDatabase)
 }
 
 .db-title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   color: #333;
   margin: 0 0 8px;
@@ -500,7 +471,7 @@ onMounted(fetchDatabase)
 }
 
 .summary-bottom {
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid #e8e8e8;
   padding-top: 16px;
   display: flex;
   flex-direction: column;
@@ -546,50 +517,17 @@ onMounted(fetchDatabase)
   min-width: 0;
 }
 
-.copy-btn {
-  background: none;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
-  padding: 2px 10px;
-  font-size: 12px;
-  color: #0073e6;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s;
-}
-
-.copy-btn:hover {
-  border-color: #0073e6;
-  background-color: #f0f7ff;
-}
-
-/* Status dot */
-.status-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 4px;
-  vertical-align: middle;
-}
-
-.dot-green { background-color: #52c41a; }
-.dot-gray { background-color: #d9d9d9; }
-.dot-blue { background-color: #1890ff; }
-.dot-red { background-color: #ff4d4f; }
-
 /* Tabs */
 .tabs-wrapper {
   background: #fff;
-  border-radius: 6px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  border: 1px solid #e8e8e8;
   overflow: hidden;
 }
 
 .tab-header {
   display: flex;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #e8e8e8;
   padding: 0 16px;
 }
 
@@ -625,8 +563,8 @@ onMounted(fetchDatabase)
 
 /* Info card */
 .info-card {
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
   padding: 20px;
 }
 
@@ -677,34 +615,6 @@ onMounted(fetchDatabase)
   min-width: 0;
 }
 
-/* Table */
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.data-table th {
-  padding: 12px 16px;
-  text-align: left;
-  font-size: 13px;
-  font-weight: 500;
-  color: #666;
-  background: #fafafa;
-  border-bottom: 1px solid #f0f0f0;
-  white-space: nowrap;
-}
-
-.data-table td {
-  padding: 12px 16px;
-  font-size: 14px;
-  color: #333;
-  border-bottom: 1px solid #f5f5f5;
-}
-
-.data-table tbody tr:hover {
-  background-color: #fafafa;
-}
-
 .default-tag {
   display: inline-block;
   padding: 1px 8px;
@@ -716,252 +626,10 @@ onMounted(fetchDatabase)
   margin-left: 6px;
 }
 
-.text-muted {
-  color: #d9d9d9;
-}
-
-/* Status tags */
-.status-tag {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.tag-green {
-  color: #52c41a;
-  background-color: #f6ffed;
-  border: 1px solid #b7eb8f;
-}
-
-.tag-red {
-  color: #ff4d4f;
-  background-color: #fff2f0;
-  border: 1px solid #ffccc7;
-}
-
-/* Duration colors */
-.duration-fast { color: #52c41a; }
-.duration-medium { color: #fa8c16; }
-.duration-slow { color: #ff4d4f; }
-
-/* Pagination */
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 16px 0 4px;
-}
-
-.page-btn {
-  background: #fff;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
-  padding: 4px 12px;
-  font-size: 13px;
-  color: #333;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.page-btn:hover:not(:disabled) {
-  border-color: #0073e6;
-  color: #0073e6;
-}
-
-.page-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.page-info {
-  font-size: 13px;
-  color: #666;
-}
-
 /* Filter select */
 .filter-select {
   width: 180px;
   height: 32px;
   font-size: 13px;
-}
-
-/* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 34px;
-  padding: 0 16px;
-  font-size: 14px;
-  border-radius: 4px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background-color: #0073e6;
-  color: #fff;
-  border-color: #0073e6;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: #005bb5;
-}
-
-.btn-default {
-  background-color: #fff;
-  color: #333;
-  border-color: #d9d9d9;
-}
-
-.btn-default:hover:not(:disabled) {
-  border-color: #0073e6;
-  color: #0073e6;
-}
-
-.btn-small {
-  height: 28px;
-  padding: 0 10px;
-  font-size: 13px;
-}
-
-.btn-text {
-  background: none;
-  border: none;
-  color: #0073e6;
-  padding: 0 6px;
-}
-
-.btn-text:hover:not(:disabled) {
-  color: #005bb5;
-}
-
-.btn-danger-text {
-  color: #ff4d4f;
-}
-
-.btn-danger-text:hover:not(:disabled) {
-  color: #d9363e;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  color: #999;
-  font-size: 14px;
-}
-
-/* Dialog */
-.dialog-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.dialog-box {
-  background: #fff;
-  border-radius: 8px;
-  width: 480px;
-  max-width: 90vw;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-}
-
-.dialog-confirm {
-  width: 420px;
-}
-
-.dialog-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 24px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.dialog-header h3 {
-  font-size: 16px;
-  font-weight: 500;
-  color: #333;
-  margin: 0;
-}
-
-.dialog-close {
-  background: none;
-  border: none;
-  font-size: 20px;
-  color: #999;
-  cursor: pointer;
-  padding: 0 4px;
-  line-height: 1;
-}
-
-.dialog-close:hover {
-  color: #333;
-}
-
-.dialog-body {
-  padding: 24px;
-}
-
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 16px 24px;
-  border-top: 1px solid #f0f0f0;
-}
-
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-group:last-child {
-  margin-bottom: 0;
-}
-
-.form-label {
-  display: block;
-  font-size: 14px;
-  color: #333;
-  margin-bottom: 8px;
-  font-weight: 500;
-}
-
-.required {
-  color: #ff4d4f;
-}
-
-.form-input,
-.form-select {
-  width: 100%;
-  height: 34px;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
-  padding: 0 12px;
-  font-size: 14px;
-  color: #333;
-  outline: none;
-  transition: border-color 0.2s;
-  background: #fff;
-}
-
-.form-input:focus,
-.form-select:focus {
-  border-color: #0073e6;
-  box-shadow: 0 0 0 2px rgba(0, 115, 230, 0.1);
 }
 </style>

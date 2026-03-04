@@ -1,10 +1,6 @@
 <template>
   <div class="page-db-list">
-    <div class="breadcrumb">
-      <router-link to="/dashboard" class="breadcrumb-link">总览</router-link>
-      <span class="breadcrumb-sep">/</span>
-      <span class="breadcrumb-item active">数据库实例</span>
-    </div>
+    <h1 class="page-title">数据库实例</h1>
 
     <!-- Toolbar -->
     <div class="toolbar">
@@ -312,178 +308,11 @@ onMounted(fetchDatabases)
   padding: 4px;
 }
 
-.breadcrumb {
-  margin-bottom: 20px;
-  font-size: 14px;
-  color: #999;
-}
-
-.breadcrumb-link {
-  color: #0073e6;
-  text-decoration: none;
-}
-
-.breadcrumb-link:hover {
-  text-decoration: underline;
-}
-
-.breadcrumb-sep {
-  margin: 0 8px;
-  color: #d9d9d9;
-}
-
-.breadcrumb-item.active {
-  color: #333;
-  font-weight: 500;
-}
-
 .toolbar {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
-}
-
-.search-input {
-  width: 260px;
-  height: 34px;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
-  padding: 0 12px;
-  font-size: 14px;
-  color: #333;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.search-input:focus {
-  border-color: #0073e6;
-  box-shadow: 0 0 0 2px rgba(0, 115, 230, 0.1);
-}
-
-.search-input::placeholder {
-  color: #bfbfbf;
-}
-
-/* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 34px;
-  padding: 0 16px;
-  font-size: 14px;
-  border-radius: 4px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background-color: #0073e6;
-  color: #fff;
-  border-color: #0073e6;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: #005bb5;
-}
-
-.btn-default {
-  background-color: #fff;
-  color: #333;
-  border-color: #d9d9d9;
-}
-
-.btn-default:hover:not(:disabled) {
-  border-color: #0073e6;
-  color: #0073e6;
-}
-
-.btn-danger {
-  background-color: #ff4d4f;
-  color: #fff;
-  border-color: #ff4d4f;
-}
-
-.btn-danger:hover:not(:disabled) {
-  background-color: #d9363e;
-}
-
-.btn-small {
-  height: 28px;
-  padding: 0 10px;
-  font-size: 13px;
-}
-
-.btn-text {
-  background: none;
-  border: none;
-  color: #0073e6;
-  padding: 0 6px;
-}
-
-.btn-text:hover:not(:disabled) {
-  color: #005bb5;
-}
-
-.btn-danger-text {
-  color: #ff4d4f;
-}
-
-.btn-danger-text:hover:not(:disabled) {
-  color: #d9363e;
-}
-
-.action-btns {
-  display: flex;
-  gap: 4px;
-}
-
-/* Table */
-.section-card {
-  background: #fff;
-  border-radius: 6px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  border: 1px solid #f0f0f0;
-  overflow: hidden;
-}
-
-.table-wrapper {
-  overflow-x: auto;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.data-table th {
-  padding: 12px 20px;
-  text-align: left;
-  font-size: 13px;
-  font-weight: 500;
-  color: #666;
-  background: #fafafa;
-  border-bottom: 1px solid #f0f0f0;
-  white-space: nowrap;
-}
-
-.data-table td {
-  padding: 12px 20px;
-  font-size: 14px;
-  color: #333;
-  border-bottom: 1px solid #f5f5f5;
-}
-
-.data-table tbody tr:hover {
-  background-color: #fafafa;
 }
 
 .db-name-link {
@@ -496,21 +325,6 @@ onMounted(fetchDatabases)
   text-decoration: underline;
 }
 
-/* Status dot */
-.status-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 6px;
-  vertical-align: middle;
-}
-
-.dot-green { background-color: #52c41a; }
-.dot-gray { background-color: #d9d9d9; }
-.dot-blue { background-color: #1890ff; }
-.dot-red { background-color: #ff4d4f; }
-
 /* Storage bar */
 .storage-info {
   display: flex;
@@ -521,7 +335,7 @@ onMounted(fetchDatabases)
 .storage-bar {
   width: 80px;
   height: 6px;
-  background-color: #f0f0f0;
+  background-color: #e8e8e8;
   border-radius: 3px;
   overflow: hidden;
   flex-shrink: 0;
@@ -538,122 +352,5 @@ onMounted(fetchDatabases)
   font-size: 13px;
   color: #666;
   white-space: nowrap;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  color: #999;
-  font-size: 14px;
-}
-
-/* Dialog */
-.dialog-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.dialog-box {
-  background: #fff;
-  border-radius: 8px;
-  width: 480px;
-  max-width: 90vw;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-}
-
-.dialog-confirm {
-  width: 420px;
-}
-
-.dialog-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 24px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.dialog-header h3 {
-  font-size: 16px;
-  font-weight: 500;
-  color: #333;
-  margin: 0;
-}
-
-.dialog-close {
-  background: none;
-  border: none;
-  font-size: 20px;
-  color: #999;
-  cursor: pointer;
-  padding: 0 4px;
-  line-height: 1;
-}
-
-.dialog-close:hover {
-  color: #333;
-}
-
-.dialog-body {
-  padding: 24px;
-}
-
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 16px 24px;
-  border-top: 1px solid #f0f0f0;
-}
-
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-group:last-child {
-  margin-bottom: 0;
-}
-
-.form-label {
-  display: block;
-  font-size: 14px;
-  color: #333;
-  margin-bottom: 8px;
-  font-weight: 500;
-}
-
-.required {
-  color: #ff4d4f;
-}
-
-.form-input,
-.form-select {
-  width: 100%;
-  height: 34px;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
-  padding: 0 12px;
-  font-size: 14px;
-  color: #333;
-  outline: none;
-  transition: border-color 0.2s;
-  background: #fff;
-}
-
-.form-input:focus,
-.form-select:focus {
-  border-color: #0073e6;
-  box-shadow: 0 0 0 2px rgba(0, 115, 230, 0.1);
-}
-
-.confirm-text {
-  font-size: 14px;
-  color: #333;
-  line-height: 1.6;
 }
 </style>
