@@ -117,14 +117,40 @@ curl -s -X POST http://localhost:8080/api/v1/databases \
 
 ### 阶段 4：CCE 生产级部署
 
-生产环境加固和运维就绪。
+生产环境加固和基础运维。
 
 - [ ] ELB + Ingress 入口配置
 - [ ] TLS 证书管理
-- [ ] 监控和告警（Prometheus / Grafana）
-- [ ] 日志收集
 - [ ] 高可用配置（多副本 pageserver / safekeeper）
 - [ ] 备份和恢复策略
+
+### 阶段 5：华为云可观测性与运维
+
+对接华为云原生运维服务，替代自建 Prometheus / Grafana 方案。
+
+#### 日志（LTS 云日志服务）
+- [ ] 添加 logback-spring.xml，输出 JSON 结构化日志
+- [ ] CCE 集群安装 ICAgent，采集容器 stdout 日志到 LTS
+- [ ] LTS 配置日志流、索引和查询模板
+
+#### 指标监控（AOM 应用运维管理）
+- [ ] Pod 添加 Prometheus annotations（scrape/port/path）
+- [ ] AOM 自动采集 Micrometer 指标（lakeon-api）和 Neon 组件指标（pageserver / safekeeper / proxy）
+- [ ] 迁移现有 Grafana Dashboard 到 AOM 仪表盘
+
+#### 告警通知（AOM + SMN 消息通知服务）
+- [ ] 迁移现有 5 条 Prometheus 告警规则到 AOM 告警策略
+- [ ] 对接 SMN 实现短信 / 邮件 / 企业微信告警通知
+
+#### 链路追踪（APM 应用性能管理）
+- [ ] 引入 OpenTelemetry Spring Boot Starter
+- [ ] 配置 OTLP exporter 对接华为 APM endpoint
+- [ ] 覆盖关键链路：proxy → compute → pageserver 调用链
+
+#### 基础设施监控（CES 云监控服务）
+- [ ] CCE 节点 CPU / 内存 / 磁盘监控（自动接入）
+- [ ] OBS 存储容量和请求量监控
+- [ ] RDS 连接数和慢查询监控
 
 ## License
 
