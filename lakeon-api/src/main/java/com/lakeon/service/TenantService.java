@@ -4,6 +4,7 @@ import com.lakeon.model.dto.CreateTenantRequest;
 import com.lakeon.model.dto.TenantResponse;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.repository.TenantRepository;
+import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.exception.ConflictException;
 import com.lakeon.service.exception.NotFoundException;
 import org.springframework.stereotype.Service;
@@ -14,9 +15,11 @@ import java.security.SecureRandom;
 @Service
 public class TenantService {
     private final TenantRepository tenantRepository;
+    private final DatabaseRepository databaseRepository;
 
-    public TenantService(TenantRepository tenantRepository) {
+    public TenantService(TenantRepository tenantRepository, DatabaseRepository databaseRepository) {
         this.tenantRepository = tenantRepository;
+        this.databaseRepository = databaseRepository;
     }
 
     @Transactional
@@ -35,11 +38,15 @@ public class TenantService {
     public TenantResponse get(String tenantId) {
         TenantEntity entity = tenantRepository.findById(tenantId)
             .orElseThrow(() -> new NotFoundException("Tenant not found: " + tenantId));
-        // Don't return API key on GET - only on creation
+        int dbCount = databaseRepository.findAllByTenantId(tenantId).size();
         return TenantResponse.builder()
             .id(entity.getId())
             .name(entity.getName())
             .createdAt(entity.getCreatedAt())
+            .maxDatabases(entity.getMaxDatabases())
+            .maxStorageGb(entity.getMaxStorageGb())
+            .maxComputeCu(entity.getMaxComputeCu())
+            .databaseCount(dbCount)
             .build();
     }
 
@@ -61,12 +68,52 @@ public class TenantService {
         return tenantRepository.findByApiKey(apiKey).orElse(null);
     }
 
+    @Transactional
+    public TenantResponse updateQuota(String tenantId, Integer maxDatabases, Integer maxStorageGb, Integer maxComputeCu) {
+        TenantEntity entity = tenantRepository.findById(tenantId)
+            .orElseThrow(() -> new NotFoundException("Tenant not found: " + tenantId));
+        if (maxDatabases != null) entity.setMaxDatabases(maxDatabases);
+        if (maxStorageGb != null) entity.setMaxStorageGb(maxStorageGb);
+        if (maxComputeCu != null) entity.setMaxComputeCu(maxComputeCu);
+        entity = tenantRepository.save(entity);
+        int dbCount = databaseRepository.findAllByTenantId(tenantId).size();
+        return TenantResponse.builder()
+            .id(entity.getId())
+            .name(entity.getName())
+            .createdAt(entity.getCreatedAt())
+            .maxDatabases(entity.getMaxDatabases())
+            .maxStorageGb(entity.getMaxStorageGb())
+            .maxComputeCu(entity.getMaxComputeCu())
+            .databaseCount(dbCount)
+            .build();
+    }
+
+    public java.util.List<TenantResponse> listAll() {
+        return tenantRepository.findAll().stream()
+            .map(entity -> {
+                int dbCount = databaseRepository.findAllByTenantId(entity.getId()).size();
+                return TenantResponse.builder()
+                    .id(entity.getId())
+                    .name(entity.getName())
+                    .createdAt(entity.getCreatedAt())
+                    .maxDatabases(entity.getMaxDatabases())
+                    .maxStorageGb(entity.getMaxStorageGb())
+                    .maxComputeCu(entity.getMaxComputeCu())
+                    .databaseCount(dbCount)
+                    .build();
+            })
+            .toList();
+    }
+
     private TenantResponse toResponse(TenantEntity entity) {
         return TenantResponse.builder()
             .id(entity.getId())
             .name(entity.getName())
             .apiKey(entity.getApiKey())
             .createdAt(entity.getCreatedAt())
+            .maxDatabases(entity.getMaxDatabases())
+            .maxStorageGb(entity.getMaxStorageGb())
+            .maxComputeCu(entity.getMaxComputeCu())
             .build();
     }
 }

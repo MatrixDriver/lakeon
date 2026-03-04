@@ -84,6 +84,10 @@ class DatabaseServiceTest {
         // Setup operation log mock (lenient because not all tests trigger operations)
         lenient().when(operationLogService.startOperation(anyString(), anyString(), anyString(), any(OperationType.class)))
                 .thenReturn(new OperationLogEntity());
+
+        // Quota check: default to empty list (no existing databases)
+        lenient().when(databaseRepository.findAllByTenantId(anyString()))
+                .thenReturn(List.of());
     }
 
     // ========== UT-SVC-DB-001 ~ UT-SVC-DB-004: 创建实例 ==========
@@ -188,6 +192,12 @@ class DatabaseServiceTest {
                     .thenReturn(new NeonTenant("neon-tenant-to-rollback"));
             when(neonApiClient.createTimeline(anyString(), any()))
                     .thenReturn(new NeonTimeline("neon-timeline-main"));
+            when(databaseRepository.save(any(DatabaseEntity.class)))
+                    .thenAnswer(inv -> {
+                        DatabaseEntity entity = inv.getArgument(0);
+                        entity.setId("db_rollback");
+                        return entity;
+                    });
             when(computePodManager.createComputePod(any()))
                     .thenThrow(new RuntimeException("Insufficient resources"));
 
@@ -197,7 +207,6 @@ class DatabaseServiceTest {
 
             // 验证回滚：Neon tenant 被删除
             verify(neonApiClient).deleteTenant(eq("neon-tenant-to-rollback"));
-            verify(databaseRepository, never()).save(any());
         }
 
         @Test
@@ -407,8 +416,8 @@ class DatabaseServiceTest {
             databaseService.update(testTenant, "db_upd001", request);
 
             // Then
-            // 验证旧 Pod 被销毁，新 Pod 被创建
-            verify(computePodManager).deleteComputePod(anyString());
+            // 验证旧 Pod 被销毁（等待删除完成），新 Pod 被创建
+            verify(computePodManager).deleteComputePod(anyString(), eq(true));
             verify(computePodManager).createComputePod(any());
             ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
             verify(databaseRepository).save(captor.capture());

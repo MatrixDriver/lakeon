@@ -13,6 +13,7 @@ public class LakeonProperties {
     private ProxyConfig proxy = new ProxyConfig();
     private K8sConfig k8s = new K8sConfig();
     private DefaultsConfig defaults = new DefaultsConfig();
+    private AdminConfig admin = new AdminConfig();
 
     public NeonConfig getNeon() { return neon; }
     public void setNeon(NeonConfig neon) { this.neon = neon; }
@@ -24,6 +25,8 @@ public class LakeonProperties {
     public void setK8s(K8sConfig k8s) { this.k8s = k8s; }
     public DefaultsConfig getDefaults() { return defaults; }
     public void setDefaults(DefaultsConfig defaults) { this.defaults = defaults; }
+    public AdminConfig getAdmin() { return admin; }
+    public void setAdmin(AdminConfig admin) { this.admin = admin; }
 
     public static class NeonConfig {
         private String pageserverUrl;
@@ -72,6 +75,13 @@ public class LakeonProperties {
         public void setComputeImage(String computeImage) { this.computeImage = computeImage; }
         public List<String> getImagePullSecrets() { return imagePullSecrets; }
         public void setImagePullSecrets(List<String> imagePullSecrets) { this.imagePullSecrets = imagePullSecrets; }
+    }
+
+    public static class AdminConfig {
+        private String token;
+
+        public String getToken() { return token; }
+        public void setToken(String token) { this.token = token; }
     }
 
     public static class DefaultsConfig {

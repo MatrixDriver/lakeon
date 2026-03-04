@@ -26,6 +26,8 @@ lakeon:
     secret-key: ${LAKEON_OBS_SECRET_KEY:}
   proxy:
     internal-token: ${LAKEON_PROXY_INTERNAL_TOKEN:}
+  admin:
+    token: ${LAKEON_ADMIN_TOKEN:}
   k8s:
     namespace: ${LAKEON_K8S_NAMESPACE:lakeon-compute}
     compute-image: ${LAKEON_COMPUTE_IMAGE:ghcr.io/neondatabase/compute-node-v17:latest}

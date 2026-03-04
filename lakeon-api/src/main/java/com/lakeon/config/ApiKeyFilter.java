@@ -62,6 +62,26 @@ public class ApiKeyFilter implements Filter {
             return;
         }
 
+        // Admin API endpoints require admin token
+        if (path.startsWith("/api/v1/admin/")) {
+            String adminToken = props.getAdmin().getToken();
+            if (adminToken == null || adminToken.isBlank()) {
+                response.setStatus(403);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\":{\"code\":\"FORBIDDEN\",\"message\":\"Admin API is not configured\"}}");
+                return;
+            }
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader == null || !authHeader.equals("Bearer " + adminToken)) {
+                response.setStatus(403);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\":{\"code\":\"FORBIDDEN\",\"message\":\"Invalid admin token\"}}");
+                return;
+            }
+            chain.doFilter(req, res);
+            return;
+        }
+
         // Creating a tenant doesn't need auth
         if ("POST".equals(request.getMethod()) && "/api/v1/tenants".equals(path)) {
             chain.doFilter(req, res);

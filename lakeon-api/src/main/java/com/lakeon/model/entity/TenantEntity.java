@@ -25,6 +25,15 @@ public class TenantEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "max_databases", nullable = false)
+    private Integer maxDatabases = 3;
+
+    @Column(name = "max_storage_gb", nullable = false)
+    private Integer maxStorageGb = 50;
+
+    @Column(name = "max_compute_cu", nullable = false)
+    private Integer maxComputeCu = 4;
+
     @PrePersist
     public void prePersist() {
         if (id == null) {
@@ -91,4 +100,13 @@ public class TenantEntity {
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
     }
+
+    public Integer getMaxDatabases() { return maxDatabases; }
+    public void setMaxDatabases(Integer maxDatabases) { this.maxDatabases = maxDatabases; }
+
+    public Integer getMaxStorageGb() { return maxStorageGb; }
+    public void setMaxStorageGb(Integer maxStorageGb) { this.maxStorageGb = maxStorageGb; }
+
+    public Integer getMaxComputeCu() { return maxComputeCu; }
+    public void setMaxComputeCu(Integer maxComputeCu) { this.maxComputeCu = maxComputeCu; }
 }

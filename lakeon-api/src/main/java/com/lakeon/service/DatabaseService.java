@@ -18,6 +18,7 @@ import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.exception.ConflictException;
 import com.lakeon.service.exception.NotFoundException;
+import com.lakeon.service.exception.QuotaExceededException;
 import com.lakeon.service.exception.ServiceException;
 import com.lakeon.util.ScramUtils;
 import org.slf4j.Logger;
@@ -62,10 +63,24 @@ public class DatabaseService {
             throw new ConflictException("Database '" + request.name() + "' already exists for this tenant");
         });
 
+        // Check quota: database count
+        int currentDbCount = databaseRepository.findAllByTenantId(tenant.getId()).size();
+        if (tenant.getMaxDatabases() != null && currentDbCount >= tenant.getMaxDatabases()) {
+            throw new QuotaExceededException(
+                "Database quota exceeded: limit is " + tenant.getMaxDatabases() + ", current count is " + currentDbCount);
+        }
+
         // Apply defaults
         String computeSize = request.computeSize() != null ? request.computeSize() : props.getDefaults().getComputeSize();
         String suspendTimeout = request.suspendTimeout() != null ? request.suspendTimeout() : props.getDefaults().getSuspendTimeout();
         int storageLimitGb = request.storageLimitGb() != null ? request.storageLimitGb() : props.getDefaults().getStorageLimitGb();
+
+        // Check quota: compute size
+        int requestedCu = parseComputeUnits(computeSize);
+        if (tenant.getMaxComputeCu() != null && requestedCu > tenant.getMaxComputeCu()) {
+            throw new QuotaExceededException(
+                "Compute quota exceeded: requested " + computeSize + " but max allowed is " + tenant.getMaxComputeCu() + "cu");
+        }
 
         // Generate credentials
         String dbUser = "user_" + UUID.randomUUID().toString().substring(0, 8);
@@ -369,6 +384,16 @@ public class DatabaseService {
         StringBuilder sb = new StringBuilder();
         for (byte b : bytes) sb.append(String.format("%02x", b));
         return sb.toString();
+    }
+
+    private int parseComputeUnits(String computeSize) {
+        if (computeSize == null) return 1;
+        String num = computeSize.replaceAll("[^0-9]", "");
+        try {
+            return Integer.parseInt(num);
+        } catch (NumberFormatException e) {
+            return 1;
+        }
     }
 
     private String generatePassword() {

@@ -3,6 +3,7 @@ package com.lakeon.service;
 import com.lakeon.model.dto.CreateTenantRequest;
 import com.lakeon.model.dto.TenantResponse;
 import com.lakeon.model.entity.TenantEntity;
+import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.TenantRepository;
 import com.lakeon.service.exception.ConflictException;
 import com.lakeon.service.exception.NotFoundException;
@@ -15,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,6 +31,9 @@ class TenantServiceTest {
 
     @Mock
     private TenantRepository tenantRepository;
+
+    @Mock
+    private DatabaseRepository databaseRepository;
 
     @InjectMocks
     private TenantService tenantService;
@@ -72,6 +77,8 @@ class TenantServiceTest {
         tenant.setApiKey("api-key-xxxxx");
         when(tenantRepository.findById("tn_get001"))
                 .thenReturn(Optional.of(tenant));
+        when(databaseRepository.findAllByTenantId("tn_get001"))
+                .thenReturn(List.of());
 
         // When
         var result = tenantService.get("tn_get001");

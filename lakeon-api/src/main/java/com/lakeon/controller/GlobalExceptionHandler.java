@@ -4,6 +4,7 @@ import com.lakeon.model.dto.ErrorResponse;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.ConflictException;
 import com.lakeon.service.exception.NotFoundException;
+import com.lakeon.service.exception.QuotaExceededException;
 import com.lakeon.service.exception.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +32,12 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleBadRequest(BadRequestException e) {
         return ErrorResponse.of("BAD_REQUEST", e.getMessage());
+    }
+
+    @ExceptionHandler(QuotaExceededException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ErrorResponse handleQuotaExceeded(QuotaExceededException e) {
+        return ErrorResponse.of("QUOTA_EXCEEDED", e.getMessage());
     }
 
     @ExceptionHandler(ServiceException.class)

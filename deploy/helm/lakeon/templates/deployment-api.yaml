@@ -41,6 +41,11 @@ spec:
                 secretKeyRef:
                   name: api-credentials
                   key: proxy-token
+            - name: LAKEON_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: admin-token
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
           livenessProbe:
