@@ -29,7 +29,7 @@ lakeon/
 │       ├── values-cce.yaml
 │       ├── push-images.sh
 │       └── integration-test.sh
-└── docs/                # 设计文档和实施计划
+└── doc/                 # 设计文档、验证报告和实施计划
 ```
 
 ## 快速开始（本地部署）
@@ -85,6 +85,70 @@ curl -s -X POST http://localhost:8080/api/v1/databases \
   -d '{"name": "mydb"}' --noproxy localhost
 ```
 
+### 端到端演示（CCE）
+
+一键演示完整流程：创建租户 → 建库 → 等待计算节点 → 建表写入 10 条数据 → 查询 → 清理。
+
+```bash
+KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
+```
+
+<details>
+<summary>运行效果（点击展开）</summary>
+
+```
+── 连接 API (port-forward) ──
+✓ API 连接成功
+
+── 1. 创建租户 ──
+✓ 租户: tn_d4993013
+✓ API Key: lk_c619662802bfc6236...
+
+── 2. 创建数据库 ──
+✓ 数据库: db_3528cc68
+✓ 连接串: postgres://user_ea248906@compute-db-3528cc68.lakeon-compute:55433/demodb
+
+── 3. 等待计算节点就绪 ──
+✓ 计算节点就绪 (9s)
+
+── 4. 写入 10 条数据 ──
+✓ 建表: users
+✓ 插入 10 条记录
+
+── 5. 查询数据 ──
+
+  SELECT * FROM users:
+  ┌────┬──────┬──────────────────────────┬─────────────────────┐
+  │ ID │ 姓名 │ 邮箱                     │ 创建时间            │
+  ├────┼──────┼──────────────────────────┼─────────────────────┤
+  │  1 │ 张三 │ zhangsan@example.com     │ 2026-03-04 08:55:50 │
+  │  2 │ 李四 │ lisi@example.com         │ 2026-03-04 08:55:50 │
+  │  3 │ 王五 │ wangwu@example.com       │ 2026-03-04 08:55:50 │
+  │  4 │ 赵六 │ zhaoliu@example.com      │ 2026-03-04 08:55:50 │
+  │  5 │ 孙七 │ sunqi@example.com        │ 2026-03-04 08:55:50 │
+  │  6 │ 周八 │ zhouba@example.com       │ 2026-03-04 08:55:50 │
+  │  7 │ 吴九 │ wujiu@example.com        │ 2026-03-04 08:55:50 │
+  │  8 │ 郑十 │ zhengshi@example.com     │ 2026-03-04 08:55:50 │
+  │  9 │ 陈一 │ chenyi@example.com       │ 2026-03-04 08:55:50 │
+  │ 10 │ 林二 │ liner@example.com        │ 2026-03-04 08:55:50 │
+  └────┴──────┴──────────────────────────┴─────────────────────┘
+
+  ✓ 共 10 条记录
+
+── 6. 聚合查询 ──
+  PG 版本: PostgreSQL 17.5 on x86_64-pc-linux-gnu
+  数据库大小: 7504 kB
+  公共表数量: 2
+
+── 7. 清理 ──
+✓ 数据库已删除
+✓ 计算节点已回收
+
+═══ 演示完成 ═══
+```
+
+</details>
+
 ## 部署路线图
 
 从本地开发到华为云生产环境的渐进式部署路径：
@@ -134,6 +198,11 @@ curl -s -X POST http://localhost:8080/api/v1/databases \
 - [x] 集成测试（31/31 通过，compute 启动 ~8s）
 
 📋 [验证报告](doc/verification/stage3-cce-cluster.md)
+
+```bash
+# 快速体验：创建租户 → 建库 → 写入 10 条数据 → 查询 → 清理
+KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
+```
 
 ### 阶段 4：生产加固与用户接入
 

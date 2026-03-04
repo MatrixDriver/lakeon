@@ -38,10 +38,25 @@ echo "  JAR: $JAR"
 
 # 2. Docker 构建（使用预编译 jar，跳过容器内 Maven 下载）
 echo "[2/3] Docker 构建..."
+
+# 优先使用本地已有的 JRE 基础镜像，避免从 Docker Hub 拉取超时
+BASE_IMAGE="eclipse-temurin:17-jre"
+if ! docker image inspect "$BASE_IMAGE" &>/dev/null; then
+    echo "  本地无 $BASE_IMAGE，尝试从 SWR 拉取..."
+    SWR_BASE="swr.${SWR_REGION}.myhuaweicloud.com/${SWR_ORG}/eclipse-temurin:17-jre"
+    if docker pull "$SWR_BASE" 2>/dev/null; then
+        docker tag "$SWR_BASE" "$BASE_IMAGE"
+        echo "  已从 SWR 拉取基础镜像"
+    else
+        echo "  SWR 上无基础镜像，尝试从 Docker Hub 拉取（可能较慢）..."
+        docker pull "$BASE_IMAGE"
+    fi
+fi
+
 TMPFILE=$(mktemp /tmp/Dockerfile.lakeon-api.XXXXXX)
 trap "rm -f $TMPFILE" EXIT
-cat > "$TMPFILE" <<'DOCKERFILE'
-FROM eclipse-temurin:17-jre
+cat > "$TMPFILE" <<DOCKERFILE
+FROM ${BASE_IMAGE}
 WORKDIR /app
 COPY *.jar app.jar
 EXPOSE 8080

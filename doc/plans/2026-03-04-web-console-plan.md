@@ -8,7 +8,7 @@
 
 **Tech Stack:** Vue 3 + TypeScript + Vite + TinyPro + TinyVue + Pinia + Axios (frontend), Spring Boot 3.3.5 + JPA (backend additions)
 
-**Design Doc:** `docs/plans/2026-03-04-web-console-design.md`
+**Design Doc:** `doc/plans/2026-03-04-web-console-design.md`
 
 ---
 
