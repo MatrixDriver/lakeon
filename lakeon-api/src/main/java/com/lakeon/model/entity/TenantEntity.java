@@ -16,7 +16,7 @@ public class TenantEntity {
     @Column(name = "name", nullable = false, unique = true)
     private String name;
 
-    @Column(name = "api_key", nullable = false, unique = true, length = 64)
+    @Column(name = "api_key", nullable = false, unique = true, length = 128)
     private String apiKey;
 
     @Column(name = "created_at", nullable = false)

@@ -1,0 +1,54 @@
+{{- if .Values.metadataDb.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metadata-db
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: metadata-db
+    {{- include "lakeon.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metadata-db
+  template:
+    metadata:
+      labels:
+        app: metadata-db
+    spec:
+      containers:
+        - name: postgres
+          image: "{{ .Values.metadataDb.image.repository }}:{{ .Values.metadataDb.image.tag }}"
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.metadataDb.name | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.metadataDb.user | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: db-password
+          ports:
+            - containerPort: 5432
+              name: pg
+          resources:
+            {{- toYaml .Values.metadataDb.resources | nindent 12 }}
+          volumeMounts:
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.metadataDb.user | quote }}]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: initdb
+          configMap:
+            name: metadata-db-initdb
+        - name: data
+          emptyDir: {}
+{{- end }}

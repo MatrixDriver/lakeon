@@ -41,7 +41,8 @@ storageBroker:
 proxy:
   replicas: 2
   listenPort: 4432
-  httpPort: 7000
+  httpPort: 7100
+  mgmtPort: 7000
   authBackend: control-plane
   resources:
     requests:
@@ -67,8 +68,42 @@ obs:
   secretKey: ""
 
 metadataDb:
+  # Set enabled=true to deploy a PostgreSQL instance for metadata within the cluster
+  enabled: false
   host: ""
   port: 5432
   name: "lakeon"
   user: "lakeon"
   password: ""
+  image:
+    repository: postgres
+    tag: "15-alpine"
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+minio:
+  # Set enabled=true to deploy MinIO as S3-compatible storage within the cluster
+  enabled: false
+  image:
+    repository: minio/minio
+    tag: latest
+  mcImage:
+    repository: minio/mc
+    tag: latest
+  rootUser: "minioadmin"
+  rootPassword: "minioadmin"
+  bucket: "lakeon-neon"
+  port: 9000
+  consolePort: 9001
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"

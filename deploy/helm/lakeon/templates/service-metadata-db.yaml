@@ -1,0 +1,17 @@
+{{- if .Values.metadataDb.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: metadata-db
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: metadata-db
+    {{- include "lakeon.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: {{ .Values.metadataDb.port }}
+      targetPort: pg
+      name: pg
+  selector:
+    app: metadata-db
+{{- end }}

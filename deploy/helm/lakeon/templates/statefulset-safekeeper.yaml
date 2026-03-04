@@ -50,7 +50,7 @@ spec:
                 --listen-http=0.0.0.0:{{ .Values.safekeeper.httpPort }} \
                 --id=$SK_ID \
                 --broker-endpoint=http://storage-broker:{{ .Values.storageBroker.port }} \
-                --advertise-url=$(POD_NAME).safekeeper.{{ .Values.global.namespace }}.svc.cluster.local:{{ .Values.safekeeper.pgPort }} \
+                --advertise-pg=$(POD_NAME).safekeeper.{{ .Values.global.namespace }}.svc.cluster.local:{{ .Values.safekeeper.pgPort }} \
                 -D /data \
                 --remote-storage="{endpoint='{{ .Values.obs.endpoint }}', bucket_name='{{ .Values.obs.bucket }}', bucket_region='{{ .Values.obs.region }}', prefix_in_bucket='/safekeeper/'}"
           env:

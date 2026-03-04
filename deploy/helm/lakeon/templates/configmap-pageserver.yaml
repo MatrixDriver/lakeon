@@ -10,10 +10,14 @@ data:
     listen_pg_addr = '0.0.0.0:{{ .Values.pageserver.pgPort }}'
     listen_http_addr = '0.0.0.0:{{ .Values.pageserver.httpPort }}'
     broker_endpoint = 'http://storage-broker:{{ .Values.storageBroker.port }}'
+    control_plane_api = 'http://lakeon-api:{{ .Values.api.port }}'
     control_plane_emergency_mode = true
+    pg_distrib_dir = '/usr/local'
 
     [remote_storage]
     endpoint = '{{ .Values.obs.endpoint }}'
     bucket_name = '{{ .Values.obs.bucket }}'
     bucket_region = '{{ .Values.obs.region }}'
     prefix_in_bucket = '/pageserver'
+  identity.toml: |
+    id = 1

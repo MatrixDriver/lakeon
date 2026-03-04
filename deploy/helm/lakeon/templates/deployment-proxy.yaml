@@ -26,6 +26,7 @@ spec:
             - "--auth-backend=control-plane"
             - "--auth-endpoint=http://lakeon-api:{{ .Values.api.port }}/proxy"
             - "--wss=0.0.0.0:{{ .Values.proxy.httpPort }}"
+            - "--mgmt=127.0.0.1:{{ .Values.proxy.mgmtPort }}"
           env:
             - name: NEON_PROXY_TO_CONTROLPLANE_TOKEN
               valueFrom:

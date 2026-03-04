@@ -1,0 +1,112 @@
+{{- if .Values.minio.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: minio
+    {{- include "lakeon.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+        - name: minio
+          image: "{{ .Values.minio.image.repository }}:{{ .Values.minio.image.tag }}"
+          args:
+            - server
+            - /data
+            - "--console-address"
+            - ":{{ .Values.minio.consolePort }}"
+          env:
+            - name: MINIO_ROOT_USER
+              value: {{ .Values.minio.rootUser | quote }}
+            - name: MINIO_ROOT_PASSWORD
+              value: {{ .Values.minio.rootPassword | quote }}
+          ports:
+            - containerPort: {{ .Values.minio.port }}
+              name: api
+            - containerPort: {{ .Values.minio.consolePort }}
+              name: console
+          resources:
+            {{- toYaml .Values.minio.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: minio
+    {{- include "lakeon.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: {{ .Values.minio.port }}
+      targetPort: api
+      name: api
+    - port: {{ .Values.minio.consolePort }}
+      targetPort: console
+      name: console
+  selector:
+    app: minio
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-create-bucket
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: minio-init
+    {{- include "lakeon.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app: minio-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: "{{ .Values.minio.mcImage.repository }}:{{ .Values.minio.mcImage.tag }}"
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for MinIO to be ready..."
+              for i in $(seq 1 30); do
+                mc alias set local http://minio:{{ .Values.minio.port }} {{ .Values.minio.rootUser }} {{ .Values.minio.rootPassword }} 2>/dev/null && break
+                echo "Attempt $i: MinIO not ready, retrying in 2s..."
+                sleep 2
+              done
+              mc mb --ignore-existing local/{{ .Values.minio.bucket }}
+              echo "Bucket '{{ .Values.minio.bucket }}' ready."
+{{- end }}

@@ -16,6 +16,20 @@ spec:
       labels:
         app: pageserver
     spec:
+      initContainers:
+        - name: init-config
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              cp /config-ro/pageserver.toml /data/pageserver.toml
+              cp /config-ro/identity.toml /data/identity.toml
+          volumeMounts:
+            - name: config
+              mountPath: /config-ro
+            - name: data
+              mountPath: /data
       containers:
         - name: pageserver
           image: "{{ .Values.neon.image.repository }}:{{ .Values.neon.image.tag }}"
@@ -24,16 +38,6 @@ spec:
           args:
             - "-D"
             - "/data"
-            - "-c"
-            - "broker_endpoint='http://storage-broker:{{ .Values.storageBroker.port }}'"
-            - "-c"
-            - "listen_pg_addr='0.0.0.0:{{ .Values.pageserver.pgPort }}'"
-            - "-c"
-            - "listen_http_addr='0.0.0.0:{{ .Values.pageserver.httpPort }}'"
-            - "-c"
-            - "remote_storage={endpoint='{{ .Values.obs.endpoint }}', bucket_name='{{ .Values.obs.bucket }}', bucket_region='{{ .Values.obs.region }}', prefix_in_bucket='/pageserver'}"
-            - "-c"
-            - "control_plane_emergency_mode=true"
           env:
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
@@ -56,5 +60,8 @@ spec:
             - name: data
               mountPath: /data
       volumes:
+        - name: config
+          configMap:
+            name: pageserver-config
         - name: data
           emptyDir: {}

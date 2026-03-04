@@ -1,0 +1,65 @@
+# Local development overrides for Lakeon on Docker Desktop K8s
+# Usage: helm install lakeon deploy/helm/lakeon -f deploy/local/values-local.yaml -n lakeon
+
+safekeeper:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+
+pageserver:
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+
+proxy:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+
+api:
+  replicas: 1
+  image:
+    repository: lakeon/lakeon-api
+    tag: local
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+
+storageBroker:
+  replicas: 1
+
+# S3-compatible storage via MinIO
+obs:
+  endpoint: "http://minio:9000"
+  bucket: "lakeon-neon"
+  region: "us-east-1"
+  accessKey: "minioadmin"
+  secretKey: "minioadmin"
+
+# In-cluster metadata PostgreSQL
+metadataDb:
+  enabled: true
+  host: "metadata-db"
+  port: 5432
+  name: "lakeon"
+  user: "lakeon"
+  password: "lakeon-local-dev"
+
+# In-cluster MinIO
+minio:
+  enabled: true
+  rootUser: "minioadmin"
+  rootPassword: "minioadmin"
+  bucket: "lakeon-neon"

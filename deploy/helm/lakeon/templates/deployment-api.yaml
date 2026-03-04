@@ -16,6 +16,7 @@ spec:
       labels:
         app: lakeon-api
     spec:
+      serviceAccountName: lakeon-api
       containers:
         - name: lakeon-api
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
@@ -26,12 +27,12 @@ spec:
             - configMapRef:
                 name: lakeon-api-config
           env:
-            - name: SPRING_DATASOURCE_PASSWORD
+            - name: LAKEON_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: api-credentials
                   key: db-password
-            - name: LAKEON_PROXY_TOKEN
+            - name: LAKEON_PROXY_INTERNAL_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: api-credentials

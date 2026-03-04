@@ -10,6 +10,7 @@ import com.lakeon.neon.dto.NeonTimeline;
 import com.lakeon.neon.exception.NeonApiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
@@ -33,6 +34,7 @@ public class NeonApiClient {
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
     private static final int MAX_RETRIES = 2;
 
+    @Autowired
     public NeonApiClient(LakeonProperties props) {
         this(props.getNeon().getPageserverUrl());
     }

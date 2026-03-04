@@ -101,11 +101,15 @@ public class DatabaseService {
         entity.setDbUser(dbUser);
         entity.setDbPassword(scramHash);
 
+        // Save entity first to generate ID (needed by computePodManager)
+        entity = databaseRepository.save(entity);
+
         String computeAddress;
         try {
             computeAddress = computePodManager.createComputePod(entity);
         } catch (Exception e) {
             // Rollback
+            databaseRepository.delete(entity);
             try { neonApiClient.deleteTenant(neonTenant.getId()); } catch (Exception rollbackEx) {
                 log.warn("Failed to rollback Neon tenant {}: {}", neonTenant.getId(), rollbackEx.getMessage());
             }

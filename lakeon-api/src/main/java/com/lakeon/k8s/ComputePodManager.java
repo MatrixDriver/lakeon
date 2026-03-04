@@ -72,10 +72,11 @@ public class ComputePodManager {
                     .withCommand("/usr/local/bin/compute_ctl")
                     .withArgs(
                         "--pgdata", "/var/db/postgres/compute",
-                        "-C", "postgresql://" + entity.getDbUser() + "@localhost:55433/postgres",
+                        "-C", "postgresql://cloud_admin@localhost:55433/postgres",
                         "-b", "/usr/local/bin/postgres",
                         "--compute-id", podName,
-                        "--config", "/config/config.json"
+                        "--config", "/config/config.json",
+                        "--dev"
                     )
                     .addNewPort()
                         .withContainerPort(55433)
@@ -209,13 +210,15 @@ public class ComputePodManager {
 
     private String generateComputeConfig(DatabaseEntity entity) {
         Map<String, Object> spec = new LinkedHashMap<>();
-        spec.put("format_version", 1.0);
+        spec.put("format_version", 2);
         spec.put("operation_uuid", UUID.randomUUID().toString());
         spec.put("tenant_id", entity.getNeonTenantId());
         spec.put("timeline_id", entity.getNeonTimelineId());
-        spec.put("pageserver_connstring", "postgresql://" + extractPageserverHost() + ":6400");
+        String pageserverFqdn = extractPageserverHost() + ".lakeon.svc.cluster.local";
+        spec.put("pageserver_connstring", "postgresql://" + pageserverFqdn + ":6400");
         spec.put("safekeeper_connstrings", parseSafekeeperUrls());
         spec.put("mode", "Primary");
+        spec.put("suspend_timeout_seconds", 300);
 
         Map<String, Object> cluster = new LinkedHashMap<>();
         cluster.put("cluster_id", "lakeon_" + entity.getId());
@@ -229,12 +232,12 @@ public class ComputePodManager {
             "name", entity.getName(),
             "owner", entity.getDbUser() != null ? entity.getDbUser() : "lakeon"
         )));
-        cluster.put("settings", getDefaultPgSettings());
+        cluster.put("settings", getDefaultPgSettings(entity));
         spec.put("cluster", cluster);
 
         Map<String, Object> config = Map.of(
             "spec", spec,
-            "compute_ctl_config", Map.of()
+            "compute_ctl_config", Map.of("jwks", Map.of("keys", List.of()))
         );
         try {
             return objectMapper.writeValueAsString(config);
@@ -254,16 +257,22 @@ public class ComputePodManager {
         return Arrays.asList(urls.split(","));
     }
 
-    private List<Map<String, String>> getDefaultPgSettings() {
-        return List.of(
-            Map.of("name", "fsync", "value", "off", "vartype", "bool"),
-            Map.of("name", "wal_level", "value", "logical", "vartype", "enum"),
-            Map.of("name", "wal_log_hints", "value", "on", "vartype", "bool"),
-            Map.of("name", "log_connections", "value", "on", "vartype", "bool"),
-            Map.of("name", "port", "value", "55433", "vartype", "integer"),
-            Map.of("name", "shared_buffers", "value", "128MB", "vartype", "string"),
-            Map.of("name", "max_connections", "value", "100", "vartype", "integer"),
-            Map.of("name", "listen_addresses", "value", "0.0.0.0", "vartype", "string")
-        );
+    private List<Map<String, String>> getDefaultPgSettings(DatabaseEntity entity) {
+        String pageserverFqdn = extractPageserverHost() + ".lakeon.svc.cluster.local";
+        List<Map<String, String>> settings = new ArrayList<>();
+        settings.add(Map.of("name", "shared_preload_libraries", "value", "neon", "vartype", "string"));
+        settings.add(Map.of("name", "fsync", "value", "off", "vartype", "bool"));
+        settings.add(Map.of("name", "wal_level", "value", "logical", "vartype", "enum"));
+        settings.add(Map.of("name", "wal_log_hints", "value", "on", "vartype", "bool"));
+        settings.add(Map.of("name", "log_connections", "value", "on", "vartype", "bool"));
+        settings.add(Map.of("name", "port", "value", "55433", "vartype", "integer"));
+        settings.add(Map.of("name", "shared_buffers", "value", "128MB", "vartype", "string"));
+        settings.add(Map.of("name", "max_connections", "value", "100", "vartype", "integer"));
+        settings.add(Map.of("name", "listen_addresses", "value", "0.0.0.0", "vartype", "string"));
+        settings.add(Map.of("name", "neon.pageserver_connstring", "value", "postgresql://pageserver." + "lakeon.svc.cluster.local:6400", "vartype", "string"));
+        settings.add(Map.of("name", "neon.safekeepers", "value", props.getNeon().getSafekeeperUrls(), "vartype", "string"));
+        settings.add(Map.of("name", "neon.tenant_id", "value", entity.getNeonTenantId(), "vartype", "string"));
+        settings.add(Map.of("name", "neon.timeline_id", "value", entity.getNeonTimelineId(), "vartype", "string"));
+        return settings;
     }
 }
