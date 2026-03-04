@@ -40,9 +40,10 @@ neon:
 api:
   replicas: 1
   serviceType: NodePort
+  adminToken: "lakeon-sre-2026"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/lakeon/lakeon-api
-    tag: "0.1.5"
+    tag: "0.1.6"
   resources:
     requests:
       cpu: "100m"
@@ -77,6 +78,11 @@ storageBroker:
 
 proxy:
   replicas: 1
+  externalHost: "114.116.210.49"
+  serviceType: LoadBalancer
+  elb:
+    id: "d7302838-97f5-422c-b1fb-e9daa7f90383"
+    class: "union"
   resources:
     requests:
       cpu: "50m"

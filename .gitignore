@@ -27,3 +27,4 @@ lakeon-cli/.venv/
 # Frontend
 lakeon-console/node_modules/
 lakeon-console/dist/
+.env.cce
