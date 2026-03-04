@@ -13,6 +13,8 @@ client.interceptors.request.use((config) => {
   return config
 })
 
+// Use localStorage directly instead of Pinia store to avoid circular dependency
+// (auth store imports client, client cannot import auth store)
 client.interceptors.response.use(
   (response) => response,
   (error) => {

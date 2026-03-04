@@ -25,6 +25,12 @@ public class TenantController {
         return tenantService.create(request);
     }
 
+    @GetMapping("/me")
+    public TenantResponse getCurrentTenant(HttpServletRequest req) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return tenantService.get(tenant.getId());
+    }
+
     @GetMapping("/{tenantId}")
     public TenantResponse getTenant(@PathVariable String tenantId) {
         return tenantService.get(tenantId);

@@ -158,12 +158,11 @@
         <div class="tab-toolbar">
           <select v-model="opTypeFilter" class="form-select filter-select" @change="fetchOperations">
             <option value="">全部操作</option>
-            <option value="CREATE_DATABASE">创建数据库</option>
-            <option value="DELETE_DATABASE">删除数据库</option>
-            <option value="SUSPEND_DATABASE">挂起</option>
-            <option value="RESUME_DATABASE">恢复</option>
-            <option value="CREATE_BRANCH">创建分支</option>
-            <option value="DELETE_BRANCH">删除分支</option>
+            <option value="CREATE">创建</option>
+            <option value="SUSPEND">挂起</option>
+            <option value="RESUME">恢复</option>
+            <option value="DELETE">删除</option>
+            <option value="UPDATE">更新</option>
           </select>
         </div>
         <table class="data-table" v-if="operations.length > 0">

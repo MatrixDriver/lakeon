@@ -9,11 +9,17 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(key: string): Promise<boolean> {
     try {
-      await client.get('/databases', {
+      // Validate key by fetching current tenant info
+      const res = await client.get('/tenants/me', {
         headers: { Authorization: `Bearer ${key}` },
       })
       apiKey.value = key
       localStorage.setItem('lakeon_api_key', key)
+      // Populate tenant info from response
+      const tenant = res.data
+      if (tenant?.id) {
+        setTenant(tenant.id, tenant.name || '')
+      }
       return true
     } catch {
       return false
