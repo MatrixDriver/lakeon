@@ -1,0 +1,37 @@
+import { createRouter, createWebHistory } from 'vue-router'
+
+const routes = [
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('../views/login/LoginView.vue'),
+    meta: { noAuth: true },
+  },
+  {
+    path: '/',
+    component: () => import('../layouts/ConsoleLayout.vue'),
+    children: [
+      { path: '', redirect: '/dashboard' },
+      { path: 'dashboard', name: 'Dashboard', component: () => import('../views/dashboard/DashboardView.vue') },
+      { path: 'databases', name: 'DatabaseList', component: () => import('../views/database/DatabaseList.vue') },
+      { path: 'databases/:id', name: 'DatabaseDetail', component: () => import('../views/database/DatabaseDetail.vue') },
+      { path: 'apikey', name: 'ApiKey', component: () => import('../views/apikey/ApiKeyView.vue') },
+    ],
+  },
+]
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+})
+
+router.beforeEach((to) => {
+  if (!to.meta.noAuth) {
+    const apiKey = localStorage.getItem('lakeon_api_key')
+    if (!apiKey) {
+      return '/login'
+    }
+  }
+})
+
+export default router
