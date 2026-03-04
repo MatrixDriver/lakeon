@@ -12,6 +12,9 @@ spec:
     - port: {{ .Values.console.port }}
       targetPort: {{ .Values.console.port }}
       protocol: TCP
+      {{- if and (eq .Values.console.serviceType "NodePort") .Values.console.nodePort }}
+      nodePort: {{ .Values.console.nodePort }}
+      {{- end }}
   selector:
     app: lakeon-console
 {{- end }}

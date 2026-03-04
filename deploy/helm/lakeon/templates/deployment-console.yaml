@@ -17,6 +17,10 @@ spec:
       labels:
         app: lakeon-console
     spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: console
           image: "{{ .Values.console.image.repository }}:{{ .Values.console.image.tag }}"

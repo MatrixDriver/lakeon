@@ -123,6 +123,7 @@ console:
   replicas: 1
   port: 80
   serviceType: ClusterIP
+  nodePort: ""
   resources:
     requests:
       cpu: "100m"
