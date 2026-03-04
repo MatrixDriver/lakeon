@@ -5,9 +5,11 @@ import com.lakeon.k8s.ComputePodManager;
 import com.lakeon.model.dto.*;
 import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.model.entity.OperationLogEntity;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.model.enums.BranchStatus;
 import com.lakeon.model.enums.DatabaseStatus;
+import com.lakeon.model.enums.OperationType;
 import com.lakeon.neon.NeonApiClient;
 import com.lakeon.neon.dto.NeonTenant;
 import com.lakeon.neon.dto.NeonTimeline;
@@ -37,17 +39,20 @@ public class DatabaseService {
     private final NeonApiClient neonApiClient;
     private final ComputePodManager computePodManager;
     private final LakeonProperties props;
+    private final OperationLogService operationLogService;
 
     public DatabaseService(DatabaseRepository databaseRepository,
                            BranchRepository branchRepository,
                            NeonApiClient neonApiClient,
                            ComputePodManager computePodManager,
-                           LakeonProperties props) {
+                           LakeonProperties props,
+                           OperationLogService operationLogService) {
         this.databaseRepository = databaseRepository;
         this.branchRepository = branchRepository;
         this.neonApiClient = neonApiClient;
         this.computePodManager = computePodManager;
         this.props = props;
+        this.operationLogService = operationLogService;
     }
 
     @Transactional
@@ -114,38 +119,47 @@ public class DatabaseService {
         // Save entity first to generate ID (needed by computePodManager)
         entity = databaseRepository.save(entity);
 
-        String computeAddress;
+        // Start operation log after entity has its generated ID
+        OperationLogEntity opLog = operationLogService.startOperation(
+                entity.getId(), entity.getTenantId(), entity.getName(), OperationType.CREATE);
         try {
-            computeAddress = computePodManager.createComputePod(entity);
-        } catch (Exception e) {
-            // Rollback
-            databaseRepository.delete(entity);
-            try { neonApiClient.deleteTenant(neonTenant.getId()); } catch (Exception rollbackEx) {
-                log.warn("Failed to rollback Neon tenant {}: {}", neonTenant.getId(), rollbackEx.getMessage());
+            String computeAddress;
+            try {
+                computeAddress = computePodManager.createComputePod(entity);
+            } catch (Exception e) {
+                // Rollback
+                databaseRepository.delete(entity);
+                try { neonApiClient.deleteTenant(neonTenant.getId()); } catch (Exception rollbackEx) {
+                    log.warn("Failed to rollback Neon tenant {}: {}", neonTenant.getId(), rollbackEx.getMessage());
+                }
+                throw new ServiceException("Failed to create compute Pod: " + e.getMessage(), e);
             }
-            throw new ServiceException("Failed to create compute Pod: " + e.getMessage(), e);
+
+            // Build connection URI without password (password-safe for storage)
+            String proxyHost = computeAddress.split(":")[0];
+            String connectionUriSafe = "postgres://" + dbUser + "@" + computeAddress + "/" + request.name();
+            entity.setConnectionUri(connectionUriSafe);
+            entity.setStatus(DatabaseStatus.CREATING);
+            entity = databaseRepository.save(entity);
+
+            // Create default branch
+            BranchEntity mainBranch = new BranchEntity();
+            mainBranch.setName("main");
+            mainBranch.setDatabaseId(entity.getId());
+            mainBranch.setNeonTimelineId(neonTimeline.getTimelineId());
+            mainBranch.setIsDefault(true);
+            mainBranch.setStatus(BranchStatus.ACTIVE);
+            branchRepository.save(mainBranch);
+
+            // Return response with password included ONLY on creation
+            DatabaseResponse response = toResponse(entity, List.of(mainBranch));
+            response.setPassword(rawPassword);
+            operationLogService.completeOperation(opLog, null);
+            return response;
+        } catch (Exception e) {
+            operationLogService.completeOperation(opLog, e.getMessage());
+            throw e;
         }
-
-        // Build connection URI without password (password-safe for storage)
-        String proxyHost = computeAddress.split(":")[0];
-        String connectionUriSafe = "postgres://" + dbUser + "@" + computeAddress + "/" + request.name();
-        entity.setConnectionUri(connectionUriSafe);
-        entity.setStatus(DatabaseStatus.CREATING);
-        entity = databaseRepository.save(entity);
-
-        // Create default branch
-        BranchEntity mainBranch = new BranchEntity();
-        mainBranch.setName("main");
-        mainBranch.setDatabaseId(entity.getId());
-        mainBranch.setNeonTimelineId(neonTimeline.getTimelineId());
-        mainBranch.setIsDefault(true);
-        mainBranch.setStatus(BranchStatus.ACTIVE);
-        branchRepository.save(mainBranch);
-
-        // Return response with password included ONLY on creation
-        DatabaseResponse response = toResponse(entity, List.of(mainBranch));
-        response.setPassword(rawPassword);
-        return response;
     }
 
     public DatabaseResponse get(TenantEntity tenant, String dbId) {
@@ -169,30 +183,38 @@ public class DatabaseService {
         DatabaseEntity entity = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
             .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
 
-        boolean needsRestart = false;
+        OperationLogEntity opLog = operationLogService.startOperation(
+                entity.getId(), entity.getTenantId(), entity.getName(), OperationType.UPDATE);
+        try {
+            boolean needsRestart = false;
 
-        if (request.computeSize() != null && !request.computeSize().equals(entity.getComputeSize())) {
-            entity.setComputeSize(request.computeSize());
-            needsRestart = true;
-        }
-        if (request.suspendTimeout() != null) {
-            entity.setSuspendTimeout(request.suspendTimeout());
-        }
-        if (request.storageLimitGb() != null) {
-            entity.setStorageLimitGb(request.storageLimitGb());
-        }
-
-        if (needsRestart && entity.getStatus() == DatabaseStatus.RUNNING) {
-            // Restart compute with new config
-            if (entity.getComputePodName() != null) {
-                computePodManager.deleteComputePod(entity.getComputePodName());
+            if (request.computeSize() != null && !request.computeSize().equals(entity.getComputeSize())) {
+                entity.setComputeSize(request.computeSize());
+                needsRestart = true;
             }
-            computePodManager.createComputePod(entity);
-        }
+            if (request.suspendTimeout() != null) {
+                entity.setSuspendTimeout(request.suspendTimeout());
+            }
+            if (request.storageLimitGb() != null) {
+                entity.setStorageLimitGb(request.storageLimitGb());
+            }
 
-        entity = databaseRepository.save(entity);
-        List<BranchEntity> branches = branchRepository.findAllByDatabaseId(dbId);
-        return toResponse(entity, branches);
+            if (needsRestart && entity.getStatus() == DatabaseStatus.RUNNING) {
+                // Restart compute with new config
+                if (entity.getComputePodName() != null) {
+                    computePodManager.deleteComputePod(entity.getComputePodName());
+                }
+                computePodManager.createComputePod(entity);
+            }
+
+            entity = databaseRepository.save(entity);
+            List<BranchEntity> branches = branchRepository.findAllByDatabaseId(dbId);
+            operationLogService.completeOperation(opLog, null);
+            return toResponse(entity, branches);
+        } catch (Exception e) {
+            operationLogService.completeOperation(opLog, e.getMessage());
+            throw e;
+        }
     }
 
     @Transactional
@@ -200,45 +222,53 @@ public class DatabaseService {
         DatabaseEntity entity = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
             .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
 
-        // Delete all branches' compute pods and timelines (best-effort cleanup)
-        List<BranchEntity> branches = branchRepository.findAllByDatabaseId(dbId);
-        for (BranchEntity branch : branches) {
+        OperationLogEntity opLog = operationLogService.startOperation(
+                entity.getId(), entity.getTenantId(), entity.getName(), OperationType.DELETE);
+        try {
+            // Delete all branches' compute pods and timelines (best-effort cleanup)
+            List<BranchEntity> branches = branchRepository.findAllByDatabaseId(dbId);
+            for (BranchEntity branch : branches) {
+                try {
+                    if (branch.getComputePodName() != null) {
+                        computePodManager.deleteComputePod(branch.getComputePodName());
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to delete compute pod for branch {}: {}", branch.getId(), e.getMessage());
+                }
+                try {
+                    if (branch.getNeonTimelineId() != null) {
+                        neonApiClient.deleteTimeline(entity.getNeonTenantId(), branch.getNeonTimelineId());
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to delete timeline for branch {}: {}", branch.getId(), e.getMessage());
+                }
+                branchRepository.delete(branch);
+            }
+
+            // Delete main compute pod
             try {
-                if (branch.getComputePodName() != null) {
-                    computePodManager.deleteComputePod(branch.getComputePodName());
+                if (entity.getComputePodName() != null) {
+                    computePodManager.deleteComputePod(entity.getComputePodName());
                 }
             } catch (Exception e) {
-                log.warn("Failed to delete compute pod for branch {}: {}", branch.getId(), e.getMessage());
+                log.warn("Failed to delete main compute pod for database {}: {}", dbId, e.getMessage());
             }
+
+            // Delete Neon tenant
             try {
-                if (branch.getNeonTimelineId() != null) {
-                    neonApiClient.deleteTimeline(entity.getNeonTenantId(), branch.getNeonTimelineId());
+                if (entity.getNeonTenantId() != null) {
+                    neonApiClient.deleteTenant(entity.getNeonTenantId());
                 }
             } catch (Exception e) {
-                log.warn("Failed to delete timeline for branch {}: {}", branch.getId(), e.getMessage());
+                log.warn("Failed to delete Neon tenant for database {}: {}", dbId, e.getMessage());
             }
-            branchRepository.delete(branch);
-        }
 
-        // Delete main compute pod
-        try {
-            if (entity.getComputePodName() != null) {
-                computePodManager.deleteComputePod(entity.getComputePodName());
-            }
+            databaseRepository.delete(entity);
+            operationLogService.completeOperation(opLog, null);
         } catch (Exception e) {
-            log.warn("Failed to delete main compute pod for database {}: {}", dbId, e.getMessage());
+            operationLogService.completeOperation(opLog, e.getMessage());
+            throw e;
         }
-
-        // Delete Neon tenant
-        try {
-            if (entity.getNeonTenantId() != null) {
-                neonApiClient.deleteTenant(entity.getNeonTenantId());
-            }
-        } catch (Exception e) {
-            log.warn("Failed to delete Neon tenant for database {}: {}", dbId, e.getMessage());
-        }
-
-        databaseRepository.delete(entity);
     }
 
     @Transactional
@@ -250,14 +280,22 @@ public class DatabaseService {
             return; // Already suspended
         }
 
-        if (entity.getComputePodName() != null) {
-            computePodManager.deleteComputePod(entity.getComputePodName());
+        OperationLogEntity opLog = operationLogService.startOperation(
+                entity.getId(), entity.getTenantId(), entity.getName(), OperationType.SUSPEND);
+        try {
+            if (entity.getComputePodName() != null) {
+                computePodManager.deleteComputePod(entity.getComputePodName());
+            }
+            entity.setStatus(DatabaseStatus.SUSPENDED);
+            entity.setComputePodName(null);
+            entity.setComputeHost(null);
+            entity.setComputePort(null);
+            databaseRepository.save(entity);
+            operationLogService.completeOperation(opLog, null);
+        } catch (Exception e) {
+            operationLogService.completeOperation(opLog, e.getMessage());
+            throw e;
         }
-        entity.setStatus(DatabaseStatus.SUSPENDED);
-        entity.setComputePodName(null);
-        entity.setComputeHost(null);
-        entity.setComputePort(null);
-        databaseRepository.save(entity);
     }
 
     @Transactional
@@ -269,10 +307,18 @@ public class DatabaseService {
             return; // Already running, idempotent
         }
 
-        computePodManager.createComputePod(entity);
-        entity.setStatus(DatabaseStatus.RUNNING);
-        entity.setLastActiveAt(Instant.now());
-        databaseRepository.save(entity);
+        OperationLogEntity opLog = operationLogService.startOperation(
+                entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME);
+        try {
+            computePodManager.createComputePod(entity);
+            entity.setStatus(DatabaseStatus.RUNNING);
+            entity.setLastActiveAt(Instant.now());
+            databaseRepository.save(entity);
+            operationLogService.completeOperation(opLog, null);
+        } catch (Exception e) {
+            operationLogService.completeOperation(opLog, e.getMessage());
+            throw e;
+        }
     }
 
     /**

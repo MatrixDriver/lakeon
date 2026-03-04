@@ -14,6 +14,8 @@ import com.lakeon.neon.dto.NeonTenant;
 import com.lakeon.neon.dto.NeonTimeline;
 import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
+import com.lakeon.model.entity.OperationLogEntity;
+import com.lakeon.model.enums.OperationType;
 import com.lakeon.service.exception.ConflictException;
 import com.lakeon.service.exception.NotFoundException;
 import com.lakeon.service.exception.ServiceException;
@@ -58,6 +60,9 @@ class DatabaseServiceTest {
     @Mock
     private LakeonProperties props;
 
+    @Mock
+    private OperationLogService operationLogService;
+
     @InjectMocks
     private DatabaseService databaseService;
 
@@ -75,6 +80,10 @@ class DatabaseServiceTest {
         defaults.setSuspendTimeout("5m");
         defaults.setStorageLimitGb(10);
         lenient().when(props.getDefaults()).thenReturn(defaults);
+
+        // Setup operation log mock (lenient because not all tests trigger operations)
+        lenient().when(operationLogService.startOperation(anyString(), anyString(), anyString(), any(OperationType.class)))
+                .thenReturn(new OperationLogEntity());
     }
 
     // ========== UT-SVC-DB-001 ~ UT-SVC-DB-004: 创建实例 ==========
