@@ -14,6 +14,7 @@ public class LakeonProperties {
     private K8sConfig k8s = new K8sConfig();
     private DefaultsConfig defaults = new DefaultsConfig();
     private AdminConfig admin = new AdminConfig();
+    private CostConfig cost = new CostConfig();
 
     public NeonConfig getNeon() { return neon; }
     public void setNeon(NeonConfig neon) { this.neon = neon; }
@@ -27,6 +28,8 @@ public class LakeonProperties {
     public void setDefaults(DefaultsConfig defaults) { this.defaults = defaults; }
     public AdminConfig getAdmin() { return admin; }
     public void setAdmin(AdminConfig admin) { this.admin = admin; }
+    public CostConfig getCost() { return cost; }
+    public void setCost(CostConfig cost) { this.cost = cost; }
 
     public static class NeonConfig {
         private String pageserverUrl;
@@ -82,6 +85,31 @@ public class LakeonProperties {
 
         public String getToken() { return token; }
         public void setToken(String token) { this.token = token; }
+    }
+
+    public static class CostConfig {
+        private double cceNodeHourly = 1.5;
+        private int cceNodeCount = 3;
+        private double elbMonthly = 30;
+        private double obsPerGbMonthly = 0.099;
+        private double rdsMonthly = 500;
+        private double eipMonthly = 150;
+        private double computeCuHourly = 0.5;
+
+        public double getCceNodeHourly() { return cceNodeHourly; }
+        public void setCceNodeHourly(double v) { this.cceNodeHourly = v; }
+        public int getCceNodeCount() { return cceNodeCount; }
+        public void setCceNodeCount(int v) { this.cceNodeCount = v; }
+        public double getElbMonthly() { return elbMonthly; }
+        public void setElbMonthly(double v) { this.elbMonthly = v; }
+        public double getObsPerGbMonthly() { return obsPerGbMonthly; }
+        public void setObsPerGbMonthly(double v) { this.obsPerGbMonthly = v; }
+        public double getRdsMonthly() { return rdsMonthly; }
+        public void setRdsMonthly(double v) { this.rdsMonthly = v; }
+        public double getEipMonthly() { return eipMonthly; }
+        public void setEipMonthly(double v) { this.eipMonthly = v; }
+        public double getComputeCuHourly() { return computeCuHourly; }
+        public void setComputeCuHourly(double v) { this.computeCuHourly = v; }
     }
 
     public static class DefaultsConfig {

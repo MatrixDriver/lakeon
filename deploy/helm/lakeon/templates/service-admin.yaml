@@ -1,0 +1,25 @@
+{{- if .Values.admin.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: lakeon-admin
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+  {{- if .Values.admin.elb }}
+  annotations:
+    kubernetes.io/elb.id: {{ .Values.admin.elb.id | quote }}
+    kubernetes.io/elb.class: {{ .Values.admin.elb.class | default "union" | quote }}
+  {{- end }}
+spec:
+  type: {{ .Values.admin.serviceType }}
+  ports:
+    - port: {{ .Values.admin.port }}
+      targetPort: {{ .Values.admin.port }}
+      protocol: TCP
+      {{- if and (eq .Values.admin.serviceType "NodePort") .Values.admin.nodePort }}
+      nodePort: {{ .Values.admin.nodePort }}
+      {{- end }}
+  selector:
+    app: lakeon-admin
+{{- end }}

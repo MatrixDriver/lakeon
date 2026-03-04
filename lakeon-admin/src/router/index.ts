@@ -1,0 +1,39 @@
+import { createRouter, createWebHistory } from 'vue-router'
+
+const routes = [
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('../views/login/LoginView.vue'),
+    meta: { noAuth: true },
+  },
+  {
+    path: '/',
+    component: () => import('../layouts/AdminLayout.vue'),
+    children: [
+      { path: '', redirect: '/dashboard' },
+      { path: 'dashboard', name: 'Dashboard', component: () => import('../views/dashboard/DashboardView.vue') },
+      { path: 'tenants', name: 'TenantList', component: () => import('../views/tenants/TenantList.vue') },
+      { path: 'databases', name: 'DatabaseList', component: () => import('../views/databases/DatabaseList.vue') },
+      { path: 'operations', name: 'OperationList', component: () => import('../views/operations/OperationList.vue') },
+      { path: 'system', name: 'SystemHealth', component: () => import('../views/system/SystemHealth.vue') },
+      { path: 'cost', name: 'CostView', component: () => import('../views/cost/CostView.vue') },
+    ],
+  },
+]
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+})
+
+router.beforeEach((to) => {
+  if (!to.meta.noAuth) {
+    const token = localStorage.getItem('lakeon_admin_token')
+    if (!token) {
+      return '/login'
+    }
+  }
+})
+
+export default router

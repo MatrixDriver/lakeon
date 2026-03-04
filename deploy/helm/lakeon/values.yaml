@@ -116,6 +116,23 @@ minio:
       cpu: "500m"
       memory: "512Mi"
 
+admin:
+  enabled: false
+  image:
+    repository: lakeon/lakeon-admin
+    tag: "0.1.0"
+  replicas: 1
+  port: 80
+  serviceType: ClusterIP
+  nodePort: ""
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+
 console:
   enabled: false
   image:

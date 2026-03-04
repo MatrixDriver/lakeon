@@ -103,6 +103,24 @@ metadataDb:
   user: "lakeon"
   password: ""      # --set metadataDb.password=$RDS_PASSWORD
 
+# ── SRE 运维控制台 ────────────────────────────────────────────
+admin:
+  enabled: true
+  image:
+    repository: swr.cn-north-4.myhuaweicloud.com/lakeon/lakeon-admin
+    tag: "0.1.0"
+  replicas: 1
+  port: 80
+  serviceType: NodePort
+  nodePort: 30081
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+
 # ── Web 控制台 ─────────────────────────────────────────────────
 console:
   enabled: true

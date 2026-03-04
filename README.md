@@ -221,7 +221,10 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [x] 用户注册与 API Key 自助管理
   - 登录页注册标签，自助创建租户并获取 API Key
   - API Key 重新生成（旧 Key 立即失效）
-- [ ] 资源配额（每租户数据库数量、CPU / 存储上限）
+- [x] 资源配额（每租户数据库数量、CPU / 存储上限）
+  - 租户级配额字段（max_databases / max_storage_gb / max_compute_cu）
+  - 数据库创建时自动检查配额，超限返回 403
+  - Admin API（`/api/v1/admin/`）+ Admin Token 认证
 - [ ] API 限流与错误重试策略
 - [ ] 华为云 IAM 集成（单点登录，替代 API Key 登录）
 
@@ -230,7 +233,33 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [x] 用户文档（psql / JDBC / Python / Java / Go 连接示例 + FAQ）
 - [ ] 用量计量（为后续计费做准备）
 
-### 阶段 5：CCE Autopilot 兼容性验证
+### 阶段 5：SRE 运维控制台
+
+独立部署的管理控制台（`lakeon-admin`），供 SRE/管理员监控和管理 Lakeon 云服务。
+
+📋 [设计文档](doc/plans/2026-03-04-sre-admin-design.md)
+
+#### 后端 Admin API
+- [ ] 全局数据库列表（跨租户）
+- [ ] 系统组件健康检查（pageserver / safekeeper / proxy / OBS / RDS）
+- [ ] 全局操作审计日志（跨租户筛选）
+- [ ] 成本估算 API（基于资源单价 + 用量自行计算）
+- [ ] 租户禁用/启用
+- [ ] 唤醒延迟统计（P50/P90/P99）
+
+#### 前端控制台
+- [ ] 总览仪表盘（租户/实例统计、操作统计、成本预估、组件状态灯）
+- [ ] 租户管理（列表、配额调整、启用/禁用）
+- [ ] 数据库实例监控（全局列表、compute Pod 状态）
+- [ ] 操作审计日志（全局、筛选、分页）
+- [ ] 系统组件健康（连通性检查、资源用量）
+- [ ] 成本监控（按资源拆分、按租户分摊、趋势图）
+
+#### 部署
+- [ ] Docker 多阶段构建 + Helm Chart
+- [ ] CCE 部署（内部 ELB，不对外公开）
+
+### 阶段 6：CCE Autopilot 兼容性验证
 
 在 Autopilot 测试集群上验证全组件部署，为后续阶段的平台选型提供依据。
 
@@ -241,9 +270,9 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [ ] 确认 ICAgent / AOM 等可观测性组件在 Autopilot 上的安装方式
 - [ ] 输出评估结论：后续阶段使用 Autopilot 还是普通 CCE
 
-### 阶段 6：华为云可观测性与运维
+### 阶段 7：华为云可观测性与运维
 
-对接华为云原生运维服务，替代自建 Prometheus / Grafana 方案。基于阶段 5 结论选择部署平台。
+对接华为云原生运维服务，替代自建 Prometheus / Grafana 方案。基于阶段 6 结论选择部署平台。
 
 #### 日志（LTS 云日志服务）
 - [ ] 添加 logback-spring.xml，输出 JSON 结构化日志
@@ -269,26 +298,26 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [ ] OBS 存储容量和请求量监控
 - [ ] RDS 连接数和慢查询监控
 
-### 阶段 7：计算节点弹性唤醒优化
+### 阶段 8：计算节点弹性唤醒优化
 
-从 ~10s 唤醒延迟优化到亚秒级。依赖阶段 6 的可观测性基础来量化优化效果。
+从 ~10s 唤醒延迟优化到亚秒级。依赖阶段 7 的可观测性基础来量化优化效果。
 
 📋 [技术方案](doc/compute-wakeup-optimization.md)
 
-#### 7a：Pod 保留 + 进程冻结（目标 500ms-1s）
+#### 8a：Pod 保留 + 进程冻结（目标 500ms-1s）
 - [ ] 验证 compute_ctl HTTP API（停止/重启 PG 进程）
 - [ ] suspend 改为停进程而非删 Pod
 - [ ] resume 检测 Pod 存在性，原地重启 PG
 - [ ] 分层超时回收（短期保留 → 长期销毁）
 - [ ] Readiness Probe 调优（initialDelay 5s→1s）
 
-#### 7b：Warm Pool 预热池（目标 200-500ms）
+#### 8b：Warm Pool 预热池（目标 200-500ms）
 - [ ] 验证 compute_ctl 动态绑定 tenant/timeline API
 - [ ] 实现 WarmPoolManager（池创建/分配/补充）
 - [ ] Cold 路径唤醒改为从预热池分配
 - [ ] 池大小自适应策略 + 监控指标
 
-#### 7c：Proxy 连接缓冲
+#### 8c：Proxy 连接缓冲
 - [ ] Proxy 唤醒逻辑改为异步，连接立即成功
 - [ ] 首条 SQL 等待 compute 就绪后透明转发
 

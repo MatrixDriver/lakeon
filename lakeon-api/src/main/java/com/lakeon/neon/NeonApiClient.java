@@ -248,6 +248,29 @@ public class NeonApiClient {
      * Get tenant info.
      * GET /v1/tenant/{tenant_id}
      */
+    /**
+     * Check pageserver status.
+     * GET /v1/status
+     */
+    public Map<String, Object> getStatus() {
+        try {
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/v1/status"))
+                .GET()
+                .timeout(Duration.ofSeconds(5))
+                .build();
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() >= 400) {
+                throw new NeonApiException("Pageserver unhealthy: HTTP " + response.statusCode(), response.statusCode());
+            }
+            return objectMapper.readValue(response.body(), new TypeReference<>() {});
+        } catch (NeonApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new NeonApiException("Pageserver unreachable: " + e.getMessage(), e);
+        }
+    }
+
     public NeonTenant getTenant(String tenantId) {
         try {
             HttpRequest httpRequest = HttpRequest.newBuilder()
