@@ -11,16 +11,16 @@
       </div>
       <div class="metric-cards">
         <div class="metric-card">
-          <div class="metric-value">{{ computeStats.p50_ms ?? '-' }}</div>
-          <div class="metric-label">P50 唤醒延迟 (ms)</div>
+          <div class="metric-value">{{ formatDuration(computeStats.p50_ms) }}</div>
+          <div class="metric-label">P50 唤醒延迟</div>
         </div>
         <div class="metric-card">
-          <div class="metric-value">{{ computeStats.p90_ms ?? '-' }}</div>
-          <div class="metric-label">P90 唤醒延迟 (ms)</div>
+          <div class="metric-value">{{ formatDuration(computeStats.p90_ms) }}</div>
+          <div class="metric-label">P90 唤醒延迟</div>
         </div>
         <div class="metric-card">
-          <div class="metric-value">{{ computeStats.p99_ms ?? '-' }}</div>
-          <div class="metric-label">P99 唤醒延迟 (ms)</div>
+          <div class="metric-value">{{ formatDuration(computeStats.p99_ms) }}</div>
+          <div class="metric-label">P99 唤醒延迟</div>
         </div>
       </div>
     </div>
@@ -71,6 +71,12 @@ interface ComputeStats {
   p99_ms?: number
 }
 
+function formatDuration(ms?: number): string {
+  if (ms == null) return '-'
+  if (ms >= 1000) return (ms / 1000).toFixed(1) + 's'
+  return ms + 'ms'
+}
+
 const components = ref<ComponentHealth[]>([])
 const computeStats = ref<ComputeStats>({})
 
@@ -80,7 +86,20 @@ onMounted(async () => {
       adminApi.systemHealth(),
       adminApi.computeStats(),
     ])
-    components.value = healthRes.data.components || healthRes.data || []
+    const COMP_LABELS: Record<string, string> = {
+      pageserver: 'Pageserver', safekeeper: 'Safekeeper', proxy: 'Proxy', rds: 'RDS 数据库',
+    }
+    const raw = healthRes.data || {}
+    if (Array.isArray(raw)) {
+      components.value = raw
+    } else {
+      components.value = Object.entries(raw).map(([key, val]: [string, any]) => ({
+        name: COMP_LABELS[key] || key,
+        healthy: val.status === 'healthy',
+        url: val.url || (Array.isArray(val.urls) ? val.urls.join(', ') : undefined),
+        details: val.error || undefined,
+      }))
+    }
     computeStats.value = statsRes.data || {}
   } catch (e) {
     console.error('Failed to load system health', e)

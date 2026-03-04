@@ -226,7 +226,7 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [x] 用户文档（psql / JDBC / Python / Java / Go 连接示例 + FAQ）
 - [x] 用量计量（基于 operation_logs 生命周期事件计算实际 compute 运行时长）
 
-### 阶段 5：SRE 运维控制台
+### 阶段 5：SRE 运维控制台 ✅
 
 独立部署的管理控制台（`lakeon-admin`），供 SRE/管理员监控和管理 Lakeon 云服务。
 
@@ -238,7 +238,10 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [x] 系统组件健康检查（pageserver / safekeeper / proxy / RDS 连通性）
 - [x] 全局操作审计日志（跨租户筛选、分页）
 - [x] 成本估算 API（基于资源单价配置 + 用量自行计算，按资源拆分 + 按租户分摊）
-- [x] 唤醒延迟统计（P50/P90/P99，从 operation_logs 聚合）
+- [x] 华为云 CBC 实际账单 API（AK/SK 签名调用 BSS 账单接口）
+- [x] 唤醒延迟统计（P50/P90/P99，从 operation_logs 聚合，等待 Pod Ready 后记录真实耗时）
+- [x] 租户/数据库批量删除 API
+- [x] 用量计量 API（全局/租户/数据库维度，compute CU·hours + 存储用量）
 - [ ] 租户禁用/启用（`disabled` 字段 + API + 登录拦截）
 - [ ] OBS 存储连通性检查（HEAD bucket 请求）
 - [ ] 日成本趋势 API（最近 30 天逐日成本）
@@ -246,11 +249,11 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 #### 前端控制台
 - [x] Admin Token 登录页
 - [x] 总览仪表盘（指标卡片、组件状态灯、操作统计、成本明细）
-- [x] 租户管理（列表、搜索、配额调整弹窗）
-- [x] 数据库实例监控（全局列表、状态/租户筛选）
+- [x] 租户管理（列表、搜索、配额调整弹窗、批量删除）
+- [x] 数据库实例监控（全局列表、状态/租户筛选、批量删除）
 - [x] 操作审计日志（全局列表、租户/类型/状态筛选、分页）
-- [x] 系统组件健康（连通性状态、唤醒延迟 P50/P90/P99）
-- [x] 成本监控（月成本总览、资源拆分表、租户成本分摊表）
+- [x] 系统组件健康（组件名称 + 连通性状态、唤醒延迟 P50/P90/P99 秒级显示）
+- [x] 成本监控（CBC 实际账单 + 预估成本双模式、每小时/每天/每月拆分、租户成本分摊）
 - [ ] 租户启用/禁用操作按钮
 - [ ] 成本趋势图（日/月折线图）
 - [ ] 操作日志导出（CSV / Excel）
@@ -260,8 +263,8 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [x] Docker 多阶段构建（node:20-alpine → nginx:alpine）
 - [x] Helm Chart 模板（Deployment + Service）
 - [x] CCE values 配置 + SWR 镜像推送脚本
-- [ ] CCE 实际部署验证
-- [ ] 内部 ELB 绑定（不对外公开）
+- [x] CCE 部署验证（ELB 绑定，admin:0.1.8 / api:0.1.11）
+- [ ] NAT 网关配置（Pod 出公网，CBC 账单 API 依赖）
 
 ### 阶段 6：CCE + CCI 混合架构验证
 
