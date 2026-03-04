@@ -160,6 +160,29 @@ curl -s -X POST http://localhost:8080/api/v1/databases \
 - [ ] OBS 存储容量和请求量监控
 - [ ] RDS 连接数和慢查询监控
 
+### 阶段 6：计算节点弹性唤醒优化
+
+从 ~10s 唤醒延迟优化到亚秒级，部署底座迁移到 CCE Autopilot。依赖阶段 5 的可观测性基础来量化优化效果。
+
+📋 [技术方案](doc/compute-wakeup-optimization.md)
+
+#### 6a：Pod 保留 + 进程冻结（目标 500ms-1s）
+- [ ] 验证 compute_ctl HTTP API（停止/重启 PG 进程）
+- [ ] suspend 改为停进程而非删 Pod
+- [ ] resume 检测 Pod 存在性，原地重启 PG
+- [ ] 分层超时回收（短期保留 → 长期销毁）
+- [ ] Readiness Probe 调优（initialDelay 5s→1s）
+
+#### 6b：Warm Pool 预热池（目标 200-500ms）
+- [ ] 验证 compute_ctl 动态绑定 tenant/timeline API
+- [ ] 实现 WarmPoolManager（池创建/分配/补充）
+- [ ] Cold 路径唤醒改为从预热池分配
+- [ ] 池大小自适应策略 + 监控指标
+
+#### 6c：Proxy 连接缓冲
+- [ ] Proxy 唤醒逻辑改为异步，连接立即成功
+- [ ] 首条 SQL 等待 compute 就绪后透明转发
+
 ## License
 
 Private — All rights reserved.
