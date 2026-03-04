@@ -1,0 +1,17 @@
+{{- if .Values.console.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: lakeon-console
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.console.serviceType }}
+  ports:
+    - port: {{ .Values.console.port }}
+      targetPort: {{ .Values.console.port }}
+      protocol: TCP
+  selector:
+    app: lakeon-console
+{{- end }}

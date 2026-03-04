@@ -1,0 +1,27 @@
+{{- if .Values.console.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lakeon-console
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+    app.kubernetes.io/component: console
+spec:
+  replicas: {{ .Values.console.replicas }}
+  selector:
+    matchLabels:
+      app: lakeon-console
+  template:
+    metadata:
+      labels:
+        app: lakeon-console
+    spec:
+      containers:
+        - name: console
+          image: "{{ .Values.console.image.repository }}:{{ .Values.console.image.tag }}"
+          ports:
+            - containerPort: {{ .Values.console.port }}
+          resources:
+            {{- toYaml .Values.console.resources | nindent 12 }}
+{{- end }}
