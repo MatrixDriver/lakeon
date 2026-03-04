@@ -1,6 +1,7 @@
 package com.lakeon.service;
 
 import com.lakeon.model.dto.CreateTenantRequest;
+import com.lakeon.model.dto.TenantResponse;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.repository.TenantRepository;
 import com.lakeon.service.exception.ConflictException;
@@ -90,5 +91,31 @@ class TenantServiceTest {
         // When / Then
         assertThatThrownBy(() -> tenantService.get("tn_nonexist"))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("UT-SVC-TN-004: 重新生成 API Key — 返回新密钥")
+    void regenerateApiKey_shouldGenerateNewKey() {
+        // Given
+        String oldApiKey = "lk_abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
+        var tenant = new TenantEntity();
+        tenant.setId("tn_regen01");
+        tenant.setName("regen-tenant");
+        tenant.setApiKey(oldApiKey);
+
+        when(tenantRepository.findById("tn_regen01"))
+                .thenReturn(Optional.of(tenant));
+        when(tenantRepository.save(any(TenantEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        TenantResponse result = tenantService.regenerateApiKey("tn_regen01");
+
+        // Then
+        assertThat(result.getApiKey()).isNotEqualTo(oldApiKey);
+        assertThat(result.getApiKey()).startsWith("lk_");
+        assertThat(result.getApiKey()).hasSize(67); // "lk_" + 64 hex chars
+
+        verify(tenantRepository).save(any(TenantEntity.class));
     }
 }

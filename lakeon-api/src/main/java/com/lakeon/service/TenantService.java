@@ -9,6 +9,8 @@ import com.lakeon.service.exception.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
+
 @Service
 public class TenantService {
     private final TenantRepository tenantRepository;
@@ -39,6 +41,20 @@ public class TenantService {
             .name(entity.getName())
             .createdAt(entity.getCreatedAt())
             .build();
+    }
+
+    @Transactional
+    public TenantResponse regenerateApiKey(String tenantId) {
+        TenantEntity tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new NotFoundException("Tenant not found: " + tenantId));
+        SecureRandom random = new SecureRandom();
+        byte[] bytes = new byte[32];
+        random.nextBytes(bytes);
+        StringBuilder sb = new StringBuilder("lk_");
+        for (byte b : bytes) sb.append(String.format("%02x", b));
+        tenant.setApiKey(sb.toString());
+        tenant = tenantRepository.save(tenant);
+        return toResponse(tenant);
     }
 
     public TenantEntity authenticateByApiKey(String apiKey) {
