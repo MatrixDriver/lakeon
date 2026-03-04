@@ -139,11 +139,12 @@ curl -s -X POST http://localhost:8080/api/v1/databases \
 - [ ] 备份和恢复策略
 
 #### 用户接入层
-- [ ] 用户注册与 API Key 自助管理
 - [ ] Web 控制台（基于 OpenTiny TinyPro 云服务控制台模板，华为云风格）
-- [ ] 控制台功能：创建/管理数据库、查看连接串、用量概览
+  - 登录页（API Key）、总览仪表盘、数据库列表/详情、分支管理、API Key 管理
+- [ ] 用户注册与 API Key 自助管理
 - [ ] 资源配额（每租户数据库数量、CPU / 存储上限）
 - [ ] API 限流与错误重试策略
+- [ ] 华为云 IAM 集成（单点登录，替代 API Key 登录）
 
 #### 连接体验
 - [ ] 连接池（PgBouncer / Supavisor）
