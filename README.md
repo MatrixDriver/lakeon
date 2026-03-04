@@ -149,9 +149,20 @@ curl -s -X POST http://localhost:8080/api/v1/databases \
 - [ ] 用户文档（psql / JDBC / Python 等连接示例）
 - [ ] 用量计量（为后续计费做准备）
 
-### 阶段 5：华为云可观测性与运维
+### 阶段 5：CCE Autopilot 兼容性验证
 
-对接华为云原生运维服务，替代自建 Prometheus / Grafana 方案。
+在 Autopilot 测试集群上验证全组件部署，为后续阶段的平台选型提供依据。
+
+- [ ] 创建 CCE Autopilot 测试集群
+- [ ] 验证 pageserver / safekeeper / proxy 部署兼容性（volume、网络、特权限制）
+- [ ] 验证 compute Pod 动态创建和镜像快照加速
+- [ ] 对比 Pod 启动速度（Autopilot vs 普通 CCE）
+- [ ] 确认 ICAgent / AOM 等可观测性组件在 Autopilot 上的安装方式
+- [ ] 输出评估结论：后续阶段使用 Autopilot 还是普通 CCE
+
+### 阶段 6：华为云可观测性与运维
+
+对接华为云原生运维服务，替代自建 Prometheus / Grafana 方案。基于阶段 5 结论选择部署平台。
 
 #### 日志（LTS 云日志服务）
 - [ ] 添加 logback-spring.xml，输出 JSON 结构化日志
@@ -177,26 +188,26 @@ curl -s -X POST http://localhost:8080/api/v1/databases \
 - [ ] OBS 存储容量和请求量监控
 - [ ] RDS 连接数和慢查询监控
 
-### 阶段 6：计算节点弹性唤醒优化
+### 阶段 7：计算节点弹性唤醒优化
 
-从 ~10s 唤醒延迟优化到亚秒级，部署底座迁移到 CCE Autopilot。依赖阶段 5 的可观测性基础来量化优化效果。
+从 ~10s 唤醒延迟优化到亚秒级。依赖阶段 6 的可观测性基础来量化优化效果。
 
 📋 [技术方案](doc/compute-wakeup-optimization.md)
 
-#### 6a：Pod 保留 + 进程冻结（目标 500ms-1s）
+#### 7a：Pod 保留 + 进程冻结（目标 500ms-1s）
 - [ ] 验证 compute_ctl HTTP API（停止/重启 PG 进程）
 - [ ] suspend 改为停进程而非删 Pod
 - [ ] resume 检测 Pod 存在性，原地重启 PG
 - [ ] 分层超时回收（短期保留 → 长期销毁）
 - [ ] Readiness Probe 调优（initialDelay 5s→1s）
 
-#### 6b：Warm Pool 预热池（目标 200-500ms）
+#### 7b：Warm Pool 预热池（目标 200-500ms）
 - [ ] 验证 compute_ctl 动态绑定 tenant/timeline API
 - [ ] 实现 WarmPoolManager（池创建/分配/补充）
 - [ ] Cold 路径唤醒改为从预热池分配
 - [ ] 池大小自适应策略 + 监控指标
 
-#### 6c：Proxy 连接缓冲
+#### 7c：Proxy 连接缓冲
 - [ ] Proxy 唤醒逻辑改为异步，连接立即成功
 - [ ] 首条 SQL 等待 compute 就绪后透明转发
 
