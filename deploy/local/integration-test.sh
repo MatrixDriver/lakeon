@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #
-# LakeOn Integration Tests — Local Deployment Mode
+# Lakeon Integration Tests — Local Deployment Mode
 #
 # Tests single-tenant and multi-tenant scenarios against a live local K8s cluster.
 # Records compute-node startup time for each database creation.
 #
 # Prerequisites:
-#   - Docker Desktop K8s running with LakeOn deployed (helm install)
+#   - Docker Desktop K8s running with Lakeon deployed (helm install)
 #   - kubectl, curl, jq available
 #   - Port 8080 free (used for port-forward to lakeon-api)
 #
@@ -658,7 +658,7 @@ test_multi_tenant() {
 main() {
     echo ""
     echo "═══════════════════════════════════════════════════════════════"
-    echo "  LakeOn Integration Tests — Local Deployment"
+    echo "  Lakeon Integration Tests — Local Deployment"
     echo "  $(date '+%Y-%m-%d %H:%M:%S')"
     echo "═══════════════════════════════════════════════════════════════"
     echo ""

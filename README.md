@@ -90,13 +90,18 @@ curl -s -X POST http://localhost:8080/api/v1/databases \
 - [x] 计算节点按需创建 / 挂起 / 唤醒
 - [x] 集成测试（31 个用例全部通过）
 
-### 阶段 1：本地 K8s + 华为云 OBS
+📋 [验证报告](doc/verification/stage0-local-k8s.md)
+
+### 阶段 1：本地 K8s + 华为云 OBS ✅
 
 用华为云 OBS 替换 MinIO，验证 Neon 存储层在真实对象存储上的兼容性。
 
-- [ ] 配置 OBS endpoint / AK / SK
-- [ ] 更新 pageserver remote_storage 配置
-- [ ] 验证数据持久化和跨重启恢复
+- [x] 配置 OBS endpoint / AK / SK（通过 `--set` 传递，不入库）
+- [x] 解决 Neon path-style 寻址与 OBS virtual-host-style 不兼容问题
+- [x] 处理 OBS 网络延迟导致的 tenant 状态竞争
+- [x] 集成测试（31 个用例全部通过，数据持久化到 OBS）
+
+📋 [验证报告](doc/verification/stage1-obs-storage.md)
 
 ### 阶段 2：本地 K8s + OBS + 华为云 RDS
 

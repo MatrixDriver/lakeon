@@ -52,7 +52,9 @@ spec:
                 --broker-endpoint=http://storage-broker:{{ .Values.storageBroker.port }} \
                 --advertise-pg=$(POD_NAME).safekeeper.{{ .Values.global.namespace }}.svc.cluster.local:{{ .Values.safekeeper.pgPort }} \
                 -D /data \
-                --remote-storage="{endpoint='{{ .Values.obs.endpoint }}', bucket_name='{{ .Values.obs.bucket }}', bucket_region='{{ .Values.obs.region }}', prefix_in_bucket='/safekeeper/'}"
+                --remote-storage="{
+                  {{- if .Values.obs.usePathStyle }}endpoint='{{ .Values.obs.endpoint }}', {{ end -}}
+                  bucket_name='{{ .Values.obs.bucket }}', bucket_region='{{ .Values.obs.region }}', prefix_in_bucket='/safekeeper/'}"
           env:
             - name: POD_NAME
               valueFrom:
@@ -68,6 +70,10 @@ spec:
                 secretKeyRef:
                   name: obs-credentials
                   key: secret-key
+            {{- if and .Values.obs.endpoint (not .Values.obs.usePathStyle) }}
+            - name: AWS_ENDPOINT_URL
+              value: {{ .Values.obs.endpoint | quote }}
+            {{- end }}
           ports:
             - containerPort: {{ .Values.safekeeper.pgPort }}
               name: pg

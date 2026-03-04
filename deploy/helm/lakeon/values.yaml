@@ -66,6 +66,9 @@ obs:
   region: "cn-north-4"
   accessKey: ""
   secretKey: ""
+  # Set to true for S3-compatible stores that support path-style (e.g., MinIO).
+  # Set to false for stores requiring virtual-host-style (e.g., Huawei OBS, AWS S3).
+  usePathStyle: false
 
 metadataDb:
   # Set enabled=true to deploy a PostgreSQL instance for metadata within the cluster

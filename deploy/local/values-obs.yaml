@@ -1,0 +1,22 @@
+# Stage 1: Local K8s + Huawei Cloud OBS
+# Usage:
+#   helm upgrade --install lakeon deploy/helm/lakeon \
+#     -f deploy/local/values-local.yaml \
+#     -f deploy/local/values-obs.yaml \
+#     --set obs.accessKey=$OBS_AK --set obs.secretKey=$OBS_SK \
+#     -n lakeon --timeout 5m --no-hooks
+#
+# Set env vars first (do NOT commit to git):
+#   export OBS_AK=<your-access-key>
+#   export OBS_SK=<your-secret-key>
+
+# Disable MinIO — use Huawei Cloud OBS instead
+minio:
+  enabled: false
+
+# Huawei Cloud OBS (Beijing 4, virtual-host-style)
+obs:
+  endpoint: "https://obs.cn-north-4.myhuaweicloud.com"
+  bucket: "lakeon-storage"
+  region: "cn-north-4"
+  usePathStyle: false

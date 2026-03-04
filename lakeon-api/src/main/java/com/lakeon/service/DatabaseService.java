@@ -75,6 +75,16 @@ public class DatabaseService {
             throw new ServiceException("Failed to create Neon tenant: " + e.getMessage(), e);
         }
 
+        // Wait for tenant to become Active before creating timeline
+        try {
+            neonApiClient.waitForTenantActive(neonTenant.getId(), 30);
+        } catch (Exception e) {
+            try { neonApiClient.deleteTenant(neonTenant.getId()); } catch (Exception rollbackEx) {
+                log.warn("Failed to rollback Neon tenant {}: {}", neonTenant.getId(), rollbackEx.getMessage());
+            }
+            throw new ServiceException("Tenant did not become active: " + e.getMessage(), e);
+        }
+
         // Create Neon timeline
         NeonTimeline neonTimeline;
         try {

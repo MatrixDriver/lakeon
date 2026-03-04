@@ -15,7 +15,9 @@ data:
     pg_distrib_dir = '/usr/local'
 
     [remote_storage]
+    {{- if .Values.obs.usePathStyle }}
     endpoint = '{{ .Values.obs.endpoint }}'
+    {{- end }}
     bucket_name = '{{ .Values.obs.bucket }}'
     bucket_region = '{{ .Values.obs.region }}'
     prefix_in_bucket = '/pageserver'

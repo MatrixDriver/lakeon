@@ -49,6 +49,10 @@ spec:
                 secretKeyRef:
                   name: obs-credentials
                   key: secret-key
+            {{- if and .Values.obs.endpoint (not .Values.obs.usePathStyle) }}
+            - name: AWS_ENDPOINT_URL
+              value: {{ .Values.obs.endpoint | quote }}
+            {{- end }}
           ports:
             - containerPort: {{ .Values.pageserver.httpPort }}
               name: http

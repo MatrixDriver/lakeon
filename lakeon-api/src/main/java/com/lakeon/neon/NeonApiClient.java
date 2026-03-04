@@ -31,7 +31,7 @@ public class NeonApiClient {
     private final ObjectMapper objectMapper;
     private final String baseUrl;
 
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
     private static final int MAX_RETRIES = 2;
 
     @Autowired
@@ -107,6 +107,44 @@ public class NeonApiClient {
         } catch (Exception e) {
             throw new NeonApiException("Failed to create tenant: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Wait for a tenant to become Active (up to timeoutSeconds).
+     * Polls GET /v1/tenant/{tenant_id} until state.slug == "Active".
+     */
+    public void waitForTenantActive(String tenantId, int timeoutSeconds) {
+        long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/v1/tenant/" + encodePathSegment(tenantId)))
+                    .GET()
+                    .timeout(Duration.ofSeconds(10))
+                    .build();
+                HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() == 200) {
+                    var body = objectMapper.readTree(response.body());
+                    String state = body.path("state").path("slug").asText("");
+                    if ("Active".equals(state)) {
+                        log.info("Tenant {} is Active", tenantId);
+                        return;
+                    }
+                    log.debug("Tenant {} state: {}, waiting...", tenantId, state);
+                }
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new NeonApiException("Interrupted waiting for tenant active", e);
+            } catch (Exception e) {
+                log.warn("Error polling tenant {}: {}", tenantId, e.getMessage());
+                try { Thread.sleep(1000); } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new NeonApiException("Interrupted waiting for tenant active", ie);
+                }
+            }
+        }
+        throw new NeonApiException("Tenant " + tenantId + " did not become Active within " + timeoutSeconds + "s");
     }
 
     /**
