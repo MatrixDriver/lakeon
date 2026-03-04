@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+#
+# 构建 lakeon-api 镜像并推送到华为云 SWR
+#
+# 用法:
+#   ./deploy/cce/build-and-push-api.sh
+#
+# 前置条件:
+#   - docker login swr.cn-north-4.myhuaweicloud.com 已完成
+#   - Java 17 + Maven 已安装
+#
+
+set -euo pipefail
+
+SWR_REGION="${SWR_REGION:-cn-north-4}"
+SWR_ORG="${SWR_ORG:-lakeon}"
+IMAGE_TAG="${IMAGE_TAG:-0.1.0}"
+IMAGE="swr.${SWR_REGION}.myhuaweicloud.com/${SWR_ORG}/lakeon-api:${IMAGE_TAG}"
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+API_DIR="$PROJECT_DIR/lakeon-api"
+
+echo "=== 构建 lakeon-api 并推送到 SWR ==="
+echo "镜像: $IMAGE"
+echo ""
+
+# 1. Maven 编译
+echo "[1/3] Maven 编译..."
+cd "$API_DIR"
+mvn package -DskipTests -q
+JAR=$(ls target/lakeon-api-*.jar 2>/dev/null | head -1)
+if [[ -z "$JAR" ]]; then
+    echo "ERROR: 编译失败，未找到 jar 文件" >&2
+    exit 1
+fi
+echo "  JAR: $JAR"
+
+# 2. Docker 构建（使用预编译 jar，跳过容器内 Maven 下载）
+echo "[2/3] Docker 构建..."
+TMPFILE=$(mktemp /tmp/Dockerfile.lakeon-api.XXXXXX)
+trap "rm -f $TMPFILE" EXIT
+cat > "$TMPFILE" <<'DOCKERFILE'
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+COPY *.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
+DOCKERFILE
+
+docker build -t "$IMAGE" -f "$TMPFILE" "$(dirname "$JAR")/"
+echo "  构建完成"
+
+# 3. 推送
+echo "[3/3] 推送到 SWR..."
+docker push "$IMAGE"
+echo ""
+echo "=== 完成: $IMAGE ==="
