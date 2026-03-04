@@ -23,3 +23,7 @@ lakeon-cli/.venv/
 # Env / secrets
 .env
 .env.*
+
+# Frontend
+lakeon-console/node_modules/
+lakeon-console/dist/
