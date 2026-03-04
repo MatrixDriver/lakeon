@@ -53,6 +53,17 @@ public class ComputePodManager {
             .endMetadata()
             .addToData("config.json", configJson)
             .build();
+        // Check if pod already exists (idempotent wake)
+        Pod existingPod = k8sClient.pods().inNamespace(namespace).withName(podName).get();
+        if (existingPod != null) {
+            log.info("Compute Pod already exists: {}/{}, reusing", namespace, podName);
+            String podIp = getPodIp(podName);
+            entity.setComputePodName(podName);
+            entity.setComputeHost(podIp);
+            entity.setComputePort(55433);
+            return (podIp != null ? podIp : podName + "." + namespace) + ":55433";
+        }
+
         k8sClient.configMaps().inNamespace(namespace).resource(configMap).create();
 
         Pod pod = new PodBuilder()
