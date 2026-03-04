@@ -74,10 +74,10 @@ CCE 集群 (lakeon namespace)
 ### 2.4 认证流程
 
 ```
-用户输入 API Key → POST 验证（调用 GET /api/v1/tenants 列表接口验证 Key 有效性）
-→ 有效：存入 localStorage，Axios 拦截器自动附加 Authorization header
+用户输入 API Key → 调用 GET /api/v1/tenants/me 验证 Key 有效性并获取租户信息
+→ 有效：API Key 和租户信息（id、name）存入 localStorage，Axios 拦截器自动附加 Authorization header
 → 无效：提示错误
-→ 401 响应：自动跳转登录页
+→ 401 响应：清除 localStorage，自动跳转登录页
 ```
 
 ## 3. 页面设计

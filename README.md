@@ -14,6 +14,10 @@ lakeon/
 │   ├── src/main/java/   # Java 源码
 │   ├── src/test/        # 单元测试 + 集成测试
 │   └── Dockerfile
+├── lakeon-console/      # Web 控制台 (Vue 3 + TinyVue)
+│   ├── src/             # 前端源码
+│   ├── Dockerfile       # Nginx 静态文件托管
+│   └── nginx.conf       # 反向代理 API 请求
 ├── lakeon-cli/          # 命令行客户端 (Python)
 ├── deploy/
 │   ├── helm/lakeon/     # Helm Chart
@@ -25,7 +29,7 @@ lakeon/
 │       ├── values-cce.yaml
 │       ├── push-images.sh
 │       └── integration-test.sh
-└── rpiv/                # 需求、设计文档
+└── docs/                # 设计文档和实施计划
 ```
 
 ## 快速开始（本地部署）
@@ -139,8 +143,10 @@ curl -s -X POST http://localhost:8080/api/v1/databases \
 - [ ] 备份和恢复策略
 
 #### 用户接入层
-- [ ] Web 控制台（基于 OpenTiny TinyPro 云服务控制台模板，华为云风格）
-  - 登录页（API Key）、总览仪表盘、数据库列表/详情、分支管理、API Key 管理
+- [x] Web 控制台（基于 Vue 3 + TinyVue，华为云风格）
+  - 登录页（API Key）、总览仪表盘、数据库列表/详情（含操作历史）、分支管理、API Key 管理
+  - 操作历史记录（suspend/resume 耗时追踪，为唤醒优化提供数据支撑）
+  - Nginx 反向代理 + Docker 多阶段构建 + Helm 部署
 - [ ] 用户注册与 API Key 自助管理
 - [ ] 资源配额（每租户数据库数量、CPU / 存储上限）
 - [ ] API 限流与错误重试策略
