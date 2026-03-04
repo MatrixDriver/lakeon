@@ -122,14 +122,16 @@ curl -s -X POST http://localhost:8080/api/v1/databases \
 
 📋 [验证报告](doc/verification/stage2-rds-metadata.md)
 
-### 阶段 3：华为云 CCE 开发集群
+### 阶段 3：华为云 CCE 开发集群 ✅
 
 全部组件部署到华为云 CCE（云容器引擎），OBS/RDS 改走 VPC 内网。
 
 - [x] 镜像推送到华为云 SWR（容器镜像服务）
+- [x] Helm 模板改造（imagePullSecrets、initImage、serviceType 参数化）
 - [x] CCE 集群创建和 Helm 部署
-- [x] ELB 入口 + VPC 内网访问 OBS/RDS
-- [x] 集成测试（31 个用例，CCE 环境）
+- [x] NodePort 入口 + VPC 内网访问 OBS/RDS
+- [x] 节点 containerd core ulimit 修复（compute_ctl 兼容）
+- [x] 集成测试（31/31 通过，compute 启动 ~8s）
 
 📋 [验证报告](doc/verification/stage3-cce-cluster.md)
 

@@ -17,9 +17,13 @@ spec:
       labels:
         app: safekeeper
     spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       initContainers:
         - name: compute-id
-          image: busybox:1.36
+          image: {{ .Values.initImage }}
           command:
             - sh
             - -c

@@ -14,3 +14,6 @@ data:
   LAKEON_COMPUTE_IMAGE: "{{ .Values.neon.computeImage.repository }}:{{ .Values.neon.computeImage.tag }}"
   LAKEON_K8S_NAMESPACE: "lakeon-compute"
   LAKEON_API_PORT: {{ .Values.api.port | quote }}
+  {{- if .Values.global.imagePullSecrets }}
+  LAKEON_IMAGE_PULL_SECRETS: {{ range $i, $s := .Values.global.imagePullSecrets }}{{ if $i }},{{ end }}{{ $s.name }}{{ end }}
+  {{- end }}

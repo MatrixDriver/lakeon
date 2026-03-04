@@ -3,6 +3,8 @@ package com.lakeon.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Component
 @ConfigurationProperties(prefix = "lakeon")
 public class LakeonProperties {
@@ -62,11 +64,14 @@ public class LakeonProperties {
     public static class K8sConfig {
         private String namespace;
         private String computeImage;
+        private List<String> imagePullSecrets = List.of();
 
         public String getNamespace() { return namespace; }
         public void setNamespace(String namespace) { this.namespace = namespace; }
         public String getComputeImage() { return computeImage; }
         public void setComputeImage(String computeImage) { this.computeImage = computeImage; }
+        public List<String> getImagePullSecrets() { return imagePullSecrets; }
+        public void setImagePullSecrets(List<String> imagePullSecrets) { this.imagePullSecrets = imagePullSecrets; }
     }
 
     public static class DefaultsConfig {

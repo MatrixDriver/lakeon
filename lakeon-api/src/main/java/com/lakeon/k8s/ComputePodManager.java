@@ -66,6 +66,12 @@ public class ComputePodManager {
                 ))
             .endMetadata()
             .withNewSpec()
+                .withImagePullSecrets(
+                    props.getK8s().getImagePullSecrets().stream()
+                        .filter(name -> name != null && !name.isBlank())
+                        .map(name -> new LocalObjectReferenceBuilder().withName(name).build())
+                        .toList()
+                )
                 .addNewContainer()
                     .withName("compute")
                     .withImage(props.getK8s().getComputeImage())

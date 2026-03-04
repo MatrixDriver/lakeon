@@ -1,0 +1,108 @@
+# Stage 3: 华为云 CCE 开发集群配置
+#
+# 用法:
+#   helm upgrade --install lakeon deploy/helm/lakeon \
+#     -f deploy/cce/values-cce.yaml \
+#     --set obs.accessKey=$OBS_AK --set obs.secretKey=$OBS_SK \
+#     --set metadataDb.host=$RDS_PRIVATE_IP --set metadataDb.password=$RDS_PASSWORD \
+#     -n lakeon --timeout 5m --no-hooks
+#
+# 前置条件:
+#   1. CCE 集群已创建，kubeconfig 已切换到目标 context
+#   2. 镜像已推送到 SWR（deploy/cce/push-images.sh）
+#   3. RDS 与 CCE 在同一 VPC，使用私有 IP 直连
+#   4. 安全组放通 5432（RDS）和 443（OBS）出方向
+#
+# 环境变量（通过 --set 传递，不入库）:
+#   OBS_AK           — OBS AccessKey
+#   OBS_SK           — OBS SecretKey
+#   RDS_PRIVATE_IP   — RDS 内网地址
+#   RDS_PASSWORD     — RDS lakeon 用户密码
+
+# ── SWR 镜像拉取凭证 ─────────────────────────────────────────────
+global:
+  imagePullSecrets:
+    - name: swr-secret
+
+# ── SWR 镜像地址 ─────────────────────────────────────────────────
+# 修改 SWR_ORG 为你的 SWR 组织名
+initImage: "swr.cn-north-4.myhuaweicloud.com/lakeon/busybox:1.36"
+
+neon:
+  image:
+    repository: swr.cn-north-4.myhuaweicloud.com/lakeon/neon
+    tag: latest
+    pullPolicy: IfNotPresent
+  computeImage:
+    repository: swr.cn-north-4.myhuaweicloud.com/lakeon/compute-node-v17
+    tag: latest
+
+api:
+  replicas: 1
+  serviceType: NodePort
+  image:
+    repository: swr.cn-north-4.myhuaweicloud.com/lakeon/lakeon-api
+    tag: "0.1.0"
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+
+# ── Neon 组件（单副本开发模式，最小资源请求）─────────────────────
+pageserver:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+
+safekeeper:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+
+storageBroker:
+  replicas: 1
+
+proxy:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+# ── OBS（同 region 内网访问）────────────────────────────────────
+obs:
+  endpoint: "https://obs.cn-north-4.myhuaweicloud.com"
+  bucket: "lakeon-storage"
+  region: "cn-north-4"
+  accessKey: ""     # --set obs.accessKey=$OBS_AK
+  secretKey: ""     # --set obs.secretKey=$OBS_SK
+  usePathStyle: false
+
+# ── 外部 RDS（VPC 内网直连）─────────────────────────────────────
+metadataDb:
+  enabled: false
+  host: ""          # --set metadataDb.host=$RDS_PRIVATE_IP
+  port: 5432
+  name: "lakeon"
+  user: "lakeon"
+  password: ""      # --set metadataDb.password=$RDS_PASSWORD
+
+# ── 禁用集群内组件 ─────────────────────────────────────────────
+minio:
+  enabled: false

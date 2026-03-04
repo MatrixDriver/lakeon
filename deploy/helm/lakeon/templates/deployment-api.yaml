@@ -16,6 +16,10 @@ spec:
       labels:
         app: lakeon-api
     spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       serviceAccountName: lakeon-api
       containers:
         - name: lakeon-api

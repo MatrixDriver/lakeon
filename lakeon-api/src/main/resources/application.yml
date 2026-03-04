@@ -29,6 +29,7 @@ lakeon:
   k8s:
     namespace: ${LAKEON_K8S_NAMESPACE:lakeon-compute}
     compute-image: ${LAKEON_COMPUTE_IMAGE:ghcr.io/neondatabase/compute-node-v17:latest}
+    image-pull-secrets: ${LAKEON_IMAGE_PULL_SECRETS:}
   defaults:
     compute-size: ${LAKEON_DEFAULT_COMPUTE_SIZE:1cu}
     suspend-timeout: ${LAKEON_DEFAULT_SUSPEND_TIMEOUT:5m}

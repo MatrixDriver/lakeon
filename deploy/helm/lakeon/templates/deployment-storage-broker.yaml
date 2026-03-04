@@ -16,6 +16,10 @@ spec:
       labels:
         app: storage-broker
     spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: storage-broker
           image: "{{ .Values.neon.image.repository }}:{{ .Values.neon.image.tag }}"
