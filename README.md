@@ -270,20 +270,31 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [ ] CCE 实际部署验证
 - [ ] 内部 ELB 绑定（不对外公开）
 
-### 阶段 6：CCE Autopilot 兼容性验证
+### 阶段 6：CCE + CCI 混合架构验证
 
-在 Autopilot 测试集群上验证全组件部署，为后续阶段的平台选型提供依据。
+验证混合部署方案：有状态组件运行在 CCE，compute 节点弹性调度到 CCI（云容器实例），实现 serverless 计算层。
 
-- [ ] 创建 CCE Autopilot 测试集群
-- [ ] 验证 pageserver / safekeeper / proxy 部署兼容性（volume、网络、特权限制）
-- [ ] 验证 compute Pod 动态创建和镜像快照加速
-- [ ] 对比 Pod 启动速度（Autopilot vs 普通 CCE）
-- [ ] 确认 ICAgent / AOM 等可观测性组件在 Autopilot 上的安装方式
-- [ ] 输出评估结论：后续阶段使用 Autopilot 还是普通 CCE
+📋 [研究报告](doc/verification/stage5-cci-research.md)
+
+#### 6a：CCI compute 兼容性验证（关键路径）
+- [ ] 购买 VPC 终端节点（SWR），解决 CCI 镜像拉取网络不通问题
+- [ ] 在 CCI 上部署测试 Pod，验证 `ulimit -c` 是否为 unlimited
+- [ ] 部署 compute-node-v17 镜像，验证 `compute_ctl` 的 `setrlimit(CORE, INFINITY)` 是否通过
+- [ ] 若 CCI 默认 ulimit 不满足，评估替代方案（patch compute_ctl / CCI 配置项）
+
+#### 6b：混合调度集成
+- [ ] 验证 CCI Pod 到 VPC 内网的网络连通性（pageserver / safekeeper / RDS / OBS）
+- [ ] 配置 lakeon-api 将 compute Pod 创建到 CCI namespace
+- [ ] 对比 Pod 启动速度（CCI vs 普通 CCE）
+
+#### 6c：评估与结论
+- [ ] 运行完整集成测试（compute 在 CCI，其余在 CCE）
+- [ ] 输出评估报告：混合架构可行性、启动延迟、成本对比
+- [ ] 确定后续阶段的部署架构选型
 
 ### 阶段 7：华为云可观测性与运维
 
-对接华为云原生运维服务，替代自建 Prometheus / Grafana 方案。基于阶段 6 结论选择部署平台。
+对接华为云原生运维服务，替代自建 Prometheus / Grafana 方案。基于阶段 6 结论选择部署架构。
 
 #### 日志（LTS 云日志服务）
 - [ ] 添加 logback-spring.xml，输出 JSON 结构化日志
