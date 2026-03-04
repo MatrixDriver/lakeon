@@ -139,7 +139,8 @@ public class DatabaseService {
             String proxyHost = computeAddress.split(":")[0];
             String connectionUriSafe = "postgres://" + dbUser + "@" + computeAddress + "/" + request.name();
             entity.setConnectionUri(connectionUriSafe);
-            entity.setStatus(DatabaseStatus.CREATING);
+            entity.setStatus(DatabaseStatus.RUNNING);
+            entity.setLastActiveAt(Instant.now());
             entity = databaseRepository.save(entity);
 
             // Create default branch
@@ -200,9 +201,9 @@ public class DatabaseService {
             }
 
             if (needsRestart && entity.getStatus() == DatabaseStatus.RUNNING) {
-                // Restart compute with new config
+                // Restart compute with new config — wait for old pod to fully delete
                 if (entity.getComputePodName() != null) {
-                    computePodManager.deleteComputePod(entity.getComputePodName());
+                    computePodManager.deleteComputePod(entity.getComputePodName(), true);
                 }
                 computePodManager.createComputePod(entity);
             }

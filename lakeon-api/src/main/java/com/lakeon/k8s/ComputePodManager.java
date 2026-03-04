@@ -140,6 +140,14 @@ public class ComputePodManager {
      * Delete a compute Pod and its associated ConfigMap.
      */
     public void deleteComputePod(String podName) {
+        deleteComputePod(podName, false);
+    }
+
+    /**
+     * Delete a compute Pod and its associated ConfigMap.
+     * If waitForDeletion is true, blocks until the Pod is fully removed.
+     */
+    public void deleteComputePod(String podName, boolean waitForDeletion) {
         String namespace = props.getK8s().getNamespace();
         k8sClient.pods().inNamespace(namespace).withName(podName).delete();
         // Clean up associated ConfigMap
@@ -150,6 +158,21 @@ public class ComputePodManager {
             log.warn("Failed to delete ConfigMap {}: {}", configMapName, e.getMessage());
         }
         log.info("Deleted compute Pod: {}/{}", namespace, podName);
+
+        if (waitForDeletion) {
+            for (int i = 0; i < 30; i++) {
+                var pod = k8sClient.pods().inNamespace(namespace).withName(podName).get();
+                if (pod == null) {
+                    log.info("Pod {}/{} fully deleted", namespace, podName);
+                    return;
+                }
+                try { Thread.sleep(1000); } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+            log.warn("Pod {}/{} still exists after 30s wait", namespace, podName);
+        }
     }
 
     /**

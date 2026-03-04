@@ -6,6 +6,11 @@ metadata:
   namespace: {{ .Values.global.namespace }}
   labels:
     {{- include "lakeon.labels" . | nindent 4 }}
+  {{- if .Values.console.elb }}
+  annotations:
+    kubernetes.io/elb.id: {{ .Values.console.elb.id | quote }}
+    kubernetes.io/elb.class: {{ .Values.console.elb.class | default "union" | quote }}
+  {{- end }}
 spec:
   type: {{ .Values.console.serviceType }}
   ports:

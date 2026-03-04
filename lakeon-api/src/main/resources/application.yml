@@ -8,7 +8,7 @@ spring:
     password: ${LAKEON_DB_PASSWORD:lakeon}
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:

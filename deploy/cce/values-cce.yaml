@@ -42,7 +42,7 @@ api:
   serviceType: NodePort
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/lakeon/lakeon-api
-    tag: "0.1.0"
+    tag: "0.1.4"
   resources:
     requests:
       cpu: "100m"
@@ -111,8 +111,10 @@ console:
     tag: "0.1.0"
   replicas: 1
   port: 80
-  serviceType: NodePort
-  nodePort: 30080
+  serviceType: LoadBalancer
+  elb:
+    id: "d7302838-97f5-422c-b1fb-e9daa7f90383"
+    class: "union"
   resources:
     requests:
       cpu: "50m"
