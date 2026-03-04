@@ -64,3 +64,12 @@ minio:
   rootUser: "minioadmin"
   rootPassword: "minioadmin"
   bucket: "lakeon-neon"
+
+# Enable console
+console:
+  enabled: true
+  image:
+    repository: lakeon/lakeon-console
+    tag: local
+  serviceType: ClusterIP
+  port: 80
