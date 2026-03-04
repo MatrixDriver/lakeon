@@ -17,9 +17,13 @@ lakeon/
 ├── lakeon-cli/          # 命令行客户端 (Python)
 ├── deploy/
 │   ├── helm/lakeon/     # Helm Chart
-│   └── local/           # 本地部署脚本和配置
-│       ├── values-local.yaml
-│       ├── setup.sh
+│   ├── local/           # 本地部署脚本和配置
+│   │   ├── values-local.yaml
+│   │   ├── setup.sh
+│   │   └── integration-test.sh
+│   └── cce/             # 华为云 CCE 部署
+│       ├── values-cce.yaml
+│       ├── push-images.sh
 │       └── integration-test.sh
 └── rpiv/                # 需求、设计文档
 ```
@@ -116,21 +120,34 @@ curl -s -X POST http://localhost:8080/api/v1/databases \
 
 ### 阶段 3：华为云 CCE 开发集群
 
-全部组件部署到华为云 CCE（云容器引擎）。
+全部组件部署到华为云 CCE（云容器引擎），OBS/RDS 改走 VPC 内网。
 
-- [ ] 镜像推送到华为云 SWR（容器镜像服务）
-- [ ] CCE 集群创建和配置
-- [ ] 网络策略和安全组配置
-- [ ] 端到端功能验证
+- [x] 镜像推送到华为云 SWR（容器镜像服务）
+- [x] CCE 集群创建和 Helm 部署
+- [x] ELB 入口 + VPC 内网访问 OBS/RDS
+- [x] 集成测试（31 个用例，CCE 环境）
 
-### 阶段 4：CCE 生产级部署
+📋 [验证报告](doc/verification/stage3-cce-cluster.md)
 
-生产环境加固和基础运维。
+### 阶段 4：生产加固与用户接入
 
-- [ ] ELB + Ingress 入口配置
-- [ ] TLS 证书管理
+生产环境加固，建立用户接入层，为邀请外部用户测试做准备。
+
+#### 基础设施加固
+- [ ] TLS 证书管理（ELB HTTPS 终止）
 - [ ] 高可用配置（多副本 pageserver / safekeeper）
 - [ ] 备份和恢复策略
+
+#### 用户接入层
+- [ ] 用户注册与 API Key 自助管理
+- [ ] Web 控制台（创建/管理数据库、查看连接串）
+- [ ] 资源配额（每租户数据库数量、CPU / 存储上限）
+- [ ] API 限流与错误重试策略
+
+#### 连接体验
+- [ ] 连接池（PgBouncer / Supavisor）
+- [ ] 用户文档（psql / JDBC / Python 等连接示例）
+- [ ] 用量计量（为后续计费做准备）
 
 ### 阶段 5：华为云可观测性与运维
 
