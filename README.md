@@ -218,14 +218,16 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
   - 登录页（API Key）、总览仪表盘、数据库列表/详情（含操作历史）、分支管理、API Key 管理
   - 操作历史记录（suspend/resume 耗时追踪，为唤醒优化提供数据支撑）
   - Nginx 反向代理 + Docker 多阶段构建 + Helm 部署
-- [ ] 用户注册与 API Key 自助管理
+- [x] 用户注册与 API Key 自助管理
+  - 登录页注册标签，自助创建租户并获取 API Key
+  - API Key 重新生成（旧 Key 立即失效）
 - [ ] 资源配额（每租户数据库数量、CPU / 存储上限）
 - [ ] API 限流与错误重试策略
 - [ ] 华为云 IAM 集成（单点登录，替代 API Key 登录）
 
 #### 连接体验
 - [ ] 连接池（PgBouncer / Supavisor）
-- [ ] 用户文档（psql / JDBC / Python 等连接示例）
+- [x] 用户文档（psql / JDBC / Python / Java / Go 连接示例 + FAQ）
 - [ ] 用量计量（为后续计费做准备）
 
 ### 阶段 5：CCE Autopilot 兼容性验证
