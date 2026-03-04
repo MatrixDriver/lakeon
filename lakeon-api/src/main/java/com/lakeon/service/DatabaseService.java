@@ -139,9 +139,10 @@ public class DatabaseService {
         OperationLogEntity opLog = operationLogService.startOperation(
                 entity.getId(), entity.getTenantId(), entity.getName(), OperationType.CREATE);
         try {
-            String computeAddress;
+            String podName;
             try {
-                computeAddress = computePodManager.createComputePod(entity);
+                podName = computePodManager.createComputePod(entity);
+                computePodManager.waitForPodReady(podName, 60_000);
             } catch (Exception e) {
                 // Rollback
                 databaseRepository.delete(entity);
@@ -325,7 +326,8 @@ public class DatabaseService {
         OperationLogEntity opLog = operationLogService.startOperation(
                 entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME);
         try {
-            computePodManager.createComputePod(entity);
+            String podName = computePodManager.createComputePod(entity);
+            computePodManager.waitForPodReady(podName, 60_000);
             entity.setStatus(DatabaseStatus.RUNNING);
             entity.setLastActiveAt(Instant.now());
             entity.setConnectionUri(buildConnectionUri(entity.getDbUser(), entity.getName()));
