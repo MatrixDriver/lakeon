@@ -521,13 +521,13 @@ onMounted(fetchDatabase)
 .tabs-wrapper {
   background: #fff;
   border-radius: 2px;
-  border: 1px solid #dfe1e6;
+  border: 1px solid #ebebeb;
   overflow: hidden;
 }
 
 .tab-header {
   display: flex;
-  border-bottom: 1px solid #dfe1e6;
+  border-bottom: 1px solid #ebebeb;
   padding: 0 20px;
 }
 

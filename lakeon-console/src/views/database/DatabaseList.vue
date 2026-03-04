@@ -421,12 +421,8 @@ onMounted(fetchDatabases)
 /* Table footer */
 .table-footer {
   padding: 12px 16px;
-  border-top: 1px solid #dfe1e6;
+  border-top: 1px solid #ebebeb;
   font-size: 12px;
-  color: #575d6c;
-}
-
-.table-footer-info {
   color: #8a8e99;
 }
 </style>
