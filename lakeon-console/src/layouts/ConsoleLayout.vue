@@ -68,6 +68,10 @@
             <div class="nav-group-title">安全管理</div>
             <router-link to="/apikey" class="nav-item" active-class="active">API Key</router-link>
           </div>
+          <div class="nav-group">
+            <div class="nav-group-title">帮助</div>
+            <router-link to="/docs" class="nav-item" active-class="active">使用指南</router-link>
+          </div>
         </nav>
         <div class="sidebar-collapse">
           <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">

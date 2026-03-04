@@ -3,7 +3,7 @@
     <div class="page-header">
       <h1 class="page-title">数据库实例</h1>
       <div class="page-header-actions">
-        <span class="page-header-link">使用指南</span>
+        <router-link to="/docs" class="page-header-link">使用指南</router-link>
         <button class="btn btn-primary" @click="showCreateDialog = true">创建数据库实例</button>
       </div>
     </div>
