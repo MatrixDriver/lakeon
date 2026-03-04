@@ -181,7 +181,7 @@ async function handleLogin() {
 .login-btn {
   width: 100%;
   height: 40px;
-  background-color: #1a1a1a;
+  background-color: #e6393d;
   color: #fff;
   border: none;
   border-radius: 4px;
@@ -196,16 +196,16 @@ async function handleLogin() {
 }
 
 .login-btn:hover:not(:disabled) {
-  background-color: #333;
+  background-color: #cc2f33;
 }
 
 .login-btn:disabled {
-  background-color: #999;
+  background-color: #f5a3a5;
   cursor: not-allowed;
 }
 
 .login-btn.loading {
-  background-color: #444;
+  background-color: #d43438;
 }
 
 .spinner {

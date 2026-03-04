@@ -426,15 +426,15 @@ onMounted(fetchDatabase)
 .page-loading {
   text-align: center;
   padding: 60px 20px;
-  color: #999;
+  color: #8a8e99;
   font-size: 14px;
 }
 
 /* Summary Card */
 .summary-card {
   background: #fff;
-  border-radius: 4px;
-  border: 1px solid #e8e8e8;
+  border-radius: 2px;
+  border: 1px solid #dfe1e6;
   padding: 24px;
   margin-bottom: 20px;
 }
@@ -448,8 +448,8 @@ onMounted(fetchDatabase)
 
 .db-title {
   font-size: 18px;
-  font-weight: 600;
-  color: #333;
+  font-weight: 700;
+  color: #191919;
   margin: 0 0 8px;
 }
 
@@ -460,8 +460,8 @@ onMounted(fetchDatabase)
 }
 
 .meta-item {
-  font-size: 13px;
-  color: #666;
+  font-size: 14px;
+  color: #575d6c;
 }
 
 .summary-actions {
@@ -471,7 +471,7 @@ onMounted(fetchDatabase)
 }
 
 .summary-bottom {
-  border-top: 1px solid #e8e8e8;
+  border-top: 1px solid #dfe1e6;
   padding-top: 16px;
   display: flex;
   flex-direction: column;
@@ -485,15 +485,15 @@ onMounted(fetchDatabase)
 }
 
 .field-label {
-  font-size: 13px;
-  color: #999;
-  min-width: 64px;
+  font-size: 14px;
+  color: #8a8e99;
+  min-width: 72px;
   flex-shrink: 0;
 }
 
 .field-value {
   font-size: 14px;
-  color: #333;
+  color: #191919;
 }
 
 .field-value-row {
@@ -506,10 +506,10 @@ onMounted(fetchDatabase)
 
 .uri-text {
   font-size: 13px;
-  color: #333;
-  background: #f5f5f5;
+  color: #191919;
+  background: #f2f3f5;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -520,23 +520,23 @@ onMounted(fetchDatabase)
 /* Tabs */
 .tabs-wrapper {
   background: #fff;
-  border-radius: 4px;
-  border: 1px solid #e8e8e8;
+  border-radius: 2px;
+  border: 1px solid #dfe1e6;
   overflow: hidden;
 }
 
 .tab-header {
   display: flex;
-  border-bottom: 1px solid #e8e8e8;
-  padding: 0 16px;
+  border-bottom: 1px solid #dfe1e6;
+  padding: 0 20px;
 }
 
 .tab-btn {
   background: none;
   border: none;
-  padding: 12px 20px;
+  padding: 14px 20px;
   font-size: 14px;
-  color: #666;
+  color: #575d6c;
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: all 0.2s;
@@ -548,9 +548,9 @@ onMounted(fetchDatabase)
 }
 
 .tab-btn.active {
-  color: #0073e6;
+  color: #191919;
   border-bottom-color: #0073e6;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .tab-content {
@@ -563,15 +563,15 @@ onMounted(fetchDatabase)
 
 /* Info card */
 .info-card {
-  border: 1px solid #e8e8e8;
-  border-radius: 4px;
+  border: 1px solid #dfe1e6;
+  border-radius: 2px;
   padding: 20px;
 }
 
 .info-title {
-  font-size: 15px;
-  font-weight: 500;
-  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+  color: #191919;
   margin: 0 0 16px;
 }
 
@@ -588,8 +588,8 @@ onMounted(fetchDatabase)
 }
 
 .info-label {
-  font-size: 13px;
-  color: #999;
+  font-size: 14px;
+  color: #8a8e99;
   min-width: 80px;
   flex-shrink: 0;
 }
@@ -604,10 +604,10 @@ onMounted(fetchDatabase)
 
 .info-value-row code {
   font-size: 13px;
-  color: #333;
-  background: #f5f5f5;
+  color: #191919;
+  background: #f2f3f5;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -618,11 +618,10 @@ onMounted(fetchDatabase)
 .default-tag {
   display: inline-block;
   padding: 1px 8px;
-  border-radius: 10px;
-  font-size: 11px;
+  border-radius: 2px;
+  font-size: 12px;
   background-color: #e6f7ff;
-  color: #1890ff;
-  border: 1px solid #91d5ff;
+  color: #0073e6;
   margin-left: 6px;
 }
 
@@ -630,6 +629,8 @@ onMounted(fetchDatabase)
 .filter-select {
   width: 180px;
   height: 32px;
-  font-size: 13px;
+  font-size: 14px;
+  border: 1px solid #c2c6cc;
+  border-radius: 2px;
 }
 </style>

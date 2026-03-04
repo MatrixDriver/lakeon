@@ -3,6 +3,19 @@
     <!-- Top Navigation Bar -->
     <header class="console-header">
       <div class="header-left">
+        <div class="header-grid-icon">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+            <rect x="1" y="1" width="4" height="4" rx="0.5" />
+            <rect x="6" y="1" width="4" height="4" rx="0.5" />
+            <rect x="11" y="1" width="4" height="4" rx="0.5" />
+            <rect x="1" y="6" width="4" height="4" rx="0.5" />
+            <rect x="6" y="6" width="4" height="4" rx="0.5" />
+            <rect x="11" y="6" width="4" height="4" rx="0.5" />
+            <rect x="1" y="11" width="4" height="4" rx="0.5" />
+            <rect x="6" y="11" width="4" height="4" rx="0.5" />
+            <rect x="11" y="11" width="4" height="4" rx="0.5" />
+          </svg>
+        </div>
         <span class="logo-brand">Lakeon</span>
         <span class="header-divider"></span>
         <span class="header-console-text">控制台</span>
@@ -11,10 +24,28 @@
             <path d="M8 1a5.5 5.5 0 0 0-5.5 5.5c0 3.038 5.5 8.5 5.5 8.5s5.5-5.462 5.5-8.5A5.5 5.5 0 0 0 8 1zm0 7.5a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
           </svg>
           华北-北京四
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" style="opacity:0.5">
+            <path d="M4 6l4 4 4-4"/>
+          </svg>
         </span>
       </div>
+      <div class="header-center">
+        <div class="header-search">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" class="search-icon">
+            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
+          </svg>
+          <span class="search-placeholder">搜索云服务...</span>
+        </div>
+      </div>
       <div class="header-right">
-        <span class="header-nav-item">{{ authStore.tenantName || 'Tenant' }}</span>
+        <span class="header-nav-item">备案</span>
+        <span class="header-nav-item">资源</span>
+        <span class="header-nav-item">费用</span>
+        <span class="header-nav-item">企业</span>
+        <span class="header-nav-item">工具</span>
+        <span class="header-nav-item">工单</span>
+        <span class="header-divider-small"></span>
+        <span class="header-nav-item header-username">{{ authStore.tenantName || 'Tenant' }}</span>
         <button class="header-nav-item header-nav-btn" @click="handleLogout">退出</button>
       </div>
     </header>
@@ -22,26 +53,17 @@
     <div class="console-body">
       <!-- Left Sidebar -->
       <aside class="console-sidebar">
-        <div class="sidebar-title">
-          <span class="sidebar-service-name">Lakeon 数据库</span>
-        </div>
+        <div class="sidebar-title">Lakeon 数据库</div>
         <nav class="sidebar-nav">
-          <div class="nav-group">
-            <div class="nav-group-header">数据库服务</div>
-            <router-link to="/dashboard" class="nav-item" active-class="active">
-              <span class="nav-text">总览</span>
-            </router-link>
-            <router-link to="/databases" class="nav-item" active-class="active">
-              <span class="nav-text">数据库实例</span>
-            </router-link>
-          </div>
-          <div class="nav-group">
-            <div class="nav-group-header">安全管理</div>
-            <router-link to="/apikey" class="nav-item" active-class="active">
-              <span class="nav-text">API Key</span>
-            </router-link>
-          </div>
+          <router-link to="/dashboard" class="nav-item" active-class="active">总览</router-link>
+          <router-link to="/databases" class="nav-item" active-class="active">数据库实例</router-link>
+          <router-link to="/apikey" class="nav-item" active-class="active">API Key</router-link>
         </nav>
+        <div class="sidebar-collapse">
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+            <path d="M10 12l-4-4 4-4"/>
+          </svg>
+        </div>
       </aside>
 
       <!-- Main Content -->
@@ -74,12 +96,12 @@ function handleLogout() {
 }
 
 .console-header {
-  height: 50px;
+  height: 48px;
   background-color: #000;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 16px;
   flex-shrink: 0;
   z-index: 100;
 }
@@ -87,7 +109,18 @@ function handleLogout() {
 .header-left {
   display: flex;
   align-items: center;
-  gap: 0;
+}
+
+.header-grid-icon {
+  color: rgba(255, 255, 255, 0.6);
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.header-grid-icon:hover {
+  color: #fff;
 }
 
 .logo-brand {
@@ -95,20 +128,20 @@ function handleLogout() {
   font-size: 18px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  margin-right: 16px;
+  margin-right: 20px;
 }
 
 .header-divider {
   width: 1px;
   height: 16px;
   background-color: rgba(255, 255, 255, 0.2);
-  margin-right: 16px;
+  margin-right: 20px;
 }
 
 .header-console-text {
   color: #fff;
-  font-size: 14px;
-  font-weight: 400;
+  font-size: 15px;
+  font-weight: 500;
   margin-right: 24px;
 }
 
@@ -116,35 +149,74 @@ function handleLogout() {
   display: flex;
   align-items: center;
   gap: 4px;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  cursor: pointer;
 }
 
 .region-icon {
-  opacity: 0.7;
+  opacity: 0.85;
+}
+
+.header-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  max-width: 360px;
+  margin: 0 auto;
+}
+
+.header-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 6px 14px;
+  width: 240px;
+  cursor: pointer;
+}
+
+.header-search .search-icon {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.search-placeholder {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 13px;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 18px;
 }
 
 .header-nav-item {
   color: rgba(255, 255, 255, 0.75);
-  font-size: 13px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.header-nav-item:hover {
+  color: #fff;
+}
+
+.header-divider-small {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.header-username {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .header-nav-btn {
   background: transparent;
   border: none;
-  cursor: pointer;
-  padding: 4px 0;
+  padding: 0;
   transition: color 0.2s;
-}
-
-.header-nav-btn:hover {
-  color: #fff;
 }
 
 .console-body {
@@ -154,45 +226,34 @@ function handleLogout() {
 }
 
 .console-sidebar {
-  width: 220px;
+  width: 200px;
   background-color: #fff;
   border-right: 1px solid #e8e8e8;
   flex-shrink: 0;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar-title {
-  padding: 16px 20px 12px;
-  border-bottom: 1px solid #e8e8e8;
-}
-
-.sidebar-service-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: #333;
+  padding: 20px 20px 16px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.3;
 }
 
 .sidebar-nav {
-  padding: 4px 0;
-}
-
-.nav-group {
-  margin-bottom: 4px;
-}
-
-.nav-group-header {
-  padding: 12px 20px 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #333;
+  flex: 1;
+  padding: 0;
 }
 
 .nav-item {
-  display: flex;
-  align-items: center;
+  display: block;
   padding: 0 20px;
-  height: 36px;
-  color: #666;
+  height: 40px;
+  line-height: 40px;
+  color: #333;
   text-decoration: none;
   font-size: 14px;
   border-left: 3px solid transparent;
@@ -200,24 +261,36 @@ function handleLogout() {
 }
 
 .nav-item:hover {
-  color: #333;
+  color: #0073e6;
   background-color: #f5f7fa;
 }
 
 .nav-item.active {
   color: #0073e6;
-  background-color: #e6f2ff;
+  font-weight: 600;
   border-left-color: #0073e6;
+  background-color: transparent;
 }
 
-.nav-text {
-  white-space: nowrap;
+.sidebar-collapse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 0;
+  border-top: 1px solid #e8e8e8;
+  color: #999;
+  cursor: pointer;
+}
+
+.sidebar-collapse:hover {
+  color: #0073e6;
+  background: #f5f7fa;
 }
 
 .console-main {
   flex: 1;
   background-color: #fff;
   overflow-y: auto;
-  padding: 20px 24px;
+  padding: 24px 24px 24px 32px;
 }
 </style>

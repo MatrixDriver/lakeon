@@ -1,6 +1,8 @@
 <template>
   <div class="page-apikey">
-    <h1 class="page-title">API Key</h1>
+    <div class="page-header">
+      <h1 class="page-title">API Key</h1>
+    </div>
 
     <div class="apikey-card">
       <div class="card-header">
@@ -112,37 +114,32 @@ async function handleRegenerate() {
 </script>
 
 <style scoped>
-.page-apikey {
-  padding: 4px;
-}
-
-/* Card */
 .apikey-card {
   background: #fff;
-  border-radius: 4px;
-  border: 1px solid #e8e8e8;
+  border-radius: 2px;
+  border: 1px solid #dfe1e6;
   overflow: hidden;
   margin-bottom: 20px;
 }
 
 .new-key-card {
-  border-color: #91d5ff;
+  border-color: #0073e6;
 }
 
 .card-header {
-  padding: 16px 24px;
-  border-bottom: 1px solid #e8e8e8;
+  padding: 14px 20px;
+  border-bottom: 1px solid #dfe1e6;
 }
 
 .card-header h3 {
-  font-size: 15px;
-  font-weight: 500;
-  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+  color: #191919;
   margin: 0;
 }
 
 .card-body {
-  padding: 24px;
+  padding: 20px;
 }
 
 .key-display {
@@ -156,11 +153,11 @@ async function handleRegenerate() {
 }
 
 .key-value {
-  font-size: 16px;
-  color: #333;
-  background: #f5f5f5;
-  padding: 8px 16px;
-  border-radius: 4px;
+  font-size: 14px;
+  color: #191919;
+  background: #f2f3f5;
+  padding: 8px 14px;
+  border-radius: 2px;
   letter-spacing: 0.5px;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
@@ -172,22 +169,22 @@ async function handleRegenerate() {
 }
 
 .key-hint {
-  font-size: 13px;
-  color: #999;
+  font-size: 12px;
+  color: #8a8e99;
   margin-top: 12px;
 }
 
 .key-actions {
   padding-top: 16px;
-  border-top: 1px solid #e8e8e8;
+  border-top: 1px solid #dfe1e6;
 }
 
 .new-key-alert {
   background: #fffbe6;
   border: 1px solid #ffe58f;
-  border-radius: 4px;
+  border-radius: 2px;
   padding: 10px 16px;
-  font-size: 13px;
+  font-size: 14px;
   color: #ad6800;
   margin-bottom: 16px;
 }

@@ -1,15 +1,39 @@
 <template>
   <div class="page-db-list">
-    <h1 class="page-title">数据库实例</h1>
+    <div class="page-header">
+      <h1 class="page-title">数据库实例</h1>
+      <div class="page-header-actions">
+        <span class="page-header-link">使用指南</span>
+        <button class="btn btn-primary" @click="showCreateDialog = true">创建数据库实例</button>
+      </div>
+    </div>
 
-    <!-- Toolbar -->
-    <div class="toolbar">
-      <button class="btn btn-primary" @click="showCreateDialog = true">创建数据库</button>
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <div class="status-bar-item">
+        <span class="status-bar-label">实例总数</span>
+        <span class="status-bar-count">{{ databases.length }}</span>
+      </div>
+      <div class="status-bar-item">
+        <span class="status-bar-label">异常</span>
+        <span class="status-bar-count" :class="{ 'has-error': databases.filter(d => !['RUNNING','SUSPENDED','CREATING'].includes(d.status)).length > 0 }">{{ databases.filter(d => !['RUNNING','SUSPENDED','CREATING'].includes(d.status)).length }}</span>
+      </div>
+      <div class="status-bar-item">
+        <span class="status-bar-label">已挂起</span>
+        <span class="status-bar-count">{{ databases.filter(d => d.status === 'SUSPENDED').length }}</span>
+      </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="search-bar">
+      <svg class="search-bar-icon" viewBox="0 0 16 16" width="14" height="14" fill="#adb0b8">
+        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
+      </svg>
       <input
         type="text"
         v-model="searchQuery"
-        class="search-input"
-        placeholder="搜索数据库名称..."
+        class="search-bar-input"
+        placeholder="选择属性筛选，或输入关键字搜索实例名称"
       />
     </div>
 
@@ -30,9 +54,10 @@
           <tbody>
             <tr v-for="db in filteredDatabases" :key="db.id">
               <td>
-                <router-link :to="`/databases/${db.id}`" class="db-name-link">
-                  {{ db.name }}
-                </router-link>
+                <div class="db-name-cell">
+                  <router-link :to="`/databases/${db.id}`" class="db-name-link">{{ db.name }}</router-link>
+                  <div class="db-id-text">{{ db.id }}</div>
+                </div>
               </td>
               <td>
                 <span class="status-dot" :class="statusClass(db.status)"></span>
@@ -76,6 +101,9 @@
           <p v-if="loading">加载中...</p>
           <p v-else>暂无数据库实例</p>
         </div>
+      </div>
+      <div class="table-footer" v-if="filteredDatabases.length > 0">
+        <span class="table-footer-info">总条数：{{ filteredDatabases.length }}</span>
       </div>
     </div>
 
@@ -304,25 +332,61 @@ onMounted(fetchDatabases)
 </script>
 
 <style scoped>
-.page-db-list {
-  padding: 4px;
-}
-
-.toolbar {
+/* Search bar */
+.search-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  border: 1px solid #c2c6cc;
+  border-radius: 2px;
+  padding: 0 12px;
   margin-bottom: 16px;
+  height: 32px;
+  background: #fff;
+  transition: border-color 0.2s;
+}
+
+.search-bar:focus-within {
+  border-color: #0073e6;
+}
+
+.search-bar-icon {
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+
+.search-bar-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  color: #191919;
+  background: transparent;
+  height: 100%;
+}
+
+.search-bar-input::placeholder {
+  color: #adb0b8;
+}
+
+/* DB name cell */
+.db-name-cell {
+  line-height: 1.4;
 }
 
 .db-name-link {
   color: #0073e6;
   text-decoration: none;
-  font-weight: 500;
+  font-size: 14px;
 }
 
 .db-name-link:hover {
   text-decoration: underline;
+}
+
+.db-id-text {
+  font-size: 12px;
+  color: #8a8e99;
+  margin-top: 2px;
 }
 
 /* Storage bar */
@@ -334,9 +398,9 @@ onMounted(fetchDatabases)
 
 .storage-bar {
   width: 80px;
-  height: 6px;
+  height: 4px;
   background-color: #e8e8e8;
-  border-radius: 3px;
+  border-radius: 2px;
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -344,13 +408,25 @@ onMounted(fetchDatabases)
 .storage-fill {
   height: 100%;
   background-color: #0073e6;
-  border-radius: 3px;
+  border-radius: 2px;
   transition: width 0.3s;
 }
 
 .storage-text {
-  font-size: 13px;
-  color: #666;
+  font-size: 12px;
+  color: #8a8e99;
   white-space: nowrap;
+}
+
+/* Table footer */
+.table-footer {
+  padding: 12px 16px;
+  border-top: 1px solid #dfe1e6;
+  font-size: 12px;
+  color: #575d6c;
+}
+
+.table-footer-info {
+  color: #8a8e99;
 }
 </style>

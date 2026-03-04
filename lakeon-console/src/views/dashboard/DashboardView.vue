@@ -1,36 +1,29 @@
 <template>
   <div class="page-dashboard">
-    <h1 class="page-title">总览</h1>
+    <div class="page-header">
+      <h1 class="page-title">总览</h1>
+    </div>
 
-    <!-- Stat Cards -->
-    <div class="stat-cards">
-      <div class="stat-card">
-        <div class="stat-indicator" style="background-color: #1890ff;"></div>
-        <div class="stat-info">
-          <div class="stat-value">{{ stats.total }}</div>
-          <div class="stat-label">数据库总数</div>
-        </div>
+    <!-- Status Bar (Huawei style horizontal stats) -->
+    <div class="status-bar">
+      <div class="status-bar-item">
+        <span class="status-bar-label">数据库总数</span>
+        <span class="status-bar-count">{{ stats.total }}</span>
       </div>
-      <div class="stat-card">
-        <div class="stat-indicator" style="background-color: #52c41a;"></div>
-        <div class="stat-info">
-          <div class="stat-value">{{ stats.running }}</div>
-          <div class="stat-label">运行中</div>
-        </div>
+      <div class="status-bar-item">
+        <span class="status-dot dot-green"></span>
+        <span class="status-bar-label">运行中</span>
+        <span class="status-bar-count">{{ stats.running }}</span>
       </div>
-      <div class="stat-card">
-        <div class="stat-indicator" style="background-color: #d9d9d9;"></div>
-        <div class="stat-info">
-          <div class="stat-value">{{ stats.suspended }}</div>
-          <div class="stat-label">已挂起</div>
-        </div>
+      <div class="status-bar-item">
+        <span class="status-dot dot-gray"></span>
+        <span class="status-bar-label">已挂起</span>
+        <span class="status-bar-count">{{ stats.suspended }}</span>
       </div>
-      <div class="stat-card">
-        <div class="stat-indicator" style="background-color: #ff4d4f;"></div>
-        <div class="stat-info">
-          <div class="stat-value">{{ stats.error }}</div>
-          <div class="stat-label">异常</div>
-        </div>
+      <div class="status-bar-item">
+        <span class="status-dot dot-red"></span>
+        <span class="status-bar-label">异常</span>
+        <span class="status-bar-count" :class="{ 'has-error': stats.error > 0 }">{{ stats.error }}</span>
       </div>
     </div>
 
@@ -104,50 +97,3 @@ onMounted(async () => {
   }
 })
 </script>
-
-<style scoped>
-.page-dashboard {
-  padding: 4px;
-}
-
-.stat-cards {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.stat-card {
-  background: #fff;
-  border-radius: 4px;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  border: 1px solid #e8e8e8;
-}
-
-.stat-indicator {
-  width: 8px;
-  height: 40px;
-  border-radius: 4px;
-  flex-shrink: 0;
-}
-
-.stat-info {
-  flex: 1;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: 600;
-  color: #333;
-  line-height: 1.2;
-}
-
-.stat-label {
-  font-size: 13px;
-  color: #999;
-  margin-top: 4px;
-}
-</style>
