@@ -31,4 +31,5 @@ export const adminApi = {
   // Cost
   costSummary: () => client.get('/cost/summary'),
   costByTenant: () => client.get('/cost/tenants'),
+  costCbc: (billCycle?: string) => client.get('/cost/cbc', { params: billCycle ? { bill_cycle: billCycle } : {} }),
 }

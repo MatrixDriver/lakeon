@@ -1,6 +1,8 @@
 package com.lakeon.controller;
 
+import com.lakeon.model.dto.DatabaseUsageSummary;
 import com.lakeon.model.dto.TenantResponse;
+import com.lakeon.model.dto.TenantUsageSummary;
 import com.lakeon.model.dto.UpdateQuotaRequest;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.OperationLogEntity;
@@ -11,12 +13,17 @@ import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.OperationLogRepository;
 import com.lakeon.repository.TenantRepository;
 import com.lakeon.service.AdminService;
+import com.lakeon.service.CbcBillingService;
 import com.lakeon.service.DatabaseService;
 import com.lakeon.service.TenantService;
+import com.lakeon.service.UsageMeteringService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,19 +38,25 @@ public class AdminController {
     private final DatabaseRepository databaseRepository;
     private final TenantRepository tenantRepository;
     private final OperationLogRepository operationLogRepository;
+    private final UsageMeteringService usageMeteringService;
+    private final CbcBillingService cbcBillingService;
 
     public AdminController(TenantService tenantService,
                            AdminService adminService,
                            DatabaseService databaseService,
                            DatabaseRepository databaseRepository,
                            TenantRepository tenantRepository,
-                           OperationLogRepository operationLogRepository) {
+                           OperationLogRepository operationLogRepository,
+                           UsageMeteringService usageMeteringService,
+                           CbcBillingService cbcBillingService) {
         this.tenantService = tenantService;
         this.adminService = adminService;
         this.databaseService = databaseService;
         this.databaseRepository = databaseRepository;
         this.tenantRepository = tenantRepository;
         this.operationLogRepository = operationLogRepository;
+        this.usageMeteringService = usageMeteringService;
+        this.cbcBillingService = cbcBillingService;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────
@@ -220,6 +233,51 @@ public class AdminController {
     @GetMapping("/cost/tenants")
     public Map<String, Object> getCostByTenant() {
         return adminService.getCostByTenant();
+    }
+
+    @GetMapping("/cost/cbc")
+    public String getCbcBilling(@RequestParam(required = false, name = "bill_cycle") String billCycle) {
+        if (billCycle == null || billCycle.isBlank()) {
+            return cbcBillingService.getCurrentMonthBilling();
+        }
+        return cbcBillingService.fetchMonthlyBillSummary(billCycle);
+    }
+
+    // ── Usage Metering ────────────────────────────────────────────
+
+    @GetMapping("/usage/tenants")
+    public List<TenantUsageSummary> getAllTenantsUsage(
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+        Instant[] range = parseTimeRange(from, to);
+        return usageMeteringService.getAllTenantsUsage(range[0], range[1]);
+    }
+
+    @GetMapping("/usage/tenants/{tenantId}")
+    public TenantUsageSummary getTenantUsage(
+            @PathVariable String tenantId,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+        Instant[] range = parseTimeRange(from, to);
+        return usageMeteringService.getTenantUsage(tenantId, range[0], range[1]);
+    }
+
+    @GetMapping("/usage/databases/{databaseId}")
+    public DatabaseUsageSummary getDatabaseUsage(
+            @PathVariable String databaseId,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+        Instant[] range = parseTimeRange(from, to);
+        return usageMeteringService.getDatabaseUsage(databaseId, range[0], range[1]);
+    }
+
+    private Instant[] parseTimeRange(String from, String to) {
+        Instant now = Instant.now();
+        Instant start = from != null
+                ? Instant.parse(from)
+                : YearMonth.now(ZoneOffset.UTC).atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        Instant end = to != null ? Instant.parse(to) : now;
+        return new Instant[]{start, end};
     }
 
     // ── Helpers ────────────────────────────────────────────────────

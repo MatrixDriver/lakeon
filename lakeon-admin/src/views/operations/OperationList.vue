@@ -113,7 +113,17 @@ async function loadOperations() {
     if (typeFilter.value) params.type = typeFilter.value
     if (statusFilter.value) params.status = statusFilter.value
     const res = await adminApi.listOperations(params)
-    operations.value = res.data
+    const items = res.data.data || res.data || []
+    operations.value = items.map((op: any) => ({
+      id: op.id,
+      database_name: op.databaseName ?? op.database_name,
+      tenant_id: op.tenantId ?? op.tenant_id,
+      type: op.operationType ?? op.type,
+      status: op.status,
+      duration_ms: op.durationMs ?? op.duration_ms,
+      started_at: op.startedAt ?? op.started_at,
+      error_message: op.errorMessage ?? op.error_message,
+    }))
   } catch (e) {
     console.error('Failed to load operations', e)
   }

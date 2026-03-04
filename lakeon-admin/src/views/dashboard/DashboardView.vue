@@ -99,13 +99,43 @@ const components = ref<Array<{ name: string; healthy: boolean }>>([])
 const operationStats = ref<Array<{ type: string; count: number }>>([])
 const costBreakdown = ref<Array<{ resource: string; cost: number }>>([])
 
+const COST_LABELS: Record<string, string> = {
+  cce_nodes: 'CCE 节点',
+  elb: '弹性负载均衡',
+  rds: 'RDS 数据库',
+  eip: '弹性公网 IP',
+  obs: 'OBS 存储',
+  compute: '计算资源',
+}
+
 onMounted(async () => {
   try {
     const res = await adminApi.dashboard()
-    data.value = res.data
-    components.value = res.data.components || []
-    operationStats.value = res.data.operation_stats_24h || []
-    costBreakdown.value = res.data.cost_breakdown || []
+    const d = res.data
+    data.value = {
+      total_tenants: d.tenant_count,
+      total_databases: d.database_count,
+      active_computes: d.active_compute_pods,
+      estimated_monthly_cost: d.estimated_monthly_cost?.total,
+    }
+    // component_health: { pageserver: {status}, ... } → array
+    const ch = d.component_health || {}
+    components.value = Object.entries(ch).map(([name, info]: [string, any]) => ({
+      name,
+      healthy: info.status === 'healthy',
+    }))
+    // operation_stats_24h: { create: 5, ... } → array
+    const ops = d.operation_stats_24h || {}
+    operationStats.value = Object.entries(ops).map(([type, count]: [string, any]) => ({
+      type,
+      count: count as number,
+    }))
+    // cost breakdown: { cce_nodes: 100, ... } → array
+    const bd = d.estimated_monthly_cost?.breakdown || {}
+    costBreakdown.value = Object.entries(bd).map(([key, cost]: [string, any]) => ({
+      resource: COST_LABELS[key] || key,
+      cost: cost as number,
+    }))
   } catch (e) {
     console.error('Failed to load dashboard', e)
   }

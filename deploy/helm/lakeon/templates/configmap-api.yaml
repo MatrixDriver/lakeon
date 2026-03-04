@@ -14,6 +14,19 @@ data:
   LAKEON_COMPUTE_IMAGE: "{{ .Values.neon.computeImage.repository }}:{{ .Values.neon.computeImage.tag }}"
   LAKEON_K8S_NAMESPACE: "lakeon-compute"
   LAKEON_API_PORT: {{ .Values.api.port | quote }}
+  {{- if .Values.proxy.externalHost }}
+  LAKEON_PROXY_EXTERNAL_HOST: {{ .Values.proxy.externalHost | quote }}
+  {{- end }}
+  LAKEON_PROXY_EXTERNAL_PORT: {{ .Values.proxy.listenPort | quote }}
   {{- if .Values.global.imagePullSecrets }}
   LAKEON_IMAGE_PULL_SECRETS: {{ range $i, $s := .Values.global.imagePullSecrets }}{{ if $i }},{{ end }}{{ $s.name }}{{ end }}
+  {{- end }}
+  {{- with .Values.cost }}
+  LAKEON_COST_CCE_NODE_HOURLY: {{ .cceNodeHourly | default "1.5" | quote }}
+  LAKEON_COST_CCE_NODE_COUNT: {{ .cceNodeCount | default "3" | quote }}
+  LAKEON_COST_ELB_MONTHLY: {{ .elbMonthly | default "30" | quote }}
+  LAKEON_COST_OBS_PER_GB_MONTHLY: {{ .obsPerGbMonthly | default "0.099" | quote }}
+  LAKEON_COST_RDS_MONTHLY: {{ .rdsMonthly | default "500" | quote }}
+  LAKEON_COST_EIP_MONTHLY: {{ .eipMonthly | default "150" | quote }}
+  LAKEON_COST_COMPUTE_CU_HOURLY: {{ .computeCuHourly | default "0.5" | quote }}
   {{- end }}
