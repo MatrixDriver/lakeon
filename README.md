@@ -1,56 +1,10 @@
-# LakeOn
+# Lakeon
 
 基于 [Neon](https://github.com/neondatabase/neon) 存储引擎的自托管 Serverless PostgreSQL 平台。
 
-LakeOn 将 Neon 的存算分离架构封装为一套可私有部署的 Kubernetes 原生方案，支持按需创建数据库、自动挂起/唤醒计算节点、多租户隔离和对象存储持久化。
+Lakeon 将 Neon 的存算分离架构封装为一套可私有部署的 Kubernetes 原生方案，支持按需创建数据库、自动挂起/唤醒计算节点、多租户隔离和对象存储持久化。
 
-## 架构概览
-
-```
-┌─────────────────────────────────────────────────────┐
-│                   LakeOn Platform                   │
-│                                                     │
-│  ┌──────────┐    ┌────────────┐    ┌─────────────┐  │
-│  │ lakeon-  │───▶│ pageserver │───▶│ Object      │  │
-│  │ api      │    │            │    │ Storage     │  │
-│  │ (控制面) │    ├────────────┤    │ (MinIO/OBS) │  │
-│  │          │───▶│ safekeeper │    └─────────────┘  │
-│  └────┬─────┘    └────────────┘                     │
-│       │          ┌────────────┐                     │
-│       ├─────────▶│ storage-   │                     │
-│       │          │ broker     │                     │
-│       ▼          └────────────┘                     │
-│  ┌──────────┐                                       │
-│  │ compute  │  ← 按需创建的 PostgreSQL 计算节点      │
-│  │ pods     │    (自动挂起 / 唤醒)                   │
-│  └──────────┘                                       │
-│  ┌──────────┐    ┌────────────┐                     │
-│  │ proxy    │    │ metadata-  │                     │
-│  │ (连接路由)│    │ db (PG)    │                     │
-│  └──────────┘    └────────────┘                     │
-└─────────────────────────────────────────────────────┘
-```
-
-## 核心特性
-
-- **存算分离** — 基于 Neon pageserver + safekeeper，WAL 流式写入，page 按需加载
-- **Serverless 计算** — 数据库闲置自动挂起，连接时自动唤醒，计算节点约 10 秒启动
-- **多租户隔离** — API Key 认证，租户间数据库和数据完全隔离
-- **对象存储持久化** — 支持 S3 兼容存储（MinIO / 华为云 OBS / AWS S3）
-- **Kubernetes 原生** — Helm Chart 一键部署，RBAC 权限管理
-
-## 技术栈
-
-| 组件 | 技术 |
-|------|------|
-| 控制面 API | Spring Boot 3.3, Java 17 |
-| 存储引擎 | Neon (pageserver, safekeeper, storage-broker) |
-| 计算节点 | Neon compute-node (PostgreSQL 17) |
-| 连接代理 | Neon proxy |
-| 元数据库 | PostgreSQL 16 |
-| 对象存储 | MinIO (本地) / 华为云 OBS (云端) |
-| 容器编排 | Kubernetes + Helm |
-| CLI | Python (Typer) |
+详细架构设计请参考 [架构文档](doc/architecture.md)。
 
 ## 项目结构
 
