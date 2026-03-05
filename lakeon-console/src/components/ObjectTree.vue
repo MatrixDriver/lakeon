@@ -1,65 +1,36 @@
 <template>
   <div class="object-tree">
     <div class="tree-header">
-      <span class="tree-title">对象浏览</span>
+      <span class="tree-title">表</span>
       <button class="tree-refresh" @click="loadSchemas" title="刷新">↻</button>
     </div>
     <div v-if="loading" class="tree-loading">加载中...</div>
+    <div v-else-if="error" class="tree-error">{{ error }}</div>
     <div v-else class="tree-body">
       <div v-for="schema in schemas" :key="schema.name" class="tree-node">
         <div class="tree-item schema-item" @click="toggleSchema(schema.name)">
           <span class="tree-arrow" :class="{ expanded: expandedSchemas.has(schema.name) }">▶</span>
-          <span class="tree-icon schema-icon">S</span>
-          <span class="tree-label">{{ schema.name }}</span>
+          <span class="tree-label schema-label">{{ schema.name }}</span>
+          <span class="tree-count">{{ getTableCount(schema.name) }}</span>
         </div>
         <div v-if="expandedSchemas.has(schema.name)" class="tree-children">
-          <!-- Tables group -->
-          <div class="tree-node">
-            <div class="tree-item group-item" @click="toggleGroup(schema.name, 'tables')">
-              <span class="tree-arrow" :class="{ expanded: isGroupExpanded(schema.name, 'tables') }">▶</span>
-              <span class="tree-icon group-icon">T</span>
-              <span class="tree-label">表</span>
-              <span class="tree-count">{{ getTablesCount(schema.name, 'BASE TABLE') }}</span>
+          <div v-if="loadingSchema === schema.name" class="tree-loading-inline">加载中...</div>
+          <template v-else>
+            <div
+              v-for="t in getTables(schema.name)"
+              :key="t.name"
+              class="tree-item table-item"
+              :class="{ selected: selectedSchema === schema.name && selectedTable === t.name }"
+              @click="selectTable(schema.name, t.name)"
+            >
+              <span class="table-type-icon" :class="t.type === 'VIEW' ? 'type-view' : 'type-table'">{{ t.type === 'VIEW' ? 'V' : 'T' }}</span>
+              <span class="tree-label">{{ t.name }}</span>
             </div>
-            <div v-if="isGroupExpanded(schema.name, 'tables')" class="tree-children">
-              <div
-                v-for="t in getTablesByType(schema.name, 'BASE TABLE')"
-                :key="t.name"
-                class="tree-item table-item"
-                :class="{ selected: selectedSchema === schema.name && selectedTable === t.name }"
-                @click="selectTable(schema.name, t.name)"
-              >
-                <span class="tree-icon table-icon">⊞</span>
-                <span class="tree-label">{{ t.name }}</span>
-                <span class="tree-row-count" v-if="t.row_count_estimate > 0">~{{ formatCount(t.row_count_estimate) }}</span>
-              </div>
-              <div v-if="getTablesCount(schema.name, 'BASE TABLE') === 0" class="tree-empty">无表</div>
-            </div>
-          </div>
-          <!-- Views group -->
-          <div class="tree-node">
-            <div class="tree-item group-item" @click="toggleGroup(schema.name, 'views')">
-              <span class="tree-arrow" :class="{ expanded: isGroupExpanded(schema.name, 'views') }">▶</span>
-              <span class="tree-icon group-icon">V</span>
-              <span class="tree-label">视图</span>
-              <span class="tree-count">{{ getTablesCount(schema.name, 'VIEW') }}</span>
-            </div>
-            <div v-if="isGroupExpanded(schema.name, 'views')" class="tree-children">
-              <div
-                v-for="v in getTablesByType(schema.name, 'VIEW')"
-                :key="v.name"
-                class="tree-item table-item"
-                :class="{ selected: selectedSchema === schema.name && selectedTable === v.name }"
-                @click="selectTable(schema.name, v.name)"
-              >
-                <span class="tree-icon view-icon">⊟</span>
-                <span class="tree-label">{{ v.name }}</span>
-              </div>
-              <div v-if="getTablesCount(schema.name, 'VIEW') === 0" class="tree-empty">无视图</div>
-            </div>
-          </div>
+            <div v-if="getTables(schema.name).length === 0" class="tree-empty">无表</div>
+          </template>
         </div>
       </div>
+      <div v-if="schemas.length === 0 && !loading" class="tree-empty" style="padding: 20px 12px;">无 Schema</div>
     </div>
   </div>
 </template>
@@ -75,30 +46,32 @@ const emit = defineEmits<{
 
 const schemas = ref<SchemaInfo[]>([])
 const loading = ref(false)
+const error = ref('')
+const loadingSchema = ref('')
 const expandedSchemas = ref<Set<string>>(new Set())
-const expandedGroups = ref<Set<string>>(new Set())
 const tablesMap = ref<Record<string, TableInfo[]>>({})
 const selectedSchema = ref('')
 const selectedTable = ref('')
 
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M'
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K'
-  return String(n)
-}
-
 async function loadSchemas() {
   loading.value = true
+  error.value = ''
   try {
     const res = await databaseApi.listSchemas(props.dbId)
     schemas.value = res.data
-    // Auto-expand public schema
+    // Auto-expand public schema and load its tables
     if (res.data.some(s => s.name === 'public')) {
-      if (!expandedSchemas.value.has('public')) {
-        await toggleSchema('public')
-      }
+      expandedSchemas.value.add('public')
+      await loadTables('public')
+    } else if (res.data.length > 0) {
+      // If no public schema, expand the first one
+      const first = res.data[0]!.name
+      expandedSchemas.value.add(first)
+      await loadTables(first)
     }
-  } catch (e) {
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } }; message?: string }
+    error.value = err.response?.data?.message || err.message || '加载失败'
     console.error('Failed to load schemas', e)
   } finally {
     loading.value = false
@@ -117,33 +90,23 @@ async function toggleSchema(name: string) {
 }
 
 async function loadTables(schema: string) {
+  loadingSchema.value = schema
   try {
     const res = await databaseApi.listTables(props.dbId, schema)
     tablesMap.value[schema] = res.data
   } catch (e) {
     console.error('Failed to load tables for schema', schema, e)
+  } finally {
+    loadingSchema.value = ''
   }
 }
 
-function toggleGroup(schema: string, group: string) {
-  const key = schema + '.' + group
-  if (expandedGroups.value.has(key)) {
-    expandedGroups.value.delete(key)
-  } else {
-    expandedGroups.value.add(key)
-  }
+function getTables(schema: string): TableInfo[] {
+  return tablesMap.value[schema] || []
 }
 
-function isGroupExpanded(schema: string, group: string): boolean {
-  return expandedGroups.value.has(schema + '.' + group)
-}
-
-function getTablesByType(schema: string, type: string): TableInfo[] {
-  return (tablesMap.value[schema] || []).filter(t => t.type === type)
-}
-
-function getTablesCount(schema: string, type: string): number {
-  return getTablesByType(schema, type).length
+function getTableCount(schema: string): number {
+  return getTables(schema).length
 }
 
 function selectTable(schema: string, table: string) {
@@ -153,10 +116,8 @@ function selectTable(schema: string, table: string) {
 }
 
 async function refresh() {
-  // Reload tables for all expanded schemas
-  for (const schema of expandedSchemas.value) {
-    await loadTables(schema)
-  }
+  tablesMap.value = {}
+  await loadSchemas()
 }
 
 defineExpose({ refresh, loadSchemas })
@@ -173,6 +134,7 @@ onMounted(loadSchemas)
   border-right: 1px solid #dfe1e6;
   font-size: 13px;
   user-select: none;
+  width: 100%;
 }
 
 .tree-header {
@@ -210,17 +172,28 @@ onMounted(loadSchemas)
   padding: 4px 0;
 }
 
-.tree-loading {
-  padding: 20px;
+.tree-loading, .tree-error {
+  padding: 20px 12px;
   text-align: center;
   color: #8a8e99;
+  font-size: 13px;
+}
+
+.tree-error {
+  color: #d4380d;
+}
+
+.tree-loading-inline {
+  padding: 4px 12px 4px 32px;
+  color: #8a8e99;
+  font-size: 12px;
 }
 
 .tree-item {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
+  gap: 6px;
+  padding: 5px 10px;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -236,7 +209,7 @@ onMounted(loadSchemas)
 
 .tree-arrow {
   display: inline-block;
-  width: 14px;
+  width: 12px;
   font-size: 8px;
   color: #8a8e99;
   transition: transform 0.15s;
@@ -248,22 +221,9 @@ onMounted(loadSchemas)
   transform: rotate(90deg);
 }
 
-.tree-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 2px;
-  font-size: 10px;
-  font-weight: 700;
-  flex-shrink: 0;
+.schema-label {
+  font-weight: 500;
 }
-
-.schema-icon { background: #e6f4ff; color: #0073e6; }
-.group-icon { background: #f2f3f5; color: #575d6c; }
-.table-icon { color: #0073e6; font-size: 14px; }
-.view-icon { color: #52c41a; font-size: 14px; }
 
 .tree-label {
   overflow: hidden;
@@ -274,26 +234,34 @@ onMounted(loadSchemas)
   margin-left: auto;
   font-size: 11px;
   color: #8a8e99;
-  padding: 0 4px;
-}
-
-.tree-row-count {
-  margin-left: auto;
-  font-size: 11px;
-  color: #8a8e99;
 }
 
 .tree-children {
-  padding-left: 16px;
+  padding-left: 12px;
 }
 
 .tree-empty {
-  padding: 4px 8px 4px 36px;
+  padding: 4px 12px 4px 32px;
   color: #8a8e99;
   font-size: 12px;
 }
 
 .table-item {
-  padding-left: 12px;
+  padding-left: 28px;
 }
+
+.table-type-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.type-table { background: #e6f4ff; color: #0073e6; }
+.type-view { background: #f6ffed; color: #52c41a; }
 </style>

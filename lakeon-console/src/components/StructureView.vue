@@ -3,6 +3,9 @@
     <div v-if="loading" class="struct-loading">加载中...</div>
     <div v-else-if="!schema || !table" class="struct-empty">选择一个表以查看结构</div>
     <template v-else>
+      <div class="struct-header">
+        <span class="struct-schema">{{ schema }}</span>.<span class="struct-table-name">{{ table }}</span>
+      </div>
       <!-- Columns -->
       <div class="struct-section">
         <h4 class="struct-title">列 ({{ columns.length }})</h4>
@@ -145,6 +148,24 @@ watch(() => [props.schema, props.table], () => {
   text-align: center;
   color: #8a8e99;
   font-size: 14px;
+}
+
+.struct-header {
+  font-size: 15px;
+  font-weight: 600;
+  color: #191919;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ebebeb;
+}
+
+.struct-schema {
+  color: #8a8e99;
+  font-weight: 400;
+}
+
+.struct-table-name {
+  color: #191919;
 }
 
 .struct-section {

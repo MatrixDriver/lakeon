@@ -44,6 +44,9 @@ lakeon:
     image-pull-secrets: ${LAKEON_IMAGE_PULL_SECRETS:}
     compute-cpu: ${LAKEON_COMPUTE_CPU:}
     compute-memory: ${LAKEON_COMPUTE_MEMORY:}
+  alert:
+    smn-topic-urn: ${LAKEON_ALERT_SMN_TOPIC_URN:}
+    smn-region: ${LAKEON_ALERT_SMN_REGION:cn-north-4}
   defaults:
     compute-size: ${LAKEON_DEFAULT_COMPUTE_SIZE:1cu}
     suspend-timeout: ${LAKEON_DEFAULT_SUSPEND_TIMEOUT:5m}

@@ -11,61 +11,22 @@
     <div class="manager-layout">
       <!-- Left: Object Tree -->
       <div class="manager-sidebar">
-        <ObjectTree ref="objectTreeRef" :db-id="dbId" @select="handleSelectTable" />
+        <ObjectTree :db-id="dbId" @select="handleSelectTable" />
       </div>
 
-      <!-- Right: Content Area -->
+      <!-- Right: Table Structure -->
       <div class="manager-content">
-        <!-- Tab Bar -->
-        <div class="tab-header">
-          <button
-            v-for="tab in tabs"
-            :key="tab.key"
-            class="tab-btn"
-            :class="{ active: activeTab === tab.key }"
-            @click="activeTab = tab.key"
-          >{{ tab.label }}</button>
-          <div class="tab-actions">
-            <button
-              v-if="selectedSchema"
-              class="btn btn-primary btn-small"
-              @click="showCreateTable = true"
-            >新建表</button>
-          </div>
-        </div>
-
-        <!-- Tab Content -->
-        <div class="tab-body">
-          <DataGrid
-            v-if="activeTab === 'data'"
-            ref="dataGridRef"
-            :db-id="dbId"
-            :schema="selectedSchema"
-            :table="selectedTable"
-          />
-          <StructureView
-            v-if="activeTab === 'structure'"
-            :db-id="dbId"
-            :schema="selectedSchema"
-            :table="selectedTable"
-          />
-          <SqlEditor
-            v-if="activeTab === 'sql'"
-            :db-id="dbId"
-            @executed="handleSqlExecuted"
-          />
+        <StructureView
+          v-if="selectedTable"
+          :db-id="dbId"
+          :schema="selectedSchema"
+          :table="selectedTable"
+        />
+        <div v-else class="empty-hint">
+          <p>请在左侧选择一个表查看结构</p>
         </div>
       </div>
     </div>
-
-    <!-- Create Table Dialog -->
-    <CreateTableDialog
-      v-if="showCreateTable"
-      :db-id="dbId"
-      :schema="selectedSchema || 'public'"
-      @close="showCreateTable = false"
-      @created="handleTableCreated"
-    />
   </div>
 </template>
 
@@ -74,43 +35,18 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { databaseApi } from '../../api/database'
 import ObjectTree from '../../components/ObjectTree.vue'
-import DataGrid from '../../components/DataGrid.vue'
 import StructureView from '../../components/StructureView.vue'
-import SqlEditor from '../../components/SqlEditor.vue'
-import CreateTableDialog from '../../components/CreateTableDialog.vue'
 
 const route = useRoute()
 const dbId = computed(() => route.params.id as string)
 const dbName = ref('')
 
-const activeTab = ref('data')
-const tabs = [
-  { key: 'data', label: '数据' },
-  { key: 'structure', label: '结构' },
-  { key: 'sql', label: 'SQL' },
-]
-
 const selectedSchema = ref('')
 const selectedTable = ref('')
-const showCreateTable = ref(false)
-
-const objectTreeRef = ref<InstanceType<typeof ObjectTree>>()
 
 function handleSelectTable(schema: string, table: string) {
   selectedSchema.value = schema
   selectedTable.value = table
-  if (activeTab.value === 'sql') {
-    activeTab.value = 'data'
-  }
-}
-
-function handleSqlExecuted() {
-  objectTreeRef.value?.refresh()
-}
-
-function handleTableCreated() {
-  showCreateTable.value = false
-  objectTreeRef.value?.refresh()
 }
 
 onMounted(async () => {
@@ -176,79 +112,16 @@ onMounted(async () => {
 
 .manager-content {
   flex: 1;
-  display: flex;
-  flex-direction: column;
   min-width: 0;
+  overflow: auto;
 }
 
-.tab-header {
+.empty-hint {
   display: flex;
-  align-items: center;
-  border-bottom: 1px solid #ebebeb;
-  padding: 0 16px;
-  flex-shrink: 0;
-}
-
-.tab-btn {
-  background: none;
-  border: none;
-  padding: 12px 16px;
-  font-size: 14px;
-  color: #575d6c;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s;
-  margin-bottom: -1px;
-}
-
-.tab-btn:hover {
-  color: #0073e6;
-}
-
-.tab-btn.active {
-  color: #191919;
-  border-bottom-color: #0073e6;
-  font-weight: 600;
-}
-
-.tab-actions {
-  margin-left: auto;
-  display: flex;
-  gap: 8px;
-  padding: 4px 0;
-}
-
-.tab-body {
-  flex: 1;
-  overflow: hidden;
-  min-height: 0;
-}
-
-.btn {
-  display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 16px;
-  border: 1px solid transparent;
-  border-radius: 2px;
+  height: 100%;
+  color: #8a8e99;
   font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-decoration: none;
-}
-
-.btn-primary {
-  background: #0073e6;
-  color: #fff;
-  border-color: #0073e6;
-}
-
-.btn-primary:hover {
-  background: #005bb5;
-}
-
-.btn-small {
-  padding: 3px 10px;
-  font-size: 13px;
 }
 </style>

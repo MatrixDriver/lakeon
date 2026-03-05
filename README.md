@@ -342,33 +342,47 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [ ] 输出评估报告：混合架构可行性、启动延迟、成本对比
 - [ ] 确定后续阶段的部署架构选型
 
-### 阶段 8：华为云可观测性与运维
+### 阶段 8a：自建可观测性 + 共享基础
 
-对接华为云原生运维服务，替代自建 Prometheus / Grafana 方案。基于阶段 7 结论选择部署架构。
+📋 [方案对比文档](docs/plans/2026-03-05-stage8-observability-plan.md)
 
-#### 日志（LTS 云日志服务）
-- [ ] 添加 logback-spring.xml，输出 JSON 结构化日志
-- [ ] CCE 集群安装 ICAgent，采集容器 stdout 日志到 LTS
-- [ ] LTS 配置日志流、索引和查询模板
+双轨对比方案：自建 vs 华为云可观测性。不使用 LTS / APM。
 
-#### 指标监控（AOM 应用运维管理）
+#### 自定义 Micrometer 指标（Track A+B 共享）
+- [ ] 注入 MeterRegistry，埋点 7 个自定义指标（lakeon_tenants_total 等）
+- [ ] 修复 alerts.yml 5 条规则全部生效
+
+#### 内嵌日志查看器
+- [ ] `GET /api/v1/admin/logs/{component}` — Fabric8 K8s Pod 日志 API
+- [ ] LogViewer.vue — 终端风格面板、组件切换、搜索高亮、自动刷新
+
+#### 应用指标仪表盘
+- [ ] `GET /api/v1/admin/metrics/summary` — MeterRegistry 直读
+- [ ] MetricsView.vue — JVM / API / Compute / 数据库 / 存储指标卡片 + 趋势图
+
+#### 告警服务
+- [ ] AlertService — `@Scheduled(fixedRate = 60000)` 巡检 5 条规则
+- [ ] 支持企业微信 / 钉钉 / 通用 Webhook 通知
+- [ ] AlertsView.vue — 告警历史 + 规则管理 + 测试发送
+
+#### 基础设施监控（K8s metrics API）
+- [ ] `GET /api/v1/admin/infra/nodes` — 节点 CPU/内存、Pod 资源排行
+- [ ] InfraMonitor.vue — 节点资源卡片 + 进度条 + Pod 列表
+
+### 阶段 8b：华为云服务接入
+
+#### AOM 指标采集
 - [ ] Pod 添加 Prometheus annotations（scrape/port/path）
-- [ ] AOM 自动采集 Micrometer 指标（lakeon-api）和 Neon 组件指标（pageserver / safekeeper / proxy）
-- [ ] 迁移现有 Grafana Dashboard 到 AOM 仪表盘
+- [ ] AOM 自动发现采集自定义指标
+- [ ] MetricsView 添加 AOM 控制台外链
 
-#### 告警通知（AOM + SMN 消息通知服务）
-- [ ] 迁移现有 5 条 Prometheus 告警规则到 AOM 告警策略
-- [ ] 对接 SMN 实现短信 / 邮件 / 企业微信告警通知
+#### CES 基础设施监控
+- [ ] CCE 节点 CPU / 内存监控（自动接入）
+- [ ] InfraMonitor 添加 CES 控制台外链
 
-#### 链路追踪（APM 应用性能管理）
-- [ ] 引入 OpenTelemetry Spring Boot Starter
-- [ ] 配置 OTLP exporter 对接华为 APM endpoint
-- [ ] 覆盖关键链路：proxy → compute → pageserver 调用链
-
-#### 基础设施监控（CES 云监控服务）
-- [ ] CCE 节点 CPU / 内存 / 磁盘监控（自动接入）
-- [ ] OBS 存储容量和请求量监控
-- [ ] RDS 连接数和慢查询监控
+#### SMN 告警通知
+- [ ] AlertService 扩展 SMN SDK 通知渠道
+- [ ] 支持邮件 + 短信（需 NAT 网关）
 
 ### 阶段 9：计算节点弹性唤醒优化
 

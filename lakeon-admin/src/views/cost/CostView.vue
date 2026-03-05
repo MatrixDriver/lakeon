@@ -4,57 +4,8 @@
       <h1 class="page-title">成本监控</h1>
     </div>
 
-    <!-- CBC Actual Cost -->
-    <div class="section-card" v-if="cbcError">
-      <div class="section-header">
-        <h3>华为云实际账单</h3>
-      </div>
-      <div style="padding: 16px; color: #e37318; font-size: 14px;">
-        ⚠ 无法获取 CBC 账单数据。请确认 CCE 集群已配置 NAT 网关（SNAT 规则），使 Pod 能访问公网 API。
-      </div>
-    </div>
-    <div class="section-card" v-if="cbcBills.length > 0">
-      <div class="section-header">
-        <h3>华为云实际账单（{{ cbcCycle }}）</h3>
-      </div>
-      <div class="cost-cards" style="margin-bottom: 16px; padding: 0 16px;">
-        <div class="total-cost-card highlight">
-          <div class="total-cost-label">当月实际消费</div>
-          <div class="total-cost-value">{{ formatCurrency(cbcTotal) }} <span class="total-cost-unit">元</span></div>
-        </div>
-        <div class="total-cost-card">
-          <div class="total-cost-label">每天实际（均摊）</div>
-          <div class="total-cost-value">{{ formatCurrency(cbcDaily) }} <span class="total-cost-unit">元</span></div>
-        </div>
-        <div class="total-cost-card">
-          <div class="total-cost-label">每小时实际（均摊）</div>
-          <div class="total-cost-value">{{ formatCurrency(cbcHourly) }} <span class="total-cost-unit">元</span></div>
-        </div>
-      </div>
-      <div class="table-wrapper">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>云服务</th>
-              <th>资源类型</th>
-              <th>实际消费(元)</th>
-              <th>官方价(元)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="b in cbcBills" :key="b.resource_type_code">
-              <td>{{ b.service }}</td>
-              <td>{{ b.resource }}</td>
-              <td>{{ formatCurrency(b.consume) }}</td>
-              <td>{{ formatCurrency(b.official) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
     <!-- Estimated Cost -->
-    <div class="section-card" style="margin-top: 24px;">
+    <div class="section-card">
       <div class="section-header">
         <h3>Lakeon 预估成本</h3>
       </div>
@@ -159,21 +110,9 @@ interface TenantCost {
   total_cost?: number
 }
 
-interface CbcBill {
-  service: string
-  resource: string
-  consume: number
-  official: number
-  resource_type_code: string
-}
-
 const summary = ref<CostSummary>({})
 const breakdown = ref<Array<{ resource: string; cost: number }>>([])
 const tenantCosts = ref<TenantCost[]>([])
-const cbcBills = ref<CbcBill[]>([])
-const cbcTotal = ref(0)
-const cbcCycle = ref('')
-const cbcError = ref(false)
 const trendData = ref<Array<{ date: string; fixed_cost: number; compute_cost: number; total_cost: number }>>([])
 const trendCanvas = ref<HTMLCanvasElement | null>(null)
 
@@ -186,25 +125,11 @@ const dailyCost = computed(() => {
   return m != null ? Math.round(m / 30 * 100) / 100 : undefined
 })
 
-// CBC: elapsed days in current month
-const cbcDays = computed(() => {
-  const now = new Date()
-  return now.getDate()
-})
-const cbcDaily = computed(() => {
-  return cbcDays.value > 0 ? Math.round(cbcTotal.value / cbcDays.value * 100) / 100 : 0
-})
-const cbcHourly = computed(() => {
-  const hours = cbcDays.value * 24
-  return hours > 0 ? Math.round(cbcTotal.value / hours * 100) / 100 : 0
-})
-
 onMounted(async () => {
   try {
-    const [summaryRes, tenantRes, cbcRes] = await Promise.all([
+    const [summaryRes, tenantRes] = await Promise.all([
       adminApi.costSummary(),
       adminApi.costByTenant(),
-      adminApi.costCbc().catch(() => { cbcError.value = true; return { data: null } }),
     ])
 
     // Estimated cost
@@ -221,24 +146,6 @@ onMounted(async () => {
     }))
     tenantCosts.value = tenantRes.data.tenants || tenantRes.data || []
 
-    // CBC actual billing
-    const cbc = typeof cbcRes.data === 'string' ? JSON.parse(cbcRes.data) : cbcRes.data
-    if (cbc && cbc.error) {
-      cbcError.value = true
-    } else if (cbc && cbc.bill_sums) {
-      cbcTotal.value = cbc.consume_amount || 0
-      cbcCycle.value = cbc.bill_sums[0]?.bill_cycle || ''
-      cbcBills.value = cbc.bill_sums
-        .filter((b: any) => b.consume_amount > 0 || b.official_amount > 0.01)
-        .map((b: any) => ({
-          service: b.service_type_name,
-          resource: b.resource_type_name,
-          consume: b.consume_amount,
-          official: b.official_amount,
-          resource_type_code: b.resource_type_code,
-        }))
-        .sort((a: CbcBill, b: CbcBill) => b.consume - a.consume)
-    }
     // Cost trend
     try {
       const trendRes = await adminApi.costTrend(30)
@@ -343,11 +250,6 @@ function renderTrendChart() {
   border-radius: 4px;
   padding: 24px;
   text-align: center;
-}
-
-.total-cost-card.highlight {
-  border-color: #0052d9;
-  background: #f2f7ff;
 }
 
 .total-cost-label {

@@ -16,6 +16,10 @@ spec:
     metadata:
       labels:
         app: safekeeper
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "7676"
+        prometheus.io/path: "/metrics"
     spec:
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:

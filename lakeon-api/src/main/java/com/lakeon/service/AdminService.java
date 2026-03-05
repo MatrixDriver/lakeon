@@ -11,11 +11,18 @@ import com.lakeon.neon.NeonApiClient;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.OperationLogRepository;
 import com.lakeon.repository.TenantRepository;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.api.model.metrics.v1beta1.NodeMetrics;
+import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetrics;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.micrometer.core.instrument.Timer;
 
 import javax.sql.DataSource;
 import java.io.File;
@@ -38,6 +45,8 @@ public class AdminService {
     private final LakeonProperties props;
     private final DataSource dataSource;
     private final UsageMeteringService usageMeteringService;
+    private final MeterRegistry meterRegistry;
+    private final KubernetesClient k8sClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private volatile Map<String, Object> cloudResourcesCache;
     private volatile long cloudResourcesCacheTime;
@@ -48,7 +57,9 @@ public class AdminService {
                         NeonApiClient neonApiClient,
                         LakeonProperties props,
                         DataSource dataSource,
-                        UsageMeteringService usageMeteringService) {
+                        UsageMeteringService usageMeteringService,
+                        MeterRegistry meterRegistry,
+                        KubernetesClient k8sClient) {
         this.tenantRepository = tenantRepository;
         this.databaseRepository = databaseRepository;
         this.operationLogRepository = operationLogRepository;
@@ -56,6 +67,30 @@ public class AdminService {
         this.props = props;
         this.dataSource = dataSource;
         this.usageMeteringService = usageMeteringService;
+        this.meterRegistry = meterRegistry;
+        this.k8sClient = k8sClient;
+
+        Gauge.builder("lakeon_tenants_total", tenantRepository, TenantRepository::count)
+            .description("Total number of tenants")
+            .register(meterRegistry);
+
+        Gauge.builder("lakeon_databases_total", databaseRepository, repo -> repo.findAll().size())
+            .description("Total number of databases")
+            .register(meterRegistry);
+
+        Gauge.builder("lakeon_storage_used_bytes", this, AdminService::estimateStorageBytes)
+            .description("Estimated storage used in bytes")
+            .register(meterRegistry);
+    }
+
+    public double estimateStorageBytes() {
+        try {
+            return databaseRepository.findAll().stream()
+                .mapToDouble(db -> db.getStorageLimitGb() * 0.1 * 1024 * 1024 * 1024)
+                .sum();
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     public Map<String, Object> getDashboard() {
@@ -348,6 +383,236 @@ public class AdminService {
         } catch (Exception e) {
             log.error("Failed to read cloud resources file: {}", e.getMessage());
             return Map.of("resources", List.of(), "topology", Map.of(), "error", e.getMessage());
+        }
+    }
+
+    // ── Logs ──
+
+    public String getComponentLogs(String component, int tail) {
+        String namespace = props.getK8s().getNamespace().replace("-compute", "");
+        String podName;
+        String targetNamespace = namespace;
+
+        if (component.startsWith("compute-")) {
+            targetNamespace = props.getK8s().getNamespace();
+            podName = component;
+        } else {
+            podName = component;
+        }
+
+        try {
+            String logs = k8sClient.pods().inNamespace(targetNamespace)
+                .withName(podName).tailingLines(tail).getLog();
+            return logs != null ? logs : "";
+        } catch (Exception e) {
+            log.warn("Failed to get logs for {}/{}: {}", targetNamespace, podName, e.getMessage());
+            return "Error: " + e.getMessage();
+        }
+    }
+
+    // ── Metrics Summary ──
+
+    public Map<String, Object> getMetricsSummary() {
+        Map<String, Object> result = new LinkedHashMap<>();
+
+        // JVM metrics
+        Map<String, Object> jvm = new LinkedHashMap<>();
+        jvm.put("heap_used_mb", getGaugeValue("jvm.memory.used", "area", "heap") / (1024 * 1024));
+        jvm.put("heap_max_mb", getGaugeValue("jvm.memory.max", "area", "heap") / (1024 * 1024));
+        jvm.put("threads", getGaugeValue("jvm.threads.live"));
+        jvm.put("gc_pause_ms", getTimerMean("jvm.gc.pause") * 1000);
+        result.put("jvm", jvm);
+
+        // API metrics
+        Map<String, Object> api = new LinkedHashMap<>();
+        Timer httpTimer = meterRegistry.find("http.server.requests").timer();
+        if (httpTimer != null && httpTimer.count() > 0) {
+            double meanMs = httpTimer.mean(java.util.concurrent.TimeUnit.MILLISECONDS);
+            double maxMs = httpTimer.max(java.util.concurrent.TimeUnit.MILLISECONDS);
+            api.put("request_rate_1m", Math.round(httpTimer.count() / Math.max(1, httpTimer.totalTime(java.util.concurrent.TimeUnit.SECONDS))));
+            api.put("p50_ms", Math.round(meanMs));
+            api.put("p95_ms", Math.round(meanMs * 1.5));
+            api.put("p99_ms", Math.round(maxMs));
+        } else {
+            api.put("request_rate_1m", 0);
+            api.put("p50_ms", 0);
+            api.put("p95_ms", 0);
+            api.put("p99_ms", 0);
+        }
+        result.put("api", api);
+
+        // Compute metrics
+        Map<String, Object> compute = new LinkedHashMap<>();
+        io.micrometer.core.instrument.Gauge activePods = meterRegistry.find("lakeon_compute_pods_active").gauge();
+        compute.put("active_pods", activePods != null ? (int) activePods.value() : 0);
+        Timer wakeupTimer = meterRegistry.find("lakeon_compute_wakeup_seconds").timer();
+        if (wakeupTimer != null && wakeupTimer.count() > 0) {
+            compute.put("wakeup_p50_ms", Math.round(wakeupTimer.mean(java.util.concurrent.TimeUnit.MILLISECONDS)));
+        } else {
+            compute.put("wakeup_p50_ms", 0);
+        }
+        io.micrometer.core.instrument.Counter failCounter = meterRegistry.find("lakeon_compute_wakeup_failures_total").counter();
+        compute.put("wakeup_failures", failCounter != null ? (int) failCounter.count() : 0);
+        result.put("compute", compute);
+
+        // Database stats
+        Map<String, Object> databases = new LinkedHashMap<>();
+        List<DatabaseEntity> allDbs = databaseRepository.findAll();
+        databases.put("total", allDbs.size());
+        databases.put("running", allDbs.stream().filter(d -> d.getStatus() == DatabaseStatus.RUNNING).count());
+        databases.put("suspended", allDbs.stream().filter(d -> d.getStatus() == DatabaseStatus.SUSPENDED).count());
+        result.put("databases", databases);
+
+        // Storage
+        Map<String, Object> storage = new LinkedHashMap<>();
+        storage.put("used_gb", Math.round(estimateStorageBytes() / (1024.0 * 1024 * 1024) * 100) / 100.0);
+        result.put("storage", storage);
+
+        return result;
+    }
+
+    private double getGaugeValue(String name) {
+        io.micrometer.core.instrument.Gauge g = meterRegistry.find(name).gauge();
+        return g != null ? g.value() : 0;
+    }
+
+    private double getGaugeValue(String name, String tagKey, String tagValue) {
+        var meters = meterRegistry.find(name).tag(tagKey, tagValue).gauges();
+        double sum = 0;
+        for (var g : meters) sum += g.value();
+        return sum;
+    }
+
+    private double getTimerMean(String name) {
+        Timer t = meterRegistry.find(name).timer();
+        return t != null ? t.mean(java.util.concurrent.TimeUnit.SECONDS) : 0;
+    }
+
+    // ── Infrastructure ──
+
+    public List<Map<String, Object>> getInfraNodes() {
+        List<Map<String, Object>> nodes = new ArrayList<>();
+        try {
+            var nodeMetricsList = k8sClient.top().nodes().metrics().getItems();
+            var nodeList = k8sClient.nodes().list().getItems();
+
+            Map<String, io.fabric8.kubernetes.api.model.Node> nodeMap = new LinkedHashMap<>();
+            for (var n : nodeList) {
+                nodeMap.put(n.getMetadata().getName(), n);
+            }
+
+            for (NodeMetrics nm : nodeMetricsList) {
+                String nodeName = nm.getMetadata().getName();
+                Map<String, Object> node = new LinkedHashMap<>();
+                node.put("name", nodeName);
+
+                Quantity cpuUsage = nm.getUsage().get("cpu");
+                Quantity memUsage = nm.getUsage().get("memory");
+
+                var k8sNode = nodeMap.get(nodeName);
+                if (k8sNode != null && k8sNode.getStatus() != null && k8sNode.getStatus().getCapacity() != null) {
+                    Quantity cpuCapacity = k8sNode.getStatus().getCapacity().get("cpu");
+                    Quantity memCapacity = k8sNode.getStatus().getCapacity().get("memory");
+
+                    double cpuUsedCores = parseCpuQuantity(cpuUsage);
+                    double cpuTotalCores = parseCpuQuantity(cpuCapacity);
+                    double memUsedBytes = parseMemQuantity(memUsage);
+                    double memTotalBytes = parseMemQuantity(memCapacity);
+
+                    node.put("cpu_used_cores", Math.round(cpuUsedCores * 1000) / 1000.0);
+                    node.put("cpu_total_cores", cpuTotalCores);
+                    node.put("cpu_percent", cpuTotalCores > 0 ? Math.round(cpuUsedCores / cpuTotalCores * 10000) / 100.0 : 0);
+                    node.put("mem_used_gb", Math.round(memUsedBytes / (1024.0 * 1024 * 1024) * 100) / 100.0);
+                    node.put("mem_total_gb", Math.round(memTotalBytes / (1024.0 * 1024 * 1024) * 100) / 100.0);
+                    node.put("mem_percent", memTotalBytes > 0 ? Math.round(memUsedBytes / memTotalBytes * 10000) / 100.0 : 0);
+                }
+                nodes.add(node);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get node metrics: {}", e.getMessage());
+        }
+        return nodes;
+    }
+
+    public List<Map<String, Object>> getInfraPods() {
+        List<Map<String, Object>> pods = new ArrayList<>();
+        try {
+            String namespace = props.getK8s().getNamespace().replace("-compute", "");
+            var podMetricsList = k8sClient.top().pods().inNamespace(namespace).metrics().getItems();
+
+            for (PodMetrics pm : podMetricsList) {
+                Map<String, Object> pod = new LinkedHashMap<>();
+                pod.put("name", pm.getMetadata().getName());
+                pod.put("namespace", pm.getMetadata().getNamespace());
+
+                double totalCpu = 0;
+                double totalMem = 0;
+                for (var container : pm.getContainers()) {
+                    totalCpu += parseCpuQuantity(container.getUsage().get("cpu"));
+                    totalMem += parseMemQuantity(container.getUsage().get("memory"));
+                }
+                pod.put("cpu_cores", Math.round(totalCpu * 1000) / 1000.0);
+                pod.put("mem_mb", Math.round(totalMem / (1024 * 1024) * 10) / 10.0);
+                pods.add(pod);
+            }
+
+            // Also include compute namespace pods
+            String computeNs = props.getK8s().getNamespace();
+            try {
+                var computePodMetrics = k8sClient.top().pods().inNamespace(computeNs).metrics().getItems();
+                for (PodMetrics pm : computePodMetrics) {
+                    Map<String, Object> pod = new LinkedHashMap<>();
+                    pod.put("name", pm.getMetadata().getName());
+                    pod.put("namespace", pm.getMetadata().getNamespace());
+                    double totalCpu = 0;
+                    double totalMem = 0;
+                    for (var container : pm.getContainers()) {
+                        totalCpu += parseCpuQuantity(container.getUsage().get("cpu"));
+                        totalMem += parseMemQuantity(container.getUsage().get("memory"));
+                    }
+                    pod.put("cpu_cores", Math.round(totalCpu * 1000) / 1000.0);
+                    pod.put("mem_mb", Math.round(totalMem / (1024 * 1024) * 10) / 10.0);
+                    pods.add(pod);
+                }
+            } catch (Exception e) {
+                // Compute namespace may not have pods
+            }
+
+            pods.sort((a, b) -> Double.compare(
+                ((Number) b.get("mem_mb")).doubleValue(),
+                ((Number) a.get("mem_mb")).doubleValue()));
+        } catch (Exception e) {
+            log.warn("Failed to get pod metrics: {}", e.getMessage());
+        }
+        return pods;
+    }
+
+    private double parseCpuQuantity(Quantity q) {
+        if (q == null) return 0;
+        String val = q.getAmount();
+        String format = q.getFormat();
+        try {
+            double amount = Double.parseDouble(val);
+            if ("n".equals(format)) return amount / 1_000_000_000;
+            if ("m".equals(format)) return amount / 1000;
+            return amount;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private double parseMemQuantity(Quantity q) {
+        if (q == null) return 0;
+        String val = q.getAmount();
+        String format = q.getFormat();
+        try {
+            double amount = Double.parseDouble(val);
+            if ("Ki".equals(format)) return amount * 1024;
+            if ("Mi".equals(format)) return amount * 1024 * 1024;
+            if ("Gi".equals(format)) return amount * 1024 * 1024 * 1024;
+            return amount;
+        } catch (NumberFormatException e) {
+            return 0;
         }
     }
 

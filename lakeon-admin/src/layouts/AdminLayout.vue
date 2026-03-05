@@ -73,6 +73,10 @@
           <div class="nav-group">
             <div class="nav-group-title">系统</div>
             <router-link to="/system" class="nav-item" active-class="active">组件健康</router-link>
+            <router-link to="/metrics" class="nav-item" active-class="active">应用指标</router-link>
+            <router-link to="/logs" class="nav-item" active-class="active">日志查看</router-link>
+            <router-link to="/alerts" class="nav-item" active-class="active">告警管理</router-link>
+            <router-link to="/infra" class="nav-item" active-class="active">基础设施</router-link>
             <router-link to="/cost" class="nav-item" active-class="active">成本监控</router-link>
             <router-link to="/cloud" class="nav-item" active-class="active">云资源</router-link>
           </div>
