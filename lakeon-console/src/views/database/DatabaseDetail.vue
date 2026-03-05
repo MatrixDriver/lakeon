@@ -46,8 +46,9 @@
             <button
               v-if="database.connection_uri"
               class="copy-btn"
-              @click="handleCopy(database.connection_uri)"
-            >复制</button>
+              :class="{ 'copy-btn-ok': copiedField === 'uri' }"
+              @click="handleCopy(database.connection_uri, 'uri')"
+            >{{ copiedField === 'uri' ? '已复制 ✓' : '复制' }}</button>
           </div>
         </div>
         <div class="summary-field">
@@ -78,14 +79,22 @@
               <span class="info-label">{{ field.label }}</span>
               <div class="info-value-row">
                 <code>{{ field.value }}</code>
-                <button class="copy-btn" @click="handleCopy(field.value)">复制</button>
+                <button
+                  class="copy-btn"
+                  :class="{ 'copy-btn-ok': copiedField === field.label }"
+                  @click="handleCopy(field.value, field.label)"
+                >{{ copiedField === field.label ? '已复制 ✓' : '复制' }}</button>
               </div>
             </div>
             <div class="info-row">
               <span class="info-label">密码</span>
               <div class="info-value-row" v-if="newPassword">
                 <code class="password-value">{{ newPassword }}</code>
-                <button class="copy-btn" @click="handleCopy(newPassword!)">复制</button>
+                <button
+                  class="copy-btn"
+                  :class="{ 'copy-btn-ok': copiedField === 'password' }"
+                  @click="handleCopy(newPassword!, 'password')"
+                >{{ copiedField === 'password' ? '已复制 ✓' : '复制' }}</button>
               </div>
               <div class="info-value-row" v-else>
                 <code class="password-masked">••••••••</code>
@@ -324,11 +333,21 @@ function durationColorClass(ms: number | null): string {
 const copyTip = ref('')
 let copyTipTimer: ReturnType<typeof setTimeout> | null = null
 
-async function handleCopy(text: string) {
+// Track which field was just copied (for inline button feedback)
+const copiedField = ref('')
+let copiedTimer: ReturnType<typeof setTimeout> | null = null
+
+async function handleCopy(text: string, fieldKey?: string) {
   const ok = await copyToClipboard(text)
   copyTip.value = ok ? '已复制' : '复制失败'
   if (copyTipTimer) clearTimeout(copyTipTimer)
   copyTipTimer = setTimeout(() => { copyTip.value = '' }, 2000)
+
+  if (ok && fieldKey) {
+    copiedField.value = fieldKey
+    if (copiedTimer) clearTimeout(copiedTimer)
+    copiedTimer = setTimeout(() => { copiedField.value = '' }, 1500)
+  }
 }
 
 async function handleResetPassword() {
@@ -663,6 +682,12 @@ onMounted(fetchDatabase)
   font-size: 14px;
   z-index: 9999;
   pointer-events: none;
+}
+
+.copy-btn-ok {
+  background: #f6ffed !important;
+  border-color: #52c41a !important;
+  color: #52c41a !important;
 }
 
 .password-masked {
