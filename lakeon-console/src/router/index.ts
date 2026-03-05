@@ -21,6 +21,7 @@ const routes = [
       { path: 'dashboard', name: 'Dashboard', component: () => import('../views/dashboard/DashboardView.vue') },
       { path: 'databases', name: 'DatabaseList', component: () => import('../views/database/DatabaseList.vue') },
       { path: 'databases/:id', name: 'DatabaseDetail', component: () => import('../views/database/DatabaseDetail.vue') },
+      { path: 'databases/:id/manager', name: 'DatabaseManager', component: () => import('../views/database/DatabaseManager.vue') },
       { path: 'apikey', name: 'ApiKey', component: () => import('../views/apikey/ApiKeyView.vue') },
       { path: 'docs', name: 'Docs', component: () => import('../views/docs/DocsView.vue') },
     ],
