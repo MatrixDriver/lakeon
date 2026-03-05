@@ -260,10 +260,25 @@ watch(() => [props.schema, props.table], () => {
   overflow-x: auto;
   max-height: 400px;
   overflow-y: auto;
+  border: 1px solid #ebebeb;
+  border-radius: 2px;
+}
+
+.preview-table {
+  min-width: 100%;
+}
+
+.preview-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .preview-table td {
-  max-width: 200px;
+  font-family: monospace;
+  font-size: 12px;
+  color: #191919;
+  max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
