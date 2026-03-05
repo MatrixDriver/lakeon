@@ -29,13 +29,13 @@ groups:
           description: "Fewer than 2 safekeepers are running. WAL durability may be compromised."
 
       - alert: HighStorageUsage
-        expr: lakeon_storage_used_bytes / lakeon_storage_limit_bytes > 0.9
+        expr: lakeon_storage_used_bytes > 50 * 1024 * 1024 * 1024
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "Storage usage above 90%"
-          description: "Instance {{ $labels.instance }} storage is at {{ $value | humanizePercentage }}."
+          summary: "Storage usage above 50GB"
+          description: "Total storage usage is {{ $value | humanize1024 }}."
 
       - alert: APIHighLatency
         expr: histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{job="lakeon-api"}[5m])) > 2
@@ -44,4 +44,4 @@ groups:
           severity: warning
         annotations:
           summary: "API P99 latency exceeds 2s"
-          description: "LakeOn API P99 latency is {{ $value }}s."
+          description: "Lakeon API P99 latency is {{ $value }}s."

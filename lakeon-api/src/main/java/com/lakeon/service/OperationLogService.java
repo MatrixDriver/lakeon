@@ -4,6 +4,8 @@ import com.lakeon.model.entity.OperationLogEntity;
 import com.lakeon.model.enums.OperationStatus;
 import com.lakeon.model.enums.OperationType;
 import com.lakeon.repository.OperationLogRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -15,9 +17,11 @@ import java.util.List;
 public class OperationLogService {
 
     private final OperationLogRepository repository;
+    private final MeterRegistry meterRegistry;
 
-    public OperationLogService(OperationLogRepository repository) {
+    public OperationLogService(OperationLogRepository repository, MeterRegistry meterRegistry) {
         this.repository = repository;
+        this.meterRegistry = meterRegistry;
     }
 
     public OperationLogEntity startOperation(String databaseId, String tenantId,
@@ -41,6 +45,12 @@ public class OperationLogService {
         } else {
             log.setStatus(OperationStatus.SUCCESS);
         }
+        Counter.builder("lakeon_api_operations_total")
+            .tag("type", log.getOperationType().name().toLowerCase())
+            .tag("status", log.getStatus().name().toLowerCase())
+            .description("Total API operations")
+            .register(meterRegistry)
+            .increment();
         repository.save(log);
     }
 

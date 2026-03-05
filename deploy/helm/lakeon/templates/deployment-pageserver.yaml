@@ -15,6 +15,10 @@ spec:
     metadata:
       labels:
         app: pageserver
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9898"
+        prometheus.io/path: "/metrics"
     spec:
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:

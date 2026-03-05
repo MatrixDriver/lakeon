@@ -13,6 +13,7 @@ import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.OperationLogRepository;
 import com.lakeon.repository.TenantRepository;
 import com.lakeon.service.AdminService;
+import com.lakeon.service.AlertService;
 import com.lakeon.service.CbcBillingService;
 import com.lakeon.service.DatabaseService;
 import com.lakeon.service.TenantService;
@@ -40,6 +41,7 @@ public class AdminController {
     private final OperationLogRepository operationLogRepository;
     private final UsageMeteringService usageMeteringService;
     private final CbcBillingService cbcBillingService;
+    private final AlertService alertService;
 
     public AdminController(TenantService tenantService,
                            AdminService adminService,
@@ -48,7 +50,8 @@ public class AdminController {
                            TenantRepository tenantRepository,
                            OperationLogRepository operationLogRepository,
                            UsageMeteringService usageMeteringService,
-                           CbcBillingService cbcBillingService) {
+                           CbcBillingService cbcBillingService,
+                           AlertService alertService) {
         this.tenantService = tenantService;
         this.adminService = adminService;
         this.databaseService = databaseService;
@@ -57,6 +60,7 @@ public class AdminController {
         this.operationLogRepository = operationLogRepository;
         this.usageMeteringService = usageMeteringService;
         this.cbcBillingService = cbcBillingService;
+        this.alertService = alertService;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────
@@ -316,6 +320,53 @@ public class AdminController {
                 : YearMonth.now(ZoneOffset.UTC).atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
         Instant end = to != null ? Instant.parse(to) : now;
         return new Instant[]{start, end};
+    }
+
+    // ── Logs ─────────────────────────────────────────────────────
+
+    @GetMapping(value = "/logs/{component}", produces = "text/plain")
+    public String getComponentLogs(@PathVariable String component,
+                                    @RequestParam(defaultValue = "200") int tail) {
+        return adminService.getComponentLogs(component, tail);
+    }
+
+    // ── Metrics ─────────────────────────────────────────────────
+
+    @GetMapping("/metrics/summary")
+    public Map<String, Object> getMetricsSummary() {
+        return adminService.getMetricsSummary();
+    }
+
+    // ── Alerts ──────────────────────────────────────────────────
+
+    @GetMapping("/alerts")
+    public List<?> getAlerts() {
+        return alertService.getAlerts();
+    }
+
+    @GetMapping("/alerts/rules")
+    public List<?> getAlertRules() {
+        return alertService.getRules();
+    }
+
+    @PutMapping("/alerts/rules/{id}")
+    public Object updateAlertRule(@PathVariable String id, @RequestBody Map<String, Object> updates) {
+        return alertService.updateRule(id, updates);
+    }
+
+    @PostMapping("/alerts/test-webhook")
+    public Map<String, Object> testWebhook(@RequestBody Map<String, String> body) {
+        return alertService.testWebhook(body.getOrDefault("webhook_url", ""));
+    }
+
+    // ── Infrastructure ──────────────────────────────────────────
+
+    @GetMapping("/infra/nodes")
+    public Map<String, Object> getInfraNodes() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("nodes", adminService.getInfraNodes());
+        result.put("pods", adminService.getInfraPods());
+        return result;
     }
 
     // ── Helpers ────────────────────────────────────────────────────

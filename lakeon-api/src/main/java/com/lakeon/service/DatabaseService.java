@@ -21,6 +21,9 @@ import com.lakeon.service.exception.NotFoundException;
 import com.lakeon.service.exception.QuotaExceededException;
 import com.lakeon.service.exception.ServiceException;
 import com.lakeon.util.ScramUtils;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -42,19 +45,26 @@ public class DatabaseService {
     private final ComputePodManager computePodManager;
     private final LakeonProperties props;
     private final OperationLogService operationLogService;
+    private final MeterRegistry meterRegistry;
+    private final Counter wakeupFailureCounter;
 
     public DatabaseService(DatabaseRepository databaseRepository,
                            BranchRepository branchRepository,
                            NeonApiClient neonApiClient,
                            ComputePodManager computePodManager,
                            LakeonProperties props,
-                           OperationLogService operationLogService) {
+                           OperationLogService operationLogService,
+                           MeterRegistry meterRegistry) {
         this.databaseRepository = databaseRepository;
         this.branchRepository = branchRepository;
         this.neonApiClient = neonApiClient;
         this.computePodManager = computePodManager;
         this.props = props;
         this.operationLogService = operationLogService;
+        this.meterRegistry = meterRegistry;
+        this.wakeupFailureCounter = Counter.builder("lakeon_compute_wakeup_failures_total")
+            .description("Total number of compute wakeup failures")
+            .register(meterRegistry);
     }
 
     @Transactional
@@ -324,15 +334,20 @@ public class DatabaseService {
 
         OperationLogEntity opLog = operationLogService.startOperation(
                 entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME);
+        Timer.Sample sample = Timer.start(meterRegistry);
         try {
             computePodManager.createComputePod(entity);
             computePodManager.waitForPodReady(entity.getComputePodName(), 60_000);
+            sample.stop(Timer.builder("lakeon_compute_wakeup_seconds")
+                .description("Compute wakeup duration")
+                .register(meterRegistry));
             entity.setStatus(DatabaseStatus.RUNNING);
             entity.setLastActiveAt(Instant.now());
             entity.setConnectionUri(buildConnectionUri(entity.getDbUser(), entity.getName()));
             databaseRepository.save(entity);
             operationLogService.completeOperation(opLog, null);
         } catch (Exception e) {
+            wakeupFailureCounter.increment();
             operationLogService.completeOperation(opLog, e.getMessage());
             throw e;
         }

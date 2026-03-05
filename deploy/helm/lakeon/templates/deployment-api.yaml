@@ -15,6 +15,10 @@ spec:
     metadata:
       labels:
         app: lakeon-api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.api.port }}"
+        prometheus.io/path: "/actuator/prometheus"
     spec:
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:

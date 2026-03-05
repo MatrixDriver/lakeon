@@ -16,6 +16,7 @@ public class LakeonProperties {
     private AdminConfig admin = new AdminConfig();
     private CostConfig cost = new CostConfig();
     private CloudConfig cloud = new CloudConfig();
+    private AlertConfig alert = new AlertConfig();
 
     public NeonConfig getNeon() { return neon; }
     public void setNeon(NeonConfig neon) { this.neon = neon; }
@@ -33,6 +34,8 @@ public class LakeonProperties {
     public void setCost(CostConfig cost) { this.cost = cost; }
     public CloudConfig getCloud() { return cloud; }
     public void setCloud(CloudConfig cloud) { this.cloud = cloud; }
+    public AlertConfig getAlert() { return alert; }
+    public void setAlert(AlertConfig alert) { this.alert = alert; }
 
     public static class NeonConfig {
         private String pageserverUrl;
@@ -129,6 +132,16 @@ public class LakeonProperties {
 
         public String getResourcesFile() { return resourcesFile; }
         public void setResourcesFile(String resourcesFile) { this.resourcesFile = resourcesFile; }
+    }
+
+    public static class AlertConfig {
+        private String smnTopicUrn;
+        private String smnRegion;
+
+        public String getSmnTopicUrn() { return smnTopicUrn; }
+        public void setSmnTopicUrn(String smnTopicUrn) { this.smnTopicUrn = smnTopicUrn; }
+        public String getSmnRegion() { return smnRegion; }
+        public void setSmnRegion(String smnRegion) { this.smnRegion = smnRegion; }
     }
 
     public static class DefaultsConfig {

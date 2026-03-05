@@ -39,4 +39,20 @@ export const adminApi = {
 
   // Cloud Resources
   cloudResources: () => client.get('/cloud/resources'),
+
+  // Logs
+  componentLogs: (component: string, tail = 200) =>
+    client.get(`/logs/${component}`, { params: { tail }, transformResponse: [(d: string) => d] }),
+
+  // Metrics
+  metricsSummary: () => client.get('/metrics/summary'),
+
+  // Alerts
+  alerts: () => client.get('/alerts'),
+  alertRules: () => client.get('/alerts/rules'),
+  updateAlertRule: (id: string, data: Record<string, unknown>) => client.put(`/alerts/rules/${id}`, data),
+  testWebhook: (webhookUrl: string) => client.post('/alerts/test-webhook', { webhook_url: webhookUrl }),
+
+  // Infrastructure
+  infraNodes: () => client.get('/infra/nodes'),
 }

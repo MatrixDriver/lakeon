@@ -9,6 +9,8 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.ExecWatch;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.io.ByteArrayOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,11 +25,30 @@ public class ComputePodManager {
     private final KubernetesClient k8sClient;
     private final LakeonProperties props;
     private final ObjectMapper objectMapper;
+    private final MeterRegistry meterRegistry;
 
-    public ComputePodManager(KubernetesClient k8sClient, LakeonProperties props, ObjectMapper objectMapper) {
+    public ComputePodManager(KubernetesClient k8sClient, LakeonProperties props, ObjectMapper objectMapper,
+                             MeterRegistry meterRegistry) {
         this.k8sClient = k8sClient;
         this.props = props;
         this.objectMapper = objectMapper;
+        this.meterRegistry = meterRegistry;
+        Gauge.builder("lakeon_compute_pods_active", this, ComputePodManager::countActivePods)
+            .description("Number of active compute pods")
+            .register(meterRegistry);
+    }
+
+    public double countActivePods() {
+        try {
+            String namespace = props.getK8s().getNamespace();
+            return k8sClient.pods().inNamespace(namespace)
+                .withLabel("app", "lakeon-compute")
+                .list().getItems().stream()
+                .filter(p -> p.getMetadata().getDeletionTimestamp() == null)
+                .count();
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     /**
