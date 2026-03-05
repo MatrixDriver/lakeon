@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -67,6 +68,8 @@ public class ProxyAdapterController {
         if (instance.getStatus() == DatabaseStatus.RUNNING
             && instance.getComputeHost() != null && instance.getComputePort() != null) {
             address = instance.getComputeHost() + ":" + instance.getComputePort();
+            instance.setLastActiveAt(Instant.now());
+            dbRepo.save(instance);
             coldStartInfo = "warm";
         } else if (instance.getStatus() == DatabaseStatus.RUNNING
             && instance.getComputePodName() != null) {
@@ -77,6 +80,7 @@ public class ProxyAdapterController {
                 // Cache for next time
                 instance.setComputeHost(podIp);
                 instance.setComputePort(55433);
+                instance.setLastActiveAt(Instant.now());
                 dbRepo.save(instance);
                 coldStartInfo = "warm";
             } else {

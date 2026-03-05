@@ -8,6 +8,8 @@ import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.ExecWatch;
+import java.io.ByteArrayOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -259,6 +261,31 @@ public class ComputePodManager {
                 .orElse(System.currentTimeMillis());
         }
         return System.currentTimeMillis();
+    }
+
+    /**
+     * Check if compute pod has active client connections by querying pg_stat_activity.
+     */
+    public boolean hasActiveConnections(String podName) {
+        String namespace = props.getK8s().getNamespace();
+        try {
+            ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+            ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+            try (ExecWatch exec = k8sClient.pods().inNamespace(namespace).withName(podName)
+                    .writingOutput(stdout)
+                    .writingError(stderr)
+                    .exec("psql", "-U", "cloud_admin", "-d", "postgres", "-t", "-A", "-c",
+                        "SELECT count(*) FROM pg_stat_activity WHERE backend_type='client backend' AND pid != pg_backend_pid()")) {
+                exec.exitCode().get(5, java.util.concurrent.TimeUnit.SECONDS);
+            }
+            String result = stdout.toString().trim();
+            int count = Integer.parseInt(result);
+            log.debug("Pod {} has {} active client connections", podName, count);
+            return count > 0;
+        } catch (Exception e) {
+            log.debug("Failed to check active connections for pod {}: {}", podName, e.getMessage());
+            return false;
+        }
     }
 
     private String generateComputeConfig(DatabaseEntity entity) {

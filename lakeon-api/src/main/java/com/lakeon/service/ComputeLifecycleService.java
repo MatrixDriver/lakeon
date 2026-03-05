@@ -94,6 +94,13 @@ public class ComputeLifecycleService {
             long elapsed = System.currentTimeMillis() - lastActivity;
 
             if (elapsed > timeout.toMillis()) {
+                // Before suspending, check if pod has active client connections
+                if (computePodManager.hasActiveConnections(entity.getComputePodName())) {
+                    log.debug("Skipping auto-suspend for {} — has active connections", entity.getId());
+                    entity.setLastActiveAt(java.time.Instant.now());
+                    databaseRepository.save(entity);
+                    continue;
+                }
                 log.info("Auto-suspending database {} (inactive for {}ms, timeout {}ms)",
                     entity.getId(), elapsed, timeout.toMillis());
                 computePodManager.deleteComputePod(entity.getComputePodName());
