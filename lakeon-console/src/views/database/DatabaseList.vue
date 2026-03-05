@@ -183,7 +183,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { databaseApi, type Database } from '../../api/database'
 import { formatDate } from '../../utils/format'
 
@@ -195,6 +195,8 @@ const createLoading = ref(false)
 const deleteTarget = ref<Database | null>(null)
 const deleteLoading = ref(false)
 const actionLoading = reactive<Record<string, boolean>>({})
+
+let pollTimer: ReturnType<typeof setInterval> | null = null
 
 const createForm = reactive({
   name: '',
@@ -328,7 +330,14 @@ async function handleDelete() {
   }
 }
 
-onMounted(fetchDatabases)
+onMounted(() => {
+  fetchDatabases()
+  pollTimer = setInterval(fetchDatabases, 15000)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+})
 </script>
 
 <style scoped>
