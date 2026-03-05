@@ -313,38 +313,38 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [ ] 输出评估报告：混合架构可行性、启动延迟、成本对比
 - [ ] 确定后续阶段的部署架构选型
 
-### 阶段 8a：自建可观测性 + 共享基础
+### 阶段 8a：自建可观测性 + 共享基础 ✅
 
 📋 [方案对比文档](docs/plans/2026-03-05-stage8-observability-plan.md)
 
 双轨对比方案：自建 vs 华为云可观测性。不使用 LTS / APM。
 
 #### 自定义 Micrometer 指标（Track A+B 共享）
-- [ ] 注入 MeterRegistry，埋点 7 个自定义指标（lakeon_tenants_total 等）
-- [ ] 修复 alerts.yml 5 条规则全部生效
+- [x] 注入 MeterRegistry，埋点 7 个自定义指标（lakeon_tenants_total 等）
+- [x] 修复 alerts.yml 5 条规则全部生效
 
 #### 内嵌日志查看器
-- [ ] `GET /api/v1/admin/logs/{component}` — Fabric8 K8s Pod 日志 API
-- [ ] LogViewer.vue — 终端风格面板、组件切换、搜索高亮、自动刷新
+- [x] `GET /api/v1/admin/logs/{component}` — Fabric8 K8s Pod 日志 API
+- [x] LogViewer.vue — 终端风格面板、组件切换、搜索高亮、自动刷新
 
 #### 应用指标仪表盘
-- [ ] `GET /api/v1/admin/metrics/summary` — MeterRegistry 直读
-- [ ] MetricsView.vue — JVM / API / Compute / 数据库 / 存储指标卡片 + 趋势图
+- [x] `GET /api/v1/admin/metrics/summary` — MeterRegistry 直读
+- [x] MetricsView.vue — JVM / API / Compute / 数据库 / 存储指标卡片 + 趋势图
 
 #### 告警服务
-- [ ] AlertService — `@Scheduled(fixedRate = 60000)` 巡检 5 条规则
-- [ ] 支持企业微信 / 钉钉 / 通用 Webhook 通知
-- [ ] AlertsView.vue — 告警历史 + 规则管理 + 测试发送
+- [x] AlertService — `@Scheduled(fixedRate = 60000)` 巡检 5 条规则
+- [x] 支持企业微信 / 钉钉 / 通用 Webhook 通知
+- [x] AlertsView.vue — 告警历史 + 规则管理 + 测试发送
 
 #### 基础设施监控（K8s metrics API）
-- [ ] `GET /api/v1/admin/infra/nodes` — 节点 CPU/内存、Pod 资源排行
-- [ ] InfraMonitor.vue — 节点资源卡片 + 进度条 + Pod 列表
+- [x] `GET /api/v1/admin/infra/nodes` — 节点 CPU/内存、Pod 资源排行
+- [x] InfraMonitor.vue — 节点资源卡片 + 进度条 + Pod 列表
 
 ### 阶段 8b：华为云服务接入
 
 #### AOM 指标采集
-- [ ] Pod 添加 Prometheus annotations（scrape/port/path）
-- [ ] AOM 自动发现采集自定义指标
+- [x] Pod 添加 Prometheus annotations（scrape/port/path）
+- [ ] AOM 自动发现采集自定义指标（待 AOM 控制台验证）
 - [ ] MetricsView 添加 AOM 控制台外链
 
 #### CES 基础设施监控
@@ -352,8 +352,8 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [ ] InfraMonitor 添加 CES 控制台外链
 
 #### SMN 告警通知
-- [ ] AlertService 扩展 SMN SDK 通知渠道
-- [ ] 支持邮件 + 短信（需 NAT 网关）
+- [x] AlertService 扩展 SMN 通知渠道配置（AlertConfig）
+- [ ] SMN SDK 集成（需 NAT 网关出公网）
 
 ### 阶段 9：计算节点弹性唤醒优化
 
