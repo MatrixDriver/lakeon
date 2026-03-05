@@ -181,11 +181,12 @@ public class AdminService {
     public Map<String, Object> getComputeStats() {
         List<OperationLogEntity> resumeOps = operationLogRepository
                 .findByOperationTypeInAndStatusAndDurationMsNotNull(
-                        List.of(OperationType.RESUME, OperationType.CREATE),
+                        List.of(OperationType.RESUME),
                         OperationStatus.SUCCESS);
 
         List<Long> durations = resumeOps.stream()
                 .map(OperationLogEntity::getDurationMs)
+                .filter(d -> d >= 500) // filter out no-op (pod already running)
                 .sorted()
                 .toList();
 
@@ -256,14 +257,11 @@ public class AdminService {
 
         try {
             long start = System.currentTimeMillis();
-            // Use HTTP HEAD request to check bucket connectivity
-            String url = endpoint.endsWith("/") ? endpoint : endpoint + "/";
-            if (!url.startsWith("http")) {
-                // Virtual-hosted style: https://bucket.endpoint
-                url = "https://" + bucket + "." + endpoint;
-            }
+            // Virtual-hosted style: https://bucket.obs.region.myhuaweicloud.com/
+            String host = endpoint.replaceFirst("^https?://", "");
+            String url = "https://" + bucket + "." + host + "/";
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
-            conn.setRequestMethod("HEAD");
+            conn.setRequestMethod("GET");
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
             int code = conn.getResponseCode();
@@ -272,8 +270,8 @@ public class AdminService {
 
             if (code >= 200 && code < 400) {
                 status.put("status", "healthy");
-            } else if (code == 403) {
-                // 403 is expected for HEAD on bucket root without proper auth — bucket exists
+            } else if (code == 403 || code == 405) {
+                // 403/405 expected for unauthenticated requests — bucket exists
                 status.put("status", "healthy");
             } else {
                 status.put("status", "unhealthy");

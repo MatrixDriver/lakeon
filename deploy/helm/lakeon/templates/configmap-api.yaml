@@ -14,6 +14,10 @@ data:
   LAKEON_COMPUTE_IMAGE: "{{ .Values.neon.computeImage.repository }}:{{ .Values.neon.computeImage.tag }}"
   LAKEON_K8S_NAMESPACE: "lakeon-compute"
   LAKEON_API_PORT: {{ .Values.api.port | quote }}
+  {{- if .Values.obs.endpoint }}
+  LAKEON_OBS_ENDPOINT: {{ .Values.obs.endpoint | quote }}
+  {{- end }}
+  LAKEON_OBS_BUCKET: {{ .Values.obs.bucket | default "lakeon-storage" | quote }}
   {{- if .Values.proxy.externalHost }}
   LAKEON_PROXY_EXTERNAL_HOST: {{ .Values.proxy.externalHost | quote }}
   {{- end }}
