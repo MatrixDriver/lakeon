@@ -349,10 +349,16 @@ public class ComputePodManager {
         cluster.put("cluster_id", "lakeon_" + entity.getId());
         cluster.put("name", entity.getName());
         cluster.put("state", "restarted");
-        cluster.put("roles", List.of(Map.of(
-            "name", entity.getDbUser() != null ? entity.getDbUser() : "lakeon",
-            "encrypted_password", entity.getDbPassword() != null ? entity.getDbPassword() : ""
-        )));
+        cluster.put("roles", List.of(
+            Map.of(
+                "name", entity.getDbUser() != null ? entity.getDbUser() : "lakeon",
+                "encrypted_password", entity.getDbPassword() != null ? entity.getDbPassword() : ""
+            ),
+            Map.of(
+                "name", "cloud_admin",
+                "encrypted_password", ""
+            )
+        ));
         cluster.put("databases", List.of(Map.of(
             "name", entity.getName(),
             "owner", entity.getDbUser() != null ? entity.getDbUser() : "lakeon"
