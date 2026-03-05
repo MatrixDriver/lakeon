@@ -15,6 +15,7 @@ public class LakeonProperties {
     private DefaultsConfig defaults = new DefaultsConfig();
     private AdminConfig admin = new AdminConfig();
     private CostConfig cost = new CostConfig();
+    private CloudConfig cloud = new CloudConfig();
 
     public NeonConfig getNeon() { return neon; }
     public void setNeon(NeonConfig neon) { this.neon = neon; }
@@ -30,6 +31,8 @@ public class LakeonProperties {
     public void setAdmin(AdminConfig admin) { this.admin = admin; }
     public CostConfig getCost() { return cost; }
     public void setCost(CostConfig cost) { this.cost = cost; }
+    public CloudConfig getCloud() { return cloud; }
+    public void setCloud(CloudConfig cloud) { this.cloud = cloud; }
 
     public static class NeonConfig {
         private String pageserverUrl;
@@ -94,6 +97,7 @@ public class LakeonProperties {
     }
 
     public static class CostConfig {
+        private double cceClusterHourly = 1.0;
         private double cceNodeHourly = 1.5;
         private int cceNodeCount = 3;
         private double elbMonthly = 30;
@@ -102,6 +106,8 @@ public class LakeonProperties {
         private double eipMonthly = 150;
         private double computeCuHourly = 0.5;
 
+        public double getCceClusterHourly() { return cceClusterHourly; }
+        public void setCceClusterHourly(double v) { this.cceClusterHourly = v; }
         public double getCceNodeHourly() { return cceNodeHourly; }
         public void setCceNodeHourly(double v) { this.cceNodeHourly = v; }
         public int getCceNodeCount() { return cceNodeCount; }
@@ -116,6 +122,13 @@ public class LakeonProperties {
         public void setEipMonthly(double v) { this.eipMonthly = v; }
         public double getComputeCuHourly() { return computeCuHourly; }
         public void setComputeCuHourly(double v) { this.computeCuHourly = v; }
+    }
+
+    public static class CloudConfig {
+        private String resourcesFile = "/app/data/cloud-resources.json";
+
+        public String getResourcesFile() { return resourcesFile; }
+        public void setResourcesFile(String resourcesFile) { this.resourcesFile = resourcesFile; }
     }
 
     public static class DefaultsConfig {

@@ -34,6 +34,12 @@ public class TenantEntity {
     @Column(name = "max_compute_cu", nullable = false)
     private Integer maxComputeCu = 4;
 
+    @Column(name = "disabled", nullable = false)
+    private Boolean disabled = false;
+
+    @Column(name = "disabled_at")
+    private Instant disabledAt;
+
     @PrePersist
     public void prePersist() {
         if (id == null) {
@@ -109,4 +115,10 @@ public class TenantEntity {
 
     public Integer getMaxComputeCu() { return maxComputeCu; }
     public void setMaxComputeCu(Integer maxComputeCu) { this.maxComputeCu = maxComputeCu; }
+
+    public Boolean getDisabled() { return disabled; }
+    public void setDisabled(Boolean disabled) { this.disabled = disabled; }
+
+    public Instant getDisabledAt() { return disabledAt; }
+    public void setDisabledAt(Instant disabledAt) { this.disabledAt = disabledAt; }
 }

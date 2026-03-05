@@ -15,7 +15,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import javax.sql.DataSource;
+import java.io.File;
 import java.sql.Connection;
 import java.time.Instant;
 import java.time.YearMonth;
@@ -35,6 +38,9 @@ public class AdminService {
     private final LakeonProperties props;
     private final DataSource dataSource;
     private final UsageMeteringService usageMeteringService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private volatile Map<String, Object> cloudResourcesCache;
+    private volatile long cloudResourcesCacheTime;
 
     public AdminService(TenantRepository tenantRepository,
                         DatabaseRepository databaseRepository,
@@ -98,6 +104,7 @@ public class AdminService {
         health.put("safekeeper", checkSafekeeper());
         health.put("proxy", checkProxy());
         health.put("rds", checkRds());
+        health.put("obs", checkObs());
         return health;
     }
 
@@ -143,6 +150,7 @@ public class AdminService {
         var cost = props.getCost();
         Map<String, Object> result = new LinkedHashMap<>();
 
+        double cceClusterCost = cost.getCceClusterHourly() * 24 * 30;
         double cceNodeCost = cost.getCceNodeHourly() * cost.getCceNodeCount() * 24 * 30;
         double elbCost = cost.getElbMonthly();
         double rdsCost = cost.getRdsMonthly();
@@ -155,17 +163,18 @@ public class AdminService {
                 .sum();
         double obsCost = totalStorageGb * cost.getObsPerGbMonthly();
 
-        // Compute pods run on CCE nodes, so their cost is already included in cce_nodes
-        double total = cceNodeCost + elbCost + rdsCost + eipCost + obsCost;
+        double total = cceClusterCost + cceNodeCost + elbCost + rdsCost + eipCost + obsCost;
+
+        Map<String, Object> breakdown = new LinkedHashMap<>();
+        breakdown.put("cce_cluster", Math.round(cceClusterCost * 100.0) / 100.0);
+        breakdown.put("cce_nodes", Math.round(cceNodeCost * 100.0) / 100.0);
+        breakdown.put("elb", elbCost);
+        breakdown.put("rds", rdsCost);
+        breakdown.put("eip", eipCost);
+        breakdown.put("obs", Math.round(obsCost * 100.0) / 100.0);
 
         result.put("total", Math.round(total * 100.0) / 100.0);
-        result.put("breakdown", Map.of(
-                "cce_nodes", Math.round(cceNodeCost * 100.0) / 100.0,
-                "elb", elbCost,
-                "rds", rdsCost,
-                "eip", eipCost,
-                "obs", Math.round(obsCost * 100.0) / 100.0
-        ));
+        result.put("breakdown", breakdown);
         return result;
     }
 
@@ -229,6 +238,119 @@ public class AdminService {
                 ((Number) a.get("total_cost")).doubleValue()));
 
         return Map.of("tenants", tenantCosts);
+    }
+
+    public Map<String, Object> checkObs() {
+        Map<String, Object> status = new LinkedHashMap<>();
+        var obsConfig = props.getObs();
+        String endpoint = obsConfig.getEndpoint();
+        String bucket = obsConfig.getBucket();
+        status.put("endpoint", endpoint);
+        status.put("bucket", bucket);
+
+        if (endpoint == null || endpoint.isBlank() || bucket == null || bucket.isBlank()) {
+            status.put("status", "unhealthy");
+            status.put("error", "OBS not configured");
+            return status;
+        }
+
+        try {
+            long start = System.currentTimeMillis();
+            // Use HTTP HEAD request to check bucket connectivity
+            String url = endpoint.endsWith("/") ? endpoint : endpoint + "/";
+            if (!url.startsWith("http")) {
+                // Virtual-hosted style: https://bucket.endpoint
+                url = "https://" + bucket + "." + endpoint;
+            }
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+            conn.setRequestMethod("HEAD");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            int code = conn.getResponseCode();
+            long latency = System.currentTimeMillis() - start;
+            conn.disconnect();
+
+            if (code >= 200 && code < 400) {
+                status.put("status", "healthy");
+            } else if (code == 403) {
+                // 403 is expected for HEAD on bucket root without proper auth — bucket exists
+                status.put("status", "healthy");
+            } else {
+                status.put("status", "unhealthy");
+                status.put("error", "HTTP " + code);
+            }
+            status.put("latency_ms", latency);
+        } catch (Exception e) {
+            status.put("status", "unhealthy");
+            status.put("error", e.getMessage());
+        }
+
+        // Calculate bucket usage from database storage estimates
+        List<DatabaseEntity> allDbs = databaseRepository.findAll();
+        double totalStorageGb = allDbs.stream()
+                .mapToDouble(db -> db.getStorageLimitGb() * 0.1)
+                .sum();
+        status.put("total_objects_estimate", allDbs.size());
+        status.put("total_size_gb_estimate", Math.round(totalStorageGb * 100.0) / 100.0);
+
+        return status;
+    }
+
+    public List<Map<String, Object>> getCostTrend(int days) {
+        var cost = props.getCost();
+        double dailyFixed = (cost.getCceClusterHourly() * 24)
+                + (cost.getCceNodeHourly() * cost.getCceNodeCount() * 24)
+                + (cost.getElbMonthly() / 30)
+                + (cost.getRdsMonthly() / 30)
+                + (cost.getEipMonthly() / 30);
+
+        List<Map<String, Object>> trend = new ArrayList<>();
+        Instant now = Instant.now();
+
+        for (int i = days - 1; i >= 0; i--) {
+            Instant dayStart = now.minus(i, ChronoUnit.DAYS).truncatedTo(ChronoUnit.DAYS);
+            Instant dayEnd = dayStart.plus(1, ChronoUnit.DAYS);
+            if (dayEnd.isAfter(now)) dayEnd = now;
+
+            // Sum compute CU hours across all tenants for this day
+            double totalComputeCuHours = 0;
+            for (var tenant : tenantRepository.findAll()) {
+                totalComputeCuHours += usageMeteringService.getTenantComputeCuHours(
+                        tenant.getId(), dayStart, dayEnd);
+            }
+            double computeCost = totalComputeCuHours * cost.getComputeCuHourly();
+
+            Map<String, Object> day = new LinkedHashMap<>();
+            day.put("date", dayStart.toString().substring(0, 10));
+            day.put("fixed_cost", Math.round(dailyFixed * 100.0) / 100.0);
+            day.put("compute_cost", Math.round(computeCost * 100.0) / 100.0);
+            day.put("total_cost", Math.round((dailyFixed + computeCost) * 100.0) / 100.0);
+            trend.add(day);
+        }
+        return trend;
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getCloudResources() {
+        long now = System.currentTimeMillis();
+        if (cloudResourcesCache != null && (now - cloudResourcesCacheTime) < 5 * 60 * 1000) {
+            return cloudResourcesCache;
+        }
+        String filePath = props.getCloud().getResourcesFile();
+        File file = new File(filePath);
+        if (!file.exists()) {
+            log.warn("Cloud resources file not found: {}", filePath);
+            return Map.of("resources", List.of(), "topology", Map.of());
+        }
+        try {
+            Map<String, Object> data = objectMapper.readValue(file, Map.class);
+            cloudResourcesCache = data;
+            cloudResourcesCacheTime = now;
+            return data;
+        } catch (Exception e) {
+            log.error("Failed to read cloud resources file: {}", e.getMessage());
+            return Map.of("resources", List.of(), "topology", Map.of(), "error", e.getMessage());
+        }
     }
 
     private long percentile(List<Long> sorted, int p) {

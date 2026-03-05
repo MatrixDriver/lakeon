@@ -24,12 +24,17 @@ public class TenantResponse {
     @JsonProperty("database_count")
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private Integer databaseCount;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Boolean disabled;
+    @JsonProperty("disabled_at")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Instant disabledAt;
 
     public TenantResponse() {}
 
     public TenantResponse(String id, String name, String apiKey, Instant createdAt,
                           Integer maxDatabases, Integer maxStorageGb, Integer maxComputeCu,
-                          Integer databaseCount) {
+                          Integer databaseCount, Boolean disabled, Instant disabledAt) {
         this.id = id;
         this.name = name;
         this.apiKey = apiKey;
@@ -38,6 +43,8 @@ public class TenantResponse {
         this.maxStorageGb = maxStorageGb;
         this.maxComputeCu = maxComputeCu;
         this.databaseCount = databaseCount;
+        this.disabled = disabled;
+        this.disabledAt = disabledAt;
     }
 
     public static Builder builder() {
@@ -60,6 +67,10 @@ public class TenantResponse {
     public void setMaxComputeCu(Integer maxComputeCu) { this.maxComputeCu = maxComputeCu; }
     public Integer getDatabaseCount() { return databaseCount; }
     public void setDatabaseCount(Integer databaseCount) { this.databaseCount = databaseCount; }
+    public Boolean getDisabled() { return disabled; }
+    public void setDisabled(Boolean disabled) { this.disabled = disabled; }
+    public Instant getDisabledAt() { return disabledAt; }
+    public void setDisabledAt(Instant disabledAt) { this.disabledAt = disabledAt; }
 
     public static class Builder {
         private String id;
@@ -70,6 +81,8 @@ public class TenantResponse {
         private Integer maxStorageGb;
         private Integer maxComputeCu;
         private Integer databaseCount;
+        private Boolean disabled;
+        private Instant disabledAt;
 
         public Builder id(String id) { this.id = id; return this; }
         public Builder name(String name) { this.name = name; return this; }
@@ -79,9 +92,11 @@ public class TenantResponse {
         public Builder maxStorageGb(Integer maxStorageGb) { this.maxStorageGb = maxStorageGb; return this; }
         public Builder maxComputeCu(Integer maxComputeCu) { this.maxComputeCu = maxComputeCu; return this; }
         public Builder databaseCount(Integer databaseCount) { this.databaseCount = databaseCount; return this; }
+        public Builder disabled(Boolean disabled) { this.disabled = disabled; return this; }
+        public Builder disabledAt(Instant disabledAt) { this.disabledAt = disabledAt; return this; }
 
         public TenantResponse build() {
-            return new TenantResponse(id, name, apiKey, createdAt, maxDatabases, maxStorageGb, maxComputeCu, databaseCount);
+            return new TenantResponse(id, name, apiKey, createdAt, maxDatabases, maxStorageGb, maxComputeCu, databaseCount, disabled, disabledAt);
         }
     }
 }

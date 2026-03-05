@@ -4,7 +4,7 @@
 
 Lakeon 将 Neon 的存算分离架构封装为一套可私有部署的 Kubernetes 原生方案，支持按需创建数据库、自动挂起/唤醒计算节点、多租户隔离和对象存储持久化。
 
-详细架构设计请参考 [架构文档](doc/architecture.md)。
+详细架构设计请参考 [架构文档](doc/architecture.md)。使用 Neon 官方镜像遇到的兼容性问题及修改建议见 [Neon 修改建议](doc/neon-modifications.md)。
 
 ## 项目结构
 
@@ -208,6 +208,8 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 
 完善用户接入层和连接体验，为邀请外部用户测试做准备。
 
+📋 [验证报告](doc/verification/stage4-user-access.md)
+
 #### 用户接入层
 - [x] Web 控制台（基于 Vue 3 + TinyVue，华为云风格）
   - 登录页（API Key）、总览仪表盘、数据库列表/详情（含操作历史）、分支管理、API Key 管理
@@ -230,7 +232,7 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 
 独立部署的管理控制台（`lakeon-admin`），供 SRE/管理员监控和管理 Lakeon 云服务。
 
-📋 [设计文档](doc/plans/2026-03-04-sre-admin-design.md)
+📋 [设计文档](doc/plans/2026-03-04-sre-admin-design.md) | [验证报告](doc/verification/stage5-sre-admin.md)
 
 #### 后端 Admin API
 - [x] 总览仪表盘 API（租户/实例统计、24h 操作统计、成本预估、组件健康）
@@ -242,9 +244,9 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [x] 唤醒延迟统计（P50/P90/P99，从 operation_logs 聚合，等待 Pod Ready 后记录真实耗时）
 - [x] 租户/数据库批量删除 API
 - [x] 用量计量 API（全局/租户/数据库维度，compute CU·hours + 存储用量）
-- [ ] 租户禁用/启用（`disabled` 字段 + API + 登录拦截）
-- [ ] OBS 存储连通性检查（HEAD bucket 请求）
-- [ ] 日成本趋势 API（最近 30 天逐日成本）
+- [x] 租户禁用/启用（`disabled` 字段 + API + 登录拦截）
+- [x] OBS 存储连通性检查（HEAD bucket 请求）
+- [x] 日成本趋势 API（最近 30 天逐日成本）
 
 #### 前端控制台
 - [x] Admin Token 登录页
@@ -254,17 +256,17 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [x] 操作审计日志（全局列表、租户/类型/状态筛选、分页）
 - [x] 系统组件健康（组件名称 + 连通性状态、唤醒延迟 P50/P90/P99 秒级显示）
 - [x] 成本监控（CBC 实际账单 + 预估成本双模式、每小时/每天/每月拆分、租户成本分摊）
-- [ ] 租户启用/禁用操作按钮
-- [ ] 成本趋势图（日/月折线图）
-- [ ] 操作日志导出（CSV / Excel）
-- [ ] 数据库详情页（从 admin 角度查看单个实例）
+- [x] 租户启用/禁用操作按钮
+- [x] 成本趋势图（日折线图，Canvas 原生渲染）
+- [x] 操作日志导出（CSV）
+- [x] 数据库详情页（从 admin 角度查看单个实例）
 
 #### 部署
 - [x] Docker 多阶段构建（node:20-alpine → nginx:alpine）
 - [x] Helm Chart 模板（Deployment + Service）
 - [x] CCE values 配置 + SWR 镜像推送脚本
 - [x] CCE 部署验证（ELB 绑定，admin:0.1.8 / api:0.1.11）
-- [ ] NAT 网关配置（Pod 出公网，CBC 账单 API 依赖）
+- [ ] NAT 网关配置（Pod 出公网，CBC 账单 API 依赖）→ 移至阶段 9
 
 ### 阶段 6：CCE + CCI 混合架构验证
 
@@ -355,7 +357,8 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [ ] API 限流与错误重试策略
 - [ ] 安全审计日志
 
-#### 连接与运营
+#### 网络与运营
+- [ ] NAT 网关配置（Pod 出公网，CBC 账单 API 依赖，从阶段 5 移入）
 - [ ] 连接池（PgBouncer / Supavisor）
 - [ ] 用量计费系统（基于计量数据）
 - [ ] 租户 SLA 保障（自动扩缩容策略）

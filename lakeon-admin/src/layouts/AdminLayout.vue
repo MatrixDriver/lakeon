@@ -74,6 +74,7 @@
             <div class="nav-group-title">系统</div>
             <router-link to="/system" class="nav-item" active-class="active">组件健康</router-link>
             <router-link to="/cost" class="nav-item" active-class="active">成本监控</router-link>
+            <router-link to="/cloud" class="nav-item" active-class="active">云资源</router-link>
           </div>
         </nav>
         <div class="sidebar-collapse">

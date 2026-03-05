@@ -39,15 +39,7 @@ public class TenantService {
         TenantEntity entity = tenantRepository.findById(tenantId)
             .orElseThrow(() -> new NotFoundException("Tenant not found: " + tenantId));
         int dbCount = databaseRepository.findAllByTenantId(tenantId).size();
-        return TenantResponse.builder()
-            .id(entity.getId())
-            .name(entity.getName())
-            .createdAt(entity.getCreatedAt())
-            .maxDatabases(entity.getMaxDatabases())
-            .maxStorageGb(entity.getMaxStorageGb())
-            .maxComputeCu(entity.getMaxComputeCu())
-            .databaseCount(dbCount)
-            .build();
+        return toResponseWithDisabled(entity, dbCount);
     }
 
     @Transactional
@@ -69,6 +61,28 @@ public class TenantService {
     }
 
     @Transactional
+    public TenantResponse disableTenant(String tenantId) {
+        TenantEntity entity = tenantRepository.findById(tenantId)
+            .orElseThrow(() -> new NotFoundException("Tenant not found: " + tenantId));
+        entity.setDisabled(true);
+        entity.setDisabledAt(java.time.Instant.now());
+        entity = tenantRepository.save(entity);
+        int dbCount = databaseRepository.findAllByTenantId(tenantId).size();
+        return toResponseWithDisabled(entity, dbCount);
+    }
+
+    @Transactional
+    public TenantResponse enableTenant(String tenantId) {
+        TenantEntity entity = tenantRepository.findById(tenantId)
+            .orElseThrow(() -> new NotFoundException("Tenant not found: " + tenantId));
+        entity.setDisabled(false);
+        entity.setDisabledAt(null);
+        entity = tenantRepository.save(entity);
+        int dbCount = databaseRepository.findAllByTenantId(tenantId).size();
+        return toResponseWithDisabled(entity, dbCount);
+    }
+
+    @Transactional
     public TenantResponse updateQuota(String tenantId, Integer maxDatabases, Integer maxStorageGb, Integer maxComputeCu) {
         TenantEntity entity = tenantRepository.findById(tenantId)
             .orElseThrow(() -> new NotFoundException("Tenant not found: " + tenantId));
@@ -77,30 +91,14 @@ public class TenantService {
         if (maxComputeCu != null) entity.setMaxComputeCu(maxComputeCu);
         entity = tenantRepository.save(entity);
         int dbCount = databaseRepository.findAllByTenantId(tenantId).size();
-        return TenantResponse.builder()
-            .id(entity.getId())
-            .name(entity.getName())
-            .createdAt(entity.getCreatedAt())
-            .maxDatabases(entity.getMaxDatabases())
-            .maxStorageGb(entity.getMaxStorageGb())
-            .maxComputeCu(entity.getMaxComputeCu())
-            .databaseCount(dbCount)
-            .build();
+        return toResponseWithDisabled(entity, dbCount);
     }
 
     public java.util.List<TenantResponse> listAll() {
         return tenantRepository.findAll().stream()
             .map(entity -> {
                 int dbCount = databaseRepository.findAllByTenantId(entity.getId()).size();
-                return TenantResponse.builder()
-                    .id(entity.getId())
-                    .name(entity.getName())
-                    .createdAt(entity.getCreatedAt())
-                    .maxDatabases(entity.getMaxDatabases())
-                    .maxStorageGb(entity.getMaxStorageGb())
-                    .maxComputeCu(entity.getMaxComputeCu())
-                    .databaseCount(dbCount)
-                    .build();
+                return toResponseWithDisabled(entity, dbCount);
             })
             .toList();
     }
@@ -114,6 +112,22 @@ public class TenantService {
             .maxDatabases(entity.getMaxDatabases())
             .maxStorageGb(entity.getMaxStorageGb())
             .maxComputeCu(entity.getMaxComputeCu())
+            .disabled(entity.getDisabled())
+            .disabledAt(entity.getDisabledAt())
+            .build();
+    }
+
+    private TenantResponse toResponseWithDisabled(TenantEntity entity, int dbCount) {
+        return TenantResponse.builder()
+            .id(entity.getId())
+            .name(entity.getName())
+            .createdAt(entity.getCreatedAt())
+            .maxDatabases(entity.getMaxDatabases())
+            .maxStorageGb(entity.getMaxStorageGb())
+            .maxComputeCu(entity.getMaxComputeCu())
+            .databaseCount(dbCount)
+            .disabled(entity.getDisabled())
+            .disabledAt(entity.getDisabledAt())
             .build();
     }
 }

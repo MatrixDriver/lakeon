@@ -27,6 +27,7 @@
         <option value="IN_PROGRESS">IN_PROGRESS</option>
       </select>
       <button class="btn btn-default btn-small" @click="loadOperations">筛选</button>
+      <button class="btn btn-default btn-small" @click="exportCsv">导出 CSV</button>
     </div>
 
     <div class="table-wrapper">
@@ -127,6 +128,47 @@ async function loadOperations() {
   } catch (e) {
     console.error('Failed to load operations', e)
   }
+}
+
+async function exportCsv() {
+  // Fetch all pages for current filters
+  const allOps: Operation[] = []
+  let p = 0
+  while (true) {
+    const params: Record<string, string | number> = { page: p, size: 100 }
+    if (tenantFilter.value.trim()) params.tenant_id = tenantFilter.value.trim()
+    if (typeFilter.value) params.type = typeFilter.value
+    if (statusFilter.value) params.status = statusFilter.value
+    const res = await adminApi.listOperations(params)
+    const items = (res.data.data || res.data || []).map((op: any) => ({
+      id: op.id,
+      database_name: op.databaseName ?? op.database_name ?? '',
+      tenant_id: op.tenantId ?? op.tenant_id ?? '',
+      type: op.operationType ?? op.type ?? '',
+      status: op.status ?? '',
+      duration_ms: op.durationMs ?? op.duration_ms ?? '',
+      started_at: op.startedAt ?? op.started_at ?? '',
+      error_message: op.errorMessage ?? op.error_message ?? '',
+    }))
+    allOps.push(...items)
+    if (items.length < 100) break
+    p++
+  }
+
+  const header = '数据库,租户ID,操作类型,状态,耗时(ms),开始时间,错误信息'
+  const rows = allOps.map(op =>
+    [op.database_name, op.tenant_id, op.type, op.status, op.duration_ms, op.started_at, op.error_message]
+      .map(v => `"${String(v ?? '').replace(/"/g, '""')}"`)
+      .join(',')
+  )
+  const csv = '\uFEFF' + header + '\n' + rows.join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `operations_${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 function prevPage() {

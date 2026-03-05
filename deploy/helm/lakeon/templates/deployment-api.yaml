@@ -58,6 +58,11 @@ spec:
                   name: obs-credentials
                   key: secret-key
             {{- end }}
+          volumeMounts:
+            - name: cloud-resources
+              mountPath: /app/data/cloud-resources.json
+              subPath: resources.json
+              readOnly: true
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
           livenessProbe:
@@ -72,3 +77,8 @@ spec:
               port: http
             initialDelaySeconds: 15
             periodSeconds: 5
+      volumes:
+        - name: cloud-resources
+          configMap:
+            name: lakeon-cloud-resources
+            optional: true

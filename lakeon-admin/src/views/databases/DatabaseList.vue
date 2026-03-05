@@ -53,7 +53,7 @@
             <td>
               <input type="checkbox" :checked="selectedIds.has(db.id)" @change="toggleSelect(db.id)" />
             </td>
-            <td>{{ db.name }}</td>
+            <td><a class="db-link" @click="router.push(`/databases/${db.id}`)">{{ db.name }}</a></td>
             <td style="font-family: monospace; font-size: 13px;">{{ db.tenant_id }}</td>
             <td>
               <span class="status-dot" :class="statusClass(db.status)"></span>
@@ -103,8 +103,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { adminApi } from '../../api/admin'
 import { formatDate } from '../../utils/format'
+
+const router = useRouter()
 
 interface Database {
   id: string
@@ -227,5 +230,13 @@ onMounted(loadDatabases)
 .btn-danger:disabled {
   background-color: #feb2b2;
   cursor: not-allowed;
+}
+.db-link {
+  color: #0052d9;
+  cursor: pointer;
+  text-decoration: none;
+}
+.db-link:hover {
+  text-decoration: underline;
 }
 </style>

@@ -97,6 +97,17 @@
       </div>
     </div>
 
+    <!-- Cost Trend Chart -->
+    <div class="section-card" style="margin-top: 24px;">
+      <div class="section-header">
+        <h3>日成本趋势（最近 30 天）</h3>
+      </div>
+      <div style="padding: 16px;" v-if="trendData.length > 0">
+        <canvas ref="trendCanvas" height="100"></canvas>
+      </div>
+      <div v-else style="padding: 16px; color: #999;">加载中...</div>
+    </div>
+
     <!-- Tenant Cost -->
     <div class="section-card" style="margin-top: 24px;">
       <div class="section-header">
@@ -132,7 +143,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { adminApi } from '../../api/admin'
 import { formatCurrency } from '../../utils/format'
 
@@ -163,6 +174,8 @@ const cbcBills = ref<CbcBill[]>([])
 const cbcTotal = ref(0)
 const cbcCycle = ref('')
 const cbcError = ref(false)
+const trendData = ref<Array<{ date: string; fixed_cost: number; compute_cost: number; total_cost: number }>>([])
+const trendCanvas = ref<HTMLCanvasElement | null>(null)
 
 const hourlyCost = computed(() => {
   const m = summary.value.total_monthly_cost
@@ -198,8 +211,8 @@ onMounted(async () => {
     const sd = summaryRes.data
     summary.value = { total_monthly_cost: sd.total }
     const COST_LABELS: Record<string, string> = {
-      cce_nodes: 'CCE 节点', elb: '弹性负载均衡', rds: 'RDS 数据库',
-      eip: '弹性公网 IP', obs: 'OBS 存储', compute: '计算资源',
+      cce_cluster: 'CCE 集群（含 EIP）', cce_nodes: 'CCE 节点', elb: '弹性负载均衡',
+      rds: 'RDS 数据库', eip: '弹性公网 IP', obs: 'OBS 存储', compute: '计算资源',
     }
     const bd = sd.breakdown || {}
     breakdown.value = Object.entries(bd).map(([key, cost]: [string, any]) => ({
@@ -226,10 +239,95 @@ onMounted(async () => {
         }))
         .sort((a: CbcBill, b: CbcBill) => b.consume - a.consume)
     }
+    // Cost trend
+    try {
+      const trendRes = await adminApi.costTrend(30)
+      trendData.value = trendRes.data
+      await nextTick()
+      renderTrendChart()
+    } catch (e) {
+      console.error('Failed to load cost trend', e)
+    }
   } catch (e) {
     console.error('Failed to load cost data', e)
   }
 })
+
+function renderTrendChart() {
+  const canvas = trendCanvas.value
+  if (!canvas || trendData.value.length === 0) return
+  const ctx = canvas.getContext('2d')!
+  if (!ctx) return
+
+  const data = trendData.value
+  const labels = data.map(d => d.date.substring(5)) // MM-DD
+  const fixedCosts = data.map(d => d.fixed_cost)
+  const computeCosts = data.map(d => d.compute_cost)
+
+  const width = canvas.clientWidth
+  const height = canvas.clientHeight || 300
+  const dpr = window.devicePixelRatio || 1
+  canvas.width = width * dpr
+  canvas.height = height * dpr
+  ctx.scale(dpr, dpr)
+
+  const padding = { top: 20, right: 20, bottom: 40, left: 60 }
+  const chartW = width - padding.left - padding.right
+  const chartH = height - padding.top - padding.bottom
+
+  const allValues = [...fixedCosts, ...computeCosts, ...data.map(d => d.total_cost)]
+  const maxVal = Math.max(...allValues, 1) * 1.1
+
+  ctx.clearRect(0, 0, width, height)
+  ctx.font = '11px sans-serif'
+  ctx.fillStyle = '#999'
+
+  // Y axis
+  for (let i = 0; i <= 4; i++) {
+    const y = padding.top + chartH - (i / 4) * chartH
+    const val = (maxVal * i / 4).toFixed(1)
+    ctx.fillText(val, 5, y + 3)
+    ctx.strokeStyle = '#f0f0f0'
+    ctx.beginPath()
+    ctx.moveTo(padding.left, y)
+    ctx.lineTo(padding.left + chartW, y)
+    ctx.stroke()
+  }
+
+  // X axis labels (every ~5 days)
+  const step = Math.max(1, Math.floor(labels.length / 6))
+  for (let i = 0; i < labels.length; i += step) {
+    const x = padding.left + (i / (labels.length - 1)) * chartW
+    ctx.fillText(labels[i] ?? '', x - 12, height - 8)
+  }
+
+  function drawLine(values: number[], color: string) {
+    ctx.strokeStyle = color
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    values.forEach((v, i) => {
+      const x = padding.left + (i / (values.length - 1)) * chartW
+      const y = padding.top + chartH - (v / maxVal) * chartH
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    })
+    ctx.stroke()
+  }
+
+  drawLine(fixedCosts, '#0052d9')
+  drawLine(computeCosts, '#e37318')
+
+  // Legend
+  const legendY = 12
+  ctx.fillStyle = '#0052d9'
+  ctx.fillRect(padding.left, legendY - 8, 12, 3)
+  ctx.fillStyle = '#333'
+  ctx.fillText('固定成本', padding.left + 16, legendY)
+  ctx.fillStyle = '#e37318'
+  ctx.fillRect(padding.left + 80, legendY - 8, 12, 3)
+  ctx.fillStyle = '#333'
+  ctx.fillText('计算成本', padding.left + 96, legendY)
+}
 </script>
 
 <style scoped>

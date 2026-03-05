@@ -2,12 +2,21 @@
 """
 Lakeon 华为云资源管理 - 极致省钱模式
 
+资源: 1x ac7.2xlarge.2 节点 + 共享ELB + 按流量EIP + RDS
+运行成本: ~¥89/天 (CCE ¥24 + 节点 ¥48 + RDS ¥17)
+
+两种关停模式:
+  默认模式 — 保留 CCE 集群 + 集群 EIP（¥24/天），省 ~¥65/天
+  --full   — 删除一切（仅保留 OBS/SWR），省 ~¥89/天
+             启动时需手动绑 EIP 到集群并更新 kubeconfig
+
 用法:
-  python3 hwcloud.py discover      # 发现并缓存资源 ID
-  python3 hwcloud.py stop-cloud    # 关停: 删 ELB + 释放 EIP + 节点缩0 + 停 RDS
-  python3 hwcloud.py start-cloud   # 启动: 启 RDS + 扩节点 + 建 ELB + 分配 EIP
-  python3 hwcloud.py status        # 查看资源状态
-  python3 hwcloud.py wait          # 等待 RDS 和节点就绪
+  python3 hwcloud.py discover        # 发现并缓存资源 ID
+  python3 hwcloud.py stop-cloud      # 关停（保留集群 EIP）
+  python3 hwcloud.py stop-cloud --full  # 关停（释放所有 EIP）
+  python3 hwcloud.py start-cloud     # 启动
+  python3 hwcloud.py status          # 查看资源状态
+  python3 hwcloud.py list-resources  # 输出所有资源 JSON（供管理台使用）
 """
 
 import hashlib, hmac, json, os, re, sys, time
@@ -299,12 +308,13 @@ def cmd_discover(ak, sk):
             }
             print(f"  ELB:      {lb.get('name')} ({elb_id[:12]}...)")
 
-    # EIPs — exclude the CCE cluster API EIP
+    # EIPs
     cluster_eip = _get_cluster_eip()
     eips = get_eips(ak, sk, pid)
     eip_configs = []
     for e in eips:
-        if e.get("status") == "ACTIVE" and e.get("public_ip_address") != cluster_eip:
+        if e.get("status") == "ACTIVE":
+            is_cluster = e.get("public_ip_address") == cluster_eip
             eip_configs.append({
                 "ip": e.get("public_ip_address"),
                 "id": e["id"],
@@ -313,23 +323,29 @@ def cmd_discover(ak, sk):
                 "bandwidth_size": e.get("bandwidth_size", 5),
                 "bandwidth_share_type": e.get("bandwidth_share_type", "PER"),
                 "bandwidth_name": e.get("bandwidth_name", "lakeon-bw"),
+                "is_cluster_eip": is_cluster,
             })
-    for e in eip_configs:
-        print(f"  EIP:      {e['ip']} ({e['id'][:12]}...)")
-    if cluster_eip:
-        print(f"  EIP:      {cluster_eip} (集群管理, 保留)")
+            label = " (集群管理)" if is_cluster else ""
+            print(f"  EIP:      {e.get('public_ip_address')}{label} ({e['id'][:12]}...)")
 
-    cache = {
+    # Merge into existing cache — don't overwrite saved node/elb specs if current resources are down
+    cache = load_cache()
+    cache.update({
         "project_id": pid, "cluster_id": cid, "cluster_name": cname,
-        "nodes": nodes, "rds_id": rid, "rds_name": rname,
-        "elb_id": elb_id, "elb_config": elb_config, "eip_configs": eip_configs,
-    }
+        "rds_id": rid, "rds_name": rname, "elb_id": elb_id,
+    })
+    if nodes:
+        cache["nodes"] = nodes
+    if elb_config:
+        cache["elb_config"] = elb_config
+    if eip_configs:
+        cache["eip_configs"] = eip_configs
     save_cache(cache)
     print(f"\n  已缓存到 .lakeon-cloud.json")
     return cache
 
 
-def cmd_stop_cloud(ak, sk):
+def cmd_stop_cloud(ak, sk, full=False):
     cache = load_cache()
     if not cache.get("project_id"):
         cache = cmd_discover(ak, sk)
@@ -339,46 +355,68 @@ def cmd_stop_cloud(ak, sk):
     # Refresh and save current node specs for recreation
     nodes = get_nodes(ak, sk, pid, cid)
     cache["nodes"] = nodes
+    cache["stop_mode"] = "full" if full else "keep-cce"
     save_cache(cache)
 
-    print("\n=== 关停华为云资源 ===\n")
+    mode_label = "极致省钱（删除一切）" if full else "保留集群 EIP"
+    print(f"\n=== 关停华为云资源 [{mode_label}] ===\n")
 
     # 1. Delete ELB (listeners should be gone after helm uninstall)
     elb_id = cache.get("elb_id")
     if elb_id:
         lb = get_elb(ak, sk, pid, elb_id)
         if lb:
-            # Save config for recreation
             cache["elb_config"] = {
                 "name": lb.get("name", "lakeon-elb"),
-                "vip_subnet_cidr_id": lb.get("vip_subnet_cidr_id"),
-                "elb_virsubnet_ids": lb.get("elb_virsubnet_ids", []),
-                "availability_zone_list": lb.get("availability_zone_list", []),
-                "description": "Lakeon ELB (auto-recreated)",
-                "guaranteed": lb.get("guaranteed", False),
-                "vpc_id": lb.get("vpc_id"),
+                "vip_subnet_id": lb.get("vip_subnet_id") or lb.get("vip_subnet_cidr_id"),
+                "shared": True,
             }
             save_cache(cache)
 
-            # Clean remaining listeners/pools
-            listeners = get_elb_listeners(ak, sk, pid, elb_id)
-            for l in listeners:
-                for pool_id in [l.get("default_pool_id")] + [r.get("redirect_pool_id", "") for r in l.get("rules", [])]:
-                    if pool_id:
-                        delete_elb_pool(ak, sk, pid, pool_id)
-                delete_elb_listener(ak, sk, pid, l["id"])
-
             print(f"  删除 ELB: {elb_id[:12]}...")
-            s, r = delete_elb(ak, sk, pid, elb_id)
+            # Use v2 cascade delete to clean listeners/pools automatically
+            s, r = api("DELETE", f"https://elb.{REGION}.myhuaweicloud.com/v2/{pid}/elb/loadbalancers/{elb_id}?cascade=true", ak, sk)
+            if s not in (200, 204):
+                # Fallback: try v3 API
+                s, r = delete_elb(ak, sk, pid, elb_id)
             print(f"    {'✓' if s in (200,204) else '✗'} {s}")
         else:
             print(f"  ELB {elb_id[:12]}... 已不存在")
 
-    # 2. Release EIPs
-    for e in cache.get("eip_configs", []):
-        print(f"  释放 EIP: {e['ip']} ({e['id'][:12]}...)")
-        s, r = release_eip(ak, sk, pid, e["id"])
-        print(f"    {'✓' if s in (200,204) else '✗'} {s}")
+    # 2. Release EIPs (ELB-managed EIPs are auto-deleted with ELB, skip them)
+    cluster_eip = _get_cluster_eip()
+    if full:
+        # Full mode: release ALL standalone EIPs including cluster EIP
+        all_eips = get_eips(ak, sk, pid)
+        all_eip_configs = []
+        for e in all_eips:
+            all_eip_configs.append({
+                "ip": e.get("public_ip_address"), "id": e["id"],
+                "type": e.get("type", "5_bgp"),
+                "bandwidth_size": e.get("bandwidth_size", 5),
+                "bandwidth_share_type": e.get("bandwidth_share_type", "PER"),
+                "bandwidth_name": e.get("bandwidth_name", "lakeon-bw"),
+                "is_cluster_eip": e.get("public_ip_address") == cluster_eip,
+            })
+        cache["eip_configs"] = all_eip_configs
+        save_cache(cache)
+        for e in all_eip_configs:
+            label = " (集群)" if e.get("is_cluster_eip") else ""
+            print(f"  释放 EIP: {e['ip']}{label} ({e['id'][:12]}...)")
+            s, r = release_eip(ak, sk, pid, e["id"])
+            print(f"    {'✓' if s in (200,204) else '✗'} {s}")
+    else:
+        # Default mode: release standalone service EIPs, keep cluster EIP
+        # ELB-managed EIPs are auto-deleted with ELB, no need to release
+        for e in cache.get("eip_configs", []):
+            if e.get("elb_managed"):
+                print(f"  EIP {e['ip']}: 随 ELB 自动释放")
+                continue
+            print(f"  释放 EIP: {e['ip']} ({e['id'][:12]}...)")
+            s, r = release_eip(ak, sk, pid, e["id"])
+            print(f"    {'✓' if s in (200,204) else '✗'} {s}")
+        if cluster_eip:
+            print(f"  保留 EIP: {cluster_eip} (集群管理)")
 
     # 3. Delete nodes
     for n in nodes:
@@ -394,8 +432,13 @@ def cmd_stop_cloud(ak, sk):
         ok = s in (200, 202, 204) or "SHUTTING" in str(r)
         print(f"    {'✓' if ok else '✗'} {s}")
 
+    saved = "¥89" if full else "¥65"
     print(f"\n✅ 关停请求已提交")
-    print(f"   节约: ELB ¥12/天 + EIP ¥10/天 + 节点 ¥72/天 + RDS ¥17/天 ≈ ¥111/天")
+    print(f"   每天节省 ~{saved}")
+    if not full:
+        print(f"   仍计费: CCE 集群 + 集群 EIP ≈ ¥24/天")
+    if full:
+        print(f"   ⚠ 启动时需先在华为云控制台为 CCE 集群绑定 EIP，再更新 kubeconfig")
 
 
 def cmd_start_cloud(ak, sk):
@@ -456,20 +499,55 @@ def cmd_start_cloud(ak, sk):
         print(f"\n⚠ 等待超时，请检查华为云控制台后重试")
         return
 
-    # 4. Create new ELB
+    # 4. Create shared ELB (v2 API)
     elb_cfg = cache.get("elb_config")
     new_elb_id = None
+    new_eip = None
     if elb_cfg:
-        print(f"\n  创建 ELB...")
-        # Clean config for creation
-        create_cfg = {k: v for k, v in elb_cfg.items() if v is not None}
-        s, r = create_elb(ak, sk, pid, create_cfg)
+        print(f"\n  创建共享型 ELB...")
+        elb_body = json.dumps({"loadbalancer": {
+            "name": elb_cfg.get("name", "lakeon-elb"),
+            "vip_subnet_id": elb_cfg.get("vip_subnet_id") or elb_cfg.get("vip_subnet_cidr_id", ""),
+            "description": "Lakeon ELB (shared)",
+            "admin_state_up": True,
+        }})
+        s, r = api("POST", f"https://elb.{REGION}.myhuaweicloud.com/v2/{pid}/elb/loadbalancers", ak, sk, elb_body)
         if s in (200, 201):
             lb = r.get("loadbalancer", r)
             new_elb_id = lb["id"]
             vip_port_id = lb.get("vip_port_id")
             print(f"    ✓ ELB: {new_elb_id[:12]}...")
             cache["elb_id"] = new_elb_id
+
+            # Allocate static BGP EIP (traffic billing) and bind to ELB
+            print(f"  分配 EIP (静态BGP, 按流量)...")
+            eip_req = {
+                "publicip": {"type": "5_sbgp"},
+                "bandwidth": {"name": "lakeon-bw", "size": 300, "share_type": "PER", "charge_mode": "traffic"},
+            }
+            s2, r2 = create_eip(ak, sk, pid, eip_req)
+            if s2 in (200, 201):
+                eip = r2.get("publicip", r2)
+                eip_id = eip["id"]
+                eip_ip = eip.get("public_ip_address", "?")
+                print(f"    ✓ EIP: {eip_ip}")
+
+                print(f"  绑定 EIP → ELB...")
+                bs, br = bind_eip(ak, sk, pid, eip_id, vip_port_id)
+                if bs == 200:
+                    new_eip = br.get("publicip", {}).get("public_ip_address", eip_ip)
+                    print(f"    ✓ 已绑定: {new_eip}")
+                else:
+                    new_eip = eip_ip
+                    print(f"    ✗ 绑定失败: {bs}, EIP 需手动绑定")
+
+                cache["eip_configs"] = [{
+                    "ip": new_eip, "id": eip_id, "type": "5_sbgp",
+                    "bandwidth_size": 300, "bandwidth_share_type": "PER",
+                    "charge_mode": "traffic", "bandwidth_name": "lakeon-bw",
+                }]
+            else:
+                print(f"    ✗ EIP 分配失败: {s2} {json.dumps(r2, ensure_ascii=False)[:200]}")
         else:
             print(f"    ✗ ELB 创建失败: {s} {json.dumps(r, ensure_ascii=False)[:300]}")
             return
@@ -477,51 +555,9 @@ def cmd_start_cloud(ak, sk):
         print(f"\n  ⚠ 无 ELB 配置缓存，跳过 ELB 创建")
         return
 
-    # 5. Allocate new EIPs and bind to ELB
-    new_eip = None
-    new_eip_configs = []
-    for i, old in enumerate(cache.get("eip_configs", [])):
-        print(f"  分配 EIP #{i+1}...")
-        eip_req = {
-            "publicip": {"type": old.get("type", "5_bgp")},
-            "bandwidth": {
-                "name": old.get("bandwidth_name", f"lakeon-bw-{i+1}"),
-                "size": old.get("bandwidth_size", 5),
-                "share_type": old.get("bandwidth_share_type", "PER"),
-            },
-        }
-        s, r = create_eip(ak, sk, pid, eip_req)
-        if s in (200, 201):
-            eip = r.get("publicip", r)
-            eip_id = eip["id"]
-            eip_ip = eip.get("public_ip_address", "分配中...")
-            print(f"    ✓ EIP: {eip_ip} ({eip_id[:12]}...)")
-
-            # Bind first EIP to ELB
-            if i == 0 and vip_port_id:
-                print(f"  绑定 EIP → ELB...")
-                bs, br = bind_eip(ak, sk, pid, eip_id, vip_port_id)
-                if bs == 200:
-                    eip_ip = br.get("publicip", {}).get("public_ip_address", eip_ip)
-                    print(f"    ✓ 已绑定: {eip_ip}")
-                    new_eip = eip_ip
-                else:
-                    print(f"    ✗ 绑定失败: {bs}")
-
-            new_eip_configs.append({
-                "ip": eip_ip, "id": eip_id,
-                "type": old.get("type", "5_bgp"),
-                "bandwidth_size": old.get("bandwidth_size", 5),
-                "bandwidth_share_type": old.get("bandwidth_share_type", "PER"),
-                "bandwidth_name": old.get("bandwidth_name", f"lakeon-bw-{i+1}"),
-            })
-        else:
-            print(f"    ✗ 分配失败: {s} {json.dumps(r, ensure_ascii=False)[:200]}")
-
-    cache["eip_configs"] = new_eip_configs
     save_cache(cache)
 
-    # 6. Update values-cce.yaml
+    # 5. Update values-cce.yaml
     if new_elb_id and new_eip:
         print(f"\n  更新配置文件...")
         update_values(new_elb_id, new_eip)
@@ -530,6 +566,217 @@ def cmd_start_cloud(ak, sk):
     if new_eip:
         print(f"\n  新 IP: {new_eip}")
         print(f"  接下来运行 start.sh 完成 K8s 部署")
+
+
+def get_vpcs(ak, sk, pid):
+    s, d = api("GET", f"https://vpc.{REGION}.myhuaweicloud.com/v1/{pid}/vpcs?limit=100", ak, sk)
+    if s == 200:
+        return d.get("vpcs", [])
+    return []
+
+def get_subnets(ak, sk, pid):
+    s, d = api("GET", f"https://vpc.{REGION}.myhuaweicloud.com/v1/{pid}/subnets?limit=100", ak, sk)
+    if s == 200:
+        return d.get("subnets", [])
+    return []
+
+def get_security_groups(ak, sk, pid):
+    s, d = api("GET", f"https://vpc.{REGION}.myhuaweicloud.com/v1/{pid}/security-groups?limit=100", ak, sk)
+    if s == 200:
+        return d.get("security_groups", [])
+    return []
+
+def get_ecs_servers(ak, sk, pid):
+    s, d = api("GET", f"https://ecs.{REGION}.myhuaweicloud.com/v1/{pid}/cloudservers/detail?limit=100", ak, sk)
+    if s == 200:
+        return d.get("servers", [])
+    return []
+
+def get_evs_volumes(ak, sk, pid):
+    s, d = api("GET", f"https://evs.{REGION}.myhuaweicloud.com/v2/{pid}/cloudvolumes/detail?limit=100", ak, sk)
+    if s == 200:
+        return d.get("volumes", [])
+    return []
+
+def get_elb_list(ak, sk, pid):
+    s, d = api("GET", f"https://elb.{REGION}.myhuaweicloud.com/v3/{pid}/elb/loadbalancers", ak, sk)
+    if s == 200:
+        return d.get("loadbalancers", [])
+    return []
+
+
+def _console_url(service, resource_type, resource_id, extra=""):
+    """Build HWC console URL for a resource."""
+    base = f"https://console.huaweicloud.com"
+    urls = {
+        ("CCE", "集群"): f"{base}/cce2.0/?region={REGION}#/app/cluster/detail?id={resource_id}",
+        ("ECS", "云服务器"): f"{base}/ecm/?region={REGION}#/ecs/manager/vmList/vmDetail/overview?instanceId={resource_id}",
+        ("RDS", "数据库实例"): f"{base}/rds/?region={REGION}#/rds/management/list/pg/{resource_id}/summary",
+        ("ELB", "负载均衡"): f"{base}/elb/?region={REGION}#/elb/detail/{resource_id}",
+        ("VPC", "虚拟私有云"): f"{base}/vpc/?region={REGION}#/vpcs/detail/{resource_id}",
+        ("VPC", "子网"): f"{base}/vpc/?region={REGION}#/subnets",
+        ("VPC", "安全组"): f"{base}/vpc/?region={REGION}#/secGroups/detail/{resource_id}",
+        ("VPC", "弹性公网IP"): f"{base}/vpc/?region={REGION}#/eips/detail/{resource_id}",
+        ("OBS", "对象存储桶"): f"{base}/obs/?region={REGION}#/obs/manage/{extra}/overview",
+        ("EVS", "云硬盘"): f"{base}/evs/?region={REGION}#/evs/manager/volumeDetail/{resource_id}",
+    }
+    return urls.get((service, resource_type), f"{base}/?region={REGION}")
+
+
+def cmd_list_resources(ak, sk):
+    """Discover all HWC resources and output JSON for the admin console."""
+    pid = get_project_id(ak, sk)
+    cid, cname = get_cce_cluster(ak, sk, pid)
+    nodes = get_nodes(ak, sk, pid, cid)
+    rid, rname, rstatus = get_rds(ak, sk, pid)
+
+    # Read ELB ID from values
+    with open(VALUES_FILE) as f:
+        m = re.search(r'id:\s*"([0-9a-f-]+)"', f.read())
+    elb_id = m.group(1) if m else None
+
+    # Read OBS bucket from values
+    with open(VALUES_FILE) as f:
+        content = f.read()
+        bm = re.search(r'bucket:\s*(\S+)', content)
+    obs_bucket = bm.group(1) if bm else "lakeon-storage"
+
+    eips = get_eips(ak, sk, pid)
+    vpcs = get_vpcs(ak, sk, pid)
+    subnets = get_subnets(ak, sk, pid)
+    sgs = get_security_groups(ak, sk, pid)
+    ecs_servers = get_ecs_servers(ak, sk, pid)
+    evs_volumes = get_evs_volumes(ak, sk, pid)
+    elbs = get_elb_list(ak, sk, pid)
+
+    resources = []
+
+    # CCE cluster
+    resources.append({
+        "name": cname, "id": cid, "region": REGION, "region_name": "华北-北京四",
+        "service": "CCE", "resource_type": "集群", "status": "Active",
+        "console_url": _console_url("CCE", "集群", cid),
+    })
+
+    # CCE nodes / ECS
+    for n in nodes:
+        resources.append({
+            "name": n["name"], "id": n["uid"], "region": REGION, "region_name": "华北-北京四",
+            "service": "ECS", "resource_type": "云服务器",
+            "status": n["phase"],
+            "spec": f"{n['flavor']}",
+            "console_url": _console_url("ECS", "云服务器", n.get("server_id", n["uid"])),
+        })
+
+    # RDS
+    resources.append({
+        "name": rname, "id": rid, "region": REGION, "region_name": "华北-北京四",
+        "service": "RDS", "resource_type": "数据库实例", "status": rstatus,
+        "console_url": _console_url("RDS", "数据库实例", rid),
+    })
+
+    # ELB
+    for lb in elbs:
+        resources.append({
+            "name": lb.get("name", ""), "id": lb["id"], "region": REGION, "region_name": "华北-北京四",
+            "service": "ELB", "resource_type": "负载均衡",
+            "status": lb.get("operating_status", "ONLINE"),
+            "console_url": _console_url("ELB", "负载均衡", lb["id"]),
+        })
+
+    # EIPs
+    cluster_eip = _get_cluster_eip()
+    for e in eips:
+        label = e.get("public_ip_address", "")
+        if label == cluster_eip:
+            label += " (集群管理)"
+        resources.append({
+            "name": label, "id": e["id"], "region": REGION, "region_name": "华北-北京四",
+            "service": "VPC", "resource_type": "弹性公网IP",
+            "status": e.get("status", ""),
+            "console_url": _console_url("VPC", "弹性公网IP", e["id"]),
+        })
+
+    # VPCs
+    for v in vpcs:
+        resources.append({
+            "name": v.get("name", ""), "id": v["id"], "region": REGION, "region_name": "华北-北京四",
+            "service": "VPC", "resource_type": "虚拟私有云",
+            "status": v.get("status", "ACTIVE"),
+            "console_url": _console_url("VPC", "虚拟私有云", v["id"]),
+        })
+
+    # Subnets
+    for s in subnets:
+        resources.append({
+            "name": s.get("name", ""), "id": s["id"], "region": REGION, "region_name": "华北-北京四",
+            "service": "VPC", "resource_type": "子网",
+            "status": s.get("status", "ACTIVE"),
+            "console_url": _console_url("VPC", "子网", s["id"]),
+        })
+
+    # Security groups
+    for sg in sgs:
+        resources.append({
+            "name": sg.get("name", ""), "id": sg["id"], "region": REGION, "region_name": "华北-北京四",
+            "service": "VPC", "resource_type": "安全组", "status": "Active",
+            "console_url": _console_url("VPC", "安全组", sg["id"]),
+        })
+
+    # OBS bucket
+    resources.append({
+        "name": obs_bucket, "id": obs_bucket, "region": REGION, "region_name": "华北-北京四",
+        "service": "OBS", "resource_type": "对象存储桶", "status": "Active",
+        "console_url": _console_url("OBS", "对象存储桶", obs_bucket, obs_bucket),
+    })
+
+    # EVS volumes
+    for vol in evs_volumes:
+        resources.append({
+            "name": vol.get("name", ""), "id": vol["id"], "region": REGION, "region_name": "华北-北京四",
+            "service": "EVS", "resource_type": "云硬盘",
+            "status": vol.get("status", ""),
+            "console_url": _console_url("EVS", "云硬盘", vol["id"]),
+        })
+
+    # Build topology for diagram
+    elb_info = None
+    if elbs:
+        lb = elbs[0]
+        elb_info = {"name": lb.get("name", "lakeon-elb"), "id": lb["id"],
+                     "console_url": _console_url("ELB", "负载均衡", lb["id"])}
+
+    eip_info = None
+    for e in eips:
+        if e.get("public_ip_address") != cluster_eip and e.get("status") == "ACTIVE":
+            eip_info = {"ip": e["public_ip_address"], "id": e["id"],
+                        "console_url": _console_url("VPC", "弹性公网IP", e["id"])}
+            break
+    if not eip_info and eips:
+        e = eips[0]
+        eip_info = {"ip": e.get("public_ip_address", ""), "id": e["id"],
+                    "console_url": _console_url("VPC", "弹性公网IP", e["id"])}
+
+    topology = {
+        "eip": eip_info,
+        "elb": elb_info,
+        "cce": {
+            "name": cname, "id": cid,
+            "console_url": _console_url("CCE", "集群", cid),
+            "nodes": [{"name": n["name"], "flavor": n["flavor"], "phase": n["phase"],
+                        "server_id": n.get("server_id", ""),
+                        "console_url": _console_url("ECS", "云服务器", n.get("server_id", n["uid"]))}
+                       for n in nodes],
+        },
+        "rds": {"name": rname, "id": rid, "status": rstatus,
+                "console_url": _console_url("RDS", "数据库实例", rid)},
+        "obs": {"bucket": obs_bucket,
+                "console_url": _console_url("OBS", "对象存储桶", obs_bucket, obs_bucket)},
+    }
+
+    output = {"resources": resources, "topology": topology}
+    print(json.dumps(output, indent=2, ensure_ascii=False))
+    return output
 
 
 def cmd_status(ak, sk):
@@ -578,6 +825,7 @@ COMMANDS = {
     "stop-cloud": cmd_stop_cloud,
     "start-cloud": cmd_start_cloud,
     "status": cmd_status,
+    "list-resources": cmd_list_resources,
 }
 
 if __name__ == "__main__":
@@ -595,4 +843,9 @@ if __name__ == "__main__":
         if pw:
             cache["_node_password"] = pw
             save_cache(cache)
-    COMMANDS[sys.argv[1]](ak, sk)
+    full = "--full" in sys.argv
+    cmd = sys.argv[1]
+    if cmd == "stop-cloud":
+        COMMANDS[cmd](ak, sk, full=full)
+    else:
+        COMMANDS[cmd](ak, sk)

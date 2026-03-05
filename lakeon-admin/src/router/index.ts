@@ -15,9 +15,11 @@ const routes = [
       { path: 'dashboard', name: 'Dashboard', component: () => import('../views/dashboard/DashboardView.vue') },
       { path: 'tenants', name: 'TenantList', component: () => import('../views/tenants/TenantList.vue') },
       { path: 'databases', name: 'DatabaseList', component: () => import('../views/databases/DatabaseList.vue') },
+      { path: 'databases/:id', name: 'DatabaseDetail', component: () => import('../views/databases/DatabaseDetail.vue') },
       { path: 'operations', name: 'OperationList', component: () => import('../views/operations/OperationList.vue') },
       { path: 'system', name: 'SystemHealth', component: () => import('../views/system/SystemHealth.vue') },
       { path: 'cost', name: 'CostView', component: () => import('../views/cost/CostView.vue') },
+      { path: 'cloud', name: 'CloudResources', component: () => import('../views/cloud/CloudResources.vue') },
     ],
   },
 ]

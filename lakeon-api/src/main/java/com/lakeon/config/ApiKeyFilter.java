@@ -106,6 +106,13 @@ public class ApiKeyFilter implements Filter {
             return;
         }
 
+        if (Boolean.TRUE.equals(tenant.getDisabled())) {
+            response.setStatus(403);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\":{\"code\":\"FORBIDDEN\",\"message\":\"Tenant is disabled\"}}");
+            return;
+        }
+
         request.setAttribute("tenant", tenant);
         chain.doFilter(req, res);
     }

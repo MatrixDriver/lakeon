@@ -22,6 +22,7 @@ data:
   LAKEON_IMAGE_PULL_SECRETS: {{ range $i, $s := .Values.global.imagePullSecrets }}{{ if $i }},{{ end }}{{ $s.name }}{{ end }}
   {{- end }}
   {{- with .Values.cost }}
+  LAKEON_COST_CCE_CLUSTER_HOURLY: {{ .cceClusterHourly | default "1.0" | quote }}
   LAKEON_COST_CCE_NODE_HOURLY: {{ .cceNodeHourly | default "1.5" | quote }}
   LAKEON_COST_CCE_NODE_COUNT: {{ .cceNodeCount | default "3" | quote }}
   LAKEON_COST_ELB_MONTHLY: {{ .elbMonthly | default "30" | quote }}

@@ -83,6 +83,16 @@ public class AdminController {
         return tenantService.updateQuota(tenantId, request.maxDatabases(), request.maxStorageGb(), request.maxComputeCu());
     }
 
+    @PostMapping("/tenants/{tenantId}/disable")
+    public TenantResponse disableTenant(@PathVariable String tenantId) {
+        return tenantService.disableTenant(tenantId);
+    }
+
+    @PostMapping("/tenants/{tenantId}/enable")
+    public TenantResponse enableTenant(@PathVariable String tenantId) {
+        return tenantService.enableTenant(tenantId);
+    }
+
     @DeleteMapping("/tenants/batch")
     public Map<String, Object> batchDeleteTenants(@RequestBody Map<String, List<String>> body) {
         List<String> ids = body.getOrDefault("ids", List.of());
@@ -134,6 +144,13 @@ public class AdminController {
         return dbs.stream().map(this::dbToMap).toList();
     }
 
+    @GetMapping("/databases/{databaseId}")
+    public Map<String, Object> getDatabase(@PathVariable String databaseId) {
+        DatabaseEntity db = databaseRepository.findById(databaseId)
+                .orElseThrow(() -> new com.lakeon.service.exception.NotFoundException("Database not found: " + databaseId));
+        return dbToMap(db);
+    }
+
     @DeleteMapping("/databases/batch")
     public Map<String, Object> batchDeleteDatabases(@RequestBody Map<String, List<String>> body) {
         List<String> ids = body.getOrDefault("ids", List.of());
@@ -163,6 +180,13 @@ public class AdminController {
         return result;
     }
 
+    // ── Cloud Resources ─────────────────────────────────────────────
+
+    @GetMapping("/cloud/resources")
+    public Map<String, Object> getCloudResources() {
+        return adminService.getCloudResources();
+    }
+
     // ── Compute Stats ──────────────────────────────────────────────
 
     @GetMapping("/compute/stats")
@@ -175,6 +199,11 @@ public class AdminController {
     @GetMapping("/system/health")
     public Map<String, Object> getSystemHealth() {
         return adminService.checkAllComponents();
+    }
+
+    @GetMapping("/system/health/obs")
+    public Map<String, Object> getObsHealth() {
+        return adminService.checkObs();
     }
 
     @GetMapping("/system/health/{component}")
@@ -228,6 +257,11 @@ public class AdminController {
     @GetMapping("/cost/summary")
     public Map<String, Object> getCostSummary() {
         return adminService.estimateMonthlyCost();
+    }
+
+    @GetMapping("/cost/trend")
+    public List<Map<String, Object>> getCostTrend(@RequestParam(defaultValue = "30") int days) {
+        return adminService.getCostTrend(days);
     }
 
     @GetMapping("/cost/tenants")

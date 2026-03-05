@@ -31,6 +31,7 @@
             </th>
             <th>名称</th>
             <th>ID</th>
+            <th>状态</th>
             <th>数据库数/配额</th>
             <th>存储配额(GB)</th>
             <th>计算配额(CU)</th>
@@ -45,17 +46,26 @@
             </td>
             <td>{{ t.name }}</td>
             <td style="font-family: monospace; font-size: 13px;">{{ t.id }}</td>
+            <td>
+              <span class="status-dot" :class="t.disabled ? 'dot-red' : 'dot-green'"></span>
+              {{ t.disabled ? '已禁用' : '已启用' }}
+            </td>
             <td>{{ t.database_count ?? 0 }} / {{ t.max_databases ?? '-' }}</td>
             <td>{{ t.max_storage_gb ?? '-' }}</td>
             <td>{{ t.max_compute_cu ?? '-' }}</td>
             <td>{{ formatDate(t.created_at) }}</td>
             <td>
               <button class="btn btn-text btn-small" @click="openEditQuota(t)">编辑配额</button>
+              <button
+                class="btn btn-text btn-small"
+                :style="{ color: t.disabled ? '#38a169' : '#e37318' }"
+                @click="toggleDisabled(t)"
+              >{{ t.disabled ? '启用' : '禁用' }}</button>
               <button class="btn btn-text btn-small" style="color: #e53e3e;" @click="confirmDeleteOne(t)">删除</button>
             </td>
           </tr>
           <tr v-if="filteredTenants.length === 0">
-            <td colspan="8" class="empty-state">暂无数据</td>
+            <td colspan="9" class="empty-state">暂无数据</td>
           </tr>
         </tbody>
       </table>
@@ -131,6 +141,8 @@ interface Tenant {
   max_storage_gb?: number
   max_compute_cu?: number
   created_at: string
+  disabled?: boolean
+  disabled_at?: string
 }
 
 const tenants = ref<Tenant[]>([])
@@ -208,6 +220,19 @@ async function executeBatchDelete() {
     alert('批量删除失败')
   } finally {
     deleting.value = false
+  }
+}
+
+async function toggleDisabled(t: Tenant) {
+  try {
+    if (t.disabled) {
+      await adminApi.enableTenant(t.id)
+    } else {
+      await adminApi.disableTenant(t.id)
+    }
+    await loadTenants()
+  } catch (e) {
+    console.error('Failed to toggle tenant status', e)
   }
 }
 

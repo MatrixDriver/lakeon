@@ -136,6 +136,12 @@ admin:
       cpu: "200m"
       memory: "256Mi"
 
+# Node init DaemonSet — fixes containerd core ulimit for Neon compute_ctl
+# See: doc/neon-modifications.md (问题 1)
+nodeInit:
+  enabled: false
+  image: "busybox:1.36"
+
 console:
   enabled: false
   image:
