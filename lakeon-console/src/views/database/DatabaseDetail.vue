@@ -20,9 +20,14 @@
             </span>
             <span class="meta-item">规格: {{ database.compute_size }}</span>
             <span class="meta-item">挂起超时: {{ database.suspend_timeout }}</span>
+            <span class="meta-item" v-if="database.status === 'RUNNING'">连接数: {{ database.active_connections || 0 }}</span>
           </div>
         </div>
         <div class="summary-actions">
+          <router-link
+            :to="`/databases/${database.id}/manager`"
+            class="btn btn-primary"
+          >管理数据库</router-link>
           <button
             v-if="database.status === 'RUNNING'"
             class="btn btn-default"
@@ -247,7 +252,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { databaseApi, type Database } from '../../api/database'
 import { branchApi, type Branch } from '../../api/branch'
@@ -261,6 +266,7 @@ const dbId = computed(() => route.params.id as string)
 const database = ref<Database | null>(null)
 const loadError = ref(false)
 const actionLoading = ref(false)
+let pollTimer: ReturnType<typeof setInterval> | null = null
 
 const newPassword = ref<string | null>(null)
 const resettingPassword = ref(false)
@@ -470,7 +476,14 @@ watch(activeTab, (tab) => {
   if (tab === 'operations' && operations.value.length === 0) fetchOperations()
 })
 
-onMounted(fetchDatabase)
+onMounted(() => {
+  fetchDatabase()
+  pollTimer = setInterval(fetchDatabase, 15000)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+})
 </script>
 
 <style scoped>

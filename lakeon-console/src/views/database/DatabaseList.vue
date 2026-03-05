@@ -45,6 +45,7 @@
             <tr>
               <th>名称</th>
               <th>状态</th>
+              <th>连接数</th>
               <th>规格</th>
               <th>存储用量</th>
               <th>创建时间</th>
@@ -62,6 +63,10 @@
               <td>
                 <span class="status-dot" :class="statusClass(db.status)"></span>
                 {{ statusText(db.status) }}
+              </td>
+              <td>
+                <span v-if="db.status === 'RUNNING'">{{ db.active_connections || 0 }}</span>
+                <span v-else class="text-muted">-</span>
               </td>
               <td>{{ db.compute_size }}</td>
               <td>
