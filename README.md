@@ -255,7 +255,7 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [x] 数据库实例监控（全局列表、状态/租户筛选、批量删除）
 - [x] 操作审计日志（全局列表、租户/类型/状态筛选、分页）
 - [x] 系统组件健康（组件名称 + 连通性状态、唤醒延迟 P50/P90/P99 秒级显示）
-- [x] 成本监控（CBC 实际账单 + 预估成本双模式、每小时/每天/每月拆分、租户成本分摊）
+- [x] 成本监控（预估成本、每小时/每天/每月拆分、租户成本分摊、日成本趋势图）
 - [x] 租户启用/禁用操作按钮
 - [x] 成本趋势图（日折线图，Canvas 原生渲染）
 - [x] 操作日志导出（CSV）
@@ -268,57 +268,28 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [x] CCE 部署验证（ELB 绑定，admin:0.1.8 / api:0.1.11）
 - [ ] NAT 网关配置（Pod 出公网，CBC 账单 API 依赖）→ 移至阶段 9
 
-### 阶段 6：数据库对象管理（Web Database Manager）
+### 阶段 6：数据库对象浏览（Web Database Manager）✅
 
-在用户 Web 控制台中集成类似 pgAdmin/DBeaver 的数据库对象浏览与管理功能，让用户无需安装客户端即可管理数据库内部对象。
+在用户 Web 控制台中集成数据库对象浏览功能，用户可查看 Schema → Table 层级结构和表结构详情。
 
-#### 后端 API（`/api/v1/databases/{id}/objects/...`）
+连接方式：后端通过 `cloud_admin` 直连 compute pod 内网，无需用户提供密码。自动唤醒已挂起的 compute。
 
-连接方式：通过 `cloud_admin` 直连 compute pod 内网（K8s Service DNS），无需用户提供密码。
-
-- [ ] Database 列表与管理（`\l`）— 查看、创建、删除数据库
-- [ ] Schema 列表与管理 — 查看、创建、删除 schema
-- [ ] Table 浏览与管理
-  - [ ] 列表（表名、行数估算、磁盘大小）
-  - [ ] 表结构查看（列名、类型、默认值、约束、注释）
-  - [ ] 创建表（列定义、主键、约束）
-  - [ ] 删除表（DROP TABLE）
-  - [ ] 修改表结构（ALTER TABLE：增删改列、增删约束）
-- [ ] 数据浏览与编辑
-  - [ ] 分页查询表数据（SELECT * 带分页/排序/过滤）
-  - [ ] 行级编辑（UPDATE 单行）
-  - [ ] 行级删除（DELETE 单行）
-  - [ ] 插入新行（INSERT）
-- [ ] SQL 查询编辑器
-  - [ ] 自由执行 SQL（SELECT / INSERT / UPDATE / DELETE / DDL）
-  - [ ] 查询结果表格展示（带列类型）
-  - [ ] 查询结果导出 CSV
-  - [ ] 查询历史记录
-- [ ] Index 管理 — 查看、创建、删除索引
-- [ ] View 管理 — 查看定义、创建、删除视图
-- [ ] Sequence 管理 — 查看、重置序列
+#### 后端 API（`/api/v1/databases/{id}/schemas/...`）
+- [x] Schema 列表（排除 pg_catalog / information_schema）
+- [x] Table 列表（表名、类型 TABLE/VIEW、行数估算）
+- [x] 列信息（名称、类型、可空、默认值、注释、位置）
+- [x] 索引信息（名称、列、唯一性、主键）
+- [x] 约束信息（PK/FK/UNIQUE/CHECK、引用表/列）
+- [x] 表统计（行数、磁盘大小）
+- [x] SQL 执行（statement_timeout 30s、最多 1000 行、禁止危险语句）
+- [x] DDL 操作（创建/删除表、增删列）
+- [x] JDBC 连接重试（compute pod Ready 后仍需等待 PG 启动）
 
 #### 前端控制台（`lakeon-console`）
-
-- [ ] 左侧对象树（Database → Schema → Tables/Views/Indexes/Sequences）
-  - [ ] 树形展开，懒加载子节点
-  - [ ] 右键菜单（创建、删除、刷新）
-- [ ] 表结构面板（Columns / Indexes / Constraints 分标签页）
-- [ ] 数据网格（可编辑表格，行内编辑 + 新增行 + 删除行）
-  - [ ] 分页、排序、列过滤
-  - [ ] 修改后高亮标记，统一提交/回滚
-- [ ] SQL 编辑器面板
-  - [ ] 语法高亮 + 自动补全（表名、列名）
-  - [ ] 执行按钮 + 快捷键（Ctrl+Enter）
-  - [ ] 多标签页
-  - [ ] 查询耗时和影响行数显示
-- [ ] DDL 可视化建表向导（表单式创建表、添加列和约束）
-
-#### 安全与限制
-- [ ] 查询超时限制（防止超长查询阻塞 compute）
-- [ ] 结果集大小限制（防止 OOM）
-- [ ] 危险操作二次确认（DROP TABLE / DROP DATABASE / TRUNCATE）
-- [ ] 操作审计日志（记录用户的 DDL/DML 操作）
+- [x] 数据库详情页「管理数据库」入口按钮
+- [x] 左侧对象树（Schema → Tables/Views，自动展开 public）
+- [x] 右侧表结构面板（列定义 + 索引 + 约束，分区显示）
+- [x] 类型标签（PK/FK/UNIQUE/CHECK 色彩区分）
 
 ### 阶段 7：CCE + CCI 混合架构验证
 
