@@ -46,6 +46,9 @@ rules:
     resources: ["pods"]
     verbs: ["get", "list", "watch", "create", "delete"]
   - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["get", "list", "create", "update", "patch", "delete"]
 ---

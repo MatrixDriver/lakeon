@@ -390,22 +390,38 @@ public class AdminService {
 
     public String getComponentLogs(String component, int tail) {
         String namespace = props.getK8s().getNamespace().replace("-compute", "");
-        String podName;
         String targetNamespace = namespace;
 
         if (component.startsWith("compute-")) {
             targetNamespace = props.getK8s().getNamespace();
-            podName = component;
-        } else {
-            podName = component;
+            try {
+                String logs = k8sClient.pods().inNamespace(targetNamespace)
+                    .withName(component).tailingLines(tail).getLog();
+                return logs != null ? logs : "";
+            } catch (Exception e) {
+                log.warn("Failed to get logs for {}/{}: {}", targetNamespace, component, e.getMessage());
+                return "Error: " + e.getMessage();
+            }
         }
 
+        // For infra components, find running pod by app label
         try {
+            var pods = k8sClient.pods().inNamespace(targetNamespace)
+                .withLabel("app", component).list().getItems();
+            if (pods.isEmpty()) {
+                return "Error: no pods found with label app=" + component + " in namespace " + targetNamespace;
+            }
+            // Prefer Running pods
+            var pod = pods.stream()
+                .filter(p -> "Running".equals(p.getStatus().getPhase()))
+                .findFirst()
+                .orElse(pods.get(0));
+            String podName = pod.getMetadata().getName();
             String logs = k8sClient.pods().inNamespace(targetNamespace)
                 .withName(podName).tailingLines(tail).getLog();
             return logs != null ? logs : "";
         } catch (Exception e) {
-            log.warn("Failed to get logs for {}/{}: {}", targetNamespace, podName, e.getMessage());
+            log.warn("Failed to get logs for {}/{}: {}", targetNamespace, component, e.getMessage());
             return "Error: " + e.getMessage();
         }
     }

@@ -356,7 +356,7 @@ public class ComputePodManager {
             ),
             Map.of(
                 "name", "cloud_admin",
-                "encrypted_password", ""
+                "encrypted_password", "cloud-admin-internal"
             )
         ));
         cluster.put("databases", List.of(Map.of(
