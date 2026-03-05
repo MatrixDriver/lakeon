@@ -25,6 +25,8 @@ public class DatabaseResponse {
     private List<BranchSummary> branches;
     @JsonProperty("created_at")
     private Instant createdAt;
+    @JsonProperty("active_connections")
+    private Integer activeConnections;
 
     public DatabaseResponse() {}
 
@@ -69,6 +71,8 @@ public class DatabaseResponse {
     public void setBranches(List<BranchSummary> branches) { this.branches = branches; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public Integer getActiveConnections() { return activeConnections; }
+    public void setActiveConnections(Integer activeConnections) { this.activeConnections = activeConnections; }
 
     public static class BranchSummary {
         private String id;
@@ -134,6 +138,7 @@ public class DatabaseResponse {
         private Double storageUsedGb;
         private List<BranchSummary> branches;
         private Instant createdAt;
+        private Integer activeConnections;
 
         public Builder id(String id) { this.id = id; return this; }
         public Builder name(String name) { this.name = name; return this; }
@@ -145,10 +150,13 @@ public class DatabaseResponse {
         public Builder storageUsedGb(Double storageUsedGb) { this.storageUsedGb = storageUsedGb; return this; }
         public Builder branches(List<BranchSummary> branches) { this.branches = branches; return this; }
         public Builder createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
+        public Builder activeConnections(Integer activeConnections) { this.activeConnections = activeConnections; return this; }
 
         public DatabaseResponse build() {
-            return new DatabaseResponse(id, name, status, connectionUri, computeSize,
+            DatabaseResponse r = new DatabaseResponse(id, name, status, connectionUri, computeSize,
                 suspendTimeout, storageLimitGb, storageUsedGb, branches, createdAt);
+            r.setActiveConnections(activeConnections);
+            return r;
         }
     }
 }

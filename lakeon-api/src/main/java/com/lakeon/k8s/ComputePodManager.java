@@ -288,6 +288,30 @@ public class ComputePodManager {
         }
     }
 
+    /**
+     * Get the number of active client connections on a compute pod.
+     * Returns 0 if pod is not reachable or has no connections.
+     */
+    public int getActiveConnectionCount(String podName) {
+        String namespace = props.getK8s().getNamespace();
+        try {
+            ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+            ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+            try (ExecWatch exec = k8sClient.pods().inNamespace(namespace).withName(podName)
+                    .writingOutput(stdout)
+                    .writingError(stderr)
+                    .exec("psql", "-U", "cloud_admin", "-d", "postgres", "-t", "-A", "-c",
+                        "SELECT count(*) FROM pg_stat_activity WHERE backend_type='client backend' AND pid != pg_backend_pid()")) {
+                exec.exitCode().get(5, java.util.concurrent.TimeUnit.SECONDS);
+            }
+            String result = stdout.toString().trim();
+            return Integer.parseInt(result);
+        } catch (Exception e) {
+            log.debug("Failed to get connection count for pod {}: {}", podName, e.getMessage());
+            return 0;
+        }
+    }
+
     private String generateComputeConfig(DatabaseEntity entity) {
         Map<String, Object> spec = new LinkedHashMap<>();
         spec.put("format_version", 2);

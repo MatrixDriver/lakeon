@@ -366,7 +366,7 @@ public class DatabaseService {
                 .build())
             .toList();
 
-        return DatabaseResponse.builder()
+        DatabaseResponse response = DatabaseResponse.builder()
             .id(entity.getId())
             .name(entity.getName())
             .status(entity.getStatus())
@@ -378,6 +378,20 @@ public class DatabaseService {
             .branches(branchSummaries)
             .createdAt(entity.getCreatedAt())
             .build();
+
+        // Add active connection count for running instances
+        if (entity.getStatus() == DatabaseStatus.RUNNING && entity.getComputePodName() != null) {
+            try {
+                int count = computePodManager.getActiveConnectionCount(entity.getComputePodName());
+                response.setActiveConnections(count);
+            } catch (Exception e) {
+                response.setActiveConnections(0);
+            }
+        } else {
+            response.setActiveConnections(0);
+        }
+
+        return response;
     }
 
     private String generateHexId() {
