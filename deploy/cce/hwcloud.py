@@ -697,31 +697,34 @@ def cmd_list_resources(ak, sk):
             "console_url": _console_url("VPC", "弹性公网IP", e["id"]),
         })
 
-    # VPCs
+    # VPCs (only lakeon-related)
     for v in vpcs:
-        resources.append({
-            "name": v.get("name", ""), "id": v["id"], "region": REGION, "region_name": "华北-北京四",
-            "service": "VPC", "resource_type": "虚拟私有云",
-            "status": v.get("status", "ACTIVE"),
-            "console_url": _console_url("VPC", "虚拟私有云", v["id"]),
-        })
+        if "lakeon" in v.get("name", "").lower():
+            resources.append({
+                "name": v.get("name", ""), "id": v["id"], "region": REGION, "region_name": "华北-北京四",
+                "service": "VPC", "resource_type": "虚拟私有云",
+                "status": v.get("status", "ACTIVE"),
+                "console_url": _console_url("VPC", "虚拟私有云", v["id"]),
+            })
 
-    # Subnets
+    # Subnets (only lakeon-related)
     for s in subnets:
-        resources.append({
-            "name": s.get("name", ""), "id": s["id"], "region": REGION, "region_name": "华北-北京四",
-            "service": "VPC", "resource_type": "子网",
-            "status": s.get("status", "ACTIVE"),
-            "console_url": _console_url("VPC", "子网", s["id"]),
-        })
+        if "lakeon" in s.get("name", "").lower():
+            resources.append({
+                "name": s.get("name", ""), "id": s["id"], "region": REGION, "region_name": "华北-北京四",
+                "service": "VPC", "resource_type": "子网",
+                "status": s.get("status", "ACTIVE"),
+                "console_url": _console_url("VPC", "子网", s["id"]),
+            })
 
-    # Security groups
+    # Security groups (only lakeon-related)
     for sg in sgs:
-        resources.append({
-            "name": sg.get("name", ""), "id": sg["id"], "region": REGION, "region_name": "华北-北京四",
-            "service": "VPC", "resource_type": "安全组", "status": "Active",
-            "console_url": _console_url("VPC", "安全组", sg["id"]),
-        })
+        if "lakeon" in sg.get("name", "").lower():
+            resources.append({
+                "name": sg.get("name", ""), "id": sg["id"], "region": REGION, "region_name": "华北-北京四",
+                "service": "VPC", "resource_type": "安全组", "status": "Active",
+                "console_url": _console_url("VPC", "安全组", sg["id"]),
+            })
 
     # OBS bucket
     resources.append({
