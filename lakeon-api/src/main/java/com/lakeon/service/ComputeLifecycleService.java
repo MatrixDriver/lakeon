@@ -2,7 +2,9 @@ package com.lakeon.service;
 
 import com.lakeon.k8s.ComputePodManager;
 import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.model.entity.OperationLogEntity;
 import com.lakeon.model.enums.DatabaseStatus;
+import com.lakeon.model.enums.OperationType;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.exception.NotFoundException;
 import com.lakeon.service.exception.WakeComputeTimeoutException;
@@ -24,11 +26,14 @@ public class ComputeLifecycleService {
 
     private final DatabaseRepository databaseRepository;
     private final ComputePodManager computePodManager;
+    private final OperationLogService operationLogService;
 
     public ComputeLifecycleService(DatabaseRepository databaseRepository,
-                                   ComputePodManager computePodManager) {
+                                   ComputePodManager computePodManager,
+                                   OperationLogService operationLogService) {
         this.databaseRepository = databaseRepository;
         this.computePodManager = computePodManager;
+        this.operationLogService = operationLogService;
     }
 
     /**
@@ -103,12 +108,20 @@ public class ComputeLifecycleService {
                 }
                 log.info("Auto-suspending database {} (inactive for {}ms, timeout {}ms)",
                     entity.getId(), elapsed, timeout.toMillis());
-                computePodManager.deleteComputePod(entity.getComputePodName());
-                entity.setStatus(DatabaseStatus.SUSPENDED);
-                entity.setComputePodName(null);
-                entity.setComputeHost(null);
-                entity.setComputePort(null);
-                databaseRepository.save(entity);
+                OperationLogEntity opLog = operationLogService.startOperation(
+                        entity.getId(), entity.getTenantId(), entity.getName(), OperationType.SUSPEND);
+                try {
+                    computePodManager.deleteComputePod(entity.getComputePodName());
+                    entity.setStatus(DatabaseStatus.SUSPENDED);
+                    entity.setComputePodName(null);
+                    entity.setComputeHost(null);
+                    entity.setComputePort(null);
+                    databaseRepository.save(entity);
+                    operationLogService.completeOperation(opLog, null);
+                } catch (Exception e) {
+                    operationLogService.completeOperation(opLog, e.getMessage());
+                    log.error("Failed to auto-suspend database {}: {}", entity.getId(), e.getMessage());
+                }
             }
         }
     }

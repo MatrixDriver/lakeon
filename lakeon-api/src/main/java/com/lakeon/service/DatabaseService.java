@@ -340,6 +340,7 @@ public class DatabaseService {
 
     /**
      * Wake compute for Proxy adapter. Returns "host:port" or throws if not found.
+     * Logs a RESUME operation when resuming a suspended database.
      */
     public String wakeCompute(DatabaseEntity entity) {
         if (entity.getComputeHost() != null && entity.getComputePort() != null
@@ -347,19 +348,27 @@ public class DatabaseService {
             return entity.getComputeHost() + ":" + entity.getComputePort();
         }
 
-        String address = computePodManager.createComputePod(entity);
-        // Wait for compute pod to be ready before returning
-        if (entity.getComputePodName() != null) {
-            boolean ready = computePodManager.waitForPodReady(entity.getComputePodName(), 120_000L);
-            if (!ready) {
-                throw new RuntimeException("Compute pod not ready for database: " + entity.getName());
+        OperationLogEntity opLog = operationLogService.startOperation(
+                entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME);
+        try {
+            String address = computePodManager.createComputePod(entity);
+            // Wait for compute pod to be ready before returning
+            if (entity.getComputePodName() != null) {
+                boolean ready = computePodManager.waitForPodReady(entity.getComputePodName(), 120_000L);
+                if (!ready) {
+                    throw new RuntimeException("Compute pod not ready for database: " + entity.getName());
+                }
             }
+            entity.setStatus(DatabaseStatus.RUNNING);
+            entity.setLastActiveAt(Instant.now());
+            entity.setConnectionUri(buildConnectionUri(entity.getDbUser(), entity.getName()));
+            databaseRepository.save(entity);
+            operationLogService.completeOperation(opLog, null);
+            return address;
+        } catch (Exception e) {
+            operationLogService.completeOperation(opLog, e.getMessage());
+            throw e;
         }
-        entity.setStatus(DatabaseStatus.RUNNING);
-        entity.setLastActiveAt(Instant.now());
-        entity.setConnectionUri(buildConnectionUri(entity.getDbUser(), entity.getName()));
-        databaseRepository.save(entity);
-        return address;
     }
 
     private DatabaseResponse toResponse(DatabaseEntity entity, List<BranchEntity> branches) {
