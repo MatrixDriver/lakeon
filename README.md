@@ -315,9 +315,9 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 
 ### 阶段 8a：自建可观测性 + 共享基础 ✅
 
-📋 [方案对比文档](docs/plans/2026-03-05-stage8-observability-plan.md)
+📋 [方案对比文档](docs/plans/2026-03-05-stage8-observability-plan.md) | [验证报告](docs/verification/stage8a-observability.md)
 
-双轨对比方案：自建 vs 华为云可观测性。不使用 LTS / APM。
+双轨对比方案：自建 vs 华为云可观测性。不使用 LTS / APM。集成测试 10/10 通过。
 
 #### 自定义 Micrometer 指标（Track A+B 共享）
 - [x] 注入 MeterRegistry，埋点 7 个自定义指标（lakeon_tenants_total 等）
