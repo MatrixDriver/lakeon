@@ -8,6 +8,12 @@ const routes = [
     meta: { noAuth: true },
   },
   {
+    path: '/landing',
+    name: 'Landing',
+    component: () => import('../views/landing/LandingView.vue'),
+    meta: { noAuth: true },
+  },
+  {
     path: '/',
     component: () => import('../layouts/ConsoleLayout.vue'),
     children: [
@@ -30,7 +36,7 @@ router.beforeEach((to) => {
   if (!to.meta.noAuth) {
     const apiKey = localStorage.getItem('lakeon_api_key')
     if (!apiKey) {
-      return '/login'
+      return '/landing'
     }
   }
 })
