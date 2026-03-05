@@ -5,41 +5,47 @@ safekeeper:
   replicas: 1
   resources:
     requests:
-      cpu: "250m"
-      memory: "512Mi"
+      cpu: "50m"
+      memory: "64Mi"
     limits:
-      cpu: "1"
-      memory: "1Gi"
+      cpu: "200m"
+      memory: "128Mi"
 
 pageserver:
   resources:
     requests:
-      cpu: "500m"
-      memory: "1Gi"
+      cpu: "100m"
+      memory: "128Mi"
     limits:
-      cpu: "2"
-      memory: "2Gi"
+      cpu: "500m"
+      memory: "256Mi"
 
 proxy:
   replicas: 1
   externalHost: "localhost"
   resources:
     requests:
-      cpu: "250m"
-      memory: "256Mi"
+      cpu: "50m"
+      memory: "64Mi"
 
 api:
   replicas: 1
   image:
     repository: lakeon/lakeon-api
     tag: local
+  computeCpu: "100m"
+  computeMemory: "256Mi"
   resources:
     requests:
-      cpu: "250m"
-      memory: "512Mi"
+      cpu: "100m"
+      memory: "256Mi"
 
 storageBroker:
   replicas: 1
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
 
 # S3-compatible storage via MinIO (path-style)
 obs:
@@ -58,6 +64,10 @@ metadataDb:
   name: "lakeon"
   user: "lakeon"
   password: "lakeon-local-dev"
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "128Mi"
 
 # In-cluster MinIO
 minio:
@@ -65,6 +75,10 @@ minio:
   rootUser: "minioadmin"
   rootPassword: "minioadmin"
   bucket: "lakeon-neon"
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "128Mi"
 
 # Enable console
 console:
@@ -74,3 +88,7 @@ console:
     tag: local
   serviceType: ClusterIP
   port: 80
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"

@@ -120,12 +120,12 @@ public class ComputePodManager {
                     .endPort()
                     .withNewResources()
                         .withRequests(Map.of(
-                            "cpu", new Quantity(size.getCpu()),
-                            "memory", new Quantity(size.getMemory())
+                            "cpu", new Quantity(resolveComputeCpu(size)),
+                            "memory", new Quantity(resolveComputeMemory(size))
                         ))
                         .withLimits(Map.of(
-                            "cpu", new Quantity(size.getCpu()),
-                            "memory", new Quantity(size.getMemory())
+                            "cpu", new Quantity(resolveComputeCpu(size)),
+                            "memory", new Quantity(resolveComputeMemory(size))
                         ))
                     .endResources()
                     .addNewVolumeMount()
@@ -324,6 +324,16 @@ public class ComputePodManager {
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate compute config", e);
         }
+    }
+
+    private String resolveComputeCpu(ComputeSize size) {
+        String override = props.getK8s().getComputeCpu();
+        return (override != null && !override.isBlank()) ? override : size.getCpu();
+    }
+
+    private String resolveComputeMemory(ComputeSize size) {
+        String override = props.getK8s().getComputeMemory();
+        return (override != null && !override.isBlank()) ? override : size.getMemory();
     }
 
     private String extractPageserverHost() {

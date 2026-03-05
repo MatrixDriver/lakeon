@@ -80,6 +80,8 @@ public class LakeonProperties {
         private String namespace;
         private String computeImage;
         private List<String> imagePullSecrets = List.of();
+        private String computeCpu;
+        private String computeMemory;
 
         public String getNamespace() { return namespace; }
         public void setNamespace(String namespace) { this.namespace = namespace; }
@@ -87,6 +89,10 @@ public class LakeonProperties {
         public void setComputeImage(String computeImage) { this.computeImage = computeImage; }
         public List<String> getImagePullSecrets() { return imagePullSecrets; }
         public void setImagePullSecrets(List<String> imagePullSecrets) { this.imagePullSecrets = imagePullSecrets; }
+        public String getComputeCpu() { return computeCpu; }
+        public void setComputeCpu(String computeCpu) { this.computeCpu = computeCpu; }
+        public String getComputeMemory() { return computeMemory; }
+        public void setComputeMemory(String computeMemory) { this.computeMemory = computeMemory; }
     }
 
     public static class AdminConfig {

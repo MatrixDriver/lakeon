@@ -51,18 +51,44 @@
 ### 端口映射清单
 | 服务名称 | 集群端口 | 推荐转发端口 | 说明 |
 | :--- | :--- | :--- | :--- |
-| lakeon-api | 8080 | 8080 | 控制面业务接口 |
-| lakeon-console | 80 | 8081 | Web 管理后台 |
+| lakeon-api | 8080 | 18080 | 控制面业务接口 |
+| lakeon-console | 80 | 18081 | Web 管理后台 |
 | proxy | 4432 | 4432 | PG 协议接入点 |
 | minio | 9001 | 9001 | 存储管理后台 (minioadmin/minioadmin) |
 
 ### PowerShell 转义提示
 在 Windows 下调用 API 时，JSON 字符串的转义非常容易出错。建议使用以下模板：
 ```powershell
-curl.exe -X POST http://localhost:8080/api/v1/tenants `
+curl.exe -X POST http://localhost:18080/api/v1/tenants `
   -H "Content-Type: application/json" `
   -d '{\"name\": \"tenant-test\"}'
 ```
 
+## 6. 2026-03-05 修复记录 (本地集群资源与权限加固)
+
+### ⚠️ 节点资源不足 (Insufficient Memory)
+*   **现象**：Pod 处于 `Pending` 状态，`kubectl describe pod` 显示 `Insufficient memory`。
+*   **原因**：Docker Desktop 节点的 Allocatable 内存通常只有 1-2GB，而 Helm 默认配置（如 Pageserver 4Gi）超出了物理限制。
+*   **解决方案**：在 `values-local.yaml` 中将各组件的 `requests` 压低：
+    *   Pageserver/Safekeeper/API: 降低至 64Mi-256Mi。
+    *   Proxy/Console: 降低至 64Mi。
+
+### ⚠️ 存储桶缺失 (NoSuchBucket)
+*   **现象**：Pageserver 启动后报错 `NoSuchBucket`。
+*   **原因**：Helm 部署仅创建了 MinIO 服务，并未自动创建业务存储桶。
+*   **解决方案**：手动运行 `minio/mc` 容器初始化：
+    ```powershell
+    kubectl run minio-init --image=minio/mc:latest --restart=Never -n lakeon `
+      --command -- sh -c 'mc alias set local http://minio:9000 minioadmin minioadmin && mc mb --ignore-existing local/lakeon-neon'
+    ```
+
+### ⚠️ 跨 Namespace 创建 Compute Pod 权限拒绝 (Forbidden)
+*   **现象**：创建数据库时，API 报错 `Failure executing: POST at ... pods is forbidden: User system:serviceaccount:lakeon:lakeon-api cannot create resource pods in API group ""`。
+*   **原因**：默认 RBAC 角色在多命名空间环境下绑定失效。
+*   **解决方案**：临时赋予 API 较高的集群管理权限（生产环境应细化 RoleBinding）：
+    ```powershell
+    kubectl create clusterrolebinding lakeon-api-cluster-admin --clusterrole=cluster-admin --serviceaccount=lakeon:lakeon-api
+    ```
+
 ---
-*Created by Antigravity Agent @ 2026-03-04*
+*Last Updated by Antigravity Agent @ 2026-03-05*

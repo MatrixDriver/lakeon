@@ -1,0 +1,696 @@
+#!/usr/bin/env bash
+#
+# Lakeon Integration Tests 鈥?Local Deployment Mode
+#
+# Tests single-tenant and multi-tenant scenarios against a live local K8s cluster.
+# Records compute-node startup time for each database creation.
+#
+# Prerequisites:
+#   - Docker Desktop K8s running with Lakeon deployed (helm install)
+#   - kubectl, curl, jq.exe available
+#   - Port 8080 free (used for port-forward to lakeon-api)
+#
+# Usage:
+#   ./deploy/local/integration-test.sh
+#
+
+set -uo pipefail
+
+# 鈹€鈹€鈹€ Config 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+API_PORT=18080
+API_URL="http://localhost:${API_PORT}"
+# Bypass proxy for localhost (Docker Desktop K8s)
+export no_proxy="localhost,127.0.0.1"
+export NO_PROXY="localhost,127.0.0.1"
+NAMESPACE="lakeon"
+COMPUTE_NS="lakeon-compute"
+TIMEOUT_COMPUTE=120  # seconds to wait for compute pod ready
+RUN_ID=$(date +%s | tail -c 6)  # unique suffix for this test run
+PASS=0
+FAIL=0
+TOTAL=0
+PF_PID=""
+
+# Cleanup state
+TENANT_IDS=()
+DB_IDS=()
+API_KEYS=()
+
+# 鈹€鈹€鈹€ Colors 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# 鈹€鈹€鈹€ Helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+
+# Strip Windows \r from .exe outputs (jq.exe / curl.exe produce \r\n,
+# but bash $() only trims \n, leaving \r in variables 鈥?which breaks
+# HTTP headers per RFC 7230).
+jq()  { jq.exe "$@" | tr -d '\r'; }
+curl() { curl.exe "$@" | tr -d '\r'; }
+
+log()  { echo -e "${CYAN}[INFO]${NC} $*"; }
+pass() { echo -e "${GREEN}[PASS]${NC} $*"; PASS=$((PASS + 1)); TOTAL=$((TOTAL + 1)); }
+fail() { echo -e "${RED}[FAIL]${NC} $*"; FAIL=$((FAIL + 1)); TOTAL=$((TOTAL + 1)); }
+warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+
+cleanup() {
+    log "Cleaning up..."
+
+    # Delete databases (reverse order)
+    for i in "${!DB_IDS[@]}"; do
+        local idx=$((${#DB_IDS[@]} - 1 - i))
+        local db_id="${DB_IDS[$idx]}"
+        local api_key="${API_KEYS[$idx]}"
+        log "  Deleting database ${db_id}..."
+        curl -s -X DELETE "${API_URL}/api/v1/databases/${db_id}" \
+            -H "Authorization: Bearer ${api_key}" > /dev/null 2>&1 || true
+    done
+
+    # Wait briefly for compute pods to terminate
+    sleep 3
+
+    # Kill port-forward
+    if [[ -n "$PF_PID" ]] && kill -0 "$PF_PID" 2>/dev/null; then
+        kill "$PF_PID" 2>/dev/null || true
+        wait "$PF_PID" 2>/dev/null || true
+    fi
+
+    # Clean up leftover compute pods
+    kubectl.exe delete pods -n "$COMPUTE_NS" --all --wait=false 2>/dev/null || true
+    kubectl.exe delete configmaps -n "$COMPUTE_NS" -l app=lakeon-compute --wait=false 2>/dev/null || true
+
+    log "Cleanup complete."
+}
+
+trap cleanup EXIT
+
+start_port_forward() {
+    # Kill any existing port-forward on this port
+    lsof -ti:${API_PORT} | xargs kill -9 2>/dev/null || true
+    sleep 1
+
+    kubectl.exe port-forward -n "$NAMESPACE" svc/lakeon-api "${API_PORT}:8080" &
+    PF_PID=$!
+
+    # Wait for port-forward to be ready (up to 15s)
+    local attempts=0
+    while (( attempts < 15 )); do
+        if curl -s "${API_URL}/actuator/health" 2>/dev/null | grep -q "UP"; then
+            log "Port-forward established (PID=${PF_PID})"
+            return 0
+        fi
+        sleep 1
+        attempts=$((attempts + 1))
+    done
+    echo "ERROR: Cannot reach lakeon-api at ${API_URL} after 15s" >&2
+    exit 1
+}
+
+# Create tenant, returns JSON response
+create_tenant() {
+    local name="$1"
+    curl -s -X POST "${API_URL}/api/v1/tenants" \
+        -H "Content-Type: application/json" \
+        -d "{\"name\": \"${name}\"}"
+}
+
+# Create database, returns JSON response
+create_database() {
+    local api_key="$1"
+    local db_name="$2"
+    curl -s -X POST "${API_URL}/api/v1/databases" \
+        -H "Authorization: Bearer ${api_key}" \
+        -H "Content-Type: application/json" \
+        -d "{\"name\": \"${db_name}\"}"
+}
+
+# Get database
+get_database() {
+    local api_key="$1"
+    local db_id="$2"
+    curl -s "${API_URL}/api/v1/databases/${db_id}" \
+        -H "Authorization: Bearer ${api_key}"
+}
+
+# List databases
+list_databases() {
+    local api_key="$1"
+    curl -s "${API_URL}/api/v1/databases" \
+        -H "Authorization: Bearer ${api_key}"
+}
+
+# Suspend database
+suspend_database() {
+    local api_key="$1"
+    local db_id="$2"
+    curl -s -X POST "${API_URL}/api/v1/databases/${db_id}/suspend" \
+        -H "Authorization: Bearer ${api_key}"
+}
+
+# Resume database
+resume_database() {
+    local api_key="$1"
+    local db_id="$2"
+    curl -s -X POST "${API_URL}/api/v1/databases/${db_id}/resume" \
+        -H "Authorization: Bearer ${api_key}"
+}
+
+# Delete database
+delete_database() {
+    local api_key="$1"
+    local db_id="$2"
+    curl -s -X DELETE "${API_URL}/api/v1/databases/${db_id}" \
+        -H "Authorization: Bearer ${api_key}"
+}
+
+# Wait for compute pod to become ready, returns elapsed seconds
+wait_compute_ready() {
+    local pod_name="$1"
+    local start_time
+    start_time=$(date +%s)
+    local elapsed=0
+
+    while (( elapsed < TIMEOUT_COMPUTE )); do
+        local ready
+        ready=$(kubectl.exe get pod -n "$COMPUTE_NS" "$pod_name" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "")
+        if [[ "$ready" == "True" ]]; then
+            elapsed=$(( $(date +%s) - start_time ))
+            echo "$elapsed"
+            return 0
+        fi
+        sleep 2
+        elapsed=$(( $(date +%s) - start_time ))
+    done
+    echo "$elapsed"
+    return 1
+}
+
+# Run SQL via kubectl.exe exec on compute pod
+run_sql() {
+    local pod_name="$1"
+    local sql="$2"
+    kubectl.exe exec -n "$COMPUTE_NS" "$pod_name" -- \
+        psql -U cloud_admin -d postgres -p 55433 -t -A -c "$sql" 2>/dev/null
+}
+
+# 鈹€鈹€鈹€ Precondition Checks 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+
+check_prerequisites() {
+    log "Checking prerequisites..."
+
+    for cmd in kubectl.exe curl.exe jq; do
+        if ! true &>/dev/null; then
+            echo "ERROR: ${cmd} not found in PATH" >&2
+            exit 1
+        fi
+    done
+
+    # Check K8s cluster
+    if ! kubectl.exe cluster-info &>/dev/null; then
+        echo "ERROR: Kubernetes cluster not reachable" >&2
+        exit 1
+    fi
+
+    # Check lakeon-api pod running
+    local api_ready
+    api_ready=$(kubectl.exe get pods -n "$NAMESPACE" -l app=lakeon-api -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "")
+    if [[ "$api_ready" != "True" ]]; then
+        echo "ERROR: lakeon-api pod not ready in namespace ${NAMESPACE}" >&2
+        exit 1
+    fi
+
+    # Check pageserver running
+    local ps_ready
+    ps_ready=$(kubectl.exe get pods -n "$NAMESPACE" -l app=pageserver -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "")
+    if [[ "$ps_ready" != "True" ]]; then
+        echo "ERROR: pageserver pod not ready" >&2
+        exit 1
+    fi
+
+    log "All prerequisites met."
+}
+
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?#  TEST SUITE 1: Single-Tenant Scenarios
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+test_single_tenant() {
+    echo ""
+    echo "鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+    echo "  TEST SUITE 1: Single-Tenant Scenarios"
+    echo "鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+    echo ""
+
+    local tenant_resp api_key tenant_id
+    local db_resp db_id db_name password compute_pod
+
+    # 鈹€鈹€ IT-E2E-001: Create Tenant 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    log "IT-E2E-001: Create tenant"
+    tenant_resp=$(create_tenant "tenant-s-${RUN_ID}")
+    api_key=$(echo "$tenant_resp" | jq -r '.api_key')
+    tenant_id=$(echo "$tenant_resp" | jq -r '.id')
+
+    if [[ -n "$api_key" && "$api_key" != "null" ]]; then
+        pass "IT-E2E-001: Tenant created (id=${tenant_id})"
+        TENANT_IDS+=("$tenant_id")
+    else
+        fail "IT-E2E-001: Tenant creation failed"
+        return 1
+    fi
+
+    # 鈹€鈹€ IT-E2E-002: Create Database + Compute Startup Time 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    log "IT-E2E-002: Create database and measure compute startup time"
+    db_name="testdb${RUN_ID}"
+    local create_start
+    create_start=$(date +%s)
+    db_resp=$(create_database "$api_key" "$db_name")
+    db_id=$(echo "$db_resp" | jq -r '.id')
+    password=$(echo "$db_resp" | jq -r '.password')
+    local conn_uri
+    conn_uri=$(echo "$db_resp" | jq -r '.connection_uri')
+
+    if [[ -n "$db_id" && "$db_id" != "null" ]]; then
+        pass "IT-E2E-002a: Database created (id=${db_id})"
+        DB_IDS+=("$db_id")
+        API_KEYS+=("$api_key")
+    else
+        fail "IT-E2E-002a: Database creation failed"
+        return 1
+    fi
+
+    # Check password returned
+    if [[ -n "$password" && "$password" != "null" ]]; then
+        pass "IT-E2E-002b: Password returned on creation"
+    else
+        fail "IT-E2E-002b: Password not returned on creation"
+    fi
+
+    # Check connection_uri format
+    if [[ "$conn_uri" == postgres://* ]]; then
+        pass "IT-E2E-002c: Connection URI format valid (${conn_uri})"
+    else
+        fail "IT-E2E-002c: Connection URI format invalid: ${conn_uri}"
+    fi
+
+    # Wait for compute pod to be ready
+    compute_pod="compute-${db_id//_/-}"
+    log "  Waiting for compute pod ${compute_pod} to become ready..."
+    local startup_time
+    if startup_time=$(wait_compute_ready "$compute_pod"); then
+        pass "IT-E2E-002d: Compute pod ready in ${startup_time}s"
+        echo -e "  ${YELLOW}鈴? COMPUTE STARTUP TIME: ${startup_time} seconds${NC}"
+    else
+        fail "IT-E2E-002d: Compute pod not ready after ${TIMEOUT_COMPUTE}s"
+        return 1
+    fi
+
+    # 鈹€鈹€ IT-E2E-003: SQL Operations 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    log "IT-E2E-003: Run SQL operations on compute"
+
+    # Check PG version
+    local pg_version
+    pg_version=$(run_sql "$compute_pod" "SELECT version();")
+    if [[ "$pg_version" == *"PostgreSQL"* ]]; then
+        pass "IT-E2E-003a: PostgreSQL version: $(echo "$pg_version" | head -1 | cut -d',' -f1)"
+    else
+        fail "IT-E2E-003a: Could not get PostgreSQL version"
+    fi
+
+    # Create table
+    local create_result
+    create_result=$(run_sql "$compute_pod" "CREATE TABLE test_items (id SERIAL PRIMARY KEY, name TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());")
+    if [[ $? -eq 0 ]]; then
+        pass "IT-E2E-003b: Table created successfully"
+    else
+        fail "IT-E2E-003b: Table creation failed"
+    fi
+
+    # Insert data
+    run_sql "$compute_pod" "INSERT INTO test_items (name) VALUES ('item1'), ('item2'), ('item3');"
+    local count
+    count=$(run_sql "$compute_pod" "SELECT COUNT(*) FROM test_items;")
+    if [[ "$count" == "3" ]]; then
+        pass "IT-E2E-003c: Inserted and queried 3 rows"
+    else
+        fail "IT-E2E-003c: Expected 3 rows, got: ${count}"
+    fi
+
+    # 鈹€鈹€ IT-E2E-004: Get Database 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    log "IT-E2E-004: Get database details"
+    local get_resp get_status get_password
+    get_resp=$(get_database "$api_key" "$db_id")
+    get_status=$(echo "$get_resp" | jq -r '.status')
+    get_password=$(echo "$get_resp" | jq -r '.password')
+
+    if [[ "$get_status" == "CREATING" || "$get_status" == "RUNNING" ]]; then
+        pass "IT-E2E-004a: Database status is ${get_status}"
+    else
+        fail "IT-E2E-004a: Unexpected status: ${get_status}"
+    fi
+
+    # Password should NOT be returned on GET
+    if [[ "$get_password" == "null" || -z "$get_password" ]]; then
+        pass "IT-E2E-004b: Password not exposed on GET"
+    else
+        fail "IT-E2E-004b: Password leaked on GET!"
+    fi
+
+    # 鈹€鈹€ IT-E2E-005: List Databases 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    log "IT-E2E-005: List databases"
+    local list_resp list_count
+    list_resp=$(list_databases "$api_key")
+    list_count=$(echo "$list_resp" | jq 'length')
+    if [[ "$list_count" -ge 1 ]]; then
+        pass "IT-E2E-005: Listed ${list_count} database(s)"
+    else
+        fail "IT-E2E-005: Expected at least 1 database, got ${list_count}"
+    fi
+
+    # 鈹€鈹€ IT-E2E-006: Suspend Database 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    log "IT-E2E-006: Suspend database"
+    suspend_database "$api_key" "$db_id" || true
+    sleep 3
+
+    # Compute pod should be deleted
+    local pod_exists
+    pod_exists=$(kubectl.exe get pod -n "$COMPUTE_NS" "$compute_pod" -o name 2>/dev/null || echo "")
+    if [[ -z "$pod_exists" ]]; then
+        pass "IT-E2E-006a: Compute pod deleted after suspend"
+    else
+        fail "IT-E2E-006a: Compute pod still exists after suspend"
+    fi
+
+    # Status should be SUSPENDED
+    get_resp=$(get_database "$api_key" "$db_id")
+    get_status=$(echo "$get_resp" | jq -r '.status')
+    if [[ "$get_status" == "SUSPENDED" ]]; then
+        pass "IT-E2E-006b: Database status is SUSPENDED"
+    else
+        fail "IT-E2E-006b: Expected SUSPENDED, got: ${get_status}"
+    fi
+
+    # 鈹€鈹€ IT-E2E-007: Resume Database + Startup Time 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    log "IT-E2E-007: Resume database and measure compute startup time"
+    local resume_start
+    resume_start=$(date +%s)
+    resume_database "$api_key" "$db_id" || true
+
+    compute_pod="compute-${db_id//_/-}"
+    log "  Waiting for compute pod ${compute_pod} to become ready..."
+    if startup_time=$(wait_compute_ready "$compute_pod"); then
+        pass "IT-E2E-007a: Compute pod resumed and ready in ${startup_time}s"
+        echo -e "  ${YELLOW}鈴? RESUME STARTUP TIME: ${startup_time} seconds${NC}"
+    else
+        fail "IT-E2E-007a: Compute pod not ready after resume (${TIMEOUT_COMPUTE}s)"
+    fi
+
+    # Verify data persisted after suspend/resume
+    count=$(run_sql "$compute_pod" "SELECT COUNT(*) FROM test_items;" 2>/dev/null || echo "0")
+    if [[ "$count" == "3" ]]; then
+        pass "IT-E2E-007b: Data persisted across suspend/resume (3 rows)"
+    else
+        fail "IT-E2E-007b: Data not persisted, expected 3 rows, got: ${count}"
+    fi
+
+    # 鈹€鈹€ IT-E2E-008: Delete Database 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    log "IT-E2E-008: Delete database"
+    delete_database "$api_key" "$db_id" || true
+    sleep 3
+
+    # Remove from cleanup arrays since we already deleted
+    DB_IDS=("${DB_IDS[@]/$db_id/}")
+    API_KEYS=("${API_KEYS[@]/$api_key/}")
+
+    # Pod should be gone
+    pod_exists=$(kubectl.exe get pod -n "$COMPUTE_NS" "$compute_pod" -o name 2>/dev/null || echo "")
+    if [[ -z "$pod_exists" ]]; then
+        pass "IT-E2E-008a: Compute pod cleaned up after delete"
+    else
+        fail "IT-E2E-008a: Compute pod still exists after delete"
+    fi
+
+    # DB should not be gettable
+    local get_status_code
+    get_status_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        "${API_URL}/api/v1/databases/${db_id}" \
+        -H "Authorization: Bearer ${api_key}")
+    if [[ "$get_status_code" == "404" ]]; then
+        pass "IT-E2E-008b: Database returns 404 after delete"
+    else
+        fail "IT-E2E-008b: Expected 404, got HTTP ${get_status_code}"
+    fi
+}
+
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?#  TEST SUITE 2: Multi-Tenant Scenarios
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+test_multi_tenant() {
+    echo ""
+    echo "鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+    echo "  TEST SUITE 2: Multi-Tenant Scenarios"
+    echo "鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+    echo ""
+
+    local tenant_a_resp tenant_b_resp
+    local key_a key_b id_a id_b
+    local db_a_resp db_b_resp
+    local db_a_id db_b_id
+    local pw_a pw_b
+    local pod_a pod_b
+
+    # 鈹€鈹€ IT-E2E-010: Create two tenants 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    log "IT-E2E-010: Create two tenants"
+    tenant_a_resp=$(create_tenant "tenant-a-${RUN_ID}")
+    key_a=$(echo "$tenant_a_resp" | jq -r '.api_key')
+    id_a=$(echo "$tenant_a_resp" | jq -r '.id')
+
+    tenant_b_resp=$(create_tenant "tenant-b-${RUN_ID}")
+    key_b=$(echo "$tenant_b_resp" | jq -r '.api_key')
+    id_b=$(echo "$tenant_b_resp" | jq -r '.id')
+
+    if [[ -n "$key_a" && "$key_a" != "null" && -n "$key_b" && "$key_b" != "null" ]]; then
+        pass "IT-E2E-010: Two tenants created (alpha=${id_a}, beta=${id_b})"
+        TENANT_IDS+=("$id_a" "$id_b")
+    else
+        fail "IT-E2E-010: Failed to create two tenants"
+        return 1
+    fi
+
+    # 鈹€鈹€ IT-E2E-011: Each tenant creates a database 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    log "IT-E2E-011: Each tenant creates a database"
+    db_a_resp=$(create_database "$key_a" "alphadb${RUN_ID}")
+    db_a_id=$(echo "$db_a_resp" | jq -r '.id')
+    pw_a=$(echo "$db_a_resp" | jq -r '.password')
+
+    if [[ -n "$db_a_id" && "$db_a_id" != "null" ]]; then
+        pass "IT-E2E-011a: Tenant alpha created database (id=${db_a_id})"
+        DB_IDS+=("$db_a_id")
+        API_KEYS+=("$key_a")
+    else
+        fail "IT-E2E-011a: Tenant alpha database creation failed"
+        return 1
+    fi
+
+    # Measure startup time for first tenant's compute
+    pod_a="compute-${db_a_id//_/-}"
+    log "  Waiting for tenant-a-${RUN_ID} compute pod..."
+    local time_a
+    if time_a=$(wait_compute_ready "$pod_a"); then
+        echo -e "  ${YELLOW}鈴? TENANT-ALPHA COMPUTE STARTUP: ${time_a} seconds${NC}"
+    else
+        warn "  Tenant-alpha compute pod not ready in time"
+    fi
+
+    db_b_resp=$(create_database "$key_b" "betadb${RUN_ID}")
+    db_b_id=$(echo "$db_b_resp" | jq -r '.id')
+    pw_b=$(echo "$db_b_resp" | jq -r '.password')
+
+    if [[ -n "$db_b_id" && "$db_b_id" != "null" ]]; then
+        pass "IT-E2E-011b: Tenant beta created database (id=${db_b_id})"
+        DB_IDS+=("$db_b_id")
+        API_KEYS+=("$key_b")
+    else
+        fail "IT-E2E-011b: Tenant beta database creation failed"
+        return 1
+    fi
+
+    # Measure startup time for second tenant's compute
+    pod_b="compute-${db_b_id//_/-}"
+    log "  Waiting for tenant-b-${RUN_ID} compute pod..."
+    local time_b
+    if time_b=$(wait_compute_ready "$pod_b"); then
+        echo -e "  ${YELLOW}鈴? TENANT-BETA COMPUTE STARTUP: ${time_b} seconds${NC}"
+    else
+        warn "  Tenant-beta compute pod not ready in time"
+    fi
+
+    # 鈹€鈹€ IT-E2E-012: Tenant isolation 鈥?cannot access other's databases 鈹€鈹€鈹€
+    log "IT-E2E-012: Tenant isolation checks"
+
+    # Tenant A tries to get Tenant B's database
+    local cross_status
+    cross_status=$(curl -s -o /dev/null -w "%{http_code}" \
+        "${API_URL}/api/v1/databases/${db_b_id}" \
+        -H "Authorization: Bearer ${key_a}")
+    if [[ "$cross_status" == "404" ]]; then
+        pass "IT-E2E-012a: Tenant A cannot access Tenant B's database (404)"
+    else
+        fail "IT-E2E-012a: Expected 404 for cross-tenant access, got HTTP ${cross_status}"
+    fi
+
+    # Tenant B tries to get Tenant A's database
+    cross_status=$(curl -s -o /dev/null -w "%{http_code}" \
+        "${API_URL}/api/v1/databases/${db_a_id}" \
+        -H "Authorization: Bearer ${key_b}")
+    if [[ "$cross_status" == "404" ]]; then
+        pass "IT-E2E-012b: Tenant B cannot access Tenant A's database (404)"
+    else
+        fail "IT-E2E-012b: Expected 404 for cross-tenant access, got HTTP ${cross_status}"
+    fi
+
+    # 鈹€鈹€ IT-E2E-013: Tenant isolation 鈥?list only shows own databases 鈹€鈹€鈹€鈹€鈹€
+    log "IT-E2E-013: Tenant list isolation"
+
+    local list_a list_b count_a count_b
+    list_a=$(list_databases "$key_a")
+    count_a=$(echo "$list_a" | jq 'length')
+    list_b=$(list_databases "$key_b")
+    count_b=$(echo "$list_b" | jq 'length')
+
+    if [[ "$count_a" == "1" ]]; then
+        pass "IT-E2E-013a: Tenant A sees only 1 database"
+    else
+        fail "IT-E2E-013a: Tenant A sees ${count_a} databases, expected 1"
+    fi
+
+    if [[ "$count_b" == "1" ]]; then
+        pass "IT-E2E-013b: Tenant B sees only 1 database"
+    else
+        fail "IT-E2E-013b: Tenant B sees ${count_b} databases, expected 1"
+    fi
+
+    # 鈹€鈹€ IT-E2E-014: Data isolation 鈥?write to each compute pod 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    log "IT-E2E-014: Data isolation between compute pods"
+
+    # Write to tenant A
+    run_sql "$pod_a" "CREATE TABLE alpha_data (val TEXT);"
+    run_sql "$pod_a" "INSERT INTO alpha_data VALUES ('secret-alpha-123');"
+
+    # Write to tenant B
+    run_sql "$pod_b" "CREATE TABLE beta_data (val TEXT);"
+    run_sql "$pod_b" "INSERT INTO beta_data VALUES ('secret-beta-456');"
+
+    # Verify tenant A can read its own data
+    local val_a
+    val_a=$(run_sql "$pod_a" "SELECT val FROM alpha_data LIMIT 1;")
+    if [[ "$val_a" == "secret-alpha-123" ]]; then
+        pass "IT-E2E-014a: Tenant A can read own data"
+    else
+        fail "IT-E2E-014a: Tenant A data mismatch: ${val_a}"
+    fi
+
+    # Verify tenant A cannot see tenant B's table
+    local cross_query
+    cross_query=$(run_sql "$pod_a" "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='beta_data');" 2>/dev/null || echo "error")
+    if [[ "$cross_query" == "f" ]]; then
+        pass "IT-E2E-014b: Tenant A cannot see Tenant B's tables"
+    else
+        fail "IT-E2E-014b: Cross-tenant table visible: ${cross_query}"
+    fi
+
+    # Verify tenant B can read its own data
+    local val_b
+    val_b=$(run_sql "$pod_b" "SELECT val FROM beta_data LIMIT 1;")
+    if [[ "$val_b" == "secret-beta-456" ]]; then
+        pass "IT-E2E-014c: Tenant B can read own data"
+    else
+        fail "IT-E2E-014c: Tenant B data mismatch: ${val_b}"
+    fi
+
+    # 鈹€鈹€ IT-E2E-015: Tenant isolation 鈥?cannot delete other's database 鈹€鈹€鈹€鈹€
+    log "IT-E2E-015: Cross-tenant delete protection"
+    local del_status
+    del_status=$(curl -s -o /dev/null -w "%{http_code}" \
+        -X DELETE "${API_URL}/api/v1/databases/${db_b_id}" \
+        -H "Authorization: Bearer ${key_a}")
+    if [[ "$del_status" == "404" ]]; then
+        pass "IT-E2E-015: Tenant A cannot delete Tenant B's database (404)"
+    else
+        fail "IT-E2E-015: Expected 404 for cross-tenant delete, got HTTP ${del_status}"
+    fi
+
+    # 鈹€鈹€ IT-E2E-016: Auth 鈥?invalid API key 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    log "IT-E2E-016: Auth checks"
+    local auth_status
+    auth_status=$(curl -s -o /dev/null -w "%{http_code}" \
+        "${API_URL}/api/v1/databases" \
+        -H "Authorization: Bearer invalid-key-12345")
+    if [[ "$auth_status" == "401" ]]; then
+        pass "IT-E2E-016a: Invalid API key returns 401"
+    else
+        fail "IT-E2E-016a: Expected 401 for invalid key, got HTTP ${auth_status}"
+    fi
+
+    # No auth header
+    auth_status=$(curl -s -o /dev/null -w "%{http_code}" \
+        "${API_URL}/api/v1/databases")
+    if [[ "$auth_status" == "401" ]]; then
+        pass "IT-E2E-016b: Missing auth returns 401"
+    else
+        fail "IT-E2E-016b: Expected 401 for missing auth, got HTTP ${auth_status}"
+    fi
+
+    # 鈹€鈹€ Cleanup: delete both databases 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    log "Cleaning up multi-tenant databases..."
+    delete_database "$key_a" "$db_a_id" || true
+    delete_database "$key_b" "$db_b_id" || true
+    sleep 3
+
+    # Remove from global cleanup arrays
+    DB_IDS=()
+    API_KEYS=()
+
+    pass "IT-E2E-017: Multi-tenant cleanup complete"
+}
+
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?#  Main
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+main() {
+    echo ""
+    echo "鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+    echo "  Lakeon Integration Tests 鈥?Local Deployment"
+    echo "  $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+    echo ""
+
+    check_prerequisites
+    start_port_forward
+
+    # Clean up any leftover compute pods from prior runs
+    kubectl.exe delete pods -n "$COMPUTE_NS" --all --wait=false 2>/dev/null || true
+    kubectl.exe delete configmaps -n "$COMPUTE_NS" -l app=lakeon-compute --wait=false 2>/dev/null || true
+    sleep 2
+
+    test_single_tenant
+    test_multi_tenant
+
+    echo ""
+    echo "鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+    echo "  RESULTS"
+    echo "鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+    echo ""
+    echo -e "  Total:  ${TOTAL}"
+    echo -e "  ${GREEN}Passed: ${PASS}${NC}"
+    echo -e "  ${RED}Failed: ${FAIL}${NC}"
+    echo ""
+
+    if [[ "$FAIL" -gt 0 ]]; then
+        echo -e "  ${RED}SOME TESTS FAILED${NC}"
+        exit 1
+    else
+        echo -e "  ${GREEN}ALL TESTS PASSED${NC}"
+        exit 0
+    fi
+}
+
+main "$@"
