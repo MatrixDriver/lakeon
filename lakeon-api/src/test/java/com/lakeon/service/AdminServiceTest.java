@@ -12,6 +12,9 @@ import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.OperationLogRepository;
 import com.lakeon.repository.TenantRepository;
 
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -39,12 +42,15 @@ class AdminServiceTest {
     @Mock private NeonApiClient neonApiClient;
     @Mock private DataSource dataSource;
     @Mock private UsageMeteringService usageMeteringService;
+    @Mock private KubernetesClient kubernetesClient;
 
+    private MeterRegistry meterRegistry;
     private LakeonProperties props;
     private AdminService adminService;
 
     @BeforeEach
     void setUp() {
+        meterRegistry = new SimpleMeterRegistry();
         props = new LakeonProperties();
         // Set OBS config
         var obs = new LakeonProperties.ObsConfig();
@@ -68,7 +74,8 @@ class AdminServiceTest {
 
         adminService = new AdminService(
                 tenantRepository, databaseRepository, operationLogRepository,
-                neonApiClient, props, dataSource, usageMeteringService);
+                neonApiClient, props, dataSource, usageMeteringService,
+                meterRegistry, kubernetesClient);
     }
 
     @Nested
