@@ -348,6 +348,13 @@ public class DatabaseService {
         }
 
         String address = computePodManager.createComputePod(entity);
+        // Wait for compute pod to be ready before returning
+        if (entity.getComputePodName() != null) {
+            boolean ready = computePodManager.waitForPodReady(entity.getComputePodName(), 120_000L);
+            if (!ready) {
+                throw new RuntimeException("Compute pod not ready for database: " + entity.getName());
+            }
+        }
         entity.setStatus(DatabaseStatus.RUNNING);
         entity.setLastActiveAt(Instant.now());
         entity.setConnectionUri(buildConnectionUri(entity.getDbUser(), entity.getName()));
