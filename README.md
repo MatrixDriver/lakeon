@@ -4,7 +4,7 @@
 
 Lakeon 将 Neon 的存算分离架构封装为一套可私有部署的 Kubernetes 原生方案，支持按需创建数据库、自动挂起/唤醒计算节点、多租户隔离和对象存储持久化。
 
-详细架构设计请参考 [架构文档](doc/architecture.md)。使用 Neon 官方镜像遇到的兼容性问题及修改建议见 [Neon 修改建议](doc/neon-modifications.md)。
+详细架构设计请参考 [架构文档](docs/architecture.md)。使用 Neon 官方镜像遇到的兼容性问题及修改建议见 [Neon 修改建议](docs/neon-modifications.md)。
 
 ## 项目结构
 
@@ -29,7 +29,7 @@ lakeon/
 │       ├── values-cce.yaml
 │       ├── push-images.sh
 │       └── integration-test.sh
-└── doc/                 # 设计文档、验证报告和实施计划
+└── docs/                # 设计文档、验证报告和实施计划
 ```
 
 ## 快速开始（本地部署）
@@ -162,7 +162,7 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [x] 计算节点按需创建 / 挂起 / 唤醒
 - [x] 集成测试（31 个用例全部通过）
 
-📋 [验证报告](doc/verification/stage0-local-k8s.md)
+📋 [验证报告](docs/verification/stage0-local-k8s.md)
 
 ### 阶段 1：本地 K8s + 华为云 OBS ✅
 
@@ -173,7 +173,7 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [x] 处理 OBS 网络延迟导致的 tenant 状态竞争
 - [x] 集成测试（31 个用例全部通过，数据持久化到 OBS）
 
-📋 [验证报告](doc/verification/stage1-obs-storage.md)
+📋 [验证报告](docs/verification/stage1-obs-storage.md)
 
 ### 阶段 2：本地 K8s + OBS + 华为云 RDS ✅
 
@@ -184,7 +184,7 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [x] 部署验证（集成测试 31 个用例全部通过）
 - [x] 数据持久化验证（Pod 重启后数据不丢失）
 
-📋 [验证报告](doc/verification/stage2-rds-metadata.md)
+📋 [验证报告](docs/verification/stage2-rds-metadata.md)
 
 ### 阶段 3：华为云 CCE 开发集群 ✅
 
@@ -197,7 +197,7 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [x] 节点 containerd core ulimit 修复（compute_ctl 兼容）
 - [x] 集成测试（31/31 通过，compute 启动 ~8s）
 
-📋 [验证报告](doc/verification/stage3-cce-cluster.md)
+📋 [验证报告](docs/verification/stage3-cce-cluster.md)
 
 ```bash
 # 快速体验：创建租户 → 建库 → 写入 10 条数据 → 查询 → 清理
@@ -208,7 +208,7 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 
 完善用户接入层和连接体验，为邀请外部用户测试做准备。
 
-📋 [验证报告](doc/verification/stage4-user-access.md)
+📋 [验证报告](docs/verification/stage4-user-access.md)
 
 #### 用户接入层
 - [x] Web 控制台（基于 Vue 3 + TinyVue，华为云风格）
@@ -232,7 +232,7 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 
 独立部署的管理控制台（`lakeon-admin`），供 SRE/管理员监控和管理 Lakeon 云服务。
 
-📋 [设计文档](doc/plans/2026-03-04-sre-admin-design.md) | [验证报告](doc/verification/stage5-sre-admin.md)
+📋 [设计文档](docs/plans/2026-03-04-sre-admin-design.md) | [验证报告](docs/verification/stage5-sre-admin.md)
 
 #### 后端 Admin API
 - [x] 总览仪表盘 API（租户/实例统计、24h 操作统计、成本预估、组件健康）
@@ -268,31 +268,83 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [x] CCE 部署验证（ELB 绑定，admin:0.1.8 / api:0.1.11）
 - [ ] NAT 网关配置（Pod 出公网，CBC 账单 API 依赖）→ 移至阶段 9
 
-### 阶段 6：CCE + CCI 混合架构验证
+### 阶段 6：数据库对象管理（Web Database Manager）
+
+在用户 Web 控制台中集成类似 pgAdmin/DBeaver 的数据库对象浏览与管理功能，让用户无需安装客户端即可管理数据库内部对象。
+
+#### 后端 API（`/api/v1/databases/{id}/objects/...`）
+
+连接方式：通过 `cloud_admin` 直连 compute pod 内网（K8s Service DNS），无需用户提供密码。
+
+- [ ] Database 列表与管理（`\l`）— 查看、创建、删除数据库
+- [ ] Schema 列表与管理 — 查看、创建、删除 schema
+- [ ] Table 浏览与管理
+  - [ ] 列表（表名、行数估算、磁盘大小）
+  - [ ] 表结构查看（列名、类型、默认值、约束、注释）
+  - [ ] 创建表（列定义、主键、约束）
+  - [ ] 删除表（DROP TABLE）
+  - [ ] 修改表结构（ALTER TABLE：增删改列、增删约束）
+- [ ] 数据浏览与编辑
+  - [ ] 分页查询表数据（SELECT * 带分页/排序/过滤）
+  - [ ] 行级编辑（UPDATE 单行）
+  - [ ] 行级删除（DELETE 单行）
+  - [ ] 插入新行（INSERT）
+- [ ] SQL 查询编辑器
+  - [ ] 自由执行 SQL（SELECT / INSERT / UPDATE / DELETE / DDL）
+  - [ ] 查询结果表格展示（带列类型）
+  - [ ] 查询结果导出 CSV
+  - [ ] 查询历史记录
+- [ ] Index 管理 — 查看、创建、删除索引
+- [ ] View 管理 — 查看定义、创建、删除视图
+- [ ] Sequence 管理 — 查看、重置序列
+
+#### 前端控制台（`lakeon-console`）
+
+- [ ] 左侧对象树（Database → Schema → Tables/Views/Indexes/Sequences）
+  - [ ] 树形展开，懒加载子节点
+  - [ ] 右键菜单（创建、删除、刷新）
+- [ ] 表结构面板（Columns / Indexes / Constraints 分标签页）
+- [ ] 数据网格（可编辑表格，行内编辑 + 新增行 + 删除行）
+  - [ ] 分页、排序、列过滤
+  - [ ] 修改后高亮标记，统一提交/回滚
+- [ ] SQL 编辑器面板
+  - [ ] 语法高亮 + 自动补全（表名、列名）
+  - [ ] 执行按钮 + 快捷键（Ctrl+Enter）
+  - [ ] 多标签页
+  - [ ] 查询耗时和影响行数显示
+- [ ] DDL 可视化建表向导（表单式创建表、添加列和约束）
+
+#### 安全与限制
+- [ ] 查询超时限制（防止超长查询阻塞 compute）
+- [ ] 结果集大小限制（防止 OOM）
+- [ ] 危险操作二次确认（DROP TABLE / DROP DATABASE / TRUNCATE）
+- [ ] 操作审计日志（记录用户的 DDL/DML 操作）
+
+### 阶段 7：CCE + CCI 混合架构验证
 
 验证混合部署方案：有状态组件运行在 CCE，compute 节点弹性调度到 CCI（云容器实例），实现 serverless 计算层。
 
-📋 [研究报告](doc/verification/stage5-cci-research.md)
+📋 [研究报告](docs/verification/stage5-cci-research.md)
 
-#### 6a：CCI compute 兼容性验证（关键路径）
+#### 7a：CCI compute 兼容性验证（关键路径）
 - [ ] 购买 VPC 终端节点（SWR），解决 CCI 镜像拉取网络不通问题
 - [ ] 在 CCI 上部署测试 Pod，验证 `ulimit -c` 是否为 unlimited
 - [ ] 部署 compute-node-v17 镜像，验证 `compute_ctl` 的 `setrlimit(CORE, INFINITY)` 是否通过
 - [ ] 若 CCI 默认 ulimit 不满足，评估替代方案（patch compute_ctl / CCI 配置项）
 
-#### 6b：混合调度集成
+#### 7b：混合调度集成
 - [ ] 验证 CCI Pod 到 VPC 内网的网络连通性（pageserver / safekeeper / RDS / OBS）
 - [ ] 配置 lakeon-api 将 compute Pod 创建到 CCI namespace
 - [ ] 对比 Pod 启动速度（CCI vs 普通 CCE）
 
-#### 6c：评估与结论
+#### 7c：评估与结论
 - [ ] 运行完整集成测试（compute 在 CCI，其余在 CCE）
 - [ ] 输出评估报告：混合架构可行性、启动延迟、成本对比
 - [ ] 确定后续阶段的部署架构选型
 
-### 阶段 7：华为云可观测性与运维
+### 阶段 8：华为云可观测性与运维
 
-对接华为云原生运维服务，替代自建 Prometheus / Grafana 方案。基于阶段 6 结论选择部署架构。
+对接华为云原生运维服务，替代自建 Prometheus / Grafana 方案。基于阶段 7 结论选择部署架构。
 
 #### 日志（LTS 云日志服务）
 - [ ] 添加 logback-spring.xml，输出 JSON 结构化日志
@@ -318,30 +370,30 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [ ] OBS 存储容量和请求量监控
 - [ ] RDS 连接数和慢查询监控
 
-### 阶段 8：计算节点弹性唤醒优化
+### 阶段 9：计算节点弹性唤醒优化
 
-从 ~10s 唤醒延迟优化到亚秒级。依赖阶段 7 的可观测性基础来量化优化效果。
+从 ~10s 唤醒延迟优化到亚秒级。依赖阶段 8 的可观测性基础来量化优化效果。
 
-📋 [技术方案](doc/compute-wakeup-optimization.md)
+📋 [技术方案](docs/compute-wakeup-optimization.md)
 
-#### 8a：Pod 保留 + 进程冻结（目标 500ms-1s）
+#### 9a：Pod 保留 + 进程冻结（目标 500ms-1s）
 - [ ] 验证 compute_ctl HTTP API（停止/重启 PG 进程）
 - [ ] suspend 改为停进程而非删 Pod
 - [ ] resume 检测 Pod 存在性，原地重启 PG
 - [ ] 分层超时回收（短期保留 → 长期销毁）
 - [ ] Readiness Probe 调优（initialDelay 5s→1s）
 
-#### 8b：Warm Pool 预热池（目标 200-500ms）
+#### 9b：Warm Pool 预热池（目标 200-500ms）
 - [ ] 验证 compute_ctl 动态绑定 tenant/timeline API
 - [ ] 实现 WarmPoolManager（池创建/分配/补充）
 - [ ] Cold 路径唤醒改为从预热池分配
 - [ ] 池大小自适应策略 + 监控指标
 
-#### 8c：Proxy 连接缓冲
+#### 9c：Proxy 连接缓冲
 - [ ] Proxy 唤醒逻辑改为异步，连接立即成功
 - [ ] 首条 SQL 等待 compute 就绪后透明转发
 
-### 阶段 9：产品化加固
+### 阶段 10：产品化加固
 
 面向正式上线的生产环境加固，完成安全、高可用和运维闭环。
 
