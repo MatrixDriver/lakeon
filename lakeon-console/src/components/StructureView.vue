@@ -33,6 +33,36 @@
           </tbody>
         </table>
       </div>
+      <!-- Data Preview -->
+      <div class="struct-section">
+        <h4 class="struct-title">
+          数据预览
+          <span v-if="dataPreview && dataPreview.total_rows > 100" class="preview-hint">
+            (显示前 100 行，共 {{ dataPreview.total_rows }} 行)
+          </span>
+        </h4>
+
+        <div v-if="dataLoading" class="preview-loading">加载中...</div>
+        <div v-else-if="dataError" class="preview-error">{{ dataError }}</div>
+        <div v-else-if="!dataPreview || dataPreview.rows.length === 0" class="preview-empty">无数据</div>
+
+        <div v-else class="preview-table-wrapper">
+          <table class="data-table preview-table">
+            <thead>
+              <tr>
+                <th v-for="col in dataPreview.columns" :key="col">{{ col }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, idx) in dataPreview.rows" :key="idx">
+                <td v-for="(cell, cellIdx) in row" :key="cellIdx">
+                  {{ cell === null ? 'NULL' : cell }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </template>
   </div>
 </template>
@@ -204,5 +234,38 @@ watch(() => [props.schema, props.table], () => {
   color: #d4380d;
   font-size: 12px;
   font-weight: 600;
+}
+
+.preview-hint {
+  color: #8a8e99;
+  font-weight: 400;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.preview-loading,
+.preview-error,
+.preview-empty {
+  padding: 20px;
+  text-align: center;
+  color: #8a8e99;
+  font-size: 13px;
+}
+
+.preview-error {
+  color: #d4380d;
+}
+
+.preview-table-wrapper {
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.preview-table td {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
