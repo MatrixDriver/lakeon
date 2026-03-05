@@ -222,7 +222,7 @@ async function handleRegister() {
   registerError.value = ''
   try {
     const res = await tenantApi.register(tenantName.value.trim())
-    apiKey.value = res.data.api_key
+    apiKey.value = res.data.api_key || ''
   } catch (e: any) {
     registerError.value = e?.response?.data?.message || e?.message || t('注册失败', 'Registration failed')
   } finally {
