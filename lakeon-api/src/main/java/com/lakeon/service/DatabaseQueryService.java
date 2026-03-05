@@ -398,7 +398,7 @@ public class DatabaseQueryService {
         int maxRetries = 5;
         for (int i = 0; i < maxRetries; i++) {
             try {
-                conn = DriverManager.getConnection(jdbcUrl, "cloud_admin", null);
+                conn = DriverManager.getConnection(jdbcUrl, "cloud_admin", "");
                 break;
             } catch (SQLException e) {
                 if (i == maxRetries - 1) throw e;
