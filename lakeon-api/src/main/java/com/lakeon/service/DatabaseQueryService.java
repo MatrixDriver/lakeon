@@ -393,7 +393,19 @@ public class DatabaseQueryService {
         int port = db.getComputePort() != null ? db.getComputePort() : 55433;
         String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + db.getName();
 
-        Connection conn = DriverManager.getConnection(jdbcUrl, "cloud_admin", null);
+        // Retry JDBC connection — compute pod may need a moment after k8s reports Ready
+        Connection conn = null;
+        int maxRetries = 5;
+        for (int i = 0; i < maxRetries; i++) {
+            try {
+                conn = DriverManager.getConnection(jdbcUrl, "cloud_admin", null);
+                break;
+            } catch (SQLException e) {
+                if (i == maxRetries - 1) throw e;
+                log.debug("JDBC connection attempt {} failed, retrying in 2s: {}", i + 1, e.getMessage());
+                try { Thread.sleep(2000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); throw e; }
+            }
+        }
         try (Statement st = conn.createStatement()) {
             st.execute("SET statement_timeout = '" + STATEMENT_TIMEOUT_SECONDS + "s'");
         }
