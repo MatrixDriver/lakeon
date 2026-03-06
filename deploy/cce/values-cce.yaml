@@ -43,7 +43,7 @@ api:
   adminToken: "lakeon-sre-2026"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/lakeon/lakeon-api
-    tag: "0.1.28"
+    tag: "0.2.0"
   resources:
     requests:
       cpu: "100m"
@@ -114,7 +114,7 @@ admin:
   enabled: true
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/lakeon/lakeon-admin
-    tag: "0.1.7"
+    tag: "0.1.8"
   replicas: 1
   port: 80
   serviceType: LoadBalancer
@@ -135,7 +135,7 @@ console:
   enabled: true
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/lakeon/lakeon-console
-    tag: "0.1.8"
+    tag: "0.2.0"
   replicas: 1
   port: 80
   serviceType: LoadBalancer
