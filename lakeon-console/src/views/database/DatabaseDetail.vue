@@ -242,6 +242,60 @@
           >下一页</button>
         </div>
       </div>
+      <!-- Tab 4: Import -->
+      <div v-if="activeTab === 'import'" class="tab-content">
+        <div v-if="selectedImportTaskId">
+          <ImportTaskDetail
+            :dbId="dbId"
+            :taskId="selectedImportTaskId"
+            @back="selectedImportTaskId = null; fetchImportTasks()"
+            @updated="fetchImportTasks"
+          />
+        </div>
+        <div v-else>
+          <div class="tab-toolbar">
+            <button class="btn btn-primary btn-small" @click="showImportWizard = true">导入数据</button>
+          </div>
+          <table class="data-table" v-if="importTasks.length > 0">
+            <thead>
+              <tr>
+                <th>任务ID</th>
+                <th>源数据库</th>
+                <th>模式</th>
+                <th>进度</th>
+                <th>状态</th>
+                <th>创建时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="task in importTasks" :key="task.id"
+                  class="clickable-row" @click="selectedImportTaskId = task.id">
+                <td>{{ task.id }}</td>
+                <td>{{ task.source_host }}:{{ task.source_port }}/{{ task.source_dbname }}</td>
+                <td>{{ task.mode === 'FULL' ? '整库' : '按表' }}</td>
+                <td>{{ task.completed_tables }}/{{ task.total_tables }}</td>
+                <td>
+                  <span class="status-tag" :class="importStatusClass(task.status)">
+                    {{ importStatusText(task.status) }}
+                  </span>
+                </td>
+                <td>{{ formatDate(task.created_at) }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-else class="empty-state">
+            <p v-if="importLoading">加载中...</p>
+            <p v-else>暂无导入任务</p>
+          </div>
+        </div>
+
+        <ImportWizard
+          :dbId="dbId"
+          :visible="showImportWizard"
+          @close="showImportWizard = false"
+          @created="handleImportCreated"
+        />
+      </div>
     </div>
   </div>
 
@@ -257,6 +311,9 @@ import { useRoute } from 'vue-router'
 import { databaseApi, type Database } from '../../api/database'
 import { branchApi, type Branch } from '../../api/branch'
 import { operationApi, type OperationLog } from '../../api/operation'
+import { importApi, type ImportTask } from '../../api/import'
+import ImportWizard from './ImportWizard.vue'
+import ImportTaskDetail from './ImportTaskDetail.vue'
 import { copyToClipboard } from '../../utils/clipboard'
 import { formatDuration, formatDate } from '../../utils/format'
 
@@ -276,6 +333,7 @@ const tabs = [
   { key: 'info', label: '基本信息' },
   { key: 'branches', label: '分支' },
   { key: 'operations', label: '操作历史' },
+  { key: 'import', label: '导入' },
 ]
 
 // Branches
@@ -284,6 +342,12 @@ const branchesLoading = ref(false)
 const showBranchDialog = ref(false)
 const branchName = ref('')
 const branchCreating = ref(false)
+
+// Import
+const importTasks = ref<ImportTask[]>([])
+const importLoading = ref(false)
+const showImportWizard = ref(false)
+const selectedImportTaskId = ref<string | null>(null)
 
 // Operations
 const operations = ref<OperationLog[]>([])
@@ -471,9 +535,53 @@ async function fetchOperations() {
   }
 }
 
+// Import
+async function fetchImportTasks() {
+  importLoading.value = true
+  try {
+    const res = await importApi.list(dbId.value)
+    importTasks.value = res.data
+  } catch (e) {
+    console.error('Failed to load import tasks', e)
+  } finally {
+    importLoading.value = false
+  }
+}
+
+function importStatusClass(status: string): string {
+  switch (status) {
+    case 'COMPLETED': return 'tag-green'
+    case 'RUNNING': return 'tag-blue'
+    case 'FAILED': return 'tag-red'
+    case 'PARTIAL': return 'tag-orange'
+    case 'PAUSED': case 'CANCELLED': return 'tag-gray'
+    default: return ''
+  }
+}
+
+function importStatusText(status: string): string {
+  switch (status) {
+    case 'PENDING': return '等待中'
+    case 'RUNNING': return '导入中'
+    case 'COMPLETED': return '已完成'
+    case 'FAILED': return '失败'
+    case 'PARTIAL': return '部分完成'
+    case 'PAUSED': return '已暂停'
+    case 'CANCELLED': return '已取消'
+    default: return status
+  }
+}
+
+function handleImportCreated(task: ImportTask) {
+  showImportWizard.value = false
+  selectedImportTaskId.value = task.id
+  fetchImportTasks()
+}
+
 watch(activeTab, (tab) => {
   if (tab === 'branches' && branches.value.length === 0) fetchBranches()
   if (tab === 'operations' && operations.value.length === 0) fetchOperations()
+  if (tab === 'import' && importTasks.value.length === 0) fetchImportTasks()
 })
 
 onMounted(() => {
@@ -731,6 +839,13 @@ onUnmounted(() => {
   color: #0073e6;
   margin-left: 6px;
 }
+
+/* Import tab */
+.clickable-row { cursor: pointer; }
+.clickable-row:hover { background: #f5f5f5; }
+.tag-blue { background-color: #e6f7ff; color: #0073e6; }
+.tag-orange { background-color: #fff7e6; color: #d46b08; }
+.tag-gray { background-color: #f0f0f0; color: #8a8e99; }
 
 /* Filter select */
 .filter-select {

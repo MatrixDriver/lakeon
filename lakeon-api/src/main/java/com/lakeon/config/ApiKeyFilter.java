@@ -88,6 +88,12 @@ public class ApiKeyFilter implements Filter {
             return;
         }
 
+        // Import callback from Job Pods (internal only)
+        if (path.startsWith("/api/v1/import/callback/")) {
+            chain.doFilter(req, res);
+            return;
+        }
+
         // Extract API Key
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {

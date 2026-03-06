@@ -395,8 +395,8 @@ public class AdminService {
         if (component.startsWith("compute-")) {
             targetNamespace = props.getK8s().getNamespace();
             try {
-                String logs = k8sClient.pods().inNamespace(targetNamespace)
-                    .withName(component).tailingLines(tail).getLog();
+                var podResource = k8sClient.pods().inNamespace(targetNamespace).withName(component);
+                String logs = tail > 0 ? podResource.tailingLines(tail).getLog() : podResource.getLog();
                 return logs != null ? logs : "";
             } catch (Exception e) {
                 log.warn("Failed to get logs for {}/{}: {}", targetNamespace, component, e.getMessage());
@@ -417,8 +417,8 @@ public class AdminService {
                 .findFirst()
                 .orElse(pods.get(0));
             String podName = pod.getMetadata().getName();
-            String logs = k8sClient.pods().inNamespace(targetNamespace)
-                .withName(podName).tailingLines(tail).getLog();
+            var podResource = k8sClient.pods().inNamespace(targetNamespace).withName(podName);
+            String logs = tail > 0 ? podResource.tailingLines(tail).getLog() : podResource.getLog();
             return logs != null ? logs : "";
         } catch (Exception e) {
             log.warn("Failed to get logs for {}/{}: {}", targetNamespace, component, e.getMessage());
