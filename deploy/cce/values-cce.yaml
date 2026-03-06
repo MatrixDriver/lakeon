@@ -26,15 +26,15 @@ global:
 
 # ── SWR 镜像地址 ─────────────────────────────────────────────────
 # 修改 SWR_ORG 为你的 SWR 组织名
-initImage: "swr.cn-north-4.myhuaweicloud.com/lakeon/busybox:1.36"
+initImage: "swr.cn-south-1.myhuaweicloud.com/lakeon/busybox:1.36"
 
 neon:
   image:
-    repository: swr.cn-north-4.myhuaweicloud.com/lakeon/neon
+    repository: swr.cn-south-1.myhuaweicloud.com/lakeon/neon
     tag: latest
     pullPolicy: IfNotPresent
   computeImage:
-    repository: swr.cn-north-4.myhuaweicloud.com/lakeon/compute-node-v17
+    repository: swr.cn-south-1.myhuaweicloud.com/lakeon/compute-node-v17
     tag: latest
 
 api:
@@ -42,8 +42,8 @@ api:
   serviceType: NodePort
   adminToken: "lakeon-sre-2026"
   image:
-    repository: swr.cn-north-4.myhuaweicloud.com/lakeon/lakeon-api
-    tag: "0.1.18"
+    repository: swr.cn-south-1.myhuaweicloud.com/lakeon/lakeon-api
+    tag: "0.1.0"
   resources:
     requests:
       cpu: "100m"
@@ -78,10 +78,10 @@ storageBroker:
 
 proxy:
   replicas: 1
-  externalHost: "114.116.210.49"
+  externalHost: "116.63.79.45"
   serviceType: LoadBalancer
   elb:
-    id: "aff67a5c-3abb-4e89-a1f1-26ba817599df"
+    id: "53441418-8852-4567-ace2-2ee1f8bf58a7"
     class: "union"
   resources:
     requests:
@@ -93,9 +93,9 @@ proxy:
 
 # ── OBS（同 region 内网访问）────────────────────────────────────
 obs:
-  endpoint: "https://obs.cn-north-4.myhuaweicloud.com"
+  endpoint: "https://obs.cn-south-1.myhuaweicloud.com"
   bucket: "lakeon-storage"
-  region: "cn-north-4"
+  region: "cn-south-1"
   accessKey: ""     # --set obs.accessKey=$OBS_AK
   secretKey: ""     # --set obs.secretKey=$OBS_SK
   usePathStyle: false
@@ -113,13 +113,13 @@ metadataDb:
 admin:
   enabled: true
   image:
-    repository: swr.cn-north-4.myhuaweicloud.com/lakeon/lakeon-admin
-    tag: "0.1.6"
+    repository: swr.cn-south-1.myhuaweicloud.com/lakeon/lakeon-admin
+    tag: "0.1.0"
   replicas: 1
   port: 80
   serviceType: LoadBalancer
   elb:
-    id: "aff67a5c-3abb-4e89-a1f1-26ba817599df"
+    id: "53441418-8852-4567-ace2-2ee1f8bf58a7"
     class: "union"
     port: 8081        # ELB 监听端口，与 console(80) 区分
   resources:
@@ -134,13 +134,13 @@ admin:
 console:
   enabled: true
   image:
-    repository: swr.cn-north-4.myhuaweicloud.com/lakeon/lakeon-console
-    tag: "0.1.5"
+    repository: swr.cn-south-1.myhuaweicloud.com/lakeon/lakeon-console
+    tag: "0.1.0"
   replicas: 1
   port: 80
   serviceType: LoadBalancer
   elb:
-    id: "aff67a5c-3abb-4e89-a1f1-26ba817599df"
+    id: "53441418-8852-4567-ace2-2ee1f8bf58a7"
     class: "union"
   resources:
     requests:
@@ -164,7 +164,7 @@ cost:
 # ── 节点初始化（修复 containerd core ulimit）─────────────────────
 nodeInit:
   enabled: true
-  image: "swr.cn-north-4.myhuaweicloud.com/lakeon/busybox:1.36"
+  image: "swr.cn-south-1.myhuaweicloud.com/lakeon/busybox:1.36"
 
 # ── 禁用集群内组件 ─────────────────────────────────────────────
 minio:
