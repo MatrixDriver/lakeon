@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lakeon-import-script
+  namespace: lakeon-compute
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+data:
+  import.sh: |
+{{ .Files.Get "scripts/import.sh" | indent 4 }}
