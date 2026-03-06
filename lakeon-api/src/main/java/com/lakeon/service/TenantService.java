@@ -121,6 +121,7 @@ public class TenantService {
         return TenantResponse.builder()
             .id(entity.getId())
             .name(entity.getName())
+            .apiKey(entity.getApiKey())
             .createdAt(entity.getCreatedAt())
             .maxDatabases(entity.getMaxDatabases())
             .maxStorageGb(entity.getMaxStorageGb())

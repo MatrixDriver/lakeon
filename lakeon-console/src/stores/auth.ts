@@ -13,10 +13,11 @@ export const useAuthStore = defineStore('auth', () => {
       const res = await client.get('/tenants/me', {
         headers: { Authorization: `Bearer ${key}` },
       })
-      apiKey.value = key
-      localStorage.setItem('lakeon_api_key', key)
       // Populate tenant info from response
       const tenant = res.data
+      const resolvedKey = tenant?.api_key || key
+      apiKey.value = resolvedKey
+      localStorage.setItem('lakeon_api_key', resolvedKey)
       if (tenant?.id) {
         setTenant(tenant.id, tenant.name || '')
       }
