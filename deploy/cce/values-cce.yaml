@@ -81,7 +81,7 @@ proxy:
   externalHost: "114.116.210.49"
   serviceType: LoadBalancer
   elb:
-    id: "aff67a5c-3abb-4e89-a1f1-26ba817599df"
+    id: "d9f5b32c-6b7f-4389-88a7-bae4ff97c6e7"
     class: "union"
   resources:
     requests:
@@ -119,7 +119,7 @@ admin:
   port: 80
   serviceType: LoadBalancer
   elb:
-    id: "aff67a5c-3abb-4e89-a1f1-26ba817599df"
+    id: "d9f5b32c-6b7f-4389-88a7-bae4ff97c6e7"
     class: "union"
     port: 8081        # ELB 监听端口，与 console(80) 区分
   resources:
@@ -140,7 +140,7 @@ console:
   port: 80
   serviceType: LoadBalancer
   elb:
-    id: "aff67a5c-3abb-4e89-a1f1-26ba817599df"
+    id: "d9f5b32c-6b7f-4389-88a7-bae4ff97c6e7"
     class: "union"
   resources:
     requests:
