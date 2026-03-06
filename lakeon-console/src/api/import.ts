@@ -36,9 +36,6 @@ export interface ImportTask {
 }
 
 export const importApi = {
-  testConnection: (data: { host: string; port: number; dbname: string; user: string; password: string }) =>
-    client.post<{ success: boolean; message: string }>('/import/test-connection', data),
-
   listSourceTables: (data: { host: string; port: number; dbname: string; user: string; password: string }) =>
     client.post<SourceTableInfo[]>('/import/source-tables', data),
 

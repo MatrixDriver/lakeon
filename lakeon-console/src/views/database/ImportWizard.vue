@@ -41,14 +41,6 @@
               <input v-model="form.password" type="password" class="form-input" />
             </div>
           </div>
-          <div class="test-conn-row">
-            <button class="btn btn-default" :disabled="!connFormValid || testing" @click="testConnection">
-              {{ testing ? '测试中...' : '测试连接' }}
-            </button>
-            <span v-if="testResult !== null" :class="testResult ? 'text-success' : 'text-error'">
-              {{ testResult ? '连接成功' : testError }}
-            </span>
-          </div>
         </div>
 
         <!-- Step 2: Table Selection -->
@@ -146,9 +138,6 @@ const form = ref({
   selectedTables: [] as string[],
 })
 
-const testing = ref(false)
-const testResult = ref<boolean | null>(null)
-const testError = ref('')
 const sourceTables = ref<SourceTableInfo[]>([])
 const tablesLoading = ref(false)
 const creating = ref(false)
@@ -166,7 +155,7 @@ const tableCount = computed(() =>
 )
 
 const canNext = computed(() => {
-  if (step.value === 0) return testResult.value === true
+  if (step.value === 0) return connFormValid.value
   if (step.value === 1) return form.value.mode === 'FULL' || form.value.selectedTables.length > 0
   return true
 })
@@ -174,28 +163,9 @@ const canNext = computed(() => {
 watch(() => props.visible, (v) => {
   if (v) {
     step.value = 0
-    testResult.value = null
     sourceTables.value = []
   }
 })
-
-async function testConnection() {
-  testing.value = true
-  testResult.value = null
-  try {
-    const res = await importApi.testConnection({
-      host: form.value.host, port: form.value.port,
-      dbname: form.value.dbname, user: form.value.user, password: form.value.password,
-    })
-    testResult.value = res.data.success
-    testError.value = res.data.message || '连接失败'
-  } catch (e: any) {
-    testResult.value = false
-    testError.value = e?.response?.data?.message || '连接失败'
-  } finally {
-    testing.value = false
-  }
-}
 
 async function loadSourceTables() {
   tablesLoading.value = true

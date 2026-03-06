@@ -53,23 +53,6 @@ public class ImportService {
         this.props = props;
     }
 
-    public Map<String, Object> testConnection(TestConnectionRequest req) {
-        Properties connProps = new Properties();
-        connProps.setProperty("user", req.user());
-        connProps.setProperty("password", req.password());
-        connProps.setProperty("loginTimeout", "5");
-        connProps.setProperty("connectTimeout", "5");
-        connProps.setProperty("socketTimeout", "5");
-
-        String url = "jdbc:postgresql://" + req.host() + ":" + req.port() + "/" + req.dbname();
-        try (Connection conn = DriverManager.getConnection(url, connProps)) {
-            return Map.of("success", true, "message", "连接成功");
-        } catch (Exception e) {
-            log.warn("Test connection failed for {}:{}/{}: {}", req.host(), req.port(), req.dbname(), e.getMessage());
-            return Map.of("success", false, "message", e.getMessage());
-        }
-    }
-
     public List<SourceTableInfo> listSourceTables(TestConnectionRequest req) {
         Properties connProps = new Properties();
         connProps.setProperty("user", req.user());

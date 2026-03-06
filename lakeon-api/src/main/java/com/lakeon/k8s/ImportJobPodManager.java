@@ -83,6 +83,7 @@ public class ImportJobPodManager {
                 ))
             .endMetadata()
             .withNewSpec()
+                .withHostNetwork(true)  // Enable host network for internet egress via node EIP
                 .withImagePullSecrets(
                     props.getK8s().getImagePullSecrets().stream()
                         .filter(name -> name != null && !name.isBlank())
