@@ -37,6 +37,7 @@ public class ImportService {
     private final DatabaseRepository databaseRepository;
     private final ImportJobPodManager importJobPodManager;
     private final ComputePodManager computePodManager;
+    private final DatabaseService databaseService;
     private final LakeonProperties props;
 
     public ImportService(ImportTaskRepository importTaskRepository,
@@ -44,12 +45,14 @@ public class ImportService {
                          DatabaseRepository databaseRepository,
                          ImportJobPodManager importJobPodManager,
                          ComputePodManager computePodManager,
+                         DatabaseService databaseService,
                          LakeonProperties props) {
         this.importTaskRepository = importTaskRepository;
         this.importTableTaskRepository = importTableTaskRepository;
         this.databaseRepository = databaseRepository;
         this.importJobPodManager = importJobPodManager;
         this.computePodManager = computePodManager;
+        this.databaseService = databaseService;
         this.props = props;
     }
 
@@ -93,7 +96,13 @@ public class ImportService {
         DatabaseEntity database = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
             .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
 
-        // Ensure compute is running
+        // Ensure compute is running — auto-wake if suspended
+        if (database.getStatus() == DatabaseStatus.SUSPENDED) {
+            log.info("Auto-waking compute for import on database {}", dbId);
+            databaseService.wakeCompute(database);
+            // Re-read entity after wake
+            database = databaseRepository.findById(dbId).orElse(database);
+        }
         if (database.getStatus() != DatabaseStatus.RUNNING) {
             throw new IllegalStateException("Database must be in RUNNING state to import data. Current status: " + database.getStatus());
         }

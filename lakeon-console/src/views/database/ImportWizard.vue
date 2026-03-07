@@ -41,6 +41,8 @@
               <input v-model="form.password" type="password" class="form-input" />
             </div>
           </div>
+          <div v-if="tablesLoading" class="loading-text" style="margin-top: 12px;">正在连接源数据库...</div>
+          <div v-if="connError" class="error-text" style="margin-top: 12px; color: #e34d59;">{{ connError }}</div>
         </div>
 
         <!-- Step 2: Table Selection -->
@@ -107,7 +109,9 @@
         <span v-else></span>
         <div>
           <button class="btn btn-default" @click="$emit('close')">取消</button>
-          <button v-if="step < 2" class="btn btn-primary" :disabled="!canNext" @click="nextStep">下一步</button>
+          <button v-if="step < 2" class="btn btn-primary" :disabled="!canNext || tablesLoading" @click="nextStep">
+            {{ tablesLoading ? '连接中...' : '下一步' }}
+          </button>
           <button v-else class="btn btn-primary" :disabled="creating" @click="handleCreate">
             {{ creating ? '创建中...' : '开始导入' }}
           </button>
@@ -141,6 +145,7 @@ const form = ref({
 const sourceTables = ref<SourceTableInfo[]>([])
 const tablesLoading = ref(false)
 const creating = ref(false)
+const connError = ref('')
 
 const connFormValid = computed(() =>
   form.value.host && form.value.port && form.value.dbname && form.value.user && form.value.password
@@ -169,22 +174,28 @@ watch(() => props.visible, (v) => {
 
 async function loadSourceTables() {
   tablesLoading.value = true
+  connError.value = ''
   try {
     const res = await importApi.listSourceTables({
       host: form.value.host, port: form.value.port,
       dbname: form.value.dbname, user: form.value.user, password: form.value.password,
     })
     sourceTables.value = res.data
-  } catch (e) {
+    return true
+  } catch (e: any) {
     console.error('Failed to load source tables', e)
+    const msg = e.response?.data?.error?.message || e.response?.data?.message || e.message || '连接失败'
+    connError.value = msg
+    return false
   } finally {
     tablesLoading.value = false
   }
 }
 
-function nextStep() {
-  if (step.value === 0 && sourceTables.value.length === 0) {
-    loadSourceTables()
+async function nextStep() {
+  if (step.value === 0) {
+    const ok = await loadSourceTables()
+    if (!ok) return
   }
   step.value++
 }
