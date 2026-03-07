@@ -131,4 +131,16 @@ public class DatabaseQueryController {
         TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
         queryService.dropColumn(tenant, dbId, schema, table, column);
     }
+
+    @PostMapping("/schema-cache/refresh")
+    public CacheRefreshResponse refreshSchemaCache(HttpServletRequest req, @PathVariable String dbId) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return queryService.refreshSchemaCacheForApi(tenant, dbId);
+    }
+
+    @GetMapping("/schema-cache/status")
+    public CacheStatusResponse getCacheStatus(HttpServletRequest req, @PathVariable String dbId) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return queryService.getCacheStatus(tenant, dbId);
+    }
 }

@@ -1,16 +1,23 @@
 package com.lakeon.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.model.dto.*;
 import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.model.entity.SchemaCacheEntity;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.repository.DatabaseRepository;
+import com.lakeon.repository.SchemaCacheRepository;
 import com.lakeon.service.exception.NotFoundException;
 import com.lakeon.service.exception.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.*;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -20,6 +27,7 @@ public class DatabaseQueryService {
 
     private static final int MAX_ROWS = 1000;
     private static final int STATEMENT_TIMEOUT_SECONDS = 30;
+    private static final Duration CACHE_TTL = Duration.ofHours(1); // 缓存1小时过期
     private static final Set<String> EXCLUDED_SCHEMAS = Set.of(
         "pg_catalog", "pg_toast", "information_schema"
     );
@@ -30,91 +38,229 @@ public class DatabaseQueryService {
 
     private final DatabaseRepository databaseRepository;
     private final DatabaseService databaseService;
+    private final SchemaCacheRepository schemaCacheRepository;
+    private final ObjectMapper objectMapper;
 
     public DatabaseQueryService(DatabaseRepository databaseRepository,
-                                DatabaseService databaseService) {
+                                DatabaseService databaseService,
+                                SchemaCacheRepository schemaCacheRepository,
+                                ObjectMapper objectMapper) {
         this.databaseRepository = databaseRepository;
         this.databaseService = databaseService;
+        this.schemaCacheRepository = schemaCacheRepository;
+        this.objectMapper = objectMapper;
     }
 
+    @Transactional
     public List<SchemaInfo> listSchemas(TenantEntity tenant, String dbId) {
         DatabaseEntity db = findDatabase(tenant, dbId);
+
+        // 尝试从缓存读取
+        Instant cacheTime = schemaCacheRepository.findLatestUpdateTime(dbId);
+        if (cacheTime != null && !isCacheExpired(cacheTime)) {
+            log.debug("Using cached schema for database {}", dbId);
+            return buildSchemasFromCache(dbId);
+        }
+
+        // 缓存未命中或过期，查询数据库并更新缓存
+        log.debug("Cache miss or expired for database {}, querying from compute", dbId);
+        return refreshSchemaCache(db);
+    }
+
+    @Transactional
+    public List<SchemaInfo> refreshSchemaCache(DatabaseEntity db) {
+        // 先删除旧缓存，避免 unique constraint 冲突
+        schemaCacheRepository.deleteByDatabaseId(db.getId());
+
         try (Connection conn = getConnection(db)) {
-            List<SchemaInfo> schemas = new ArrayList<>();
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT schema_name FROM information_schema.schemata ORDER BY schema_name")) {
+            // 查询所有 schema 和 table 信息
+            Map<String, List<TableInfo>> schemaTablesMap = new LinkedHashMap<>();
+
+            String sql = """
+                SELECT
+                    n.nspname as schema_name,
+                    c.relname as table_name,
+                    CASE c.relkind
+                        WHEN 'r' THEN 'TABLE'
+                        WHEN 'v' THEN 'VIEW'
+                        WHEN 'm' THEN 'MATERIALIZED VIEW'
+                        WHEN 'f' THEN 'FOREIGN TABLE'
+                    END as table_type,
+                    pg_stat_get_live_tuples(c.oid) as row_count,
+                    pg_total_relation_size(c.oid) as table_size
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE c.relkind IN ('r', 'v', 'm', 'f')
+                  AND n.nspname NOT IN ('pg_catalog', 'pg_toast', 'information_schema')
+                  AND n.nspname NOT LIKE 'pg_%'
+                ORDER BY n.nspname, c.relname
+                """;
+
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ResultSet rs = ps.executeQuery();
                 while (rs.next()) {
-                    String name = rs.getString(1);
-                    if (!EXCLUDED_SCHEMAS.contains(name) && !name.startsWith("pg_")) {
-                        schemas.add(new SchemaInfo(name));
-                    }
+                    String schemaName = rs.getString("schema_name");
+                    String tableName = rs.getString("table_name");
+                    String tableType = rs.getString("table_type");
+                    long rowCount = rs.getLong("row_count");
+                    long tableSize = rs.getLong("table_size");
+
+                    // 查询列信息
+                    List<ColumnInfo> columns = queryColumns(conn, schemaName, tableName);
+
+                    TableInfo tableInfo = new TableInfo(tableName, tableType, rowCount, tableSize);
+                    schemaTablesMap.computeIfAbsent(schemaName, k -> new ArrayList<>()).add(tableInfo);
+
+                    // 保存到缓存
+                    saveCacheEntry(db.getId(), schemaName, tableName, tableType, columns, rowCount, tableSize);
                 }
             }
+
+            // 构建返回结果
+            List<SchemaInfo> schemas = new ArrayList<>();
+            for (Map.Entry<String, List<TableInfo>> entry : schemaTablesMap.entrySet()) {
+                SchemaInfo schema = new SchemaInfo(entry.getKey());
+                schemas.add(schema);
+            }
+
             return schemas;
         } catch (SQLException e) {
-            throw new ServiceException("Failed to list schemas: " + e.getMessage(), e);
+            throw new ServiceException("Failed to refresh schema cache: " + e.getMessage(), e);
         }
     }
 
+    private List<ColumnInfo> queryColumns(Connection conn, String schema, String table) throws SQLException {
+        List<ColumnInfo> columns = new ArrayList<>();
+        String sql = """
+            SELECT
+                a.attname as column_name,
+                pg_catalog.format_type(a.atttypid, a.atttypmod) as data_type,
+                NOT a.attnotnull as is_nullable,
+                pg_get_expr(d.adbin, d.adrelid) as column_default
+            FROM pg_attribute a
+            LEFT JOIN pg_attrdef d ON a.attrelid = d.adrelid AND a.attnum = d.adnum
+            WHERE a.attrelid = (
+                SELECT c.oid FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = ? AND c.relname = ?
+            )
+            AND a.attnum > 0
+            AND NOT a.attisdropped
+            ORDER BY a.attnum
+            """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, schema);
+            ps.setString(2, table);
+            ResultSet rs = ps.executeQuery();
+            int position = 1;
+            while (rs.next()) {
+                columns.add(new ColumnInfo(
+                    rs.getString("column_name"),
+                    rs.getString("data_type"),
+                    rs.getBoolean("is_nullable"),
+                    rs.getString("column_default"),
+                    null, // comment
+                    position++
+                ));
+            }
+        }
+        return columns;
+    }
+
+    private void saveCacheEntry(String dbId, String schema, String table, String type,
+                                 List<ColumnInfo> columns, long rowCount, long tableSize) {
+        try {
+            SchemaCacheEntity cache = new SchemaCacheEntity();
+            cache.setDatabaseId(dbId);
+            cache.setSchemaName(schema);
+            cache.setTableName(table);
+            cache.setTableType(type);
+            cache.setColumnsJson(objectMapper.writeValueAsString(columns));
+            cache.setRowCount(rowCount);
+            cache.setTableSizeBytes(tableSize);
+            schemaCacheRepository.save(cache);
+        } catch (Exception e) {
+            log.warn("Failed to save cache entry: {}", e.getMessage());
+        }
+    }
+
+    private List<SchemaInfo> buildSchemasFromCache(String dbId) {
+        List<SchemaCacheEntity> cacheEntries = schemaCacheRepository.findByDatabaseIdOrderBySchemaNameAscTableNameAsc(dbId);
+        Map<String, SchemaInfo> schemaMap = new LinkedHashMap<>();
+
+        for (SchemaCacheEntity entry : cacheEntries) {
+            schemaMap.computeIfAbsent(entry.getSchemaName(), SchemaInfo::new);
+        }
+
+        return new ArrayList<>(schemaMap.values());
+    }
+
+    private boolean isCacheExpired(Instant cacheTime) {
+        return Duration.between(cacheTime, Instant.now()).compareTo(CACHE_TTL) > 0;
+    }
+
+    @Transactional
     public List<TableInfo> listTables(TenantEntity tenant, String dbId, String schema) {
         DatabaseEntity db = findDatabase(tenant, dbId);
-        try (Connection conn = getConnection(db)) {
-            List<TableInfo> tables = new ArrayList<>();
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT t.table_name, t.table_type, " +
-                    "COALESCE(c.reltuples::bigint, 0) AS row_estimate " +
-                    "FROM information_schema.tables t " +
-                    "LEFT JOIN pg_class c ON c.relname = t.table_name " +
-                    "LEFT JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = t.table_schema " +
-                    "WHERE t.table_schema = ? " +
-                    "ORDER BY t.table_name")) {
-                ps.setString(1, schema);
-                ResultSet rs = ps.executeQuery();
-                while (rs.next()) {
-                    tables.add(new TableInfo(
-                        rs.getString("table_name"),
-                        rs.getString("table_type"),
-                        Math.max(0, rs.getLong("row_estimate"))
-                    ));
-                }
-            }
-            return tables;
-        } catch (SQLException e) {
-            throw new ServiceException("Failed to list tables: " + e.getMessage(), e);
+
+        // 尝试从缓存读取
+        Instant cacheTime = schemaCacheRepository.findLatestUpdateTime(dbId);
+        if (cacheTime != null && !isCacheExpired(cacheTime)) {
+            log.debug("Using cached tables for database {} schema {}", dbId, schema);
+            return buildTablesFromCache(dbId, schema);
         }
+
+        // 缓存未命中，刷新缓存后返回
+        refreshSchemaCache(db);
+        return buildTablesFromCache(dbId, schema);
     }
 
+    private List<TableInfo> buildTablesFromCache(String dbId, String schema) {
+        List<SchemaCacheEntity> cacheEntries = schemaCacheRepository.findByDatabaseIdAndSchemaNameOrderByTableNameAsc(dbId, schema);
+        List<TableInfo> tables = new ArrayList<>();
+
+        for (SchemaCacheEntity entry : cacheEntries) {
+            if (entry.getTableName() != null) {
+                tables.add(new TableInfo(
+                    entry.getTableName(),
+                    entry.getTableType(),
+                    entry.getRowCount() != null ? entry.getRowCount() : 0L,
+                    entry.getTableSizeBytes() != null ? entry.getTableSizeBytes() : 0L
+                ));
+            }
+        }
+
+        return tables;
+    }
+
+    @Transactional
     public List<ColumnInfo> listColumns(TenantEntity tenant, String dbId, String schema, String table) {
         DatabaseEntity db = findDatabase(tenant, dbId);
-        try (Connection conn = getConnection(db)) {
-            List<ColumnInfo> columns = new ArrayList<>();
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT c.column_name, c.data_type, c.is_nullable, c.column_default, c.ordinal_position, " +
-                    "pgd.description AS comment " +
-                    "FROM information_schema.columns c " +
-                    "LEFT JOIN pg_catalog.pg_statio_all_tables st ON st.schemaname = c.table_schema AND st.relname = c.table_name " +
-                    "LEFT JOIN pg_catalog.pg_description pgd ON pgd.objoid = st.relid AND pgd.objsubid = c.ordinal_position " +
-                    "WHERE c.table_schema = ? AND c.table_name = ? " +
-                    "ORDER BY c.ordinal_position")) {
-                ps.setString(1, schema);
-                ps.setString(2, table);
-                ResultSet rs = ps.executeQuery();
-                while (rs.next()) {
-                    columns.add(new ColumnInfo(
-                        rs.getString("column_name"),
-                        rs.getString("data_type"),
-                        "YES".equals(rs.getString("is_nullable")),
-                        rs.getString("column_default"),
-                        rs.getString("comment"),
-                        rs.getInt("ordinal_position")
-                    ));
-                }
-            }
-            return columns;
-        } catch (SQLException e) {
-            throw new ServiceException("Failed to list columns: " + e.getMessage(), e);
+
+        // 尝试从缓存读取
+        Instant cacheTime = schemaCacheRepository.findLatestUpdateTime(dbId);
+        if (cacheTime != null && !isCacheExpired(cacheTime)) {
+            log.debug("Using cached columns for database {} table {}.{}", dbId, schema, table);
+            return buildColumnsFromCache(dbId, schema, table);
         }
+
+        // 缓存未命中，刷新缓存后返回
+        refreshSchemaCache(db);
+        return buildColumnsFromCache(dbId, schema, table);
+    }
+
+    private List<ColumnInfo> buildColumnsFromCache(String dbId, String schema, String table) {
+        return schemaCacheRepository.findByDatabaseIdAndSchemaNameAndTableName(dbId, schema, table)
+            .map(entry -> {
+                try {
+                    return objectMapper.readValue(entry.getColumnsJson(), new TypeReference<List<ColumnInfo>>() {});
+                } catch (Exception e) {
+                    log.warn("Failed to parse cached columns: {}", e.getMessage());
+                    return new ArrayList<ColumnInfo>();
+                }
+            })
+            .orElse(new ArrayList<>());
     }
 
     public List<IndexInfo> listIndexes(TenantEntity tenant, String dbId, String schema, String table) {
@@ -447,5 +593,37 @@ public class DatabaseQueryService {
             rows.add(row);
         }
         return new DataPage(columns, rows, totalRows, page, pageSize);
+    }
+
+    @Transactional
+    public CacheRefreshResponse refreshSchemaCacheForApi(TenantEntity tenant, String dbId) {
+        DatabaseEntity db = findDatabase(tenant, dbId);
+
+        // 刷新缓存（内部已先删除旧缓存）
+        List<SchemaInfo> schemas = refreshSchemaCache(db);
+
+        // 统计表数量
+        int tablesCount = (int) schemaCacheRepository.findByDatabaseIdOrderBySchemaNameAscTableNameAsc(dbId)
+            .stream()
+            .filter(e -> e.getTableName() != null)
+            .count();
+
+        return new CacheRefreshResponse(
+            "Schema cache refreshed successfully",
+            Instant.now(),
+            schemas.size(),
+            tablesCount
+        );
+    }
+
+    public CacheStatusResponse getCacheStatus(TenantEntity tenant, String dbId) {
+        findDatabase(tenant, dbId);
+
+        Instant lastUpdated = schemaCacheRepository.findLatestUpdateTime(dbId);
+        boolean cached = lastUpdated != null;
+        boolean expired = cached && isCacheExpired(lastUpdated);
+        long ttlSeconds = cached ? CACHE_TTL.getSeconds() - Duration.between(lastUpdated, Instant.now()).getSeconds() : 0;
+
+        return new CacheStatusResponse(cached, lastUpdated, expired, Math.max(0, ttlSeconds));
     }
 }
