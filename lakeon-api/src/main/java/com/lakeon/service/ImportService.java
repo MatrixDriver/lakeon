@@ -65,12 +65,20 @@ public class ImportService {
         connProps.setProperty("socketTimeout", "10");
 
         String url = "jdbc:postgresql://" + req.host() + ":" + req.port() + "/" + req.dbname();
+        // Filter out extension-owned tables (e.g. tiger.*, topology.*, spatial_ref_sys)
+        // These are auto-created by CREATE EXTENSION and don't need importing
         String sql = "SELECT t.table_schema, t.table_name, COALESCE(c.reltuples::bigint, 0) " +
             "FROM information_schema.tables t " +
             "LEFT JOIN pg_class c ON c.relname = t.table_name " +
             "AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = t.table_schema) " +
             "WHERE t.table_type = 'BASE TABLE' " +
             "AND t.table_schema NOT IN ('pg_catalog', 'information_schema') " +
+            "AND NOT EXISTS (" +
+            "  SELECT 1 FROM pg_depend d " +
+            "  WHERE d.classid = 'pg_class'::regclass " +
+            "  AND d.objid = c.oid " +
+            "  AND d.deptype = 'e'" +
+            ") " +
             "ORDER BY t.table_schema, t.table_name";
 
         List<SourceTableInfo> tables = new ArrayList<>();
@@ -157,6 +165,11 @@ public class ImportService {
         }
         tableTasks = importTableTaskRepository.saveAll(tableTasks);
 
+        // Disable auto-suspend during import (save original timeout for restore later)
+        task.setOriginalSuspendTimeout(database.getSuspendTimeout());
+        database.setSuspendTimeout("1440m");  // 24 hours
+        databaseRepository.save(database);
+
         // Set task to RUNNING and launch job pod
         task.setStatus(ImportTaskStatus.RUNNING);
         task.setStartedAt(Instant.now());
@@ -232,6 +245,15 @@ public class ImportService {
                 task.setStatus(ImportTaskStatus.FAILED);
             }
             task.setFinishedAt(Instant.now());
+
+            // Restore original suspend timeout
+            if (task.getOriginalSuspendTimeout() != null) {
+                databaseRepository.findById(task.getDatabaseId()).ifPresent(db -> {
+                    db.setSuspendTimeout(task.getOriginalSuspendTimeout());
+                    databaseRepository.save(db);
+                    log.info("Restored suspend timeout to {} for database {}", task.getOriginalSuspendTimeout(), db.getId());
+                });
+            }
         }
 
         importTaskRepository.save(task);

@@ -3,6 +3,9 @@
     <div class="detail-header">
       <button class="btn btn-text" @click="$emit('back')">← 返回</button>
       <span class="detail-title">导入任务 {{ task?.id }}</span>
+      <button class="btn-refresh" :class="{ spinning: refreshing }" @click="handleRefresh" title="刷新">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13.65 2.35A7.96 7.96 0 0 0 8 0C3.58 0 0 3.58 0 8s3.58 8 8 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 8 14 6 6 0 1 1 8 2c1.66 0 3.14.69 4.22 1.78L9 7h7V0l-2.35 2.35z" fill="currentColor"/></svg>
+      </button>
     </div>
 
     <div v-if="task" class="detail-body">
@@ -87,6 +90,7 @@ const emit = defineEmits<{ back: []; updated: [] }>()
 
 const task = ref<ImportTask | null>(null)
 const actionLoading = ref(false)
+const refreshing = ref(false)
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
 const progressPct = computed(() => {
@@ -141,6 +145,12 @@ function stopPoll() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
 }
 
+async function handleRefresh() {
+  refreshing.value = true
+  await fetchTask()
+  setTimeout(() => { refreshing.value = false }, 500)
+}
+
 async function handlePause() {
   actionLoading.value = true
   try { await importApi.pause(props.dbId, props.taskId); await fetchTask(); emit('updated') } finally { actionLoading.value = false }
@@ -181,6 +191,10 @@ watch(() => props.taskId, () => {
 .detail-title { font-size: 15px; font-weight: 600; color: #191919; }
 .btn-text { background: none; border: none; color: #0073e6; cursor: pointer; padding: 0; font-size: 14px; }
 .btn-text:hover { text-decoration: underline; }
+.btn-refresh { background: none; border: none; color: #8a8e99; cursor: pointer; padding: 4px; border-radius: 4px; display: inline-flex; align-items: center; transition: color 0.2s; }
+.btn-refresh:hover { color: #0073e6; background: #f0f5ff; }
+.btn-refresh.spinning svg { animation: spin 0.6s ease; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .detail-summary { border: 1px solid #dfe1e6; border-radius: 2px; padding: 16px; margin-bottom: 16px; }
 .summary-grid { display: flex; flex-wrap: wrap; gap: 16px 32px; margin-bottom: 12px; }
 .summary-item { display: flex; flex-direction: column; gap: 2px; }
@@ -191,7 +205,7 @@ watch(() => props.taskId, () => {
 .progress-text { font-size: 13px; color: #575d6c; margin-bottom: 6px; }
 .progress-bar { height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; }
 .progress-fill { height: 100%; background: #0073e6; border-radius: 4px; transition: width 0.3s; }
-.error-cell { font-size: 12px; color: #d4380d; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.error-cell { font-size: 12px; color: #d4380d; max-width: 480px; word-break: break-word; white-space: pre-wrap; }
 .loading-text { color: #8a8e99; font-size: 13px; padding: 20px 0; }
 .status-tag { display: inline-block; padding: 1px 8px; border-radius: 2px; font-size: 12px; }
 .tag-green { background-color: #f6ffed; color: #52c41a; }

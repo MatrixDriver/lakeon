@@ -71,7 +71,7 @@
                 <label v-for="t in sourceTables" :key="t.schema + '.' + t.table" class="checkbox-item">
                   <input type="checkbox" :value="t.schema + '.' + t.table" v-model="form.selectedTables" />
                   {{ t.schema }}.{{ t.table }}
-                  <span class="row-hint">(约 {{ t.estimated_rows }} 行)</span>
+                  <span class="row-hint">(约 {{ t.estimated_rows > 0 ? t.estimated_rows : '?' }} 行)</span>
                 </label>
               </div>
             </div>

@@ -82,6 +82,7 @@ public class LakeonProperties {
     public static class K8sConfig {
         private String namespace;
         private String computeImage;
+        private String importImage;
         private List<String> imagePullSecrets = List.of();
         private String computeCpu;
         private String computeMemory;
@@ -90,6 +91,8 @@ public class LakeonProperties {
         public void setNamespace(String namespace) { this.namespace = namespace; }
         public String getComputeImage() { return computeImage; }
         public void setComputeImage(String computeImage) { this.computeImage = computeImage; }
+        public String getImportImage() { return importImage; }
+        public void setImportImage(String importImage) { this.importImage = importImage; }
         public List<String> getImagePullSecrets() { return imagePullSecrets; }
         public void setImagePullSecrets(List<String> imagePullSecrets) { this.imagePullSecrets = imagePullSecrets; }
         public String getComputeCpu() { return computeCpu; }

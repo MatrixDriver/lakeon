@@ -12,6 +12,9 @@ data:
   LAKEON_NEON_SAFEKEEPER_URLS: {{ include "lakeon.safekeeperConnstrings" . | quote }}
   LAKEON_NEON_STORAGE_BROKER_URL: "http://storage-broker:{{ .Values.storageBroker.port }}"
   LAKEON_COMPUTE_IMAGE: "{{ .Values.neon.computeImage.repository }}:{{ .Values.neon.computeImage.tag }}"
+  {{- if .Values.api.importImage }}
+  LAKEON_IMPORT_IMAGE: {{ .Values.api.importImage | quote }}
+  {{- end }}
   LAKEON_K8S_NAMESPACE: "lakeon-compute"
   {{- if .Values.api.computeCpu }}
   LAKEON_COMPUTE_CPU: {{ .Values.api.computeCpu | quote }}

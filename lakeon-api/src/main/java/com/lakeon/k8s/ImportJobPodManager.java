@@ -92,8 +92,8 @@ public class ImportJobPodManager {
                 .withRestartPolicy("Never")
                 .addNewContainer()
                     .withName("import")
-                    .withImage(props.getK8s().getComputeImage())
-                    .withCommand("sh", "/scripts/import.sh")
+                    .withImage(props.getK8s().getImportImage())
+                    .withCommand("bash", "/scripts/import.sh")
                     .withNewResources()
                         .withRequests(Map.of(
                             "cpu", new Quantity("100m"),

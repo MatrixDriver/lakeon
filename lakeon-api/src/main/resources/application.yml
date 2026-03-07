@@ -41,6 +41,7 @@ lakeon:
   k8s:
     namespace: ${LAKEON_K8S_NAMESPACE:lakeon-compute}
     compute-image: ${LAKEON_COMPUTE_IMAGE:ghcr.io/neondatabase/compute-node-v17:latest}
+    import-image: ${LAKEON_IMPORT_IMAGE:postgres:17}
     image-pull-secrets: ${LAKEON_IMAGE_PULL_SECRETS:}
     compute-cpu: ${LAKEON_COMPUTE_CPU:}
     compute-memory: ${LAKEON_COMPUTE_MEMORY:}
