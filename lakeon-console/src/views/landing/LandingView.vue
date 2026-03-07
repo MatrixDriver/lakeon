@@ -30,30 +30,7 @@
       <div class="container">
         <h1 class="hero-title">{{ t('为 AI 应用而生的 Serverless 数据平台', 'The Serverless Data Platform Built for AI') }}</h1>
         <p class="hero-subtitle">{{ t('秒级创建，自动休眠，按需付费。关系型、向量、全文、图查询、RAG、时间旅行，一个平台全搞定。', 'Create in seconds, auto-sleep, pay-per-use. Relational, vector, full-text, graph, RAG, time travel — all in one platform.') }}</p>
-        <div class="register-form" v-if="!registerDone">
-          <div class="register-fields">
-            <input v-model="regName" type="text" :placeholder="t('租户名称', 'Tenant name')" class="register-input" />
-            <input v-model="regUsername" type="text" :placeholder="t('用户名', 'Username')" class="register-input" />
-            <input v-model="regPassword" type="password" :placeholder="t('密码（至少6位）', 'Password (min 6)')" class="register-input" @keyup.enter="handleRegister" />
-          </div>
-          <button class="btn-primary" @click="handleRegister" :disabled="registering || !regName.trim() || !regUsername.trim() || regPassword.length < 6">
-            {{ registering ? t('注册中...', 'Registering...') : t('免费试用', 'Free Trial') }}
-          </button>
-        </div>
-        <div v-if="registerError" class="error-msg">{{ registerError }}</div>
-        <div v-if="registerDone" class="register-done">
-          <p class="register-done-text">{{ t('注册成功！请登录控制台开始使用。', 'Registration successful! Sign in to get started.') }}</p>
-          <router-link to="/login" class="btn-primary" style="display: inline-block;">{{ t('去登录', 'Go to Login') }}</router-link>
-        </div>
-      </div>
-    </section>
-
-    <!-- Unified Capabilities (moved to top) -->
-    <section class="section" id="capabilities">
-      <div class="container">
-        <h2 class="section-title">{{ t('统一数据能力', 'Unified Data Capabilities') }}</h2>
-        <p class="section-desc">{{ t('一个 PostgreSQL 连接串，同时获得关系型查询、向量检索、全文搜索、图遍历、RAG 和时间旅行能力。无需拼凑多个数据库，Lakeon 将 AI 应用所需的全部数据能力统一在一个平台。', 'One PostgreSQL connection string gives you relational queries, vector search, full-text search, graph traversal, RAG, and time travel. No need to stitch together multiple databases — Lakeon unifies every data capability your AI app needs in one platform.') }}</p>
-        <div class="cap-row">
+        <div class="cap-row" id="capabilities">
           <div class="cap-item" v-for="c in capabilities" :key="c.label">
             <div class="cap-icon">{{ c.icon }}</div>
             <div class="cap-label">{{ c.name }}</div>
@@ -193,17 +170,10 @@ await client.connect()</code></pre>
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useLocale } from '../../stores/locale'
-import { tenantApi } from '../../api/tenant'
 
 const { locale, setLocale, t } = useLocale()
 
 const mobileMenuOpen = ref(false)
-const regName = ref('')
-const regUsername = ref('')
-const regPassword = ref('')
-const registering = ref(false)
-const registerError = ref('')
-const registerDone = ref(false)
 
 function toggleLocale() {
   setLocale(locale.value === 'zh' ? 'en' : 'zh')
@@ -211,28 +181,6 @@ function toggleLocale() {
 
 function scrollTo(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
-}
-
-async function handleRegister() {
-  if (!regName.value.trim() || !regUsername.value.trim() || regPassword.value.length < 6) return
-  registering.value = true
-  registerError.value = ''
-  try {
-    await tenantApi.register({
-      name: regName.value.trim(),
-      username: regUsername.value.trim(),
-      password: regPassword.value,
-    })
-    registerDone.value = true
-  } catch (e: any) {
-    if (e?.response?.status === 409) {
-      registerError.value = t('该名称或用户名已存在', 'Name or username already exists')
-    } else {
-      registerError.value = e?.response?.data?.message || e?.message || t('注册失败', 'Registration failed')
-    }
-  } finally {
-    registering.value = false
-  }
 }
 
 const features = computed(() => [
@@ -430,43 +378,28 @@ const useCases = computed(() => [
   line-height: 1.6;
 }
 
-.register-form {
+.hero-actions {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  max-width: 480px;
-  margin: 0 auto;
-}
-
-.register-fields {
-  display: flex;
-  gap: 10px;
-  width: 100%;
-}
-
-.register-done {
+  gap: 16px;
+  justify-content: center;
   margin-top: 8px;
 }
 
-.register-done-text {
-  font-size: 16px;
-  color: #389e0d;
-  margin-bottom: 12px;
-}
-
-.register-input {
-  flex: 1;
-  padding: 10px 16px;
-  border: 1px solid #d0d0d0;
+.btn-outline {
+  background: transparent;
+  color: #0073e6;
+  border: 1.5px solid #0073e6;
   border-radius: 6px;
+  padding: 10px 24px;
   font-size: 15px;
-  outline: none;
-  transition: border-color 0.2s;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s;
 }
 
-.register-input:focus {
-  border-color: #0073e6;
+.btn-outline:hover {
+  background: rgba(0, 115, 230, 0.06);
 }
 
 .btn-primary {
@@ -507,11 +440,6 @@ const useCases = computed(() => [
   background: #f0f5ff;
 }
 
-.error-msg {
-  color: #e6393d;
-  margin-top: 12px;
-  font-size: 14px;
-}
 
 .api-key-result {
   margin-top: 24px;
