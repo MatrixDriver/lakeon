@@ -20,6 +20,11 @@ public class ImportController {
         this.importService = importService;
     }
 
+    @PostMapping("/import/test-connection")
+    public Map<String, Object> testConnection(@Valid @RequestBody TestConnectionRequest request) {
+        return importService.testConnection(request);
+    }
+
     @PostMapping("/import/source-tables")
     public List<SourceTableInfo> listSourceTables(HttpServletRequest req,
                                                   @Valid @RequestBody TestConnectionRequest request) {

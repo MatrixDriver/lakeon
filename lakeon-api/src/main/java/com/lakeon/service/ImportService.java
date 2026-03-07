@@ -27,6 +27,8 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 public class ImportService {
@@ -39,6 +41,7 @@ public class ImportService {
     private final ComputePodManager computePodManager;
     private final DatabaseService databaseService;
     private final LakeonProperties props;
+    private final ExecutorService importExecutor = Executors.newFixedThreadPool(2);
 
     public ImportService(ImportTaskRepository importTaskRepository,
                          ImportTableTaskRepository importTableTaskRepository,
@@ -54,6 +57,26 @@ public class ImportService {
         this.computePodManager = computePodManager;
         this.databaseService = databaseService;
         this.props = props;
+    }
+
+    public Map<String, Object> testConnection(TestConnectionRequest req) {
+        Properties connProps = new Properties();
+        connProps.setProperty("user", req.user());
+        connProps.setProperty("password", req.password());
+        connProps.setProperty("loginTimeout", "5");
+        connProps.setProperty("connectTimeout", "5");
+        connProps.setProperty("socketTimeout", "10");
+
+        String url = "jdbc:postgresql://" + req.host() + ":" + req.port() + "/" + req.dbname();
+        try (Connection conn = DriverManager.getConnection(url, connProps);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT version()")) {
+            rs.next();
+            String version = rs.getString(1);
+            return Map.of("ok", true, "version", version);
+        } catch (Exception e) {
+            return Map.of("ok", false, "error", e.getMessage());
+        }
     }
 
     public List<SourceTableInfo> listSourceTables(TestConnectionRequest req) {
@@ -104,18 +127,19 @@ public class ImportService {
         DatabaseEntity database = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
             .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
 
-        // Ensure compute is running — auto-wake if suspended
-        if (database.getStatus() == DatabaseStatus.SUSPENDED) {
-            log.info("Auto-waking compute for import on database {}", dbId);
-            databaseService.wakeCompute(database);
-            // Re-read entity after wake
-            database = databaseRepository.findById(dbId).orElse(database);
-        }
-        if (database.getStatus() != DatabaseStatus.RUNNING) {
-            throw new IllegalStateException("Database must be in RUNNING state to import data. Current status: " + database.getStatus());
+        // For SELECTIVE mode, parse tables immediately (lightweight)
+        List<SourceTableInfo> selectedTables = null;
+        if (req.mode() == ImportMode.SELECTIVE && req.tables() != null) {
+            selectedTables = new ArrayList<>();
+            for (String tableSpec : req.tables()) {
+                String[] parts = tableSpec.split("\\.", 2);
+                String schema = parts.length > 1 ? parts[0] : "public";
+                String table = parts.length > 1 ? parts[1] : parts[0];
+                selectedTables.add(new SourceTableInfo(schema, table, 0));
+            }
         }
 
-        // Create ImportTaskEntity
+        // Create task in PENDING status — return immediately
         ImportTaskEntity task = new ImportTaskEntity();
         task.setTenantId(tenant.getId());
         task.setDatabaseId(dbId);
@@ -127,58 +151,85 @@ public class ImportService {
         task.setMode(req.mode());
         task.setConflictStrategy(req.conflictStrategy() != null ? req.conflictStrategy() : ConflictStrategy.APPEND);
         task.setStatus(ImportTaskStatus.PENDING);
+        task = importTaskRepository.save(task);
 
-        // Determine tables to import
-        List<SourceTableInfo> sourceTables;
-        if (req.mode() == ImportMode.FULL) {
-            TestConnectionRequest connReq = new TestConnectionRequest(
-                req.sourceHost(), req.sourcePort(), req.sourceDbname(), req.sourceUser(), req.sourcePassword()
-            );
-            sourceTables = listSourceTables(connReq);
-        } else {
-            // SELECTIVE: parse "schema.table" format
-            sourceTables = new ArrayList<>();
-            if (req.tables() != null) {
-                for (String tableSpec : req.tables()) {
-                    String[] parts = tableSpec.split("\\.", 2);
-                    String schema = parts.length > 1 ? parts[0] : "public";
-                    String table = parts.length > 1 ? parts[1] : parts[0];
-                    sourceTables.add(new SourceTableInfo(schema, table, 0));
-                }
+        // Launch async preparation (wake compute, list tables, launch pod)
+        final String taskId = task.getId();
+        final String tenantId = tenant.getId();
+        final List<SourceTableInfo> finalSelectedTables = selectedTables;
+        importExecutor.submit(() -> prepareAndLaunchImport(taskId, tenantId, dbId, req, finalSelectedTables));
+
+        return toResponse(task, null);
+    }
+
+    private void prepareAndLaunchImport(String taskId, String tenantId, String dbId,
+                                         CreateImportRequest req, List<SourceTableInfo> selectedTables) {
+        try {
+            ImportTaskEntity task = importTaskRepository.findById(taskId)
+                .orElseThrow(() -> new NotFoundException("Import task not found: " + taskId));
+
+            DatabaseEntity database = databaseRepository.findByIdAndTenantId(dbId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+
+            // Ensure compute is running — auto-wake if suspended
+            if (database.getStatus() == DatabaseStatus.SUSPENDED) {
+                log.info("Auto-waking compute for import on database {}", dbId);
+                databaseService.wakeCompute(database);
+                database = databaseRepository.findById(dbId).orElse(database);
             }
+            if (database.getStatus() != DatabaseStatus.RUNNING) {
+                throw new IllegalStateException("Database must be in RUNNING state. Current: " + database.getStatus());
+            }
+
+            // Determine tables to import
+            List<SourceTableInfo> sourceTables;
+            if (req.mode() == ImportMode.FULL) {
+                TestConnectionRequest connReq = new TestConnectionRequest(
+                    req.sourceHost(), req.sourcePort(), req.sourceDbname(), req.sourceUser(), req.sourcePassword()
+                );
+                sourceTables = listSourceTables(connReq);
+            } else {
+                sourceTables = selectedTables != null ? selectedTables : List.of();
+            }
+
+            task.setTotalTables(sourceTables.size());
+            task.setCompletedTables(0);
+            task = importTaskRepository.save(task);
+
+            // Create ImportTableTaskEntity for each table
+            List<ImportTableTaskEntity> tableTasks = new ArrayList<>();
+            for (SourceTableInfo src : sourceTables) {
+                ImportTableTaskEntity tableTask = new ImportTableTaskEntity();
+                tableTask.setImportTaskId(task.getId());
+                tableTask.setSchemaName(src.schema());
+                tableTask.setTableName(src.table());
+                tableTask.setStatus(ImportTaskStatus.PENDING);
+                tableTasks.add(tableTask);
+            }
+            tableTasks = importTableTaskRepository.saveAll(tableTasks);
+
+            // Disable auto-suspend during import
+            task.setOriginalSuspendTimeout(database.getSuspendTimeout());
+            database.setSuspendTimeout("1440m");
+            databaseRepository.save(database);
+
+            // Launch job pod
+            task.setStatus(ImportTaskStatus.RUNNING);
+            task.setStartedAt(Instant.now());
+            String podName = importJobPodManager.launchJobPod(task, tableTasks, database);
+            task.setJobPodName(podName);
+            importTaskRepository.save(task);
+
+            log.info("Import task {} launched with {} tables", taskId, sourceTables.size());
+        } catch (Exception e) {
+            log.error("Failed to prepare import task {}: {}", taskId, e.getMessage(), e);
+            importTaskRepository.findById(taskId).ifPresent(t -> {
+                t.setStatus(ImportTaskStatus.FAILED);
+                t.setErrorMessage(e.getMessage());
+                t.setFinishedAt(Instant.now());
+                importTaskRepository.save(t);
+            });
         }
-
-        task.setTotalTables(sourceTables.size());
-        task.setCompletedTables(0);
-        // Save task first to generate ID via @PrePersist
-        task = importTaskRepository.save(task);
-
-        // Create ImportTableTaskEntity for each table
-        List<ImportTableTaskEntity> tableTasks = new ArrayList<>();
-        for (SourceTableInfo src : sourceTables) {
-            ImportTableTaskEntity tableTask = new ImportTableTaskEntity();
-            tableTask.setImportTaskId(task.getId());
-            tableTask.setSchemaName(src.schema());
-            tableTask.setTableName(src.table());
-            tableTask.setStatus(ImportTaskStatus.PENDING);
-            tableTasks.add(tableTask);
-        }
-        tableTasks = importTableTaskRepository.saveAll(tableTasks);
-
-        // Disable auto-suspend during import (save original timeout for restore later)
-        task.setOriginalSuspendTimeout(database.getSuspendTimeout());
-        database.setSuspendTimeout("1440m");  // 24 hours
-        databaseRepository.save(database);
-
-        // Set task to RUNNING and launch job pod
-        task.setStatus(ImportTaskStatus.RUNNING);
-        task.setStartedAt(Instant.now());
-
-        String podName = importJobPodManager.launchJobPod(task, tableTasks, database);
-        task.setJobPodName(podName);
-        task = importTaskRepository.save(task);
-
-        return toResponse(task, tableTasks);
     }
 
     public ImportTaskResponse getImport(TenantEntity tenant, String dbId, String taskId) {

@@ -16,6 +16,12 @@ public class TenantEntity {
     @Column(name = "name", nullable = false, unique = true)
     private String name;
 
+    @Column(name = "username", unique = true, length = 64)
+    private String username;
+
+    @Column(name = "password_hash", length = 128)
+    private String passwordHash;
+
     @Column(name = "api_key", nullable = false, unique = true, length = 128)
     private String apiKey;
 
@@ -82,6 +88,12 @@ public class TenantEntity {
     public void setName(String name) {
         this.name = name;
     }
+
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+
+    public String getPasswordHash() { return passwordHash; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
 
     public String getApiKey() {
         return apiKey;

@@ -42,8 +42,10 @@ class TenantServiceTest {
     @DisplayName("UT-SVC-TN-001: 创建租户 — 生成唯一 API Key，保存元数据")
     void createTenant_success() {
         // Given
-        var request = new CreateTenantRequest("test-tenant");
+        var request = new CreateTenantRequest("test-tenant", "test-user", "password123");
         when(tenantRepository.findByName("test-tenant"))
+                .thenReturn(Optional.empty());
+        when(tenantRepository.findByUsername("test-user"))
                 .thenReturn(Optional.empty());
         when(tenantRepository.save(any(TenantEntity.class)))
                 .thenAnswer(inv -> {

@@ -30,26 +30,36 @@
       <div class="container">
         <h1 class="hero-title">{{ t('为 AI 应用而生的 Serverless 数据平台', 'The Serverless Data Platform Built for AI') }}</h1>
         <p class="hero-subtitle">{{ t('秒级创建，自动休眠，按需付费。关系型、向量、全文、图查询、RAG、时间旅行，一个平台全搞定。', 'Create in seconds, auto-sleep, pay-per-use. Relational, vector, full-text, graph, RAG, time travel — all in one platform.') }}</p>
-        <div class="register-form" v-if="!apiKey">
-          <input
-            v-model="tenantName"
-            type="text"
-            :placeholder="t('输入租户名称', 'Enter tenant name')"
-            class="register-input"
-            @keyup.enter="handleRegister"
-          />
-          <button class="btn-primary" @click="handleRegister" :disabled="registering">
+        <div class="register-form" v-if="!registerDone">
+          <div class="register-fields">
+            <input v-model="regName" type="text" :placeholder="t('租户名称', 'Tenant name')" class="register-input" />
+            <input v-model="regUsername" type="text" :placeholder="t('用户名', 'Username')" class="register-input" />
+            <input v-model="regPassword" type="password" :placeholder="t('密码（至少6位）', 'Password (min 6)')" class="register-input" @keyup.enter="handleRegister" />
+          </div>
+          <button class="btn-primary" @click="handleRegister" :disabled="registering || !regName.trim() || !regUsername.trim() || regPassword.length < 6">
             {{ registering ? t('注册中...', 'Registering...') : t('免费试用', 'Free Trial') }}
           </button>
         </div>
         <div v-if="registerError" class="error-msg">{{ registerError }}</div>
-        <div v-if="apiKey" class="api-key-result">
-          <div class="api-key-box">
-            <span class="api-key-label">API Key:</span>
-            <code class="api-key-value">{{ apiKey }}</code>
-            <button class="btn-copy" @click="handleCopy">{{ copied ? t('已复制', 'Copied') : t('复制', 'Copy') }}</button>
+        <div v-if="registerDone" class="register-done">
+          <p class="register-done-text">{{ t('注册成功！请登录控制台开始使用。', 'Registration successful! Sign in to get started.') }}</p>
+          <router-link to="/login" class="btn-primary" style="display: inline-block;">{{ t('去登录', 'Go to Login') }}</router-link>
+        </div>
+      </div>
+    </section>
+
+    <!-- Unified Capabilities (moved to top) -->
+    <section class="section" id="capabilities">
+      <div class="container">
+        <h2 class="section-title">{{ t('统一数据能力', 'Unified Data Capabilities') }}</h2>
+        <p class="section-desc">{{ t('一个 PostgreSQL 连接串，同时获得关系型查询、向量检索、全文搜索、图遍历、RAG 和时间旅行能力。无需拼凑多个数据库，Lakeon 将 AI 应用所需的全部数据能力统一在一个平台。', 'One PostgreSQL connection string gives you relational queries, vector search, full-text search, graph traversal, RAG, and time travel. No need to stitch together multiple databases — Lakeon unifies every data capability your AI app needs in one platform.') }}</p>
+        <div class="cap-row">
+          <div class="cap-item" v-for="c in capabilities" :key="c.label">
+            <div class="cap-icon">{{ c.icon }}</div>
+            <div class="cap-label">{{ c.name }}</div>
+            <div class="cap-desc">{{ c.label }}</div>
+            <span v-if="c.soon" class="badge-soon">{{ t('即将上线', 'Coming Soon') }}</span>
           </div>
-          <router-link to="/login" class="btn-primary" style="margin-top: 12px; display: inline-block;">{{ t('去登录', 'Go to Login') }}</router-link>
         </div>
       </div>
     </section>
@@ -63,21 +73,6 @@
             <div class="card-icon">{{ f.icon }}</div>
             <h3>{{ f.title }}</h3>
             <p>{{ f.desc }}</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Unified Capabilities -->
-    <section class="section" id="capabilities">
-      <div class="container">
-        <h2 class="section-title">{{ t('统一数据能力', 'Unified Data Capabilities') }}</h2>
-        <div class="cap-row">
-          <div class="cap-item" v-for="c in capabilities" :key="c.label">
-            <div class="cap-icon">{{ c.icon }}</div>
-            <div class="cap-label">{{ c.name }}</div>
-            <div class="cap-desc">{{ c.label }}</div>
-            <span v-if="c.soon" class="badge-soon">{{ t('即将上线', 'Coming Soon') }}</span>
           </div>
         </div>
       </div>
@@ -199,16 +194,16 @@ await client.connect()</code></pre>
 import { ref, computed } from 'vue'
 import { useLocale } from '../../stores/locale'
 import { tenantApi } from '../../api/tenant'
-import { copyToClipboard } from '../../utils/clipboard'
 
 const { locale, setLocale, t } = useLocale()
 
 const mobileMenuOpen = ref(false)
-const tenantName = ref('')
-const apiKey = ref('')
+const regName = ref('')
+const regUsername = ref('')
+const regPassword = ref('')
 const registering = ref(false)
 const registerError = ref('')
-const copied = ref(false)
+const registerDone = ref(false)
 
 function toggleLocale() {
   setLocale(locale.value === 'zh' ? 'en' : 'zh')
@@ -219,26 +214,25 @@ function scrollTo(id: string) {
 }
 
 async function handleRegister() {
-  if (!tenantName.value.trim()) {
-    registerError.value = t('请输入租户名称', 'Please enter a tenant name')
-    return
-  }
+  if (!regName.value.trim() || !regUsername.value.trim() || regPassword.value.length < 6) return
   registering.value = true
   registerError.value = ''
   try {
-    const res = await tenantApi.register(tenantName.value.trim())
-    apiKey.value = res.data.api_key || ''
+    await tenantApi.register({
+      name: regName.value.trim(),
+      username: regUsername.value.trim(),
+      password: regPassword.value,
+    })
+    registerDone.value = true
   } catch (e: any) {
-    registerError.value = e?.response?.data?.message || e?.message || t('注册失败', 'Registration failed')
+    if (e?.response?.status === 409) {
+      registerError.value = t('该名称或用户名已存在', 'Name or username already exists')
+    } else {
+      registerError.value = e?.response?.data?.message || e?.message || t('注册失败', 'Registration failed')
+    }
   } finally {
     registering.value = false
   }
-}
-
-async function handleCopy() {
-  await copyToClipboard(apiKey.value)
-  copied.value = true
-  setTimeout(() => (copied.value = false), 2000)
 }
 
 const features = computed(() => [
@@ -404,6 +398,15 @@ const useCases = computed(() => [
   color: #1a1a1a;
 }
 
+.section-desc {
+  text-align: center;
+  font-size: 16px;
+  color: #555;
+  max-width: 720px;
+  margin: -28px auto 48px;
+  line-height: 1.7;
+}
+
 /* Hero */
 .hero {
   padding: 140px 0 80px;
@@ -429,10 +432,27 @@ const useCases = computed(() => [
 
 .register-form {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   gap: 12px;
   max-width: 480px;
   margin: 0 auto;
+}
+
+.register-fields {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.register-done {
+  margin-top: 8px;
+}
+
+.register-done-text {
+  font-size: 16px;
+  color: #389e0d;
+  margin-bottom: 12px;
 }
 
 .register-input {

@@ -82,8 +82,12 @@ public class ApiKeyFilter implements Filter {
             return;
         }
 
-        // Creating a tenant doesn't need auth
+        // Auth endpoints (login/register) don't need auth
         if ("POST".equals(request.getMethod()) && "/api/v1/tenants".equals(path)) {
+            chain.doFilter(req, res);
+            return;
+        }
+        if ("POST".equals(request.getMethod()) && "/api/v1/auth/login".equals(path)) {
             chain.doFilter(req, res);
             return;
         }

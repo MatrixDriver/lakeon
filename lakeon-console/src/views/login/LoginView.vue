@@ -23,17 +23,27 @@
       <!-- Login Form -->
       <div class="login-form" v-if="tab === 'login'">
         <div class="form-group">
-          <label class="form-label">API Key</label>
+          <label class="form-label">用户名</label>
+          <input
+            v-model="loginUsername"
+            class="form-input form-input-full"
+            placeholder="请输入用户名"
+            @keyup.enter="focusPassword"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">密码</label>
           <div class="input-wrapper">
             <input
-              :type="showKey ? 'text' : 'password'"
-              v-model="apiKeyInput"
+              ref="loginPwdInput"
+              :type="showPwd ? 'text' : 'password'"
+              v-model="loginPassword"
               class="form-input"
-              placeholder="请输入 API Key (lk_...)"
+              placeholder="请输入密码"
               @keyup.enter="handleLogin"
             />
-            <button class="toggle-btn" @click="showKey = !showKey" type="button">
-              {{ showKey ? '隐藏' : '显示' }}
+            <button class="toggle-btn" @click="showPwd = !showPwd" type="button">
+              {{ showPwd ? '隐藏' : '显示' }}
             </button>
           </div>
         </div>
@@ -43,7 +53,7 @@
         <button
           class="login-btn"
           :class="{ loading: isLoading }"
-          :disabled="isLoading || !apiKeyInput.trim()"
+          :disabled="isLoading || !loginUsername.trim() || !loginPassword"
           @click="handleLogin"
         >
           <span v-if="isLoading" class="spinner"></span>
@@ -59,6 +69,32 @@
             v-model="registerName"
             class="form-input form-input-full"
             placeholder="请输入租户名称（如公司名或项目名）"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">用户名 <span class="required">*</span></label>
+          <input
+            v-model="registerUsername"
+            class="form-input form-input-full"
+            placeholder="用于登录的用户名"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">密码 <span class="required">*</span></label>
+          <input
+            v-model="registerPassword"
+            type="password"
+            class="form-input form-input-full"
+            placeholder="设置登录密码（至少 6 位）"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">确认密码 <span class="required">*</span></label>
+          <input
+            v-model="registerConfirm"
+            type="password"
+            class="form-input form-input-full"
+            placeholder="再次输入密码"
             @keyup.enter="handleRegister"
           />
         </div>
@@ -68,7 +104,7 @@
         <button
           class="login-btn"
           :class="{ loading: isLoading }"
-          :disabled="isLoading || !registerName.trim()"
+          :disabled="isLoading || !registerFormValid"
           @click="handleRegister"
         >
           <span v-if="isLoading" class="spinner"></span>
@@ -77,109 +113,119 @@
       </div>
 
       <!-- Registration Success -->
-      <div v-if="registeredKey" class="register-success">
+      <div v-if="registerSuccess" class="register-success">
         <div class="success-alert">
-          注册成功！请立即复制您的 API Key，此 Key 仅显示一次。
+          注册成功！现在可以使用用户名和密码登录。
         </div>
-        <div class="key-row">
-          <code class="key-value">{{ registeredKey }}</code>
-          <button class="copy-btn" @click="handleCopyKey">{{ copyText }}</button>
-        </div>
-        <button class="login-btn" style="margin-top: 16px" @click="useKeyToLogin">
-          使用此 Key 登录
+        <button class="login-btn" style="margin-top: 12px" @click="goToLogin">
+          前往登录
         </button>
       </div>
 
       <div class="login-footer">
         <p v-if="tab === 'login'">没有账号？点击上方"注册"创建租户</p>
-        <p v-else>已有 API Key？点击上方"登录"</p>
+        <p v-else>已有账号？点击上方"登录"</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { tenantApi } from '../../api/tenant'
-import { copyToClipboard } from '../../utils/clipboard'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
 const tab = ref<'login' | 'register'>('login')
-const apiKeyInput = ref('')
+const loginUsername = ref('')
+const loginPassword = ref('')
+const showPwd = ref(false)
+const loginPwdInput = ref<HTMLInputElement | null>(null)
 const registerName = ref('')
-const showKey = ref(false)
+const registerUsername = ref('')
+const registerPassword = ref('')
+const registerConfirm = ref('')
 const isLoading = ref(false)
 const errorMsg = ref('')
-const registeredKey = ref('')
-const copyText = ref('复制')
+const registerSuccess = ref(false)
+
+const registerFormValid = computed(() =>
+  registerName.value.trim() && registerUsername.value.trim() &&
+  registerPassword.value.length >= 6 && registerConfirm.value === registerPassword.value
+)
+
+function focusPassword() {
+  loginPwdInput.value?.focus()
+}
 
 function switchTab(t: 'login' | 'register') {
   tab.value = t
   errorMsg.value = ''
-  registeredKey.value = ''
+  registerSuccess.value = false
 }
 
 async function handleLogin() {
-  const key = apiKeyInput.value.trim()
-  if (!key) return
+  const username = loginUsername.value.trim()
+  if (!username || !loginPassword.value) return
 
   errorMsg.value = ''
   isLoading.value = true
 
   try {
-    const ok = await authStore.login(key)
-    if (ok) {
+    const result = await authStore.login(username, loginPassword.value)
+    if (result.ok) {
       router.push('/dashboard')
     } else {
-      errorMsg.value = 'API Key 无效，请检查后重试'
+      errorMsg.value = result.error || '登录失败'
     }
-  } catch {
-    errorMsg.value = '网络错误，请稍后重试'
   } finally {
     isLoading.value = false
   }
 }
 
 async function handleRegister() {
-  const name = registerName.value.trim()
-  if (!name) return
+  if (!registerFormValid.value) return
+
+  if (registerPassword.value !== registerConfirm.value) {
+    errorMsg.value = '两次输入的密码不一致'
+    return
+  }
+  if (registerPassword.value.length < 6) {
+    errorMsg.value = '密码长度至少 6 位'
+    return
+  }
 
   errorMsg.value = ''
   isLoading.value = true
 
   try {
-    const res = await tenantApi.register(name)
-    const key = res.data.api_key
-    if (key) {
-      registeredKey.value = key
-      registerName.value = ''
-    }
+    await tenantApi.register({
+      name: registerName.value.trim(),
+      username: registerUsername.value.trim(),
+      password: registerPassword.value,
+    })
+    registerSuccess.value = true
+    registerName.value = ''
+    registerUsername.value = ''
+    registerPassword.value = ''
+    registerConfirm.value = ''
   } catch (e: any) {
     if (e.response?.status === 409) {
-      errorMsg.value = '该租户名称已存在，请换一个名称'
+      errorMsg.value = '该租户名称或用户名已存在'
     } else {
-      errorMsg.value = '注册失败，请稍后重试'
+      errorMsg.value = e.response?.data?.message || '注册失败，请稍后重试'
     }
   } finally {
     isLoading.value = false
   }
 }
 
-async function handleCopyKey() {
-  await copyToClipboard(registeredKey.value)
-  copyText.value = '已复制'
-  setTimeout(() => { copyText.value = '复制' }, 2000)
-}
-
-async function useKeyToLogin() {
-  apiKeyInput.value = registeredKey.value
-  registeredKey.value = ''
+function goToLogin() {
+  registerSuccess.value = false
   tab.value = 'login'
-  await handleLogin()
 }
 </script>
 
@@ -247,14 +293,14 @@ async function useKeyToLogin() {
 }
 
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .form-label {
   display: block;
   font-size: 14px;
   color: #333;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   font-weight: 500;
 }
 
@@ -381,40 +427,6 @@ async function useKeyToLogin() {
   padding: 10px 16px;
   font-size: 14px;
   color: #389e0d;
-  margin-bottom: 12px;
-}
-
-.key-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.key-value {
-  flex: 1;
-  font-size: 13px;
-  color: #191919;
-  background: #f2f3f5;
-  padding: 8px 12px;
-  border-radius: 2px;
-  word-break: break-all;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-}
-
-.copy-btn {
-  background: none;
-  border: 1px solid #c2c6cc;
-  border-radius: 2px;
-  padding: 6px 12px;
-  font-size: 12px;
-  color: #0073e6;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.copy-btn:hover {
-  border-color: #0073e6;
-  background-color: #f2f6fc;
 }
 
 .login-footer {

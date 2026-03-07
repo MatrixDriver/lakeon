@@ -36,8 +36,11 @@ export interface ImportTask {
 }
 
 export const importApi = {
+  testConnection: (data: { host: string; port: number; dbname: string; user: string; password: string }) =>
+    client.post<{ ok: boolean; version?: string; error?: string }>('/import/test-connection', data, { timeout: 30000 }),
+
   listSourceTables: (data: { host: string; port: number; dbname: string; user: string; password: string }) =>
-    client.post<SourceTableInfo[]>('/import/source-tables', data),
+    client.post<SourceTableInfo[]>('/import/source-tables', data, { timeout: 60000 }),
 
   create: (dbId: string, data: {
     sourceHost: string; sourcePort: number; sourceDbname: string;

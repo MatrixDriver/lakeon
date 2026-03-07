@@ -1,6 +1,7 @@
 package com.lakeon.controller;
 
 import com.lakeon.model.dto.CreateTenantRequest;
+import com.lakeon.model.dto.LoginRequest;
 import com.lakeon.model.dto.TenantResponse;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.service.TenantService;
@@ -11,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
-@RequestMapping("/api/v1/tenants")
+@RequestMapping("/api/v1")
 public class TenantController {
     private final TenantService tenantService;
 
@@ -19,24 +20,33 @@ public class TenantController {
         this.tenantService = tenantService;
     }
 
-    @PostMapping
+    @PostMapping("/auth/login")
+    public TenantResponse login(@Valid @RequestBody LoginRequest request) {
+        TenantResponse resp = tenantService.login(request);
+        if (resp == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password");
+        }
+        return resp;
+    }
+
+    @PostMapping("/tenants")
     @ResponseStatus(HttpStatus.CREATED)
     public TenantResponse createTenant(@Valid @RequestBody CreateTenantRequest request) {
         return tenantService.create(request);
     }
 
-    @GetMapping("/me")
+    @GetMapping("/tenants/me")
     public TenantResponse getCurrentTenant(HttpServletRequest req) {
         TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
         return tenantService.get(tenant.getId());
     }
 
-    @GetMapping("/{tenantId}")
+    @GetMapping("/tenants/{tenantId}")
     public TenantResponse getTenant(@PathVariable String tenantId) {
         return tenantService.get(tenantId);
     }
 
-    @PostMapping("/{tenantId}/regenerate-key")
+    @PostMapping("/tenants/{tenantId}/regenerate-key")
     public TenantResponse regenerateKey(HttpServletRequest req, @PathVariable String tenantId) {
         TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
         if (!tenant.getId().equals(tenantId)) {

@@ -7,23 +7,24 @@ export const useAuthStore = defineStore('auth', () => {
   const tenantId = ref(localStorage.getItem('lakeon_tenant_id') || '')
   const tenantName = ref(localStorage.getItem('lakeon_tenant_name') || '')
 
-  async function login(key: string): Promise<boolean> {
+  async function login(username: string, password: string): Promise<{ ok: boolean; error?: string }> {
     try {
-      // Validate key by fetching current tenant info
-      const res = await client.get('/tenants/me', {
-        headers: { Authorization: `Bearer ${key}` },
-      })
-      // Populate tenant info from response
+      const res = await client.post('/auth/login', { username, password })
       const tenant = res.data
-      const resolvedKey = tenant?.api_key || key
-      apiKey.value = resolvedKey
-      localStorage.setItem('lakeon_api_key', resolvedKey)
+      const key = tenant?.api_key
+      if (!key) return { ok: false, error: '登录失败' }
+
+      apiKey.value = key
+      localStorage.setItem('lakeon_api_key', key)
       if (tenant?.id) {
         setTenant(tenant.id, tenant.name || '')
       }
-      return true
-    } catch {
-      return false
+      return { ok: true }
+    } catch (e: any) {
+      if (e.response?.status === 401) {
+        return { ok: false, error: '用户名或密码错误' }
+      }
+      return { ok: false, error: '网络错误，请稍后重试' }
     }
   }
 

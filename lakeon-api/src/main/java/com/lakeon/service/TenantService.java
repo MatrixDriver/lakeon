@@ -1,12 +1,14 @@
 package com.lakeon.service;
 
 import com.lakeon.model.dto.CreateTenantRequest;
+import com.lakeon.model.dto.LoginRequest;
 import com.lakeon.model.dto.TenantResponse;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.repository.TenantRepository;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.exception.ConflictException;
 import com.lakeon.service.exception.NotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +18,7 @@ import java.security.SecureRandom;
 public class TenantService {
     private final TenantRepository tenantRepository;
     private final DatabaseRepository databaseRepository;
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public TenantService(TenantRepository tenantRepository, DatabaseRepository databaseRepository) {
         this.tenantRepository = tenantRepository;
@@ -27,11 +30,27 @@ public class TenantService {
         tenantRepository.findByName(request.name()).ifPresent(existing -> {
             throw new ConflictException("Tenant '" + request.name() + "' already exists");
         });
+        tenantRepository.findByUsername(request.username()).ifPresent(existing -> {
+            throw new ConflictException("Username '" + request.username() + "' already exists");
+        });
 
         TenantEntity entity = new TenantEntity();
         entity.setName(request.name());
+        entity.setUsername(request.username());
+        entity.setPasswordHash(passwordEncoder.encode(request.password()));
         entity = tenantRepository.save(entity);
 
+        return toResponse(entity);
+    }
+
+    public TenantResponse login(LoginRequest request) {
+        TenantEntity entity = tenantRepository.findByUsername(request.username()).orElse(null);
+        if (entity == null || !passwordEncoder.matches(request.password(), entity.getPasswordHash())) {
+            return null;
+        }
+        if (Boolean.TRUE.equals(entity.getDisabled())) {
+            return null;
+        }
         return toResponse(entity);
     }
 

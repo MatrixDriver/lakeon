@@ -41,8 +41,14 @@
               <input v-model="form.password" type="password" class="form-input" />
             </div>
           </div>
-          <div v-if="tablesLoading" class="loading-text" style="margin-top: 12px;">正在连接源数据库...</div>
-          <div v-if="connError" class="error-text" style="margin-top: 12px; color: #e34d59;">{{ connError }}</div>
+          <div class="test-conn-row" style="margin-top: 12px;">
+            <button class="btn btn-default btn-small" :disabled="!connFormValid || testingConn" @click="handleTestConn">
+              {{ testingConn ? '测试中...' : '测试连接' }}
+            </button>
+            <span v-if="connTestResult === true" class="text-success">✓ 连接成功<span v-if="connVersion" class="conn-version"> ({{ connVersion }})</span></span>
+            <span v-if="connTestResult === false" class="text-error">✗ {{ connError }}</span>
+          </div>
+          <div v-if="tablesLoading" class="loading-text" style="margin-top: 12px;">正在加载源表列表...</div>
         </div>
 
         <!-- Step 2: Table Selection -->
@@ -147,6 +153,9 @@ const sourceTables = ref<SourceTableInfo[]>([])
 const tablesLoading = ref(false)
 const creating = ref(false)
 const connError = ref('')
+const testingConn = ref(false)
+const connTestResult = ref<boolean | null>(null)
+const connVersion = ref('')
 
 const connFormValid = computed(() =>
   form.value.host && form.value.port && form.value.dbname && form.value.user && form.value.password
@@ -170,8 +179,36 @@ watch(() => props.visible, (v) => {
   if (v) {
     step.value = 0
     sourceTables.value = []
+    connTestResult.value = null
+    connError.value = ''
+    connVersion.value = ''
   }
 })
+
+async function handleTestConn() {
+  testingConn.value = true
+  connTestResult.value = null
+  connError.value = ''
+  connVersion.value = ''
+  try {
+    const res = await importApi.testConnection({
+      host: form.value.host, port: form.value.port,
+      dbname: form.value.dbname, user: form.value.user, password: form.value.password,
+    })
+    if (res.data.ok) {
+      connTestResult.value = true
+      connVersion.value = res.data.version || ''
+    } else {
+      connTestResult.value = false
+      connError.value = res.data.error || '连接失败'
+    }
+  } catch (e: any) {
+    connTestResult.value = false
+    connError.value = e.response?.data?.error?.message || e.message || '连接失败'
+  } finally {
+    testingConn.value = false
+  }
+}
 
 async function loadSourceTables() {
   tablesLoading.value = true
@@ -289,6 +326,7 @@ async function handleCreate() {
 .test-conn-row { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
 .text-success { color: #52c41a; font-size: 13px; }
 .text-error { color: #d4380d; font-size: 13px; }
+.conn-version { color: #8a8e99; font-size: 12px; }
 .radio-group { display: flex; gap: 20px; margin-top: 4px; }
 .radio-item { font-size: 14px; color: #191919; cursor: pointer; display: flex; align-items: center; gap: 4px; }
 .table-select-list { border: 1px solid #dfe1e6; border-radius: 2px; max-height: 260px; overflow-y: auto; }
