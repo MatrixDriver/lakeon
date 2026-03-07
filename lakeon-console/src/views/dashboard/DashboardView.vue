@@ -4,6 +4,10 @@
       <h1 class="page-title">总览</h1>
     </div>
 
+    <div v-if="apiOffline" class="offline-banner">
+      Lakeon API 当前不可用，服务可能正在维护中。Landing page 仍可正常访问。
+    </div>
+
     <!-- Status Bar (Huawei style horizontal stats) -->
     <div class="status-bar">
       <div class="status-bar-item">
@@ -75,6 +79,7 @@ import { formatDuration, formatDate } from '../../utils/format'
 const stats = reactive({ total: 0, running: 0, suspended: 0, error: 0 })
 const recentOps = ref<OperationLog[]>([])
 const loading = ref(true)
+const apiOffline = ref(false)
 
 onMounted(async () => {
   try {
@@ -90,10 +95,25 @@ onMounted(async () => {
     stats.error = databases.filter(d => !['RUNNING', 'SUSPENDED', 'CREATING'].includes(d.status)).length
 
     recentOps.value = opsRes.data
-  } catch (e) {
+  } catch (e: any) {
+    if (e.isApiOffline) {
+      apiOffline.value = true
+    }
     console.error('Failed to load dashboard data', e)
   } finally {
     loading.value = false
   }
 })
 </script>
+
+<style scoped>
+.offline-banner {
+  background: #fff3e0;
+  border: 1px solid #ffb74d;
+  color: #e65100;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+</style>

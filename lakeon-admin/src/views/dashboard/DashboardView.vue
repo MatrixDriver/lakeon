@@ -4,6 +4,10 @@
       <h1 class="page-title">仪表盘</h1>
     </div>
 
+    <div v-if="apiOffline" class="offline-banner">
+      Lakeon API 当前不可用，服务可能正在维护中。
+    </div>
+
     <!-- Metric Cards -->
     <div class="metric-cards">
       <div class="metric-card">
@@ -95,6 +99,7 @@ interface DashboardData {
 }
 
 const data = ref<DashboardData>({})
+const apiOffline = ref(false)
 const components = ref<Array<{ name: string; healthy: boolean }>>([])
 const operationStats = ref<Array<{ type: string; count: number }>>([])
 const costBreakdown = ref<Array<{ resource: string; cost: number }>>([])
@@ -136,7 +141,8 @@ onMounted(async () => {
       resource: COST_LABELS[key] || key,
       cost: cost as number,
     }))
-  } catch (e) {
+  } catch (e: any) {
+    if (e.isApiOffline) apiOffline.value = true
     console.error('Failed to load dashboard', e)
   }
 })
@@ -211,5 +217,14 @@ onMounted(async () => {
 .op-count {
   font-weight: 700;
   color: #191919;
+}
+.offline-banner {
+  background: #fff3e0;
+  border: 1px solid #ffb74d;
+  color: #e65100;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 14px;
 }
 </style>

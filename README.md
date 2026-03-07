@@ -372,28 +372,28 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [x] AlertService 扩展 SMN 通知渠道配置（AlertConfig）
 - [ ] SMN SDK 集成（需 NAT 网关出公网）
 
-### 阶段 9：计算节点弹性唤醒优化
+### 阶段 9：计算节点弹性唤醒优化 ✅
 
 从 ~10s 唤醒延迟优化到亚秒级。依赖阶段 8 的可观测性基础来量化优化效果。
 
 📋 [技术方案](docs/compute-wakeup-optimization.md)
 
-#### 9a：Pod 保留 + 进程冻结（目标 500ms-1s）
-- [ ] 验证 compute_ctl HTTP API（停止/重启 PG 进程）
-- [ ] suspend 改为停进程而非删 Pod
-- [ ] resume 检测 Pod 存在性，原地重启 PG
-- [ ] 分层超时回收（短期保留 → 长期销毁）
-- [ ] Readiness Probe 调优（initialDelay 5s→1s）
+#### 9a：Pod 保留 + Warm Wake ✅（实测 warm 6ms / cold 3s）
+- [x] suspend 时保留 Pod（不删除），仅标记 SUSPENDED 状态
+- [x] resume 时检测 Pod 存在性，warm path 直接恢复（~6ms）
+- [x] 分层超时回收（podRetainMinutes 默认 30 分钟，超时后删除 Pod）
+- [x] Readiness Probe 调优（initialDelay 5s→1s, period 2s→1s）
+- [x] SRE 仪表盘展示 warm/cold wake 分别的指标（次数 + 平均耗时）
 
-#### 9b：Warm Pool 预热池（目标 200-500ms）
-- [ ] 验证 compute_ctl 动态绑定 tenant/timeline API
-- [ ] 实现 WarmPoolManager（池创建/分配/补充）
-- [ ] Cold 路径唤醒改为从预热池分配
-- [ ] 池大小自适应策略 + 监控指标
+#### 9b：Warm Pool 预热池 — 搁置
+- 评估结论：cold wake 已优化到 ~3s（镜像缓存后），Warm Pool 仅能再省 ~1-1.5s（Pod 调度开销）
+- compute_ctl HTTP API 需要 JWT 认证（JWKS 为空时无法调用），动态绑定 tenant/timeline 方案受阻
+- 备选的 wrapper 脚本方案投入产出比不高，暂不推进
 
-#### 9c：Proxy 连接缓冲
-- [ ] Proxy 唤醒逻辑改为异步，连接立即成功
-- [ ] 首条 SQL 等待 compute 就绪后透明转发
+#### 9c：Proxy 连接缓冲 — 搁置
+- 评估结论：PgBouncer 前置不可行（会丢失 `options=endpoint%3D...` 路由参数，破坏 Neon Proxy SNI 路由）
+- 修改 Neon Proxy（Rust）成本过高，非核心路径
+- PgBouncer sidecar 可做连接池化但不解决唤醒延迟，移至阶段 10 连接池
 
 ### 阶段 10：产品化加固
 
