@@ -356,7 +356,7 @@ public class ComputePodManager {
             ),
             Map.of(
                 "name", "cloud_admin",
-                "encrypted_password", "cloud-admin-internal"
+                "encrypted_password", com.lakeon.util.ScramUtils.generateScramHash("cloud-admin-internal")
             )
         ));
         cluster.put("databases", List.of(Map.of(

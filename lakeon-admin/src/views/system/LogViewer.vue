@@ -34,6 +34,9 @@
           <button class="btn btn-primary btn-small" @click="fetchLogs" :disabled="loading">
             {{ loading ? '加载中...' : '刷新' }}
           </button>
+          <button class="btn btn-default btn-small" @click="downloadLogs" :disabled="downloading">
+            {{ downloading ? '导出中...' : '导出全量' }}
+          </button>
           <label class="auto-refresh-label">
             <input type="checkbox" v-model="autoRefresh" />
             自动刷新
@@ -59,6 +62,7 @@ const computeDbId = ref('')
 const tailLines = ref(200)
 const searchText = ref('')
 const loading = ref(false)
+const downloading = ref(false)
 const autoRefresh = ref(false)
 const logContent = ref('')
 const terminalRef = ref<HTMLElement | null>(null)
@@ -93,6 +97,28 @@ async function fetchComputeLogs() {
   const podName = 'compute-' + computeDbId.value.replace(/_/g, '-')
   selectedComponent.value = podName
   await fetchLogs()
+}
+
+async function downloadLogs() {
+  downloading.value = true
+  try {
+    const { data } = await client.get(`/logs/${selectedComponent.value}`, {
+      params: { tail: 0 },
+      transformResponse: [(d: string) => d],
+    })
+    const blob = new Blob([data], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const ts = new Date().toISOString().slice(0, 19).replace(/:/g, '-')
+    a.href = url
+    a.download = `${selectedComponent.value}-${ts}.log`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    alert('导出失败: ' + (e instanceof Error ? e.message : String(e)))
+  } finally {
+    downloading.value = false
+  }
 }
 
 function scrollToBottom() {

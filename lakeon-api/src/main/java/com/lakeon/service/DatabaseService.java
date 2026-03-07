@@ -142,6 +142,15 @@ public class DatabaseService {
         entity.setDbUser(dbUser);
         entity.setDbPassword(scramHash);
 
+        // Set connection host and port from proxy configuration
+        String proxyHost = props.getProxy().getExternalHost();
+        if (proxyHost != null && !proxyHost.isBlank()) {
+            entity.setComputeHost(proxyHost);
+        } else {
+            entity.setComputeHost("proxy.lakeon.svc.cluster.local");
+        }
+        entity.setComputePort(props.getProxy().getExternalPort());
+
         // Save entity first to generate ID (needed by computePodManager)
         entity = databaseRepository.save(entity);
 

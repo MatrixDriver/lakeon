@@ -43,7 +43,7 @@ api:
   adminToken: "lakeon-sre-2026"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/lakeon/lakeon-api
-    tag: "0.2.2"
+    tag: "0.2.3"
   resources:
     requests:
       cpu: "100m"
@@ -81,7 +81,7 @@ proxy:
   externalHost: "114.116.210.49"
   serviceType: LoadBalancer
   elb:
-    id: "d9f5b32c-6b7f-4389-88a7-bae4ff97c6e7"
+    id: "80fc030a-1577-4daf-9f4c-fa31e93a3a85"
     class: "union"
   resources:
     requests:
@@ -119,7 +119,7 @@ admin:
   port: 80
   serviceType: LoadBalancer
   elb:
-    id: "d9f5b32c-6b7f-4389-88a7-bae4ff97c6e7"
+    id: "80fc030a-1577-4daf-9f4c-fa31e93a3a85"
     class: "union"
     port: 8081        # ELB 监听端口，与 console(80) 区分
   resources:
@@ -140,7 +140,7 @@ console:
   port: 80
   serviceType: LoadBalancer
   elb:
-    id: "d9f5b32c-6b7f-4389-88a7-bae4ff97c6e7"
+    id: "80fc030a-1577-4daf-9f4c-fa31e93a3a85"
     class: "union"
   resources:
     requests:
