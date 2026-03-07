@@ -291,6 +291,23 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 - [x] 右侧表结构面板（列定义 + 索引 + 约束，分区显示）
 - [x] 类型标签（PK/FK/UNIQUE/CHECK 色彩区分）
 
+### 阶段 6b：数据预览与导入 ✅
+
+在数据库对象浏览基础上增加数据预览和外部 PG 数据导入功能。
+
+#### 数据预览
+- [x] 表数据预览 API（`SELECT * FROM table LIMIT 100`，支持分页）
+- [x] 前端数据预览面板（表格展示，列宽自适应）
+
+#### PG 数据导入
+- [x] 导入向导（连接配置 → 选择表 → 执行导入）
+- [x] 测试连接按钮（验证源库连通性，显示 PG 版本）
+- [x] 源表列表（自动过滤 extension 所属表，基于 pg_depend）
+- [x] 异步导入（API 立即返回 PENDING 状态，后台执行）
+- [x] Import Job Pod（`pg_dump | psql` 管道，hostNetwork 支持公网源库）
+- [x] 导入状态轮询（PENDING → RUNNING → COMPLETED/FAILED）
+- [x] 用户名密码登录（BCrypt 哈希，替代 API Key 登录入口）
+
 ### 阶段 7：CCE + CCI 混合架构验证
 
 验证混合部署方案：有状态组件运行在 CCE，compute 节点弹性调度到 CCI（云容器实例），实现 serverless 计算层。
