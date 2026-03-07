@@ -382,6 +382,11 @@ public class DatabaseService {
                 if (!ready) {
                     throw new RuntimeException("Compute pod not ready for database: " + entity.getName());
                 }
+                // Re-fetch pod IP after ready (may not be available right after pod creation)
+                String podIp = computePodManager.getPodIp(entity.getComputePodName());
+                if (podIp != null) {
+                    entity.setComputeHost(podIp);
+                }
             }
             entity.setStatus(DatabaseStatus.RUNNING);
             entity.setLastActiveAt(Instant.now());

@@ -174,8 +174,16 @@ public class ComputePodManager {
         k8sClient.pods().inNamespace(namespace).resource(pod).create();
         log.info("Created compute Pod: {}/{}", namespace, podName);
 
-        // Wait briefly for pod IP assignment
-        String podIp = getPodIp(podName);
+        // Wait for pod IP assignment (usually available within a few seconds)
+        String podIp = null;
+        for (int i = 0; i < 10; i++) {
+            podIp = getPodIp(podName);
+            if (podIp != null) break;
+            try { Thread.sleep(1000); } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
         entity.setComputePodName(podName);
         entity.setComputeHost(podIp);
         entity.setComputePort(55433);

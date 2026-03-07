@@ -90,7 +90,7 @@ async function loadDataPreview() {
   dataError.value = ''
   try {
     const res = await databaseApi.tableData(props.dbId, props.schema, props.table, {
-      page: 1,
+      page: 0,
       size: 100
     })
     dataPreview.value = {
@@ -99,8 +99,8 @@ async function loadDataPreview() {
       total_rows: res.data.total_rows
     }
   } catch (e: unknown) {
-    const err = e as { response?: { data?: { message?: string } }; message?: string }
-    dataError.value = err.response?.data?.message || err.message || '数据加载失败'
+    const err = e as { response?: { data?: { error?: { message?: string }; message?: string } }; message?: string }
+    dataError.value = err.response?.data?.error?.message || err.response?.data?.message || err.message || '数据加载失败'
     console.error('Failed to load data preview', e)
   } finally {
     dataLoading.value = false
@@ -111,13 +111,10 @@ async function loadStructure() {
   if (!props.schema || !props.table) return
   loading.value = true
   try {
-    await Promise.all([
-      (async () => {
-        const colRes = await databaseApi.listColumns(props.dbId, props.schema, props.table)
-        columns.value = colRes.data
-      })(),
-      loadDataPreview()
-    ])
+    // Load columns first (may trigger compute wakeup), then data preview
+    const colRes = await databaseApi.listColumns(props.dbId, props.schema, props.table)
+    columns.value = colRes.data
+    await loadDataPreview()
   } catch (e) {
     console.error('Failed to load structure', e)
   } finally {

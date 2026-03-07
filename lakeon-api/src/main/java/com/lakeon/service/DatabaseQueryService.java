@@ -535,6 +535,15 @@ public class DatabaseQueryService {
         // Ensure compute pod is running
         databaseService.wakeCompute(db);
 
+        // Re-read entity in case wakeCompute updated host/port in a separate transaction
+        if (db.getComputeHost() == null) {
+            DatabaseEntity refreshed = databaseRepository.findById(db.getId()).orElse(db);
+            db.setComputeHost(refreshed.getComputeHost());
+            db.setComputePort(refreshed.getComputePort());
+            db.setComputePodName(refreshed.getComputePodName());
+            db.setStatus(refreshed.getStatus());
+        }
+
         String host = db.getComputeHost();
         int port = db.getComputePort() != null ? db.getComputePort() : 55433;
         String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + db.getName();
