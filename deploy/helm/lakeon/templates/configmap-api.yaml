@@ -49,6 +49,9 @@ data:
   LAKEON_CLOUD_RESOURCE_IDS: {{ .Values.cloud.resourceIds | join "," | quote }}
   {{- end }}
   {{- end }}
+  {{- if .Values.api.suspendPodRetainMinutes }}
+  LAKEON_SUSPEND_POD_RETAIN_MINUTES: {{ .Values.api.suspendPodRetainMinutes | quote }}
+  {{- end }}
   {{- with .Values.alert }}
   {{- if .smnTopicUrn }}
   LAKEON_ALERT_SMN_TOPIC_URN: {{ .smnTopicUrn | quote }}

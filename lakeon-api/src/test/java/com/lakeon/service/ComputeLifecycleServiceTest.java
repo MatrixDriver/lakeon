@@ -1,19 +1,22 @@
 package com.lakeon.service;
 
+import com.lakeon.config.LakeonProperties;
 import com.lakeon.k8s.ComputePodManager;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.exception.WakeComputeTimeoutException;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,13 +37,22 @@ class ComputeLifecycleServiceTest {
     @Mock
     private ComputePodManager computePodManager;
 
-    @InjectMocks
+    @Mock
+    private OperationLogService operationLogService;
+
+    private LakeonProperties props;
     private ComputeLifecycleService computeLifecycleService;
 
+    @BeforeEach
+    void setUp() {
+        props = new LakeonProperties();
+        computeLifecycleService = new ComputeLifecycleService(
+                databaseRepository, computePodManager, operationLogService, props);
+    }
+
     @Test
-    @DisplayName("UT-SVC-CL-001: wake_compute — 正常唤醒，创建 Pod 并返回 compute 地址")
-    void wakeCompute_success() {
-        // Given
+    @DisplayName("UT-SVC-CL-001: wake_compute — cold path, create Pod and return address")
+    void wakeCompute_coldPath_success() {
         var dbEntity = new DatabaseEntity();
         dbEntity.setId("db_wake001");
         dbEntity.setStatus(DatabaseStatus.SUSPENDED);
@@ -59,10 +71,8 @@ class ComputeLifecycleServiceTest {
         when(computePodManager.waitForPodReady(eq("compute-db-wake001"), anyLong()))
                 .thenReturn(true);
 
-        // When
         var address = computeLifecycleService.wakeCompute("db_wake001");
 
-        // Then
         assertThat(address).isEqualTo("10.0.1.50:5432");
         verify(computePodManager).createComputePod(any());
         verify(computePodManager).waitForPodReady(anyString(), anyLong());
@@ -70,12 +80,12 @@ class ComputeLifecycleServiceTest {
         ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
         verify(databaseRepository).save(captor.capture());
         assertThat(captor.getValue().getStatus()).isEqualTo(DatabaseStatus.RUNNING);
+        assertThat(captor.getValue().getSuspendedAt()).isNull();
     }
 
     @Test
-    @DisplayName("UT-SVC-CL-002: wake_compute — Pod 启动超时，抛出 WakeComputeTimeoutException")
+    @DisplayName("UT-SVC-CL-002: wake_compute — Pod timeout throws WakeComputeTimeoutException")
     void wakeCompute_timeout() {
-        // Given
         var dbEntity = new DatabaseEntity();
         dbEntity.setId("db_wake002");
         dbEntity.setStatus(DatabaseStatus.SUSPENDED);
@@ -94,40 +104,111 @@ class ComputeLifecycleServiceTest {
         when(computePodManager.waitForPodReady(eq("compute-db-wake002"), anyLong()))
                 .thenReturn(false);
 
-        // When / Then
         assertThatThrownBy(() ->
                 computeLifecycleService.wakeCompute("db_wake002"))
                 .isInstanceOf(WakeComputeTimeoutException.class)
                 .hasMessageContaining("timeout");
 
-        // 验证状态设置为 error
         ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
         verify(databaseRepository).save(captor.capture());
         assertThat(captor.getValue().getStatus()).isEqualTo(DatabaseStatus.ERROR);
     }
 
     @Test
-    @DisplayName("UT-SVC-CL-003: 自动休眠检测 — 超时触发 Pod 销毁")
-    void autoSuspend_timeoutTriggered() {
-        // Given
+    @DisplayName("UT-SVC-CL-003: warm wake — Pod still running, instant resume")
+    void wakeCompute_warmPath_success() {
+        var dbEntity = new DatabaseEntity();
+        dbEntity.setId("db_warm001");
+        dbEntity.setStatus(DatabaseStatus.SUSPENDED);
+        dbEntity.setComputePodName("compute-db-warm001");
+        dbEntity.setComputeHost("10.0.1.60");
+        dbEntity.setComputePort(55433);
+        dbEntity.setSuspendedAt(Instant.now());
+
+        when(databaseRepository.findById("db_warm001"))
+                .thenReturn(Optional.of(dbEntity));
+        when(computePodManager.isPodReady("compute-db-warm001"))
+                .thenReturn(true);
+
+        var address = computeLifecycleService.wakeCompute("db_warm001");
+
+        assertThat(address).isEqualTo("10.0.1.60:55433");
+        // Should NOT create a new Pod
+        verify(computePodManager, never()).createComputePod(any());
+        verify(computePodManager, never()).waitForPodReady(anyString(), anyLong());
+
+        ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
+        verify(databaseRepository).save(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(DatabaseStatus.RUNNING);
+        assertThat(captor.getValue().getSuspendedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("UT-SVC-CL-004: auto-suspend retains Pod (no deletion)")
+    void autoSuspend_retainsPod() {
         var dbEntity = new DatabaseEntity();
         dbEntity.setId("db_auto001");
+        dbEntity.setTenantId("tn_test");
+        dbEntity.setName("testdb");
         dbEntity.setStatus(DatabaseStatus.RUNNING);
-        dbEntity.setComputePodName("compute-db_auto001");
+        dbEntity.setComputePodName("compute-db-auto001");
+        dbEntity.setComputeHost("10.0.1.70");
+        dbEntity.setComputePort(55433);
         dbEntity.setSuspendTimeout("5m");
 
         when(databaseRepository.findAllByStatus(DatabaseStatus.RUNNING))
-                .thenReturn(java.util.List.of(dbEntity));
-        when(computePodManager.getLastActivityTime("compute-db_auto001"))
-                .thenReturn(System.currentTimeMillis() - 600_000L); // 10 分钟前
+                .thenReturn(List.of(dbEntity));
+        when(databaseRepository.findAllByStatus(DatabaseStatus.SUSPENDED))
+                .thenReturn(List.of());
+        when(computePodManager.getLastActivityTime("compute-db-auto001"))
+                .thenReturn(System.currentTimeMillis() - 600_000L); // 10 min ago
 
-        // When
         computeLifecycleService.checkAutoSuspend();
 
-        // Then
-        verify(computePodManager).deleteComputePod("compute-db_auto001");
+        // Pod should NOT be deleted
+        verify(computePodManager, never()).deleteComputePod(anyString());
+
         ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
         verify(databaseRepository).save(captor.capture());
-        assertThat(captor.getValue().getStatus()).isEqualTo(DatabaseStatus.SUSPENDED);
+        var saved = captor.getValue();
+        assertThat(saved.getStatus()).isEqualTo(DatabaseStatus.SUSPENDED);
+        // Pod info retained
+        assertThat(saved.getComputePodName()).isEqualTo("compute-db-auto001");
+        assertThat(saved.getComputeHost()).isEqualTo("10.0.1.70");
+        assertThat(saved.getComputePort()).isEqualTo(55433);
+        assertThat(saved.getSuspendedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("UT-SVC-CL-005: expired Pod cleanup deletes Pod after retain period")
+    void cleanupExpiredPods_deletesOldPods() {
+        props.getSuspend().setPodRetainMinutes(30);
+
+        var dbEntity = new DatabaseEntity();
+        dbEntity.setId("db_expired001");
+        dbEntity.setTenantId("tn_test");
+        dbEntity.setStatus(DatabaseStatus.SUSPENDED);
+        dbEntity.setComputePodName("compute-db-expired001");
+        dbEntity.setComputeHost("10.0.1.80");
+        dbEntity.setComputePort(55433);
+        // Suspended 60 minutes ago (> 30 min retain)
+        dbEntity.setSuspendedAt(Instant.now().minusSeconds(3600));
+
+        when(databaseRepository.findAllByStatus(DatabaseStatus.RUNNING))
+                .thenReturn(List.of());
+        when(databaseRepository.findAllByStatus(DatabaseStatus.SUSPENDED))
+                .thenReturn(List.of(dbEntity));
+
+        computeLifecycleService.checkAutoSuspend();
+
+        // Pod should be deleted after retain period
+        verify(computePodManager).deleteComputePod("compute-db-expired001");
+
+        ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
+        verify(databaseRepository).save(captor.capture());
+        var saved = captor.getValue();
+        assertThat(saved.getComputePodName()).isNull();
+        assertThat(saved.getComputeHost()).isNull();
+        assertThat(saved.getComputePort()).isNull();
     }
 }

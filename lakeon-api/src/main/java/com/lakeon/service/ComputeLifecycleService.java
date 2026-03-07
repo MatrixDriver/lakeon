@@ -1,5 +1,6 @@
 package com.lakeon.service;
 
+import com.lakeon.config.LakeonProperties;
 import com.lakeon.k8s.ComputePodManager;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.OperationLogEntity;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -27,19 +29,22 @@ public class ComputeLifecycleService {
     private final DatabaseRepository databaseRepository;
     private final ComputePodManager computePodManager;
     private final OperationLogService operationLogService;
+    private final LakeonProperties props;
 
     public ComputeLifecycleService(DatabaseRepository databaseRepository,
                                    ComputePodManager computePodManager,
-                                   OperationLogService operationLogService) {
+                                   OperationLogService operationLogService,
+                                   LakeonProperties props) {
         this.databaseRepository = databaseRepository;
         this.computePodManager = computePodManager;
         this.operationLogService = operationLogService;
+        this.props = props;
     }
 
     /**
      * Wake compute for a database instance.
-     * Creates a new Pod and waits for it to become ready.
-     * Returns the compute address (host:port).
+     * Warm path: if Pod still exists and is ready, returns immediately (~100ms).
+     * Cold path: creates a new Pod and waits for it to become ready (~10s).
      */
     @Transactional
     public String wakeCompute(String dbId) {
@@ -52,15 +57,25 @@ public class ComputeLifecycleService {
             return entity.getComputeHost() + ":" + entity.getComputePort();
         }
 
-        // Create compute pod
-        String address = computePodManager.createComputePod(entity);
+        // Warm path: Pod was retained after suspend, check if it's still alive
+        if (entity.getComputePodName() != null && computePodManager.isPodReady(entity.getComputePodName())) {
+            log.info("Warm wake for database {} — Pod {} still running", dbId, entity.getComputePodName());
+            entity.setStatus(DatabaseStatus.RUNNING);
+            entity.setSuspendedAt(null);
+            entity.setLastActiveAt(Instant.now());
+            databaseRepository.save(entity);
+            return entity.getComputeHost() + ":" + entity.getComputePort();
+        }
 
-        // Wait for pod to be ready
+        // Cold path: create new Pod
+        String address = computePodManager.createComputePod(entity);
         String podName = entity.getComputePodName();
         boolean ready = computePodManager.waitForPodReady(podName, DEFAULT_WAKE_TIMEOUT_MS);
 
         if (ready) {
             entity.setStatus(DatabaseStatus.RUNNING);
+            entity.setSuspendedAt(null);
+            entity.setLastActiveAt(Instant.now());
             databaseRepository.save(entity);
             return address;
         } else {
@@ -71,9 +86,8 @@ public class ComputeLifecycleService {
     }
 
     /**
-     * Scheduled task to check for auto-suspend.
-     * Runs every 30 seconds. Checks running instances whose last activity
-     * exceeds the suspend_timeout, and suspends them.
+     * Auto-suspend check. Runs every 30 seconds.
+     * Marks inactive databases as SUSPENDED but retains the Pod for fast wake.
      */
     @Scheduled(fixedDelay = 30000)
     @Transactional
@@ -84,11 +98,16 @@ public class ComputeLifecycleService {
         }
         try {
             doCheckAutoSuspend();
+            doCleanupExpiredPods();
         } finally {
             suspendLock.unlock();
         }
     }
 
+    /**
+     * Suspend: mark as SUSPENDED but KEEP the Pod running for warm wake.
+     * Pod will be cleaned up later by doCleanupExpiredPods().
+     */
     private void doCheckAutoSuspend() {
         List<DatabaseEntity> runningInstances = databaseRepository.findAllByStatus(DatabaseStatus.RUNNING);
         for (DatabaseEntity entity : runningInstances) {
@@ -102,26 +121,52 @@ public class ComputeLifecycleService {
                 // Before suspending, check if pod has active client connections
                 if (computePodManager.hasActiveConnections(entity.getComputePodName())) {
                     log.debug("Skipping auto-suspend for {} — has active connections", entity.getId());
-                    entity.setLastActiveAt(java.time.Instant.now());
+                    entity.setLastActiveAt(Instant.now());
                     databaseRepository.save(entity);
                     continue;
                 }
-                log.info("Auto-suspending database {} (inactive for {}ms, timeout {}ms)",
+                log.info("Auto-suspending database {} (inactive for {}ms, timeout {}ms) — Pod retained for warm wake",
                     entity.getId(), elapsed, timeout.toMillis());
                 OperationLogEntity opLog = operationLogService.startOperation(
                         entity.getId(), entity.getTenantId(), entity.getName(), OperationType.SUSPEND);
                 try {
-                    computePodManager.deleteComputePod(entity.getComputePodName());
+                    // Key change: do NOT delete the Pod, just mark as SUSPENDED
                     entity.setStatus(DatabaseStatus.SUSPENDED);
-                    entity.setComputePodName(null);
-                    entity.setComputeHost(null);
-                    entity.setComputePort(null);
+                    entity.setSuspendedAt(Instant.now());
+                    // Keep computePodName, computeHost, computePort for warm wake
                     databaseRepository.save(entity);
                     operationLogService.completeOperation(opLog, null);
                 } catch (Exception e) {
                     operationLogService.completeOperation(opLog, e.getMessage());
                     log.error("Failed to auto-suspend database {}: {}", entity.getId(), e.getMessage());
                 }
+            }
+        }
+    }
+
+    /**
+     * Tiered cleanup: delete Pods that have been SUSPENDED longer than podRetainMinutes.
+     * This releases compute resources for databases that haven't been accessed in a while.
+     */
+    private void doCleanupExpiredPods() {
+        int retainMinutes = props.getSuspend().getPodRetainMinutes();
+        Instant cutoff = Instant.now().minus(Duration.ofMinutes(retainMinutes));
+
+        List<DatabaseEntity> suspendedInstances = databaseRepository.findAllByStatus(DatabaseStatus.SUSPENDED);
+        for (DatabaseEntity entity : suspendedInstances) {
+            if (entity.getComputePodName() == null) continue;
+            if (entity.getSuspendedAt() == null || entity.getSuspendedAt().isAfter(cutoff)) continue;
+
+            log.info("Cleaning up expired Pod for database {} (suspended since {}, retain={}min)",
+                entity.getId(), entity.getSuspendedAt(), retainMinutes);
+            try {
+                computePodManager.deleteComputePod(entity.getComputePodName());
+                entity.setComputePodName(null);
+                entity.setComputeHost(null);
+                entity.setComputePort(null);
+                databaseRepository.save(entity);
+            } catch (Exception e) {
+                log.error("Failed to cleanup Pod for database {}: {}", entity.getId(), e.getMessage());
             }
         }
     }

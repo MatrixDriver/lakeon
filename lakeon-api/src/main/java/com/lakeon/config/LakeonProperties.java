@@ -17,6 +17,7 @@ public class LakeonProperties {
     private CostConfig cost = new CostConfig();
     private CloudConfig cloud = new CloudConfig();
     private AlertConfig alert = new AlertConfig();
+    private SuspendConfig suspend = new SuspendConfig();
 
     public NeonConfig getNeon() { return neon; }
     public void setNeon(NeonConfig neon) { this.neon = neon; }
@@ -36,6 +37,8 @@ public class LakeonProperties {
     public void setCloud(CloudConfig cloud) { this.cloud = cloud; }
     public AlertConfig getAlert() { return alert; }
     public void setAlert(AlertConfig alert) { this.alert = alert; }
+    public SuspendConfig getSuspend() { return suspend; }
+    public void setSuspend(SuspendConfig suspend) { this.suspend = suspend; }
 
     public static class NeonConfig {
         private String pageserverUrl;
@@ -154,6 +157,13 @@ public class LakeonProperties {
         public void setSmnTopicUrn(String smnTopicUrn) { this.smnTopicUrn = smnTopicUrn; }
         public String getSmnRegion() { return smnRegion; }
         public void setSmnRegion(String smnRegion) { this.smnRegion = smnRegion; }
+    }
+
+    public static class SuspendConfig {
+        private int podRetainMinutes = 30;
+
+        public int getPodRetainMinutes() { return podRetainMinutes; }
+        public void setPodRetainMinutes(int podRetainMinutes) { this.podRetainMinutes = podRetainMinutes; }
     }
 
     public static class DefaultsConfig {

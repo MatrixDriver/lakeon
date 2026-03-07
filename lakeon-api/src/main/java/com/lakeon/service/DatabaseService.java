@@ -317,13 +317,9 @@ public class DatabaseService {
         OperationLogEntity opLog = operationLogService.startOperation(
                 entity.getId(), entity.getTenantId(), entity.getName(), OperationType.SUSPEND);
         try {
-            if (entity.getComputePodName() != null) {
-                computePodManager.deleteComputePod(entity.getComputePodName());
-            }
+            // Pod retained for warm wake — do NOT delete
             entity.setStatus(DatabaseStatus.SUSPENDED);
-            entity.setComputePodName(null);
-            entity.setComputeHost(null);
-            entity.setComputePort(null);
+            entity.setSuspendedAt(Instant.now());
             databaseRepository.save(entity);
             operationLogService.completeOperation(opLog, null);
         } catch (Exception e) {
@@ -345,16 +341,26 @@ public class DatabaseService {
                 entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME);
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
-            computePodManager.createComputePod(entity);
-            computePodManager.waitForPodReady(entity.getComputePodName(), 60_000);
+            // Warm path: Pod still running from previous session
+            boolean warmWake = entity.getComputePodName() != null
+                    && computePodManager.isPodReady(entity.getComputePodName());
+
+            if (!warmWake) {
+                // Cold path: create new Pod
+                computePodManager.createComputePod(entity);
+                computePodManager.waitForPodReady(entity.getComputePodName(), 60_000);
+            }
             sample.stop(Timer.builder("lakeon_compute_wakeup_seconds")
                 .description("Compute wakeup duration")
+                .tag("path", warmWake ? "warm" : "cold")
                 .register(meterRegistry));
             entity.setStatus(DatabaseStatus.RUNNING);
+            entity.setSuspendedAt(null);
             entity.setLastActiveAt(Instant.now());
             entity.setConnectionUri(buildConnectionUri(entity.getDbUser(), entity.getName()));
             databaseRepository.save(entity);
             operationLogService.completeOperation(opLog, null);
+            log.info("Resumed database {} via {} path", entity.getId(), warmWake ? "warm" : "cold");
         } catch (Exception e) {
             wakeupFailureCounter.increment();
             operationLogService.completeOperation(opLog, e.getMessage());
@@ -372,23 +378,37 @@ public class DatabaseService {
             return entity.getComputeHost() + ":" + entity.getComputePort();
         }
 
+        // Warm path: Pod retained after suspend, still running
+        if (entity.getComputePodName() != null && entity.getComputeHost() != null
+            && computePodManager.isPodReady(entity.getComputePodName())) {
+            log.info("Warm wake for database {} via proxy — Pod {} still running", entity.getId(), entity.getComputePodName());
+            OperationLogEntity opLog = operationLogService.startOperation(
+                    entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME);
+            entity.setStatus(DatabaseStatus.RUNNING);
+            entity.setSuspendedAt(null);
+            entity.setLastActiveAt(Instant.now());
+            databaseRepository.save(entity);
+            operationLogService.completeOperation(opLog, null);
+            return entity.getComputeHost() + ":" + entity.getComputePort();
+        }
+
+        // Cold path: create new Pod
         OperationLogEntity opLog = operationLogService.startOperation(
                 entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME);
         try {
             String address = computePodManager.createComputePod(entity);
-            // Wait for compute pod to be ready before returning
             if (entity.getComputePodName() != null) {
                 boolean ready = computePodManager.waitForPodReady(entity.getComputePodName(), 120_000L);
                 if (!ready) {
                     throw new RuntimeException("Compute pod not ready for database: " + entity.getName());
                 }
-                // Re-fetch pod IP after ready (may not be available right after pod creation)
                 String podIp = computePodManager.getPodIp(entity.getComputePodName());
                 if (podIp != null) {
                     entity.setComputeHost(podIp);
                 }
             }
             entity.setStatus(DatabaseStatus.RUNNING);
+            entity.setSuspendedAt(null);
             entity.setLastActiveAt(Instant.now());
             entity.setConnectionUri(buildConnectionUri(entity.getDbUser(), entity.getName()));
             databaseRepository.save(entity);

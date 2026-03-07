@@ -60,6 +60,9 @@ public class DatabaseEntity {
     @Column(name = "last_active_at")
     private Instant lastActiveAt;
 
+    @Column(name = "suspended_at")
+    private Instant suspendedAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -226,5 +229,13 @@ public class DatabaseEntity {
 
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Instant getSuspendedAt() {
+        return suspendedAt;
+    }
+
+    public void setSuspendedAt(Instant suspendedAt) {
+        this.suspendedAt = suspendedAt;
     }
 }

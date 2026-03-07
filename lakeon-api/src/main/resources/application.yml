@@ -50,6 +50,8 @@ lakeon:
   alert:
     smn-topic-urn: ${LAKEON_ALERT_SMN_TOPIC_URN:}
     smn-region: ${LAKEON_ALERT_SMN_REGION:cn-north-4}
+  suspend:
+    pod-retain-minutes: ${LAKEON_SUSPEND_POD_RETAIN_MINUTES:30}
   defaults:
     compute-size: ${LAKEON_DEFAULT_COMPUTE_SIZE:1cu}
     suspend-timeout: ${LAKEON_DEFAULT_SUSPEND_TIMEOUT:5m}
