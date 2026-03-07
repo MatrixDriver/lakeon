@@ -29,7 +29,7 @@
     <section class="hero" id="hero">
       <div class="container">
         <h1 class="hero-title">{{ t('为 AI 应用而生的 Serverless 数据平台', 'The Serverless Data Platform Built for AI') }}</h1>
-        <p class="hero-subtitle">{{ t('秒级创建，自动休眠，按需付费。关系型、向量、全文检索，一个平台全搞定。', 'Create in seconds, auto-sleep, pay-per-use. Relational, vector, full-text search — all in one platform.') }}</p>
+        <p class="hero-subtitle">{{ t('秒级创建，自动休眠，按需付费。关系型、向量、全文、图查询、RAG、时间旅行，一个平台全搞定。', 'Create in seconds, auto-sleep, pay-per-use. Relational, vector, full-text, graph, RAG, time travel — all in one platform.') }}</p>
         <div class="register-form" v-if="!apiKey">
           <input
             v-model="tenantName"
@@ -87,7 +87,7 @@
     <section class="section bg-alt" id="scenarios">
       <div class="container">
         <h2 class="section-title">{{ t('应用场景', 'Use Cases') }}</h2>
-        <div class="card-grid three">
+        <div class="card-grid">
           <div class="card" v-for="u in useCases" :key="u.title">
             <div class="card-icon">{{ u.icon }}</div>
             <h3>{{ u.title }}</h3>
@@ -111,7 +111,8 @@
             <div class="arch-cap-box">Vector</div>
             <div class="arch-cap-box">Search</div>
             <div class="arch-cap-box">Graph</div>
-            <div class="arch-cap-box">KV</div>
+            <div class="arch-cap-box">RAG</div>
+            <div class="arch-cap-box">Time Travel</div>
           </div>
         </div>
         <div class="arch-highlights">
@@ -125,7 +126,11 @@
           </div>
           <div class="arch-point">
             <span class="arch-bullet">3</span>
-            <span>{{ t('多引擎统一接口，一个连接串搞定所有', 'Multi-engine unified interface, one connection string for everything') }}</span>
+            <span>{{ t('向量、全文、图查询、RAG 全部内置，一个连接串搞定所有', 'Vector, full-text, graph, RAG all built-in — one connection string for everything') }}</span>
+          </div>
+          <div class="arch-point">
+            <span class="arch-bullet">4</span>
+            <span>{{ t('数据库分支实现时间旅行，像 Git 一样管理 AI 数据版本', 'Database branching enables time travel — manage AI data versions like Git') }}</span>
           </div>
         </div>
       </div>
@@ -245,16 +250,18 @@ const features = computed(() => [
 
 const capabilities = computed(() => [
   { icon: '\uD83D\uDC18', name: 'PostgreSQL', label: t('关系型查询', 'Relational Queries'), soon: false },
-  { icon: '\uD83D\uDD0D', name: 'pgvector', label: t('向量检索', 'Vector Search'), soon: false },
-  { icon: '\uD83D\uDCC4', name: 'pg_search', label: t('全文搜索', 'Full-text Search'), soon: false },
-  { icon: '\uD83D\uDD78', name: 'Graph', label: t('图查询', 'Graph Queries'), soon: true },
-  { icon: '\uD83D\uDD11', name: 'KV', label: t('KV 存储', 'KV Store'), soon: true },
+  { icon: '\uD83D\uDD0D', name: 'pgvector', label: t('向量 & 多模态检索', 'Vector & Multimodal Search'), soon: false },
+  { icon: '\uD83D\uDCC4', name: 'RUM', label: t('全文检索', 'Full-text Search'), soon: false },
+  { icon: '\uD83D\uDD78', name: 'SQL Graph', label: t('图查询 (CTE)', 'Graph Queries (CTE)'), soon: false },
+  { icon: '\uD83E\uDDE0', name: 'pgrag', label: t('内置 RAG', 'Built-in RAG'), soon: false },
+  { icon: '\u23F3', name: 'Time Travel', label: t('时间旅行', 'Time Travel'), soon: false },
 ])
 
 const useCases = computed(() => [
-  { icon: '\uD83E\uDDE0', title: t('AI Agent 长期记忆', 'AI Agent Long-term Memory'), desc: t('持久化对话历史、用户画像和行为偏好，让 Agent 真正"记住"用户', 'Persist conversation history, user profiles and preferences — let your Agent truly remember users') },
-  { icon: '\uD83D\uDCDA', title: t('知识库 / RAG', 'Knowledge Base / RAG'), desc: t('向量 + 全文混合检索，构建高质量检索增强生成管线', 'Hybrid vector + full-text retrieval for high-quality RAG pipelines') },
-  { icon: '\uD83C\uDF10', title: t('多模态数据处理', 'Multimodal Data'), desc: t('结构化与非结构化数据统一存储和查询，简化数据架构', 'Unified storage and query for structured and unstructured data') },
+  { icon: '\uD83E\uDDE0', title: t('AI Agent 长期记忆', 'AI Agent Long-term Memory'), desc: t('持久化对话历史、用户画像和行为偏好，让 Agent 真正"记住"用户。利用数据库分支实现时间旅行，随时回溯 Agent 的任意历史状态', 'Persist conversation history, user profiles and preferences. Use database branching for time travel — roll back to any historical state of your Agent') },
+  { icon: '\uD83D\uDCDA', title: t('知识库 / RAG', 'Knowledge Base / RAG'), desc: t('内置 embedding 生成与 reranker，向量 + 全文混合检索，无需外部服务即可构建高质量 RAG 管线', 'Built-in embedding generation and reranker. Hybrid vector + full-text retrieval for high-quality RAG pipelines — no external services needed') },
+  { icon: '\uD83C\uDF10', title: t('多模态数据处理', 'Multimodal Data'), desc: t('通过 pgvector 存储文本、图像、音频等任意模态的 embedding 向量，实现跨模态统一检索', 'Store embeddings from text, images, audio and any modality via pgvector for unified cross-modal retrieval') },
+  { icon: '\uD83D\uDD70', title: t('AI 数据版本管理', 'AI Data Versioning'), desc: t('基于 Neon 分支能力，像 Git 一样管理训练数据和模型配置。对比不同版本、安全回滚，加速 AI 迭代', 'Git-like data management via Neon branching. Compare versions, safely rollback, and accelerate AI iteration cycles') },
 ])
 </script>
 
