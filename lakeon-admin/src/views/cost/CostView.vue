@@ -4,10 +4,10 @@
       <h1 class="page-title">成本监控</h1>
     </div>
 
-    <!-- Estimated Cost -->
+    <!-- Cost Summary -->
     <div class="section-card">
       <div class="section-header">
-        <h3>Lakeon 预估成本</h3>
+        <h3>Lakeon 月度成本 <span v-if="costSource" class="source-badge" :class="costSource">{{ costSource === 'cbc' ? '实时账单' : '预估' }}</span></h3>
       </div>
       <div class="cost-cards" style="margin-bottom: 16px; padding: 0 16px;">
         <div class="total-cost-card">
@@ -115,6 +115,7 @@ const breakdown = ref<Array<{ resource: string; cost: number }>>([])
 const tenantCosts = ref<TenantCost[]>([])
 const trendData = ref<Array<{ date: string; fixed_cost: number; compute_cost: number; total_cost: number }>>([])
 const trendCanvas = ref<HTMLCanvasElement | null>(null)
+const costSource = ref<string>('')
 
 const hourlyCost = computed(() => {
   const m = summary.value.total_monthly_cost
@@ -132,9 +133,11 @@ onMounted(async () => {
       adminApi.costByTenant(),
     ])
 
-    // Estimated cost
+    // Cost data (real CBC or estimated)
     const sd = summaryRes.data
     summary.value = { total_monthly_cost: sd.total }
+    costSource.value = sd.source || 'estimate'
+
     const COST_LABELS: Record<string, string> = {
       cce_cluster: 'CCE 集群（含 EIP）', cce_nodes: 'CCE 节点', elb: '弹性负载均衡',
       rds: 'RDS 数据库', eip: '弹性公网 IP', obs: 'OBS 存储', compute: '计算资源',
@@ -238,6 +241,25 @@ function renderTrendChart() {
 </script>
 
 <style scoped>
+.source-badge {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.source-badge.cbc {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.source-badge.estimate {
+  background: #fff3e0;
+  color: #e65100;
+}
+
 .cost-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

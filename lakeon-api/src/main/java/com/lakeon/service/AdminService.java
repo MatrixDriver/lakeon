@@ -47,6 +47,7 @@ public class AdminService {
     private final UsageMeteringService usageMeteringService;
     private final MeterRegistry meterRegistry;
     private final KubernetesClient k8sClient;
+    private final CbcBillingService cbcBillingService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private volatile Map<String, Object> cloudResourcesCache;
     private volatile long cloudResourcesCacheTime;
@@ -59,7 +60,8 @@ public class AdminService {
                         DataSource dataSource,
                         UsageMeteringService usageMeteringService,
                         MeterRegistry meterRegistry,
-                        KubernetesClient k8sClient) {
+                        KubernetesClient k8sClient,
+                        CbcBillingService cbcBillingService) {
         this.tenantRepository = tenantRepository;
         this.databaseRepository = databaseRepository;
         this.operationLogRepository = operationLogRepository;
@@ -69,6 +71,7 @@ public class AdminService {
         this.usageMeteringService = usageMeteringService;
         this.meterRegistry = meterRegistry;
         this.k8sClient = k8sClient;
+        this.cbcBillingService = cbcBillingService;
 
         Gauge.builder("lakeon_tenants_total", tenantRepository, TenantRepository::count)
             .description("Total number of tenants")
@@ -182,6 +185,22 @@ public class AdminService {
     }
 
     public Map<String, Object> estimateMonthlyCost() {
+        // Try CBC real billing data first
+        try {
+            Map<String, Object> cbcData = cbcBillingService.getMonthlyBillParsed(null);
+            if (cbcData != null) {
+                log.debug("Using CBC real billing data");
+                return cbcData;
+            }
+        } catch (Exception e) {
+            log.warn("CBC billing failed, falling back to estimates: {}", e.getMessage());
+        }
+
+        // Fallback: config-based estimates
+        return estimateMonthlyCostFromConfig();
+    }
+
+    private Map<String, Object> estimateMonthlyCostFromConfig() {
         var cost = props.getCost();
         Map<String, Object> result = new LinkedHashMap<>();
 
@@ -191,10 +210,9 @@ public class AdminService {
         double rdsCost = cost.getRdsMonthly();
         double eipCost = cost.getEipMonthly();
 
-        // OBS cost based on database count * avg storage (rough estimate)
         List<DatabaseEntity> allDbs = databaseRepository.findAll();
         double totalStorageGb = allDbs.stream()
-                .mapToDouble(db -> db.getStorageLimitGb() * 0.1) // assume 10% utilization
+                .mapToDouble(db -> db.getStorageLimitGb() * 0.1)
                 .sum();
         double obsCost = totalStorageGb * cost.getObsPerGbMonthly();
 
@@ -210,6 +228,7 @@ public class AdminService {
 
         result.put("total", Math.round(total * 100.0) / 100.0);
         result.put("breakdown", breakdown);
+        result.put("source", "estimate");
         return result;
     }
 

@@ -1,5 +1,7 @@
 package com.lakeon.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,10 +34,98 @@ public class CbcBillingService {
 
     private final LakeonProperties props;
     private final HttpClient httpClient;
+    private final ObjectMapper objectMapper;
 
-    public CbcBillingService(LakeonProperties props) {
+    // Cache: avoid hitting CBC API too frequently (5 min TTL)
+    private volatile String cachedBillCycle;
+    private volatile Map<String, Object> cachedResult;
+    private volatile long cacheTime;
+    private static final long CACHE_TTL_MS = 5 * 60 * 1000;
+
+    public CbcBillingService(LakeonProperties props, ObjectMapper objectMapper) {
         this.props = props;
+        this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newHttpClient();
+    }
+
+    /**
+     * Get parsed monthly bill summary with breakdown by service type.
+     * Returns null if CBC is not configured or API call fails.
+     */
+    public Map<String, Object> getMonthlyBillParsed(String billCycle) {
+        if (billCycle == null || billCycle.isBlank()) {
+            billCycle = YearMonth.now(ZoneOffset.UTC).toString();
+        }
+
+        // Check cache
+        long now = System.currentTimeMillis();
+        if (cachedResult != null && billCycle.equals(cachedBillCycle) && (now - cacheTime) < CACHE_TTL_MS) {
+            return cachedResult;
+        }
+
+        String raw = fetchMonthlyBillSummary(billCycle);
+        if (raw == null) return null;
+
+        try {
+            Map<String, Object> parsed = parseBillResponse(raw);
+            parsed.put("bill_cycle", billCycle);
+            // Update cache
+            cachedBillCycle = billCycle;
+            cachedResult = parsed;
+            cacheTime = now;
+            return parsed;
+        } catch (Exception e) {
+            log.error("Failed to parse CBC response", e);
+            return null;
+        }
+    }
+
+    /**
+     * Parse CBC monthly-sum response into a structured breakdown.
+     */
+    private Map<String, Object> parseBillResponse(String json) throws Exception {
+        JsonNode root = objectMapper.readTree(json);
+        Map<String, Object> result = new LinkedHashMap<>();
+
+        // Map Huawei Cloud service types to readable names
+        Map<String, String> serviceLabels = Map.ofEntries(
+            Map.entry("hws.service.type.cce", "CCE \\u96C6\\u7FA4"),
+            Map.entry("hws.service.type.ecs", "\\u5F39\\u6027\\u4E91\\u670D\\u52A1\\u5668"),
+            Map.entry("hws.service.type.vpc", "\\u865A\\u62DF\\u79C1\\u6709\\u4E91"),
+            Map.entry("hws.service.type.eip", "\\u5F39\\u6027\\u516C\\u7F51 IP"),
+            Map.entry("hws.service.type.elb", "\\u5F39\\u6027\\u8D1F\\u8F7D\\u5747\\u8861"),
+            Map.entry("hws.service.type.obs", "OBS \\u5BF9\\u8C61\\u5B58\\u50A8"),
+            Map.entry("hws.service.type.rds", "RDS \\u6570\\u636E\\u5E93"),
+            Map.entry("hws.service.type.nat", "NAT \\u7F51\\u5173"),
+            Map.entry("hws.service.type.bandwidth", "\\u5E26\\u5BBD")
+        );
+
+        double totalAmount = 0;
+        Map<String, Double> breakdown = new LinkedHashMap<>();
+
+        JsonNode billSums = root.get("bill_sums");
+        if (billSums != null && billSums.isArray()) {
+            for (JsonNode item : billSums) {
+                String serviceType = item.has("cloud_service_type") ? item.get("cloud_service_type").asText() : "unknown";
+                double amount = item.has("amount") ? item.get("amount").asDouble() : 0;
+                totalAmount += amount;
+
+                String label = serviceLabels.getOrDefault(serviceType, serviceType);
+                breakdown.merge(label, amount, Double::sum);
+            }
+        }
+
+        result.put("total", Math.round(totalAmount * 100.0) / 100.0);
+        // Sort breakdown by cost descending
+        Map<String, Object> sortedBreakdown = new LinkedHashMap<>();
+        breakdown.entrySet().stream()
+            .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+            .forEach(e -> sortedBreakdown.put(e.getKey(), Math.round(e.getValue() * 100.0) / 100.0));
+        result.put("breakdown", sortedBreakdown);
+        result.put("source", "cbc");
+        result.put("currency", root.has("currency") ? root.get("currency").asText() : "CNY");
+
+        return result;
     }
 
     /**
@@ -62,7 +152,7 @@ public class CbcBillingService {
             String payloadHash = sha256Hex("");
 
             String canonicalRequest = String.join("\n",
-                    "GET", uri + "/", query, canonicalHeaders, signedHeaders, payloadHash);
+                    "GET", uri, query, canonicalHeaders, signedHeaders, payloadHash);
 
             String credentialScope = dateShort + "//bss/sdk_request";
             String stringToSign = String.join("\n",
@@ -82,6 +172,7 @@ public class CbcBillingService {
             String url = "https://" + CBC_HOST + uri + "?" + query;
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
+                    .header("Host", CBC_HOST)
                     .header("X-Sdk-Date", dateStamp)
                     .header("Authorization", authorization)
                     .header("Content-Type", "application/json")
@@ -89,6 +180,7 @@ public class CbcBillingService {
                     .build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            log.info("CBC API response: HTTP {}", response.statusCode());
             if (response.statusCode() == 200) {
                 return response.body();
             } else {
