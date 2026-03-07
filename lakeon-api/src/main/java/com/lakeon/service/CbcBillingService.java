@@ -23,7 +23,7 @@ import java.util.*;
 
 /**
  * Huawei Cloud CBC (Cloud Billing Center) integration.
- * Fetches actual billing data using AK/SK authentication.
+ * Fetches actual billing data filtered by Lakeon resource IDs.
  */
 @Service
 public class CbcBillingService {
@@ -32,11 +32,24 @@ public class CbcBillingService {
     private static final DateTimeFormatter ISO_BASIC = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'");
     private static final DateTimeFormatter DATE_SHORT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
+    private static final Map<String, String> SERVICE_LABELS = Map.ofEntries(
+        Map.entry("hws.service.type.cce", "CCE 集群"),
+        Map.entry("hws.service.type.ecs", "弹性云服务器"),
+        Map.entry("hws.service.type.vpc", "虚拟私有云"),
+        Map.entry("hws.service.type.eip", "弹性公网 IP"),
+        Map.entry("hws.service.type.elb", "弹性负载均衡"),
+        Map.entry("hws.service.type.obs", "OBS 对象存储"),
+        Map.entry("hws.service.type.rds", "RDS 数据库"),
+        Map.entry("hws.service.type.nat", "NAT 网关"),
+        Map.entry("hws.service.type.bandwidth", "带宽"),
+        Map.entry("hws.service.type.evs", "云硬盘")
+    );
+
     private final LakeonProperties props;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
-    // Cache: avoid hitting CBC API too frequently (5 min TTL)
+    // Cache: 5 min TTL
     private volatile String cachedBillCycle;
     private volatile Map<String, Object> cachedResult;
     private volatile long cacheTime;
@@ -49,7 +62,8 @@ public class CbcBillingService {
     }
 
     /**
-     * Get parsed monthly bill summary with breakdown by service type.
+     * Get parsed monthly bill filtered by Lakeon resource IDs.
+     * Uses res-records API for per-resource billing, filtered by configured resource IDs.
      * Returns null if CBC is not configured or API call fails.
      */
     public Map<String, Object> getMonthlyBillParsed(String billCycle) {
@@ -63,76 +77,120 @@ public class CbcBillingService {
             return cachedResult;
         }
 
-        String raw = fetchMonthlyBillSummary(billCycle);
-        if (raw == null) return null;
+        List<String> resourceIds = props.getCloud().getResourceIds();
+        if (resourceIds == null || resourceIds.isEmpty()) {
+            log.warn("CBC billing: no resource IDs configured (lakeon.cloud.resource-ids), skipping");
+            return null;
+        }
 
         try {
-            Map<String, Object> parsed = parseBillResponse(raw);
-            parsed.put("bill_cycle", billCycle);
-            // Update cache
+            // Fetch all resource records for the billing cycle, paginated
+            List<JsonNode> allRecords = fetchAllResRecords(billCycle);
+            if (allRecords == null) return null;
+
+            // Filter by Lakeon resource IDs
+            Set<String> idSet = new HashSet<>(resourceIds);
+            Map<String, Object> parsed = aggregateRecords(allRecords, idSet, billCycle);
+
             cachedBillCycle = billCycle;
             cachedResult = parsed;
             cacheTime = now;
             return parsed;
         } catch (Exception e) {
-            log.error("Failed to parse CBC response", e);
+            log.error("Failed to get CBC billing", e);
             return null;
         }
     }
 
     /**
-     * Parse CBC monthly-sum response into a structured breakdown.
+     * Fetch all res-records pages for a billing cycle.
      */
-    private Map<String, Object> parseBillResponse(String json) throws Exception {
-        JsonNode root = objectMapper.readTree(json);
-        Map<String, Object> result = new LinkedHashMap<>();
+    private List<JsonNode> fetchAllResRecords(String billCycle) {
+        List<JsonNode> allRecords = new ArrayList<>();
+        int offset = 0;
+        int limit = 100;
 
-        // Map Huawei Cloud service types to readable names
-        Map<String, String> serviceLabels = Map.ofEntries(
-            Map.entry("hws.service.type.cce", "CCE \\u96C6\\u7FA4"),
-            Map.entry("hws.service.type.ecs", "\\u5F39\\u6027\\u4E91\\u670D\\u52A1\\u5668"),
-            Map.entry("hws.service.type.vpc", "\\u865A\\u62DF\\u79C1\\u6709\\u4E91"),
-            Map.entry("hws.service.type.eip", "\\u5F39\\u6027\\u516C\\u7F51 IP"),
-            Map.entry("hws.service.type.elb", "\\u5F39\\u6027\\u8D1F\\u8F7D\\u5747\\u8861"),
-            Map.entry("hws.service.type.obs", "OBS \\u5BF9\\u8C61\\u5B58\\u50A8"),
-            Map.entry("hws.service.type.rds", "RDS \\u6570\\u636E\\u5E93"),
-            Map.entry("hws.service.type.nat", "NAT \\u7F51\\u5173"),
-            Map.entry("hws.service.type.bandwidth", "\\u5E26\\u5BBD")
-        );
+        while (true) {
+            String query = "bill_cycle=" + billCycle + "&offset=" + offset + "&limit=" + limit;
+            String raw = callCbcApi("/v2/bills/customer-bills/res-records", query);
+            if (raw == null) return allRecords.isEmpty() ? null : allRecords;
 
-        double totalAmount = 0;
-        Map<String, Double> breakdown = new LinkedHashMap<>();
+            try {
+                JsonNode root = objectMapper.readTree(raw);
+                JsonNode records = root.get("monthly_records");
+                if (records == null || !records.isArray() || records.isEmpty()) break;
 
-        JsonNode billSums = root.get("bill_sums");
-        if (billSums != null && billSums.isArray()) {
-            for (JsonNode item : billSums) {
-                String serviceType = item.has("cloud_service_type") ? item.get("cloud_service_type").asText() : "unknown";
-                double amount = item.has("amount") ? item.get("amount").asDouble() : 0;
-                totalAmount += amount;
+                for (JsonNode r : records) {
+                    allRecords.add(r);
+                }
 
-                String label = serviceLabels.getOrDefault(serviceType, serviceType);
-                breakdown.merge(label, amount, Double::sum);
+                int totalCount = root.has("total_count") ? root.get("total_count").asInt() : 0;
+                offset += limit;
+                if (offset >= totalCount) break;
+            } catch (Exception e) {
+                log.error("Failed to parse res-records response", e);
+                break;
             }
         }
+        return allRecords;
+    }
 
+    /**
+     * Aggregate records filtered by resource IDs into a cost summary.
+     */
+    private Map<String, Object> aggregateRecords(List<JsonNode> records, Set<String> resourceIds, String billCycle) {
+        double totalAmount = 0;
+        Map<String, Double> byService = new LinkedHashMap<>();
+        List<Map<String, Object>> details = new ArrayList<>();
+
+        for (JsonNode r : records) {
+            String resourceId = r.has("resource_id") ? r.get("resource_id").asText() : "";
+            if (!resourceIds.contains(resourceId)) continue;
+
+            double amount = r.has("amount") ? r.get("amount").asDouble() : 0;
+            totalAmount += amount;
+
+            String serviceType = r.has("cloud_service_type") ? r.get("cloud_service_type").asText() : "unknown";
+            String label = SERVICE_LABELS.getOrDefault(serviceType, serviceType);
+            byService.merge(label, amount, Double::sum);
+
+            String resourceName = r.has("resource_name") ? r.get("resource_name").asText() : resourceId;
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("resource_id", resourceId);
+            detail.put("resource_name", resourceName);
+            detail.put("service_type", label);
+            detail.put("amount", Math.round(amount * 100.0) / 100.0);
+            details.add(detail);
+        }
+
+        // Build result
+        Map<String, Object> result = new LinkedHashMap<>();
         result.put("total", Math.round(totalAmount * 100.0) / 100.0);
-        // Sort breakdown by cost descending
-        Map<String, Object> sortedBreakdown = new LinkedHashMap<>();
-        breakdown.entrySet().stream()
-            .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
-            .forEach(e -> sortedBreakdown.put(e.getKey(), Math.round(e.getValue() * 100.0) / 100.0));
-        result.put("breakdown", sortedBreakdown);
-        result.put("source", "cbc");
-        result.put("currency", root.has("currency") ? root.get("currency").asText() : "CNY");
 
+        // Sort breakdown by cost descending
+        Map<String, Object> breakdown = new LinkedHashMap<>();
+        byService.entrySet().stream()
+            .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+            .forEach(e -> breakdown.put(e.getKey(), Math.round(e.getValue() * 100.0) / 100.0));
+        result.put("breakdown", breakdown);
+
+        // Sort details by amount descending
+        details.sort((a, b) -> Double.compare(
+            ((Number) b.get("amount")).doubleValue(),
+            ((Number) a.get("amount")).doubleValue()));
+        result.put("details", details);
+
+        result.put("source", "cbc");
+        result.put("bill_cycle", billCycle);
+        result.put("resource_count", details.size());
+        result.put("currency", "CNY");
         return result;
     }
 
     /**
-     * Fetch monthly bill summary from CBC API.
-     * Returns the raw JSON response as a string, or null on failure.
+     * Call a CBC API endpoint with SDK-HMAC-SHA256 signing.
      */
-    public String fetchMonthlyBillSummary(String billCycle) {
+    private String callCbcApi(String uri, String query) {
         String ak = props.getObs().getAccessKey();
         String sk = props.getObs().getSecretKey();
         if (ak == null || ak.isBlank() || sk == null || sk.isBlank()) {
@@ -141,8 +199,6 @@ public class CbcBillingService {
         }
 
         try {
-            String uri = "/v2/bills/customer-bills/monthly-sum";
-            String query = "bill_cycle=" + billCycle;
             Instant now = Instant.now();
             String dateStamp = ISO_BASIC.format(now.atOffset(ZoneOffset.UTC));
             String dateShort = DATE_SHORT.format(now.atOffset(ZoneOffset.UTC));
@@ -180,7 +236,7 @@ public class CbcBillingService {
                     .build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            log.info("CBC API response: HTTP {}", response.statusCode());
+            log.info("CBC API {} response: HTTP {}", uri, response.statusCode());
             if (response.statusCode() == 200) {
                 return response.body();
             } else {
@@ -188,14 +244,18 @@ public class CbcBillingService {
                 return null;
             }
         } catch (Exception e) {
-            log.error("CBC billing fetch failed", e);
+            log.error("CBC API call failed: {}", uri, e);
             return null;
         }
     }
 
     /**
-     * Get current month billing summary.
+     * Fetch raw monthly bill summary (kept for /admin/cost/cbc endpoint).
      */
+    public String fetchMonthlyBillSummary(String billCycle) {
+        return callCbcApi("/v2/bills/customer-bills/monthly-sum", "bill_cycle=" + billCycle);
+    }
+
     public String getCurrentMonthBilling() {
         String cycle = YearMonth.now(ZoneOffset.UTC).toString();
         return fetchMonthlyBillSummary(cycle);

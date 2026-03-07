@@ -48,6 +48,31 @@
       </div>
     </div>
 
+    <!-- Resource Details (CBC real data) -->
+    <div class="section-card" style="margin-top: 24px;" v-if="resourceDetails.length > 0">
+      <div class="section-header">
+        <h3>资源费用明细</h3>
+      </div>
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>资源名称</th>
+              <th>服务类型</th>
+              <th>费用(元)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="d in resourceDetails" :key="d.resource_id">
+              <td>{{ d.resource_name }}</td>
+              <td>{{ d.service_type }}</td>
+              <td>{{ formatCurrency(d.amount) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Cost Trend Chart -->
     <div class="section-card" style="margin-top: 24px;">
       <div class="section-header">
@@ -116,6 +141,7 @@ const tenantCosts = ref<TenantCost[]>([])
 const trendData = ref<Array<{ date: string; fixed_cost: number; compute_cost: number; total_cost: number }>>([])
 const trendCanvas = ref<HTMLCanvasElement | null>(null)
 const costSource = ref<string>('')
+const resourceDetails = ref<Array<{ resource_id: string; resource_name: string; service_type: string; amount: number }>>([])
 
 const hourlyCost = computed(() => {
   const m = summary.value.total_monthly_cost
@@ -147,6 +173,7 @@ onMounted(async () => {
       resource: COST_LABELS[key] || key,
       cost: cost as number,
     }))
+    resourceDetails.value = sd.details || []
     tenantCosts.value = tenantRes.data.tenants || tenantRes.data || []
 
     // Cost trend

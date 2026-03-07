@@ -44,6 +44,8 @@ lakeon:
     image-pull-secrets: ${LAKEON_IMAGE_PULL_SECRETS:}
     compute-cpu: ${LAKEON_COMPUTE_CPU:}
     compute-memory: ${LAKEON_COMPUTE_MEMORY:}
+  cloud:
+    resource-ids: ${LAKEON_CLOUD_RESOURCE_IDS:}
   alert:
     smn-topic-urn: ${LAKEON_ALERT_SMN_TOPIC_URN:}
     smn-region: ${LAKEON_ALERT_SMN_REGION:cn-north-4}

@@ -135,9 +135,12 @@ public class LakeonProperties {
 
     public static class CloudConfig {
         private String resourcesFile = "/app/data/cloud-resources.json";
+        private List<String> resourceIds = List.of();
 
         public String getResourcesFile() { return resourcesFile; }
         public void setResourcesFile(String resourcesFile) { this.resourcesFile = resourcesFile; }
+        public List<String> getResourceIds() { return resourceIds; }
+        public void setResourceIds(List<String> resourceIds) { this.resourceIds = resourceIds; }
     }
 
     public static class AlertConfig {

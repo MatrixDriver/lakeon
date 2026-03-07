@@ -41,6 +41,11 @@ data:
   LAKEON_COST_EIP_MONTHLY: {{ .eipMonthly | default "150" | quote }}
   LAKEON_COST_COMPUTE_CU_HOURLY: {{ .computeCuHourly | default "0.5" | quote }}
   {{- end }}
+  {{- if .Values.cloud }}
+  {{- if .Values.cloud.resourceIds }}
+  LAKEON_CLOUD_RESOURCE_IDS: {{ .Values.cloud.resourceIds | join "," | quote }}
+  {{- end }}
+  {{- end }}
   {{- with .Values.alert }}
   {{- if .smnTopicUrn }}
   LAKEON_ALERT_SMN_TOPIC_URN: {{ .smnTopicUrn | quote }}

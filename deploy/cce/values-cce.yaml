@@ -161,6 +161,20 @@ cost:
   eipMonthly: "0"             # 服务 EIP 按流量计费，开发环境近乎免费
   computeCuHourly: "0.5"
 
+# ── CBC 账单过滤（仅统计 Lakeon 涉及的云资源）──────────────────
+# 在华为云控制台 > 费用中心 > 账单管理 > 资源账单 中查看 resource_id
+# 或使用 CBC API 获取完整资源列表后填入
+cloud:
+  resourceIds:
+    - "80fc030a-1577-4daf-9f4c-fa31e93a3a85"  # ELB 共享型
+    - "c62027b1-da20-4de1-b181-e56e7c2d0e71"  # NAT 网关
+    # TODO: 补充以下资源 ID（从华为云控制台获取）
+    # - "<CCE-CLUSTER-ID>"                     # CCE 集群
+    # - "<RDS-INSTANCE-ID>"                    # RDS PostgreSQL
+    # - "<ECS-NODE-ID>"                        # CCE 节点 (ECS)
+    # - "<OBS-BUCKET-ID>"                      # OBS 桶（如有独立计费）
+    # - "<EIP-ID>"                             # 弹性公网 IP
+
 # ── 节点初始化（修复 containerd core ulimit）─────────────────────
 nodeInit:
   enabled: true
