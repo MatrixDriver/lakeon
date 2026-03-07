@@ -56,8 +56,14 @@
           <div class="metric-label">活跃 Pod</div>
         </div>
         <div class="metric-card">
-          <div class="metric-value">{{ metrics.compute.wakeup_p50_ms }}<span class="metric-unit">ms</span></div>
-          <div class="metric-label">唤醒 P50</div>
+          <div class="metric-value text-warm">{{ metrics.compute.warm_wake_avg_ms }}<span class="metric-unit">ms</span></div>
+          <div class="metric-label">Warm Wake 均值</div>
+          <div class="metric-sub">{{ metrics.compute.warm_wake_count }} 次</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value text-cold">{{ metrics.compute.cold_wake_avg_ms }}<span class="metric-unit">ms</span></div>
+          <div class="metric-label">Cold Wake 均值</div>
+          <div class="metric-sub">{{ metrics.compute.cold_wake_count }} 次</div>
         </div>
         <div class="metric-card">
           <div class="metric-value" :class="{ 'text-danger': metrics.compute.wakeup_failures > 0 }">{{ metrics.compute.wakeup_failures }}</div>
@@ -107,7 +113,7 @@ import { adminApi } from '../../api/admin'
 interface MetricsSummary {
   jvm: { heap_used_mb: number; heap_max_mb: number; threads: number; gc_pause_ms: number }
   api: { request_rate_1m: number; p50_ms: number; p95_ms: number; p99_ms: number }
-  compute: { active_pods: number; wakeup_p50_ms: number; wakeup_failures: number }
+  compute: { active_pods: number; wakeup_p50_ms: number; warm_wake_count: number; warm_wake_avg_ms: number; cold_wake_count: number; cold_wake_avg_ms: number; wakeup_failures: number }
   databases: { total: number; running: number; suspended: number }
   storage: { used_gb: number }
 }
@@ -115,7 +121,7 @@ interface MetricsSummary {
 const defaultMetrics: MetricsSummary = {
   jvm: { heap_used_mb: 0, heap_max_mb: 0, threads: 0, gc_pause_ms: 0 },
   api: { request_rate_1m: 0, p50_ms: 0, p95_ms: 0, p99_ms: 0 },
-  compute: { active_pods: 0, wakeup_p50_ms: 0, wakeup_failures: 0 },
+  compute: { active_pods: 0, wakeup_p50_ms: 0, warm_wake_count: 0, warm_wake_avg_ms: 0, cold_wake_count: 0, cold_wake_avg_ms: 0, wakeup_failures: 0 },
   databases: { total: 0, running: 0, suspended: 0 },
   storage: { used_gb: 0 },
 }
@@ -236,7 +242,7 @@ onUnmounted(() => {
 <style scoped>
 .metric-cards {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 16px;
 }
 .metric-card {
@@ -269,6 +275,8 @@ onUnmounted(() => {
 }
 .text-warning { color: #e37318; }
 .text-danger { color: #e6393d; }
+.text-warm { color: #52c41a; }
+.text-cold { color: #0073e6; }
 .dot-green-text { color: #52c41a; }
 .auto-refresh-hint {
   font-size: 12px;

@@ -486,6 +486,15 @@ public class AdminService {
         } else {
             compute.put("wakeup_p50_ms", 0);
         }
+        // Warm/cold wake breakdown
+        Timer warmTimer = meterRegistry.find("lakeon_compute_wakeup_seconds").tag("path", "warm").timer();
+        Timer coldTimer = meterRegistry.find("lakeon_compute_wakeup_seconds").tag("path", "cold").timer();
+        compute.put("warm_wake_count", warmTimer != null ? (int) warmTimer.count() : 0);
+        compute.put("warm_wake_avg_ms", warmTimer != null && warmTimer.count() > 0
+            ? Math.round(warmTimer.mean(java.util.concurrent.TimeUnit.MILLISECONDS)) : 0);
+        compute.put("cold_wake_count", coldTimer != null ? (int) coldTimer.count() : 0);
+        compute.put("cold_wake_avg_ms", coldTimer != null && coldTimer.count() > 0
+            ? Math.round(coldTimer.mean(java.util.concurrent.TimeUnit.MILLISECONDS)) : 0);
         io.micrometer.core.instrument.Counter failCounter = meterRegistry.find("lakeon_compute_wakeup_failures_total").counter();
         compute.put("wakeup_failures", failCounter != null ? (int) failCounter.count() : 0);
         result.put("compute", compute);
