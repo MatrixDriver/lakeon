@@ -101,6 +101,7 @@
             <div class="summary-row"><span class="summary-label">表数量:</span> {{ tableCount }} 张</div>
             <div class="summary-row"><span class="summary-label">冲突策略:</span> {{ form.conflictStrategy === 'APPEND' ? '追加' : '覆盖' }}</div>
           </div>
+          <div v-if="createError" class="error-text" style="margin-top: 12px; color: #e34d59;">{{ createError }}</div>
         </div>
       </div>
 
@@ -208,8 +209,11 @@ function toggleAll() {
   }
 }
 
+const createError = ref('')
+
 async function handleCreate() {
   creating.value = true
+  createError.value = ''
   try {
     const res = await importApi.create(props.dbId, {
       sourceHost: form.value.host,
@@ -222,8 +226,9 @@ async function handleCreate() {
       tables: form.value.mode === 'SELECTIVE' ? form.value.selectedTables : undefined,
     })
     emit('created', res.data)
-  } catch (e) {
+  } catch (e: any) {
     console.error('Failed to create import', e)
+    createError.value = e.response?.data?.error?.message || e.response?.data?.message || e.message || '创建导入任务失败'
   } finally {
     creating.value = false
   }
