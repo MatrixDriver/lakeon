@@ -43,6 +43,7 @@ class AdminServiceTest {
     @Mock private DataSource dataSource;
     @Mock private UsageMeteringService usageMeteringService;
     @Mock private KubernetesClient kubernetesClient;
+    @Mock private CbcBillingService cbcBillingService;
 
     private MeterRegistry meterRegistry;
     private LakeonProperties props;
@@ -75,7 +76,7 @@ class AdminServiceTest {
         adminService = new AdminService(
                 tenantRepository, databaseRepository, operationLogRepository,
                 neonApiClient, props, dataSource, usageMeteringService,
-                meterRegistry, kubernetesClient);
+                meterRegistry, kubernetesClient, cbcBillingService);
     }
 
     @Nested
