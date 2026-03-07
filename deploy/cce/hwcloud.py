@@ -23,7 +23,7 @@ import hashlib, hmac, json, os, re, sys, time
 import urllib.request, urllib.parse, urllib.error
 from datetime import datetime, timezone
 
-REGION = "cn-north-4"
+REGION = "cn-south-1"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 ENV_FILE = os.path.join(SCRIPT_DIR, ".env.cce")
 CACHE_FILE = os.path.join(SCRIPT_DIR, ".lakeon-cloud.json")
@@ -34,7 +34,7 @@ VALUES_FILE = os.path.join(SCRIPT_DIR, "values-cce.yaml")
 
 def load_credentials():
     creds = {}
-    with open(ENV_FILE) as f:
+    with open(ENV_FILE, encoding='utf-8') as f:
         for line in f:
             line = line.strip()
             if "=" in line and not line.startswith("#"):
@@ -107,7 +107,7 @@ def _get_cluster_eip():
     """Extract CCE cluster API EIP from kubeconfig to avoid releasing it."""
     kc = os.environ.get("KUBECONFIG", os.path.expanduser("~/.kube/cce-lakeon-config"))
     try:
-        with open(kc) as f:
+        with open(kc, encoding='utf-8') as f:
             m = re.search(r'server:\s*https?://([0-9.]+)', f.read())
             return m.group(1) if m else None
     except: return None
@@ -164,10 +164,10 @@ def get_rds(ak, sk, pid):
     if s == 200:
         for inst in d.get("instances", []):
             if "lakeon" in inst.get("name", "").lower():
-                return inst["id"], inst["name"], inst["status"]
+                return inst["id"], inst["name"], inst["status"], inst.get("private_ips", [""])[0]
         if d.get("instances"):
             i = d["instances"][0]
-            return i["id"], i["name"], i["status"]
+            return i["id"], i["name"], i["status"], i.get("private_ips", [""])[0]
     raise Exception(f"获取 RDS 失败: {s} {d}")
 
 def get_elb(ak, sk, pid, elb_id):
@@ -226,20 +226,19 @@ def delete_node(ak, sk, pid, cid, node_uid):
     return api("DELETE", f"https://cce.{REGION}.myhuaweicloud.com/api/v3/projects/{pid}/clusters/{cid}/nodes/{node_uid}", ak, sk)
 
 def create_node(ak, sk, pid, cid, node_spec, node_password=""):
+    # Standard CCE Node Spec
     spec = {
-        "flavor": node_spec["flavor"],
+        "flavor": node_spec.get("flavor", "s6.xlarge.2"),
         "az": node_spec["az"],
-        "os": node_spec.get("os", "Huawei Cloud EulerOS 2.0"),
-        "rootVolume": node_spec.get("root_volume", {"volumetype": "GPSSD", "size": 50}),
-        "dataVolumes": node_spec.get("data_volumes", [{"volumetype": "GPSSD", "size": 100}]),
-        "runtime": node_spec.get("runtime", {"name": "containerd"}),
-        "nodeNicSpec": {"primaryNic": {"subnetId": node_spec.get("subnet_id", "")}},
+        "os": "Huawei Cloud EulerOS 2.9", # 2.9 is a safe standard
+        "rootVolume": {"volumetype": "GPSSD", "size": 50},
+        "dataVolumes": [{"volumetype": "GPSSD", "size": 100}],
+        "runtime": {"name": "containerd"},
+        "nodeNicSpec": {"primaryNic": {"subnetId": node_spec.get("subnet_id", "2f556317-04ce-4df6-9472-3bd98b3fd49e")}},
         "extendParam": {"chargingMode": 0},
+        "login": {"sshKey": "lakeon-key"},
+        "count": 1
     }
-    if node_password:
-        spec["login"] = {"userPassword": {"username": "root", "password": node_password}}
-    else:
-        spec["login"] = node_spec.get("login", {"userPassword": {"username": "root", "password": "Admin@2026"}})
     body = json.dumps({"kind": "Node", "apiVersion": "v3", "metadata": {}, "spec": spec})
     return api("POST", f"https://cce.{REGION}.myhuaweicloud.com/api/v3/projects/{pid}/clusters/{cid}/nodes", ak, sk, body)
 
@@ -252,23 +251,23 @@ def rds_action(ak, sk, pid, inst_id, action):
 
 def load_cache():
     if os.path.exists(CACHE_FILE):
-        with open(CACHE_FILE) as f: return json.load(f)
+        with open(CACHE_FILE, encoding='utf-8') as f: return json.load(f)
     return {}
 
 def save_cache(data):
-    with open(CACHE_FILE, "w") as f: json.dump(data, f, indent=2, ensure_ascii=False)
+    with open(CACHE_FILE, "w", encoding='utf-8') as f: json.dump(data, f, indent=2, ensure_ascii=False)
 
 
 # ── Update values-cce.yaml ──────────────────────────────────────
 
 def update_values(elb_id, eip):
-    with open(VALUES_FILE) as f:
+    with open(VALUES_FILE, encoding='utf-8') as f:
         content = f.read()
     # Update proxy.externalHost
     content = re.sub(r'(externalHost:\s*)"[^"]*"', f'\\1"{eip}"', content)
     # Update all elb.id occurrences
     content = re.sub(r'(id:\s*)"[0-9a-f-]+"', f'\\1"{elb_id}"', content)
-    with open(VALUES_FILE, "w") as f:
+    with open(VALUES_FILE, "w", encoding='utf-8') as f:
         f.write(content)
     print(f"  已更新 {VALUES_FILE}")
     print(f"    externalHost: {eip}")
@@ -286,11 +285,11 @@ def cmd_discover(ak, sk):
     nodes = get_nodes(ak, sk, pid, cid)
     for n in nodes:
         print(f"  节点:     {n['name']} ({n['flavor']}, {n['phase']})")
-    rid, rname, rstatus = get_rds(ak, sk, pid)
-    print(f"  RDS:      {rname} ({rstatus})")
+    rid, rname, rstatus, rip = get_rds(ak, sk, pid)
+    print(f"  RDS:      {rname} ({rstatus}) — {rip}")
 
     # ELB - read from values-cce.yaml
-    with open(VALUES_FILE) as f:
+    with open(VALUES_FILE, encoding='utf-8') as f:
         m = re.search(r'id:\s*"([0-9a-f-]+)"', f.read())
     elb_id = m.group(1) if m else None
     elb_config = None
@@ -475,7 +474,7 @@ def cmd_start_cloud(ak, sk):
     for i in range(90):
         if not rds_ok:
             try:
-                _, _, st = get_rds(ak, sk, pid)
+                _, _, st, _ = get_rds(ak, sk, pid)
                 if st.upper() in ("ACTIVE", "NORMAL"):
                     print(f"  ✓ RDS 就绪")
                     rds_ok = True
@@ -628,15 +627,15 @@ def cmd_list_resources(ak, sk):
     pid = get_project_id(ak, sk)
     cid, cname = get_cce_cluster(ak, sk, pid)
     nodes = get_nodes(ak, sk, pid, cid)
-    rid, rname, rstatus = get_rds(ak, sk, pid)
+    rid, rname, rstatus, _ = get_rds(ak, sk, pid)
 
     # Read ELB ID from values
-    with open(VALUES_FILE) as f:
+    with open(VALUES_FILE, encoding='utf-8') as f:
         m = re.search(r'id:\s*"([0-9a-f-]+)"', f.read())
     elb_id = m.group(1) if m else None
 
     # Read OBS bucket from values
-    with open(VALUES_FILE) as f:
+    with open(VALUES_FILE, encoding='utf-8') as f:
         content = f.read()
         bm = re.search(r'bucket:\s*(\S+)', content)
     obs_bucket = bm.group(1) if bm else "lakeon-storage"
@@ -798,7 +797,7 @@ def cmd_status(ak, sk):
         print(f"  节点 {n['name']}: {icon} {n['flavor']} ({n['phase']})")
 
     # RDS
-    _, rname, rst = get_rds(ak, sk, pid)
+    _, rname, rst, _ = get_rds(ak, sk, pid)
     print(f"  RDS {rname}: {'🟢' if rst.upper() in ('ACTIVE','NORMAL') else '🔴'} {rst}")
 
     # ELB

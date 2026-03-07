@@ -17,6 +17,6 @@ minio:
 # Huawei Cloud OBS (Beijing 4, virtual-host-style)
 obs:
   endpoint: "https://obs.cn-north-4.myhuaweicloud.com"
-  bucket: "lakeon-storage"
+  bucket: "lakeon-storage-raoliaoyuan"
   region: "cn-north-4"
   usePathStyle: false
