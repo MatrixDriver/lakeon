@@ -6,11 +6,16 @@ metadata:
   labels:
     app: lakeon-api
     {{- include "lakeon.labels" . | nindent 4 }}
+  {{- if .Values.api.elb }}
+  annotations:
+    kubernetes.io/elb.id: {{ .Values.api.elb.id | quote }}
+    kubernetes.io/elb.class: {{ .Values.api.elb.class | default "union" | quote }}
+  {{- end }}
 spec:
   type: {{ .Values.api.serviceType }}
   selector:
     app: lakeon-api
   ports:
     - name: http
-      port: {{ .Values.api.port }}
+      port: {{ if and .Values.api.elb .Values.api.elb.port }}{{ .Values.api.elb.port }}{{ else }}{{ .Values.api.port | default 8080 }}{{ end }}
       targetPort: http
