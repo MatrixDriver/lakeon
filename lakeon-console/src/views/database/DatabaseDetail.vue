@@ -204,6 +204,8 @@
             <option value="DELETE">删除</option>
             <option value="UPDATE">更新</option>
             <option value="IMPORT">导入</option>
+            <option value="BACKUP">备份</option>
+            <option value="RESTORE">恢复</option>
           </select>
         </div>
         <div class="section-card">
@@ -256,7 +258,116 @@
           />
         </div>
       </div>
-      <!-- Tab 4: Import -->
+      <!-- Tab 4: Backups -->
+      <div v-if="activeTab === 'backups'" class="tab-content">
+        <div class="tab-toolbar">
+          <button class="btn btn-primary btn-small" @click="showCreateBackupDialog = true">创建备份</button>
+        </div>
+        <div class="section-card">
+          <TableToolbar v-model="backupSearch" placeholder="搜索备份名称" :loading="backupsLoading" @refresh="fetchBackups" />
+          <div class="table-wrapper">
+            <table class="data-table" v-if="filteredBackups.length > 0">
+              <thead>
+                <tr>
+                  <th>名称</th>
+                  <th>类型</th>
+                  <th>状态</th>
+                  <th>LSN</th>
+                  <th>大小</th>
+                  <th>创建时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="b in pagedBackups" :key="b.id">
+                  <td>{{ b.name }}</td>
+                  <td>{{ b.type === 'MANUAL' ? '手动' : '定时' }}</td>
+                  <td>
+                    <span class="status-tag" :class="b.status === 'COMPLETED' ? 'tag-green' : b.status === 'FAILED' ? 'tag-red' : 'tag-blue'">
+                      {{ backupStatusText(b.status) }}
+                    </span>
+                  </td>
+                  <td><code class="lsn-text">{{ b.lsn || '-' }}</code></td>
+                  <td>{{ formatSize(b.size_bytes) }}</td>
+                  <td>{{ formatDate(b.created_at) }}</td>
+                  <td>
+                    <button
+                      class="btn btn-small btn-text"
+                      :disabled="b.status !== 'COMPLETED'"
+                      @click="openRestoreDialog(b)"
+                    >恢复</button>
+                    <button
+                      class="btn btn-small btn-text btn-danger-text"
+                      @click="handleDeleteBackup(b.id)"
+                    >删除</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else class="empty-state">
+              <p v-if="backupsLoading">加载中...</p>
+              <p v-else>暂无备份</p>
+            </div>
+          </div>
+          <TableFooter
+            v-if="filteredBackups.length > 0"
+            :total="filteredBackups.length"
+            v-model:pageSize="backupPageSize"
+            v-model:currentPage="backupCurrentPage"
+          />
+        </div>
+
+        <!-- Create Backup Dialog -->
+        <div v-if="showCreateBackupDialog" class="dialog-overlay" @click.self="showCreateBackupDialog = false">
+          <div class="dialog-box dialog-confirm">
+            <div class="dialog-header">
+              <h3>创建备份</h3>
+              <button class="dialog-close" @click="showCreateBackupDialog = false">&times;</button>
+            </div>
+            <div class="dialog-body">
+              <div class="form-group">
+                <label class="form-label">备份名称</label>
+                <input v-model="backupName" class="form-input" placeholder="可选，留空自动生成" />
+              </div>
+            </div>
+            <div class="dialog-footer">
+              <button class="btn btn-default" @click="showCreateBackupDialog = false">取消</button>
+              <button
+                class="btn btn-primary"
+                :disabled="backupCreating"
+                @click="handleCreateBackup"
+              >{{ backupCreating ? '创建中...' : '确定' }}</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Restore Dialog -->
+        <div v-if="showRestoreDialog" class="dialog-overlay" @click.self="showRestoreDialog = false">
+          <div class="dialog-box dialog-confirm">
+            <div class="dialog-header">
+              <h3>从备份恢复</h3>
+              <button class="dialog-close" @click="showRestoreDialog = false">&times;</button>
+            </div>
+            <div class="dialog-body">
+              <p class="restore-hint">将从备份 <strong>{{ restoreBackupName }}</strong> 创建一个新的数据库实例。</p>
+              <div class="form-group">
+                <label class="form-label">新数据库名称 <span class="required">*</span></label>
+                <input v-model="restoreDbName" class="form-input" placeholder="请输入新数据库名称" />
+              </div>
+            </div>
+            <div class="dialog-footer">
+              <button class="btn btn-default" @click="showRestoreDialog = false">取消</button>
+              <button
+                class="btn btn-primary"
+                :disabled="!restoreDbName.trim() || restoring"
+                @click="handleRestore"
+              >{{ restoring ? '恢复中...' : '确定' }}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 5: Import -->
       <div v-if="activeTab === 'import'" class="tab-content">
         <div v-if="selectedImportTaskId">
           <ImportTaskDetail
@@ -337,6 +448,7 @@ import { databaseApi, type Database } from '../../api/database'
 import { branchApi, type Branch } from '../../api/branch'
 import { operationApi, type OperationLog } from '../../api/operation'
 import { importApi, type ImportTask } from '../../api/import'
+import { backupApi, type Backup } from '../../api/backup'
 import ImportWizard from './ImportWizard.vue'
 import ImportTaskDetail from './ImportTaskDetail.vue'
 import TableToolbar from '../../components/TableToolbar.vue'
@@ -360,6 +472,7 @@ const tabs = [
   { key: 'info', label: '基本信息' },
   { key: 'branches', label: '分支' },
   { key: 'operations', label: '操作历史' },
+  { key: 'backups', label: '备份' },
   { key: 'import', label: '导入' },
 ]
 
@@ -381,6 +494,31 @@ const filteredBranches = computed(() => {
 const pagedBranches = computed(() => {
   const start = (branchCurrentPage.value - 1) * branchPageSize.value
   return filteredBranches.value.slice(start, start + branchPageSize.value)
+})
+
+// Backups
+const backups = ref<Backup[]>([])
+const backupsLoading = ref(false)
+const showCreateBackupDialog = ref(false)
+const backupName = ref('')
+const backupCreating = ref(false)
+const backupSearch = ref('')
+const backupPageSize = ref(10)
+const backupCurrentPage = ref(1)
+const showRestoreDialog = ref(false)
+const restoreBackupId = ref('')
+const restoreBackupName = ref('')
+const restoreDbName = ref('')
+const restoring = ref(false)
+
+const filteredBackups = computed(() => {
+  const q = backupSearch.value.toLowerCase()
+  if (!q) return backups.value
+  return backups.value.filter(b => b.name.toLowerCase().includes(q))
+})
+const pagedBackups = computed(() => {
+  const start = (backupCurrentPage.value - 1) * backupPageSize.value
+  return filteredBackups.value.slice(start, start + backupPageSize.value)
 })
 
 // Import
@@ -596,6 +734,84 @@ async function fetchOperations() {
 watch(opsPageSize, () => { opsCurrentPage.value = 1; fetchOperations() })
 watch(opsCurrentPage, () => { fetchOperations() })
 
+// Backups
+async function fetchBackups() {
+  backupsLoading.value = true
+  try {
+    const res = await backupApi.list(dbId.value)
+    backups.value = res.data
+  } catch (e) {
+    console.error('Failed to load backups', e)
+  } finally {
+    backupsLoading.value = false
+  }
+}
+
+async function handleCreateBackup() {
+  backupCreating.value = true
+  try {
+    await backupApi.create(dbId.value, { name: backupName.value.trim() || undefined })
+    showCreateBackupDialog.value = false
+    backupName.value = ''
+    await fetchBackups()
+  } catch (e) {
+    console.error('Failed to create backup', e)
+  } finally {
+    backupCreating.value = false
+  }
+}
+
+async function handleDeleteBackup(backupId: string) {
+  if (!confirm('确定要删除该备份吗？此操作不可恢复。')) return
+  try {
+    await backupApi.delete(dbId.value, backupId)
+    await fetchBackups()
+  } catch (e) {
+    console.error('Failed to delete backup', e)
+  }
+}
+
+function openRestoreDialog(b: Backup) {
+  restoreBackupId.value = b.id
+  restoreBackupName.value = b.name
+  restoreDbName.value = ''
+  showRestoreDialog.value = true
+}
+
+async function handleRestore() {
+  if (!restoreDbName.value.trim()) return
+  restoring.value = true
+  try {
+    await backupApi.restore(dbId.value, restoreBackupId.value, { name: restoreDbName.value.trim() })
+    showRestoreDialog.value = false
+    restoreDbName.value = ''
+    alert('恢复成功！新数据库已创建，请在数据库列表中查看。')
+  } catch (e) {
+    console.error('Failed to restore from backup', e)
+    alert('恢复失败，请重试。')
+  } finally {
+    restoring.value = false
+  }
+}
+
+function backupStatusText(status: string): string {
+  switch (status) {
+    case 'COMPLETED': return '已完成'
+    case 'RUNNING': return '进行中'
+    case 'FAILED': return '失败'
+    case 'PENDING': return '等待中'
+    default: return status
+  }
+}
+
+function formatSize(bytes: number | null): string {
+  if (bytes === null || bytes === undefined) return '-'
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
+}
+
 // Import
 async function fetchImportTasks() {
   importLoading.value = true
@@ -640,11 +856,13 @@ function handleImportCreated(task: ImportTask) {
 }
 
 watch([branchSearch, branchPageSize], () => { branchCurrentPage.value = 1 })
+watch([backupSearch, backupPageSize], () => { backupCurrentPage.value = 1 })
 watch([importSearch, importPageSize], () => { importCurrentPage.value = 1 })
 
 watch(activeTab, (tab) => {
   if (tab === 'branches' && branches.value.length === 0) fetchBranches()
   if (tab === 'operations' && operations.value.length === 0) fetchOperations()
+  if (tab === 'backups' && backups.value.length === 0) fetchBackups()
   if (tab === 'import' && importTasks.value.length === 0) fetchImportTasks()
 })
 
@@ -902,6 +1120,21 @@ onUnmounted(() => {
   background-color: #e6f7ff;
   color: #0073e6;
   margin-left: 6px;
+}
+
+/* Backup tab */
+.lsn-text {
+  font-size: 12px;
+  background: #f2f3f5;
+  padding: 2px 6px;
+  border-radius: 2px;
+  color: #575d6c;
+}
+
+.restore-hint {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: #575d6c;
 }
 
 /* Import tab */

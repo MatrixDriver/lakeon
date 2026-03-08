@@ -18,6 +18,7 @@ public class LakeonProperties {
     private CloudConfig cloud = new CloudConfig();
     private AlertConfig alert = new AlertConfig();
     private SuspendConfig suspend = new SuspendConfig();
+    private BackupConfig backup = new BackupConfig();
 
     public NeonConfig getNeon() { return neon; }
     public void setNeon(NeonConfig neon) { this.neon = neon; }
@@ -39,6 +40,8 @@ public class LakeonProperties {
     public void setAlert(AlertConfig alert) { this.alert = alert; }
     public SuspendConfig getSuspend() { return suspend; }
     public void setSuspend(SuspendConfig suspend) { this.suspend = suspend; }
+    public BackupConfig getBackup() { return backup; }
+    public void setBackup(BackupConfig backup) { this.backup = backup; }
 
     public static class NeonConfig {
         private String pageserverUrl;
@@ -164,6 +167,19 @@ public class LakeonProperties {
 
         public int getPodRetainMinutes() { return podRetainMinutes; }
         public void setPodRetainMinutes(int podRetainMinutes) { this.podRetainMinutes = podRetainMinutes; }
+    }
+
+    public static class BackupConfig {
+        private boolean scheduledEnabled = false;
+        private String cron = "0 0 2 * * ?";
+        private int retentionCount = 7;
+
+        public boolean isScheduledEnabled() { return scheduledEnabled; }
+        public void setScheduledEnabled(boolean scheduledEnabled) { this.scheduledEnabled = scheduledEnabled; }
+        public String getCron() { return cron; }
+        public void setCron(String cron) { this.cron = cron; }
+        public int getRetentionCount() { return retentionCount; }
+        public void setRetentionCount(int retentionCount) { this.retentionCount = retentionCount; }
     }
 
     public static class DefaultsConfig {
