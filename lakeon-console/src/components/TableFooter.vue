@@ -109,4 +109,23 @@ const totalPages = computed(() => Math.max(1, Math.ceil(props.total / props.page
   font-size: 13px;
   font-weight: 500;
 }
+
+@media (max-width: 768px) {
+  .table-footer-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .page-btn,
+  .page-num {
+    width: 36px;
+    height: 36px;
+  }
+
+  .page-size-select {
+    height: 36px;
+    font-size: 14px;
+  }
+}
 </style>

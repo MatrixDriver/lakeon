@@ -213,4 +213,29 @@ onMounted(async () => {
   color: #8a8e99;
   font-size: 14px;
 }
+
+@media (max-width: 768px) {
+  .page-db-manager {
+    height: auto;
+    min-height: calc(100vh - 48px);
+  }
+
+  .manager-layout {
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+  }
+
+  .manager-sidebar {
+    width: 100%;
+    max-height: 200px;
+    border-bottom: 1px solid #dfe1e6;
+    overflow-y: auto;
+  }
+
+  .content-top {
+    min-height: 200px !important;
+    height: 250px !important;
+  }
+}
 </style>

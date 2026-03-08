@@ -966,4 +966,64 @@ onUnmounted(() => {
   overflow: hidden;
   background: #fff;
 }
+
+@media (max-width: 768px) {
+  .summary-top {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .summary-actions {
+    width: 100%;
+  }
+
+  .summary-meta {
+    gap: 8px 16px;
+  }
+
+  .summary-field {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .uri-text {
+    font-size: 12px;
+    max-width: 100%;
+  }
+
+  .tab-header {
+    padding: 0 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab-btn {
+    padding: 12px 14px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .tab-content {
+    padding: 16px 12px;
+  }
+
+  .info-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .info-label {
+    min-width: auto;
+  }
+
+  .filter-select {
+    width: 100%;
+  }
+
+  .summary-card {
+    padding: 16px;
+  }
+}
 </style>

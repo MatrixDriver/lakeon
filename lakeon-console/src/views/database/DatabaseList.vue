@@ -399,4 +399,9 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
+@media (max-width: 768px) {
+  .storage-bar {
+    display: none;
+  }
+}
 </style>

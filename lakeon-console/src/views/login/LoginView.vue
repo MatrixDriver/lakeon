@@ -437,4 +437,40 @@ function goToLogin() {
   font-size: 13px;
   color: #999;
 }
+
+@media (max-width: 480px) {
+  .login-card {
+    width: 100%;
+    min-height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 40px 24px 32px;
+  }
+
+  .login-page {
+    align-items: stretch;
+  }
+
+  .login-logo {
+    font-size: 30px;
+  }
+
+  .login-btn {
+    height: 44px;
+    font-size: 16px;
+  }
+
+  .form-input {
+    padding: 12px;
+    font-size: 16px;
+  }
+
+  .form-input-full {
+    font-size: 16px;
+  }
+
+  .toggle-btn {
+    padding: 12px;
+  }
+}
 </style>

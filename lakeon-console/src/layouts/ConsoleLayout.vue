@@ -3,6 +3,11 @@
     <!-- Top Navigation Bar -->
     <header class="console-header">
       <div class="header-left">
+        <button class="mobile-menu-btn" @click="sidebarOpen = !sidebarOpen">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/>
+          </svg>
+        </button>
         <div class="header-grid-icon">
           <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
             <rect x="1" y="1" width="4" height="4" rx="0.5" />
@@ -38,21 +43,24 @@
         </div>
       </div>
       <div class="header-right">
-        <span class="header-nav-item">备案</span>
-        <span class="header-nav-item">资源</span>
-        <span class="header-nav-item">费用</span>
-        <span class="header-nav-item">企业</span>
-        <span class="header-nav-item">工具</span>
-        <span class="header-nav-item">工单</span>
-        <span class="header-divider-small"></span>
+        <span class="header-nav-item header-nav-desktop">备案</span>
+        <span class="header-nav-item header-nav-desktop">资源</span>
+        <span class="header-nav-item header-nav-desktop">费用</span>
+        <span class="header-nav-item header-nav-desktop">企业</span>
+        <span class="header-nav-item header-nav-desktop">工具</span>
+        <span class="header-nav-item header-nav-desktop">工单</span>
+        <span class="header-divider-small header-nav-desktop"></span>
         <span class="header-nav-item header-username">{{ authStore.tenantName || 'Tenant' }}</span>
         <button class="header-nav-item header-nav-btn" @click="handleLogout">退出</button>
       </div>
     </header>
 
     <div class="console-body">
+      <!-- Mobile sidebar overlay -->
+      <div v-if="sidebarOpen" class="sidebar-overlay" @click="sidebarOpen = false"></div>
+
       <!-- Left Sidebar -->
-      <aside class="console-sidebar">
+      <aside class="console-sidebar" :class="{ open: sidebarOpen }">
         <div class="sidebar-title">
           <span>DBay 数据库</span>
           <svg class="sidebar-search-icon" viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
@@ -61,16 +69,16 @@
         </div>
         <nav class="sidebar-nav">
           <div class="nav-group">
-            <router-link to="/dashboard" class="nav-item" active-class="active">总览</router-link>
-            <router-link to="/databases" class="nav-item" active-class="active">数据库实例</router-link>
+            <router-link to="/dashboard" class="nav-item" active-class="active" @click="sidebarOpen = false">总览</router-link>
+            <router-link to="/databases" class="nav-item" active-class="active" @click="sidebarOpen = false">数据库实例</router-link>
           </div>
           <div class="nav-group">
             <div class="nav-group-title">安全管理</div>
-            <router-link to="/apikey" class="nav-item" active-class="active">API Key</router-link>
+            <router-link to="/apikey" class="nav-item" active-class="active" @click="sidebarOpen = false">API Key</router-link>
           </div>
           <div class="nav-group">
             <div class="nav-group-title">帮助</div>
-            <router-link to="/docs" class="nav-item" active-class="active">使用指南</router-link>
+            <router-link to="/docs" class="nav-item" active-class="active" @click="sidebarOpen = false">使用指南</router-link>
           </div>
         </nav>
         <div class="sidebar-collapse">
@@ -89,11 +97,13 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const sidebarOpen = ref(false)
 
 function handleLogout() {
   authStore.logout()
@@ -335,5 +345,99 @@ function handleLogout() {
   background-color: #fff;
   overflow-y: auto;
   padding: 24px 24px 24px 32px;
+}
+
+/* Mobile hamburger button - hidden on desktop */
+.mobile-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  padding: 4px;
+  margin-right: 8px;
+}
+
+.mobile-menu-btn:hover {
+  color: #fff;
+}
+
+/* Mobile sidebar overlay */
+.sidebar-overlay {
+  display: none;
+}
+
+/* ============================
+   Mobile Responsive (< 768px)
+   ============================ */
+@media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: inline-flex;
+  }
+
+  .header-grid-icon,
+  .header-divider,
+  .header-console-text,
+  .header-region,
+  .header-center,
+  .header-nav-desktop {
+    display: none !important;
+  }
+
+  .header-right {
+    gap: 12px;
+  }
+
+  .logo-brand {
+    margin-right: 0;
+  }
+
+  .console-sidebar {
+    position: fixed;
+    top: 48px;
+    left: 0;
+    bottom: 0;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: none;
+  }
+
+  .console-sidebar.open {
+    transform: translateX(0);
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.15);
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 48px 0 0 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 199;
+  }
+
+  .sidebar-collapse {
+    display: none;
+  }
+
+  .console-main {
+    padding: 16px;
+  }
+}
+
+/* Small phones */
+@media (max-width: 480px) {
+  .header-username {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .console-main {
+    padding: 12px;
+  }
 }
 </style>

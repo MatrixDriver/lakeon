@@ -115,4 +115,19 @@ defineEmits<{
 .spinning {
   animation: spin 0.8s linear infinite;
 }
+
+@media (max-width: 768px) {
+  .table-toolbar {
+    height: 40px;
+  }
+
+  .search-input {
+    font-size: 16px;
+  }
+
+  .toolbar-icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+}
 </style>
