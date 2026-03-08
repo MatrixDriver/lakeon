@@ -11,6 +11,17 @@
     <div class="section">
       <h3 class="section-title">部署架构</h3>
       <div class="arch-diagram" v-if="topology">
+        <!-- Railway Layer (External) -->
+        <div class="arch-layer arch-layer-storage">
+          <div class="arch-box arch-box-railway">
+            <div class="arch-box-label">Railway (海外)</div>
+            <div class="arch-box-value">dbay.cloud</div>
+            <div class="arch-box-pods">Web 控制台 &middot; SRE Admin</div>
+          </div>
+        </div>
+
+        <div class="arch-arrow">&#8595; 浏览器直连 API</div>
+
         <!-- EIP Layer -->
         <div class="arch-layer arch-layer-network" v-if="topology.eip">
           <a :href="topology.eip.console_url" target="_blank" class="arch-box arch-box-network">
@@ -26,7 +37,7 @@
           <a :href="topology.elb.console_url" target="_blank" class="arch-box arch-box-network">
             <div class="arch-box-label">ELB</div>
             <div class="arch-box-value">{{ topology.elb.name }}</div>
-            <div class="arch-box-ports">:80 Console &middot; :8081 Admin &middot; :4432 PG Proxy</div>
+            <div class="arch-box-ports">:8443 API (HTTPS) &middot; :4432 PG Proxy &middot; :8080 API (内部)</div>
           </a>
         </div>
 
@@ -49,7 +60,7 @@
               </div>
               <div class="arch-box-pods">
                 pageserver &middot; safekeeper &middot; storage-broker<br>
-                proxy &middot; lakeon-api &middot; console &middot; admin
+                proxy &middot; lakeon-api (HTTPS, hostNetwork)
               </div>
             </a>
           </div>
@@ -301,6 +312,11 @@ onMounted(loadData)
 .arch-box-network {
   background: #fff7ed;
   border-color: #f97316;
+}
+
+.arch-box-railway {
+  background: #faf5ff;
+  border-color: #a855f7;
 }
 
 .arch-box-label {
