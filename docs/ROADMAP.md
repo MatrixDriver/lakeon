@@ -234,7 +234,7 @@
 
 | 组件 | 版本 | 部署位置 |
 |------|------|----------|
-| lakeon-api | 0.3.4 | CCE (hostNetwork, HTTPS) |
+| lakeon-api | 0.3.7 | CCE (hostNetwork, HTTPS) |
 | lakeon-console | 0.3.7 | Railway |
 | lakeon-admin | 0.2.0 | Railway |
 | lakeon-import | 0.2.0 | CCE (Job Pod) |
