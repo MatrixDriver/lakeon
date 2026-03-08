@@ -5,7 +5,7 @@
     </div>
 
     <div v-if="apiOffline" class="offline-banner">
-      Lakeon API 当前不可用，服务可能正在维护中。Landing page 仍可正常访问。
+      DBay API 当前不可用，服务可能正在维护中。Landing page 仍可正常访问。
     </div>
 
     <!-- Status Bar (Huawei style horizontal stats) -->

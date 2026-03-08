@@ -16,7 +16,7 @@
             <rect x="11" y="11" width="4" height="4" rx="0.5" />
           </svg>
         </div>
-        <span class="logo-brand">Lakeon</span>
+        <span class="logo-brand">DBay</span>
         <span class="header-divider"></span>
         <span class="header-console-text">控制台</span>
         <span class="header-region">
@@ -54,7 +54,7 @@
       <!-- Left Sidebar -->
       <aside class="console-sidebar">
         <div class="sidebar-title">
-          <span>Lakeon 数据库</span>
+          <span>DBay 数据库</span>
           <svg class="sidebar-search-icon" viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
             <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
           </svg>

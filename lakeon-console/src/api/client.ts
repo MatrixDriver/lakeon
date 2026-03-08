@@ -28,7 +28,7 @@ client.interceptors.response.use(
     if (error.response?.status === 503 || !error.response) {
       error.isApiOffline = true
       error.offlineMessage = error.response?.data?.error?.message
-        || 'Lakeon API is currently offline. The service may be in maintenance mode.'
+        || 'DBay API is currently offline. The service may be in maintenance mode.'
     }
     return Promise.reject(error)
   }

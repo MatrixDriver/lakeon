@@ -2,8 +2,9 @@
   <div class="login-page">
     <div class="login-card">
       <div class="login-header">
-        <h1 class="login-logo">Lakeon</h1>
-        <p class="login-subtitle">Serverless PostgreSQL Console</p>
+        <h1 class="login-logo">DBay</h1>
+        <p class="login-tagline">数据港湾</p>
+        <p class="login-subtitle">Serverless 云数据库，按需启停，零运维</p>
       </div>
 
       <!-- Tab Switch -->
@@ -64,19 +65,11 @@
       <!-- Register Form -->
       <div class="login-form" v-if="tab === 'register'">
         <div class="form-group">
-          <label class="form-label">租户名称 <span class="required">*</span></label>
-          <input
-            v-model="registerName"
-            class="form-input form-input-full"
-            placeholder="请输入租户名称（如公司名或项目名）"
-          />
-        </div>
-        <div class="form-group">
           <label class="form-label">用户名 <span class="required">*</span></label>
           <input
             v-model="registerUsername"
             class="form-input form-input-full"
-            placeholder="用于登录的用户名"
+            placeholder="请输入用户名"
           />
         </div>
         <div class="form-group">
@@ -144,7 +137,6 @@ const loginUsername = ref('')
 const loginPassword = ref('')
 const showPwd = ref(false)
 const loginPwdInput = ref<HTMLInputElement | null>(null)
-const registerName = ref('')
 const registerUsername = ref('')
 const registerPassword = ref('')
 const registerConfirm = ref('')
@@ -153,7 +145,7 @@ const errorMsg = ref('')
 const registerSuccess = ref(false)
 
 const registerFormValid = computed(() =>
-  registerName.value.trim() && registerUsername.value.trim() &&
+  registerUsername.value.trim() &&
   registerPassword.value.length >= 6 && registerConfirm.value === registerPassword.value
 )
 
@@ -203,12 +195,10 @@ async function handleRegister() {
 
   try {
     await tenantApi.register({
-      name: registerName.value.trim(),
       username: registerUsername.value.trim(),
       password: registerPassword.value,
     })
     registerSuccess.value = true
-    registerName.value = ''
     registerUsername.value = ''
     registerPassword.value = ''
     registerConfirm.value = ''
@@ -252,15 +242,22 @@ function goToLogin() {
 }
 
 .login-logo {
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 700;
-  color: #e6393d;
-  margin-bottom: 8px;
-  letter-spacing: 1px;
+  color: #0073e6;
+  margin-bottom: 4px;
+  letter-spacing: 2px;
+}
+
+.login-tagline {
+  font-size: 16px;
+  color: #333;
+  font-weight: 500;
+  margin-bottom: 6px;
 }
 
 .login-subtitle {
-  font-size: 14px;
+  font-size: 13px;
   color: #999;
 }
 

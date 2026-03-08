@@ -3,7 +3,7 @@
     <!-- Top Navigation Bar -->
     <nav class="nav-bar">
       <div class="nav-inner">
-        <div class="nav-logo">Lakeon</div>
+        <div class="nav-logo">DBay <span class="nav-tagline">数据港湾</span></div>
         <div class="nav-links">
           <a href="#features" @click.prevent="scrollTo('features')">{{ t('特性', 'Features') }}</a>
           <a href="#capabilities" @click.prevent="scrollTo('capabilities')">{{ t('能力', 'Capabilities') }}</a>
@@ -28,8 +28,8 @@
     <!-- Hero Section -->
     <section class="hero" id="hero">
       <div class="container">
-        <h1 class="hero-title">{{ t('为 AI 应用而生的 Serverless 数据平台', 'The Serverless Data Platform Built for AI') }}</h1>
-        <p class="hero-subtitle">{{ t('秒级创建，自动休眠，按需付费。关系型、向量、全文、图查询、RAG、时间旅行，一个平台全搞定。', 'Create in seconds, auto-sleep, pay-per-use. Relational, vector, full-text, graph, RAG, time travel — all in one platform.') }}</p>
+        <h1 class="hero-title">{{ t('数据港湾 — 为 AI 应用而生的 Serverless 数据平台', 'DBay — The Serverless Data Platform Built for AI') }}</h1>
+        <p class="hero-subtitle">{{ t('让数据安全停泊，按需启航。秒级创建，自动休眠，按需付费。关系型、向量、全文、图查询、RAG、时间旅行，一个平台全搞定。', 'Dock your data safely, set sail on demand. Create in seconds, auto-sleep, pay-per-use. Relational, vector, full-text, graph, RAG, time travel — all in one platform.') }}</p>
         <div class="cap-row" id="capabilities">
           <div class="cap-item" v-for="c in capabilities" :key="c.label">
             <div class="cap-icon">{{ c.icon }}</div>
@@ -76,7 +76,7 @@
         <div class="arch-diagram">
           <div class="arch-box app-box">{{ t('你的应用', 'Your App') }}</div>
           <div class="arch-arrow">&rarr;</div>
-          <div class="arch-box lakeon-box">Lakeon</div>
+          <div class="arch-box lakeon-box">DBay</div>
           <div class="arch-arrow">&rarr;</div>
           <div class="arch-capabilities">
             <div class="arch-cap-box">SQL</div>
@@ -122,7 +122,7 @@
           <div class="step">
             <div class="step-num">2</div>
             <h3>{{ t('创建数据库', 'Create Database') }}</h3>
-            <pre class="code-block"><code>curl -X POST https://api.lakeon.cn/v1/databases \
+            <pre class="code-block"><code>curl -X POST https://api.dbay.cloud/v1/databases \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{"name": "mydb"}'</code></pre>
           </div>
@@ -131,10 +131,10 @@
             <h3>{{ t('连接使用', 'Connect') }}</h3>
             <div class="code-label">Python</div>
             <pre class="code-block"><code>import psycopg2
-conn = psycopg2.connect("postgres://user@api.lakeon.cn:4432/mydb?options=endpoint%3Dmydb")</code></pre>
+conn = psycopg2.connect("postgres://user@api.dbay.cloud:4432/mydb?options=endpoint%3Dmydb")</code></pre>
             <div class="code-label" style="margin-top: 12px;">Node.js</div>
             <pre class="code-block"><code>import pg from 'pg'
-const client = new pg.Client("postgres://user@api.lakeon.cn:4432/mydb?options=endpoint%3Dmydb")
+const client = new pg.Client("postgres://user@api.dbay.cloud:4432/mydb?options=endpoint%3Dmydb")
 await client.connect()</code></pre>
           </div>
         </div>
@@ -154,7 +154,7 @@ await client.connect()</code></pre>
     <!-- Footer -->
     <footer class="footer">
       <div class="container footer-inner">
-        <span>&copy; 2026 Lakeon. All rights reserved.</span>
+        <span>&copy; 2026 DBay. All rights reserved.</span>
         <div class="footer-links">
           <a href="#">{{ t('文档', 'Docs') }}</a>
           <span class="footer-sep">|</span>
@@ -245,6 +245,13 @@ const useCases = computed(() => [
   color: #0073e6;
   margin-right: 40px;
   white-space: nowrap;
+}
+
+.nav-tagline {
+  font-size: 13px;
+  font-weight: 400;
+  color: #888;
+  margin-left: 6px;
 }
 
 .nav-links {
