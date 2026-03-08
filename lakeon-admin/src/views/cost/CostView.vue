@@ -7,7 +7,7 @@
     <!-- Cost Summary -->
     <div class="section-card">
       <div class="section-header">
-        <h3>Lakeon 月度成本 <span v-if="costSource" class="source-badge" :class="costSource">{{ costSource === 'cbc' ? '实时账单' : '预估' }}</span></h3>
+        <h3>DBay 月度成本 <span v-if="costSource" class="source-badge" :class="costSource">{{ costSource === 'cbc' ? '实时账单' : '预估' }}</span></h3>
       </div>
       <div class="cost-cards" style="margin-bottom: 16px; padding: 0 16px;">
         <div class="total-cost-card">

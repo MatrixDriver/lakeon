@@ -2,7 +2,7 @@
   <div class="login-page">
     <div class="login-card">
       <div class="login-header">
-        <h1 class="login-logo">Lakeon</h1>
+        <h1 class="login-logo">DBay</h1>
         <p class="login-subtitle">运维控制台</p>
         <p class="login-desc">管理员登录</p>
       </div>
