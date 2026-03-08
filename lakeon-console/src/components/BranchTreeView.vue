@@ -158,7 +158,7 @@ const treeData = computed(() => {
     if (n.is_default) rootId = n.id
   }
 
-  if (!rootId && nodesArr.length > 0) rootId = nodesArr[0].id
+  if (!rootId && nodesArr.length > 0) rootId = nodesArr[0]!.id
 
   // Build tree
   for (const n of nodeMap.values()) {
