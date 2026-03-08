@@ -8,6 +8,7 @@ import com.lakeon.model.entity.SchemaCacheEntity;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.SchemaCacheRepository;
+import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
 import com.lakeon.service.exception.ServiceException;
 import org.slf4j.Logger;
@@ -477,7 +478,7 @@ public class DatabaseQueryService {
                 }
             }
         } catch (SQLException e) {
-            throw new ServiceException("SQL execution failed: " + e.getMessage(), e);
+            throw new BadRequestException(e.getMessage());
         }
     }
 

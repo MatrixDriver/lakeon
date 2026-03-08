@@ -71,8 +71,8 @@ async function loadSchemas() {
       await loadTables(first)
     }
   } catch (e: unknown) {
-    const err = e as { response?: { data?: { message?: string } }; message?: string }
-    error.value = err.response?.data?.message || err.message || '加载失败'
+    const err = e as { response?: { data?: { error?: { message?: string }; message?: string } }; message?: string }
+    error.value = err.response?.data?.error?.message || err.response?.data?.message || err.message || '加载失败'
     console.error('Failed to load schemas', e)
   } finally {
     loading.value = false

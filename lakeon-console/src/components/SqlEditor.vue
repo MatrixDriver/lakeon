@@ -166,7 +166,10 @@ async function executeQuery() {
     const res = await databaseApi.executeQuery(props.dbId, query)
     result.value = res.data
   } catch (e: any) {
-    resultError.value = e?.response?.data?.message || e?.message || '执行失败'
+    const data = e?.response?.data
+    const msg = data?.error?.message || data?.message || e?.message || '执行失败'
+    // Strip verbose prefix, show just the SQL error
+    resultError.value = msg.replace(/^SQL execution failed:\s*/, '')
   } finally {
     executing.value = false
   }

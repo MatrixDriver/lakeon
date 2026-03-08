@@ -2,13 +2,13 @@
 """
 Lakeon 华为云资源管理 - 极致省钱模式
 
-资源: 1x 4C8G 固定节点 + 共享ELB + 按流量EIP + RDS
+资源: 2x 4C8G 固定节点 + 共享ELB + 按流量EIP + RDS
 节点策略: 保留固定节点（ECS 开关机），不再创建/删除节点
-运行成本: ~¥65/天 (CCE ¥12 + 节点 ¥24 + RDS ¥17 + EIP ¥12)
+运行成本: ~¥89/天 (CCE ¥12 + 节点 ¥48 + RDS ¥17 + EIP ¥12)
 
 两种关停模式:
-  默认模式 — 关停 ECS + RDS，保留 CCE 集群 + ELB + EIP（¥24/天），省 ~¥41/天
-  --full   — 关停 ECS + RDS + 删除 ELB + 释放 EIP，省 ~¥65/天
+  默认模式 — 关停 ECS + RDS，保留 CCE 集群 + ELB + EIP（¥24/天），省 ~¥65/天
+  --full   — 关停 ECS + RDS + 删除 ELB + 释放 EIP，省 ~¥89/天
              启动时需手动绑 EIP 到集群并更新 kubeconfig
 
 用法:

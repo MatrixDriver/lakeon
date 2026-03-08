@@ -39,13 +39,13 @@ neon:
 
 api:
   replicas: 1
-  port: 8090               # 避开 CCE node-local-dns 占用的 8080 (hostNetwork 模式)
+  port: 8090               # API HTTPS 端口
   serviceType: LoadBalancer
   adminToken: "lakeon-sre-2026"
   elb:
     id: "80fc030a-1577-4daf-9f4c-fa31e93a3a85"
     class: "union"
-    port: 8080       # ELB 监听端口，供 Railway 前端反代
+    port: 8443       # ELB 监听端口，供 Railway 前端反代
   ssl:
     enabled: true
   importImage: "swr.cn-north-4.myhuaweicloud.com/lakeon/lakeon-import:0.2.0"

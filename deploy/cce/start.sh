@@ -1,6 +1,6 @@
 #!/bin/bash
 # Lakeon 极致省钱 - 一键启动
-# 资源: 1x 4C8G 固定节点 + 共享ELB + 按流量EIP + RDS
+# 资源: 2x 4C8G 固定节点 + 共享ELB + 按流量EIP + RDS
 # 启动顺序: ECS开机 + RDS启动 → 等待就绪 → containerd 修复 → 创建 ELB+EIP → 删旧 Service → Helm 部署
 #
 # 用法: ./deploy/cce/start.sh

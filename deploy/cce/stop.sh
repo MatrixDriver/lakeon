@@ -2,8 +2,8 @@
 # Lakeon 极致省钱 - 一键关停
 #
 # 两种模式:
-#   ./deploy/cce/stop.sh          # 关停 ECS+RDS，保留 CCE+ELB+EIP（省 ~¥41/天）
-#   ./deploy/cce/stop.sh --full   # 关停 ECS+RDS+删 ELB+释放 EIP（省 ~¥65/天）
+#   ./deploy/cce/stop.sh          # 关停 ECS+RDS，保留 CCE+ELB+EIP（省 ~¥65/天）
+#   ./deploy/cce/stop.sh --full   # 关停 ECS+RDS+删 ELB+释放 EIP（省 ~¥89/天）
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -40,9 +40,9 @@ python3 "$SCRIPT_DIR/hwcloud.py" stop-cloud $FULL_FLAG
 
 echo ""
 if [[ -n "$FULL_FLAG" ]]; then
-  echo "💤 晚安！所有资源已关停，每天节省 ~¥65"
+  echo "💤 晚安！所有资源已关停，每天节省 ~¥89"
   echo "   ⚠ 启动前需先在华为云控制台为 CCE 集群绑定 EIP，再更新 kubeconfig"
 else
-  echo "💤 晚安！所有资源已关停，每天节省 ~¥41（仍计费 CCE+ELB+EIP ≈ ¥24/天）"
+  echo "💤 晚安！所有资源已关停，每天节省 ~¥65（仍计费 CCE+ELB+EIP ≈ ¥24/天）"
 fi
 echo "   启动命令: ./deploy/cce/start.sh"
