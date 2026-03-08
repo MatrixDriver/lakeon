@@ -8,7 +8,15 @@
         <option v-for="s in pageSizeOptions" :key="s" :value="s">{{ s }}</option>
       </select>
       <button class="page-btn" :disabled="currentPage <= 1" @click="$emit('update:currentPage', currentPage - 1)">&lt;</button>
-      <span class="page-num">{{ currentPage }}</span>
+      <template v-for="p in visiblePages" :key="p">
+        <span v-if="p === '...'" class="page-ellipsis">...</span>
+        <button
+          v-else
+          class="page-num"
+          :class="{ active: p === currentPage }"
+          @click="$emit('update:currentPage', p as number)"
+        >{{ p }}</button>
+      </template>
       <button class="page-btn" :disabled="currentPage >= totalPages" @click="$emit('update:currentPage', currentPage + 1)">&gt;</button>
     </div>
   </div>
@@ -32,6 +40,40 @@ defineEmits<{
 }>()
 
 const totalPages = computed(() => Math.max(1, Math.ceil(props.total / props.pageSize)))
+
+const visiblePages = computed(() => {
+  const total = totalPages.value
+  const current = props.currentPage
+  const pages: (number | string)[] = []
+
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) pages.push(i)
+    return pages
+  }
+
+  // Always show first page
+  pages.push(1)
+
+  if (current > 4) {
+    pages.push('...')
+  }
+
+  // Pages around current
+  const start = Math.max(2, current - 2)
+  const end = Math.min(total - 1, current + 2)
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+
+  if (current < total - 3) {
+    pages.push('...')
+  }
+
+  // Always show last page
+  pages.push(total)
+
+  return pages
+})
 </script>
 
 <style scoped>
@@ -53,7 +95,7 @@ const totalPages = computed(() => Math.max(1, Math.ceil(props.total / props.page
 .footer-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
 
 .page-size-select {
@@ -65,6 +107,7 @@ const totalPages = computed(() => Math.max(1, Math.ceil(props.total / props.page
   background: #fff;
   cursor: pointer;
   outline: none;
+  margin-right: 8px;
 }
 
 .page-size-select:focus {
@@ -102,12 +145,35 @@ const totalPages = computed(() => Math.max(1, Math.ceil(props.total / props.page
   justify-content: center;
   min-width: 28px;
   height: 28px;
-  border: 1px solid #0073e6;
+  border: 1px solid transparent;
   border-radius: 2px;
   background: #fff;
-  color: #0073e6;
+  color: #333;
   font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.page-num:hover:not(.active) {
+  border-color: #0073e6;
+  color: #0073e6;
+}
+
+.page-num.active {
+  border-color: #0073e6;
+  color: #0073e6;
   font-weight: 500;
+}
+
+.page-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  color: #8a8e99;
+  font-size: 13px;
+  letter-spacing: 1px;
 }
 
 @media (max-width: 768px) {
@@ -120,6 +186,11 @@ const totalPages = computed(() => Math.max(1, Math.ceil(props.total / props.page
   .page-btn,
   .page-num {
     width: 36px;
+    height: 36px;
+  }
+
+  .page-ellipsis {
+    min-width: 24px;
     height: 36px;
   }
 
