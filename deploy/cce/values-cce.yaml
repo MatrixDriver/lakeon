@@ -39,6 +39,7 @@ neon:
 
 api:
   replicas: 1
+  port: 8090               # 避开 CCE node-local-dns 占用的 8080 (hostNetwork 模式)
   serviceType: LoadBalancer
   adminToken: "lakeon-sre-2026"
   elb:
@@ -48,7 +49,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/lakeon/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/lakeon/lakeon-api
-    tag: "0.3.1"
+    tag: "0.3.3"
   resources:
     requests:
       cpu: "100m"
@@ -119,7 +120,7 @@ admin:
   enabled: true
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/lakeon/lakeon-admin
-    tag: "0.1.9"
+    tag: "0.2.0"
   replicas: 1
   port: 80
   serviceType: LoadBalancer
@@ -140,7 +141,7 @@ console:
   enabled: true
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/lakeon/lakeon-console
-    tag: "0.3.0"
+    tag: "0.3.7"
   replicas: 1
   port: 80
   serviceType: LoadBalancer

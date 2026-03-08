@@ -40,6 +40,22 @@ public class ApiKeyFilter implements Filter {
 
         String path = request.getRequestURI();
 
+        // CORS headers for cross-origin requests (e.g. Railway frontend -> CCE API)
+        String origin = request.getHeader("Origin");
+        if (origin != null) {
+            response.setHeader("Access-Control-Allow-Origin", origin);
+            response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+            response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+            response.setHeader("Access-Control-Allow-Credentials", "true");
+            response.setHeader("Access-Control-Max-Age", "3600");
+        }
+
+        // Preflight requests
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            response.setStatus(200);
+            return;
+        }
+
         // Exclude actuator endpoints
         if (path.startsWith("/actuator")) {
             chain.doFilter(req, res);
