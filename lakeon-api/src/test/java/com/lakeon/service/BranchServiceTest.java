@@ -1,9 +1,11 @@
 package com.lakeon.service;
 
 import com.lakeon.k8s.ComputePodManager;
+import com.lakeon.model.dto.BranchTreeResponse;
 import com.lakeon.model.dto.CreateBranchRequest;
 import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.model.entity.OperationLogEntity;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.neon.NeonApiClient;
@@ -47,6 +49,9 @@ class BranchServiceTest {
     @Mock
     private ComputePodManager computePodManager;
 
+    @Mock
+    private OperationLogService operationLogService;
+
     @InjectMocks
     private BranchService branchService;
 
@@ -75,7 +80,7 @@ class BranchServiceTest {
         @DisplayName("UT-SVC-BR-001: 正常流程 — 创建 Neon timeline，保存元数据")
         void createBranch_success() {
             // Given
-            var request = new CreateBranchRequest("feature-test", false);
+            var request = new CreateBranchRequest("feature-test", false, null, null);
             when(databaseRepository.findByIdAndTenantId("db_test001", testTenant.getId()))
                     .thenReturn(Optional.of(testDatabase));
             when(neonApiClient.createTimeline(eq("neon-tenant-abc"), any()))
@@ -105,7 +110,7 @@ class BranchServiceTest {
         @DisplayName("UT-SVC-BR-002: 带 start_compute — 创建 timeline 后额外创建 K8s Pod")
         void createBranch_withStartCompute() {
             // Given
-            var request = new CreateBranchRequest("feature-test", true);
+            var request = new CreateBranchRequest("feature-test", true, null, null);
             when(databaseRepository.findByIdAndTenantId("db_test001", testTenant.getId()))
                     .thenReturn(Optional.of(testDatabase));
             when(neonApiClient.createTimeline(eq("neon-tenant-abc"), any()))
@@ -127,7 +132,7 @@ class BranchServiceTest {
         @DisplayName("UT-SVC-BR-003: 父实例不存在 — 抛出 NotFoundException")
         void createBranch_parentNotFound() {
             // Given
-            var request = new CreateBranchRequest("feature-test", false);
+            var request = new CreateBranchRequest("feature-test", false, null, null);
             when(databaseRepository.findByIdAndTenantId("db_nonexist", testTenant.getId()))
                     .thenReturn(Optional.empty());
 
@@ -220,6 +225,144 @@ class BranchServiceTest {
             // Then
             assertThat(result).hasSize(2);
             assertThat(result).extracting("name").containsExactly("main", "feature-test");
+        }
+    }
+
+    @Nested
+    @DisplayName("分支树")
+    class GetTree {
+
+        @Test
+        @DisplayName("UT-SVC-BR-007: 正常 — 返回分支树节点列表，带 Neon timeline 数据")
+        void getTree_success() {
+            var main = new BranchEntity();
+            main.setId("br_main");
+            main.setName("main");
+            main.setIsDefault(true);
+            main.setNeonTimelineId("neon-timeline-main");
+
+            var feature = new BranchEntity();
+            feature.setId("br_feat");
+            feature.setName("feature-test");
+            feature.setIsDefault(false);
+            feature.setParentBranchId("br_main");
+            feature.setNeonTimelineId("neon-timeline-feat");
+
+            when(databaseRepository.findByIdAndTenantId("db_test001", testTenant.getId()))
+                    .thenReturn(Optional.of(testDatabase));
+            when(branchRepository.findAllByDatabaseId("db_test001"))
+                    .thenReturn(List.of(main, feature));
+
+            NeonTimeline mainTl = new NeonTimeline("neon-timeline-main");
+            mainTl.setLastRecordLsn("0/5000");
+            mainTl.setCurrentLogicalSize(10240L);
+
+            NeonTimeline featTl = new NeonTimeline("neon-timeline-feat");
+            featTl.setAncestorLsn("0/3000");
+            featTl.setLastRecordLsn("0/4000");
+            featTl.setCurrentLogicalSize(5120L);
+
+            when(neonApiClient.listTimelines("neon-tenant-abc"))
+                    .thenReturn(List.of(mainTl, featTl));
+
+            BranchTreeResponse result = branchService.getTree(testTenant, "db_test001");
+
+            assertThat(result.nodes()).hasSize(2);
+            assertThat(result.nodes()).extracting("name").containsExactly("main", "feature-test");
+            assertThat(result.nodes().get(0).lastRecordLsn()).isEqualTo("0/5000");
+            assertThat(result.nodes().get(1).parentBranchId()).isEqualTo("br_main");
+            assertThat(result.nodes().get(1).ancestorLsn()).isEqualTo("0/3000");
+        }
+
+        @Test
+        @DisplayName("UT-SVC-BR-008: Neon 不可用 — 降级返回基本节点信息")
+        void getTree_neonUnavailable_gracefulDegradation() {
+            var main = new BranchEntity();
+            main.setId("br_main");
+            main.setName("main");
+            main.setIsDefault(true);
+            main.setNeonTimelineId("neon-timeline-main");
+
+            when(databaseRepository.findByIdAndTenantId("db_test001", testTenant.getId()))
+                    .thenReturn(Optional.of(testDatabase));
+            when(branchRepository.findAllByDatabaseId("db_test001"))
+                    .thenReturn(List.of(main));
+            when(neonApiClient.listTimelines("neon-tenant-abc"))
+                    .thenThrow(new RuntimeException("Neon unavailable"));
+
+            BranchTreeResponse result = branchService.getTree(testTenant, "db_test001");
+
+            assertThat(result.nodes()).hasSize(1);
+            assertThat(result.nodes().get(0).name()).isEqualTo("main");
+            assertThat(result.nodes().get(0).lastRecordLsn()).isNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("切换活跃分支")
+    class SwitchActive {
+
+        @Test
+        @DisplayName("UT-SVC-BR-009: 正常切换 — 更新 database timeline，重建 compute pod")
+        void switchActive_success() {
+            testDatabase.setComputePodName("compute-db_test001");
+
+            var targetBranch = new BranchEntity();
+            targetBranch.setId("br_feat");
+            targetBranch.setName("feature-test");
+            targetBranch.setDatabaseId("db_test001");
+            targetBranch.setNeonTimelineId("neon-timeline-feat");
+            targetBranch.setIsDefault(false);
+
+            when(databaseRepository.findByIdAndTenantId("db_test001", testTenant.getId()))
+                    .thenReturn(Optional.of(testDatabase));
+            when(branchRepository.findByIdAndDatabaseId("br_feat", "db_test001"))
+                    .thenReturn(Optional.of(targetBranch));
+            when(computePodManager.createComputePod(any()))
+                    .thenReturn("compute-db_test001-new");
+            when(operationLogService.startOperation(any(), any(), any(), any()))
+                    .thenReturn(new OperationLogEntity());
+
+            var result = branchService.switchActive(testTenant, "db_test001", "br_feat");
+
+            assertThat(result.getName()).isEqualTo("feature-test");
+            verify(computePodManager).deleteComputePod("compute-db_test001", true);
+            verify(computePodManager).createComputePod(any());
+            verify(databaseRepository).save(testDatabase);
+            assertThat(testDatabase.getNeonTimelineId()).isEqualTo("neon-timeline-feat");
+        }
+
+        @Test
+        @DisplayName("UT-SVC-BR-010: 切换到已活跃分支 — 抛出 BadRequestException")
+        void switchActive_alreadyActive() {
+            var targetBranch = new BranchEntity();
+            targetBranch.setId("br_main");
+            targetBranch.setName("main");
+            targetBranch.setDatabaseId("db_test001");
+            targetBranch.setNeonTimelineId("neon-timeline-main"); // same as testDatabase
+
+            when(databaseRepository.findByIdAndTenantId("db_test001", testTenant.getId()))
+                    .thenReturn(Optional.of(testDatabase));
+            when(branchRepository.findByIdAndDatabaseId("br_main", "db_test001"))
+                    .thenReturn(Optional.of(targetBranch));
+
+            assertThatThrownBy(() ->
+                    branchService.switchActive(testTenant, "db_test001", "br_main"))
+                    .isInstanceOf(BadRequestException.class)
+                    .hasMessageContaining("already active");
+        }
+
+        @Test
+        @DisplayName("UT-SVC-BR-011: 分支不存在 — 抛出 NotFoundException")
+        void switchActive_branchNotFound() {
+            when(databaseRepository.findByIdAndTenantId("db_test001", testTenant.getId()))
+                    .thenReturn(Optional.of(testDatabase));
+            when(branchRepository.findByIdAndDatabaseId("br_nonexist", "db_test001"))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() ->
+                    branchService.switchActive(testTenant, "db_test001", "br_nonexist"))
+                    .isInstanceOf(NotFoundException.class);
         }
     }
 }

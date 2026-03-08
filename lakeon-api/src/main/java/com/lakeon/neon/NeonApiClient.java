@@ -245,29 +245,6 @@ public class NeonApiClient {
     }
 
     /**
-     * Get a single timeline.
-     * GET /v1/tenant/{tenant_id}/timeline/{timeline_id}
-     */
-    public NeonTimeline getTimeline(String tenantId, String timelineId) {
-        try {
-            HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/v1/tenant/" + encodePathSegment(tenantId) + "/timeline/" + encodePathSegment(timelineId)))
-                .GET()
-                .timeout(REQUEST_TIMEOUT)
-                .build();
-            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() >= 400) {
-                throw new NeonApiException("Failed to get timeline: HTTP " + response.statusCode(), response.statusCode());
-            }
-            return objectMapper.readValue(response.body(), NeonTimeline.class);
-        } catch (NeonApiException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new NeonApiException("Failed to get timeline: " + e.getMessage(), e);
-        }
-    }
-
-    /**
      * List timelines for a tenant.
      * GET /v1/tenant/{tenant_id}/timeline
      */

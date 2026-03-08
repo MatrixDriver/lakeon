@@ -2,6 +2,8 @@ package com.lakeon.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.model.dto.BranchResponse;
+import com.lakeon.model.dto.BranchTreeNode;
+import com.lakeon.model.dto.BranchTreeResponse;
 import com.lakeon.config.ApiKeyFilter;
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.TenantEntity;
@@ -145,6 +147,58 @@ class BranchControllerTest {
                 .when(branchService).delete(any(), eq("db_abc123"), eq("br_main"));
 
         mockMvc.perform(delete("/api/v1/databases/db_abc123/branches/br_main")
+                        .header("Authorization", API_KEY))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("BAD_REQUEST"));
+    }
+
+    @Test
+    @DisplayName("IT-API-BR-006: 获取分支树 — 返回 200")
+    void getBranchTree_success_returns200() throws Exception {
+        var node1 = new BranchTreeNode("br_main", "main", null, true,
+                null, "0/5000", 10240L, Instant.now());
+        var node2 = new BranchTreeNode("br_feat", "feature-test", "br_main", false,
+                "0/3000", "0/4000", 5120L, Instant.now());
+        when(branchService.getTree(any(), eq("db_abc123")))
+                .thenReturn(new BranchTreeResponse(List.of(node1, node2)));
+
+        mockMvc.perform(get("/api/v1/databases/db_abc123/branches/tree")
+                        .header("Authorization", API_KEY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nodes", hasSize(2)))
+                .andExpect(jsonPath("$.nodes[0].name").value("main"))
+                .andExpect(jsonPath("$.nodes[0].is_default").value(true))
+                .andExpect(jsonPath("$.nodes[1].parent_branch_id").value("br_main"));
+    }
+
+    @Test
+    @DisplayName("IT-API-BR-007: 激活分支 — 返回 200")
+    void activateBranch_success_returns200() throws Exception {
+        var response = BranchResponse.builder()
+                .id("br_feat001")
+                .name("feature-test")
+                .parentBranch("main")
+                .status("active")
+                .neonTimelineId("neon-timeline-feat")
+                .createdAt(Instant.now())
+                .build();
+        when(branchService.switchActive(any(), eq("db_abc123"), eq("br_feat001")))
+                .thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/databases/db_abc123/branches/br_feat001/activate")
+                        .header("Authorization", API_KEY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("br_feat001"))
+                .andExpect(jsonPath("$.name").value("feature-test"));
+    }
+
+    @Test
+    @DisplayName("IT-API-BR-008: 激活已活跃分支 — 返回 400")
+    void activateBranch_alreadyActive_returns400() throws Exception {
+        doThrow(new BadRequestException("Branch is already active"))
+                .when(branchService).switchActive(any(), eq("db_abc123"), eq("br_main"));
+
+        mockMvc.perform(post("/api/v1/databases/db_abc123/branches/br_main/activate")
                         .header("Authorization", API_KEY))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("BAD_REQUEST"));
