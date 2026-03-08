@@ -17,6 +17,9 @@ public class NeonTimeline {
     @JsonProperty("current_logical_size")
     private Long currentLogicalSize;
 
+    @JsonProperty("ancestor_lsn")
+    private String ancestorLsn;
+
     @JsonProperty("last_record_lsn")
     private String lastRecordLsn;
 
@@ -34,6 +37,8 @@ public class NeonTimeline {
     public void setAncestorTimelineId(String ancestorTimelineId) { this.ancestorTimelineId = ancestorTimelineId; }
     public Long getCurrentLogicalSize() { return currentLogicalSize; }
     public void setCurrentLogicalSize(Long currentLogicalSize) { this.currentLogicalSize = currentLogicalSize; }
+    public String getAncestorLsn() { return ancestorLsn; }
+    public void setAncestorLsn(String ancestorLsn) { this.ancestorLsn = ancestorLsn; }
     public String getLastRecordLsn() { return lastRecordLsn; }
     public void setLastRecordLsn(String lastRecordLsn) { this.lastRecordLsn = lastRecordLsn; }
 }
