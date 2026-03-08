@@ -1,6 +1,6 @@
 # Lakeon (DBay) 产品路线图
 
-> 最后更新: 2026-03-08
+> 最后更新: 2026-03-09
 
 ## 阶段总览
 
@@ -17,7 +17,11 @@
 | Stage 7 | 品牌 & 部署架构升级 | ✅ 完成 | — |
 | Stage 8a | 自建可观测性 | ✅ 完成 | `verification/stage8a-observability.md` |
 | Stage 8b | 华为云 AOM/CES/SMN | 📋 规划中 | — |
-| Stage 10 | 产品化加固 | 🚧 进行中 | — |
+| Stage 10a | 备份与恢复 | ✅ 完成 | — |
+| Stage 10b | 分支管理增强 | ✅ 完成 | — |
+| Stage 10c | 连接池 | ⏸️ 暂缓 | — |
+| Stage 10d | SQL 审计日志 | ✅ 完成 | — |
+| Stage 10e | 数据库级权限管理 | ✅ 完成 | — |
 
 ---
 
@@ -158,38 +162,48 @@
 - SMN 告警通知渠道
 - 与自建方案对比评估
 
-## 🚧 Stage 10: 产品化加固 (进行中)
+## ✅ Stage 10a: 备份与恢复
 
-### 10a: 备份与恢复
-- 手动备份 (OBS 快照, LSN + 时间戳)
-- 定时备份 (Cron 策略)
-- 从备份恢复 (指定快照创建新数据库)
-- 时间点恢复 PITR (WAL + OBS 快照)
-- 备份管理 UI + SRE 备份监控
+- 手动备份 (基于 Neon timeline branching, LSN 快照点)
+- 备份列表 (名称、大小、LSN、时间戳)
+- 从备份恢复 (创建新 timeline 分支)
+- 备份自动清理 (可配置保留数量)
+- Console 备份管理 Tab + API
+- **测试**: BackupServiceTest (12) + BackupControllerTest (7) + backup-api.test.ts (5)
 
-### 10b: 分支管理增强
-- Console 分支可视化 (分支树/DAG 图)
-- 创建/切换/对比/删除分支
-- 每个分支独立连接串
+## ✅ Stage 10b: 分支管理增强
 
-### 10c: 连接池
-- PgBouncer sidecar (每个 compute pod 内置)
+- Console 分支可视化 (SVG DAG 树形图)
+- 创建分支 (指定父分支 + 可选 LSN)
+- 切换活跃分支 (timeline 切换)
+- 删除分支
+- **测试**: BranchServiceTest (11) + BranchControllerTest (8) + BranchTreeView.test.ts (9) + CreateBranchDialog.test.ts (8) + branch-api.test.ts (5)
+
+## ⏸️ Stage 10c: 连接池 (暂缓)
+
+- PgBouncer sidecar vs proxy 层连接池 — 架构待讨论
 - 连接池配置 (pool_mode, pool_size)
 - 连接池监控 (SRE 仪表盘)
 - 用户可配置池大小
 
-### 10d: SQL 审计日志
-- pgaudit 扩展 (DDL/DML/SELECT 审计)
-- 审计日志存储 (独立表或 OBS 归档)
-- Console 审计查看器 + SRE 全局审计
-- 租户级审计策略配置
+## ✅ Stage 10d: SQL 审计日志
 
-### 10e: 数据库级权限管理
-- 多用户支持 (每个数据库多用户)
-- 角色模板 (reader / writer / admin)
-- Console 用户管理页
-- 连接串按用户生成
-- 权限变更审计
+- 审计配置 (启用/关闭, DDL/DML/SELECT 分类, 保留天数)
+- 审计日志记录 (SQL 语句、用户、耗时、对象名)
+- SQL 编辑器集成审计 (执行 SQL 时自动记录)
+- Console 审计日志 Tab (类型筛选 + 分页)
+- SRE Admin 全局审计日志页面 (租户/数据库筛选 + CSV 导出)
+- **测试**: AuditServiceTest (18) + AuditControllerTest (6) + audit-api.test.ts (4) + AuditLogs.test.ts (12) + admin-api.test.ts (5)
+
+## ✅ Stage 10e: 数据库级权限管理
+
+- 多用户支持 (每个数据库独立用户)
+- 三级角色模板 (ADMIN / WRITER / READER)
+- PG 角色 SQL 执行 (CREATE ROLE / GRANT / REVOKE)
+- 用户创建 (自动生成密码 + 显示一次)
+- 修改角色、重置密码、删除用户
+- Console 用户管理 Tab
+- **测试**: DatabaseUserServiceTest (12) + DatabaseUserControllerTest (9) + CreateUserDialog.test.ts (13) + dbuser-api.test.ts (5)
 
 ### Backlog
 - 多副本 pageserver / safekeeper

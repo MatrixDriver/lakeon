@@ -75,8 +75,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { adminApi } from '../../api/admin'
-import { formatDate } from '../../utils/format'
+import { adminApi } from '../api/admin'
+import { formatDate } from '../utils/format'
 
 interface AuditLog {
   id: string
