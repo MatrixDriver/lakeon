@@ -551,6 +551,115 @@
           />
         </div>
       </div>
+
+      <!-- Tab 7: Users -->
+      <div v-if="activeTab === 'users'" class="tab-content">
+        <div class="tab-toolbar">
+          <button class="btn btn-primary btn-small" @click="showCreateUserDialog = true">添加用户</button>
+        </div>
+        <div class="section-card">
+          <div class="table-wrapper">
+            <table class="data-table" v-if="dbUsers.length > 0">
+              <thead>
+                <tr>
+                  <th>用户名</th>
+                  <th>角色</th>
+                  <th>所有者</th>
+                  <th>创建时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="u in dbUsers" :key="u.id">
+                  <td>{{ u.username }}</td>
+                  <td>
+                    <span class="status-tag" :class="roleTagClass(u.role)">{{ u.role }}</span>
+                  </td>
+                  <td>{{ u.is_owner ? '是' : '-' }}</td>
+                  <td>{{ formatDate(u.created_at) }}</td>
+                  <td class="action-cell">
+                    <template v-if="!u.is_owner">
+                      <button class="btn btn-small btn-text" @click="openChangeRoleDialog(u)">修改角色</button>
+                      <button class="btn btn-small btn-text" @click="handleResetUserPassword(u)">重置密码</button>
+                      <button class="btn btn-small btn-text btn-danger-text" @click="handleDeleteUser(u)">删除</button>
+                    </template>
+                    <span v-else class="text-muted">-</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else class="empty-state">
+              <p v-if="usersLoading">加载中...</p>
+              <p v-else>暂无用户</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Change Role Dialog -->
+        <div v-if="showRoleDialog" class="dialog-overlay" @click.self="showRoleDialog = false">
+          <div class="dialog-box dialog-confirm">
+            <div class="dialog-header">
+              <h3>修改角色</h3>
+              <button class="dialog-close" @click="showRoleDialog = false">&times;</button>
+            </div>
+            <div class="dialog-body">
+              <p>用户: <strong>{{ roleEditUser?.username }}</strong></p>
+              <div class="form-group">
+                <label class="form-label">新角色</label>
+                <select v-model="newRole" class="form-input form-select">
+                  <option value="ADMIN">Admin</option>
+                  <option value="WRITER">Writer</option>
+                  <option value="READER">Reader</option>
+                </select>
+              </div>
+            </div>
+            <div class="dialog-footer">
+              <button class="btn btn-default" @click="showRoleDialog = false">取消</button>
+              <button
+                class="btn btn-primary"
+                :disabled="updatingRole"
+                @click="handleUpdateRole"
+              >{{ updatingRole ? '更新中...' : '确定' }}</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reset Password Result Dialog -->
+        <div v-if="resetUserPasswordResult" class="dialog-overlay" @click.self="resetUserPasswordResult = ''">
+          <div class="dialog-box dialog-confirm">
+            <div class="dialog-header">
+              <h3>密码已重置</h3>
+              <button class="dialog-close" @click="resetUserPasswordResult = ''">&times;</button>
+            </div>
+            <div class="dialog-body">
+              <div class="form-group">
+                <label class="form-label">新密码</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <code class="password-value" style="flex: 1; padding: 6px 10px; background: #f2f3f5; border-radius: 2px;">{{ resetUserPasswordResult }}</code>
+                  <button
+                    class="copy-btn"
+                    :class="{ 'copy-btn-ok': copiedField === 'user-reset-pw' }"
+                    @click="handleCopy(resetUserPasswordResult, 'user-reset-pw')"
+                  >{{ copiedField === 'user-reset-pw' ? '已复制' : '复制' }}</button>
+                </div>
+              </div>
+              <div class="password-warning">
+                请立即复制密码，关闭对话框后将无法再次查看。
+              </div>
+            </div>
+            <div class="dialog-footer">
+              <button class="btn btn-primary" @click="resetUserPasswordResult = ''">确定</button>
+            </div>
+          </div>
+        </div>
+
+        <CreateUserDialog
+          :visible="showCreateUserDialog"
+          :dbId="dbId"
+          @close="showCreateUserDialog = false"
+          @created="handleUserCreated"
+        />
+      </div>
     </div>
   </div>
 
@@ -569,7 +678,9 @@ import { operationApi, type OperationLog } from '../../api/operation'
 import { importApi, type ImportTask } from '../../api/import'
 import { backupApi, type Backup } from '../../api/backup'
 import { auditApi, type AuditConfig, type AuditLog } from '../../api/audit'
+import { dbuserApi, type DatabaseUser } from '../../api/dbuser'
 import ImportWizard from './ImportWizard.vue'
+import CreateUserDialog from './CreateUserDialog.vue'
 import ImportTaskDetail from './ImportTaskDetail.vue'
 import CreateBranchDialog from './CreateBranchDialog.vue'
 import BranchTreeView from '../../components/BranchTreeView.vue'
@@ -597,6 +708,7 @@ const tabs = [
   { key: 'backups', label: '备份' },
   { key: 'import', label: '导入' },
   { key: 'audit', label: '审计日志' },
+  { key: 'users', label: '用户' },
 ]
 
 // Branches
@@ -664,6 +776,16 @@ const auditTypeFilter = ref('')
 const auditPageSize = ref(10)
 const auditCurrentPage = ref(1)
 const auditTotalElements = ref(0)
+
+// Users
+const dbUsers = ref<DatabaseUser[]>([])
+const usersLoading = ref(false)
+const showCreateUserDialog = ref(false)
+const showRoleDialog = ref(false)
+const roleEditUser = ref<DatabaseUser | null>(null)
+const newRole = ref('READER')
+const updatingRole = ref(false)
+const resetUserPasswordResult = ref('')
 
 const filteredImports = computed(() => {
   const q = importSearch.value.toLowerCase()
@@ -1074,6 +1196,75 @@ function auditStatementTypeText(type: string): string {
   }
 }
 
+// Users
+async function fetchUsers() {
+  usersLoading.value = true
+  try {
+    const res = await dbuserApi.listUsers(dbId.value)
+    dbUsers.value = res.data
+  } catch (e) {
+    console.error('Failed to load users', e)
+  } finally {
+    usersLoading.value = false
+  }
+}
+
+function roleTagClass(role: string): string {
+  switch (role) {
+    case 'ADMIN': return 'tag-blue'
+    case 'WRITER': return 'tag-green'
+    case 'READER': return 'tag-gray'
+    default: return ''
+  }
+}
+
+function openChangeRoleDialog(user: DatabaseUser) {
+  roleEditUser.value = user
+  newRole.value = user.role
+  showRoleDialog.value = true
+}
+
+async function handleUpdateRole() {
+  if (!roleEditUser.value) return
+  updatingRole.value = true
+  try {
+    await dbuserApi.updateRole(dbId.value, roleEditUser.value.id, { role: newRole.value })
+    showRoleDialog.value = false
+    await fetchUsers()
+  } catch (e) {
+    console.error('Failed to update role', e)
+    alert('修改角色失败，请重试。')
+  } finally {
+    updatingRole.value = false
+  }
+}
+
+async function handleResetUserPassword(user: DatabaseUser) {
+  if (!confirm(`确定要重置用户 ${user.username} 的密码吗？`)) return
+  try {
+    const res = await dbuserApi.resetPassword(dbId.value, user.id)
+    resetUserPasswordResult.value = res.data.password
+  } catch (e) {
+    console.error('Failed to reset password', e)
+    alert('重置密码失败，请重试。')
+  }
+}
+
+async function handleDeleteUser(user: DatabaseUser) {
+  if (!confirm(`确定要删除用户 ${user.username} 吗？此操作不可恢复。`)) return
+  try {
+    await dbuserApi.deleteUser(dbId.value, user.id)
+    await fetchUsers()
+  } catch (e) {
+    console.error('Failed to delete user', e)
+    alert('删除用户失败，请重试。')
+  }
+}
+
+function handleUserCreated() {
+  fetchUsers()
+}
+
 watch([branchSearch, branchPageSize], () => { branchCurrentPage.value = 1 })
 watch([backupSearch, backupPageSize], () => { backupCurrentPage.value = 1 })
 watch([importSearch, importPageSize], () => { importCurrentPage.value = 1 })
@@ -1087,6 +1278,7 @@ watch(activeTab, (tab) => {
   if (tab === 'backups' && backups.value.length === 0) fetchBackups()
   if (tab === 'import' && importTasks.value.length === 0) fetchImportTasks()
   if (tab === 'audit' && auditConfig.value === null) { fetchAuditConfig(); fetchAuditLogs() }
+  if (tab === 'users' && dbUsers.value.length === 0) fetchUsers()
 })
 
 onMounted(() => {
