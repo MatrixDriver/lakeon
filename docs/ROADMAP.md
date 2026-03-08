@@ -17,7 +17,7 @@
 | Stage 7 | 品牌 & 部署架构升级 | ✅ 完成 | — |
 | Stage 8a | 自建可观测性 | ✅ 完成 | `verification/stage8a-observability.md` |
 | Stage 8b | 华为云 AOM/CES/SMN | 📋 规划中 | — |
-| Stage 9 | 生产化 | 📋 规划中 | — |
+| Stage 10 | 产品化加固 | 🚧 进行中 | — |
 
 ---
 
@@ -158,12 +158,46 @@
 - SMN 告警通知渠道
 - 与自建方案对比评估
 
-## 📋 Stage 9: 生产化 (规划中)
+## 🚧 Stage 10: 产品化加固 (进行中)
 
-- 多节点高可用
-- 自动扩缩容
-- 备份与恢复
-- 安全加固 (网络策略、Secret 管理)
+### 10a: 备份与恢复
+- 手动备份 (OBS 快照, LSN + 时间戳)
+- 定时备份 (Cron 策略)
+- 从备份恢复 (指定快照创建新数据库)
+- 时间点恢复 PITR (WAL + OBS 快照)
+- 备份管理 UI + SRE 备份监控
+
+### 10b: 分支管理增强
+- Console 分支可视化 (分支树/DAG 图)
+- 创建/切换/对比/删除分支
+- 每个分支独立连接串
+
+### 10c: 连接池
+- PgBouncer sidecar (每个 compute pod 内置)
+- 连接池配置 (pool_mode, pool_size)
+- 连接池监控 (SRE 仪表盘)
+- 用户可配置池大小
+
+### 10d: SQL 审计日志
+- pgaudit 扩展 (DDL/DML/SELECT 审计)
+- 审计日志存储 (独立表或 OBS 归档)
+- Console 审计查看器 + SRE 全局审计
+- 租户级审计策略配置
+
+### 10e: 数据库级权限管理
+- 多用户支持 (每个数据库多用户)
+- 角色模板 (reader / writer / admin)
+- Console 用户管理页
+- 连接串按用户生成
+- 权限变更审计
+
+### Backlog
+- 多副本 pageserver / safekeeper
+- 故障转移验证
+- 华为云 IAM SSO
+- 数据库连接端到端 TLS
+- API 限流
+- 用量计费系统
 - CI/CD 流水线
 
 ## 📋 待修复: 代码审查遗留项 (7 项)
