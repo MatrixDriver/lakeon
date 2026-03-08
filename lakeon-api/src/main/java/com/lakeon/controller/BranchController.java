@@ -1,6 +1,7 @@
 package com.lakeon.controller;
 
 import com.lakeon.model.dto.BranchResponse;
+import com.lakeon.model.dto.BranchTreeResponse;
 import com.lakeon.model.dto.CreateBranchRequest;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.service.BranchService;
@@ -41,6 +42,20 @@ public class BranchController {
                                     @PathVariable String branchId) {
         TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
         return branchService.get(tenant, dbId, branchId);
+    }
+
+    @GetMapping("/tree")
+    public BranchTreeResponse getBranchTree(HttpServletRequest req, @PathVariable String dbId) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return branchService.getTree(tenant, dbId);
+    }
+
+    @PostMapping("/{branchId}/activate")
+    public BranchResponse activateBranch(HttpServletRequest req,
+                                         @PathVariable String dbId,
+                                         @PathVariable String branchId) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return branchService.switchActive(tenant, dbId, branchId);
     }
 
     @DeleteMapping("/{branchId}")

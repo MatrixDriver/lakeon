@@ -452,6 +452,7 @@ public class DatabaseService {
             .storageLimitGb(entity.getStorageLimitGb())
             .storageUsedGb(0.0)
             .branches(branchSummaries)
+            .neonTimelineId(entity.getNeonTimelineId())
             .createdAt(entity.getCreatedAt())
             .build();
 

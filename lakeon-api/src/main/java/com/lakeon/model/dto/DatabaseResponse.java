@@ -27,6 +27,8 @@ public class DatabaseResponse {
     private Instant createdAt;
     @JsonProperty("active_connections")
     private Integer activeConnections;
+    @JsonProperty("neon_timeline_id")
+    private String neonTimelineId;
 
     public DatabaseResponse() {}
 
@@ -73,6 +75,8 @@ public class DatabaseResponse {
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Integer getActiveConnections() { return activeConnections; }
     public void setActiveConnections(Integer activeConnections) { this.activeConnections = activeConnections; }
+    public String getNeonTimelineId() { return neonTimelineId; }
+    public void setNeonTimelineId(String neonTimelineId) { this.neonTimelineId = neonTimelineId; }
 
     public static class BranchSummary {
         private String id;
@@ -139,6 +143,7 @@ public class DatabaseResponse {
         private List<BranchSummary> branches;
         private Instant createdAt;
         private Integer activeConnections;
+        private String neonTimelineId;
 
         public Builder id(String id) { this.id = id; return this; }
         public Builder name(String name) { this.name = name; return this; }
@@ -151,11 +156,13 @@ public class DatabaseResponse {
         public Builder branches(List<BranchSummary> branches) { this.branches = branches; return this; }
         public Builder createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
         public Builder activeConnections(Integer activeConnections) { this.activeConnections = activeConnections; return this; }
+        public Builder neonTimelineId(String neonTimelineId) { this.neonTimelineId = neonTimelineId; return this; }
 
         public DatabaseResponse build() {
             DatabaseResponse r = new DatabaseResponse(id, name, status, connectionUri, computeSize,
                 suspendTimeout, storageLimitGb, storageUsedGb, branches, createdAt);
             r.setActiveConnections(activeConnections);
+            r.setNeonTimelineId(neonTimelineId);
             return r;
         }
     }

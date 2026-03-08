@@ -8,13 +8,44 @@ export interface Branch {
   status: string
   compute_status: string
   connection_uri: string
+  parent_branch_id: string | null
+  neon_timeline_id: string | null
+  ancestor_lsn: string | null
+  last_record_lsn: string | null
+  current_logical_size_bytes: number | null
   created_at: string
+}
+
+export interface BranchTreeNode {
+  id: string
+  name: string
+  parent_branch_id: string | null
+  is_default: boolean
+  ancestor_lsn: string | null
+  last_record_lsn: string | null
+  current_logical_size_bytes: number | null
+  created_at: string
+}
+
+export interface BranchTreeResponse {
+  nodes: BranchTreeNode[]
+}
+
+export interface CreateBranchParams {
+  name: string
+  start_compute?: boolean
+  parent_branch_id?: string
+  ancestor_lsn?: string
 }
 
 export const branchApi = {
   list: (dbId: string) => client.get<Branch[]>(`/databases/${dbId}/branches`),
-  create: (dbId: string, data: { name: string; start_compute?: boolean }) =>
+  create: (dbId: string, data: CreateBranchParams) =>
     client.post<Branch>(`/databases/${dbId}/branches`, data),
   delete: (dbId: string, branchId: string) =>
     client.delete(`/databases/${dbId}/branches/${branchId}`),
+  getTree: (dbId: string) =>
+    client.get<BranchTreeResponse>(`/databases/${dbId}/branches/tree`),
+  activate: (dbId: string, branchId: string) =>
+    client.post<Branch>(`/databases/${dbId}/branches/${branchId}/activate`),
 }

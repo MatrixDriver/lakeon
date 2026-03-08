@@ -15,13 +15,25 @@ public class BranchResponse {
     private String computeStatus;
     @JsonProperty("connection_uri")
     private String connectionUri;
+    @JsonProperty("parent_branch_id")
+    private String parentBranchId;
+    @JsonProperty("neon_timeline_id")
+    private String neonTimelineId;
+    @JsonProperty("ancestor_lsn")
+    private String ancestorLsn;
+    @JsonProperty("last_record_lsn")
+    private String lastRecordLsn;
+    @JsonProperty("current_logical_size_bytes")
+    private Long currentLogicalSizeBytes;
     @JsonProperty("created_at")
     private Instant createdAt;
 
     public BranchResponse() {}
 
     public BranchResponse(String id, String name, String parentBranch, boolean isDefault,
-                          String status, String computeStatus, String connectionUri, Instant createdAt) {
+                          String status, String computeStatus, String connectionUri,
+                          String parentBranchId, String neonTimelineId, String ancestorLsn,
+                          String lastRecordLsn, Long currentLogicalSizeBytes, Instant createdAt) {
         this.id = id;
         this.name = name;
         this.parentBranch = parentBranch;
@@ -29,6 +41,11 @@ public class BranchResponse {
         this.status = status;
         this.computeStatus = computeStatus;
         this.connectionUri = connectionUri;
+        this.parentBranchId = parentBranchId;
+        this.neonTimelineId = neonTimelineId;
+        this.ancestorLsn = ancestorLsn;
+        this.lastRecordLsn = lastRecordLsn;
+        this.currentLogicalSizeBytes = currentLogicalSizeBytes;
         this.createdAt = createdAt;
     }
 
@@ -50,6 +67,16 @@ public class BranchResponse {
     public void setComputeStatus(String computeStatus) { this.computeStatus = computeStatus; }
     public String getConnectionUri() { return connectionUri; }
     public void setConnectionUri(String connectionUri) { this.connectionUri = connectionUri; }
+    public String getParentBranchId() { return parentBranchId; }
+    public void setParentBranchId(String parentBranchId) { this.parentBranchId = parentBranchId; }
+    public String getNeonTimelineId() { return neonTimelineId; }
+    public void setNeonTimelineId(String neonTimelineId) { this.neonTimelineId = neonTimelineId; }
+    public String getAncestorLsn() { return ancestorLsn; }
+    public void setAncestorLsn(String ancestorLsn) { this.ancestorLsn = ancestorLsn; }
+    public String getLastRecordLsn() { return lastRecordLsn; }
+    public void setLastRecordLsn(String lastRecordLsn) { this.lastRecordLsn = lastRecordLsn; }
+    public Long getCurrentLogicalSizeBytes() { return currentLogicalSizeBytes; }
+    public void setCurrentLogicalSizeBytes(Long currentLogicalSizeBytes) { this.currentLogicalSizeBytes = currentLogicalSizeBytes; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 
@@ -61,6 +88,11 @@ public class BranchResponse {
         private String status;
         private String computeStatus;
         private String connectionUri;
+        private String parentBranchId;
+        private String neonTimelineId;
+        private String ancestorLsn;
+        private String lastRecordLsn;
+        private Long currentLogicalSizeBytes;
         private Instant createdAt;
 
         public Builder id(String id) { this.id = id; return this; }
@@ -70,11 +102,17 @@ public class BranchResponse {
         public Builder status(String status) { this.status = status; return this; }
         public Builder computeStatus(String computeStatus) { this.computeStatus = computeStatus; return this; }
         public Builder connectionUri(String connectionUri) { this.connectionUri = connectionUri; return this; }
+        public Builder parentBranchId(String parentBranchId) { this.parentBranchId = parentBranchId; return this; }
+        public Builder neonTimelineId(String neonTimelineId) { this.neonTimelineId = neonTimelineId; return this; }
+        public Builder ancestorLsn(String ancestorLsn) { this.ancestorLsn = ancestorLsn; return this; }
+        public Builder lastRecordLsn(String lastRecordLsn) { this.lastRecordLsn = lastRecordLsn; return this; }
+        public Builder currentLogicalSizeBytes(Long currentLogicalSizeBytes) { this.currentLogicalSizeBytes = currentLogicalSizeBytes; return this; }
         public Builder createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
 
         public BranchResponse build() {
             return new BranchResponse(id, name, parentBranch, isDefault, status,
-                computeStatus, connectionUri, createdAt);
+                computeStatus, connectionUri, parentBranchId, neonTimelineId,
+                ancestorLsn, lastRecordLsn, currentLogicalSizeBytes, createdAt);
         }
     }
 }

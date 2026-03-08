@@ -118,8 +118,20 @@
       <!-- Tab 2: Branches -->
       <div v-if="activeTab === 'branches'" class="tab-content">
         <div class="tab-toolbar">
-          <button class="btn btn-primary btn-small" @click="showBranchDialog = true">创建分支</button>
+          <button class="btn btn-primary btn-small" @click="preselectedParentId = ''; showBranchDialog = true">创建分支</button>
         </div>
+
+        <!-- Branch Tree Visualization -->
+        <BranchTreeView
+          v-if="treeNodes.length > 0"
+          :nodes="treeNodes"
+          :activeBranchId="activeBranchId"
+          @select="handleTreeSelect"
+          @activate="handleActivateBranch"
+          @create="handleTreeCreate"
+          @delete="handleDeleteBranch"
+        />
+
         <div class="section-card">
           <TableToolbar v-model="branchSearch" placeholder="搜索分支名称" :loading="branchesLoading" @refresh="fetchBranches" />
           <div class="table-wrapper">
@@ -128,29 +140,42 @@
                 <tr>
                   <th>名称</th>
                   <th>父分支</th>
+                  <th>LSN</th>
+                  <th>大小</th>
                   <th>状态</th>
-                  <th>计算状态</th>
                   <th>创建时间</th>
                   <th>操作</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="branch in pagedBranches" :key="branch.id">
+                <tr
+                  v-for="branch in pagedBranches"
+                  :key="branch.id"
+                  :class="{ 'row-highlight': selectedBranchId === branch.id }"
+                >
                   <td>
                     {{ branch.name }}
                     <span v-if="branch.is_default" class="default-tag">默认</span>
+                    <span v-if="isActiveBranch(branch)" class="active-tag">活跃</span>
                   </td>
                   <td>{{ branch.parent_branch || '-' }}</td>
+                  <td class="mono-text">{{ branch.last_record_lsn || '-' }}</td>
+                  <td>{{ formatSize(branch.current_logical_size_bytes) }}</td>
                   <td>{{ branch.status }}</td>
-                  <td>{{ branch.compute_status }}</td>
                   <td>{{ formatDate(branch.created_at) }}</td>
-                  <td>
+                  <td class="action-cell">
+                    <button
+                      v-if="!isActiveBranch(branch)"
+                      class="btn btn-small btn-text"
+                      :disabled="activatingBranch"
+                      @click="handleActivateBranch(branch.id)"
+                    >切换</button>
                     <button
                       v-if="!branch.is_default"
                       class="btn btn-small btn-text btn-danger-text"
                       @click="handleDeleteBranch(branch.id)"
                     >删除</button>
-                    <span v-else class="text-muted">-</span>
+                    <span v-if="branch.is_default && isActiveBranch(branch)" class="text-muted">-</span>
                   </td>
                 </tr>
               </tbody>
@@ -168,29 +193,14 @@
           />
         </div>
 
-        <!-- Create Branch Dialog -->
-        <div v-if="showBranchDialog" class="dialog-overlay" @click.self="showBranchDialog = false">
-          <div class="dialog-box dialog-confirm">
-            <div class="dialog-header">
-              <h3>创建分支</h3>
-              <button class="dialog-close" @click="showBranchDialog = false">&times;</button>
-            </div>
-            <div class="dialog-body">
-              <div class="form-group">
-                <label class="form-label">分支名称 <span class="required">*</span></label>
-                <input v-model="branchName" class="form-input" placeholder="请输入分支名称" />
-              </div>
-            </div>
-            <div class="dialog-footer">
-              <button class="btn btn-default" @click="showBranchDialog = false">取消</button>
-              <button
-                class="btn btn-primary"
-                :disabled="!branchName.trim() || branchCreating"
-                @click="handleCreateBranch"
-              >{{ branchCreating ? '创建中...' : '确定' }}</button>
-            </div>
-          </div>
-        </div>
+        <CreateBranchDialog
+          :visible="showBranchDialog"
+          :branches="branches"
+          :preselectedParentId="preselectedParentId"
+          :dbId="dbId"
+          @close="showBranchDialog = false"
+          @created="handleBranchCreated"
+        />
       </div>
 
       <!-- Tab 3: Operations -->
@@ -445,12 +455,14 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { databaseApi, type Database } from '../../api/database'
-import { branchApi, type Branch } from '../../api/branch'
+import { branchApi, type Branch, type BranchTreeNode } from '../../api/branch'
 import { operationApi, type OperationLog } from '../../api/operation'
 import { importApi, type ImportTask } from '../../api/import'
 import { backupApi, type Backup } from '../../api/backup'
 import ImportWizard from './ImportWizard.vue'
 import ImportTaskDetail from './ImportTaskDetail.vue'
+import CreateBranchDialog from './CreateBranchDialog.vue'
+import BranchTreeView from '../../components/BranchTreeView.vue'
 import TableToolbar from '../../components/TableToolbar.vue'
 import TableFooter from '../../components/TableFooter.vue'
 import { copyToClipboard } from '../../utils/clipboard'
@@ -480,11 +492,12 @@ const tabs = [
 const branches = ref<Branch[]>([])
 const branchesLoading = ref(false)
 const showBranchDialog = ref(false)
-const branchName = ref('')
-const branchCreating = ref(false)
+const preselectedParentId = ref('')
 const branchSearch = ref('')
 const branchPageSize = ref(10)
 const branchCurrentPage = ref(1)
+const treeNodes = ref<BranchTreeNode[]>([])
+const activatingBranch = ref(false)
 
 const filteredBranches = computed(() => {
   const q = branchSearch.value.toLowerCase()
@@ -677,12 +690,39 @@ async function handleResume() {
   }
 }
 
+const selectedBranchId = ref('')
+
+const activeBranchId = computed(() => {
+  if (!database.value) return ''
+  // The active branch is the one whose neon_timeline_id matches the database's current timeline
+  const dbTimelineId = database.value.neon_timeline_id
+  const active = branches.value.find(b => b.neon_timeline_id && b.neon_timeline_id === dbTimelineId)
+  // Fallback: default branch
+  return active?.id || branches.value.find(b => b.is_default)?.id || ''
+})
+
+function isActiveBranch(branch: Branch): boolean {
+  return branch.id === activeBranchId.value
+}
+
+function formatSize(bytes: number | null): string {
+  if (bytes == null) return '-'
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
+}
+
 // Branches
 async function fetchBranches() {
   branchesLoading.value = true
   try {
-    const res = await branchApi.list(dbId.value)
-    branches.value = res.data
+    const [listRes, treeRes] = await Promise.all([
+      branchApi.list(dbId.value),
+      branchApi.getTree(dbId.value),
+    ])
+    branches.value = listRes.data
+    treeNodes.value = treeRes.data.nodes
   } catch (e) {
     console.error('Failed to load branches', e)
   } finally {
@@ -690,18 +730,30 @@ async function fetchBranches() {
   }
 }
 
-async function handleCreateBranch() {
-  if (!branchName.value.trim()) return
-  branchCreating.value = true
+function handleBranchCreated() {
+  fetchBranches()
+}
+
+function handleTreeSelect(branchId: string) {
+  selectedBranchId.value = selectedBranchId.value === branchId ? '' : branchId
+}
+
+function handleTreeCreate(parentBranchId: string) {
+  preselectedParentId.value = parentBranchId
+  showBranchDialog.value = true
+}
+
+async function handleActivateBranch(branchId: string) {
+  if (!confirm('确定要切换到该分支吗？当前计算节点将重启。')) return
+  activatingBranch.value = true
   try {
-    await branchApi.create(dbId.value, { name: branchName.value.trim() })
-    showBranchDialog.value = false
-    branchName.value = ''
+    await branchApi.activate(dbId.value, branchId)
+    await fetchDatabase()
     await fetchBranches()
   } catch (e) {
-    console.error('Failed to create branch', e)
+    console.error('Failed to activate branch', e)
   } finally {
-    branchCreating.value = false
+    activatingBranch.value = false
   }
 }
 
@@ -802,14 +854,6 @@ function backupStatusText(status: string): string {
     case 'PENDING': return '等待中'
     default: return status
   }
-}
-
-function formatSize(bytes: number | null): string {
-  if (bytes === null || bytes === undefined) return '-'
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
 }
 
 // Import
@@ -1135,6 +1179,31 @@ onUnmounted(() => {
   margin: 0 0 16px;
   font-size: 14px;
   color: #575d6c;
+}
+
+.active-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 2px;
+  font-size: 12px;
+  background-color: #f6ffed;
+  color: #52c41a;
+  margin-left: 6px;
+}
+
+.row-highlight {
+  background-color: #f0f5ff !important;
+}
+
+.mono-text {
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.action-cell {
+  display: flex;
+  gap: 4px;
+  align-items: center;
 }
 
 /* Import tab */

@@ -11,6 +11,7 @@ export interface Database {
   storage_limit_gb: number
   storage_used_gb: number
   active_connections: number
+  neon_timeline_id: string
   branches: BranchSummary[]
   created_at: string
 }
