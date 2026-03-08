@@ -55,4 +55,8 @@ export const adminApi = {
 
   // Infrastructure
   infraNodes: () => client.get('/infra/nodes'),
+
+  // Audit
+  auditLogs: (params?: { tenant_id?: string; db_id?: string; type?: string; page?: number; size?: number }) =>
+    client.get('/audit/logs', { params }),
 }

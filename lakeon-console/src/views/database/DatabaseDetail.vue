@@ -442,6 +442,115 @@
           @created="handleImportCreated"
         />
       </div>
+
+      <!-- Tab 6: Audit -->
+      <div v-if="activeTab === 'audit'" class="tab-content">
+        <!-- Audit Config -->
+        <div class="info-card" style="margin-bottom: 16px;">
+          <h4 class="info-title">审计配置</h4>
+          <div v-if="auditConfigLoading" class="empty-state"><p>加载中...</p></div>
+          <div v-else-if="auditConfig" class="audit-config-grid">
+            <div class="audit-config-row">
+              <label class="audit-label">启用审计</label>
+              <label class="toggle-switch">
+                <input type="checkbox" :checked="auditConfig.enabled" :disabled="auditConfigSaving"
+                  @change="handleAuditConfigUpdate('enabled', ($event.target as HTMLInputElement).checked)" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="audit-config-row">
+              <label class="audit-label">记录 DDL</label>
+              <label class="toggle-switch">
+                <input type="checkbox" :checked="auditConfig.log_ddl" :disabled="auditConfigSaving"
+                  @change="handleAuditConfigUpdate('log_ddl', ($event.target as HTMLInputElement).checked)" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="audit-config-row">
+              <label class="audit-label">记录 DML</label>
+              <label class="toggle-switch">
+                <input type="checkbox" :checked="auditConfig.log_dml" :disabled="auditConfigSaving"
+                  @change="handleAuditConfigUpdate('log_dml', ($event.target as HTMLInputElement).checked)" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="audit-config-row">
+              <label class="audit-label">记录 SELECT</label>
+              <label class="toggle-switch">
+                <input type="checkbox" :checked="auditConfig.log_select" :disabled="auditConfigSaving"
+                  @change="handleAuditConfigUpdate('log_select', ($event.target as HTMLInputElement).checked)" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="audit-config-row">
+              <label class="audit-label">保留天数</label>
+              <input type="number" class="form-input retention-input" :value="auditConfig.retention_days"
+                min="1" max="365" :disabled="auditConfigSaving"
+                @change="handleAuditConfigUpdate('retention_days', parseInt(($event.target as HTMLInputElement).value))" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Audit Logs -->
+        <div class="tab-toolbar">
+          <select v-model="auditTypeFilter" class="form-select filter-select"
+            @change="auditCurrentPage = 1; fetchAuditLogs()">
+            <option value="">全部类型</option>
+            <option value="DDL">DDL</option>
+            <option value="DML">DML</option>
+            <option value="SELECT">SELECT</option>
+          </select>
+        </div>
+        <div class="section-card">
+          <div class="ops-refresh-bar">
+            <button class="toolbar-icon-btn" @click="fetchAuditLogs" :disabled="auditLoading" :title="auditLoading ? '加载中...' : '刷新'">
+              <svg :class="{ spinning: auditLoading }" viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                <path d="M13.65 2.35a8 8 0 1 0 1.77 5.15h-2.02a6 6 0 1 1-1.13-3.87L10 6h6V0l-2.35 2.35z"/>
+              </svg>
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table" v-if="auditLogs.length > 0">
+              <thead>
+                <tr>
+                  <th>时间</th>
+                  <th>用户</th>
+                  <th>类型</th>
+                  <th>对象</th>
+                  <th>SQL语句</th>
+                  <th>耗时</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="log in auditLogs" :key="log.id">
+                  <td>{{ formatDate(log.timestamp) }}</td>
+                  <td>{{ log.user_name || '-' }}</td>
+                  <td>
+                    <span class="status-tag" :class="{
+                      'tag-blue': log.statement_type === 'SELECT',
+                      'tag-orange': log.statement_type === 'DML',
+                      'tag-green': log.statement_type === 'DDL'
+                    }">{{ auditStatementTypeText(log.statement_type) }}</span>
+                  </td>
+                  <td>{{ log.object_name || '-' }}</td>
+                  <td class="sql-cell" :title="log.statement || ''">{{ log.statement || '-' }}</td>
+                  <td>{{ log.duration != null ? log.duration + ' ms' : '-' }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else class="empty-state">
+              <p v-if="auditLoading">加载中...</p>
+              <p v-else>暂无审计日志</p>
+            </div>
+          </div>
+          <TableFooter
+            v-if="auditTotalElements > 0"
+            :total="auditTotalElements"
+            v-model:pageSize="auditPageSize"
+            v-model:currentPage="auditCurrentPage"
+          />
+        </div>
+      </div>
     </div>
   </div>
 
@@ -459,6 +568,7 @@ import { branchApi, type Branch, type BranchTreeNode } from '../../api/branch'
 import { operationApi, type OperationLog } from '../../api/operation'
 import { importApi, type ImportTask } from '../../api/import'
 import { backupApi, type Backup } from '../../api/backup'
+import { auditApi, type AuditConfig, type AuditLog } from '../../api/audit'
 import ImportWizard from './ImportWizard.vue'
 import ImportTaskDetail from './ImportTaskDetail.vue'
 import CreateBranchDialog from './CreateBranchDialog.vue'
@@ -486,6 +596,7 @@ const tabs = [
   { key: 'operations', label: '操作历史' },
   { key: 'backups', label: '备份' },
   { key: 'import', label: '导入' },
+  { key: 'audit', label: '审计日志' },
 ]
 
 // Branches
@@ -542,6 +653,17 @@ const selectedImportTaskId = ref<string | null>(null)
 const importSearch = ref('')
 const importPageSize = ref(10)
 const importCurrentPage = ref(1)
+
+// Audit
+const auditConfig = ref<AuditConfig | null>(null)
+const auditLogs = ref<AuditLog[]>([])
+const auditLoading = ref(false)
+const auditConfigLoading = ref(false)
+const auditConfigSaving = ref(false)
+const auditTypeFilter = ref('')
+const auditPageSize = ref(10)
+const auditCurrentPage = ref(1)
+const auditTotalElements = ref(0)
 
 const filteredImports = computed(() => {
   const q = importSearch.value.toLowerCase()
@@ -899,15 +1021,72 @@ function handleImportCreated(task: ImportTask) {
   fetchImportTasks()
 }
 
+// Audit
+async function fetchAuditConfig() {
+  auditConfigLoading.value = true
+  try {
+    const res = await auditApi.getConfig(dbId.value)
+    auditConfig.value = res.data
+  } catch (e) {
+    console.error('Failed to load audit config', e)
+  } finally {
+    auditConfigLoading.value = false
+  }
+}
+
+async function fetchAuditLogs() {
+  auditLoading.value = true
+  try {
+    const params: Record<string, unknown> = {
+      page: auditCurrentPage.value - 1,
+      size: auditPageSize.value,
+    }
+    if (auditTypeFilter.value) params.type = auditTypeFilter.value
+    const res = await auditApi.getLogs(dbId.value, params as { type?: string; page?: number; size?: number })
+    auditLogs.value = res.data.data
+    auditTotalElements.value = res.data.total
+  } catch (e) {
+    console.error('Failed to load audit logs', e)
+  } finally {
+    auditLoading.value = false
+  }
+}
+
+async function handleAuditConfigUpdate(field: string, value: unknown) {
+  auditConfigSaving.value = true
+  try {
+    const data: Record<string, unknown> = { [field]: value }
+    const res = await auditApi.updateConfig(dbId.value, data)
+    auditConfig.value = res.data
+  } catch (e) {
+    console.error('Failed to update audit config', e)
+  } finally {
+    auditConfigSaving.value = false
+  }
+}
+
+function auditStatementTypeText(type: string): string {
+  switch (type) {
+    case 'DDL': return 'DDL'
+    case 'DML': return 'DML'
+    case 'SELECT': return 'SELECT'
+    default: return type
+  }
+}
+
 watch([branchSearch, branchPageSize], () => { branchCurrentPage.value = 1 })
 watch([backupSearch, backupPageSize], () => { backupCurrentPage.value = 1 })
 watch([importSearch, importPageSize], () => { importCurrentPage.value = 1 })
+
+watch(auditPageSize, () => { auditCurrentPage.value = 1; fetchAuditLogs() })
+watch(auditCurrentPage, () => { fetchAuditLogs() })
 
 watch(activeTab, (tab) => {
   if (tab === 'branches' && branches.value.length === 0) fetchBranches()
   if (tab === 'operations' && operations.value.length === 0) fetchOperations()
   if (tab === 'backups' && backups.value.length === 0) fetchBackups()
   if (tab === 'import' && importTasks.value.length === 0) fetchImportTasks()
+  if (tab === 'audit' && auditConfig.value === null) { fetchAuditConfig(); fetchAuditLogs() }
 })
 
 onMounted(() => {
@@ -1212,6 +1391,85 @@ onUnmounted(() => {
 .tag-blue { background-color: #e6f7ff; color: #0073e6; }
 .tag-orange { background-color: #fff7e6; color: #d46b08; }
 .tag-gray { background-color: #f0f0f0; color: #8a8e99; }
+
+/* Audit tab */
+.audit-config-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+}
+
+.audit-config-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.audit-label {
+  font-size: 14px;
+  color: #575d6c;
+  min-width: 80px;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #c2c6cc;
+  border-radius: 20px;
+  transition: 0.2s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #fff;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: #0073e6;
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(16px);
+}
+
+.retention-input {
+  width: 80px;
+  height: 32px;
+  font-size: 14px;
+}
+
+.sql-cell {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: monospace;
+  font-size: 12px;
+}
 
 /* Filter select */
 .filter-select {

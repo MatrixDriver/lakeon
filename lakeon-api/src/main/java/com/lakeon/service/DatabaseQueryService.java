@@ -40,15 +40,18 @@ public class DatabaseQueryService {
     private final DatabaseService databaseService;
     private final SchemaCacheRepository schemaCacheRepository;
     private final ObjectMapper objectMapper;
+    private final AuditService auditService;
 
     public DatabaseQueryService(DatabaseRepository databaseRepository,
                                 DatabaseService databaseService,
                                 SchemaCacheRepository schemaCacheRepository,
-                                ObjectMapper objectMapper) {
+                                ObjectMapper objectMapper,
+                                AuditService auditService) {
         this.databaseRepository = databaseRepository;
         this.databaseService = databaseService;
         this.schemaCacheRepository = schemaCacheRepository;
         this.objectMapper = objectMapper;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -442,6 +445,14 @@ public class DatabaseQueryService {
                 st.setMaxRows(MAX_ROWS);
                 boolean isResultSet = st.execute(sql);
                 long elapsed = System.currentTimeMillis() - start;
+
+                // Record audit log (best-effort, non-blocking)
+                try {
+                    auditService.recordAuditLog(dbId, tenant.getId(),
+                            db.getDbUser(), sql, null, elapsed);
+                } catch (Exception e) {
+                    log.warn("Failed to record audit log for database {}: {}", dbId, e.getMessage());
+                }
 
                 if (isResultSet) {
                     ResultSet rs = st.getResultSet();

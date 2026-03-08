@@ -49,6 +49,8 @@ class AdminControllerTest {
     @MockBean private OperationLogRepository operationLogRepository;
     @MockBean private UsageMeteringService usageMeteringService;
     @MockBean private CbcBillingService cbcBillingService;
+    @MockBean private AlertService alertService;
+    @MockBean private AuditService auditService;
     @MockBean private LakeonProperties lakeonProperties;
 
     private static final String ADMIN_TOKEN = "Bearer test-admin-token";

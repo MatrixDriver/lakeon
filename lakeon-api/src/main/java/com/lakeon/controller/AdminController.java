@@ -14,6 +14,7 @@ import com.lakeon.repository.OperationLogRepository;
 import com.lakeon.repository.TenantRepository;
 import com.lakeon.service.AdminService;
 import com.lakeon.service.AlertService;
+import com.lakeon.service.AuditService;
 import com.lakeon.service.CbcBillingService;
 import com.lakeon.service.DatabaseService;
 import com.lakeon.service.TenantService;
@@ -42,6 +43,7 @@ public class AdminController {
     private final UsageMeteringService usageMeteringService;
     private final CbcBillingService cbcBillingService;
     private final AlertService alertService;
+    private final AuditService auditService;
 
     public AdminController(TenantService tenantService,
                            AdminService adminService,
@@ -51,7 +53,8 @@ public class AdminController {
                            OperationLogRepository operationLogRepository,
                            UsageMeteringService usageMeteringService,
                            CbcBillingService cbcBillingService,
-                           AlertService alertService) {
+                           AlertService alertService,
+                           AuditService auditService) {
         this.tenantService = tenantService;
         this.adminService = adminService;
         this.databaseService = databaseService;
@@ -61,6 +64,7 @@ public class AdminController {
         this.usageMeteringService = usageMeteringService;
         this.cbcBillingService = cbcBillingService;
         this.alertService = alertService;
+        this.auditService = auditService;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────
@@ -367,6 +371,18 @@ public class AdminController {
         result.put("nodes", adminService.getInfraNodes());
         result.put("pods", adminService.getInfraPods());
         return result;
+    }
+
+    // ── Audit Logs ──────────────────────────────────────────────────
+
+    @GetMapping("/audit/logs")
+    public Map<String, Object> getAuditLogs(
+            @RequestParam(required = false, name = "tenant_id") String tenantId,
+            @RequestParam(required = false, name = "db_id") String dbId,
+            @RequestParam(required = false) String type,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return auditService.getLogsForAdmin(tenantId, dbId, type, page, size);
     }
 
     // ── Helpers ────────────────────────────────────────────────────

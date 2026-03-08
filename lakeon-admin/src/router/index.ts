@@ -24,6 +24,7 @@ const routes = [
       { path: 'infra', name: 'InfraMonitor', component: () => import('../views/system/InfraMonitor.vue') },
       { path: 'cost', name: 'CostView', component: () => import('../views/cost/CostView.vue') },
       { path: 'cloud', name: 'CloudResources', component: () => import('../views/cloud/CloudResources.vue') },
+      { path: 'audit', name: 'AuditLogs', component: () => import('../views/AuditLogs.vue') },
     ],
   },
 ]

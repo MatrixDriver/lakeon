@@ -69,6 +69,7 @@
             <router-link to="/tenants" class="nav-item" active-class="active">租户管理</router-link>
             <router-link to="/databases" class="nav-item" active-class="active">数据库实例</router-link>
             <router-link to="/operations" class="nav-item" active-class="active">操作日志</router-link>
+            <router-link to="/audit" class="nav-item" active-class="active">审计日志</router-link>
           </div>
           <div class="nav-group">
             <div class="nav-group-title">系统</div>
