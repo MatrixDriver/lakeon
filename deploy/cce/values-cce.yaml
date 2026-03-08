@@ -162,7 +162,7 @@ console:
 cost:
   cceClusterHourly: "0.5"     # CCE 集群管理费 0.5元/h (含集群 EIP 0.5元/h = 合计 1元/h)
   cceNodeHourly: "1.0"        # ac7.xlarge.2 (4C8G)
-  cceNodeCount: "1"           # 1x 4C8G
+  cceNodeCount: "2"           # 2x 4C8G
   elbMonthly: "0"             # 共享型 ELB 免费，按流量另计
   obsPerGbMonthly: "0.099"
   rdsMonthly: "500"

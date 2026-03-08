@@ -48,6 +48,10 @@
           <a :href="topology.cce.console_url" target="_blank" class="arch-box arch-box-compute arch-box-cluster">
             <div class="arch-box-label">CCE 集群</div>
             <div class="arch-box-value">{{ topology.cce.name }}</div>
+            <div class="arch-box-pods">
+              pageserver &middot; safekeeper &middot; storage-broker &middot; proxy<br>
+              lakeon-api (HTTPS, hostNetwork) &middot; compute pods (按需创建)
+            </div>
           </a>
           <div class="arch-nodes">
             <a v-for="node in topology.cce.nodes" :key="node.name"
@@ -57,10 +61,6 @@
               <div class="arch-box-value">{{ node.flavor }}</div>
               <div class="arch-box-status" :class="node.phase === 'Active' ? 'status-ok' : 'status-error'">
                 {{ node.phase }}
-              </div>
-              <div class="arch-box-pods">
-                pageserver &middot; safekeeper &middot; storage-broker<br>
-                proxy &middot; lakeon-api (HTTPS, hostNetwork)
               </div>
             </a>
           </div>
