@@ -1,5 +1,5 @@
 package com.lakeon.model.enums;
 
 public enum OperationType {
-    CREATE, SUSPEND, RESUME, DELETE, UPDATE
+    CREATE, SUSPEND, RESUME, DELETE, UPDATE, IMPORT
 }

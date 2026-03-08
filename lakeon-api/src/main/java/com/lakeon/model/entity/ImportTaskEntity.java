@@ -66,6 +66,9 @@ public class ImportTaskEntity {
     @Column(name = "original_suspend_timeout", length = 16)
     private String originalSuspendTimeout;
 
+    @Column(name = "operation_log_id", length = 64)
+    private String operationLogId;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -235,5 +238,13 @@ public class ImportTaskEntity {
 
     public void setOriginalSuspendTimeout(String originalSuspendTimeout) {
         this.originalSuspendTimeout = originalSuspendTimeout;
+    }
+
+    public String getOperationLogId() {
+        return operationLogId;
+    }
+
+    public void setOperationLogId(String operationLogId) {
+        this.operationLogId = operationLogId;
     }
 }

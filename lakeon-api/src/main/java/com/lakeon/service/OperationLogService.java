@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class OperationLogService {
@@ -52,6 +53,10 @@ public class OperationLogService {
             .register(meterRegistry)
             .increment();
         repository.save(log);
+    }
+
+    public Optional<OperationLogEntity> findById(String id) {
+        return repository.findById(id);
     }
 
     public Page<OperationLogEntity> getByDatabase(String databaseId, String tenantId,

@@ -203,6 +203,7 @@
             <option value="RESUME">恢复</option>
             <option value="DELETE">删除</option>
             <option value="UPDATE">更新</option>
+            <option value="IMPORT">导入</option>
           </select>
         </div>
         <div class="section-card">

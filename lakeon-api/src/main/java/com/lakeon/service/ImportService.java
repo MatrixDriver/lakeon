@@ -12,6 +12,8 @@ import com.lakeon.model.enums.ConflictStrategy;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.model.enums.ImportMode;
 import com.lakeon.model.enums.ImportTaskStatus;
+import com.lakeon.model.enums.OperationType;
+import com.lakeon.model.entity.OperationLogEntity;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.ImportTableTaskRepository;
 import com.lakeon.repository.ImportTaskRepository;
@@ -40,6 +42,7 @@ public class ImportService {
     private final ImportJobPodManager importJobPodManager;
     private final ComputePodManager computePodManager;
     private final DatabaseService databaseService;
+    private final OperationLogService operationLogService;
     private final LakeonProperties props;
     private final ExecutorService importExecutor = Executors.newFixedThreadPool(2);
 
@@ -49,6 +52,7 @@ public class ImportService {
                          ImportJobPodManager importJobPodManager,
                          ComputePodManager computePodManager,
                          DatabaseService databaseService,
+                         OperationLogService operationLogService,
                          LakeonProperties props) {
         this.importTaskRepository = importTaskRepository;
         this.importTableTaskRepository = importTableTaskRepository;
@@ -56,6 +60,7 @@ public class ImportService {
         this.importJobPodManager = importJobPodManager;
         this.computePodManager = computePodManager;
         this.databaseService = databaseService;
+        this.operationLogService = operationLogService;
         this.props = props;
     }
 
@@ -139,6 +144,10 @@ public class ImportService {
             }
         }
 
+        // Log operation
+        OperationLogEntity opLog = operationLogService.startOperation(
+            dbId, tenant.getId(), database.getName(), OperationType.IMPORT);
+
         // Create task in PENDING status — return immediately
         ImportTaskEntity task = new ImportTaskEntity();
         task.setTenantId(tenant.getId());
@@ -151,19 +160,22 @@ public class ImportService {
         task.setMode(req.mode());
         task.setConflictStrategy(req.conflictStrategy() != null ? req.conflictStrategy() : ConflictStrategy.APPEND);
         task.setStatus(ImportTaskStatus.PENDING);
+        task.setOperationLogId(opLog.getId());
         task = importTaskRepository.save(task);
 
         // Launch async preparation (wake compute, list tables, launch pod)
         final String taskId = task.getId();
         final String tenantId = tenant.getId();
+        final String opLogId = opLog.getId();
         final List<SourceTableInfo> finalSelectedTables = selectedTables;
-        importExecutor.submit(() -> prepareAndLaunchImport(taskId, tenantId, dbId, req, finalSelectedTables));
+        importExecutor.submit(() -> prepareAndLaunchImport(taskId, tenantId, dbId, req, finalSelectedTables, opLogId));
 
         return toResponse(task, null);
     }
 
     private void prepareAndLaunchImport(String taskId, String tenantId, String dbId,
-                                         CreateImportRequest req, List<SourceTableInfo> selectedTables) {
+                                         CreateImportRequest req, List<SourceTableInfo> selectedTables,
+                                         String opLogId) {
         try {
             ImportTaskEntity task = importTaskRepository.findById(taskId)
                 .orElseThrow(() -> new NotFoundException("Import task not found: " + taskId));
@@ -227,6 +239,7 @@ public class ImportService {
                 t.setStatus(ImportTaskStatus.FAILED);
                 t.setErrorMessage(e.getMessage());
                 t.setFinishedAt(Instant.now());
+                completeImportOperationLog(t, e.getMessage());
                 importTaskRepository.save(t);
             });
         }
@@ -288,14 +301,20 @@ public class ImportService {
 
         if (pendingOrRunning == 0) {
             long failedCount = importTableTaskRepository.countByImportTaskIdAndStatus(taskId, ImportTaskStatus.FAILED);
+            String errorMsg = null;
             if (failedCount == 0) {
                 task.setStatus(ImportTaskStatus.COMPLETED);
             } else if (task.getCompletedTables() > 0) {
                 task.setStatus(ImportTaskStatus.PARTIAL);
+                errorMsg = failedCount + " table(s) failed";
             } else {
                 task.setStatus(ImportTaskStatus.FAILED);
+                errorMsg = "All tables failed";
             }
             task.setFinishedAt(Instant.now());
+
+            // Complete operation log
+            completeImportOperationLog(task, errorMsg);
 
             // Restore original suspend timeout
             if (task.getOriginalSuspendTimeout() != null) {
@@ -377,6 +396,7 @@ public class ImportService {
 
         task.setStatus(ImportTaskStatus.CANCELLED);
         task.setFinishedAt(Instant.now());
+        completeImportOperationLog(task, "Cancelled by user");
         task = importTaskRepository.save(task);
 
         List<ImportTableTaskEntity> allTables = importTableTaskRepository
@@ -420,6 +440,17 @@ public class ImportService {
         List<ImportTableTaskEntity> allTables = importTableTaskRepository
             .findAllByImportTaskIdOrderBySchemaNameAscTableNameAsc(taskId);
         return toResponse(task, allTables);
+    }
+
+    private void completeImportOperationLog(ImportTaskEntity task, String errorMessage) {
+        if (task.getOperationLogId() == null) return;
+        try {
+            operationLogService.findById(task.getOperationLogId()).ifPresent(opLog ->
+                operationLogService.completeOperation(opLog, errorMessage)
+            );
+        } catch (Exception e) {
+            log.warn("Failed to complete operation log for import task {}: {}", task.getId(), e.getMessage());
+        }
     }
 
     private ImportTaskEntity findTaskForTenant(TenantEntity tenant, String dbId, String taskId) {
