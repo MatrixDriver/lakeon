@@ -12,7 +12,8 @@
 |------|------|
 | lakeon-admin | Vue 3 + TypeScript，Nginx 反向代理，Docker 多阶段构建 |
 | lakeon-api | Spring Boot 3.3.5，Admin API (Bearer Token 认证) |
-| CCE 部署 | admin:0.1.5, api:0.1.14, ELB 端口 8081 |
+| 部署方式 | Railway (海外托管)，浏览器直连 `https://api.dbay.cloud:8443` |
+| 当前版本 | admin:0.2.0, api:0.3.4 |
 | Admin Token | `lakeon-sre-2026` (通过 values-cce.yaml 配置) |
 
 ## 验证项
@@ -125,9 +126,12 @@
 
 ## 遗留项
 
-| 项目 | 说明 | 去向 |
+| 项目 | 说明 | 状态 |
 |------|------|------|
-| NAT 网关配置 | Pod 出公网，CBC 账单 API 依赖 | 移至阶段 9 |
+| NAT 网关配置 | Pod 出公网 | ✅ 已完成（NAT 网关 + hostNetwork 回退） |
+| CBC 实际账单 | 华为云 CBC API 对接 | ✅ 已完成 |
+| 品牌重塑 | Lakeon → DBay | ✅ 已完成 |
+| 云资源拓扑图 | 反映 Railway + HTTPS 架构 | ✅ 已完成 |
 
 ## 文件变更
 

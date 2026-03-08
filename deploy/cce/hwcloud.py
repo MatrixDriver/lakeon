@@ -2,20 +2,22 @@
 """
 Lakeon 华为云资源管理 - 极致省钱模式
 
-资源: 1x ac7.2xlarge.2 节点 + 共享ELB + 按流量EIP + RDS
-运行成本: ~¥89/天 (CCE ¥24 + 节点 ¥48 + RDS ¥17)
+资源: 1x 4C8G 固定节点 + 共享ELB + 按流量EIP + RDS
+节点策略: 保留固定节点（ECS 开关机），不再创建/删除节点
+运行成本: ~¥65/天 (CCE ¥12 + 节点 ¥24 + RDS ¥17 + EIP ¥12)
 
 两种关停模式:
-  默认模式 — 保留 CCE 集群 + 集群 EIP（¥24/天），省 ~¥65/天
-  --full   — 删除一切（仅保留 OBS/SWR），省 ~¥89/天
+  默认模式 — 关停 ECS + RDS，保留 CCE 集群 + ELB + EIP（¥24/天），省 ~¥41/天
+  --full   — 关停 ECS + RDS + 删除 ELB + 释放 EIP，省 ~¥65/天
              启动时需手动绑 EIP 到集群并更新 kubeconfig
 
 用法:
   python3 hwcloud.py discover        # 发现并缓存资源 ID
-  python3 hwcloud.py stop-cloud      # 关停（保留集群 EIP）
-  python3 hwcloud.py stop-cloud --full  # 关停（释放所有 EIP）
-  python3 hwcloud.py start-cloud     # 启动
-  python3 hwcloud.py status          # 查看资源状态
+  python3 hwcloud.py info            # 查看资源规格和状态详情
+  python3 hwcloud.py status          # 查看资源状态（简洁版）
+  python3 hwcloud.py stop-cloud      # 关停（保留 ELB+EIP）
+  python3 hwcloud.py stop-cloud --full  # 关停（释放所有 EIP+ELB）
+  python3 hwcloud.py start-cloud     # 启动（开机 ECS+RDS）
   python3 hwcloud.py list-resources  # 输出所有资源 JSON（供管理台使用）
 """
 
@@ -23,7 +25,7 @@ import hashlib, hmac, json, os, re, sys, time
 import urllib.request, urllib.parse, urllib.error
 from datetime import datetime, timezone
 
-REGION = "cn-south-1"
+REGION = "cn-north-4"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 ENV_FILE = os.path.join(SCRIPT_DIR, ".env.cce")
 CACHE_FILE = os.path.join(SCRIPT_DIR, ".lakeon-cloud.json")
@@ -220,27 +222,24 @@ def bind_eip(ak, sk, pid, eip_id, port_id):
     return api("PUT", f"https://vpc.{REGION}.myhuaweicloud.com/v1/{pid}/publicips/{eip_id}", ak, sk, body)
 
 
-# ── Node Operations ──────────────────────────────────────────────
+# ── Node / ECS Operations ────────────────────────────────────────
 
-def delete_node(ak, sk, pid, cid, node_uid):
-    return api("DELETE", f"https://cce.{REGION}.myhuaweicloud.com/api/v3/projects/{pid}/clusters/{cid}/nodes/{node_uid}", ak, sk)
+def ecs_action(ak, sk, pid, server_id, action):
+    """Start or stop an ECS server. action: 'os-start' or 'os-stop'"""
+    body = json.dumps({action: {"servers": [{"id": server_id}]}})
+    return api("POST", f"https://ecs.{REGION}.myhuaweicloud.com/v1/{pid}/cloudservers/action", ak, sk, body)
 
-def create_node(ak, sk, pid, cid, node_spec, node_password=""):
-    # Standard CCE Node Spec
-    spec = {
-        "flavor": node_spec.get("flavor", "s6.xlarge.2"),
-        "az": node_spec["az"],
-        "os": "Huawei Cloud EulerOS 2.9", # 2.9 is a safe standard
-        "rootVolume": {"volumetype": "GPSSD", "size": 50},
-        "dataVolumes": [{"volumetype": "GPSSD", "size": 100}],
-        "runtime": {"name": "containerd"},
-        "nodeNicSpec": {"primaryNic": {"subnetId": node_spec.get("subnet_id", "2f556317-04ce-4df6-9472-3bd98b3fd49e")}},
-        "extendParam": {"chargingMode": 0},
-        "login": {"sshKey": "lakeon-key"},
-        "count": 1
-    }
-    body = json.dumps({"kind": "Node", "apiVersion": "v3", "metadata": {}, "spec": spec})
-    return api("POST", f"https://cce.{REGION}.myhuaweicloud.com/api/v3/projects/{pid}/clusters/{cid}/nodes", ak, sk, body)
+def ecs_stop(ak, sk, pid, server_id):
+    return ecs_action(ak, sk, pid, server_id, "os-stop")
+
+def ecs_start(ak, sk, pid, server_id):
+    return ecs_action(ak, sk, pid, server_id, "os-start")
+
+def get_ecs_detail(ak, sk, pid, server_id):
+    s, d = api("GET", f"https://ecs.{REGION}.myhuaweicloud.com/v1/{pid}/cloudservers/{server_id}", ak, sk)
+    if s == 200:
+        return d.get("server", d)
+    return None
 
 def rds_action(ak, sk, pid, inst_id, action):
     return api("POST", f"https://rds.{REGION}.myhuaweicloud.com/v3/{pid}/instances/{inst_id}/action/{action}",
@@ -357,35 +356,32 @@ def cmd_stop_cloud(ak, sk, full=False):
     cache["stop_mode"] = "full" if full else "keep-cce"
     save_cache(cache)
 
-    mode_label = "极致省钱（删除一切）" if full else "保留集群 EIP"
+    mode_label = "极致省钱（删 ELB + 释放 EIP）" if full else "保留 ELB + EIP"
     print(f"\n=== 关停华为云资源 [{mode_label}] ===\n")
 
-    # 1. Delete ELB (listeners should be gone after helm uninstall)
-    elb_id = cache.get("elb_id")
-    if elb_id:
-        lb = get_elb(ak, sk, pid, elb_id)
-        if lb:
-            cache["elb_config"] = {
-                "name": lb.get("name", "lakeon-elb"),
-                "vip_subnet_id": lb.get("vip_subnet_id") or lb.get("vip_subnet_cidr_id"),
-                "shared": True,
-            }
-            save_cache(cache)
-
-            print(f"  删除 ELB: {elb_id[:12]}...")
-            # Use v2 cascade delete to clean listeners/pools automatically
-            s, r = api("DELETE", f"https://elb.{REGION}.myhuaweicloud.com/v2/{pid}/elb/loadbalancers/{elb_id}?cascade=true", ak, sk)
-            if s not in (200, 204):
-                # Fallback: try v3 API
-                s, r = delete_elb(ak, sk, pid, elb_id)
-            print(f"    {'✓' if s in (200,204) else '✗'} {s}")
-        else:
-            print(f"  ELB {elb_id[:12]}... 已不存在")
-
-    # 2. Release EIPs (ELB-managed EIPs are auto-deleted with ELB, skip them)
-    cluster_eip = _get_cluster_eip()
     if full:
-        # Full mode: release ALL standalone EIPs including cluster EIP
+        # 1. Delete ELB (only in full mode)
+        elb_id = cache.get("elb_id")
+        if elb_id:
+            lb = get_elb(ak, sk, pid, elb_id)
+            if lb:
+                cache["elb_config"] = {
+                    "name": lb.get("name", "lakeon-elb"),
+                    "vip_subnet_id": lb.get("vip_subnet_id") or lb.get("vip_subnet_cidr_id"),
+                    "shared": True,
+                }
+                save_cache(cache)
+
+                print(f"  删除 ELB: {elb_id[:12]}...")
+                s, r = api("DELETE", f"https://elb.{REGION}.myhuaweicloud.com/v2/{pid}/elb/loadbalancers/{elb_id}?cascade=true", ak, sk)
+                if s not in (200, 204):
+                    s, r = delete_elb(ak, sk, pid, elb_id)
+                print(f"    {'✓' if s in (200,204) else '✗'} {s}")
+            else:
+                print(f"  ELB {elb_id[:12]}... 已不存在")
+
+        # 2. Release ALL EIPs (only in full mode)
+        cluster_eip = _get_cluster_eip()
         all_eips = get_eips(ak, sk, pid)
         all_eip_configs = []
         for e in all_eips:
@@ -405,23 +401,18 @@ def cmd_stop_cloud(ak, sk, full=False):
             s, r = release_eip(ak, sk, pid, e["id"])
             print(f"    {'✓' if s in (200,204) else '✗'} {s}")
     else:
-        # Default mode: release standalone service EIPs, keep cluster EIP
-        # ELB-managed EIPs are auto-deleted with ELB, no need to release
-        for e in cache.get("eip_configs", []):
-            if e.get("elb_managed"):
-                print(f"  EIP {e['ip']}: 随 ELB 自动释放")
-                continue
-            print(f"  释放 EIP: {e['ip']} ({e['id'][:12]}...)")
-            s, r = release_eip(ak, sk, pid, e["id"])
-            print(f"    {'✓' if s in (200,204) else '✗'} {s}")
-        if cluster_eip:
-            print(f"  保留 EIP: {cluster_eip} (集群管理)")
+        print(f"  保留 ELB + EIP（默认模式）")
 
-    # 3. Delete nodes
+    # 3. Stop ECS nodes (not delete — keep fixed node)
     for n in nodes:
-        print(f"  删除节点: {n['name']} ({n['flavor']})")
-        s, r = delete_node(ak, sk, pid, cid, n["uid"])
-        print(f"    {'✓' if s in (200,204) else '✗'} {s}")
+        sid = n.get("server_id")
+        if not sid:
+            print(f"  ⚠ 节点 {n['name']} 无 server_id，跳过")
+            continue
+        print(f"  关机节点: {n['name']} ({n['flavor']}, ECS {sid[:12]}...)")
+        s, r = ecs_stop(ak, sk, pid, sid)
+        ok = s in (200, 204) or "already" in str(r).lower()
+        print(f"    {'✓' if ok else '✗'} {s}")
 
     # 4. Stop RDS
     rid = cache.get("rds_id")
@@ -431,11 +422,11 @@ def cmd_stop_cloud(ak, sk, full=False):
         ok = s in (200, 202, 204) or "SHUTTING" in str(r)
         print(f"    {'✓' if ok else '✗'} {s}")
 
-    saved = "¥89" if full else "¥65"
+    saved = "¥65" if full else "¥41"
     print(f"\n✅ 关停请求已提交")
     print(f"   每天节省 ~{saved}")
     if not full:
-        print(f"   仍计费: CCE 集群 + 集群 EIP ≈ ¥24/天")
+        print(f"   仍计费: CCE 集群 + ELB + EIP ≈ ¥24/天")
     if full:
         print(f"   ⚠ 启动时需先在华为云控制台为 CCE 集群绑定 EIP，再更新 kubeconfig")
 
@@ -457,18 +448,22 @@ def cmd_start_cloud(ak, sk):
         ok = s in (200, 202, 204) or "ACTIVE" in str(r)
         print(f"    {'✓' if ok else '✗'} {s}")
 
-    # 2. Create nodes
+    # 2. Start ECS nodes (fixed nodes, not create new ones)
     saved_nodes = cache.get("nodes", [])
-    node_pw = cache.get("_node_password", "")
     for n in saved_nodes:
-        print(f"  创建节点: {n['flavor']} ({n['az']})")
-        s, r = create_node(ak, sk, pid, cid, n, node_pw)
-        print(f"    {'✓' if s in (200,201) else '✗'} {s}")
-        if s not in (200, 201):
+        sid = n.get("server_id")
+        if not sid:
+            print(f"  ⚠ 节点 {n.get('name', '?')} 无 server_id，跳过")
+            continue
+        print(f"  开机节点: {n.get('name', '?')} ({n['flavor']}, ECS {sid[:12]}...)")
+        s, r = ecs_start(ak, sk, pid, sid)
+        ok = s in (200, 204) or "already" in str(r).lower()
+        print(f"    {'✓' if ok else '✗'} {s}")
+        if s not in (200, 204) and "already" not in str(r).lower():
             print(f"    {json.dumps(r, ensure_ascii=False)[:300]}")
 
     # 3. Wait for RDS + nodes
-    print(f"\n  等待资源就绪（RDS ~3-5min, 节点 ~5-10min）...")
+    print(f"\n  等待资源就绪（RDS ~3-5min, 节点 ~2-3min）...")
     expected = len(saved_nodes)
     rds_ok = nodes_ok = False
     for i in range(90):
@@ -498,11 +493,15 @@ def cmd_start_cloud(ak, sk):
         print(f"\n⚠ 等待超时，请检查华为云控制台后重试")
         return
 
-    # 4. Create shared ELB (v2 API)
+    # 4. Check ELB — reuse if still exists, otherwise recreate
+    elb_id = cache.get("elb_id")
     elb_cfg = cache.get("elb_config")
-    new_elb_id = None
-    new_eip = None
-    if elb_cfg:
+    existing_elb = get_elb(ak, sk, pid, elb_id) if elb_id else None
+
+    if existing_elb:
+        print(f"\n  ELB 已存在: {existing_elb.get('name')} ({elb_id[:12]}...)")
+        print(f"  ✓ 无需重建 ELB 和 EIP")
+    elif elb_cfg:
         print(f"\n  创建共享型 ELB...")
         elb_body = json.dumps({"loadbalancer": {
             "name": elb_cfg.get("name", "lakeon-elb"),
@@ -518,7 +517,6 @@ def cmd_start_cloud(ak, sk):
             print(f"    ✓ ELB: {new_elb_id[:12]}...")
             cache["elb_id"] = new_elb_id
 
-            # Allocate static BGP EIP (traffic billing) and bind to ELB
             print(f"  分配 EIP (静态BGP, 按流量)...")
             eip_req = {
                 "publicip": {"type": "5_sbgp"},
@@ -533,11 +531,10 @@ def cmd_start_cloud(ak, sk):
 
                 print(f"  绑定 EIP → ELB...")
                 bs, br = bind_eip(ak, sk, pid, eip_id, vip_port_id)
+                new_eip = br.get("publicip", {}).get("public_ip_address", eip_ip) if bs == 200 else eip_ip
                 if bs == 200:
-                    new_eip = br.get("publicip", {}).get("public_ip_address", eip_ip)
                     print(f"    ✓ 已绑定: {new_eip}")
                 else:
-                    new_eip = eip_ip
                     print(f"    ✗ 绑定失败: {bs}, EIP 需手动绑定")
 
                 cache["eip_configs"] = [{
@@ -547,24 +544,18 @@ def cmd_start_cloud(ak, sk):
                 }]
             else:
                 print(f"    ✗ EIP 分配失败: {s2} {json.dumps(r2, ensure_ascii=False)[:200]}")
+
+            save_cache(cache)
+            print(f"\n  更新配置文件...")
+            update_values(new_elb_id, new_eip)
         else:
             print(f"    ✗ ELB 创建失败: {s} {json.dumps(r, ensure_ascii=False)[:300]}")
             return
     else:
         print(f"\n  ⚠ 无 ELB 配置缓存，跳过 ELB 创建")
-        return
-
-    save_cache(cache)
-
-    # 5. Update values-cce.yaml
-    if new_elb_id and new_eip:
-        print(f"\n  更新配置文件...")
-        update_values(new_elb_id, new_eip)
 
     print(f"\n✅ 云资源已就绪")
-    if new_eip:
-        print(f"\n  新 IP: {new_eip}")
-        print(f"  接下来运行 start.sh 完成 K8s 部署")
+    print(f"  接下来运行 start.sh 完成 K8s 部署")
 
 
 def get_vpcs(ak, sk, pid):
@@ -820,6 +811,111 @@ def cmd_status(ak, sk):
     print(f"\n  {'🟢 运行中' if running else '🔴 已关停'}")
 
 
+def cmd_info(ak, sk):
+    """显示当前站点的资源规格和状态详情"""
+    cache = load_cache()
+    if not cache.get("project_id"):
+        cache = cmd_discover(ak, sk)
+    pid, cid = cache["project_id"], cache["cluster_id"]
+
+    print("\n╔══════════════════════════════════════════════╗")
+    print("║        Lakeon 站点资源规格 & 状态            ║")
+    print("╚══════════════════════════════════════════════╝")
+
+    # CCE Cluster
+    print(f"\n── CCE 集群 ──")
+    print(f"  名称:       {cache.get('cluster_name', '?')}")
+    print(f"  集群 ID:    {cid}")
+    print(f"  Region:     {REGION}")
+
+    # Nodes (with ECS detail)
+    nodes = get_nodes(ak, sk, pid, cid)
+    print(f"\n── 计算节点 ({len(nodes)}) ──")
+    for n in nodes:
+        icon = "🟢" if n["phase"] == "Active" else "🔴"
+        sid = n.get("server_id", "?")
+        print(f"  {icon} {n['name']}")
+        print(f"     CCE UID:    {n['uid']}")
+        print(f"     ECS ID:     {sid}")
+        print(f"     规格:       {n['flavor']}")
+        print(f"     可用区:     {n['az']}")
+        print(f"     状态:       {n['phase']}")
+        # Get ECS detail for more info
+        if sid and sid != "?":
+            ecs = get_ecs_detail(ak, sk, pid, sid)
+            if ecs:
+                vcpus = ecs.get("flavor", {}).get("vcpus", "?")
+                ram_mb = ecs.get("flavor", {}).get("ram", 0)
+                ram_gb = round(int(ram_mb) / 1024, 1) if ram_mb else "?"
+                ecs_status = ecs.get("status", "?")
+                ecs_name = ecs.get("name", "?")
+                addrs = ecs.get("addresses", {})
+                ips = []
+                for net_addrs in addrs.values():
+                    for a in net_addrs:
+                        ips.append(f"{a.get('addr')} ({a.get('OS-EXT-IPS:type', '?')})")
+                print(f"     ECS 名称:   {ecs_name}")
+                print(f"     CPU/内存:   {vcpus} vCPU / {ram_gb} GB")
+                print(f"     ECS 状态:   {ecs_status}")
+                if ips:
+                    print(f"     IP 地址:    {', '.join(ips)}")
+        rv = n.get("root_volume", {})
+        dv = n.get("data_volumes", [])
+        print(f"     系统盘:     {rv.get('volumetype', '?')} {rv.get('size', '?')}GB")
+        for i, d in enumerate(dv):
+            print(f"     数据盘{i+1}:    {d.get('volumetype', '?')} {d.get('size', '?')}GB")
+
+    # RDS
+    print(f"\n── RDS 数据库 ──")
+    try:
+        rid, rname, rst, rip = get_rds(ak, sk, pid)
+        icon = "🟢" if rst.upper() in ("ACTIVE", "NORMAL") else "🔴"
+        print(f"  {icon} {rname}")
+        print(f"     实例 ID:    {rid}")
+        print(f"     内网地址:   {rip}")
+        print(f"     状态:       {rst}")
+    except:
+        print(f"  🔴 无法获取 RDS 信息")
+
+    # ELB
+    print(f"\n── ELB 负载均衡 ──")
+    elb_id = cache.get("elb_id")
+    if elb_id:
+        lb = get_elb(ak, sk, pid, elb_id)
+        if lb:
+            print(f"  🟢 {lb.get('name', '?')}")
+            print(f"     ELB ID:     {elb_id}")
+            print(f"     VIP:        {lb.get('vip_address', '?')}")
+            print(f"     类型:       {'独享型' if lb.get('guaranteed') else '共享型'}")
+            print(f"     状态:       {lb.get('operating_status', '?')}")
+            # Listeners
+            listeners = get_elb_listeners(ak, sk, pid, elb_id)
+            if listeners:
+                print(f"     监听器:")
+                for l in listeners:
+                    print(f"       - {l.get('name', '?')} → {l.get('protocol', '?')}:{l.get('protocol_port', '?')}")
+        else:
+            print(f"  🔴 ELB 不存在 ({elb_id[:12]}...)")
+    else:
+        print(f"  未配置")
+
+    # EIPs
+    eips = get_eips(ak, sk, pid)
+    cluster_eip = _get_cluster_eip()
+    print(f"\n── 弹性公网 IP ({len(eips)}) ──")
+    for e in eips:
+        ip = e.get("public_ip_address", "?")
+        label = " (集群管理)" if ip == cluster_eip else ""
+        bw = e.get("bandwidth_size", "?")
+        bw_type = e.get("bandwidth_share_type", "?")
+        print(f"  {ip}{label}")
+        print(f"     EIP ID:     {e['id']}")
+        print(f"     带宽:       {bw} Mbps ({bw_type})")
+        print(f"     状态:       {e.get('status', '?')}")
+
+    print()
+
+
 # ── Main ─────────────────────────────────────────────────────────
 
 COMMANDS = {
@@ -827,6 +923,7 @@ COMMANDS = {
     "stop-cloud": cmd_stop_cloud,
     "start-cloud": cmd_start_cloud,
     "status": cmd_status,
+    "info": cmd_info,
     "list-resources": cmd_list_resources,
 }
 

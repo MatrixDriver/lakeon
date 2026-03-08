@@ -60,6 +60,8 @@ api:
   port: 8080
   serviceType: ClusterIP
   adminToken: ""
+  ssl:
+    enabled: false
   image:
     repository: lakeon/lakeon-api
     tag: "0.1.0"

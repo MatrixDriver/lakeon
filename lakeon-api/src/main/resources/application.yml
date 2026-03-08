@@ -1,5 +1,10 @@
 server:
   port: ${LAKEON_API_PORT:8080}
+  ssl:
+    enabled: ${LAKEON_SSL_ENABLED:false}
+    key-store: ${LAKEON_SSL_KEYSTORE:/app/secrets/keystore.p12}
+    key-store-type: PKCS12
+    key-store-password: ${LAKEON_SSL_KEYSTORE_PASSWORD:changeit}
 
 spring:
   datasource:

@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 
 # ── 基础配置 ─────────────────────────────────────────────────────
 
-REGION = "cn-south-1"  # 目标区域：华南-广州
+REGION = "cn-north-4"  # 目标区域：华北-北京四
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # 凭证与配置文件路径

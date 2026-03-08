@@ -12,7 +12,7 @@
 |------|------|
 | lakeon-console | Vue 3 + TinyVue，Nginx 反向代理，Docker 多阶段构建 |
 | lakeon-api | Spring Boot 3.3.5，新增操作日志、配额、用量计量模块 |
-| 部署方式 | CCE + ELB (console:0.1.3, api:0.1.14) |
+| 部署方式 | Console: Railway (海外)，API: CCE + HTTPS (api:0.3.4, console:0.3.7) |
 
 ## 验证项
 

@@ -10,10 +10,10 @@
 
 | 组件 | 配置 |
 |------|------|
-| lakeon-api | 0.1.23, Spring Boot 3.3.5 + Micrometer + Fabric8 K8s Client |
-| lakeon-admin | 0.1.7, Vue 3 + TypeScript + Canvas 图表 |
-| CCE 集群 | 1x 8C16G 节点 |
-| ELB | 114.116.210.49 (proxy:4432, console:80, admin:8081) |
+| lakeon-api | 0.3.4, Spring Boot 3.3.5 + Micrometer + Fabric8 K8s Client |
+| lakeon-admin | 0.2.0, Vue 3 + TypeScript + Canvas 图表 (Railway 部署) |
+| CCE 集群 | 1x 4C8G 节点 (x1.4u.8g) |
+| ELB | 114.116.210.49 (API:8443 HTTPS, proxy:4432) |
 
 ## 验证项
 

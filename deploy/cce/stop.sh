@@ -2,8 +2,8 @@
 # Lakeon 极致省钱 - 一键关停
 #
 # 两种模式:
-#   ./deploy/cce/stop.sh          # 保留 CCE 集群 EIP（省 ~¥65/天，仍花 ¥24/天）
-#   ./deploy/cce/stop.sh --full   # 释放所有 EIP（省 ~¥89/天，启动需手动绑 EIP）
+#   ./deploy/cce/stop.sh          # 关停 ECS+RDS，保留 CCE+ELB+EIP（省 ~¥41/天）
+#   ./deploy/cce/stop.sh --full   # 关停 ECS+RDS+删 ELB+释放 EIP（省 ~¥65/天）
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -17,7 +17,7 @@ echo ""
 
 # 1. Scale K8s workloads to 0 first (graceful)
 echo "── 缩容 K8s 工作负载 ──"
-for deploy in lakeon-api lakeon-admin lakeon-console proxy pageserver storage-broker; do
+for deploy in lakeon-api proxy pageserver storage-broker; do
   kubectl scale deployment/$deploy --replicas=0 -n lakeon 2>/dev/null && echo "  ✓ $deploy → 0" || true
 done
 kubectl scale statefulset/safekeeper --replicas=0 -n lakeon 2>/dev/null && echo "  ✓ safekeeper → 0" || true
@@ -40,9 +40,9 @@ python3 "$SCRIPT_DIR/hwcloud.py" stop-cloud $FULL_FLAG
 
 echo ""
 if [[ -n "$FULL_FLAG" ]]; then
-  echo "💤 晚安！所有资源已关停，每天节省 ~¥89"
+  echo "💤 晚安！所有资源已关停，每天节省 ~¥65"
   echo "   ⚠ 启动前需先在华为云控制台为 CCE 集群绑定 EIP，再更新 kubeconfig"
 else
-  echo "💤 晚安！所有资源已关停，每天节省 ~¥65（仍计费 CCE+EIP ≈ ¥24/天）"
+  echo "💤 晚安！所有资源已关停，每天节省 ~¥41（仍计费 CCE+ELB+EIP ≈ ¥24/天）"
 fi
 echo "   启动命令: ./deploy/cce/start.sh"

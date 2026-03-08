@@ -1,7 +1,7 @@
 #!/bin/bash
 # Lakeon 极致省钱 - 一键启动
-# 资源: 1x ac7.2xlarge.2 + 共享ELB + 按流量EIP + RDS
-# 启动顺序: RDS + 节点 → 等待就绪 → containerd 修复 → 创建 ELB+EIP → 删旧 Service → Helm 部署
+# 资源: 1x 4C8G 固定节点 + 共享ELB + 按流量EIP + RDS
+# 启动顺序: ECS开机 + RDS启动 → 等待就绪 → containerd 修复 → 创建 ELB+EIP → 删旧 Service → Helm 部署
 #
 # 用法: ./deploy/cce/start.sh
 
@@ -43,7 +43,7 @@ done
 # 3. Delete old LoadBalancer services (CCE forbids modifying elb.id annotation)
 echo ""
 echo "── 清理旧 Service ──"
-for svc in proxy lakeon-console lakeon-admin; do
+for svc in proxy; do
   kubectl delete svc $svc -n lakeon 2>/dev/null && echo "  ✓ deleted $svc" || true
 done
 
@@ -64,7 +64,7 @@ echo "── 等待服务就绪 ──"
 for deploy in safekeeper; do
   kubectl rollout status statefulset/$deploy -n lakeon --timeout=180s 2>/dev/null || true
 done
-for deploy in pageserver storage-broker lakeon-api proxy lakeon-console lakeon-admin; do
+for deploy in pageserver storage-broker lakeon-api proxy; do
   kubectl rollout status deployment/$deploy -n lakeon --timeout=180s 2>/dev/null || true
 done
 
@@ -75,8 +75,7 @@ echo ""
 echo "✅ Lakeon 已完全启动！"
 echo ""
 echo "访问地址:"
-echo "  Web 控制台:  http://${NEW_EIP}"
-echo "  SRE 管理台:  http://${NEW_EIP}:8081"
+echo "  API (HTTPS): https://api.dbay.cloud:8443"
 echo "  PG 连接:     postgresql://${NEW_EIP}:4432"
-echo ""
-echo "⚠ 注意: IP 已变更为 ${NEW_EIP}，请更新客户端连接配置"
+echo "  Web 控制台:  https://dbay.cloud (Railway)"
+echo "  SRE 管理台:  https://admin.dbay.cloud (Railway)"

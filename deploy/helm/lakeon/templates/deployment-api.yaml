@@ -71,18 +71,29 @@ spec:
               mountPath: /app/data/cloud-resources.json
               subPath: resources.json
               readOnly: true
+            {{- if .Values.api.ssl.enabled }}
+            - name: tls-keystore
+              mountPath: /app/secrets
+              readOnly: true
+            {{- end }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /actuator/health
               port: http
+              {{- if .Values.api.ssl.enabled }}
+              scheme: HTTPS
+              {{- end }}
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /actuator/health
               port: http
+              {{- if .Values.api.ssl.enabled }}
+              scheme: HTTPS
+              {{- end }}
             initialDelaySeconds: 15
             periodSeconds: 5
       volumes:
@@ -90,3 +101,8 @@ spec:
           configMap:
             name: lakeon-cloud-resources
             optional: true
+        {{- if .Values.api.ssl.enabled }}
+        - name: tls-keystore
+          secret:
+            secretName: api-keystore
+        {{- end }}

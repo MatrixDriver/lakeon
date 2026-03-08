@@ -23,6 +23,9 @@ data:
   LAKEON_COMPUTE_MEMORY: {{ .Values.api.computeMemory | quote }}
   {{- end }}
   LAKEON_API_PORT: {{ .Values.api.port | quote }}
+  {{- if .Values.api.ssl.enabled }}
+  LAKEON_SSL_ENABLED: "true"
+  {{- end }}
   {{- if .Values.obs.endpoint }}
   LAKEON_OBS_ENDPOINT: {{ .Values.obs.endpoint | quote }}
   {{- end }}
