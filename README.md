@@ -399,41 +399,43 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 
 面向正式上线的生产环境加固，涵盖备份恢复、分支管理、连接池、安全审计和权限管理。
 
-#### 10a：备份与恢复
-- [ ] 手动备份（用户触发 OBS 快照，记录 LSN + 时间戳）
-- [ ] 定时备份（Cron 策略，每日/每周自动快照）
-- [ ] 从备份恢复（指定快照创建新数据库）
-- [ ] 时间点恢复 PITR（基于 WAL + OBS 快照回放到任意时间点）
-- [ ] 备份管理 UI（Console 备份列表、创建/删除/恢复操作）
-- [ ] SRE 备份监控（全局备份状态、存储用量、过期清理）
+#### 10a：备份与恢复 ✅
+- [x] 手动备份（基于 Neon timeline branching，LSN 快照点）
+- [x] 备份列表（名称、大小、LSN、时间戳）
+- [x] 从备份恢复（创建新 timeline 分支）
+- [x] 备份自动清理（可配置保留数量）
+- [x] Console 备份管理 Tab + API
+- [x] 测试覆盖：BackupServiceTest (12) + BackupControllerTest (7) + backup-api.test.ts (5)
 
-#### 10b：分支管理增强
-- [ ] Console 分支可视化（分支树/DAG 图，展示父子关系和 LSN）
-- [ ] 创建分支（从任意分支/时间点创建 copy-on-write 分支）
-- [ ] 切换分支（数据库详情页切换当前活跃分支）
-- [ ] 分支对比（两个分支间的 schema diff）
-- [ ] 分支删除（安全检查 + 确认弹窗）
-- [ ] 分支连接串（每个分支独立的连接地址）
+#### 10b：分支管理增强 ✅
+- [x] Console 分支可视化（SVG DAG 树形图，展示父子关系和 LSN）
+- [x] 创建分支（指定父分支 + 可选 LSN）
+- [x] 切换活跃分支（timeline 切换）
+- [x] 分支删除（安全检查 + 确认弹窗）
+- [x] 测试覆盖：BranchServiceTest (11) + BranchControllerTest (8) + BranchTreeView.test.ts (9) + CreateBranchDialog.test.ts (8) + branch-api.test.ts (5)
 
-#### 10c：连接池
-- [ ] PgBouncer sidecar 集成（每个 compute pod 内置连接池）
+#### 10c：连接池 ⏸️ 暂缓
+- [ ] PgBouncer sidecar vs proxy 层连接池 — 架构待讨论
 - [ ] 连接池配置（pool_mode: transaction/session, pool_size）
 - [ ] 连接池监控（活跃/空闲/等待连接数, SRE 仪表盘展示）
 - [ ] 用户可配置池大小（Console 数据库设置页）
 
-#### 10d：SQL 审计日志
-- [ ] SQL 语句审计（pgaudit 扩展，记录 DDL/DML/SELECT）
-- [ ] 审计日志存储（写入独立审计表或 OBS 归档）
-- [ ] Console 审计查看器（按时间/用户/语句类型筛选）
-- [ ] SRE 全局审计（跨租户审计日志检索）
-- [ ] 审计策略配置（租户级别开关，记录粒度控制）
+#### 10d：SQL 审计日志 ✅
+- [x] 审计配置（启用/关闭，DDL/DML/SELECT 分类，保留天数）
+- [x] 审计日志记录（SQL 语句、用户、耗时、对象名自动提取）
+- [x] SQL 编辑器集成审计（执行 SQL 时自动记录）
+- [x] Console 审计日志 Tab（类型筛选 + 分页）
+- [x] SRE Admin 全局审计日志页面（租户/数据库筛选 + CSV 导出）
+- [x] 测试覆盖：AuditServiceTest (18) + AuditControllerTest (6) + audit-api.test.ts (4) + AuditLogs.test.ts (12) + admin-api.test.ts (5)
 
-#### 10e：数据库级权限管理
-- [ ] 多用户支持（每个数据库可创建多个用户）
-- [ ] 角色模板（只读 reader / 读写 writer / 管理员 admin）
-- [ ] Console 用户管理页（创建/删除用户、分配角色）
-- [ ] 连接串按用户生成（不同用户不同密码和权限）
-- [ ] 权限变更审计（记录 GRANT/REVOKE 操作）
+#### 10e：数据库级权限管理 ✅
+- [x] 多用户支持（每个数据库独立用户）
+- [x] 三级角色模板（ADMIN / WRITER / READER）
+- [x] PG 角色 SQL 执行（CREATE ROLE / GRANT / REVOKE）
+- [x] 用户创建（自动生成密码 + 显示一次）
+- [x] 修改角色、重置密码、删除用户
+- [x] Console 用户管理 Tab
+- [x] 测试覆盖：DatabaseUserServiceTest (12) + DatabaseUserControllerTest (9) + CreateUserDialog.test.ts (13) + dbuser-api.test.ts (5)
 
 #### 已完成（从旧规划移入）
 - [x] TLS 证书管理（Let's Encrypt + Spring Boot HTTPS，端口 8443）
