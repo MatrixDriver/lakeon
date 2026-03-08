@@ -16,6 +16,11 @@ spec:
   selector:
     app: lakeon-api
   ports:
-    - name: http
+    - name: https
       port: {{ if and .Values.api.elb .Values.api.elb.port }}{{ .Values.api.elb.port }}{{ else }}{{ .Values.api.port | default 8080 }}{{ end }}
       targetPort: http
+    {{- if .Values.api.ssl.enabled }}
+    - name: http-internal
+      port: {{ .Values.api.internalPort | default 8088 }}
+      targetPort: {{ .Values.api.internalPort | default 8088 }}
+    {{- end }}

@@ -35,6 +35,10 @@ spec:
           ports:
             - containerPort: {{ .Values.api.port }}
               name: http
+            {{- if .Values.api.ssl.enabled }}
+            - containerPort: {{ .Values.api.internalPort | default 8088 }}
+              name: http-internal
+            {{- end }}
           envFrom:
             - configMapRef:
                 name: lakeon-api-config

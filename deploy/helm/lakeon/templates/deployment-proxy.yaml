@@ -32,7 +32,7 @@ spec:
           args:
             - "--proxy=0.0.0.0:{{ .Values.proxy.listenPort }}"
             - "--auth-backend=control-plane"
-            - "--auth-endpoint=http://lakeon-api:{{ .Values.api.port }}/proxy"
+            - "--auth-endpoint=http://lakeon-api:{{ .Values.api.internalPort | default 8088 }}/proxy"
             - "--wss=0.0.0.0:{{ .Values.proxy.httpPort }}"
             - "--mgmt=127.0.0.1:{{ .Values.proxy.mgmtPort }}"
           env:
