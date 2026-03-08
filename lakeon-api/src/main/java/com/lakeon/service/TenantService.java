@@ -27,15 +27,12 @@ public class TenantService {
 
     @Transactional
     public TenantResponse create(CreateTenantRequest request) {
-        tenantRepository.findByName(request.name()).ifPresent(existing -> {
-            throw new ConflictException("Tenant '" + request.name() + "' already exists");
-        });
         tenantRepository.findByUsername(request.username()).ifPresent(existing -> {
             throw new ConflictException("Username '" + request.username() + "' already exists");
         });
 
         TenantEntity entity = new TenantEntity();
-        entity.setName(request.name());
+        entity.setName(request.username());
         entity.setUsername(request.username());
         entity.setPasswordHash(passwordEncoder.encode(request.password()));
         entity = tenantRepository.save(entity);

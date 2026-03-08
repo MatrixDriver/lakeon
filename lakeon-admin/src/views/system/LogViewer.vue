@@ -9,10 +9,10 @@
         <div class="control-group">
           <label class="control-label">组件</label>
           <select v-model="selectedComponent" class="form-input control-select" @change="fetchLogs">
+            <option value="lakeon-api">API</option>
             <option value="pageserver">Pageserver</option>
             <option value="safekeeper">Safekeeper</option>
             <option value="proxy">Proxy</option>
-            <option value="lakeon-api">API</option>
           </select>
         </div>
         <div class="control-group">
@@ -57,7 +57,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import client from '../../api/client'
 
-const selectedComponent = ref('pageserver')
+const selectedComponent = ref('lakeon-api')
 const computeDbId = ref('')
 const tailLines = ref(200)
 const searchText = ref('')

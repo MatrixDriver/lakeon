@@ -120,41 +120,52 @@
         <div class="tab-toolbar">
           <button class="btn btn-primary btn-small" @click="showBranchDialog = true">创建分支</button>
         </div>
-        <table class="data-table" v-if="branches.length > 0">
-          <thead>
-            <tr>
-              <th>名称</th>
-              <th>父分支</th>
-              <th>状态</th>
-              <th>计算状态</th>
-              <th>创建时间</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="branch in branches" :key="branch.id">
-              <td>
-                {{ branch.name }}
-                <span v-if="branch.is_default" class="default-tag">默认</span>
-              </td>
-              <td>{{ branch.parent_branch || '-' }}</td>
-              <td>{{ branch.status }}</td>
-              <td>{{ branch.compute_status }}</td>
-              <td>{{ formatDate(branch.created_at) }}</td>
-              <td>
-                <button
-                  v-if="!branch.is_default"
-                  class="btn btn-small btn-text btn-danger-text"
-                  @click="handleDeleteBranch(branch.id)"
-                >删除</button>
-                <span v-else class="text-muted">-</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <div v-else class="empty-state">
-          <p v-if="branchesLoading">加载中...</p>
-          <p v-else>暂无分支</p>
+        <div class="section-card">
+          <TableToolbar v-model="branchSearch" placeholder="搜索分支名称" :loading="branchesLoading" @refresh="fetchBranches" />
+          <div class="table-wrapper">
+            <table class="data-table" v-if="filteredBranches.length > 0">
+              <thead>
+                <tr>
+                  <th>名称</th>
+                  <th>父分支</th>
+                  <th>状态</th>
+                  <th>计算状态</th>
+                  <th>创建时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="branch in pagedBranches" :key="branch.id">
+                  <td>
+                    {{ branch.name }}
+                    <span v-if="branch.is_default" class="default-tag">默认</span>
+                  </td>
+                  <td>{{ branch.parent_branch || '-' }}</td>
+                  <td>{{ branch.status }}</td>
+                  <td>{{ branch.compute_status }}</td>
+                  <td>{{ formatDate(branch.created_at) }}</td>
+                  <td>
+                    <button
+                      v-if="!branch.is_default"
+                      class="btn btn-small btn-text btn-danger-text"
+                      @click="handleDeleteBranch(branch.id)"
+                    >删除</button>
+                    <span v-else class="text-muted">-</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else class="empty-state">
+              <p v-if="branchesLoading">加载中...</p>
+              <p v-else>暂无分支</p>
+            </div>
+          </div>
+          <TableFooter
+            v-if="filteredBranches.length > 0"
+            :total="filteredBranches.length"
+            v-model:pageSize="branchPageSize"
+            v-model:currentPage="branchCurrentPage"
+          />
         </div>
 
         <!-- Create Branch Dialog -->
@@ -185,7 +196,7 @@
       <!-- Tab 3: Operations -->
       <div v-if="activeTab === 'operations'" class="tab-content">
         <div class="tab-toolbar">
-          <select v-model="opTypeFilter" class="form-select filter-select" @change="fetchOperations">
+          <select v-model="opTypeFilter" class="form-select filter-select" @change="opsCurrentPage = 1; fetchOperations()">
             <option value="">全部操作</option>
             <option value="CREATE">创建</option>
             <option value="SUSPEND">挂起</option>
@@ -194,52 +205,54 @@
             <option value="UPDATE">更新</option>
           </select>
         </div>
-        <table class="data-table" v-if="operations.length > 0">
-          <thead>
-            <tr>
-              <th>操作类型</th>
-              <th>状态</th>
-              <th>开始时间</th>
-              <th>完成时间</th>
-              <th>耗时</th>
-              <th>备注</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="op in operations" :key="op.id">
-              <td>{{ op.operationType }}</td>
-              <td>
-                <span class="status-tag" :class="op.status === 'SUCCESS' ? 'tag-green' : 'tag-red'">
-                  {{ op.status }}
-                </span>
-              </td>
-              <td>{{ formatDate(op.startedAt) }}</td>
-              <td>{{ op.completedAt ? formatDate(op.completedAt) : '-' }}</td>
-              <td :class="durationColorClass(op.durationMs)">
-                {{ formatDuration(op.durationMs) }}
-              </td>
-              <td>{{ op.errorMessage || '-' }}</td>
-            </tr>
-          </tbody>
-        </table>
-        <div v-else class="empty-state">
-          <p v-if="opsLoading">加载中...</p>
-          <p v-else>暂无操作记录</p>
-        </div>
-
-        <!-- Pagination -->
-        <div v-if="opsTotalPages > 1" class="pagination">
-          <button
-            class="page-btn"
-            :disabled="opsPage === 0"
-            @click="opsPage--; fetchOperations()"
-          >上一页</button>
-          <span class="page-info">{{ opsPage + 1 }} / {{ opsTotalPages }}</span>
-          <button
-            class="page-btn"
-            :disabled="opsPage >= opsTotalPages - 1"
-            @click="opsPage++; fetchOperations()"
-          >下一页</button>
+        <div class="section-card">
+          <div class="ops-refresh-bar">
+            <button class="toolbar-icon-btn" @click="fetchOperations" :disabled="opsLoading" :title="opsLoading ? '加载中...' : '刷新'">
+              <svg :class="{ spinning: opsLoading }" viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                <path d="M13.65 2.35a8 8 0 1 0 1.77 5.15h-2.02a6 6 0 1 1-1.13-3.87L10 6h6V0l-2.35 2.35z"/>
+              </svg>
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table" v-if="operations.length > 0">
+              <thead>
+                <tr>
+                  <th>操作类型</th>
+                  <th>状态</th>
+                  <th>开始时间</th>
+                  <th>完成时间</th>
+                  <th>耗时</th>
+                  <th>备注</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="op in operations" :key="op.id">
+                  <td>{{ op.operationType }}</td>
+                  <td>
+                    <span class="status-tag" :class="op.status === 'SUCCESS' ? 'tag-green' : 'tag-red'">
+                      {{ op.status }}
+                    </span>
+                  </td>
+                  <td>{{ formatDate(op.startedAt) }}</td>
+                  <td>{{ op.completedAt ? formatDate(op.completedAt) : '-' }}</td>
+                  <td :class="durationColorClass(op.durationMs)">
+                    {{ formatDuration(op.durationMs) }}
+                  </td>
+                  <td>{{ op.errorMessage || '-' }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else class="empty-state">
+              <p v-if="opsLoading">加载中...</p>
+              <p v-else>暂无操作记录</p>
+            </div>
+          </div>
+          <TableFooter
+            v-if="opsTotalElements > 0"
+            :total="opsTotalElements"
+            v-model:pageSize="opsPageSize"
+            v-model:currentPage="opsCurrentPage"
+          />
         </div>
       </div>
       <!-- Tab 4: Import -->
@@ -256,36 +269,47 @@
           <div class="tab-toolbar">
             <button class="btn btn-primary btn-small" @click="showImportWizard = true">导入数据</button>
           </div>
-          <table class="data-table" v-if="importTasks.length > 0">
-            <thead>
-              <tr>
-                <th>任务ID</th>
-                <th>源数据库</th>
-                <th>模式</th>
-                <th>进度</th>
-                <th>状态</th>
-                <th>创建时间</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="task in importTasks" :key="task.id"
-                  class="clickable-row" @click="selectedImportTaskId = task.id">
-                <td>{{ task.id }}</td>
-                <td>{{ task.source_host }}:{{ task.source_port }}/{{ task.source_dbname }}</td>
-                <td>{{ task.mode === 'FULL' ? '整库' : '按表' }}</td>
-                <td>{{ task.completed_tables }}/{{ task.total_tables }}</td>
-                <td>
-                  <span class="status-tag" :class="importStatusClass(task.status)">
-                    {{ importStatusText(task.status) }}
-                  </span>
-                </td>
-                <td>{{ formatDate(task.created_at) }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-else class="empty-state">
-            <p v-if="importLoading">加载中...</p>
-            <p v-else>暂无导入任务</p>
+          <div class="section-card">
+            <TableToolbar v-model="importSearch" placeholder="搜索任务ID或源数据库" :loading="importLoading" @refresh="fetchImportTasks" />
+            <div class="table-wrapper">
+              <table class="data-table" v-if="filteredImports.length > 0">
+                <thead>
+                  <tr>
+                    <th>任务ID</th>
+                    <th>源数据库</th>
+                    <th>模式</th>
+                    <th>进度</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="task in pagedImports" :key="task.id"
+                      class="clickable-row" @click="selectedImportTaskId = task.id">
+                    <td>{{ task.id }}</td>
+                    <td>{{ task.source_host }}:{{ task.source_port }}/{{ task.source_dbname }}</td>
+                    <td>{{ task.mode === 'FULL' ? '整库' : '按表' }}</td>
+                    <td>{{ task.completed_tables }}/{{ task.total_tables }}</td>
+                    <td>
+                      <span class="status-tag" :class="importStatusClass(task.status)">
+                        {{ importStatusText(task.status) }}
+                      </span>
+                    </td>
+                    <td>{{ formatDate(task.created_at) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div v-else class="empty-state">
+                <p v-if="importLoading">加载中...</p>
+                <p v-else>暂无导入任务</p>
+              </div>
+            </div>
+            <TableFooter
+              v-if="filteredImports.length > 0"
+              :total="filteredImports.length"
+              v-model:pageSize="importPageSize"
+              v-model:currentPage="importCurrentPage"
+            />
           </div>
         </div>
 
@@ -314,6 +338,8 @@ import { operationApi, type OperationLog } from '../../api/operation'
 import { importApi, type ImportTask } from '../../api/import'
 import ImportWizard from './ImportWizard.vue'
 import ImportTaskDetail from './ImportTaskDetail.vue'
+import TableToolbar from '../../components/TableToolbar.vue'
+import TableFooter from '../../components/TableFooter.vue'
 import { copyToClipboard } from '../../utils/clipboard'
 import { formatDuration, formatDate } from '../../utils/format'
 
@@ -342,19 +368,50 @@ const branchesLoading = ref(false)
 const showBranchDialog = ref(false)
 const branchName = ref('')
 const branchCreating = ref(false)
+const branchSearch = ref('')
+const branchPageSize = ref(10)
+const branchCurrentPage = ref(1)
+
+const filteredBranches = computed(() => {
+  const q = branchSearch.value.toLowerCase()
+  if (!q) return branches.value
+  return branches.value.filter(b => b.name.toLowerCase().includes(q))
+})
+const pagedBranches = computed(() => {
+  const start = (branchCurrentPage.value - 1) * branchPageSize.value
+  return filteredBranches.value.slice(start, start + branchPageSize.value)
+})
 
 // Import
 const importTasks = ref<ImportTask[]>([])
 const importLoading = ref(false)
 const showImportWizard = ref(false)
 const selectedImportTaskId = ref<string | null>(null)
+const importSearch = ref('')
+const importPageSize = ref(10)
+const importCurrentPage = ref(1)
+
+const filteredImports = computed(() => {
+  const q = importSearch.value.toLowerCase()
+  if (!q) return importTasks.value
+  return importTasks.value.filter(t =>
+    t.id.toLowerCase().includes(q) ||
+    t.source_host.toLowerCase().includes(q) ||
+    t.source_dbname.toLowerCase().includes(q)
+  )
+})
+const pagedImports = computed(() => {
+  const start = (importCurrentPage.value - 1) * importPageSize.value
+  return filteredImports.value.slice(start, start + importPageSize.value)
+})
 
 // Operations
 const operations = ref<OperationLog[]>([])
 const opsLoading = ref(false)
 const opTypeFilter = ref('')
-const opsPage = ref(0)
-const opsTotalPages = ref(0)
+const opsPageSize = ref(10)
+const opsCurrentPage = ref(1)
+const opsTotalElements = ref(0)
 
 // Connection info parsing
 const connectionFields = computed(() => {
@@ -523,17 +580,20 @@ async function handleDeleteBranch(branchId: string) {
 async function fetchOperations() {
   opsLoading.value = true
   try {
-    const params: Record<string, unknown> = { page: opsPage.value, size: 10 }
+    const params: Record<string, unknown> = { page: opsCurrentPage.value - 1, size: opsPageSize.value }
     if (opTypeFilter.value) params.type = opTypeFilter.value
     const res = await operationApi.getByDatabase(dbId.value, params as { type?: string; page?: number; size?: number })
     operations.value = res.data.content
-    opsTotalPages.value = res.data.totalPages
+    opsTotalElements.value = res.data.totalElements
   } catch (e) {
     console.error('Failed to load operations', e)
   } finally {
     opsLoading.value = false
   }
 }
+
+watch(opsPageSize, () => { opsCurrentPage.value = 1; fetchOperations() })
+watch(opsCurrentPage, () => { fetchOperations() })
 
 // Import
 async function fetchImportTasks() {
@@ -577,6 +637,9 @@ function handleImportCreated(task: ImportTask) {
   selectedImportTaskId.value = task.id
   fetchImportTasks()
 }
+
+watch([branchSearch, branchPageSize], () => { branchCurrentPage.value = 1 })
+watch([importSearch, importPageSize], () => { importCurrentPage.value = 1 })
 
 watch(activeTab, (tab) => {
   if (tab === 'branches' && branches.value.length === 0) fetchBranches()
@@ -854,5 +917,53 @@ onUnmounted(() => {
   font-size: 14px;
   border: 1px solid #c2c6cc;
   border-radius: 2px;
+}
+
+/* Operations refresh bar */
+.ops-refresh-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 6px 10px;
+  border-bottom: 1px solid #ebebeb;
+}
+
+.toolbar-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 2px;
+  background: none;
+  color: #575d6c;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.toolbar-icon-btn:hover:not(:disabled) {
+  color: #0073e6;
+  background: #f0f5ff;
+}
+
+.toolbar-icon-btn:disabled {
+  color: #c2c6cc;
+  cursor: not-allowed;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: spin 0.8s linear infinite;
+}
+
+.section-card {
+  border: 1px solid #ebebeb;
+  border-radius: 2px;
+  overflow: hidden;
+  background: #fff;
 }
 </style>

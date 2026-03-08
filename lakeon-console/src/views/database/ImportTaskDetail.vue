@@ -56,24 +56,34 @@
       </div>
 
       <!-- Table list -->
-      <table class="data-table" v-if="task.tables && task.tables.length > 0">
-        <thead>
-          <tr>
-            <th>表名</th>
-            <th>状态</th>
-            <th>行数</th>
-            <th>错误信息</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="t in task.tables" :key="t.id">
-            <td>{{ t.schema_name }}.{{ t.table_name }}</td>
-            <td><span class="status-tag" :class="statusClass(t.status)">{{ statusText(t.status) }}</span></td>
-            <td>{{ t.row_count ?? '-' }}</td>
-            <td class="error-cell">{{ t.error_message || '-' }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="section-card" v-if="task.tables && task.tables.length > 0">
+        <TableToolbar v-model="tableSearch" placeholder="搜索表名" :loading="refreshing" @refresh="handleRefresh" />
+        <table class="data-table" v-if="filteredTables.length > 0">
+          <thead>
+            <tr>
+              <th>表名</th>
+              <th>状态</th>
+              <th>行数</th>
+              <th>错误信息</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="t in pagedTables" :key="t.id">
+              <td>{{ t.schema_name }}.{{ t.table_name }}</td>
+              <td><span class="status-tag" :class="statusClass(t.status)">{{ statusText(t.status) }}</span></td>
+              <td>{{ t.row_count ?? '-' }}</td>
+              <td class="error-cell">{{ t.error_message || '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-else class="empty-state"><p>无匹配结果</p></div>
+        <TableFooter
+          v-if="filteredTables.length > 0"
+          :total="filteredTables.length"
+          v-model:pageSize="tablePageSize"
+          v-model:currentPage="tableCurrentPage"
+        />
+      </div>
     </div>
 
     <div v-else class="loading-text">加载中...</div>
@@ -84,6 +94,8 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { importApi, type ImportTask } from '../../api/import'
 import { formatDate } from '../../utils/format'
+import TableToolbar from '../../components/TableToolbar.vue'
+import TableFooter from '../../components/TableFooter.vue'
 
 const props = defineProps<{ dbId: string; taskId: string }>()
 const emit = defineEmits<{ back: []; updated: [] }>()
@@ -92,6 +104,24 @@ const task = ref<ImportTask | null>(null)
 const actionLoading = ref(false)
 const refreshing = ref(false)
 let pollTimer: ReturnType<typeof setInterval> | null = null
+
+const tableSearch = ref('')
+const tablePageSize = ref(10)
+const tableCurrentPage = ref(1)
+
+const filteredTables = computed(() => {
+  if (!task.value?.tables) return []
+  const q = tableSearch.value.toLowerCase()
+  if (!q) return task.value.tables
+  return task.value.tables.filter(t =>
+    t.table_name.toLowerCase().includes(q) || t.schema_name.toLowerCase().includes(q)
+  )
+})
+
+const pagedTables = computed(() => {
+  const start = (tableCurrentPage.value - 1) * tablePageSize.value
+  return filteredTables.value.slice(start, start + tablePageSize.value)
+})
 
 const progressPct = computed(() => {
   if (!task.value || !task.value.total_tables) return 0
@@ -213,4 +243,6 @@ watch(() => props.taskId, () => {
 .tag-red { background-color: #fff1f0; color: #d4380d; }
 .tag-orange { background-color: #fff7e6; color: #d46b08; }
 .tag-gray { background-color: #f0f0f0; color: #8a8e99; }
+.section-card { border: 1px solid #ebebeb; border-radius: 2px; overflow: hidden; background: #fff; }
+.empty-state { padding: 20px; text-align: center; color: #8a8e99; font-size: 13px; }
 </style>

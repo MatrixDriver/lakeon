@@ -36,8 +36,9 @@
       <div class="section-header">
         <h3>最近操作</h3>
       </div>
+      <TableToolbar v-model="opsSearch" placeholder="搜索数据库名称或操作类型" :loading="loading" @refresh="fetchData" />
       <div class="table-wrapper">
-        <table class="data-table" v-if="recentOps.length > 0">
+        <table class="data-table" v-if="filteredOps.length > 0">
           <thead>
             <tr>
               <th>数据库</th>
@@ -48,7 +49,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="op in recentOps" :key="op.id">
+            <tr v-for="op in pagedOps" :key="op.id">
               <td>{{ op.databaseName }}</td>
               <td>{{ op.operationType }}</td>
               <td>
@@ -66,22 +67,50 @@
           <p v-else>暂无操作记录</p>
         </div>
       </div>
+      <TableFooter
+        v-if="filteredOps.length > 0"
+        :total="filteredOps.length"
+        v-model:pageSize="opsPageSize"
+        v-model:currentPage="opsCurrentPage"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { databaseApi } from '../../api/database'
 import { operationApi, type OperationLog } from '../../api/operation'
 import { formatDuration, formatDate } from '../../utils/format'
+import TableToolbar from '../../components/TableToolbar.vue'
+import TableFooter from '../../components/TableFooter.vue'
 
 const stats = reactive({ total: 0, running: 0, suspended: 0, error: 0 })
 const recentOps = ref<OperationLog[]>([])
 const loading = ref(true)
 const apiOffline = ref(false)
+const opsSearch = ref('')
+const opsPageSize = ref(10)
+const opsCurrentPage = ref(1)
 
-onMounted(async () => {
+const filteredOps = computed(() => {
+  const q = opsSearch.value.toLowerCase()
+  if (!q) return recentOps.value
+  return recentOps.value.filter(op =>
+    op.databaseName.toLowerCase().includes(q) ||
+    op.operationType.toLowerCase().includes(q)
+  )
+})
+
+const pagedOps = computed(() => {
+  const start = (opsCurrentPage.value - 1) * opsPageSize.value
+  return filteredOps.value.slice(start, start + opsPageSize.value)
+})
+
+watch([opsSearch, opsPageSize], () => { opsCurrentPage.value = 1 })
+
+async function fetchData() {
+  loading.value = true
   try {
     const [dbRes, opsRes] = await Promise.all([
       databaseApi.list(),
@@ -103,7 +132,9 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(() => fetchData())
 </script>
 
 <style scoped>

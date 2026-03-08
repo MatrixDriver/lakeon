@@ -11,19 +11,30 @@
     <div class="manager-layout">
       <!-- Left: Object Tree -->
       <div class="manager-sidebar">
-        <ObjectTree :db-id="dbId" @select="handleSelectTable" />
+        <ObjectTree ref="objectTreeRef" :db-id="dbId" @select="handleSelectTable" @schema-loaded="handleSchemaLoaded" />
       </div>
 
-      <!-- Right: Table Structure -->
+      <!-- Right: SQL Editor + Table Structure -->
       <div class="manager-content">
-        <StructureView
-          v-if="selectedTable"
-          :db-id="dbId"
-          :schema="selectedSchema"
-          :table="selectedTable"
-        />
-        <div v-else class="empty-hint">
-          <p>请在左侧选择一个表查看结构</p>
+        <!-- Top: SQL Editor -->
+        <div class="content-top" :style="{ height: editorHeight + 'px' }">
+          <SqlEditor :db-id="dbId" :schema="schemaMap" />
+        </div>
+        <!-- Resize Handle -->
+        <div class="resize-handle" @mousedown="startResize">
+          <div class="resize-grip"></div>
+        </div>
+        <!-- Bottom: Table Structure -->
+        <div class="content-bottom">
+          <StructureView
+            v-if="selectedTable"
+            :db-id="dbId"
+            :schema="selectedSchema"
+            :table="selectedTable"
+          />
+          <div v-else class="empty-hint">
+            <p>在左侧选择表查看结构和数据，在上方编写 SQL 查询</p>
+          </div>
         </div>
       </div>
     </div>
@@ -36,6 +47,7 @@ import { useRoute } from 'vue-router'
 import { databaseApi } from '../../api/database'
 import ObjectTree from '../../components/ObjectTree.vue'
 import StructureView from '../../components/StructureView.vue'
+import SqlEditor from '../../components/SqlEditor.vue'
 
 const route = useRoute()
 const dbId = computed(() => route.params.id as string)
@@ -43,10 +55,45 @@ const dbName = ref('')
 
 const selectedSchema = ref('')
 const selectedTable = ref('')
+const schemaMap = ref<Record<string, string[]>>({})
+const editorHeight = ref(280)
 
 function handleSelectTable(schema: string, table: string) {
   selectedSchema.value = schema
   selectedTable.value = table
+}
+
+function handleSchemaLoaded(data: Record<string, string[]>) {
+  schemaMap.value = data
+}
+
+// Resize logic
+let resizing = false
+let startY = 0
+let startHeight = 0
+
+function startResize(e: MouseEvent) {
+  resizing = true
+  startY = e.clientY
+  startHeight = editorHeight.value
+  document.addEventListener('mousemove', onResize)
+  document.addEventListener('mouseup', stopResize)
+  document.body.style.cursor = 'row-resize'
+  document.body.style.userSelect = 'none'
+}
+
+function onResize(e: MouseEvent) {
+  if (!resizing) return
+  const delta = e.clientY - startY
+  editorHeight.value = Math.max(120, Math.min(startHeight + delta, window.innerHeight - 200))
+}
+
+function stopResize() {
+  resizing = false
+  document.removeEventListener('mousemove', onResize)
+  document.removeEventListener('mouseup', stopResize)
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
 }
 
 onMounted(async () => {
@@ -113,6 +160,48 @@ onMounted(async () => {
 .manager-content {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.content-top {
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+  min-height: 120px;
+}
+
+.content-top > * {
+  flex: 1;
+}
+
+.resize-handle {
+  height: 6px;
+  background: #f0f0f0;
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-top: 1px solid #e8e8e8;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.resize-handle:hover {
+  background: #e0e4e8;
+}
+
+.resize-grip {
+  width: 32px;
+  height: 2px;
+  background: #c2c6cc;
+  border-radius: 1px;
+}
+
+.content-bottom {
+  flex: 1;
+  min-height: 100px;
   overflow: auto;
 }
 

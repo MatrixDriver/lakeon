@@ -42,6 +42,7 @@ import { databaseApi, type SchemaInfo, type TableInfo } from '../api/database'
 const props = defineProps<{ dbId: string }>()
 const emit = defineEmits<{
   select: [schema: string, table: string]
+  'schema-loaded': [data: Record<string, string[]>]
 }>()
 
 const schemas = ref<SchemaInfo[]>([])
@@ -94,11 +95,20 @@ async function loadTables(schema: string) {
   try {
     const res = await databaseApi.listTables(props.dbId, schema)
     tablesMap.value[schema] = res.data
+    emitSchemaMap()
   } catch (e) {
     console.error('Failed to load tables for schema', schema, e)
   } finally {
     loadingSchema.value = ''
   }
+}
+
+function emitSchemaMap() {
+  const map: Record<string, string[]> = {}
+  for (const [schema, tables] of Object.entries(tablesMap.value)) {
+    map[schema] = tables.map(t => t.name)
+  }
+  emit('schema-loaded', map)
 }
 
 function getTables(schema: string): TableInfo[] {

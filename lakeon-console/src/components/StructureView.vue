@@ -37,6 +37,7 @@
       <div class="struct-section">
         <h4 class="struct-title">
           数据预览
+          <button class="refresh-btn" @click="loadDataPreview" :disabled="dataLoading" title="刷新数据">↻</button>
           <span v-if="dataPreview && dataPreview.total_rows > 100" class="preview-hint">
             (显示前 100 行，共 {{ dataPreview.total_rows }} 行)
           </span>
@@ -54,7 +55,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(row, idx) in dataPreview.rows" :key="idx">
+              <tr v-for="(row, idx) in pagedPreviewRows" :key="idx">
                 <td v-for="(cell, cellIdx) in row" :key="cellIdx">
                   {{ cell === null ? 'NULL' : cell }}
                 </td>
@@ -62,14 +63,22 @@
             </tbody>
           </table>
         </div>
+        <TableFooter
+          v-if="dataPreview && dataPreview.rows.length > 0"
+          :total="dataPreview.rows.length"
+          v-model:pageSize="previewPageSize"
+          v-model:currentPage="previewCurrentPage"
+          :pageSizeOptions="[20, 50, 100]"
+        />
       </div>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { databaseApi, type ColumnInfo } from '../api/database'
+import TableFooter from './TableFooter.vue'
 
 const props = defineProps<{
   dbId: string
@@ -83,6 +92,14 @@ const loading = ref(false)
 const dataPreview = ref<{ columns: string[]; rows: unknown[][]; total_rows: number } | null>(null)
 const dataLoading = ref(false)
 const dataError = ref('')
+const previewPageSize = ref(20)
+const previewCurrentPage = ref(1)
+
+const pagedPreviewRows = computed(() => {
+  if (!dataPreview.value) return []
+  const start = (previewCurrentPage.value - 1) * previewPageSize.value
+  return dataPreview.value.rows.slice(start, start + previewPageSize.value)
+})
 
 async function loadDataPreview() {
   if (!props.schema || !props.table) return
@@ -164,10 +181,35 @@ watch(() => [props.schema, props.table], () => {
 }
 
 .struct-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
   font-weight: 600;
   color: #191919;
   margin: 0 0 10px;
+}
+
+.refresh-btn {
+  background: none;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  color: #575d6c;
+  padding: 1px 6px;
+  line-height: 1;
+  transition: all 0.15s;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  border-color: #0073e6;
+  color: #0073e6;
+}
+
+.refresh-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .struct-empty-inline {

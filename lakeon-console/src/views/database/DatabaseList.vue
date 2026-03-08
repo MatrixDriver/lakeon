@@ -24,21 +24,9 @@
       </div>
     </div>
 
-    <!-- Search Bar -->
-    <div class="search-bar">
-      <svg class="search-bar-icon" viewBox="0 0 16 16" width="14" height="14" fill="#adb0b8">
-        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
-      </svg>
-      <input
-        type="text"
-        v-model="searchQuery"
-        class="search-bar-input"
-        placeholder="选择属性筛选，或输入关键字搜索实例名称"
-      />
-    </div>
-
     <!-- Database Table -->
     <div class="section-card">
+      <TableToolbar v-model="searchQuery" placeholder="输入关键字搜索实例名称" :loading="loading" @refresh="fetchDatabases" />
       <div class="table-wrapper">
         <table class="data-table" v-if="filteredDatabases.length > 0">
           <thead>
@@ -53,7 +41,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="db in filteredDatabases" :key="db.id">
+            <tr v-for="db in pagedDatabases" :key="db.id">
               <td>
                 <div class="db-name-cell">
                   <router-link :to="`/databases/${db.id}`" class="db-name-link">{{ db.name }}</router-link>
@@ -107,9 +95,12 @@
           <p v-else>暂无数据库实例</p>
         </div>
       </div>
-      <div class="table-footer" v-if="filteredDatabases.length > 0">
-        <span class="table-footer-info">总条数：{{ filteredDatabases.length }}</span>
-      </div>
+      <TableFooter
+        v-if="filteredDatabases.length > 0"
+        :total="filteredDatabases.length"
+        v-model:pageSize="pageSize"
+        v-model:currentPage="currentPage"
+      />
     </div>
 
     <!-- Create Dialog -->
@@ -188,9 +179,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { databaseApi, type Database } from '../../api/database'
 import { formatDate } from '../../utils/format'
+import TableToolbar from '../../components/TableToolbar.vue'
+import TableFooter from '../../components/TableFooter.vue'
 
 const databases = ref<Database[]>([])
 const loading = ref(true)
@@ -210,11 +203,21 @@ const createForm = reactive({
   storage_limit_gb: 10,
 })
 
+const pageSize = ref(10)
+const currentPage = ref(1)
+
 const filteredDatabases = computed(() => {
   const q = searchQuery.value.toLowerCase()
   if (!q) return databases.value
   return databases.value.filter(d => d.name.toLowerCase().includes(q))
 })
+
+const pagedDatabases = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredDatabases.value.slice(start, start + pageSize.value)
+})
+
+watch([searchQuery, pageSize], () => { currentPage.value = 1 })
 
 function statusClass(status: string): string {
   switch (status) {
@@ -346,42 +349,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Search bar */
-.search-bar {
-  display: flex;
-  align-items: center;
-  border: 1px solid #c2c6cc;
-  border-radius: 2px;
-  padding: 0 12px;
-  margin-bottom: 16px;
-  height: 32px;
-  background: #fff;
-  transition: border-color 0.2s;
-}
-
-.search-bar:focus-within {
-  border-color: #0073e6;
-}
-
-.search-bar-icon {
-  flex-shrink: 0;
-  margin-right: 8px;
-}
-
-.search-bar-input {
-  flex: 1;
-  border: none;
-  outline: none;
-  font-size: 14px;
-  color: #191919;
-  background: transparent;
-  height: 100%;
-}
-
-.search-bar-input::placeholder {
-  color: #adb0b8;
-}
-
 /* DB name cell */
 .db-name-cell {
   line-height: 1.4;
@@ -432,11 +399,4 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-/* Table footer */
-.table-footer {
-  padding: 12px 16px;
-  border-top: 1px solid #ebebeb;
-  font-size: 12px;
-  color: #8a8e99;
-}
 </style>
