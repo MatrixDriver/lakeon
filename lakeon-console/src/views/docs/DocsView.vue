@@ -137,6 +137,196 @@
         </div>
       </div>
     </div>
+
+    <!-- Branches -->
+    <div id="branches" class="doc-card">
+      <div class="card-header"><h3>分支管理</h3></div>
+      <div class="card-body">
+        <h4 class="doc-subtitle">什么是分支？</h4>
+        <p class="doc-text">分支是数据库的 copy-on-write 快照。创建分支时，系统会基于当前数据创建一条新的时间线，两条时间线共享创建点之前的数据，之后各自独立演化。分支创建几乎零开销，不会复制实际数据。</p>
+
+        <h4 class="doc-subtitle">适用场景</h4>
+        <ul class="doc-list">
+          <li><strong>开发测试</strong> — 从生产数据创建分支，在分支上测试新功能，不影响生产环境</li>
+          <li><strong>数据回滚</strong> — 在执行危险操作前创建分支作为还原点，出错时切换回去</li>
+          <li><strong>A/B 对比</strong> — 创建多个分支进行不同方案的数据验证</li>
+          <li><strong>数据隔离</strong> — 为不同环境（开发/测试/预发布）提供各自的数据副本</li>
+        </ul>
+
+        <h4 class="doc-subtitle">如何使用</h4>
+        <ol class="doc-steps">
+          <li>进入数据库详情页 → 「分支」标签页</li>
+          <li>点击「创建分支」，输入分支名称，系统会基于当前数据创建快照</li>
+          <li>创建完成后，可以在分支列表中「切换」到目标分支</li>
+          <li>切换分支会重启计算节点（约 10 秒），切换后所有连接将指向新分支的数据</li>
+          <li>不再需要的分支可以删除，删除后其独有的数据会被回收</li>
+        </ol>
+
+        <div class="doc-note">
+          注意：切换分支会断开当前所有数据库连接。建议在业务低峰期操作。主分支（main）不可删除。
+        </div>
+      </div>
+    </div>
+
+    <!-- Users -->
+    <div id="users" class="doc-card">
+      <div class="card-header"><h3>用户管理</h3></div>
+      <div class="card-body">
+        <h4 class="doc-subtitle">角色说明</h4>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>角色</th>
+              <th>权限范围</th>
+              <th>适用场景</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Owner</strong></td>
+              <td>全部权限，可管理其他用户、修改数据库设置</td>
+              <td>数据库管理员</td>
+            </tr>
+            <tr>
+              <td><strong>Admin</strong></td>
+              <td>可执行 DDL（CREATE/ALTER/DROP TABLE 等），可读写数据</td>
+              <td>开发人员需要管理表结构</td>
+            </tr>
+            <tr>
+              <td><strong>Writer</strong></td>
+              <td>可执行 DML（INSERT/UPDATE/DELETE），可查询</td>
+              <td>应用程序连接，需要读写数据</td>
+            </tr>
+            <tr>
+              <td><strong>Reader</strong></td>
+              <td>仅 SELECT 查询权限</td>
+              <td>报表系统、只读分析</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4 class="doc-subtitle">如何使用</h4>
+        <ol class="doc-steps">
+          <li>进入数据库详情页 → 「用户」标签页</li>
+          <li>点击「创建用户」，输入用户名并选择角色</li>
+          <li>创建成功后，系统会生成随机密码并显示一次，请立即保存</li>
+          <li>如需重置密码，点击用户行的「重置密码」按钮</li>
+          <li>不再需要的用户可以删除（Owner 用户不可删除）</li>
+        </ol>
+
+        <div class="doc-note">
+          密码仅在创建和重置时显示一次，之后无法查看。请妥善保存密码。
+        </div>
+      </div>
+    </div>
+
+    <!-- Backups -->
+    <div id="backups" class="doc-card">
+      <div class="card-header"><h3>备份与恢复</h3></div>
+      <div class="card-body">
+        <h4 class="doc-subtitle">备份机制</h4>
+        <p class="doc-text">备份会保存数据库某一时刻的完整快照。得益于 copy-on-write 存储架构，备份操作非常快速，不会影响数据库的正常使用。备份数据持久化在对象存储中，独立于计算节点。</p>
+
+        <h4 class="doc-subtitle">适用场景</h4>
+        <ul class="doc-list">
+          <li><strong>定期备份</strong> — 在重要操作前手动创建备份，作为安全保障</li>
+          <li><strong>版本快照</strong> — 在数据迁移、Schema 变更前保留当前状态</li>
+          <li><strong>灾难恢复</strong> — 出现误操作时，从备份恢复到新实例</li>
+        </ul>
+
+        <h4 class="doc-subtitle">如何使用</h4>
+        <ol class="doc-steps">
+          <li>进入数据库详情页 → 「备份」标签页</li>
+          <li>点击「创建备份」，系统会自动创建当前时间点的快照</li>
+          <li>备份列表会显示所有历史备份及其创建时间</li>
+          <li>需要恢复时，点击目标备份的「恢复」按钮</li>
+          <li>恢复操作会创建一个新的数据库实例，不会覆盖当前数据库</li>
+        </ol>
+
+        <div class="doc-note">
+          恢复操作会创建新实例，原数据库不受影响。建议定期清理不再需要的旧备份以节省存储空间。
+        </div>
+      </div>
+    </div>
+
+    <!-- Import -->
+    <div id="import" class="doc-card">
+      <div class="card-header"><h3>数据导入</h3></div>
+      <div class="card-body">
+        <h4 class="doc-subtitle">功能说明</h4>
+        <p class="doc-text">数据导入功能允许你从外部 PostgreSQL 数据库迁移数据到当前实例。支持整库导入或选择指定的表和 Schema，导入过程在后台运行，不影响目标数据库的正常使用。</p>
+
+        <h4 class="doc-subtitle">适用场景</h4>
+        <ul class="doc-list">
+          <li><strong>数据迁移</strong> — 从自建 PostgreSQL 或其他云数据库迁移到 DBay</li>
+          <li><strong>数据同步</strong> — 将生产库的数据导入到测试环境</li>
+          <li><strong>选择性导入</strong> — 仅导入需要的表，灵活控制数据范围</li>
+        </ul>
+
+        <h4 class="doc-subtitle">如何使用</h4>
+        <ol class="doc-steps">
+          <li>进入数据库详情页 → 「导入」标签页</li>
+          <li>点击「导入数据」按钮，进入导入向导</li>
+          <li>填写源数据库的连接信息（主机、端口、用户名、密码、数据库名）</li>
+          <li>系统会自动获取源库的表列表，选择要导入的表（或全选整库导入）</li>
+          <li>确认后提交导入任务，可在导入标签页查看进度</li>
+          <li>导入完成后，数据即可在目标库中使用</li>
+        </ol>
+
+        <div class="doc-note">
+          源数据库必须允许来自 DBay 服务器的网络连接。导入过程中源库仅进行只读操作，不会修改源库数据。大数据量导入可能需要较长时间，请耐心等待。
+        </div>
+      </div>
+    </div>
+
+    <!-- Audit -->
+    <div id="audit" class="doc-card">
+      <div class="card-header"><h3>审计日志</h3></div>
+      <div class="card-body">
+        <h4 class="doc-subtitle">功能说明</h4>
+        <p class="doc-text">审计日志基于 PostgreSQL 的 <code>pgaudit</code> 扩展，可记录数据库的各类操作。支持按操作类型分别开启，帮助你追踪数据变更、排查问题、满足合规要求。</p>
+
+        <h4 class="doc-subtitle">审计类型</h4>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>类型</th>
+              <th>记录内容</th>
+              <th>建议</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>DDL</strong></td>
+              <td>CREATE、ALTER、DROP 等表结构变更</td>
+              <td>建议始终开启，日志量小</td>
+            </tr>
+            <tr>
+              <td><strong>DML</strong></td>
+              <td>INSERT、UPDATE、DELETE 数据操作</td>
+              <td>按需开启，高频写入场景日志量较大</td>
+            </tr>
+            <tr>
+              <td><strong>SELECT</strong></td>
+              <td>所有查询操作</td>
+              <td>仅在需要时开启，日志量最大</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4 class="doc-subtitle">如何使用</h4>
+        <ol class="doc-steps">
+          <li>进入数据库详情页 → 「审计」标签页</li>
+          <li>勾选需要审计的操作类型（DDL / DML / SELECT）</li>
+          <li>开启后，对应类型的操作会被记录到审计日志中</li>
+          <li>在审计日志列表中查看和筛选历史记录</li>
+        </ol>
+
+        <div class="doc-note">
+          审计日志会占用存储空间。建议根据实际需要选择性开启，避免不必要地开启 SELECT 审计导致日志量过大。
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -362,5 +552,54 @@ func main() {
 
 .faq-a a:hover {
   text-decoration: underline;
+}
+
+.doc-subtitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #191919;
+  margin: 20px 0 8px;
+}
+
+.doc-subtitle:first-child {
+  margin-top: 0;
+}
+
+.doc-list {
+  padding-left: 20px;
+  margin: 0 0 16px;
+  line-height: 2;
+  font-size: 14px;
+  color: #333;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.data-table th {
+  background: #f5f7fa;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #191919;
+  border-bottom: 1px solid #dfe1e6;
+}
+
+.data-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #ebebeb;
+  color: #333;
+}
+
+.data-table code {
+  background: #f2f3f5;
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-size: 13px;
+  color: #191919;
 }
 </style>

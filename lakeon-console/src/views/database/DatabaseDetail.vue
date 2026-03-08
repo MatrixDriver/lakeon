@@ -120,7 +120,7 @@
         <div class="tab-toolbar">
           <button class="btn btn-primary btn-small" @click="preselectedParentId = ''; showBranchDialog = true">创建分支</button>
         </div>
-        <p class="tab-tip">分支是数据库的 copy-on-write 快照，可用于开发测试、数据回滚等场景。创建分支几乎零开销，各分支数据完全隔离。「切换」会重启计算节点并指向目标分支。</p>
+        <p class="tab-tip">分支是数据库的 copy-on-write 快照，可用于开发测试、数据回滚等场景。创建分支几乎零开销，各分支数据完全隔离。「切换」会重启计算节点并指向目标分支。<router-link to="/docs#branches" class="tip-link">了解更多</router-link></p>
 
         <!-- Branch Tree Visualization -->
         <BranchTreeView
@@ -274,7 +274,7 @@
         <div class="tab-toolbar">
           <button class="btn btn-primary btn-small" @click="showCreateBackupDialog = true">创建备份</button>
         </div>
-        <p class="tab-tip">备份会保存当前数据库的完整快照。从备份恢复时将创建一个新的数据库实例，不会覆盖当前数据。</p>
+        <p class="tab-tip">备份会保存当前数据库的完整快照。从备份恢复时将创建一个新的数据库实例，不会覆盖当前数据。<router-link to="/docs#backups" class="tip-link">了解更多</router-link></p>
         <div class="section-card">
           <TableToolbar v-model="backupSearch" placeholder="搜索备份名称" :loading="backupsLoading" @refresh="fetchBackups" />
           <div class="table-wrapper">
@@ -381,7 +381,6 @@
 
       <!-- Tab 5: Import -->
       <div v-if="activeTab === 'import'" class="tab-content">
-        <p class="tab-tip">从外部 PostgreSQL 数据库导入数据。支持整库导入或选择指定表，导入过程在后台运行，不影响当前数据库使用。</p>
         <div v-if="selectedImportTaskId">
           <ImportTaskDetail
             :dbId="dbId"
@@ -394,6 +393,7 @@
           <div class="tab-toolbar">
             <button class="btn btn-primary btn-small" @click="showImportWizard = true">导入数据</button>
           </div>
+          <p class="tab-tip">从外部 PostgreSQL 数据库导入数据。支持整库导入或选择指定表，导入过程在后台运行，不影响当前数据库使用。<router-link to="/docs#import" class="tip-link">了解更多</router-link></p>
           <div class="section-card">
             <TableToolbar v-model="importSearch" placeholder="搜索任务ID或源数据库" :loading="importLoading" @refresh="fetchImportTasks" />
             <div class="table-wrapper">
@@ -448,7 +448,7 @@
 
       <!-- Tab 6: Audit -->
       <div v-if="activeTab === 'audit'" class="tab-content">
-        <p class="tab-tip">审计日志记录数据库的 DDL、DML、SELECT 操作，可按需开启。日志会占用少量存储空间，建议仅在需要时启用 SELECT 审计。</p>
+        <p class="tab-tip">审计日志记录数据库的 DDL、DML、SELECT 操作，可按需开启。日志会占用少量存储空间，建议仅在需要时启用 SELECT 审计。<router-link to="/docs#audit" class="tip-link">了解更多</router-link></p>
         <!-- Audit Config -->
         <div class="info-card" style="margin-bottom: 16px;">
           <h4 class="info-title">审计配置</h4>
@@ -561,7 +561,7 @@
         <div class="tab-toolbar">
           <button class="btn btn-primary btn-small" @click="showCreateUserDialog = true">添加用户</button>
         </div>
-        <p class="tab-tip">管理数据库的访问用户。Owner 拥有全部权限，Admin 可管理表结构，Writer 可读写数据，Reader 仅可查询。密码重置后请立即保存，不会再次显示。</p>
+        <p class="tab-tip">管理数据库的访问用户。Owner 拥有全部权限，Admin 可管理表结构，Writer 可读写数据，Reader 仅可查询。密码重置后请立即保存，不会再次显示。<router-link to="/docs#users" class="tip-link">了解更多</router-link></p>
         <div class="section-card">
           <div class="table-wrapper">
             <table class="data-table" v-if="dbUsers.length > 0">
@@ -1444,6 +1444,12 @@ onUnmounted(() => {
   background: #f8f9fa;
   border-radius: 6px;
   border-left: 3px solid #d1d5db;
+}
+.tip-link {
+  margin-left: 6px;
+  color: #3b82f6;
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
 }
 
 .tab-toolbar {

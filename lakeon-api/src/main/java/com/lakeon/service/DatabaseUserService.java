@@ -164,19 +164,33 @@ public class DatabaseUserService {
      * Called lazily on first access of the users tab.
      */
     private void ensureOwnerUser(TenantEntity tenant, String dbId) {
-        if (databaseUserRepository.findByDatabaseIdAndUsername(dbId, "cloud_admin").isEmpty()) {
-            DatabaseEntity db = databaseRepository.findByIdAndTenantId(dbId, tenant.getId()).orElse(null);
-            if (db == null) return;
+        DatabaseEntity db = databaseRepository.findByIdAndTenantId(dbId, tenant.getId()).orElse(null);
+        if (db == null) return;
 
+        // 确保默认用户（创建数据库时自动生成的）在列表中
+        if (db.getDbUser() != null && databaseUserRepository.findByDatabaseIdAndUsername(dbId, db.getDbUser()).isEmpty()) {
+            DatabaseUserEntity defaultUser = new DatabaseUserEntity();
+            defaultUser.setDatabaseId(dbId);
+            defaultUser.setTenantId(tenant.getId());
+            defaultUser.setUsername(db.getDbUser());
+            defaultUser.setPassword("***");
+            defaultUser.setRole(DatabaseRole.ADMIN);
+            defaultUser.setIsOwner(true);
+            databaseUserRepository.save(defaultUser);
+            log.info("Created default user entity '{}' for database {}", db.getDbUser(), dbId);
+        }
+
+        // 确保 cloud_admin 内部管理用户在列表中
+        if (databaseUserRepository.findByDatabaseIdAndUsername(dbId, "cloud_admin").isEmpty()) {
             DatabaseUserEntity owner = new DatabaseUserEntity();
             owner.setDatabaseId(dbId);
             owner.setTenantId(tenant.getId());
             owner.setUsername("cloud_admin");
             owner.setPassword("***");
             owner.setRole(DatabaseRole.ADMIN);
-            owner.setIsOwner(true);
+            owner.setIsOwner(false);
             databaseUserRepository.save(owner);
-            log.info("Created owner user entity for database {}", dbId);
+            log.info("Created cloud_admin user entity for database {}", dbId);
         }
     }
 
