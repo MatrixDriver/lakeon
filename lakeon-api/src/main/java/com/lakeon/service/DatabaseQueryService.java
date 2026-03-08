@@ -73,10 +73,12 @@ public class DatabaseQueryService {
         schemaCacheRepository.deleteByDatabaseId(db.getId());
 
         try (Connection conn = getConnection(db)) {
-            // 查询所有 schema 和 table 信息
+            // 1. 查询所有 schema 和 table 信息
             Map<String, List<TableInfo>> schemaTablesMap = new LinkedHashMap<>();
+            // key: "schema.table" -> (tableType, rowCount, tableSize)
+            Map<String, String[]> tableMetaMap = new LinkedHashMap<>();
 
-            String sql = """
+            String tableSql = """
                 SELECT
                     n.nspname as schema_name,
                     c.relname as table_name,
@@ -96,7 +98,7 @@ public class DatabaseQueryService {
                 ORDER BY n.nspname, c.relname
                 """;
 
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            try (PreparedStatement ps = conn.prepareStatement(tableSql)) {
                 ResultSet rs = ps.executeQuery();
                 while (rs.next()) {
                     String schemaName = rs.getString("schema_name");
@@ -105,15 +107,26 @@ public class DatabaseQueryService {
                     long rowCount = rs.getLong("row_count");
                     long tableSize = rs.getLong("table_size");
 
-                    // 查询列信息
-                    List<ColumnInfo> columns = queryColumns(conn, schemaName, tableName);
-
                     TableInfo tableInfo = new TableInfo(tableName, tableType, rowCount, tableSize);
                     schemaTablesMap.computeIfAbsent(schemaName, k -> new ArrayList<>()).add(tableInfo);
-
-                    // 保存到缓存
-                    saveCacheEntry(db.getId(), schemaName, tableName, tableType, columns, rowCount, tableSize);
+                    tableMetaMap.put(schemaName + "\0" + tableName,
+                        new String[]{tableType, String.valueOf(rowCount), String.valueOf(tableSize)});
                 }
+            }
+
+            // 2. 批量查询所有列信息（单次查询替代 N+1）
+            // key: "schema\0table" -> List<ColumnInfo>
+            Map<String, List<ColumnInfo>> allColumns = queryAllColumns(conn);
+
+            // 3. 保存缓存
+            for (Map.Entry<String, String[]> entry : tableMetaMap.entrySet()) {
+                String[] parts = entry.getKey().split("\0", 2);
+                String schemaName = parts[0];
+                String tableName = parts[1];
+                String[] meta = entry.getValue();
+                List<ColumnInfo> columns = allColumns.getOrDefault(entry.getKey(), List.of());
+                saveCacheEntry(db.getId(), schemaName, tableName, meta[0], columns,
+                    Long.parseLong(meta[1]), Long.parseLong(meta[2]));
             }
 
             // 构建返回结果
@@ -127,6 +140,49 @@ public class DatabaseQueryService {
         } catch (SQLException e) {
             throw new ServiceException("Failed to refresh schema cache: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * 批量查询所有用户表的列信息（单次 SQL 查询，避免 N+1 问题）
+     */
+    private Map<String, List<ColumnInfo>> queryAllColumns(Connection conn) throws SQLException {
+        Map<String, List<ColumnInfo>> result = new LinkedHashMap<>();
+        String sql = """
+            SELECT
+                n.nspname as schema_name,
+                c.relname as table_name,
+                a.attname as column_name,
+                pg_catalog.format_type(a.atttypid, a.atttypmod) as data_type,
+                NOT a.attnotnull as is_nullable,
+                pg_get_expr(d.adbin, d.adrelid) as column_default,
+                a.attnum as position
+            FROM pg_attribute a
+            JOIN pg_class c ON a.attrelid = c.oid
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            LEFT JOIN pg_attrdef d ON a.attrelid = d.adrelid AND a.attnum = d.adnum
+            WHERE c.relkind IN ('r', 'v', 'm', 'f')
+              AND n.nspname NOT IN ('pg_catalog', 'pg_toast', 'information_schema')
+              AND n.nspname NOT LIKE 'pg_%'
+              AND a.attnum > 0
+              AND NOT a.attisdropped
+            ORDER BY n.nspname, c.relname, a.attnum
+            """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                String key = rs.getString("schema_name") + "\0" + rs.getString("table_name");
+                result.computeIfAbsent(key, k -> new ArrayList<>()).add(new ColumnInfo(
+                    rs.getString("column_name"),
+                    rs.getString("data_type"),
+                    rs.getBoolean("is_nullable"),
+                    rs.getString("column_default"),
+                    null,
+                    rs.getInt("position")
+                ));
+            }
+        }
+        return result;
     }
 
     private List<ColumnInfo> queryColumns(Connection conn, String schema, String table) throws SQLException {

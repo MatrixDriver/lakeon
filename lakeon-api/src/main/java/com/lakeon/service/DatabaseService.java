@@ -375,7 +375,18 @@ public class DatabaseService {
     public String wakeCompute(DatabaseEntity entity) {
         if (entity.getComputeHost() != null && entity.getComputePort() != null
             && entity.getStatus() == DatabaseStatus.RUNNING) {
-            return entity.getComputeHost() + ":" + entity.getComputePort();
+            // 验证 compute pod 是否仍在运行，防止 pod 被清理后状态不一致
+            if (entity.getComputePodName() != null && !computePodManager.isPodReady(entity.getComputePodName())) {
+                log.warn("Database {} status is RUNNING but compute pod {} is gone, re-creating", entity.getId(), entity.getComputePodName());
+                entity.setStatus(DatabaseStatus.SUSPENDED);
+                entity.setComputeHost(null);
+                entity.setComputePort(null);
+                entity.setComputePodName(null);
+                databaseRepository.save(entity);
+                // Fall through to cold path below
+            } else {
+                return entity.getComputeHost() + ":" + entity.getComputePort();
+            }
         }
 
         // Warm path: Pod retained after suspend, still running
