@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const client = axios.create({
-  baseURL: '/api/v1',
+  baseURL: 'https://api.dbay.cloud:8443/api/v1',
   timeout: 30000,
 })
 
