@@ -704,11 +704,11 @@ const activeTab = ref('info')
 const tabs = [
   { key: 'info', label: '基本信息' },
   { key: 'branches', label: '分支' },
-  { key: 'operations', label: '操作历史' },
+  { key: 'users', label: '用户' },
   { key: 'backups', label: '备份' },
   { key: 'import', label: '导入' },
+  { key: 'operations', label: '操作历史' },
   { key: 'audit', label: '审计日志' },
-  { key: 'users', label: '用户' },
 ]
 
 // Branches
