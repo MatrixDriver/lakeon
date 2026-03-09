@@ -71,6 +71,8 @@
           <div class="nav-group">
             <router-link to="/dashboard" class="nav-item" active-class="active" @click="sidebarOpen = false">总览</router-link>
             <router-link to="/databases" class="nav-item" active-class="active" @click="sidebarOpen = false">数据库实例</router-link>
+            <router-link to="/sql" class="nav-item" active-class="active" @click="sidebarOpen = false">SQL 编辑器</router-link>
+            <router-link to="/import" class="nav-item" active-class="active" @click="sidebarOpen = false">数据导入</router-link>
           </div>
           <div class="nav-group">
             <div class="nav-group-title">监控运维</div>
