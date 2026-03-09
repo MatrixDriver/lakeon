@@ -22,6 +22,9 @@ export const tenantApi = {
     client.post<Tenant>('/tenants', data),
   regenerateKey: (id: string) => client.post<Tenant>(`/tenants/${id}/regenerate-key`),
 
+  checkUsername: (username: string) =>
+    client.get<{ available: boolean }>('/auth/check-username', { params: { username } }),
+
   // Multi API Key management
   listApiKeys: () => client.get<ApiKeyItem[]>('/api-keys'),
   createApiKey: (name: string) => client.post<ApiKeyItem>('/api-keys', { name }),

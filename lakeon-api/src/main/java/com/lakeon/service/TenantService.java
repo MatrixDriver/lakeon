@@ -35,6 +35,11 @@ public class TenantService {
         this.apiKeyRepository = apiKeyRepository;
     }
 
+    public boolean isUsernameAvailable(String username) {
+        if (username == null || username.isBlank()) return false;
+        return tenantRepository.findByUsername(username.trim()).isEmpty();
+    }
+
     @Transactional
     public TenantResponse create(CreateTenantRequest request) {
         tenantRepository.findByUsername(request.username()).ifPresent(existing -> {

@@ -107,6 +107,10 @@ public class ApiKeyFilter implements Filter {
             chain.doFilter(req, res);
             return;
         }
+        if ("GET".equals(request.getMethod()) && "/api/v1/auth/check-username".equals(path)) {
+            chain.doFilter(req, res);
+            return;
+        }
 
         // Import callback from Job Pods (internal only)
         if (path.startsWith("/api/v1/import/callback/")) {

@@ -69,8 +69,13 @@
           <input
             v-model="registerUsername"
             class="form-input form-input-full"
+            :class="{ 'input-error': usernameTaken }"
             placeholder="请输入用户名"
+            @blur="checkUsername"
+            @input="resetUsernameCheck"
           />
+          <p v-if="usernameTaken" class="field-error">该用户名已被注册，请更换一个</p>
+          <p v-else-if="usernameAvailable" class="field-ok">用户名可用</p>
         </div>
         <div class="form-group">
           <label class="form-label">密码 <span class="required">*</span></label>
@@ -144,10 +149,36 @@ const isLoading = ref(false)
 const errorMsg = ref('')
 const registerSuccess = ref(false)
 
+const usernameTaken = ref(false)
+const usernameAvailable = ref(false)
+
 const registerFormValid = computed(() =>
   registerUsername.value.trim() &&
+  !usernameTaken.value &&
   registerPassword.value.length >= 6 && registerConfirm.value === registerPassword.value
 )
+
+async function checkUsername() {
+  const name = registerUsername.value.trim()
+  if (!name) {
+    usernameTaken.value = false
+    usernameAvailable.value = false
+    return
+  }
+  try {
+    const res = await tenantApi.checkUsername(name)
+    usernameTaken.value = !res.data.available
+    usernameAvailable.value = res.data.available
+  } catch {
+    usernameTaken.value = false
+    usernameAvailable.value = false
+  }
+}
+
+function resetUsernameCheck() {
+  usernameTaken.value = false
+  usernameAvailable.value = false
+}
 
 function focusPassword() {
   loginPwdInput.value?.focus()
@@ -157,6 +188,8 @@ function switchTab(t: 'login' | 'register') {
   tab.value = t
   errorMsg.value = ''
   registerSuccess.value = false
+  usernameTaken.value = false
+  usernameAvailable.value = false
 }
 
 async function handleLogin() {
@@ -204,7 +237,8 @@ async function handleRegister() {
     registerConfirm.value = ''
   } catch (e: any) {
     if (e.response?.status === 409) {
-      errorMsg.value = '该租户名称或用户名已存在'
+      usernameTaken.value = true
+      errorMsg.value = '该用户名已被注册，请更换一个'
     } else {
       errorMsg.value = e.response?.data?.message || '注册失败，请稍后重试'
     }
@@ -358,6 +392,26 @@ function goToLogin() {
 
 .toggle-btn:hover {
   background-color: #f5f7fa;
+}
+
+.input-error {
+  border-color: #ff4d4f !important;
+}
+
+.input-error:focus {
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.1) !important;
+}
+
+.field-error {
+  color: #ff4d4f;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.field-ok {
+  color: #52c41a;
+  font-size: 12px;
+  margin-top: 4px;
 }
 
 .error-msg {

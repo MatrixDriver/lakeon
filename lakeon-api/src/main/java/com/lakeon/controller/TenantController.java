@@ -32,6 +32,12 @@ public class TenantController {
         return resp;
     }
 
+    @GetMapping("/auth/check-username")
+    public Map<String, Boolean> checkUsername(@RequestParam String username) {
+        boolean available = tenantService.isUsernameAvailable(username);
+        return Map.of("available", available);
+    }
+
     @PostMapping("/tenants")
     @ResponseStatus(HttpStatus.CREATED)
     public TenantResponse createTenant(@Valid @RequestBody CreateTenantRequest request) {
