@@ -442,6 +442,103 @@
           @created="handleUserCreated"
         />
       </div>
+
+      <!-- Tab: Extensions -->
+      <div v-if="activeTab === 'extensions'" class="tab-content">
+        <p class="tab-tip">管理数据库扩展。启用扩展后即可在 SQL 中使用其提供的功能。禁用扩展会级联删除其关联的数据类型和函数，请谨慎操作。</p>
+        <div class="ext-toolbar">
+          <input v-model="extSearch" class="form-input ext-search" placeholder="搜索扩展..." />
+          <select v-model="extCategoryFilter" class="form-input form-select ext-category-select">
+            <option value="">全部分类</option>
+            <option v-for="cat in extCategories" :key="cat" :value="cat">{{ cat }}</option>
+          </select>
+          <label class="ext-installed-toggle">
+            <input type="checkbox" v-model="extShowInstalledOnly" /> 仅已启用
+          </label>
+        </div>
+        <div v-if="extensionsLoading" class="empty-state"><p>加载中...</p></div>
+        <div v-else-if="filteredExtensions.length === 0" class="empty-state"><p>无匹配扩展</p></div>
+        <div v-else class="ext-grid">
+          <div v-for="ext in filteredExtensions" :key="ext.name" class="ext-card" :class="{ installed: ext.installed }">
+            <div class="ext-card-header">
+              <span class="ext-name">{{ ext.name }}</span>
+              <span v-if="ext.installed" class="ext-version">v{{ ext.installed_version }}</span>
+            </div>
+            <div class="ext-desc">{{ ext.description }}</div>
+            <div class="ext-card-footer">
+              <span class="ext-category-badge">{{ ext.category }}</span>
+              <button
+                v-if="ext.installed"
+                class="btn btn-small btn-danger-text"
+                :disabled="extBusy === ext.name"
+                @click="handleDisableExt(ext)"
+              >{{ extBusy === ext.name ? '处理中...' : '禁用' }}</button>
+              <button
+                v-else
+                class="btn btn-small btn-primary"
+                :disabled="extBusy === ext.name || db?.status !== 'RUNNING'"
+                @click="handleEnableExt(ext)"
+              >{{ extBusy === ext.name ? '处理中...' : '启用' }}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Parameters -->
+      <div v-if="activeTab === 'parameters'" class="tab-content">
+        <p class="tab-tip">查看数据库运行参数。标记为「可修改」的参数支持在线调整，修改后新连接生效。</p>
+        <div v-if="db?.status !== 'RUNNING'" class="empty-state"><p>数据库未运行，启动后查看参数</p></div>
+        <template v-else>
+          <div class="ext-toolbar">
+            <input v-model="paramSearch" class="form-input ext-search" placeholder="搜索参数..." />
+            <label class="ext-installed-toggle">
+              <input type="checkbox" v-model="paramEditableOnly" /> 仅可修改
+            </label>
+          </div>
+          <div v-if="parametersLoading" class="empty-state"><p>加载中...</p></div>
+          <div v-else class="section-card">
+            <div class="table-wrapper">
+              <table class="data-table" v-if="filteredParameters.length > 0">
+                <thead>
+                  <tr>
+                    <th>参数名</th>
+                    <th>当前值</th>
+                    <th>单位</th>
+                    <th>说明</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="p in filteredParameters" :key="p.name">
+                    <td><code>{{ p.name }}</code></td>
+                    <td>
+                      <template v-if="paramEditing === p.name">
+                        <div style="display: flex; gap: 4px;">
+                          <input v-model="paramEditValue" class="form-input form-input-sm" @keyup.enter="handleSaveParam(p)" />
+                          <button class="btn btn-small btn-primary" :disabled="paramSaving" @click="handleSaveParam(p)">保存</button>
+                          <button class="btn btn-small btn-default" @click="paramEditing = ''">取消</button>
+                        </div>
+                      </template>
+                      <template v-else>{{ p.setting }}</template>
+                    </td>
+                    <td>{{ p.unit || '-' }}</td>
+                    <td class="td-desc">{{ p.description }}</td>
+                    <td>
+                      <button
+                        v-if="p.editable && paramEditing !== p.name"
+                        class="btn btn-small btn-text"
+                        @click="startEditParam(p)"
+                      >修改</button>
+                      <span v-else-if="!p.editable" class="text-muted">只读</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div v-else class="empty-state"><p>无匹配参数</p></div>
+            </div>
+          </div>
+        </template>
+      </div>
     </div>
   </div>
 
@@ -463,8 +560,10 @@ import CreateBranchDialog from './CreateBranchDialog.vue'
 import BranchTreeView from '../../components/BranchTreeView.vue'
 import TableToolbar from '../../components/TableToolbar.vue'
 import TableFooter from '../../components/TableFooter.vue'
+import { extensionApi, type ExtensionInfo, type ParameterInfo } from '../../api/extension'
 import { copyToClipboard } from '../../utils/clipboard'
 import { formatDate } from '../../utils/format'
+import { useToast } from '../../composables/useToast'
 
 const route = useRoute()
 const dbId = computed(() => route.params.id as string)
@@ -483,6 +582,8 @@ const tabs = [
   { key: 'branches', label: '分支' },
   { key: 'users', label: '用户' },
   { key: 'backups', label: '备份' },
+  { key: 'extensions', label: '扩展' },
+  { key: 'parameters', label: '参数' },
 ]
 
 // Branches
@@ -875,12 +976,122 @@ function handleUserCreated() {
   fetchUsers()
 }
 
+// Extensions
+const toast = useToast()
+const extensions = ref<ExtensionInfo[]>([])
+const extensionsLoading = ref(false)
+const extSearch = ref('')
+const extCategoryFilter = ref('')
+const extShowInstalledOnly = ref(false)
+const extBusy = ref('')
+
+const extCategories = computed(() => {
+  const cats = new Set(extensions.value.map(e => e.category))
+  return [...cats].sort()
+})
+
+const filteredExtensions = computed(() => {
+  let list = extensions.value
+  if (extSearch.value) {
+    const q = extSearch.value.toLowerCase()
+    list = list.filter(e => e.name.toLowerCase().includes(q) || e.description.toLowerCase().includes(q))
+  }
+  if (extCategoryFilter.value) {
+    list = list.filter(e => e.category === extCategoryFilter.value)
+  }
+  if (extShowInstalledOnly.value) {
+    list = list.filter(e => e.installed)
+  }
+  return list
+})
+
+async function fetchExtensions() {
+  extensionsLoading.value = true
+  try {
+    const res = await extensionApi.list(dbId.value)
+    extensions.value = res.data
+  } catch (e) { console.error('Failed to load extensions', e) }
+  finally { extensionsLoading.value = false }
+}
+
+async function handleEnableExt(ext: ExtensionInfo) {
+  extBusy.value = ext.name
+  try {
+    await extensionApi.enable(dbId.value, ext.name)
+    toast.success(`扩展 ${ext.name} 已启用`)
+    await fetchExtensions()
+  } catch (e: any) {
+    toast.error(`启用失败: ${e.response?.data?.message || e.message}`)
+  } finally { extBusy.value = '' }
+}
+
+async function handleDisableExt(ext: ExtensionInfo) {
+  if (!confirm(`确定禁用扩展 ${ext.name}？这会删除其关联的数据类型和函数。`)) return
+  extBusy.value = ext.name
+  try {
+    await extensionApi.disable(dbId.value, ext.name)
+    toast.success(`扩展 ${ext.name} 已禁用`)
+    await fetchExtensions()
+  } catch (e: any) {
+    toast.error(`禁用失败: ${e.response?.data?.message || e.message}`)
+  } finally { extBusy.value = '' }
+}
+
+// Parameters
+const parameters = ref<ParameterInfo[]>([])
+const parametersLoading = ref(false)
+const paramSearch = ref('')
+const paramEditableOnly = ref(false)
+const paramEditing = ref('')
+const paramEditValue = ref('')
+const paramSaving = ref(false)
+
+const filteredParameters = computed(() => {
+  let list = parameters.value
+  if (paramSearch.value) {
+    const q = paramSearch.value.toLowerCase()
+    list = list.filter(p => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q))
+  }
+  if (paramEditableOnly.value) {
+    list = list.filter(p => p.editable)
+  }
+  return list
+})
+
+async function fetchParameters() {
+  parametersLoading.value = true
+  try {
+    const res = await extensionApi.listParameters(dbId.value)
+    parameters.value = res.data
+  } catch (e) { console.error('Failed to load parameters', e) }
+  finally { parametersLoading.value = false }
+}
+
+function startEditParam(p: ParameterInfo) {
+  paramEditing.value = p.name
+  paramEditValue.value = p.setting
+}
+
+async function handleSaveParam(p: ParameterInfo) {
+  paramSaving.value = true
+  try {
+    await extensionApi.updateParameter(dbId.value, p.name, paramEditValue.value)
+    toast.success(`参数 ${p.name} 已更新，新连接生效`)
+    paramEditing.value = ''
+    await fetchParameters()
+  } catch (e: any) {
+    toast.error(`更新失败: ${e.response?.data?.message || e.message}`)
+  } finally { paramSaving.value = false }
+}
+
 watch([branchSearch, branchPageSize], () => { branchCurrentPage.value = 1 })
 watch([backupSearch, backupPageSize], () => { backupCurrentPage.value = 1 })
 watch(activeTab, (tab) => {
   if (tab === 'branches' && branches.value.length === 0) fetchBranches()
   if (tab === 'backups' && backups.value.length === 0) fetchBackups()
   if (tab === 'users' && dbUsers.value.length === 0) fetchUsers()
+  if (tab === 'extensions' && extensions.value.length === 0) fetchExtensions()
+  if (tab === 'parameters' && parameters.value.length === 0) fetchParameters()
 })
 
 onMounted(() => {
@@ -1471,5 +1682,129 @@ onUnmounted(() => {
 .action-none {
   color: #ccc;
   font-size: 13px;
+}
+
+/* Extensions tab */
+.ext-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.ext-search {
+  width: 200px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.ext-category-select {
+  width: 160px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.ext-installed-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #575d6c;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ext-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.ext-card {
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  padding: 14px 16px;
+  background: #fff;
+  transition: border-color 0.15s;
+}
+
+.ext-card.installed {
+  border-color: #b7eb8f;
+  background: #f6ffed;
+}
+
+.ext-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.ext-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #191919;
+}
+
+.ext-version {
+  font-size: 12px;
+  color: #52c41a;
+  font-weight: 500;
+}
+
+.ext-desc {
+  font-size: 12px;
+  color: #8a8e99;
+  line-height: 1.4;
+  margin-bottom: 10px;
+}
+
+.ext-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ext-category-badge {
+  font-size: 11px;
+  color: #575d6c;
+  background: #f0f0f0;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.ext-card.installed .ext-category-badge {
+  background: #d9f7be;
+  color: #389e0d;
+}
+
+/* Parameters tab */
+.td-desc {
+  max-width: 300px;
+  font-size: 12px;
+  color: #8a8e99;
+  line-height: 1.4;
+}
+
+.form-input-sm {
+  width: 140px;
+  padding: 4px 8px;
+  font-size: 13px;
+  border: 1px solid #d9d9d9;
+  border-radius: 2px;
+}
+
+@media (max-width: 768px) {
+  .ext-grid {
+    grid-template-columns: 1fr;
+  }
+  .ext-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .ext-search, .ext-category-select {
+    width: 100%;
+  }
 }
 </style>
