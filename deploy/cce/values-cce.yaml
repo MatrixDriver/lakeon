@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/lakeon/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/lakeon/lakeon-api
-    tag: "0.4.9"
+    tag: "0.4.10"
   resources:
     requests:
       cpu: "100m"

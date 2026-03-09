@@ -13,7 +13,10 @@ import com.lakeon.model.enums.OperationType;
 import com.lakeon.neon.NeonApiClient;
 import com.lakeon.neon.dto.CreateTimelineRequest;
 import com.lakeon.neon.dto.NeonTimeline;
+import com.lakeon.model.entity.BranchEntity;
+import com.lakeon.model.enums.BranchStatus;
 import com.lakeon.repository.BackupRepository;
+import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.exception.NotFoundException;
 import org.slf4j.Logger;
@@ -31,17 +34,20 @@ public class BackupService {
 
     private final BackupRepository backupRepository;
     private final DatabaseRepository databaseRepository;
+    private final BranchRepository branchRepository;
     private final NeonApiClient neonApiClient;
     private final OperationLogService operationLogService;
     private final DatabaseService databaseService;
 
     public BackupService(BackupRepository backupRepository,
                          DatabaseRepository databaseRepository,
+                         BranchRepository branchRepository,
                          NeonApiClient neonApiClient,
                          OperationLogService operationLogService,
                          DatabaseService databaseService) {
         this.backupRepository = backupRepository;
         this.databaseRepository = databaseRepository;
+        this.branchRepository = branchRepository;
         this.neonApiClient = neonApiClient;
         this.operationLogService = operationLogService;
         this.databaseService = databaseService;
@@ -174,11 +180,21 @@ public class BackupService {
             restoredDb.setStorageLimitGb(sourceDb.getStorageLimitGb());
             restoredDb.setDbUser(sourceDb.getDbUser());
             restoredDb.setDbPassword(sourceDb.getDbPassword());
-            restoredDb.setComputeHost(sourceDb.getComputeHost());
-            restoredDb.setComputePort(sourceDb.getComputePort());
             restoredDb.setStatus(com.lakeon.model.enums.DatabaseStatus.SUSPENDED);
+            // Build connection URI (don't copy stale compute host/port)
+            restoredDb.setConnectionUri(databaseService.buildConnectionUri(
+                sourceDb.getDbUser(), req.name()));
 
             restoredDb = databaseRepository.save(restoredDb);
+
+            // Create default "main" branch for the restored database
+            BranchEntity mainBranch = new BranchEntity();
+            mainBranch.setName("main");
+            mainBranch.setDatabaseId(restoredDb.getId());
+            mainBranch.setNeonTimelineId(restoredTimeline.getTimelineId());
+            mainBranch.setIsDefault(true);
+            mainBranch.setStatus(BranchStatus.ACTIVE);
+            branchRepository.save(mainBranch);
 
             operationLogService.completeOperation(opLog, null);
             log.info("Restored database {} from backup {} as new database {}",

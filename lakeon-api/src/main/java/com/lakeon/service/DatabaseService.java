@@ -596,7 +596,7 @@ public class DatabaseService {
         return Map.of("password", rawPassword);
     }
 
-    private String buildConnectionUri(String dbUser, String dbName) {
+    public String buildConnectionUri(String dbUser, String dbName) {
         String host = props.getProxy().getExternalHost();
         int port = props.getProxy().getExternalPort();
         String base;
