@@ -34,6 +34,36 @@ subjects:
     name: lakeon-api
     namespace: {{ .Values.global.namespace }}
 ---
+# ClusterRole for metrics API and node info (used by SRE infra page)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: lakeon-api-metrics-reader
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["nodes", "pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: lakeon-api-metrics-reader
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: lakeon-api-metrics-reader
+subjects:
+  - kind: ServiceAccount
+    name: lakeon-api
+    namespace: {{ .Values.global.namespace }}
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
