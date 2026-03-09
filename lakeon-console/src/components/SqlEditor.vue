@@ -10,8 +10,34 @@
         <span class="toolbar-hint">Ctrl+Enter 执行</span>
       </div>
       <div class="toolbar-right">
+        <button class="toolbar-btn" :class="{ active: showHistory }" @click="showHistory = !showHistory" title="查询历史">
+          历史 <span v-if="queryHistory.length > 0" class="history-count">{{ queryHistory.length }}</span>
+        </button>
         <button class="toolbar-btn" @click="formatSql" title="格式化">格式化</button>
         <button class="toolbar-btn" @click="clearEditor" title="清空">清空</button>
+      </div>
+    </div>
+    <!-- Query History Panel -->
+    <div v-if="showHistory" class="history-panel">
+      <div class="history-header">
+        <span class="history-title">查询历史</span>
+        <button v-if="queryHistory.length > 0" class="toolbar-btn" style="font-size: 12px; padding: 2px 8px;" @click="clearHistory">清空</button>
+      </div>
+      <div v-if="queryHistory.length === 0" class="history-empty">暂无查询记录</div>
+      <div v-else class="history-list">
+        <div
+          v-for="(item, i) in queryHistory"
+          :key="i"
+          class="history-item"
+          @click="loadFromHistory(item)"
+        >
+          <div class="history-sql">{{ item.sql.length > 120 ? item.sql.slice(0, 120) + '...' : item.sql }}</div>
+          <div class="history-meta">
+            <span v-if="item.success" class="history-ok">{{ item.rows }}行 · {{ item.time }}ms</span>
+            <span v-else class="history-fail">失败</span>
+            <span class="history-date">{{ formatHistoryDate(item.ts) }}</span>
+          </div>
+        </div>
       </div>
     </div>
     <div ref="editorContainer" class="editor-container"></div>
@@ -74,6 +100,65 @@ const result = ref<QueryResult | null>(null)
 const resultError = ref('')
 const resultPageSize = ref(20)
 const resultCurrentPage = ref(1)
+
+// ── Query History ──
+const HISTORY_KEY = 'lakeon_sql_history'
+const MAX_HISTORY = 50
+const showHistory = ref(false)
+
+interface HistoryItem {
+  sql: string
+  success: boolean
+  rows: number
+  time: number
+  ts: number
+}
+
+const queryHistory = ref<HistoryItem[]>(loadHistory())
+
+function loadHistory(): HistoryItem[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+
+function saveHistory() {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(queryHistory.value))
+}
+
+function addToHistory(sql: string, success: boolean, rows: number, time: number) {
+  // Deduplicate: remove if same SQL exists
+  queryHistory.value = queryHistory.value.filter(h => h.sql !== sql)
+  queryHistory.value.unshift({ sql, success, rows, time, ts: Date.now() })
+  if (queryHistory.value.length > MAX_HISTORY) {
+    queryHistory.value = queryHistory.value.slice(0, MAX_HISTORY)
+  }
+  saveHistory()
+}
+
+function loadFromHistory(item: HistoryItem) {
+  if (!editorView) return
+  editorView.dispatch({
+    changes: { from: 0, to: editorView.state.doc.length, insert: item.sql },
+  })
+  showHistory.value = false
+}
+
+function clearHistory() {
+  queryHistory.value = []
+  localStorage.removeItem(HISTORY_KEY)
+}
+
+function formatHistoryDate(ts: number): string {
+  const d = new Date(ts)
+  const now = new Date()
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+  }
+  return d.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }) + ' ' +
+    d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
 
 const pagedResultRows = computed(() => {
   if (!result.value) return []
@@ -165,11 +250,12 @@ async function executeQuery() {
   try {
     const res = await databaseApi.executeQuery(props.dbId, query)
     result.value = res.data
+    addToHistory(query, true, res.data.row_count, res.data.execution_time_ms)
   } catch (e: any) {
     const data = e?.response?.data
     const msg = data?.error?.message || data?.message || e?.message || '执行失败'
-    // Strip verbose prefix, show just the SQL error
     resultError.value = msg.replace(/^SQL execution failed:\s*/, '')
+    addToHistory(query, false, 0, 0)
   } finally {
     executing.value = false
   }
@@ -372,4 +458,90 @@ defineExpose({ executeQuery })
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* History */
+.toolbar-btn.active {
+  background: #e6f0ff;
+  border-color: #0073e6;
+  color: #0073e6;
+}
+
+.history-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: #0073e6;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0 4px;
+  margin-left: 4px;
+}
+
+.history-panel {
+  border-bottom: 1px solid #e8e8e8;
+  background: #fafbfc;
+  max-height: 240px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.history-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #191919;
+}
+
+.history-empty {
+  padding: 24px;
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+}
+
+.history-list {
+  padding: 4px 0;
+}
+
+.history-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f5f5f5;
+  transition: background 0.1s;
+}
+
+.history-item:hover { background: #e6f0ff; }
+.history-item:last-child { border-bottom: none; }
+
+.history-sql {
+  font-size: 12px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.history-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.history-ok { color: #52c41a; }
+.history-fail { color: #cf1322; }
+.history-date { color: #999; }
 </style>

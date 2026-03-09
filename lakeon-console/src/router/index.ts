@@ -19,7 +19,7 @@ const routes = [
     children: [
       { path: '', redirect: '/dashboard' },
       { path: 'dashboard', name: 'Dashboard', component: () => import('../views/dashboard/DashboardView.vue') },
-      { path: 'databases', name: 'DatabaseList', component: () => import('../views/database/DatabaseList.vue') },
+      { path: 'databases', redirect: '/dashboard' },
       { path: 'databases/:id', name: 'DatabaseDetail', component: () => import('../views/database/DatabaseDetail.vue') },
       { path: 'databases/:id/manager', name: 'DatabaseManager', component: () => import('../views/database/DatabaseManager.vue') },
       { path: 'sql', name: 'SqlEditor', component: () => import('../views/sql/SqlEditorEntry.vue') },
@@ -28,6 +28,8 @@ const routes = [
       { path: 'logs', name: 'LogManagement', component: () => import('../views/log-management/LogManagement.vue') },
       { path: 'audit', redirect: '/logs' },
       { path: 'apikey', name: 'ApiKey', component: () => import('../views/apikey/ApiKeyView.vue') },
+      { path: 'usage', name: 'Usage', component: () => import('../views/usage/UsageBillingView.vue') },
+      { path: 'account', name: 'Account', component: () => import('../views/account/AccountSettingsView.vue') },
       { path: 'docs', name: 'Docs', component: () => import('../views/docs/DocsView.vue') },
     ],
   },
