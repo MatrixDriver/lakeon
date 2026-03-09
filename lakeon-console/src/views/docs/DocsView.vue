@@ -125,6 +125,42 @@
           </div>
         </div>
 
+        <!-- Database Management -->
+        <div id="database-mgmt" class="doc-card">
+          <div class="card-header"><h3>数据库管理</h3></div>
+          <div class="card-body">
+            <h4 class="doc-subtitle">创建数据库</h4>
+            <ol class="doc-steps">
+              <li>进入<router-link to="/dashboard">总览</router-link>页面，点击「创建数据库」按钮</li>
+              <li>输入数据库名称（仅支持小写字母、数字和连字符）</li>
+              <li>选择计算规格（CU 数），1 CU = 1 vCPU + 4 GB 内存</li>
+              <li>设置挂起超时时间（无活跃连接后自动挂起的等待时长）</li>
+              <li>点击「创建」，等待状态变为「运行中」即可使用</li>
+            </ol>
+
+            <h4 class="doc-subtitle">数据库状态</h4>
+            <table class="data-table">
+              <thead>
+                <tr><th>状态</th><th>说明</th><th>可执行操作</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><strong>运行中</strong></td><td>计算节点正在运行，可正常连接和查询</td><td>挂起、删除</td></tr>
+                <tr><td><strong>已挂起</strong></td><td>计算节点已暂停，连接时自动唤醒</td><td>启动、删除</td></tr>
+                <tr><td><strong>启动中</strong></td><td>正在创建或唤醒计算节点</td><td>等待完成</td></tr>
+                <tr><td><strong>错误</strong></td><td>启动或运行过程中发生异常</td><td>查看日志、删除</td></tr>
+              </tbody>
+            </table>
+
+            <h4 class="doc-subtitle">挂起与启动</h4>
+            <p class="doc-text">挂起数据库会暂停计算节点以节省资源，但数据始终安全保存在对象存储中。挂起状态的数据库在收到连接请求时会自动唤醒，也可在总览页面手动点击「启动」。详细的唤醒机制请参考 <a href="#serverless" @click.prevent="scrollToSection('serverless')">Serverless 架构</a> 章节。</p>
+
+            <h4 class="doc-subtitle">删除数据库</h4>
+            <div class="doc-note">
+              删除操作不可撤销。删除后数据库的所有数据、分支、备份将被永久清除。建议在删除前确认数据已备份或不再需要。
+            </div>
+          </div>
+        </div>
+
         <!-- Serverless Architecture -->
         <div id="serverless" class="doc-card">
           <div class="card-header"><h3>Serverless 架构</h3></div>
@@ -201,24 +237,27 @@
           </div>
         </div>
 
-        <div id="faq" class="doc-card">
-          <div class="card-header"><h3>常见问题</h3></div>
+        <!-- SQL Editor -->
+        <div id="sql-editor" class="doc-card">
+          <div class="card-header"><h3>SQL 编辑器</h3></div>
           <div class="card-body">
-            <div class="faq-item">
-              <div class="faq-q">Q: 连接超时怎么办？</div>
-              <div class="faq-a">如果数据库处于挂起状态，首次连接需要等待唤醒（通常 &lt;10s）。请设置客户端连接超时为 30 秒以上。</div>
-            </div>
-            <div class="faq-item">
-              <div class="faq-q">Q: 数据库挂起后数据会丢失吗？</div>
-              <div class="faq-a">不会。数据持久化在对象存储中，挂起只是停止计算节点。恢复后数据完整可用。</div>
-            </div>
-            <div class="faq-item">
-              <div class="faq-q">Q: 如何修改数据库密码？</div>
-              <div class="faq-a">连接数据库后执行 <code>ALTER USER cloud_admin PASSWORD 'new_password';</code></div>
-            </div>
-            <div class="faq-item">
-              <div class="faq-q">Q: API Key 丢失了怎么办？</div>
-              <div class="faq-a">在 <router-link to="/apikey">API Key</router-link> 页面重新生成。注意：重新生成后旧 Key 立即失效。</div>
+            <h4 class="doc-subtitle">功能说明</h4>
+            <p class="doc-text">SQL 编辑器是内置的 Web 端数据库查询工具，无需安装客户端即可直接在浏览器中执行 SQL 语句。支持语法高亮、自动补全、多数据库切换和查询历史记录。</p>
+
+            <h4 class="doc-subtitle">如何使用</h4>
+            <ol class="doc-steps">
+              <li>进入<router-link to="/sql">SQL 编辑器</router-link>页面</li>
+              <li>在顶部下拉框中选择目标数据库（如果数据库处于挂起状态，会自动唤醒）</li>
+              <li>在编辑区域输入 SQL 语句</li>
+              <li>点击「执行」按钮或使用快捷键 Ctrl+Enter（Mac: Cmd+Enter）运行查询</li>
+              <li>查询结果会显示在下方的表格中，支持列排序和数据复制</li>
+            </ol>
+
+            <h4 class="doc-subtitle">查询历史</h4>
+            <p class="doc-text">每次执行的 SQL 语句会自动保存到本地历史记录中（最多 50 条）。点击工具栏的「历史」按钮可查看和重新加载之前的查询。历史记录保存在浏览器本地存储中，跨会话保留。</p>
+
+            <div class="doc-note">
+              SQL 编辑器通过 API 执行查询，与直接使用 psql 客户端连接效果相同。支持 SELECT、INSERT、UPDATE、DELETE、DDL 等所有 PostgreSQL 标准语句。
             </div>
           </div>
         </div>
@@ -413,6 +452,75 @@
           </div>
         </div>
 
+        <!-- Monitoring -->
+        <div id="monitor" class="doc-card">
+          <div class="card-header"><h3>监控面板</h3></div>
+          <div class="card-body">
+            <h4 class="doc-subtitle">功能说明</h4>
+            <p class="doc-text"><router-link to="/monitor">监控面板</router-link>提供数据库运行状态的全方位监控，分为四个维度：</p>
+
+            <h4 class="doc-subtitle">服务总览</h4>
+            <p class="doc-text">展示全局指标概览，包括数据库总数、运行中/已挂起数量、总存储用量等，以及每个数据库的状态列表。</p>
+
+            <h4 class="doc-subtitle">唤醒监控</h4>
+            <p class="doc-text">Serverless 数据库的核心体验指标。监控唤醒次数、平均唤醒延迟、唤醒成功率和冷启动比例。延迟分布图帮助识别异常唤醒，唤醒记录列表可追溯每次唤醒的详细信息。</p>
+
+            <h4 class="doc-subtitle">性能诊断</h4>
+            <p class="doc-text">选择具体数据库后查看实时性能指标（CPU、内存、慢查询）。系统会自动诊断性能瓶颈类型：</p>
+            <ul class="doc-list">
+              <li><strong>SQL 性能问题</strong> — 存在慢查询但 CPU/内存使用率正常，建议优化 SQL 语句</li>
+              <li><strong>资源不足</strong> — CPU 或内存使用率过高，建议升级计算规格</li>
+              <li><strong>混合问题</strong> — 两者兼有，需综合排查</li>
+            </ul>
+
+            <h4 class="doc-subtitle">用量统计</h4>
+            <p class="doc-text">展示存储排行、分支存储详情和唤醒频次分析。帮助识别存储占用大的数据库和空闲分支，优化资源使用。</p>
+          </div>
+        </div>
+
+        <!-- Logs -->
+        <div id="logs" class="doc-card">
+          <div class="card-header"><h3>日志管理</h3></div>
+          <div class="card-body">
+            <h4 class="doc-subtitle">功能说明</h4>
+            <p class="doc-text"><router-link to="/logs">日志管理</router-link>集中查看所有数据库的运维日志，分为三个类别：</p>
+
+            <h4 class="doc-subtitle">操作日志</h4>
+            <p class="doc-text">记录所有数据库的生命周期操作，包括创建、启动、挂起、恢复、删除等。可按数据库筛选，支持搜索操作类型和错误信息。</p>
+
+            <h4 class="doc-subtitle">SQL 审计日志</h4>
+            <p class="doc-text">选择具体数据库后查看其 SQL 审计记录。需要先在数据库详情页的「审计」标签页中开启审计功能。支持按操作类型（DDL/DML/SELECT）筛选。</p>
+
+            <h4 class="doc-subtitle">错误日志</h4>
+            <p class="doc-text">选择具体数据库后查看其 PostgreSQL 运行日志。可按日志级别（ERROR/WARNING/LOG 等）筛选，帮助排查数据库运行问题。</p>
+
+            <div class="doc-note">
+              操作日志为全局视图，无需选择数据库。审计日志和错误日志需要先选择目标数据库。
+            </div>
+          </div>
+        </div>
+
+        <!-- API Key -->
+        <div id="apikey" class="doc-card">
+          <div class="card-header"><h3>API Key</h3></div>
+          <div class="card-body">
+            <h4 class="doc-subtitle">功能说明</h4>
+            <p class="doc-text">API Key 是访问 DBay 控制台和 API 的身份凭证。每个租户拥有唯一的 API Key，用于所有管理操作的身份验证。</p>
+
+            <h4 class="doc-subtitle">如何使用</h4>
+            <ol class="doc-steps">
+              <li>进入<router-link to="/apikey">API Key</router-link>页面查看当前 Key</li>
+              <li>如需重新生成，点击「重新生成」按钮</li>
+              <li>新 Key 生成后会显示一次，请立即复制保存</li>
+              <li>在 API 请求中通过 <code>X-API-Key</code> 请求头传递 Key</li>
+            </ol>
+
+            <div class="doc-note">
+              重新生成 API Key 后，旧 Key 立即失效。所有使用旧 Key 的客户端和应用需要更新为新 Key。请妥善保管，不要泄露给他人。
+            </div>
+          </div>
+        </div>
+
         <!-- Billing -->
         <div id="billing" class="doc-card">
           <div class="card-header"><h3>计费说明</h3></div>
@@ -428,6 +536,37 @@
 
             <div class="doc-note">
               可在<router-link to="/usage">用量与计费</router-link>页面查看详细的用量和费用明细。
+            </div>
+          </div>
+        </div>
+
+        <!-- FAQ -->
+        <div id="faq" class="doc-card">
+          <div class="card-header"><h3>常见问题</h3></div>
+          <div class="card-body">
+            <div class="faq-item">
+              <div class="faq-q">Q: 连接超时怎么办？</div>
+              <div class="faq-a">如果数据库处于挂起状态，首次连接需要等待唤醒（通常 &lt;10s）。请设置客户端连接超时为 30 秒以上。详见 <a href="#serverless" @click.prevent="scrollToSection('serverless')">Serverless 架构</a>。</div>
+            </div>
+            <div class="faq-item">
+              <div class="faq-q">Q: 数据库挂起后数据会丢失吗？</div>
+              <div class="faq-a">不会。数据持久化在对象存储中，挂起只是停止计算节点。恢复后数据完整可用。</div>
+            </div>
+            <div class="faq-item">
+              <div class="faq-q">Q: 如何修改数据库密码？</div>
+              <div class="faq-a">连接数据库后执行 <code>ALTER USER cloud_admin PASSWORD 'new_password';</code>，或在数据库详情页的「用户」标签页中重置密码。</div>
+            </div>
+            <div class="faq-item">
+              <div class="faq-q">Q: API Key 丢失了怎么办？</div>
+              <div class="faq-a">在 <router-link to="/apikey">API Key</router-link> 页面重新生成。注意：重新生成后旧 Key 立即失效。</div>
+            </div>
+            <div class="faq-item">
+              <div class="faq-q">Q: 查询很慢，是 SQL 问题还是资源不足？</div>
+              <div class="faq-a">前往<router-link to="/monitor">监控面板</router-link>的「性能诊断」标签页，系统会自动分析并给出诊断建议。</div>
+            </div>
+            <div class="faq-item">
+              <div class="faq-q">Q: 存储费用是怎么算的？</div>
+              <div class="faq-a">存储按实际数据占用空间按 GB·月计费，即使数据库挂起也会持续计费。详见 <a href="#billing" @click.prevent="scrollToSection('billing')">计费说明</a>。</div>
             </div>
           </div>
         </div>
@@ -448,14 +587,19 @@ const tocItems = [
   { id: 'quickstart', label: '快速开始' },
   { id: 'connection', label: '连接示例' },
   { id: 'params', label: '连接参数' },
+  { id: 'database-mgmt', label: '数据库管理' },
   { id: 'serverless', label: 'Serverless 架构' },
-  { id: 'faq', label: '常见问题' },
+  { id: 'sql-editor', label: 'SQL 编辑器' },
   { id: 'branches', label: '分支管理' },
   { id: 'users', label: '用户管理' },
   { id: 'backups', label: '备份与恢复' },
   { id: 'import', label: '数据导入' },
   { id: 'audit', label: '审计日志' },
+  { id: 'monitor', label: '监控面板' },
+  { id: 'logs', label: '日志管理' },
+  { id: 'apikey', label: 'API Key' },
   { id: 'billing', label: '计费说明' },
+  { id: 'faq', label: '常见问题' },
 ]
 
 function scrollToSection(id: string) {
