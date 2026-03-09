@@ -42,6 +42,14 @@
 
 自动从 `.env.cce` 加载凭据，执行 `helm upgrade`，并运行冒烟测试。
 
+### 查看状态
+
+```bash
+./deploy/cce/status.sh
+```
+
+一次查看全部信息：云资源状态、节点资源用量、Pod 资源用量、Compute 节点、Pod 状态、冒烟测试。
+
 ### 仅运行冒烟测试
 
 ```bash
