@@ -3,9 +3,12 @@ package com.lakeon.service;
 import com.lakeon.model.dto.CreateTenantRequest;
 import com.lakeon.model.dto.LoginRequest;
 import com.lakeon.model.dto.TenantResponse;
+import com.lakeon.model.entity.ApiKeyEntity;
 import com.lakeon.model.entity.TenantEntity;
+import com.lakeon.repository.ApiKeyRepository;
 import com.lakeon.repository.TenantRepository;
 import com.lakeon.repository.DatabaseRepository;
+import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.ConflictException;
 import com.lakeon.service.exception.NotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -13,16 +16,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class TenantService {
+    private static final int MAX_API_KEYS = 10;
     private final TenantRepository tenantRepository;
     private final DatabaseRepository databaseRepository;
+    private final ApiKeyRepository apiKeyRepository;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    public TenantService(TenantRepository tenantRepository, DatabaseRepository databaseRepository) {
+    public TenantService(TenantRepository tenantRepository, DatabaseRepository databaseRepository,
+                         ApiKeyRepository apiKeyRepository) {
         this.tenantRepository = tenantRepository;
         this.databaseRepository = databaseRepository;
+        this.apiKeyRepository = apiKeyRepository;
     }
 
     @Transactional
@@ -36,6 +46,13 @@ public class TenantService {
         entity.setUsername(request.username());
         entity.setPasswordHash(passwordEncoder.encode(request.password()));
         entity = tenantRepository.save(entity);
+
+        // Also create an entry in api_keys table
+        ApiKeyEntity apiKeyEntity = new ApiKeyEntity();
+        apiKeyEntity.setTenantId(entity.getId());
+        apiKeyEntity.setName("Default");
+        apiKeyEntity.setApiKey(entity.getApiKey());
+        apiKeyRepository.save(apiKeyEntity);
 
         return toResponse(entity);
     }
@@ -73,7 +90,71 @@ public class TenantService {
     }
 
     public TenantEntity authenticateByApiKey(String apiKey) {
-        return tenantRepository.findByApiKey(apiKey).orElse(null);
+        // Check api_keys table first (new multi-key model)
+        return apiKeyRepository.findByApiKey(apiKey)
+            .map(ak -> tenantRepository.findById(ak.getTenantId()).orElse(null))
+            // Fallback to legacy tenants.api_key column
+            .orElseGet(() -> tenantRepository.findByApiKey(apiKey).orElse(null));
+    }
+
+    // ── Multi API Key Management ──
+
+    public List<Map<String, Object>> listApiKeys(String tenantId) {
+        return apiKeyRepository.findAllByTenantIdOrderByCreatedAtAsc(tenantId).stream()
+            .map(this::apiKeyToMap)
+            .toList();
+    }
+
+    @Transactional
+    public Map<String, Object> createApiKey(String tenantId, String name) {
+        if (name == null || name.isBlank()) {
+            throw new BadRequestException("API Key name is required");
+        }
+        if (name.length() > 64) {
+            throw new BadRequestException("API Key name must be 64 characters or less");
+        }
+        long count = apiKeyRepository.countByTenantId(tenantId);
+        if (count >= MAX_API_KEYS) {
+            throw new BadRequestException("Maximum " + MAX_API_KEYS + " API keys per tenant");
+        }
+        ApiKeyEntity entity = new ApiKeyEntity();
+        entity.setTenantId(tenantId);
+        entity.setName(name);
+        entity = apiKeyRepository.save(entity);
+
+        // Return full key only on creation
+        Map<String, Object> result = apiKeyToMap(entity);
+        result.put("api_key", entity.getApiKey());
+        return result;
+    }
+
+    @Transactional
+    public void deleteApiKey(String tenantId, String keyId) {
+        ApiKeyEntity entity = apiKeyRepository.findById(keyId)
+            .orElseThrow(() -> new NotFoundException("API Key not found: " + keyId));
+        if (!entity.getTenantId().equals(tenantId)) {
+            throw new NotFoundException("API Key not found: " + keyId);
+        }
+        // Prevent deleting the last key
+        long count = apiKeyRepository.countByTenantId(tenantId);
+        if (count <= 1) {
+            throw new BadRequestException("Cannot delete the last API key");
+        }
+        apiKeyRepository.delete(entity);
+    }
+
+    private Map<String, Object> apiKeyToMap(ApiKeyEntity entity) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", entity.getId());
+        m.put("name", entity.getName());
+        m.put("masked_key", maskKey(entity.getApiKey()));
+        m.put("created_at", entity.getCreatedAt());
+        return m;
+    }
+
+    private String maskKey(String key) {
+        if (key == null || key.length() < 10) return "***";
+        return key.substring(0, 6) + "..." + key.substring(key.length() - 4);
     }
 
     @Transactional

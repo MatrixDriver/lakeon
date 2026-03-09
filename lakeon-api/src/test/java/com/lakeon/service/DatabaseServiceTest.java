@@ -20,13 +20,14 @@ import com.lakeon.service.exception.ConflictException;
 import com.lakeon.service.exception.NotFoundException;
 import com.lakeon.service.exception.ServiceException;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -63,13 +64,17 @@ class DatabaseServiceTest {
     @Mock
     private OperationLogService operationLogService;
 
-    @InjectMocks
+    private final MeterRegistry meterRegistry = new SimpleMeterRegistry();
+
     private DatabaseService databaseService;
 
     private TenantEntity testTenant;
 
     @BeforeEach
     void setUp() {
+        databaseService = new DatabaseService(databaseRepository, branchRepository,
+                neonApiClient, computePodManager, props, operationLogService, meterRegistry);
+
         testTenant = new TenantEntity();
         testTenant.setId("tn_test001");
         testTenant.setApiKey("test-api-key-32chars-long-enough!");
@@ -81,6 +86,11 @@ class DatabaseServiceTest {
         defaults.setStorageLimitGb(10);
         lenient().when(props.getDefaults()).thenReturn(defaults);
 
+        var proxy = new LakeonProperties.ProxyConfig();
+        proxy.setExternalHost("proxy.lakeon.example.com");
+        proxy.setExternalPort(4432);
+        lenient().when(props.getProxy()).thenReturn(proxy);
+
         // Setup operation log mock (lenient because not all tests trigger operations)
         lenient().when(operationLogService.startOperation(anyString(), anyString(), anyString(), any(OperationType.class)))
                 .thenReturn(new OperationLogEntity());
@@ -88,6 +98,10 @@ class DatabaseServiceTest {
         // Quota check: default to empty list (no existing databases)
         lenient().when(databaseRepository.findAllByTenantId(anyString()))
                 .thenReturn(List.of());
+
+        // Default: timeline returns no size (lenient because not all tests trigger toResponse)
+        lenient().when(neonApiClient.getTimeline(anyString(), anyString()))
+                .thenReturn(new NeonTimeline("default-timeline"));
     }
 
     // ========== UT-SVC-DB-001 ~ UT-SVC-DB-004: 创建实例 ==========
@@ -373,20 +387,18 @@ class DatabaseServiceTest {
         }
 
         @Test
-        @DisplayName("UT-SVC-DB-011: 停止 compute — 正常流程，销毁 Pod，状态变 suspended")
+        @DisplayName("UT-SVC-DB-011: 停止 compute — Pod 保留（暖启动），状态变 suspended")
         void suspendCompute_success() {
             // Given
             var dbEntity = createTestDatabaseEntity("db_suspend001", "my-db", DatabaseStatus.RUNNING);
-            // Save pod name before suspend() nullifies it
-            String podName = dbEntity.getComputePodName();
             when(databaseRepository.findByIdAndTenantId("db_suspend001", testTenant.getId()))
                     .thenReturn(Optional.of(dbEntity));
 
             // When
             databaseService.suspend(testTenant, "db_suspend001");
 
-            // Then
-            verify(computePodManager).deleteComputePod(podName);
+            // Then — Pod retained for warm wake, NOT deleted
+            verify(computePodManager, never()).deleteComputePod(anyString());
             ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
             verify(databaseRepository).save(captor.capture());
             assertThat(captor.getValue().getStatus()).isEqualTo(DatabaseStatus.SUSPENDED);
@@ -445,6 +457,90 @@ class DatabaseServiceTest {
             ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
             verify(databaseRepository).save(captor.capture());
             assertThat(captor.getValue().getSuspendTimeout()).isEqualTo("10m");
+        }
+    }
+
+    // ========== UT-SVC-DB-014 ~ UT-SVC-DB-017: 存储用量 ==========
+
+    @Nested
+    @DisplayName("存储用量")
+    class StorageUsage {
+
+        @Test
+        @DisplayName("UT-SVC-DB-014: 查询存储用量 — 从 Neon pageserver 获取 current_logical_size 并转换为 GB")
+        void getDatabase_returnsStorageUsedGb() {
+            // Given
+            var dbEntity = createTestDatabaseEntity("db_storage001", "my-db", DatabaseStatus.RUNNING);
+            when(databaseRepository.findByIdAndTenantId("db_storage001", testTenant.getId()))
+                    .thenReturn(Optional.of(dbEntity));
+            var timeline = new NeonTimeline("neon-timeline-db_storage001");
+            timeline.setCurrentLogicalSize(1_073_741_824L); // 1 GB in bytes
+            when(neonApiClient.getTimeline(dbEntity.getNeonTenantId(), dbEntity.getNeonTimelineId()))
+                    .thenReturn(timeline);
+
+            // When
+            var result = databaseService.get(testTenant, "db_storage001");
+
+            // Then
+            assertThat(result.getStorageUsedGb()).isEqualTo(1.0);
+            verify(neonApiClient).getTimeline(dbEntity.getNeonTenantId(), dbEntity.getNeonTimelineId());
+        }
+
+        @Test
+        @DisplayName("UT-SVC-DB-015: 小数 GB 精度 — 返回两位小数")
+        void getDatabase_storageUsedGb_decimalPrecision() {
+            // Given
+            var dbEntity = createTestDatabaseEntity("db_storage002", "small-db", DatabaseStatus.RUNNING);
+            when(databaseRepository.findByIdAndTenantId("db_storage002", testTenant.getId()))
+                    .thenReturn(Optional.of(dbEntity));
+            var timeline = new NeonTimeline("neon-timeline-db_storage002");
+            timeline.setCurrentLogicalSize(53_687_091L); // ~0.05 GB
+            when(neonApiClient.getTimeline(dbEntity.getNeonTenantId(), dbEntity.getNeonTimelineId()))
+                    .thenReturn(timeline);
+
+            // When
+            var result = databaseService.get(testTenant, "db_storage002");
+
+            // Then
+            assertThat(result.getStorageUsedGb()).isEqualTo(0.05);
+        }
+
+        @Test
+        @DisplayName("UT-SVC-DB-016: Neon API 异常 — 存储用量降级为 0.0，不影响其他数据")
+        void getDatabase_neonTimelineFails_fallbackToZero() {
+            // Given
+            var dbEntity = createTestDatabaseEntity("db_storage003", "fail-db", DatabaseStatus.RUNNING);
+            when(databaseRepository.findByIdAndTenantId("db_storage003", testTenant.getId()))
+                    .thenReturn(Optional.of(dbEntity));
+            when(neonApiClient.getTimeline(anyString(), anyString()))
+                    .thenThrow(new RuntimeException("Pageserver unreachable"));
+
+            // When
+            var result = databaseService.get(testTenant, "db_storage003");
+
+            // Then
+            assertThat(result.getStorageUsedGb()).isEqualTo(0.0);
+            assertThat(result.getId()).isEqualTo("db_storage003");
+            assertThat(result.getName()).isEqualTo("fail-db");
+        }
+
+        @Test
+        @DisplayName("UT-SVC-DB-017: currentLogicalSize 为 null — 返回 0.0")
+        void getDatabase_nullLogicalSize_returnsZero() {
+            // Given
+            var dbEntity = createTestDatabaseEntity("db_storage004", "null-size-db", DatabaseStatus.RUNNING);
+            when(databaseRepository.findByIdAndTenantId("db_storage004", testTenant.getId()))
+                    .thenReturn(Optional.of(dbEntity));
+            var timeline = new NeonTimeline("neon-timeline-db_storage004");
+            timeline.setCurrentLogicalSize(null);
+            when(neonApiClient.getTimeline(dbEntity.getNeonTenantId(), dbEntity.getNeonTimelineId()))
+                    .thenReturn(timeline);
+
+            // When
+            var result = databaseService.get(testTenant, "db_storage004");
+
+            // Then
+            assertThat(result.getStorageUsedGb()).isEqualTo(0.0);
         }
     }
 

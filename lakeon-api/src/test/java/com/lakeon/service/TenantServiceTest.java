@@ -3,6 +3,8 @@ package com.lakeon.service;
 import com.lakeon.model.dto.CreateTenantRequest;
 import com.lakeon.model.dto.TenantResponse;
 import com.lakeon.model.entity.TenantEntity;
+import com.lakeon.model.entity.ApiKeyEntity;
+import com.lakeon.repository.ApiKeyRepository;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.TenantRepository;
 import com.lakeon.service.exception.ConflictException;
@@ -35,6 +37,9 @@ class TenantServiceTest {
     @Mock
     private DatabaseRepository databaseRepository;
 
+    @Mock
+    private ApiKeyRepository apiKeyRepository;
+
     @InjectMocks
     private TenantService tenantService;
 
@@ -52,6 +57,8 @@ class TenantServiceTest {
                     entity.prePersist();
                     return entity;
                 });
+        when(apiKeyRepository.save(any(ApiKeyEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
 
         // When
         var result = tenantService.create(request);
@@ -64,7 +71,7 @@ class TenantServiceTest {
 
         ArgumentCaptor<TenantEntity> captor = ArgumentCaptor.forClass(TenantEntity.class);
         verify(tenantRepository).save(captor.capture());
-        assertThat(captor.getValue().getName()).isEqualTo("test-tenant");
+        assertThat(captor.getValue().getName()).isEqualTo("test-user");
     }
 
     @Test

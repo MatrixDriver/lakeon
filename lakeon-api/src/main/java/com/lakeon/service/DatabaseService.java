@@ -461,7 +461,7 @@ public class DatabaseService {
             .computeSize(entity.getComputeSize())
             .suspendTimeout(entity.getSuspendTimeout())
             .storageLimitGb(entity.getStorageLimitGb())
-            .storageUsedGb(0.0)
+            .storageUsedGb(fetchStorageUsedGb(entity))
             .branches(branchSummaries)
             .neonTimelineId(entity.getNeonTimelineId())
             .createdAt(entity.getCreatedAt())
@@ -480,6 +480,23 @@ public class DatabaseService {
         }
 
         return response;
+    }
+
+    private double fetchStorageUsedGb(DatabaseEntity entity) {
+        if (entity.getNeonTenantId() == null || entity.getNeonTimelineId() == null) {
+            return 0.0;
+        }
+        try {
+            NeonTimeline timeline = neonApiClient.getTimeline(
+                entity.getNeonTenantId(), entity.getNeonTimelineId());
+            Long sizeBytes = timeline.getCurrentLogicalSize();
+            if (sizeBytes != null && sizeBytes > 0) {
+                return Math.round(sizeBytes / (1024.0 * 1024 * 1024) * 100.0) / 100.0;
+            }
+        } catch (Exception e) {
+            log.debug("Failed to fetch storage size for database {}: {}", entity.getId(), e.getMessage());
+        }
+        return 0.0;
     }
 
     private String generateHexId() {

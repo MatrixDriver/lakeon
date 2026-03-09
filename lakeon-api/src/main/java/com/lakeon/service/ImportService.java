@@ -400,11 +400,13 @@ public class ImportService {
         completeImportOperationLog(task, "Cancelled by user");
 
         // Restore original suspend timeout
-        if (task.getOriginalSuspendTimeout() != null) {
-            databaseRepository.findById(task.getDatabaseId()).ifPresent(db -> {
-                db.setSuspendTimeout(task.getOriginalSuspendTimeout());
+        final String originalTimeout = task.getOriginalSuspendTimeout();
+        final String taskDbId = task.getDatabaseId();
+        if (originalTimeout != null) {
+            databaseRepository.findById(taskDbId).ifPresent(db -> {
+                db.setSuspendTimeout(originalTimeout);
                 databaseRepository.save(db);
-                log.info("Restored suspend timeout to {} for database {}", task.getOriginalSuspendTimeout(), db.getId());
+                log.info("Restored suspend timeout to {} for database {}", originalTimeout, db.getId());
             });
         }
 

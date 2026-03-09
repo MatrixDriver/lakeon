@@ -11,6 +11,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1")
 public class TenantController {
@@ -53,5 +56,27 @@ public class TenantController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot regenerate key for another tenant");
         }
         return tenantService.regenerateApiKey(tenantId);
+    }
+
+    // ── Multi API Key Management ──
+
+    @GetMapping("/api-keys")
+    public List<Map<String, Object>> listApiKeys(HttpServletRequest req) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return tenantService.listApiKeys(tenant.getId());
+    }
+
+    @PostMapping("/api-keys")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Map<String, Object> createApiKey(HttpServletRequest req, @RequestBody Map<String, String> body) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return tenantService.createApiKey(tenant.getId(), body.get("name"));
+    }
+
+    @DeleteMapping("/api-keys/{keyId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteApiKey(HttpServletRequest req, @PathVariable String keyId) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        tenantService.deleteApiKey(tenant.getId(), keyId);
     }
 }

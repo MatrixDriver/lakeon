@@ -4,12 +4,13 @@ import com.lakeon.model.entity.OperationLogEntity;
 import com.lakeon.model.enums.OperationStatus;
 import com.lakeon.model.enums.OperationType;
 import com.lakeon.repository.OperationLogRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -25,8 +26,12 @@ class OperationLogServiceTest {
     @Mock
     private OperationLogRepository repository;
 
-    @InjectMocks
     private OperationLogService operationLogService;
+
+    @BeforeEach
+    void setUp() {
+        operationLogService = new OperationLogService(repository, new SimpleMeterRegistry());
+    }
 
     @Test
     @DisplayName("startOperation — 创建 IN_PROGRESS 状态的操作日志")
@@ -58,6 +63,7 @@ class OperationLogServiceTest {
         var log = new OperationLogEntity();
         log.setStartedAt(java.time.Instant.now().minusMillis(100));
         log.setStatus(OperationStatus.IN_PROGRESS);
+        log.setOperationType(OperationType.CREATE);
         when(repository.save(any(OperationLogEntity.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
 
@@ -79,6 +85,7 @@ class OperationLogServiceTest {
         var log = new OperationLogEntity();
         log.setStartedAt(java.time.Instant.now().minusMillis(50));
         log.setStatus(OperationStatus.IN_PROGRESS);
+        log.setOperationType(OperationType.DELETE);
         when(repository.save(any(OperationLogEntity.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
 
