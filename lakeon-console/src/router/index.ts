@@ -33,7 +33,11 @@ const router = createRouter({
   routes,
   scrollBehavior(to) {
     if (to.hash) {
-      return { el: to.hash }
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({ el: to.hash, behavior: 'instant' })
+        }, 300)
+      })
     }
     return { top: 0 }
   },
