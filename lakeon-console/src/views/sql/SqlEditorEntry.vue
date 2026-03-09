@@ -43,9 +43,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { databaseApi, type Database } from '../../api/database'
 
+const route = useRoute()
 const router = useRouter()
 const databases = ref<Database[]>([])
 const loading = ref(true)
@@ -77,6 +78,12 @@ onMounted(async () => {
   try {
     const res = await databaseApi.list()
     databases.value = res.data
+    // Auto-navigate if ?db=xxx is provided
+    const dbParam = route.query.db as string
+    if (dbParam) {
+      const match = databases.value.find(d => d.id === dbParam)
+      if (match) { openEditor(match); return }
+    }
   } catch (e) {
     console.error('Failed to load databases', e)
   } finally {

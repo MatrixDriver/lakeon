@@ -135,6 +135,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { databaseApi, type Database } from '../../api/database'
 import { importApi } from '../../api/import'
 import { formatDate } from '../../utils/format'
@@ -144,6 +145,7 @@ import ImportTaskDetail from '../database/ImportTaskDetail.vue'
 // Use ImportTask from import API
 import type { ImportTask } from '../../api/import'
 
+const route = useRoute()
 const databases = ref<Database[]>([])
 const loading = ref(true)
 const selectedDb = ref<Database | null>(null)
@@ -285,6 +287,12 @@ onMounted(async () => {
   try {
     const res = await databaseApi.list()
     databases.value = res.data
+    // Auto-select database from query param ?db=xxx
+    const dbParam = route.query.db as string
+    if (dbParam) {
+      const match = databases.value.find(d => d.id === dbParam)
+      if (match) selectedDb.value = match
+    }
     // Load import task counts for each database
     for (const db of databases.value) {
       try {

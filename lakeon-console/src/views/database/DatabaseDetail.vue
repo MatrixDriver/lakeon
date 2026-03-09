@@ -119,6 +119,19 @@
             请立即复制密码，刷新页面后将无法再次查看。
           </div>
         </div>
+
+        <!-- Quick links to top-level pages -->
+        <div class="quick-links">
+          <router-link :to="`/import?db=${database.id}`" class="quick-link">
+            <span class="quick-link-icon">→</span> 导入数据到此数据库
+          </router-link>
+          <router-link :to="`/logs?db=${database.id}`" class="quick-link">
+            <span class="quick-link-icon">→</span> 查看操作记录
+          </router-link>
+          <router-link :to="`/sql?db=${database.id}`" class="quick-link">
+            <span class="quick-link-icon">→</span> 打开 SQL 编辑器
+          </router-link>
+        </div>
       </div>
 
       <!-- Tab 2: Branches -->
@@ -210,72 +223,7 @@
         />
       </div>
 
-      <!-- Tab 3: Operations -->
-      <div v-if="activeTab === 'operations'" class="tab-content">
-        <div class="tab-toolbar">
-          <select v-model="opTypeFilter" class="form-select filter-select" @change="opsCurrentPage = 1; fetchOperations()">
-            <option value="">全部操作</option>
-            <option value="CREATE">创建</option>
-            <option value="SUSPEND">挂起</option>
-            <option value="RESUME">恢复</option>
-            <option value="DELETE">删除</option>
-            <option value="UPDATE">更新</option>
-            <option value="IMPORT">导入</option>
-            <option value="BACKUP">备份</option>
-            <option value="RESTORE">恢复</option>
-          </select>
-        </div>
-        <div class="section-card">
-          <div class="ops-refresh-bar">
-            <button class="toolbar-icon-btn" @click="fetchOperations" :disabled="opsLoading" :title="opsLoading ? '加载中...' : '刷新'">
-              <svg :class="{ spinning: opsLoading }" viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-                <path d="M13.65 2.35a8 8 0 1 0 1.77 5.15h-2.02a6 6 0 1 1-1.13-3.87L10 6h6V0l-2.35 2.35z"/>
-              </svg>
-            </button>
-          </div>
-          <div class="table-wrapper">
-            <table class="data-table" v-if="operations.length > 0">
-              <thead>
-                <tr>
-                  <th>操作类型</th>
-                  <th>状态</th>
-                  <th>开始时间</th>
-                  <th>完成时间</th>
-                  <th>耗时</th>
-                  <th>备注</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="op in operations" :key="op.id">
-                  <td>{{ op.operationType }}</td>
-                  <td>
-                    <span class="status-tag" :class="op.status === 'SUCCESS' ? 'tag-green' : 'tag-red'">
-                      {{ op.status }}
-                    </span>
-                  </td>
-                  <td>{{ formatDate(op.startedAt) }}</td>
-                  <td>{{ op.completedAt ? formatDate(op.completedAt) : '-' }}</td>
-                  <td :class="durationColorClass(op.durationMs)">
-                    {{ formatDuration(op.durationMs) }}
-                  </td>
-                  <td>{{ op.errorMessage || '-' }}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div v-else class="empty-state">
-              <p v-if="opsLoading">加载中...</p>
-              <p v-else>暂无操作记录</p>
-            </div>
-          </div>
-          <TableFooter
-            v-if="opsTotalElements > 0"
-            :total="opsTotalElements"
-            v-model:pageSize="opsPageSize"
-            v-model:currentPage="opsCurrentPage"
-          />
-        </div>
-      </div>
-      <!-- Tab 4: Backups -->
+      <!-- Tab 3: Backups -->
       <div v-if="activeTab === 'backups'" class="tab-content">
         <div class="tab-toolbar">
           <button class="btn btn-primary btn-small" @click="showCreateBackupDialog = true">创建备份</button>
@@ -385,193 +333,7 @@
         </div>
       </div>
 
-      <!-- Tab 5: Import -->
-      <div v-if="activeTab === 'import'" class="tab-content">
-        <div v-if="selectedImportTaskId">
-          <ImportTaskDetail
-            :dbId="dbId"
-            :taskId="selectedImportTaskId"
-            @back="selectedImportTaskId = null; fetchImportTasks()"
-            @updated="fetchImportTasks"
-          />
-        </div>
-        <div v-else>
-          <div class="tab-toolbar">
-            <button class="btn btn-primary btn-small" @click="showImportWizard = true">导入数据</button>
-          </div>
-          <p class="tab-tip">从外部 PostgreSQL 数据库导入数据。支持整库导入或选择指定表，导入过程在后台运行，不影响当前数据库使用。<router-link to="/docs#import" class="tip-link">了解更多</router-link></p>
-          <div class="section-card">
-            <TableToolbar v-model="importSearch" placeholder="搜索任务ID或源数据库" :loading="importLoading" @refresh="fetchImportTasks" />
-            <div class="table-wrapper">
-              <table class="data-table" v-if="filteredImports.length > 0">
-                <thead>
-                  <tr>
-                    <th>任务ID</th>
-                    <th>源数据库</th>
-                    <th>模式</th>
-                    <th>进度</th>
-                    <th>状态</th>
-                    <th>创建时间</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="task in pagedImports" :key="task.id"
-                      class="clickable-row" @click="selectedImportTaskId = task.id">
-                    <td>{{ task.id }}</td>
-                    <td>{{ task.source_host }}:{{ task.source_port }}/{{ task.source_dbname }}</td>
-                    <td>{{ task.mode === 'FULL' ? '整库' : '按表' }}</td>
-                    <td>{{ task.completed_tables }}/{{ task.total_tables }}</td>
-                    <td>
-                      <span class="status-tag" :class="importStatusClass(task.status)">
-                        {{ importStatusText(task.status) }}
-                      </span>
-                    </td>
-                    <td>{{ formatDate(task.created_at) }}</td>
-                    <td class="td-actions" @click.stop>
-                      <button v-if="task.status === 'RUNNING'" class="action-link" @click="handleImportPause(task.id)">暂停</button>
-                      <button v-if="task.status === 'RUNNING'" class="action-link action-danger" @click="handleImportCancel(task.id)">取消</button>
-                      <button v-if="task.status === 'PAUSED'" class="action-link" @click="handleImportResume(task.id)">继续</button>
-                      <button v-if="task.status === 'PAUSED'" class="action-link action-danger" @click="handleImportCancel(task.id)">取消</button>
-                      <button v-if="task.status === 'FAILED' || task.status === 'PARTIAL'" class="action-link" @click="handleImportRetry(task.id)">重试</button>
-                      <span v-if="task.status === 'COMPLETED' || task.status === 'CANCELLED'" class="action-none">-</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-              <div v-else class="empty-state">
-                <p v-if="importLoading">加载中...</p>
-                <p v-else>暂无导入任务</p>
-              </div>
-            </div>
-            <TableFooter
-              v-if="filteredImports.length > 0"
-              :total="filteredImports.length"
-              v-model:pageSize="importPageSize"
-              v-model:currentPage="importCurrentPage"
-            />
-          </div>
-        </div>
-
-        <ImportWizard
-          :dbId="dbId"
-          :visible="showImportWizard"
-          @close="showImportWizard = false"
-          @created="handleImportCreated"
-        />
-      </div>
-
-      <!-- Tab 6: Audit -->
-      <div v-if="activeTab === 'audit'" class="tab-content">
-        <p class="tab-tip">审计日志记录数据库的 DDL、DML、SELECT 操作，可按需开启。日志会占用少量存储空间，建议仅在需要时启用 SELECT 审计。<router-link to="/docs#audit" class="tip-link">了解更多</router-link></p>
-        <!-- Audit Config -->
-        <div class="info-card" style="margin-bottom: 16px;">
-          <h4 class="info-title">审计配置</h4>
-          <div v-if="auditConfigLoading" class="empty-state"><p>加载中...</p></div>
-          <div v-else-if="auditConfig" class="audit-config-grid">
-            <div class="audit-config-row">
-              <label class="audit-label">启用审计</label>
-              <label class="toggle-switch">
-                <input type="checkbox" :checked="auditConfig.enabled" :disabled="auditConfigSaving"
-                  @change="handleAuditConfigUpdate('enabled', ($event.target as HTMLInputElement).checked)" />
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <div class="audit-config-row">
-              <label class="audit-label">记录 DDL</label>
-              <label class="toggle-switch">
-                <input type="checkbox" :checked="auditConfig.log_ddl" :disabled="auditConfigSaving"
-                  @change="handleAuditConfigUpdate('log_ddl', ($event.target as HTMLInputElement).checked)" />
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <div class="audit-config-row">
-              <label class="audit-label">记录 DML</label>
-              <label class="toggle-switch">
-                <input type="checkbox" :checked="auditConfig.log_dml" :disabled="auditConfigSaving"
-                  @change="handleAuditConfigUpdate('log_dml', ($event.target as HTMLInputElement).checked)" />
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <div class="audit-config-row">
-              <label class="audit-label">记录 SELECT</label>
-              <label class="toggle-switch">
-                <input type="checkbox" :checked="auditConfig.log_select" :disabled="auditConfigSaving"
-                  @change="handleAuditConfigUpdate('log_select', ($event.target as HTMLInputElement).checked)" />
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <div class="audit-config-row">
-              <label class="audit-label">保留天数</label>
-              <input type="number" class="form-input retention-input" :value="auditConfig.retention_days"
-                min="1" max="365" :disabled="auditConfigSaving"
-                @change="handleAuditConfigUpdate('retention_days', parseInt(($event.target as HTMLInputElement).value))" />
-            </div>
-          </div>
-        </div>
-
-        <!-- Audit Logs -->
-        <div class="tab-toolbar">
-          <select v-model="auditTypeFilter" class="form-select filter-select"
-            @change="auditCurrentPage = 1; fetchAuditLogs()">
-            <option value="">全部类型</option>
-            <option value="DDL">DDL</option>
-            <option value="DML">DML</option>
-            <option value="SELECT">SELECT</option>
-          </select>
-        </div>
-        <div class="section-card">
-          <div class="ops-refresh-bar">
-            <button class="toolbar-icon-btn" @click="fetchAuditLogs" :disabled="auditLoading" :title="auditLoading ? '加载中...' : '刷新'">
-              <svg :class="{ spinning: auditLoading }" viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-                <path d="M13.65 2.35a8 8 0 1 0 1.77 5.15h-2.02a6 6 0 1 1-1.13-3.87L10 6h6V0l-2.35 2.35z"/>
-              </svg>
-            </button>
-          </div>
-          <div class="table-wrapper">
-            <table class="data-table" v-if="auditLogs.length > 0">
-              <thead>
-                <tr>
-                  <th>时间</th>
-                  <th>用户</th>
-                  <th>类型</th>
-                  <th>对象</th>
-                  <th>SQL语句</th>
-                  <th>耗时</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="log in auditLogs" :key="log.id">
-                  <td>{{ formatDate(log.timestamp) }}</td>
-                  <td>{{ log.user_name || '-' }}</td>
-                  <td>
-                    <span class="status-tag" :class="{
-                      'tag-blue': log.statement_type === 'SELECT',
-                      'tag-orange': log.statement_type === 'DML',
-                      'tag-green': log.statement_type === 'DDL'
-                    }">{{ auditStatementTypeText(log.statement_type) }}</span>
-                  </td>
-                  <td>{{ log.object_name || '-' }}</td>
-                  <td class="sql-cell" :title="log.statement || ''">{{ log.statement || '-' }}</td>
-                  <td>{{ log.duration != null ? log.duration + ' ms' : '-' }}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div v-else class="empty-state">
-              <p v-if="auditLoading">加载中...</p>
-              <p v-else>暂无审计日志</p>
-            </div>
-          </div>
-          <TableFooter
-            v-if="auditTotalElements > 0"
-            :total="auditTotalElements"
-            v-model:pageSize="auditPageSize"
-            v-model:currentPage="auditCurrentPage"
-          />
-        </div>
-      </div>
-
-      <!-- Tab 7: Users -->
+      <!-- Tab 4: Users -->
       <div v-if="activeTab === 'users'" class="tab-content">
         <div class="tab-toolbar">
           <button class="btn btn-primary btn-small" @click="showCreateUserDialog = true">添加用户</button>
@@ -694,20 +456,15 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { databaseApi, type Database } from '../../api/database'
 import { branchApi, type Branch, type BranchTreeNode } from '../../api/branch'
-import { operationApi, type OperationLog } from '../../api/operation'
-import { importApi, type ImportTask } from '../../api/import'
 import { backupApi, type Backup } from '../../api/backup'
-import { auditApi, type AuditConfig, type AuditLog } from '../../api/audit'
 import { dbuserApi, type DatabaseUser } from '../../api/dbuser'
-import ImportWizard from './ImportWizard.vue'
 import CreateUserDialog from './CreateUserDialog.vue'
-import ImportTaskDetail from './ImportTaskDetail.vue'
 import CreateBranchDialog from './CreateBranchDialog.vue'
 import BranchTreeView from '../../components/BranchTreeView.vue'
 import TableToolbar from '../../components/TableToolbar.vue'
 import TableFooter from '../../components/TableFooter.vue'
 import { copyToClipboard } from '../../utils/clipboard'
-import { formatDuration, formatDate } from '../../utils/format'
+import { formatDate } from '../../utils/format'
 
 const route = useRoute()
 const dbId = computed(() => route.params.id as string)
@@ -726,9 +483,6 @@ const tabs = [
   { key: 'branches', label: '分支' },
   { key: 'users', label: '用户' },
   { key: 'backups', label: '备份' },
-  { key: 'import', label: '导入' },
-  { key: 'operations', label: '操作历史' },
-  { key: 'audit', label: '审计日志' },
 ]
 
 // Branches
@@ -777,26 +531,6 @@ const pagedBackups = computed(() => {
   return filteredBackups.value.slice(start, start + backupPageSize.value)
 })
 
-// Import
-const importTasks = ref<ImportTask[]>([])
-const importLoading = ref(false)
-const showImportWizard = ref(false)
-const selectedImportTaskId = ref<string | null>(null)
-const importSearch = ref('')
-const importPageSize = ref(10)
-const importCurrentPage = ref(1)
-
-// Audit
-const auditConfig = ref<AuditConfig | null>(null)
-const auditLogs = ref<AuditLog[]>([])
-const auditLoading = ref(false)
-const auditConfigLoading = ref(false)
-const auditConfigSaving = ref(false)
-const auditTypeFilter = ref('')
-const auditPageSize = ref(10)
-const auditCurrentPage = ref(1)
-const auditTotalElements = ref(0)
-
 // Users
 const dbUsers = ref<DatabaseUser[]>([])
 const usersLoading = ref(false)
@@ -806,28 +540,6 @@ const roleEditUser = ref<DatabaseUser | null>(null)
 const newRole = ref('READER')
 const updatingRole = ref(false)
 const resetUserPasswordResult = ref('')
-
-const filteredImports = computed(() => {
-  const q = importSearch.value.toLowerCase()
-  if (!q) return importTasks.value
-  return importTasks.value.filter(t =>
-    t.id.toLowerCase().includes(q) ||
-    t.source_host.toLowerCase().includes(q) ||
-    t.source_dbname.toLowerCase().includes(q)
-  )
-})
-const pagedImports = computed(() => {
-  const start = (importCurrentPage.value - 1) * importPageSize.value
-  return filteredImports.value.slice(start, start + importPageSize.value)
-})
-
-// Operations
-const operations = ref<OperationLog[]>([])
-const opsLoading = ref(false)
-const opTypeFilter = ref('')
-const opsPageSize = ref(10)
-const opsCurrentPage = ref(1)
-const opsTotalElements = ref(0)
 
 // Connection info parsing
 const connectionFields = computed(() => {
@@ -864,13 +576,6 @@ function statusText(status: string): string {
     case 'CREATING': return '创建中'
     default: return '异常'
   }
-}
-
-function durationColorClass(ms: number | null): string {
-  if (ms === null) return ''
-  if (ms < 1000) return 'duration-fast'
-  if (ms <= 5000) return 'duration-medium'
-  return 'duration-slow'
 }
 
 const copyTip = ref('')
@@ -1031,25 +736,6 @@ async function handleDeleteBranch(branchId: string) {
   }
 }
 
-// Operations
-async function fetchOperations() {
-  opsLoading.value = true
-  try {
-    const params: Record<string, unknown> = { page: opsCurrentPage.value - 1, size: opsPageSize.value }
-    if (opTypeFilter.value) params.type = opTypeFilter.value
-    const res = await operationApi.getByDatabase(dbId.value, params as { type?: string; page?: number; size?: number })
-    operations.value = res.data.content
-    opsTotalElements.value = res.data.totalElements
-  } catch (e) {
-    console.error('Failed to load operations', e)
-  } finally {
-    opsLoading.value = false
-  }
-}
-
-watch(opsPageSize, () => { opsCurrentPage.value = 1; fetchOperations() })
-watch(opsCurrentPage, () => { fetchOperations() })
-
 // Backups
 async function fetchBackups() {
   backupsLoading.value = true
@@ -1117,123 +803,6 @@ function backupStatusText(status: string): string {
     case 'FAILED': return '失败'
     case 'PENDING': return '等待中'
     default: return status
-  }
-}
-
-// Import
-async function fetchImportTasks() {
-  importLoading.value = true
-  try {
-    const res = await importApi.list(dbId.value)
-    importTasks.value = res.data
-  } catch (e) {
-    console.error('Failed to load import tasks', e)
-  } finally {
-    importLoading.value = false
-  }
-}
-
-function importStatusClass(status: string): string {
-  switch (status) {
-    case 'COMPLETED': return 'tag-green'
-    case 'RUNNING': return 'tag-blue'
-    case 'FAILED': return 'tag-red'
-    case 'PARTIAL': return 'tag-orange'
-    case 'PAUSED': case 'CANCELLED': return 'tag-gray'
-    default: return ''
-  }
-}
-
-function importStatusText(status: string): string {
-  switch (status) {
-    case 'PENDING': return '等待中'
-    case 'RUNNING': return '导入中'
-    case 'COMPLETED': return '已完成'
-    case 'FAILED': return '失败'
-    case 'PARTIAL': return '部分完成'
-    case 'PAUSED': return '已暂停'
-    case 'CANCELLED': return '已取消'
-    default: return status
-  }
-}
-
-function handleImportCreated(task: ImportTask) {
-  showImportWizard.value = false
-  selectedImportTaskId.value = task.id
-  fetchImportTasks()
-}
-
-async function handleImportPause(taskId: string) {
-  try { await importApi.pause(dbId.value, taskId); fetchImportTasks() }
-  catch (e: any) { alert(e.response?.data?.error?.message || '暂停失败') }
-}
-
-async function handleImportResume(taskId: string) {
-  try { await importApi.resume(dbId.value, taskId); fetchImportTasks() }
-  catch (e: any) { alert(e.response?.data?.error?.message || '继续失败') }
-}
-
-async function handleImportCancel(taskId: string) {
-  if (!confirm('确定要取消此导入任务吗？已导入的数据将保留。')) return
-  try { await importApi.cancel(dbId.value, taskId); fetchImportTasks() }
-  catch (e: any) { alert(e.response?.data?.error?.message || '取消失败') }
-}
-
-async function handleImportRetry(taskId: string) {
-  try { await importApi.retry(dbId.value, taskId); fetchImportTasks() }
-  catch (e: any) { alert(e.response?.data?.error?.message || '重试失败') }
-}
-
-// Audit
-async function fetchAuditConfig() {
-  auditConfigLoading.value = true
-  try {
-    const res = await auditApi.getConfig(dbId.value)
-    auditConfig.value = res.data
-  } catch (e) {
-    console.error('Failed to load audit config', e)
-  } finally {
-    auditConfigLoading.value = false
-  }
-}
-
-async function fetchAuditLogs() {
-  auditLoading.value = true
-  try {
-    const params: Record<string, unknown> = {
-      page: auditCurrentPage.value - 1,
-      size: auditPageSize.value,
-    }
-    if (auditTypeFilter.value) params.type = auditTypeFilter.value
-    const res = await auditApi.getLogs(dbId.value, params as { type?: string; page?: number; size?: number })
-    auditLogs.value = res.data.data
-    auditTotalElements.value = res.data.total
-  } catch (e) {
-    console.error('Failed to load audit logs', e)
-  } finally {
-    auditLoading.value = false
-  }
-}
-
-async function handleAuditConfigUpdate(field: string, value: unknown) {
-  auditConfigSaving.value = true
-  try {
-    const data: Record<string, unknown> = { [field]: value }
-    const res = await auditApi.updateConfig(dbId.value, data)
-    auditConfig.value = res.data
-  } catch (e) {
-    console.error('Failed to update audit config', e)
-  } finally {
-    auditConfigSaving.value = false
-  }
-}
-
-function auditStatementTypeText(type: string): string {
-  switch (type) {
-    case 'DDL': return 'DDL'
-    case 'DML': return 'DML'
-    case 'SELECT': return 'SELECT'
-    default: return type
   }
 }
 
@@ -1308,17 +877,9 @@ function handleUserCreated() {
 
 watch([branchSearch, branchPageSize], () => { branchCurrentPage.value = 1 })
 watch([backupSearch, backupPageSize], () => { backupCurrentPage.value = 1 })
-watch([importSearch, importPageSize], () => { importCurrentPage.value = 1 })
-
-watch(auditPageSize, () => { auditCurrentPage.value = 1; fetchAuditLogs() })
-watch(auditCurrentPage, () => { fetchAuditLogs() })
-
 watch(activeTab, (tab) => {
   if (tab === 'branches' && branches.value.length === 0) fetchBranches()
-  if (tab === 'operations' && operations.value.length === 0) fetchOperations()
   if (tab === 'backups' && backups.value.length === 0) fetchBackups()
-  if (tab === 'import' && importTasks.value.length === 0) fetchImportTasks()
-  if (tab === 'audit' && auditConfig.value === null) { fetchAuditConfig(); fetchAuditLogs() }
   if (tab === 'users' && dbUsers.value.length === 0) fetchUsers()
 })
 
@@ -1335,6 +896,33 @@ onUnmounted(() => {
 <style scoped>
 .page-db-detail {
   padding: 4px;
+}
+
+.quick-links {
+  display: flex;
+  gap: 24px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.quick-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  color: #0073e6;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.quick-link:hover {
+  color: #005bb5;
+  text-decoration: underline;
+}
+
+.quick-link-icon {
+  font-size: 12px;
 }
 
 .page-loading {

@@ -209,6 +209,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { databaseApi, type Database } from '../../api/database'
 import { operationApi, type OperationLog } from '../../api/operation'
 import { auditApi, type AuditLog } from '../../api/audit'
@@ -226,6 +227,7 @@ const OP_LABELS: Record<string, string> = {
   RESET_PASSWORD: '重置密码',
 }
 
+const route = useRoute()
 const activeTab = ref('operations')
 const databases = ref<Database[]>([])
 
@@ -233,7 +235,7 @@ const databases = ref<Database[]>([])
 const allOps = ref<OperationLog[]>([])
 const opLoading = ref(true)
 const opSearch = ref('')
-const opDbFilter = ref('')
+const opDbFilter = ref((route.query.db as string) || '')
 const opTypeFilter = ref('')
 const opStatusFilter = ref('')
 const opPageSize = ref(20)
