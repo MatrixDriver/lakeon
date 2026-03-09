@@ -148,6 +148,21 @@ public class ImportJobPodManager {
     }
 
     /**
+     * Check if the import Job Pod is still running.
+     */
+    public boolean isJobPodRunning(String taskId) {
+        String namespace = props.getK8s().getNamespace();
+        String safePodId = taskId.replace("_", "-");
+        String podName = "import-" + safePodId;
+        try {
+            var pod = k8sClient.pods().inNamespace(namespace).withName(podName).get();
+            return pod != null && "Running".equals(pod.getStatus().getPhase());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
      * Delete the import Pod, ConfigMap, and Secret for the given task.
      */
     public void deleteJobPod(String taskId) {

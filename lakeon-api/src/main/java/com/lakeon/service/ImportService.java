@@ -20,6 +20,7 @@ import com.lakeon.repository.ImportTaskRepository;
 import com.lakeon.service.exception.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -397,6 +398,16 @@ public class ImportService {
         task.setStatus(ImportTaskStatus.CANCELLED);
         task.setFinishedAt(Instant.now());
         completeImportOperationLog(task, "Cancelled by user");
+
+        // Restore original suspend timeout
+        if (task.getOriginalSuspendTimeout() != null) {
+            databaseRepository.findById(task.getDatabaseId()).ifPresent(db -> {
+                db.setSuspendTimeout(task.getOriginalSuspendTimeout());
+                databaseRepository.save(db);
+                log.info("Restored suspend timeout to {} for database {}", task.getOriginalSuspendTimeout(), db.getId());
+            });
+        }
+
         task = importTaskRepository.save(task);
 
         List<ImportTableTaskEntity> allTables = importTableTaskRepository
@@ -496,5 +507,34 @@ public class ImportService {
             task.getFinishedAt(),
             tableResponses
         );
+    }
+
+    /**
+     * Periodically check for orphaned import tasks — tasks stuck in RUNNING
+     * whose Job Pod no longer exists. Mark them as FAILED and restore suspend timeout.
+     */
+    @Scheduled(fixedDelay = 60000)
+    @Transactional
+    public void checkOrphanedImportTasks() {
+        List<ImportTaskEntity> runningTasks = importTaskRepository.findAllByStatus(ImportTaskStatus.RUNNING);
+        for (ImportTaskEntity task : runningTasks) {
+            if (task.getJobPodName() != null && !importJobPodManager.isJobPodRunning(task.getId())) {
+                log.warn("Import task {} has no running Job Pod, marking as FAILED", task.getId());
+                task.setStatus(ImportTaskStatus.FAILED);
+                task.setErrorMessage("Import job pod disappeared unexpectedly");
+                task.setFinishedAt(Instant.now());
+                completeImportOperationLog(task, "Job pod disappeared");
+
+                if (task.getOriginalSuspendTimeout() != null) {
+                    databaseRepository.findById(task.getDatabaseId()).ifPresent(db -> {
+                        db.setSuspendTimeout(task.getOriginalSuspendTimeout());
+                        databaseRepository.save(db);
+                        log.info("Restored suspend timeout to {} for database {}", task.getOriginalSuspendTimeout(), db.getId());
+                    });
+                }
+
+                importTaskRepository.save(task);
+            }
+        }
     }
 }

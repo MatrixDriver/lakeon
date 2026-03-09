@@ -43,6 +43,12 @@
         </div>
       </div>
 
+      <!-- Serverless tip -->
+      <div v-if="database.status === 'SUSPENDED'" class="serverless-tip">
+        数据库已挂起，收到连接请求时将自动唤醒。热唤醒 &lt; 1秒，冷启动约 5-15秒。数据始终安全保留。
+        <router-link to="/docs#serverless" class="tip-link">了解详情</router-link>
+      </div>
+
       <div class="summary-bottom">
         <div class="summary-field">
           <span class="field-label">连接地址</span>
@@ -406,6 +412,7 @@
                     <th>进度</th>
                     <th>状态</th>
                     <th>创建时间</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -421,6 +428,14 @@
                       </span>
                     </td>
                     <td>{{ formatDate(task.created_at) }}</td>
+                    <td class="td-actions" @click.stop>
+                      <button v-if="task.status === 'RUNNING'" class="action-link" @click="handleImportPause(task.id)">暂停</button>
+                      <button v-if="task.status === 'RUNNING'" class="action-link action-danger" @click="handleImportCancel(task.id)">取消</button>
+                      <button v-if="task.status === 'PAUSED'" class="action-link" @click="handleImportResume(task.id)">继续</button>
+                      <button v-if="task.status === 'PAUSED'" class="action-link action-danger" @click="handleImportCancel(task.id)">取消</button>
+                      <button v-if="task.status === 'FAILED' || task.status === 'PARTIAL'" class="action-link" @click="handleImportRetry(task.id)">重试</button>
+                      <span v-if="task.status === 'COMPLETED' || task.status === 'CANCELLED'" class="action-none">-</span>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -1148,6 +1163,27 @@ function handleImportCreated(task: ImportTask) {
   fetchImportTasks()
 }
 
+async function handleImportPause(taskId: string) {
+  try { await importApi.pause(dbId.value, taskId); fetchImportTasks() }
+  catch (e: any) { alert(e.response?.data?.error?.message || '暂停失败') }
+}
+
+async function handleImportResume(taskId: string) {
+  try { await importApi.resume(dbId.value, taskId); fetchImportTasks() }
+  catch (e: any) { alert(e.response?.data?.error?.message || '继续失败') }
+}
+
+async function handleImportCancel(taskId: string) {
+  if (!confirm('确定要取消此导入任务吗？已导入的数据将保留。')) return
+  try { await importApi.cancel(dbId.value, taskId); fetchImportTasks() }
+  catch (e: any) { alert(e.response?.data?.error?.message || '取消失败') }
+}
+
+async function handleImportRetry(taskId: string) {
+  try { await importApi.retry(dbId.value, taskId); fetchImportTasks() }
+  catch (e: any) { alert(e.response?.data?.error?.message || '重试失败') }
+}
+
 // Audit
 async function fetchAuditConfig() {
   auditConfigLoading.value = true
@@ -1315,6 +1351,27 @@ onUnmounted(() => {
   border: 1px solid #dfe1e6;
   padding: 24px;
   margin-bottom: 20px;
+}
+
+.serverless-tip {
+  background: #f0f7ff;
+  border: 1px solid #bfdcff;
+  border-radius: 4px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #1a4a7a;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.tip-link {
+  color: #0073e6;
+  text-decoration: none;
+  margin-left: 4px;
+}
+
+.tip-link:hover {
+  text-decoration: underline;
 }
 
 .summary-top {
@@ -1800,5 +1857,31 @@ onUnmounted(() => {
   .summary-card {
     padding: 16px;
   }
+}
+
+.td-actions {
+  white-space: nowrap;
+}
+
+.action-link {
+  background: none;
+  border: none;
+  color: #0073e6;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 8px;
+}
+
+.action-link:hover {
+  text-decoration: underline;
+}
+
+.action-danger {
+  color: #e6393d;
+}
+
+.action-none {
+  color: #ccc;
+  font-size: 13px;
 }
 </style>
