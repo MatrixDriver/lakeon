@@ -780,12 +780,31 @@ def cmd_status(ak, sk):
 
     print("\n=== 华为云资源状态 ===\n")
 
-    # Nodes
+    # Nodes — check actual ECS status, not just CCE phase
     nodes = get_nodes(ak, sk, pid, cid)
     total = len(nodes)
+    any_node_running = False
     for n in nodes:
-        icon = "🟢" if n["phase"] == "Active" else "🔴"
-        print(f"  节点 {n['name']}: {icon} {n['flavor']} ({n['phase']})")
+        ecs_status = None
+        sid = n.get("server_id", "")
+        if sid:
+            ecs = get_ecs_detail(ak, sk, pid, sid)
+            if ecs:
+                ecs_status = ecs.get("status", "")
+        # ECS SHUTOFF means the VM is powered off, even if CCE still says Active
+        if ecs_status:
+            running = ecs_status.upper() in ("ACTIVE", "REBOOT", "HARD_REBOOT")
+            icon = "🟢" if running else "🔴"
+            display_status = ecs_status
+            if running:
+                any_node_running = True
+        else:
+            running = n["phase"] == "Active"
+            icon = "🟢" if running else "🔴"
+            display_status = n["phase"]
+            if running:
+                any_node_running = True
+        print(f"  节点 {n['name']}: {icon} {n['flavor']} ({display_status})")
 
     # RDS
     _, rname, rst, _ = get_rds(ak, sk, pid)
@@ -807,7 +826,7 @@ def cmd_status(ak, sk):
     for e in eips:
         print(f"  EIP: {e.get('public_ip_address')} — {e.get('status')}")
 
-    running = total > 0 and rst.upper() in ("ACTIVE", "NORMAL")
+    running = any_node_running and rst.upper() in ("ACTIVE", "NORMAL")
     print(f"\n  {'🟢 运行中' if running else '🔴 已关停'}")
 
 
