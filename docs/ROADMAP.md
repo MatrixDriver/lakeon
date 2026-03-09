@@ -14,6 +14,7 @@
 | Stage 5 | SRE 运维控制台 | ✅ 完成 | `verification/stage5-sre-admin.md` |
 | Stage 6 | 简化数据库管理 | ✅ 完成 | `verification/simplified-db-manager.md` |
 | Stage 6b | PG 数据导入 | ✅ 完成 | — |
+| Stage 6c | 持续数据同步 | ✅ 完成 | — |
 | Stage 7 | 品牌 & 部署架构升级 | ✅ 完成 | — |
 | Stage 8a | 自建可观测性 | ✅ 完成 | `verification/stage8a-observability.md` |
 | Stage 8b | 华为云 AOM/CES/SMN | 📋 规划中 | — |
@@ -97,6 +98,33 @@
   - 导入操作记录到操作日志
   - 过滤扩展私有表 (extension-owned)
 - **网络**: NAT 网关出公网 → hostNetwork 回退方案
+
+## ✅ Stage 6c: 持续数据同步
+
+- **PostgreSQL 逻辑复制** (Publication / Subscription / Replication Slot)
+  - SYNC 导入模式 — 实时增量同步外部 PG 数据
+  - 初始全量复制 + 之后增量同步 (copy_data=true)
+  - sync-setup.sh Job Pod 创建 Publication/Subscription 后退出
+  - PG 原生逻辑复制接管持续同步
+- **同步监控** (SyncStatusCollector)
+  - 定时轮询 pg_stat_subscription / pg_subscription_rel
+  - 复制延迟 (replay_lag_seconds)、WAL 占用 (wal_retained_bytes)
+  - 每表同步状态 (i/d/f/s/r)
+  - WAL 占用超阈值告警 (默认 1GB)
+  - CATCHING_UP → SYNCING 自动状态转换 (延迟 < 10s)
+- **同步控制**
+  - 暂停/恢复 (ALTER SUBSCRIPTION DISABLE/ENABLE)
+  - 停止同步 (可选清理源库 Publication + Slot)
+  - 同步任务数限制 (默认最多 10 个)
+- **Console 前端**
+  - 导入向导新增「持续同步」模式 (需 wal_level=logical + replication 权限)
+  - 同步状态面板 (延迟、WAL 占用、最后同步时间)
+  - 停止同步对话框 (可选清理源库资源)
+  - 任务列表显示延迟代替进度条
+- **API 端点**
+  - `GET /databases/{dbId}/import/{taskId}/sync-status`
+  - `POST /databases/{dbId}/import/{taskId}/stop`
+- **测试**: ImportServiceSyncTest (7) + SyncStatusCollectorTest (5)
 
 ## ✅ Stage 7: 品牌 & 部署架构升级
 
@@ -234,7 +262,7 @@
 
 | 组件 | 版本 | 部署位置 |
 |------|------|----------|
-| lakeon-api | 0.3.7 | CCE (hostNetwork, HTTPS) |
+| lakeon-api | 0.3.8 | CCE (hostNetwork, HTTPS) |
 | lakeon-console | 0.3.7 | Railway |
 | lakeon-admin | 0.2.0 | Railway |
 | lakeon-import | 0.2.0 | CCE (Job Pod) |
