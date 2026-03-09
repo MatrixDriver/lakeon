@@ -16,8 +16,17 @@
       <p>数据库未运行，暂无性能数据。唤醒后将自动开始采集。</p>
     </div>
 
+    <!-- Diagnosis Card -->
+    <div v-else-if="latestMetrics" class="diag-card" :class="diagLevel">
+      <div class="diag-icon">{{ diagIcon }}</div>
+      <div class="diag-body">
+        <div class="diag-title">{{ diagTitle }}</div>
+        <div class="diag-desc">{{ diagDesc }}</div>
+      </div>
+    </div>
+
     <!-- Realtime Monitoring -->
-    <div v-else-if="mode === 'realtime'" class="perf-grid">
+    <div v-if="hasPod && mode === 'realtime'" class="perf-grid">
       <!-- CPU Card -->
       <div class="perf-card">
         <div class="perf-card-top">
@@ -174,6 +183,67 @@ const memLimitDisplay = computed(() => {
   if (!m) return '0 GB'
   if (m.memoryLimitMb >= 1024) return (m.memoryLimitMb / 1024).toFixed(0) + ' GB'
   return m.memoryLimitMb.toFixed(0) + ' MB'
+})
+
+// ── Performance Diagnosis ──
+const diagLevel = computed(() => {
+  const m = latestMetrics.value
+  if (!m) return 'diag-ok'
+  const cpu = m.cpuLimit > 0 ? m.cpuUsage / m.cpuLimit * 100 : 0
+  const mem = m.memoryLimitMb > 0 ? m.memoryUsageMb / m.memoryLimitMb * 100 : 0
+  const hasSlow = m.slowQueries > 0
+  const highCpu = cpu > 80
+  const highMem = mem > 85
+
+  if (hasSlow && (highCpu || highMem)) return 'diag-error'
+  if (highCpu || highMem) return 'diag-error'
+  if (hasSlow) return 'diag-warn'
+  return 'diag-ok'
+})
+
+const diagIcon = computed(() => {
+  if (diagLevel.value === 'diag-error') return '!'
+  if (diagLevel.value === 'diag-warn') return '!'
+  return '✓'
+})
+
+const diagTitle = computed(() => {
+  const m = latestMetrics.value
+  if (!m) return ''
+  const cpu = m.cpuLimit > 0 ? m.cpuUsage / m.cpuLimit * 100 : 0
+  const mem = m.memoryLimitMb > 0 ? m.memoryUsageMb / m.memoryLimitMb * 100 : 0
+  const hasSlow = m.slowQueries > 0
+  const highCpu = cpu > 80
+  const highMem = mem > 85
+
+  if (hasSlow && !highCpu && !highMem) return 'SQL 性能问题'
+  if ((highCpu || highMem) && !hasSlow) return '资源使用率过高'
+  if (hasSlow && (highCpu || highMem)) return 'SQL 性能 + 资源不足'
+  return '性能正常'
+})
+
+const diagDesc = computed(() => {
+  const m = latestMetrics.value
+  if (!m) return ''
+  const cpu = m.cpuLimit > 0 ? m.cpuUsage / m.cpuLimit * 100 : 0
+  const mem = m.memoryLimitMb > 0 ? m.memoryUsageMb / m.memoryLimitMb * 100 : 0
+  const hasSlow = m.slowQueries > 0
+  const highCpu = cpu > 80
+  const highMem = mem > 85
+
+  if (hasSlow && !highCpu && !highMem) {
+    return `检测到 ${m.slowQueries} 条慢 SQL，CPU ${cpu.toFixed(0)}%、内存 ${mem.toFixed(0)}%。资源充足，建议优化 SQL 语句（检查索引、避免全表扫描）。`
+  }
+  if ((highCpu || highMem) && !hasSlow) {
+    const parts: string[] = []
+    if (highCpu) parts.push(`CPU ${cpu.toFixed(0)}%`)
+    if (highMem) parts.push(`内存 ${mem.toFixed(0)}%`)
+    return `${parts.join('、')} 使用率过高。建议升级计算规格（当前 ${m.cpuLimit} CU）。`
+  }
+  if (hasSlow && (highCpu || highMem)) {
+    return `${m.slowQueries} 条慢 SQL 且资源紧张（CPU ${cpu.toFixed(0)}%，内存 ${mem.toFixed(0)}%）。建议先优化 SQL，再评估是否需要升配。`
+  }
+  return `无慢 SQL，CPU ${cpu.toFixed(0)}%，内存 ${mem.toFixed(0)}%，资源使用率健康。`
 })
 
 const cpuHistory = computed(() => dataPoints.value.map(d => d.metrics.cpuLimit > 0 ? d.metrics.cpuUsage / d.metrics.cpuLimit * 100 : 0))
@@ -347,6 +417,48 @@ onUnmounted(() => stopPolling())
   gap: 4px;
   color: #ccc;
   font-size: 12px;
+}
+
+/* Diagnosis card */
+.diag-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.diag-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.diag-ok .diag-icon { background: #f6ffed; color: #52c41a; }
+.diag-warn .diag-icon { background: #fff7e6; color: #d48806; }
+.diag-error .diag-icon { background: #fff1f0; color: #cf1322; }
+
+.diag-ok { background: #f6ffed; }
+.diag-warn { background: #fffbe6; }
+.diag-error { background: #fff1f0; }
+
+.diag-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #191919;
+  margin-bottom: 2px;
+}
+
+.diag-desc {
+  font-size: 13px;
+  color: #575d6c;
+  line-height: 1.5;
 }
 
 .perf-empty {

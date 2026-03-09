@@ -14,8 +14,12 @@
     <!-- Tab 1: Operation Logs -->
     <div v-if="activeTab === 'operations'">
       <div class="section-card">
-        <TableToolbar v-model="opSearch" placeholder="搜索数据库名称或操作类型" :loading="opLoading" @refresh="fetchOps">
+        <TableToolbar v-model="opSearch" placeholder="搜索操作类型或错误信息" :loading="opLoading" @refresh="fetchOps">
           <template #extra>
+            <select v-model="opDbFilter" class="filter-select" @change="opPage = 1">
+              <option value="">全部数据库</option>
+              <option v-for="db in databases" :key="db.id" :value="db.id">{{ db.name }}</option>
+            </select>
             <select v-model="opTypeFilter" class="filter-select" @change="opPage = 1">
               <option value="">全部类型</option>
               <option value="CREATE">创建</option>
@@ -229,6 +233,7 @@ const databases = ref<Database[]>([])
 const allOps = ref<OperationLog[]>([])
 const opLoading = ref(true)
 const opSearch = ref('')
+const opDbFilter = ref('')
 const opTypeFilter = ref('')
 const opStatusFilter = ref('')
 const opPageSize = ref(20)
@@ -236,14 +241,15 @@ const opPage = ref(1)
 
 const filteredOps = computed(() => {
   let ops = allOps.value
+  if (opDbFilter.value) ops = ops.filter(op => op.databaseId === opDbFilter.value)
   if (opTypeFilter.value) ops = ops.filter(op => op.operationType === opTypeFilter.value)
   if (opStatusFilter.value) ops = ops.filter(op => op.status === opStatusFilter.value)
   const q = opSearch.value.toLowerCase()
   if (q) {
     ops = ops.filter(op =>
-      op.databaseName.toLowerCase().includes(q) ||
       op.operationType.toLowerCase().includes(q) ||
-      (OP_LABELS[op.operationType] || '').includes(q)
+      (OP_LABELS[op.operationType] || '').includes(q) ||
+      (op.errorMessage || '').toLowerCase().includes(q)
     )
   }
   return ops
@@ -254,7 +260,7 @@ const pagedOps = computed(() => {
   return filteredOps.value.slice(start, start + opPageSize.value)
 })
 
-watch([opSearch, opTypeFilter, opStatusFilter, opPageSize], () => { opPage.value = 1 })
+watch([opSearch, opDbFilter, opTypeFilter, opStatusFilter, opPageSize], () => { opPage.value = 1 })
 
 async function fetchOps() {
   opLoading.value = true
