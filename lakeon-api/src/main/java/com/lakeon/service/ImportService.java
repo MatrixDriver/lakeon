@@ -23,6 +23,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -217,12 +219,17 @@ public class ImportService {
             task = importTaskRepository.save(task);
         }
 
-        // Launch async preparation (wake compute, list tables, launch pod)
+        // Launch async preparation after transaction commits (avoid race condition)
         final String taskId = task.getId();
         final String tenantId = tenant.getId();
         final String opLogId = opLog.getId();
         final List<SourceTableInfo> finalSelectedTables = selectedTables;
-        importExecutor.submit(() -> prepareAndLaunchImport(taskId, tenantId, dbId, req, finalSelectedTables, opLogId));
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                importExecutor.submit(() -> prepareAndLaunchImport(taskId, tenantId, dbId, req, finalSelectedTables, opLogId));
+            }
+        });
 
         return toResponse(task, null);
     }

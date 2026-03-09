@@ -10,6 +10,7 @@ import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -21,6 +22,12 @@ public class ImportJobPodManager {
     private final KubernetesClient k8sClient;
     private final LakeonProperties props;
     private final ObjectMapper objectMapper;
+
+    @Value("${server.port:8080}")
+    private int serverPort;
+
+    @Value("${server.ssl.enabled:false}")
+    private boolean sslEnabled;
 
     public ImportJobPodManager(KubernetesClient k8sClient, LakeonProperties props, ObjectMapper objectMapper) {
         this.k8sClient = k8sClient;
@@ -209,7 +216,10 @@ public class ImportJobPodManager {
     }
 
     private String buildTaskJson(ImportTaskEntity task, List<ImportTableTaskEntity> tableTasks, DatabaseEntity targetDb) {
-        String callbackUrl = "http://lakeon-api.lakeon.svc.cluster.local:8080/api/v1/import/callback/" + task.getId();
+        // Use K8s service port (not container port): service maps 8443→8090 (HTTPS)
+        String scheme = sslEnabled ? "https" : "http";
+        int servicePort = sslEnabled ? 8443 : serverPort;
+        String callbackUrl = scheme + "://lakeon-api.lakeon.svc.cluster.local:" + servicePort + "/api/v1/import/callback/" + task.getId();
 
         Map<String, Object> source = new LinkedHashMap<>();
         source.put("host", task.getSourceHost());

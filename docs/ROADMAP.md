@@ -124,7 +124,19 @@
 - **API 端点**
   - `GET /databases/{dbId}/import/{taskId}/sync-status`
   - `POST /databases/{dbId}/import/{taskId}/stop`
+- **Bug 修复** (线上集成测试中发现)
+  - 竞态条件: 异步任务在事务提交前执行 → `TransactionSynchronization.afterCommit()`
+  - 目标表未预创建: sync-setup.sh 增加 `pg_dump --schema-only` 步骤
+  - 回调 URL 端口/协议错误: 动态检测 HTTPS + K8s service port (8443)
+  - 回调 TLS: `curl -sk` 支持自签名证书
 - **测试**: ImportServiceSyncTest (7) + SyncStatusCollectorTest (5)
+- **线上集成测试**: 14/14 用例通过 (华为云 RDS → Neon 计算节点)
+  - 连接测试、源表浏览、任务创建、状态流转
+  - INSERT/UPDATE/DELETE 增量同步验证
+  - 数据一致性校验 (source = target)
+  - sync-status API、暂停/恢复/停止同步
+  - 源库清理验证 (publication + slot)
+  - 批量数据同步 (100 rows)
 
 ## ✅ Stage 7: 品牌 & 部署架构升级
 
@@ -262,7 +274,7 @@
 
 | 组件 | 版本 | 部署位置 |
 |------|------|----------|
-| lakeon-api | 0.3.8 | CCE (hostNetwork, HTTPS) |
+| lakeon-api | 0.4.6 | CCE (hostNetwork, HTTPS) |
 | lakeon-console | 0.3.7 | Railway |
 | lakeon-admin | 0.2.0 | Railway |
 | lakeon-import | 0.2.0 | CCE (Job Pod) |

@@ -23,7 +23,7 @@ export PGPASSWORD_SOURCE=$(cat /secrets/source-password)
 callback() {
   local table_task_id=$1 status=$2 row_count=${3:-0} error=${4:-}
   local payload="{\"table_task_id\":\"$table_task_id\",\"status\":\"$status\",\"row_count\":$row_count,\"error_message\":\"$(echo "$error" | head -c 500 | sed 's/"/\\"/g')\"}"
-  curl -sf -X PUT "$API_URL" -H "Content-Type: application/json" -d "$payload" || echo "WARN: callback failed for $table_task_id"
+  curl -skf -X PUT "$API_URL" -H "Content-Type: application/json" -d "$payload" || echo "WARN: callback failed for $table_task_id"
 }
 
 echo "=== Lakeon PG Import ==="
