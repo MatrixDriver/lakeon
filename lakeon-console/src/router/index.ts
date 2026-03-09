@@ -52,4 +52,24 @@ router.beforeEach((to) => {
   }
 })
 
+// When lazy-loaded chunks fail (e.g. after a new deploy changes chunk hashes),
+// reload the page to fetch the latest assets
+router.onError((error, to) => {
+  if (
+    error.message.includes('Failed to fetch dynamically imported module') ||
+    error.message.includes('Importing a module script failed') ||
+    error.message.includes('Loading chunk') ||
+    error.message.includes('Loading CSS chunk')
+  ) {
+    // Prevent infinite reload loop
+    const key = 'last_chunk_reload'
+    const last = sessionStorage.getItem(key)
+    const now = Date.now()
+    if (!last || now - Number(last) > 10000) {
+      sessionStorage.setItem(key, String(now))
+      window.location.assign(to.fullPath)
+    }
+  }
+})
+
 export default router
