@@ -476,7 +476,7 @@
               <button
                 v-else
                 class="btn btn-small btn-primary"
-                :disabled="extBusy === ext.name || db?.status !== 'RUNNING'"
+                :disabled="extBusy === ext.name || database?.status !== 'RUNNING'"
                 @click="handleEnableExt(ext)"
               >{{ extBusy === ext.name ? '处理中...' : '启用' }}</button>
             </div>
@@ -487,7 +487,7 @@
       <!-- Tab: Parameters -->
       <div v-if="activeTab === 'parameters'" class="tab-content">
         <p class="tab-tip">查看数据库运行参数。标记为「可修改」的参数支持在线调整，修改后新连接生效。</p>
-        <div v-if="db?.status !== 'RUNNING'" class="empty-state"><p>数据库未运行，启动后查看参数</p></div>
+        <div v-if="database?.status !== 'RUNNING'" class="empty-state"><p>数据库未运行，启动后查看参数</p></div>
         <template v-else>
           <div class="ext-toolbar">
             <input v-model="paramSearch" class="form-input ext-search" placeholder="搜索参数..." />
