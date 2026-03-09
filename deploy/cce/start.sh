@@ -68,6 +68,10 @@ for deploy in pageserver storage-broker lakeon-api proxy; do
   kubectl rollout status deployment/$deploy -n lakeon --timeout=180s 2>/dev/null || true
 done
 
+# 5. 冒烟测试
+echo ""
+source "$SCRIPT_DIR/smoke-test.sh"
+
 # Get the new EIP from values
 NEW_EIP=$(grep 'externalHost:' "$SCRIPT_DIR/values-cce.yaml" | head -1 | sed 's/.*"\(.*\)".*/\1/')
 

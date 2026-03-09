@@ -65,11 +65,11 @@ async function handleLogin() {
   isLoading.value = true
 
   try {
-    const ok = await authStore.login(token)
-    if (ok) {
+    const result = await authStore.login(token)
+    if (result.ok) {
       router.push('/dashboard')
     } else {
-      errorMsg.value = 'Admin Token 无效，请检查后重试'
+      errorMsg.value = result.error || 'Admin Token 无效，请检查后重试'
     }
   } catch {
     errorMsg.value = '网络错误，请稍后重试'
