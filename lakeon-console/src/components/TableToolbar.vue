@@ -12,6 +12,9 @@
         :placeholder="placeholder"
       />
     </div>
+    <div class="toolbar-extra">
+      <slot name="extra" />
+    </div>
     <div class="toolbar-actions">
       <button class="toolbar-icon-btn" @click="$emit('refresh')" :disabled="loading" :title="loading ? '加载中...' : '刷新'">
         <svg :class="{ spinning: loading }" viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
@@ -74,6 +77,16 @@ defineEmits<{
 
 .search-input::placeholder {
   color: #adb0b8;
+}
+
+.toolbar-extra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar-extra:empty {
+  display: none;
 }
 
 .toolbar-actions {

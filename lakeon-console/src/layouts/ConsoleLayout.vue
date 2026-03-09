@@ -73,6 +73,11 @@
             <router-link to="/databases" class="nav-item" active-class="active" @click="sidebarOpen = false">数据库实例</router-link>
           </div>
           <div class="nav-group">
+            <div class="nav-group-title">监控运维</div>
+            <router-link to="/monitor" class="nav-item" active-class="active" @click="sidebarOpen = false">监控面板</router-link>
+            <router-link to="/audit" class="nav-item" active-class="active" @click="sidebarOpen = false">操作日志</router-link>
+          </div>
+          <div class="nav-group">
             <div class="nav-group-title">安全管理</div>
             <router-link to="/apikey" class="nav-item" active-class="active" @click="sidebarOpen = false">API Key</router-link>
           </div>
