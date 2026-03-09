@@ -16,6 +16,7 @@ import com.lakeon.neon.dto.NeonTimeline;
 import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.exception.BadRequestException;
+import com.lakeon.service.exception.ConflictException;
 import com.lakeon.service.exception.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +54,11 @@ public class BranchService {
     public BranchResponse create(TenantEntity tenant, String dbId, CreateBranchRequest request) {
         DatabaseEntity dbEntity = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
             .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+
+        // Check for duplicate branch name
+        branchRepository.findByDatabaseIdAndName(dbId, request.name()).ifPresent(existing -> {
+            throw new ConflictException("Branch '" + request.name() + "' already exists");
+        });
 
         // Generate new timeline ID
         String newTimelineId = generateHexId();
