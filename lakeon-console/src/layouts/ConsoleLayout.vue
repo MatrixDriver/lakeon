@@ -62,14 +62,11 @@
       <!-- Left Sidebar -->
       <aside class="console-sidebar" :class="{ open: sidebarOpen }">
         <div class="sidebar-title">
-          <span>DBay 数据库</span>
-          <svg class="sidebar-search-icon" viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
-            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
-          </svg>
+          <span>DBay 数据港湾</span>
         </div>
         <nav class="sidebar-nav">
           <div class="nav-group">
-            <router-link to="/dashboard" class="nav-item" active-class="active" @click="sidebarOpen = false">总览</router-link>
+            <router-link to="/dashboard" class="nav-item" active-class="active" @click="sidebarOpen = false">我的数据库</router-link>
             <router-link to="/sql" class="nav-item" active-class="active" @click="sidebarOpen = false">SQL 编辑器</router-link>
             <router-link to="/import" class="nav-item" active-class="active" @click="sidebarOpen = false">数据导入</router-link>
           </div>
@@ -280,16 +277,6 @@ function handleLogout() {
   font-weight: 700;
   color: #191919;
   line-height: 1.3;
-}
-
-.sidebar-search-icon {
-  color: #8a8e99;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.sidebar-search-icon:hover {
-  color: #191919;
 }
 
 .sidebar-nav {
