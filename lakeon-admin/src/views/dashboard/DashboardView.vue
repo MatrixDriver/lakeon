@@ -10,30 +10,30 @@
 
     <!-- 核心指标 -->
     <div class="metric-cards">
-      <div class="metric-card">
+      <div class="metric-card clickable" @click="router.push('/system')">
         <div class="metric-value" :class="allHealthy ? 'dot-green-text' : 'text-danger'">
           {{ healthyCount }}/{{ totalComponents }}
         </div>
         <div class="metric-label">组件健康</div>
       </div>
-      <div class="metric-card">
+      <div class="metric-card clickable" @click="router.push('/databases')">
         <div class="metric-value">{{ data.total_databases ?? '-' }}</div>
         <div class="metric-label">数据库</div>
         <div class="metric-sub">{{ data.running ?? 0 }} 运行 · {{ data.suspended ?? 0 }} 挂起</div>
       </div>
-      <div class="metric-card">
+      <div class="metric-card clickable" @click="router.push('/infra')">
         <div class="metric-value">{{ data.active_computes ?? '-' }}</div>
         <div class="metric-label">活跃计算节点</div>
       </div>
-      <div class="metric-card">
+      <div class="metric-card clickable" @click="router.push('/tenants')">
         <div class="metric-value">{{ data.total_tenants ?? '-' }}</div>
         <div class="metric-label">租户</div>
       </div>
     </div>
 
     <!-- 用户体验关键指标 -->
-    <div class="section-card" style="margin-top: 24px;">
-      <div class="section-header"><h3>用户体验</h3></div>
+    <div class="section-card clickable-section" style="margin-top: 24px;" @click="router.push('/metrics')">
+      <div class="section-header"><h3>用户体验</h3><span class="section-arrow">&rsaquo;</span></div>
       <div class="ux-metrics">
         <div class="ux-item">
           <span class="ux-label">Cold Wake</span>
@@ -61,9 +61,9 @@
     </div>
 
     <!-- 组件健康状态 -->
-    <div class="section-card" style="margin-top: 24px;">
+    <div class="section-card clickable-section" style="margin-top: 24px;" @click="router.push('/system')">
       <div class="section-header">
-        <h3>组件状态</h3>
+        <h3>组件状态</h3><span class="section-arrow">&rsaquo;</span>
       </div>
       <div class="health-items">
         <div class="health-item" v-for="comp in components" :key="comp.name">
@@ -74,9 +74,9 @@
     </div>
 
     <!-- 24h 操作统计 -->
-    <div class="section-card" style="margin-top: 24px;">
+    <div class="section-card clickable-section" style="margin-top: 24px;" @click="router.push('/operations')">
       <div class="section-header">
-        <h3>24h 操作统计</h3>
+        <h3>24h 操作统计</h3><span class="section-arrow">&rsaquo;</span>
       </div>
       <div class="op-stats">
         <div class="op-stat-item" v-for="op in operationStats" :key="op.type">
@@ -87,9 +87,9 @@
     </div>
 
     <!-- 成本概览 -->
-    <div class="section-card" style="margin-top: 24px;">
+    <div class="section-card clickable-section" style="margin-top: 24px;" @click="router.push('/cost')">
       <div class="section-header">
-        <h3>成本概览</h3>
+        <h3>成本概览</h3><span class="section-arrow">&rsaquo;</span>
         <span class="cost-total">¥{{ formatCurrency(data.estimated_monthly_cost) }}/月</span>
       </div>
       <div class="table-wrapper">
@@ -117,7 +117,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { adminApi } from '../../api/admin'
+
+const router = useRouter()
 import { formatCurrency } from '../../utils/format'
 
 interface DashboardData {
@@ -249,6 +252,41 @@ onMounted(async () => {
   border-radius: 4px;
   padding: 20px;
   text-align: center;
+  transition: all 0.15s;
+}
+
+.metric-card.clickable {
+  cursor: pointer;
+}
+
+.metric-card.clickable:hover {
+  border-color: #0073e6;
+  box-shadow: 0 2px 8px rgba(0, 115, 230, 0.1);
+}
+
+.clickable-section {
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.clickable-section:hover {
+  border-color: #0073e6;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.section-arrow {
+  font-size: 20px;
+  color: #999;
+  transition: color 0.15s;
+}
+
+.clickable-section:hover .section-arrow {
+  color: #0073e6;
 }
 
 .metric-value {

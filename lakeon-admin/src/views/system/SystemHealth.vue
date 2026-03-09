@@ -14,16 +14,22 @@
         </span>
       </div>
       <div class="health-grid">
-        <div class="health-card" v-for="comp in components" :key="comp.name" :class="{ 'health-card-error': !comp.healthy }">
+        <div class="health-card" v-for="comp in components" :key="comp.name"
+             :class="{ 'health-card-error': !comp.healthy, 'health-card-expanded': expandedCard === comp.name }"
+             @click="expandedCard = expandedCard === comp.name ? null : comp.name">
           <div class="health-card-header">
             <span class="status-dot" :class="comp.healthy ? 'dot-green' : 'dot-red'"></span>
             <span class="health-card-name">{{ comp.label }}</span>
+            <span class="health-card-toggle">{{ expandedCard === comp.name ? '&minus;' : '&plus;' }}</span>
           </div>
           <div class="health-card-status">
             {{ comp.healthy ? '正常运行' : '异常' }}
           </div>
-          <div class="health-card-detail" v-if="comp.details">
-            {{ comp.details }}
+          <div class="health-card-detail" v-if="expandedCard === comp.name && comp.detailList.length > 0">
+            <div class="detail-row" v-for="(d, i) in comp.detailList" :key="i">
+              <span class="detail-key">{{ d.key }}</span>
+              <span class="detail-val">{{ d.value }}</span>
+            </div>
           </div>
         </div>
         <div v-if="components.length === 0 && !loading" class="empty-state" style="grid-column: 1 / -1;">
@@ -38,11 +44,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { adminApi } from '../../api/admin'
 
+interface DetailItem { key: string; value: string }
 interface ComponentHealth {
   name: string
   label: string
   healthy: boolean
-  details?: string
+  detailList: DetailItem[]
 }
 
 const COMP_LABELS: Record<string, string> = {
@@ -58,6 +65,7 @@ const COMP_LABELS: Record<string, string> = {
 
 const components = ref<ComponentHealth[]>([])
 const loading = ref(false)
+const expandedCard = ref<string | null>(null)
 
 const healthyCount = computed(() => components.value.filter(c => c.healthy).length)
 
@@ -71,14 +79,14 @@ async function loadHealth() {
         name: c.name,
         label: COMP_LABELS[c.name] || c.name,
         healthy: c.status === 'healthy',
-        details: buildDetails(c),
+        detailList: buildDetailList(c),
       }))
     } else {
       components.value = Object.entries(raw).map(([key, val]: [string, any]) => ({
         name: key,
         label: COMP_LABELS[key] || key,
         healthy: val.status === 'healthy',
-        details: buildDetails(val),
+        detailList: buildDetailList(val),
       }))
     }
   } catch (e) {
@@ -88,19 +96,21 @@ async function loadHealth() {
   }
 }
 
-function buildDetails(val: any): string | undefined {
-  const parts: string[] = []
-  if (val.pod) parts.push(`Pod: ${val.pod}`)
-  if (val.node) parts.push(`Node: ${val.node}`)
-  if (val.ip) parts.push(`IP: ${val.ip}`)
-  if (val.url) parts.push(val.url)
-  if (val.urls) parts.push(Array.isArray(val.urls) ? val.urls.join(', ') : val.urls)
-  if (val.type) parts.push(`Type: ${val.type}`)
-  if (val.endpoint) parts.push(val.endpoint)
-  if (val.bucket) parts.push(`Bucket: ${val.bucket}`)
-  if (val.latency_ms != null) parts.push(`Latency: ${val.latency_ms}ms`)
-  if (val.error) parts.push(`Error: ${val.error}`)
-  return parts.length > 0 ? parts.join(' · ') : undefined
+function buildDetailList(val: any): DetailItem[] {
+  const items: DetailItem[] = []
+  if (val.pod) items.push({ key: 'Pod', value: val.pod })
+  if (val.node) items.push({ key: '节点', value: val.node })
+  if (val.ip) items.push({ key: 'IP', value: val.ip })
+  if (val.url) items.push({ key: '地址', value: val.url })
+  if (val.urls) items.push({ key: '地址', value: Array.isArray(val.urls) ? val.urls.join(', ') : val.urls })
+  if (val.type) items.push({ key: '类型', value: val.type })
+  if (val.endpoint) items.push({ key: '端点', value: val.endpoint })
+  if (val.bucket) items.push({ key: '桶', value: val.bucket })
+  if (val.latency_ms != null) items.push({ key: '延迟', value: `${val.latency_ms}ms` })
+  if (val.total_objects_estimate != null) items.push({ key: '对象数', value: `${val.total_objects_estimate}` })
+  if (val.total_size_gb_estimate != null) items.push({ key: '总大小', value: `${val.total_size_gb_estimate} GB` })
+  if (val.error) items.push({ key: '错误', value: val.error })
+  return items
 }
 
 onMounted(loadHealth)
@@ -118,7 +128,17 @@ onMounted(loadHealth)
   border: 1px solid #ebebeb;
   border-radius: 4px;
   padding: 20px;
-  transition: border-color 0.2s;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+
+.health-card:hover {
+  border-color: #0073e6;
+  box-shadow: 0 2px 8px rgba(0, 115, 230, 0.08);
+}
+
+.health-card-expanded {
+  border-color: #0073e6;
 }
 
 .health-card-error {
@@ -130,6 +150,13 @@ onMounted(loadHealth)
   display: flex;
   align-items: center;
   margin-bottom: 12px;
+}
+
+.health-card-toggle {
+  margin-left: auto;
+  font-size: 16px;
+  color: #999;
+  font-weight: 500;
 }
 
 .health-card-name {
@@ -145,11 +172,27 @@ onMounted(loadHealth)
 }
 
 .health-card-detail {
-  font-size: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.detail-row {
+  display: flex;
+  font-size: 13px;
+  line-height: 2;
+}
+
+.detail-key {
   color: #8a8e99;
-  word-break: break-all;
+  min-width: 60px;
+  flex-shrink: 0;
+}
+
+.detail-val {
+  color: #333;
   font-family: monospace;
-  line-height: 1.6;
+  word-break: break-all;
 }
 
 .health-summary {
