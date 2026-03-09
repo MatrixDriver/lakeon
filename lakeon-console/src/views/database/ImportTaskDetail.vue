@@ -41,14 +41,14 @@
         <!-- Actions -->
         <div class="detail-actions">
           <template v-if="isSync">
-            <button v-if="['SYNCING','CATCHING_UP'].includes(task.status)" class="btn btn-default btn-small" :disabled="actionLoading" @click="handlePause">暂停同步</button>
+            <button v-if="['RUNNING','SYNCING','CATCHING_UP'].includes(task.status)" class="btn btn-default btn-small" :disabled="actionLoading" @click="handlePause">暂停同步</button>
             <button v-if="task.status === 'PAUSED'" class="btn btn-primary btn-small" :disabled="actionLoading" @click="handleResume">恢复同步</button>
-            <button v-if="['SYNCING','CATCHING_UP','PAUSED'].includes(task.status)" class="btn btn-default btn-small btn-danger-text" :disabled="actionLoading" @click="showStopDialog = true">停止同步</button>
+            <button v-if="['RUNNING','SYNCING','CATCHING_UP','PAUSED'].includes(task.status)" class="btn btn-default btn-small btn-danger-text" :disabled="actionLoading" @click="showStopDialog = true">停止同步</button>
           </template>
           <template v-else>
             <button v-if="task.status === 'RUNNING'" class="btn btn-default btn-small" :disabled="actionLoading" @click="handlePause">暂停</button>
             <button v-if="task.status === 'PAUSED'" class="btn btn-primary btn-small" :disabled="actionLoading" @click="handleResume">恢复</button>
-            <button v-if="['RUNNING','PAUSED','PENDING'].includes(task.status)" class="btn btn-default btn-small" :disabled="actionLoading" @click="handleCancel">取消</button>
+            <button v-if="['RUNNING','PAUSED','PENDING'].includes(task.status)" class="btn btn-default btn-small btn-danger-text" :disabled="actionLoading" @click="handleCancel">取消</button>
             <button v-if="['FAILED','PARTIAL'].includes(task.status)" class="btn btn-primary btn-small" :disabled="actionLoading" @click="handleRetry">重试失败</button>
           </template>
         </div>

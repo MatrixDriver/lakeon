@@ -66,13 +66,14 @@
                 <th>进度</th>
                 <th>状态</th>
                 <th>创建时间</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="task in importTasks" :key="task.id" class="task-row" @click="selectedTaskId = task.id">
-                <td>{{ task.source_host }}:{{ task.source_port }}/{{ task.source_dbname }}</td>
-                <td>{{ modeText(task.mode) }}</td>
-                <td>
+              <tr v-for="task in importTasks" :key="task.id" class="task-row">
+                <td class="clickable-cell" @click="selectedTaskId = task.id">{{ task.source_host }}:{{ task.source_port }}/{{ task.source_dbname }}</td>
+                <td class="clickable-cell" @click="selectedTaskId = task.id">{{ modeText(task.mode) }}</td>
+                <td class="clickable-cell" @click="selectedTaskId = task.id">
                   <template v-if="task.mode === 'SYNC'">
                     <span v-if="task.replay_lag_seconds != null" class="sync-lag">
                       延迟 {{ formatLag(task.replay_lag_seconds) }}
@@ -86,10 +87,24 @@
                     </div>
                   </template>
                 </td>
-                <td>
+                <td class="clickable-cell" @click="selectedTaskId = task.id">
                   <span class="status-tag" :class="taskStatusClass(task.status)">{{ taskStatusText(task.status) }}</span>
                 </td>
-                <td>{{ formatDate(task.created_at) }}</td>
+                <td class="clickable-cell" @click="selectedTaskId = task.id">{{ formatDate(task.created_at) }}</td>
+                <td class="action-cell" @click.stop>
+                  <template v-if="task.mode === 'SYNC'">
+                    <button v-if="['RUNNING','SYNCING','CATCHING_UP'].includes(task.status)" class="action-link" :disabled="actionLoading" @click="handleTaskPause(task)">暂停</button>
+                    <button v-if="task.status === 'PAUSED'" class="action-link" :disabled="actionLoading" @click="handleTaskResume(task)">恢复</button>
+                    <button v-if="['RUNNING','SYNCING','CATCHING_UP','PAUSED'].includes(task.status)" class="action-link action-danger" :disabled="actionLoading" @click="handleTaskStop(task)">停止</button>
+                  </template>
+                  <template v-else>
+                    <button v-if="task.status === 'RUNNING'" class="action-link" :disabled="actionLoading" @click="handleTaskPause(task)">暂停</button>
+                    <button v-if="task.status === 'PAUSED'" class="action-link" :disabled="actionLoading" @click="handleTaskResume(task)">恢复</button>
+                    <button v-if="['RUNNING','PAUSED','PENDING'].includes(task.status)" class="action-link action-danger" :disabled="actionLoading" @click="handleTaskCancel(task)">取消</button>
+                    <button v-if="['FAILED','PARTIAL'].includes(task.status)" class="action-link" :disabled="actionLoading" @click="handleTaskRetry(task)">重试</button>
+                  </template>
+                  <button class="action-link" @click="selectedTaskId = task.id">详情</button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -137,6 +152,7 @@ const tasksLoading = ref(false)
 const showWizard = ref(false)
 const selectedTaskId = ref<string | null>(null)
 const dbImportCounts = ref<Record<string, number>>({})
+const actionLoading = ref(false)
 
 function statusClass(status: string): string {
   switch (status) {
@@ -218,6 +234,46 @@ function handleWizardClose() {
   if (selectedDb.value) {
     loadTasks(selectedDb.value.id)
   }
+}
+
+async function handleTaskPause(task: ImportTask) {
+  if (!selectedDb.value) return
+  actionLoading.value = true
+  try { await importApi.pause(selectedDb.value.id, task.id); loadTasks(selectedDb.value.id) }
+  catch (e) { console.error('Pause failed', e) }
+  finally { actionLoading.value = false }
+}
+
+async function handleTaskResume(task: ImportTask) {
+  if (!selectedDb.value) return
+  actionLoading.value = true
+  try { await importApi.resume(selectedDb.value.id, task.id); loadTasks(selectedDb.value.id) }
+  catch (e) { console.error('Resume failed', e) }
+  finally { actionLoading.value = false }
+}
+
+async function handleTaskCancel(task: ImportTask) {
+  if (!selectedDb.value || !confirm('确定取消该导入任务？')) return
+  actionLoading.value = true
+  try { await importApi.cancel(selectedDb.value.id, task.id); loadTasks(selectedDb.value.id) }
+  catch (e) { console.error('Cancel failed', e) }
+  finally { actionLoading.value = false }
+}
+
+async function handleTaskStop(task: ImportTask) {
+  if (!selectedDb.value || !confirm('确定停止该同步任务？')) return
+  actionLoading.value = true
+  try { await importApi.stop(selectedDb.value.id, task.id, true); loadTasks(selectedDb.value.id) }
+  catch (e) { console.error('Stop failed', e) }
+  finally { actionLoading.value = false }
+}
+
+async function handleTaskRetry(task: ImportTask) {
+  if (!selectedDb.value) return
+  actionLoading.value = true
+  try { await importApi.retry(selectedDb.value.id, task.id); loadTasks(selectedDb.value.id) }
+  catch (e) { console.error('Retry failed', e) }
+  finally { actionLoading.value = false }
 }
 
 watch(selectedDb, (db) => {
@@ -353,13 +409,42 @@ onMounted(async () => {
 .tag-cyan { background: #e6fffb; color: #13c2c2; }
 .sync-lag { font-size: 13px; color: #575d6c; }
 
-.task-row {
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
 .task-row:hover {
   background: #f5f7fa;
+}
+
+.clickable-cell {
+  cursor: pointer;
+}
+
+.action-cell {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.action-link {
+  background: none;
+  border: none;
+  color: #0073e6;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  white-space: nowrap;
+}
+
+.action-link:hover {
+  text-decoration: underline;
+}
+
+.action-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-link.action-danger {
+  color: #e63e3e;
 }
 
 .empty-tasks {

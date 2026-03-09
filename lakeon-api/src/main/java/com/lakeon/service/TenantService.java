@@ -196,6 +196,31 @@ public class TenantService {
         return toResponseWithDisabled(entity, dbCount);
     }
 
+    @Transactional
+    public void changePassword(String tenantId, String currentPassword, String newPassword) {
+        TenantEntity entity = tenantRepository.findById(tenantId)
+            .orElseThrow(() -> new NotFoundException("Tenant not found: " + tenantId));
+        if (!passwordEncoder.matches(currentPassword, entity.getPasswordHash())) {
+            throw new BadRequestException("当前密码不正确");
+        }
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new BadRequestException("新密码长度不能少于 6 位");
+        }
+        entity.setPasswordHash(passwordEncoder.encode(newPassword));
+        tenantRepository.save(entity);
+    }
+
+    @Transactional
+    public TenantResponse updateProfile(String tenantId, String name) {
+        TenantEntity entity = tenantRepository.findById(tenantId)
+            .orElseThrow(() -> new NotFoundException("Tenant not found: " + tenantId));
+        if (name != null && !name.isBlank()) {
+            entity.setName(name.trim());
+        }
+        entity = tenantRepository.save(entity);
+        return toResponse(entity);
+    }
+
     public java.util.List<TenantResponse> listAll() {
         return tenantRepository.findAll().stream()
             .map(entity -> {

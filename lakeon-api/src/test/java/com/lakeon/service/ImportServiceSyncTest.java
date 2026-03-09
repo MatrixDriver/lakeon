@@ -20,6 +20,7 @@ import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.ImportTableTaskRepository;
 import com.lakeon.repository.ImportTaskRepository;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Optional;
@@ -68,6 +70,13 @@ class ImportServiceSyncTest {
     private TenantEntity testTenant;
     private DatabaseEntity testDatabase;
 
+    @AfterEach
+    void tearDown() {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
     @BeforeEach
     void setUp() {
         props = new LakeonProperties();
@@ -85,6 +94,9 @@ class ImportServiceSyncTest {
             operationLogService,
             props
         );
+
+        // Initialize transaction synchronization for tests that call createImport
+        TransactionSynchronizationManager.initSynchronization();
 
         testTenant = new TenantEntity();
         testTenant.setId("tn_test001");

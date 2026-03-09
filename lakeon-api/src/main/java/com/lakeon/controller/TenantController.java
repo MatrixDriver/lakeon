@@ -3,14 +3,19 @@ package com.lakeon.controller;
 import com.lakeon.model.dto.CreateTenantRequest;
 import com.lakeon.model.dto.LoginRequest;
 import com.lakeon.model.dto.TenantResponse;
+import com.lakeon.model.dto.TenantUsageSummary;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.service.TenantService;
+import com.lakeon.service.UsageMeteringService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 
@@ -18,9 +23,11 @@ import java.util.Map;
 @RequestMapping("/api/v1")
 public class TenantController {
     private final TenantService tenantService;
+    private final UsageMeteringService usageMeteringService;
 
-    public TenantController(TenantService tenantService) {
+    public TenantController(TenantService tenantService, UsageMeteringService usageMeteringService) {
         this.tenantService = tenantService;
+        this.usageMeteringService = usageMeteringService;
     }
 
     @PostMapping("/auth/login")
@@ -84,5 +91,40 @@ public class TenantController {
     public void deleteApiKey(HttpServletRequest req, @PathVariable String keyId) {
         TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
         tenantService.deleteApiKey(tenant.getId(), keyId);
+    }
+
+    // ── Usage (tenant-facing) ──
+
+    @GetMapping("/usage/me")
+    public TenantUsageSummary getMyUsage(HttpServletRequest req,
+                                         @RequestParam(required = false, name = "bill_cycle") String billCycle) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        Instant from;
+        Instant to;
+        if (billCycle != null && !billCycle.isBlank()) {
+            YearMonth ym = YearMonth.parse(billCycle);
+            from = ym.atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+            to = ym.plusMonths(1).atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        } else {
+            YearMonth current = YearMonth.now(ZoneOffset.UTC);
+            from = current.atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+            to = Instant.now();
+        }
+        return usageMeteringService.getTenantUsage(tenant.getId(), from, to);
+    }
+
+    // ── Account Settings ──
+
+    @PostMapping("/account/change-password")
+    public Map<String, String> changePassword(HttpServletRequest req, @RequestBody Map<String, String> body) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        tenantService.changePassword(tenant.getId(), body.get("current_password"), body.get("new_password"));
+        return Map.of("message", "密码修改成功");
+    }
+
+    @PatchMapping("/account/profile")
+    public TenantResponse updateProfile(HttpServletRequest req, @RequestBody Map<String, String> body) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return tenantService.updateProfile(tenant.getId(), body.get("name"));
     }
 }
