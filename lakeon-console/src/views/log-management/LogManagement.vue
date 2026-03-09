@@ -296,7 +296,7 @@ async function fetchAuditLogs() {
       return
     }
     const params: { type?: string; page?: number; size?: number } = {
-      page: auditPage.value,
+      page: auditPage.value - 1,
       size: auditPageSize.value,
     }
     if (auditTypeFilter.value) params.type = auditTypeFilter.value
