@@ -62,7 +62,8 @@
                 {{ statusText(db.status) }}
               </td>
               <td>
-                <span v-if="db.status === 'RUNNING'">{{ db.active_connections || 0 }}</span>
+                <span v-if="db.active_connections > 0">{{ db.active_connections }}</span>
+                <span v-else-if="db.status === 'RUNNING'">0</span>
                 <span v-else class="text-muted">-</span>
               </td>
               <td>{{ db.compute_size }}</td>

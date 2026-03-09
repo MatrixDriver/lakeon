@@ -467,8 +467,8 @@ public class DatabaseService {
             .createdAt(entity.getCreatedAt())
             .build();
 
-        // Add active connection count for running instances
-        if (entity.getStatus() == DatabaseStatus.RUNNING && entity.getComputePodName() != null) {
+        // Query active connections if Pod exists (even when SUSPENDED, Pod may still be retained)
+        if (entity.getComputePodName() != null) {
             try {
                 int count = computePodManager.getActiveConnectionCount(entity.getComputePodName());
                 response.setActiveConnections(count);
