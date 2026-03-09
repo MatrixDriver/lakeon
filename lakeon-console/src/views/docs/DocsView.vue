@@ -123,24 +123,68 @@
         <h4 class="doc-subtitle">自动休眠与唤醒</h4>
         <p class="doc-text">DBay 采用存储计算分离的 Serverless 架构。数据持久化在对象存储中，计算节点（Compute Pod）按需创建和销毁。当数据库在设定时间内没有活跃连接时，计算节点会自动挂起以节省资源。</p>
 
+        <h4 class="doc-subtitle" id="two-stage">两阶段超时机制</h4>
+        <p class="doc-text">DBay 采用两阶段超时策略，在资源节约和响应速度之间取得平衡：</p>
+        <table class="data-table">
+          <thead>
+            <tr><th>阶段</th><th>触发条件</th><th>默认超时</th><th>行为</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>第一阶段：自动挂起</strong></td>
+              <td>无活跃连接</td>
+              <td>5 分钟</td>
+              <td>标记为「已挂起」，但 <strong>保留计算节点</strong></td>
+            </tr>
+            <tr>
+              <td><strong>第二阶段：节点回收</strong></td>
+              <td>挂起后持续无访问</td>
+              <td>30 分钟</td>
+              <td>删除计算节点，释放计算资源</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="doc-note">
+          第一阶段超时（suspend_timeout）可在数据库设置中按实例单独调整。第二阶段为平台全局配置。有活跃连接时不会触发挂起。
+        </div>
+
         <h4 class="doc-subtitle" id="warm-wake">热唤醒（Warm Wake）</h4>
-        <p class="doc-text">数据库挂起后，计算节点会保留一段时间。在此期间收到连接请求时，系统直接复用已有节点，<strong>唤醒时间 &lt; 1 秒</strong>，连接体验几乎无感知。</p>
-        <div class="doc-note">适用场景：短暂空闲后的重新连接，例如开发者暂时离开又回来继续工作。</div>
+        <p class="doc-text">数据库挂起后的 <strong>30 分钟内</strong>，计算节点仍然保留在内存中。在此期间收到连接请求时，系统直接复用已有节点，无需重新启动进程。</p>
+        <table class="data-table">
+          <thead>
+            <tr><th>场景</th><th>实测延迟</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>SQL 连接自动唤醒（通过 Proxy）</td><td><strong>~8ms</strong></td><td>Proxy 检测到挂起状态，直接恢复，用户几乎无感知</td></tr>
+            <tr><td>手动点击「启动」</td><td><strong>~2s</strong></td><td>包含 K8s API 调用和操作日志记录的额外开销</td></tr>
+          </tbody>
+        </table>
+        <div class="doc-note">适用场景：短暂空闲后的重新连接，例如开发者暂时离开又回来继续工作。绝大多数唤醒场景属于此类。</div>
 
         <h4 class="doc-subtitle" id="cold-wake">冷启动（Cold Start）</h4>
-        <p class="doc-text">如果计算节点已被回收（长时间未使用），系统需要创建全新的计算节点并加载数据。<strong>冷启动通常需要 5-15 秒</strong>，具体取决于数据库大小。</p>
+        <p class="doc-text">如果数据库挂起超过 30 分钟，计算节点已被回收，系统需要创建全新的计算节点并加载数据。</p>
+        <table class="data-table">
+          <thead>
+            <tr><th>场景</th><th>实测延迟</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>冷启动</td><td><strong>3 - 15 秒</strong></td><td>创建 Pod、拉取镜像（若已缓存则跳过）、启动 PostgreSQL、连接存储层</td></tr>
+          </tbody>
+        </table>
         <div class="doc-note">建议：客户端连接超时设置为 30 秒以上，以适应冷启动场景。</div>
 
         <h4 class="doc-subtitle">数据安全保障</h4>
         <p class="doc-text">无论热唤醒还是冷启动，数据始终安全。所有数据持久化在对象存储中，计算节点只是数据的"运行时视图"。挂起和唤醒不会造成任何数据丢失。</p>
 
+        <h4 class="doc-subtitle">完整生命周期</h4>
         <table class="data-table">
           <thead>
             <tr><th>对比项</th><th>热唤醒 (Warm)</th><th>冷启动 (Cold)</th></tr>
           </thead>
           <tbody>
-            <tr><td>触发条件</td><td>挂起后短时间内重连</td><td>计算节点已被回收后重连</td></tr>
-            <tr><td>唤醒时间</td><td>&lt; 1 秒</td><td>5 - 15 秒</td></tr>
+            <tr><td>触发条件</td><td>挂起后 30 分钟内重连</td><td>计算节点已被回收后重连</td></tr>
+            <tr><td>唤醒时间</td><td>8ms ~ 2s</td><td>3 ~ 15 秒</td></tr>
+            <tr><td>计算节点</td><td>复用已有节点</td><td>创建全新节点</td></tr>
             <tr><td>数据完整性</td><td>完整保留</td><td>完整保留</td></tr>
             <tr><td>用户体验</td><td>几乎无感知</td><td>首次查询需等待</td></tr>
           </tbody>
