@@ -27,8 +27,11 @@ lakeon/
 │   │   └── integration-test.sh
 │   └── cce/             # 华为云 CCE 部署
 │       ├── values-cce.yaml
-│       ├── push-images.sh
-│       └── integration-test.sh
+│       ├── start.sh         # 一键启动（云资源+部署+冒烟测试）
+│       ├── stop.sh          # 一键关停
+│       ├── deploy.sh        # 仅重新部署（自动加载凭据）
+│       ├── smoke-test.sh    # 冒烟测试（6 项检查）
+│       └── hwcloud.py       # 华为云资源管理
 └── docs/                # 设计文档、验证报告和实施计划
 ```
 
@@ -148,6 +151,10 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 ```
 
 </details>
+
+## 运维管理（CCE）
+
+华为云 CCE 环境的启停、部署、冒烟测试等日常运维操作，详见 [运维指南](docs/ops-guide.md)。
 
 ## 路线图
 
