@@ -80,6 +80,7 @@ public class DatabaseUserService {
         ensureOwnerUser(tenant, dbId);
 
         return databaseUserRepository.findByDatabaseIdOrderByCreatedAtAsc(dbId).stream()
+                .filter(u -> !"cloud_admin".equals(u.getUsername()))
                 .map(this::toResponse)
                 .toList();
     }
