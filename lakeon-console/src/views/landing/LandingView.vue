@@ -116,14 +116,14 @@
           <div class="step">
             <div class="step-num">1</div>
             <h3>{{ t('注册账号', 'Sign Up') }}</h3>
-            <p>{{ t('在上方输入租户名称，点击免费试用获取 API Key', 'Enter a tenant name above and click Free Trial to get your API Key') }}</p>
-            <button class="btn-secondary" @click="scrollTo('hero')">{{ t('前往注册', 'Go to Sign Up') }}</button>
+            <p>{{ t('进入登录页面，输入租户名称，即可获取 API Key', 'Go to the login page, enter a tenant name, and get your API Key') }}</p>
+            <router-link to="/login" class="btn-secondary">{{ t('前往注册', 'Go to Sign Up') }}</router-link>
           </div>
           <div class="step">
             <div class="step-num">2</div>
             <h3>{{ t('创建数据库', 'Create Database') }}</h3>
-            <pre class="code-block"><code>curl -X POST https://api.dbay.cloud/v1/databases \
-  -H "Authorization: Bearer YOUR_API_KEY" \
+            <pre class="code-block"><code>curl -X POST https://api.dbay.cloud:8443/api/v1/databases \
+  -H "X-API-Key: YOUR_API_KEY" \
   -d '{"name": "mydb"}'</code></pre>
           </div>
           <div class="step">
@@ -131,10 +131,14 @@
             <h3>{{ t('连接使用', 'Connect') }}</h3>
             <div class="code-label">Python</div>
             <pre class="code-block"><code>import psycopg2
-conn = psycopg2.connect("postgres://user@api.dbay.cloud:4432/mydb?options=endpoint%3Dmydb")</code></pre>
+conn = psycopg2.connect("host=api.dbay.cloud port=4432 user=cloud_admin dbname=postgres sslmode=disable options=endpoint%3Dmydb")</code></pre>
             <div class="code-label" style="margin-top: 12px;">Node.js</div>
             <pre class="code-block"><code>import pg from 'pg'
-const client = new pg.Client("postgres://user@api.dbay.cloud:4432/mydb?options=endpoint%3Dmydb")
+const client = new pg.Client({
+  host: 'api.dbay.cloud', port: 4432,
+  user: 'cloud_admin', database: 'postgres',
+  ssl: false, connectionTimeoutMillis: 30000,
+})
 await client.connect()</code></pre>
           </div>
         </div>
@@ -147,7 +151,7 @@ await client.connect()</code></pre>
         <h2 class="section-title">{{ t('定价', 'Pricing') }}</h2>
         <p class="pricing-headline">{{ t('免费试用，开箱即用', 'Free to try, ready out of the box') }}</p>
         <p class="pricing-sub">{{ t('详细定价即将公布', 'Detailed pricing coming soon') }}</p>
-        <button class="btn-primary" @click="scrollTo('hero')">{{ t('免费试用', 'Free Trial') }}</button>
+        <router-link to="/login" class="btn-primary">{{ t('免费试用', 'Free Trial') }}</router-link>
       </div>
     </section>
 
@@ -156,11 +160,7 @@ await client.connect()</code></pre>
       <div class="container footer-inner">
         <span>&copy; 2026 DBay. All rights reserved.</span>
         <div class="footer-links">
-          <a href="#">{{ t('文档', 'Docs') }}</a>
-          <span class="footer-sep">|</span>
           <router-link to="/login">{{ t('控制台', 'Console') }}</router-link>
-          <span class="footer-sep">|</span>
-          <a href="https://github.com" target="_blank" rel="noopener">GitHub</a>
         </div>
       </div>
     </footer>
