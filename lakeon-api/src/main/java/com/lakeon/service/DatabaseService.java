@@ -392,6 +392,7 @@ public class DatabaseService {
         // Warm path: Pod retained after suspend, still running
         if (entity.getComputePodName() != null && entity.getComputeHost() != null
             && computePodManager.isPodReady(entity.getComputePodName())) {
+            Timer.Sample warmSample = Timer.start(meterRegistry);
             log.info("Warm wake for database {} via proxy — Pod {} still running", entity.getId(), entity.getComputePodName());
             OperationLogEntity opLog = operationLogService.startOperation(
                     entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME);
@@ -400,10 +401,15 @@ public class DatabaseService {
             entity.setLastActiveAt(Instant.now());
             databaseRepository.save(entity);
             operationLogService.completeOperation(opLog, null);
+            warmSample.stop(Timer.builder("lakeon_compute_wakeup_seconds")
+                .description("Compute wakeup duration")
+                .tag("path", "warm")
+                .register(meterRegistry));
             return entity.getComputeHost() + ":" + entity.getComputePort();
         }
 
         // Cold path: create new Pod
+        Timer.Sample coldSample = Timer.start(meterRegistry);
         OperationLogEntity opLog = operationLogService.startOperation(
                 entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME);
         try {
@@ -424,8 +430,13 @@ public class DatabaseService {
             entity.setConnectionUri(buildConnectionUri(entity.getDbUser(), entity.getName()));
             databaseRepository.save(entity);
             operationLogService.completeOperation(opLog, null);
+            coldSample.stop(Timer.builder("lakeon_compute_wakeup_seconds")
+                .description("Compute wakeup duration")
+                .tag("path", "cold")
+                .register(meterRegistry));
             return address;
         } catch (Exception e) {
+            wakeupFailureCounter.increment();
             operationLogService.completeOperation(opLog, e.getMessage());
             throw e;
         }

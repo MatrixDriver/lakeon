@@ -116,6 +116,38 @@
     </div>
 
     <!-- FAQ -->
+    <!-- Serverless Architecture -->
+    <div id="serverless" class="doc-card">
+      <div class="card-header"><h3>Serverless 架构</h3></div>
+      <div class="card-body">
+        <h4 class="doc-subtitle">自动休眠与唤醒</h4>
+        <p class="doc-text">DBay 采用存储计算分离的 Serverless 架构。数据持久化在对象存储中，计算节点（Compute Pod）按需创建和销毁。当数据库在设定时间内没有活跃连接时，计算节点会自动挂起以节省资源。</p>
+
+        <h4 class="doc-subtitle" id="warm-wake">热唤醒（Warm Wake）</h4>
+        <p class="doc-text">数据库挂起后，计算节点会保留一段时间。在此期间收到连接请求时，系统直接复用已有节点，<strong>唤醒时间 &lt; 1 秒</strong>，连接体验几乎无感知。</p>
+        <div class="doc-note">适用场景：短暂空闲后的重新连接，例如开发者暂时离开又回来继续工作。</div>
+
+        <h4 class="doc-subtitle" id="cold-wake">冷启动（Cold Start）</h4>
+        <p class="doc-text">如果计算节点已被回收（长时间未使用），系统需要创建全新的计算节点并加载数据。<strong>冷启动通常需要 5-15 秒</strong>，具体取决于数据库大小。</p>
+        <div class="doc-note">建议：客户端连接超时设置为 30 秒以上，以适应冷启动场景。</div>
+
+        <h4 class="doc-subtitle">数据安全保障</h4>
+        <p class="doc-text">无论热唤醒还是冷启动，数据始终安全。所有数据持久化在对象存储中，计算节点只是数据的"运行时视图"。挂起和唤醒不会造成任何数据丢失。</p>
+
+        <table class="data-table">
+          <thead>
+            <tr><th>对比项</th><th>热唤醒 (Warm)</th><th>冷启动 (Cold)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>触发条件</td><td>挂起后短时间内重连</td><td>计算节点已被回收后重连</td></tr>
+            <tr><td>唤醒时间</td><td>&lt; 1 秒</td><td>5 - 15 秒</td></tr>
+            <tr><td>数据完整性</td><td>完整保留</td><td>完整保留</td></tr>
+            <tr><td>用户体验</td><td>几乎无感知</td><td>首次查询需等待</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="doc-card">
       <div class="card-header"><h3>常见问题</h3></div>
       <div class="card-body">

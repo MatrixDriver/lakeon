@@ -138,12 +138,82 @@ public class AdminService {
 
     public Map<String, Object> checkAllComponents() {
         Map<String, Object> health = new LinkedHashMap<>();
+        health.put("api", checkApiPod());
         health.put("pageserver", checkPageserver());
         health.put("safekeeper", checkSafekeeper());
+        health.put("storage_broker", checkStorageBroker());
         health.put("proxy", checkProxy());
         health.put("rds", checkRds());
         health.put("obs", checkObs());
+        health.put("elb", checkElb());
         return health;
+    }
+
+    private Map<String, Object> checkApiPod() {
+        Map<String, Object> status = new LinkedHashMap<>();
+        try {
+            var pods = k8sClient.pods().inNamespace("lakeon")
+                    .withLabel("app", "lakeon-api").list().getItems();
+            if (!pods.isEmpty()) {
+                var pod = pods.get(0);
+                var phase = pod.getStatus().getPhase();
+                status.put("status", "Running".equals(phase) ? "healthy" : "unhealthy");
+                status.put("pod", pod.getMetadata().getName());
+                status.put("node", pod.getSpec().getNodeName());
+                status.put("ip", pod.getStatus().getPodIP());
+            } else {
+                status.put("status", "unhealthy");
+                status.put("error", "No API pod found");
+            }
+        } catch (Exception e) {
+            status.put("status", "unhealthy");
+            status.put("error", e.getMessage());
+        }
+        return status;
+    }
+
+    private Map<String, Object> checkStorageBroker() {
+        Map<String, Object> status = new LinkedHashMap<>();
+        try {
+            var pods = k8sClient.pods().inNamespace("lakeon")
+                    .withLabel("app", "storage-broker").list().getItems();
+            if (!pods.isEmpty() && "Running".equals(pods.get(0).getStatus().getPhase())) {
+                status.put("status", "healthy");
+            } else {
+                status.put("status", "unhealthy");
+                status.put("error", pods.isEmpty() ? "No pod found" : pods.get(0).getStatus().getPhase());
+            }
+        } catch (Exception e) {
+            status.put("status", "unhealthy");
+            status.put("error", e.getMessage());
+        }
+        return status;
+    }
+
+    private Map<String, Object> checkElb() {
+        Map<String, Object> status = new LinkedHashMap<>();
+        try {
+            var services = k8sClient.services().inNamespace("lakeon")
+                    .withLabel("app", "lakeon-api").list().getItems();
+            if (!services.isEmpty()) {
+                var svc = services.get(0);
+                var ingress = svc.getStatus().getLoadBalancer().getIngress();
+                if (ingress != null && !ingress.isEmpty()) {
+                    status.put("status", "healthy");
+                    status.put("ip", ingress.get(0).getIp());
+                } else {
+                    status.put("status", "healthy");
+                    status.put("type", svc.getSpec().getType());
+                }
+            } else {
+                status.put("status", "unknown");
+                status.put("error", "No API service found");
+            }
+        } catch (Exception e) {
+            status.put("status", "unhealthy");
+            status.put("error", e.getMessage());
+        }
+        return status;
     }
 
     public Map<String, Object> checkPageserver() {

@@ -2,79 +2,55 @@
   <div>
     <div class="page-header">
       <h1 class="page-title">应用指标</h1>
+      <span class="auto-refresh-hint">每 30 秒自动刷新</span>
     </div>
 
-    <!-- JVM -->
+    <!-- 用户体验指标 -->
     <div class="section-card">
-      <div class="section-header"><h3>JVM</h3></div>
+      <div class="section-header"><h3>用户体验</h3></div>
       <div class="metric-cards">
         <div class="metric-card">
-          <div class="metric-value">{{ metrics.jvm.heap_used_mb }}<span class="metric-unit">MB</span></div>
-          <div class="metric-label">堆内存使用</div>
-          <div class="metric-sub">/ {{ metrics.jvm.heap_max_mb }} MB</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-value">{{ metrics.jvm.threads }}</div>
-          <div class="metric-label">线程数</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-value">{{ metrics.jvm.gc_pause_ms }}<span class="metric-unit">ms</span></div>
-          <div class="metric-label">GC 暂停</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- API -->
-    <div class="section-card">
-      <div class="section-header"><h3>API 性能</h3></div>
-      <div class="metric-cards">
-        <div class="metric-card">
-          <div class="metric-value">{{ metrics.api.request_rate_1m }}</div>
-          <div class="metric-label">请求速率 (req/s)</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-value">{{ metrics.api.p50_ms }}<span class="metric-unit">ms</span></div>
-          <div class="metric-label">P50 延迟</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-value">{{ metrics.api.p95_ms }}<span class="metric-unit">ms</span></div>
-          <div class="metric-label">P95 延迟</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-value" :class="{ 'text-warning': metrics.api.p99_ms > 1000 }">{{ metrics.api.p99_ms }}<span class="metric-unit">ms</span></div>
-          <div class="metric-label">P99 延迟</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Compute -->
-    <div class="section-card">
-      <div class="section-header"><h3>Compute</h3></div>
-      <div class="metric-cards">
-        <div class="metric-card">
-          <div class="metric-value">{{ metrics.compute.active_pods }}</div>
-          <div class="metric-label">活跃 Pod</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-value text-warm">{{ metrics.compute.warm_wake_avg_ms }}<span class="metric-unit">ms</span></div>
-          <div class="metric-label">Warm Wake 均值</div>
-          <div class="metric-sub">{{ metrics.compute.warm_wake_count }} 次</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-value text-cold">{{ metrics.compute.cold_wake_avg_ms }}<span class="metric-unit">ms</span></div>
+          <div class="metric-value" :class="wakeupColor(metrics.compute.cold_wake_avg_ms)">
+            {{ metrics.compute.cold_wake_avg_ms || '-' }}<span class="metric-unit" v-if="metrics.compute.cold_wake_avg_ms">ms</span>
+          </div>
           <div class="metric-label">Cold Wake 均值</div>
           <div class="metric-sub">{{ metrics.compute.cold_wake_count }} 次</div>
         </div>
         <div class="metric-card">
-          <div class="metric-value" :class="{ 'text-danger': metrics.compute.wakeup_failures > 0 }">{{ metrics.compute.wakeup_failures }}</div>
+          <div class="metric-value text-warm">
+            {{ metrics.compute.warm_wake_avg_ms || '-' }}<span class="metric-unit" v-if="metrics.compute.warm_wake_avg_ms">ms</span>
+          </div>
+          <div class="metric-label">Warm Wake 均值</div>
+          <div class="metric-sub">{{ metrics.compute.warm_wake_count }} 次</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" :class="{ 'text-danger': metrics.compute.wakeup_failures > 0 }">
+            {{ metrics.compute.wakeup_failures }}
+          </div>
           <div class="metric-label">唤醒失败</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">{{ metrics.api.p50_ms }}<span class="metric-unit">ms</span></div>
+          <div class="metric-label">API P50 延迟</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" :class="{ 'text-warning': metrics.api.p95_ms > 500 }">
+            {{ metrics.api.p95_ms }}<span class="metric-unit">ms</span>
+          </div>
+          <div class="metric-label">API P95 延迟</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" :class="{ 'text-warning': metrics.api.p99_ms > 1000 }">
+            {{ metrics.api.p99_ms }}<span class="metric-unit">ms</span>
+          </div>
+          <div class="metric-label">API P99 延迟</div>
         </div>
       </div>
     </div>
 
-    <!-- Databases & Storage -->
+    <!-- 平台规模 -->
     <div class="section-card">
-      <div class="section-header"><h3>数据库 & 存储</h3></div>
+      <div class="section-header"><h3>平台规模</h3></div>
       <div class="metric-cards">
         <div class="metric-card">
           <div class="metric-value">{{ metrics.databases.total }}</div>
@@ -86,7 +62,15 @@
         </div>
         <div class="metric-card">
           <div class="metric-value">{{ metrics.databases.suspended }}</div>
-          <div class="metric-label">已暂停</div>
+          <div class="metric-label">已挂起</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">{{ metrics.compute.active_pods }}</div>
+          <div class="metric-label">活跃计算节点</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">{{ metrics.api.request_rate_1m }}</div>
+          <div class="metric-label">请求速率 (req/s)</div>
         </div>
         <div class="metric-card">
           <div class="metric-value">{{ metrics.storage.used_gb }}<span class="metric-unit">GB</span></div>
@@ -95,13 +79,34 @@
       </div>
     </div>
 
-    <!-- Trend chart -->
+    <!-- 系统资源 -->
     <div class="section-card">
       <div class="section-header">
-        <h3>指标趋势（最近 30 分钟）</h3>
-        <span class="auto-refresh-hint">每 30 秒自动刷新</span>
+        <h3>系统资源</h3>
+        <button class="toggle-btn" @click="showSystem = !showSystem">{{ showSystem ? '收起' : '展开' }}</button>
       </div>
-      <canvas ref="chartRef" width="800" height="200"></canvas>
+      <div v-if="showSystem">
+        <div class="metric-cards">
+          <div class="metric-card">
+            <div class="metric-value">{{ metrics.jvm.heap_used_mb }}<span class="metric-unit">MB</span></div>
+            <div class="metric-label">堆内存使用</div>
+            <div class="metric-sub">/ {{ metrics.jvm.heap_max_mb }} MB</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value">{{ metrics.jvm.threads }}</div>
+            <div class="metric-label">线程数</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value">{{ metrics.jvm.gc_pause_ms }}<span class="metric-unit">ms</span></div>
+            <div class="metric-label">GC 暂停</div>
+          </div>
+        </div>
+
+        <!-- Trend chart -->
+        <div style="margin-top: 16px; padding: 0 16px 16px;">
+          <canvas ref="chartRef" width="800" height="200"></canvas>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -128,33 +133,35 @@ const defaultMetrics: MetricsSummary = {
 
 const metrics = reactive<MetricsSummary>({ ...defaultMetrics })
 const chartRef = ref<HTMLCanvasElement | null>(null)
+const showSystem = ref(false)
 let refreshTimer: number | null = null
 
-// Store history for trend chart (last 30 minutes, every 30 seconds = 60 points max)
 const heapHistory: number[] = []
-const podHistory: number[] = []
 const timeLabels: string[] = []
+
+function wakeupColor(ms: number): string {
+  if (!ms) return ''
+  if (ms < 5000) return 'text-warm'
+  if (ms < 15000) return 'text-warning'
+  return 'text-danger'
+}
 
 async function fetchMetrics() {
   try {
     const { data } = await adminApi.metricsSummary()
     Object.assign(metrics, data)
 
-    // Record for trend
     const now = new Date()
     timeLabels.push(now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
     heapHistory.push(data.jvm?.heap_used_mb ?? 0)
-    podHistory.push(data.compute?.active_pods ?? 0)
 
-    // Keep last 60 data points
     if (timeLabels.length > 60) {
       timeLabels.shift()
       heapHistory.shift()
-      podHistory.shift()
     }
 
     await nextTick()
-    renderChart()
+    if (showSystem.value) renderChart()
   } catch (e) {
     console.error('Failed to load metrics', e)
   }
@@ -179,7 +186,6 @@ function renderChart() {
 
   ctx.clearRect(0, 0, w, h)
 
-  // Draw grid
   ctx.strokeStyle = '#eee'
   ctx.lineWidth = 1
   for (let i = 0; i <= 4; i++) {
@@ -193,7 +199,6 @@ function renderChart() {
   const maxHeap = Math.max(...heapHistory, 1)
   const n = heapHistory.length
 
-  // Draw heap line
   ctx.strokeStyle = '#0073e6'
   ctx.lineWidth = 2
   ctx.beginPath()
@@ -204,7 +209,6 @@ function renderChart() {
   }
   ctx.stroke()
 
-  // Y axis labels
   ctx.fillStyle = '#999'
   ctx.font = '11px sans-serif'
   ctx.textAlign = 'right'
@@ -214,14 +218,12 @@ function renderChart() {
     ctx.fillText(val + ' MB', pad.left - 6, y + 4)
   }
 
-  // X axis labels (show every 10th)
   ctx.textAlign = 'center'
   for (let i = 0; i < n; i += Math.max(1, Math.floor(n / 6))) {
     const x = pad.left + (cw / (n - 1)) * i
     ctx.fillText(timeLabels[i] ?? '', x, h - 6)
   }
 
-  // Legend
   ctx.fillStyle = '#0073e6'
   ctx.fillRect(w - pad.right + 8, pad.top, 12, 3)
   ctx.fillStyle = '#333'
@@ -244,6 +246,7 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 16px;
+  padding: 16px;
 }
 .metric-card {
   padding: 20px;
@@ -276,12 +279,24 @@ onUnmounted(() => {
 .text-warning { color: #e37318; }
 .text-danger { color: #e6393d; }
 .text-warm { color: #52c41a; }
-.text-cold { color: #0073e6; }
 .dot-green-text { color: #52c41a; }
 .auto-refresh-hint {
   font-size: 12px;
   color: #999;
   font-weight: 400;
+}
+.toggle-btn {
+  background: none;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  padding: 2px 12px;
+  font-size: 12px;
+  color: #575d6c;
+  cursor: pointer;
+}
+.toggle-btn:hover {
+  border-color: #0073e6;
+  color: #0073e6;
 }
 canvas {
   width: 100%;

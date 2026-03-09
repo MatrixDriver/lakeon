@@ -8,57 +8,89 @@
       DBay API 当前不可用，服务可能正在维护中。
     </div>
 
-    <!-- Metric Cards -->
+    <!-- 核心指标 -->
     <div class="metric-cards">
       <div class="metric-card">
-        <div class="metric-value">{{ data.total_tenants ?? '-' }}</div>
-        <div class="metric-label">租户总数</div>
+        <div class="metric-value" :class="allHealthy ? 'dot-green-text' : 'text-danger'">
+          {{ healthyCount }}/{{ totalComponents }}
+        </div>
+        <div class="metric-label">组件健康</div>
       </div>
       <div class="metric-card">
         <div class="metric-value">{{ data.total_databases ?? '-' }}</div>
-        <div class="metric-label">数据库总数</div>
+        <div class="metric-label">数据库</div>
+        <div class="metric-sub">{{ data.running ?? 0 }} 运行 · {{ data.suspended ?? 0 }} 挂起</div>
       </div>
       <div class="metric-card">
         <div class="metric-value">{{ data.active_computes ?? '-' }}</div>
         <div class="metric-label">活跃计算节点</div>
       </div>
       <div class="metric-card">
-        <div class="metric-value">{{ formatCurrency(data.estimated_monthly_cost) }}</div>
-        <div class="metric-label">当月预估成本(元)</div>
+        <div class="metric-value">{{ data.total_tenants ?? '-' }}</div>
+        <div class="metric-label">租户</div>
       </div>
     </div>
 
-    <!-- Component Health -->
+    <!-- 用户体验关键指标 -->
     <div class="section-card" style="margin-top: 24px;">
-      <div class="section-header">
-        <h3>组件健康状态</h3>
-      </div>
-      <div class="health-items">
-        <div class="health-item" v-for="comp in components" :key="comp.name">
-          <span class="status-dot" :class="comp.healthy ? 'dot-green' : 'dot-red'"></span>
-          <span class="health-name">{{ comp.name }}</span>
-          <span class="health-status">{{ comp.healthy ? '正常' : '异常' }}</span>
+      <div class="section-header"><h3>用户体验</h3></div>
+      <div class="ux-metrics">
+        <div class="ux-item">
+          <span class="ux-label">Cold Wake</span>
+          <span class="ux-value" :class="wakeupColor(metrics.cold_wake_avg_ms)">
+            {{ metrics.cold_wake_avg_ms || '-' }}<span class="ux-unit" v-if="metrics.cold_wake_avg_ms">ms</span>
+          </span>
+          <span class="ux-sub">{{ metrics.cold_wake_count }} 次</span>
+        </div>
+        <div class="ux-item">
+          <span class="ux-label">Warm Wake</span>
+          <span class="ux-value text-warm">
+            {{ metrics.warm_wake_avg_ms || '-' }}<span class="ux-unit" v-if="metrics.warm_wake_avg_ms">ms</span>
+          </span>
+          <span class="ux-sub">{{ metrics.warm_wake_count }} 次</span>
+        </div>
+        <div class="ux-item">
+          <span class="ux-label">唤醒失败</span>
+          <span class="ux-value" :class="{ 'text-danger': metrics.wakeup_failures > 0 }">{{ metrics.wakeup_failures }}</span>
+        </div>
+        <div class="ux-item">
+          <span class="ux-label">API P95</span>
+          <span class="ux-value" :class="{ 'text-warning': metrics.api_p95_ms > 500 }">{{ metrics.api_p95_ms }}<span class="ux-unit">ms</span></span>
         </div>
       </div>
     </div>
 
-    <!-- 24h Operation Stats -->
+    <!-- 组件健康状态 -->
+    <div class="section-card" style="margin-top: 24px;">
+      <div class="section-header">
+        <h3>组件状态</h3>
+      </div>
+      <div class="health-items">
+        <div class="health-item" v-for="comp in components" :key="comp.name">
+          <span class="status-dot" :class="comp.healthy ? 'dot-green' : 'dot-red'"></span>
+          <span class="health-name">{{ comp.label }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 24h 操作统计 -->
     <div class="section-card" style="margin-top: 24px;">
       <div class="section-header">
         <h3>24h 操作统计</h3>
       </div>
       <div class="op-stats">
         <div class="op-stat-item" v-for="op in operationStats" :key="op.type">
-          <span class="op-type">{{ op.type }}</span>
+          <span class="op-type">{{ OP_LABELS[op.type] || op.type }}</span>
           <span class="op-count">{{ op.count }}</span>
         </div>
       </div>
     </div>
 
-    <!-- Cost Breakdown -->
+    <!-- 成本概览 -->
     <div class="section-card" style="margin-top: 24px;">
       <div class="section-header">
         <h3>成本概览</h3>
+        <span class="cost-total">¥{{ formatCurrency(data.estimated_monthly_cost) }}/月</span>
       </div>
       <div class="table-wrapper">
         <table class="data-table">
@@ -84,27 +116,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { adminApi } from '../../api/admin'
 import { formatCurrency } from '../../utils/format'
 
 interface DashboardData {
   total_tenants?: number
   total_databases?: number
+  running?: number
+  suspended?: number
   active_computes?: number
   estimated_monthly_cost?: number
-  components?: Array<{ name: string; healthy: boolean }>
-  operation_stats_24h?: Array<{ type: string; count: number }>
-  cost_breakdown?: Array<{ resource: string; cost: number }>
 }
 
-const data = ref<DashboardData>({})
-const apiOffline = ref(false)
-const components = ref<Array<{ name: string; healthy: boolean }>>([])
-const operationStats = ref<Array<{ type: string; count: number }>>([])
-const costBreakdown = ref<Array<{ resource: string; cost: number }>>([])
+const COMP_LABELS: Record<string, string> = {
+  api: 'API',
+  pageserver: 'Pageserver',
+  safekeeper: 'Safekeeper',
+  storage_broker: 'Storage Broker',
+  proxy: 'Proxy',
+  rds: 'RDS',
+  obs: 'OBS',
+  elb: 'ELB',
+}
+
+const OP_LABELS: Record<string, string> = {
+  create: '创建',
+  resume: '唤醒',
+  suspend: '挂起',
+  delete: '删除',
+  import: '导入',
+}
 
 const COST_LABELS: Record<string, string> = {
+  cce_cluster: 'CCE 集群',
   cce_nodes: 'CCE 节点',
   elb: '弹性负载均衡',
   rds: 'RDS 数据库',
@@ -113,37 +158,80 @@ const COST_LABELS: Record<string, string> = {
   compute: '计算资源',
 }
 
+const data = ref<DashboardData>({})
+const apiOffline = ref(false)
+const components = ref<Array<{ name: string; label: string; healthy: boolean }>>([])
+const operationStats = ref<Array<{ type: string; count: number }>>([])
+const costBreakdown = ref<Array<{ resource: string; cost: number }>>([])
+const metrics = ref({
+  cold_wake_avg_ms: 0,
+  cold_wake_count: 0,
+  warm_wake_avg_ms: 0,
+  warm_wake_count: 0,
+  wakeup_failures: 0,
+  api_p95_ms: 0,
+})
+
+const healthyCount = computed(() => components.value.filter(c => c.healthy).length)
+const totalComponents = computed(() => components.value.length)
+const allHealthy = computed(() => healthyCount.value === totalComponents.value && totalComponents.value > 0)
+
+function wakeupColor(ms: number): string {
+  if (!ms) return ''
+  if (ms < 5000) return 'text-warm'
+  if (ms < 15000) return 'text-warning'
+  return 'text-danger'
+}
+
 onMounted(async () => {
-  try {
-    const res = await adminApi.dashboard()
-    const d = res.data
+  // Fetch dashboard + metrics in parallel
+  const [dashRes, metricsRes] = await Promise.allSettled([
+    adminApi.dashboard(),
+    adminApi.metricsSummary(),
+  ])
+
+  if (dashRes.status === 'fulfilled') {
+    const d = dashRes.value.data
     data.value = {
       total_tenants: d.tenant_count,
       total_databases: d.database_count,
+      running: d.databases_by_status?.running || 0,
+      suspended: d.databases_by_status?.suspended || 0,
       active_computes: d.active_compute_pods,
       estimated_monthly_cost: d.estimated_monthly_cost?.total,
     }
-    // component_health: { pageserver: {status}, ... } → array
     const ch = d.component_health || {}
     components.value = Object.entries(ch).map(([name, info]: [string, any]) => ({
       name,
+      label: COMP_LABELS[name] || name,
       healthy: info.status === 'healthy',
     }))
-    // operation_stats_24h: { create: 5, ... } → array
     const ops = d.operation_stats_24h || {}
     operationStats.value = Object.entries(ops).map(([type, count]: [string, any]) => ({
       type,
       count: count as number,
     }))
-    // cost breakdown: { cce_nodes: 100, ... } → array
     const bd = d.estimated_monthly_cost?.breakdown || {}
     costBreakdown.value = Object.entries(bd).map(([key, cost]: [string, any]) => ({
       resource: COST_LABELS[key] || key,
       cost: cost as number,
     }))
-  } catch (e: any) {
-    if (e.isApiOffline) apiOffline.value = true
-    console.error('Failed to load dashboard', e)
+  } else {
+    const err = dashRes.reason
+    if (err?.isApiOffline) apiOffline.value = true
+    console.error('Failed to load dashboard', err)
+  }
+
+  if (metricsRes.status === 'fulfilled') {
+    const m = metricsRes.value.data
+    metrics.value = {
+      cold_wake_avg_ms: m.compute?.cold_wake_avg_ms || 0,
+      cold_wake_count: m.compute?.cold_wake_count || 0,
+      warm_wake_avg_ms: m.compute?.warm_wake_avg_ms || 0,
+      warm_wake_count: m.compute?.warm_wake_count || 0,
+      wakeup_failures: m.compute?.wakeup_failures || 0,
+      api_p95_ms: m.api?.p95_ms || 0,
+    }
   }
 })
 </script>
@@ -167,7 +255,7 @@ onMounted(async () => {
   font-size: 28px;
   font-weight: 700;
   color: #191919;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .metric-label {
@@ -175,9 +263,52 @@ onMounted(async () => {
   color: #575d6c;
 }
 
+.metric-sub {
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px;
+}
+
+.ux-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 16px;
+}
+
+.ux-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.ux-label {
+  font-size: 13px;
+  color: #575d6c;
+}
+
+.ux-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #191919;
+}
+
+.ux-unit {
+  font-size: 13px;
+  font-weight: 400;
+  color: #999;
+}
+
+.ux-sub {
+  font-size: 12px;
+  color: #999;
+}
+
 .health-items {
   display: flex;
-  gap: 32px;
+  flex-wrap: wrap;
+  gap: 24px;
   padding: 16px;
 }
 
@@ -191,10 +322,6 @@ onMounted(async () => {
 
 .health-name {
   font-weight: 500;
-}
-
-.health-status {
-  color: #575d6c;
 }
 
 .op-stats {
@@ -218,6 +345,13 @@ onMounted(async () => {
   font-weight: 700;
   color: #191919;
 }
+
+.cost-total {
+  font-size: 16px;
+  font-weight: 700;
+  color: #191919;
+}
+
 .offline-banner {
   background: #fff3e0;
   border: 1px solid #ffb74d;
@@ -227,4 +361,9 @@ onMounted(async () => {
   margin-bottom: 16px;
   font-size: 14px;
 }
+
+.dot-green-text { color: #52c41a; }
+.text-warning { color: #e37318; }
+.text-danger { color: #e6393d; }
+.text-warm { color: #52c41a; }
 </style>
