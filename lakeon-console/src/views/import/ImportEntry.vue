@@ -53,7 +53,7 @@
       </div>
 
       <!-- Import tasks for selected database -->
-      <div v-if="selectedDb && importTasks.length > 0" class="section-card" style="margin-top: 24px;">
+      <div v-if="selectedDb && !selectedTaskId && importTasks.length > 0" class="section-card" style="margin-top: 24px;">
         <div class="section-header">
           <h3>导入任务 — {{ selectedDb.name }}</h3>
         </div>
@@ -69,7 +69,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="task in importTasks" :key="task.id">
+              <tr v-for="task in importTasks" :key="task.id" class="task-row" @click="selectedTaskId = task.id">
                 <td>{{ task.source_host }}:{{ task.source_port }}/{{ task.source_dbname }}</td>
                 <td>{{ task.mode === 'FULL' ? '全库' : '指定表' }}</td>
                 <td>
@@ -88,7 +88,17 @@
         </div>
       </div>
 
-      <div v-if="selectedDb && importTasks.length === 0 && !tasksLoading" class="empty-tasks">
+      <!-- Task Detail View -->
+      <div v-if="selectedDb && selectedTaskId" class="section-card" style="margin-top: 24px;">
+        <ImportTaskDetail
+          :db-id="selectedDb.id"
+          :task-id="selectedTaskId"
+          @back="selectedTaskId = null"
+          @updated="loadTasks(selectedDb!.id)"
+        />
+      </div>
+
+      <div v-if="selectedDb && !selectedTaskId && importTasks.length === 0 && !tasksLoading" class="empty-tasks">
         该数据库暂无导入任务，点击上方按钮新建导入。
       </div>
     </template>
@@ -106,6 +116,7 @@ import { databaseApi, type Database } from '../../api/database'
 import { importApi } from '../../api/import'
 import { formatDate } from '../../utils/format'
 import ImportWizard from '../database/ImportWizard.vue'
+import ImportTaskDetail from '../database/ImportTaskDetail.vue'
 
 // Use ImportTask from import API
 import type { ImportTask } from '../../api/import'
@@ -116,6 +127,7 @@ const selectedDb = ref<Database | null>(null)
 const importTasks = ref<ImportTask[]>([])
 const tasksLoading = ref(false)
 const showWizard = ref(false)
+const selectedTaskId = ref<string | null>(null)
 const dbImportCounts = ref<Record<string, number>>({})
 
 function statusClass(status: string): string {
@@ -162,6 +174,7 @@ function taskProgress(task: ImportTask): number {
 
 function selectDb(db: Database) {
   if (db.status !== 'RUNNING' && db.status !== 'SUSPENDED') return
+  selectedTaskId.value = null
   selectedDb.value = db
 }
 
@@ -314,6 +327,15 @@ onMounted(async () => {
 .tag-blue { background: #e6f7ff; color: #0073e6; }
 .tag-orange { background: #fff7e6; color: #d48806; }
 .tag-gray { background: #f5f5f5; color: #8a8e99; }
+
+.task-row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.task-row:hover {
+  background: #f5f7fa;
+}
 
 .empty-tasks {
   text-align: center;
