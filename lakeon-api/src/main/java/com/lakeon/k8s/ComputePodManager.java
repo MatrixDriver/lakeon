@@ -295,30 +295,16 @@ public class ComputePodManager {
     /**
      * Check if compute pod has active client connections by querying pg_stat_activity.
      */
+    private static final String PG_STAT_QUERY =
+        "SELECT count(*) FROM pg_stat_activity WHERE backend_type='client backend' AND pid <> pg_backend_pid()";
+
     public boolean hasActiveConnections(String podName) {
-        String namespace = props.getK8s().getNamespace();
-        try {
-            ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-            ByteArrayOutputStream stderr = new ByteArrayOutputStream();
-            try (ExecWatch exec = k8sClient.pods().inNamespace(namespace).withName(podName)
-                    .writingOutput(stdout)
-                    .writingError(stderr)
-                    .exec("psql", "-U", "cloud_admin", "-d", "postgres", "-t", "-A", "-c",
-                        "SELECT count(*) FROM pg_stat_activity WHERE backend_type='client backend' AND pid != pg_backend_pid()")) {
-                exec.exitCode().get(5, java.util.concurrent.TimeUnit.SECONDS);
-            }
-            String result = stdout.toString().trim();
-            int count = Integer.parseInt(result);
-            log.debug("Pod {} has {} active client connections", podName, count);
-            return count > 0;
-        } catch (Exception e) {
-            log.debug("Failed to check active connections for pod {}: {}", podName, e.getMessage());
-            return false;
-        }
+        return getActiveConnectionCount(podName) > 0;
     }
 
     /**
      * Get the number of active client connections on a compute pod.
+     * Connects via TCP 127.0.0.1:55433 (Neon compute listens on 55433, not default 5432 unix socket).
      * Returns 0 if pod is not reachable or has no connections.
      */
     public int getActiveConnectionCount(String podName) {
@@ -329,12 +315,14 @@ public class ComputePodManager {
             try (ExecWatch exec = k8sClient.pods().inNamespace(namespace).withName(podName)
                     .writingOutput(stdout)
                     .writingError(stderr)
-                    .exec("psql", "-U", "cloud_admin", "-d", "postgres", "-t", "-A", "-c",
-                        "SELECT count(*) FROM pg_stat_activity WHERE backend_type='client backend' AND pid != pg_backend_pid()")) {
+                    .exec("psql", "-h", "127.0.0.1", "-p", "55433",
+                        "-U", "cloud_admin", "-d", "postgres", "-t", "-A", "-c", PG_STAT_QUERY)) {
                 exec.exitCode().get(5, java.util.concurrent.TimeUnit.SECONDS);
             }
             String result = stdout.toString().trim();
-            return Integer.parseInt(result);
+            int count = Integer.parseInt(result);
+            log.debug("Pod {} has {} active client connections", podName, count);
+            return count;
         } catch (Exception e) {
             log.debug("Failed to get connection count for pod {}: {}", podName, e.getMessage());
             return 0;
