@@ -126,6 +126,7 @@ public class LakeonProperties {
         private double rdsMonthly = 500;
         private double eipMonthly = 150;
         private double computeCuHourly = 0.5;
+        private double storageGbMonthly = 0.5;
 
         public double getCceClusterHourly() { return cceClusterHourly; }
         public void setCceClusterHourly(double v) { this.cceClusterHourly = v; }
@@ -143,6 +144,8 @@ public class LakeonProperties {
         public void setEipMonthly(double v) { this.eipMonthly = v; }
         public double getComputeCuHourly() { return computeCuHourly; }
         public void setComputeCuHourly(double v) { this.computeCuHourly = v; }
+        public double getStorageGbMonthly() { return storageGbMonthly; }
+        public void setStorageGbMonthly(double v) { this.storageGbMonthly = v; }
     }
 
     public static class CloudConfig {

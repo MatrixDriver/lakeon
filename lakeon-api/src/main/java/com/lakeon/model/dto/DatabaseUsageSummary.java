@@ -8,5 +8,8 @@ public record DatabaseUsageSummary(
         @JsonProperty("compute_size") String computeSize,
         @JsonProperty("compute_seconds") long computeSeconds,
         @JsonProperty("compute_cu_hours") double computeCuHours,
+        @JsonProperty("compute_cost") double computeCost,
+        @JsonProperty("storage_used_gb") double storageUsedGb,
+        @JsonProperty("storage_cost") double storageCost,
         @JsonProperty("estimated_cost") double estimatedCost) {
 }

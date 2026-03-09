@@ -9,5 +9,8 @@ public record TenantUsageSummary(
         List<DatabaseUsageSummary> databases,
         @JsonProperty("total_compute_seconds") long totalComputeSeconds,
         @JsonProperty("total_compute_cu_hours") double totalComputeCuHours,
+        @JsonProperty("total_compute_cost") double totalComputeCost,
+        @JsonProperty("total_storage_used_gb") double totalStorageUsedGb,
+        @JsonProperty("total_storage_cost") double totalStorageCost,
         @JsonProperty("total_estimated_cost") double totalEstimatedCost) {
 }

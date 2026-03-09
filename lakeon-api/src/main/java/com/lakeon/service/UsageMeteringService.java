@@ -17,6 +17,9 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.lakeon.neon.NeonApiClient;
+import com.lakeon.neon.dto.NeonTimeline;
+
 @Service
 public class UsageMeteringService {
 
@@ -28,15 +31,18 @@ public class UsageMeteringService {
     private final OperationLogRepository operationLogRepository;
     private final DatabaseRepository databaseRepository;
     private final TenantRepository tenantRepository;
+    private final NeonApiClient neonApiClient;
     private final LakeonProperties props;
 
     public UsageMeteringService(OperationLogRepository operationLogRepository,
                                 DatabaseRepository databaseRepository,
                                 TenantRepository tenantRepository,
+                                NeonApiClient neonApiClient,
                                 LakeonProperties props) {
         this.operationLogRepository = operationLogRepository;
         this.databaseRepository = databaseRepository;
         this.tenantRepository = tenantRepository;
+        this.neonApiClient = neonApiClient;
         this.props = props;
     }
 
@@ -52,6 +58,12 @@ public class UsageMeteringService {
         Map<String, List<OperationLogEntity>> byDatabase = logs.stream()
                 .collect(Collectors.groupingBy(OperationLogEntity::getDatabaseId, LinkedHashMap::new, Collectors.toList()));
 
+        // Also include databases with no lifecycle logs but with storage usage
+        List<DatabaseEntity> allDatabases = databaseRepository.findAllByTenantId(tenantId);
+        for (DatabaseEntity db : allDatabases) {
+            byDatabase.putIfAbsent(db.getId(), List.of());
+        }
+
         List<DatabaseUsageSummary> dbSummaries = new ArrayList<>();
         for (var entry : byDatabase.entrySet()) {
             dbSummaries.add(computeDatabaseUsage(entry.getKey(), entry.getValue(), to));
@@ -59,10 +71,14 @@ public class UsageMeteringService {
 
         long totalSeconds = dbSummaries.stream().mapToLong(DatabaseUsageSummary::computeSeconds).sum();
         double totalCuHours = dbSummaries.stream().mapToDouble(DatabaseUsageSummary::computeCuHours).sum();
+        double totalComputeCost = dbSummaries.stream().mapToDouble(DatabaseUsageSummary::computeCost).sum();
+        double totalStorageGb = dbSummaries.stream().mapToDouble(DatabaseUsageSummary::storageUsedGb).sum();
+        double totalStorageCost = dbSummaries.stream().mapToDouble(DatabaseUsageSummary::storageCost).sum();
         double totalCost = dbSummaries.stream().mapToDouble(DatabaseUsageSummary::estimatedCost).sum();
 
         return new TenantUsageSummary(tenantId, tenantName, dbSummaries,
-                totalSeconds, round2(totalCuHours), round2(totalCost));
+                totalSeconds, round2(totalCuHours), round2(totalComputeCost),
+                round2(totalStorageGb), round2(totalStorageCost), round2(totalCost));
     }
 
     public DatabaseUsageSummary getDatabaseUsage(String databaseId, Instant from, Instant to) {
@@ -115,10 +131,32 @@ public class UsageMeteringService {
         }
 
         double cuHours = (totalSeconds * cu) / 3600.0;
-        double cost = cuHours * props.getCost().getComputeCuHourly();
+        double computeCost = cuHours * props.getCost().getComputeCuHourly();
+
+        // Fetch current storage usage
+        double storageGb = fetchStorageGb(db);
+        double storageCost = storageGb * props.getCost().getStorageGbMonthly();
 
         return new DatabaseUsageSummary(databaseId, dbName, computeSize,
-                totalSeconds, round2(cuHours), round2(cost));
+                totalSeconds, round2(cuHours), round2(computeCost),
+                round2(storageGb), round2(storageCost), round2(computeCost + storageCost));
+    }
+
+    private double fetchStorageGb(DatabaseEntity db) {
+        if (db == null || db.getNeonTenantId() == null || db.getNeonTimelineId() == null) {
+            return 0.0;
+        }
+        try {
+            NeonTimeline timeline = neonApiClient.getTimeline(
+                    db.getNeonTenantId(), db.getNeonTimelineId());
+            Long sizeBytes = timeline.getCurrentLogicalSize();
+            if (sizeBytes != null && sizeBytes > 0) {
+                return Math.round(sizeBytes / (1024.0 * 1024 * 1024) * 100.0) / 100.0;
+            }
+        } catch (Exception e) {
+            // Storage unavailable, return 0
+        }
+        return 0.0;
     }
 
     private int parseComputeUnits(String computeSize) {
