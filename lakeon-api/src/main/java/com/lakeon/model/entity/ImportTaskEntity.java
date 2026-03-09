@@ -69,6 +69,33 @@ public class ImportTaskEntity {
     @Column(name = "operation_log_id", length = 64)
     private String operationLogId;
 
+    @Column(name = "publication_name", length = 128)
+    private String publicationName;
+
+    @Column(name = "subscription_name", length = 128)
+    private String subscriptionName;
+
+    @Column(name = "slot_name", length = 128)
+    private String slotName;
+
+    @Column(name = "sync_status", length = 32)
+    private String syncStatus;
+
+    @Column(name = "replay_lag_seconds")
+    private Double replayLagSeconds;
+
+    @Column(name = "sync_rate_rows_per_sec")
+    private Long syncRateRowsPerSec;
+
+    @Column(name = "last_sync_at")
+    private Instant lastSyncAt;
+
+    @Column(name = "wal_retained_bytes")
+    private Long walRetainedBytes;
+
+    @Column(name = "wal_warning")
+    private Boolean walWarning;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -247,4 +274,31 @@ public class ImportTaskEntity {
     public void setOperationLogId(String operationLogId) {
         this.operationLogId = operationLogId;
     }
+
+    public String getPublicationName() { return publicationName; }
+    public void setPublicationName(String publicationName) { this.publicationName = publicationName; }
+
+    public String getSubscriptionName() { return subscriptionName; }
+    public void setSubscriptionName(String subscriptionName) { this.subscriptionName = subscriptionName; }
+
+    public String getSlotName() { return slotName; }
+    public void setSlotName(String slotName) { this.slotName = slotName; }
+
+    public String getSyncStatus() { return syncStatus; }
+    public void setSyncStatus(String syncStatus) { this.syncStatus = syncStatus; }
+
+    public Double getReplayLagSeconds() { return replayLagSeconds; }
+    public void setReplayLagSeconds(Double replayLagSeconds) { this.replayLagSeconds = replayLagSeconds; }
+
+    public Long getSyncRateRowsPerSec() { return syncRateRowsPerSec; }
+    public void setSyncRateRowsPerSec(Long syncRateRowsPerSec) { this.syncRateRowsPerSec = syncRateRowsPerSec; }
+
+    public Instant getLastSyncAt() { return lastSyncAt; }
+    public void setLastSyncAt(Instant lastSyncAt) { this.lastSyncAt = lastSyncAt; }
+
+    public Long getWalRetainedBytes() { return walRetainedBytes; }
+    public void setWalRetainedBytes(Long walRetainedBytes) { this.walRetainedBytes = walRetainedBytes; }
+
+    public Boolean getWalWarning() { return walWarning; }
+    public void setWalWarning(Boolean walWarning) { this.walWarning = walWarning; }
 }

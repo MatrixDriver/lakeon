@@ -5,6 +5,7 @@ import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.ImportTableTaskEntity;
 import com.lakeon.model.entity.ImportTaskEntity;
+import com.lakeon.model.enums.ImportMode;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import org.slf4j.Logger;
@@ -35,9 +36,11 @@ public class ImportJobPodManager {
     public String launchJobPod(ImportTaskEntity task, List<ImportTableTaskEntity> tableTasks, DatabaseEntity targetDb) {
         String namespace = props.getK8s().getNamespace();
         String safePodId = task.getId().replace("_", "-");
-        String podName = "import-" + safePodId;
+        boolean isSync = task.getMode() == ImportMode.SYNC;
+        String podName = (isSync ? "sync-" : "import-") + safePodId;
         String configMapName = podName + "-config";
         String secretName = podName + "-secret";
+        String scriptName = isSync ? "sync-setup.sh" : "import.sh";
 
         // Build task.json content
         String taskJson = buildTaskJson(task, tableTasks, targetDb);
@@ -93,7 +96,7 @@ public class ImportJobPodManager {
                 .addNewContainer()
                     .withName("import")
                     .withImage(props.getK8s().getImportImage())
-                    .withCommand("bash", "/scripts/import.sh")
+                    .withCommand("bash", "/scripts/" + scriptName)
                     .withNewResources()
                         .withRequests(Map.of(
                             "cpu", new Quantity("100m"),
@@ -153,13 +156,18 @@ public class ImportJobPodManager {
     public boolean isJobPodRunning(String taskId) {
         String namespace = props.getK8s().getNamespace();
         String safePodId = taskId.replace("_", "-");
-        String podName = "import-" + safePodId;
-        try {
-            var pod = k8sClient.pods().inNamespace(namespace).withName(podName).get();
-            return pod != null && "Running".equals(pod.getStatus().getPhase());
-        } catch (Exception e) {
-            return false;
+        // Check both import- and sync- prefixes
+        for (String prefix : List.of("import-", "sync-")) {
+            try {
+                var pod = k8sClient.pods().inNamespace(namespace).withName(prefix + safePodId).get();
+                if (pod != null && "Running".equals(pod.getStatus().getPhase())) {
+                    return true;
+                }
+            } catch (Exception e) {
+                // ignore
+            }
         }
+        return false;
     }
 
     /**
@@ -168,7 +176,13 @@ public class ImportJobPodManager {
     public void deleteJobPod(String taskId) {
         String namespace = props.getK8s().getNamespace();
         String safePodId = taskId.replace("_", "-");
-        String podName = "import-" + safePodId;
+        // Try both prefixes
+        for (String prefix : List.of("import-", "sync-")) {
+            deleteResources(namespace, prefix + safePodId);
+        }
+    }
+
+    private void deleteResources(String namespace, String podName) {
         String configMapName = podName + "-config";
         String secretName = podName + "-secret";
 
@@ -221,10 +235,17 @@ public class ImportJobPodManager {
 
         Map<String, Object> taskConfig = new LinkedHashMap<>();
         taskConfig.put("callback_url", callbackUrl);
+        taskConfig.put("mode", task.getMode().name());
         taskConfig.put("source", source);
         taskConfig.put("target", target);
-        taskConfig.put("conflict_strategy", task.getConflictStrategy().name());
+        taskConfig.put("conflict_strategy", task.getConflictStrategy() != null ? task.getConflictStrategy().name() : "APPEND");
         taskConfig.put("tables", tables);
+
+        if (task.getMode() == ImportMode.SYNC) {
+            taskConfig.put("publication_name", task.getPublicationName());
+            taskConfig.put("subscription_name", task.getSubscriptionName());
+            taskConfig.put("slot_name", task.getSlotName());
+        }
 
         try {
             return objectMapper.writeValueAsString(taskConfig);

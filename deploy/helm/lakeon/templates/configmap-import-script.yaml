@@ -8,3 +8,5 @@ metadata:
 data:
   import.sh: |
 {{ .Files.Get "scripts/import.sh" | indent 4 }}
+  sync-setup.sh: |
+{{ .Files.Get "scripts/sync-setup.sh" | indent 4 }}

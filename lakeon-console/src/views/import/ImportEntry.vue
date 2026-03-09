@@ -71,12 +71,20 @@
             <tbody>
               <tr v-for="task in importTasks" :key="task.id" class="task-row" @click="selectedTaskId = task.id">
                 <td>{{ task.source_host }}:{{ task.source_port }}/{{ task.source_dbname }}</td>
-                <td>{{ task.mode === 'FULL' ? '全库' : '指定表' }}</td>
+                <td>{{ modeText(task.mode) }}</td>
                 <td>
-                  <div class="progress-wrap">
-                    <div class="progress-bar"><div class="progress-fill" :style="{ width: taskProgress(task) + '%' }"></div></div>
-                    <span class="progress-text">{{ taskProgress(task) }}%</span>
-                  </div>
+                  <template v-if="task.mode === 'SYNC'">
+                    <span v-if="task.replay_lag_seconds != null" class="sync-lag">
+                      延迟 {{ formatLag(task.replay_lag_seconds) }}
+                    </span>
+                    <span v-else class="progress-text">-</span>
+                  </template>
+                  <template v-else>
+                    <div class="progress-wrap">
+                      <div class="progress-bar"><div class="progress-fill" :style="{ width: taskProgress(task) + '%' }"></div></div>
+                      <span class="progress-text">{{ taskProgress(task) }}%</span>
+                    </div>
+                  </template>
                 </td>
                 <td>
                   <span class="status-tag" :class="taskStatusClass(task.status)">{{ taskStatusText(task.status) }}</span>
@@ -151,7 +159,8 @@ function statusText(status: string): string {
 function taskStatusClass(status: string): string {
   switch (status) {
     case 'COMPLETED': return 'tag-green'
-    case 'RUNNING': return 'tag-blue'
+    case 'RUNNING': case 'SYNCING': return 'tag-blue'
+    case 'CATCHING_UP': return 'tag-cyan'
     case 'FAILED': return 'tag-red'
     case 'PAUSED': return 'tag-orange'
     case 'CANCELLED': return 'tag-gray'
@@ -163,8 +172,22 @@ function taskStatusText(status: string): string {
   const map: Record<string, string> = {
     PENDING: '等待中', RUNNING: '运行中', PAUSED: '已暂停',
     COMPLETED: '已完成', FAILED: '失败', PARTIAL: '部分完成', CANCELLED: '已取消',
+    SYNCING: '同步中', CATCHING_UP: '追赶中',
   }
   return map[status] || status
+}
+
+function modeText(mode: string): string {
+  if (mode === 'FULL') return '全库'
+  if (mode === 'SELECTIVE') return '指定表'
+  return '持续同步'
+}
+
+function formatLag(seconds: number): string {
+  if (seconds < 1) return '< 1s'
+  if (seconds < 60) return Math.round(seconds) + 's'
+  if (seconds < 3600) return Math.round(seconds / 60) + 'min'
+  return (seconds / 3600).toFixed(1) + 'h'
 }
 
 function taskProgress(task: ImportTask): number {
@@ -327,6 +350,8 @@ onMounted(async () => {
 .tag-blue { background: #e6f7ff; color: #0073e6; }
 .tag-orange { background: #fff7e6; color: #d48806; }
 .tag-gray { background: #f5f5f5; color: #8a8e99; }
+.tag-cyan { background: #e6fffb; color: #13c2c2; }
+.sync-lag { font-size: 13px; color: #575d6c; }
 
 .task-row {
   cursor: pointer;

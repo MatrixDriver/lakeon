@@ -45,7 +45,7 @@
             <button class="btn btn-default btn-small" :disabled="!connFormValid || testingConn" @click="handleTestConn">
               {{ testingConn ? '测试中...' : '测试连接' }}
             </button>
-            <span v-if="connTestResult === true" class="text-success">✓ 连接成功<span v-if="connVersion" class="conn-version"> ({{ connVersion }})</span></span>
+            <span v-if="connTestResult === true" class="text-success">✓ 连接成功<span v-if="connVersion" class="conn-version"> ({{ connVersion }})</span><span v-if="walLevelInfo" class="conn-version"> | wal_level={{ walLevelInfo }}<template v-if="hasReplication"> ✓ replication</template><template v-else> ✗ no replication</template></span></span>
             <span v-if="connTestResult === false" class="text-error">✗ {{ connError }}</span>
           </div>
           <div v-if="tablesLoading" class="loading-text" style="margin-top: 12px;">正在加载源表列表...</div>
@@ -62,7 +62,32 @@
               <label class="radio-item">
                 <input type="radio" v-model="form.mode" value="SELECTIVE" /> 按表选择
               </label>
+              <label class="radio-item" :class="{ disabled: !syncAvailable }">
+                <input type="radio" v-model="form.mode" value="SYNC" :disabled="!syncAvailable" /> 持续同步
+              </label>
             </div>
+            <div v-if="!syncAvailable && walLevelInfo" class="hint-text">
+              持续同步需要源库 wal_level=logical 且具有 replication 权限
+            </div>
+          </div>
+
+          <div v-if="form.mode === 'SYNC'">
+            <div v-if="tablesLoading" class="loading-text">加载表列表...</div>
+            <div v-else-if="sourceTables.length > 0" class="table-select-list">
+              <div class="select-all-row">
+                <label class="checkbox-item">
+                  <input type="checkbox" :checked="allSelected" @change="toggleAll" /> 全选 ({{ sourceTables.length }} 张表)
+                </label>
+              </div>
+              <div class="table-checkbox-list">
+                <label v-for="t in sourceTables" :key="t.schema + '.' + t.table" class="checkbox-item">
+                  <input type="checkbox" :value="t.schema + '.' + t.table" v-model="form.selectedTables" />
+                  {{ t.schema }}.{{ t.table }}
+                  <span class="row-hint">(约 {{ t.estimated_rows > 0 ? t.estimated_rows : '?' }} 行)</span>
+                </label>
+              </div>
+            </div>
+            <div v-else class="empty-state"><p>未找到用户表</p></div>
           </div>
 
           <div v-if="form.mode === 'SELECTIVE'">
@@ -87,7 +112,7 @@
 
         <!-- Step 3: Confirm -->
         <div v-if="step === 2">
-          <div class="form-group">
+          <div v-if="form.mode !== 'SYNC'" class="form-group">
             <label class="form-label">冲突策略</label>
             <div class="radio-group">
               <label class="radio-item">
@@ -98,14 +123,17 @@
               </label>
             </div>
           </div>
-          <div v-if="form.conflictStrategy === 'REPLACE'" class="warning-box">
+          <div v-if="form.mode !== 'SYNC' && form.conflictStrategy === 'REPLACE'" class="warning-box">
             覆盖模式将删除目标表后重新创建，已有数据将丢失。
+          </div>
+          <div v-if="form.mode === 'SYNC'" class="warning-box" style="border-color: #91d5ff; background: #e6f7ff; color: #096dd9;">
+            持续同步将通过 PostgreSQL 逻辑复制实时同步数据变更。初始数据将自动复制，之后增量同步。
           </div>
           <div class="confirm-summary">
             <div class="summary-row"><span class="summary-label">源数据库:</span> {{ form.host }}:{{ form.port }}/{{ form.dbname }}</div>
-            <div class="summary-row"><span class="summary-label">导入模式:</span> {{ form.mode === 'FULL' ? '整库导入' : '按表选择' }}</div>
+            <div class="summary-row"><span class="summary-label">导入模式:</span> {{ modeLabel }}</div>
             <div class="summary-row"><span class="summary-label">表数量:</span> {{ tableCount }} 张</div>
-            <div class="summary-row"><span class="summary-label">冲突策略:</span> {{ form.conflictStrategy === 'APPEND' ? '追加' : '覆盖' }}</div>
+            <div v-if="form.mode !== 'SYNC'" class="summary-row"><span class="summary-label">冲突策略:</span> {{ form.conflictStrategy === 'APPEND' ? '追加' : '覆盖' }}</div>
           </div>
           <div v-if="createError" class="error-text" style="margin-top: 12px; color: #e34d59;">{{ createError }}</div>
         </div>
@@ -120,7 +148,7 @@
             {{ tablesLoading ? '连接中...' : '下一步' }}
           </button>
           <button v-else class="btn btn-primary" :disabled="creating" @click="handleCreate">
-            {{ creating ? '创建中...' : '开始导入' }}
+            {{ creating ? '创建中...' : (form.mode === 'SYNC' ? '开始同步' : '开始导入') }}
           </button>
         </div>
       </div>
@@ -156,6 +184,8 @@ const connError = ref('')
 const testingConn = ref(false)
 const connTestResult = ref<boolean | null>(null)
 const connVersion = ref('')
+const walLevelInfo = ref('')
+const hasReplication = ref(false)
 
 const connFormValid = computed(() =>
   form.value.host && form.value.port && form.value.dbname && form.value.user && form.value.password
@@ -165,9 +195,18 @@ const allSelected = computed(() =>
   sourceTables.value.length > 0 && form.value.selectedTables.length === sourceTables.value.length
 )
 
-const tableCount = computed(() =>
-  form.value.mode === 'FULL' ? sourceTables.value.length : form.value.selectedTables.length
-)
+const tableCount = computed(() => {
+  if (form.value.mode === 'FULL') return sourceTables.value.length
+  return form.value.selectedTables.length
+})
+
+const syncAvailable = computed(() => walLevelInfo.value === 'logical' && hasReplication.value)
+
+const modeLabel = computed(() => {
+  if (form.value.mode === 'FULL') return '整库导入'
+  if (form.value.mode === 'SELECTIVE') return '按表选择'
+  return '持续同步'
+})
 
 const canNext = computed(() => {
   if (step.value === 0) return connFormValid.value
@@ -182,6 +221,8 @@ watch(() => props.visible, (v) => {
     connTestResult.value = null
     connError.value = ''
     connVersion.value = ''
+    walLevelInfo.value = ''
+    hasReplication.value = false
   }
 })
 
@@ -198,6 +239,8 @@ async function handleTestConn() {
     if (res.data.ok) {
       connTestResult.value = true
       connVersion.value = res.data.version || ''
+      walLevelInfo.value = res.data.wal_level || ''
+      hasReplication.value = res.data.has_replication || false
     } else {
       connTestResult.value = false
       connError.value = res.data.error || '连接失败'
@@ -260,7 +303,7 @@ async function handleCreate() {
       sourcePassword: form.value.password,
       mode: form.value.mode,
       conflictStrategy: form.value.conflictStrategy,
-      tables: form.value.mode === 'SELECTIVE' ? form.value.selectedTables : undefined,
+      tables: (form.value.mode === 'SELECTIVE' || form.value.mode === 'SYNC') ? form.value.selectedTables : undefined,
     })
     emit('created', res.data)
   } catch (e: any) {
@@ -336,6 +379,8 @@ async function handleCreate() {
 .checkbox-item:hover { background: #f5f5f5; }
 .row-hint { color: #8a8e99; font-size: 12px; }
 .loading-text { color: #8a8e99; font-size: 13px; padding: 12px 0; }
+.hint-text { color: #8a8e99; font-size: 12px; margin-top: 6px; }
+.radio-item.disabled { color: #c2c6cc; cursor: not-allowed; }
 .warning-box {
   padding: 8px 12px; background: #fff7e6; border: 1px solid #ffd591;
   border-radius: 2px; color: #d46b08; font-size: 13px; margin-bottom: 14px;

@@ -75,11 +75,32 @@ public class ImportService {
 
         String url = "jdbc:postgresql://" + req.host() + ":" + req.port() + "/" + req.dbname();
         try (Connection conn = DriverManager.getConnection(url, connProps);
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT version()")) {
+             Statement stmt = conn.createStatement()) {
+            ResultSet rs = stmt.executeQuery("SELECT version()");
             rs.next();
             String version = rs.getString(1);
-            return Map.of("ok", true, "version", version);
+
+            // Detect wal_level and replication privilege for sync feature
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("ok", true);
+            result.put("version", version);
+            try {
+                ResultSet walRs = stmt.executeQuery("SHOW wal_level");
+                if (walRs.next()) {
+                    result.put("wal_level", walRs.getString(1));
+                }
+            } catch (Exception ignored) {
+                result.put("wal_level", "unknown");
+            }
+            try {
+                ResultSet replRs = stmt.executeQuery("SELECT rolreplication FROM pg_roles WHERE rolname = current_user");
+                if (replRs.next()) {
+                    result.put("has_replication", replRs.getBoolean(1));
+                }
+            } catch (Exception ignored) {
+                result.put("has_replication", false);
+            }
+            return result;
         } catch (Exception e) {
             return Map.of("ok", false, "error", e.getMessage());
         }
@@ -133,9 +154,25 @@ public class ImportService {
         DatabaseEntity database = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
             .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
 
-        // For SELECTIVE mode, parse tables immediately (lightweight)
+        // For SYNC mode, check task limit
+        if (req.mode() == ImportMode.SYNC) {
+            long activeSyncCount = importTaskRepository
+                .findAllByDatabaseIdAndTenantIdOrderByCreatedAtDesc(dbId, tenant.getId())
+                .stream()
+                .filter(t -> t.getMode() == ImportMode.SYNC
+                    && (t.getStatus() == ImportTaskStatus.SYNCING
+                        || t.getStatus() == ImportTaskStatus.CATCHING_UP
+                        || t.getStatus() == ImportTaskStatus.RUNNING
+                        || t.getStatus() == ImportTaskStatus.PENDING))
+                .count();
+            if (activeSyncCount >= props.getSync().getMaxTasks()) {
+                throw new IllegalStateException("Maximum active sync tasks reached: " + props.getSync().getMaxTasks());
+            }
+        }
+
+        // For SELECTIVE/SYNC mode, parse tables immediately (lightweight)
         List<SourceTableInfo> selectedTables = null;
-        if (req.mode() == ImportMode.SELECTIVE && req.tables() != null) {
+        if ((req.mode() == ImportMode.SELECTIVE || req.mode() == ImportMode.SYNC) && req.tables() != null) {
             selectedTables = new ArrayList<>();
             for (String tableSpec : req.tables()) {
                 String[] parts = tableSpec.split("\\.", 2);
@@ -162,7 +199,23 @@ public class ImportService {
         task.setConflictStrategy(req.conflictStrategy() != null ? req.conflictStrategy() : ConflictStrategy.APPEND);
         task.setStatus(ImportTaskStatus.PENDING);
         task.setOperationLogId(opLog.getId());
+
+        // SYNC mode: generate publication/subscription/slot names
+        if (req.mode() == ImportMode.SYNC) {
+            String shortId = task.getId() != null ? task.getId() : UUID.randomUUID().toString().substring(0, 8);
+            // Will be set after prePersist generates the ID
+            task.setSyncStatus("INITIALIZING");
+        }
         task = importTaskRepository.save(task);
+
+        // SYNC mode: set pub/sub/slot names using generated ID
+        if (req.mode() == ImportMode.SYNC) {
+            String safeName = task.getId().replace("-", "_");
+            task.setPublicationName("lakeon_pub_" + safeName);
+            task.setSubscriptionName("lakeon_sub_" + safeName);
+            task.setSlotName("lakeon_slot_" + safeName);
+            task = importTaskRepository.save(task);
+        }
 
         // Launch async preparation (wake compute, list tables, launch pod)
         final String taskId = task.getId();
@@ -194,9 +247,12 @@ public class ImportService {
                 throw new IllegalStateException("Database must be in RUNNING state. Current: " + database.getStatus());
             }
 
-            // Determine tables to import
+            // Determine tables to import/sync
             List<SourceTableInfo> sourceTables;
-            if (req.mode() == ImportMode.FULL) {
+            if (req.mode() == ImportMode.SYNC) {
+                // SYNC mode requires explicit table list
+                sourceTables = selectedTables != null ? selectedTables : List.of();
+            } else if (req.mode() == ImportMode.FULL) {
                 TestConnectionRequest connReq = new TestConnectionRequest(
                     req.sourceHost(), req.sourcePort(), req.sourceDbname(), req.sourceUser(), req.sourcePassword()
                 );
@@ -277,6 +333,39 @@ public class ImportService {
         ImportTableTaskEntity tableTask = importTableTaskRepository.findById(req.tableTaskId())
             .orElseThrow(() -> new NotFoundException("Import table task not found: " + req.tableTaskId()));
 
+        // Handle SYNCING callback from sync-setup.sh
+        if (req.status() == ImportTaskStatus.SYNCING) {
+            tableTask.setStatus(ImportTaskStatus.SYNCING);
+            tableTask.setSyncState("r"); // ready/syncing
+            if (req.rowCount() != null) {
+                tableTask.setSyncedRows(req.rowCount());
+            }
+            importTableTaskRepository.save(tableTask);
+
+            // Check if all tables reported SYNCING
+            long syncingCount = importTableTaskRepository.countByImportTaskIdAndStatus(taskId, ImportTaskStatus.SYNCING);
+            if (syncingCount >= task.getTotalTables()) {
+                task.setStatus(ImportTaskStatus.SYNCING);
+                task.setSyncStatus("SYNCING");
+                task.setLastSyncAt(Instant.now());
+                // Clean up the setup pod
+                if (task.getJobPodName() != null) {
+                    importJobPodManager.deleteJobPod(taskId);
+                    task.setJobPodName(null);
+                }
+                // Set a reasonable suspend timeout for sync (60 min)
+                if (task.getOriginalSuspendTimeout() != null) {
+                    databaseRepository.findById(task.getDatabaseId()).ifPresent(db -> {
+                        db.setSuspendTimeout("60m");
+                        databaseRepository.save(db);
+                    });
+                }
+                completeImportOperationLog(task, null);
+            }
+            importTaskRepository.save(task);
+            return;
+        }
+
         // Update table task based on callback status
         if (req.status() == ImportTaskStatus.RUNNING) {
             tableTask.setStatus(ImportTaskStatus.RUNNING);
@@ -333,6 +422,35 @@ public class ImportService {
     @Transactional
     public ImportTaskResponse pauseImport(TenantEntity tenant, String dbId, String taskId) {
         ImportTaskEntity task = findTaskForTenant(tenant, dbId, taskId);
+
+        // SYNC mode: disable subscription
+        if (task.getMode() == ImportMode.SYNC) {
+            if (task.getStatus() != ImportTaskStatus.SYNCING && task.getStatus() != ImportTaskStatus.CATCHING_UP) {
+                throw new IllegalStateException("Can only pause SYNCING/CATCHING_UP sync tasks. Current status: " + task.getStatus());
+            }
+            DatabaseEntity database = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
+                .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+            try {
+                String targetUrl = "jdbc:postgresql://" + database.getComputeHost() + ":55433/" + database.getName();
+                Properties targetProps = new Properties();
+                targetProps.setProperty("user", "cloud_admin");
+                targetProps.setProperty("password", "cloud-admin-internal");
+                targetProps.setProperty("connectTimeout", "10");
+                try (Connection conn = DriverManager.getConnection(targetUrl, targetProps);
+                     Statement stmt = conn.createStatement()) {
+                    stmt.execute("ALTER SUBSCRIPTION " + task.getSubscriptionName() + " DISABLE");
+                }
+            } catch (Exception e) {
+                log.warn("Failed to disable subscription: {}", e.getMessage());
+            }
+            task.setStatus(ImportTaskStatus.PAUSED);
+            task.setSyncStatus("PAUSED");
+            task = importTaskRepository.save(task);
+            List<ImportTableTaskEntity> allTables = importTableTaskRepository
+                .findAllByImportTaskIdOrderBySchemaNameAscTableNameAsc(taskId);
+            return toResponse(task, allTables);
+        }
+
         if (task.getStatus() != ImportTaskStatus.RUNNING) {
             throw new IllegalStateException("Can only pause RUNNING tasks. Current status: " + task.getStatus());
         }
@@ -365,6 +483,33 @@ public class ImportService {
 
         DatabaseEntity database = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
             .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+
+        // SYNC mode: enable subscription
+        if (task.getMode() == ImportMode.SYNC) {
+            if (database.getStatus() == DatabaseStatus.SUSPENDED) {
+                databaseService.wakeCompute(database);
+                database = databaseRepository.findById(dbId).orElse(database);
+            }
+            try {
+                String targetUrl = "jdbc:postgresql://" + database.getComputeHost() + ":55433/" + database.getName();
+                Properties targetProps = new Properties();
+                targetProps.setProperty("user", "cloud_admin");
+                targetProps.setProperty("password", "cloud-admin-internal");
+                targetProps.setProperty("connectTimeout", "10");
+                try (Connection conn = DriverManager.getConnection(targetUrl, targetProps);
+                     Statement stmt = conn.createStatement()) {
+                    stmt.execute("ALTER SUBSCRIPTION " + task.getSubscriptionName() + " ENABLE");
+                }
+            } catch (Exception e) {
+                log.warn("Failed to enable subscription: {}", e.getMessage());
+            }
+            task.setStatus(ImportTaskStatus.CATCHING_UP);
+            task.setSyncStatus("CATCHING_UP");
+            task = importTaskRepository.save(task);
+            List<ImportTableTaskEntity> allTables = importTableTaskRepository
+                .findAllByImportTaskIdOrderBySchemaNameAscTableNameAsc(taskId);
+            return toResponse(task, allTables);
+        }
 
         // Get non-completed table tasks
         List<ImportTableTaskEntity> pendingTables = importTableTaskRepository
@@ -455,6 +600,149 @@ public class ImportService {
         return toResponse(task, allTables);
     }
 
+    @Transactional
+    public ImportTaskResponse stopSync(TenantEntity tenant, String dbId, String taskId, boolean cleanup) {
+        ImportTaskEntity task = findTaskForTenant(tenant, dbId, taskId);
+        if (task.getMode() != ImportMode.SYNC) {
+            throw new IllegalStateException("Stop is only available for SYNC tasks");
+        }
+        if (task.getStatus() != ImportTaskStatus.SYNCING
+            && task.getStatus() != ImportTaskStatus.PAUSED
+            && task.getStatus() != ImportTaskStatus.CATCHING_UP
+            && task.getStatus() != ImportTaskStatus.FAILED) {
+            throw new IllegalStateException("Cannot stop task in status: " + task.getStatus());
+        }
+
+        DatabaseEntity database = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
+            .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+
+        if (cleanup) {
+            // Drop subscription on target (must disable first)
+            try {
+                if (database.getStatus() == DatabaseStatus.SUSPENDED) {
+                    databaseService.wakeCompute(database);
+                    database = databaseRepository.findById(dbId).orElse(database);
+                }
+                String targetUrl = "jdbc:postgresql://" + database.getComputeHost() + ":55433/" + database.getName();
+                Properties targetProps = new Properties();
+                targetProps.setProperty("user", "cloud_admin");
+                targetProps.setProperty("password", "cloud-admin-internal");
+                targetProps.setProperty("connectTimeout", "10");
+                try (Connection conn = DriverManager.getConnection(targetUrl, targetProps);
+                     Statement stmt = conn.createStatement()) {
+                    stmt.execute("ALTER SUBSCRIPTION " + task.getSubscriptionName() + " DISABLE");
+                    stmt.execute("ALTER SUBSCRIPTION " + task.getSubscriptionName() + " SET (slot_name = NONE)");
+                    stmt.execute("DROP SUBSCRIPTION IF EXISTS " + task.getSubscriptionName());
+                    log.info("Dropped subscription {} on target", task.getSubscriptionName());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to drop subscription on target: {}", e.getMessage());
+            }
+
+            // Drop publication and slot on source
+            try {
+                String sourceUrl = "jdbc:postgresql://" + task.getSourceHost() + ":" + task.getSourcePort() + "/" + task.getSourceDbname();
+                Properties sourceProps = new Properties();
+                sourceProps.setProperty("user", task.getSourceUser());
+                sourceProps.setProperty("password", task.getSourcePassword());
+                sourceProps.setProperty("connectTimeout", "10");
+                try (Connection conn = DriverManager.getConnection(sourceUrl, sourceProps);
+                     Statement stmt = conn.createStatement()) {
+                    // Drop replication slot
+                    stmt.execute("SELECT pg_drop_replication_slot('" + task.getSlotName() + "') WHERE EXISTS (SELECT 1 FROM pg_replication_slots WHERE slot_name = '" + task.getSlotName() + "')");
+                    stmt.execute("DROP PUBLICATION IF EXISTS " + task.getPublicationName());
+                    log.info("Dropped publication {} and slot {} on source", task.getPublicationName(), task.getSlotName());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to cleanup source (may be unreachable): {}", e.getMessage());
+            }
+
+            task.setStatus(ImportTaskStatus.COMPLETED);
+            task.setSyncStatus("STOPPED");
+        } else {
+            // Just disable subscription (pause with slot retained)
+            try {
+                if (database.getStatus() == DatabaseStatus.SUSPENDED) {
+                    databaseService.wakeCompute(database);
+                    database = databaseRepository.findById(dbId).orElse(database);
+                }
+                String targetUrl = "jdbc:postgresql://" + database.getComputeHost() + ":55433/" + database.getName();
+                Properties targetProps = new Properties();
+                targetProps.setProperty("user", "cloud_admin");
+                targetProps.setProperty("password", "cloud-admin-internal");
+                targetProps.setProperty("connectTimeout", "10");
+                try (Connection conn = DriverManager.getConnection(targetUrl, targetProps);
+                     Statement stmt = conn.createStatement()) {
+                    stmt.execute("ALTER SUBSCRIPTION " + task.getSubscriptionName() + " DISABLE");
+                    log.info("Disabled subscription {} on target", task.getSubscriptionName());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to disable subscription: {}", e.getMessage());
+            }
+            task.setStatus(ImportTaskStatus.PAUSED);
+            task.setSyncStatus("PAUSED");
+        }
+
+        task.setFinishedAt(Instant.now());
+
+        // Restore original suspend timeout
+        final String origTimeout = task.getOriginalSuspendTimeout();
+        final String taskDbId = task.getDatabaseId();
+        if (origTimeout != null) {
+            databaseRepository.findById(taskDbId).ifPresent(db -> {
+                db.setSuspendTimeout(origTimeout);
+                databaseRepository.save(db);
+            });
+        }
+
+        task = importTaskRepository.save(task);
+
+        List<ImportTableTaskEntity> allTables = importTableTaskRepository
+            .findAllByImportTaskIdOrderBySchemaNameAscTableNameAsc(taskId);
+        return toResponse(task, allTables);
+    }
+
+    public SyncStatusResponse getSyncStatus(TenantEntity tenant, String dbId, String taskId) {
+        ImportTaskEntity task = findTaskForTenant(tenant, dbId, taskId);
+        if (task.getMode() != ImportMode.SYNC) {
+            throw new IllegalStateException("Sync status is only available for SYNC tasks");
+        }
+
+        List<ImportTableTaskEntity> tableTasks = importTableTaskRepository
+            .findAllByImportTaskIdOrderBySchemaNameAscTableNameAsc(taskId);
+
+        List<SyncStatusResponse.TableSyncStatus> tables = tableTasks.stream()
+            .map(t -> new SyncStatusResponse.TableSyncStatus(
+                t.getTableName(),
+                t.getSchemaName(),
+                syncStateToStatus(t.getSyncState()),
+                t.getSyncedRows(),
+                t.getErrorMessage()
+            ))
+            .toList();
+
+        return new SyncStatusResponse(
+            task.getSyncStatus(),
+            task.getReplayLagSeconds(),
+            task.getSyncRateRowsPerSec(),
+            task.getLastSyncAt(),
+            task.getWalRetainedBytes(),
+            task.getWalWarning(),
+            tables
+        );
+    }
+
+    private String syncStateToStatus(String state) {
+        if (state == null) return "INITIALIZING";
+        return switch (state) {
+            case "i" -> "INITIALIZING";
+            case "d" -> "COPYING";
+            case "f", "s" -> "SYNCING";
+            case "r" -> "SYNCING";
+            default -> "UNKNOWN";
+        };
+    }
+
     private void completeImportOperationLog(ImportTaskEntity task, String errorMessage) {
         if (task.getOperationLogId() == null) return;
         try {
@@ -487,7 +775,9 @@ public class ImportService {
                     t.getRowCount(),
                     t.getErrorMessage(),
                     t.getStartedAt(),
-                    t.getFinishedAt()
+                    t.getFinishedAt(),
+                    t.getSyncState(),
+                    t.getSyncedRows()
                 ))
                 .toList();
         }
@@ -507,7 +797,15 @@ public class ImportService {
             task.getCreatedAt(),
             task.getStartedAt(),
             task.getFinishedAt(),
-            tableResponses
+            tableResponses,
+            task.getPublicationName(),
+            task.getSubscriptionName(),
+            task.getSyncStatus(),
+            task.getReplayLagSeconds(),
+            task.getSyncRateRowsPerSec(),
+            task.getLastSyncAt(),
+            task.getWalRetainedBytes(),
+            task.getWalWarning()
         );
     }
 
@@ -520,6 +818,8 @@ public class ImportService {
     public void checkOrphanedImportTasks() {
         List<ImportTaskEntity> runningTasks = importTaskRepository.findAllByStatus(ImportTaskStatus.RUNNING);
         for (ImportTaskEntity task : runningTasks) {
+            // Skip SYNC tasks — their job pod exits normally after setup
+            if (task.getMode() == ImportMode.SYNC) continue;
             if (task.getJobPodName() != null && !importJobPodManager.isJobPodRunning(task.getId())) {
                 log.warn("Import task {} has no running Job Pod, marking as FAILED", task.getId());
                 task.setStatus(ImportTaskStatus.FAILED);

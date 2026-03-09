@@ -52,6 +52,17 @@ data:
   LAKEON_CLOUD_RESOURCE_IDS: {{ .Values.cloud.resourceIds | join "," | quote }}
   {{- end }}
   {{- end }}
+  {{- if .Values.sync }}
+  {{- if .Values.sync.pollIntervalMs }}
+  LAKEON_SYNC_POLL_INTERVAL_MS: {{ .Values.sync.pollIntervalMs | quote }}
+  {{- end }}
+  {{- if .Values.sync.walWarnBytes }}
+  LAKEON_SYNC_WAL_WARN_BYTES: {{ .Values.sync.walWarnBytes | quote }}
+  {{- end }}
+  {{- if .Values.sync.maxTasks }}
+  LAKEON_SYNC_MAX_TASKS: {{ .Values.sync.maxTasks | quote }}
+  {{- end }}
+  {{- end }}
   {{- if .Values.api.suspendPodRetainMinutes }}
   LAKEON_SUSPEND_POD_RETAIN_MINUTES: {{ .Values.api.suspendPodRetainMinutes | quote }}
   {{- end }}

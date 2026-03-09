@@ -19,6 +19,7 @@ public class LakeonProperties {
     private AlertConfig alert = new AlertConfig();
     private SuspendConfig suspend = new SuspendConfig();
     private BackupConfig backup = new BackupConfig();
+    private SyncConfig sync = new SyncConfig();
 
     public NeonConfig getNeon() { return neon; }
     public void setNeon(NeonConfig neon) { this.neon = neon; }
@@ -42,6 +43,8 @@ public class LakeonProperties {
     public void setSuspend(SuspendConfig suspend) { this.suspend = suspend; }
     public BackupConfig getBackup() { return backup; }
     public void setBackup(BackupConfig backup) { this.backup = backup; }
+    public SyncConfig getSync() { return sync; }
+    public void setSync(SyncConfig sync) { this.sync = sync; }
 
     public static class NeonConfig {
         private String pageserverUrl;
@@ -180,6 +183,19 @@ public class LakeonProperties {
         public void setCron(String cron) { this.cron = cron; }
         public int getRetentionCount() { return retentionCount; }
         public void setRetentionCount(int retentionCount) { this.retentionCount = retentionCount; }
+    }
+
+    public static class SyncConfig {
+        private long pollIntervalMs = 30000;
+        private long walWarnBytes = 1073741824L;
+        private int maxTasks = 10;
+
+        public long getPollIntervalMs() { return pollIntervalMs; }
+        public void setPollIntervalMs(long pollIntervalMs) { this.pollIntervalMs = pollIntervalMs; }
+        public long getWalWarnBytes() { return walWarnBytes; }
+        public void setWalWarnBytes(long walWarnBytes) { this.walWarnBytes = walWarnBytes; }
+        public int getMaxTasks() { return maxTasks; }
+        public void setMaxTasks(int maxTasks) { this.maxTasks = maxTasks; }
     }
 
     public static class DefaultsConfig {

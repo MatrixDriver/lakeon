@@ -14,5 +14,7 @@ public record ImportTableTaskResponse(
     @JsonProperty("row_count") Long rowCount,
     @JsonProperty("error_message") String errorMessage,
     @JsonProperty("started_at") Instant startedAt,
-    @JsonProperty("finished_at") Instant finishedAt
+    @JsonProperty("finished_at") Instant finishedAt,
+    @JsonProperty("sync_state") String syncState,
+    @JsonProperty("synced_rows") Long syncedRows
 ) {}

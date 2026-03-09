@@ -15,6 +15,8 @@ export interface ImportTableTask {
   error_message: string | null
   started_at: string | null
   finished_at: string | null
+  sync_state: string | null
+  synced_rows: number | null
 }
 
 export interface ImportTask {
@@ -33,11 +35,37 @@ export interface ImportTask {
   started_at: string | null
   finished_at: string | null
   tables: ImportTableTask[] | null
+  publication_name: string | null
+  subscription_name: string | null
+  sync_status: string | null
+  replay_lag_seconds: number | null
+  sync_rate_rows_per_sec: number | null
+  last_sync_at: string | null
+  wal_retained_bytes: number | null
+  wal_warning: boolean | null
+}
+
+export interface TableSyncStatus {
+  table_name: string
+  schema_name: string
+  status: string
+  synced_rows: number | null
+  error: string | null
+}
+
+export interface SyncStatusResponse {
+  overall_status: string
+  replay_lag_seconds: number | null
+  sync_rate_rows_per_sec: number | null
+  last_sync_at: string | null
+  wal_retained_bytes: number | null
+  wal_warning: boolean | null
+  tables: TableSyncStatus[]
 }
 
 export const importApi = {
   testConnection: (data: { host: string; port: number; dbname: string; user: string; password: string }) =>
-    client.post<{ ok: boolean; version?: string; error?: string }>('/import/test-connection', data, { timeout: 30000 }),
+    client.post<{ ok: boolean; version?: string; error?: string; wal_level?: string; has_replication?: boolean }>('/import/test-connection', data, { timeout: 30000 }),
 
   listSourceTables: (data: { host: string; port: number; dbname: string; user: string; password: string }) =>
     client.post<SourceTableInfo[]>('/import/source-tables', data, { timeout: 60000 }),
@@ -74,4 +102,10 @@ export const importApi = {
 
   retry: (dbId: string, taskId: string) =>
     client.post<ImportTask>(`/databases/${dbId}/import/${taskId}/retry`),
+
+  syncStatus: (dbId: string, taskId: string) =>
+    client.get<SyncStatusResponse>(`/databases/${dbId}/import/${taskId}/sync-status`),
+
+  stop: (dbId: string, taskId: string, cleanup: boolean = true) =>
+    client.post<ImportTask>(`/databases/${dbId}/import/${taskId}/stop`, { cleanup }),
 }

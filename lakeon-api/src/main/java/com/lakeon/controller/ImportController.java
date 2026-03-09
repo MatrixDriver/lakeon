@@ -87,6 +87,23 @@ public class ImportController {
         return importService.retryImport(tenant, dbId, taskId);
     }
 
+    @GetMapping("/databases/{dbId}/import/{taskId}/sync-status")
+    public SyncStatusResponse getSyncStatus(HttpServletRequest req,
+                                            @PathVariable String dbId,
+                                            @PathVariable String taskId) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return importService.getSyncStatus(tenant, dbId, taskId);
+    }
+
+    @PostMapping("/databases/{dbId}/import/{taskId}/stop")
+    public ImportTaskResponse stopSync(HttpServletRequest req,
+                                       @PathVariable String dbId,
+                                       @PathVariable String taskId,
+                                       @RequestBody StopSyncRequest request) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return importService.stopSync(tenant, dbId, taskId, request.cleanup());
+    }
+
     // Internal callback endpoint (no auth required — handled by ApiKeyFilter exclusion)
     @PutMapping("/import/callback/{taskId}")
     public void handleCallback(@PathVariable String taskId,

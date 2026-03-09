@@ -34,6 +34,12 @@ public class ImportTableTaskEntity {
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 
+    @Column(name = "sync_state", length = 16)
+    private String syncState;
+
+    @Column(name = "synced_rows")
+    private Long syncedRows;
+
     @Column(name = "started_at")
     private Instant startedAt;
 
@@ -118,4 +124,10 @@ public class ImportTableTaskEntity {
     public void setFinishedAt(Instant finishedAt) {
         this.finishedAt = finishedAt;
     }
+
+    public String getSyncState() { return syncState; }
+    public void setSyncState(String syncState) { this.syncState = syncState; }
+
+    public Long getSyncedRows() { return syncedRows; }
+    public void setSyncedRows(Long syncedRows) { this.syncedRows = syncedRows; }
 }

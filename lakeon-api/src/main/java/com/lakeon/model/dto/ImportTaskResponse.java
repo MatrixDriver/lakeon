@@ -25,5 +25,13 @@ public record ImportTaskResponse(
     @JsonProperty("created_at") Instant createdAt,
     @JsonProperty("started_at") Instant startedAt,
     @JsonProperty("finished_at") Instant finishedAt,
-    List<ImportTableTaskResponse> tables
+    List<ImportTableTaskResponse> tables,
+    @JsonProperty("publication_name") String publicationName,
+    @JsonProperty("subscription_name") String subscriptionName,
+    @JsonProperty("sync_status") String syncStatus,
+    @JsonProperty("replay_lag_seconds") Double replayLagSeconds,
+    @JsonProperty("sync_rate_rows_per_sec") Long syncRateRowsPerSec,
+    @JsonProperty("last_sync_at") Instant lastSyncAt,
+    @JsonProperty("wal_retained_bytes") Long walRetainedBytes,
+    @JsonProperty("wal_warning") Boolean walWarning
 ) {}

@@ -57,6 +57,10 @@ lakeon:
     smn-region: ${LAKEON_ALERT_SMN_REGION:cn-north-4}
   suspend:
     pod-retain-minutes: ${LAKEON_SUSPEND_POD_RETAIN_MINUTES:30}
+  sync:
+    poll-interval-ms: ${LAKEON_SYNC_POLL_INTERVAL_MS:30000}
+    wal-warn-bytes: ${LAKEON_SYNC_WAL_WARN_BYTES:1073741824}
+    max-tasks: ${LAKEON_SYNC_MAX_TASKS:10}
   defaults:
     compute-size: ${LAKEON_DEFAULT_COMPUTE_SIZE:1cu}
     suspend-timeout: ${LAKEON_DEFAULT_SUSPEND_TIMEOUT:5m}
