@@ -309,7 +309,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { databaseApi, type Database } from '../../api/database'
-import { branchApi, type Branch } from '../../api/branch'
+import { branchApi } from '../../api/branch'
 import { operationApi, type OperationLog } from '../../api/operation'
 import { formatDuration, formatDate } from '../../utils/format'
 import PerformanceMonitor from '../../components/PerformanceMonitor.vue'
