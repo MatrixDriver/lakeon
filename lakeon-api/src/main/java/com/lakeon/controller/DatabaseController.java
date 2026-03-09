@@ -1,6 +1,7 @@
 package com.lakeon.controller;
 
 import com.lakeon.model.dto.CreateDatabaseRequest;
+import com.lakeon.model.dto.DatabaseMetrics;
 import com.lakeon.model.dto.DatabaseResponse;
 import com.lakeon.model.dto.UpdateDatabaseRequest;
 import com.lakeon.model.entity.TenantEntity;
@@ -54,6 +55,19 @@ public class DatabaseController {
     public void deleteDatabase(HttpServletRequest req, @PathVariable String dbId) {
         TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
         databaseService.delete(tenant, dbId);
+    }
+
+    @GetMapping("/{dbId}/metrics")
+    public DatabaseMetrics getMetrics(HttpServletRequest req, @PathVariable String dbId) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return databaseService.getMetrics(tenant, dbId);
+    }
+
+    @GetMapping("/{dbId}/logs")
+    public List<Map<String, String>> getDatabaseLogs(HttpServletRequest req, @PathVariable String dbId,
+                                                     @RequestParam(defaultValue = "200") int tail) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return databaseService.getDatabaseLogs(tenant, dbId, tail);
     }
 
     @PostMapping("/{dbId}/reset-password")

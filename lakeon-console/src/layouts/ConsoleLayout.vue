@@ -77,7 +77,7 @@
           <div class="nav-group">
             <div class="nav-group-title">监控运维</div>
             <router-link to="/monitor" class="nav-item" active-class="active" @click="sidebarOpen = false">监控面板</router-link>
-            <router-link to="/audit" class="nav-item" active-class="active" @click="sidebarOpen = false">操作日志</router-link>
+            <router-link to="/logs" class="nav-item" active-class="active" @click="sidebarOpen = false">日志管理</router-link>
           </div>
           <div class="nav-group">
             <div class="nav-group-title">安全管理</div>

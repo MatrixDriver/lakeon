@@ -7,6 +7,7 @@ import com.lakeon.model.enums.ComputeSize;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
+import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetrics;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.ExecWatch;
 import io.micrometer.core.instrument.Gauge;
@@ -293,10 +294,25 @@ public class ComputePodManager {
     }
 
     /**
+     * Read recent container logs from a compute pod.
+     */
+    public String getComputePodLogs(String podName, int tailLines) {
+        String namespace = props.getK8s().getNamespace();
+        try {
+            return k8sClient.pods().inNamespace(namespace).withName(podName)
+                .tailingLines(tailLines)
+                .getLog();
+        } catch (Exception e) {
+            log.debug("Failed to get logs for pod {}: {}", podName, e.getMessage());
+            return "";
+        }
+    }
+
+    /**
      * Check if compute pod has active client connections by querying pg_stat_activity.
      */
     private static final String PG_STAT_QUERY =
-        "SELECT count(*) FROM pg_stat_activity WHERE backend_type='client backend' AND pid <> pg_backend_pid()";
+        "SELECT count(*) FROM pg_stat_activity WHERE backend_type='client backend' AND pid <> pg_backend_pid() AND application_name NOT LIKE 'compute_ctl:%'";
 
     public boolean hasActiveConnections(String podName) {
         return getActiveConnectionCount(podName) > 0;
@@ -327,6 +343,78 @@ public class ComputePodManager {
             log.debug("Failed to get connection count for pod {}: {}", podName, e.getMessage());
             return 0;
         }
+    }
+
+    /**
+     * Get the number of slow queries (running > 3 seconds) on a compute pod.
+     */
+    private static final String SLOW_QUERY_SQL =
+        "SELECT count(*) FROM pg_stat_activity WHERE backend_type='client backend' AND state='active' AND pid <> pg_backend_pid() AND now() - query_start > interval '3 seconds'";
+
+    public int getSlowQueryCount(String podName) {
+        String namespace = props.getK8s().getNamespace();
+        try {
+            ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+            ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+            try (ExecWatch exec = k8sClient.pods().inNamespace(namespace).withName(podName)
+                    .writingOutput(stdout)
+                    .writingError(stderr)
+                    .exec("psql", "-h", "127.0.0.1", "-p", "55433",
+                        "-U", "cloud_admin", "-d", "postgres", "-t", "-A", "-c", SLOW_QUERY_SQL)) {
+                exec.exitCode().get(5, java.util.concurrent.TimeUnit.SECONDS);
+            }
+            return Integer.parseInt(stdout.toString().trim());
+        } catch (Exception e) {
+            log.debug("Failed to get slow query count for pod {}: {}", podName, e.getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Get CPU and memory usage for a compute pod from K8s metrics API.
+     * Returns [cpuCores, memoryBytes] or null if unavailable.
+     */
+    public double[] getComputePodResourceUsage(String podName) {
+        String namespace = props.getK8s().getNamespace();
+        try {
+            PodMetrics pm = k8sClient.top().pods().inNamespace(namespace).withName(podName).metric();
+            if (pm == null || pm.getContainers() == null) return null;
+            double totalCpu = 0;
+            double totalMem = 0;
+            for (var container : pm.getContainers()) {
+                Quantity cpuQ = container.getUsage().get("cpu");
+                Quantity memQ = container.getUsage().get("memory");
+                if (cpuQ != null) totalCpu += parseCpuNano(cpuQ);
+                if (memQ != null) totalMem += parseMemBytes(memQ);
+            }
+            return new double[]{ totalCpu, totalMem };
+        } catch (Exception e) {
+            log.debug("Failed to get pod metrics for {}: {}", podName, e.getMessage());
+            return null;
+        }
+    }
+
+    private double parseCpuNano(Quantity q) {
+        String val = q.getAmount();
+        String fmt = q.getFormat();
+        try {
+            double amount = Double.parseDouble(val);
+            if ("n".equals(fmt)) return amount / 1_000_000_000;
+            if ("m".equals(fmt)) return amount / 1000;
+            return amount;
+        } catch (NumberFormatException e) { return 0; }
+    }
+
+    private double parseMemBytes(Quantity q) {
+        String val = q.getAmount();
+        String fmt = q.getFormat();
+        try {
+            double amount = Double.parseDouble(val);
+            if ("Ki".equals(fmt)) return amount * 1024;
+            if ("Mi".equals(fmt)) return amount * 1024 * 1024;
+            if ("Gi".equals(fmt)) return amount * 1024 * 1024 * 1024;
+            return amount;
+        } catch (NumberFormatException e) { return 0; }
     }
 
     private String generateComputeConfig(DatabaseEntity entity) {

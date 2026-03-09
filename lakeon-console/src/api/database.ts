@@ -86,6 +86,18 @@ export interface CreateTablePayload {
   primary_key?: string[]
 }
 
+export interface DatabaseMetrics {
+  cpuUsage: number
+  cpuLimit: number
+  memoryUsageMb: number
+  memoryLimitMb: number
+  activeConnections: number
+  slowQueries: number
+  storageUsedGb: number
+  storageLimitGb: number
+  status: string
+}
+
 export const databaseApi = {
   list: () => client.get<Database[]>('/databases'),
   get: (id: string) => client.get<Database>(`/databases/${id}`),
@@ -97,6 +109,8 @@ export const databaseApi = {
   suspend: (id: string) => client.post(`/databases/${id}/suspend`),
   resume: (id: string) => client.post(`/databases/${id}/resume`),
   resetPassword: (id: string) => client.post<{ password: string }>(`/databases/${id}/reset-password`),
+  getMetrics: (id: string) => client.get<DatabaseMetrics>(`/databases/${id}/metrics`),
+  getLogs: (id: string, tail?: number) => client.get<{ timestamp: string; level: string; message: string }[]>(`/databases/${id}/logs`, { params: { tail: tail || 200 } }),
 
   // Database Manager APIs
   listSchemas: (id: string) => client.get<SchemaInfo[]>(`/databases/${id}/schemas`),

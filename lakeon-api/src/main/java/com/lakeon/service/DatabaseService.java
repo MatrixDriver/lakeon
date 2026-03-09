@@ -8,6 +8,7 @@ import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.OperationLogEntity;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.model.enums.BranchStatus;
+import com.lakeon.model.enums.ComputeSize;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.model.enums.OperationType;
 import com.lakeon.neon.NeonApiClient;
@@ -201,6 +202,73 @@ public class DatabaseService {
             .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
         List<BranchEntity> branches = branchRepository.findAllByDatabaseId(dbId);
         return toResponse(entity, branches);
+    }
+
+    public DatabaseMetrics getMetrics(TenantEntity tenant, String dbId) {
+        DatabaseEntity entity = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
+            .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+
+        DatabaseMetrics m = new DatabaseMetrics();
+        m.setStatus(entity.getStatus().name());
+        m.setStorageUsedGb(fetchStorageUsedGb(entity));
+        m.setStorageLimitGb(entity.getStorageLimitGb());
+
+        ComputeSize spec = ComputeSize.fromLabel(entity.getComputeSize());
+        m.setCpuLimit(Double.parseDouble(spec.getCpu()));
+        String memStr = spec.getMemory().replace("Gi", "");
+        m.setMemoryLimitMb(Double.parseDouble(memStr) * 1024);
+
+        String podName = entity.getComputePodName();
+        if (podName != null) {
+            m.setActiveConnections(computePodManager.getActiveConnectionCount(podName));
+            m.setSlowQueries(computePodManager.getSlowQueryCount(podName));
+
+            double[] resources = computePodManager.getComputePodResourceUsage(podName);
+            if (resources != null) {
+                m.setCpuUsage(Math.round(resources[0] * 1000) / 1000.0);
+                m.setMemoryUsageMb(Math.round(resources[1] / (1024 * 1024) * 10) / 10.0);
+            }
+        }
+        return m;
+    }
+
+    public List<Map<String, String>> getDatabaseLogs(TenantEntity tenant, String dbId, int tailLines) {
+        DatabaseEntity entity = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
+            .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+        String podName = entity.getComputePodName();
+        if (podName == null) return List.of();
+
+        String rawLogs = computePodManager.getComputePodLogs(podName, Math.min(tailLines, 500));
+        if (rawLogs == null || rawLogs.isBlank()) return List.of();
+
+        List<Map<String, String>> result = new java.util.ArrayList<>();
+        for (String line : rawLogs.split("\n")) {
+            if (line.isBlank()) continue;
+            Map<String, String> entry = new java.util.LinkedHashMap<>();
+            // Try to parse PG log format: "2026-03-09 12:00:00.123 UTC [pid] LOG:  message"
+            String level = "INFO";
+            String message = line;
+            String timestamp = "";
+            if (line.length() > 24 && line.charAt(4) == '-') {
+                int bracketEnd = line.indexOf(']');
+                if (bracketEnd > 0 && bracketEnd + 2 < line.length()) {
+                    timestamp = line.substring(0, Math.min(23, line.length()));
+                    String rest = line.substring(bracketEnd + 1).trim();
+                    int colonIdx = rest.indexOf(':');
+                    if (colonIdx > 0 && colonIdx < 12) {
+                        level = rest.substring(0, colonIdx).trim();
+                        message = rest.substring(colonIdx + 1).trim();
+                    } else {
+                        message = rest;
+                    }
+                }
+            }
+            entry.put("timestamp", timestamp);
+            entry.put("level", level);
+            entry.put("message", message);
+            result.add(entry);
+        }
+        return result;
     }
 
     public List<DatabaseResponse> list(TenantEntity tenant) {
