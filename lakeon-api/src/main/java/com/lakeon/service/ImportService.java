@@ -621,10 +621,18 @@ public class ImportService {
             throw new IllegalStateException("Cannot stop task in status: " + task.getStatus());
         }
 
-        DatabaseEntity database = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
-            .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+        // RUNNING = initial data copy phase, subscription not yet created — just kill job pod
+        if (task.getStatus() == ImportTaskStatus.RUNNING) {
+            if (task.getJobPodName() != null) {
+                importJobPodManager.deleteJobPod(taskId);
+                task.setJobPodName(null);
+            }
+            task.setStatus(ImportTaskStatus.COMPLETED);
+            task.setSyncStatus("STOPPED");
+        } else if (cleanup) {
+            DatabaseEntity database = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
+                .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
 
-        if (cleanup) {
             // Drop subscription on target (must disable first)
             try {
                 if (database.getStatus() == DatabaseStatus.SUSPENDED) {
@@ -668,6 +676,9 @@ public class ImportService {
             task.setStatus(ImportTaskStatus.COMPLETED);
             task.setSyncStatus("STOPPED");
         } else {
+            DatabaseEntity database = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
+                .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+
             // Just disable subscription (pause with slot retained)
             try {
                 if (database.getStatus() == DatabaseStatus.SUSPENDED) {

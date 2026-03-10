@@ -366,24 +366,28 @@ class ImportServiceSyncTest {
         }
 
         @Test
-        @DisplayName("UT-SVC-IMP-008: RUNNING 状态的 SYNC 任务可以停止")
-        void stopSync_runningStatus_succeeds() {
+        @DisplayName("UT-SVC-IMP-008: RUNNING 状态停止 — 删除 job pod，跳过 JDBC 清理")
+        void stopSync_runningStatus_killsJobPodAndSkipsJdbc() {
             syncTask.setStatus(ImportTaskStatus.RUNNING);
+            syncTask.setJobPodName("import-pod-sync");
 
             when(importTaskRepository.findByIdAndTenantId("imp_stop001", "tn_test001"))
                 .thenReturn(Optional.of(syncTask));
-            when(databaseRepository.findByIdAndTenantId("db_test001", "tn_test001"))
-                .thenReturn(Optional.of(testDatabase));
             when(importTaskRepository.save(any(ImportTaskEntity.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
             when(importTableTaskRepository.findAllByImportTaskIdOrderBySchemaNameAscTableNameAsc("imp_stop001"))
                 .thenReturn(List.of());
 
-            // cleanup=false avoids JDBC calls to source; target JDBC will fail silently in test
-            ImportTaskResponse result = importService.stopSync(testTenant, "db_test001", "imp_stop001", false);
+            // cleanup=true but RUNNING should skip JDBC entirely
+            ImportTaskResponse result = importService.stopSync(testTenant, "db_test001", "imp_stop001", true);
 
             assertThat(result).isNotNull();
-            assertThat(syncTask.getStatus()).isEqualTo(ImportTaskStatus.PAUSED);
+            assertThat(syncTask.getStatus()).isEqualTo(ImportTaskStatus.COMPLETED);
+            assertThat(syncTask.getSyncStatus()).isEqualTo("STOPPED");
+            assertThat(syncTask.getJobPodName()).isNull();
+            verify(importJobPodManager).deleteJobPod("imp_stop001");
+            // No database lookup needed — JDBC cleanup skipped
+            verify(databaseRepository, never()).findByIdAndTenantId(any(), any());
         }
 
         @Test
