@@ -613,7 +613,8 @@ public class ImportService {
         if (task.getMode() != ImportMode.SYNC) {
             throw new IllegalStateException("Stop is only available for SYNC tasks");
         }
-        if (task.getStatus() != ImportTaskStatus.SYNCING
+        if (task.getStatus() != ImportTaskStatus.RUNNING
+            && task.getStatus() != ImportTaskStatus.SYNCING
             && task.getStatus() != ImportTaskStatus.PAUSED
             && task.getStatus() != ImportTaskStatus.CATCHING_UP
             && task.getStatus() != ImportTaskStatus.FAILED) {

@@ -304,7 +304,16 @@ async function handleRetry() {
 }
 async function handleStop() {
   actionLoading.value = true
-  try { await importApi.stop(props.dbId, props.taskId, stopCleanup.value); await fetchTask(); showStopDialog.value = false; emit('updated') } finally { actionLoading.value = false }
+  try {
+    await importApi.stop(props.dbId, props.taskId, stopCleanup.value)
+    await fetchTask()
+    showStopDialog.value = false
+    emit('updated')
+  } catch (e: any) {
+    alert(e?.response?.data?.error || e?.message || '停止失败')
+  } finally {
+    actionLoading.value = false
+  }
 }
 
 const activeStatuses = ['RUNNING', 'PENDING', 'SYNCING', 'CATCHING_UP']

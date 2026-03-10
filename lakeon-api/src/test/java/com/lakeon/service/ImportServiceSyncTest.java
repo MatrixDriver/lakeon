@@ -343,6 +343,80 @@ class ImportServiceSyncTest {
     }
 
     @Nested
+    @DisplayName("stopSync")
+    class StopSync {
+
+        private ImportTaskEntity syncTask;
+
+        @BeforeEach
+        void setUpSyncTask() {
+            syncTask = new ImportTaskEntity();
+            syncTask.setId("imp_stop001");
+            syncTask.setTenantId("tn_test001");
+            syncTask.setDatabaseId("db_test001");
+            syncTask.setMode(ImportMode.SYNC);
+            syncTask.setSubscriptionName("lakeon_sub_test");
+            syncTask.setPublicationName("lakeon_pub_test");
+            syncTask.setSlotName("lakeon_slot_test");
+            syncTask.setSourceHost("source.example.com");
+            syncTask.setSourcePort(5432);
+            syncTask.setSourceDbname("sourcedb");
+            syncTask.setSourceUser("srcuser");
+            syncTask.setSourcePassword("srcpass");
+        }
+
+        @Test
+        @DisplayName("UT-SVC-IMP-008: RUNNING 状态的 SYNC 任务可以停止")
+        void stopSync_runningStatus_succeeds() {
+            syncTask.setStatus(ImportTaskStatus.RUNNING);
+
+            when(importTaskRepository.findByIdAndTenantId("imp_stop001", "tn_test001"))
+                .thenReturn(Optional.of(syncTask));
+            when(databaseRepository.findByIdAndTenantId("db_test001", "tn_test001"))
+                .thenReturn(Optional.of(testDatabase));
+            when(importTaskRepository.save(any(ImportTaskEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+            when(importTableTaskRepository.findAllByImportTaskIdOrderBySchemaNameAscTableNameAsc("imp_stop001"))
+                .thenReturn(List.of());
+
+            // cleanup=false avoids JDBC calls to source; target JDBC will fail silently in test
+            ImportTaskResponse result = importService.stopSync(testTenant, "db_test001", "imp_stop001", false);
+
+            assertThat(result).isNotNull();
+            assertThat(syncTask.getStatus()).isEqualTo(ImportTaskStatus.PAUSED);
+        }
+
+        @Test
+        @DisplayName("UT-SVC-IMP-009: COMPLETED 状态的 SYNC 任务不允许停止")
+        void stopSync_completedStatus_throws() {
+            syncTask.setStatus(ImportTaskStatus.COMPLETED);
+
+            when(importTaskRepository.findByIdAndTenantId("imp_stop001", "tn_test001"))
+                .thenReturn(Optional.of(syncTask));
+
+            assertThatThrownBy(() ->
+                importService.stopSync(testTenant, "db_test001", "imp_stop001", false))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Cannot stop task in status");
+        }
+
+        @Test
+        @DisplayName("UT-SVC-IMP-010: 非 SYNC 任务不允许停止")
+        void stopSync_nonSyncTask_throws() {
+            syncTask.setMode(ImportMode.FULL);
+            syncTask.setStatus(ImportTaskStatus.RUNNING);
+
+            when(importTaskRepository.findByIdAndTenantId("imp_stop001", "tn_test001"))
+                .thenReturn(Optional.of(syncTask));
+
+            assertThatThrownBy(() ->
+                importService.stopSync(testTenant, "db_test001", "imp_stop001", false))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("only available for SYNC");
+        }
+    }
+
+    @Nested
     @DisplayName("checkOrphanedImportTasks")
     class CheckOrphanedImportTasks {
 
