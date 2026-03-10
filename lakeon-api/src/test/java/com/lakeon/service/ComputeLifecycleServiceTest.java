@@ -47,7 +47,8 @@ class ComputeLifecycleServiceTest {
     void setUp() {
         props = new LakeonProperties();
         computeLifecycleService = new ComputeLifecycleService(
-                databaseRepository, computePodManager, operationLogService, props);
+                databaseRepository, computePodManager, operationLogService, props,
+                TestTransactionTemplate.create());
     }
 
     @Test

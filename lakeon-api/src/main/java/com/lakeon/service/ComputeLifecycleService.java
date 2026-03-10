@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -30,15 +31,18 @@ public class ComputeLifecycleService {
     private final ComputePodManager computePodManager;
     private final OperationLogService operationLogService;
     private final LakeonProperties props;
+    private final TransactionTemplate txTemplate;
 
     public ComputeLifecycleService(DatabaseRepository databaseRepository,
                                    ComputePodManager computePodManager,
                                    OperationLogService operationLogService,
-                                   LakeonProperties props) {
+                                   LakeonProperties props,
+                                   TransactionTemplate txTemplate) {
         this.databaseRepository = databaseRepository;
         this.computePodManager = computePodManager;
         this.operationLogService = operationLogService;
         this.props = props;
+        this.txTemplate = txTemplate;
     }
 
     /**
@@ -46,10 +50,11 @@ public class ComputeLifecycleService {
      * Warm path: if Pod still exists and is ready, returns immediately (~100ms).
      * Cold path: creates a new Pod and waits for it to become ready (~10s).
      */
-    @Transactional
     public String wakeCompute(String dbId) {
-        DatabaseEntity entity = databaseRepository.findById(dbId)
-            .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+        // Transaction 1: read entity
+        DatabaseEntity entity = txTemplate.execute(status ->
+            databaseRepository.findById(dbId)
+                .orElseThrow(() -> new NotFoundException("Database not found: " + dbId)));
 
         // If already running, return existing address
         if (entity.getStatus() == DatabaseStatus.RUNNING
@@ -60,27 +65,37 @@ public class ComputeLifecycleService {
         // Warm path: Pod was retained after suspend, check if it's still alive
         if (entity.getComputePodName() != null && computePodManager.isPodReady(entity.getComputePodName())) {
             log.info("Warm wake for database {} — Pod {} still running", dbId, entity.getComputePodName());
-            entity.setStatus(DatabaseStatus.RUNNING);
-            entity.setSuspendedAt(null);
-            entity.setLastActiveAt(Instant.now());
-            databaseRepository.save(entity);
+            txTemplate.executeWithoutResult(status -> {
+                DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
+                e.setStatus(DatabaseStatus.RUNNING);
+                e.setSuspendedAt(null);
+                e.setLastActiveAt(Instant.now());
+                databaseRepository.save(e);
+            });
             return entity.getComputeHost() + ":" + entity.getComputePort();
         }
 
-        // Cold path: create new Pod
+        // Cold path: create new Pod (outside transaction, may block 120s)
         String address = computePodManager.createComputePod(entity);
         String podName = entity.getComputePodName();
         boolean ready = computePodManager.waitForPodReady(podName, DEFAULT_WAKE_TIMEOUT_MS);
 
+        // Transaction 2: update status
         if (ready) {
-            entity.setStatus(DatabaseStatus.RUNNING);
-            entity.setSuspendedAt(null);
-            entity.setLastActiveAt(Instant.now());
-            databaseRepository.save(entity);
+            txTemplate.executeWithoutResult(status -> {
+                DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
+                e.setStatus(DatabaseStatus.RUNNING);
+                e.setSuspendedAt(null);
+                e.setLastActiveAt(Instant.now());
+                databaseRepository.save(e);
+            });
             return address;
         } else {
-            entity.setStatus(DatabaseStatus.ERROR);
-            databaseRepository.save(entity);
+            txTemplate.executeWithoutResult(status -> {
+                DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
+                e.setStatus(DatabaseStatus.ERROR);
+                databaseRepository.save(e);
+            });
             throw new WakeComputeTimeoutException("Compute wake timeout for database: " + dbId);
         }
     }

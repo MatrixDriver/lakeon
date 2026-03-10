@@ -80,7 +80,7 @@ public class BackupService {
 
             // Create a branch timeline at the current LSN (instant operation in Neon)
             String newTimelineId = generateHexId();
-            CreateTimelineRequest timelineReq = new CreateTimelineRequest(
+            CreateTimelineRequest timelineReq = CreateTimelineRequest.forBranchAtLsn(
                 newTimelineId, database.getNeonTimelineId(), currentLsn);
             NeonTimeline backupTimeline = neonApiClient.createTimeline(
                 database.getNeonTenantId(), timelineReq);
@@ -163,7 +163,7 @@ public class BackupService {
         try {
             // Create a new timeline branched from the backup's timeline
             String newTimelineId = generateHexId();
-            CreateTimelineRequest timelineReq = new CreateTimelineRequest(
+            CreateTimelineRequest timelineReq = CreateTimelineRequest.forBranchAtLsn(
                 newTimelineId, backup.getNeonTimelineId(), backup.getLsn());
             NeonTimeline restoredTimeline = neonApiClient.createTimeline(
                 backup.getNeonTenantId(), timelineReq);

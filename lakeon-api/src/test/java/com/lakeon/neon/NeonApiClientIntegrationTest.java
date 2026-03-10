@@ -90,7 +90,7 @@ class NeonApiClientIntegrationTest {
                                     """)));
 
             // When
-            var result = neonApiClient.createTimeline("tenant-abc", new CreateTimelineRequest());
+            var result = neonApiClient.createTimeline("tenant-abc", CreateTimelineRequest.forNewTimeline("test-timeline", 17));
 
             // Then
             assertThat(result).isNotNull();
@@ -108,7 +108,7 @@ class NeonApiClientIntegrationTest {
 
             // When / Then
             assertThatThrownBy(() ->
-                    neonApiClient.createTimeline("tenant-abc", new CreateTimelineRequest()))
+                    neonApiClient.createTimeline("tenant-abc", CreateTimelineRequest.forNewTimeline("test-timeline", 17)))
                     .isInstanceOf(NeonApiException.class);
         }
     }

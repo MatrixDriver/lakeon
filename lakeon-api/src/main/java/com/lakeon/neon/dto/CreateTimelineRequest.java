@@ -18,22 +18,32 @@ public class CreateTimelineRequest {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private String ancestorStartLsn;
 
-    public CreateTimelineRequest() {}
+    // Private constructor — use static factory methods
+    private CreateTimelineRequest() {}
 
-    public CreateTimelineRequest(String newTimelineId, Integer pgVersion) {
-        this.newTimelineId = newTimelineId;
-        this.pgVersion = pgVersion;
+    /** Create a new root timeline with the given PG version. */
+    public static CreateTimelineRequest forNewTimeline(String timelineId, int pgVersion) {
+        CreateTimelineRequest req = new CreateTimelineRequest();
+        req.newTimelineId = timelineId;
+        req.pgVersion = pgVersion;
+        return req;
     }
 
-    public CreateTimelineRequest(String newTimelineId, String ancestorTimelineId) {
-        this.newTimelineId = newTimelineId;
-        this.ancestorTimelineId = ancestorTimelineId;
+    /** Create a branch timeline from an ancestor. */
+    public static CreateTimelineRequest forBranch(String timelineId, String ancestorTimelineId) {
+        CreateTimelineRequest req = new CreateTimelineRequest();
+        req.newTimelineId = timelineId;
+        req.ancestorTimelineId = ancestorTimelineId;
+        return req;
     }
 
-    public CreateTimelineRequest(String newTimelineId, String ancestorTimelineId, String ancestorStartLsn) {
-        this.newTimelineId = newTimelineId;
-        this.ancestorTimelineId = ancestorTimelineId;
-        this.ancestorStartLsn = ancestorStartLsn;
+    /** Create a branch timeline from an ancestor at a specific LSN. */
+    public static CreateTimelineRequest forBranchAtLsn(String timelineId, String ancestorTimelineId, String ancestorStartLsn) {
+        CreateTimelineRequest req = new CreateTimelineRequest();
+        req.newTimelineId = timelineId;
+        req.ancestorTimelineId = ancestorTimelineId;
+        req.ancestorStartLsn = ancestorStartLsn;
+        return req;
     }
 
     public String getNewTimelineId() { return newTimelineId; }

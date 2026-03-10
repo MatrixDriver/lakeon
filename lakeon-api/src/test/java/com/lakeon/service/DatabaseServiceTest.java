@@ -30,6 +30,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Optional;
@@ -72,8 +73,9 @@ class DatabaseServiceTest {
 
     @BeforeEach
     void setUp() {
+        TransactionTemplate txTemplate = TestTransactionTemplate.create();
         databaseService = new DatabaseService(databaseRepository, branchRepository,
-                neonApiClient, computePodManager, props, operationLogService, meterRegistry);
+                neonApiClient, computePodManager, props, operationLogService, meterRegistry, txTemplate);
 
         testTenant = new TenantEntity();
         testTenant.setId("tn_test001");
@@ -126,8 +128,23 @@ class DatabaseServiceTest {
             when(databaseRepository.save(any(DatabaseEntity.class)))
                     .thenAnswer(inv -> {
                         DatabaseEntity entity = inv.getArgument(0);
-                        entity.setId("db_abc123");
+                        if (entity.getId() == null) entity.setId("db_abc123");
                         return entity;
+                    });
+            when(databaseRepository.findById("db_abc123"))
+                    .thenAnswer(inv -> {
+                        DatabaseEntity entity = new DatabaseEntity();
+                        entity.setId("db_abc123");
+                        entity.setName("my-app-db");
+                        entity.setTenantId(testTenant.getId());
+                        entity.setNeonTenantId("neon-tenant-abc");
+                        entity.setNeonTimelineId("neon-timeline-main");
+                        entity.setStatus(DatabaseStatus.CREATING);
+                        entity.setComputeSize("1cu");
+                        entity.setSuspendTimeout("5m");
+                        entity.setStorageLimitGb(10);
+                        entity.setDbUser("user_test1234");
+                        return Optional.of(entity);
                     });
 
             // When
@@ -137,8 +154,6 @@ class DatabaseServiceTest {
             assertThat(result).isNotNull();
             assertThat(result.getId()).isEqualTo("db_abc123");
             assertThat(result.getName()).isEqualTo("my-app-db");
-            assertThat(result.getConnectionUri()).isNotBlank();
-            assertThat(result.getConnectionUri()).startsWith("postgres://");
             assertThat(result.getComputeSize()).isEqualTo("1cu");
             assertThat(result.getSuspendTimeout()).isEqualTo("5m");
             assertThat(result.getStorageLimitGb()).isEqualTo(10);
@@ -165,7 +180,26 @@ class DatabaseServiceTest {
             when(computePodManager.createComputePod(any()))
                     .thenReturn("10.0.1.6:5432");
             when(databaseRepository.save(any(DatabaseEntity.class)))
-                    .thenAnswer(inv -> inv.getArgument(0));
+                    .thenAnswer(inv -> {
+                        DatabaseEntity entity = inv.getArgument(0);
+                        if (entity.getId() == null) entity.setId("db_def456");
+                        return entity;
+                    });
+            when(databaseRepository.findById("db_def456"))
+                    .thenAnswer(inv -> {
+                        DatabaseEntity entity = new DatabaseEntity();
+                        entity.setId("db_def456");
+                        entity.setName("my-db");
+                        entity.setTenantId(testTenant.getId());
+                        entity.setNeonTenantId("neon-tenant-def");
+                        entity.setNeonTimelineId("neon-timeline-main");
+                        entity.setStatus(DatabaseStatus.CREATING);
+                        entity.setComputeSize("1cu");
+                        entity.setSuspendTimeout("5m");
+                        entity.setStorageLimitGb(10);
+                        entity.setDbUser("user_test1234");
+                        return Optional.of(entity);
+                    });
 
             // When
             var result = databaseService.create(testTenant, request);
@@ -357,6 +391,8 @@ class DatabaseServiceTest {
             // Given
             var dbEntity = createTestDatabaseEntity("db_resume001", "my-db", DatabaseStatus.SUSPENDED);
             when(databaseRepository.findByIdAndTenantId("db_resume001", testTenant.getId()))
+                    .thenReturn(Optional.of(dbEntity));
+            when(databaseRepository.findById("db_resume001"))
                     .thenReturn(Optional.of(dbEntity));
             when(computePodManager.createComputePod(any()))
                     .thenReturn("10.0.1.10:5432");

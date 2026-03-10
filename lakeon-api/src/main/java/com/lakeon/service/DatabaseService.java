@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -47,6 +48,7 @@ public class DatabaseService {
     private final LakeonProperties props;
     private final OperationLogService operationLogService;
     private final MeterRegistry meterRegistry;
+    private final TransactionTemplate txTemplate;
     private final Counter wakeupFailureCounter;
 
     public DatabaseService(DatabaseRepository databaseRepository,
@@ -55,7 +57,8 @@ public class DatabaseService {
                            ComputePodManager computePodManager,
                            LakeonProperties props,
                            OperationLogService operationLogService,
-                           MeterRegistry meterRegistry) {
+                           MeterRegistry meterRegistry,
+                           TransactionTemplate txTemplate) {
         this.databaseRepository = databaseRepository;
         this.branchRepository = branchRepository;
         this.neonApiClient = neonApiClient;
@@ -63,132 +66,141 @@ public class DatabaseService {
         this.props = props;
         this.operationLogService = operationLogService;
         this.meterRegistry = meterRegistry;
+        this.txTemplate = txTemplate;
         this.wakeupFailureCounter = Counter.builder("lakeon_compute_wakeup_failures_total")
             .description("Total number of compute wakeup failures")
             .register(meterRegistry);
     }
 
-    @Transactional
     public DatabaseResponse create(TenantEntity tenant, CreateDatabaseRequest request) {
-        // Check name uniqueness
-        databaseRepository.findByTenantIdAndName(tenant.getId(), request.name()).ifPresent(existing -> {
-            throw new ConflictException("Database '" + request.name() + "' already exists for this tenant");
-        });
-
-        // Check quota: database count
-        int currentDbCount = databaseRepository.findAllByTenantId(tenant.getId()).size();
-        if (tenant.getMaxDatabases() != null && currentDbCount >= tenant.getMaxDatabases()) {
-            throw new QuotaExceededException(
-                "Database quota exceeded: limit is " + tenant.getMaxDatabases() + ", current count is " + currentDbCount);
-        }
-
-        // Apply defaults
-        String computeSize = request.computeSize() != null ? request.computeSize() : props.getDefaults().getComputeSize();
-        String suspendTimeout = request.suspendTimeout() != null ? request.suspendTimeout() : props.getDefaults().getSuspendTimeout();
-        int storageLimitGb = request.storageLimitGb() != null ? request.storageLimitGb() : props.getDefaults().getStorageLimitGb();
-
-        // Check quota: compute size
-        int requestedCu = parseComputeUnits(computeSize);
-        if (tenant.getMaxComputeCu() != null && requestedCu > tenant.getMaxComputeCu()) {
-            throw new QuotaExceededException(
-                "Compute quota exceeded: requested " + computeSize + " but max allowed is " + tenant.getMaxComputeCu() + "cu");
-        }
-
         // Generate credentials
         String dbUser = "user_" + UUID.randomUUID().toString().substring(0, 8);
         String rawPassword = generatePassword();
         String scramHash = ScramUtils.generateScramHash(rawPassword);
 
-        // Create Neon tenant
-        NeonTenant neonTenant;
-        try {
-            neonTenant = neonApiClient.createTenant(generateHexId());
-        } catch (Exception e) {
-            throw new ServiceException("Failed to create Neon tenant: " + e.getMessage(), e);
-        }
+        // Transaction 1: validate + create Neon resources + save entity as CREATING
+        record CreateResult(DatabaseEntity entity, NeonTenant neonTenant, NeonTimeline neonTimeline) {}
+        CreateResult created = txTemplate.execute(status -> {
+            // Check name uniqueness
+            databaseRepository.findByTenantIdAndName(tenant.getId(), request.name()).ifPresent(existing -> {
+                throw new ConflictException("Database '" + request.name() + "' already exists for this tenant");
+            });
 
-        // Wait for tenant to become Active before creating timeline
-        try {
-            neonApiClient.waitForTenantActive(neonTenant.getId(), 30);
-        } catch (Exception e) {
-            try { neonApiClient.deleteTenant(neonTenant.getId()); } catch (Exception rollbackEx) {
-                log.warn("Failed to rollback Neon tenant {}: {}", neonTenant.getId(), rollbackEx.getMessage());
+            // Check quota: database count
+            int currentDbCount = databaseRepository.findAllByTenantId(tenant.getId()).size();
+            if (tenant.getMaxDatabases() != null && currentDbCount >= tenant.getMaxDatabases()) {
+                throw new QuotaExceededException(
+                    "Database quota exceeded: limit is " + tenant.getMaxDatabases() + ", current count is " + currentDbCount);
             }
-            throw new ServiceException("Tenant did not become active: " + e.getMessage(), e);
-        }
 
-        // Create Neon timeline
-        NeonTimeline neonTimeline;
-        try {
-            neonTimeline = neonApiClient.createTimeline(neonTenant.getId(),
-                new CreateTimelineRequest(generateHexId(), 17));
-        } catch (Exception e) {
-            // Rollback: delete tenant
-            try { neonApiClient.deleteTenant(neonTenant.getId()); } catch (Exception rollbackEx) {
-                log.warn("Failed to rollback Neon tenant {}: {}", neonTenant.getId(), rollbackEx.getMessage());
+            // Apply defaults
+            String computeSize = request.computeSize() != null ? request.computeSize() : props.getDefaults().getComputeSize();
+            String suspendTimeout = request.suspendTimeout() != null ? request.suspendTimeout() : props.getDefaults().getSuspendTimeout();
+            int storageLimitGb = request.storageLimitGb() != null ? request.storageLimitGb() : props.getDefaults().getStorageLimitGb();
+
+            // Check quota: compute size
+            int requestedCu = parseComputeUnits(computeSize);
+            if (tenant.getMaxComputeCu() != null && requestedCu > tenant.getMaxComputeCu()) {
+                throw new QuotaExceededException(
+                    "Compute quota exceeded: requested " + computeSize + " but max allowed is " + tenant.getMaxComputeCu() + "cu");
             }
-            throw new ServiceException("Failed to create Neon timeline: " + e.getMessage(), e);
-        }
 
-        // Create compute Pod
-        DatabaseEntity entity = new DatabaseEntity();
-        entity.setName(request.name());
-        entity.setTenantId(tenant.getId());
-        entity.setNeonTenantId(neonTenant.getId());
-        entity.setNeonTimelineId(neonTimeline.getTimelineId());
-        entity.setStatus(DatabaseStatus.CREATING);
-        entity.setComputeSize(computeSize);
-        entity.setSuspendTimeout(suspendTimeout);
-        entity.setStorageLimitGb(storageLimitGb);
-        entity.setDbUser(dbUser);
-        entity.setDbPassword(scramHash);
-
-        // Set connection host and port from proxy configuration
-        String proxyHost = props.getProxy().getExternalHost();
-        if (proxyHost != null && !proxyHost.isBlank()) {
-            entity.setComputeHost(proxyHost);
-        } else {
-            entity.setComputeHost("proxy.lakeon.svc.cluster.local");
-        }
-        entity.setComputePort(props.getProxy().getExternalPort());
-
-        // Save entity first to generate ID (needed by computePodManager)
-        entity = databaseRepository.save(entity);
-
-        // Start operation log after entity has its generated ID
-        OperationLogEntity opLog = operationLogService.startOperation(
-                entity.getId(), entity.getTenantId(), entity.getName(), OperationType.CREATE);
-        try {
+            // Create Neon tenant
+            NeonTenant neonTenant;
             try {
-                computePodManager.createComputePod(entity);
-                computePodManager.waitForPodReady(entity.getComputePodName(), 60_000);
+                neonTenant = neonApiClient.createTenant(generateHexId());
             } catch (Exception e) {
-                // Rollback
-                databaseRepository.delete(entity);
+                throw new ServiceException("Failed to create Neon tenant: " + e.getMessage(), e);
+            }
+
+            // Wait for tenant to become Active before creating timeline
+            try {
+                neonApiClient.waitForTenantActive(neonTenant.getId(), 30);
+            } catch (Exception e) {
                 try { neonApiClient.deleteTenant(neonTenant.getId()); } catch (Exception rollbackEx) {
                     log.warn("Failed to rollback Neon tenant {}: {}", neonTenant.getId(), rollbackEx.getMessage());
                 }
-                throw new ServiceException("Failed to create compute Pod: " + e.getMessage(), e);
+                throw new ServiceException("Tenant did not become active: " + e.getMessage(), e);
             }
 
-            // Build connection URI pointing to proxy external address (user-facing)
-            entity.setConnectionUri(buildConnectionUri(dbUser, request.name()));
-            entity.setStatus(DatabaseStatus.RUNNING);
-            entity.setLastActiveAt(Instant.now());
-            entity = databaseRepository.save(entity);
+            // Create Neon timeline
+            NeonTimeline neonTimeline;
+            try {
+                neonTimeline = neonApiClient.createTimeline(neonTenant.getId(),
+                    CreateTimelineRequest.forNewTimeline(generateHexId(), 17));
+            } catch (Exception e) {
+                try { neonApiClient.deleteTenant(neonTenant.getId()); } catch (Exception rollbackEx) {
+                    log.warn("Failed to rollback Neon tenant {}: {}", neonTenant.getId(), rollbackEx.getMessage());
+                }
+                throw new ServiceException("Failed to create Neon timeline: " + e.getMessage(), e);
+            }
 
-            // Create default branch
-            BranchEntity mainBranch = new BranchEntity();
-            mainBranch.setName("main");
-            mainBranch.setDatabaseId(entity.getId());
-            mainBranch.setNeonTimelineId(neonTimeline.getTimelineId());
-            mainBranch.setIsDefault(true);
-            mainBranch.setStatus(BranchStatus.ACTIVE);
-            branchRepository.save(mainBranch);
+            // Build entity
+            DatabaseEntity entity = new DatabaseEntity();
+            entity.setName(request.name());
+            entity.setTenantId(tenant.getId());
+            entity.setNeonTenantId(neonTenant.getId());
+            entity.setNeonTimelineId(neonTimeline.getTimelineId());
+            entity.setStatus(DatabaseStatus.CREATING);
+            entity.setComputeSize(computeSize);
+            entity.setSuspendTimeout(suspendTimeout);
+            entity.setStorageLimitGb(storageLimitGb);
+            entity.setDbUser(dbUser);
+            entity.setDbPassword(scramHash);
 
-            // Return response with password included ONLY on creation
-            DatabaseResponse response = toResponse(entity, List.of(mainBranch));
-            response.setPassword(rawPassword);
+            String proxyHost = props.getProxy().getExternalHost();
+            if (proxyHost != null && !proxyHost.isBlank()) {
+                entity.setComputeHost(proxyHost);
+            } else {
+                entity.setComputeHost("proxy.lakeon.svc.cluster.local");
+            }
+            entity.setComputePort(props.getProxy().getExternalPort());
+
+            DatabaseEntity saved = databaseRepository.save(entity);
+            return new CreateResult(saved, neonTenant, neonTimeline);
+        });
+
+        DatabaseEntity entity = created.entity();
+        NeonTenant neonTenant = created.neonTenant();
+        NeonTimeline neonTimeline = created.neonTimeline();
+
+        // Outside transaction: K8s operations (may block 60s+)
+        OperationLogEntity opLog = operationLogService.startOperation(
+                entity.getId(), entity.getTenantId(), entity.getName(), OperationType.CREATE);
+        try {
+            computePodManager.createComputePod(entity);
+            computePodManager.waitForPodReady(entity.getComputePodName(), 60_000);
+        } catch (Exception e) {
+            // Rollback in a new transaction
+            txTemplate.executeWithoutResult(status -> databaseRepository.delete(entity));
+            try { neonApiClient.deleteTenant(neonTenant.getId()); } catch (Exception rollbackEx) {
+                log.warn("Failed to rollback Neon tenant {}: {}", neonTenant.getId(), rollbackEx.getMessage());
+            }
+            operationLogService.completeOperation(opLog, e.getMessage());
+            throw new ServiceException("Failed to create compute Pod: " + e.getMessage(), e);
+        }
+
+        // Transaction 2: finalize entity status
+        try {
+            DatabaseResponse response = txTemplate.execute(status -> {
+                DatabaseEntity e = databaseRepository.findById(entity.getId()).orElseThrow();
+                e.setConnectionUri(buildConnectionUri(dbUser, request.name()));
+                e.setStatus(DatabaseStatus.RUNNING);
+                e.setLastActiveAt(Instant.now());
+                e = databaseRepository.save(e);
+
+                BranchEntity mainBranch = new BranchEntity();
+                mainBranch.setName("main");
+                mainBranch.setDatabaseId(e.getId());
+                mainBranch.setNeonTimelineId(neonTimeline.getTimelineId());
+                mainBranch.setIsDefault(true);
+                mainBranch.setStatus(BranchStatus.ACTIVE);
+                branchRepository.save(mainBranch);
+
+                DatabaseResponse resp = toResponse(e, List.of(mainBranch));
+                resp.setPassword(rawPassword);
+                return resp;
+            });
             operationLogService.completeOperation(opLog, null);
             return response;
         } catch (Exception e) {
@@ -396,10 +408,11 @@ public class DatabaseService {
         }
     }
 
-    @Transactional
     public void resume(TenantEntity tenant, String dbId) {
-        DatabaseEntity entity = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
-            .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+        // Transaction 1: read entity
+        DatabaseEntity entity = txTemplate.execute(status ->
+            databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
+                .orElseThrow(() -> new NotFoundException("Database not found: " + dbId)));
 
         if (entity.getStatus() == DatabaseStatus.RUNNING) {
             return; // Already running, idempotent
@@ -414,7 +427,7 @@ public class DatabaseService {
                     && computePodManager.isPodReady(entity.getComputePodName());
 
             if (!warmWake) {
-                // Cold path: create new Pod
+                // Cold path: create new Pod (outside transaction, may block 60s)
                 computePodManager.createComputePod(entity);
                 computePodManager.waitForPodReady(entity.getComputePodName(), 60_000);
             }
@@ -422,11 +435,16 @@ public class DatabaseService {
                 .description("Compute wakeup duration")
                 .tag("path", warmWake ? "warm" : "cold")
                 .register(meterRegistry));
-            entity.setStatus(DatabaseStatus.RUNNING);
-            entity.setSuspendedAt(null);
-            entity.setLastActiveAt(Instant.now());
-            entity.setConnectionUri(buildConnectionUri(entity.getDbUser(), entity.getName()));
-            databaseRepository.save(entity);
+
+            // Transaction 2: update status
+            txTemplate.executeWithoutResult(status -> {
+                DatabaseEntity e = databaseRepository.findById(entity.getId()).orElseThrow();
+                e.setStatus(DatabaseStatus.RUNNING);
+                e.setSuspendedAt(null);
+                e.setLastActiveAt(Instant.now());
+                e.setConnectionUri(buildConnectionUri(e.getDbUser(), e.getName()));
+                databaseRepository.save(e);
+            });
             operationLogService.completeOperation(opLog, null);
             log.info("Resumed database {} via {} path", entity.getId(), warmWake ? "warm" : "cold");
         } catch (Exception e) {

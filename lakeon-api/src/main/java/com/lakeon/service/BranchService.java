@@ -89,8 +89,9 @@ public class BranchService {
         }
 
         // Create timeline with optional ancestor LSN
-        CreateTimelineRequest timelineRequest = new CreateTimelineRequest(
-            newTimelineId, ancestorTimelineId, request.ancestorLsn());
+        CreateTimelineRequest timelineRequest = request.ancestorLsn() != null
+            ? CreateTimelineRequest.forBranchAtLsn(newTimelineId, ancestorTimelineId, request.ancestorLsn())
+            : CreateTimelineRequest.forBranch(newTimelineId, ancestorTimelineId);
         NeonTimeline timeline = neonApiClient.createTimeline(dbEntity.getNeonTenantId(), timelineRequest);
 
         // Create branch entity

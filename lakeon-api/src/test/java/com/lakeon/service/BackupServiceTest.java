@@ -13,6 +13,7 @@ import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.neon.NeonApiClient;
 import com.lakeon.neon.dto.NeonTimeline;
 import com.lakeon.repository.BackupRepository;
+import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.exception.NotFoundException;
 
@@ -44,6 +45,9 @@ class BackupServiceTest {
 
     @Mock
     private DatabaseRepository databaseRepository;
+
+    @Mock
+    private BranchRepository branchRepository;
 
     @Mock
     private NeonApiClient neonApiClient;
