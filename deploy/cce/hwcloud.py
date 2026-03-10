@@ -442,13 +442,20 @@ def cmd_start_cloud(ak, sk):
 
     print("\n=== 启动华为云资源 ===\n")
 
-    # 1. Start RDS
+    # 1. Start RDS (skip if already running)
     rid = cache.get("rds_id")
     if rid:
-        print(f"  启动 RDS: {cache.get('rds_name')}")
-        s, r = rds_action(ak, sk, pid, rid, "startup")
-        ok = s in (200, 202, 204) or "ACTIVE" in str(r)
-        print(f"    {'✓' if ok else '✗'} {s}")
+        # Check current state first
+        _, _, rds_st, _ = get_rds(ak, sk, pid)
+        if rds_st.upper() in ("ACTIVE", "NORMAL"):
+            print(f"  RDS {cache.get('rds_name')}: 已在运行")
+        else:
+            print(f"  启动 RDS: {cache.get('rds_name')} (当前: {rds_st})")
+            s, r = rds_action(ak, sk, pid, rid, "startup")
+            ok = s in (200, 202, 204)
+            print(f"    {'✓' if ok else '✗'} {s}")
+            if not ok:
+                print(f"    {json.dumps(r, ensure_ascii=False)[:300]}")
 
     # 2. Start ECS nodes (fixed nodes, not create new ones)
     saved_nodes = cache.get("nodes", [])
