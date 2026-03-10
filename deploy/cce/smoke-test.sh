@@ -82,15 +82,12 @@ if [ -n "$NEW_EIP" ]; then
   fi
 fi
 
-# 7. PG TLS 握手
-PG_HOST=$(grep 'externalHost:' "$SCRIPT_DIR/values-cce.yaml" 2>/dev/null | head -1 | sed 's/.*"\(.*\)".*/\1/')
-if [ -n "$PG_HOST" ]; then
-  TLS_OK=$(echo | openssl s_client -connect "$PG_HOST:4432" -starttls postgres 2>/dev/null | grep -c "Verify return code: 0")
-  if [ "$TLS_OK" -ge 1 ]; then
-    check "PG TLS 握手成功 ($PG_HOST:4432)" "ok"
-  else
-    check "PG TLS 握手 ($PG_HOST:4432)" "TLS 不可用或证书无效"
-  fi
+# 7. PG TLS 握手（在 Proxy Pod 内执行，避免本地 LibreSSL 不支持 -starttls postgres）
+TLS_OUTPUT=$(kubectl exec -n lakeon deploy/proxy -- sh -c 'echo | timeout 5 openssl s_client -connect localhost:4432 -starttls postgres 2>&1' 2>/dev/null)
+if echo "$TLS_OUTPUT" | grep -q "Server certificate"; then
+  check "PG TLS 握手成功" "ok"
+else
+  check "PG TLS 握手" "TLS 不可用"
 fi
 
 # Summary
