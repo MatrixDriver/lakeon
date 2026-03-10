@@ -310,7 +310,7 @@ async function handleStop() {
     showStopDialog.value = false
     emit('updated')
   } catch (e: any) {
-    alert(e?.response?.data?.error || e?.message || '停止失败')
+    alert(e?.response?.data?.error?.message || e?.message || '停止失败')
   } finally {
     actionLoading.value = false
   }
