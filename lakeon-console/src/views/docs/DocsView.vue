@@ -117,8 +117,8 @@
                 </tr>
                 <tr>
                   <td><code>sslmode</code></td>
-                  <td>SSL 模式（当前环境可设为 disable）</td>
-                  <td><code>disable</code></td>
+                  <td>SSL 模式（支持 TLS 加密，推荐 prefer 或 require）</td>
+                  <td><code>prefer</code></td>
                 </tr>
               </tbody>
             </table>
@@ -373,32 +373,47 @@
           </div>
         </div>
 
-        <!-- Import -->
+        <!-- Migration -->
         <div id="import" class="doc-card">
-          <div class="card-header"><h3>数据导入</h3></div>
+          <div class="card-header"><h3>数据迁移</h3></div>
           <div class="card-body">
             <h4 class="doc-subtitle">功能说明</h4>
-            <p class="doc-text">数据导入功能允许你从外部 PostgreSQL 数据库迁移数据到当前实例。支持整库导入或选择指定的表和 Schema，导入过程在后台运行，不影响目标数据库的正常使用。</p>
+            <p class="doc-text">数据迁移功能允许你从外部 PostgreSQL 数据库导入或持续同步数据到 DBay。支持三种模式：整库导入、按表导入和持续同步，迁移过程在后台运行，不影响目标数据库的正常使用。</p>
 
-            <h4 class="doc-subtitle">适用场景</h4>
-            <ul class="doc-list">
-              <li><strong>数据迁移</strong> — 从自建 PostgreSQL 或其他云数据库迁移到 DBay</li>
-              <li><strong>数据同步</strong> — 将生产库的数据导入到测试环境</li>
-              <li><strong>选择性导入</strong> — 仅导入需要的表，灵活控制数据范围</li>
-            </ul>
+            <h4 class="doc-subtitle">迁移模式</h4>
+            <table class="data-table">
+              <thead>
+                <tr><th>模式</th><th>说明</th><th>适用场景</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><strong>整库导入</strong></td><td>一次性导入源库所有表的数据</td><td>完整迁移到 DBay</td></tr>
+                <tr><td><strong>按表导入</strong></td><td>选择指定的表进行一次性导入</td><td>部分数据迁移、测试环境搭建</td></tr>
+                <tr><td><strong>持续同步</strong></td><td>基于 PostgreSQL 逻辑复制，实时同步源库的数据变更</td><td>双写过渡期、实时数据分析</td></tr>
+              </tbody>
+            </table>
 
-            <h4 class="doc-subtitle">如何使用</h4>
+            <h4 class="doc-subtitle">一次性导入</h4>
             <ol class="doc-steps">
-              <li>进入数据库详情页 → 「导入」标签页</li>
+              <li>在侧边栏进入「数据迁移」页面，选择目标数据库</li>
               <li>点击「导入数据」按钮，进入导入向导</li>
-              <li>填写源数据库的连接信息（主机、端口、用户名、密码、数据库名）</li>
-              <li>系统会自动获取源库的表列表，选择要导入的表（或全选整库导入）</li>
-              <li>确认后提交导入任务，可在导入标签页查看进度</li>
-              <li>导入完成后，数据即可在目标库中使用</li>
+              <li>填写源数据库的连接信息，点击「测试连接」验证</li>
+              <li>选择导入模式（整库导入或按表选择）</li>
+              <li>选择冲突策略（追加数据或覆盖），确认后提交</li>
+              <li>在任务列表中查看导入进度，支持暂停、恢复和取消</li>
+            </ol>
+
+            <h4 class="doc-subtitle">持续同步</h4>
+            <ol class="doc-steps">
+              <li>在导入向导中选择「持续同步」模式</li>
+              <li>系统会检测源库的 <code>wal_level</code> 是否为 <code>logical</code>，以及用户是否有复制权限</li>
+              <li>选择要同步的表，确认后提交同步任务</li>
+              <li>系统先执行初始数据复制，完成后自动进入实时同步状态</li>
+              <li>在任务详情页可查看同步状态、复制延迟和各表的同步进度</li>
+              <li>支持暂停/恢复同步，不再需要时可停止并选择是否清理源库的复制资源</li>
             </ol>
 
             <div class="doc-note">
-              源数据库必须允许来自 DBay 服务器的网络连接。导入过程中源库仅进行只读操作，不会修改源库数据。大数据量导入可能需要较长时间，请耐心等待。
+              源数据库必须允许来自 DBay 服务器的网络连接。一次性导入仅进行只读操作；持续同步需要源库开启逻辑复制（<code>wal_level = logical</code>）且连接用户具有 <code>REPLICATION</code> 权限。
             </div>
           </div>
         </div>
@@ -593,7 +608,7 @@ const tocItems = [
   { id: 'branches', label: '分支管理' },
   { id: 'users', label: '用户管理' },
   { id: 'backups', label: '备份与恢复' },
-  { id: 'import', label: '数据导入' },
+  { id: 'import', label: '数据迁移' },
   { id: 'audit', label: '审计日志' },
   { id: 'monitor', label: '监控面板' },
   { id: 'logs', label: '日志管理' },
@@ -664,7 +679,7 @@ async function copy(text: string, key = 'psql') {
   setTimeout(() => { copyStates[key] = '' }, 2000)
 }
 
-const psqlCode = `psql "host=<HOST> port=4432 user=cloud_admin dbname=postgres sslmode=disable"`
+const psqlCode = `psql "host=<HOST> port=4432 user=cloud_admin dbname=postgres sslmode=prefer"`
 
 const pythonCode = `import psycopg2
 
@@ -688,7 +703,7 @@ const client = new Client({
   port: 4432,
   user: 'cloud_admin',
   database: 'postgres',
-  ssl: false,
+  ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 30000,  // 预留唤醒时间
 });
 
@@ -699,7 +714,7 @@ await client.end();`
 
 const javaCode = `import java.sql.*;
 
-String url = "jdbc:postgresql://<HOST>:4432/postgres?sslmode=disable&loginTimeout=30";
+String url = "jdbc:postgresql://<HOST>:4432/postgres?sslmode=prefer&loginTimeout=30";
 Connection conn = DriverManager.getConnection(url, "cloud_admin", "");
 
 Statement stmt = conn.createStatement();
@@ -718,7 +733,7 @@ import (
 )
 
 func main() {
-    connStr := "host=<HOST> port=4432 user=cloud_admin dbname=postgres sslmode=disable connect_timeout=30"
+    connStr := "host=<HOST> port=4432 user=cloud_admin dbname=postgres sslmode=prefer connect_timeout=30"
     conn, err := pgx.Connect(context.Background(), connStr)
     if err != nil {
         panic(err)

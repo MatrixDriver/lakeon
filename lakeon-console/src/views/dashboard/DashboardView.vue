@@ -79,8 +79,8 @@
           <div class="feature-icon feature-icon-import">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
           </div>
-          <div class="feature-title">数据导入</div>
-          <div class="feature-desc">从任意 PostgreSQL 一键迁移，自动处理 schema 和数据</div>
+          <div class="feature-title">数据迁移</div>
+          <div class="feature-desc">从任意 PostgreSQL 导入或持续同步数据，自动处理 schema</div>
         </div>
         <div class="feature-card">
           <div class="feature-icon feature-icon-branch">

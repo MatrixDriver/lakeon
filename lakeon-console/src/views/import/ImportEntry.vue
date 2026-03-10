@@ -1,12 +1,12 @@
 <template>
   <div class="page-import-entry">
     <div class="page-header">
-      <h1 class="page-title">数据导入</h1>
+      <h1 class="page-title">数据迁移</h1>
     </div>
 
     <!-- If no databases, show prompt -->
     <div v-if="!loading && databases.length === 0" class="empty-hero">
-      <p>暂无数据库，请先创建一个目标数据库后再进行数据导入。</p>
+      <p>暂无数据库，请先创建一个目标数据库后再进行数据迁移。</p>
       <router-link to="/databases" class="btn btn-primary">前往创建</router-link>
     </div>
 
@@ -14,7 +14,7 @@
     <template v-else-if="!loading">
       <!-- Select target database -->
       <div class="select-section">
-        <div class="select-prompt">选择目标数据库，从外部 PostgreSQL 导入数据</div>
+        <div class="select-prompt">选择目标数据库，从外部 PostgreSQL 导入或同步数据</div>
         <div class="db-card-grid">
           <div
             v-for="db in databases"
