@@ -1,7 +1,7 @@
 #!/bin/bash
 # Lakeon 极致省钱 - 一键启动
 # 资源: 2x 4C8G 固定节点 + 共享ELB + 按流量EIP + RDS
-# 启动顺序: ECS开机 + RDS启动 → 等待就绪 → containerd 修复 → 创建 ELB+EIP → 删旧 Service → Helm 部署
+# 启动顺序: ECS开机 + RDS启动 → 等待就绪 → 创建 ELB+EIP → 删旧 Service → Helm 部署
 #
 # 用法: ./deploy/cce/start.sh
 
@@ -28,26 +28,14 @@ if [ -f /tmp/cloud-resources.json ]; then
   echo "  ✓ ConfigMap lakeon-cloud-resources 已更新"
 fi
 
-# 2. Fix containerd core ulimit on new nodes (compute_ctl needs unlimited core)
-echo ""
-echo "── 修复节点 containerd core ulimit ──"
-for NODE_IP in $(kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="InternalIP")].address}'); do
-  echo "  节点 $NODE_IP..."
-  ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 root@$NODE_IP \
-    'mkdir -p /etc/systemd/system/containerd.service.d && \
-     printf "[Service]\nLimitCORE=infinity\n" > /etc/systemd/system/containerd.service.d/ulimit-core.conf && \
-     systemctl daemon-reload && systemctl restart containerd' 2>/dev/null \
-    && echo "    ✓ 已修复" || echo "    ⚠ SSH 失败，需手动修复"
-done
-
-# 3. Delete old LoadBalancer services (CCE forbids modifying elb.id annotation)
+# 2. Delete old LoadBalancer services (containerd ulimit fix is persistent, only needed once per new node) (CCE forbids modifying elb.id annotation)
 echo ""
 echo "── 清理旧 Service ──"
 for svc in proxy; do
   kubectl delete svc $svc -n lakeon 2>/dev/null && echo "  ✓ deleted $svc" || true
 done
 
-# 4. Helm deploy
+# 3. Helm deploy
 echo ""
 echo "── Helm 部署 ──"
 source "$SCRIPT_DIR/.env.cce"
@@ -68,7 +56,7 @@ for deploy in pageserver storage-broker lakeon-api proxy; do
   kubectl rollout status deployment/$deploy -n lakeon --timeout=180s 2>/dev/null || true
 done
 
-# 5. 冒烟测试
+# 4. 冒烟测试
 echo ""
 source "$SCRIPT_DIR/smoke-test.sh"
 

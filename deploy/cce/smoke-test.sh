@@ -73,11 +73,11 @@ fi
 # 6. PG 连接（快速 TCP 探测）
 NEW_EIP=$(grep 'externalHost:' "$SCRIPT_DIR/values-cce.yaml" 2>/dev/null | head -1 | sed 's/.*"\(.*\)".*/\1/')
 if [ -n "$NEW_EIP" ]; then
-  PG_CONN=$(no_proxy=$NEW_EIP curl -sk --connect-timeout 5 "telnet://$NEW_EIP:4432" 2>&1 || nc -z -w5 "$NEW_EIP" 4432 2>&1 && echo "ok" || echo "fail")
-  if echo "$PG_CONN" | grep -q "ok"; then
+  if nc -z -w5 "$NEW_EIP" 4432 2>/dev/null; then
+    check "PG 端口可达 ($NEW_EIP:4432)" "ok"
+  elif bash -c "echo >/dev/tcp/$NEW_EIP/4432" 2>/dev/null; then
     check "PG 端口可达 ($NEW_EIP:4432)" "ok"
   else
-    # nc might not be available, just check proxy pod is up
     check "PG 端口 ($NEW_EIP:4432)" "Proxy 已运行，端口未验证"
   fi
 fi

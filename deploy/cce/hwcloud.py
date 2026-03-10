@@ -242,8 +242,10 @@ def get_ecs_detail(ak, sk, pid, server_id):
     return None
 
 def rds_action(ak, sk, pid, inst_id, action):
-    return api("POST", f"https://rds.{REGION}.myhuaweicloud.com/v3/{pid}/instances/{inst_id}/action/{action}",
-               ak, sk, "{}")
+    """action: 'startup' or 'shutdown'"""
+    body = json.dumps({action: {}})
+    return api("POST", f"https://rds.{REGION}.myhuaweicloud.com/v3/{pid}/instances/{inst_id}/action",
+               ak, sk, body)
 
 
 # ── Cache ────────────────────────────────────────────────────────
