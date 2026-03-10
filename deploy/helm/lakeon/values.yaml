@@ -50,6 +50,9 @@ proxy:
   # External host for user-facing connection URIs (e.g. ELB IP or domain)
   # If empty, falls back to cluster-internal proxy DNS
   externalHost: ""
+  tls:
+    enabled: false
+    secretName: proxy-tls-cert
   resources:
     requests:
       cpu: "1"

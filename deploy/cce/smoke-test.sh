@@ -82,6 +82,17 @@ if [ -n "$NEW_EIP" ]; then
   fi
 fi
 
+# 7. PG TLS 握手
+PG_HOST=$(grep 'externalHost:' "$SCRIPT_DIR/values-cce.yaml" 2>/dev/null | head -1 | sed 's/.*"\(.*\)".*/\1/')
+if [ -n "$PG_HOST" ]; then
+  TLS_OK=$(echo | openssl s_client -connect "$PG_HOST:4432" -starttls postgres 2>/dev/null | grep -c "Verify return code: 0")
+  if [ "$TLS_OK" -ge 1 ]; then
+    check "PG TLS 握手成功 ($PG_HOST:4432)" "ok"
+  else
+    check "PG TLS 握手 ($PG_HOST:4432)" "TLS 不可用或证书无效"
+  fi
+fi
+
 # Summary
 echo ""
 TOTAL=$((PASS + FAIL))

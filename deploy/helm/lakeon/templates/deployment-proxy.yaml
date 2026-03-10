@@ -35,6 +35,10 @@ spec:
             - "--auth-endpoint=http://lakeon-api:{{ .Values.api.internalPort | default 8088 }}/proxy"
             - "--wss=0.0.0.0:{{ .Values.proxy.httpPort }}"
             - "--mgmt=127.0.0.1:{{ .Values.proxy.mgmtPort }}"
+            {{- if .Values.proxy.tls.enabled }}
+            - "--tls-key=/tls/tls.key"
+            - "--tls-cert=/tls/tls.crt"
+            {{- end }}
           env:
             - name: NEON_PROXY_TO_CONTROLPLANE_TOKEN
               valueFrom:
@@ -46,5 +50,17 @@ spec:
               name: pg
             - containerPort: {{ .Values.proxy.httpPort }}
               name: http
+          {{- if .Values.proxy.tls.enabled }}
+          volumeMounts:
+            - name: tls-cert
+              mountPath: /tls
+              readOnly: true
+          {{- end }}
           resources:
             {{- toYaml .Values.proxy.resources | nindent 12 }}
+      {{- if .Values.proxy.tls.enabled }}
+      volumes:
+        - name: tls-cert
+          secret:
+            secretName: {{ .Values.proxy.tls.secretName }}
+      {{- end }}

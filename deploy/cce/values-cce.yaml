@@ -86,8 +86,11 @@ storageBroker:
 
 proxy:
   replicas: 1
-  externalHost: "114.116.210.49"
+  externalHost: "pg.dbay.cloud"
   serviceType: LoadBalancer
+  tls:
+    enabled: true
+    secretName: proxy-tls-cert
   elb:
     id: "80fc030a-1577-4daf-9f4c-fa31e93a3a85"
     class: "union"
