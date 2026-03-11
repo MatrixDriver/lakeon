@@ -838,6 +838,15 @@ def cmd_status(ak, sk):
     running = any_node_running and rst.upper() in ("ACTIVE", "NORMAL")
     print(f"\n  {'🟢 运行中' if running else '🔴 已关停'}")
 
+    # Run smoke test if cloud resources are up
+    if running:
+        print()
+        smoke_script = os.path.join(SCRIPT_DIR, "smoke-test.sh")
+        if os.path.isfile(smoke_script):
+            env = dict(os.environ, KUBECONFIG=os.environ.get("KUBECONFIG", os.path.expanduser("~/.kube/cce-lakeon-config")))
+            import subprocess
+            subprocess.run(["bash", smoke_script], env=env)
+
 
 def cmd_info(ak, sk):
     """显示当前站点的资源规格和状态详情"""
