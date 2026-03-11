@@ -371,6 +371,29 @@ public class ComputePodManager {
     }
 
     /**
+     * Sync a user's password (SCRAM hash) to the running compute pod's PostgreSQL.
+     * Uses cloud_admin trust auth via localhost to ALTER ROLE.
+     */
+    public void syncPassword(String podName, String username, String scramHash) {
+        String namespace = props.getK8s().getNamespace();
+        String sql = "ALTER ROLE \"" + username.replace("\"", "\"\"") + "\" WITH PASSWORD '" + scramHash.replace("'", "''") + "'";
+        try {
+            ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+            ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+            try (ExecWatch exec = k8sClient.pods().inNamespace(namespace).withName(podName)
+                    .writingOutput(stdout)
+                    .writingError(stderr)
+                    .exec("psql", "-h", "127.0.0.1", "-p", "55433",
+                        "-U", "cloud_admin", "-d", "postgres", "-c", sql)) {
+                exec.exitCode().get(10, java.util.concurrent.TimeUnit.SECONDS);
+            }
+            log.info("Synced password for user {} on pod {}", username, podName);
+        } catch (Exception e) {
+            log.warn("Failed to sync password for user {} on pod {}: {}", username, podName, e.getMessage());
+        }
+    }
+
+    /**
      * Get CPU and memory usage for a compute pod from K8s metrics API.
      * Returns [cpuCores, memoryBytes] or null if unavailable.
      */

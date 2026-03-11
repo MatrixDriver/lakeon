@@ -615,6 +615,12 @@ public class DatabaseService {
         String scramHash = ScramUtils.generateScramHash(rawPassword);
         entity.setDbPassword(scramHash);
         databaseRepository.save(entity);
+
+        // Sync password to running compute pod
+        if (entity.getComputePodName() != null) {
+            computePodManager.syncPassword(entity.getComputePodName(), entity.getDbUser(), scramHash);
+        }
+
         return Map.of("password", rawPassword);
     }
 
