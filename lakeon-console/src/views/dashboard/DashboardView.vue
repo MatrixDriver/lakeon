@@ -472,7 +472,8 @@ async function handleCreate() {
     await fetchData()
     pollUntilReady(res.data.id)
   } catch (e) {
-    toast.error('创建数据库失败')
+    const msg = (e as any)?.response?.data?.error?.message || (e as any)?.message || '未知错误'
+    toast.error(`创建数据库失败: ${msg}`)
     console.error('Failed to create database', e)
   } finally {
     createLoading.value = false

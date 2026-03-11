@@ -182,9 +182,11 @@
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { databaseApi, type Database } from '../../api/database'
 import { formatDate } from '../../utils/format'
+import { useToast } from '../../composables/useToast'
 import TableToolbar from '../../components/TableToolbar.vue'
 import TableFooter from '../../components/TableFooter.vue'
 
+const toast = useToast()
 const databases = ref<Database[]>([])
 const loading = ref(true)
 const searchQuery = ref('')
@@ -288,6 +290,8 @@ async function handleCreate() {
     await fetchDatabases()
     pollUntilReady(res.data.id)
   } catch (e) {
+    const msg = (e as any)?.response?.data?.error?.message || (e as any)?.message || '未知错误'
+    toast.error(`创建数据库失败: ${msg}`)
     console.error('Failed to create database', e)
   } finally {
     createLoading.value = false

@@ -125,6 +125,8 @@ class DatabaseServiceTest {
                     .thenReturn(new NeonTimeline("neon-timeline-main"));
             when(computePodManager.createComputePod(any()))
                     .thenReturn("10.0.1.5:5432");
+            when(computePodManager.waitForPodReady(any(), anyLong()))
+                    .thenReturn(true);
             when(databaseRepository.save(any(DatabaseEntity.class)))
                     .thenAnswer(inv -> {
                         DatabaseEntity entity = inv.getArgument(0);
@@ -179,6 +181,8 @@ class DatabaseServiceTest {
                     .thenReturn(new NeonTimeline("neon-timeline-main"));
             when(computePodManager.createComputePod(any()))
                     .thenReturn("10.0.1.6:5432");
+            when(computePodManager.waitForPodReady(any(), anyLong()))
+                    .thenReturn(true);
             when(databaseRepository.save(any(DatabaseEntity.class)))
                     .thenAnswer(inv -> {
                         DatabaseEntity entity = inv.getArgument(0);

@@ -169,7 +169,10 @@ public class DatabaseService {
                 entity.getId(), entity.getTenantId(), entity.getName(), OperationType.CREATE);
         try {
             computePodManager.createComputePod(entity);
-            computePodManager.waitForPodReady(entity.getComputePodName(), 60_000);
+            boolean ready = computePodManager.waitForPodReady(entity.getComputePodName(), 60_000);
+            if (!ready) {
+                throw new RuntimeException("Compute pod " + entity.getComputePodName() + " not ready after 60s");
+            }
         } catch (Exception e) {
             // Rollback in a new transaction
             txTemplate.executeWithoutResult(status -> databaseRepository.delete(entity));
@@ -183,7 +186,8 @@ public class DatabaseService {
         // Transaction 2: finalize entity status
         try {
             DatabaseResponse response = txTemplate.execute(status -> {
-                DatabaseEntity e = databaseRepository.findById(entity.getId()).orElseThrow();
+                DatabaseEntity e = databaseRepository.findById(entity.getId())
+                    .orElseThrow(() -> new ServiceException("Database " + entity.getId() + " was deleted during creation"));
                 e.setConnectionUri(buildConnectionUri(dbUser, request.name()));
                 e.setStatus(DatabaseStatus.RUNNING);
                 e.setLastActiveAt(Instant.now());
