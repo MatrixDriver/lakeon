@@ -841,6 +841,7 @@ def cmd_status(ak, sk):
     # Run smoke test if cloud resources are up
     if running:
         print()
+        sys.stdout.flush()
         smoke_script = os.path.join(SCRIPT_DIR, "smoke-test.sh")
         if os.path.isfile(smoke_script):
             env = dict(os.environ, KUBECONFIG=os.environ.get("KUBECONFIG", os.path.expanduser("~/.kube/cce-lakeon-config")))
