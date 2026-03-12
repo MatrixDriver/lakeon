@@ -174,4 +174,14 @@ onMounted(() => { loadData() })
   font-family: monospace;
 }
 .empty-text { color: #999; font-size: 14px; padding: 20px 0; }
+
+@media (max-width: 768px) {
+  .node-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .node-card {
+    padding: 16px;
+  }
+}
 </style>

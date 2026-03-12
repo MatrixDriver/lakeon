@@ -318,4 +318,19 @@ function renderTrendChart() {
   font-weight: 400;
   color: #575d6c;
 }
+
+@media (max-width: 768px) {
+  .cost-cards {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .total-cost-card {
+    padding: 16px;
+  }
+
+  .total-cost-value {
+    font-size: 22px;
+  }
+}
 </style>

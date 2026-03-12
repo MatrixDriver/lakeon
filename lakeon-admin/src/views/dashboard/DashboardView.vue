@@ -404,4 +404,54 @@ onMounted(async () => {
 .text-warning { color: #e37318; }
 .text-danger { color: #e6393d; }
 .text-warm { color: #52c41a; }
+
+@media (max-width: 768px) {
+  .metric-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .metric-value {
+    font-size: 22px;
+  }
+
+  .ux-metrics {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .ux-value {
+    font-size: 20px;
+  }
+
+  .op-stats {
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 12px;
+  }
+
+  .health-items {
+    gap: 16px;
+    padding: 12px;
+  }
+
+  .cost-total {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .metric-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-card {
+    padding: 14px;
+  }
+
+  .ux-metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+}
 </style>

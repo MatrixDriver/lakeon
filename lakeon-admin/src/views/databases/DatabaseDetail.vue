@@ -148,4 +148,14 @@ onMounted(async () => {
   font-family: monospace;
   font-size: 13px;
 }
+
+@media (max-width: 768px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mono {
+    word-break: break-all;
+  }
+}
 </style>

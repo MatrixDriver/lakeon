@@ -220,4 +220,16 @@ onMounted(loadHealth)
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+@media (max-width: 768px) {
+  .health-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .health-card {
+    padding: 16px;
+  }
+}
 </style>
