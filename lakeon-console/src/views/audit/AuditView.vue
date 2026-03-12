@@ -46,6 +46,9 @@
                 <span class="op-type-badge" :class="'op-' + op.operationType.toLowerCase()">
                   {{ OP_LABELS[op.operationType] || op.operationType }}
                 </span>
+                <span v-if="op.operationType === 'RESUME' && op.resumeType" class="resume-type-tag" :class="'rt-' + op.resumeType.toLowerCase()">
+                  {{ op.resumeType === 'WARM' ? '热启动' : '冷启动' }}
+                </span>
               </td>
               <td>
                 <span class="status-tag" :class="op.status === 'SUCCESS' ? 'tag-green' : 'tag-red'">
@@ -195,5 +198,23 @@ onMounted(() => fetchOps())
 .error-text {
   color: #cf1322;
   font-size: 12px;
+}
+
+.resume-type-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.rt-warm {
+  background: #f6ffed;
+  color: #389e0d;
+}
+
+.rt-cold {
+  background: #e6f7ff;
+  color: #0073e6;
 }
 </style>

@@ -238,7 +238,12 @@
             <tbody>
               <tr v-for="op in recentOps.slice(0, 5)" :key="op.id">
                 <td>{{ op.databaseName }}</td>
-                <td>{{ OP_LABELS[op.operationType] || op.operationType }}</td>
+                <td>
+                  {{ OP_LABELS[op.operationType] || op.operationType }}
+                  <span v-if="op.operationType === 'RESUME' && op.resumeType" class="resume-type-tag" :class="'rt-' + op.resumeType.toLowerCase()">
+                    {{ op.resumeType === 'WARM' ? '热启动' : '冷启动' }}
+                  </span>
+                </td>
                 <td>
                   <span class="status-tag" :class="op.status === 'SUCCESS' ? 'tag-green' : 'tag-red'">
                     {{ op.status === 'SUCCESS' ? '成功' : '失败' }}
@@ -655,6 +660,17 @@ onUnmounted(() => {
 }
 
 .loading-state { text-align: center; padding: 60px 0; color: #8a8e99; font-size: 14px; }
+
+.resume-type-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.rt-warm { background: #f6ffed; color: #389e0d; }
+.rt-cold { background: #e6f7ff; color: #0073e6; }
 
 @media (max-width: 768px) {
   .feature-grid { grid-template-columns: repeat(2, 1fr); }

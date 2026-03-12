@@ -422,14 +422,15 @@ public class DatabaseService {
             return; // Already running, idempotent
         }
 
+        // Determine warm/cold before logging
+        boolean warmWake = entity.getComputePodName() != null
+                && computePodManager.isPodReady(entity.getComputePodName());
+
         OperationLogEntity opLog = operationLogService.startOperation(
-                entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME);
+                entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME,
+                warmWake ? "WARM" : "COLD");
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
-            // Warm path: Pod still running from previous session
-            boolean warmWake = entity.getComputePodName() != null
-                    && computePodManager.isPodReady(entity.getComputePodName());
-
             if (!warmWake) {
                 // Cold path: create new Pod (outside transaction, may block 60s)
                 computePodManager.createComputePod(entity);
@@ -485,7 +486,7 @@ public class DatabaseService {
             Timer.Sample warmSample = Timer.start(meterRegistry);
             log.info("Warm wake for database {} via proxy — Pod {} still running", entity.getId(), entity.getComputePodName());
             OperationLogEntity opLog = operationLogService.startOperation(
-                    entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME);
+                    entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME, "WARM");
             entity.setStatus(DatabaseStatus.RUNNING);
             entity.setSuspendedAt(null);
             entity.setLastActiveAt(Instant.now());
@@ -501,7 +502,7 @@ public class DatabaseService {
         // Cold path: create new Pod
         Timer.Sample coldSample = Timer.start(meterRegistry);
         OperationLogEntity opLog = operationLogService.startOperation(
-                entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME);
+                entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME, "COLD");
         try {
             String address = computePodManager.createComputePod(entity);
             if (entity.getComputePodName() != null) {

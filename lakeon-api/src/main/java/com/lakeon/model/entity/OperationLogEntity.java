@@ -47,6 +47,9 @@ public class OperationLogEntity {
     @Column(name = "error_message", length = 1024)
     private String errorMessage;
 
+    @Column(name = "resume_type", length = 16)
+    private String resumeType;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -138,6 +141,14 @@ public class OperationLogEntity {
 
     public void setErrorMessage(String errorMessage) {
         this.errorMessage = errorMessage;
+    }
+
+    public String getResumeType() {
+        return resumeType;
+    }
+
+    public void setResumeType(String resumeType) {
+        this.resumeType = resumeType;
     }
 
     public Instant getCreatedAt() {

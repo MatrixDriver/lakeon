@@ -27,6 +27,12 @@ public class OperationLogService {
 
     public OperationLogEntity startOperation(String databaseId, String tenantId,
                                               String databaseName, OperationType type) {
+        return startOperation(databaseId, tenantId, databaseName, type, null);
+    }
+
+    public OperationLogEntity startOperation(String databaseId, String tenantId,
+                                              String databaseName, OperationType type,
+                                              String resumeType) {
         OperationLogEntity log = new OperationLogEntity();
         log.setDatabaseId(databaseId);
         log.setTenantId(tenantId);
@@ -34,6 +40,7 @@ public class OperationLogService {
         log.setOperationType(type);
         log.setStatus(OperationStatus.IN_PROGRESS);
         log.setStartedAt(Instant.now());
+        log.setResumeType(resumeType);
         return repository.save(log);
     }
 

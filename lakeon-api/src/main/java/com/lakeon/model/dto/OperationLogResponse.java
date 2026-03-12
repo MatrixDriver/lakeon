@@ -12,7 +12,8 @@ public record OperationLogResponse(
     Instant startedAt,
     Instant completedAt,
     Long durationMs,
-    String errorMessage
+    String errorMessage,
+    String resumeType
 ) {
     public static OperationLogResponse from(OperationLogEntity entity) {
         return new OperationLogResponse(
@@ -24,7 +25,8 @@ public record OperationLogResponse(
             entity.getStartedAt(),
             entity.getCompletedAt(),
             entity.getDurationMs(),
-            entity.getErrorMessage()
+            entity.getErrorMessage(),
+            entity.getResumeType()
         );
     }
 }

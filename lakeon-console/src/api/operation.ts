@@ -10,6 +10,7 @@ export interface OperationLog {
   completedAt: string | null
   durationMs: number | null
   errorMessage: string | null
+  resumeType: string | null
 }
 
 export interface PageResponse<T> {
