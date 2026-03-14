@@ -32,19 +32,25 @@ public class TenantEntity {
     private Instant updatedAt;
 
     @Column(name = "max_databases", nullable = false)
-    private Integer maxDatabases = 3;
+    private Integer maxDatabases = 1;
 
     @Column(name = "max_storage_gb", nullable = false)
-    private Integer maxStorageGb = 50;
+    private Integer maxStorageGb = 1;
 
     @Column(name = "max_compute_cu", nullable = false)
-    private Integer maxComputeCu = 4;
+    private Integer maxComputeCu = 1;
 
     @Column(name = "disabled", nullable = false)
     private Boolean disabled = false;
 
     @Column(name = "disabled_at")
     private Instant disabledAt;
+
+    @Column(name = "trial", nullable = false)
+    private Boolean trial = false;
+
+    @Column(name = "expires_at")
+    private Instant expiresAt;
 
     @PrePersist
     public void prePersist() {
@@ -133,4 +139,10 @@ public class TenantEntity {
 
     public Instant getDisabledAt() { return disabledAt; }
     public void setDisabledAt(Instant disabledAt) { this.disabledAt = disabledAt; }
+
+    public Boolean getTrial() { return trial; }
+    public void setTrial(Boolean trial) { this.trial = trial; }
+
+    public Instant getExpiresAt() { return expiresAt; }
+    public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }
 }
