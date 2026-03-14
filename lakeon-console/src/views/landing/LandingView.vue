@@ -30,6 +30,14 @@
       <div class="container">
         <h1 class="hero-title">{{ t('数据港湾 — 为 AI 应用而生的 Serverless 数据平台', 'DBay — The Serverless Data Platform Built for AI') }}</h1>
         <p class="hero-subtitle">{{ t('让数据安全停泊，按需启航。秒级创建，自动休眠，按需付费。关系型、向量、全文、图查询、RAG、时间旅行，一个平台全搞定。', 'Dock your data safely, set sail on demand. Create in seconds, auto-sleep, pay-per-use. Relational, vector, full-text, graph, RAG, time travel — all in one platform.') }}</p>
+        <div class="hero-actions">
+          <button class="btn-primary btn-lg" @click="startTrial" :disabled="trialLoading">
+            {{ trialLoading ? t('创建中...', 'Creating...') : t('立即体验', 'Try Now') }}
+          </button>
+          <router-link to="/login" class="btn-outline btn-lg">{{ t('免费注册', 'Sign Up Free') }}</router-link>
+        </div>
+        <p class="hero-hint">{{ t('无需注册，30 秒创建临时数据库', 'No signup needed, get a database in 30 seconds') }}</p>
+        <div v-if="trialError" class="trial-error">{{ trialError }}</div>
         <div class="cap-row" id="capabilities">
           <div class="cap-item" v-for="c in capabilities" :key="c.label">
             <div class="cap-icon">{{ c.icon }}</div>
@@ -150,8 +158,13 @@ await client.connect()</code></pre>
       <div class="container center-text">
         <h2 class="section-title">{{ t('定价', 'Pricing') }}</h2>
         <p class="pricing-headline">{{ t('免费试用，开箱即用', 'Free to try, ready out of the box') }}</p>
-        <p class="pricing-sub">{{ t('详细定价即将公布', 'Detailed pricing coming soon') }}</p>
-        <router-link to="/login" class="btn-primary">{{ t('免费试用', 'Free Trial') }}</router-link>
+        <p class="pricing-sub">{{ t('1 个数据库 · 1 GB 存储 · 1 CU 算力 · 永久免费', '1 Database · 1 GB Storage · 1 CU Compute · Free Forever') }}</p>
+        <div class="hero-actions">
+          <button class="btn-primary" @click="startTrial" :disabled="trialLoading">
+            {{ t('立即体验', 'Try Now') }}
+          </button>
+          <router-link to="/login" class="btn-outline">{{ t('免费注册', 'Sign Up Free') }}</router-link>
+        </div>
       </div>
     </section>
 
@@ -169,11 +182,44 @@ await client.connect()</code></pre>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useLocale } from '../../stores/locale'
+import { useAuthStore } from '../../stores/auth'
+import client from '../../api/client'
 
 const { locale, setLocale, t } = useLocale()
+const router = useRouter()
+const authStore = useAuthStore()
 
 const mobileMenuOpen = ref(false)
+const trialLoading = ref(false)
+const trialError = ref('')
+
+async function startTrial() {
+  trialLoading.value = true
+  trialError.value = ''
+  try {
+    const res = await client.post('/trial')
+    const data = res.data
+    // Save trial credentials and navigate to console
+    // Save trial auth to localStorage + store
+    authStore.apiKey = data.api_key
+    localStorage.setItem('lakeon_api_key', data.api_key)
+    authStore.setTenant(data.tenant_id, data.username || 'trial')
+    // Navigate to database manager if database was created
+    const db = data.database
+    if (db && db.id) {
+      router.push(`/databases/${db.id}/manager`)
+    } else {
+      router.push('/dashboard')
+    }
+  } catch (e: any) {
+    const msg = e?.response?.data?.error?.message || e?.message || t('创建失败，请稍后重试', 'Failed, please try again')
+    trialError.value = msg
+  } finally {
+    trialLoading.value = false
+  }
+}
 
 function toggleLocale() {
   setLocale(locale.value === 'zh' ? 'en' : 'zh')
@@ -381,8 +427,27 @@ const useCases = computed(() => [
   font-size: 18px;
   color: #555;
   max-width: 680px;
-  margin: 0 auto 36px;
+  margin: 0 auto 28px;
   line-height: 1.6;
+}
+
+.hero-hint {
+  font-size: 13px;
+  color: #999;
+  margin-top: 12px;
+  margin-bottom: 32px;
+}
+
+.btn-lg {
+  padding: 12px 32px;
+  font-size: 16px;
+  border-radius: 8px;
+}
+
+.trial-error {
+  margin-top: 12px;
+  color: #e6393d;
+  font-size: 14px;
 }
 
 .hero-actions {
