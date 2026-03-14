@@ -2,8 +2,10 @@
   <div class="login-page">
     <div class="login-card">
       <div class="login-header">
-        <h1 class="login-logo">DBay</h1>
-        <p class="login-tagline">数据港湾</p>
+        <router-link to="/landing" class="login-logo-link">
+          <h1 class="login-logo">DBay</h1>
+          <p class="login-tagline">数据港湾</p>
+        </router-link>
         <p class="login-subtitle">Serverless 云数据库，按需启停，零运维</p>
       </div>
 
@@ -273,6 +275,11 @@ function goToLogin() {
 .login-header {
   text-align: center;
   margin-bottom: 28px;
+}
+
+.login-logo-link {
+  text-decoration: none;
+  display: block;
 }
 
 .login-logo {
