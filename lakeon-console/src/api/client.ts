@@ -18,7 +18,7 @@ client.interceptors.request.use((config) => {
 client.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && window.location.pathname !== '/login') {
+    if (error.response?.status === 401 && window.location.pathname !== '/login' && window.location.pathname !== '/landing') {
       localStorage.removeItem('lakeon_api_key')
       localStorage.removeItem('lakeon_tenant_id')
       localStorage.removeItem('lakeon_tenant_name')

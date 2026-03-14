@@ -199,12 +199,16 @@ async function startTrial() {
   trialLoading.value = true
   trialError.value = ''
   try {
+    // Clear stale auth before calling trial (avoid 401 interceptor redirect)
+    localStorage.removeItem('lakeon_api_key')
+    authStore.apiKey = ''
+
     const res = await client.post('/trial')
     const data = res.data
-    // Save trial credentials and navigate to console
     // Save trial auth to localStorage + store
-    authStore.apiKey = data.api_key
-    localStorage.setItem('lakeon_api_key', data.api_key)
+    const key = data.api_key
+    localStorage.setItem('lakeon_api_key', key)
+    authStore.apiKey = key
     authStore.setTenant(data.tenant_id, data.username || 'trial')
     // Navigate to database manager if database was created
     const db = data.database
