@@ -10,8 +10,8 @@
         <span class="toolbar-hint">Ctrl+Enter 执行</span>
       </div>
       <div class="toolbar-right">
-        <button class="toolbar-btn" :class="{ active: showHistory }" @click="showHistory = !showHistory" title="查询历史">
-          历史 <span v-if="queryHistory.length > 0" class="history-count">{{ queryHistory.length }}</span>
+        <button class="toolbar-btn" :class="{ active: showHistory }" @click="toggleHistory" title="查询历史">
+          历史 <span v-if="historyTotal > 0" class="history-count">{{ historyTotal > 99 ? '99+' : historyTotal }}</span>
         </button>
         <button class="toolbar-btn" @click="formatSql" title="格式化">格式化</button>
         <button class="toolbar-btn" @click="clearEditor" title="清空">清空</button>
@@ -21,22 +21,34 @@
     <div v-if="showHistory" class="history-panel">
       <div class="history-header">
         <span class="history-title">查询历史</span>
-        <button v-if="queryHistory.length > 0" class="toolbar-btn" style="font-size: 12px; padding: 2px 8px;" @click="clearHistory">清空</button>
+        <div class="history-actions">
+          <input
+            v-model="historySearch"
+            class="history-search"
+            placeholder="搜索 SQL..."
+            @input="debouncedFetchHistory"
+          />
+          <button v-if="historyTotal > 0" class="toolbar-btn" style="font-size: 12px; padding: 2px 8px;" @click="clearHistory">清空</button>
+        </div>
       </div>
-      <div v-if="queryHistory.length === 0" class="history-empty">暂无查询记录</div>
+      <div v-if="historyLoading" class="history-empty">加载中...</div>
+      <div v-else-if="queryHistory.length === 0" class="history-empty">暂无查询记录</div>
       <div v-else class="history-list">
         <div
-          v-for="(item, i) in queryHistory"
-          :key="i"
+          v-for="item in queryHistory"
+          :key="item.id"
           class="history-item"
           @click="loadFromHistory(item)"
         >
           <div class="history-sql">{{ item.sql.length > 120 ? item.sql.slice(0, 120) + '...' : item.sql }}</div>
           <div class="history-meta">
-            <span v-if="item.success" class="history-ok">{{ item.rows }}行 · {{ item.time }}ms</span>
+            <span v-if="item.success" class="history-ok">{{ item.row_count ?? 0 }}行 · {{ item.duration_ms ?? 0 }}ms</span>
             <span v-else class="history-fail">失败</span>
-            <span class="history-date">{{ formatHistoryDate(item.ts) }}</span>
+            <span class="history-date">{{ formatHistoryDate(item.created_at) }}</span>
           </div>
+        </div>
+        <div v-if="historyTotal > queryHistory.length" class="history-more" @click="loadMoreHistory">
+          加载更多 ({{ queryHistory.length }}/{{ historyTotal }})
         </div>
       </div>
     </div>
@@ -86,7 +98,7 @@ import { sql, PostgreSQL } from '@codemirror/lang-sql'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { autocompletion } from '@codemirror/autocomplete'
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching } from '@codemirror/language'
-import { databaseApi, type QueryResult } from '../api/database'
+import { databaseApi, type QueryResult, type QueryHistoryItem } from '../api/database'
 import TableFooter from './TableFooter.vue'
 
 const props = defineProps<{
@@ -101,43 +113,52 @@ const resultError = ref('')
 const resultPageSize = ref(20)
 const resultCurrentPage = ref(1)
 
-// ── Query History ──
-const HISTORY_KEY = 'lakeon_sql_history'
-const MAX_HISTORY = 50
+// ── Query History (server-side) ──
 const showHistory = ref(false)
+const historyLoading = ref(false)
+const historySearch = ref('')
+const historyPage = ref(0)
+const historyTotal = ref(0)
+const queryHistory = ref<QueryHistoryItem[]>([])
 
-interface HistoryItem {
-  sql: string
-  success: boolean
-  rows: number
-  time: number
-  ts: number
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+function debouncedFetchHistory() {
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => { historyPage.value = 0; fetchHistory() }, 300)
 }
 
-const queryHistory = ref<HistoryItem[]>(loadHistory())
-
-function loadHistory(): HistoryItem[] {
+async function fetchHistory() {
+  historyLoading.value = true
   try {
-    const raw = localStorage.getItem(HISTORY_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch { return [] }
+    const res = await databaseApi.getQueryHistory(props.dbId, {
+      page: historyPage.value, size: 50, q: historySearch.value || undefined
+    })
+    const data = res.data
+    if (historyPage.value === 0) {
+      queryHistory.value = data.items
+    } else {
+      queryHistory.value.push(...data.items)
+    }
+    historyTotal.value = data.total
+  } catch { /* ignore */ }
+  historyLoading.value = false
 }
 
-function saveHistory() {
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(queryHistory.value))
-}
-
-function addToHistory(sql: string, success: boolean, rows: number, time: number) {
-  // Deduplicate: remove if same SQL exists
-  queryHistory.value = queryHistory.value.filter(h => h.sql !== sql)
-  queryHistory.value.unshift({ sql, success, rows, time, ts: Date.now() })
-  if (queryHistory.value.length > MAX_HISTORY) {
-    queryHistory.value = queryHistory.value.slice(0, MAX_HISTORY)
+function toggleHistory() {
+  showHistory.value = !showHistory.value
+  if (showHistory.value) {
+    historyPage.value = 0
+    historySearch.value = ''
+    fetchHistory()
   }
-  saveHistory()
 }
 
-function loadFromHistory(item: HistoryItem) {
+function loadMoreHistory() {
+  historyPage.value++
+  fetchHistory()
+}
+
+function loadFromHistory(item: QueryHistoryItem) {
   if (!editorView) return
   editorView.dispatch({
     changes: { from: 0, to: editorView.state.doc.length, insert: item.sql },
@@ -145,12 +166,15 @@ function loadFromHistory(item: HistoryItem) {
   showHistory.value = false
 }
 
-function clearHistory() {
+async function clearHistory() {
+  try {
+    await databaseApi.clearQueryHistory(props.dbId)
+  } catch { /* ignore */ }
   queryHistory.value = []
-  localStorage.removeItem(HISTORY_KEY)
+  historyTotal.value = 0
 }
 
-function formatHistoryDate(ts: number): string {
+function formatHistoryDate(ts: string): string {
   const d = new Date(ts)
   const now = new Date()
   if (d.toDateString() === now.toDateString()) {
@@ -250,12 +274,13 @@ async function executeQuery() {
   try {
     const res = await databaseApi.executeQuery(props.dbId, query)
     result.value = res.data
-    addToHistory(query, true, res.data.row_count, res.data.execution_time_ms)
+    // History auto-saved by server on executeQuery
+    if (showHistory.value) fetchHistory()
   } catch (e: any) {
     const data = e?.response?.data
     const msg = data?.error?.message || data?.message || e?.message || '执行失败'
     resultError.value = msg.replace(/^SQL execution failed:\s*/, '')
-    addToHistory(query, false, 0, 0)
+    if (showHistory.value) fetchHistory()
   } finally {
     executing.value = false
   }
@@ -503,11 +528,42 @@ defineExpose({ executeQuery })
   color: #191919;
 }
 
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-search {
+  width: 180px;
+  padding: 3px 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+}
+
+.history-search:focus {
+  border-color: #0073e6;
+}
+
 .history-empty {
   padding: 24px;
   text-align: center;
   color: #999;
   font-size: 13px;
+}
+
+.history-more {
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: #0073e6;
+  cursor: pointer;
+}
+
+.history-more:hover {
+  background: #e6f0ff;
 }
 
 .history-list {

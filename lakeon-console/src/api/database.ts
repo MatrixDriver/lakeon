@@ -66,6 +66,25 @@ export interface QueryResult {
   is_select: boolean
 }
 
+export interface QueryHistoryItem {
+  id: number
+  database_id?: string
+  database_name?: string
+  sql: string
+  success: boolean
+  row_count: number | null
+  duration_ms: number | null
+  error: string | null
+  created_at: string
+}
+
+export interface QueryHistoryPage {
+  items: QueryHistoryItem[]
+  total: number
+  page: number
+  pages: number
+}
+
 export interface DataPage {
   columns: string[]
   rows: unknown[][]
@@ -124,4 +143,14 @@ export const databaseApi = {
   tableStats: (id: string, schema: string, table: string) => client.get<TableStats>(`/databases/${id}/schemas/${schema}/tables/${table}/stats`),
   createTable: (id: string, schema: string, data: CreateTablePayload) => client.post(`/databases/${id}/schemas/${schema}/tables`, data),
   dropTable: (id: string, schema: string, table: string) => client.delete(`/databases/${id}/schemas/${schema}/tables/${table}`),
+
+  // Query History
+  getQueryHistory: (id: string, params: { page?: number; size?: number; q?: string }) =>
+    client.get<QueryHistoryPage>(`/databases/${id}/query-history`, { params }),
+  clearQueryHistory: (id: string) => client.delete(`/databases/${id}/query-history`),
+
+  // Tenant-level query history (cross-database)
+  getAllQueryHistory: (params: { page?: number; size?: number; q?: string }) =>
+    client.get<QueryHistoryPage>(`/query-history`, { params }),
+  clearAllQueryHistory: () => client.delete(`/query-history`),
 }
