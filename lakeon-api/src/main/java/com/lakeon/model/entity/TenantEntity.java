@@ -46,7 +46,7 @@ public class TenantEntity {
     @Column(name = "disabled_at")
     private Instant disabledAt;
 
-    @Column(name = "trial", nullable = false)
+    @Column(name = "trial", nullable = false, columnDefinition = "boolean default false")
     private Boolean trial = false;
 
     @Column(name = "expires_at")
