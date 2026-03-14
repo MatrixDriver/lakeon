@@ -373,6 +373,14 @@ public class AdminController {
         return result;
     }
 
+    @GetMapping("/infra/events")
+    public Map<String, Object> getPodEvents(
+            @RequestParam(defaultValue = "lakeon-compute") String namespace) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("events", adminService.getPodEvents(namespace));
+        return result;
+    }
+
     // ── Audit Logs ──────────────────────────────────────────────────
 
     @GetMapping("/audit/logs")

@@ -57,6 +57,41 @@
         </table>
       </div>
     </div>
+
+    <!-- Pod Events -->
+    <div class="section-card">
+      <div class="section-header"><h3>Pod 事件（近1小时 · lakeon-compute）</h3></div>
+      <div v-if="eventsLoading" class="empty-text">加载中...</div>
+      <div v-else-if="!events.length" class="empty-text">近1小时无事件</div>
+      <div class="table-wrapper" v-else>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>类型</th>
+              <th>Pod 名称</th>
+              <th>原因</th>
+              <th>消息</th>
+              <th>次数</th>
+              <th>最后发生</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(event, idx) in events" :key="idx">
+              <td>
+                <span class="event-type-badge" :class="event.type === 'Warning' ? 'badge-warning' : 'badge-normal'">
+                  {{ event.type }}
+                </span>
+              </td>
+              <td class="event-object">{{ event.object }}</td>
+              <td class="event-reason">{{ event.reason }}</td>
+              <td class="event-message" :title="event.message">{{ truncate(event.message, 80) }}</td>
+              <td>{{ event.count }}</td>
+              <td class="event-time">{{ formatTime(event.last_time) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -81,9 +116,20 @@ interface PodInfo {
   mem_mb: number
 }
 
+interface PodEvent {
+  type: string
+  reason: string
+  message: string
+  object: string
+  last_time: string
+  count: number
+}
+
 const nodes = ref<NodeInfo[]>([])
 const pods = ref<PodInfo[]>([])
+const events = ref<PodEvent[]>([])
 const loading = ref(true)
+const eventsLoading = ref(true)
 
 function progressColor(percent: number): string {
   if (percent >= 90) return 'fill-red'
@@ -91,8 +137,25 @@ function progressColor(percent: number): string {
   return 'fill-green'
 }
 
+function truncate(text: string, maxLen: number): string {
+  if (!text) return ''
+  return text.length > maxLen ? text.slice(0, maxLen) + '…' : text
+}
+
+function formatTime(isoStr: string): string {
+  if (!isoStr) return ''
+  try {
+    const d = new Date(isoStr)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  } catch {
+    return isoStr
+  }
+}
+
 async function loadData() {
   loading.value = true
+  eventsLoading.value = true
   try {
     const { data } = await adminApi.infraNodes()
     nodes.value = data.nodes || []
@@ -101,6 +164,14 @@ async function loadData() {
     console.error('Failed to load infra data', e)
   } finally {
     loading.value = false
+  }
+  try {
+    const { data } = await adminApi.infraEvents()
+    events.value = data.events || []
+  } catch (e) {
+    console.error('Failed to load pod events', e)
+  } finally {
+    eventsLoading.value = false
   }
 }
 
@@ -174,6 +245,44 @@ onMounted(() => { loadData() })
   font-family: monospace;
 }
 .empty-text { color: #999; font-size: 14px; padding: 20px 0; }
+
+.event-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.badge-warning {
+  background: #fff1f0;
+  color: #e6393d;
+}
+.badge-normal {
+  background: #f0f2f5;
+  color: #575d6c;
+}
+.event-object {
+  font-family: monospace;
+  font-size: 12px;
+  max-width: 200px;
+  word-break: break-all;
+}
+.event-reason {
+  font-size: 13px;
+  white-space: nowrap;
+}
+.event-message {
+  font-size: 12px;
+  color: #575d6c;
+  max-width: 320px;
+  cursor: default;
+}
+.event-time {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+}
 
 @media (max-width: 768px) {
   .node-grid {

@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.NodeMetrics;
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetrics;
 import io.fabric8.kubernetes.api.model.Quantity;
@@ -728,6 +729,51 @@ public class AdminService {
         } catch (NumberFormatException e) {
             return 0;
         }
+    }
+
+    // ── Pod Events ──
+
+    public List<Map<String, Object>> getPodEvents(String namespace) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        try {
+            List<Event> events = k8sClient.v1().events().inNamespace(namespace).list().getItems();
+            Instant oneHourAgo = Instant.now().minus(1, ChronoUnit.HOURS);
+
+            for (Event event : events) {
+                String lastTimestamp = event.getLastTimestamp();
+                Instant eventTime = null;
+                if (lastTimestamp != null && !lastTimestamp.isBlank()) {
+                    try {
+                        eventTime = Instant.parse(lastTimestamp);
+                    } catch (Exception ignored) {}
+                }
+                if (eventTime == null && event.getEventTime() != null) {
+                    try {
+                        eventTime = Instant.parse(event.getEventTime().getTime());
+                    } catch (Exception ignored) {}
+                }
+                if (eventTime == null || eventTime.isBefore(oneHourAgo)) {
+                    continue;
+                }
+
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("type", event.getType());
+                entry.put("reason", event.getReason());
+                entry.put("message", event.getMessage());
+                entry.put("object", event.getInvolvedObject() != null ? event.getInvolvedObject().getName() : "");
+                entry.put("last_time", eventTime.toString());
+                entry.put("count", event.getCount() != null ? event.getCount() : 1);
+                result.add(entry);
+            }
+
+            result.sort((a, b) -> ((String) b.get("last_time")).compareTo((String) a.get("last_time")));
+            if (result.size() > 50) {
+                return result.subList(0, 50);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get pod events for namespace {}: {}", namespace, e.getMessage());
+        }
+        return result;
     }
 
     private long percentile(List<Long> sorted, int p) {
