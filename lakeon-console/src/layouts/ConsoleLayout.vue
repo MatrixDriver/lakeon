@@ -21,7 +21,7 @@
             <rect x="11" y="11" width="4" height="4" rx="0.5" />
           </svg>
         </div>
-        <router-link to="/landing" class="logo-brand" style="text-decoration:none;color:inherit;">DBay</router-link>
+        <router-link to="/landing" class="logo-brand" style="text-decoration:none;color:#0073e6;">DBay</router-link>
         <span class="header-divider"></span>
         <span class="header-console-text">控制台</span>
         <span class="header-region">
