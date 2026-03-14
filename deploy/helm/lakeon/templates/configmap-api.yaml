@@ -63,6 +63,12 @@ data:
   LAKEON_SYNC_MAX_TASKS: {{ .Values.sync.maxTasks | quote }}
   {{- end }}
   {{- end }}
+  {{- if .Values.api.computeNodeSelector }}
+  LAKEON_COMPUTE_NODE_SELECTOR: {{ range $key, $value := .Values.api.computeNodeSelector }}{{ $key }}={{ $value }},{{ end }}
+  {{- end }}
+  {{- if .Values.api.inviteRequired }}
+  LAKEON_INVITE_REQUIRED: "true"
+  {{- end }}
   {{- if .Values.api.suspendPodRetainMinutes }}
   LAKEON_SUSPEND_POD_RETAIN_MINUTES: {{ .Values.api.suspendPodRetainMinutes | quote }}
   {{- end }}

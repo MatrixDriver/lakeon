@@ -1,0 +1,69 @@
+{{- if .Values.networkPolicy.enabled }}
+# NetworkPolicy: isolate compute pods in lakeon-compute namespace
+# - Egress: only pageserver:6400, safekeeper:5454, DNS:53
+# - Ingress: only proxy and lakeon-api pods from lakeon namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: compute-isolation
+  namespace: lakeon-compute
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: lakeon-compute
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow from proxy (PG connection routing)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.global.namespace }}
+          podSelector:
+            matchLabels:
+              app: proxy
+      ports:
+        - protocol: TCP
+          port: 55433
+    # Allow from lakeon-api (kubectl exec for health checks, password sync)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.global.namespace }}
+          podSelector:
+            matchLabels:
+              app: lakeon-api
+  egress:
+    # Allow to pageserver (page reads)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.global.namespace }}
+          podSelector:
+            matchLabels:
+              app: pageserver
+      ports:
+        - protocol: TCP
+          port: {{ .Values.pageserver.pgPort }}
+    # Allow to safekeeper (WAL writes)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.global.namespace }}
+          podSelector:
+            matchLabels:
+              app: safekeeper
+      ports:
+        - protocol: TCP
+          port: {{ .Values.safekeeper.pgPort }}
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+{{- end }}

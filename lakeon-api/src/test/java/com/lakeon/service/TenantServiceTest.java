@@ -4,9 +4,13 @@ import com.lakeon.model.dto.CreateTenantRequest;
 import com.lakeon.model.dto.TenantResponse;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.model.entity.ApiKeyEntity;
+import com.lakeon.config.LakeonProperties;
 import com.lakeon.repository.ApiKeyRepository;
 import com.lakeon.repository.DatabaseRepository;
+import com.lakeon.repository.InviteCodeRepository;
 import com.lakeon.repository.TenantRepository;
+import com.lakeon.model.entity.InviteCodeEntity;
+import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.ConflictException;
 import com.lakeon.service.exception.NotFoundException;
 
@@ -40,6 +44,12 @@ class TenantServiceTest {
     @Mock
     private ApiKeyRepository apiKeyRepository;
 
+    @Mock
+    private InviteCodeRepository inviteCodeRepository;
+
+    @Mock
+    private LakeonProperties props;
+
     @InjectMocks
     private TenantService tenantService;
 
@@ -47,7 +57,8 @@ class TenantServiceTest {
     @DisplayName("UT-SVC-TN-001: 创建租户 — 生成唯一 API Key，保存元数据")
     void createTenant_success() {
         // Given
-        var request = new CreateTenantRequest("test-user", "password123");
+        var request = new CreateTenantRequest("test-user", "password123", null);
+        when(props.getInviteRequired()).thenReturn(false);
         when(tenantRepository.findByUsername("test-user"))
                 .thenReturn(Optional.empty());
         when(tenantRepository.save(any(TenantEntity.class)))
@@ -131,5 +142,71 @@ class TenantServiceTest {
         assertThat(result.getApiKey()).hasSize(67); // "lk_" + 64 hex chars
 
         verify(tenantRepository).save(any(TenantEntity.class));
+    }
+
+    @Test
+    @DisplayName("UT-SVC-TN-005: 邀请码模式 — 无邀请码拒绝注册")
+    void createTenant_inviteRequired_noCode() {
+        when(props.getInviteRequired()).thenReturn(true);
+        var request = new CreateTenantRequest("newuser", "pass1234", null);
+
+        assertThatThrownBy(() -> tenantService.create(request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Invite code is required");
+    }
+
+    @Test
+    @DisplayName("UT-SVC-TN-006: 邀请码模式 — 无效邀请码拒绝注册")
+    void createTenant_inviteRequired_invalidCode() {
+        when(props.getInviteRequired()).thenReturn(true);
+        when(inviteCodeRepository.findById("BADCODE1")).thenReturn(Optional.empty());
+        var request = new CreateTenantRequest("newuser", "pass1234", "BADCODE1");
+
+        assertThatThrownBy(() -> tenantService.create(request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Invalid or expired");
+    }
+
+    @Test
+    @DisplayName("UT-SVC-TN-007: 邀请码模式 — 有效邀请码允许注册并递增用量")
+    void createTenant_inviteRequired_validCode() {
+        when(props.getInviteRequired()).thenReturn(true);
+        InviteCodeEntity invite = new InviteCodeEntity();
+        invite.setCode("GOODCODE");
+        invite.setMaxUses(10);
+        invite.setUsedCount(0);
+        when(inviteCodeRepository.findById("GOODCODE")).thenReturn(Optional.of(invite));
+        when(tenantRepository.findByUsername("newuser")).thenReturn(Optional.empty());
+        when(tenantRepository.save(any(TenantEntity.class))).thenAnswer(inv -> {
+            TenantEntity e = inv.getArgument(0);
+            e.prePersist();
+            return e;
+        });
+        when(apiKeyRepository.save(any(ApiKeyEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(inviteCodeRepository.save(any(InviteCodeEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var request = new CreateTenantRequest("newuser", "pass1234", "GOODCODE");
+        var result = tenantService.create(request);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getId()).startsWith("tn_");
+        assertThat(invite.getUsedCount()).isEqualTo(1);
+        verify(inviteCodeRepository).save(invite);
+    }
+
+    @Test
+    @DisplayName("UT-SVC-TN-008: 邀请码模式 — 用尽的邀请码拒绝注册")
+    void createTenant_inviteRequired_exhaustedCode() {
+        when(props.getInviteRequired()).thenReturn(true);
+        InviteCodeEntity invite = new InviteCodeEntity();
+        invite.setCode("USEDCODE");
+        invite.setMaxUses(1);
+        invite.setUsedCount(1);
+        when(inviteCodeRepository.findById("USEDCODE")).thenReturn(Optional.of(invite));
+
+        var request = new CreateTenantRequest("newuser", "pass1234", "USEDCODE");
+        assertThatThrownBy(() -> tenantService.create(request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Invalid or expired");
     }
 }

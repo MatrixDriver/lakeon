@@ -15,6 +15,8 @@ import com.lakeon.repository.TenantRepository;
 import com.lakeon.service.AdminService;
 import com.lakeon.service.AlertService;
 import com.lakeon.service.AuditService;
+import com.lakeon.model.entity.InviteCodeEntity;
+import com.lakeon.repository.InviteCodeRepository;
 import com.lakeon.service.CbcBillingService;
 import com.lakeon.service.DatabaseService;
 import com.lakeon.service.TenantService;
@@ -44,6 +46,7 @@ public class AdminController {
     private final CbcBillingService cbcBillingService;
     private final AlertService alertService;
     private final AuditService auditService;
+    private final InviteCodeRepository inviteCodeRepository;
 
     public AdminController(TenantService tenantService,
                            AdminService adminService,
@@ -54,7 +57,8 @@ public class AdminController {
                            UsageMeteringService usageMeteringService,
                            CbcBillingService cbcBillingService,
                            AlertService alertService,
-                           AuditService auditService) {
+                           AuditService auditService,
+                           InviteCodeRepository inviteCodeRepository) {
         this.tenantService = tenantService;
         this.adminService = adminService;
         this.databaseService = databaseService;
@@ -65,6 +69,7 @@ public class AdminController {
         this.cbcBillingService = cbcBillingService;
         this.alertService = alertService;
         this.auditService = auditService;
+        this.inviteCodeRepository = inviteCodeRepository;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────
@@ -407,6 +412,46 @@ public class AdminController {
         m.put("connection_uri", db.getConnectionUri());
         m.put("last_active_at", db.getLastActiveAt());
         m.put("created_at", db.getCreatedAt());
+        return m;
+    }
+
+    // ── Invite Codes ─────────────────────────────────────────────────
+
+    @PostMapping("/invite-codes")
+    public Map<String, Object> createInviteCode(@RequestBody(required = false) Map<String, Object> body) {
+        InviteCodeEntity entity = new InviteCodeEntity();
+        if (body != null) {
+            if (body.containsKey("max_uses")) {
+                entity.setMaxUses(((Number) body.get("max_uses")).intValue());
+            }
+            if (body.containsKey("expires_at") && body.get("expires_at") != null) {
+                entity.setExpiresAt(Instant.parse((String) body.get("expires_at")));
+            }
+        }
+        entity.setCreatedBy("admin");
+        entity = inviteCodeRepository.save(entity);
+        return inviteCodeToMap(entity);
+    }
+
+    @GetMapping("/invite-codes")
+    public List<Map<String, Object>> listInviteCodes() {
+        return inviteCodeRepository.findAllByOrderByCreatedAtDesc().stream()
+            .map(this::inviteCodeToMap).toList();
+    }
+
+    @DeleteMapping("/invite-codes/{code}")
+    public void deleteInviteCode(@PathVariable String code) {
+        inviteCodeRepository.deleteById(code.toUpperCase());
+    }
+
+    private Map<String, Object> inviteCodeToMap(InviteCodeEntity e) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("code", e.getCode());
+        m.put("max_uses", e.getMaxUses());
+        m.put("used_count", e.getUsedCount());
+        m.put("valid", e.isValid());
+        m.put("expires_at", e.getExpiresAt());
+        m.put("created_at", e.getCreatedAt());
         return m;
     }
 }

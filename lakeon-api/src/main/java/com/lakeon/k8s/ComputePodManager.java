@@ -120,6 +120,11 @@ public class ComputePodManager {
                         .map(name -> new LocalObjectReferenceBuilder().withName(name).build())
                         .toList()
                 )
+                .withNodeSelector(
+                    props.getK8s().getComputeNodeSelector().isEmpty()
+                        ? null
+                        : new LinkedHashMap<>(props.getK8s().getComputeNodeSelector())
+                )
                 .addNewContainer()
                     .withName("compute")
                     .withImage(props.getK8s().getComputeImage())

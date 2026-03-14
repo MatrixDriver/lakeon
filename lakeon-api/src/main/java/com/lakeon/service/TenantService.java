@@ -3,9 +3,12 @@ package com.lakeon.service;
 import com.lakeon.model.dto.CreateTenantRequest;
 import com.lakeon.model.dto.LoginRequest;
 import com.lakeon.model.dto.TenantResponse;
+import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.ApiKeyEntity;
+import com.lakeon.model.entity.InviteCodeEntity;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.repository.ApiKeyRepository;
+import com.lakeon.repository.InviteCodeRepository;
 import com.lakeon.repository.TenantRepository;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.exception.BadRequestException;
@@ -26,13 +29,18 @@ public class TenantService {
     private final TenantRepository tenantRepository;
     private final DatabaseRepository databaseRepository;
     private final ApiKeyRepository apiKeyRepository;
+    private final InviteCodeRepository inviteCodeRepository;
+    private final LakeonProperties props;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public TenantService(TenantRepository tenantRepository, DatabaseRepository databaseRepository,
-                         ApiKeyRepository apiKeyRepository) {
+                         ApiKeyRepository apiKeyRepository, InviteCodeRepository inviteCodeRepository,
+                         LakeonProperties props) {
         this.tenantRepository = tenantRepository;
         this.databaseRepository = databaseRepository;
         this.apiKeyRepository = apiKeyRepository;
+        this.inviteCodeRepository = inviteCodeRepository;
+        this.props = props;
     }
 
     public boolean isUsernameAvailable(String username) {
@@ -42,6 +50,19 @@ public class TenantService {
 
     @Transactional
     public TenantResponse create(CreateTenantRequest request) {
+        // Validate invite code if required
+        InviteCodeEntity inviteCode = null;
+        if (props.getInviteRequired()) {
+            String code = request.inviteCode();
+            if (code == null || code.isBlank()) {
+                throw new BadRequestException("Invite code is required for registration");
+            }
+            inviteCode = inviteCodeRepository.findById(code.trim().toUpperCase()).orElse(null);
+            if (inviteCode == null || !inviteCode.isValid()) {
+                throw new BadRequestException("Invalid or expired invite code");
+            }
+        }
+
         tenantRepository.findByUsername(request.username()).ifPresent(existing -> {
             throw new ConflictException("Username '" + request.username() + "' already exists");
         });
@@ -58,6 +79,12 @@ public class TenantService {
         apiKeyEntity.setName("Default");
         apiKeyEntity.setApiKey(entity.getApiKey());
         apiKeyRepository.save(apiKeyEntity);
+
+        // Increment invite code usage
+        if (inviteCode != null) {
+            inviteCode.incrementUsed();
+            inviteCodeRepository.save(inviteCode);
+        }
 
         return toResponse(entity);
     }

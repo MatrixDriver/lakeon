@@ -6,6 +6,7 @@ import com.lakeon.model.dto.TenantResponse;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.repository.DatabaseRepository;
+import com.lakeon.repository.InviteCodeRepository;
 import com.lakeon.repository.OperationLogRepository;
 import com.lakeon.repository.TenantRepository;
 import com.lakeon.service.*;
@@ -51,6 +52,7 @@ class AdminControllerTest {
     @MockBean private CbcBillingService cbcBillingService;
     @MockBean private AlertService alertService;
     @MockBean private AuditService auditService;
+    @MockBean private InviteCodeRepository inviteCodeRepository;
     @MockBean private LakeonProperties lakeonProperties;
 
     private static final String ADMIN_TOKEN = "Bearer test-admin-token";

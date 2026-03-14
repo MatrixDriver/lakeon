@@ -17,6 +17,7 @@ public class LakeonProperties {
     private CostConfig cost = new CostConfig();
     private CloudConfig cloud = new CloudConfig();
     private AlertConfig alert = new AlertConfig();
+    private boolean inviteRequired = false;
     private SuspendConfig suspend = new SuspendConfig();
     private BackupConfig backup = new BackupConfig();
     private SyncConfig sync = new SyncConfig();
@@ -39,6 +40,8 @@ public class LakeonProperties {
     public void setCloud(CloudConfig cloud) { this.cloud = cloud; }
     public AlertConfig getAlert() { return alert; }
     public void setAlert(AlertConfig alert) { this.alert = alert; }
+    public boolean getInviteRequired() { return inviteRequired; }
+    public void setInviteRequired(boolean inviteRequired) { this.inviteRequired = inviteRequired; }
     public SuspendConfig getSuspend() { return suspend; }
     public void setSuspend(SuspendConfig suspend) { this.suspend = suspend; }
     public BackupConfig getBackup() { return backup; }
@@ -95,6 +98,8 @@ public class LakeonProperties {
         private List<String> imagePullSecrets = List.of();
         private String computeCpu;
         private String computeMemory;
+        private String computeNodeSelectorRaw;
+        private java.util.Map<String, String> computeNodeSelector = java.util.Map.of();
 
         public String getNamespace() { return namespace; }
         public void setNamespace(String namespace) { this.namespace = namespace; }
@@ -108,6 +113,24 @@ public class LakeonProperties {
         public void setComputeCpu(String computeCpu) { this.computeCpu = computeCpu; }
         public String getComputeMemory() { return computeMemory; }
         public void setComputeMemory(String computeMemory) { this.computeMemory = computeMemory; }
+        public java.util.Map<String, String> getComputeNodeSelector() { return computeNodeSelector; }
+        public void setComputeNodeSelector(java.util.Map<String, String> computeNodeSelector) { this.computeNodeSelector = computeNodeSelector; }
+        public String getComputeNodeSelectorRaw() { return computeNodeSelectorRaw; }
+        public void setComputeNodeSelectorRaw(String raw) {
+            this.computeNodeSelectorRaw = raw;
+            if (raw != null && !raw.isBlank()) {
+                var map = new java.util.LinkedHashMap<String, String>();
+                for (String pair : raw.split(",")) {
+                    String trimmed = pair.trim();
+                    if (trimmed.isEmpty()) continue;
+                    int eq = trimmed.indexOf('=');
+                    if (eq > 0) {
+                        map.put(trimmed.substring(0, eq).trim(), trimmed.substring(eq + 1).trim());
+                    }
+                }
+                this.computeNodeSelector = map;
+            }
+        }
     }
 
     public static class AdminConfig {

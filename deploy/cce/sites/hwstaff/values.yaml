@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.5.1"
+    tag: "0.5.3"
   resources:
     requests:
       cpu: "100m"
@@ -59,6 +59,10 @@ api:
     limits:
       cpu: "1"
       memory: "1Gi"
+  inviteRequired: true  # 注册需要邀请码
+  # Compute Pod 调度到弹性节点池 (autoscaler min=0 max=5)
+  computeNodeSelector:
+    lakeon/role: compute
 
 # ── Neon 组件（单副本开发模式，最小资源请求）─────────────────────
 pageserver:
@@ -182,11 +186,24 @@ cloud:
     # - "<CCE-CLUSTER-ID>"                     # CCE 集群
     # - "<RDS-INSTANCE-ID>"                    # RDS PostgreSQL
 
+# ── 弹性节点池（compute pod 自动扩缩容）──────────────────────────
+# 节点池 dbay-compute-pool (55859b9b) 已在 CCE 控制台创建:
+#   规格: c9.xlarge.2 (4C/8G)
+#   弹性伸缩: min=1, max=5
+#   节点标签: lakeon/role=compute
+#   autoscaler 插件: v1.33.57
+# compute pod 通过 api.computeNodeSelector 定向到弹性池，
+# 管控面组件留在固定节点上。
+# node-init DaemonSet 自动在新节点修复 containerd core ulimit。
+
 # ── 节点初始化（修复 containerd core ulimit）─────────────────────
 nodeInit:
   enabled: true
   image: "swr.cn-north-4.myhuaweicloud.com/flex/busybox:1.36"
 
 # ── 禁用集群内组件 ─────────────────────────────────────────────
+networkPolicy:
+  enabled: true
+
 minio:
   enabled: false

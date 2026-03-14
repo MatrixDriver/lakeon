@@ -72,6 +72,9 @@ api:
     requests:
       cpu: "1"
       memory: "1Gi"
+  # nodeSelector for compute pods (elastic node pool scheduling)
+  # Example: { "lakeon/role": "compute" }
+  computeNodeSelector: {}
 
 obs:
   endpoint: ""
@@ -101,6 +104,9 @@ metadataDb:
     limits:
       cpu: "500m"
       memory: "512Mi"
+
+networkPolicy:
+  enabled: false
 
 minio:
   # Set enabled=true to deploy MinIO as S3-compatible storage within the cluster
