@@ -167,10 +167,10 @@ class DatabaseUserServiceTest {
 
             List<DatabaseUserResponse> result = databaseUserService.listUsers(testTenant, "db_test001");
 
-            assertThat(result).hasSize(3);
-            assertThat(result.get(0).isOwner()).isTrue();
-            assertThat(result.get(1).username()).isEqualTo("reader1");
-            assertThat(result.get(2).username()).isEqualTo("writer1");
+            // cloud_admin is filtered out (internal management user), only user1 and user2 returned
+            assertThat(result).hasSize(2);
+            assertThat(result.get(0).username()).isEqualTo("reader1");
+            assertThat(result.get(1).username()).isEqualTo("writer1");
         }
 
         @Test
