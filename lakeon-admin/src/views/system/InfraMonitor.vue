@@ -160,7 +160,8 @@ const events = ref<PodEvent[]>([])
 const loading = ref(true)
 const eventsLoading = ref(true)
 
-function progressColor(percent: number): string {
+function progressColor(percent: number | undefined): string {
+  if (percent == null) return 'fill-green'
   if (percent >= 90) return 'fill-red'
   if (percent >= 70) return 'fill-orange'
   return 'fill-green'
