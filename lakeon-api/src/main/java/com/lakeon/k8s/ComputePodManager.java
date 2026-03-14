@@ -234,6 +234,57 @@ public class ComputePodManager {
     /**
      * Check if a Pod is ready.
      */
+    /**
+     * Returns true if any compute pod has been in an abnormal state for longer than thresholdSeconds.
+     * Abnormal states: Failed, CrashLoopBackOff, or Pending beyond threshold.
+     */
+    public boolean hasAbnormalPods(double thresholdSeconds) {
+        String namespace = props.getK8s().getNamespace();
+        List<Pod> pods = k8sClient.pods().inNamespace(namespace)
+            .withLabel("app", "lakeon-compute")
+            .list().getItems();
+
+        long thresholdMs = (long) (thresholdSeconds * 1000);
+        long now = System.currentTimeMillis();
+
+        for (Pod pod : pods) {
+            if (pod.getMetadata().getDeletionTimestamp() != null) continue;
+            PodStatus status = pod.getStatus();
+            if (status == null) continue;
+
+            String phase = status.getPhase();
+
+            // Failed pods are always abnormal
+            if ("Failed".equals(phase)) {
+                log.warn("Abnormal compute pod (Failed): {}", pod.getMetadata().getName());
+                return true;
+            }
+
+            // CrashLoopBackOff in any container
+            if (status.getContainerStatuses() != null) {
+                for (ContainerStatus cs : status.getContainerStatuses()) {
+                    if (cs.getState() != null && cs.getState().getWaiting() != null
+                            && "CrashLoopBackOff".equals(cs.getState().getWaiting().getReason())) {
+                        log.warn("Abnormal compute pod (CrashLoopBackOff): {}", pod.getMetadata().getName());
+                        return true;
+                    }
+                }
+            }
+
+            // Pending beyond threshold — use startTime
+            if ("Pending".equals(phase) && pod.getStatus().getStartTime() != null) {
+                try {
+                    long startMs = java.time.Instant.parse(pod.getStatus().getStartTime()).toEpochMilli();
+                    if (now - startMs > thresholdMs) {
+                        log.warn("Abnormal compute pod (Pending >{}s): {}", (long) thresholdSeconds, pod.getMetadata().getName());
+                        return true;
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+        return false;
+    }
+
     public boolean isPodReady(String podName) {
         String namespace = props.getK8s().getNamespace();
         Pod pod = k8sClient.pods().inNamespace(namespace).withName(podName).get();

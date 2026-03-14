@@ -27,9 +27,14 @@ from datetime import datetime, timezone
 
 REGION = "cn-north-4"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-ENV_FILE = os.path.join(SCRIPT_DIR, ".env.cce")
-CACHE_FILE = os.path.join(SCRIPT_DIR, ".lakeon-cloud.json")
-VALUES_FILE = os.path.join(SCRIPT_DIR, "values-cce.yaml")
+SITE_DIR = os.environ.get("LAKEON_SITE_DIR", SCRIPT_DIR)
+ENV_FILE = os.path.join(SITE_DIR, ".env")
+if not os.path.exists(ENV_FILE):
+    ENV_FILE = os.path.join(SCRIPT_DIR, ".env.cce")  # fallback
+CACHE_FILE = os.path.join(SITE_DIR, ".lakeon-cloud.json")
+VALUES_FILE = os.path.join(SITE_DIR, "values.yaml")
+if not os.path.exists(VALUES_FILE):
+    VALUES_FILE = os.path.join(SCRIPT_DIR, "values-cce.yaml")  # fallback
 
 
 # ── Credentials ──────────────────────────────────────────────────
@@ -43,7 +48,9 @@ def load_credentials():
                 line = line.removeprefix("export ").strip()
                 key, val = line.split("=", 1)
                 creds[key.strip()] = val.strip().strip("'\"")
-    return creds.get("OBS_AK"), creds.get("OBS_SK"), creds
+    ak = creds.get("HWCLOUD_AK") or creds.get("OBS_AK")
+    sk = creds.get("HWCLOUD_SK") or creds.get("OBS_SK")
+    return ak, sk, creds
 
 
 # ── HWC API Signing ──────────────────────────────────────────────
@@ -971,7 +978,7 @@ if __name__ == "__main__":
         sys.exit(1)
     ak, sk, all_creds = load_credentials()
     if not ak or not sk:
-        print(f"错误: 请在 {ENV_FILE} 中配置 OBS_AK 和 OBS_SK")
+        print(f"错误: 请在 {ENV_FILE} 中配置 HWCLOUD_AK 和 HWCLOUD_SK (或 OBS_AK/OBS_SK)")
         sys.exit(1)
     # Store node password in cache for start-cloud
     if sys.argv[1] in ("discover", "stop-cloud"):

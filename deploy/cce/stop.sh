@@ -1,13 +1,15 @@
 #!/bin/bash
 # Lakeon 极致省钱 - 一键关停
 #
-# 两种模式:
-#   ./deploy/cce/stop.sh          # 关停 ECS+RDS，保留 CCE+ELB+EIP（省 ~¥65/天）
-#   ./deploy/cce/stop.sh --full   # 关停 ECS+RDS+删 ELB+释放 EIP（省 ~¥89/天）
+# 用法:
+#   ./deploy/cce/stop.sh                    # 关停 ECS+RDS，保留 CCE+ELB+EIP
+#   ./deploy/cce/stop.sh --full             # 关停一切
+#   SITE=jackylk ./deploy/cce/stop.sh       # 关停 jackylk 站点
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-export KUBECONFIG=${KUBECONFIG:-~/.kube/cce-lakeon-config}
+source "$SCRIPT_DIR/site.sh"
+
 FULL_FLAG=""
 [[ "$1" == "--full" ]] && FULL_FLAG="--full"
 
@@ -45,4 +47,4 @@ if [[ -n "$FULL_FLAG" ]]; then
 else
   echo "💤 晚安！所有资源已关停，每天节省 ~¥65（仍计费 CCE+ELB+EIP ≈ ¥24/天）"
 fi
-echo "   启动命令: ./deploy/cce/start.sh"
+echo "   启动命令: SITE=$SITE ./deploy/cce/start.sh"

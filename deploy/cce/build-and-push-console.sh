@@ -12,12 +12,15 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -z "${SWR_ORG:-}" ] && [ -f "$SCRIPT_DIR/site.sh" ]; then
+  source "$SCRIPT_DIR/site.sh"
+fi
+
 SWR_REGION="${SWR_REGION:-cn-north-4}"
-SWR_ORG="${SWR_ORG:-lakeon}"
+SWR_ORG="${SWR_ORG:-flex}"
 IMAGE_TAG="${IMAGE_TAG:-0.1.0}"
 IMAGE="swr.${SWR_REGION}.myhuaweicloud.com/${SWR_ORG}/lakeon-console:${IMAGE_TAG}"
-
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONSOLE_DIR="$(cd "$SCRIPT_DIR/../../lakeon-console" && pwd)"
 
 echo "=== 构建 lakeon-console 并推送到 SWR ==="

@@ -16,11 +16,16 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -z "${SWR_ORG:-}" ] && [ -f "$SCRIPT_DIR/site.sh" ]; then
+  source "$SCRIPT_DIR/site.sh"
+fi
+
 SWR_REGION="${SWR_REGION:-cn-north-4}"
 SWR_REGISTRY="swr.${SWR_REGION}.myhuaweicloud.com"
 
 if [[ -z "${SWR_ORG:-}" ]]; then
-    echo "ERROR: SWR_ORG is required. Usage: SWR_ORG=lakeon $0" >&2
+    echo "ERROR: SWR_ORG is required. Usage: SWR_ORG=lakeon $0 或 SITE=jackylk $0" >&2
     exit 1
 fi
 

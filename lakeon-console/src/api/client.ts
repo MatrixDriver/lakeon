@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const client = axios.create({
-  baseURL: '/api/v1',
+  baseURL: 'https://api.dbay.cloud:8443/api/v1',
   timeout: 30000,
 })
 
@@ -18,7 +18,7 @@ client.interceptors.request.use((config) => {
 client.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && window.location.pathname !== '/login') {
       localStorage.removeItem('lakeon_api_key')
       localStorage.removeItem('lakeon_tenant_id')
       localStorage.removeItem('lakeon_tenant_name')

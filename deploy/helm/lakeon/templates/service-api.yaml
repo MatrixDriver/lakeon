@@ -19,8 +19,6 @@ spec:
     - name: https
       port: {{ if and .Values.api.elb .Values.api.elb.port }}{{ .Values.api.elb.port }}{{ else }}{{ .Values.api.port | default 8080 }}{{ end }}
       targetPort: http
-    {{- if .Values.api.ssl.enabled }}
     - name: http-internal
       port: {{ .Values.api.internalPort | default 8088 }}
-      targetPort: {{ .Values.api.internalPort | default 8088 }}
-    {{- end }}
+      targetPort: {{ if .Values.api.ssl.enabled }}http-internal{{ else }}http{{ end }}

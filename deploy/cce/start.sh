@@ -1,13 +1,14 @@
 #!/bin/bash
 # Lakeon 极致省钱 - 一键启动
-# 资源: 2x 4C8G 固定节点 + 共享ELB + 按流量EIP + RDS
 # 启动顺序: ECS开机 + RDS启动 → 等待就绪 → 创建 ELB+EIP → 删旧 Service → Helm 部署
 #
-# 用法: ./deploy/cce/start.sh
+# 用法:
+#   ./deploy/cce/start.sh                  # 启动默认站点 (hwstaff)
+#   SITE=jackylk ./deploy/cce/start.sh     # 启动 jackylk 站点
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-export KUBECONFIG=${KUBECONFIG:-~/.kube/cce-lakeon-config}
+source "$SCRIPT_DIR/site.sh"
 
 echo "=== Lakeon 极致省钱 - 启动 ==="
 echo ""
@@ -28,7 +29,7 @@ if [ -f /tmp/cloud-resources.json ]; then
   echo "  ✓ ConfigMap lakeon-cloud-resources 已更新"
 fi
 
-# 2. Delete old LoadBalancer services (containerd ulimit fix is persistent, only needed once per new node) (CCE forbids modifying elb.id annotation)
+# 2. Delete old LoadBalancer services (CCE forbids modifying elb.id annotation)
 echo ""
 echo "── 清理旧 Service ──"
 for svc in proxy; do
@@ -38,11 +39,10 @@ done
 # 3. Helm deploy
 echo ""
 echo "── Helm 部署 ──"
-source "$SCRIPT_DIR/.env.cce"
 
 helm upgrade --install lakeon "$SCRIPT_DIR/../helm/lakeon" \
-  -f "$SCRIPT_DIR/values-cce.yaml" \
-  --set obs.accessKey=$OBS_AK --set obs.secretKey=$OBS_SK \
+  -f "$SITE_VALUES" \
+  --set obs.accessKey=$HWCLOUD_AK --set obs.secretKey=$HWCLOUD_SK \
   --set metadataDb.host=$RDS_PRIVATE_IP --set metadataDb.password=$RDS_PASSWORD \
   -n lakeon --create-namespace --timeout 5m --no-hooks 2>&1
 
@@ -61,7 +61,7 @@ echo ""
 source "$SCRIPT_DIR/smoke-test.sh"
 
 # Get the new EIP from values
-NEW_EIP=$(grep 'externalHost:' "$SCRIPT_DIR/values-cce.yaml" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+NEW_EIP=$(grep 'externalHost:' "$SITE_VALUES" | head -1 | sed 's/.*"\(.*\)".*/\1/')
 
 echo ""
 echo "✅ Lakeon 已完全启动！"

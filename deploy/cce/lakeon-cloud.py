@@ -21,11 +21,16 @@ from datetime import datetime, timezone
 
 REGION = "cn-north-4"  # 目标区域：华北-北京四
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+SITE_DIR = os.environ.get("LAKEON_SITE_DIR", SCRIPT_DIR)
 
-# 凭证与配置文件路径
-ENV_FILE = os.path.join(SCRIPT_DIR, ".env.cce")         # AK/SK 环境变量文件
-CACHE_FILE = os.path.join(SCRIPT_DIR, ".lakeon-cloud.json") # 资源 ID 缓存文件
-VALUES_FILE = os.path.join(SCRIPT_DIR, "values-cce.yaml")   # Helm 配置文件
+# 凭证与配置文件路径（优先从站点目录读取）
+ENV_FILE = os.path.join(SITE_DIR, ".env")
+if not os.path.exists(ENV_FILE):
+    ENV_FILE = os.path.join(SCRIPT_DIR, ".env.cce")  # fallback
+CACHE_FILE = os.path.join(SITE_DIR, ".lakeon-cloud.json")
+VALUES_FILE = os.path.join(SITE_DIR, "values.yaml")
+if not os.path.exists(VALUES_FILE):
+    VALUES_FILE = os.path.join(SCRIPT_DIR, "values-cce.yaml")  # fallback
 
 # ── 核心底层引擎 (签名与 API 调用) ──────────────────────────────────
 
@@ -42,7 +47,9 @@ def load_credentials():
                 line = line.removeprefix("export ").strip()
                 key, val = line.split("=", 1)
                 creds[key.strip()] = val.strip().strip("'\"")
-    return creds.get("OBS_AK"), creds.get("OBS_SK"), creds
+    ak = creds.get("HWCLOUD_AK") or creds.get("OBS_AK")
+    sk = creds.get("HWCLOUD_SK") or creds.get("OBS_SK")
+    return ak, sk, creds
 
 def _hmac256(key, msg):
     """标准的 HMAC-SHA256 哈希计算"""

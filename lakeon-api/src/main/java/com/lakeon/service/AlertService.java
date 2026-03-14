@@ -1,5 +1,6 @@
 package com.lakeon.service;
 
+import com.lakeon.k8s.ComputePodManager;
 import com.lakeon.model.entity.AlertEntity;
 import com.lakeon.model.entity.AlertRuleEntity;
 import com.lakeon.repository.AlertRepository;
@@ -28,16 +29,19 @@ public class AlertService {
     private final AlertRepository alertRepository;
     private final AlertRuleRepository ruleRepository;
     private final AdminService adminService;
+    private final ComputePodManager computePodManager;
     private final MeterRegistry meterRegistry;
     private final HttpClient httpClient;
 
     public AlertService(AlertRepository alertRepository,
                         AlertRuleRepository ruleRepository,
                         AdminService adminService,
+                        ComputePodManager computePodManager,
                         MeterRegistry meterRegistry) {
         this.alertRepository = alertRepository;
         this.ruleRepository = ruleRepository;
         this.adminService = adminService;
+        this.computePodManager = computePodManager;
         this.meterRegistry = meterRegistry;
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
@@ -84,7 +88,7 @@ public class AlertService {
             case "wakeup_failure" -> checkWakeupFailure();
             case "api_latency" -> checkApiLatency(rule.getThreshold());
             case "storage_limit" -> checkStorageLimit(rule.getThreshold());
-            case "pod_abnormal" -> false; // TODO: implement pod state check
+            case "pod_abnormal" -> computePodManager.hasAbnormalPods(rule.getThreshold());
             default -> false;
         };
 

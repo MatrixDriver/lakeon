@@ -3,7 +3,8 @@
 # 构建 lakeon-api 镜像并推送到华为云 SWR
 #
 # 用法:
-#   ./deploy/cce/build-and-push-api.sh
+#   ./deploy/cce/build-and-push-api.sh                   # 默认站点 (hwstaff)
+#   SITE=jackylk ./deploy/cce/build-and-push-api.sh      # jackylk 站点
 #
 # 前置条件:
 #   - docker login swr.cn-north-4.myhuaweicloud.com 已完成
@@ -12,12 +13,17 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# 加载站点配置获取 SWR_ORG（如果未手动指定）
+if [ -z "${SWR_ORG:-}" ] && [ -f "$SCRIPT_DIR/site.sh" ]; then
+  source "$SCRIPT_DIR/site.sh"
+fi
+
 SWR_REGION="${SWR_REGION:-cn-north-4}"
-SWR_ORG="${SWR_ORG:-lakeon}"
+SWR_ORG="${SWR_ORG:-flex}"
 IMAGE_TAG="${IMAGE_TAG:-0.1.0}"
 IMAGE="swr.${SWR_REGION}.myhuaweicloud.com/${SWR_ORG}/lakeon-api:${IMAGE_TAG}"
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 API_DIR="$PROJECT_DIR/lakeon-api"
 

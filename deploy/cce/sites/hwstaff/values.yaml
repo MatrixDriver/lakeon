@@ -1,0 +1,192 @@
+# Stage 3: 华为云 CCE 开发集群配置
+#
+# 用法:
+#   helm upgrade --install lakeon deploy/helm/lakeon \
+#     -f deploy/cce/values-cce.yaml \
+#     --set obs.accessKey=$HWCLOUD_AK --set obs.secretKey=$HWCLOUD_SK \
+#     --set metadataDb.host=$RDS_PRIVATE_IP --set metadataDb.password=$RDS_PASSWORD \
+#     -n lakeon --timeout 5m --no-hooks
+#
+# 前置条件:
+#   1. CCE 集群已创建，kubeconfig 已切换到目标 context
+#   2. 镜像已推送到 SWR（deploy/cce/push-images.sh）
+#   3. RDS 与 CCE 在同一 VPC，使用私有 IP 直连
+#   4. 安全组放通 5432（RDS）和 443（OBS）出方向
+#
+# 环境变量（通过 --set 传递，不入库）:
+#   HWCLOUD_AK       — 华为云 AccessKey
+#   HWCLOUD_SK       — 华为云 SecretKey
+#   RDS_PRIVATE_IP   — RDS 内网地址
+#   RDS_PASSWORD     — RDS lakeon 用户密码
+
+# ── SWR 镜像拉取凭证 ─────────────────────────────────────────────
+global:
+  imagePullSecrets:
+    - name: swr-secret
+
+# ── SWR 镜像地址 ─────────────────────────────────────────────────
+# 修改 SWR_ORG 为你的 SWR 组织名
+initImage: "swr.cn-north-4.myhuaweicloud.com/flex/busybox:1.36"
+
+neon:
+  image:
+    repository: swr.cn-north-4.myhuaweicloud.com/flex/neon
+    tag: latest
+    pullPolicy: IfNotPresent
+  computeImage:
+    repository: swr.cn-north-4.myhuaweicloud.com/flex/compute-node-v17
+    tag: latest
+
+api:
+  replicas: 1
+  port: 8090               # API HTTPS 端口
+  serviceType: LoadBalancer
+  adminToken: "lakeon-sre-2026"
+  elb:
+    id: "46b20c38-5c54-4781-9f00-d25d8c1717a8"
+    class: "performance"
+    port: 8443       # ELB 监听端口，供 Railway 前端反代
+  ssl:
+    enabled: true
+  importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
+  image:
+    repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
+    tag: "0.5.1"
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+
+# ── Neon 组件（单副本开发模式，最小资源请求）─────────────────────
+pageserver:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+
+safekeeper:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+
+storageBroker:
+  replicas: 1
+
+proxy:
+  replicas: 1
+  externalHost: "pg.dbay.cloud"
+  serviceType: LoadBalancer
+  tls:
+    enabled: true
+    secretName: proxy-tls-cert
+  elb:
+    id: "46b20c38-5c54-4781-9f00-d25d8c1717a8"
+    class: "performance"
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+# ── OBS（同 region 内网访问）────────────────────────────────────
+obs:
+  endpoint: "https://obs.cn-north-4.myhuaweicloud.com"
+  bucket: "dbay-mainstore"
+  region: "cn-north-4"
+  accessKey: ""     # --set obs.accessKey=$HWCLOUD_AK
+  secretKey: ""     # --set obs.secretKey=$HWCLOUD_SK
+  usePathStyle: false
+
+# ── 外部 RDS（VPC 内网直连）─────────────────────────────────────
+metadataDb:
+  enabled: false
+  host: ""          # --set metadataDb.host=$RDS_PRIVATE_IP
+  port: 5432
+  name: "lakeon"
+  user: "lakeon"
+  password: ""      # --set metadataDb.password=$RDS_PASSWORD
+
+# ── SRE 运维控制台（已部署到 Railway）───────────────────────────
+admin:
+  enabled: false
+  image:
+    repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-admin
+    tag: "0.2.0"
+  replicas: 1
+  port: 80
+  serviceType: LoadBalancer
+  elb:
+    id: "46b20c38-5c54-4781-9f00-d25d8c1717a8"
+    class: "performance"
+    port: 8081        # ELB 监听端口，与 console(80) 区分
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+
+# ── Web 控制台（已部署到 Railway）──────────────────────────────
+console:
+  enabled: false
+  image:
+    repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-console
+    tag: "0.3.7"
+  replicas: 1
+  port: 80
+  serviceType: LoadBalancer
+  elb:
+    id: "46b20c38-5c54-4781-9f00-d25d8c1717a8"
+    class: "performance"
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+
+# ── 成本参数（匹配实际 CCE 资源）──────────────────────────────
+cost:
+  cceClusterHourly: "0.5"     # CCE 集群管理费 0.5元/h (含集群 EIP 0.5元/h = 合计 1元/h)
+  cceNodeHourly: "1.0"        # ac7.xlarge.2 (4C8G)
+  cceNodeCount: "2"           # 2x 4C8G
+  elbMonthly: "36"            # 独享型 s1.small ~0.05元/h
+  obsPerGbMonthly: "0.099"
+  rdsMonthly: "500"
+  eipMonthly: "0"             # 服务 EIP 按流量计费，开发环境近乎免费
+  computeCuHourly: "0.5"
+
+# ── CBC 账单过滤（仅统计 Lakeon 涉及的云资源）──────────────────
+# 在华为云控制台 > 费用中心 > 账单管理 > 资源账单 中查看 resource_id
+# 或使用 CBC API 获取完整资源列表后填入
+cloud:
+  resourceIds:
+    - "46b20c38-5c54-4781-9f00-d25d8c1717a8"  # ELB 独享型 lakeon-elb
+    # TODO: 补充以下资源 ID（从华为云控制台获取）
+    # - "<CCE-CLUSTER-ID>"                     # CCE 集群
+    # - "<RDS-INSTANCE-ID>"                    # RDS PostgreSQL
+
+# ── 节点初始化（修复 containerd core ulimit）─────────────────────
+nodeInit:
+  enabled: true
+  image: "swr.cn-north-4.myhuaweicloud.com/flex/busybox:1.36"
+
+# ── 禁用集群内组件 ─────────────────────────────────────────────
+minio:
+  enabled: false

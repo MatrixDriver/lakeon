@@ -6,7 +6,10 @@
 #   source deploy/cce/smoke-test.sh     # 被 deploy.sh / start.sh 调用
 
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "$0")" && pwd)}"
-export KUBECONFIG=${KUBECONFIG:-~/.kube/cce-lakeon-config}
+# 当独立运行时加载站点配置；被 source 时 site.sh 已加载
+if [ -z "$SITE_DIR" ]; then
+  source "$SCRIPT_DIR/site.sh"
+fi
 
 echo "── 冒烟测试 ──"
 PASS=0
@@ -71,7 +74,7 @@ else
 fi
 
 # 6. PG 连接（快速 TCP 探测）
-NEW_EIP=$(grep 'externalHost:' "$SCRIPT_DIR/values-cce.yaml" 2>/dev/null | head -1 | sed 's/.*"\(.*\)".*/\1/')
+NEW_EIP=$(grep 'externalHost:' "$SITE_VALUES" 2>/dev/null | head -1 | sed 's/.*"\(.*\)".*/\1/')
 if [ -n "$NEW_EIP" ]; then
   if nc -z -w5 "$NEW_EIP" 4432 2>/dev/null; then
     check "PG 端口可达 ($NEW_EIP:4432)" "ok"

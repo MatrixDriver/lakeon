@@ -1,11 +1,13 @@
 #!/bin/bash
 # Lakeon 状态总览 — 云资源 + K8s 资源用量
 #
-# 用法: ./deploy/cce/status.sh
+# 用法:
+#   ./deploy/cce/status.sh                  # 默认站点 (hwstaff)
+#   SITE=jackylk ./deploy/cce/status.sh     # jackylk 站点
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-export KUBECONFIG=${KUBECONFIG:-~/.kube/cce-lakeon-config}
+source "$SCRIPT_DIR/site.sh"
 
 echo "=== Lakeon 状态总览 ==="
 
