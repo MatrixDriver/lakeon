@@ -608,43 +608,55 @@ public class AdminService {
     public List<Map<String, Object>> getInfraNodes() {
         List<Map<String, Object>> nodes = new ArrayList<>();
         try {
-            var nodeMetricsList = k8sClient.top().nodes().metrics().getItems();
             var nodeList = k8sClient.nodes().list().getItems();
 
-            Map<String, io.fabric8.kubernetes.api.model.Node> nodeMap = new LinkedHashMap<>();
-            for (var n : nodeList) {
-                nodeMap.put(n.getMetadata().getName(), n);
-            }
+            // Try to get metrics — optional, requires metrics-server
+            Map<String, NodeMetrics> metricsMap = new java.util.HashMap<>();
+            try {
+                for (NodeMetrics nm : k8sClient.top().nodes().metrics().getItems()) {
+                    metricsMap.put(nm.getMetadata().getName(), nm);
+                }
+            } catch (Exception ignored) {}
 
-            for (NodeMetrics nm : nodeMetricsList) {
-                String nodeName = nm.getMetadata().getName();
+            for (var k8sNode : nodeList) {
+                String nodeName = k8sNode.getMetadata().getName();
                 Map<String, Object> node = new LinkedHashMap<>();
                 node.put("name", nodeName);
 
-                Quantity cpuUsage = nm.getUsage().get("cpu");
-                Quantity memUsage = nm.getUsage().get("memory");
+                // Status from Ready condition (no metrics-server needed)
+                String status = "Unknown";
+                if (k8sNode.getStatus() != null && k8sNode.getStatus().getConditions() != null) {
+                    status = k8sNode.getStatus().getConditions().stream()
+                        .filter(c -> "Ready".equals(c.getType()))
+                        .findFirst()
+                        .map(c -> "True".equals(c.getStatus()) ? "Ready" : "NotReady")
+                        .orElse("Unknown");
+                }
+                node.put("status", status);
 
-                var k8sNode = nodeMap.get(nodeName);
-                if (k8sNode != null && k8sNode.getStatus() != null && k8sNode.getStatus().getCapacity() != null) {
-                    Quantity cpuCapacity = k8sNode.getStatus().getCapacity().get("cpu");
-                    Quantity memCapacity = k8sNode.getStatus().getCapacity().get("memory");
+                // Capacity (no metrics-server needed)
+                double cpuTotal = 0, memTotal = 0;
+                if (k8sNode.getStatus() != null && k8sNode.getStatus().getCapacity() != null) {
+                    cpuTotal = parseCpuQuantity(k8sNode.getStatus().getCapacity().get("cpu"));
+                    memTotal = parseMemQuantity(k8sNode.getStatus().getCapacity().get("memory"));
+                    node.put("cpu_total_cores", cpuTotal);
+                    node.put("mem_total_gb", Math.round(memTotal / (1024.0 * 1024 * 1024) * 100) / 100.0);
+                }
 
-                    double cpuUsedCores = parseCpuQuantity(cpuUsage);
-                    double cpuTotalCores = parseCpuQuantity(cpuCapacity);
-                    double memUsedBytes = parseMemQuantity(memUsage);
-                    double memTotalBytes = parseMemQuantity(memCapacity);
-
-                    node.put("cpu_used_cores", Math.round(cpuUsedCores * 1000) / 1000.0);
-                    node.put("cpu_total_cores", cpuTotalCores);
-                    node.put("cpu_percent", cpuTotalCores > 0 ? Math.round(cpuUsedCores / cpuTotalCores * 10000) / 100.0 : 0);
-                    node.put("mem_used_gb", Math.round(memUsedBytes / (1024.0 * 1024 * 1024) * 100) / 100.0);
-                    node.put("mem_total_gb", Math.round(memTotalBytes / (1024.0 * 1024 * 1024) * 100) / 100.0);
-                    node.put("mem_percent", memTotalBytes > 0 ? Math.round(memUsedBytes / memTotalBytes * 10000) / 100.0 : 0);
+                // Usage from metrics-server (optional)
+                NodeMetrics nm = metricsMap.get(nodeName);
+                if (nm != null) {
+                    double cpuUsed = parseCpuQuantity(nm.getUsage().get("cpu"));
+                    double memUsed = parseMemQuantity(nm.getUsage().get("memory"));
+                    node.put("cpu_used_cores", Math.round(cpuUsed * 1000) / 1000.0);
+                    node.put("cpu_percent", cpuTotal > 0 ? Math.round(cpuUsed / cpuTotal * 10000) / 100.0 : 0);
+                    node.put("mem_used_gb", Math.round(memUsed / (1024.0 * 1024 * 1024) * 100) / 100.0);
+                    node.put("mem_percent", memTotal > 0 ? Math.round(memUsed / memTotal * 10000) / 100.0 : 0);
                 }
                 nodes.add(node);
             }
         } catch (Exception e) {
-            log.warn("Failed to get node metrics: {}", e.getMessage());
+            log.warn("Failed to get node info: {}", e.getMessage());
         }
         return nodes;
     }
@@ -652,52 +664,63 @@ public class AdminService {
     public List<Map<String, Object>> getInfraPods() {
         List<Map<String, Object>> pods = new ArrayList<>();
         try {
-            String namespace = props.getK8s().getNamespace().replace("-compute", "");
-            var podMetricsList = k8sClient.top().pods().inNamespace(namespace).metrics().getItems();
-
-            for (PodMetrics pm : podMetricsList) {
-                Map<String, Object> pod = new LinkedHashMap<>();
-                pod.put("name", pm.getMetadata().getName());
-                pod.put("namespace", pm.getMetadata().getNamespace());
-
-                double totalCpu = 0;
-                double totalMem = 0;
-                for (var container : pm.getContainers()) {
-                    totalCpu += parseCpuQuantity(container.getUsage().get("cpu"));
-                    totalMem += parseMemQuantity(container.getUsage().get("memory"));
-                }
-                pod.put("cpu_cores", Math.round(totalCpu * 1000) / 1000.0);
-                pod.put("mem_mb", Math.round(totalMem / (1024 * 1024) * 10) / 10.0);
-                pods.add(pod);
-            }
-
-            // Also include compute namespace pods
+            String mainNs = props.getK8s().getNamespace().replace("-compute", "");
             String computeNs = props.getK8s().getNamespace();
+
+            // Collect all pods from both namespaces (no metrics-server needed)
+            List<io.fabric8.kubernetes.api.model.Pod> allPods = new ArrayList<>();
+            allPods.addAll(k8sClient.pods().inNamespace(mainNs).list().getItems());
+            allPods.addAll(k8sClient.pods().inNamespace(computeNs).list().getItems());
+
+            // Try to get metrics — optional
+            Map<String, PodMetrics> metricsMap = new java.util.HashMap<>();
             try {
-                var computePodMetrics = k8sClient.top().pods().inNamespace(computeNs).metrics().getItems();
-                for (PodMetrics pm : computePodMetrics) {
-                    Map<String, Object> pod = new LinkedHashMap<>();
-                    pod.put("name", pm.getMetadata().getName());
-                    pod.put("namespace", pm.getMetadata().getNamespace());
-                    double totalCpu = 0;
-                    double totalMem = 0;
-                    for (var container : pm.getContainers()) {
-                        totalCpu += parseCpuQuantity(container.getUsage().get("cpu"));
-                        totalMem += parseMemQuantity(container.getUsage().get("memory"));
+                for (PodMetrics pm : k8sClient.top().pods().inNamespace(mainNs).metrics().getItems())
+                    metricsMap.put(pm.getMetadata().getName(), pm);
+                for (PodMetrics pm : k8sClient.top().pods().inNamespace(computeNs).metrics().getItems())
+                    metricsMap.put(pm.getMetadata().getName(), pm);
+            } catch (Exception ignored) {}
+
+            for (var p : allPods) {
+                Map<String, Object> pod = new LinkedHashMap<>();
+                pod.put("name", p.getMetadata().getName());
+                pod.put("namespace", p.getMetadata().getNamespace());
+
+                String phase = p.getStatus() != null ? p.getStatus().getPhase() : "Unknown";
+                pod.put("phase", phase != null ? phase : "Unknown");
+
+                boolean ready = p.getStatus() != null && p.getStatus().getConditions() != null &&
+                    p.getStatus().getConditions().stream()
+                        .anyMatch(c -> "Ready".equals(c.getType()) && "True".equals(c.getStatus()));
+                pod.put("ready", ready);
+
+                int restarts = 0;
+                if (p.getStatus() != null && p.getStatus().getContainerStatuses() != null) {
+                    restarts = p.getStatus().getContainerStatuses().stream()
+                        .mapToInt(cs -> cs.getRestartCount() != null ? cs.getRestartCount() : 0).sum();
+                }
+                pod.put("restarts", restarts);
+
+                PodMetrics pm = metricsMap.get(p.getMetadata().getName());
+                if (pm != null) {
+                    double totalCpu = 0, totalMem = 0;
+                    for (var c : pm.getContainers()) {
+                        totalCpu += parseCpuQuantity(c.getUsage().get("cpu"));
+                        totalMem += parseMemQuantity(c.getUsage().get("memory"));
                     }
                     pod.put("cpu_cores", Math.round(totalCpu * 1000) / 1000.0);
                     pod.put("mem_mb", Math.round(totalMem / (1024 * 1024) * 10) / 10.0);
-                    pods.add(pod);
                 }
-            } catch (Exception e) {
-                // Compute namespace may not have pods
+                pods.add(pod);
             }
 
-            pods.sort((a, b) -> Double.compare(
-                ((Number) b.get("mem_mb")).doubleValue(),
-                ((Number) a.get("mem_mb")).doubleValue()));
+            pods.sort((a, b) -> {
+                double ma = a.containsKey("mem_mb") ? ((Number) a.get("mem_mb")).doubleValue() : 0;
+                double mb = b.containsKey("mem_mb") ? ((Number) b.get("mem_mb")).doubleValue() : 0;
+                return Double.compare(mb, ma);
+            });
         } catch (Exception e) {
-            log.warn("Failed to get pod metrics: {}", e.getMessage());
+            log.warn("Failed to get pod info: {}", e.getMessage());
         }
         return pods;
     }
@@ -737,7 +760,7 @@ public class AdminService {
         List<Map<String, Object>> result = new ArrayList<>();
         try {
             List<Event> events = k8sClient.v1().events().inNamespace(namespace).list().getItems();
-            Instant oneHourAgo = Instant.now().minus(1, ChronoUnit.HOURS);
+            Instant oneHourAgo = Instant.now().minus(6, ChronoUnit.HOURS);
 
             for (Event event : events) {
                 String lastTimestamp = event.getLastTimestamp();
