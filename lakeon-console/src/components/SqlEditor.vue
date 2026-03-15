@@ -10,12 +10,43 @@
         <span class="toolbar-hint">Ctrl+Enter 执行</span>
       </div>
       <div class="toolbar-right">
+        <button class="toolbar-btn ai-btn" :class="{ active: showAi }" @click="showAi = !showAi" title="AI SQL 助手">
+          AI
+        </button>
         <button class="toolbar-btn" :class="{ active: showHistory }" @click="toggleHistory" title="查询历史">
           历史 <span v-if="historyTotal > 0" class="history-count">{{ historyTotal > 99 ? '99+' : historyTotal }}</span>
         </button>
         <button class="toolbar-btn" @click="formatSql" title="格式化">格式化</button>
         <button class="toolbar-btn" @click="clearEditor" title="清空">清空</button>
       </div>
+    </div>
+    <!-- AI SQL Assistant Panel -->
+    <div v-if="showAi" class="ai-panel">
+      <div class="ai-header">
+        <span class="ai-title">AI SQL 助手</span>
+        <select v-model="aiModel" class="ai-model-select">
+          <option v-for="m in aiModels" :key="m.id" :value="m.id">
+            {{ m.name }} (输入¥{{ m.input_price }}/M · 输出¥{{ m.output_price }}/M)
+          </option>
+        </select>
+      </div>
+      <div class="ai-input-row">
+        <input
+          v-model="aiPrompt"
+          class="ai-input"
+          :placeholder="'描述你想查询的内容，如：查询最近7天注册的用户数'"
+          @keyup.enter="generateSql"
+          :disabled="aiLoading"
+        />
+        <button class="toolbar-btn run-btn" @click="generateSql" :disabled="aiLoading || !aiPrompt.trim()">
+          {{ aiLoading ? '生成中...' : '生成 SQL' }}
+        </button>
+      </div>
+      <div v-if="aiError" class="ai-error">{{ aiError }}</div>
+      <div v-if="aiTokenInfo" class="ai-tokens">
+        {{ aiTokenInfo }}
+      </div>
+      <div v-if="selectedModelInfo" class="ai-model-desc">{{ selectedModelInfo.desc }}</div>
     </div>
     <!-- Query History Panel -->
     <div v-if="showHistory" class="history-panel">
@@ -98,7 +129,7 @@ import { sql, PostgreSQL } from '@codemirror/lang-sql'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { autocompletion } from '@codemirror/autocomplete'
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching } from '@codemirror/language'
-import { databaseApi, type QueryResult, type QueryHistoryItem } from '../api/database'
+import { databaseApi, type QueryResult, type QueryHistoryItem, type AiModel } from '../api/database'
 import TableFooter from './TableFooter.vue'
 
 const props = defineProps<{
@@ -112,6 +143,51 @@ const result = ref<QueryResult | null>(null)
 const resultError = ref('')
 const resultPageSize = ref(20)
 const resultCurrentPage = ref(1)
+
+// ── AI SQL Assistant ──
+const showAi = ref(false)
+const aiPrompt = ref('')
+const aiLoading = ref(false)
+const aiError = ref('')
+const aiTokenInfo = ref('')
+const aiModels = ref<AiModel[]>([
+  { id: 'deepseek-ai/DeepSeek-V3.2', name: 'DeepSeek V3.2', input_price: 2.0, output_price: 3.0, desc: '综合能力强，性价比高' },
+  { id: 'Qwen/Qwen3-Coder-480B-A35B-Instruct', name: 'Qwen3 Coder 480B', input_price: 8.0, output_price: 16.0, desc: '最强代码模型，SQL 生成质量最高' },
+  { id: 'Qwen/Qwen3-Coder-30B-A3B-Instruct', name: 'Qwen3 Coder 30B', input_price: 0.7, output_price: 2.8, desc: '轻量代码模型，速度快价格低' },
+])
+const aiModel = ref('deepseek-ai/DeepSeek-V3.2')
+
+const selectedModelInfo = computed(() => aiModels.value.find(m => m.id === aiModel.value))
+
+async function generateSql() {
+  if (!aiPrompt.value.trim() || aiLoading.value) return
+  aiLoading.value = true
+  aiError.value = ''
+  aiTokenInfo.value = ''
+  try {
+    const res = await databaseApi.generateSql(props.dbId, aiPrompt.value, aiModel.value)
+    const data = res.data
+    if (data.error) {
+      aiError.value = data.error
+    } else if (data.sql && editorView) {
+      editorView.dispatch({
+        changes: { from: 0, to: editorView.state.doc.length, insert: data.sql },
+      })
+      // Show token usage and cost
+      const model = selectedModelInfo.value
+      if (data.input_tokens && model) {
+        const inputCost = (data.input_tokens / 1_000_000) * model.input_price
+        const outputCost = ((data.output_tokens || 0) / 1_000_000) * model.output_price
+        const totalCost = inputCost + outputCost
+        aiTokenInfo.value = `${data.input_tokens} + ${data.output_tokens || 0} tokens · ¥${totalCost.toFixed(4)}`
+      }
+    }
+  } catch (e: any) {
+    aiError.value = e?.response?.data?.error?.message || e?.message || '生成失败'
+  } finally {
+    aiLoading.value = false
+  }
+}
 
 // ── Query History (server-side) ──
 const showHistory = ref(false)
@@ -526,6 +602,96 @@ defineExpose({ executeQuery })
   font-size: 13px;
   font-weight: 600;
   color: #191919;
+}
+
+/* AI Assistant */
+.ai-btn {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  border-color: #667eea;
+  font-weight: 600;
+}
+
+.ai-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5a6fd6, #6a4190);
+  color: #fff;
+  border-color: #5a6fd6;
+}
+
+.ai-btn.active {
+  background: linear-gradient(135deg, #5a6fd6, #6a4190);
+  border-color: #5a6fd6;
+  color: #fff;
+}
+
+.ai-panel {
+  border-bottom: 1px solid #e8e8e8;
+  background: #f8f7ff;
+  padding: 10px 12px;
+  flex-shrink: 0;
+}
+
+.ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.ai-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #5a6fd6;
+}
+
+.ai-model-select {
+  font-size: 12px;
+  padding: 3px 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background: #fff;
+  outline: none;
+  max-width: 400px;
+}
+
+.ai-model-select:focus {
+  border-color: #667eea;
+}
+
+.ai-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.ai-input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+}
+
+.ai-input:focus {
+  border-color: #667eea;
+}
+
+.ai-error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #e6393d;
+}
+
+.ai-tokens {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #52c41a;
+}
+
+.ai-model-desc {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #999;
 }
 
 .history-actions {

@@ -66,6 +66,11 @@ data:
   {{- if .Values.api.computeNodeSelector }}
   LAKEON_COMPUTE_NODE_SELECTOR: {{ range $key, $value := .Values.api.computeNodeSelector }}{{ $key }}={{ $value }},{{ end }}
   {{- end }}
+  {{- if .Values.api.ai }}
+  {{- if .Values.api.ai.baseUrl }}
+  LAKEON_AI_BASE_URL: {{ .Values.api.ai.baseUrl | quote }}
+  {{- end }}
+  {{- end }}
   {{- if .Values.api.inviteRequired }}
   LAKEON_INVITE_REQUIRED: "true"
   {{- end }}

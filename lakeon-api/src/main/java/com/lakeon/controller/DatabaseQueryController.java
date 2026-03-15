@@ -4,6 +4,7 @@ import com.lakeon.model.dto.*;
 import com.lakeon.model.entity.QueryHistoryEntity;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.repository.QueryHistoryRepository;
+import com.lakeon.service.AiSqlService;
 import com.lakeon.service.DatabaseQueryService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -21,11 +22,14 @@ import java.util.Map;
 public class DatabaseQueryController {
     private final DatabaseQueryService queryService;
     private final QueryHistoryRepository queryHistoryRepository;
+    private final AiSqlService aiSqlService;
 
     public DatabaseQueryController(DatabaseQueryService queryService,
-                                   QueryHistoryRepository queryHistoryRepository) {
+                                   QueryHistoryRepository queryHistoryRepository,
+                                   AiSqlService aiSqlService) {
         this.queryService = queryService;
         this.queryHistoryRepository = queryHistoryRepository;
+        this.aiSqlService = aiSqlService;
     }
 
     @GetMapping("/schemas")
@@ -151,6 +155,48 @@ public class DatabaseQueryController {
     public void clearQueryHistory(HttpServletRequest req, @PathVariable String dbId) {
         TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
         queryHistoryRepository.deleteAllByTenantIdAndDatabaseId(tenant.getId(), dbId);
+    }
+
+    // ── AI SQL Assistant ────────────────────────────────────────
+
+    @GetMapping("/ai-sql/models")
+    public List<Map<String, Object>> listAiModels() {
+        return AiSqlService.AVAILABLE_MODELS;
+    }
+
+    @PostMapping("/ai-sql/generate")
+    public Map<String, Object> generateSql(HttpServletRequest req,
+                                           @PathVariable String dbId,
+                                           @RequestBody Map<String, String> body) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        String prompt = body.get("prompt");
+        String modelId = body.get("model");
+
+        if (prompt == null || prompt.isBlank()) {
+            return Map.of("error", "prompt is required");
+        }
+
+        // Build schema info from cached schema
+        StringBuilder schemaInfo = new StringBuilder();
+        try {
+            var schemas = queryService.listSchemas(tenant, dbId);
+            for (var schema : schemas) {
+                var tables = queryService.listTables(tenant, dbId, schema.name());
+                for (var table : tables) {
+                    schemaInfo.append(schema.name()).append(".").append(table.name()).append("(");
+                    var columns = queryService.listColumns(tenant, dbId, schema.name(), table.name());
+                    for (int i = 0; i < columns.size(); i++) {
+                        if (i > 0) schemaInfo.append(", ");
+                        schemaInfo.append(columns.get(i).name()).append(" ").append(columns.get(i).dataType());
+                    }
+                    schemaInfo.append(")\n");
+                }
+            }
+        } catch (Exception e) {
+            schemaInfo.append("(schema unavailable: ").append(e.getMessage()).append(")");
+        }
+
+        return aiSqlService.generateSql(prompt, schemaInfo.toString(), modelId);
     }
 
     private Map<String, Object> historyToMap(QueryHistoryEntity e) {

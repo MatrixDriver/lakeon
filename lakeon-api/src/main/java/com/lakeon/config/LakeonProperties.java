@@ -17,6 +17,7 @@ public class LakeonProperties {
     private CostConfig cost = new CostConfig();
     private CloudConfig cloud = new CloudConfig();
     private AlertConfig alert = new AlertConfig();
+    private AiConfig ai = new AiConfig();
     private boolean inviteRequired = false;
     private SuspendConfig suspend = new SuspendConfig();
     private BackupConfig backup = new BackupConfig();
@@ -40,6 +41,8 @@ public class LakeonProperties {
     public void setCloud(CloudConfig cloud) { this.cloud = cloud; }
     public AlertConfig getAlert() { return alert; }
     public void setAlert(AlertConfig alert) { this.alert = alert; }
+    public AiConfig getAi() { return ai; }
+    public void setAi(AiConfig ai) { this.ai = ai; }
     public boolean getInviteRequired() { return inviteRequired; }
     public void setInviteRequired(boolean inviteRequired) { this.inviteRequired = inviteRequired; }
     public SuspendConfig getSuspend() { return suspend; }
@@ -222,6 +225,16 @@ public class LakeonProperties {
         public void setWalWarnBytes(long walWarnBytes) { this.walWarnBytes = walWarnBytes; }
         public int getMaxTasks() { return maxTasks; }
         public void setMaxTasks(int maxTasks) { this.maxTasks = maxTasks; }
+    }
+
+    public static class AiConfig {
+        private String apiKey;
+        private String baseUrl = "https://api.siliconflow.cn/v1";
+
+        public String getApiKey() { return apiKey; }
+        public void setApiKey(String apiKey) { this.apiKey = apiKey; }
+        public String getBaseUrl() { return baseUrl; }
+        public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
     }
 
     public static class DefaultsConfig {

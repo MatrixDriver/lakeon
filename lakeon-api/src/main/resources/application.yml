@@ -56,6 +56,9 @@ lakeon:
   alert:
     smn-topic-urn: ${LAKEON_ALERT_SMN_TOPIC_URN:}
     smn-region: ${LAKEON_ALERT_SMN_REGION:cn-north-4}
+  ai:
+    api-key: ${LAKEON_AI_API_KEY:}
+    base-url: ${LAKEON_AI_BASE_URL:https://api.siliconflow.cn/v1}
   invite-required: ${LAKEON_INVITE_REQUIRED:false}
   suspend:
     pod-retain-minutes: ${LAKEON_SUSPEND_POD_RETAIN_MINUTES:30}

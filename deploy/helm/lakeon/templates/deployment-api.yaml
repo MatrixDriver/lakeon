@@ -56,6 +56,11 @@ spec:
                 secretKeyRef:
                   name: api-credentials
                   key: admin-token
+            - name: LAKEON_AI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: ai-api-key
             {{- if .Values.obs.accessKey }}
             - name: LAKEON_OBS_ACCESS_KEY
               valueFrom:

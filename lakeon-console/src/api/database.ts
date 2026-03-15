@@ -85,6 +85,22 @@ export interface QueryHistoryPage {
   pages: number
 }
 
+export interface AiModel {
+  id: string
+  name: string
+  input_price: number
+  output_price: number
+  desc: string
+}
+
+export interface AiSqlResult {
+  sql?: string
+  error?: string
+  model?: string
+  input_tokens?: number
+  output_tokens?: number
+}
+
 export interface DataPage {
   columns: string[]
   rows: unknown[][]
@@ -143,6 +159,11 @@ export const databaseApi = {
   tableStats: (id: string, schema: string, table: string) => client.get<TableStats>(`/databases/${id}/schemas/${schema}/tables/${table}/stats`),
   createTable: (id: string, schema: string, data: CreateTablePayload) => client.post(`/databases/${id}/schemas/${schema}/tables`, data),
   dropTable: (id: string, schema: string, table: string) => client.delete(`/databases/${id}/schemas/${schema}/tables/${table}`),
+
+  // AI SQL Assistant
+  getAiModels: (id: string) => client.get<AiModel[]>(`/databases/${id}/ai-sql/models`),
+  generateSql: (id: string, prompt: string, model: string) =>
+    client.post<AiSqlResult>(`/databases/${id}/ai-sql/generate`, { prompt, model }),
 
   // Query History
   getQueryHistory: (id: string, params: { page?: number; size?: number; q?: string }) =>
