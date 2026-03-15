@@ -66,6 +66,19 @@ spec:
               name: http
             - containerPort: {{ .Values.pageserver.pgPort }}
               name: pg
+          livenessProbe:
+            httpGet:
+              path: /v1/status
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /v1/status
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
           resources:
             {{- toYaml .Values.pageserver.resources | nindent 12 }}
           volumeMounts:

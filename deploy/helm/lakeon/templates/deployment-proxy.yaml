@@ -56,6 +56,16 @@ spec:
               mountPath: /tls
               readOnly: true
           {{- end }}
+          livenessProbe:
+            tcpSocket:
+              port: pg
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: pg
+            initialDelaySeconds: 3
+            periodSeconds: 5
           resources:
             {{- toYaml .Values.proxy.resources | nindent 12 }}
       {{- if .Values.proxy.tls.enabled }}

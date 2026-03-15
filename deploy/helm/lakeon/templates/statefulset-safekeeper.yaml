@@ -87,6 +87,19 @@ spec:
               name: pg
             - containerPort: {{ .Values.safekeeper.httpPort }}
               name: http
+          livenessProbe:
+            httpGet:
+              path: /v1/status
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /v1/status
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
           resources:
             {{- toYaml .Values.safekeeper.resources | nindent 12 }}
           volumeMounts:

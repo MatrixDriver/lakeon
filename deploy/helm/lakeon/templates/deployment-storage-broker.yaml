@@ -30,3 +30,13 @@ spec:
           ports:
             - containerPort: {{ .Values.storageBroker.port }}
               name: grpc
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 3
+            periodSeconds: 5
