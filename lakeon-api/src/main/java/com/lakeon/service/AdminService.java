@@ -230,6 +230,121 @@ public class AdminService {
         return status;
     }
 
+    /**
+     * Fetch and parse key metrics from pageserver's Prometheus endpoint.
+     * Used to detect cache pressure, OBS back-reads, and sharding needs.
+     */
+    public Map<String, Object> getPageserverMetrics() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        try {
+            String metricsUrl = props.getNeon().getPageserverUrl().replace(":" +
+                props.getNeon().getPageserverUrl().replaceAll(".*:(\\d+)$", "$1"),
+                ":9898") + "/metrics";
+            // Actually just use the configured pageserver URL's host with port 9898
+            String baseUrl = props.getNeon().getPageserverUrl();
+            String host = baseUrl.replaceAll("https?://", "").replaceAll(":\\d+$", "");
+            metricsUrl = "http://" + host + ":9898/metrics";
+
+            java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
+                .connectTimeout(java.time.Duration.ofSeconds(5)).build();
+            java.net.http.HttpResponse<String> resp = client.send(
+                java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(metricsUrl))
+                    .timeout(java.time.Duration.ofSeconds(10))
+                    .GET().build(),
+                java.net.http.HttpResponse.BodyHandlers.ofString());
+
+            if (resp.statusCode() != 200) {
+                result.put("error", "HTTP " + resp.statusCode());
+                return result;
+            }
+
+            String body = resp.body();
+            // Parse key metrics from Prometheus text format
+            Map<String, Object> cache = new LinkedHashMap<>();
+            cache.put("current_bytes", parseMetric(body, "pageserver_page_cache_size_current_bytes"));
+            cache.put("max_bytes", parseMetric(body, "pageserver_page_cache_size_max_bytes"));
+            cache.put("evicted_layers", parseMetric(body, "pageserver_layer_completed_evictions"));
+            cache.put("evicted_bytes", parseMetric(body, "pageserver_disk_usage_based_eviction_evicted_bytes_total"));
+            result.put("cache", cache);
+
+            Map<String, Object> remote = new LinkedHashMap<>();
+            remote.put("ondemand_download_count", parseMetric(body, "pageserver_wait_ondemand_download_seconds_global_count{task_kind=\"PageRequestHandler\"}"));
+            remote.put("ondemand_download_seconds", parseMetric(body, "pageserver_wait_ondemand_download_seconds_global_sum{task_kind=\"PageRequestHandler\"}"));
+            remote.put("s3_request_count", parseSumOfMetrics(body, "remote_storage_s3_request_seconds_count"));
+            result.put("remote_reads", remote);
+
+            Map<String, Object> tenants = new LinkedHashMap<>();
+            tenants.put("active", parseMetric(body, "pageserver_tenant_states_count{state=\"Active\"}"));
+            tenants.put("attaching", parseMetric(body, "pageserver_tenant_states_count{state=\"Attaching\"}"));
+            tenants.put("broken", parseMetric(body, "pageserver_tenant_states_count{state=\"Broken\"}"));
+            result.put("tenants", tenants);
+
+            Map<String, Object> memory = new LinkedHashMap<>();
+            double rssBytes = parseMetric(body, "process_resident_memory_bytes");
+            memory.put("rss_mb", Math.round(rssBytes / 1024 / 1024));
+            result.put("memory", memory);
+
+            Map<String, Object> wal = new LinkedHashMap<>();
+            wal.put("redo_count", parseMetric(body, "pageserver_wal_redo_seconds_count"));
+            wal.put("redo_seconds", parseMetric(body, "pageserver_wal_redo_seconds_sum"));
+            result.put("wal_redo", wal);
+
+            // Health assessment
+            double evictedLayers = parseMetric(body, "pageserver_layer_completed_evictions");
+            double downloadCount = parseMetric(body, "pageserver_wait_ondemand_download_seconds_global_count{task_kind=\"PageRequestHandler\"}");
+            int activeTenants = (int) parseMetric(body, "pageserver_tenant_states_count{state=\"Active\"}");
+
+            String pressure;
+            if (evictedLayers > 0 && downloadCount > 100) pressure = "high";
+            else if (evictedLayers > 0 || downloadCount > 50) pressure = "medium";
+            else pressure = "low";
+            result.put("pressure", pressure);
+            result.put("shard_recommended", activeTenants > 50 || "high".equals(pressure));
+
+        } catch (Exception e) {
+            result.put("error", e.getMessage());
+        }
+        return result;
+    }
+
+    private double parseMetric(String body, String metricName) {
+        // Handle metrics with labels: find exact line match
+        for (String line : body.split("\n")) {
+            if (line.startsWith("#")) continue;
+            if (metricName.contains("{")) {
+                // Label-based match
+                if (line.startsWith(metricName)) {
+                    String[] parts = line.split("\\s+");
+                    if (parts.length >= 2) {
+                        try { return Double.parseDouble(parts[parts.length - 1]); } catch (NumberFormatException e) { return 0; }
+                    }
+                }
+            } else {
+                // Simple metric name match (no labels)
+                String[] parts = line.split("\\s+");
+                if (parts.length >= 2 && parts[0].equals(metricName)) {
+                    try { return Double.parseDouble(parts[1]); } catch (NumberFormatException e) { return 0; }
+                }
+            }
+        }
+        return 0;
+    }
+
+    private double parseSumOfMetrics(String body, String metricPrefix) {
+        double sum = 0;
+        for (String line : body.split("\n")) {
+            if (line.startsWith("#")) continue;
+            if (line.startsWith(metricPrefix)) {
+                String[] parts = line.split("\\s+");
+                if (parts.length >= 2) {
+                    try { sum += Double.parseDouble(parts[parts.length - 1]); } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+        return sum;
+    }
+
     public Map<String, Object> checkSafekeeper() {
         Map<String, Object> status = new LinkedHashMap<>();
         status.put("status", "healthy");

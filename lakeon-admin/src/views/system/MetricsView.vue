@@ -79,6 +79,50 @@
       </div>
     </div>
 
+    <!-- Pageserver 压力 -->
+    <div class="section-card">
+      <div class="section-header">
+        <h3>Pageserver 存储引擎</h3>
+        <span v-if="ps.pressure" class="pressure-badge" :class="'pressure-' + ps.pressure">{{ pressureLabel }}</span>
+      </div>
+      <div class="metric-cards">
+        <div class="metric-card">
+          <div class="metric-value" :class="{ 'text-danger': ps.pressure === 'high', 'text-warning': ps.pressure === 'medium' }">
+            {{ ps.pressure || '-' }}
+          </div>
+          <div class="metric-label">缓存压力</div>
+          <div class="metric-sub" v-if="ps.shard_recommended">建议分片</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">{{ ps.cache?.evicted_layers ?? 0 }}</div>
+          <div class="metric-label">淘汰 Layers</div>
+          <div class="metric-sub">缓存 {{ formatBytes(ps.cache?.current_bytes) }} / {{ formatBytes(ps.cache?.max_bytes) }}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" :class="{ 'text-warning': (ps.remote_reads?.ondemand_download_count ?? 0) > 50 }">
+            {{ ps.remote_reads?.ondemand_download_count ?? 0 }}
+          </div>
+          <div class="metric-label">OBS 回源次数</div>
+          <div class="metric-sub">{{ (ps.remote_reads?.ondemand_download_seconds ?? 0).toFixed(2) }}s 总耗时</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">{{ ps.tenants?.active ?? 0 }}</div>
+          <div class="metric-label">活跃租户</div>
+          <div v-if="ps.tenants?.broken > 0" class="metric-sub text-danger">{{ ps.tenants.broken }} 异常</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">{{ ps.memory?.rss_mb ?? 0 }}<span class="metric-unit">MB</span></div>
+          <div class="metric-label">RSS 内存</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">{{ ps.wal_redo?.redo_count ?? 0 }}</div>
+          <div class="metric-label">WAL Redo</div>
+          <div class="metric-sub">{{ (ps.wal_redo?.redo_seconds ?? 0).toFixed(2) }}s</div>
+        </div>
+      </div>
+      <div v-if="ps.error" class="ps-error">{{ ps.error }}</div>
+    </div>
+
     <!-- 系统资源 -->
     <div class="section-card">
       <div class="section-header">
@@ -112,7 +156,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { adminApi } from '../../api/admin'
 
 interface MetricsSummary {
@@ -132,9 +176,24 @@ const defaultMetrics: MetricsSummary = {
 }
 
 const metrics = reactive<MetricsSummary>({ ...defaultMetrics })
+const ps = reactive<Record<string, any>>({})
 const chartRef = ref<HTMLCanvasElement | null>(null)
 const showSystem = ref(false)
 let refreshTimer: number | null = null
+
+const pressureLabel = computed(() => {
+  const p = ps.pressure
+  if (p === 'high') return '高压 — 建议分片'
+  if (p === 'medium') return '中等'
+  return '正常'
+})
+
+function formatBytes(bytes: number | undefined): string {
+  if (!bytes) return '0'
+  if (bytes < 1024) return bytes + 'B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + 'KB'
+  return (bytes / 1024 / 1024).toFixed(1) + 'MB'
+}
 
 const heapHistory: number[] = []
 const timeLabels: string[] = []
@@ -231,9 +290,19 @@ function renderChart() {
   ctx.fillText('Heap', w - pad.right + 24, pad.top + 5)
 }
 
+async function fetchPageserverMetrics() {
+  try {
+    const { data } = await adminApi.pageserverMetrics()
+    Object.assign(ps, data)
+  } catch (e) {
+    ps.error = 'Failed to load'
+  }
+}
+
 onMounted(() => {
   fetchMetrics()
-  refreshTimer = window.setInterval(fetchMetrics, 30000)
+  fetchPageserverMetrics()
+  refreshTimer = window.setInterval(() => { fetchMetrics(); fetchPageserverMetrics() }, 30000)
 })
 
 onUnmounted(() => {
@@ -301,5 +370,19 @@ onUnmounted(() => {
 canvas {
   width: 100%;
   height: 200px;
+}
+.pressure-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 10px;
+}
+.pressure-low { background: #f0faf0; color: #52c41a; }
+.pressure-medium { background: #fff7e6; color: #e37318; }
+.pressure-high { background: #fff1f0; color: #e6393d; }
+.ps-error {
+  padding: 8px 16px;
+  font-size: 12px;
+  color: #e6393d;
 }
 </style>

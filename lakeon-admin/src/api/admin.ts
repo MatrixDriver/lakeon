@@ -46,6 +46,7 @@ export const adminApi = {
 
   // Metrics
   metricsSummary: () => client.get('/metrics/summary'),
+  pageserverMetrics: () => client.get('/pageserver/metrics'),
 
   // Alerts
   alerts: () => client.get('/alerts'),

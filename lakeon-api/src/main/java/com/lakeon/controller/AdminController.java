@@ -368,6 +368,13 @@ public class AdminController {
         return alertService.testWebhook(body.getOrDefault("webhook_url", ""));
     }
 
+    // ── Pageserver Metrics ─────────────────────────────────────
+
+    @GetMapping("/pageserver/metrics")
+    public Map<String, Object> getPageserverMetrics() {
+        return adminService.getPageserverMetrics();
+    }
+
     // ── Infrastructure ──────────────────────────────────────────
 
     @GetMapping("/infra/nodes")
