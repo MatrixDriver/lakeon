@@ -160,6 +160,11 @@ export const databaseApi = {
   createTable: (id: string, schema: string, data: CreateTablePayload) => client.post(`/databases/${id}/schemas/${schema}/tables`, data),
   dropTable: (id: string, schema: string, table: string) => client.delete(`/databases/${id}/schemas/${schema}/tables/${table}`),
 
+  // IP Allowlist
+  getAllowedIps: (id: string) => client.get<{ enabled: boolean; ips: string[] }>(`/databases/${id}/allowed-ips`),
+  setAllowedIps: (id: string, ips: string[]) => client.put<{ enabled: boolean; ips: string[] }>(`/databases/${id}/allowed-ips`, { ips }),
+  clearAllowedIps: (id: string) => client.delete(`/databases/${id}/allowed-ips`),
+
   // AI SQL Assistant
   getAiModels: (id: string) => client.get<AiModel[]>(`/databases/${id}/ai-sql/models`),
   generateSql: (id: string, prompt: string, model: string) =>

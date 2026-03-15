@@ -87,4 +87,29 @@ public class DatabaseController {
         TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
         databaseService.resume(tenant, dbId);
     }
+
+    // ── IP Allowlist ─────────────────────────────────────────────
+
+    @GetMapping("/{dbId}/allowed-ips")
+    public Map<String, Object> getAllowedIps(HttpServletRequest req, @PathVariable String dbId) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return databaseService.getAllowedIps(tenant, dbId);
+    }
+
+    @PutMapping("/{dbId}/allowed-ips")
+    public Map<String, Object> setAllowedIps(HttpServletRequest req,
+                                             @PathVariable String dbId,
+                                             @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        @SuppressWarnings("unchecked")
+        List<String> ips = (List<String>) body.get("ips");
+        return databaseService.setAllowedIps(tenant, dbId, ips);
+    }
+
+    @DeleteMapping("/{dbId}/allowed-ips")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void clearAllowedIps(HttpServletRequest req, @PathVariable String dbId) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        databaseService.clearAllowedIps(tenant, dbId);
+    }
 }

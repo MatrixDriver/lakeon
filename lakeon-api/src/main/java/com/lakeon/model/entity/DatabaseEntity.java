@@ -57,6 +57,9 @@ public class DatabaseEntity {
     @Column(name = "connection_uri", length = 512)
     private String connectionUri;
 
+    @Column(name = "allowed_ips", length = 2000)
+    private String allowedIps;
+
     @Column(name = "last_active_at")
     private Instant lastActiveAt;
 
@@ -206,6 +209,9 @@ public class DatabaseEntity {
     public void setConnectionUri(String connectionUri) {
         this.connectionUri = connectionUri;
     }
+
+    public String getAllowedIps() { return allowedIps; }
+    public void setAllowedIps(String allowedIps) { this.allowedIps = allowedIps; }
 
     public Instant getLastActiveAt() {
         return lastActiveAt;

@@ -539,6 +539,36 @@
           </div>
         </template>
       </div>
+
+      <!-- Security Tab (IP Allowlist) -->
+      <div v-if="activeTab === 'security'" class="tab-content">
+        <p class="tab-tip">配置 IP 白名单后，只有列表中的 IP 地址才能连接此数据库。留空则允许所有 IP。</p>
+        <div class="section-card" style="max-width: 600px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+            <input
+              v-model="newIp"
+              class="form-input"
+              style="flex: 1;"
+              placeholder="输入 IP 或 CIDR，如 202.96.1.0/24"
+              @keyup.enter="addIp"
+            />
+            <button class="btn btn-primary" :disabled="!newIp.trim()" @click="addIp">添加</button>
+          </div>
+          <div v-if="ipError" style="color: #e6393d; font-size: 13px; margin-bottom: 12px;">{{ ipError }}</div>
+          <div v-if="allowedIps.length === 0" class="empty-state" style="padding: 24px;">
+            <p>未配置 IP 白名单（允许所有 IP 连接）</p>
+          </div>
+          <div v-else>
+            <div v-for="(ip, i) in allowedIps" :key="i" class="ip-row">
+              <code>{{ ip }}</code>
+              <button class="btn btn-small btn-text" style="color: #e6393d;" @click="removeIp(i)">删除</button>
+            </div>
+            <div style="margin-top: 16px;">
+              <button class="btn btn-small btn-default" @click="clearIps">清空白名单（允许所有）</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -584,7 +614,57 @@ const tabs = [
   { key: 'backups', label: '备份' },
   { key: 'extensions', label: '扩展' },
   { key: 'parameters', label: '参数' },
+  { key: 'security', label: '安全' },
 ]
+
+// IP Allowlist
+const allowedIps = ref<string[]>([])
+const newIp = ref('')
+const ipError = ref('')
+
+async function loadAllowedIps() {
+  try {
+    const res = await databaseApi.getAllowedIps(route.params.id as string)
+    allowedIps.value = res.data.ips || []
+  } catch { /* ignore */ }
+}
+
+async function addIp() {
+  const ip = newIp.value.trim()
+  if (!ip) return
+  ipError.value = ''
+  const updated = [...allowedIps.value, ip]
+  try {
+    const res = await databaseApi.setAllowedIps(route.params.id as string, updated)
+    allowedIps.value = res.data.ips || []
+    newIp.value = ''
+    toast.success('IP 已添加')
+  } catch (e: any) {
+    ipError.value = e?.response?.data?.error?.message || '添加失败'
+  }
+}
+
+async function removeIp(index: number) {
+  const updated = allowedIps.value.filter((_, i) => i !== index)
+  try {
+    if (updated.length === 0) {
+      await databaseApi.clearAllowedIps(route.params.id as string)
+      allowedIps.value = []
+    } else {
+      const res = await databaseApi.setAllowedIps(route.params.id as string, updated)
+      allowedIps.value = res.data.ips || []
+    }
+    toast.success('IP 已删除')
+  } catch { /* ignore */ }
+}
+
+async function clearIps() {
+  try {
+    await databaseApi.clearAllowedIps(route.params.id as string)
+    allowedIps.value = []
+    toast.success('白名单已清空')
+  } catch { /* ignore */ }
+}
 
 // Branches
 const branches = ref<Branch[]>([])
@@ -1092,6 +1172,7 @@ watch(activeTab, (tab) => {
   if (tab === 'users' && dbUsers.value.length === 0) fetchUsers()
   if (tab === 'extensions' && extensions.value.length === 0) fetchExtensions()
   if (tab === 'parameters' && parameters.value.length === 0) fetchParameters()
+  if (tab === 'security') loadAllowedIps()
 })
 
 onMounted(() => {
@@ -1806,5 +1887,23 @@ onUnmounted(() => {
   .ext-search, .ext-category-select {
     width: 100%;
   }
+}
+
+.ip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+}
+
+.ip-row:last-child {
+  border-bottom: none;
+}
+
+.ip-row code {
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  font-size: 13px;
 }
 </style>

@@ -124,7 +124,13 @@ public class ProxyAdapterController {
         Map<String, Object> result = new HashMap<>();
         result.put("role_secret", instance.getDbPassword());
         result.put("project_id", instance.getId());
-        result.put("allowed_ips", new Object[0]);
+        String ips = instance.getAllowedIps();
+        if (ips != null && !ips.isBlank()) {
+            result.put("allowed_ips", java.util.Arrays.stream(ips.split(","))
+                .map(String::trim).filter(s -> !s.isEmpty()).toArray(String[]::new));
+        } else {
+            result.put("allowed_ips", new Object[0]);
+        }
         return result;
     }
 }

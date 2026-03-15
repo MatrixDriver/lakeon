@@ -625,6 +625,50 @@ public class DatabaseService {
         return Map.of("password", rawPassword);
     }
 
+    // ── IP Allowlist ─────────────────────────────────────────────
+
+    public Map<String, Object> getAllowedIps(TenantEntity tenant, String dbId) {
+        DatabaseEntity entity = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
+            .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+        return Map.of(
+            "enabled", entity.getAllowedIps() != null && !entity.getAllowedIps().isBlank(),
+            "ips", parseIpList(entity.getAllowedIps())
+        );
+    }
+
+    @Transactional
+    public Map<String, Object> setAllowedIps(TenantEntity tenant, String dbId, java.util.List<String> ips) {
+        DatabaseEntity entity = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
+            .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+        if (ips == null || ips.isEmpty()) {
+            entity.setAllowedIps(null);
+        } else {
+            // Validate IP/CIDR format
+            for (String ip : ips) {
+                if (!ip.matches("^[0-9a-fA-F.:]+(/\\d{1,3})?$")) {
+                    throw new com.lakeon.service.exception.BadRequestException("Invalid IP/CIDR: " + ip);
+                }
+            }
+            entity.setAllowedIps(String.join(",", ips));
+        }
+        databaseRepository.save(entity);
+        return getAllowedIps(tenant, dbId);
+    }
+
+    @Transactional
+    public void clearAllowedIps(TenantEntity tenant, String dbId) {
+        DatabaseEntity entity = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
+            .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+        entity.setAllowedIps(null);
+        databaseRepository.save(entity);
+    }
+
+    private java.util.List<String> parseIpList(String allowedIps) {
+        if (allowedIps == null || allowedIps.isBlank()) return java.util.List.of();
+        return java.util.Arrays.stream(allowedIps.split(","))
+            .map(String::trim).filter(s -> !s.isEmpty()).toList();
+    }
+
     public String buildConnectionUri(String dbUser, String dbName) {
         String host = props.getProxy().getExternalHost();
         int port = props.getProxy().getExternalPort();
