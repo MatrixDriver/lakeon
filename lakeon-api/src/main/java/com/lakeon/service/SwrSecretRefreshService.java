@@ -86,10 +86,21 @@ public class SwrSecretRefreshService {
                 return;
             }
 
+            // Refresh in compute namespace
             updateK8sSecret(namespace, dockerConfigJson);
             patchServiceAccountImagePullSecrets(namespace);
+            log.info("SwrSecretRefreshService: refreshed SWR secret in namespace '{}'", namespace);
 
-            log.info("SwrSecretRefreshService: successfully refreshed SWR secret in namespace '{}'", namespace);
+            // Also refresh in control plane namespace (lakeon) for API/Neon pod image pulls
+            String controlNs = "lakeon";
+            if (!controlNs.equals(namespace)) {
+                try {
+                    updateK8sSecret(controlNs, dockerConfigJson);
+                    log.info("SwrSecretRefreshService: refreshed SWR secret in namespace '{}'", controlNs);
+                } catch (Exception e) {
+                    log.warn("SwrSecretRefreshService: failed to refresh in '{}': {}", controlNs, e.getMessage());
+                }
+            }
         } catch (Exception e) {
             log.error("SwrSecretRefreshService: error during SWR secret refresh", e);
         }
