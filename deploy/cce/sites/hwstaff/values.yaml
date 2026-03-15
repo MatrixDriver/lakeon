@@ -38,7 +38,7 @@ neon:
     tag: latest
 
 api:
-  replicas: 1
+  replicas: 2
   port: 8090               # API HTTPS 端口
   serviceType: LoadBalancer
   adminToken: "lakeon-sre-2026"
@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.5.3"
+    tag: "0.5.6"
   resources:
     requests:
       cpu: "100m"
@@ -60,6 +60,7 @@ api:
       cpu: "1"
       memory: "1Gi"
   inviteRequired: true  # 注册需要邀请码
+  aiApiKey: ""          # --set api.aiApiKey=$AI_API_KEY (硅基流动)
   # Compute Pod 调度到弹性节点池 (autoscaler min=0 max=5)
   computeNodeSelector:
     lakeon/role: compute
@@ -76,7 +77,7 @@ pageserver:
       memory: "4Gi"
 
 safekeeper:
-  replicas: 1
+  replicas: 3
   resources:
     requests:
       cpu: "100m"
