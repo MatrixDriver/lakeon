@@ -27,7 +27,7 @@ public class DatabaseQueryService {
     private static final Logger log = LoggerFactory.getLogger(DatabaseQueryService.class);
 
     private static final int MAX_ROWS = 1000;
-    private static final int STATEMENT_TIMEOUT_SECONDS = 30;
+    private static final int STATEMENT_TIMEOUT_SECONDS = 60;
     private static final Duration CACHE_TTL = Duration.ofHours(1); // 缓存1小时过期
     private static final Set<String> EXCLUDED_SCHEMAS = Set.of(
         "pg_catalog", "pg_toast", "information_schema"
@@ -82,6 +82,8 @@ public class DatabaseQueryService {
             // key: "schema.table" -> (tableType, rowCount, tableSize)
             Map<String, String[]> tableMetaMap = new LinkedHashMap<>();
 
+            // Use pg_catalog direct query — fast even on cold Neon pageserver cache
+            // Avoid pg_stat_get_live_tuples and pg_total_relation_size which require page access
             String tableSql = """
                 SELECT
                     n.nspname as schema_name,
@@ -92,8 +94,8 @@ public class DatabaseQueryService {
                         WHEN 'm' THEN 'MATERIALIZED VIEW'
                         WHEN 'f' THEN 'FOREIGN TABLE'
                     END as table_type,
-                    pg_stat_get_live_tuples(c.oid) as row_count,
-                    pg_total_relation_size(c.oid) as table_size
+                    c.reltuples::bigint as row_count,
+                    0 as table_size
                 FROM pg_class c
                 JOIN pg_namespace n ON n.oid = c.relnamespace
                 WHERE c.relkind IN ('r', 'v', 'm', 'f')

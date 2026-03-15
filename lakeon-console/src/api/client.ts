@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const client = axios.create({
   baseURL: 'https://api.dbay.cloud:8443/api/v1',
-  timeout: 30000,
+  timeout: 90000,
 })
 
 client.interceptors.request.use((config) => {
