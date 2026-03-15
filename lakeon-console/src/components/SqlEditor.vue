@@ -173,6 +173,8 @@ async function generateSql() {
       editorView.dispatch({
         changes: { from: 0, to: editorView.state.doc.length, insert: data.sql },
       })
+      // Auto-collapse AI panel after successful generation
+      showAi.value = false
       // Show token usage and cost
       const model = selectedModelInfo.value
       if (data.input_tokens && model) {
