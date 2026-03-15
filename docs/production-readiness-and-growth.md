@@ -28,11 +28,11 @@
 
 ### 3. 安全加固
 
-- **租户注册无认证** — 任何人可以无限创建租户，容易被滥用
-- **没有 Rate Limiting** — API 无限流，容易被 DDoS
+- ~~租户注册无认证~~ — ✅ 邀请码注册 (2026-03-15)
+- ~~没有 Rate Limiting~~ — ✅ RateLimitFilter 内存滑动窗口 (2026-03-15)
 - **没有 WAF** — SQL 注入、恶意请求无防护
-- **密码不可重置** — 用户丢了密码只能删库重建
-- **没有网络隔离** — 租户间 compute pod 在同一个 flat namespace，理论上可互通
+- ~~密码不可重置~~ — ✅ 已有 resetPassword API
+- ~~没有网络隔离~~ — ✅ NetworkPolicy compute pod 隔离 (2026-03-15)
 - **没有 IP 白名单** — 数据库连接无源 IP 限制
 
 ### 4. 计费 & 商业化
@@ -91,9 +91,10 @@
 ### 中期动作（1-2 月）
 
 **6. Query Console 增强**
-- 在 Web 控制台内嵌 SQL 编辑器（已有基础）
-- 加 Schema 可视化、Query History、AI SQL 助手
-- 让用户不需要离开平台
+- ~~SQL 编辑器~~ — ✅ 已有 CodeMirror 编辑器
+- Schema 可视化 — 未做 (ER 图)
+- ~~Query History~~ — ✅ 服务端持久化 + 搜索 (2026-03-15)
+- ~~AI SQL 助手~~ — ✅ 硅基流动 3 模型切换 (2026-03-15)
 
 **7. Database Branching 作为杀手功能营销**
 - "给你的数据库创建 Git 分支" — 对开发者很有吸引力
