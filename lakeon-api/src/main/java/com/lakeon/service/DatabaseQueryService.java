@@ -458,50 +458,53 @@ public class DatabaseQueryService {
             return result;
         }
 
-        String sql = "SELECT json_agg(row_to_json(t)) FROM (" +
-            "SELECT pid, usename as user, client_addr::text as client_ip, state, " +
-            "EXTRACT(EPOCH FROM (now() - backend_start))::int as connected_seconds, " +
-            "EXTRACT(EPOCH FROM (now() - query_start))::int as query_seconds, " +
-            "left(query, 200) as current_query, application_name, " +
-            "wait_event_type || '/' || wait_event as wait_event " +
-            "FROM pg_stat_activity WHERE backend_type = 'client backend' AND pid <> pg_backend_pid() " +
-            "ORDER BY backend_start) t";
+        // Two-step: first get summary (fast, small output), then details (limited)
+        String summarySql = "SELECT client_addr::text as ip, count(*) as cnt " +
+            "FROM pg_stat_activity WHERE backend_type='client backend' AND pid<>pg_backend_pid() " +
+            "GROUP BY client_addr ORDER BY cnt DESC";
+
+        String detailSql = "SELECT json_agg(row_to_json(t)) FROM (" +
+            "SELECT pid, usename as \"user\", client_addr::text as client_ip, state, " +
+            "EXTRACT(EPOCH FROM (now()-backend_start))::int as connected_seconds, " +
+            "EXTRACT(EPOCH FROM (now()-query_start))::int as query_seconds, " +
+            "left(query,100) as current_query, application_name, " +
+            "coalesce(wait_event_type||'/'||wait_event,'') as wait_event " +
+            "FROM pg_stat_activity WHERE backend_type='client backend' AND pid<>pg_backend_pid() " +
+            "ORDER BY backend_start LIMIT 50) t";
+
+        String sql = detailSql;
 
         try {
             String namespace = props.getK8s().getNamespace();
-            java.io.ByteArrayOutputStream stdout = new java.io.ByteArrayOutputStream();
-            java.io.ByteArrayOutputStream stderr = new java.io.ByteArrayOutputStream();
-            try (var exec = k8sClient.pods().inNamespace(namespace).withName(db.getComputePodName())
-                    .writingOutput(stdout).writingError(stderr)
-                    .exec("psql", "-h", "127.0.0.1", "-p", "55433",
-                        "-U", "cloud_admin", "-d", "postgres", "-t", "-A", "-c", sql)) {
-                exec.exitCode().get(30, java.util.concurrent.TimeUnit.SECONDS);
-            }
+            String podName = db.getComputePodName();
 
-            String jsonStr = stdout.toString().trim();
-            if (jsonStr.isEmpty() || "null".equals(jsonStr) || jsonStr.startsWith("(")) {
-                result.put("total", 0);
+            // Step 1: Get IP summary (small output, fast)
+            String ipResult = execPsql(namespace, podName, summarySql);
+            List<Map<String, Object>> byIp = new ArrayList<>();
+            int total = 0;
+            if (ipResult != null && !ipResult.isBlank()) {
+                for (String line : ipResult.split("\n")) {
+                    String[] parts = line.split("\\|");
+                    if (parts.length == 2) {
+                        String ip = parts[0].trim().isEmpty() ? "local" : parts[0].trim();
+                        int count = Integer.parseInt(parts[1].trim());
+                        byIp.add(Map.of("ip", ip, "count", count));
+                        total += count;
+                    }
+                }
+            }
+            result.put("total", total);
+            result.put("by_ip", byIp);
+
+            // Step 2: Get connection details (limited to 50, JSON output)
+            String jsonStr = execPsql(namespace, podName, detailSql);
+            if (jsonStr != null && !jsonStr.isBlank() && !"null".equals(jsonStr.trim())) {
+                com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>> typeRef =
+                    new com.fasterxml.jackson.core.type.TypeReference<>() {};
+                result.put("connections", objectMapper.readValue(jsonStr.trim(), typeRef));
+            } else {
                 result.put("connections", List.of());
-                result.put("by_ip", List.of());
-                return result;
             }
-
-            com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>> typeRef =
-                new com.fasterxml.jackson.core.type.TypeReference<>() {};
-            List<Map<String, Object>> connections = objectMapper.readValue(jsonStr, typeRef);
-
-            Map<String, Integer> ipSummary = new LinkedHashMap<>();
-            for (Map<String, Object> c : connections) {
-                String ip = c.get("client_ip") != null ? c.get("client_ip").toString() : "local";
-                ipSummary.merge(ip, 1, Integer::sum);
-            }
-
-            result.put("total", connections.size());
-            result.put("connections", connections);
-            result.put("by_ip", ipSummary.entrySet().stream()
-                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-                .map(e -> Map.of("ip", e.getKey(), "count", e.getValue()))
-                .toList());
 
         } catch (Exception e) {
             log.warn("getConnections failed for {}: {}", dbId, e.getMessage());
@@ -511,6 +514,18 @@ public class DatabaseQueryService {
             result.put("by_ip", List.of());
         }
         return result;
+    }
+
+    private String execPsql(String namespace, String podName, String sql) throws Exception {
+        java.io.ByteArrayOutputStream stdout = new java.io.ByteArrayOutputStream();
+        java.io.ByteArrayOutputStream stderr = new java.io.ByteArrayOutputStream();
+        try (var exec = k8sClient.pods().inNamespace(namespace).withName(podName)
+                .writingOutput(stdout).writingError(stderr)
+                .exec("psql", "-h", "127.0.0.1", "-p", "55433",
+                    "-U", "cloud_admin", "-d", "postgres", "-t", "-A", "-c", sql)) {
+            exec.exitCode().get(10, java.util.concurrent.TimeUnit.SECONDS);
+        }
+        return stdout.toString().trim();
     }
 
     public QueryResult executeQuery(TenantEntity tenant, String dbId, String sql) {
