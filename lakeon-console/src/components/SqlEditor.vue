@@ -1,5 +1,5 @@
 <template>
-  <div class="sql-editor">
+  <div class="sql-editor" :class="{ 'ai-open': showAi }">
     <div class="editor-toolbar">
       <div class="toolbar-left">
         <button class="toolbar-btn run-btn" @click="executeQuery" :disabled="executing" title="执行 (Ctrl+Enter)">
@@ -20,33 +20,36 @@
         <button class="toolbar-btn" @click="clearEditor" title="清空">清空</button>
       </div>
     </div>
-    <!-- AI SQL Assistant Panel -->
-    <div v-if="showAi" class="ai-panel">
+    <!-- AI SQL Assistant Sidebar (right) -->
+    <div v-if="showAi" class="ai-sidebar">
       <div class="ai-header">
         <span class="ai-title">AI SQL 助手</span>
+        <button class="ai-close" @click="showAi = false">✕</button>
+      </div>
+      <div class="ai-body">
+        <label class="ai-label">模型</label>
         <select v-model="aiModel" class="ai-model-select">
           <option v-for="m in aiModels" :key="m.id" :value="m.id">
-            {{ m.name }} (输入¥{{ m.input_price }}/M · 输出¥{{ m.output_price }}/M)
+            {{ m.name }} {{ m.input_price === 0 ? '(免费)' : `(¥${m.input_price}/${m.output_price}/M)` }}
           </option>
         </select>
-      </div>
-      <div class="ai-input-row">
-        <input
+        <div v-if="selectedModelInfo" class="ai-model-desc">{{ selectedModelInfo.desc }}</div>
+        <label class="ai-label" style="margin-top: 12px;">描述你想查询的内容</label>
+        <textarea
           v-model="aiPrompt"
-          class="ai-input"
-          :placeholder="'描述你想查询的内容，如：查询最近7天注册的用户数'"
-          @keyup.enter="generateSql"
+          class="ai-textarea"
+          placeholder="例：查询最近7天注册的用户数，按天分组"
+          rows="3"
+          @keydown.ctrl.enter="generateSql"
+          @keydown.meta.enter="generateSql"
           :disabled="aiLoading"
-        />
-        <button class="toolbar-btn run-btn" @click="generateSql" :disabled="aiLoading || !aiPrompt.trim()">
+        ></textarea>
+        <button class="btn-generate" @click="generateSql" :disabled="aiLoading || !aiPrompt.trim()">
           {{ aiLoading ? '生成中...' : '生成 SQL' }}
         </button>
+        <div v-if="aiError" class="ai-error">{{ aiError }}</div>
+        <div v-if="aiTokenInfo" class="ai-tokens">{{ aiTokenInfo }}</div>
       </div>
-      <div v-if="aiError" class="ai-error">{{ aiError }}</div>
-      <div v-if="aiTokenInfo" class="ai-tokens">
-        {{ aiTokenInfo }}
-      </div>
-      <div v-if="selectedModelInfo" class="ai-model-desc">{{ selectedModelInfo.desc }}</div>
     </div>
     <!-- Query History Panel -->
     <div v-if="showHistory" class="history-panel">
@@ -151,11 +154,12 @@ const aiLoading = ref(false)
 const aiError = ref('')
 const aiTokenInfo = ref('')
 const aiModels = ref<AiModel[]>([
+  { id: 'Qwen/Qwen3.5-4B', name: 'Qwen3.5 4B', input_price: 0, output_price: 0, desc: '免费模型，适合日常 SQL 生成' },
   { id: 'deepseek-ai/DeepSeek-V3.2', name: 'DeepSeek V3.2', input_price: 2.0, output_price: 3.0, desc: '综合能力强，性价比高' },
   { id: 'Qwen/Qwen3-Coder-480B-A35B-Instruct', name: 'Qwen3 Coder 480B', input_price: 8.0, output_price: 16.0, desc: '最强代码模型，SQL 生成质量最高' },
   { id: 'Qwen/Qwen3-Coder-30B-A3B-Instruct', name: 'Qwen3 Coder 30B', input_price: 0.7, output_price: 2.8, desc: '轻量代码模型，速度快价格低' },
 ])
-const aiModel = ref('deepseek-ai/DeepSeek-V3.2')
+const aiModel = ref('Qwen/Qwen3.5-4B')
 
 const selectedModelInfo = computed(() => aiModels.value.find(m => m.id === aiModel.value))
 
@@ -173,8 +177,7 @@ async function generateSql() {
       editorView.dispatch({
         changes: { from: 0, to: editorView.state.doc.length, insert: data.sql },
       })
-      // Auto-collapse AI panel after successful generation
-      showAi.value = false
+      // Keep AI sidebar open for iterative use
       // Show token usage and cost
       const model = selectedModelInfo.value
       if (data.input_tokens && model) {
@@ -606,7 +609,17 @@ defineExpose({ executeQuery })
   color: #191919;
 }
 
-/* AI Assistant */
+/* AI Assistant - Right Sidebar */
+.sql-editor {
+  position: relative;
+}
+
+.sql-editor.ai-open .editor-container,
+.sql-editor.ai-open .result-panel,
+.sql-editor.ai-open .history-panel {
+  margin-right: 300px;
+}
+
 .ai-btn {
   background: linear-gradient(135deg, #667eea, #764ba2);
   color: #fff;
@@ -626,74 +639,131 @@ defineExpose({ executeQuery })
   color: #fff;
 }
 
-.ai-panel {
-  border-bottom: 1px solid #e8e8e8;
+.ai-sidebar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 300px;
   background: #f8f7ff;
-  padding: 10px 12px;
-  flex-shrink: 0;
+  border-left: 1px solid #e0ddf5;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
 }
 
 .ai-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e0ddf5;
+  flex-shrink: 0;
 }
 
 .ai-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: #5a6fd6;
 }
 
-.ai-model-select {
+.ai-close {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #999;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.ai-close:hover {
+  background: #eee;
+  color: #333;
+}
+
+.ai-body {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.ai-label {
+  display: block;
   font-size: 12px;
-  padding: 3px 8px;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 4px;
+}
+
+.ai-model-select {
+  width: 100%;
+  font-size: 12px;
+  padding: 5px 8px;
   border: 1px solid #d9d9d9;
   border-radius: 4px;
   background: #fff;
   outline: none;
-  max-width: 400px;
 }
 
 .ai-model-select:focus {
   border-color: #667eea;
 }
 
-.ai-input-row {
-  display: flex;
-  gap: 8px;
+.ai-model-desc {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #999;
 }
 
-.ai-input {
-  flex: 1;
-  padding: 6px 10px;
+.ai-textarea {
+  width: 100%;
+  padding: 8px;
   border: 1px solid #d9d9d9;
   border-radius: 4px;
   font-size: 13px;
+  font-family: inherit;
   outline: none;
+  resize: vertical;
+  min-height: 60px;
 }
 
-.ai-input:focus {
+.ai-textarea:focus {
   border-color: #667eea;
 }
 
+.btn-generate {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-generate:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-generate:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .ai-error {
-  margin-top: 6px;
+  margin-top: 8px;
   font-size: 12px;
   color: #e6393d;
 }
 
 .ai-tokens {
-  margin-top: 6px;
+  margin-top: 8px;
   font-size: 11px;
   color: #52c41a;
-}
-
-.ai-model-desc {
-  margin-top: 4px;
-  font-size: 11px;
-  color: #999;
 }
 
 .history-actions {
