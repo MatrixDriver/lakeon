@@ -1,34 +1,66 @@
-# Custom Neon compute node with pg_search (ParadeDB BM25 full-text search)
+# Build pg_search for Neon compute (Neon ABI compatible)
 #
-# Build:
-#   docker build -f deploy/docker/Dockerfile.compute -t swr.cn-north-4.myhuaweicloud.com/flex/compute-node-v17:pg_search .
+# Stage 1: Compile PG from Neon source to get headers + pg_config
+# Stage 2: Compile pg_search with pgrx unsafe-postgres
+# Stage 3: Copy .so into stock Neon compute image
 #
-# Based on official Neon compute-node-v17 (Debian bookworm, PG 17)
+# Build context: ~/code/neon (with vendor/postgres-v17 submodule initialized)
 
+# Use Neon image as build base (Debian bookworm, already cached locally)
+FROM ghcr.io/neondatabase/compute-node-v17:latest AS builder
+
+USER root
+
+# Use Aliyun mirror for apt (avoids proxy issues with deb.debian.org)
+RUN find /etc/apt -name '*.sources' -o -name '*.list' | xargs -r sed -i 's|deb.debian.org|mirrors.aliyun.com|g'
+
+# Install build deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl ca-certificates pkg-config libssl-dev libclang-dev git \
+    bison flex libreadline-dev zlib1g-dev libicu-dev libxml2-dev libxslt1-dev \
+    liblz4-dev libzstd-dev libossp-uuid-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Compile PG from Neon source (for server headers that pgrx needs)
+COPY vendor/postgres-v17 /build/postgres
+COPY compute/patches/ /build/patches/
+WORKDIR /build/postgres
+RUN patch -p1 < /build/patches/pg_stat_statements_pg17.patch && \
+    patch -p1 < /build/patches/postgres_fdw.patch && \
+    ./configure CFLAGS='-O2' --prefix=/usr/local \
+      --with-openssl --with-uuid=ossp --with-icu \
+      --with-libxml --with-libxslt --with-lz4 --with-zstd && \
+    make -j $(nproc) -s install
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install cargo-pgrx and init with our PG
+RUN cargo install --locked --version 0.16.1 cargo-pgrx && \
+    cargo pgrx init --pg17=/usr/local/bin/pg_config
+
+# Download pg_search source
+WORKDIR /build
+RUN curl -L https://github.com/paradedb/paradedb/archive/refs/tags/v0.21.15.tar.gz -o pg_search.tar.gz && \
+    mkdir paradedb && tar xzf pg_search.tar.gz --strip-components=1 -C paradedb
+
+# Patch for Neon ABI compatibility and build
+WORKDIR /build/paradedb/pg_search
+RUN sed -i 's/pgrx.workspace = true/pgrx = { version = "=0.16.1", features = ["unsafe-postgres"] }/g' Cargo.toml && \
+    sed -i 's/pgrx-tests.workspace = true/pgrx-tests = "=0.16.1"/g' Cargo.toml && \
+    cargo pgrx install --release
+
+# Stage 2: Copy into clean Neon image
 FROM ghcr.io/neondatabase/compute-node-v17:latest
 
 USER root
 
-# Install pg_search from ParadeDB prebuilt .deb
-# Force install (--force-depends) because Neon's PG is self-compiled, not from apt
-RUN apt-get update -qq && \
-    apt-get install -y --no-install-recommends curl ca-certificates && \
-    curl -L "https://github.com/paradedb/paradedb/releases/download/v0.21.15/postgresql-17-pg-search_0.21.15-1PARADEDB-bookworm_amd64.deb" -o /tmp/pg_search.deb && \
-    dpkg --force-depends -i /tmp/pg_search.deb && \
-    rm -f /tmp/pg_search.deb && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /usr/local/lib/postgresql/pg_search.so /usr/local/lib/pg_search.so
+COPY --from=builder /usr/local/share/postgresql/extension/pg_search.control /usr/local/share/extension/
+COPY --from=builder /usr/local/share/postgresql/extension/pg_search--*.sql /usr/local/share/extension/
 
-# Find and copy pg_search files to Neon's PG paths
-RUN echo "=== deb installed files ===" && \
-    find / -name "pg_search*" 2>/dev/null && \
-    echo "=== Neon PG paths ===" && \
-    pg_config --libdir && pg_config --sharedir && \
-    PG_LIBDIR=$(pg_config --libdir) && \
-    PG_SHAREDIR=$(pg_config --sharedir) && \
-    cp /usr/lib/postgresql/17/lib/pg_search.so "$PG_LIBDIR/" 2>/dev/null || true && \
-    cp /usr/share/postgresql/17/extension/pg_search* "$PG_SHAREDIR/extension/" 2>/dev/null || true && \
-    echo "=== Verify ===" && \
-    ls "$PG_LIBDIR/pg_search.so" && \
-    ls "$PG_SHAREDIR/extension/pg_search.control"
+RUN echo 'trusted = true' >> /usr/local/share/extension/pg_search.control && \
+    ls -la /usr/local/lib/pg_search.so /usr/local/share/extension/pg_search.control
 
-USER nonroot
+USER postgres

@@ -42,6 +42,7 @@ public class ExtensionService {
         new ExtensionCatalogEntry("pg_tiktoken", "AI / 向量", "OpenAI tiktoken 分词器"),
 
         // Full-text Search
+        new ExtensionCatalogEntry("pg_search", "全文检索", "ParadeDB BM25 全文检索 (Elasticsearch 级别)"),
         new ExtensionCatalogEntry("rum", "全文检索", "高级全文索引 (替代 GIN)"),
         new ExtensionCatalogEntry("pg_trgm", "全文检索", "三字母组模糊匹配"),
         new ExtensionCatalogEntry("unaccent", "全文检索", "去重音符搜索"),
