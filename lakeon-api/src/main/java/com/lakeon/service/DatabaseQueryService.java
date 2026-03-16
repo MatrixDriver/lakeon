@@ -42,17 +42,23 @@ public class DatabaseQueryService {
     private final SchemaCacheRepository schemaCacheRepository;
     private final ObjectMapper objectMapper;
     private final AuditService auditService;
+    private final io.fabric8.kubernetes.client.KubernetesClient k8sClient;
+    private final com.lakeon.config.LakeonProperties props;
 
     public DatabaseQueryService(DatabaseRepository databaseRepository,
                                 DatabaseService databaseService,
                                 SchemaCacheRepository schemaCacheRepository,
                                 ObjectMapper objectMapper,
-                                AuditService auditService) {
+                                AuditService auditService,
+                                io.fabric8.kubernetes.client.KubernetesClient k8sClient,
+                                com.lakeon.config.LakeonProperties props) {
         this.databaseRepository = databaseRepository;
         this.databaseService = databaseService;
         this.schemaCacheRepository = schemaCacheRepository;
         this.objectMapper = objectMapper;
         this.auditService = auditService;
+        this.k8sClient = k8sClient;
+        this.props = props;
     }
 
     @Transactional
@@ -438,54 +444,56 @@ public class DatabaseQueryService {
 
     /**
      * Get active connections from pg_stat_activity.
-     * Returns: connection list, IP summary, total count.
+     * Uses kubectl exec psql (not JDBC) to avoid slow connection establishment on cold pageserver.
      */
     public Map<String, Object> getConnections(TenantEntity tenant, String dbId) {
         DatabaseEntity db = findDatabase(tenant, dbId);
         Map<String, Object> result = new LinkedHashMap<>();
 
-        try (Connection conn = getConnection(db)) {
-            String sql = """
-                SELECT
-                    pid,
-                    usename,
-                    client_addr::text as client_ip,
-                    state,
-                    EXTRACT(EPOCH FROM (now() - backend_start))::int as connected_seconds,
-                    EXTRACT(EPOCH FROM (now() - query_start))::int as query_seconds,
-                    left(query, 200) as current_query,
-                    application_name,
-                    wait_event_type,
-                    wait_event
-                FROM pg_stat_activity
-                WHERE backend_type = 'client backend'
-                  AND pid <> pg_backend_pid()
-                ORDER BY backend_start
-                """;
+        if (db.getComputePodName() == null) {
+            result.put("error", "Database is not running");
+            result.put("total", 0);
+            result.put("connections", List.of());
+            result.put("by_ip", List.of());
+            return result;
+        }
 
-            List<Map<String, Object>> connections = new ArrayList<>();
+        String sql = "SELECT json_agg(row_to_json(t)) FROM (" +
+            "SELECT pid, usename as user, client_addr::text as client_ip, state, " +
+            "EXTRACT(EPOCH FROM (now() - backend_start))::int as connected_seconds, " +
+            "EXTRACT(EPOCH FROM (now() - query_start))::int as query_seconds, " +
+            "left(query, 200) as current_query, application_name, " +
+            "wait_event_type || '/' || wait_event as wait_event " +
+            "FROM pg_stat_activity WHERE backend_type = 'client backend' AND pid <> pg_backend_pid() " +
+            "ORDER BY backend_start) t";
+
+        try {
+            String namespace = props.getK8s().getNamespace();
+            java.io.ByteArrayOutputStream stdout = new java.io.ByteArrayOutputStream();
+            java.io.ByteArrayOutputStream stderr = new java.io.ByteArrayOutputStream();
+            try (var exec = k8sClient.pods().inNamespace(namespace).withName(db.getComputePodName())
+                    .writingOutput(stdout).writingError(stderr)
+                    .exec("psql", "-h", "127.0.0.1", "-p", "55433",
+                        "-U", "cloud_admin", "-d", "postgres", "-t", "-A", "-c", sql)) {
+                exec.exitCode().get(15, java.util.concurrent.TimeUnit.SECONDS);
+            }
+
+            String jsonStr = stdout.toString().trim();
+            if (jsonStr.isEmpty() || "null".equals(jsonStr) || jsonStr.startsWith("(")) {
+                result.put("total", 0);
+                result.put("connections", List.of());
+                result.put("by_ip", List.of());
+                return result;
+            }
+
+            com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>> typeRef =
+                new com.fasterxml.jackson.core.type.TypeReference<>() {};
+            List<Map<String, Object>> connections = objectMapper.readValue(jsonStr, typeRef);
+
             Map<String, Integer> ipSummary = new LinkedHashMap<>();
-
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ResultSet rs = ps.executeQuery();
-                while (rs.next()) {
-                    Map<String, Object> c = new LinkedHashMap<>();
-                    c.put("pid", rs.getInt("pid"));
-                    c.put("user", rs.getString("usename"));
-                    c.put("client_ip", rs.getString("client_ip"));
-                    c.put("state", rs.getString("state"));
-                    c.put("connected_seconds", rs.getInt("connected_seconds"));
-                    c.put("query_seconds", rs.getObject("query_seconds"));
-                    c.put("current_query", rs.getString("current_query"));
-                    c.put("application_name", rs.getString("application_name"));
-                    c.put("wait_event", rs.getString("wait_event_type") != null
-                        ? rs.getString("wait_event_type") + "/" + rs.getString("wait_event") : null);
-                    connections.add(c);
-
-                    String ip = rs.getString("client_ip");
-                    if (ip == null) ip = "local";
-                    ipSummary.merge(ip, 1, Integer::sum);
-                }
+            for (Map<String, Object> c : connections) {
+                String ip = c.get("client_ip") != null ? c.get("client_ip").toString() : "local";
+                ipSummary.merge(ip, 1, Integer::sum);
             }
 
             result.put("total", connections.size());
