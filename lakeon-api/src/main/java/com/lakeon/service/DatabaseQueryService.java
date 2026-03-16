@@ -475,7 +475,7 @@ public class DatabaseQueryService {
                     .writingOutput(stdout).writingError(stderr)
                     .exec("psql", "-h", "127.0.0.1", "-p", "55433",
                         "-U", "cloud_admin", "-d", "postgres", "-t", "-A", "-c", sql)) {
-                exec.exitCode().get(15, java.util.concurrent.TimeUnit.SECONDS);
+                exec.exitCode().get(30, java.util.concurrent.TimeUnit.SECONDS);
             }
 
             String jsonStr = stdout.toString().trim();
@@ -504,7 +504,8 @@ public class DatabaseQueryService {
                 .toList());
 
         } catch (Exception e) {
-            result.put("error", e.getMessage());
+            log.warn("getConnections failed for {}: {}", dbId, e.getMessage());
+            result.put("error", e.getClass().getSimpleName() + ": " + e.getMessage());
             result.put("total", 0);
             result.put("connections", List.of());
             result.put("by_ip", List.of());
