@@ -507,8 +507,15 @@ public class DatabaseQueryService {
             }
 
         } catch (Exception e) {
-            log.warn("getConnections failed for {}: {}", dbId, e.getMessage());
-            result.put("error", e.getClass().getSimpleName() + ": " + e.getMessage());
+            String msg = e.getMessage();
+            if (msg == null) msg = e.getClass().getSimpleName();
+            // Check stderr for psql errors
+            if (msg.contains("too many clients")) {
+                result.put("error", "连接数已满 (max_connections)，无法查询连接详情。建议检查应用是否有连接泄漏。");
+            } else {
+                log.warn("getConnections failed for {}: {}", dbId, msg);
+                result.put("error", msg);
+            }
             result.put("total", 0);
             result.put("connections", List.of());
             result.put("by_ip", List.of());
