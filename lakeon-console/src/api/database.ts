@@ -101,6 +101,25 @@ export interface AiSqlResult {
   output_tokens?: number
 }
 
+export interface ConnectionInfo {
+  pid: number
+  user: string
+  client_ip: string | null
+  state: string
+  connected_seconds: number
+  query_seconds: number | null
+  current_query: string
+  application_name: string
+  wait_event: string | null
+}
+
+export interface ConnectionsData {
+  total: number
+  connections: ConnectionInfo[]
+  by_ip: { ip: string; count: number }[]
+  error?: string
+}
+
 export interface DataPage {
   columns: string[]
   rows: unknown[][]
@@ -159,6 +178,9 @@ export const databaseApi = {
   tableStats: (id: string, schema: string, table: string) => client.get<TableStats>(`/databases/${id}/schemas/${schema}/tables/${table}/stats`),
   createTable: (id: string, schema: string, data: CreateTablePayload) => client.post(`/databases/${id}/schemas/${schema}/tables`, data),
   dropTable: (id: string, schema: string, table: string) => client.delete(`/databases/${id}/schemas/${schema}/tables/${table}`),
+
+  // Connections
+  getConnections: (id: string) => client.get<ConnectionsData>(`/databases/${id}/connections`),
 
   // IP Allowlist
   getAllowedIps: (id: string) => client.get<{ enabled: boolean; ips: string[] }>(`/databases/${id}/allowed-ips`),

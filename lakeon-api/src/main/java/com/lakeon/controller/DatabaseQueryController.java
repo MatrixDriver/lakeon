@@ -32,6 +32,12 @@ public class DatabaseQueryController {
         this.aiSqlService = aiSqlService;
     }
 
+    @GetMapping("/connections")
+    public Map<String, Object> getConnections(HttpServletRequest req, @PathVariable String dbId) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return queryService.getConnections(tenant, dbId);
+    }
+
     @GetMapping("/schemas")
     public List<SchemaInfo> listSchemas(HttpServletRequest req, @PathVariable String dbId) {
         TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");

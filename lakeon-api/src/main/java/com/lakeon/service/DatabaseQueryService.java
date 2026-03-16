@@ -436,6 +436,74 @@ public class DatabaseQueryService {
         }
     }
 
+    /**
+     * Get active connections from pg_stat_activity.
+     * Returns: connection list, IP summary, total count.
+     */
+    public Map<String, Object> getConnections(TenantEntity tenant, String dbId) {
+        DatabaseEntity db = findDatabase(tenant, dbId);
+        Map<String, Object> result = new LinkedHashMap<>();
+
+        try (Connection conn = getConnection(db)) {
+            String sql = """
+                SELECT
+                    pid,
+                    usename,
+                    client_addr::text as client_ip,
+                    state,
+                    EXTRACT(EPOCH FROM (now() - backend_start))::int as connected_seconds,
+                    EXTRACT(EPOCH FROM (now() - query_start))::int as query_seconds,
+                    left(query, 200) as current_query,
+                    application_name,
+                    wait_event_type,
+                    wait_event
+                FROM pg_stat_activity
+                WHERE backend_type = 'client backend'
+                  AND pid <> pg_backend_pid()
+                ORDER BY backend_start
+                """;
+
+            List<Map<String, Object>> connections = new ArrayList<>();
+            Map<String, Integer> ipSummary = new LinkedHashMap<>();
+
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ResultSet rs = ps.executeQuery();
+                while (rs.next()) {
+                    Map<String, Object> c = new LinkedHashMap<>();
+                    c.put("pid", rs.getInt("pid"));
+                    c.put("user", rs.getString("usename"));
+                    c.put("client_ip", rs.getString("client_ip"));
+                    c.put("state", rs.getString("state"));
+                    c.put("connected_seconds", rs.getInt("connected_seconds"));
+                    c.put("query_seconds", rs.getObject("query_seconds"));
+                    c.put("current_query", rs.getString("current_query"));
+                    c.put("application_name", rs.getString("application_name"));
+                    c.put("wait_event", rs.getString("wait_event_type") != null
+                        ? rs.getString("wait_event_type") + "/" + rs.getString("wait_event") : null);
+                    connections.add(c);
+
+                    String ip = rs.getString("client_ip");
+                    if (ip == null) ip = "local";
+                    ipSummary.merge(ip, 1, Integer::sum);
+                }
+            }
+
+            result.put("total", connections.size());
+            result.put("connections", connections);
+            result.put("by_ip", ipSummary.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .map(e -> Map.of("ip", e.getKey(), "count", e.getValue()))
+                .toList());
+
+        } catch (Exception e) {
+            result.put("error", e.getMessage());
+            result.put("total", 0);
+            result.put("connections", List.of());
+            result.put("by_ip", List.of());
+        }
+        return result;
+    }
+
     public QueryResult executeQuery(TenantEntity tenant, String dbId, String sql) {
         if (DANGEROUS_SQL.matcher(sql).find()) {
             throw new ServiceException("SQL contains prohibited statements");

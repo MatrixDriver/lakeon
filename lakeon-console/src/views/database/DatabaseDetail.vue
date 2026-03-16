@@ -541,6 +541,67 @@
       </div>
 
       <!-- Security Tab (IP Allowlist) -->
+      <!-- Connections Tab -->
+      <div v-if="activeTab === 'connections'" class="tab-content">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+          <p class="tab-tip" style="margin: 0;">当前活跃的客户端连接。数据每次进入此页签时实时查询。</p>
+          <button class="btn btn-small btn-default" @click="loadConnections">刷新</button>
+        </div>
+        <div v-if="database?.status !== 'RUNNING'" class="empty-state"><p>数据库未运行</p></div>
+        <template v-else>
+          <div v-if="connectionsLoading" class="empty-state"><p>加载中...</p></div>
+          <template v-else>
+            <!-- Summary cards -->
+            <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+              <div class="conn-stat-card">
+                <div class="conn-stat-value">{{ connectionsData.total }}</div>
+                <div class="conn-stat-label">总连接数</div>
+              </div>
+              <div class="conn-stat-card" v-for="item in connectionsData.by_ip" :key="item.ip">
+                <div class="conn-stat-value">{{ item.count }}</div>
+                <div class="conn-stat-label">{{ item.ip }}</div>
+              </div>
+            </div>
+
+            <!-- Connection list -->
+            <div class="section-card">
+              <div class="table-wrapper">
+                <table class="data-table" v-if="connectionsData.connections.length > 0">
+                  <thead>
+                    <tr>
+                      <th>PID</th>
+                      <th>用户</th>
+                      <th>客户端 IP</th>
+                      <th>状态</th>
+                      <th>连接时长</th>
+                      <th>当前查询</th>
+                      <th>应用</th>
+                      <th>等待</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="c in connectionsData.connections" :key="c.pid">
+                      <td><code>{{ c.pid }}</code></td>
+                      <td>{{ c.user }}</td>
+                      <td>{{ c.client_ip || 'local' }}</td>
+                      <td>
+                        <span class="conn-state" :class="'conn-' + (c.state || 'unknown')">{{ c.state || '-' }}</span>
+                      </td>
+                      <td>{{ formatDuration(c.connected_seconds) }}</td>
+                      <td class="td-query">{{ c.current_query || '-' }}</td>
+                      <td>{{ c.application_name || '-' }}</td>
+                      <td>{{ c.wait_event || '-' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div v-else class="empty-state"><p>无活跃连接</p></div>
+              </div>
+            </div>
+          </template>
+        </template>
+      </div>
+
+      <!-- Security Tab (IP Allowlist) -->
       <div v-if="activeTab === 'security'" class="tab-content">
         <p class="tab-tip">配置 IP 白名单后，只有列表中的 IP 地址才能连接此数据库。留空则允许所有 IP。</p>
         <div class="section-card" style="max-width: 600px;">
@@ -579,9 +640,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { databaseApi, type Database } from '../../api/database'
+import { databaseApi, type Database, type ConnectionsData } from '../../api/database'
 import { branchApi, type Branch, type BranchTreeNode } from '../../api/branch'
 import { backupApi, type Backup } from '../../api/backup'
 import { dbuserApi, type DatabaseUser } from '../../api/dbuser'
@@ -614,8 +675,31 @@ const tabs = [
   { key: 'backups', label: '备份' },
   { key: 'extensions', label: '扩展' },
   { key: 'parameters', label: '参数' },
+  { key: 'connections', label: '连接' },
   { key: 'security', label: '安全' },
 ]
+
+// Connections
+const connectionsLoading = ref(false)
+const connectionsData = reactive<ConnectionsData>({ total: 0, connections: [], by_ip: [] })
+
+async function loadConnections() {
+  connectionsLoading.value = true
+  try {
+    const res = await databaseApi.getConnections(route.params.id as string)
+    Object.assign(connectionsData, res.data)
+  } catch { /* ignore */ }
+  connectionsLoading.value = false
+}
+
+function formatDuration(seconds: number): string {
+  if (!seconds || seconds < 0) return '-'
+  if (seconds < 60) return seconds + 's'
+  if (seconds < 3600) return Math.floor(seconds / 60) + 'm ' + (seconds % 60) + 's'
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  return h + 'h ' + m + 'm'
+}
 
 // IP Allowlist
 const allowedIps = ref<string[]>([])
@@ -1172,6 +1256,7 @@ watch(activeTab, (tab) => {
   if (tab === 'users' && dbUsers.value.length === 0) fetchUsers()
   if (tab === 'extensions' && extensions.value.length === 0) fetchExtensions()
   if (tab === 'parameters' && parameters.value.length === 0) fetchParameters()
+  if (tab === 'connections') loadConnections()
   if (tab === 'security') loadAllowedIps()
 })
 
@@ -1887,6 +1972,49 @@ onUnmounted(() => {
   .ext-search, .ext-category-select {
     width: 100%;
   }
+}
+
+.conn-stat-card {
+  padding: 12px 20px;
+  background: #fafbfc;
+  border: 1px solid #ebebeb;
+  border-radius: 6px;
+  text-align: center;
+  min-width: 100px;
+}
+
+.conn-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #191919;
+}
+
+.conn-stat-label {
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.conn-state {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.conn-active { background: #f0faf0; color: #52c41a; }
+.conn-idle { background: #f5f5f5; color: #999; }
+.conn-idle\ in\ transaction { background: #fff7e6; color: #e37318; }
+.conn-unknown { background: #f5f5f5; color: #ccc; }
+
+.td-query {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
 }
 
 .ip-row {
