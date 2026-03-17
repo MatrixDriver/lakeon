@@ -450,8 +450,7 @@ import { databaseApi, type Database, type ConnectionsData } from '../../api/data
 // branch management moved to TimeTravelView
 import { dbuserApi, type DatabaseUser } from '../../api/dbuser'
 import CreateUserDialog from './CreateUserDialog.vue'
-import TableToolbar from '../../components/TableToolbar.vue'
-import TableFooter from '../../components/TableFooter.vue'
+// TableToolbar, TableFooter removed (backups tab moved)
 import { extensionApi, type ExtensionInfo, type ParameterInfo } from '../../api/extension'
 import { copyToClipboard } from '../../utils/clipboard'
 import { formatDate } from '../../utils/format'
@@ -675,14 +674,6 @@ async function handleResume() {
   } finally {
     actionLoading.value = false
   }
-}
-
-function formatSize(bytes: number | null): string {
-  if (bytes == null) return '-'
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
 }
 
 // Users

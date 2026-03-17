@@ -65,11 +65,6 @@
                 >提升为默认</button>
                 <button
                   v-if="!branch.is_default"
-                  class="btn btn-small btn-text"
-                  @click.stop="handleDiffBranchVsDefault(branch.id)"
-                >Diff vs 主干</button>
-                <button
-                  v-if="!branch.is_default"
                   class="btn btn-small btn-text btn-danger-text"
                   @click.stop="handleDeleteBranch(branch.id)"
                 >删除</button>
@@ -137,12 +132,6 @@
                     <span class="version-ago">{{ timeAgo(ver.created_at) }}</span>
                   </div>
                   <div v-if="expandedVersionId === ver.id && !squashMode" class="version-actions">
-                    <button
-                      v-if="idx < versions.length - 1"
-                      class="btn btn-small btn-text"
-                      :disabled="diffLoading"
-                      @click.stop="handleDiffVersions(ver, versions[idx + 1]!)"
-                    >{{ diffLoading ? 'Diff 中...' : '与上一版本 Diff' }}</button>
                     <button class="btn btn-small btn-text" @click.stop="handleRestoreToVersion(ver)">回滚到此版本</button>
                     <button class="btn btn-small btn-danger-text" @click.stop="handleDeleteVersion(ver.id)">删除版本</button>
                   </div>
@@ -164,18 +153,6 @@
               </div>
             </div>
 
-            <!-- Schema Diff overlay -->
-            <div v-if="showDiffView" class="diff-overlay">
-              <div class="diff-overlay-header">
-                <span class="diff-overlay-title">Schema Diff: {{ diffSourceLabel }}</span>
-                <button class="btn btn-small btn-default" @click="showDiffView = false">关闭</button>
-              </div>
-              <div v-if="diffLoading" class="diff-overlay-loading">
-                <div>正在对比 Schema 差异...</div>
-                <div class="diff-loading-hint">需要启动临时计算节点，约 10-30 秒</div>
-              </div>
-              <SchemaDiffView v-else-if="diffResult" :diff="diffResult" />
-            </div>
           </template>
           <div v-else class="version-timeline-placeholder">
             <p>选择左侧分支查看版本历史</p>
@@ -272,10 +249,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { databaseApi, type Database } from '../../api/database'
 import { branchApi, type Branch } from '../../api/branch'
 import { versionApi, type Version } from '../../api/version'
-import { diffApi, type SchemaDiffResponse } from '../../api/diff'
+// diff feature temporarily removed — will return with AI-powered summaries
 import CreateBranchDialog from '../database/CreateBranchDialog.vue'
 import CreateVersionDialog from '../database/CreateVersionDialog.vue'
-import SchemaDiffView from '../../components/SchemaDiffView.vue'
+// SchemaDiffView temporarily removed
 import { formatDate } from '../../utils/format'
 import { useToast } from '../../composables/useToast'
 
@@ -310,10 +287,7 @@ const expandedVersionId = ref('')
 const versionBranchId = ref('')
 
 // Schema Diff
-const showDiffView = ref(false)
-const diffLoading = ref(false)
-const diffResult = ref<SchemaDiffResponse | null>(null)
-const diffSourceLabel = ref('')
+// diff state removed
 
 // Squash mode
 const squashMode = ref(false)
@@ -462,53 +436,6 @@ async function handlePromoteBranch(branchId: string) {
   }
 }
 
-async function handleDiffBranchVsDefault(branchId: string) {
-  const defaultBranch = branches.value.find(b => b.is_default)
-  if (!defaultBranch) {
-    toast.error('未找到默认分支')
-    return
-  }
-  if (branchId === defaultBranch.id) {
-    toast.error('该分支已是默认分支')
-    return
-  }
-  diffLoading.value = true
-  showDiffView.value = true
-  diffResult.value = null
-  const branchName = branches.value.find(b => b.id === branchId)?.name || ''
-  diffSourceLabel.value = `${branchName} vs ${defaultBranch.name}`
-  try {
-    const res = await diffApi.schema(selectedDbId.value, 'branch', branchId, 'branch', defaultBranch.id)
-    diffResult.value = res.data
-  } catch (e: any) {
-    console.error('Failed to load diff', e)
-    const msg = e?.response?.data?.message || e?.response?.data?.error?.message || '获取差异失败'
-    toast.error(msg)
-    showDiffView.value = false
-  } finally {
-    diffLoading.value = false
-  }
-}
-
-async function handleDiffVersions(newer: Version, older: Version) {
-  diffLoading.value = true
-  showDiffView.value = true
-  diffResult.value = null
-  diffSourceLabel.value = `${newer.name} 相对于 ${older.name} 的变化`
-  try {
-    // source=older (baseline), target=newer (current) — so "added" = new stuff in newer version
-    const res = await diffApi.schema(selectedDbId.value, 'version', older.id, 'version', newer.id)
-    diffResult.value = res.data
-  } catch (e: any) {
-    console.error('Failed to load version diff', e)
-    const msg = e?.response?.data?.message || e?.response?.data?.error?.message || '获取版本差异失败'
-    toast.error(msg)
-    showDiffView.value = false
-  } finally {
-    diffLoading.value = false
-  }
-}
-
 // Versions
 async function fetchVersions(branchId: string) {
   versionsLoading.value = true
@@ -559,7 +486,7 @@ function selectBranchForVersions(branchId: string) {
   selectedBranchId.value = branchId
   expandedVersionId.value = ''
   exitSquashMode()
-  showDiffView.value = false
+  // diff removed
   fetchVersions(branchId)
 }
 
@@ -648,7 +575,7 @@ watch(selectedDbId, async (newId) => {
   selectedBranchId.value = ''
   expandedVersionId.value = ''
   exitSquashMode()
-  showDiffView.value = false
+  // diff removed
   currentDatabase.value = null
 
   if (newId) {
