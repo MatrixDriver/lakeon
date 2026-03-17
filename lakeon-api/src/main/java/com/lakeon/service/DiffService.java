@@ -119,11 +119,13 @@ public class DiffService {
         // Use a unique ID so the pod name doesn't collide with the real compute
         temp.setId(db.getId() + "-diff-" + branch.getId().replace("_", ""));
         temp.setName(db.getName());
+        temp.setTenantId(db.getTenantId());
         temp.setNeonTenantId(db.getNeonTenantId());
         temp.setNeonTimelineId(branch.getNeonTimelineId());
         temp.setDbUser(db.getDbUser());
         temp.setDbPassword(db.getDbPassword());
         temp.setComputeSize(db.getComputeSize());
+        temp.setSuspendTimeout(db.getSuspendTimeout());
         return temp;
     }
 
