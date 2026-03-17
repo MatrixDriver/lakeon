@@ -3,6 +3,7 @@ package com.lakeon.controller;
 import com.lakeon.model.dto.BranchResponse;
 import com.lakeon.model.dto.BranchTreeResponse;
 import com.lakeon.model.dto.CreateBranchRequest;
+import com.lakeon.model.dto.RestoreBranchRequest;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.service.BranchService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -66,6 +67,16 @@ public class BranchController {
             @PathVariable String branchId) {
         TenantEntity tenant = (TenantEntity) httpRequest.getAttribute("tenant");
         return branchService.promote(tenant, dbId, branchId);
+    }
+
+    @PostMapping("/{branchId}/restore")
+    public BranchResponse restore(
+            HttpServletRequest httpRequest,
+            @PathVariable String dbId,
+            @PathVariable String branchId,
+            @Valid @RequestBody RestoreBranchRequest request) {
+        TenantEntity tenant = (TenantEntity) httpRequest.getAttribute("tenant");
+        return branchService.restore(tenant, dbId, branchId, request);
     }
 
     @DeleteMapping("/{branchId}")

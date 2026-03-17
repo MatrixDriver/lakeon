@@ -3,16 +3,21 @@ package com.lakeon.service;
 import com.lakeon.k8s.ComputePodManager;
 import com.lakeon.model.dto.BranchTreeResponse;
 import com.lakeon.model.dto.CreateBranchRequest;
+import com.lakeon.model.dto.RestoreBranchRequest;
 import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.OperationLogEntity;
 import com.lakeon.model.entity.TenantEntity;
+import com.lakeon.model.entity.VersionEntity;
+import com.lakeon.model.enums.BranchStatus;
 import com.lakeon.model.enums.BranchType;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.neon.NeonApiClient;
+import com.lakeon.neon.dto.CreateTimelineRequest;
 import com.lakeon.neon.dto.NeonTimeline;
 import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
+import com.lakeon.repository.VersionRepository;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
 
@@ -30,8 +35,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,6 +47,9 @@ class BranchServiceTest {
 
     @Mock
     private BranchRepository branchRepository;
+
+    @Mock
+    private VersionRepository versionRepository;
 
     @Mock
     private NeonApiClient neonApiClient;
@@ -438,6 +445,151 @@ class BranchServiceTest {
                     branchService.promote(testTenant, "db_test001", "br_main"))
                     .isInstanceOf(BadRequestException.class)
                     .hasMessageContaining("already the default");
+        }
+    }
+
+    @Nested
+    @DisplayName("恢复分支")
+    class RestoreBranch {
+
+        @Test
+        @DisplayName("UT-SVC-BR-014: 按版本ID恢复 — 创建备份分支和新时间线")
+        void restore_byVersionId_createsBackupAndNewTimeline() {
+            testDatabase.setComputePodName("compute-db_test001");
+
+            var branch = new BranchEntity();
+            branch.setId("br_main");
+            branch.setDatabaseId("db_test001");
+            branch.setName("main");
+            branch.setIsDefault(true);
+            branch.setNeonTimelineId("old-timeline");
+            branch.setParentBranchId(null);
+            branch.setParentBranchName(null);
+            branch.setStatus(BranchStatus.ACTIVE);
+
+            var targetVersion = new VersionEntity();
+            targetVersion.setId("ver1");
+            targetVersion.setBranchId("br_main");
+            targetVersion.setLsn(100L);
+            targetVersion.setLsnHex("0/64");
+            targetVersion.setSnapshotTimelineId("snap1");
+
+            var v1 = new VersionEntity();
+            v1.setId("v1");
+            v1.setBranchId("br_main");
+            v1.setLsn(50L);
+
+            var v2 = new VersionEntity();
+            v2.setId("v2");
+            v2.setBranchId("br_main");
+            v2.setLsn(100L);
+
+            var v3 = new VersionEntity();
+            v3.setId("v3");
+            v3.setBranchId("br_main");
+            v3.setLsn(200L);
+
+            when(databaseRepository.findByIdAndTenantIdForUpdate("db_test001", testTenant.getId()))
+                    .thenReturn(Optional.of(testDatabase));
+            when(branchRepository.findByIdAndDatabaseId("br_main", "db_test001"))
+                    .thenReturn(Optional.of(branch));
+            when(versionRepository.findByIdAndBranchId("ver1", "br_main"))
+                    .thenReturn(Optional.of(targetVersion));
+            when(branchRepository.save(any(BranchEntity.class)))
+                    .thenAnswer(inv -> {
+                        BranchEntity e = inv.getArgument(0);
+                        if (e.getId() == null) e.setId("br_backup001");
+                        return e;
+                    });
+            when(neonApiClient.createTimeline(eq("neon-tenant-abc"), any()))
+                    .thenReturn(new NeonTimeline("new-timeline-123"));
+            when(versionRepository.findAllByBranchIdOrderByLsnAsc("br_main"))
+                    .thenReturn(List.of(v1, v2, v3));
+            when(databaseRepository.save(any(DatabaseEntity.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
+
+            var result = branchService.restore(testTenant, "db_test001", "br_main",
+                    new RestoreBranchRequest("ver1", null));
+
+            // Verify backup branch saved with BACKUP type and old timeline
+            verify(branchRepository, atLeast(2)).save(any(BranchEntity.class));
+            verify(neonApiClient).createTimeline(eq("neon-tenant-abc"), argThat(req ->
+                    req.getAncestorTimelineId().equals("snap1") &&
+                    req.getAncestorStartLsn().equals("0/64")));
+
+            // Branch timeline updated
+            assertThat(branch.getNeonTimelineId()).isNotEqualTo("old-timeline");
+
+            // v3 (lsn=200 > 100) moved to backup branch
+            assertThat(v3.getBranchId()).isEqualTo("br_backup001");
+            // v1, v2 remain on original branch
+            assertThat(v1.getBranchId()).isEqualTo("br_main");
+            assertThat(v2.getBranchId()).isEqualTo("br_main");
+
+            // Compute rebuilt for default branch
+            verify(computePodManager).deleteComputePod("compute-db_test001", true);
+            verify(computePodManager).createComputePod(any());
+        }
+
+        @Test
+        @DisplayName("UT-SVC-BR-015: 按LSN恢复 — 使用分支时间线作为祖先")
+        void restore_byLsn_works() {
+            var branch = new BranchEntity();
+            branch.setId("br_main");
+            branch.setDatabaseId("db_test001");
+            branch.setName("main");
+            branch.setIsDefault(false);
+            branch.setNeonTimelineId("branch-timeline");
+            branch.setStatus(BranchStatus.ACTIVE);
+
+            when(databaseRepository.findByIdAndTenantIdForUpdate("db_test001", testTenant.getId()))
+                    .thenReturn(Optional.of(testDatabase));
+            when(branchRepository.findByIdAndDatabaseId("br_main", "db_test001"))
+                    .thenReturn(Optional.of(branch));
+            when(branchRepository.save(any(BranchEntity.class)))
+                    .thenAnswer(inv -> {
+                        BranchEntity e = inv.getArgument(0);
+                        if (e.getId() == null) e.setId("br_backup002");
+                        return e;
+                    });
+            when(neonApiClient.createTimeline(eq("neon-tenant-abc"), any()))
+                    .thenReturn(new NeonTimeline("new-timeline-456"));
+            when(versionRepository.findAllByBranchIdOrderByLsnAsc("br_main"))
+                    .thenReturn(List.of());
+
+            var result = branchService.restore(testTenant, "db_test001", "br_main",
+                    new RestoreBranchRequest(null, "0/C8"));
+
+            // Ancestor timeline is branch's own timeline (not a version's snapshot)
+            verify(neonApiClient).createTimeline(eq("neon-tenant-abc"), argThat(req ->
+                    req.getAncestorTimelineId().equals("branch-timeline") &&
+                    req.getAncestorStartLsn().equals("0/C8")));
+
+            // Non-default branch: compute NOT rebuilt
+            verify(computePodManager, never()).deleteComputePod(any(), anyBoolean());
+            verify(computePodManager, never()).createComputePod(any());
+        }
+
+        @Test
+        @DisplayName("UT-SVC-BR-016: 既无版本ID也无LSN — 抛出 BadRequestException")
+        void restore_neitherVersionNorLsn_throwsBadRequest() {
+            var branch = new BranchEntity();
+            branch.setId("br_main");
+            branch.setDatabaseId("db_test001");
+            branch.setName("main");
+            branch.setIsDefault(true);
+            branch.setNeonTimelineId("old-timeline");
+
+            when(databaseRepository.findByIdAndTenantIdForUpdate("db_test001", testTenant.getId()))
+                    .thenReturn(Optional.of(testDatabase));
+            when(branchRepository.findByIdAndDatabaseId("br_main", "db_test001"))
+                    .thenReturn(Optional.of(branch));
+
+            assertThatThrownBy(() ->
+                    branchService.restore(testTenant, "db_test001", "br_main",
+                            new RestoreBranchRequest(null, null)))
+                    .isInstanceOf(BadRequestException.class)
+                    .hasMessageContaining("target_version_id or target_lsn");
         }
     }
 }
