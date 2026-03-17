@@ -29,12 +29,12 @@
     <section class="hero" id="hero">
       <div class="container">
         <h1 class="hero-title">{{ t('数据港湾 — 为 AI 应用而生的 Serverless 数据平台', 'DBay — The Serverless Data Platform Built for AI') }}</h1>
-        <p class="hero-subtitle">{{ t('让数据安全停泊，按需启航。秒级创建，自动休眠，按需付费。关系型、向量、全文、图查询、RAG、时间旅行，一个平台全搞定。', 'Dock your data safely, set sail on demand. Create in seconds, auto-sleep, pay-per-use. Relational, vector, full-text, graph, RAG, time travel — all in one platform.') }}</p>
+        <p class="hero-subtitle">{{ t('让数据安全停泊，按需启航。秒级创建，自动休眠，弹性伸缩。关系型、向量、全文、图查询、RAG、时间旅行，一个平台全搞定。', 'Dock your data safely, set sail on demand. Create in seconds, auto-sleep, elastic scaling. Relational, vector, full-text, graph, RAG, time travel — all in one platform.') }}</p>
         <div class="hero-actions">
           <button class="btn-primary btn-lg" @click="startTrial" :disabled="trialLoading">
             {{ trialLoading ? t('创建中...', 'Creating...') : t('立即体验', 'Try Now') }}
           </button>
-          <router-link to="/login" class="btn-outline btn-lg">{{ t('免费注册', 'Sign Up Free') }}</router-link>
+          <router-link to="/login" class="btn-outline btn-lg">{{ t('注册', 'Sign Up') }}</router-link>
         </div>
         <p class="hero-hint">{{ t('无需注册，30 秒创建临时数据库', 'No signup needed, get a database in 30 seconds') }}</p>
         <div v-if="trialError" class="trial-error">{{ trialError }}</div>
@@ -153,21 +153,6 @@ await client.connect()</code></pre>
       </div>
     </section>
 
-    <!-- Pricing -->
-    <section class="section" id="pricing">
-      <div class="container center-text">
-        <h2 class="section-title">{{ t('定价', 'Pricing') }}</h2>
-        <p class="pricing-headline">{{ t('免费试用，开箱即用', 'Free to try, ready out of the box') }}</p>
-        <p class="pricing-sub">{{ t('1 个数据库 · 1 GB 存储 · 1 CU 算力 · 永久免费', '1 Database · 1 GB Storage · 1 CU Compute · Free Forever') }}</p>
-        <div class="hero-actions">
-          <button class="btn-primary" @click="startTrial" :disabled="trialLoading">
-            {{ t('立即体验', 'Try Now') }}
-          </button>
-          <router-link to="/login" class="btn-outline">{{ t('免费注册', 'Sign Up Free') }}</router-link>
-        </div>
-      </div>
-    </section>
-
     <!-- Footer -->
     <footer class="footer">
       <div class="container footer-inner">
@@ -234,7 +219,7 @@ function scrollTo(id: string) {
 }
 
 const features = computed(() => [
-  { icon: '\u2601', title: t('Serverless 架构', 'Serverless Architecture'), desc: t('自动休眠唤醒，不使用时零成本', 'Auto sleep/wake, zero cost when idle') },
+  { icon: '\u2601', title: t('Serverless 架构', 'Serverless Architecture'), desc: t('自动休眠唤醒，弹性伸缩', 'Auto sleep/wake, elastic scaling') },
   { icon: '\u26A1', title: t('秒级就绪', 'Instant Ready'), desc: t('几秒内创建数据库，零运维负担', 'Create a database in seconds, zero ops burden') },
   { icon: '\uD83C\uDF3F', title: t('数据库分支', 'Database Branching'), desc: t('像 Git 一样管理数据，安全地开发和测试', 'Manage data like Git, develop and test safely') },
   { icon: '\uD83D\uDD17', title: t('存算分离', 'Disaggregated Storage'), desc: t('存储弹性扩展，计算按需启停', 'Elastic storage scaling, on-demand compute') },
