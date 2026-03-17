@@ -7,12 +7,13 @@
       </div>
       <div class="dialog-body">
         <div class="form-group">
-          <label class="form-label">版本名称 <span class="required">*</span></label>
-          <input v-model="name" class="form-input" placeholder="例: 添加用户表" />
+          <label class="form-label">版本号 <span class="required">*</span></label>
+          <input v-model="name" class="form-input" :placeholder="namePlaceholder" />
+          <div v-if="lastVersionName" class="form-tip">上一个版本: {{ lastVersionName }}</div>
         </div>
         <div class="form-group">
           <label class="form-label">描述 <span class="form-hint">(可选)</span></label>
-          <textarea v-model="description" class="form-input form-textarea" rows="3" placeholder="可选描述"></textarea>
+          <textarea v-model="description" class="form-input form-textarea" rows="3" placeholder="本次变更说明"></textarea>
         </div>
       </div>
       <div class="dialog-footer">
@@ -28,13 +29,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { versionApi } from '../../api/version'
 
 const props = defineProps<{
   visible: boolean
   dbId: string
   branchId: string
+  lastVersionName?: string
 }>()
 
 const emit = defineEmits<{
@@ -45,6 +47,17 @@ const emit = defineEmits<{
 const name = ref('')
 const description = ref('')
 const loading = ref(false)
+
+const namePlaceholder = computed(() => {
+  if (!props.lastVersionName) return '例: v1.0.0'
+  // Try to suggest next version
+  const last = props.lastVersionName!
+  const match = last.match(/^(v?\d+\.\d+\.)(\d+)$/)
+  if (match) return `例: ${match[1]!}${parseInt(match[2]!) + 1}`
+  const matchSimple = last.match(/^(v?)(\d+)$/)
+  if (matchSimple) return `例: ${matchSimple[1]!}${parseInt(matchSimple[2]!) + 1}`
+  return '例: v1.0.0'
+})
 
 watch(() => props.visible, (v) => {
   if (v) {
@@ -114,5 +127,11 @@ async function handleCreate() {
 .form-input:focus {
   border-color: #0073e6;
   outline: none;
+}
+
+.form-tip {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #8a8e99;
 }
 </style>

@@ -128,13 +128,14 @@
                 <div class="version-content" @click="!squashMode ? toggleVersionExpand(ver.id) : undefined">
                   <div class="version-header-row">
                     <span class="version-name" :class="{ 'version-name-strikethrough': squashMode && isVersionInSquashRange(ver) }">{{ ver.name }}</span>
-                    <span class="version-time">{{ timeAgo(ver.created_at) }}</span>
+                    <span class="version-time">{{ formatDateTime(ver.created_at) }}</span>
                   </div>
+                  <div v-if="ver.description" class="version-desc">{{ ver.description }}</div>
                   <div class="version-meta-row">
                     <code class="version-lsn">{{ ver.lsn }}</code>
                     <span class="version-author">{{ ver.created_by }}</span>
+                    <span class="version-ago">{{ timeAgo(ver.created_at) }}</span>
                   </div>
-                  <div v-if="ver.description" class="version-desc">{{ ver.description }}</div>
                   <div v-if="expandedVersionId === ver.id && !squashMode" class="version-actions">
                     <button class="btn btn-small btn-text" @click.stop="handleRestoreToVersion(ver)">回滚到此版本</button>
                     <button class="btn btn-small btn-danger-text" @click.stop="handleDeleteVersion(ver.id)">删除版本</button>
@@ -248,6 +249,7 @@
         :visible="showVersionDialog"
         :dbId="selectedDbId"
         :branchId="selectedBranchId"
+        :lastVersionName="versions.length > 0 ? versions[0]!.name : undefined"
         @close="showVersionDialog = false"
         @created="handleVersionCreated"
       />
@@ -353,6 +355,12 @@ function timeAgo(dateStr: string): string {
   const days = Math.floor(hours / 24)
   if (days < 30) return `${days} 天前`
   return formatDate(dateStr)
+}
+
+function formatDateTime(dateStr: string): string {
+  const d = new Date(dateStr)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 // Fetch database list
@@ -968,6 +976,11 @@ onMounted(() => {
 }
 
 .version-author {
+  font-size: 12px;
+  color: #8a8e99;
+}
+
+.version-ago {
   font-size: 12px;
   color: #8a8e99;
 }
