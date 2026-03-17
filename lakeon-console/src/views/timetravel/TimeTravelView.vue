@@ -170,7 +170,10 @@
                 <span class="diff-overlay-title">Schema Diff: {{ diffSourceLabel }}</span>
                 <button class="btn btn-small btn-default" @click="showDiffView = false">关闭</button>
               </div>
-              <div v-if="diffLoading" class="diff-overlay-loading">加载中...</div>
+              <div v-if="diffLoading" class="diff-overlay-loading">
+                <div>正在对比 Schema 差异...</div>
+                <div class="diff-loading-hint">需要启动临时计算节点，约 10-30 秒</div>
+              </div>
               <SchemaDiffView v-else-if="diffResult" :diff="diffResult" />
             </div>
           </template>
@@ -1112,9 +1115,15 @@ onMounted(() => {
 
 .diff-overlay-loading {
   text-align: center;
-  padding: 24px;
+  padding: 40px 24px;
+  color: #575d6c;
+  font-size: 15px;
+}
+
+.diff-loading-hint {
+  margin-top: 8px;
+  font-size: 12px;
   color: #8a8e99;
-  font-size: 13px;
 }
 
 /* Branch table details toggle */
