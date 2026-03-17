@@ -358,10 +358,10 @@
             <!-- Summary cards -->
             <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
               <div class="conn-stat-card">
-                <div class="conn-stat-value">{{ connectionsData.total }}</div>
+                <div class="conn-stat-value">{{ userConnections.total }}</div>
                 <div class="conn-stat-label">总连接数</div>
               </div>
-              <div class="conn-stat-card" v-for="item in connectionsData.by_ip" :key="item.ip">
+              <div class="conn-stat-card" v-for="item in userConnections.by_ip" :key="item.ip">
                 <div class="conn-stat-value">{{ item.count }}</div>
                 <div class="conn-stat-label">{{ item.ip }}</div>
               </div>
@@ -370,7 +370,7 @@
             <!-- Connection list -->
             <div class="section-card">
               <div class="table-wrapper">
-                <table class="data-table" v-if="connectionsData.connections.length > 0">
+                <table class="data-table" v-if="userConnections.connections.length > 0">
                   <thead>
                     <tr>
                       <th>PID</th>
@@ -384,7 +384,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="c in connectionsData.connections" :key="c.pid">
+                    <tr v-for="c in userConnections.connections" :key="c.pid">
                       <td><code>{{ c.pid }}</code></td>
                       <td>{{ c.user }}</td>
                       <td>{{ c.client_ip || 'local' }}</td>
@@ -489,6 +489,23 @@ async function loadConnections() {
   } catch { /* ignore */ }
   connectionsLoading.value = false
 }
+
+// Filter out system connections (compute_ctl monitor, etc.)
+const userConnections = computed(() => {
+  const conns = connectionsData.connections.filter((c: any) =>
+    !(c.application_name && c.application_name.includes('compute_ctl'))
+  )
+  const byIp: Record<string, number> = {}
+  for (const c of conns) {
+    const ip = c.client_ip || 'local'
+    byIp[ip] = (byIp[ip] || 0) + 1
+  }
+  return {
+    total: conns.length,
+    connections: conns,
+    by_ip: Object.entries(byIp).map(([ip, count]) => ({ ip, count })),
+  }
+})
 
 function formatDuration(seconds: number): string {
   if (!seconds || seconds < 0) return '-'
