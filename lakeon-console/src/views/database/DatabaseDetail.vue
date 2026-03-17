@@ -473,7 +473,7 @@ const tabs = [
   { key: 'users', label: '用户' },
   { key: 'extensions', label: '扩展' },
   { key: 'parameters', label: '参数' },
-  { key: 'connections', label: '连接' },
+  { key: 'connections', label: '活跃会话' },
   { key: 'security', label: '安全' },
 ]
 
