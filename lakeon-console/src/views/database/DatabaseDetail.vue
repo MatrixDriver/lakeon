@@ -193,6 +193,11 @@
                   >提升为默认</button>
                   <button
                     v-if="!branch.is_default"
+                    class="btn btn-small btn-text"
+                    @click.stop="handleDiffBranchVsDefault(branch.id)"
+                  >Diff vs 主干</button>
+                  <button
+                    v-if="!branch.is_default"
                     class="btn btn-small btn-text btn-danger-text"
                     @click.stop="handleDeleteBranch(branch.id)"
                   >删除</button>
@@ -211,26 +216,46 @@
                 <span class="version-timeline-title">
                   {{ branches.find(b => b.id === selectedBranchId)?.name || '' }} - 版本历史
                 </span>
-                <button class="btn btn-primary btn-small" @click="showVersionDialog = true">创建版本</button>
+                <div class="version-header-actions">
+                  <button
+                    v-if="!squashMode"
+                    class="btn btn-default btn-small"
+                    :disabled="versions.length < 3"
+                    :title="versions.length < 3 ? '需要至少 3 个版本才能合并' : ''"
+                    @click="enterSquashMode"
+                  >合并版本</button>
+                  <button v-if="squashMode" class="btn btn-default btn-small" @click="exitSquashMode">取消合并</button>
+                  <button class="btn btn-primary btn-small" @click="showVersionDialog = true">创建版本</button>
+                </div>
               </div>
               <div v-if="versionsLoading" class="version-timeline-loading">加载中...</div>
               <div v-else-if="versions.length === 0" class="version-timeline-empty">
                 <p>暂无版本。点击「创建版本」保存当前数据库状态。</p>
               </div>
               <div v-else class="version-list">
+                <!-- Squash mode hint -->
+                <div v-if="squashMode" class="squash-hint">
+                  <template v-if="!squashFrom">点击选择起始版本</template>
+                  <template v-else-if="!squashTo">点击选择结束版本</template>
+                </div>
                 <div
                   v-for="(ver, idx) in versions"
                   :key="ver.id"
                   class="version-item"
-                  :class="{ 'version-item-expanded': expandedVersionId === ver.id }"
+                  :class="{
+                    'version-item-expanded': expandedVersionId === ver.id && !squashMode,
+                    'version-item-squash-range': squashMode && isVersionInSquashRange(ver),
+                    'version-item-squash-endpoint': squashMode && isSquashEndpoint(ver),
+                  }"
+                  @click="squashMode ? handleSquashVersionClick(ver) : undefined"
                 >
                   <div class="version-timeline-dot-line">
                     <span class="version-dot" :class="idx === 0 ? 'version-dot-latest' : ''"></span>
                     <span v-if="idx < versions.length - 1" class="version-line"></span>
                   </div>
-                  <div class="version-content" @click="toggleVersionExpand(ver.id)">
+                  <div class="version-content" @click="!squashMode ? toggleVersionExpand(ver.id) : undefined">
                     <div class="version-header-row">
-                      <span class="version-name">{{ ver.name }}</span>
+                      <span class="version-name" :class="{ 'version-name-strikethrough': squashMode && isVersionInSquashRange(ver) }">{{ ver.name }}</span>
                       <span class="version-time">{{ timeAgo(ver.created_at) }}</span>
                     </div>
                     <div class="version-meta-row">
@@ -238,11 +263,36 @@
                       <span class="version-author">{{ ver.created_by }}</span>
                     </div>
                     <div v-if="ver.description" class="version-desc">{{ ver.description }}</div>
-                    <div v-if="expandedVersionId === ver.id" class="version-actions">
+                    <div v-if="expandedVersionId === ver.id && !squashMode" class="version-actions">
+                      <button class="btn btn-small btn-text" @click.stop="handleRestoreToVersion(ver)">回滚到此版本</button>
                       <button class="btn btn-small btn-danger-text" @click.stop="handleDeleteVersion(ver.id)">删除版本</button>
                     </div>
                   </div>
                 </div>
+                <!-- Squash confirm bar -->
+                <div v-if="squashMode && squashFrom && squashTo" class="squash-confirm-bar">
+                  <span class="squash-confirm-text">
+                    合并 {{ squashFrom.name }} 到 {{ squashTo.name }}，中间 {{ squashVersionsBetween }} 个版本将被删除
+                  </span>
+                  <div class="squash-confirm-actions">
+                    <button class="btn btn-default btn-small" @click="exitSquashMode">取消</button>
+                    <button
+                      class="btn btn-primary btn-small"
+                      :disabled="squashLoading || squashVersionsBetween < 1"
+                      @click="handleConfirmSquash"
+                    >{{ squashLoading ? '合并中...' : '确认合并' }}</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Schema Diff overlay -->
+              <div v-if="showDiffView" class="diff-overlay">
+                <div class="diff-overlay-header">
+                  <span class="diff-overlay-title">Schema Diff: {{ diffSourceLabel }}</span>
+                  <button class="btn btn-small btn-default" @click="showDiffView = false">关闭</button>
+                </div>
+                <div v-if="diffLoading" class="diff-overlay-loading">加载中...</div>
+                <SchemaDiffView v-else-if="diffResult" :diff="diffResult" />
               </div>
             </template>
             <div v-else class="version-timeline-placeholder">
@@ -765,6 +815,8 @@ import TableToolbar from '../../components/TableToolbar.vue'
 import TableFooter from '../../components/TableFooter.vue'
 import { extensionApi, type ExtensionInfo, type ParameterInfo } from '../../api/extension'
 import { versionApi, type Version } from '../../api/version'
+import { diffApi, type SchemaDiffResponse } from '../../api/diff'
+import SchemaDiffView from '../../components/SchemaDiffView.vue'
 import { copyToClipboard } from '../../utils/clipboard'
 import { formatDate } from '../../utils/format'
 import { useToast } from '../../composables/useToast'
@@ -880,6 +932,18 @@ const versionsLoading = ref(false)
 const showVersionDialog = ref(false)
 const expandedVersionId = ref('')
 const versionBranchId = ref('')
+
+// Schema Diff
+const showDiffView = ref(false)
+const diffLoading = ref(false)
+const diffResult = ref<SchemaDiffResponse | null>(null)
+const diffSourceLabel = ref('')
+
+// Squash mode
+const squashMode = ref(false)
+const squashFrom = ref<Version | null>(null)
+const squashTo = ref<Version | null>(null)
+const squashLoading = ref(false)
 
 const filteredBranches = computed(() => {
   const q = branchSearch.value.toLowerCase()
@@ -1165,9 +1229,128 @@ async function handlePromoteBranch(branchId: string) {
   }
 }
 
+async function handleRestoreToVersion(version: Version) {
+  const branchName = branches.value.find(b => b.id === selectedBranchId.value)?.name || ''
+  if (!confirm(`将 ${branchName} 回滚到 ${version.name}？回滚前的状态将自动保存为备份分支。`)) return
+  try {
+    await branchApi.restore(dbId.value, selectedBranchId.value, { target_version_id: version.id })
+    toast.success('回滚成功')
+    await fetchBranches()
+    await fetchVersions(selectedBranchId.value)
+  } catch (e) {
+    console.error('Failed to restore to version', e)
+    toast.error('回滚失败，请重试')
+  }
+}
+
+async function handleDiffBranchVsDefault(branchId: string) {
+  const defaultBranch = branches.value.find(b => b.is_default)
+  if (!defaultBranch) {
+    toast.error('未找到默认分支')
+    return
+  }
+  if (branchId === defaultBranch.id) {
+    toast.error('该分支已是默认分支')
+    return
+  }
+  diffLoading.value = true
+  showDiffView.value = true
+  diffResult.value = null
+  const branchName = branches.value.find(b => b.id === branchId)?.name || ''
+  diffSourceLabel.value = `${branchName} vs ${defaultBranch.name}`
+  try {
+    const res = await diffApi.schema(dbId.value, 'branch', branchId, 'branch', defaultBranch.id)
+    diffResult.value = res.data
+  } catch (e: any) {
+    console.error('Failed to load diff', e)
+    const msg = e?.response?.data?.message || e?.response?.data?.error?.message || '获取差异失败'
+    toast.error(msg)
+    showDiffView.value = false
+  } finally {
+    diffLoading.value = false
+  }
+}
+
+// Squash
+function enterSquashMode() {
+  squashMode.value = true
+  squashFrom.value = null
+  squashTo.value = null
+}
+
+function exitSquashMode() {
+  squashMode.value = false
+  squashFrom.value = null
+  squashTo.value = null
+}
+
+function handleSquashVersionClick(ver: Version) {
+  if (!squashMode.value) return
+  if (!squashFrom.value) {
+    squashFrom.value = ver
+  } else if (!squashTo.value && ver.id !== squashFrom.value.id) {
+    squashTo.value = ver
+  } else {
+    // Reset selection
+    squashFrom.value = ver
+    squashTo.value = null
+  }
+}
+
+const squashVersionsBetween = computed(() => {
+  if (!squashFrom.value || !squashTo.value) return 0
+  const fromIdx = versions.value.findIndex(v => v.id === squashFrom.value!.id)
+  const toIdx = versions.value.findIndex(v => v.id === squashTo.value!.id)
+  if (fromIdx < 0 || toIdx < 0) return 0
+  const minIdx = Math.min(fromIdx, toIdx)
+  const maxIdx = Math.max(fromIdx, toIdx)
+  return maxIdx - minIdx - 1
+})
+
+function isVersionInSquashRange(ver: Version): boolean {
+  if (!squashFrom.value || !squashTo.value) return false
+  const fromIdx = versions.value.findIndex(v => v.id === squashFrom.value!.id)
+  const toIdx = versions.value.findIndex(v => v.id === squashTo.value!.id)
+  const verIdx = versions.value.findIndex(v => v.id === ver.id)
+  const minIdx = Math.min(fromIdx, toIdx)
+  const maxIdx = Math.max(fromIdx, toIdx)
+  return verIdx > minIdx && verIdx < maxIdx
+}
+
+function isSquashEndpoint(ver: Version): boolean {
+  if (!squashFrom.value && !squashTo.value) return false
+  return ver.id === squashFrom.value?.id || ver.id === squashTo.value?.id
+}
+
+async function handleConfirmSquash() {
+  if (!squashFrom.value || !squashTo.value) return
+  squashLoading.value = true
+  try {
+    // Ensure from is older (later in array = older) and to is newer
+    const fromIdx = versions.value.findIndex(v => v.id === squashFrom.value!.id)
+    const toIdx = versions.value.findIndex(v => v.id === squashTo.value!.id)
+    const fromId = fromIdx > toIdx ? squashFrom.value.id : squashTo.value.id
+    const toId = fromIdx > toIdx ? squashTo.value.id : squashFrom.value.id
+    await versionApi.squash(dbId.value, selectedBranchId.value, {
+      from_version_id: fromId,
+      to_version_id: toId,
+    })
+    toast.success('版本合并成功')
+    exitSquashMode()
+    await fetchVersions(selectedBranchId.value)
+  } catch (e) {
+    console.error('Failed to squash versions', e)
+    toast.error('合并失败，请重试')
+  } finally {
+    squashLoading.value = false
+  }
+}
+
 function selectBranchForVersions(branchId: string) {
   selectedBranchId.value = branchId
   expandedVersionId.value = ''
+  exitSquashMode()
+  showDiffView.value = false
   fetchVersions(branchId)
 }
 
@@ -2514,5 +2697,97 @@ onUnmounted(() => {
     border-bottom: 1px solid #ebebeb;
     max-height: 200px;
   }
+}
+
+.version-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Squash mode */
+.squash-hint {
+  padding: 8px 16px;
+  background: #fffbe6;
+  border: 1px solid #ffe58f;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #d48806;
+  margin-bottom: 12px;
+}
+
+.version-item-squash-range {
+  opacity: 0.45;
+}
+
+.version-item-squash-range .version-content {
+  background: #fff1f0;
+  border-radius: 4px;
+  margin: -4px -8px;
+  padding: 4px 8px 24px;
+}
+
+.version-name-strikethrough {
+  text-decoration: line-through;
+  color: #8a8e99;
+}
+
+.version-item-squash-endpoint .version-content {
+  background: #e6f7ff;
+  border-radius: 4px;
+  margin: -4px -8px;
+  padding: 4px 8px 24px;
+}
+
+.squash-confirm-bar {
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: #fffbe6;
+  border: 1px solid #ffe58f;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.squash-confirm-text {
+  font-size: 13px;
+  color: #d48806;
+}
+
+.squash-confirm-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Diff overlay */
+.diff-overlay {
+  margin-top: 16px;
+  padding: 16px 20px;
+  background: #fafbfc;
+  border: 1px solid #ebebeb;
+  border-radius: 4px;
+}
+
+.diff-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.diff-overlay-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #191919;
+}
+
+.diff-overlay-loading {
+  text-align: center;
+  padding: 24px;
+  color: #8a8e99;
+  font-size: 13px;
 }
 </style>
