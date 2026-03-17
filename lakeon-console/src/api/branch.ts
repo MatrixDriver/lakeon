@@ -38,6 +38,11 @@ export interface CreateBranchParams {
   ancestor_lsn?: string
 }
 
+export interface RestoreParams {
+  target_version_id?: string
+  target_lsn?: string
+}
+
 export const branchApi = {
   list: (dbId: string) => client.get<Branch[]>(`/databases/${dbId}/branches`),
   create: (dbId: string, data: CreateBranchParams) =>
@@ -48,4 +53,8 @@ export const branchApi = {
     client.get<BranchTreeResponse>(`/databases/${dbId}/branches/tree`),
   activate: (dbId: string, branchId: string) =>
     client.post<Branch>(`/databases/${dbId}/branches/${branchId}/activate`),
+  promote: (dbId: string, branchId: string) =>
+    client.post<Branch>(`/databases/${dbId}/branches/${branchId}/promote`),
+  restore: (dbId: string, branchId: string, data: RestoreParams) =>
+    client.post<Branch>(`/databases/${dbId}/branches/${branchId}/restore`, data),
 }

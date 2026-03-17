@@ -152,66 +152,169 @@
           @delete="handleDeleteBranch"
         />
 
-        <div class="section-card">
-          <TableToolbar v-model="branchSearch" placeholder="搜索分支名称" :loading="branchesLoading" @refresh="fetchBranches" />
-          <div class="table-wrapper">
-            <table class="data-table" v-if="filteredBranches.length > 0">
-              <thead>
-                <tr>
-                  <th>名称</th>
-                  <th>父分支</th>
-                  <th>LSN</th>
-                  <th>大小</th>
-                  <th>状态</th>
-                  <th>创建时间</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="branch in pagedBranches"
-                  :key="branch.id"
-                  :class="{ 'row-highlight': selectedBranchId === branch.id }"
-                >
-                  <td>
-                    {{ branch.name }}
-                    <span v-if="branch.is_default" class="default-tag">默认</span>
-                    <span v-if="isActiveBranch(branch)" class="active-tag">活跃</span>
-                  </td>
-                  <td>{{ branch.parent_branch || '-' }}</td>
-                  <td class="mono-text">{{ branch.last_record_lsn || '-' }}</td>
-                  <td>{{ formatSize(branch.current_logical_size_bytes) }}</td>
-                  <td>{{ branch.status }}</td>
-                  <td>{{ formatDate(branch.created_at) }}</td>
-                  <td class="action-cell">
-                    <button
-                      v-if="!isActiveBranch(branch)"
-                      class="btn btn-small btn-text"
-                      :disabled="activatingBranch"
-                      @click="handleActivateBranch(branch.id)"
-                    >切换</button>
-                    <button
-                      v-if="!branch.is_default"
-                      class="btn btn-small btn-text btn-danger-text"
-                      @click="handleDeleteBranch(branch.id)"
-                    >删除</button>
-                    <span v-if="branch.is_default && isActiveBranch(branch)" class="text-muted">-</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <div v-else class="empty-state">
-              <p v-if="branchesLoading">加载中...</p>
-              <p v-else>暂无分支</p>
+        <!-- Branch List + Version Timeline Split Panel -->
+        <div class="branch-version-layout">
+          <!-- Left: Branch list -->
+          <div class="branch-list-panel">
+            <div class="branch-list-header">
+              <span class="branch-list-title">分支列表</span>
+              <button class="btn btn-small btn-text" @click="fetchBranches">刷新</button>
+            </div>
+            <div v-if="branchesLoading" class="branch-list-loading">加载中...</div>
+            <div v-else class="branch-list-items">
+              <div
+                v-for="branch in branches"
+                :key="branch.id"
+                class="branch-list-item"
+                :class="{ 'branch-list-item-selected': selectedBranchId === branch.id }"
+                @click="selectBranchForVersions(branch.id)"
+              >
+                <div class="branch-item-row">
+                  <span class="branch-status-dot" :class="isActiveBranch(branch) ? 'dot-green' : 'dot-gray'"></span>
+                  <span class="branch-item-name">{{ branch.name }}</span>
+                  <span v-if="branch.is_default" class="default-tag">默认</span>
+                  <span v-if="isActiveBranch(branch)" class="active-tag">活跃</span>
+                </div>
+                <div class="branch-item-meta">
+                  <span class="mono-text">{{ branch.last_record_lsn || '-' }}</span>
+                  <span>{{ formatSize(branch.current_logical_size_bytes) }}</span>
+                </div>
+                <div class="branch-item-actions" v-if="selectedBranchId === branch.id">
+                  <button
+                    v-if="!isActiveBranch(branch)"
+                    class="btn btn-small btn-text"
+                    :disabled="activatingBranch"
+                    @click.stop="handleActivateBranch(branch.id)"
+                  >切换</button>
+                  <button
+                    v-if="!branch.is_default"
+                    class="btn btn-small btn-text"
+                    @click.stop="handlePromoteBranch(branch.id)"
+                  >提升为默认</button>
+                  <button
+                    v-if="!branch.is_default"
+                    class="btn btn-small btn-text btn-danger-text"
+                    @click.stop="handleDeleteBranch(branch.id)"
+                  >删除</button>
+                </div>
+              </div>
+            </div>
+            <div class="branch-list-footer">
+              <button class="btn btn-small btn-default" style="width: 100%;" @click="preselectedParentId = ''; showBranchDialog = true">+ 新建分支</button>
             </div>
           </div>
-          <TableFooter
-            v-if="filteredBranches.length > 0"
-            :total="filteredBranches.length"
-            v-model:pageSize="branchPageSize"
-            v-model:currentPage="branchCurrentPage"
-          />
+
+          <!-- Right: Version timeline -->
+          <div class="version-timeline-panel">
+            <template v-if="selectedBranchId">
+              <div class="version-timeline-header">
+                <span class="version-timeline-title">
+                  {{ branches.find(b => b.id === selectedBranchId)?.name || '' }} - 版本历史
+                </span>
+                <button class="btn btn-primary btn-small" @click="showVersionDialog = true">创建版本</button>
+              </div>
+              <div v-if="versionsLoading" class="version-timeline-loading">加载中...</div>
+              <div v-else-if="versions.length === 0" class="version-timeline-empty">
+                <p>暂无版本。点击「创建版本」保存当前数据库状态。</p>
+              </div>
+              <div v-else class="version-list">
+                <div
+                  v-for="(ver, idx) in versions"
+                  :key="ver.id"
+                  class="version-item"
+                  :class="{ 'version-item-expanded': expandedVersionId === ver.id }"
+                >
+                  <div class="version-timeline-dot-line">
+                    <span class="version-dot" :class="idx === 0 ? 'version-dot-latest' : ''"></span>
+                    <span v-if="idx < versions.length - 1" class="version-line"></span>
+                  </div>
+                  <div class="version-content" @click="toggleVersionExpand(ver.id)">
+                    <div class="version-header-row">
+                      <span class="version-name">{{ ver.name }}</span>
+                      <span class="version-time">{{ timeAgo(ver.created_at) }}</span>
+                    </div>
+                    <div class="version-meta-row">
+                      <code class="version-lsn">{{ ver.lsn }}</code>
+                      <span class="version-author">{{ ver.created_by }}</span>
+                    </div>
+                    <div v-if="ver.description" class="version-desc">{{ ver.description }}</div>
+                    <div v-if="expandedVersionId === ver.id" class="version-actions">
+                      <button class="btn btn-small btn-danger-text" @click.stop="handleDeleteVersion(ver.id)">删除版本</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <div v-else class="version-timeline-placeholder">
+              <p>选择左侧分支查看版本历史</p>
+            </div>
+          </div>
         </div>
+
+        <!-- Branch table (collapsed, for detailed view) -->
+        <details class="branch-table-details">
+          <summary class="branch-table-summary">分支详情表格</summary>
+          <div class="section-card" style="margin-top: 12px;">
+            <TableToolbar v-model="branchSearch" placeholder="搜索分支名称" :loading="branchesLoading" @refresh="fetchBranches" />
+            <div class="table-wrapper">
+              <table class="data-table" v-if="filteredBranches.length > 0">
+                <thead>
+                  <tr>
+                    <th>名称</th>
+                    <th>父分支</th>
+                    <th>LSN</th>
+                    <th>大小</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="branch in pagedBranches"
+                    :key="branch.id"
+                    :class="{ 'row-highlight': selectedBranchId === branch.id }"
+                  >
+                    <td>
+                      {{ branch.name }}
+                      <span v-if="branch.is_default" class="default-tag">默认</span>
+                      <span v-if="isActiveBranch(branch)" class="active-tag">活跃</span>
+                    </td>
+                    <td>{{ branch.parent_branch || '-' }}</td>
+                    <td class="mono-text">{{ branch.last_record_lsn || '-' }}</td>
+                    <td>{{ formatSize(branch.current_logical_size_bytes) }}</td>
+                    <td>{{ branch.status }}</td>
+                    <td>{{ formatDate(branch.created_at) }}</td>
+                    <td class="action-cell">
+                      <button
+                        v-if="!isActiveBranch(branch)"
+                        class="btn btn-small btn-text"
+                        :disabled="activatingBranch"
+                        @click="handleActivateBranch(branch.id)"
+                      >切换</button>
+                      <button
+                        v-if="!branch.is_default"
+                        class="btn btn-small btn-text btn-danger-text"
+                        @click="handleDeleteBranch(branch.id)"
+                      >删除</button>
+                      <span v-if="branch.is_default && isActiveBranch(branch)" class="text-muted">-</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div v-else class="empty-state">
+                <p v-if="branchesLoading">加载中...</p>
+                <p v-else>暂无分支</p>
+              </div>
+            </div>
+            <TableFooter
+              v-if="filteredBranches.length > 0"
+              :total="filteredBranches.length"
+              v-model:pageSize="branchPageSize"
+              v-model:currentPage="branchCurrentPage"
+            />
+          </div>
+        </details>
 
         <CreateBranchDialog
           :visible="showBranchDialog"
@@ -220,6 +323,14 @@
           :dbId="dbId"
           @close="showBranchDialog = false"
           @created="handleBranchCreated"
+        />
+
+        <CreateVersionDialog
+          :visible="showVersionDialog"
+          :dbId="dbId"
+          :branchId="selectedBranchId"
+          @close="showVersionDialog = false"
+          @created="handleVersionCreated"
         />
       </div>
 
@@ -648,10 +759,12 @@ import { backupApi, type Backup } from '../../api/backup'
 import { dbuserApi, type DatabaseUser } from '../../api/dbuser'
 import CreateUserDialog from './CreateUserDialog.vue'
 import CreateBranchDialog from './CreateBranchDialog.vue'
+import CreateVersionDialog from './CreateVersionDialog.vue'
 import BranchTreeView from '../../components/BranchTreeView.vue'
 import TableToolbar from '../../components/TableToolbar.vue'
 import TableFooter from '../../components/TableFooter.vue'
 import { extensionApi, type ExtensionInfo, type ParameterInfo } from '../../api/extension'
+import { versionApi, type Version } from '../../api/version'
 import { copyToClipboard } from '../../utils/clipboard'
 import { formatDate } from '../../utils/format'
 import { useToast } from '../../composables/useToast'
@@ -760,6 +873,13 @@ const branchPageSize = ref(10)
 const branchCurrentPage = ref(1)
 const treeNodes = ref<BranchTreeNode[]>([])
 const activatingBranch = ref(false)
+
+// Versions
+const versions = ref<Version[]>([])
+const versionsLoading = ref(false)
+const showVersionDialog = ref(false)
+const expandedVersionId = ref('')
+const versionBranchId = ref('')
 
 const filteredBranches = computed(() => {
   const q = branchSearch.value.toLowerCase()
@@ -999,6 +1119,75 @@ async function handleDeleteBranch(branchId: string) {
   } catch (e) {
     console.error('Failed to delete branch', e)
   }
+}
+
+// Versions
+async function fetchVersions(branchId: string) {
+  versionsLoading.value = true
+  versionBranchId.value = branchId
+  try {
+    const res = await versionApi.list(dbId.value, branchId)
+    versions.value = res.data
+  } catch (e) {
+    console.error('Failed to load versions', e)
+    versions.value = []
+  } finally {
+    versionsLoading.value = false
+  }
+}
+
+async function handleDeleteVersion(versionId: string) {
+  if (!confirm('确定要删除该版本吗？此操作不可恢复。')) return
+  try {
+    await versionApi.delete(dbId.value, versionBranchId.value, versionId)
+    await fetchVersions(versionBranchId.value)
+  } catch (e) {
+    console.error('Failed to delete version', e)
+  }
+}
+
+function handleVersionCreated() {
+  if (versionBranchId.value) {
+    fetchVersions(versionBranchId.value)
+  }
+}
+
+async function handlePromoteBranch(branchId: string) {
+  if (!confirm('确定要将此分支提升为默认分支吗？')) return
+  try {
+    await branchApi.promote(dbId.value, branchId)
+    await fetchDatabase()
+    await fetchBranches()
+    toast.success('分支已提升为默认分支')
+  } catch (e) {
+    console.error('Failed to promote branch', e)
+    toast.error('提升失败，请重试')
+  }
+}
+
+function selectBranchForVersions(branchId: string) {
+  selectedBranchId.value = branchId
+  expandedVersionId.value = ''
+  fetchVersions(branchId)
+}
+
+function toggleVersionExpand(versionId: string) {
+  expandedVersionId.value = expandedVersionId.value === versionId ? '' : versionId
+}
+
+function timeAgo(dateStr: string): string {
+  const now = Date.now()
+  const then = new Date(dateStr).getTime()
+  const diff = now - then
+  const seconds = Math.floor(diff / 1000)
+  if (seconds < 60) return '刚刚'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes} 分钟前`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} 小时前`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days} 天前`
+  return formatDate(dateStr)
 }
 
 // Backups
@@ -2033,5 +2222,297 @@ onUnmounted(() => {
 .ip-row code {
   font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
   font-size: 13px;
+}
+
+/* Branch + Version split layout */
+.branch-version-layout {
+  display: flex;
+  gap: 0;
+  border: 1px solid #ebebeb;
+  border-radius: 2px;
+  background: #fff;
+  min-height: 400px;
+  margin-bottom: 16px;
+}
+
+.branch-list-panel {
+  width: 260px;
+  flex-shrink: 0;
+  border-right: 1px solid #ebebeb;
+  display: flex;
+  flex-direction: column;
+}
+
+.branch-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #ebebeb;
+}
+
+.branch-list-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #191919;
+}
+
+.branch-list-loading {
+  padding: 24px 16px;
+  text-align: center;
+  color: #8a8e99;
+  font-size: 13px;
+}
+
+.branch-list-items {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.branch-list-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid #f5f5f5;
+  transition: background 0.15s;
+}
+
+.branch-list-item:hover {
+  background: #f5f7fa;
+}
+
+.branch-list-item-selected {
+  background: #e6f0ff;
+  border-left: 3px solid #0073e6;
+  padding-left: 13px;
+}
+
+.branch-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.branch-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.branch-item-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #191919;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.branch-item-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: #8a8e99;
+  padding-left: 14px;
+}
+
+.branch-item-actions {
+  display: flex;
+  gap: 4px;
+  padding-left: 14px;
+  margin-top: 6px;
+}
+
+.branch-list-footer {
+  padding: 12px 16px;
+  border-top: 1px solid #ebebeb;
+}
+
+/* Version timeline panel */
+.version-timeline-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.version-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid #ebebeb;
+}
+
+.version-timeline-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #191919;
+}
+
+.version-timeline-loading,
+.version-timeline-empty,
+.version-timeline-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #8a8e99;
+  font-size: 13px;
+  padding: 40px 20px;
+}
+
+.version-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.version-item {
+  display: flex;
+  gap: 12px;
+  position: relative;
+}
+
+.version-timeline-dot-line {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 16px;
+  flex-shrink: 0;
+  padding-top: 4px;
+}
+
+.version-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #c2c6cc;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #c2c6cc;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.version-dot-latest {
+  background: #0073e6;
+  box-shadow: 0 0 0 1px #0073e6;
+}
+
+.version-line {
+  width: 2px;
+  flex: 1;
+  background: #ebebeb;
+  min-height: 20px;
+}
+
+.version-content {
+  flex: 1;
+  padding-bottom: 20px;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.version-content:hover {
+  background: #f9fafb;
+  border-radius: 4px;
+  margin: -4px -8px;
+  padding: 4px 8px 24px;
+}
+
+.version-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.version-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #191919;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.version-time {
+  font-size: 12px;
+  color: #8a8e99;
+  flex-shrink: 0;
+}
+
+.version-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.version-lsn {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  color: #575d6c;
+  background: #f2f3f5;
+  padding: 1px 6px;
+  border-radius: 2px;
+}
+
+.version-author {
+  font-size: 12px;
+  color: #8a8e99;
+}
+
+.version-desc {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.version-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.version-item-expanded .version-content {
+  background: #f9fafb;
+  border-radius: 4px;
+  margin: -4px -8px;
+  padding: 4px 8px 24px;
+}
+
+/* Branch table details toggle */
+.branch-table-details {
+  margin-top: 16px;
+}
+
+.branch-table-summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: #575d6c;
+  padding: 8px 0;
+  user-select: none;
+}
+
+.branch-table-summary:hover {
+  color: #0073e6;
+}
+
+@media (max-width: 768px) {
+  .branch-version-layout {
+    flex-direction: column;
+  }
+  .branch-list-panel {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #ebebeb;
+    max-height: 200px;
+  }
 }
 </style>
