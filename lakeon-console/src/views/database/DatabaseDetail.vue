@@ -583,7 +583,6 @@ const activeTab = ref('info')
 const tabs = [
   { key: 'info', label: '基本信息' },
   { key: 'users', label: '用户' },
-  { key: 'backups', label: '备份' },
   { key: 'extensions', label: '扩展' },
   { key: 'parameters', label: '参数' },
   { key: 'connections', label: '连接' },

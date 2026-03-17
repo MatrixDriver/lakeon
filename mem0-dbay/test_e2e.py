@@ -126,18 +126,31 @@ def main():
     # 4. Search
     print("[4/6] Searching: 'Where does Alice work?'...")
     results = m.search("Where does Alice work?", user_id=user_id)
-    print(f"      Search results ({len(results)}):")
-    for r in results:
-        print(f"        - {r}")
-    if not results:
-        print("      WARNING: No search results (may be normal if graph is empty)")
+    print(f"      Search results: {type(results)}")
+    if isinstance(results, dict):
+        vec_results = results.get("results", [])
+        graph_results = results.get("relations", [])
+        print(f"      Vector results ({len(vec_results)}):")
+        for r in vec_results[:5]:
+            print(f"        - {r.get('memory', r)}")
+        print(f"      Graph results: {graph_results}")
+    else:
+        for r in results[:5] if hasattr(results, '__getitem__') else []:
+            print(f"        - {r}")
 
     # 5. Get all memories
     print("[5/6] Getting all memories...")
     all_memories = m.get_all(user_id=user_id)
-    print(f"      Total memories: {len(all_memories)}")
-    for mem in all_memories[:5]:
-        print(f"        - {mem.get('memory', mem)}")
+    print(f"      All memories: {type(all_memories)}")
+    if isinstance(all_memories, dict):
+        mems = all_memories.get("results", [])
+        print(f"      Count: {len(mems)}")
+        for mem in mems[:5]:
+            print(f"        - {mem.get('memory', mem)}")
+    elif isinstance(all_memories, list):
+        print(f"      Count: {len(all_memories)}")
+        for mem in all_memories[:5]:
+            print(f"        - {mem}")
 
     # 6. Check graph
     print("[6/6] Checking graph relationships...")

@@ -1,7 +1,7 @@
 [project]
 name = "mem0-dbay"
-version = "0.1.0"
-description = "PostgreSQL + pgvector graph store backend for Mem0 — powered by dbay.cloud"
+version = "0.1.2"
+description = "Mem0 的一站式存储后端 - 一个 dbay.cloud 数据库搞定向量、图谱、全文检索"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -29,6 +29,12 @@ dev = ["pytest>=8.0", "numpy>=1.24"]
 [project.urls]
 Homepage = "https://dbay.cloud"
 Repository = "https://github.com/aspect-build/mem0-dbay"
+
+[tool.setuptools.packages.find]
+include = ["mem0_dbay*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [build-system]
 requires = ["setuptools>=68.0"]

@@ -494,9 +494,10 @@ async function handleDiffVersions(newer: Version, older: Version) {
   diffLoading.value = true
   showDiffView.value = true
   diffResult.value = null
-  diffSourceLabel.value = `${newer.name} vs ${older.name}`
+  diffSourceLabel.value = `${newer.name} 相对于 ${older.name} 的变化`
   try {
-    const res = await diffApi.schema(selectedDbId.value, 'version', newer.id, 'version', older.id)
+    // source=older (baseline), target=newer (current) — so "added" = new stuff in newer version
+    const res = await diffApi.schema(selectedDbId.value, 'version', older.id, 'version', newer.id)
     diffResult.value = res.data
   } catch (e: any) {
     console.error('Failed to load version diff', e)
@@ -514,7 +515,8 @@ async function fetchVersions(branchId: string) {
   versionBranchId.value = branchId
   try {
     const res = await versionApi.list(selectedDbId.value, branchId)
-    versions.value = res.data
+    // API returns LSN ascending (oldest first), reverse for display (newest first)
+    versions.value = [...res.data].reverse()
   } catch (e) {
     console.error('Failed to load versions', e)
     versions.value = []

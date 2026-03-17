@@ -199,9 +199,11 @@ class MemoryGraph:
         ensure_schema(self.pg, pg_config.embedding_dimension)
 
         # Embedding model
+        vector_config = getattr(config.vector_store, 'config', None)
         self.embedding_model = EmbedderFactory.create(
             config.embedder.provider,
             config.embedder.config,
+            vector_config,
         )
 
         # LLM — graph_store.llm takes priority, then falls back to config.llm
@@ -323,7 +325,7 @@ class MemoryGraph:
         for call in tool_calls:
             if call.get("name") == "establish_relationships":
                 args = call.get("arguments", {})
-                rels = args.get("relationships", [])
+                rels = args.get("relationships", args.get("entities", []))
                 for rel in rels:
                     relations.append({
                         "source": rel.get("source", "").lower().replace(" ", "_"),
