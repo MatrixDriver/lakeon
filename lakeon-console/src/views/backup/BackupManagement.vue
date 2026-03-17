@@ -6,6 +6,10 @@
       </div>
     </div>
 
+    <div class="page-actions">
+      <button class="btn btn-primary" @click="showCreateDialog = true">创建备份</button>
+    </div>
+
     <p class="page-tip">
       查看和管理所有数据库的备份。从备份恢复时将创建一个新的数据库实例，不会覆盖当前数据。
       <router-link to="/docs#backups" class="tip-link">了解更多</router-link>
@@ -154,6 +158,37 @@
         </div>
       </div>
     </div>
+
+    <!-- Create Backup Dialog -->
+    <div v-if="showCreateDialog" class="dialog-overlay" @click.self="showCreateDialog = false">
+      <div class="dialog-box dialog-confirm">
+        <div class="dialog-header">
+          <h3>创建备份</h3>
+          <button class="dialog-close" @click="showCreateDialog = false">&times;</button>
+        </div>
+        <div class="dialog-body">
+          <div class="form-group">
+            <label class="form-label">选择数据库 <span class="required">*</span></label>
+            <select v-model="createDbId" class="form-input">
+              <option value="" disabled>请选择数据库</option>
+              <option v-for="db in allDbs" :key="db.id" :value="db.id">{{ db.name }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">备份名称</label>
+            <input v-model="createBackupName" class="form-input" placeholder="可选，留空自动生成" />
+          </div>
+        </div>
+        <div class="dialog-footer">
+          <button class="btn btn-default" @click="showCreateDialog = false">取消</button>
+          <button
+            class="btn btn-primary"
+            :disabled="!createDbId || creating"
+            @click="handleCreate"
+          >{{ creating ? '创建中...' : '确定' }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -165,8 +200,11 @@ import { databaseApi } from '../../api/database'
 
 const router = useRouter()
 
+interface DbOption { id: string; name: string }
+
 const backups = ref<Backup[]>([])
 const dbMap = ref<Record<string, string>>({})
+const allDbs = ref<DbOption[]>([])
 const loading = ref(true)
 const searchText = ref('')
 const filterDb = ref('')
@@ -174,6 +212,12 @@ const filterType = ref('')
 const filterStatus = ref('')
 const currentPage = ref(1)
 const pageSize = 15
+
+// Create
+const showCreateDialog = ref(false)
+const createDbId = ref('')
+const createBackupName = ref('')
+const creating = ref(false)
 
 // Restore
 const showRestoreDialog = ref(false)
@@ -260,6 +304,22 @@ async function handleRestore() {
   }
 }
 
+async function handleCreate() {
+  if (!createDbId.value) return
+  creating.value = true
+  try {
+    await backupApi.create(createDbId.value, { name: createBackupName.value.trim() || undefined })
+    showCreateDialog.value = false
+    createDbId.value = ''
+    createBackupName.value = ''
+    await loadData()
+  } catch (e: any) {
+    alert('创建失败: ' + (e.response?.data?.message || e.message))
+  } finally {
+    creating.value = false
+  }
+}
+
 async function handleDelete(b: Backup) {
   if (!confirm(`确认删除备份「${b.name}」？此操作不可恢复。`)) return
   try {
@@ -282,10 +342,13 @@ async function loadData() {
     }
     if (dbsRes.status === 'fulfilled') {
       const map: Record<string, string> = {}
+      const dbs: DbOption[] = []
       for (const db of dbsRes.value.data) {
         map[db.id] = db.name
+        dbs.push({ id: db.id, name: db.name })
       }
       dbMap.value = map
+      allDbs.value = dbs
     }
   } catch (e) {
     console.error('Failed to load backups', e)
@@ -298,6 +361,9 @@ onMounted(loadData)
 </script>
 
 <style scoped>
+.page-actions {
+  margin-bottom: 16px;
+}
 .page-tip {
   font-size: 14px;
   color: #575d6c;
