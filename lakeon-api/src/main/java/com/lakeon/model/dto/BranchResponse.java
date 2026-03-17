@@ -27,13 +27,16 @@ public class BranchResponse {
     private Long currentLogicalSizeBytes;
     @JsonProperty("created_at")
     private Instant createdAt;
+    @JsonProperty("branch_type")
+    private String branchType;
 
     public BranchResponse() {}
 
     public BranchResponse(String id, String name, String parentBranch, boolean isDefault,
                           String status, String computeStatus, String connectionUri,
                           String parentBranchId, String neonTimelineId, String ancestorLsn,
-                          String lastRecordLsn, Long currentLogicalSizeBytes, Instant createdAt) {
+                          String lastRecordLsn, Long currentLogicalSizeBytes, Instant createdAt,
+                          String branchType) {
         this.id = id;
         this.name = name;
         this.parentBranch = parentBranch;
@@ -47,6 +50,7 @@ public class BranchResponse {
         this.lastRecordLsn = lastRecordLsn;
         this.currentLogicalSizeBytes = currentLogicalSizeBytes;
         this.createdAt = createdAt;
+        this.branchType = branchType;
     }
 
     public static Builder builder() {
@@ -79,6 +83,8 @@ public class BranchResponse {
     public void setCurrentLogicalSizeBytes(Long currentLogicalSizeBytes) { this.currentLogicalSizeBytes = currentLogicalSizeBytes; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public String getBranchType() { return branchType; }
+    public void setBranchType(String branchType) { this.branchType = branchType; }
 
     public static class Builder {
         private String id;
@@ -94,6 +100,7 @@ public class BranchResponse {
         private String lastRecordLsn;
         private Long currentLogicalSizeBytes;
         private Instant createdAt;
+        private String branchType;
 
         public Builder id(String id) { this.id = id; return this; }
         public Builder name(String name) { this.name = name; return this; }
@@ -108,11 +115,12 @@ public class BranchResponse {
         public Builder lastRecordLsn(String lastRecordLsn) { this.lastRecordLsn = lastRecordLsn; return this; }
         public Builder currentLogicalSizeBytes(Long currentLogicalSizeBytes) { this.currentLogicalSizeBytes = currentLogicalSizeBytes; return this; }
         public Builder createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
+        public Builder branchType(String branchType) { this.branchType = branchType; return this; }
 
         public BranchResponse build() {
             return new BranchResponse(id, name, parentBranch, isDefault, status,
                 computeStatus, connectionUri, parentBranchId, neonTimelineId,
-                ancestorLsn, lastRecordLsn, currentLogicalSizeBytes, createdAt);
+                ancestorLsn, lastRecordLsn, currentLogicalSizeBytes, createdAt, branchType);
         }
     }
 }

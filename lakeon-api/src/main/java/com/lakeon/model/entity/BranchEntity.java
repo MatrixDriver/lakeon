@@ -1,6 +1,7 @@
 package com.lakeon.model.entity;
 
 import com.lakeon.model.enums.BranchStatus;
+import com.lakeon.model.enums.BranchType;
 import com.lakeon.model.enums.ComputeStatus;
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -32,6 +33,10 @@ public class BranchEntity {
 
     @Column(name = "is_default", nullable = false)
     private boolean isDefault;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "branch_type", nullable = false)
+    private BranchType branchType = BranchType.USER;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -66,6 +71,9 @@ public class BranchEntity {
     public void prePersist() {
         if (id == null) {
             id = "br_" + UUID.randomUUID().toString().substring(0, 8);
+        }
+        if (branchType == null) {
+            branchType = BranchType.USER;
         }
         if (createdAt == null) {
             createdAt = Instant.now();
@@ -134,6 +142,14 @@ public class BranchEntity {
 
     public void setIsDefault(boolean isDefault) {
         this.isDefault = isDefault;
+    }
+
+    public BranchType getBranchType() {
+        return branchType;
+    }
+
+    public void setBranchType(BranchType branchType) {
+        this.branchType = branchType;
     }
 
     public BranchStatus getStatus() {

@@ -251,6 +251,7 @@ public class BranchService {
             .parentBranchId(entity.getParentBranchId())
             .neonTimelineId(entity.getNeonTimelineId())
             .createdAt(entity.getCreatedAt())
+            .branchType(entity.getBranchType() != null ? entity.getBranchType().name() : null)
             .build();
     }
 
