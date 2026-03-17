@@ -6,8 +6,10 @@ import com.lakeon.model.dto.SchemaDiffResponse.*;
 import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.TenantEntity;
+import com.lakeon.model.entity.VersionEntity;
 import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
+import com.lakeon.repository.VersionRepository;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
 import org.slf4j.Logger;
@@ -26,13 +28,15 @@ public class DiffService {
 
     private final BranchRepository branchRepository;
     private final DatabaseRepository databaseRepository;
+    private final VersionRepository versionRepository;
     private final ComputePodManager computePodManager;
 
     @Autowired
     public DiffService(BranchRepository branchRepository, DatabaseRepository databaseRepository,
-                       ComputePodManager computePodManager) {
+                       VersionRepository versionRepository, ComputePodManager computePodManager) {
         this.branchRepository = branchRepository;
         this.databaseRepository = databaseRepository;
+        this.versionRepository = versionRepository;
         this.computePodManager = computePodManager;
     }
 
@@ -42,13 +46,10 @@ public class DiffService {
         DatabaseEntity db = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
             .orElseThrow(() -> new NotFoundException("Database not found"));
 
-        BranchEntity sourceBranch = resolveBranch(db, sourceType, sourceId);
-        BranchEntity targetBranch = resolveBranch(db, targetType, targetId);
-
         List<String> tempPods = new ArrayList<>();
         try {
-            String sourceUrl = resolveJdbcUrl(db, sourceBranch, tempPods);
-            String targetUrl = resolveJdbcUrl(db, targetBranch, tempPods);
+            String sourceUrl = resolveJdbcUrlForTarget(db, sourceType, sourceId, tempPods);
+            String targetUrl = resolveJdbcUrlForTarget(db, targetType, targetId, tempPods);
 
             Map<String, List<ColumnInfo>> sourceTables = queryTables(sourceUrl);
             Map<String, List<ColumnInfo>> targetTables = queryTables(targetUrl);
@@ -68,19 +69,28 @@ public class DiffService {
         }
     }
 
-    private BranchEntity resolveBranch(DatabaseEntity db, String type, String id) {
-        if (!"branch".equals(type)) {
-            throw new BadRequestException("Only branch-based diff is supported.");
+    /**
+     * Resolve a diff target (branch or version) to a JDBC URL.
+     * For versions, always creates a temp compute using the snapshot timeline.
+     */
+    private String resolveJdbcUrlForTarget(DatabaseEntity db, String type, String id, List<String> tempPods) {
+        if ("version".equals(type)) {
+            VersionEntity version = versionRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Version not found: " + id));
+            log.info("Version '{}' diff: creating temp compute for snapshot timeline {}",
+                version.getName(), version.getSnapshotTimelineId());
+            return createTempComputeForTimeline(db, "ver-" + id.replace("_", ""),
+                version.getSnapshotTimelineId(), version.getName(), tempPods);
         }
-        return branchRepository.findByIdAndDatabaseId(id, db.getId())
+        if (!"branch".equals(type)) {
+            throw new BadRequestException("Diff type must be 'branch' or 'version'");
+        }
+        BranchEntity branch = branchRepository.findByIdAndDatabaseId(id, db.getId())
             .orElseThrow(() -> new NotFoundException("Branch not found: " + id));
+        return resolveJdbcUrlForBranch(db, branch, tempPods);
     }
 
-    /**
-     * Get JDBC URL for a branch. If the branch has no compute, create a temp one.
-     * Temp pod names are added to tempPods for cleanup.
-     */
-    private String resolveJdbcUrl(DatabaseEntity db, BranchEntity branch, List<String> tempPods) {
+    private String resolveJdbcUrlForBranch(DatabaseEntity db, BranchEntity branch, List<String> tempPods) {
         // Case 1: branch has its own compute pod
         if (branch.getComputeHost() != null) {
             return buildJdbcUrl(branch.getComputeHost(), branch.getComputePort(), db);
@@ -95,38 +105,37 @@ public class DiffService {
 
         // Case 3: no compute — create a temporary one
         log.info("Branch '{}' has no compute, creating temp compute for diff", branch.getName());
-        DatabaseEntity tempDb = createTempDbEntity(db, branch);
+        return createTempComputeForTimeline(db, "br-" + branch.getId().replace("_", ""),
+            branch.getNeonTimelineId(), branch.getName(), tempPods);
+    }
+
+    /**
+     * Create a temp compute pod for a given timeline, return its JDBC URL.
+     */
+    private String createTempComputeForTimeline(DatabaseEntity db, String suffix,
+                                                 String timelineId, String label, List<String> tempPods) {
+        DatabaseEntity tempDb = new DatabaseEntity();
+        tempDb.setId(db.getId() + "-diff-" + suffix);
+        tempDb.setName(db.getName());
+        tempDb.setTenantId(db.getTenantId());
+        tempDb.setNeonTenantId(db.getNeonTenantId());
+        tempDb.setNeonTimelineId(timelineId);
+        tempDb.setDbUser(db.getDbUser());
+        tempDb.setDbPassword(db.getDbPassword());
+        tempDb.setComputeSize(db.getComputeSize());
+        tempDb.setSuspendTimeout(db.getSuspendTimeout());
         try {
             computePodManager.createComputePod(tempDb);
             computePodManager.waitForPodReady(tempDb.getComputePodName(), 60_000);
             tempPods.add(tempDb.getComputePodName());
-            log.info("Temp compute ready: pod={}, host={}", tempDb.getComputePodName(), tempDb.getComputeHost());
+            log.info("Temp compute ready for '{}': pod={}, host={}", label, tempDb.getComputePodName(), tempDb.getComputeHost());
             return buildJdbcUrl(tempDb.getComputeHost(), tempDb.getComputePort(), db);
         } catch (Exception e) {
             if (tempDb.getComputePodName() != null) {
                 tempPods.add(tempDb.getComputePodName());
             }
-            throw new RuntimeException("Failed to start temp compute for branch '" + branch.getName() + "': " + e.getMessage(), e);
+            throw new RuntimeException("Failed to start temp compute for '" + label + "': " + e.getMessage(), e);
         }
-    }
-
-    /**
-     * Create a transient DatabaseEntity (not persisted) pointing to the branch's timeline.
-     * ComputePodManager uses entity fields to generate the compute config.
-     */
-    private DatabaseEntity createTempDbEntity(DatabaseEntity db, BranchEntity branch) {
-        DatabaseEntity temp = new DatabaseEntity();
-        // Use a unique ID so the pod name doesn't collide with the real compute
-        temp.setId(db.getId() + "-diff-" + branch.getId().replace("_", ""));
-        temp.setName(db.getName());
-        temp.setTenantId(db.getTenantId());
-        temp.setNeonTenantId(db.getNeonTenantId());
-        temp.setNeonTimelineId(branch.getNeonTimelineId());
-        temp.setDbUser(db.getDbUser());
-        temp.setDbPassword(db.getDbPassword());
-        temp.setComputeSize(db.getComputeSize());
-        temp.setSuspendTimeout(db.getSuspendTimeout());
-        return temp;
     }
 
     private String buildJdbcUrl(String host, int port, DatabaseEntity db) {

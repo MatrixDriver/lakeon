@@ -137,6 +137,12 @@
                     <span class="version-ago">{{ timeAgo(ver.created_at) }}</span>
                   </div>
                   <div v-if="expandedVersionId === ver.id && !squashMode" class="version-actions">
+                    <button
+                      v-if="idx < versions.length - 1"
+                      class="btn btn-small btn-text"
+                      :disabled="diffLoading"
+                      @click.stop="handleDiffVersions(ver, versions[idx + 1]!)"
+                    >{{ diffLoading ? 'Diff 中...' : '与上一版本 Diff' }}</button>
                     <button class="btn btn-small btn-text" @click.stop="handleRestoreToVersion(ver)">回滚到此版本</button>
                     <button class="btn btn-small btn-danger-text" @click.stop="handleDeleteVersion(ver.id)">删除版本</button>
                   </div>
@@ -474,6 +480,24 @@ async function handleDiffBranchVsDefault(branchId: string) {
   } catch (e: any) {
     console.error('Failed to load diff', e)
     const msg = e?.response?.data?.message || e?.response?.data?.error?.message || '获取差异失败'
+    toast.error(msg)
+    showDiffView.value = false
+  } finally {
+    diffLoading.value = false
+  }
+}
+
+async function handleDiffVersions(newer: Version, older: Version) {
+  diffLoading.value = true
+  showDiffView.value = true
+  diffResult.value = null
+  diffSourceLabel.value = `${newer.name} vs ${older.name}`
+  try {
+    const res = await diffApi.schema(selectedDbId.value, 'version', newer.id, 'version', older.id)
+    diffResult.value = res.data
+  } catch (e: any) {
+    console.error('Failed to load version diff', e)
+    const msg = e?.response?.data?.message || e?.response?.data?.error?.message || '获取版本差异失败'
     toast.error(msg)
     showDiffView.value = false
   } finally {
