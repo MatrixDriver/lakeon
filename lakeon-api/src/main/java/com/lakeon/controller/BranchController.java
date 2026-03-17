@@ -58,6 +58,16 @@ public class BranchController {
         return branchService.switchActive(tenant, dbId, branchId);
     }
 
+    @PostMapping("/{branchId}/promote")
+    @ResponseStatus(HttpStatus.OK)
+    public BranchResponse promote(
+            HttpServletRequest httpRequest,
+            @PathVariable String dbId,
+            @PathVariable String branchId) {
+        TenantEntity tenant = (TenantEntity) httpRequest.getAttribute("tenant");
+        return branchService.promote(tenant, dbId, branchId);
+    }
+
     @DeleteMapping("/{branchId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteBranch(HttpServletRequest req,

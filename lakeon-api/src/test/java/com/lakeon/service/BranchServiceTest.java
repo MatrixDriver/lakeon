@@ -7,6 +7,7 @@ import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.OperationLogEntity;
 import com.lakeon.model.entity.TenantEntity;
+import com.lakeon.model.enums.BranchType;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.neon.NeonApiClient;
 import com.lakeon.neon.dto.NeonTimeline;
@@ -363,6 +364,80 @@ class BranchServiceTest {
             assertThatThrownBy(() ->
                     branchService.switchActive(testTenant, "db_test001", "br_nonexist"))
                     .isInstanceOf(NotFoundException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("提升分支为默认")
+    class PromoteBranch {
+
+        @Test
+        @DisplayName("UT-SVC-BR-012: 正常提升 — 交换默认分支，重建 compute pod")
+        void promote_swapsDefaultBranch() {
+            testDatabase.setComputePodName("compute-db_test001");
+
+            var currentDefault = new BranchEntity();
+            currentDefault.setId("br_main");
+            currentDefault.setDatabaseId("db_test001");
+            currentDefault.setName("main");
+            currentDefault.setIsDefault(true);
+            currentDefault.setNeonTimelineId("neon-timeline-main");
+
+            var targetBranch = new BranchEntity();
+            targetBranch.setId("br_feat");
+            targetBranch.setDatabaseId("db_test001");
+            targetBranch.setName("feature-test");
+            targetBranch.setIsDefault(false);
+            targetBranch.setNeonTimelineId("neon-timeline-feat");
+
+            when(databaseRepository.findByIdAndTenantIdForUpdate("db_test001", testTenant.getId()))
+                    .thenReturn(Optional.of(testDatabase));
+            when(branchRepository.findByIdAndDatabaseId("br_feat", "db_test001"))
+                    .thenReturn(Optional.of(targetBranch));
+            when(branchRepository.findByDatabaseIdAndIsDefaultTrue("db_test001"))
+                    .thenReturn(Optional.of(currentDefault));
+            when(branchRepository.save(any(BranchEntity.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
+            when(databaseRepository.save(any(DatabaseEntity.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
+
+            var result = branchService.promote(testTenant, "db_test001", "br_feat");
+
+            // Old default demoted
+            assertThat(currentDefault.getIsDefault()).isFalse();
+            assertThat(currentDefault.getBranchType()).isEqualTo(BranchType.BACKUP);
+            assertThat(currentDefault.getName()).startsWith("main-before-promote-");
+
+            // Target promoted
+            assertThat(targetBranch.getIsDefault()).isTrue();
+            assertThat(result.getName()).isEqualTo("feature-test");
+
+            // Database timeline updated
+            assertThat(testDatabase.getNeonTimelineId()).isEqualTo("neon-timeline-feat");
+
+            // Compute pod rebuilt
+            verify(computePodManager).deleteComputePod("compute-db_test001", true);
+            verify(computePodManager).createComputePod(any());
+        }
+
+        @Test
+        @DisplayName("UT-SVC-BR-013: 已是默认分支 — 抛出 BadRequestException")
+        void promote_alreadyDefault_throwsBadRequest() {
+            var targetBranch = new BranchEntity();
+            targetBranch.setId("br_main");
+            targetBranch.setDatabaseId("db_test001");
+            targetBranch.setName("main");
+            targetBranch.setIsDefault(true);
+
+            when(databaseRepository.findByIdAndTenantIdForUpdate("db_test001", testTenant.getId()))
+                    .thenReturn(Optional.of(testDatabase));
+            when(branchRepository.findByIdAndDatabaseId("br_main", "db_test001"))
+                    .thenReturn(Optional.of(targetBranch));
+
+            assertThatThrownBy(() ->
+                    branchService.promote(testTenant, "db_test001", "br_main"))
+                    .isInstanceOf(BadRequestException.class)
+                    .hasMessageContaining("already the default");
         }
     }
 }

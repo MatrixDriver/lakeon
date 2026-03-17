@@ -9,6 +9,7 @@ import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.model.enums.BranchStatus;
+import com.lakeon.model.enums.BranchType;
 import com.lakeon.model.enums.OperationType;
 import com.lakeon.neon.NeonApiClient;
 import com.lakeon.neon.dto.CreateTimelineRequest;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -237,6 +239,49 @@ public class BranchService {
         }
 
         return toResponse(targetBranch);
+    }
+
+    @Transactional
+    public BranchResponse promote(TenantEntity tenant, String dbId, String branchId) {
+        // Pessimistic lock prevents concurrent Promote/Restore
+        DatabaseEntity db = databaseRepository.findByIdAndTenantIdForUpdate(dbId, tenant.getId())
+            .orElseThrow(() -> new NotFoundException("Database not found"));
+        BranchEntity target = branchRepository.findByIdAndDatabaseId(branchId, dbId)
+            .orElseThrow(() -> new NotFoundException("Branch not found"));
+
+        if (target.getIsDefault()) {
+            throw new BadRequestException("Branch is already the default");
+        }
+
+        // Find current default
+        BranchEntity currentDefault = branchRepository.findByDatabaseIdAndIsDefaultTrue(dbId)
+            .orElseThrow(() -> new IllegalStateException("No default branch found"));
+
+        // Demote current default
+        currentDefault.setIsDefault(false);
+        currentDefault.setName(currentDefault.getName() + "-before-promote-" + Instant.now().getEpochSecond());
+        currentDefault.setBranchType(BranchType.BACKUP);
+        branchRepository.save(currentDefault);
+
+        // Promote target
+        target.setIsDefault(true);
+        branchRepository.save(target);
+
+        // Update database active timeline
+        db.setNeonTimelineId(target.getNeonTimelineId());
+
+        // Rebuild compute pod
+        if (db.getComputePodName() != null) {
+            computePodManager.deleteComputePod(db.getComputePodName(), true);
+        }
+        db.setComputePodName(null);
+        db.setComputeHost(null);
+        db.setComputePort(null);
+        databaseRepository.save(db);
+        computePodManager.createComputePod(db);
+        databaseRepository.save(db);
+
+        return toResponse(target);
     }
 
     private BranchResponse toResponse(BranchEntity entity) {
