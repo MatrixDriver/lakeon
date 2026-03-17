@@ -141,17 +141,6 @@
         </div>
         <p class="tab-tip">分支是数据库的 copy-on-write 快照，可用于开发测试、数据回滚等场景。创建分支几乎零开销，各分支数据完全隔离。「切换」会重启计算节点并指向目标分支。<router-link to="/docs#branches" class="tip-link">了解更多</router-link></p>
 
-        <!-- Branch Tree Visualization -->
-        <BranchTreeView
-          v-if="treeNodes.length > 0"
-          :nodes="treeNodes"
-          :activeBranchId="activeBranchId"
-          @select="handleTreeSelect"
-          @activate="handleActivateBranch"
-          @create="handleTreeCreate"
-          @delete="handleDeleteBranch"
-        />
-
         <!-- Branch List + Version Timeline Split Panel -->
         <div class="branch-version-layout">
           <!-- Left: Branch list -->
@@ -810,7 +799,7 @@ import { dbuserApi, type DatabaseUser } from '../../api/dbuser'
 import CreateUserDialog from './CreateUserDialog.vue'
 import CreateBranchDialog from './CreateBranchDialog.vue'
 import CreateVersionDialog from './CreateVersionDialog.vue'
-import BranchTreeView from '../../components/BranchTreeView.vue'
+// BranchTreeView removed — replaced by branch list + version timeline panel
 import TableToolbar from '../../components/TableToolbar.vue'
 import TableFooter from '../../components/TableFooter.vue'
 import { extensionApi, type ExtensionInfo, type ParameterInfo } from '../../api/extension'
@@ -1150,15 +1139,6 @@ async function fetchBranches() {
 
 function handleBranchCreated() {
   fetchBranches()
-}
-
-function handleTreeSelect(branchId: string) {
-  selectedBranchId.value = selectedBranchId.value === branchId ? '' : branchId
-}
-
-function handleTreeCreate(parentBranchId: string) {
-  preselectedParentId.value = parentBranchId
-  showBranchDialog.value = true
 }
 
 async function handleActivateBranch(branchId: string) {
