@@ -470,9 +470,9 @@ const resettingPassword = ref(false)
 const activeTab = ref('info')
 const tabs = [
   { key: 'info', label: '基本信息' },
-  { key: 'users', label: '用户' },
   { key: 'extensions', label: '扩展' },
   { key: 'parameters', label: '参数' },
+  { key: 'users', label: '用户权限' },
   { key: 'connections', label: '活跃会话' },
   { key: 'security', label: '访问控制' },
 ]
