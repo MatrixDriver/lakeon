@@ -652,6 +652,358 @@ test_multi_tenant() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  TEST SUITE 3: Branch & Version Scenarios
+# ═══════════════════════════════════════════════════════════════════════════════
+
+test_branch_version() {
+    echo ""
+    echo "═══════════════════════════════════════════════════════════════"
+    echo "  TEST SUITE 3: Branch & Version Scenarios"
+    echo "═══════════════════════════════════════════════════════════════"
+    echo ""
+
+    local tenant_resp api_key tenant_id
+    local db_resp db_id compute_pod
+
+    # ── Setup: Create tenant and database ────────────────────────────────
+    log "Setup: Create tenant and database for branch/version tests"
+    tenant_resp=$(create_tenant "tenant-bv-${RUN_ID}")
+    api_key=$(echo "$tenant_resp" | jq -r '.api_key')
+    tenant_id=$(echo "$tenant_resp" | jq -r '.id')
+
+    if [[ -z "$api_key" || "$api_key" == "null" ]]; then
+        fail "Setup: Failed to create tenant for branch/version tests"
+        return 1
+    fi
+    TENANT_IDS+=("$tenant_id")
+
+    db_resp=$(create_database "$api_key" "bvtestdb${RUN_ID}")
+    db_id=$(echo "$db_resp" | jq -r '.id')
+
+    if [[ -z "$db_id" || "$db_id" == "null" ]]; then
+        fail "Setup: Failed to create database for branch/version tests"
+        return 1
+    fi
+    DB_IDS+=("$db_id")
+    API_KEYS+=("$api_key")
+
+    # Wait for compute pod to be ready
+    compute_pod="compute-${db_id//_/-}"
+    log "  Waiting for compute pod ${compute_pod} to become ready..."
+    local startup_time
+    if startup_time=$(wait_compute_ready "$compute_pod"); then
+        log "  Compute pod ready in ${startup_time}s"
+    else
+        fail "Setup: Compute pod not ready after ${TIMEOUT_COMPUTE}s"
+        return 1
+    fi
+
+    # ── Get default branch ID ─────────────────────────────────────────────
+    log "  Fetching default branch ID..."
+    local branches_resp default_branch_id
+    branches_resp=$(curl -s "${API_URL}/api/v1/databases/${db_id}/branches" \
+        -H "Authorization: Bearer ${api_key}")
+    default_branch_id=$(echo "$branches_resp" | jq -r '.[] | select(.is_default == true) | .id')
+
+    if [[ -z "$default_branch_id" || "$default_branch_id" == "null" ]]; then
+        fail "Setup: Could not find default branch"
+        return 1
+    fi
+    log "  Default branch ID: ${default_branch_id}"
+
+    # ════════════════════════════════════════════════════════════════════
+    #  Version CRUD Tests
+    # ════════════════════════════════════════════════════════════════════
+
+    # ── IT-E2E-020: Create first version ─────────────────────────────────
+    log "IT-E2E-020: Create version on default branch"
+    local ver1_resp ver1_id ver1_name ver1_status_code
+    ver1_status_code=$(curl -s -o /tmp/ver1_resp.json -w "%{http_code}" \
+        -X POST "${API_URL}/api/v1/databases/${db_id}/branches/${default_branch_id}/versions" \
+        -H "Authorization: Bearer ${api_key}" \
+        -H "Content-Type: application/json" \
+        -d '{"name": "test-version-1", "description": "First version"}')
+    ver1_resp=$(cat /tmp/ver1_resp.json)
+    ver1_id=$(echo "$ver1_resp" | jq -r '.id')
+    ver1_name=$(echo "$ver1_resp" | jq -r '.name')
+
+    if [[ "$ver1_status_code" == "201" ]]; then
+        pass "IT-E2E-020a: Version created with HTTP 201"
+    else
+        fail "IT-E2E-020a: Expected 201, got HTTP ${ver1_status_code}"
+    fi
+
+    if [[ -n "$ver1_id" && "$ver1_id" != "null" ]]; then
+        pass "IT-E2E-020b: Version has ID (id=${ver1_id})"
+    else
+        fail "IT-E2E-020b: Version missing ID"
+    fi
+
+    if [[ "$ver1_name" == "test-version-1" ]]; then
+        pass "IT-E2E-020c: Version name matches"
+    else
+        fail "IT-E2E-020c: Version name mismatch: ${ver1_name}"
+    fi
+
+    local ver1_lsn
+    ver1_lsn=$(echo "$ver1_resp" | jq -r '.lsn')
+    if [[ -n "$ver1_lsn" && "$ver1_lsn" != "null" ]]; then
+        pass "IT-E2E-020d: Version has LSN (lsn=${ver1_lsn})"
+    else
+        fail "IT-E2E-020d: Version missing LSN"
+    fi
+
+    # ── IT-E2E-021: List versions ─────────────────────────────────────────
+    log "IT-E2E-021: List versions on default branch"
+    local list_ver_resp list_ver_count list_ver_status_code
+    list_ver_status_code=$(curl -s -o /tmp/list_ver_resp.json -w "%{http_code}" \
+        "${API_URL}/api/v1/databases/${db_id}/branches/${default_branch_id}/versions" \
+        -H "Authorization: Bearer ${api_key}")
+    list_ver_resp=$(cat /tmp/list_ver_resp.json)
+    list_ver_count=$(echo "$list_ver_resp" | jq 'length')
+
+    if [[ "$list_ver_status_code" == "200" ]]; then
+        pass "IT-E2E-021a: List versions returns HTTP 200"
+    else
+        fail "IT-E2E-021a: Expected 200, got HTTP ${list_ver_status_code}"
+    fi
+
+    if [[ "$list_ver_count" -ge 1 ]]; then
+        pass "IT-E2E-021b: List contains at least 1 version (count=${list_ver_count})"
+    else
+        fail "IT-E2E-021b: Expected at least 1 version, got ${list_ver_count}"
+    fi
+
+    # Verify created version is in the list
+    local found_in_list
+    found_in_list=$(echo "$list_ver_resp" | jq -r --arg id "$ver1_id" '.[] | select(.id == $id) | .id')
+    if [[ "$found_in_list" == "$ver1_id" ]]; then
+        pass "IT-E2E-021c: Created version found in list"
+    else
+        fail "IT-E2E-021c: Created version not found in list"
+    fi
+
+    # ── IT-E2E-022: Get version by ID ─────────────────────────────────────
+    log "IT-E2E-022: Get version by ID"
+    local get_ver_resp get_ver_status_code get_ver_name
+    get_ver_status_code=$(curl -s -o /tmp/get_ver_resp.json -w "%{http_code}" \
+        "${API_URL}/api/v1/databases/${db_id}/branches/${default_branch_id}/versions/${ver1_id}" \
+        -H "Authorization: Bearer ${api_key}")
+    get_ver_resp=$(cat /tmp/get_ver_resp.json)
+    get_ver_name=$(echo "$get_ver_resp" | jq -r '.name')
+
+    if [[ "$get_ver_status_code" == "200" ]]; then
+        pass "IT-E2E-022a: Get version returns HTTP 200"
+    else
+        fail "IT-E2E-022a: Expected 200, got HTTP ${get_ver_status_code}"
+    fi
+
+    if [[ "$get_ver_name" == "test-version-1" ]]; then
+        pass "IT-E2E-022b: Get version name matches"
+    else
+        fail "IT-E2E-022b: Version name mismatch on get: ${get_ver_name}"
+    fi
+
+    # ── IT-E2E-023: Create second version ────────────────────────────────
+    log "IT-E2E-023: Create second version"
+    local ver2_resp ver2_id ver2_status_code
+    ver2_status_code=$(curl -s -o /tmp/ver2_resp.json -w "%{http_code}" \
+        -X POST "${API_URL}/api/v1/databases/${db_id}/branches/${default_branch_id}/versions" \
+        -H "Authorization: Bearer ${api_key}" \
+        -H "Content-Type: application/json" \
+        -d '{"name": "test-version-2", "description": "Second version"}')
+    ver2_resp=$(cat /tmp/ver2_resp.json)
+    ver2_id=$(echo "$ver2_resp" | jq -r '.id')
+
+    if [[ "$ver2_status_code" == "201" && -n "$ver2_id" && "$ver2_id" != "null" ]]; then
+        pass "IT-E2E-023: Second version created (id=${ver2_id})"
+    else
+        fail "IT-E2E-023: Failed to create second version (HTTP ${ver2_status_code})"
+    fi
+
+    # ── IT-E2E-024: Delete first version ─────────────────────────────────
+    log "IT-E2E-024: Delete first version"
+    local del_ver_status_code
+    del_ver_status_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        -X DELETE "${API_URL}/api/v1/databases/${db_id}/branches/${default_branch_id}/versions/${ver1_id}" \
+        -H "Authorization: Bearer ${api_key}")
+
+    if [[ "$del_ver_status_code" == "204" ]]; then
+        pass "IT-E2E-024: Delete version returns HTTP 204"
+    else
+        fail "IT-E2E-024: Expected 204, got HTTP ${del_ver_status_code}"
+    fi
+
+    # ── IT-E2E-025: List versions after delete — only second remains ──────
+    log "IT-E2E-025: List versions after delete"
+    local list_after_del_resp list_after_del_count
+    list_after_del_resp=$(curl -s \
+        "${API_URL}/api/v1/databases/${db_id}/branches/${default_branch_id}/versions" \
+        -H "Authorization: Bearer ${api_key}")
+    list_after_del_count=$(echo "$list_after_del_resp" | jq 'length')
+
+    local ver1_still_present
+    ver1_still_present=$(echo "$list_after_del_resp" | jq -r --arg id "$ver1_id" '.[] | select(.id == $id) | .id')
+    local ver2_still_present
+    ver2_still_present=$(echo "$list_after_del_resp" | jq -r --arg id "$ver2_id" '.[] | select(.id == $id) | .id')
+
+    if [[ -z "$ver1_still_present" ]]; then
+        pass "IT-E2E-025a: Deleted version no longer in list"
+    else
+        fail "IT-E2E-025a: Deleted version still appears in list"
+    fi
+
+    if [[ "$ver2_still_present" == "$ver2_id" ]]; then
+        pass "IT-E2E-025b: Second version still present after first deleted"
+    else
+        fail "IT-E2E-025b: Second version missing after first deleted"
+    fi
+
+    # ════════════════════════════════════════════════════════════════════
+    #  Promote Test
+    # ════════════════════════════════════════════════════════════════════
+
+    # ── IT-E2E-026: Create a new branch to promote ───────────────────────
+    log "IT-E2E-026: Create branch for promote test"
+    local new_branch_resp new_branch_id new_branch_status_code
+    new_branch_status_code=$(curl -s -o /tmp/new_branch_resp.json -w "%{http_code}" \
+        -X POST "${API_URL}/api/v1/databases/${db_id}/branches" \
+        -H "Authorization: Bearer ${api_key}" \
+        -H "Content-Type: application/json" \
+        -d '{"name": "promote-test-branch"}')
+    new_branch_resp=$(cat /tmp/new_branch_resp.json)
+    new_branch_id=$(echo "$new_branch_resp" | jq -r '.id')
+
+    if [[ "$new_branch_status_code" == "201" && -n "$new_branch_id" && "$new_branch_id" != "null" ]]; then
+        pass "IT-E2E-026: New branch created for promote (id=${new_branch_id})"
+    else
+        fail "IT-E2E-026: Failed to create branch for promote (HTTP ${new_branch_status_code})"
+        # Skip promote tests if branch creation failed
+    fi
+
+    # ── IT-E2E-027: Promote the new branch ───────────────────────────────
+    log "IT-E2E-027: Promote branch to default"
+    local promote_resp promote_status_code
+    promote_status_code=$(curl -s -o /tmp/promote_resp.json -w "%{http_code}" \
+        -X POST "${API_URL}/api/v1/databases/${db_id}/branches/${new_branch_id}/promote" \
+        -H "Authorization: Bearer ${api_key}")
+
+    if [[ "$promote_status_code" == "200" ]]; then
+        pass "IT-E2E-027a: Promote returns HTTP 200"
+    else
+        fail "IT-E2E-027a: Expected 200, got HTTP ${promote_status_code}"
+    fi
+
+    # ── IT-E2E-028: Verify promotion — new branch is now default ─────────
+    log "IT-E2E-028: Verify branch promotion"
+    local branches_after_promote new_branch_is_default old_branch_renamed
+    branches_after_promote=$(curl -s \
+        "${API_URL}/api/v1/databases/${db_id}/branches" \
+        -H "Authorization: Bearer ${api_key}")
+
+    new_branch_is_default=$(echo "$branches_after_promote" | jq -r --arg id "$new_branch_id" \
+        '.[] | select(.id == $id) | .is_default')
+    if [[ "$new_branch_is_default" == "true" ]]; then
+        pass "IT-E2E-028a: Promoted branch is now default"
+    else
+        fail "IT-E2E-028a: Promoted branch is not marked as default"
+    fi
+
+    # Old default branch should be renamed with "-before-promote-" suffix
+    old_branch_renamed=$(echo "$branches_after_promote" | jq -r \
+        '[.[] | select(.name | contains("-before-promote-"))] | length')
+    if [[ "$old_branch_renamed" -ge 1 ]]; then
+        pass "IT-E2E-028b: Old default branch renamed with '-before-promote-' suffix"
+    else
+        fail "IT-E2E-028b: Old default branch not renamed with '-before-promote-' suffix"
+    fi
+
+    # Update default_branch_id to the newly promoted branch for restore tests
+    default_branch_id="$new_branch_id"
+
+    # ════════════════════════════════════════════════════════════════════
+    #  Restore Test
+    # ════════════════════════════════════════════════════════════════════
+
+    # ── IT-E2E-029: Create two versions for restore test ─────────────────
+    log "IT-E2E-029: Create two versions for restore test"
+    local restore_ver1_resp restore_ver1_id restore_ver1_status_code
+    restore_ver1_status_code=$(curl -s -o /tmp/restore_ver1.json -w "%{http_code}" \
+        -X POST "${API_URL}/api/v1/databases/${db_id}/branches/${default_branch_id}/versions" \
+        -H "Authorization: Bearer ${api_key}" \
+        -H "Content-Type: application/json" \
+        -d '{"name": "restore-version-1", "description": "Version to restore to"}')
+    restore_ver1_resp=$(cat /tmp/restore_ver1.json)
+    restore_ver1_id=$(echo "$restore_ver1_resp" | jq -r '.id')
+
+    if [[ "$restore_ver1_status_code" == "201" && -n "$restore_ver1_id" && "$restore_ver1_id" != "null" ]]; then
+        pass "IT-E2E-029a: First restore version created (id=${restore_ver1_id})"
+    else
+        fail "IT-E2E-029a: Failed to create first restore version (HTTP ${restore_ver1_status_code})"
+    fi
+
+    local restore_ver2_resp restore_ver2_id restore_ver2_status_code
+    restore_ver2_status_code=$(curl -s -o /tmp/restore_ver2.json -w "%{http_code}" \
+        -X POST "${API_URL}/api/v1/databases/${db_id}/branches/${default_branch_id}/versions" \
+        -H "Authorization: Bearer ${api_key}" \
+        -H "Content-Type: application/json" \
+        -d '{"name": "restore-version-2", "description": "Second version after first"}')
+    restore_ver2_resp=$(cat /tmp/restore_ver2.json)
+    restore_ver2_id=$(echo "$restore_ver2_resp" | jq -r '.id')
+
+    if [[ "$restore_ver2_status_code" == "201" && -n "$restore_ver2_id" && "$restore_ver2_id" != "null" ]]; then
+        pass "IT-E2E-029b: Second restore version created (id=${restore_ver2_id})"
+    else
+        fail "IT-E2E-029b: Failed to create second restore version (HTTP ${restore_ver2_status_code})"
+    fi
+
+    # ── IT-E2E-030: Restore to first version ─────────────────────────────
+    log "IT-E2E-030: Restore branch to first version"
+    local restore_resp restore_status_code
+    restore_status_code=$(curl -s -o /tmp/restore_resp.json -w "%{http_code}" \
+        -X POST "${API_URL}/api/v1/databases/${db_id}/branches/${default_branch_id}/restore" \
+        -H "Authorization: Bearer ${api_key}" \
+        -H "Content-Type: application/json" \
+        -d "{\"target_version_id\": \"${restore_ver1_id}\"}")
+
+    if [[ "$restore_status_code" == "200" ]]; then
+        pass "IT-E2E-030: Restore returns HTTP 200"
+    else
+        fail "IT-E2E-030: Expected 200, got HTTP ${restore_status_code}"
+    fi
+
+    # ── IT-E2E-031: Verify restore — backup branch created ───────────────
+    log "IT-E2E-031: Verify restore created backup branch"
+    local branches_after_restore backup_branch_count
+    branches_after_restore=$(curl -s \
+        "${API_URL}/api/v1/databases/${db_id}/branches" \
+        -H "Authorization: Bearer ${api_key}")
+    backup_branch_count=$(echo "$branches_after_restore" | jq -r \
+        '[.[] | select(.name | contains("-backup-"))] | length')
+
+    if [[ "$backup_branch_count" -ge 1 ]]; then
+        pass "IT-E2E-031a: Backup branch with '-backup-' in name created after restore"
+    else
+        fail "IT-E2E-031a: No backup branch found after restore"
+    fi
+
+    # ── IT-E2E-032: Verify restore — first version still present ─────────
+    log "IT-E2E-032: Verify first version present on default branch after restore"
+    local versions_after_restore restore_ver1_still_present
+    versions_after_restore=$(curl -s \
+        "${API_URL}/api/v1/databases/${db_id}/branches/${default_branch_id}/versions" \
+        -H "Authorization: Bearer ${api_key}")
+    restore_ver1_still_present=$(echo "$versions_after_restore" | jq -r \
+        --arg id "$restore_ver1_id" '.[] | select(.id == $id) | .id')
+
+    if [[ "$restore_ver1_still_present" == "$restore_ver1_id" ]]; then
+        pass "IT-E2E-032: Target version still present on default branch after restore"
+    else
+        fail "IT-E2E-032: Target version not found on default branch after restore"
+    fi
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  Main
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -673,6 +1025,7 @@ main() {
 
     test_single_tenant
     test_multi_tenant
+    test_branch_version
 
     echo ""
     echo "═══════════════════════════════════════════════════════════════"
