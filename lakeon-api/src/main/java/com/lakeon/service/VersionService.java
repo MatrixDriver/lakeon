@@ -79,7 +79,7 @@ public class VersionService {
         entity.setLsn(lsn);
         entity.setLsnHex(lsnHex);
         entity.setSnapshotTimelineId(snapshotTimelineId);
-        entity.setCreatedBy("api");
+        entity.setCreatedBy(tenant.getUsername() != null ? tenant.getUsername() : tenant.getName());
 
         entity = versionRepository.save(entity);
         log.info("Created version '{}' on branch {} at LSN {}", request.name(), branchId, lsnHex);
