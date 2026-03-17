@@ -914,6 +914,219 @@ public class AdminService {
         return result;
     }
 
+    // ── Elastic Node Pool ──
+
+    public Map<String, Object> getNodePoolStatus() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        var k8sConfig = props.getK8s();
+        result.put("pool_name", k8sConfig.getNodePoolName());
+        result.put("min_nodes", k8sConfig.getNodePoolMin());
+        result.put("max_nodes", k8sConfig.getNodePoolMax());
+        result.put("scale_down_unneeded_minutes", k8sConfig.getScaleDownUnneededMinutes());
+
+        try {
+            // Get compute-labeled nodes
+            var nodeSelector = k8sConfig.getComputeNodeSelector();
+            var nodeListBuilder = k8sClient.nodes();
+            io.fabric8.kubernetes.api.model.NodeList nodeList;
+            if (!nodeSelector.isEmpty()) {
+                var entry = nodeSelector.entrySet().iterator().next();
+                nodeList = k8sClient.nodes().withLabel(entry.getKey(), entry.getValue()).list();
+            } else {
+                nodeList = k8sClient.nodes().list();
+            }
+
+            // Metrics (optional)
+            Map<String, NodeMetrics> metricsMap = new java.util.HashMap<>();
+            try {
+                for (NodeMetrics nm : k8sClient.top().nodes().metrics().getItems()) {
+                    metricsMap.put(nm.getMetadata().getName(), nm);
+                }
+            } catch (Exception ignored) {}
+
+            // Count compute pods per node
+            String computeNs = k8sConfig.getNamespace();
+            Map<String, Integer> podCountPerNode = new java.util.HashMap<>();
+            Map<String, Instant> lastPodStartPerNode = new java.util.HashMap<>();
+            try {
+                var computePods = k8sClient.pods().inNamespace(computeNs).list().getItems();
+                for (var pod : computePods) {
+                    // Skip DaemonSet-owned pods
+                    boolean isDaemonSet = pod.getMetadata().getOwnerReferences() != null &&
+                        pod.getMetadata().getOwnerReferences().stream()
+                            .anyMatch(ref -> "DaemonSet".equals(ref.getKind()));
+                    if (isDaemonSet) continue;
+
+                    String nodeName = pod.getSpec().getNodeName();
+                    if (nodeName != null) {
+                        podCountPerNode.merge(nodeName, 1, Integer::sum);
+                        // Track last pod start time for idle estimation
+                        if (pod.getStatus() != null && pod.getStatus().getStartTime() != null) {
+                            try {
+                                Instant startTime = Instant.parse(pod.getStatus().getStartTime());
+                                lastPodStartPerNode.merge(nodeName, startTime,
+                                    (a, b) -> a.isAfter(b) ? a : b);
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+
+            double totalCpu = 0, totalMem = 0, usedCpu = 0, usedMem = 0;
+            int readyNodes = 0;
+            List<Map<String, Object>> nodeDetails = new ArrayList<>();
+
+            for (var k8sNode : nodeList.getItems()) {
+                String nodeName = k8sNode.getMetadata().getName();
+                Map<String, Object> node = new LinkedHashMap<>();
+                node.put("name", nodeName);
+
+                // Status
+                String status = "Unknown";
+                if (k8sNode.getStatus() != null && k8sNode.getStatus().getConditions() != null) {
+                    status = k8sNode.getStatus().getConditions().stream()
+                        .filter(c -> "Ready".equals(c.getType()))
+                        .findFirst()
+                        .map(c -> "True".equals(c.getStatus()) ? "Ready" : "NotReady")
+                        .orElse("Unknown");
+                }
+                node.put("status", status);
+                if ("Ready".equals(status)) readyNodes++;
+
+                // Capacity
+                double cpuCap = 0, memCap = 0;
+                if (k8sNode.getStatus() != null && k8sNode.getStatus().getCapacity() != null) {
+                    cpuCap = parseCpuQuantity(k8sNode.getStatus().getCapacity().get("cpu"));
+                    memCap = parseMemQuantity(k8sNode.getStatus().getCapacity().get("memory"));
+                }
+                node.put("cpu_total_cores", cpuCap);
+                node.put("mem_total_gb", Math.round(memCap / (1024.0 * 1024 * 1024) * 100) / 100.0);
+                totalCpu += cpuCap;
+                totalMem += memCap;
+
+                // Usage from metrics
+                NodeMetrics nm = metricsMap.get(nodeName);
+                if (nm != null) {
+                    double cpuUsed = parseCpuQuantity(nm.getUsage().get("cpu"));
+                    double memUsed = parseMemQuantity(nm.getUsage().get("memory"));
+                    node.put("cpu_used_cores", Math.round(cpuUsed * 1000) / 1000.0);
+                    node.put("cpu_percent", cpuCap > 0 ? Math.round(cpuUsed / cpuCap * 10000) / 100.0 : 0);
+                    node.put("mem_used_gb", Math.round(memUsed / (1024.0 * 1024 * 1024) * 100) / 100.0);
+                    node.put("mem_percent", memCap > 0 ? Math.round(memUsed / memCap * 10000) / 100.0 : 0);
+                    usedCpu += cpuUsed;
+                    usedMem += memUsed;
+                }
+
+                // Pod count and idle detection
+                int podCount = podCountPerNode.getOrDefault(nodeName, 0);
+                node.put("pod_count", podCount);
+                boolean idle = podCount == 0;
+                node.put("idle", idle);
+
+                if (idle) {
+                    // Estimate scale-down time: if no user pods, autoscaler will remove after scaleDownUnneededMinutes
+                    // We don't know exactly when it became idle, so show it as "eligible for scale-down"
+                    node.put("scale_down_eligible", true);
+                } else {
+                    node.put("scale_down_eligible", false);
+                }
+
+                nodeDetails.add(node);
+            }
+
+            result.put("current_nodes", nodeList.getItems().size());
+            result.put("ready_nodes", readyNodes);
+            result.put("total_cpu_cores", totalCpu);
+            result.put("total_mem_gb", Math.round(totalMem / (1024.0 * 1024 * 1024) * 100) / 100.0);
+            if (!metricsMap.isEmpty()) {
+                result.put("used_cpu_cores", Math.round(usedCpu * 1000) / 1000.0);
+                result.put("used_mem_gb", Math.round(usedMem / (1024.0 * 1024 * 1024) * 100) / 100.0);
+                result.put("cpu_percent", totalCpu > 0 ? Math.round(usedCpu / totalCpu * 10000) / 100.0 : 0);
+                result.put("mem_percent", totalMem > 0 ? Math.round(usedMem / totalMem * 10000) / 100.0 : 0);
+            }
+            result.put("nodes", nodeDetails);
+        } catch (Exception e) {
+            log.warn("Failed to get node pool status: {}", e.getMessage());
+            result.put("error", e.getMessage());
+        }
+        return result;
+    }
+
+    public Map<String, Object> getAutoscalingEvents() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        List<Map<String, Object>> eventList = new ArrayList<>();
+        int scaleUpCount24h = 0, scaleDownCount24h = 0;
+        String lastScaleUp = null, lastScaleDown = null;
+
+        try {
+            List<Event> events = k8sClient.v1().events().inNamespace("kube-system").list().getItems();
+            Instant cutoff = Instant.now().minus(48, ChronoUnit.HOURS);
+            Instant cutoff24h = Instant.now().minus(24, ChronoUnit.HOURS);
+
+            for (Event event : events) {
+                // Filter by cluster-autoscaler source
+                String component = null;
+                if (event.getSource() != null) component = event.getSource().getComponent();
+                if (event.getReportingComponent() != null && component == null) component = event.getReportingComponent();
+                if (component == null || !component.contains("cluster-autoscaler")) continue;
+
+                String reason = event.getReason();
+                if (reason == null) continue;
+                boolean isScaleEvent = reason.contains("ScaleUp") || reason.contains("ScaleDown") ||
+                    reason.contains("ScaledUp") || reason.contains("ScaleDownEmpty") ||
+                    reason.contains("ScaleDownCandidate") || reason.contains("RemovingNode") ||
+                    reason.contains("NodeRemoved");
+                if (!isScaleEvent) continue;
+
+                Instant eventTime = null;
+                String lastTimestamp = event.getLastTimestamp();
+                if (lastTimestamp != null && !lastTimestamp.isBlank()) {
+                    try { eventTime = Instant.parse(lastTimestamp); } catch (Exception ignored) {}
+                }
+                if (eventTime == null && event.getEventTime() != null) {
+                    try { eventTime = Instant.parse(event.getEventTime().getTime()); } catch (Exception ignored) {}
+                }
+                if (eventTime == null || eventTime.isBefore(cutoff)) continue;
+
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("type", event.getType());
+                entry.put("reason", reason);
+                entry.put("message", event.getMessage());
+                entry.put("object", event.getInvolvedObject() != null ? event.getInvolvedObject().getName() : "");
+                entry.put("last_time", eventTime.toString());
+                entry.put("count", event.getCount() != null ? event.getCount() : 1);
+                eventList.add(entry);
+
+                // 24h summary
+                if (!eventTime.isBefore(cutoff24h)) {
+                    if (reason.contains("Up") || reason.contains("ScaledUp")) {
+                        scaleUpCount24h++;
+                        if (lastScaleUp == null || eventTime.toString().compareTo(lastScaleUp) > 0)
+                            lastScaleUp = eventTime.toString();
+                    }
+                    if (reason.contains("Down") || reason.contains("Remov")) {
+                        scaleDownCount24h++;
+                        if (lastScaleDown == null || eventTime.toString().compareTo(lastScaleDown) > 0)
+                            lastScaleDown = eventTime.toString();
+                    }
+                }
+            }
+
+            eventList.sort((a, b) -> ((String) b.get("last_time")).compareTo((String) a.get("last_time")));
+        } catch (Exception e) {
+            log.warn("Failed to get autoscaling events: {}", e.getMessage());
+        }
+
+        result.put("events", eventList);
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("scale_up_count_24h", scaleUpCount24h);
+        summary.put("scale_down_count_24h", scaleDownCount24h);
+        summary.put("last_scale_up", lastScaleUp);
+        summary.put("last_scale_down", lastScaleDown);
+        result.put("summary", summary);
+        return result;
+    }
+
     private long percentile(List<Long> sorted, int p) {
         int index = (int) Math.ceil(p / 100.0 * sorted.size()) - 1;
         return sorted.get(Math.max(0, index));

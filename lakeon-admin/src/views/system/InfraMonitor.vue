@@ -4,6 +4,130 @@
       <h1 class="page-title">基础设施</h1>
     </div>
 
+    <!-- Elastic Node Pool -->
+    <div class="section-card">
+      <div class="section-header">
+        <h3>弹性节点池</h3>
+        <span v-if="pool" class="pool-name-tag">{{ pool.pool_name }}</span>
+      </div>
+      <div v-if="poolLoading" class="empty-text">加载中...</div>
+      <div v-else-if="!pool" class="empty-text">无法获取节点池信息</div>
+      <template v-else>
+        <!-- Pool Summary -->
+        <div class="pool-summary">
+          <div class="pool-gauge">
+            <div class="gauge-label">节点数</div>
+            <div class="gauge-bar">
+              <div class="gauge-segment"
+                v-for="i in pool.max_nodes" :key="i"
+                :class="{
+                  'seg-ready': i <= pool.ready_nodes,
+                  'seg-notready': i > pool.ready_nodes && i <= pool.current_nodes,
+                  'seg-empty': i > pool.current_nodes
+                }"
+              ></div>
+            </div>
+            <div class="gauge-text">
+              <span class="gauge-current">{{ pool.current_nodes }}</span>
+              <span class="gauge-range">/ {{ pool.max_nodes }}</span>
+              <span class="gauge-detail">（范围 {{ pool.min_nodes }}~{{ pool.max_nodes }}，就绪 {{ pool.ready_nodes }}）</span>
+            </div>
+          </div>
+          <div class="pool-resources" v-if="pool.cpu_percent !== undefined">
+            <div class="resource-row">
+              <span class="resource-label">CPU</span>
+              <div class="progress-bar">
+                <div class="progress-fill" :class="progressColor(pool.cpu_percent)" :style="{ width: pool.cpu_percent + '%' }"></div>
+              </div>
+              <span class="resource-value">{{ pool.cpu_percent }}%</span>
+              <span class="resource-detail">{{ pool.used_cpu_cores }} / {{ pool.total_cpu_cores }} cores</span>
+            </div>
+            <div class="resource-row">
+              <span class="resource-label">内存</span>
+              <div class="progress-bar">
+                <div class="progress-fill" :class="progressColor(pool.mem_percent)" :style="{ width: pool.mem_percent + '%' }"></div>
+              </div>
+              <span class="resource-value">{{ pool.mem_percent }}%</span>
+              <span class="resource-detail">{{ pool.used_mem_gb }} / {{ pool.total_mem_gb }} GB</span>
+            </div>
+          </div>
+          <div class="pool-resources" v-else>
+            <div class="resource-detail-row">
+              <span class="resource-label">CPU</span>
+              <span class="resource-cap">{{ pool.total_cpu_cores }} cores</span>
+              <span class="resource-label" style="margin-left:16px">内存</span>
+              <span class="resource-cap">{{ pool.total_mem_gb }} GB</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Per-node cards -->
+        <div class="pool-node-grid">
+          <div class="pool-node-card" v-for="node in pool.nodes" :key="node.name"
+            :class="{ 'node-idle': node.idle }">
+            <div class="pool-node-header">
+              <span class="node-name">{{ node.name }}</span>
+              <div class="pool-node-tags">
+                <span class="status-badge" :class="node.status === 'Ready' ? 'badge-ready' : 'badge-notready'">
+                  {{ node.status }}
+                </span>
+                <span v-if="node.idle" class="idle-badge">空闲</span>
+                <span v-if="node.scale_down_eligible" class="scaledown-hint">
+                  可缩容（{{ pool.scale_down_unneeded_minutes }}min 后）
+                </span>
+              </div>
+            </div>
+            <div class="pool-node-stats">
+              <span class="pool-node-pods">{{ node.pod_count }} 个 compute pod</span>
+            </div>
+            <template v-if="node.cpu_percent !== undefined">
+              <div class="resource-row">
+                <span class="resource-label">CPU</span>
+                <div class="progress-bar">
+                  <div class="progress-fill" :class="progressColor(node.cpu_percent)" :style="{ width: node.cpu_percent + '%' }"></div>
+                </div>
+                <span class="resource-value">{{ node.cpu_percent }}%</span>
+              </div>
+              <div class="resource-row">
+                <span class="resource-label">内存</span>
+                <div class="progress-bar">
+                  <div class="progress-fill" :class="progressColor(node.mem_percent)" :style="{ width: node.mem_percent + '%' }"></div>
+                </div>
+                <span class="resource-value">{{ node.mem_percent }}%</span>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- Autoscaling Events -->
+    <div class="section-card">
+      <div class="section-header">
+        <h3>弹性伸缩事件</h3>
+        <div class="autoscale-summary" v-if="autoscaleSummary">
+          <span class="as-stat as-up">24h 扩容 {{ autoscaleSummary.scale_up_count_24h }} 次</span>
+          <span class="as-stat as-down">24h 缩容 {{ autoscaleSummary.scale_down_count_24h }} 次</span>
+        </div>
+      </div>
+      <div v-if="autoscaleLoading" class="empty-text">加载中...</div>
+      <div v-else-if="!autoscaleEvents.length" class="empty-text">近48小时无伸缩事件</div>
+      <div class="timeline" v-else>
+        <div class="timeline-item" v-for="(event, idx) in autoscaleEvents" :key="idx">
+          <div class="timeline-dot" :class="isScaleUp(event.reason) ? 'dot-up' : 'dot-down'"></div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <span class="timeline-reason" :class="isScaleUp(event.reason) ? 'reason-up' : 'reason-down'">
+                {{ event.reason }}
+              </span>
+              <span class="timeline-time">{{ formatTime(event.last_time) }}</span>
+            </div>
+            <div class="timeline-message">{{ event.message }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Nodes -->
     <div class="section-card">
       <div class="section-header"><h3>节点状态</h3></div>
@@ -154,11 +278,62 @@ interface PodEvent {
   count: number
 }
 
+interface PoolNodeInfo {
+  name: string
+  status: string
+  cpu_total_cores: number
+  mem_total_gb: number
+  cpu_used_cores?: number
+  cpu_percent?: number
+  mem_used_gb?: number
+  mem_percent?: number
+  pod_count: number
+  idle: boolean
+  scale_down_eligible: boolean
+}
+
+interface NodePoolInfo {
+  pool_name: string
+  min_nodes: number
+  max_nodes: number
+  current_nodes: number
+  ready_nodes: number
+  total_cpu_cores: number
+  total_mem_gb: number
+  used_cpu_cores?: number
+  used_mem_gb?: number
+  cpu_percent?: number
+  mem_percent?: number
+  scale_down_unneeded_minutes: number
+  nodes: PoolNodeInfo[]
+}
+
+interface AutoscaleEvent {
+  type: string
+  reason: string
+  message: string
+  object: string
+  last_time: string
+  count: number
+}
+
+interface AutoscaleSummary {
+  scale_up_count_24h: number
+  scale_down_count_24h: number
+  last_scale_up: string | null
+  last_scale_down: string | null
+}
+
 const nodes = ref<NodeInfo[]>([])
 const pods = ref<PodInfo[]>([])
 const events = ref<PodEvent[]>([])
+const pool = ref<NodePoolInfo | null>(null)
+const autoscaleEvents = ref<AutoscaleEvent[]>([])
+const autoscaleSummary = ref<AutoscaleSummary | null>(null)
 const loading = ref(true)
 const eventsLoading = ref(true)
+const poolLoading = ref(true)
+const autoscaleLoading = ref(true)
 
 function progressColor(percent: number | undefined): string {
   if (percent == null) return 'fill-green'
@@ -180,6 +355,10 @@ function truncate(text: string, maxLen: number): string {
   return text.length > maxLen ? text.slice(0, maxLen) + '…' : text
 }
 
+function isScaleUp(reason: string): boolean {
+  return reason.includes('Up') || reason.includes('ScaledUp')
+}
+
 function formatTime(isoStr: string): string {
   if (!isoStr) return ''
   try {
@@ -194,29 +373,228 @@ function formatTime(isoStr: string): string {
 async function loadData() {
   loading.value = true
   eventsLoading.value = true
-  try {
-    const { data } = await adminApi.infraNodes()
-    nodes.value = data.nodes || []
-    pods.value = data.pods || []
-  } catch (e) {
-    console.error('Failed to load infra data', e)
-  } finally {
-    loading.value = false
+  poolLoading.value = true
+  autoscaleLoading.value = true
+
+  // Load all in parallel
+  const [infraRes, eventsRes, poolRes, asRes] = await Promise.allSettled([
+    adminApi.infraNodes(),
+    adminApi.infraEvents(),
+    adminApi.nodePoolStatus(),
+    adminApi.autoscalingEvents(),
+  ])
+
+  if (infraRes.status === 'fulfilled') {
+    nodes.value = infraRes.value.data.nodes || []
+    pods.value = infraRes.value.data.pods || []
   }
-  try {
-    const { data } = await adminApi.infraEvents()
-    events.value = data.events || []
-  } catch (e) {
-    console.error('Failed to load pod events', e)
-  } finally {
-    eventsLoading.value = false
+  loading.value = false
+
+  if (eventsRes.status === 'fulfilled') {
+    events.value = eventsRes.value.data.events || []
   }
+  eventsLoading.value = false
+
+  if (poolRes.status === 'fulfilled') {
+    pool.value = poolRes.value.data as NodePoolInfo
+  }
+  poolLoading.value = false
+
+  if (asRes.status === 'fulfilled') {
+    autoscaleEvents.value = asRes.value.data.events || []
+    autoscaleSummary.value = asRes.value.data.summary || null
+  }
+  autoscaleLoading.value = false
 }
 
 onMounted(() => { loadData() })
 </script>
 
 <style scoped>
+/* Pool Summary */
+.pool-summary {
+  margin-bottom: 20px;
+}
+.pool-name-tag {
+  background: #e6f7ff;
+  color: #096dd9;
+  padding: 2px 10px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.pool-gauge {
+  margin-bottom: 16px;
+}
+.gauge-label {
+  font-size: 13px;
+  color: #575d6c;
+  margin-bottom: 6px;
+}
+.gauge-bar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.gauge-segment {
+  flex: 1;
+  height: 28px;
+  border-radius: 4px;
+  transition: background 0.3s;
+}
+.seg-ready { background: #52c41a; }
+.seg-notready { background: #e37318; }
+.seg-empty { background: #e5e5e5; }
+.gauge-text {
+  font-size: 13px;
+  color: #575d6c;
+}
+.gauge-current {
+  font-size: 24px;
+  font-weight: 700;
+  color: #191919;
+}
+.gauge-range {
+  font-size: 16px;
+  color: #999;
+  margin-left: 2px;
+}
+.gauge-detail {
+  margin-left: 8px;
+  font-size: 13px;
+  color: #999;
+}
+.pool-resources {
+  margin-top: 12px;
+}
+
+/* Pool Node Grid */
+.pool-node-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.pool-node-card {
+  padding: 16px;
+  border: 1px solid #ebebeb;
+  border-radius: 6px;
+  background: #fafbfc;
+  transition: border-color 0.3s;
+}
+.pool-node-card.node-idle {
+  border-color: #faad14;
+  background: #fffbe6;
+}
+.pool-node-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pool-node-tags {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.idle-badge {
+  background: #fffbe6;
+  color: #d48806;
+  border: 1px solid #ffe58f;
+  padding: 1px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.scaledown-hint {
+  font-size: 11px;
+  color: #d48806;
+}
+.pool-node-stats {
+  font-size: 12px;
+  color: #575d6c;
+  margin-bottom: 10px;
+}
+.pool-node-pods {
+  font-weight: 500;
+}
+
+/* Autoscaling Timeline */
+.autoscale-summary {
+  display: flex;
+  gap: 16px;
+}
+.as-stat {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 2px 10px;
+  border-radius: 3px;
+}
+.as-up { background: #f6ffed; color: #389e0d; }
+.as-down { background: #e6f7ff; color: #096dd9; }
+
+.timeline {
+  position: relative;
+  padding-left: 24px;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: #e5e5e5;
+}
+.timeline-item {
+  position: relative;
+  padding-bottom: 20px;
+}
+.timeline-item:last-child {
+  padding-bottom: 0;
+}
+.timeline-dot {
+  position: absolute;
+  left: -20px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+}
+.dot-up { background: #52c41a; }
+.dot-down { background: #1890ff; }
+.timeline-content {
+  padding-left: 4px;
+}
+.timeline-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.timeline-reason {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 3px;
+}
+.reason-up { background: #f6ffed; color: #389e0d; }
+.reason-down { background: #e6f7ff; color: #096dd9; }
+.timeline-time {
+  font-size: 12px;
+  color: #999;
+}
+.timeline-message {
+  font-size: 12px;
+  color: #575d6c;
+  line-height: 1.5;
+}
+
+/* Original styles */
 .node-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
@@ -344,5 +722,6 @@ onMounted(() => { loadData() })
 @media (max-width: 768px) {
   .node-grid { grid-template-columns: 1fr; }
   .node-card { padding: 16px; }
+  .pool-node-grid { grid-template-columns: 1fr; }
 }
 </style>

@@ -51,6 +51,10 @@ lakeon:
     compute-cpu: ${LAKEON_COMPUTE_CPU:}
     compute-memory: ${LAKEON_COMPUTE_MEMORY:}
     compute-node-selector-raw: ${LAKEON_COMPUTE_NODE_SELECTOR:}
+    node-pool-name: ${LAKEON_NODE_POOL_NAME:dbay-compute-pool}
+    node-pool-min: ${LAKEON_NODE_POOL_MIN:1}
+    node-pool-max: ${LAKEON_NODE_POOL_MAX:5}
+    scale-down-unneeded-minutes: ${LAKEON_SCALE_DOWN_UNNEEDED_MINUTES:10}
   cloud:
     resource-ids: ${LAKEON_CLOUD_RESOURCE_IDS:}
   alert:

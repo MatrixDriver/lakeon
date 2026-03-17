@@ -385,6 +385,16 @@ public class AdminController {
         return result;
     }
 
+    @GetMapping("/infra/node-pool")
+    public Map<String, Object> getNodePoolStatus() {
+        return adminService.getNodePoolStatus();
+    }
+
+    @GetMapping("/infra/autoscaling-events")
+    public Map<String, Object> getAutoscalingEvents() {
+        return adminService.getAutoscalingEvents();
+    }
+
     @GetMapping("/infra/events")
     public Map<String, Object> getPodEvents(
             @RequestParam(defaultValue = "lakeon-compute") String namespace) {

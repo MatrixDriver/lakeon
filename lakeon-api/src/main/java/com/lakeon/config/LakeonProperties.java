@@ -103,6 +103,10 @@ public class LakeonProperties {
         private String computeMemory;
         private String computeNodeSelectorRaw;
         private java.util.Map<String, String> computeNodeSelector = java.util.Map.of();
+        private String nodePoolName = "dbay-compute-pool";
+        private int nodePoolMin = 1;
+        private int nodePoolMax = 5;
+        private int scaleDownUnneededMinutes = 10;
 
         public String getNamespace() { return namespace; }
         public void setNamespace(String namespace) { this.namespace = namespace; }
@@ -118,6 +122,15 @@ public class LakeonProperties {
         public void setComputeMemory(String computeMemory) { this.computeMemory = computeMemory; }
         public java.util.Map<String, String> getComputeNodeSelector() { return computeNodeSelector; }
         public void setComputeNodeSelector(java.util.Map<String, String> computeNodeSelector) { this.computeNodeSelector = computeNodeSelector; }
+        public String getNodePoolName() { return nodePoolName; }
+        public void setNodePoolName(String nodePoolName) { this.nodePoolName = nodePoolName; }
+        public int getNodePoolMin() { return nodePoolMin; }
+        public void setNodePoolMin(int nodePoolMin) { this.nodePoolMin = nodePoolMin; }
+        public int getNodePoolMax() { return nodePoolMax; }
+        public void setNodePoolMax(int nodePoolMax) { this.nodePoolMax = nodePoolMax; }
+        public int getScaleDownUnneededMinutes() { return scaleDownUnneededMinutes; }
+        public void setScaleDownUnneededMinutes(int scaleDownUnneededMinutes) { this.scaleDownUnneededMinutes = scaleDownUnneededMinutes; }
+
         public String getComputeNodeSelectorRaw() { return computeNodeSelectorRaw; }
         public void setComputeNodeSelectorRaw(String raw) {
             this.computeNodeSelectorRaw = raw;
