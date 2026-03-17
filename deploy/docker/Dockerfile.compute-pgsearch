@@ -1,32 +1,31 @@
-# Build pg_search v0.15.26 for Neon compute (Neon ABI compatible)
+# Neon compute + pg_search v0.22.0 (built from source with Neon ABI)
 #
-# v0.15.x uses Tantivy's own file format (not PG block storage),
-# which is compatible with Neon's SMGR. v0.21+ uses block storage
-# that triggers "zero LSN" PANIC on Neon pageserver.
+# Must compile with pgrx `unsafe-postgres` feature to match Neon's ABI.
+# pg_search v0.14+ uses PostgreSQL standard block storage API,
+# compatible with Neon's pagestore_smgr.
 #
-# Build context: ~/code/neon (with vendor/postgres-v17 submodule initialized)
+# Build context: ~/code/neon (with vendor/postgres-v17 submodule)
+# NOTE: temporarily remove "vendor" from .dockerignore before building
 #
 # Usage:
 #   cd ~/code/neon
-#   docker build -f ../lakeon/deploy/docker/Dockerfile.compute \
-#     -t swr.cn-north-4.myhuaweicloud.com/flex/compute-node-v17:dbay-v1 .
+#   docker build -f ../lakeon/deploy/docker/Dockerfile.compute-pgsearch \
+#     -t swr.cn-north-4.myhuaweicloud.com/flex/compute-node-v17:pg-search-v22 .
 
-# Stage 1: Build pg_search using Neon compute image as base
+# Stage 1: Build pg_search with Neon ABI
 FROM ghcr.io/neondatabase/compute-node-v17:latest AS builder
 
 USER root
 
-# Use Aliyun mirror for apt
 RUN find /etc/apt -name '*.sources' -o -name '*.list' | xargs -r sed -i 's|deb.debian.org|mirrors.aliyun.com|g'
 
-# Install build deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential curl ca-certificates pkg-config libssl-dev libclang-dev git \
     bison flex libreadline-dev zlib1g-dev libicu-dev libxml2-dev libxslt1-dev \
     liblz4-dev libzstd-dev libossp-uuid-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Compile PG from Neon source (for server headers that pgrx needs)
+# Compile PG from Neon source (pgrx needs server headers)
 COPY vendor/postgres-v17 /build/postgres
 COPY compute/patches/ /build/patches/
 WORKDIR /build/postgres
@@ -41,19 +40,19 @@ RUN patch -p1 < /build/patches/pg_stat_statements_pg17.patch && \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Install cargo-pgrx 0.14.3 (matching pg_search v0.15.26)
-RUN cargo install --locked --version 0.14.3 cargo-pgrx && \
+# Install cargo-pgrx 0.17.0 (matching pg_search v0.22.0)
+RUN cargo install --locked --version 0.17.0 cargo-pgrx && \
     cargo pgrx init --pg17=/usr/local/bin/pg_config
 
-# Download pg_search v0.15.26 (Neon Cloud verified version)
+# Download pg_search v0.22.0
 WORKDIR /build
-RUN curl -L https://github.com/paradedb/paradedb/archive/refs/tags/v0.15.26.tar.gz -o pg_search.tar.gz && \
+RUN curl -L https://github.com/paradedb/paradedb/archive/refs/tags/v0.22.0.tar.gz -o pg_search.tar.gz && \
     mkdir paradedb && tar xzf pg_search.tar.gz --strip-components=1 -C paradedb
 
 # Patch for Neon ABI compatibility (unsafe-postgres feature)
 WORKDIR /build/paradedb/pg_search
-RUN sed -i 's/pgrx.workspace = true/pgrx = { version = "=0.14.3", features = ["unsafe-postgres"] }/g' Cargo.toml && \
-    sed -i 's/pgrx-tests.workspace = true/pgrx-tests = "=0.14.3"/g' Cargo.toml && \
+RUN sed -i 's/pgrx.workspace = true/pgrx = { version = "=0.17.0", features = ["unsafe-postgres"] }/g' Cargo.toml && \
+    sed -i 's/pgrx-tests.workspace = true/pgrx-tests = "=0.17.0"/g' Cargo.toml && \
     cargo pgrx install --release
 
 # Stage 2: Copy into clean Neon image

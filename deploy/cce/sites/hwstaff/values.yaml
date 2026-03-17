@@ -35,7 +35,7 @@ neon:
     pullPolicy: IfNotPresent
   computeImage:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/compute-node-v17
-    tag: pg-search  # 自定义镜像：Neon compute + ParadeDB pg_search 0.21.15
+    tag: pg-search-v22  # pg_search 0.22.0 (Neon ABI compatible)
 
 api:
   replicas: 2
@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.5.14"
+    tag: "0.5.17"
   resources:
     requests:
       cpu: "100m"

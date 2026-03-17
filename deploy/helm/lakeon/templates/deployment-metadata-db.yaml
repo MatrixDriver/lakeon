@@ -17,6 +17,10 @@ spec:
       labels:
         app: metadata-db
     spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: postgres
           image: "{{ .Values.metadataDb.image.repository }}:{{ .Values.metadataDb.image.tag }}"

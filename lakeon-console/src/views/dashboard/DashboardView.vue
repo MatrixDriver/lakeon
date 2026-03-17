@@ -429,8 +429,8 @@ function updateStats() {
   stats.storageTotal = databases.value.reduce((sum, d) => sum + (d.storage_limit_gb || 0), 0)
 }
 
-async function fetchData() {
-  loading.value = true
+async function fetchData(showLoading = true) {
+  if (showLoading) loading.value = true
   try {
     const [dbRes, opsRes] = await Promise.all([
       databaseApi.list(),
@@ -538,7 +538,7 @@ async function handleDelete() {
 
 onMounted(() => {
   fetchData()
-  pollTimer = setInterval(fetchData, 15000)
+  pollTimer = setInterval(() => fetchData(false), 15000)
 })
 
 onUnmounted(() => {

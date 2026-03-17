@@ -173,6 +173,7 @@ public class DatabaseService {
             if (!ready) {
                 throw new RuntimeException("Compute pod " + entity.getComputePodName() + " not ready after 60s");
             }
+            enableDefaultExtensions(entity);
         } catch (Exception e) {
             // Rollback in a new transaction
             txTemplate.executeWithoutResult(status -> databaseRepository.delete(entity));
@@ -667,6 +668,31 @@ public class DatabaseService {
         if (allowedIps == null || allowedIps.isBlank()) return java.util.List.of();
         return java.util.Arrays.stream(allowedIps.split(","))
             .map(String::trim).filter(s -> !s.isEmpty()).toList();
+    }
+
+    private static final List<String> DEFAULT_EXTENSIONS = List.of("vector", "pg_search");
+
+    private void enableDefaultExtensions(DatabaseEntity entity) {
+        String host = entity.getComputeHost() != null ? entity.getComputeHost() : "proxy.lakeon.svc.cluster.local";
+        int port = entity.getComputePort() != 0 ? entity.getComputePort() : 55433;
+        String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + entity.getName()
+                + "?options=endpoint%3D" + entity.getName();
+        for (int attempt = 0; attempt < 5; attempt++) {
+            try (java.sql.Connection conn = java.sql.DriverManager.getConnection(jdbcUrl, "cloud_admin", "cloud-admin-internal");
+                 java.sql.Statement st = conn.createStatement()) {
+                for (String ext : DEFAULT_EXTENSIONS) {
+                    st.execute("CREATE EXTENSION IF NOT EXISTS \"" + ext + "\" CASCADE");
+                }
+                log.info("Enabled default extensions {} for database {}", DEFAULT_EXTENSIONS, entity.getName());
+                return;
+            } catch (java.sql.SQLException e) {
+                if (attempt == 4) {
+                    log.warn("Failed to enable default extensions for {}: {}", entity.getName(), e.getMessage());
+                } else {
+                    try { Thread.sleep(2000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); return; }
+                }
+            }
+        }
     }
 
     public String buildConnectionUri(String dbUser, String dbName) {

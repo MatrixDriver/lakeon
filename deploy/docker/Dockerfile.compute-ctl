@@ -1,0 +1,34 @@
+# Patch compute_ctl to ignore setrlimit failure via LD_PRELOAD
+# No Rust compilation needed — uses a tiny C shim
+#
+# Build context: lakeon project root
+#
+# Usage:
+#   docker build -f deploy/docker/Dockerfile.compute-ctl \
+#     -t swr.cn-north-4.myhuaweicloud.com/flex/compute-node-v17:dbay-ctl .
+
+FROM ghcr.io/neondatabase/compute-node-v17:latest
+
+USER root
+
+# Use Aliyun mirror
+RUN find /etc/apt -name '*.sources' -o -name '*.list' | xargs -r sed -i 's|deb.debian.org|mirrors.aliyun.com|g'
+
+# Install gcc for compiling the shim
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create a tiny C library that intercepts setrlimit and makes RLIMIT_CORE always succeed
+COPY deploy/docker/setrlimit_shim.c /tmp/setrlimit_shim.c
+RUN gcc -shared -fPIC -o /usr/local/lib/setrlimit_shim.so /tmp/setrlimit_shim.c -ldl && \
+    rm /tmp/setrlimit_shim.c
+
+# Remove gcc (not needed at runtime)
+RUN apt-get purge -y gcc libc6-dev && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+
+# Wrap compute_ctl to preload the shim
+RUN mv /usr/local/bin/compute_ctl /usr/local/bin/compute_ctl.orig && \
+    printf '#!/bin/sh\nexec env LD_PRELOAD=/usr/local/lib/setrlimit_shim.so /usr/local/bin/compute_ctl.orig "$@"\n' > /usr/local/bin/compute_ctl && \
+    chmod +x /usr/local/bin/compute_ctl
+
+USER postgres

@@ -11,19 +11,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.Base64;
-import java.util.List;
 
 /**
  * Periodically refreshes the SWR docker-registry secret in the compute namespace.
@@ -34,13 +27,10 @@ public class SwrSecretRefreshService {
 
     private static final Logger log = LoggerFactory.getLogger(SwrSecretRefreshService.class);
 
-    private static final String SWR_HOST = "swr.cn-north-4.myhuaweicloud.com";
-    private static final String SWR_REGION = "cn-north-4";
+    private static final String IAM_HOST = "iam.cn-north-4.myhuaweicloud.com";
+    private static final String SWR_API_HOST = "swr-api.cn-north-4.myhuaweicloud.com";
     private static final String SECRET_NAME = "swr-secret";
     private static final String SA_NAME = "default";
-
-    private static final DateTimeFormatter ISO_BASIC = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'");
-    private static final DateTimeFormatter DATE_SHORT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     private final LakeonProperties props;
     private final KubernetesClient k8sClient;
@@ -108,56 +98,53 @@ public class SwrSecretRefreshService {
 
     /**
      * Call SWR API to obtain a docker login token (docker config JSON).
+     * Step 1: Get IAM token using AK/SK
+     * Step 2: Call SWR API with IAM token
      */
     private String fetchSwrDockerConfig(String ak, String sk) {
         try {
-            Instant now = Instant.now();
-            String dateStamp = ISO_BASIC.format(now.atOffset(ZoneOffset.UTC));
-            String dateShort = DATE_SHORT.format(now.atOffset(ZoneOffset.UTC));
+            // Step 1: Get IAM token
+            String iamBody = String.format(
+                    "{\"auth\":{\"identity\":{\"methods\":[\"hw_ak_sk\"]," +
+                    "\"hw_ak_sk\":{\"access\":{\"key\":\"%s\"},\"secret\":{\"key\":\"%s\"}}}," +
+                    "\"scope\":{\"project\":{\"name\":\"cn-north-4\"}}}}", ak, sk);
 
-            String uri = "/v2/manage/utils/secret";
-            String body = "{}";
-
-            String signedHeaders = "host;x-sdk-date";
-            String canonicalHeaders = "host:" + SWR_HOST + "\n" + "x-sdk-date:" + dateStamp + "\n";
-            String payloadHash = sha256Hex(body);
-
-            String canonicalRequest = String.join("\n",
-                    "POST", uri, "", canonicalHeaders, signedHeaders, payloadHash);
-
-            String credentialScope = dateShort + "/" + SWR_REGION + "/swr/sdk_request";
-            String stringToSign = String.join("\n",
-                    "SDK-HMAC-SHA256", dateStamp, credentialScope,
-                    sha256Hex(canonicalRequest));
-
-            byte[] kDate = hmacSha256(("SDK" + sk).getBytes(StandardCharsets.UTF_8), dateShort);
-            byte[] kRegion = hmacSha256(kDate, SWR_REGION);
-            byte[] kService = hmacSha256(kRegion, "swr");
-            byte[] kSigning = hmacSha256(kService, "sdk_request");
-            String signature = hexEncode(hmacSha256(kSigning, stringToSign));
-
-            String authorization = String.format(
-                    "SDK-HMAC-SHA256 Credential=%s/%s, SignedHeaders=%s, Signature=%s",
-                    ak, credentialScope, signedHeaders, signature);
-
-            String url = "https://" + SWR_HOST + uri;
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .header("Host", SWR_HOST)
-                    .header("X-Sdk-Date", dateStamp)
-                    .header("Authorization", authorization)
+            HttpRequest iamRequest = HttpRequest.newBuilder()
+                    .uri(URI.create("https://" + IAM_HOST + "/v3/auth/tokens"))
                     .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .POST(HttpRequest.BodyPublishers.ofString(iamBody))
                     .build();
 
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            log.info("SwrSecretRefreshService: SWR API response HTTP {}", response.statusCode());
+            HttpResponse<String> iamResponse = httpClient.send(iamRequest, HttpResponse.BodyHandlers.ofString());
+            if (iamResponse.statusCode() != 201) {
+                log.error("SwrSecretRefreshService: IAM token request failed HTTP {} - {}",
+                        iamResponse.statusCode(), iamResponse.body());
+                return null;
+            }
 
-            if (response.statusCode() == 200) {
-                return response.body();
+            String iamToken = iamResponse.headers().firstValue("x-subject-token").orElse(null);
+            if (iamToken == null || iamToken.isBlank()) {
+                log.error("SwrSecretRefreshService: IAM response missing x-subject-token header");
+                return null;
+            }
+            log.info("SwrSecretRefreshService: obtained IAM token (length={})", iamToken.length());
+
+            // Step 2: Call SWR API with IAM token
+            HttpRequest swrRequest = HttpRequest.newBuilder()
+                    .uri(URI.create("https://" + SWR_API_HOST + "/v2/manage/utils/secret"))
+                    .header("Content-Type", "application/json")
+                    .header("X-Auth-Token", iamToken)
+                    .POST(HttpRequest.BodyPublishers.ofString("{}"))
+                    .build();
+
+            HttpResponse<String> swrResponse = httpClient.send(swrRequest, HttpResponse.BodyHandlers.ofString());
+            log.info("SwrSecretRefreshService: SWR API response HTTP {}", swrResponse.statusCode());
+
+            if (swrResponse.statusCode() == 200) {
+                return swrResponse.body();
             } else {
                 log.error("SwrSecretRefreshService: SWR API error HTTP {} - {}",
-                        response.statusCode(), response.body());
+                        swrResponse.statusCode(), swrResponse.body());
                 return null;
             }
         } catch (Exception e) {
@@ -217,32 +204,4 @@ public class SwrSecretRefreshService {
         }
     }
 
-    // --- Signing helpers (same pattern as CbcBillingService) ---
-
-    private static byte[] hmacSha256(byte[] key, String data) {
-        try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(key, "HmacSHA256"));
-            return mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static String sha256Hex(String data) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return hexEncode(digest.digest(data.getBytes(StandardCharsets.UTF_8)));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static String hexEncode(byte[] bytes) {
-        StringBuilder sb = new StringBuilder(bytes.length * 2);
-        for (byte b : bytes) {
-            sb.append(String.format("%02x", b));
-        }
-        return sb.toString();
-    }
 }
