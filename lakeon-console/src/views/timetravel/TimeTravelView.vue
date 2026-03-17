@@ -127,7 +127,7 @@
                   </div>
                   <div v-if="ver.description" class="version-desc">{{ ver.description }}</div>
                   <div class="version-meta-row">
-                    <code class="version-lsn">{{ ver.lsn }}</code>
+                    <code class="version-lsn">LSN {{ ver.lsn }}</code>
                     <span class="version-author">{{ ver.created_by }}</span>
                     <span class="version-ago">{{ timeAgo(ver.created_at) }}</span>
                   </div>
