@@ -22,6 +22,7 @@ const routes = [
       { path: 'databases', redirect: '/dashboard' },
       { path: 'databases/:id', name: 'DatabaseDetail', component: () => import('../views/database/DatabaseDetail.vue') },
       { path: 'databases/:id/manager', name: 'DatabaseManager', component: () => import('../views/database/DatabaseManager.vue') },
+      { path: 'timetravel', name: 'TimeTravel', component: () => import('../views/timetravel/TimeTravelView.vue') },
       { path: 'sql', name: 'SqlEditor', component: () => import('../views/sql/SqlEditorEntry.vue') },
       { path: 'import', name: 'Import', component: () => import('../views/import/ImportEntry.vue') },
       { path: 'monitor', name: 'Monitor', component: () => import('../views/monitor/MonitorView.vue') },

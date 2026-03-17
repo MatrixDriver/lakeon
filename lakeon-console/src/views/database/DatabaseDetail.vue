@@ -131,246 +131,20 @@
           <router-link :to="`/sql?db=${database.id}`" class="quick-link">
             <span class="quick-link-icon">→</span> 打开 SQL 编辑器
           </router-link>
+          <router-link :to="`/timetravel?db=${database.id}`" class="quick-link">
+            <span class="quick-link-icon">→</span> 时间旅行
+          </router-link>
         </div>
       </div>
 
       <!-- Tab 2: Branches -->
       <div v-if="activeTab === 'branches'" class="tab-content">
-        <div class="tab-toolbar">
-          <button class="btn btn-primary btn-small" @click="preselectedParentId = ''; showBranchDialog = true">创建分支</button>
+        <div class="tab-empty-redirect">
+          <p>在「时间旅行」页面管理分支和版本，查看版本差异，回滚到历史版本。</p>
+          <router-link :to="`/timetravel?db=${database.id}`" class="btn btn-primary">
+            前往时间旅行
+          </router-link>
         </div>
-        <p class="tab-tip">分支是数据库的 copy-on-write 快照，可用于开发测试、数据回滚等场景。创建分支几乎零开销，各分支数据完全隔离。「切换」会重启计算节点并指向目标分支。<router-link to="/docs#branches" class="tip-link">了解更多</router-link></p>
-
-        <!-- Branch List + Version Timeline Split Panel -->
-        <div class="branch-version-layout">
-          <!-- Left: Branch list -->
-          <div class="branch-list-panel">
-            <div class="branch-list-header">
-              <span class="branch-list-title">分支列表</span>
-              <button class="btn btn-small btn-text" @click="fetchBranches">刷新</button>
-            </div>
-            <div v-if="branchesLoading" class="branch-list-loading">加载中...</div>
-            <div v-else class="branch-list-items">
-              <div
-                v-for="branch in branches"
-                :key="branch.id"
-                class="branch-list-item"
-                :class="{ 'branch-list-item-selected': selectedBranchId === branch.id }"
-                @click="selectBranchForVersions(branch.id)"
-              >
-                <div class="branch-item-row">
-                  <span class="branch-status-dot" :class="isActiveBranch(branch) ? 'dot-green' : 'dot-gray'"></span>
-                  <span class="branch-item-name">{{ branch.name }}</span>
-                  <span v-if="branch.is_default" class="default-tag">默认</span>
-                  <span v-if="isActiveBranch(branch)" class="active-tag">活跃</span>
-                </div>
-                <div class="branch-item-meta">
-                  <span class="mono-text">{{ branch.last_record_lsn || '-' }}</span>
-                  <span>{{ formatSize(branch.current_logical_size_bytes) }}</span>
-                </div>
-                <div class="branch-item-actions" v-if="selectedBranchId === branch.id">
-                  <button
-                    v-if="!isActiveBranch(branch)"
-                    class="btn btn-small btn-text"
-                    :disabled="activatingBranch"
-                    @click.stop="handleActivateBranch(branch.id)"
-                  >切换</button>
-                  <button
-                    v-if="!branch.is_default"
-                    class="btn btn-small btn-text"
-                    @click.stop="handlePromoteBranch(branch.id)"
-                  >提升为默认</button>
-                  <button
-                    v-if="!branch.is_default"
-                    class="btn btn-small btn-text"
-                    @click.stop="handleDiffBranchVsDefault(branch.id)"
-                  >Diff vs 主干</button>
-                  <button
-                    v-if="!branch.is_default"
-                    class="btn btn-small btn-text btn-danger-text"
-                    @click.stop="handleDeleteBranch(branch.id)"
-                  >删除</button>
-                </div>
-              </div>
-            </div>
-            <div class="branch-list-footer">
-              <button class="btn btn-small btn-default" style="width: 100%;" @click="preselectedParentId = ''; showBranchDialog = true">+ 新建分支</button>
-            </div>
-          </div>
-
-          <!-- Right: Version timeline -->
-          <div class="version-timeline-panel">
-            <template v-if="selectedBranchId">
-              <div class="version-timeline-header">
-                <span class="version-timeline-title">
-                  {{ branches.find(b => b.id === selectedBranchId)?.name || '' }} - 版本历史
-                </span>
-                <div class="version-header-actions">
-                  <button
-                    v-if="!squashMode"
-                    class="btn btn-default btn-small"
-                    :disabled="versions.length < 3"
-                    :title="versions.length < 3 ? '需要至少 3 个版本才能合并' : ''"
-                    @click="enterSquashMode"
-                  >合并版本</button>
-                  <button v-if="squashMode" class="btn btn-default btn-small" @click="exitSquashMode">取消合并</button>
-                  <button class="btn btn-primary btn-small" @click="showVersionDialog = true">创建版本</button>
-                </div>
-              </div>
-              <div v-if="versionsLoading" class="version-timeline-loading">加载中...</div>
-              <div v-else-if="versions.length === 0" class="version-timeline-empty">
-                <p>暂无版本。点击「创建版本」保存当前数据库状态。</p>
-              </div>
-              <div v-else class="version-list">
-                <!-- Squash mode hint -->
-                <div v-if="squashMode" class="squash-hint">
-                  <template v-if="!squashFrom">点击选择起始版本</template>
-                  <template v-else-if="!squashTo">点击选择结束版本</template>
-                </div>
-                <div
-                  v-for="(ver, idx) in versions"
-                  :key="ver.id"
-                  class="version-item"
-                  :class="{
-                    'version-item-expanded': expandedVersionId === ver.id && !squashMode,
-                    'version-item-squash-range': squashMode && isVersionInSquashRange(ver),
-                    'version-item-squash-endpoint': squashMode && isSquashEndpoint(ver),
-                  }"
-                  @click="squashMode ? handleSquashVersionClick(ver) : undefined"
-                >
-                  <div class="version-timeline-dot-line">
-                    <span class="version-dot" :class="idx === 0 ? 'version-dot-latest' : ''"></span>
-                    <span v-if="idx < versions.length - 1" class="version-line"></span>
-                  </div>
-                  <div class="version-content" @click="!squashMode ? toggleVersionExpand(ver.id) : undefined">
-                    <div class="version-header-row">
-                      <span class="version-name" :class="{ 'version-name-strikethrough': squashMode && isVersionInSquashRange(ver) }">{{ ver.name }}</span>
-                      <span class="version-time">{{ timeAgo(ver.created_at) }}</span>
-                    </div>
-                    <div class="version-meta-row">
-                      <code class="version-lsn">{{ ver.lsn }}</code>
-                      <span class="version-author">{{ ver.created_by }}</span>
-                    </div>
-                    <div v-if="ver.description" class="version-desc">{{ ver.description }}</div>
-                    <div v-if="expandedVersionId === ver.id && !squashMode" class="version-actions">
-                      <button class="btn btn-small btn-text" @click.stop="handleRestoreToVersion(ver)">回滚到此版本</button>
-                      <button class="btn btn-small btn-danger-text" @click.stop="handleDeleteVersion(ver.id)">删除版本</button>
-                    </div>
-                  </div>
-                </div>
-                <!-- Squash confirm bar -->
-                <div v-if="squashMode && squashFrom && squashTo" class="squash-confirm-bar">
-                  <span class="squash-confirm-text">
-                    合并 {{ squashFrom.name }} 到 {{ squashTo.name }}，中间 {{ squashVersionsBetween }} 个版本将被删除
-                  </span>
-                  <div class="squash-confirm-actions">
-                    <button class="btn btn-default btn-small" @click="exitSquashMode">取消</button>
-                    <button
-                      class="btn btn-primary btn-small"
-                      :disabled="squashLoading || squashVersionsBetween < 1"
-                      @click="handleConfirmSquash"
-                    >{{ squashLoading ? '合并中...' : '确认合并' }}</button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Schema Diff overlay -->
-              <div v-if="showDiffView" class="diff-overlay">
-                <div class="diff-overlay-header">
-                  <span class="diff-overlay-title">Schema Diff: {{ diffSourceLabel }}</span>
-                  <button class="btn btn-small btn-default" @click="showDiffView = false">关闭</button>
-                </div>
-                <div v-if="diffLoading" class="diff-overlay-loading">加载中...</div>
-                <SchemaDiffView v-else-if="diffResult" :diff="diffResult" />
-              </div>
-            </template>
-            <div v-else class="version-timeline-placeholder">
-              <p>选择左侧分支查看版本历史</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Branch table (collapsed, for detailed view) -->
-        <details class="branch-table-details">
-          <summary class="branch-table-summary">分支详情表格</summary>
-          <div class="section-card" style="margin-top: 12px;">
-            <TableToolbar v-model="branchSearch" placeholder="搜索分支名称" :loading="branchesLoading" @refresh="fetchBranches" />
-            <div class="table-wrapper">
-              <table class="data-table" v-if="filteredBranches.length > 0">
-                <thead>
-                  <tr>
-                    <th>名称</th>
-                    <th>父分支</th>
-                    <th>LSN</th>
-                    <th>大小</th>
-                    <th>状态</th>
-                    <th>创建时间</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="branch in pagedBranches"
-                    :key="branch.id"
-                    :class="{ 'row-highlight': selectedBranchId === branch.id }"
-                  >
-                    <td>
-                      {{ branch.name }}
-                      <span v-if="branch.is_default" class="default-tag">默认</span>
-                      <span v-if="isActiveBranch(branch)" class="active-tag">活跃</span>
-                    </td>
-                    <td>{{ branch.parent_branch || '-' }}</td>
-                    <td class="mono-text">{{ branch.last_record_lsn || '-' }}</td>
-                    <td>{{ formatSize(branch.current_logical_size_bytes) }}</td>
-                    <td>{{ branch.status }}</td>
-                    <td>{{ formatDate(branch.created_at) }}</td>
-                    <td class="action-cell">
-                      <button
-                        v-if="!isActiveBranch(branch)"
-                        class="btn btn-small btn-text"
-                        :disabled="activatingBranch"
-                        @click="handleActivateBranch(branch.id)"
-                      >切换</button>
-                      <button
-                        v-if="!branch.is_default"
-                        class="btn btn-small btn-text btn-danger-text"
-                        @click="handleDeleteBranch(branch.id)"
-                      >删除</button>
-                      <span v-if="branch.is_default && isActiveBranch(branch)" class="text-muted">-</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-              <div v-else class="empty-state">
-                <p v-if="branchesLoading">加载中...</p>
-                <p v-else>暂无分支</p>
-              </div>
-            </div>
-            <TableFooter
-              v-if="filteredBranches.length > 0"
-              :total="filteredBranches.length"
-              v-model:pageSize="branchPageSize"
-              v-model:currentPage="branchCurrentPage"
-            />
-          </div>
-        </details>
-
-        <CreateBranchDialog
-          :visible="showBranchDialog"
-          :branches="branches"
-          :preselectedParentId="preselectedParentId"
-          :dbId="dbId"
-          @close="showBranchDialog = false"
-          @created="handleBranchCreated"
-        />
-
-        <CreateVersionDialog
-          :visible="showVersionDialog"
-          :dbId="dbId"
-          :branchId="selectedBranchId"
-          @close="showVersionDialog = false"
-          @created="handleVersionCreated"
-        />
       </div>
 
       <!-- Tab 3: Backups -->
@@ -793,19 +567,13 @@
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { databaseApi, type Database, type ConnectionsData } from '../../api/database'
-import { branchApi, type Branch, type BranchTreeNode } from '../../api/branch'
+import { branchApi, type Branch } from '../../api/branch'
 import { backupApi, type Backup } from '../../api/backup'
 import { dbuserApi, type DatabaseUser } from '../../api/dbuser'
 import CreateUserDialog from './CreateUserDialog.vue'
-import CreateBranchDialog from './CreateBranchDialog.vue'
-import CreateVersionDialog from './CreateVersionDialog.vue'
-// BranchTreeView removed — replaced by branch list + version timeline panel
 import TableToolbar from '../../components/TableToolbar.vue'
 import TableFooter from '../../components/TableFooter.vue'
 import { extensionApi, type ExtensionInfo, type ParameterInfo } from '../../api/extension'
-import { versionApi, type Version } from '../../api/version'
-import { diffApi, type SchemaDiffResponse } from '../../api/diff'
-import SchemaDiffView from '../../components/SchemaDiffView.vue'
 import { copyToClipboard } from '../../utils/clipboard'
 import { formatDate } from '../../utils/format'
 import { useToast } from '../../composables/useToast'
@@ -904,45 +672,9 @@ async function clearIps() {
   } catch { /* ignore */ }
 }
 
-// Branches
+// Branches (minimal — full management moved to TimeTravelView)
 const branches = ref<Branch[]>([])
 const branchesLoading = ref(false)
-const showBranchDialog = ref(false)
-const preselectedParentId = ref('')
-const branchSearch = ref('')
-const branchPageSize = ref(10)
-const branchCurrentPage = ref(1)
-const treeNodes = ref<BranchTreeNode[]>([])
-const activatingBranch = ref(false)
-
-// Versions
-const versions = ref<Version[]>([])
-const versionsLoading = ref(false)
-const showVersionDialog = ref(false)
-const expandedVersionId = ref('')
-const versionBranchId = ref('')
-
-// Schema Diff
-const showDiffView = ref(false)
-const diffLoading = ref(false)
-const diffResult = ref<SchemaDiffResponse | null>(null)
-const diffSourceLabel = ref('')
-
-// Squash mode
-const squashMode = ref(false)
-const squashFrom = ref<Version | null>(null)
-const squashTo = ref<Version | null>(null)
-const squashLoading = ref(false)
-
-const filteredBranches = computed(() => {
-  const q = branchSearch.value.toLowerCase()
-  if (!q) return branches.value
-  return branches.value.filter(b => b.name.toLowerCase().includes(q))
-})
-const pagedBranches = computed(() => {
-  const start = (branchCurrentPage.value - 1) * branchPageSize.value
-  return filteredBranches.value.slice(start, start + branchPageSize.value)
-})
 
 // Backups
 const backups = ref<Backup[]>([])
@@ -1097,21 +829,6 @@ async function handleResume() {
   }
 }
 
-const selectedBranchId = ref('')
-
-const activeBranchId = computed(() => {
-  if (!database.value) return ''
-  // The active branch is the one whose neon_timeline_id matches the database's current timeline
-  const dbTimelineId = database.value.neon_timeline_id
-  const active = branches.value.find(b => b.neon_timeline_id && b.neon_timeline_id === dbTimelineId)
-  // Fallback: default branch
-  return active?.id || branches.value.find(b => b.is_default)?.id || ''
-})
-
-function isActiveBranch(branch: Branch): boolean {
-  return branch.id === activeBranchId.value
-}
-
 function formatSize(bytes: number | null): string {
   if (bytes == null) return '-'
   if (bytes < 1024) return bytes + ' B'
@@ -1120,237 +837,17 @@ function formatSize(bytes: number | null): string {
   return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
 }
 
-// Branches
+// Branches (simplified — fetch only used by watcher)
 async function fetchBranches() {
   branchesLoading.value = true
   try {
-    const [listRes, treeRes] = await Promise.all([
-      branchApi.list(dbId.value),
-      branchApi.getTree(dbId.value),
-    ])
-    branches.value = listRes.data
-    treeNodes.value = treeRes.data.nodes
+    const res = await branchApi.list(dbId.value)
+    branches.value = res.data
   } catch (e) {
     console.error('Failed to load branches', e)
   } finally {
     branchesLoading.value = false
   }
-}
-
-function handleBranchCreated() {
-  fetchBranches()
-}
-
-async function handleActivateBranch(branchId: string) {
-  if (!confirm('确定要切换到该分支吗？当前计算节点将重启。')) return
-  activatingBranch.value = true
-  try {
-    await branchApi.activate(dbId.value, branchId)
-    await fetchDatabase()
-    await fetchBranches()
-  } catch (e) {
-    console.error('Failed to activate branch', e)
-  } finally {
-    activatingBranch.value = false
-  }
-}
-
-async function handleDeleteBranch(branchId: string) {
-  if (!confirm('确定要删除该分支吗？此操作不可恢复。')) return
-  try {
-    await branchApi.delete(dbId.value, branchId)
-    await fetchBranches()
-  } catch (e) {
-    console.error('Failed to delete branch', e)
-  }
-}
-
-// Versions
-async function fetchVersions(branchId: string) {
-  versionsLoading.value = true
-  versionBranchId.value = branchId
-  try {
-    const res = await versionApi.list(dbId.value, branchId)
-    versions.value = res.data
-  } catch (e) {
-    console.error('Failed to load versions', e)
-    versions.value = []
-  } finally {
-    versionsLoading.value = false
-  }
-}
-
-async function handleDeleteVersion(versionId: string) {
-  if (!confirm('确定要删除该版本吗？此操作不可恢复。')) return
-  try {
-    await versionApi.delete(dbId.value, versionBranchId.value, versionId)
-    await fetchVersions(versionBranchId.value)
-  } catch (e) {
-    console.error('Failed to delete version', e)
-  }
-}
-
-function handleVersionCreated() {
-  if (versionBranchId.value) {
-    fetchVersions(versionBranchId.value)
-  }
-}
-
-async function handlePromoteBranch(branchId: string) {
-  if (!confirm('确定要将此分支提升为默认分支吗？')) return
-  try {
-    await branchApi.promote(dbId.value, branchId)
-    await fetchDatabase()
-    await fetchBranches()
-    toast.success('分支已提升为默认分支')
-  } catch (e) {
-    console.error('Failed to promote branch', e)
-    toast.error('提升失败，请重试')
-  }
-}
-
-async function handleRestoreToVersion(version: Version) {
-  const branchName = branches.value.find(b => b.id === selectedBranchId.value)?.name || ''
-  if (!confirm(`将 ${branchName} 回滚到 ${version.name}？回滚前的状态将自动保存为备份分支。`)) return
-  try {
-    await branchApi.restore(dbId.value, selectedBranchId.value, { target_version_id: version.id })
-    toast.success('回滚成功')
-    await fetchBranches()
-    await fetchVersions(selectedBranchId.value)
-  } catch (e) {
-    console.error('Failed to restore to version', e)
-    toast.error('回滚失败，请重试')
-  }
-}
-
-async function handleDiffBranchVsDefault(branchId: string) {
-  const defaultBranch = branches.value.find(b => b.is_default)
-  if (!defaultBranch) {
-    toast.error('未找到默认分支')
-    return
-  }
-  if (branchId === defaultBranch.id) {
-    toast.error('该分支已是默认分支')
-    return
-  }
-  diffLoading.value = true
-  showDiffView.value = true
-  diffResult.value = null
-  const branchName = branches.value.find(b => b.id === branchId)?.name || ''
-  diffSourceLabel.value = `${branchName} vs ${defaultBranch.name}`
-  try {
-    const res = await diffApi.schema(dbId.value, 'branch', branchId, 'branch', defaultBranch.id)
-    diffResult.value = res.data
-  } catch (e: any) {
-    console.error('Failed to load diff', e)
-    const msg = e?.response?.data?.message || e?.response?.data?.error?.message || '获取差异失败'
-    toast.error(msg)
-    showDiffView.value = false
-  } finally {
-    diffLoading.value = false
-  }
-}
-
-// Squash
-function enterSquashMode() {
-  squashMode.value = true
-  squashFrom.value = null
-  squashTo.value = null
-}
-
-function exitSquashMode() {
-  squashMode.value = false
-  squashFrom.value = null
-  squashTo.value = null
-}
-
-function handleSquashVersionClick(ver: Version) {
-  if (!squashMode.value) return
-  if (!squashFrom.value) {
-    squashFrom.value = ver
-  } else if (!squashTo.value && ver.id !== squashFrom.value.id) {
-    squashTo.value = ver
-  } else {
-    // Reset selection
-    squashFrom.value = ver
-    squashTo.value = null
-  }
-}
-
-const squashVersionsBetween = computed(() => {
-  if (!squashFrom.value || !squashTo.value) return 0
-  const fromIdx = versions.value.findIndex(v => v.id === squashFrom.value!.id)
-  const toIdx = versions.value.findIndex(v => v.id === squashTo.value!.id)
-  if (fromIdx < 0 || toIdx < 0) return 0
-  const minIdx = Math.min(fromIdx, toIdx)
-  const maxIdx = Math.max(fromIdx, toIdx)
-  return maxIdx - minIdx - 1
-})
-
-function isVersionInSquashRange(ver: Version): boolean {
-  if (!squashFrom.value || !squashTo.value) return false
-  const fromIdx = versions.value.findIndex(v => v.id === squashFrom.value!.id)
-  const toIdx = versions.value.findIndex(v => v.id === squashTo.value!.id)
-  const verIdx = versions.value.findIndex(v => v.id === ver.id)
-  const minIdx = Math.min(fromIdx, toIdx)
-  const maxIdx = Math.max(fromIdx, toIdx)
-  return verIdx > minIdx && verIdx < maxIdx
-}
-
-function isSquashEndpoint(ver: Version): boolean {
-  if (!squashFrom.value && !squashTo.value) return false
-  return ver.id === squashFrom.value?.id || ver.id === squashTo.value?.id
-}
-
-async function handleConfirmSquash() {
-  if (!squashFrom.value || !squashTo.value) return
-  squashLoading.value = true
-  try {
-    // Ensure from is older (later in array = older) and to is newer
-    const fromIdx = versions.value.findIndex(v => v.id === squashFrom.value!.id)
-    const toIdx = versions.value.findIndex(v => v.id === squashTo.value!.id)
-    const fromId = fromIdx > toIdx ? squashFrom.value.id : squashTo.value.id
-    const toId = fromIdx > toIdx ? squashTo.value.id : squashFrom.value.id
-    await versionApi.squash(dbId.value, selectedBranchId.value, {
-      from_version_id: fromId,
-      to_version_id: toId,
-    })
-    toast.success('版本合并成功')
-    exitSquashMode()
-    await fetchVersions(selectedBranchId.value)
-  } catch (e) {
-    console.error('Failed to squash versions', e)
-    toast.error('合并失败，请重试')
-  } finally {
-    squashLoading.value = false
-  }
-}
-
-function selectBranchForVersions(branchId: string) {
-  selectedBranchId.value = branchId
-  expandedVersionId.value = ''
-  exitSquashMode()
-  showDiffView.value = false
-  fetchVersions(branchId)
-}
-
-function toggleVersionExpand(versionId: string) {
-  expandedVersionId.value = expandedVersionId.value === versionId ? '' : versionId
-}
-
-function timeAgo(dateStr: string): string {
-  const now = Date.now()
-  const then = new Date(dateStr).getTime()
-  const diff = now - then
-  const seconds = Math.floor(diff / 1000)
-  if (seconds < 60) return '刚刚'
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes} 分钟前`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} 小时前`
-  const days = Math.floor(hours / 24)
-  if (days < 30) return `${days} 天前`
-  return formatDate(dateStr)
 }
 
 // Backups
@@ -1600,7 +1097,6 @@ async function handleSaveParam(p: ParameterInfo) {
   } finally { paramSaving.value = false }
 }
 
-watch([branchSearch, branchPageSize], () => { branchCurrentPage.value = 1 })
 watch([backupSearch, backupPageSize], () => { backupCurrentPage.value = 1 })
 watch(activeTab, (tab) => {
   if (tab === 'branches' && branches.value.length === 0) fetchBranches()
@@ -1828,6 +1324,23 @@ onUnmounted(() => {
 
 .tab-toolbar {
   margin-bottom: 16px;
+}
+
+.tab-empty-redirect {
+  text-align: center;
+  padding: 48px 20px;
+  color: #575d6c;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.tab-empty-redirect p {
+  margin: 0 0 16px;
+}
+
+.tab-empty-redirect .btn {
+  display: inline-block;
+  text-decoration: none;
 }
 
 /* Info card */

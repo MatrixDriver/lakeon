@@ -67,6 +67,7 @@
         <nav class="sidebar-nav">
           <div class="nav-group">
             <router-link to="/dashboard" class="nav-item" active-class="active" @click="sidebarOpen = false">我的数据库</router-link>
+            <router-link to="/timetravel" class="nav-item" active-class="active" @click="sidebarOpen = false">时间旅行</router-link>
             <router-link to="/sql" class="nav-item" active-class="active" @click="sidebarOpen = false">SQL 编辑器</router-link>
             <router-link to="/import" class="nav-item" active-class="active" @click="sidebarOpen = false">数据迁移</router-link>
           </div>
