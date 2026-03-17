@@ -52,13 +52,28 @@ public class DiffService {
         }
         BranchEntity branch = branchRepository.findByIdAndDatabaseId(id, db.getId())
             .orElseThrow(() -> new NotFoundException("Branch not found: " + id));
-        if (branch.getComputeHost() == null) {
+
+        // Compute belongs to the database, not individual branches.
+        // Check if this branch is the currently active one (its timeline matches the database's active timeline).
+        // Also check if the branch itself has compute (for branches with their own compute pods).
+        String host;
+        Integer port;
+        if (branch.getComputeHost() != null) {
+            // Branch has its own compute pod
+            host = branch.getComputeHost();
+            port = branch.getComputePort();
+        } else if (branch.getNeonTimelineId() != null
+                   && branch.getNeonTimelineId().equals(db.getNeonTimelineId())
+                   && db.getComputeHost() != null) {
+            // Branch is the active one — use database's compute
+            host = db.getComputeHost();
+            port = db.getComputePort();
+        } else {
             throw new BadRequestException(
-                "Branch '" + branch.getName() + "' has no running compute. Start compute first.");
+                "分支「" + branch.getName() + "」没有运行中的计算节点。Schema Diff 需要两个分支都有计算节点。请先切换到该分支启动计算节点。");
         }
         return String.format("jdbc:postgresql://%s:%d/neondb?user=%s&password=%s",
-            branch.getComputeHost(), branch.getComputePort(),
-            db.getDbUser(), db.getDbPassword());
+            host, port, db.getDbUser(), db.getDbPassword());
     }
 
     private Map<String, List<ColumnInfo>> queryTables(String jdbcUrl) {
