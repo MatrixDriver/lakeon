@@ -27,6 +27,7 @@ const routes = [
       { path: 'import', name: 'Import', component: () => import('../views/import/ImportEntry.vue') },
       { path: 'monitor', name: 'Monitor', component: () => import('../views/monitor/MonitorView.vue') },
       { path: 'logs', name: 'LogManagement', component: () => import('../views/log-management/LogManagement.vue') },
+      { path: 'backups', name: 'BackupManagement', component: () => import('../views/backup/BackupManagement.vue') },
       { path: 'audit', redirect: '/logs' },
       { path: 'apikey', name: 'ApiKey', component: () => import('../views/apikey/ApiKeyView.vue') },
       { path: 'usage', name: 'Usage', component: () => import('../views/usage/UsageBillingView.vue') },

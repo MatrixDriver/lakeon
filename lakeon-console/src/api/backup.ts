@@ -25,6 +25,9 @@ export interface RestoreResult {
 }
 
 export const backupApi = {
+  listAll: () =>
+    client.get<Backup[]>('/backups'),
+
   create: (dbId: string, data: { name?: string }) =>
     client.post<Backup>(`/databases/${dbId}/backups`, data),
 

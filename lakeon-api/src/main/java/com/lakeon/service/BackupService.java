@@ -116,6 +116,12 @@ public class BackupService {
         return toResponse(backup);
     }
 
+    public List<BackupResponse> listAllBackups(TenantEntity tenant) {
+        return backupRepository.findByTenantIdOrderByCreatedAtDesc(tenant.getId()).stream()
+            .map(this::toResponse)
+            .toList();
+    }
+
     public List<BackupResponse> listBackups(TenantEntity tenant, String dbId) {
         // Validate database belongs to tenant
         databaseRepository.findByIdAndTenantId(dbId, tenant.getId())

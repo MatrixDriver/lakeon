@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/databases/{dbId}/backups")
+@RequestMapping("/api/v1")
 public class BackupController {
     private final BackupService backupService;
 
@@ -23,7 +23,13 @@ public class BackupController {
         this.backupService = backupService;
     }
 
-    @PostMapping
+    @GetMapping("/backups")
+    public List<BackupResponse> listAllBackups(HttpServletRequest req) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return backupService.listAllBackups(tenant);
+    }
+
+    @PostMapping("/databases/{dbId}/backups")
     @ResponseStatus(HttpStatus.CREATED)
     public BackupResponse createBackup(HttpServletRequest req,
                                        @PathVariable String dbId,
@@ -32,13 +38,13 @@ public class BackupController {
         return backupService.createBackup(tenant, dbId, request);
     }
 
-    @GetMapping
+    @GetMapping("/databases/{dbId}/backups")
     public List<BackupResponse> listBackups(HttpServletRequest req, @PathVariable String dbId) {
         TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
         return backupService.listBackups(tenant, dbId);
     }
 
-    @GetMapping("/{backupId}")
+    @GetMapping("/databases/{dbId}/backups/{backupId}")
     public BackupResponse getBackup(HttpServletRequest req,
                                     @PathVariable String dbId,
                                     @PathVariable String backupId) {
@@ -46,7 +52,7 @@ public class BackupController {
         return backupService.getBackup(tenant, dbId, backupId);
     }
 
-    @PostMapping("/{backupId}/restore")
+    @PostMapping("/databases/{dbId}/backups/{backupId}/restore")
     @ResponseStatus(HttpStatus.CREATED)
     public Map<String, String> restoreFromBackup(HttpServletRequest req,
                                                   @PathVariable String dbId,
@@ -61,7 +67,7 @@ public class BackupController {
         );
     }
 
-    @DeleteMapping("/{backupId}")
+    @DeleteMapping("/databases/{dbId}/backups/{backupId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteBackup(HttpServletRequest req,
                              @PathVariable String dbId,
