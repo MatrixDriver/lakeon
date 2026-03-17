@@ -474,7 +474,7 @@ const tabs = [
   { key: 'extensions', label: '扩展' },
   { key: 'parameters', label: '参数' },
   { key: 'connections', label: '活跃会话' },
-  { key: 'security', label: '安全' },
+  { key: 'security', label: '访问控制' },
 ]
 
 // Connections
