@@ -45,7 +45,7 @@
                 <span class="branch-status-dot" :class="isActiveBranch(branch) ? 'dot-green' : 'dot-gray'"></span>
                 <span class="branch-item-name">{{ branch.name }}</span>
                 <span v-if="branch.is_default" class="default-tag">默认</span>
-                <span v-if="isActiveBranch(branch)" class="active-tag">活跃</span>
+                <span v-if="isActiveBranch(branch)" class="active-tag">当前</span>
               </div>
               <div class="branch-item-meta">
                 <span class="mono-text">{{ branch.last_record_lsn || '-' }}</span>
@@ -190,7 +190,7 @@
                   <td>
                     {{ branch.name }}
                     <span v-if="branch.is_default" class="default-tag">默认</span>
-                    <span v-if="isActiveBranch(branch)" class="active-tag">活跃</span>
+                    <span v-if="isActiveBranch(branch)" class="active-tag">当前</span>
                   </td>
                   <td>{{ branch.parent_branch || '-' }}</td>
                   <td class="mono-text">{{ branch.last_record_lsn || '-' }}</td>
