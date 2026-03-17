@@ -1,0 +1,110 @@
+<h2>数据库详情页 — 版本与分支管理 UI</h2>
+<p class="subtitle">整体布局方案选择</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Tab 切换布局</h3>
+      <p>数据库详情页顶部 Tab 栏：<strong>概览 | 分支 | SQL 编辑器 | 设置</strong></p>
+      <p>「分支」Tab 内左侧为分支树，右侧为选中分支的版本时间线</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">数据库: my_app_db</div>
+        <div class="mockup-body" style="padding:0">
+          <div style="display:flex;border-bottom:2px solid #e4e8ee;padding:0 16px;background:#f7f8fa">
+            <div style="padding:12px 16px;color:#666">概览</div>
+            <div style="padding:12px 16px;border-bottom:2px solid #0052cc;color:#0052cc;font-weight:600;margin-bottom:-2px">分支</div>
+            <div style="padding:12px 16px;color:#666">SQL 编辑器</div>
+            <div style="padding:12px 16px;color:#666">设置</div>
+          </div>
+          <div style="display:flex;min-height:260px">
+            <div style="width:220px;border-right:1px solid #e4e8ee;padding:12px;background:#fafbfc">
+              <div style="font-size:11px;color:#999;text-transform:uppercase;margin-bottom:8px">分支</div>
+              <div style="padding:6px 8px;background:#e8f0fe;border-radius:4px;font-size:13px;margin-bottom:4px">🟢 main <span style="font-size:10px;color:#666">(default)</span></div>
+              <div style="padding:6px 8px;font-size:13px;margin-bottom:4px;color:#555">⚪ feature/new-schema</div>
+              <div style="padding:6px 8px;font-size:13px;color:#555">⚪ experiment/index-test</div>
+              <div style="margin-top:12px;padding:6px 8px;font-size:12px;color:#0052cc;cursor:pointer">+ 新建分支</div>
+            </div>
+            <div style="flex:1;padding:16px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <h3 style="margin:0;font-size:15px">main 版本历史</h3>
+                <div style="display:flex;gap:8px">
+                  <button class="mock-button" style="font-size:12px">创建版本</button>
+                  <button class="mock-button" style="font-size:12px;background:#f5f5f5;color:#333">草稿模式</button>
+                </div>
+              </div>
+              <div style="position:relative;padding-left:24px">
+                <div style="position:absolute;left:8px;top:8px;bottom:8px;width:2px;background:#e4e8ee"></div>
+                <div style="position:relative;margin-bottom:16px">
+                  <div style="position:absolute;left:-20px;top:4px;width:12px;height:12px;border-radius:50%;background:#0052cc;border:2px solid #fff;box-shadow:0 0 0 2px #0052cc"></div>
+                  <div style="font-size:13px;font-weight:600">v3 — 添加订单表</div>
+                  <div style="font-size:11px;color:#888">3 分钟前 · LSN 0/1A2B3C0 · user</div>
+                </div>
+                <div style="position:relative;margin-bottom:16px">
+                  <div style="position:absolute;left:-20px;top:4px;width:12px;height:12px;border-radius:50%;background:#ddd;border:2px solid #fff;box-shadow:0 0 0 2px #ddd"></div>
+                  <div style="font-size:13px">v2 — 用户表加索引</div>
+                  <div style="font-size:11px;color:#888">1 小时前 · LSN 0/18F0A20 · user</div>
+                </div>
+                <div style="position:relative;margin-bottom:16px">
+                  <div style="position:absolute;left:-20px;top:4px;width:12px;height:12px;border-radius:50%;background:#ddd;border:2px solid #fff;box-shadow:0 0 0 2px #ddd"></div>
+                  <div style="font-size:13px">v1 — 初始化</div>
+                  <div style="font-size:11px;color:#888">昨天 · LSN 0/1500000 · agent</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>侧边栏 + 主面板布局</h3>
+      <p>数据库级左侧常驻侧边栏展示分支树，主面板根据选中内容切换（版本历史/SQL 编辑器/Diff 视图）</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">数据库: my_app_db</div>
+        <div class="mockup-body" style="padding:0;display:flex;min-height:260px">
+          <div style="width:200px;border-right:1px solid #e4e8ee;background:#f7f8fa;padding:12px;display:flex;flex-direction:column">
+            <div style="font-size:11px;color:#999;text-transform:uppercase;margin-bottom:8px">分支</div>
+            <div style="padding:6px 8px;background:#e8f0fe;border-radius:4px;font-size:13px;margin-bottom:2px">main</div>
+            <div style="padding:6px 8px 6px 24px;font-size:12px;color:#555;margin-bottom:2px">↳ feature/new-schema</div>
+            <div style="padding:6px 8px 6px 24px;font-size:12px;color:#555;margin-bottom:2px">↳ experiment/index</div>
+            <div style="margin-top:auto;padding:6px 8px;font-size:12px;color:#0052cc">+ 新建分支</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column">
+            <div style="display:flex;border-bottom:1px solid #e4e8ee;padding:0 16px;background:#fff">
+              <div style="padding:10px 12px;border-bottom:2px solid #0052cc;color:#0052cc;font-size:13px;font-weight:600;margin-bottom:-1px">版本历史</div>
+              <div style="padding:10px 12px;font-size:13px;color:#666">SQL 编辑器</div>
+              <div style="padding:10px 12px;font-size:13px;color:#666">Diff</div>
+            </div>
+            <div style="flex:1;padding:16px">
+              <div style="font-size:13px;color:#888;margin-bottom:12px">main 分支 · 3 个版本</div>
+              <table style="width:100%;font-size:12px;border-collapse:collapse">
+                <tr style="border-bottom:1px solid #eee">
+                  <td style="padding:8px 4px;font-weight:600">v3</td>
+                  <td style="padding:8px 4px">添加订单表</td>
+                  <td style="padding:8px 4px;color:#888">3 分钟前</td>
+                  <td style="padding:8px 4px"><span style="color:#0052cc;font-size:11px;cursor:pointer">Diff</span> <span style="color:#0052cc;font-size:11px;cursor:pointer;margin-left:8px">回滚</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid #eee">
+                  <td style="padding:8px 4px">v2</td>
+                  <td style="padding:8px 4px">用户表加索引</td>
+                  <td style="padding:8px 4px;color:#888">1 小时前</td>
+                  <td style="padding:8px 4px"><span style="color:#0052cc;font-size:11px;cursor:pointer">Diff</span> <span style="color:#0052cc;font-size:11px;cursor:pointer;margin-left:8px">回滚</span></td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 4px">v1</td>
+                  <td style="padding:8px 4px">初始化</td>
+                  <td style="padding:8px 4px;color:#888">昨天</td>
+                  <td style="padding:8px 4px"><span style="color:#0052cc;font-size:11px;cursor:pointer">Diff</span> <span style="color:#0052cc;font-size:11px;cursor:pointer;margin-left:8px">回滚</span></td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

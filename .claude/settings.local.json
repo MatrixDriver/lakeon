@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__rawio__open_drawio_xml"
+    ]
+  }
+}

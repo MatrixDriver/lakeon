@@ -1,0 +1,131 @@
+# CCE Autopilot 测试集群配置
+#
+# 目标: 验证自定义 compute 镜像 (dbay-ctl) 在 AP 上端到端可用
+# AP 特点: 无 RDS 访问，使用内置 metadata-db + OBS 存储
+#
+# 部署:
+#   source deploy/cce/sites/hwstaff/.env
+#   KUBECONFIG=~/.kube/dbay-cceap-config \
+#   helm upgrade --install lakeon deploy/helm/lakeon \
+#     -f deploy/cce/sites/cceap/values.yaml \
+#     --set obs.accessKey=$HWCLOUD_AK --set obs.secretKey=$HWCLOUD_SK \
+#     -n lakeon --timeout 5m --no-hooks
+
+# ── SWR 镜像拉取凭证 (AP 自带 default-secret) ──────────────────
+global:
+  imagePullSecrets:
+    - name: default-secret
+
+# ── SWR 镜像地址 ───────────────────────────────────────────────
+initImage: "swr.cn-north-4.myhuaweicloud.com/flex/busybox:1.36"
+
+neon:
+  image:
+    repository: swr.cn-north-4.myhuaweicloud.com/flex/neon
+    tag: latest
+    pullPolicy: IfNotPresent
+  computeImage:
+    repository: swr.cn-north-4.myhuaweicloud.com/flex/compute-node-v17
+    tag: dbay-ctl   # 自定义镜像: LD_PRELOAD shim 绕过 setrlimit PANIC
+
+api:
+  replicas: 1
+  port: 8080
+  serviceType: ClusterIP
+  adminToken: "lakeon-ap-test"
+  ssl:
+    enabled: false
+  image:
+    repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
+    tag: "0.5.14"
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+
+# ── Neon 组件（单副本测试模式）──────────────────────────────────
+pageserver:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+
+safekeeper:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+
+storageBroker:
+  replicas: 1
+
+proxy:
+  replicas: 1
+  externalHost: "localhost"
+  serviceType: ClusterIP
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+# ── S3 存储 (MinIO in-cluster, AP 无法用虚拟主机风格访问 OBS) ──
+obs:
+  endpoint: "http://minio:9000"
+  bucket: "lakeon-neon"
+  region: "us-east-1"
+  accessKey: "minioadmin"
+  secretKey: "minioadmin"
+  usePathStyle: true
+
+# ── 内置 metadata-db（AP 无法访问 RDS）───────────────────────
+metadataDb:
+  enabled: true
+  host: "metadata-db"
+  port: 5432
+  name: "lakeon"
+  user: "lakeon"
+  password: "lakeon-ap-test"
+  image:
+    repository: swr.cn-north-4.myhuaweicloud.com/flex/postgres
+    tag: "15-alpine"
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+
+# ── MinIO (in-cluster S3) ─────────────────────────────────────
+minio:
+  enabled: true
+  image:
+    repository: swr.cn-north-4.myhuaweicloud.com/flex/minio
+    tag: latest
+  mcImage:
+    repository: swr.cn-north-4.myhuaweicloud.com/flex/mc
+    tag: latest
+  rootUser: "minioadmin"
+  rootPassword: "minioadmin"
+  bucket: "lakeon-neon"
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "128Mi"
+console:
+  enabled: false
+admin:
+  enabled: false
+nodeInit:
+  enabled: false

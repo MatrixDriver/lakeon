@@ -1,0 +1,35 @@
+[project]
+name = "mem0-dbay"
+version = "0.1.0"
+description = "PostgreSQL + pgvector graph store backend for Mem0 — powered by dbay.cloud"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "DBay", email = "hello@dbay.cloud"}
+]
+keywords = ["mem0", "graph", "pgvector", "postgresql", "dbay", "memory", "ai-agent"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "mem0ai>=0.1.0",
+    "psycopg2-binary>=2.9.0",
+    "pgvector>=0.3.0",
+    "rank_bm25>=0.2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "numpy>=1.24"]
+
+[project.urls]
+Homepage = "https://dbay.cloud"
+Repository = "https://github.com/aspect-build/mem0-dbay"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
