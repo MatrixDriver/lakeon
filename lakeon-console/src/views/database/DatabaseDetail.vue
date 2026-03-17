@@ -137,17 +137,7 @@
         </div>
       </div>
 
-      <!-- Tab 2: Branches -->
-      <div v-if="activeTab === 'branches'" class="tab-content">
-        <div class="tab-empty-redirect">
-          <p>在「时间旅行」页面管理分支和版本，查看版本差异，回滚到历史版本。</p>
-          <router-link :to="`/timetravel?db=${database.id}`" class="btn btn-primary">
-            前往时间旅行
-          </router-link>
-        </div>
-      </div>
-
-      <!-- Tab 3: Backups -->
+      <!-- Tab 2: Backups -->
       <div v-if="activeTab === 'backups'" class="tab-content">
         <div class="tab-toolbar">
           <button class="btn btn-primary btn-small" @click="showCreateBackupDialog = true">创建备份</button>
@@ -567,7 +557,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { databaseApi, type Database, type ConnectionsData } from '../../api/database'
-import { branchApi, type Branch } from '../../api/branch'
+// branch management moved to TimeTravelView
 import { backupApi, type Backup } from '../../api/backup'
 import { dbuserApi, type DatabaseUser } from '../../api/dbuser'
 import CreateUserDialog from './CreateUserDialog.vue'
@@ -592,7 +582,6 @@ const resettingPassword = ref(false)
 const activeTab = ref('info')
 const tabs = [
   { key: 'info', label: '基本信息' },
-  { key: 'branches', label: '分支' },
   { key: 'users', label: '用户' },
   { key: 'backups', label: '备份' },
   { key: 'extensions', label: '扩展' },
@@ -671,10 +660,6 @@ async function clearIps() {
     toast.success('白名单已清空')
   } catch { /* ignore */ }
 }
-
-// Branches (minimal — full management moved to TimeTravelView)
-const branches = ref<Branch[]>([])
-const branchesLoading = ref(false)
 
 // Backups
 const backups = ref<Backup[]>([])
@@ -835,19 +820,6 @@ function formatSize(bytes: number | null): string {
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
   if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
   return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
-}
-
-// Branches (simplified — fetch only used by watcher)
-async function fetchBranches() {
-  branchesLoading.value = true
-  try {
-    const res = await branchApi.list(dbId.value)
-    branches.value = res.data
-  } catch (e) {
-    console.error('Failed to load branches', e)
-  } finally {
-    branchesLoading.value = false
-  }
 }
 
 // Backups
@@ -1099,7 +1071,6 @@ async function handleSaveParam(p: ParameterInfo) {
 
 watch([backupSearch, backupPageSize], () => { backupCurrentPage.value = 1 })
 watch(activeTab, (tab) => {
-  if (tab === 'branches' && branches.value.length === 0) fetchBranches()
   if (tab === 'backups' && backups.value.length === 0) fetchBackups()
   if (tab === 'users' && dbUsers.value.length === 0) fetchUsers()
   if (tab === 'extensions' && extensions.value.length === 0) fetchExtensions()
