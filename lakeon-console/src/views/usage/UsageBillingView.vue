@@ -1,7 +1,7 @@
 <template>
   <div class="page-usage">
     <div class="page-header">
-      <h1 class="page-title">用量与计费</h1>
+      <h1 class="page-title">资源用量</h1>
       <div class="header-actions">
         <select v-model="billCycle" class="cycle-select" @change="fetchUsage">
           <option v-for="m in months" :key="m" :value="m">{{ m }}</option>
@@ -11,7 +11,7 @@
     </div>
 
     <p class="page-desc">
-      查看当前账期的计算用量、存储使用和预估费用。目前为免费公测阶段，所有用量均不产生实际费用。
+      查看当前账期的计算用量、存储使用和运行时长。
     </p>
 
     <!-- Summary Cards -->
@@ -31,29 +31,6 @@
         <div class="summary-label">运行时长</div>
         <div class="summary-sub">本月数据库累计运行</div>
       </div>
-      <div class="summary-card highlight">
-        <div class="summary-value">&yen;{{ formatCost(usage?.total_estimated_cost) }}</div>
-        <div class="summary-label">预估费用</div>
-        <div class="summary-sub free-tag">免费公测中</div>
-      </div>
-    </div>
-
-    <!-- Cost breakdown -->
-    <div class="cost-breakdown" v-if="usage">
-      <div class="cost-item">
-        <span class="cost-label">计算费用</span>
-        <span class="cost-value">&yen;{{ formatCost(usage.total_compute_cost) }}</span>
-      </div>
-      <span class="cost-plus">+</span>
-      <div class="cost-item">
-        <span class="cost-label">存储费用</span>
-        <span class="cost-value">&yen;{{ formatCost(usage.total_storage_cost) }}</span>
-      </div>
-      <span class="cost-eq">=</span>
-      <div class="cost-item cost-total">
-        <span class="cost-label">合计</span>
-        <span class="cost-value">&yen;{{ formatCost(usage.total_estimated_cost) }}</span>
-      </div>
     </div>
 
     <!-- Per-database breakdown -->
@@ -69,10 +46,7 @@
               <th>规格</th>
               <th>运行时长</th>
               <th>计算用量 (CU·h)</th>
-              <th>计算费用</th>
               <th>存储 (GB)</th>
-              <th>存储费用</th>
-              <th>合计</th>
             </tr>
           </thead>
           <tbody>
@@ -81,10 +55,7 @@
               <td>{{ db.compute_size }}</td>
               <td>{{ formatDuration(db.compute_seconds) }}</td>
               <td>{{ db.compute_cu_hours.toFixed(2) }}</td>
-              <td>&yen;{{ db.compute_cost.toFixed(2) }}</td>
               <td>{{ formatStorage(db.storage_used_gb) }}</td>
-              <td>&yen;{{ db.storage_cost.toFixed(2) }}</td>
-              <td class="td-total">&yen;{{ db.estimated_cost.toFixed(2) }}</td>
             </tr>
           </tbody>
         </table>
@@ -95,15 +66,13 @@
       </div>
     </div>
 
-    <!-- Pricing info -->
+    <!-- Metering info -->
     <div class="pricing-note">
-      <div class="note-title">计费说明</div>
+      <div class="note-title">计量说明</div>
       <ul>
-        <li>计算用量按数据库实际运行时间计费，挂起状态不计费</li>
+        <li>计算用量按数据库实际运行时间计量，挂起状态不计量</li>
         <li>1 CU = 1 vCPU + 4 GB 内存，按 CU·小时计量</li>
-        <li>存储用量按实际使用空间计费，包含数据和 WAL 日志，按 GB·月计量</li>
-        <li>存储费用 = 当前存储量 × 单价（即使数据库挂起，存储仍持续计费）</li>
-        <li>当前为免费公测阶段，所有用量均不收费</li>
+        <li>存储用量按实际使用空间计量，包含数据和 WAL 日志</li>
       </ul>
     </div>
   </div>
@@ -158,10 +127,6 @@ function generateMonths(): string[] {
 }
 
 function formatHours(v?: number): string {
-  return v != null ? v.toFixed(2) : '0.00'
-}
-
-function formatCost(v?: number): string {
   return v != null ? v.toFixed(2) : '0.00'
 }
 
@@ -231,7 +196,7 @@ onMounted(fetchUsage)
 
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 
@@ -242,20 +207,11 @@ onMounted(fetchUsage)
   padding: 20px;
 }
 
-.summary-card.highlight {
-  border-color: #0073e6;
-  background: #f0f7ff;
-}
-
 .summary-value {
   font-size: 28px;
   font-weight: 700;
   color: #191919;
   margin-bottom: 4px;
-}
-
-.summary-card.highlight .summary-value {
-  color: #0073e6;
 }
 
 .summary-label {
@@ -267,49 +223,6 @@ onMounted(fetchUsage)
 .summary-sub {
   font-size: 12px;
   color: #8a8e99;
-}
-
-.free-tag {
-  color: #52c41a;
-  font-weight: 500;
-}
-
-.cost-breakdown {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-top: 16px;
-  padding: 12px 20px;
-  background: #fafafa;
-  border: 1px solid #e5e5e5;
-  border-radius: 4px;
-}
-
-.cost-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.cost-label {
-  font-size: 13px;
-  color: #8a8e99;
-}
-
-.cost-value {
-  font-size: 15px;
-  font-weight: 600;
-  color: #333;
-}
-
-.cost-plus, .cost-eq {
-  font-size: 14px;
-  color: #8a8e99;
-}
-
-.cost-total .cost-value {
-  color: #0073e6;
-  font-size: 16px;
 }
 
 .section-header {
@@ -326,11 +239,6 @@ onMounted(fetchUsage)
 
 .td-name {
   font-weight: 500;
-}
-
-.td-total {
-  font-weight: 600;
-  color: #0073e6;
 }
 
 .pricing-note {
@@ -361,24 +269,13 @@ onMounted(fetchUsage)
 
 @media (max-width: 768px) {
   .summary-cards {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
   }
 
   .page-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
-  }
-
-  .cost-breakdown {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-}
-
-@media (max-width: 480px) {
-  .summary-cards {
-    grid-template-columns: 1fr;
   }
 }
 </style>

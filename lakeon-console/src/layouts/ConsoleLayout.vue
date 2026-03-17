@@ -81,7 +81,7 @@
           </div>
           <div class="nav-group">
             <div class="nav-group-title">账户</div>
-            <router-link to="/usage" class="nav-item" active-class="active" @click="sidebarOpen = false">用量与计费</router-link>
+            <router-link to="/usage" class="nav-item" active-class="active" @click="sidebarOpen = false">资源用量</router-link>
             <router-link to="/account" class="nav-item" active-class="active" @click="sidebarOpen = false">账户设置</router-link>
           </div>
           <div class="nav-group">

@@ -550,7 +550,7 @@
             <p class="doc-text">存储费用按实际数据占用空间计费，包含数据和 WAL 日志。按 GB·月计量，即使数据库处于挂起状态，存储也会持续计费。</p>
 
             <div class="doc-note">
-              可在<router-link to="/usage">用量与计费</router-link>页面查看详细的用量和费用明细。
+              可在<router-link to="/usage">资源用量</router-link>页面查看详细的用量明细。
             </div>
           </div>
         </div>
