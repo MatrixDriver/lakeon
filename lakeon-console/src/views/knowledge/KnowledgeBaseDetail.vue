@@ -129,7 +129,6 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const kbId = route.params.kbId as string
 
 interface Doc {
   id: string
@@ -201,8 +200,9 @@ async function handleSearch() {
 }
 
 onMounted(async () => {
-  // TODO: GET /api/v1/knowledge/bases/{kbId}
-  // TODO: GET /api/v1/knowledge/documents?kb_id={kbId}
+  const kbId = route.params.kbId as string
+  // TODO: GET /api/v1/knowledge/bases/${kbId}
+  // TODO: GET /api/v1/knowledge/documents?kb_id=${kbId}
 })
 </script>
 
