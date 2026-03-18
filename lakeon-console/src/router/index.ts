@@ -33,6 +33,11 @@ const routes = [
       { path: 'usage', name: 'Usage', component: () => import('../views/usage/UsageBillingView.vue') },
       { path: 'account', name: 'Account', component: () => import('../views/account/AccountSettingsView.vue') },
       { path: 'docs', name: 'Docs', component: () => import('../views/docs/DocsView.vue') },
+      // Knowledge
+      { path: 'knowledge', redirect: '/knowledge/documents' },
+      { path: 'knowledge/documents', name: 'KnowledgeDocuments', component: () => import('../views/knowledge/KnowledgeDocuments.vue') },
+      { path: 'knowledge/search', name: 'KnowledgeSearch', component: () => import('../views/knowledge/KnowledgeSearch.vue') },
+      { path: 'knowledge/jobs', name: 'KnowledgeJobs', component: () => import('../views/knowledge/KnowledgeJobs.vue') },
     ],
   },
 ]

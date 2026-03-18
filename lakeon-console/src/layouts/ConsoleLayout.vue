@@ -59,40 +59,77 @@
       <!-- Mobile sidebar overlay -->
       <div v-if="sidebarOpen" class="sidebar-overlay" @click="sidebarOpen = false"></div>
 
+      <!-- Icon Rail (方案 C) -->
+      <div class="icon-rail">
+        <div class="rail-icon" :class="{ active: activeRail === 'db' }" @click="switchRail('db')" title="数据库">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <ellipse cx="12" cy="6" rx="8" ry="3"/>
+            <path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/>
+            <path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/>
+          </svg>
+          <span class="rail-label">数据库</span>
+        </div>
+        <div class="rail-icon" :class="{ active: activeRail === 'kb' }" @click="switchRail('kb')" title="知识库">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            <line x1="9" y1="7" x2="17" y2="7"/>
+            <line x1="9" y1="11" x2="15" y2="11"/>
+          </svg>
+          <span class="rail-label">知识库</span>
+        </div>
+        <div class="rail-separator"></div>
+        <div class="rail-icon" :class="{ active: activeRail === 'settings' }" @click="switchRail('settings')" title="设置">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <span class="rail-label">设置</span>
+        </div>
+      </div>
+
       <!-- Left Sidebar -->
       <aside class="console-sidebar" :class="{ open: sidebarOpen }">
         <div class="sidebar-title">
-          <span>DBay 数据港湾</span>
+          <span>{{ railTitles[activeRail] }}</span>
         </div>
         <nav class="sidebar-nav">
-          <div class="nav-group">
-            <router-link to="/dashboard" class="nav-item" active-class="active" @click="sidebarOpen = false">我的数据库</router-link>
-            <router-link to="/timetravel" class="nav-item" active-class="active" @click="sidebarOpen = false">时间旅行</router-link>
-            <router-link to="/sql" class="nav-item" active-class="active" @click="sidebarOpen = false">SQL 编辑器</router-link>
-            <router-link to="/import" class="nav-item" active-class="active" @click="sidebarOpen = false">数据迁移</router-link>
-          </div>
-          <div class="nav-group">
-            <div class="nav-group-title">监控运维</div>
-            <router-link to="/monitor" class="nav-item" active-class="active" @click="sidebarOpen = false">监控面板</router-link>
-            <router-link to="/logs" class="nav-item" active-class="active" @click="sidebarOpen = false">日志管理</router-link>
-            <router-link to="/backups" class="nav-item" active-class="active" @click="sidebarOpen = false">备份管理</router-link>
-          </div>
-          <div class="nav-group">
-            <div class="nav-group-title">账户</div>
-            <router-link to="/apikey" class="nav-item" active-class="active" @click="sidebarOpen = false">API Key</router-link>
-            <router-link to="/usage" class="nav-item" active-class="active" @click="sidebarOpen = false">资源用量</router-link>
-            <router-link to="/account" class="nav-item" active-class="active" @click="sidebarOpen = false">账户设置</router-link>
-          </div>
-          <div class="nav-group">
-            <div class="nav-group-title">帮助</div>
-            <router-link to="/docs" class="nav-item" active-class="active" @click="sidebarOpen = false">使用指南</router-link>
-          </div>
+          <!-- 数据库菜单 -->
+          <template v-if="activeRail === 'db'">
+            <div class="nav-group">
+              <router-link to="/dashboard" class="nav-item" active-class="active" @click="sidebarOpen = false">我的数据库</router-link>
+              <router-link to="/timetravel" class="nav-item" active-class="active" @click="sidebarOpen = false">时间旅行</router-link>
+              <router-link to="/sql" class="nav-item" active-class="active" @click="sidebarOpen = false">SQL 编辑器</router-link>
+              <router-link to="/import" class="nav-item" active-class="active" @click="sidebarOpen = false">数据迁移</router-link>
+            </div>
+            <div class="nav-group">
+              <div class="nav-group-title">监控运维</div>
+              <router-link to="/monitor" class="nav-item" active-class="active" @click="sidebarOpen = false">监控面板</router-link>
+              <router-link to="/logs" class="nav-item" active-class="active" @click="sidebarOpen = false">日志管理</router-link>
+              <router-link to="/backups" class="nav-item" active-class="active" @click="sidebarOpen = false">备份管理</router-link>
+            </div>
+          </template>
+          <!-- 知识库菜单 -->
+          <template v-if="activeRail === 'kb'">
+            <div class="nav-group">
+              <router-link to="/knowledge/documents" class="nav-item" active-class="active" @click="sidebarOpen = false">文档管理</router-link>
+              <router-link to="/knowledge/search" class="nav-item" active-class="active" @click="sidebarOpen = false">知识搜索</router-link>
+              <router-link to="/knowledge/jobs" class="nav-item" active-class="active" @click="sidebarOpen = false">处理任务</router-link>
+            </div>
+          </template>
+          <!-- 设置菜单 -->
+          <template v-if="activeRail === 'settings'">
+            <div class="nav-group">
+              <router-link to="/apikey" class="nav-item" active-class="active" @click="sidebarOpen = false">API Key</router-link>
+              <router-link to="/usage" class="nav-item" active-class="active" @click="sidebarOpen = false">资源用量</router-link>
+              <router-link to="/account" class="nav-item" active-class="active" @click="sidebarOpen = false">账户设置</router-link>
+            </div>
+            <div class="nav-group">
+              <div class="nav-group-title">帮助</div>
+              <router-link to="/docs" class="nav-item" active-class="active" @click="sidebarOpen = false">使用指南</router-link>
+            </div>
+          </template>
         </nav>
-        <div class="sidebar-collapse">
-          <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
-            <path d="M10 12l-4-4 4-4"/>
-          </svg>
-        </div>
       </aside>
 
       <!-- Main Content -->
@@ -104,13 +141,48 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const sidebarOpen = ref(false)
+
+type RailKey = 'db' | 'kb' | 'settings'
+const activeRail = ref<RailKey>('db')
+
+const railTitles: Record<RailKey, string> = {
+  db: '数据库',
+  kb: '知识库',
+  settings: '设置',
+}
+
+const railDefaultRoutes: Record<RailKey, string> = {
+  db: '/dashboard',
+  kb: '/knowledge/documents',
+  settings: '/apikey',
+}
+
+function switchRail(rail: RailKey) {
+  if (activeRail.value !== rail) {
+    activeRail.value = rail
+    router.push(railDefaultRoutes[rail])
+  }
+  sidebarOpen.value = false
+}
+
+// Sync rail selection based on current route
+watch(() => route.path, (path) => {
+  if (path.startsWith('/knowledge')) {
+    activeRail.value = 'kb'
+  } else if (['/apikey', '/usage', '/account', '/docs'].some(p => path.startsWith(p))) {
+    activeRail.value = 'settings'
+  } else {
+    activeRail.value = 'db'
+  }
+}, { immediate: true })
 
 function handleLogout() {
   authStore.logout()
@@ -256,8 +328,57 @@ function handleLogout() {
   overflow: hidden;
 }
 
+/* Icon Rail */
+.icon-rail {
+  width: 52px;
+  background-color: #f5f6f8;
+  border-right: 1px solid #e5e5e5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.rail-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  gap: 2px;
+  color: #666;
+}
+
+.rail-icon:hover {
+  background-color: #e8eaed;
+  color: #333;
+}
+
+.rail-icon.active {
+  background-color: #0073e6;
+  color: #fff;
+}
+
+.rail-label {
+  font-size: 9px;
+  line-height: 1;
+}
+
+.rail-separator {
+  width: 28px;
+  height: 1px;
+  background-color: #d5d8dc;
+  margin: 6px 0;
+}
+
 .console-sidebar {
-  width: 220px;
+  width: 180px;
   background-color: #fff;
   border-right: 1px solid #e5e5e5;
   flex-shrink: 0;
@@ -324,18 +445,6 @@ function handleLogout() {
   background-color: transparent;
 }
 
-.sidebar-collapse {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 16px 12px;
-  color: #c2c6cc;
-  cursor: pointer;
-}
-
-.sidebar-collapse:hover {
-  color: #0073e6;
-}
 
 .console-main {
   flex: 1;
