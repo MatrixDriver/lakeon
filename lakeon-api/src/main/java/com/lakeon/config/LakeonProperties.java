@@ -25,6 +25,7 @@ public class LakeonProperties {
     private BackupConfig backup = new BackupConfig();
     private SyncConfig sync = new SyncConfig();
     private JobConfig job = new JobConfig();
+    private KnowledgeConfig knowledge = new KnowledgeConfig();
 
     public NeonConfig getNeon() { return neon; }
     public void setNeon(NeonConfig neon) { this.neon = neon; }
@@ -56,6 +57,8 @@ public class LakeonProperties {
     public void setSync(SyncConfig sync) { this.sync = sync; }
     public JobConfig getJob() { return job; }
     public void setJob(JobConfig job) { this.job = job; }
+    public KnowledgeConfig getKnowledge() { return knowledge; }
+    public void setKnowledge(KnowledgeConfig knowledge) { this.knowledge = knowledge; }
 
     public static class NeonConfig {
         private String pageserverUrl;
@@ -295,5 +298,18 @@ public class LakeonProperties {
         public void setCpu(String cpu) { this.cpu = cpu; }
         public String getMemory() { return memory; }
         public void setMemory(String memory) { this.memory = memory; }
+    }
+
+    public static class KnowledgeConfig {
+        private String embeddingServiceUrl = "http://embedding-svc.lakeon.svc.cluster.local:8000/embed";
+        private int presignExpireSeconds = 900;
+        private long maxFileSizeBytes = 104857600;
+
+        public String getEmbeddingServiceUrl() { return embeddingServiceUrl; }
+        public void setEmbeddingServiceUrl(String embeddingServiceUrl) { this.embeddingServiceUrl = embeddingServiceUrl; }
+        public int getPresignExpireSeconds() { return presignExpireSeconds; }
+        public void setPresignExpireSeconds(int presignExpireSeconds) { this.presignExpireSeconds = presignExpireSeconds; }
+        public long getMaxFileSizeBytes() { return maxFileSizeBytes; }
+        public void setMaxFileSizeBytes(long maxFileSizeBytes) { this.maxFileSizeBytes = maxFileSizeBytes; }
     }
 }

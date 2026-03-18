@@ -72,8 +72,12 @@ lakeon:
     max-tasks: ${LAKEON_SYNC_MAX_TASKS:10}
   defaults:
     compute-size: ${LAKEON_DEFAULT_COMPUTE_SIZE:1cu}
-    suspend-timeout: ${LAKEON_DEFAULT_SUSPEND_TIMEOUT:5m}
+    suspend-timeout: ${LAKEON_DEFAULT_SUSPEND_TIMEOUT:2m}
     storage-limit-gb: ${LAKEON_DEFAULT_STORAGE_LIMIT:10}
+  knowledge:
+    embedding-service-url: ${LAKEON_EMBEDDING_SERVICE_URL:http://embedding-svc.lakeon.svc.cluster.local:8000/embed}
+    presign-expire-seconds: ${LAKEON_KNOWLEDGE_PRESIGN_EXPIRE:900}
+    max-file-size-bytes: ${LAKEON_KNOWLEDGE_MAX_FILE_SIZE:104857600}
   job:
     timeout-minutes: ${LAKEON_JOB_TIMEOUT_MINUTES:30}
     pending-timeout-minutes: ${LAKEON_JOB_PENDING_TIMEOUT_MINUTES:5}
