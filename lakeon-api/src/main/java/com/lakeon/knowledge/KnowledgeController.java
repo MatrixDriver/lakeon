@@ -19,12 +19,53 @@ public class KnowledgeController {
         this.knowledgeService = knowledgeService;
     }
 
+    // ── Knowledge Base endpoints ─────────────────────────────────────
+
+    @PostMapping("/bases")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Map<String, Object> createKnowledgeBase(HttpServletRequest req,
+                                                   @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        String name = (String) body.get("name");
+        String description = (String) body.get("description");
+        if (name == null || name.isBlank()) {
+            throw new com.lakeon.service.exception.BadRequestException("name is required");
+        }
+        KnowledgeBaseEntity kb = knowledgeService.createKnowledgeBase(tenant, name, description);
+        return toKbResponse(kb);
+    }
+
+    @GetMapping("/bases")
+    public List<Map<String, Object>> listKnowledgeBases(HttpServletRequest req) {
+        TenantEntity tenant = getTenant(req);
+        return knowledgeService.listKnowledgeBases(tenant.getId()).stream()
+                .map(this::toKbResponse)
+                .toList();
+    }
+
+    @GetMapping("/bases/{id}")
+    public Map<String, Object> getKnowledgeBase(HttpServletRequest req, @PathVariable String id) {
+        TenantEntity tenant = getTenant(req);
+        KnowledgeBaseEntity kb = knowledgeService.getKnowledgeBase(tenant.getId(), id);
+        return toKbResponse(kb);
+    }
+
+    @DeleteMapping("/bases/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    public Map<String, Object> deleteKnowledgeBase(HttpServletRequest req, @PathVariable String id) {
+        TenantEntity tenant = getTenant(req);
+        KnowledgeBaseEntity kb = knowledgeService.deleteKnowledgeBase(tenant.getId(), id);
+        return toKbResponse(kb);
+    }
+
+    // ── Document endpoints ───────────────────────────────────────────
+
     @GetMapping("/upload-url")
     public Map<String, Object> getUploadUrl(HttpServletRequest req,
                                             @RequestParam("filename") String filename,
-                                            @RequestParam("database_id") String databaseId) {
+                                            @RequestParam("kb_id") String kbId) {
         TenantEntity tenant = getTenant(req);
-        return knowledgeService.generateUploadUrl(tenant, databaseId, filename);
+        return knowledgeService.generateUploadUrl(tenant, kbId, filename);
     }
 
     @PostMapping("/documents/{id}/process")
@@ -36,9 +77,10 @@ public class KnowledgeController {
 
     @GetMapping("/documents")
     public List<Map<String, Object>> listDocuments(HttpServletRequest req,
+                                                   @RequestParam(value = "kb_id", required = false) String kbId,
                                                    @RequestParam(value = "database_id", required = false) String databaseId) {
         TenantEntity tenant = getTenant(req);
-        return knowledgeService.listDocuments(tenant.getId(), databaseId).stream()
+        return knowledgeService.listDocuments(tenant.getId(), kbId, databaseId).stream()
                 .map(this::toDocumentResponse)
                 .toList();
     }
@@ -62,19 +104,19 @@ public class KnowledgeController {
     @SuppressWarnings("unchecked")
     public Map<String, Object> search(HttpServletRequest req, @RequestBody Map<String, Object> body) {
         TenantEntity tenant = getTenant(req);
-        String databaseId = (String) body.get("database_id");
+        String kbId = (String) body.get("kb_id");
         String query = (String) body.get("query");
         int topK = body.containsKey("top_k") ? ((Number) body.get("top_k")).intValue() : 5;
         List<String> documentIds = (List<String>) body.get("document_ids");
 
-        if (databaseId == null || databaseId.isBlank()) {
-            throw new com.lakeon.service.exception.BadRequestException("database_id is required");
+        if (kbId == null || kbId.isBlank()) {
+            throw new com.lakeon.service.exception.BadRequestException("kb_id is required");
         }
         if (query == null || query.isBlank()) {
             throw new com.lakeon.service.exception.BadRequestException("query is required");
         }
 
-        List<Map<String, Object>> results = knowledgeService.search(tenant.getId(), databaseId, query, topK, documentIds);
+        List<Map<String, Object>> results = knowledgeService.search(tenant.getId(), kbId, query, topK, documentIds);
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("results", results);
@@ -88,10 +130,26 @@ public class KnowledgeController {
         return (TenantEntity) req.getAttribute("tenant");
     }
 
+    private Map<String, Object> toKbResponse(KnowledgeBaseEntity kb) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("id", kb.getId());
+        map.put("tenant_id", kb.getTenantId());
+        map.put("name", kb.getName());
+        map.put("description", kb.getDescription());
+        map.put("database_id", kb.getDatabaseId());
+        map.put("status", kb.getStatus() != null ? kb.getStatus().name() : null);
+        map.put("document_count", kb.getDocumentCount());
+        map.put("error", kb.getError());
+        map.put("created_at", kb.getCreatedAt() != null ? kb.getCreatedAt().toString() : null);
+        map.put("updated_at", kb.getUpdatedAt() != null ? kb.getUpdatedAt().toString() : null);
+        return map;
+    }
+
     private Map<String, Object> toDocumentResponse(DocumentEntity doc) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", doc.getId());
         map.put("tenant_id", doc.getTenantId());
+        map.put("kb_id", doc.getKbId());
         map.put("database_id", doc.getDatabaseId());
         map.put("filename", doc.getFilename());
         map.put("format", doc.getFormat());

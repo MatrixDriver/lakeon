@@ -11,6 +11,7 @@ import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.repository.DatabaseRepository;
+import com.lakeon.service.DatabaseService;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
 import org.slf4j.Logger;
@@ -45,36 +46,191 @@ public class KnowledgeService {
     private static final Logger log = LoggerFactory.getLogger(KnowledgeService.class);
 
     private final DocumentRepository documentRepository;
+    private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final JobService jobService;
     private final LakeonProperties props;
     private final DatabaseRepository databaseRepository;
     private final ComputePodManager computePodManager;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
+    private final DatabaseService databaseService;
 
     public KnowledgeService(DocumentRepository documentRepository,
+                            KnowledgeBaseRepository knowledgeBaseRepository,
                             JobService jobService,
                             LakeonProperties props,
                             DatabaseRepository databaseRepository,
                             ComputePodManager computePodManager,
-                            ObjectMapper objectMapper) {
+                            ObjectMapper objectMapper,
+                            DatabaseService databaseService) {
         this.documentRepository = documentRepository;
+        this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.jobService = jobService;
         this.props = props;
         this.databaseRepository = databaseRepository;
         this.computePodManager = computePodManager;
         this.objectMapper = objectMapper;
+        this.databaseService = databaseService;
         this.restTemplate = new RestTemplate();
     }
 
+    // ── Knowledge Base CRUD ──────────────────────────────────────────
+
     /**
-     * Generate a presigned PUT URL for uploading a document to OBS.
+     * Create a KnowledgeBase and provision a hidden database for it.
+     * The database name is derived from the KB id after @PrePersist.
      */
     @Transactional
-    public Map<String, Object> generateUploadUrl(TenantEntity tenant, String databaseId, String filename) {
-        // Validate database belongs to tenant
-        DatabaseEntity db = databaseRepository.findByIdAndTenantId(databaseId, tenant.getId())
-                .orElseThrow(() -> new NotFoundException("Database not found: " + databaseId));
+    public KnowledgeBaseEntity createKnowledgeBase(TenantEntity tenant, String name, String description) {
+        if (name == null || name.isBlank()) {
+            throw new BadRequestException("name is required");
+        }
+
+        KnowledgeBaseEntity kb = new KnowledgeBaseEntity();
+        kb.setTenantId(tenant.getId());
+        kb.setName(name);
+        kb.setDescription(description);
+        kb.setStatus(KnowledgeBaseStatus.CREATING);
+        kb.setDocumentCount(0);
+        knowledgeBaseRepository.save(kb);
+
+        // Provision a hidden database via DatabaseService asynchronously.
+        // For MVP, we create the database record directly using DatabaseService.create()
+        // on a separate thread so we don't block the HTTP response.
+        // The KB id is available after save (generated in @PrePersist).
+        String kbId = kb.getId();
+        String internalDbName = "kb_" + kbId.replace("-", "").toLowerCase();
+
+        // Spawn async provisioning in a background thread
+        Thread t = new Thread(() -> provisionKbDatabase(kbId, tenant, internalDbName),
+                "kb-provision-" + kbId);
+        t.setDaemon(true);
+        t.start();
+
+        return kb;
+    }
+
+    /**
+     * Asynchronously provisions the hidden database for a KB.
+     * Updates KB status to READY or FAILED when done.
+     */
+    private void provisionKbDatabase(String kbId, TenantEntity tenant, String dbName) {
+        try {
+            log.info("Provisioning hidden database '{}' for knowledge base {}", dbName, kbId);
+
+            com.lakeon.model.dto.CreateDatabaseRequest req = new com.lakeon.model.dto.CreateDatabaseRequest(
+                    dbName,
+                    props.getDefaults().getComputeSize(),
+                    props.getDefaults().getSuspendTimeout(),
+                    props.getDefaults().getStorageLimitGb()
+            );
+            com.lakeon.model.dto.DatabaseResponse dbResp = databaseService.create(tenant, req);
+
+            // Poll until the DB is RUNNING (max 5 min)
+            String dbId = dbResp.getId();
+            long deadline = System.currentTimeMillis() + 5 * 60 * 1000L;
+            DatabaseStatus lastStatus = DatabaseStatus.CREATING;
+            while (System.currentTimeMillis() < deadline) {
+                DatabaseEntity dbEntity = databaseRepository.findById(dbId).orElse(null);
+                if (dbEntity == null) break;
+                lastStatus = dbEntity.getStatus();
+                if (lastStatus == DatabaseStatus.RUNNING) {
+                    // Update KB to READY
+                    knowledgeBaseRepository.findById(kbId).ifPresent(kb -> {
+                        kb.setDatabaseId(dbId);
+                        kb.setStatus(KnowledgeBaseStatus.READY);
+                        knowledgeBaseRepository.save(kb);
+                    });
+                    log.info("Knowledge base {} is READY (database {})", kbId, dbId);
+                    return;
+                }
+                if (lastStatus == DatabaseStatus.ERROR) break;
+                try { Thread.sleep(2000); } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+
+            // If we reach here, provisioning failed
+            String errorMsg = "Database provisioning failed or timed out (last status: " + lastStatus + ")";
+            log.error("Knowledge base {} failed: {}", kbId, errorMsg);
+            knowledgeBaseRepository.findById(kbId).ifPresent(kb -> {
+                kb.setStatus(KnowledgeBaseStatus.FAILED);
+                kb.setError(errorMsg);
+                knowledgeBaseRepository.save(kb);
+            });
+
+        } catch (Exception e) {
+            log.error("Failed to provision database for knowledge base {}: {}", kbId, e.getMessage(), e);
+            knowledgeBaseRepository.findById(kbId).ifPresent(kb -> {
+                kb.setStatus(KnowledgeBaseStatus.FAILED);
+                kb.setError(e.getMessage());
+                knowledgeBaseRepository.save(kb);
+            });
+        }
+    }
+
+    public List<KnowledgeBaseEntity> listKnowledgeBases(String tenantId) {
+        return knowledgeBaseRepository.findAllByTenantIdOrderByCreatedAtDesc(tenantId);
+    }
+
+    public KnowledgeBaseEntity getKnowledgeBase(String tenantId, String kbId) {
+        return knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+    }
+
+    @Transactional
+    public KnowledgeBaseEntity deleteKnowledgeBase(String tenantId, String kbId) {
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+
+        // Delete all documents in this KB (OBS files, jobs, chunks)
+        List<DocumentEntity> docs = documentRepository.findAllByKbId(kbId);
+        for (DocumentEntity doc : docs) {
+            try {
+                deleteDocument(tenantId, doc.getId());
+            } catch (Exception e) {
+                log.warn("Failed to delete document {} during KB deletion: {}", doc.getId(), e.getMessage());
+            }
+        }
+
+        // Delete the hidden database (best-effort)
+        if (kb.getDatabaseId() != null) {
+            try {
+                DatabaseEntity dbEntity = databaseRepository.findById(kb.getDatabaseId()).orElse(null);
+                if (dbEntity != null) {
+                    TenantEntity tenantRef = new TenantEntity();
+                    tenantRef.setId(tenantId);
+                    databaseService.delete(tenantRef, kb.getDatabaseId());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to delete hidden database {} for KB {}: {}", kb.getDatabaseId(), kbId, e.getMessage());
+            }
+        }
+
+        knowledgeBaseRepository.delete(kb);
+        return kb;
+    }
+
+    // ── Document operations (updated to use kbId) ───────────────────
+
+    /**
+     * Generate a presigned PUT URL for uploading a document to OBS.
+     * Accepts kbId; resolves the underlying databaseId from the KB.
+     */
+    @Transactional
+    public Map<String, Object> generateUploadUrl(TenantEntity tenant, String kbId, String filename) {
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenant.getId())
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+
+        if (kb.getStatus() != KnowledgeBaseStatus.READY) {
+            throw new BadRequestException("Knowledge base is not ready. Current status: " + kb.getStatus());
+        }
+
+        String databaseId = kb.getDatabaseId();
+        if (databaseId == null) {
+            throw new BadRequestException("Knowledge base has no backing database");
+        }
 
         // Detect format from extension
         String format = detectFormat(filename);
@@ -86,13 +242,14 @@ public class KnowledgeService {
         DocumentEntity doc = new DocumentEntity();
         doc.setTenantId(tenant.getId());
         doc.setDatabaseId(databaseId);
+        doc.setKbId(kbId);
         doc.setFilename(filename);
         doc.setFormat(format);
         doc.setStatus(DocumentStatus.PENDING);
         documentRepository.save(doc);
 
         // Generate OBS key
-        String obsKey = "knowledge/" + tenant.getId() + "/" + doc.getId() + "/" + filename;
+        String obsKey = "knowledge/" + tenant.getId() + "/" + kbId + "/" + doc.getId() + "/" + filename;
 
         // Generate presigned PUT URL
         int expireSeconds = props.getKnowledge().getPresignExpireSeconds();
@@ -171,9 +328,12 @@ public class KnowledgeService {
     }
 
     /**
-     * List documents, optionally filtered by databaseId.
+     * List documents, optionally filtered by kbId (preferred) or databaseId (legacy).
      */
-    public List<DocumentEntity> listDocuments(String tenantId, String databaseId) {
+    public List<DocumentEntity> listDocuments(String tenantId, String kbId, String databaseId) {
+        if (kbId != null && !kbId.isBlank()) {
+            return documentRepository.findAllByTenantIdAndKbIdOrderByCreatedAtDesc(tenantId, kbId);
+        }
         if (databaseId != null && !databaseId.isBlank()) {
             return documentRepository.findAllByTenantIdAndDatabaseIdOrderByCreatedAtDesc(tenantId, databaseId);
         }
@@ -207,17 +367,19 @@ public class KnowledgeService {
         }
 
         // Delete chunks from user PG (best-effort)
-        try {
-            String connstr = resolveComputeConnstr(doc.getDatabaseId(), tenantId);
-            String jdbcUrl = connstrToJdbc(connstr);
-            try (Connection conn = DriverManager.getConnection(jdbcUrl, "cloud_admin", "cloud-admin-internal");
-                 PreparedStatement ps = conn.prepareStatement("DELETE FROM knowledge_chunks WHERE document_id = ?")) {
-                ps.setString(1, documentId);
-                int deleted = ps.executeUpdate();
-                log.info("Deleted {} chunks for document {}", deleted, documentId);
+        if (doc.getDatabaseId() != null) {
+            try {
+                String connstr = resolveComputeConnstr(doc.getDatabaseId(), tenantId);
+                String jdbcUrl = connstrToJdbc(connstr);
+                try (Connection conn = DriverManager.getConnection(jdbcUrl, "cloud_admin", "cloud-admin-internal");
+                     PreparedStatement ps = conn.prepareStatement("DELETE FROM knowledge_chunks WHERE document_id = ?")) {
+                    ps.setString(1, documentId);
+                    int deleted = ps.executeUpdate();
+                    log.info("Deleted {} chunks for document {}", deleted, documentId);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to delete chunks for document {}: {}", documentId, e.getMessage());
             }
-        } catch (Exception e) {
-            log.warn("Failed to delete chunks for document {}: {}", documentId, e.getMessage());
         }
 
         // Delete from metadata DB
@@ -228,15 +390,27 @@ public class KnowledgeService {
 
     /**
      * Hybrid search: vector + BM25 with Reciprocal Rank Fusion.
+     * Accepts kbId; resolves the underlying databaseId from the KB.
      */
     @SuppressWarnings("unchecked")
-    public List<Map<String, Object>> search(String tenantId, String databaseId, String query,
+    public List<Map<String, Object>> search(String tenantId, String kbId, String query,
                                             int topK, List<String> documentIds) {
         if (query == null || query.isBlank()) {
             throw new BadRequestException("Query must not be empty");
         }
         if (topK <= 0) topK = 5;
         if (topK > 50) topK = 50;
+
+        // Resolve databaseId from KB
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+        if (kb.getStatus() != KnowledgeBaseStatus.READY) {
+            throw new BadRequestException("Knowledge base is not ready. Current status: " + kb.getStatus());
+        }
+        String databaseId = kb.getDatabaseId();
+        if (databaseId == null) {
+            throw new BadRequestException("Knowledge base has no backing database");
+        }
 
         // Get query embedding from embedding service
         List<Double> embedding = getQueryEmbedding(query);
@@ -318,7 +492,7 @@ public class KnowledgeService {
                 }
             }
         } catch (Exception e) {
-            log.error("Search failed for database {}: {}", databaseId, e.getMessage(), e);
+            log.error("Search failed for kb {}: {}", kbId, e.getMessage(), e);
             throw new RuntimeException("Search failed: " + e.getMessage(), e);
         }
 
@@ -346,6 +520,14 @@ public class KnowledgeService {
                     }
                 }
                 documentRepository.save(doc);
+
+                // Increment KB document count
+                if (doc.getKbId() != null) {
+                    knowledgeBaseRepository.findById(doc.getKbId()).ifPresent(kb -> {
+                        kb.setDocumentCount((kb.getDocumentCount() == null ? 0 : kb.getDocumentCount()) + 1);
+                        knowledgeBaseRepository.save(kb);
+                    });
+                }
             } else if (job.getStatus() == JobStatus.FAILED) {
                 doc.setStatus(DocumentStatus.FAILED);
                 doc.setError(job.getError());

@@ -8,6 +8,7 @@ import java.util.UUID;
 @Table(name = "documents", indexes = {
     @Index(name = "idx_documents_tenant_id", columnList = "tenant_id"),
     @Index(name = "idx_documents_database_id", columnList = "database_id"),
+    @Index(name = "idx_documents_kb_id", columnList = "kb_id"),
     @Index(name = "idx_documents_status", columnList = "status")
 })
 public class DocumentEntity {
@@ -21,6 +22,9 @@ public class DocumentEntity {
 
     @Column(name = "database_id", nullable = false, length = 64)
     private String databaseId;
+
+    @Column(name = "kb_id", length = 32)
+    private String kbId;
 
     @Column(name = "filename", nullable = false, length = 256)
     private String filename;
@@ -77,6 +81,9 @@ public class DocumentEntity {
 
     public String getDatabaseId() { return databaseId; }
     public void setDatabaseId(String databaseId) { this.databaseId = databaseId; }
+
+    public String getKbId() { return kbId; }
+    public void setKbId(String kbId) { this.kbId = kbId; }
 
     public String getFilename() { return filename; }
     public void setFilename(String filename) { this.filename = filename; }
