@@ -11,6 +11,7 @@ import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.model.entity.VersionEntity;
 import com.lakeon.model.enums.BranchStatus;
+import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.model.enums.BranchType;
 import com.lakeon.neon.NeonApiClient;
 import com.lakeon.neon.dto.CreateTimelineRequest;
@@ -263,9 +264,15 @@ public class BranchService {
         target.setIsDefault(true);
         branchRepository.save(target);
 
-        // Update database active timeline — no compute rebuild needed,
-        // each branch owns its own compute lifecycle
+        // Update database entity: timeline + compute fields sync to promoted branch
         db.setNeonTimelineId(target.getNeonTimelineId());
+        db.setComputePodName(target.getComputePodName());
+        db.setComputeHost(target.getComputeHost());
+        db.setComputePort(target.getComputePort() != null ? target.getComputePort() : 0);
+        // If promoted branch has no running compute, mark DB as suspended so wakeCompute works
+        if (target.getComputeStatus() == null || target.getComputeStatus() == com.lakeon.model.enums.ComputeStatus.SUSPENDED) {
+            db.setStatus(DatabaseStatus.SUSPENDED);
+        }
         databaseRepository.save(db);
 
         return toResponse(target);
