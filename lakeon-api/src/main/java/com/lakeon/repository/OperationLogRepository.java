@@ -34,6 +34,8 @@ public interface OperationLogRepository extends JpaRepository<OperationLogEntity
 
     // Admin: stats
     List<OperationLogEntity> findByStartedAtAfter(Instant after);
+    List<OperationLogEntity> findByOperationTypeAndStatusAndStartedAtAfter(
+            OperationType type, OperationStatus status, Instant after);
     List<OperationLogEntity> findByOperationTypeInAndStatusAndDurationMsNotNull(
             List<OperationType> types, OperationStatus status);
 }

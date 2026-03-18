@@ -704,27 +704,44 @@ public class AdminService {
         }
         result.put("api", api);
 
-        // Compute metrics
+        // Compute metrics (from operation_logs, persistent across restarts)
         Map<String, Object> compute = new LinkedHashMap<>();
-        io.micrometer.core.instrument.Gauge activePods = meterRegistry.find("lakeon_compute_pods_active").gauge();
-        compute.put("active_pods", activePods != null ? (int) activePods.value() : 0);
-        Timer wakeupTimer = meterRegistry.find("lakeon_compute_wakeup_seconds").timer();
-        if (wakeupTimer != null && wakeupTimer.count() > 0) {
-            compute.put("wakeup_p50_ms", Math.round(wakeupTimer.mean(java.util.concurrent.TimeUnit.MILLISECONDS)));
-        } else {
-            compute.put("wakeup_p50_ms", 0);
+        Instant since24h = Instant.now().minus(24, ChronoUnit.HOURS);
+        List<OperationLogEntity> resumeOps = operationLogRepository
+            .findByOperationTypeAndStatusAndStartedAtAfter(
+                com.lakeon.model.enums.OperationType.RESUME,
+                com.lakeon.model.enums.OperationStatus.SUCCESS, since24h);
+
+        long warmCount = 0, coldCount = 0, warmTotalMs = 0, coldTotalMs = 0;
+        for (OperationLogEntity op : resumeOps) {
+            if ("WARM".equals(op.getResumeType())) {
+                warmCount++;
+                if (op.getDurationMs() != null) warmTotalMs += op.getDurationMs();
+            } else {
+                coldCount++;
+                if (op.getDurationMs() != null) coldTotalMs += op.getDurationMs();
+            }
         }
-        // Warm/cold wake breakdown
-        Timer warmTimer = meterRegistry.find("lakeon_compute_wakeup_seconds").tag("path", "warm").timer();
-        Timer coldTimer = meterRegistry.find("lakeon_compute_wakeup_seconds").tag("path", "cold").timer();
-        compute.put("warm_wake_count", warmTimer != null ? (int) warmTimer.count() : 0);
-        compute.put("warm_wake_avg_ms", warmTimer != null && warmTimer.count() > 0
-            ? Math.round(warmTimer.mean(java.util.concurrent.TimeUnit.MILLISECONDS)) : 0);
-        compute.put("cold_wake_count", coldTimer != null ? (int) coldTimer.count() : 0);
-        compute.put("cold_wake_avg_ms", coldTimer != null && coldTimer.count() > 0
-            ? Math.round(coldTimer.mean(java.util.concurrent.TimeUnit.MILLISECONDS)) : 0);
-        io.micrometer.core.instrument.Counter failCounter = meterRegistry.find("lakeon_compute_wakeup_failures_total").counter();
-        compute.put("wakeup_failures", failCounter != null ? (int) failCounter.count() : 0);
+        compute.put("warm_wake_count", warmCount);
+        compute.put("warm_wake_avg_ms", warmCount > 0 ? warmTotalMs / warmCount : 0);
+        compute.put("cold_wake_count", coldCount);
+        compute.put("cold_wake_avg_ms", coldCount > 0 ? coldTotalMs / coldCount : 0);
+
+        // Wakeup failures (last 24h)
+        long failCount = operationLogRepository
+            .findByOperationTypeAndStatusAndStartedAtAfter(
+                com.lakeon.model.enums.OperationType.RESUME,
+                com.lakeon.model.enums.OperationStatus.FAILED, since24h).size();
+        compute.put("wakeup_failures", failCount);
+
+        // Active compute pods (from K8s)
+        try {
+            String computeNs = props.getK8s().getNamespace();
+            int podCount = k8sClient.pods().inNamespace(computeNs).list().getItems().size();
+            compute.put("active_pods", podCount);
+        } catch (Exception e) {
+            compute.put("active_pods", 0);
+        }
         result.put("compute", compute);
 
         // Database stats
