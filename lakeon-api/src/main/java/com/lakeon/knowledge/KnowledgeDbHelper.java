@@ -51,7 +51,9 @@ public class KnowledgeDbHelper {
             throw new BadRequestException("Knowledge base has no backing database");
         }
         // Use KB's stored plaintext password (proxy auth needs plaintext, not SCRAM hash)
-        return resolveComputeConnstr(databaseId, tenantId, kb.getDbPassword());
+        String kbPass = kb.getDbPassword();
+        System.err.println("[KB-DEBUG] kbId=" + kbId + " dbId=" + databaseId + " kbPass=" + (kbPass != null ? kbPass.substring(0, Math.min(4, kbPass.length())) + "***" : "NULL"));
+        return resolveComputeConnstr(databaseId, tenantId, kbPass);
     }
 
     /**

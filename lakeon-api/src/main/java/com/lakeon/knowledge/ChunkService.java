@@ -2,10 +2,23 @@ package com.lakeon.knowledge;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.job.JobEntity;
+import com.lakeon.job.JobService;
+import com.lakeon.job.JobType;
+import com.lakeon.model.dto.CreateBranchRequest;
+import com.lakeon.model.entity.BranchEntity;
+import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.model.entity.TenantEntity;
+import com.lakeon.repository.BranchRepository;
+import com.lakeon.repository.DatabaseRepository;
+import com.lakeon.service.BranchService;
+import com.lakeon.service.exception.BadRequestException;
+import com.lakeon.service.exception.ConflictException;
 import com.lakeon.service.exception.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.ResponseInputStream;
@@ -24,8 +37,10 @@ import org.springframework.web.client.RestTemplate;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -37,16 +52,31 @@ public class ChunkService {
     private final LakeonProperties props;
     private final ObjectMapper objectMapper;
     private final DocumentRepository documentRepository;
+    private final KnowledgeBaseRepository knowledgeBaseRepository;
+    private final DatabaseRepository databaseRepository;
+    private final BranchService branchService;
+    private final BranchRepository branchRepository;
+    private final JobService jobService;
     private final RestTemplate restTemplate;
 
     public ChunkService(KnowledgeDbHelper dbHelper,
                         LakeonProperties props,
                         ObjectMapper objectMapper,
-                        DocumentRepository documentRepository) {
+                        DocumentRepository documentRepository,
+                        KnowledgeBaseRepository knowledgeBaseRepository,
+                        DatabaseRepository databaseRepository,
+                        BranchService branchService,
+                        BranchRepository branchRepository,
+                        JobService jobService) {
         this.dbHelper = dbHelper;
         this.props = props;
         this.objectMapper = objectMapper;
         this.documentRepository = documentRepository;
+        this.knowledgeBaseRepository = knowledgeBaseRepository;
+        this.databaseRepository = databaseRepository;
+        this.branchService = branchService;
+        this.branchRepository = branchRepository;
+        this.jobService = jobService;
         this.restTemplate = new RestTemplate();
     }
 

@@ -14,4 +14,5 @@ public interface BranchRepository extends JpaRepository<BranchEntity, String> {
     Optional<BranchEntity> findByNeonTimelineId(String neonTimelineId);
     List<BranchEntity> findByComputeStatus(ComputeStatus computeStatus);
     Optional<BranchEntity> findByComputePodName(String podName);
+    List<BranchEntity> findAllByDatabaseIdAndNameStartingWithOrderByCreatedAtDesc(String databaseId, String namePrefix);
 }
