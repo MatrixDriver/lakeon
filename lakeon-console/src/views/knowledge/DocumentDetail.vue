@@ -65,6 +65,16 @@
       </div>
     </div>
 
+    <!-- Rechunk dialog -->
+    <RechunkDialog
+      :kb-id="kbId"
+      :doc-id="docId"
+      :old-stats="chunkStats"
+      :visible="showRechunk"
+      @close="showRechunk = false"
+      @completed="onRechunkCompleted"
+    />
+
     <!-- Add chunk dialog -->
     <div v-if="showAddChunk" class="dialog-overlay" @click.self="showAddChunk = false">
       <div class="dialog-box">
@@ -114,6 +124,7 @@ import {
 } from '../../api/knowledge'
 import ChunkList from '../../components/knowledge/ChunkList.vue'
 import ChunkContent from '../../components/knowledge/ChunkContent.vue'
+import RechunkDialog from '../../components/knowledge/RechunkDialog.vue'
 
 const route = useRoute()
 const kbId = route.params.kbId as string
@@ -127,6 +138,9 @@ const selectedChunkIndex = ref(-1)
 const selectedChunk = ref<Chunk | null>(null)
 const chunkContext = ref<ChunkContextType | null>(null)
 const loading = ref(true)
+
+// Rechunk dialog
+const showRechunk = ref(false)
 
 // Add chunk dialog
 const showAddChunk = ref(false)
@@ -220,7 +234,26 @@ async function handleAddChunk() {
 }
 
 function handleRechunk() {
-  alert('重新切片功能将在 Task 10 实现')
+  showRechunk.value = true
+}
+
+async function onRechunkCompleted() {
+  showRechunk.value = false
+  await Promise.all([loadChunks(), loadStats()])
+  // Reload document metadata (chunk count may have changed)
+  try {
+    const docResp = await getDocument(docId)
+    doc.value = docResp.data
+  } catch {
+    // ignore
+  }
+  // Reselect first chunk
+  selectedChunk.value = null
+  selectedChunkIndex.value = -1
+  chunkContext.value = null
+  if (chunks.value.length > 0) {
+    await selectChunk(chunks.value[0].chunk_index)
+  }
 }
 
 onMounted(async () => {
