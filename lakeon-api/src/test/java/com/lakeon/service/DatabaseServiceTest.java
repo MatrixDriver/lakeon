@@ -65,6 +65,9 @@ class DatabaseServiceTest {
     @Mock
     private OperationLogService operationLogService;
 
+    @Mock
+    private DatabaseProvisioningService provisioningService;
+
     private final MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     private DatabaseService databaseService;
@@ -75,7 +78,7 @@ class DatabaseServiceTest {
     void setUp() {
         TransactionTemplate txTemplate = TestTransactionTemplate.create();
         databaseService = new DatabaseService(databaseRepository, branchRepository,
-                neonApiClient, computePodManager, props, operationLogService, meterRegistry, txTemplate);
+                neonApiClient, computePodManager, props, operationLogService, meterRegistry, txTemplate, provisioningService);
 
         testTenant = new TenantEntity();
         testTenant.setId("tn_test001");
@@ -113,7 +116,7 @@ class DatabaseServiceTest {
     class CreateDatabase {
 
         @Test
-        @DisplayName("UT-SVC-DB-001: 正常流程 — 创建 tenant + timeline + Pod，返回连接串")
+        @DisplayName("UT-SVC-DB-001: 正常流程 — 创建 tenant + timeline，异步启动 Pod，立即返回 CREATING")
         void createDatabase_success() {
             // Given
             var request = new CreateDatabaseRequest("my-app-db", "1cu", "5m", 10);
@@ -123,30 +126,11 @@ class DatabaseServiceTest {
                     .thenReturn(new NeonTenant("neon-tenant-abc"));
             when(neonApiClient.createTimeline(eq("neon-tenant-abc"), any()))
                     .thenReturn(new NeonTimeline("neon-timeline-main"));
-            when(computePodManager.createComputePod(any()))
-                    .thenReturn("10.0.1.5:5432");
-            when(computePodManager.waitForPodReady(any(), anyLong()))
-                    .thenReturn(true);
             when(databaseRepository.save(any(DatabaseEntity.class)))
                     .thenAnswer(inv -> {
                         DatabaseEntity entity = inv.getArgument(0);
                         if (entity.getId() == null) entity.setId("db_abc123");
                         return entity;
-                    });
-            when(databaseRepository.findById("db_abc123"))
-                    .thenAnswer(inv -> {
-                        DatabaseEntity entity = new DatabaseEntity();
-                        entity.setId("db_abc123");
-                        entity.setName("my-app-db");
-                        entity.setTenantId(testTenant.getId());
-                        entity.setNeonTenantId("neon-tenant-abc");
-                        entity.setNeonTimelineId("neon-timeline-main");
-                        entity.setStatus(DatabaseStatus.CREATING);
-                        entity.setComputeSize("1cu");
-                        entity.setSuspendTimeout("5m");
-                        entity.setStorageLimitGb(10);
-                        entity.setDbUser("user_test1234");
-                        return Optional.of(entity);
                     });
 
             // When
@@ -156,16 +140,20 @@ class DatabaseServiceTest {
             assertThat(result).isNotNull();
             assertThat(result.getId()).isEqualTo("db_abc123");
             assertThat(result.getName()).isEqualTo("my-app-db");
+            assertThat(result.getStatus()).isEqualTo(DatabaseStatus.CREATING);
             assertThat(result.getComputeSize()).isEqualTo("1cu");
             assertThat(result.getSuspendTimeout()).isEqualTo("5m");
             assertThat(result.getStorageLimitGb()).isEqualTo(10);
 
-            // 验证调用顺序：先 Neon → 后 K8s → 最后保存元数据
-            var inOrder = inOrder(neonApiClient, computePodManager, databaseRepository);
+            // 验证调用顺序：先 Neon → 保存元数据 → 异步启动 Pod
+            var inOrder = inOrder(neonApiClient, databaseRepository, provisioningService);
             inOrder.verify(neonApiClient).createTenant(anyString());
             inOrder.verify(neonApiClient).createTimeline(eq("neon-tenant-abc"), any());
-            inOrder.verify(computePodManager).createComputePod(any());
             inOrder.verify(databaseRepository).save(any(DatabaseEntity.class));
+            inOrder.verify(provisioningService).provisionAsync(anyString(), anyString(), anyString(), anyString());
+
+            // 验证不直接调用 computePodManager（由 provisioningService 负责）
+            verify(computePodManager, never()).createComputePod(any());
         }
 
         @Test
@@ -179,30 +167,11 @@ class DatabaseServiceTest {
                     .thenReturn(new NeonTenant("neon-tenant-def"));
             when(neonApiClient.createTimeline(anyString(), any()))
                     .thenReturn(new NeonTimeline("neon-timeline-main"));
-            when(computePodManager.createComputePod(any()))
-                    .thenReturn("10.0.1.6:5432");
-            when(computePodManager.waitForPodReady(any(), anyLong()))
-                    .thenReturn(true);
             when(databaseRepository.save(any(DatabaseEntity.class)))
                     .thenAnswer(inv -> {
                         DatabaseEntity entity = inv.getArgument(0);
                         if (entity.getId() == null) entity.setId("db_def456");
                         return entity;
-                    });
-            when(databaseRepository.findById("db_def456"))
-                    .thenAnswer(inv -> {
-                        DatabaseEntity entity = new DatabaseEntity();
-                        entity.setId("db_def456");
-                        entity.setName("my-db");
-                        entity.setTenantId(testTenant.getId());
-                        entity.setNeonTenantId("neon-tenant-def");
-                        entity.setNeonTimelineId("neon-timeline-main");
-                        entity.setStatus(DatabaseStatus.CREATING);
-                        entity.setComputeSize("1cu");
-                        entity.setSuspendTimeout("5m");
-                        entity.setStorageLimitGb(10);
-                        entity.setDbUser("user_test1234");
-                        return Optional.of(entity);
                     });
 
             // When
@@ -234,8 +203,8 @@ class DatabaseServiceTest {
         }
 
         @Test
-        @DisplayName("UT-SVC-DB-003: K8s Pod 创建失败 — 回滚 Neon tenant")
-        void createDatabase_k8sPodFails_rollbackNeonTenant() {
+        @DisplayName("UT-SVC-DB-003: Neon timeline 创建失败 — 回滚 Neon tenant")
+        void createDatabase_timelineFails_rollbackNeonTenant() {
             // Given
             var request = new CreateDatabaseRequest("my-db", "1cu", "5m", 10);
             when(databaseRepository.findByTenantIdAndName(anyString(), anyString()))
@@ -243,15 +212,7 @@ class DatabaseServiceTest {
             when(neonApiClient.createTenant(anyString()))
                     .thenReturn(new NeonTenant("neon-tenant-to-rollback"));
             when(neonApiClient.createTimeline(anyString(), any()))
-                    .thenReturn(new NeonTimeline("neon-timeline-main"));
-            when(databaseRepository.save(any(DatabaseEntity.class)))
-                    .thenAnswer(inv -> {
-                        DatabaseEntity entity = inv.getArgument(0);
-                        entity.setId("db_rollback");
-                        return entity;
-                    });
-            when(computePodManager.createComputePod(any()))
-                    .thenThrow(new RuntimeException("Insufficient resources"));
+                    .thenThrow(new RuntimeException("Timeline creation failed"));
 
             // When / Then
             assertThatThrownBy(() -> databaseService.create(testTenant, request))
@@ -259,6 +220,8 @@ class DatabaseServiceTest {
 
             // 验证回滚：Neon tenant 被删除
             verify(neonApiClient).deleteTenant(eq("neon-tenant-to-rollback"));
+            // 验证不调用 provisioningService（未到异步阶段）
+            verify(provisioningService, never()).provisionAsync(any(), any(), any(), any());
         }
 
         @Test
