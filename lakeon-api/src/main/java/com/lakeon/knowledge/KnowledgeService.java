@@ -592,6 +592,27 @@ public class KnowledgeService {
                     + "?options=endpoint=" + neonTenantId + "&sslmode=disable";
         }
 
+        // 3. Fallback: parse connectionUri (always available after DB creation)
+        // Format: postgres://user_xxx@pg.dbay.cloud:4432/dbname?options=endpoint%3Dxxx
+        String connUri = db.getConnectionUri();
+        if (connUri != null && !connUri.isBlank()) {
+            // URL-decode options: %3D → =
+            connUri = connUri.replace("%3D", "=");
+            // Use internal proxy instead of external
+            connUri = connUri.replace("pg.dbay.cloud:4432", "proxy.lakeon.svc.cluster.local:4432");
+            // Inject password into URI (proxy auth requires it)
+            String dbPassword = db.getDbPassword();
+            if (dbPassword != null && !connUri.contains(":" + dbPassword + "@")) {
+                // postgres://user@host → postgres://user:pass@host
+                connUri = connUri.replaceFirst("://([^:@]+)@", "://$1:" + dbPassword + "@");
+            }
+            if (!connUri.contains("sslmode=")) {
+                connUri += (connUri.contains("?") ? "&" : "?") + "sslmode=disable";
+            }
+            log.info("resolveComputeConnstr: via connectionUri for db {}", databaseId);
+            return connUri;
+        }
+
         throw new BadRequestException("Database has no connection info. id=" + databaseId + " status=" + db.getStatus());
     }
 
