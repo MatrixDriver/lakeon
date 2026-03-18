@@ -212,61 +212,76 @@ conn.execute("""
 
 ### Phase 1：通用 Job 框架 + Knowledge Pipeline MVP
 
-#### 1a. 通用 Job 框架
+#### 1a. 通用 Job 框架 ✅ 已完成 (2026-03-18)
 
-基于现有 ImportJobPodManager 模式，抽象出通用层：
+8 个 Java 文件，与 Import 系统并行共存：
 
 ```
 com.lakeon.job/
-├── JobEntity.java              # 通用 Job 实体 (type, status, input, output, tenant_id)
-├── JobRepository.java
-├── JobService.java             # 提交/查询/取消，按 type 分发
-├── JobType.java                # DOCUMENT_PARSE, EMBEDDING, EXPORT_LANCE, TRAINING
+├── JobType.java                # DOCUMENT_PARSE, EMBEDDING, EXPORT_PARQUET, TRAINING
 ├── JobStatus.java              # PENDING, RUNNING, SUCCEEDED, FAILED, CANCELLED
-├── JobPodManager.java          # CCE Pod 创建/监控/清理 (nodeSelector: lakeon/role=compute)
-├── JobCallbackController.java  # 通用回调端点
-└── JobScheduledTasks.java      # 孤儿检测、超时清理
+├── JobEntity.java              # JPA 实体, job_ + 12 char ID, callbackToken UUID
+├── JobRepository.java          # 多租户查询
+├── JobPodManager.java          # K8s Pod + ConfigMap 生命周期 (nodeSelector: lakeon/role=compute)
+├── JobService.java             # 提交/查询/取消/回调 + TransactionSynchronization 异步启动
+├── JobCallbackController.java  # 回调端点 (token 验证) + REST API
+└── JobScheduledTasks.java      # 孤儿检测 (PENDING 5min + RUNNING timeout)
 ```
 
-**与 ImportJobPodManager 的区别**：
-- Pod 调度到 CCE 弹性节点池（`nodeSelector: lakeon/role=compute`）
-- Job 配置通用化：`Map<String, String> params` 替代 import-specific 字段
-- 镜像可配置：不同 Job 类型用不同 Ray 镜像
-- OBS 凭据统一注入
+设计 spec: `docs/superpowers/specs/2026-03-18-job-framework-design.md`
 
-**API 设计**：
+**API**：
 ```
-POST   /api/v1/jobs              # 提交 Job (type + params)
-GET    /api/v1/jobs/{id}         # 查询状态
-GET    /api/v1/jobs              # 列表（支持 type/status 过滤）
-DELETE /api/v1/jobs/{id}         # 取消
+POST   /api/v1/jobs              # 提交 Job
+GET    /api/v1/jobs/{id}         # 查询
+GET    /api/v1/jobs              # 列表（type/status 过滤）
+POST   /api/v1/jobs/{id}/cancel  # 取消
+POST   /api/v1/jobs/{id}/callback # Pod 回调（token 验证，支持进度上报）
 ```
 
-#### 1b. Knowledge Pipeline MVP
+#### 1b. Knowledge Pipeline MVP ✅ 代码完成 (2026-03-18)，⏳ 待部署验证
 
-作为第一个 Job 类型实现。
+三个组件，19 个新文件：
 
+**Embedding Service** (`knowledge/embedding-service/`):
+- BGE-M3 (568M, 1024维) + FastAPI，常驻 Pod
+- 模型权重 baked in Docker 镜像
+- Helm template: `deploy/helm/lakeon/templates/embedding-service.yaml`
+
+**Knowledge Job Pod** (`knowledge/job/`):
+- `parser.py` — Marker (PDF) + python-docx (DOCX) + 直读 (Markdown)
+- `chunker.py` — Structure-aware chunking (标题边界 + 代码/表格完整保留 + 10-20% overlap)
+- `writer.py` — 写入用户 PG (pgvector + pg_search, 自动建表)
+- `callback.py` — 进度上报 + 完成/失败回调
+- 不用 Ray，普通 Python Pod，通过 HTTP 调 Embedding Service
+
+**API Layer** (`com.lakeon.knowledge/`):
+- `DocumentEntity` + `DocumentRepository` — 文档元数据 (metadata RDS)
+- `KnowledgeService` — OBS 预签名 URL、Job 提交、搜索 (RRF fusion)
+- `KnowledgeController` — 6 个 REST 端点
+
+**API 端点**：
 ```
-用户上传文档 → API 存 OBS
-    → 提交 Job Pod: document_parse (Marker 解析 → structure-aware chunking)
-    → 提交 Job Pod: embedding (Qwen3-Embedding-8B 批量向量化)
-    → 写入用户 PG (pgvector + pg_search)
-    → 回调 API 更新状态
+GET    /api/v1/knowledge/upload-url            # OBS 预签名 PUT URL
+POST   /api/v1/knowledge/documents/{id}/process # 触发解析 Job
+GET    /api/v1/knowledge/documents             # 列表
+GET    /api/v1/knowledge/documents/{id}        # 详情
+DELETE /api/v1/knowledge/documents/{id}        # 删除（含 chunks + OBS）
+POST   /api/v1/knowledge/search               # pgvector + pg_search + RRF
 ```
 
-**Job 镜像**：基于 `rayproject/ray:2.44.1-py312` 构建自定义镜像，预装：
-- Marker（PDF/DOCX 解析）
-- sentence-transformers + Qwen3-Embedding-8B（或通过 OBS 加载模型权重）
-- psycopg2（写 PG）
-- boto3（读写 OBS）
+**搜索**: chunks 存在用户自己的 PG 里，搜索时 API 通过 proxy 连接用户 PG（自动唤醒 compute）。
 
-**MCP 端点**：`knowledge_search`
-- Hybrid retrieval: pgvector cosine similarity + pg_search BM25 + RRF fusion
-- 直接查用户的 PG 数据库，不经过额外服务
+设计 spec: `docs/superpowers/specs/2026-03-18-knowledge-pipeline-design.md`
 
-**单 Pod 还是 Pipeline？**
-- Phase 1 简化为单 Pod：一个 Pod 内串行完成 parse → chunk → embed → write
-- 未来优化：拆成多个 Job 步骤，支持断点续跑
+**待完成**：
+- [ ] 构建 embedding-service 镜像并推送 SWR
+- [ ] 构建 knowledge-job 镜像并推送 SWR
+- [ ] 构建新版 API 镜像并部署
+- [ ] Helm 部署 embedding-service
+- [ ] 端到端 smoke test（上传 PDF → 解析 → 搜索）
+- [ ] Console UI（文档管理页面）
+- [ ] MCP endpoint（knowledge_search tool）
 
 ### Phase 2：数据飞轮管线
 
