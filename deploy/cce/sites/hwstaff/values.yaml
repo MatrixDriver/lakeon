@@ -131,7 +131,7 @@ admin:
   enabled: false
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-admin
-    tag: "0.2.3"
+    tag: "0.2.4"
   replicas: 1
   port: 80
   serviceType: LoadBalancer

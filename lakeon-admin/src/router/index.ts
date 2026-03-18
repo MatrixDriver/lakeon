@@ -23,7 +23,7 @@ const routes = [
       { path: 'alerts', name: 'AlertsView', component: () => import('../views/system/AlertsView.vue') },
       { path: 'infra', name: 'InfraMonitor', component: () => import('../views/system/InfraMonitor.vue') },
       { path: 'cost', name: 'CostView', component: () => import('../views/cost/CostView.vue') },
-      { path: 'cloud', name: 'CloudResources', component: () => import('../views/cloud/CloudResources.vue') },
+      { path: 'cloud', redirect: '/infra' },
       { path: 'audit', name: 'AuditLogs', component: () => import('../views/AuditLogs.vue') },
     ],
   },

@@ -9,6 +9,7 @@
       <button class="infra-tab" :class="{ active: activeTab === 'compute' }" @click="activeTab = 'compute'">计算资源</button>
       <button class="infra-tab" :class="{ active: activeTab === 'control' }" @click="activeTab = 'control'">管控面</button>
       <button class="infra-tab" :class="{ active: activeTab === 'events' }" @click="activeTab = 'events'">事件日志</button>
+      <button class="infra-tab" :class="{ active: activeTab === 'cloud' }" @click="activeTab = 'cloud'; loadCloudResources()">云资源</button>
     </div>
 
     <!-- Tab 1: 计算资源 -->
@@ -328,6 +329,57 @@
         </div>
       </div>
     </div>
+
+    <!-- Tab 4: 云资源 -->
+    <div v-if="activeTab === 'cloud'">
+      <!-- Architecture Diagram -->
+      <div class="section-card">
+        <div class="section-header"><h3>部署架构</h3></div>
+        <div v-if="cloudLoading" class="empty-text">加载中...</div>
+        <div v-else-if="!cloudTopology" class="empty-text">暂无拓扑数据</div>
+        <div class="arch-diagram" v-else>
+          <!-- Render nodes grouped by type rows: railway → network → compute → storage -->
+          <div class="arch-row" v-for="group in topoGroups" :key="group.type">
+            <div class="arch-box" :class="'arch-box-' + group.type" v-for="node in group.nodes" :key="node.id">
+              <div class="arch-box-label">{{ node.label }}</div>
+              <div class="arch-box-value">{{ node.sublabel }}</div>
+              <div class="arch-box-desc">{{ node.desc }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resource Table -->
+      <div class="section-card">
+        <div class="section-header"><h3>资源清单</h3></div>
+        <div v-if="!cloudResources.length && !cloudLoading" class="empty-text">暂无资源数据</div>
+        <div class="table-wrapper" v-else>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>名称</th>
+                <th>区域</th>
+                <th>服务</th>
+                <th>资源类型</th>
+                <th>状态</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="r in cloudResources" :key="r.name">
+                <td style="font-weight: 500;">{{ r.name }}</td>
+                <td>{{ r.region }}</td>
+                <td><span class="service-tag" :class="serviceTagClass(r.service)">{{ r.service }}</span></td>
+                <td>{{ r.type }}</td>
+                <td>
+                  <span class="status-dot" :class="r.status === 'ACTIVE' ? 'dot-green' : 'dot-red'"></span>
+                  {{ r.status }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -476,6 +528,47 @@ async function confirmCleanup() {
   } finally {
     cleanupLoading.value = false
   }
+}
+
+// ── Cloud Resources Tab ──
+const cloudTopology = ref<any>(null)
+const cloudResources = ref<any[]>([])
+const cloudLoading = ref(false)
+
+const TOPO_TYPE_ORDER = ['railway', 'network', 'compute', 'storage']
+
+const topoGroups = computed(() => {
+  if (!cloudTopology.value?.nodes) return []
+  const groups: Record<string, any[]> = {}
+  for (const node of cloudTopology.value.nodes) {
+    const t = node.type || 'other'
+    if (!groups[t]) groups[t] = []
+    groups[t].push(node)
+  }
+  return TOPO_TYPE_ORDER
+    .filter(t => groups[t])
+    .map(t => ({ type: t, nodes: groups[t] }))
+})
+
+function serviceTagClass(service: string): string {
+  const map: Record<string, string> = {
+    CCE: 'svc-compute', ECS: 'svc-compute',
+    RDS: 'svc-storage', OBS: 'svc-storage',
+    ELB: 'svc-network', EIP: 'svc-network',
+    Railway: 'svc-railway',
+  }
+  return map[service] || ''
+}
+
+async function loadCloudResources() {
+  if (cloudTopology.value) return // already loaded
+  cloudLoading.value = true
+  try {
+    const res = await adminApi.cloudResources()
+    cloudTopology.value = res.data.topology || null
+    cloudResources.value = res.data.resources || []
+  } catch (e) { console.error('Failed to load cloud resources', e) }
+  finally { cloudLoading.value = false }
 }
 
 async function loadComputeSummary() {
@@ -935,6 +1028,51 @@ onMounted(() => { loadData(); loadComputeSummary() })
 }
 .btn-danger-outline:hover:not(:disabled) { background: #fff1f0; }
 .btn-danger-outline:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Architecture Diagram */
+.arch-diagram {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  background: #f9fafb;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+}
+.arch-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.arch-box {
+  padding: 12px 20px;
+  border-radius: 6px;
+  border: 2px solid;
+  text-align: center;
+  min-width: 160px;
+}
+.arch-box-compute { background: #eff6ff; border-color: #3b82f6; }
+.arch-box-storage { background: #f0fdf4; border-color: #22c55e; }
+.arch-box-network { background: #fff7ed; border-color: #f97316; }
+.arch-box-railway { background: #faf5ff; border-color: #a855f7; }
+.arch-box-label { font-size: 11px; font-weight: 600; color: #6b7280; }
+.arch-box-value { font-size: 14px; font-weight: 600; color: #191919; }
+.arch-box-desc { font-size: 10px; color: #6b7280; margin-top: 4px; }
+
+/* Service tags */
+.service-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.svc-compute { background: #dbeafe; color: #1d4ed8; }
+.svc-storage { background: #dcfce7; color: #15803d; }
+.svc-network { background: #ffedd5; color: #c2410c; }
+.svc-railway { background: #f3e8ff; color: #7c3aed; }
 
 @media (max-width: 768px) {
   .node-grid { grid-template-columns: 1fr; }

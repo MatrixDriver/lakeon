@@ -87,7 +87,6 @@
             <router-link to="/alerts" class="nav-item" active-class="active" @click="sidebarOpen = false">告警管理</router-link>
             <router-link to="/infra" class="nav-item" active-class="active" @click="sidebarOpen = false">基础设施</router-link>
             <router-link to="/cost" class="nav-item" active-class="active" @click="sidebarOpen = false">成本监控</router-link>
-            <router-link to="/cloud" class="nav-item" active-class="active" @click="sidebarOpen = false">云资源</router-link>
           </div>
         </nav>
         <div class="sidebar-collapse">
