@@ -200,9 +200,9 @@ async function handleSearch() {
 }
 
 onMounted(async () => {
-  const kbId = route.params.kbId as string
-  // TODO: GET /api/v1/knowledge/bases/${kbId}
-  // TODO: GET /api/v1/knowledge/documents?kb_id=${kbId}
+  console.log('Loading KB:', route.params.kbId)
+  // TODO: GET /api/v1/knowledge/bases/${route.params.kbId}
+  // TODO: GET /api/v1/knowledge/documents?kb_id=${route.params.kbId}
 })
 </script>
 
