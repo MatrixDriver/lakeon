@@ -576,10 +576,16 @@ public class KnowledgeService {
         DatabaseEntity db = databaseRepository.findByIdAndTenantId(databaseId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Database not found: " + databaseId));
 
-        // 1. Direct to compute pod (fastest, used when compute is running with known host)
+        log.warn("resolveComputeConnstr: db={} status={} computeHost={} dbUser={} neonTenantId={} connUri={}",
+                 databaseId, db.getStatus(), db.getComputeHost(), db.getDbUser(), db.getNeonTenantId(),
+                 db.getConnectionUri() != null ? db.getConnectionUri().substring(0, Math.min(80, db.getConnectionUri().length())) : null);
+
+        // 1. Direct to compute pod (fastest, used when compute pod IP is known)
+        //    Skip if host is the proxy address (proxy needs endpoint ID, different port/auth)
         String host = db.getComputeHost();
         int port = db.getComputePort() != null ? db.getComputePort() : 55433;
-        if (host != null && !host.isBlank()) {
+        boolean isProxyHost = host != null && (host.contains("dbay.cloud") || host.contains("proxy."));
+        if (host != null && !host.isBlank() && !isProxyHost) {
             return "postgresql://cloud_admin@" + host + ":" + port + "/" + db.getName();
         }
 
