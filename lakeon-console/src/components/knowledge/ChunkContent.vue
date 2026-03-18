@@ -36,8 +36,16 @@
     </div>
 
     <!-- Tab 2: Fulltext location -->
-    <div v-if="activeTab === 'fulltext'" class="tab-panel">
-      <div class="placeholder-text">原文定位功能将在下一步实现</div>
+    <div v-if="activeTab === 'fulltext'" class="tab-panel tab-panel-fulltext">
+      <div v-if="fulltextLoading" class="placeholder-text">加载中...</div>
+      <div v-else-if="fulltextError" class="placeholder-text error-text">加载原文失败: {{ fulltextError }}</div>
+      <FulltextHighlight
+        v-else-if="cachedFulltext != null"
+        :fulltext="cachedFulltext"
+        :chunkOffsetStart="chunk.char_offset_start"
+        :chunkOffsetEnd="chunk.char_offset_end"
+      />
+      <div v-else class="placeholder-text">暂无原文数据</div>
     </div>
 
     <!-- Tab 3: Adjacent chunks -->
@@ -72,7 +80,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import type { Chunk, ChunkContext } from '../../api/knowledge'
-import { editChunk, deleteChunk } from '../../api/knowledge'
+import { editChunk, deleteChunk, getFulltext } from '../../api/knowledge'
+import FulltextHighlight from './FulltextHighlight.vue'
 
 const props = defineProps<{
   chunk: Chunk
@@ -97,9 +106,41 @@ const editing = ref(false)
 const editContent = ref('')
 const saving = ref(false)
 
+// Fulltext state — cached per docId so we don't refetch on chunk change
+const cachedFulltext = ref<string | null>(null)
+const fulltextLoading = ref(false)
+const fulltextError = ref<string | null>(null)
+let cachedFulltextDocId: string | null = null
+
+async function loadFulltext() {
+  if (cachedFulltextDocId === props.docId && cachedFulltext.value != null) return
+  fulltextLoading.value = true
+  fulltextError.value = null
+  try {
+    const res = await getFulltext(props.kbId, props.docId)
+    cachedFulltext.value = res.data
+    cachedFulltextDocId = props.docId
+  } catch (e: any) {
+    fulltextError.value = e.response?.data?.error || e.message || '未知错误'
+  } finally {
+    fulltextLoading.value = false
+  }
+}
+
+watch(activeTab, (tab) => {
+  if (tab === 'fulltext') loadFulltext()
+})
+
 watch(() => props.chunk.id, () => {
   editing.value = false
   activeTab.value = 'content'
+})
+
+watch(() => props.docId, () => {
+  // Reset fulltext cache when document changes
+  cachedFulltext.value = null
+  cachedFulltextDocId = null
+  fulltextError.value = null
 })
 
 function startEdit() {
@@ -230,6 +271,15 @@ async function handleDelete() {
   font-size: 14px;
   text-align: center;
   padding: 48px 0;
+}
+
+.error-text {
+  color: #e6393d;
+}
+
+.tab-panel-fulltext {
+  padding: 16px 20px;
+  overflow-y: auto;
 }
 
 .context-block,

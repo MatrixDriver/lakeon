@@ -21,11 +21,13 @@
     "@opentiny/vue-icon": "^3.29.0",
     "axios": "^1.13.6",
     "codemirror": "^6.0.2",
+    "markdown-it": "^14.1.1",
     "pinia": "^3.0.4",
     "vue": "^3.5.25",
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.10.1",
     "@vitejs/plugin-vue": "^6.0.2",
     "@vitest/ui": "^4.0.18",
