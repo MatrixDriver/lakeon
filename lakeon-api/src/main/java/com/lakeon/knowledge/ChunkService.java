@@ -393,7 +393,211 @@ public class ChunkService {
         return result;
     }
 
+    // ── Write operations ─────────────────────────────────────────────
+
+    /**
+     * Edit a chunk's content and regenerate its embedding.
+     */
+    public Map<String, Object> editChunk(String tenantId, String kbId, String docId,
+                                          int chunkIndex, String newContent) {
+        // 1. Get new embedding
+        float[] embedding = getEmbedding(newContent);
+        String vectorStr = floatArrayToVectorLiteral(embedding);
+
+        String updateSql = "UPDATE knowledge_chunks SET content = ?, embedding = ?::vector, " +
+                "char_count = ?, edited = true, updated_at = now() " +
+                "WHERE document_id = ? AND chunk_index = ? AND level = 0 " +
+                "RETURNING id, chunk_index, content, metadata, char_count, overlap_prev, " +
+                "char_offset_start, char_offset_end, page_start, page_end, level, edited, " +
+                "created_at, updated_at";
+
+        try (Connection conn = dbHelper.getComputeConnection(tenantId, kbId);
+             PreparedStatement ps = conn.prepareStatement(updateSql)) {
+            ps.setString(1, newContent);
+            ps.setString(2, vectorStr);
+            ps.setInt(3, newContent.length());
+            ps.setString(4, docId);
+            ps.setInt(5, chunkIndex);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rowToChunkMap(rs);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to edit chunk {} for doc {} in kb {}: {}", chunkIndex, docId, kbId, e.getMessage(), e);
+            throw new RuntimeException("Failed to edit chunk: " + e.getMessage(), e);
+        }
+
+        throw new NotFoundException("Chunk not found: document=" + docId + " chunk_index=" + chunkIndex);
+    }
+
+    /**
+     * Delete a chunk and reindex subsequent chunks.
+     */
+    public void deleteChunk(String tenantId, String kbId, String docId, int chunkIndex) {
+        String deleteSql = "DELETE FROM knowledge_chunks WHERE document_id = ? AND chunk_index = ? AND level = 0";
+        String reindexSql = "UPDATE knowledge_chunks SET chunk_index = chunk_index - 1 " +
+                "WHERE document_id = ? AND chunk_index > ? AND level = 0";
+
+        try (Connection conn = dbHelper.getComputeConnection(tenantId, kbId)) {
+            conn.setAutoCommit(false);
+            try {
+                // 1. Delete the chunk
+                int deleted;
+                try (PreparedStatement ps = conn.prepareStatement(deleteSql)) {
+                    ps.setString(1, docId);
+                    ps.setInt(2, chunkIndex);
+                    deleted = ps.executeUpdate();
+                }
+                if (deleted == 0) {
+                    conn.rollback();
+                    throw new NotFoundException("Chunk not found: document=" + docId + " chunk_index=" + chunkIndex);
+                }
+
+                // 2. Reindex subsequent chunks
+                try (PreparedStatement ps = conn.prepareStatement(reindexSql)) {
+                    ps.setString(1, docId);
+                    ps.setInt(2, chunkIndex);
+                    ps.executeUpdate();
+                }
+
+                conn.commit();
+            } catch (NotFoundException e) {
+                throw e;
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
+            }
+        } catch (NotFoundException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to delete chunk {} for doc {} in kb {}: {}", chunkIndex, docId, kbId, e.getMessage(), e);
+            throw new RuntimeException("Failed to delete chunk: " + e.getMessage(), e);
+        }
+
+        // 3. Update chunksCount in RDS
+        DocumentEntity doc = documentRepository.findByIdAndTenantId(docId, tenantId).orElse(null);
+        if (doc != null && doc.getChunksCount() != null) {
+            doc.setChunksCount(doc.getChunksCount() - 1);
+            documentRepository.save(doc);
+        }
+    }
+
+    /**
+     * Create a new chunk inserted after the given index, reindexing subsequent chunks.
+     */
+    public Map<String, Object> createChunk(String tenantId, String kbId, String docId,
+                                            String content, int insertAfterIndex) {
+        // 1. Get embedding
+        float[] embedding = getEmbedding(content);
+        String vectorStr = floatArrayToVectorLiteral(embedding);
+        int newIndex = insertAfterIndex + 1;
+
+        String reindexSql = "UPDATE knowledge_chunks SET chunk_index = chunk_index + 1 " +
+                "WHERE document_id = ? AND chunk_index >= ? AND level = 0";
+        String insertSql = "INSERT INTO knowledge_chunks " +
+                "(id, document_id, chunk_index, content, embedding, char_count, edited, level, " +
+                "overlap_prev, created_at, updated_at) " +
+                "VALUES (?, ?, ?, ?, ?::vector, ?, true, 0, 0, now(), now()) " +
+                "RETURNING id, chunk_index, content, metadata, char_count, overlap_prev, " +
+                "char_offset_start, char_offset_end, page_start, page_end, level, edited, " +
+                "created_at, updated_at";
+
+        Map<String, Object> result;
+        try (Connection conn = dbHelper.getComputeConnection(tenantId, kbId)) {
+            conn.setAutoCommit(false);
+            try {
+                // 2. Shift subsequent chunks up
+                try (PreparedStatement ps = conn.prepareStatement(reindexSql)) {
+                    ps.setString(1, docId);
+                    ps.setInt(2, newIndex);
+                    ps.executeUpdate();
+                }
+
+                // 3. Insert the new chunk
+                String chunkId = "chk_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+                try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
+                    ps.setString(1, chunkId);
+                    ps.setString(2, docId);
+                    ps.setInt(3, newIndex);
+                    ps.setString(4, content);
+                    ps.setString(5, vectorStr);
+                    ps.setInt(6, content.length());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            result = rowToChunkMap(rs);
+                        } else {
+                            throw new RuntimeException("INSERT did not return a row");
+                        }
+                    }
+                }
+
+                conn.commit();
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
+            }
+        } catch (Exception e) {
+            log.error("Failed to create chunk for doc {} in kb {}: {}", docId, kbId, e.getMessage(), e);
+            throw new RuntimeException("Failed to create chunk: " + e.getMessage(), e);
+        }
+
+        // 4. Update chunksCount in RDS
+        DocumentEntity doc = documentRepository.findByIdAndTenantId(docId, tenantId).orElse(null);
+        if (doc != null) {
+            doc.setChunksCount(doc.getChunksCount() != null ? doc.getChunksCount() + 1 : 1);
+            documentRepository.save(doc);
+        }
+
+        return result;
+    }
+
     // ── Internal helpers ────────────────────────────────────────────
+
+    @SuppressWarnings("unchecked")
+    private float[] getEmbedding(String text) {
+        String apiUrl = props.getKnowledge().getEmbeddingApiUrl();
+        String apiKey = props.getKnowledge().getEmbeddingApiKey();
+        String model = props.getKnowledge().getEmbeddingModel();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        if (apiKey != null && !apiKey.isBlank()) {
+            headers.set("Authorization", "Bearer " + apiKey);
+        }
+
+        Map<String, Object> body = Map.of(
+                "model", model,
+                "input", List.of(text),
+                "encoding_format", "float"
+        );
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+
+        Map<String, Object> response = restTemplate.postForObject(apiUrl, request, Map.class);
+        if (response == null || !response.containsKey("data")) {
+            throw new RuntimeException("Failed to get embedding: empty response from embedding API");
+        }
+        List<Map<String, Object>> data = (List<Map<String, Object>>) response.get("data");
+        if (data == null || data.isEmpty()) {
+            throw new RuntimeException("Failed to get embedding: no data returned");
+        }
+        List<Number> embeddingList = (List<Number>) data.get(0).get("embedding");
+        float[] result = new float[embeddingList.size()];
+        for (int i = 0; i < embeddingList.size(); i++) {
+            result[i] = embeddingList.get(i).floatValue();
+        }
+        return result;
+    }
+
+    private String floatArrayToVectorLiteral(float[] vec) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < vec.length; i++) {
+            if (i > 0) sb.append(",");
+            sb.append(vec[i]);
+        }
+        sb.append("]");
+        return sb.toString();
+    }
 
     private Map<String, Object> rowToChunkMap(ResultSet rs) throws Exception {
         Map<String, Object> row = new LinkedHashMap<>();

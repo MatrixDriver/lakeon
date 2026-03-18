@@ -105,6 +105,60 @@ public class ChunkController {
         }
     }
 
+    @PutMapping("/documents/{docId}/chunks/{chunkIndex}")
+    public ResponseEntity<?> editChunk(HttpServletRequest request,
+                                       @PathVariable String kbId,
+                                       @PathVariable String docId,
+                                       @PathVariable int chunkIndex,
+                                       @RequestBody Map<String, String> body) {
+        TenantEntity tenant = getTenant(request);
+        String content = body.get("content");
+        if (content == null || content.isBlank()) {
+            return ResponseEntity.status(400).body(Map.of("error", "content is required"));
+        }
+        try {
+            Map<String, Object> result = chunkService.editChunk(tenant.getId(), kbId, docId, chunkIndex, content);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return handleError(e);
+        }
+    }
+
+    @DeleteMapping("/documents/{docId}/chunks/{chunkIndex}")
+    public ResponseEntity<?> deleteChunk(HttpServletRequest request,
+                                         @PathVariable String kbId,
+                                         @PathVariable String docId,
+                                         @PathVariable int chunkIndex) {
+        TenantEntity tenant = getTenant(request);
+        try {
+            chunkService.deleteChunk(tenant.getId(), kbId, docId, chunkIndex);
+            return ResponseEntity.ok(Map.of("deleted", true));
+        } catch (Exception e) {
+            return handleError(e);
+        }
+    }
+
+    @PostMapping("/documents/{docId}/chunks")
+    public ResponseEntity<?> createChunk(HttpServletRequest request,
+                                         @PathVariable String kbId,
+                                         @PathVariable String docId,
+                                         @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(request);
+        String content = (String) body.get("content");
+        if (content == null || content.isBlank()) {
+            return ResponseEntity.status(400).body(Map.of("error", "content is required"));
+        }
+        Integer insertAfterIndex = body.get("insert_after_index") != null
+                ? ((Number) body.get("insert_after_index")).intValue()
+                : -1;  // default: insert at beginning (index 0)
+        try {
+            Map<String, Object> result = chunkService.createChunk(tenant.getId(), kbId, docId, content, insertAfterIndex);
+            return ResponseEntity.status(201).body(result);
+        } catch (Exception e) {
+            return handleError(e);
+        }
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────
 
     private TenantEntity getTenant(HttpServletRequest req) {
