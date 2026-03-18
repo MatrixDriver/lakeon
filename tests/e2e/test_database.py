@@ -22,11 +22,11 @@ class TestDatabase:
 
         db = poll_until(
             lambda: e2e_client.get_database(db["id"]),
-            condition=lambda d: d["status"] in ("running", "error"),
+            condition=lambda d: d["status"].lower() in ("running", "error"),
             timeout=120,
             interval=3,
         )
-        assert db["status"] == "running", f"Database creation failed: {db}"
+        assert db["status"].lower() == "running", f"Database creation failed: {db}"
 
         # Re-attach password
         db["password"] = creation_password
@@ -72,7 +72,7 @@ class TestDatabase:
             condition=lambda d: d["status"] == "suspended",
             timeout=30,
         )
-        assert db["status"] == "suspended"
+        assert db["status"].lower() == "suspended"
 
     def test_resume_database(self, e2e_client, shared_db):
         """Resuming a suspended database should bring it back to running."""
@@ -82,7 +82,7 @@ class TestDatabase:
             condition=lambda d: d["status"] == "running",
             timeout=120,
         )
-        assert db["status"] == "running"
+        assert db["status"].lower() == "running"
 
     def test_data_persistence(self, shared_db):
         """Data written before suspend should still be readable after resume."""

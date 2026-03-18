@@ -3,7 +3,7 @@ import time
 import pytest
 
 from dbay_cli.client import DbayClient, DbayApiError
-from conftest import ENDPOINT, poll_until, run_psql
+from conftest import ENDPOINT, ADMIN_TOKEN, poll_until, run_psql, _create_tenant_with_invite
 
 
 def psql_with_retry(connstr, sql, password, retries=5, delay=10):
@@ -23,10 +23,10 @@ class TestMultiTenant:
     @pytest.fixture(scope="class")
     def tenant_a(self):
         """First tenant with a database."""
-        client = DbayClient(endpoint=ENDPOINT)
         ts = int(time.time())
-        t = client.create_tenant(username=f"e2e-mt-a-{ts}", password=f"MtTestA@{ts}")
-        client.api_key = t["api_key"]
+        client, t = _create_tenant_with_invite(
+            ENDPOINT, ADMIN_TOKEN, f"e2e-mt-a-{ts}", f"MtTestA@{ts}", f"MT-A {ts}"
+        )
         db = client.create_database(name=f"mt-a-db-{ts}")
         creation_password = db.get("password")
         db = poll_until(
@@ -46,10 +46,10 @@ class TestMultiTenant:
     @pytest.fixture(scope="class")
     def tenant_b(self):
         """Second tenant."""
-        client = DbayClient(endpoint=ENDPOINT)
         ts = int(time.time())
-        t = client.create_tenant(username=f"e2e-mt-b-{ts}", password=f"MtTestB@{ts}")
-        client.api_key = t["api_key"]
+        client, t = _create_tenant_with_invite(
+            ENDPOINT, ADMIN_TOKEN, f"e2e-mt-b-{ts}", f"MtTestB@{ts}", f"MT-B {ts}"
+        )
         yield {"client": client, "tenant": t}
 
     # -----------------------------------------------------------------------

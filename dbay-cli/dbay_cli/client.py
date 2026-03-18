@@ -41,11 +41,27 @@ class DbayClient:
         """Returns raw response without raising exceptions. For tests to check status codes."""
         return self.http.request(method, self._url(path), headers=self._headers(), **kwargs)
 
+    # -- Admin --
+    def admin_create_invite_code(self, max_uses: int = 1) -> dict:
+        return self._request("POST", "/admin/invite-codes", json={"max_uses": max_uses})
+
+    def admin_update_quota(self, tenant_id: str, max_databases: int = 100,
+                           max_storage_gb: int = 100, max_compute_cu: int = 100) -> dict:
+        return self._request("PUT", f"/admin/tenants/{tenant_id}/quota",
+                             json={"maxDatabases": max_databases, "maxStorageGb": max_storage_gb,
+                                   "maxComputeCu": max_compute_cu})
+
+    def admin_delete_invite_code(self, code: str) -> dict:
+        return self._request("DELETE", f"/admin/invite-codes/{code}")
+
     # -- Tenant --
-    def create_tenant(self, username: str, password: str, name: str | None = None) -> dict:
+    def create_tenant(self, username: str, password: str, name: str | None = None,
+                      invite_code: str | None = None) -> dict:
         body: dict[str, Any] = {"username": username, "password": password}
         if name:
             body["name"] = name
+        if invite_code:
+            body["inviteCode"] = invite_code
         return self._request("POST", "/tenants", json=body)
 
     def login(self, username: str, password: str) -> dict:
@@ -55,7 +71,7 @@ class DbayClient:
         return self._request("GET", "/tenants/me")
 
     # -- Database --
-    def create_database(self, name: str, compute_size: str = "0.25cu") -> dict:
+    def create_database(self, name: str, compute_size: str = "1cu") -> dict:
         return self._request("POST", "/databases", json={"name": name, "compute_size": compute_size})
 
     def list_databases(self) -> list:

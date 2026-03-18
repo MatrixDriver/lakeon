@@ -62,6 +62,32 @@ def run_psql(connstr: str, sql: str, password: str = None) -> str:
 # Fixtures
 # ---------------------------------------------------------------------------
 
+def _create_tenant_with_invite(endpoint: str, admin_token: str,
+                                username: str, password: str, name: str) -> tuple:
+    """Create invite code via admin API, then register tenant.
+    Returns (DbayClient, tenant_dict).
+    """
+    admin = DbayClient(endpoint=endpoint, api_key=admin_token)
+    invite = admin.admin_create_invite_code(max_uses=1)
+    invite_code = invite.get("code")
+
+    client = DbayClient(endpoint=endpoint)
+    tenant = client.create_tenant(
+        username=username,
+        password=password,
+        name=name,
+        invite_code=invite_code,
+    )
+    client.api_key = tenant["api_key"]
+
+    # Increase quota for test tenant
+    tenant_id = tenant.get("id")
+    if tenant_id:
+        admin.admin_update_quota(tenant_id, max_databases=20)
+
+    return client, tenant
+
+
 @pytest.fixture(scope="session")
 def e2e_tenant():
     """Create a disposable test tenant for the entire session.
@@ -75,13 +101,9 @@ def e2e_tenant():
     username = f"e2e-{ts}"
     password = f"E2eTest@{ts}"
 
-    client = DbayClient(endpoint=ENDPOINT)
-    tenant = client.create_tenant(
-        username=username,
-        password=password,
-        name=f"E2E Test {ts}",
+    client, tenant = _create_tenant_with_invite(
+        ENDPOINT, ADMIN_TOKEN, username, password, f"E2E Test {ts}"
     )
-    client.api_key = tenant["api_key"]
 
     info = {
         "client": client,
@@ -119,11 +141,11 @@ def test_db(e2e_client):
 
     db = poll_until(
         lambda: e2e_client.get_database(db["id"]),
-        condition=lambda d: d["status"] in ("running", "error"),
+        condition=lambda d: d["status"].lower() in ("running", "error"),
         timeout=120,
         interval=3,
     )
-    assert db["status"] == "running", f"Database creation failed: {db}"
+    assert db["status"].lower() == "running", f"Database creation failed: {db}"
 
     # Re-attach password since GET doesn't return it
     db["password"] = creation_password
