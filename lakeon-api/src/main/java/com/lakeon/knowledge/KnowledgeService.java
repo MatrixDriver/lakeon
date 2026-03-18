@@ -300,7 +300,9 @@ public class KnowledgeService {
         params.put("format", doc.getFormat());
         params.put("filename", doc.getFilename());
         params.put("database_connstr", connstr);
-        params.put("embedding_service_url", props.getKnowledge().getEmbeddingServiceUrl());
+        params.put("embedding_api_url", props.getKnowledge().getEmbeddingApiUrl());
+        params.put("embedding_api_key", props.getKnowledge().getEmbeddingApiKey());
+        params.put("embedding_model", props.getKnowledge().getEmbeddingModel());
 
         // Submit DOCUMENT_PARSE job
         JobEntity job = jobService.submitJob(tenant, JobType.DOCUMENT_PARSE, params);
@@ -577,21 +579,33 @@ public class KnowledgeService {
 
     @SuppressWarnings("unchecked")
     private List<Double> getQueryEmbedding(String query) {
-        String embeddingUrl = props.getKnowledge().getEmbeddingServiceUrl();
+        String apiUrl = props.getKnowledge().getEmbeddingApiUrl();
+        String apiKey = props.getKnowledge().getEmbeddingApiKey();
+        String model = props.getKnowledge().getEmbeddingModel();
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        Map<String, Object> body = Map.of("texts", List.of(query));
+        if (apiKey != null && !apiKey.isBlank()) {
+            headers.set("Authorization", "Bearer " + apiKey);
+        }
+
+        // OpenAI-compatible embedding API format (硅基流动/OpenAI)
+        Map<String, Object> body = Map.of(
+                "model", model,
+                "input", List.of(query),
+                "encoding_format", "float"
+        );
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
 
-        Map<String, Object> response = restTemplate.postForObject(embeddingUrl, request, Map.class);
-        if (response == null || !response.containsKey("embeddings")) {
-            throw new RuntimeException("Failed to get embedding: empty response from embedding service");
+        Map<String, Object> response = restTemplate.postForObject(apiUrl, request, Map.class);
+        if (response == null || !response.containsKey("data")) {
+            throw new RuntimeException("Failed to get embedding: empty response from embedding API");
         }
-        List<List<Double>> embeddings = (List<List<Double>>) response.get("embeddings");
-        if (embeddings == null || embeddings.isEmpty()) {
-            throw new RuntimeException("Failed to get embedding: no embeddings returned");
+        List<Map<String, Object>> data = (List<Map<String, Object>>) response.get("data");
+        if (data == null || data.isEmpty()) {
+            throw new RuntimeException("Failed to get embedding: no data returned");
         }
-        return embeddings.get(0);
+        return (List<Double>) data.get(0).get("embedding");
     }
 
     private S3Presigner buildPresigner() {

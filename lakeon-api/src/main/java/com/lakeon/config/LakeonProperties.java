@@ -301,12 +301,18 @@ public class LakeonProperties {
     }
 
     public static class KnowledgeConfig {
-        private String embeddingServiceUrl = "http://embedding-svc.lakeon.svc.cluster.local:8000/embed";
+        private String embeddingApiUrl = "https://api.siliconflow.cn/v1/embeddings";
+        private String embeddingApiKey = "";
+        private String embeddingModel = "BAAI/bge-m3";
         private int presignExpireSeconds = 900;
         private long maxFileSizeBytes = 104857600;
 
-        public String getEmbeddingServiceUrl() { return embeddingServiceUrl; }
-        public void setEmbeddingServiceUrl(String embeddingServiceUrl) { this.embeddingServiceUrl = embeddingServiceUrl; }
+        public String getEmbeddingApiUrl() { return embeddingApiUrl; }
+        public void setEmbeddingApiUrl(String embeddingApiUrl) { this.embeddingApiUrl = embeddingApiUrl; }
+        public String getEmbeddingApiKey() { return embeddingApiKey; }
+        public void setEmbeddingApiKey(String embeddingApiKey) { this.embeddingApiKey = embeddingApiKey; }
+        public String getEmbeddingModel() { return embeddingModel; }
+        public void setEmbeddingModel(String embeddingModel) { this.embeddingModel = embeddingModel; }
         public int getPresignExpireSeconds() { return presignExpireSeconds; }
         public void setPresignExpireSeconds(int presignExpireSeconds) { this.presignExpireSeconds = presignExpireSeconds; }
         public long getMaxFileSizeBytes() { return maxFileSizeBytes; }

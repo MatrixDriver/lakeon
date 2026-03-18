@@ -75,7 +75,9 @@ lakeon:
     suspend-timeout: ${LAKEON_DEFAULT_SUSPEND_TIMEOUT:2m}
     storage-limit-gb: ${LAKEON_DEFAULT_STORAGE_LIMIT:10}
   knowledge:
-    embedding-service-url: ${LAKEON_EMBEDDING_SERVICE_URL:http://embedding-svc.lakeon.svc.cluster.local:8000/embed}
+    embedding-api-url: ${LAKEON_EMBEDDING_API_URL:https://api.siliconflow.cn/v1/embeddings}
+    embedding-api-key: ${LAKEON_EMBEDDING_API_KEY:}
+    embedding-model: ${LAKEON_EMBEDDING_MODEL:BAAI/bge-m3}
     presign-expire-seconds: ${LAKEON_KNOWLEDGE_PRESIGN_EXPIRE:900}
     max-file-size-bytes: ${LAKEON_KNOWLEDGE_MAX_FILE_SIZE:104857600}
   job:

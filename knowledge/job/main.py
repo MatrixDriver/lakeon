@@ -25,7 +25,9 @@ def main():
         obs_key = params["obs_key"]
         fmt = params["format"]
         database_connstr = params["database_connstr"]
-        embedding_service_url = params["embedding_service_url"]
+        embedding_api_url = params.get("embedding_api_url", "https://api.siliconflow.cn/v1/embeddings")
+        embedding_api_key = params.get("embedding_api_key", "")
+        embedding_model = params.get("embedding_model", "BAAI/bge-m3")
         filename = params.get("filename", os.path.basename(obs_key))
 
         logger.info(f"Processing document {document_id}: {filename} ({fmt})")
@@ -60,11 +62,20 @@ def main():
         texts = [c["content"] for c in chunks]
         batch_size = 32
         all_embeddings = []
+        headers = {"Content-Type": "application/json"}
+        if embedding_api_key:
+            headers["Authorization"] = f"Bearer {embedding_api_key}"
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i + batch_size]
-            resp = requests.post(embedding_service_url, json={"texts": batch}, timeout=120)
+            # OpenAI-compatible embedding API (硅基流动/OpenAI)
+            resp = requests.post(embedding_api_url, json={
+                "model": embedding_model,
+                "input": batch,
+                "encoding_format": "float"
+            }, headers=headers, timeout=120)
             resp.raise_for_status()
-            all_embeddings.extend(resp.json()["embeddings"])
+            data = resp.json()["data"]
+            all_embeddings.extend([item["embedding"] for item in data])
             progress = 0.5 + 0.3 * min(i + batch_size, len(texts)) / len(texts)
             report_progress(f"Embedding {min(i + batch_size, len(texts))}/{len(texts)}", progress)
 
