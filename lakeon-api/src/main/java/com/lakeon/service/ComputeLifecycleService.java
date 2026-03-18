@@ -2,10 +2,13 @@ package com.lakeon.service;
 
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.k8s.ComputePodManager;
+import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.OperationLogEntity;
+import com.lakeon.model.enums.ComputeStatus;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.model.enums.OperationType;
+import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.exception.NotFoundException;
 import com.lakeon.service.exception.WakeComputeTimeoutException;
@@ -28,17 +31,20 @@ public class ComputeLifecycleService {
     private final ReentrantLock suspendLock = new ReentrantLock();
 
     private final DatabaseRepository databaseRepository;
+    private final BranchRepository branchRepository;
     private final ComputePodManager computePodManager;
     private final OperationLogService operationLogService;
     private final LakeonProperties props;
     private final TransactionTemplate txTemplate;
 
     public ComputeLifecycleService(DatabaseRepository databaseRepository,
+                                   BranchRepository branchRepository,
                                    ComputePodManager computePodManager,
                                    OperationLogService operationLogService,
                                    LakeonProperties props,
                                    TransactionTemplate txTemplate) {
         this.databaseRepository = databaseRepository;
+        this.branchRepository = branchRepository;
         this.computePodManager = computePodManager;
         this.operationLogService = operationLogService;
         this.props = props;
@@ -157,6 +163,32 @@ public class ComputeLifecycleService {
                 }
             }
         }
+
+        // Branch auto-suspend
+        List<BranchEntity> runningBranches = branchRepository.findByComputeStatus(ComputeStatus.RUNNING);
+        for (BranchEntity branch : runningBranches) {
+            if (branch.getComputePodName() == null) continue;
+
+            String timeout = branch.getSuspendTimeout();
+            if (timeout == null) {
+                DatabaseEntity db = databaseRepository.findById(branch.getDatabaseId()).orElse(null);
+                if (db != null) timeout = db.getSuspendTimeout();
+            }
+            if (timeout == null) timeout = "5m";
+            Duration suspendAfter = parseDuration(timeout);
+            Instant lastActive = branch.getLastActiveAt() != null ? branch.getLastActiveAt() : branch.getCreatedAt();
+            if (lastActive != null && Instant.now().isAfter(lastActive.plus(suspendAfter))) {
+                if (!computePodManager.hasActiveConnections(branch.getComputePodName())) {
+                    log.info("Auto-suspending branch {} compute (idle since {})", branch.getName(), lastActive);
+                    branch.setComputeStatus(ComputeStatus.SUSPENDED);
+                    branch.setSuspendedAt(Instant.now());
+                    branchRepository.save(branch);
+                } else {
+                    branch.setLastActiveAt(Instant.now());
+                    branchRepository.save(branch);
+                }
+            }
+        }
     }
 
     /**
@@ -182,6 +214,25 @@ public class ComputeLifecycleService {
                 databaseRepository.save(entity);
             } catch (Exception e) {
                 log.error("Failed to cleanup Pod for database {}: {}", entity.getId(), e.getMessage());
+            }
+        }
+
+        // Branch pod cleanup
+        List<BranchEntity> suspendedBranches = branchRepository.findByComputeStatus(ComputeStatus.SUSPENDED);
+        for (BranchEntity branch : suspendedBranches) {
+            if (branch.getComputePodName() == null) continue;
+            if (branch.getSuspendedAt() != null
+                    && branch.getSuspendedAt().plus(Duration.ofMinutes(retainMinutes)).isBefore(Instant.now())) {
+                log.info("Cleaning up expired branch Pod: {}", branch.getComputePodName());
+                try {
+                    computePodManager.deleteComputePod(branch.getComputePodName());
+                    branch.setComputePodName(null);
+                    branch.setComputeHost(null);
+                    branch.setComputePort(null);
+                    branchRepository.save(branch);
+                } catch (Exception e) {
+                    log.error("Failed to cleanup Pod for branch {}: {}", branch.getId(), e.getMessage());
+                }
             }
         }
     }

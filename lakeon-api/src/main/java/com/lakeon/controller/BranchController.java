@@ -51,14 +51,6 @@ public class BranchController {
         return branchService.getTree(tenant, dbId);
     }
 
-    @PostMapping("/{branchId}/activate")
-    public BranchResponse activateBranch(HttpServletRequest req,
-                                         @PathVariable String dbId,
-                                         @PathVariable String branchId) {
-        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
-        return branchService.switchActive(tenant, dbId, branchId);
-    }
-
     @PostMapping("/{branchId}/promote")
     @ResponseStatus(HttpStatus.OK)
     public BranchResponse promote(

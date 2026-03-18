@@ -9,6 +9,7 @@ import com.lakeon.model.entity.OperationLogEntity;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.model.enums.BranchStatus;
 import com.lakeon.model.enums.ComputeSize;
+import com.lakeon.model.enums.ComputeStatus;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.model.enums.OperationType;
 import com.lakeon.neon.NeonApiClient;
@@ -200,6 +201,13 @@ public class DatabaseService {
                 mainBranch.setNeonTimelineId(neonTimeline.getTimelineId());
                 mainBranch.setIsDefault(true);
                 mainBranch.setStatus(BranchStatus.ACTIVE);
+                // Copy compute fields to default branch
+                mainBranch.setComputePodName(e.getComputePodName());
+                mainBranch.setComputeHost(e.getComputeHost());
+                mainBranch.setComputePort(e.getComputePort());
+                mainBranch.setComputeStatus(ComputeStatus.RUNNING);
+                mainBranch.setSuspendTimeout(e.getSuspendTimeout());
+                mainBranch.setLastActiveAt(Instant.now());
                 branchRepository.save(mainBranch);
 
                 DatabaseResponse resp = toResponse(e, List.of(mainBranch));

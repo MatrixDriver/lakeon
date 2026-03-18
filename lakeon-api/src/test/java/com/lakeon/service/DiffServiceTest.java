@@ -1,9 +1,11 @@
 package com.lakeon.service;
 
+import com.lakeon.k8s.ComputePodManager;
 import com.lakeon.model.dto.SchemaDiffResponse;
 import com.lakeon.model.dto.SchemaDiffResponse.*;
 import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
+import com.lakeon.repository.VersionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,7 +24,9 @@ class DiffServiceTest {
     void setUp() {
         diffService = new DiffService(
             mock(BranchRepository.class),
-            mock(DatabaseRepository.class)
+            mock(DatabaseRepository.class),
+            mock(VersionRepository.class),
+            mock(ComputePodManager.class)
         );
     }
 

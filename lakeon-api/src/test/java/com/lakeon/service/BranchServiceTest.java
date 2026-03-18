@@ -6,7 +6,6 @@ import com.lakeon.model.dto.CreateBranchRequest;
 import com.lakeon.model.dto.RestoreBranchRequest;
 import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
-import com.lakeon.model.entity.OperationLogEntity;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.model.entity.VersionEntity;
 import com.lakeon.model.enums.BranchStatus;
@@ -307,79 +306,11 @@ class BranchServiceTest {
     }
 
     @Nested
-    @DisplayName("切换活跃分支")
-    class SwitchActive {
-
-        @Test
-        @DisplayName("UT-SVC-BR-009: 正常切换 — 更新 database timeline，重建 compute pod")
-        void switchActive_success() {
-            testDatabase.setComputePodName("compute-db_test001");
-
-            var targetBranch = new BranchEntity();
-            targetBranch.setId("br_feat");
-            targetBranch.setName("feature-test");
-            targetBranch.setDatabaseId("db_test001");
-            targetBranch.setNeonTimelineId("neon-timeline-feat");
-            targetBranch.setIsDefault(false);
-
-            when(databaseRepository.findByIdAndTenantId("db_test001", testTenant.getId()))
-                    .thenReturn(Optional.of(testDatabase));
-            when(branchRepository.findByIdAndDatabaseId("br_feat", "db_test001"))
-                    .thenReturn(Optional.of(targetBranch));
-            when(computePodManager.createComputePod(any()))
-                    .thenReturn("compute-db_test001-new");
-            when(operationLogService.startOperation(any(), any(), any(), any()))
-                    .thenReturn(new OperationLogEntity());
-
-            var result = branchService.switchActive(testTenant, "db_test001", "br_feat");
-
-            assertThat(result.getName()).isEqualTo("feature-test");
-            verify(computePodManager).deleteComputePod("compute-db_test001", true);
-            verify(computePodManager).createComputePod(any());
-            verify(databaseRepository).save(testDatabase);
-            assertThat(testDatabase.getNeonTimelineId()).isEqualTo("neon-timeline-feat");
-        }
-
-        @Test
-        @DisplayName("UT-SVC-BR-010: 切换到已活跃分支 — 抛出 BadRequestException")
-        void switchActive_alreadyActive() {
-            var targetBranch = new BranchEntity();
-            targetBranch.setId("br_main");
-            targetBranch.setName("main");
-            targetBranch.setDatabaseId("db_test001");
-            targetBranch.setNeonTimelineId("neon-timeline-main"); // same as testDatabase
-
-            when(databaseRepository.findByIdAndTenantId("db_test001", testTenant.getId()))
-                    .thenReturn(Optional.of(testDatabase));
-            when(branchRepository.findByIdAndDatabaseId("br_main", "db_test001"))
-                    .thenReturn(Optional.of(targetBranch));
-
-            assertThatThrownBy(() ->
-                    branchService.switchActive(testTenant, "db_test001", "br_main"))
-                    .isInstanceOf(BadRequestException.class)
-                    .hasMessageContaining("already active");
-        }
-
-        @Test
-        @DisplayName("UT-SVC-BR-011: 分支不存在 — 抛出 NotFoundException")
-        void switchActive_branchNotFound() {
-            when(databaseRepository.findByIdAndTenantId("db_test001", testTenant.getId()))
-                    .thenReturn(Optional.of(testDatabase));
-            when(branchRepository.findByIdAndDatabaseId("br_nonexist", "db_test001"))
-                    .thenReturn(Optional.empty());
-
-            assertThatThrownBy(() ->
-                    branchService.switchActive(testTenant, "db_test001", "br_nonexist"))
-                    .isInstanceOf(NotFoundException.class);
-        }
-    }
-
-    @Nested
     @DisplayName("提升分支为默认")
     class PromoteBranch {
 
         @Test
-        @DisplayName("UT-SVC-BR-012: 正常提升 — 交换默认分支，重建 compute pod")
+        @DisplayName("UT-SVC-BR-012: 正常提升 — 交换默认分支，不重建 compute pod")
         void promote_swapsDefaultBranch() {
             testDatabase.setComputePodName("compute-db_test001");
 
@@ -422,9 +353,9 @@ class BranchServiceTest {
             // Database timeline updated
             assertThat(testDatabase.getNeonTimelineId()).isEqualTo("neon-timeline-feat");
 
-            // Compute pod rebuilt
-            verify(computePodManager).deleteComputePod("compute-db_test001", true);
-            verify(computePodManager).createComputePod(any());
+            // No compute pod operations — each branch owns its own compute
+            verify(computePodManager, never()).deleteComputePod(anyString(), anyBoolean());
+            verify(computePodManager, never()).createComputePod(any());
         }
 
         @Test

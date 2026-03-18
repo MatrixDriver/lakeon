@@ -4,6 +4,7 @@ import com.lakeon.config.LakeonProperties;
 import com.lakeon.k8s.ComputePodManager;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.enums.DatabaseStatus;
+import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.exception.WakeComputeTimeoutException;
 
@@ -35,6 +36,9 @@ class ComputeLifecycleServiceTest {
     private DatabaseRepository databaseRepository;
 
     @Mock
+    private BranchRepository branchRepository;
+
+    @Mock
     private ComputePodManager computePodManager;
 
     @Mock
@@ -47,7 +51,7 @@ class ComputeLifecycleServiceTest {
     void setUp() {
         props = new LakeonProperties();
         computeLifecycleService = new ComputeLifecycleService(
-                databaseRepository, computePodManager, operationLogService, props,
+                databaseRepository, branchRepository, computePodManager, operationLogService, props,
                 TestTransactionTemplate.create());
     }
 

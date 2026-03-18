@@ -12,7 +12,6 @@ import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.model.entity.VersionEntity;
 import com.lakeon.model.enums.BranchStatus;
 import com.lakeon.model.enums.BranchType;
-import com.lakeon.model.enums.OperationType;
 import com.lakeon.neon.NeonApiClient;
 import com.lakeon.neon.dto.CreateTimelineRequest;
 import com.lakeon.neon.dto.NeonTimeline;
@@ -211,44 +210,6 @@ public class BranchService {
     }
 
     @Transactional
-    public BranchResponse switchActive(TenantEntity tenant, String dbId, String branchId) {
-        DatabaseEntity dbEntity = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
-            .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
-
-        BranchEntity targetBranch = branchRepository.findByIdAndDatabaseId(branchId, dbId)
-            .orElseThrow(() -> new NotFoundException("Branch not found: " + branchId));
-
-        if (dbEntity.getNeonTimelineId().equals(targetBranch.getNeonTimelineId())) {
-            throw new BadRequestException("Branch is already active");
-        }
-
-        var opLog = operationLogService.startOperation(
-            dbId, tenant.getId(), dbEntity.getName(), OperationType.SWITCH_BRANCH);
-
-        try {
-            // Update database to point to the target branch's timeline
-            dbEntity.setNeonTimelineId(targetBranch.getNeonTimelineId());
-
-            // If compute pod exists, delete and recreate it
-            if (dbEntity.getComputePodName() != null) {
-                computePodManager.deleteComputePod(dbEntity.getComputePodName(), true);
-                String podName = computePodManager.createComputePod(dbEntity);
-                dbEntity.setComputePodName(podName);
-            }
-
-            databaseRepository.save(dbEntity);
-            operationLogService.completeOperation(opLog, null);
-            log.info("Switched database {} to branch {} (timeline {})",
-                dbId, branchId, targetBranch.getNeonTimelineId());
-        } catch (Exception e) {
-            operationLogService.completeOperation(opLog, e.getMessage());
-            throw e;
-        }
-
-        return toResponse(targetBranch);
-    }
-
-    @Transactional
     public BranchResponse promote(TenantEntity tenant, String dbId, String branchId) {
         // Pessimistic lock prevents concurrent Promote/Restore
         DatabaseEntity db = databaseRepository.findByIdAndTenantIdForUpdate(dbId, tenant.getId())
@@ -274,18 +235,9 @@ public class BranchService {
         target.setIsDefault(true);
         branchRepository.save(target);
 
-        // Update database active timeline
+        // Update database active timeline — no compute rebuild needed,
+        // each branch owns its own compute lifecycle
         db.setNeonTimelineId(target.getNeonTimelineId());
-
-        // Rebuild compute pod
-        if (db.getComputePodName() != null) {
-            computePodManager.deleteComputePod(db.getComputePodName(), true);
-        }
-        db.setComputePodName(null);
-        db.setComputeHost(null);
-        db.setComputePort(null);
-        databaseRepository.save(db);
-        computePodManager.createComputePod(db);
         databaseRepository.save(db);
 
         return toResponse(target);

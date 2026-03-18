@@ -171,36 +171,4 @@ class BranchControllerTest {
                 .andExpect(jsonPath("$.nodes[1].parent_branch_id").value("br_main"));
     }
 
-    @Test
-    @DisplayName("IT-API-BR-007: 激活分支 — 返回 200")
-    void activateBranch_success_returns200() throws Exception {
-        var response = BranchResponse.builder()
-                .id("br_feat001")
-                .name("feature-test")
-                .parentBranch("main")
-                .status("active")
-                .neonTimelineId("neon-timeline-feat")
-                .createdAt(Instant.now())
-                .build();
-        when(branchService.switchActive(any(), eq("db_abc123"), eq("br_feat001")))
-                .thenReturn(response);
-
-        mockMvc.perform(post("/api/v1/databases/db_abc123/branches/br_feat001/activate")
-                        .header("Authorization", API_KEY))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value("br_feat001"))
-                .andExpect(jsonPath("$.name").value("feature-test"));
-    }
-
-    @Test
-    @DisplayName("IT-API-BR-008: 激活已活跃分支 — 返回 400")
-    void activateBranch_alreadyActive_returns400() throws Exception {
-        doThrow(new BadRequestException("Branch is already active"))
-                .when(branchService).switchActive(any(), eq("db_abc123"), eq("br_main"));
-
-        mockMvc.perform(post("/api/v1/databases/db_abc123/branches/br_main/activate")
-                        .header("Authorization", API_KEY))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("BAD_REQUEST"));
-    }
 }
