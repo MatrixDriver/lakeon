@@ -86,15 +86,15 @@ lakeon:
     orphan-check-interval-ms: ${LAKEON_JOB_ORPHAN_CHECK_INTERVAL_MS:60000}
     types:
       document-parse:
-        image: ${LAKEON_JOB_IMAGE_DOCUMENT_PARSE:rayproject/ray:2.44.1-py312}
+        image: ${LAKEON_JOB_IMAGE_DOCUMENT_PARSE:swr.cn-north-4.myhuaweicloud.com/flex/lakeon-knowledge-job:0.1.1}
         cpu: "2"
         memory: "4Gi"
       embedding:
-        image: ${LAKEON_JOB_IMAGE_EMBEDDING:rayproject/ray:2.44.1-py312}
+        image: ${LAKEON_JOB_IMAGE_EMBEDDING:swr.cn-north-4.myhuaweicloud.com/flex/lakeon-knowledge-job:0.1.1}
         cpu: "2"
         memory: "4Gi"
       export-parquet:
-        image: ${LAKEON_JOB_IMAGE_EXPORT_PARQUET:rayproject/ray:2.44.1-py312}
+        image: ${LAKEON_JOB_IMAGE_EXPORT_PARQUET:swr.cn-north-4.myhuaweicloud.com/flex/lakeon-knowledge-job:0.1.1}
         cpu: "2"
         memory: "4Gi"
       training:

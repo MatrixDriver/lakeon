@@ -28,6 +28,7 @@
 | Stage 11b | 分支独立 Compute | ✅ 完成 | — |
 | Stage 12 | 弹性节点池 & 自动扩缩容 | ✅ 完成 | — |
 | Stage 14 | DBay CLI & E2E 测试 | 📋 规划中 | — |
+| Stage 15 | Job 框架 & Knowledge Pipeline | 📋 规划中 | — |
 
 ---
 
@@ -337,6 +338,46 @@
 ### Phase C: OpenViking + dbay（探索性）
 - OpenViking 存储自包含（C++ + LevelDB），需写 HTTP adapter 适配 pgvector
 - 优先级低，等 OpenViking 社区活跃或原生支持 PG 时再考虑
+
+## 📋 Stage 15: Job 框架 & Knowledge Pipeline
+
+> 详细方案: [`plans/2026-03-18-job-framework-and-knowledge-pipeline.md`](plans/2026-03-18-job-framework-and-knowledge-pipeline.md)
+
+### 双轨架构决策 (2026-03-18)
+
+| 平面 | 运行环境 | 场景 | 原因 |
+|------|---------|------|------|
+| **Trusted Plane** (我们的代码) | CCE 弹性节点池 (`lakeon/role=compute`) | 知识管线、训练数据导出、平台模型训练 | 冷启动 8s、本地 NVMe、RDS/OBS 直连、setrlimit 已解决 |
+| **Untrusted Plane** (用户代码) | CCI Serverless (per-tenant namespace) | 用户自定义 Ray Job / UDF | Kata microVM 安全隔离、不影响管控面和其他租户 |
+
+- **Phase 1 只做 Trusted Plane** — CCE 弹性节点池跑知识管线和导出，复用现有基础设施
+- **Untrusted Plane 留到 Phase 3** — 等有用户需要自定义数据处理逻辑时再做 CCI 接入
+
+### Phase 1: 通用 Job 框架 + Knowledge Pipeline MVP
+
+- **通用 Job 框架**: JobEntity / JobService / JobManager / JobCallback
+  - 基于现有 ImportJobPodManager 模式，Pod 跑在 CCE 弹性节点池
+  - Job 类型: `DOCUMENT_PARSE`, `EMBEDDING`, `EXPORT_LANCE`, `TRAINING`
+  - API: `POST /jobs`, `GET /jobs/{id}`, `GET /jobs`, `DELETE /jobs/{id}`
+- **Knowledge Pipeline MVP**:
+  - 用户上传文档 → OBS → Job Pod (parse → chunk → embed) → 写入用户 PG (pgvector)
+  - 单 Pod Ray (ray start)，串行处理
+  - MCP 端点: `knowledge_search` (pgvector + BM25 hybrid retrieval)
+
+### Phase 2: 数据飞轮管线
+
+- PG → OBS Parquet 导出 (DuckDB postgres_scan 直写，一条 SQL)
+- Ray Cluster on CCE 弹性节点池 (训练数据清洗/标注)
+- RL 训练: OpenRLHF (Ray 原生，SFT/DPO/PPO/GRPO)
+- 训练数据集 + 模型产物输出到 OBS
+
+### Phase 3: 用户自定义 Job (CCI Serverless) + 多模态
+
+- CCI 接入: 用户 Ray Job 运行在 CCI Serverless (Kata microVM 隔离)
+- Per-tenant CCI namespace + NetworkPolicy
+- 用户 Job 不连 RDS — 通过 API 读写数据，只读 OBS 数据集
+- Job 提交 API + 状态回调 + 计量
+- 多模态存储: 引入 Lance 格式存储图片/音频/视频 + 元数据
 
 ## 📋 Stage 14: DBay CLI & E2E 测试
 
