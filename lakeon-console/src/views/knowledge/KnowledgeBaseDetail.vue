@@ -70,7 +70,18 @@
           </thead>
           <tbody>
             <tr v-for="doc in documents" :key="doc.id" class="clickable-row" @click="router.push({ name: 'DocumentDetail', params: { kbId: route.params.kbId, docId: doc.id } })">
-              <td style="font-weight: 500;">{{ doc.filename }}</td>
+              <td>
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  <span style="font-weight: 500;">{{ doc.filename }}</span>
+                  <span v-for="tag in (doc.tags || [])" :key="tag" class="tag-badge">{{ tag }}</span>
+                  <button class="btn-icon" title="编辑标签" @click.stop="openTagDialog(doc)">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                </div>
+              </td>
               <td><span class="tag-blue" style="font-size: 11px; padding: 1px 6px; border-radius: 3px;">{{ doc.format }}</span></td>
               <td style="color: #666;">{{ formatSize(doc.size_bytes) }}</td>
               <td>{{ doc.chunks_count ?? '-' }}</td>
@@ -108,6 +119,19 @@
 
     <!-- Search Tab -->
     <div v-if="activeTab === 'search'" style="margin-top: 24px; max-width: 720px;">
+      <!-- Tag filter -->
+      <div v-if="allTags.length > 0" style="margin-bottom: 12px;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 6px;">按标签过滤</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          <span v-for="tag in allTags" :key="tag"
+                class="tag-badge tag-filter"
+                :class="{ 'tag-filter-active': searchFilterTags.includes(tag) }"
+                @click="toggleFilterTag(tag)">
+            {{ tag }}
+          </span>
+        </div>
+      </div>
+
       <div style="display: flex; gap: 8px;">
         <input v-model="searchQuery" class="form-input" placeholder="在当前知识库中搜索..." style="flex: 1;" @keyup.enter="handleSearch" />
         <button class="btn btn-primary" @click="handleSearch" :disabled="!searchQuery.trim()">搜索</button>
@@ -126,13 +150,48 @@
         </div>
       </div>
     </div>
+
+    <!-- Tag Edit Dialog -->
+    <div v-if="tagDialog.open" class="modal-overlay" @click.self="tagDialog.open = false">
+      <div class="modal-box">
+        <div class="modal-header">
+          <span>编辑标签</span>
+          <button class="btn-icon" @click="tagDialog.open = false">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 13px; color: #666; margin-bottom: 10px;">
+            文档: <strong>{{ tagDialog.doc?.filename }}</strong>
+          </p>
+          <label style="font-size: 13px; color: #555; display: block; margin-bottom: 6px;">
+            标签（逗号分隔）
+          </label>
+          <input
+            v-model="tagDialog.input"
+            class="form-input"
+            placeholder="例如: 技术文档, 2024, 重要"
+            @keyup.enter="saveDocTags"
+          />
+          <p style="font-size: 12px; color: #aaa; margin-top: 6px;">多个标签用英文逗号分隔</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-text" @click="tagDialog.open = false">取消</button>
+          <button class="btn btn-primary" :disabled="tagDialog.saving" @click="saveDocTags">
+            {{ tagDialog.saving ? '保存中...' : '保存' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getKnowledgeBase, listDocuments, getUploadUrl, processDocument, deleteDocument, searchKnowledge, type KnowledgeBase as KBType, type Document, type SearchResult } from '../../api/knowledge'
+import { getKnowledgeBase, listDocuments, getUploadUrl, processDocument, deleteDocument, searchKnowledge, setDocumentTags, type KnowledgeBase as KBType, type Document, type SearchResult } from '../../api/knowledge'
 import ChunkStats from '../../components/knowledge/ChunkStats.vue'
 
 const route = useRoute()
@@ -143,6 +202,14 @@ const documents = ref<Document[]>([])
 const activeTab = ref('documents')
 const searchQuery = ref('')
 const searchResults = ref<SearchResult[]>([])
+const searchFilterTags = ref<string[]>([])
+
+const tagDialog = ref<{
+  open: boolean
+  doc: Document | null
+  input: string
+  saving: boolean
+}>({ open: false, doc: null, input: '', saving: false })
 
 const tabs = [
   { key: 'overview', label: '概览' },
@@ -159,6 +226,16 @@ const statusCounts = computed(() => {
     else if (d.status === 'FAILED') counts.failed++
   }
   return counts
+})
+
+const allTags = computed(() => {
+  const tagSet = new Set<string>()
+  for (const d of documents.value) {
+    for (const t of (d.tags || [])) {
+      tagSet.add(t)
+    }
+  }
+  return Array.from(tagSet).sort()
 })
 
 function docStatusColor(s: string) {
@@ -178,6 +255,41 @@ function formatSize(bytes: number) {
   if (bytes < 1024) return bytes + ' B'
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
   return (bytes / 1024 / 1024).toFixed(1) + ' MB'
+}
+
+function openTagDialog(doc: Document) {
+  tagDialog.value = {
+    open: true,
+    doc,
+    input: (doc.tags || []).join(', '),
+    saving: false,
+  }
+}
+
+async function saveDocTags() {
+  if (!tagDialog.value.doc) return
+  tagDialog.value.saving = true
+  const tags = tagDialog.value.input
+    .split(',')
+    .map(t => t.trim())
+    .filter(t => t.length > 0)
+  try {
+    await setDocumentTags(tagDialog.value.doc.id, tags)
+    const doc = documents.value.find(d => d.id === tagDialog.value.doc!.id)
+    if (doc) doc.tags = tags
+    tagDialog.value.open = false
+  } finally {
+    tagDialog.value.saving = false
+  }
+}
+
+function toggleFilterTag(tag: string) {
+  const idx = searchFilterTags.value.indexOf(tag)
+  if (idx === -1) {
+    searchFilterTags.value.push(tag)
+  } else {
+    searchFilterTags.value.splice(idx, 1)
+  }
 }
 
 async function loadDocuments() {
@@ -209,7 +321,8 @@ async function handleDeleteDoc(doc: Document) {
 async function handleSearch() {
   if (!searchQuery.value.trim()) return
   const kbId = route.params.kbId as string
-  const resp = await searchKnowledge(kbId, searchQuery.value, 5)
+  const options = searchFilterTags.value.length > 0 ? { tags: searchFilterTags.value } : undefined
+  const resp = await searchKnowledge(kbId, searchQuery.value, 5, options)
   searchResults.value = resp.data.results
 }
 
@@ -247,5 +360,82 @@ onMounted(async () => {
 }
 .clickable-row {
   cursor: pointer;
+}
+.tag-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  background: #e8f3ff;
+  color: #0073e6;
+  border: 1px solid #b3d4f7;
+  white-space: nowrap;
+}
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: #aaa;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-icon:hover {
+  background: #f0f0f0;
+  color: #555;
+}
+.tag-filter {
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.tag-filter:hover {
+  background: #cfe4fc;
+}
+.tag-filter-active {
+  background: #0073e6;
+  color: #fff;
+  border-color: #0073e6;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal-box {
+  background: #fff;
+  border-radius: 10px;
+  width: 420px;
+  max-width: 90vw;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  font-size: 15px;
+  font-weight: 600;
+  border-bottom: 1px solid #f0f0f0;
+}
+.modal-body {
+  padding: 16px 20px;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid #f0f0f0;
 }
 </style>

@@ -23,6 +23,7 @@ export interface Document {
   status: string
   progress?: number
   error: string | null
+  tags: string[]
   created_at: string
 }
 
@@ -76,12 +77,20 @@ export function deleteDocument(documentId: string) {
   return api.delete(`/knowledge/documents/${documentId}`)
 }
 
+export function setDocumentTags(docId: string, tags: string[]) {
+  return api.put<{ tags: string[] }>(`/knowledge/documents/${docId}/tags`, { tags })
+}
+
 // Search
-export function searchKnowledge(kbId: string, query: string, topK: number = 5) {
+export function searchKnowledge(kbId: string, query: string, topK: number = 5, options?: {
+  tags?: string[]
+  document_ids?: string[]
+}) {
   return api.post<{ results: SearchResult[] }>('/knowledge/search', {
     kb_id: kbId,
     query,
     top_k: topK,
+    ...options,
   })
 }
 
