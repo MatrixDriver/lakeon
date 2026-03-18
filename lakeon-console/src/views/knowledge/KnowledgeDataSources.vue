@@ -49,8 +49,8 @@
             <tr v-for="doc in documents" :key="doc.id">
               <td style="font-weight: 500;">{{ doc.filename }}</td>
               <td><span style="background: #e8f4ff; color: #0073e6; font-size: 11px; padding: 1px 6px; border-radius: 3px;">{{ doc.format }}</span></td>
-              <td style="color: #666;">{{ formatSize(doc.sizeBytes) }}</td>
-              <td>{{ doc.chunksCount ?? '-' }}</td>
+              <td style="color: #666;">{{ formatSize(doc.size_bytes) }}</td>
+              <td>{{ doc.chunks_count ?? '-' }}</td>
               <td>
                 <div style="display: flex; align-items: center; gap: 6px;">
                   <span class="status-dot" :style="{ background: statusColor(doc.status) }"></span>
@@ -60,7 +60,7 @@
                   </span>
                 </div>
               </td>
-              <td style="color: #999;">{{ formatTime(doc.createdAt) }}</td>
+              <td style="color: #999;">{{ formatTime(doc.created_at) }}</td>
               <td>
                 <button class="btn btn-text btn-small" style="color: #e6393d;" @click="handleDelete(doc)">删除</button>
               </td>
@@ -82,10 +82,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { listKnowledgeBases, listDocuments, getUploadUrl, processDocument, deleteDocument, type KnowledgeBase, type Document } from '../../api/knowledge'
 
-const knowledgeBases = ref<any[]>([])
+const knowledgeBases = ref<KnowledgeBase[]>([])
 const selectedKbId = ref('')
-const documents = ref<any[]>([])
+const documents = ref<Document[]>([])
 
 const processingCount = computed(() => documents.value.filter(d => d.status === 'PROCESSING').length)
 const readyCount = computed(() => documents.value.filter(d => d.status === 'READY').length)
@@ -115,22 +116,31 @@ function formatTime(t: string) {
 
 async function loadDocuments() {
   if (!selectedKbId.value) { documents.value = []; return }
-  // TODO: GET /api/v1/knowledge/documents?kb_id={selectedKbId}
+  const resp = await listDocuments(selectedKbId.value)
+  documents.value = resp.data
 }
 
 async function handleUpload(e: Event) {
   const input = e.target as HTMLInputElement
   if (!input.files?.length) return
-  // TODO: upload flow
+  for (const file of Array.from(input.files)) {
+    const urlResp = await getUploadUrl(selectedKbId.value, file.name)
+    const { document_id, upload_url } = urlResp.data
+    await fetch(upload_url, { method: 'PUT', body: file })
+    await processDocument(document_id)
+  }
+  await loadDocuments()
   input.value = ''
 }
 
-async function handleDelete(doc: any) {
+async function handleDelete(doc: Document) {
   if (!confirm(`确认删除文档"${doc.filename}"？`)) return
-  // TODO: DELETE
+  await deleteDocument(doc.id)
+  await loadDocuments()
 }
 
 onMounted(async () => {
-  // TODO: GET /api/v1/knowledge/bases
+  const resp = await listKnowledgeBases()
+  knowledgeBases.value = resp.data
 })
 </script>

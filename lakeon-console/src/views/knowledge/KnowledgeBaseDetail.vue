@@ -28,12 +28,12 @@
         <div style="padding: 16px; display: grid; grid-template-columns: 120px 1fr; gap: 12px; font-size: 14px;">
           <span style="color: #999;">名称</span><span>{{ kb?.name }}</span>
           <span style="color: #999;">描述</span><span>{{ kb?.description || '-' }}</span>
-          <span style="color: #999;">文档数</span><span>{{ kb?.documentCount ?? 0 }}</span>
+          <span style="color: #999;">文档数</span><span>{{ kb?.document_count ?? 0 }}</span>
           <span style="color: #999;">Embedding 模型</span><span>BGE-M3 (1024维)</span>
           <span style="color: #999;">切片策略</span><span>结构化切片 (400 tokens)</span>
           <span style="color: #999;">状态</span>
           <span><span class="status-tag" :class="'tag-' + (kb?.status === 'READY' ? 'green' : 'blue')">{{ kb?.status === 'READY' ? '就绪' : kb?.status }}</span></span>
-          <span style="color: #999;">创建时间</span><span>{{ kb?.createdAt ? new Date(kb.createdAt).toLocaleString('zh-CN') : '-' }}</span>
+          <span style="color: #999;">创建时间</span><span>{{ kb?.created_at ? new Date(kb.created_at).toLocaleString('zh-CN') : '-' }}</span>
         </div>
       </div>
     </div>
@@ -72,8 +72,8 @@
             <tr v-for="doc in documents" :key="doc.id">
               <td style="font-weight: 500;">{{ doc.filename }}</td>
               <td><span class="tag-blue" style="font-size: 11px; padding: 1px 6px; border-radius: 3px;">{{ doc.format }}</span></td>
-              <td style="color: #666;">{{ formatSize(doc.sizeBytes) }}</td>
-              <td>{{ doc.chunksCount ?? '-' }}</td>
+              <td style="color: #666;">{{ formatSize(doc.size_bytes) }}</td>
+              <td>{{ doc.chunks_count ?? '-' }}</td>
               <td>
                 <div style="display: flex; align-items: center; gap: 6px;">
                   <span class="status-dot" :style="{ background: docStatusColor(doc.status) }"></span>
@@ -83,7 +83,7 @@
                   </span>
                 </div>
               </td>
-              <td style="color: #999;">{{ doc.createdAt ? new Date(doc.createdAt).toLocaleString('zh-CN') : '-' }}</td>
+              <td style="color: #999;">{{ doc.created_at ? new Date(doc.created_at).toLocaleString('zh-CN') : '-' }}</td>
               <td>
                 <button class="btn btn-text btn-small" style="color: #e6393d;" @click="handleDeleteDoc(doc)">删除</button>
               </td>
@@ -127,25 +127,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { getKnowledgeBase, listDocuments, getUploadUrl, processDocument, deleteDocument, searchKnowledge, type KnowledgeBase as KBType, type Document, type SearchResult } from '../../api/knowledge'
 
 const route = useRoute()
 
-interface Doc {
-  id: string
-  filename: string
-  format: string
-  sizeBytes: number
-  chunksCount: number | null
-  status: string
-  progress?: number
-  createdAt: string
-}
-
-const kb = ref<any>(null)
-const documents = ref<Doc[]>([])
+const kb = ref<KBType | null>(null)
+const documents = ref<Document[]>([])
 const activeTab = ref('documents')
 const searchQuery = ref('')
-const searchResults = ref<any[]>([])
+const searchResults = ref<SearchResult[]>([])
 
 const tabs = [
   { key: 'overview', label: '概览' },
@@ -182,27 +172,47 @@ function formatSize(bytes: number) {
   return (bytes / 1024 / 1024).toFixed(1) + ' MB'
 }
 
+async function loadDocuments() {
+  const kbId = route.params.kbId as string
+  const resp = await listDocuments(kbId)
+  documents.value = resp.data
+}
+
 async function handleUpload(e: Event) {
   const input = e.target as HTMLInputElement
   if (!input.files?.length) return
-  // TODO: for each file — GET upload-url → PUT to OBS → POST process
+  const kbId = route.params.kbId as string
+  for (const file of Array.from(input.files)) {
+    const urlResp = await getUploadUrl(kbId, file.name)
+    const { document_id, upload_url } = urlResp.data
+    await fetch(upload_url, { method: 'PUT', body: file })
+    await processDocument(document_id)
+  }
+  await loadDocuments()
   input.value = ''
 }
 
-async function handleDeleteDoc(doc: Doc) {
+async function handleDeleteDoc(doc: Document) {
   if (!confirm(`确认删除文档"${doc.filename}"？`)) return
-  // TODO: DELETE /api/v1/knowledge/documents/{id}
+  await deleteDocument(doc.id)
+  await loadDocuments()
 }
 
 async function handleSearch() {
   if (!searchQuery.value.trim()) return
-  // TODO: POST /api/v1/knowledge/search
+  const kbId = route.params.kbId as string
+  const resp = await searchKnowledge(kbId, searchQuery.value, 5)
+  searchResults.value = resp.data.results
 }
 
 onMounted(async () => {
-  console.log('Loading KB:', route.params.kbId)
-  // TODO: GET /api/v1/knowledge/bases/${route.params.kbId}
-  // TODO: GET /api/v1/knowledge/documents?kb_id=${route.params.kbId}
+  const kbId = route.params.kbId as string
+  const [kbResp, docsResp] = await Promise.all([
+    getKnowledgeBase(kbId),
+    listDocuments(kbId),
+  ])
+  kb.value = kbResp.data
+  documents.value = docsResp.data
 })
 </script>
 

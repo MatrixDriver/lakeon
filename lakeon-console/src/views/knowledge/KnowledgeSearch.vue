@@ -52,20 +52,23 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { listKnowledgeBases, searchKnowledge, type KnowledgeBase, type SearchResult } from '../../api/knowledge'
 
-const knowledgeBases = ref<any[]>([])
+const knowledgeBases = ref<KnowledgeBase[]>([])
 const selectedKbId = ref('')
 const query = ref('')
-const results = ref<any[]>([])
+const results = ref<SearchResult[]>([])
 const searched = ref(false)
 
 async function search() {
   if (!selectedKbId.value || !query.value.trim()) return
   searched.value = true
-  // TODO: POST /api/v1/knowledge/search { kb_id, query, top_k: 5 }
+  const resp = await searchKnowledge(selectedKbId.value, query.value, 5)
+  results.value = resp.data.results
 }
 
 onMounted(async () => {
-  // TODO: GET /api/v1/knowledge/bases
+  const resp = await listKnowledgeBases()
+  knowledgeBases.value = resp.data
 })
 </script>
