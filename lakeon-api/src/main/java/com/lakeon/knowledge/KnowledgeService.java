@@ -597,7 +597,7 @@ public class KnowledgeService {
             String pass = dbPass != null ? dbPass : "";
             return "postgresql://" + dbUser + ":" + pass
                     + "@proxy.lakeon.svc.cluster.local:4432/" + db.getName()
-                    + "?options=endpoint=" + neonTenantId + "&sslmode=disable";
+                    + "?options=endpoint=" + neonTenantId + "&sslmode=require";
         }
 
         // 3. Fallback: parse connectionUri (always available after DB creation)
@@ -615,7 +615,7 @@ public class KnowledgeService {
                 connUri = connUri.replaceFirst("://([^:@]+)@", "://$1:" + dbPassword + "@");
             }
             if (!connUri.contains("sslmode=")) {
-                connUri += (connUri.contains("?") ? "&" : "?") + "sslmode=disable";
+                connUri += (connUri.contains("?") ? "&" : "?") + "sslmode=require";
             }
             log.info("resolveComputeConnstr: via connectionUri for db {}", databaseId);
             return connUri;
