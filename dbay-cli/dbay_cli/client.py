@@ -48,8 +48,8 @@ class DbayClient:
     def admin_update_quota(self, tenant_id: str, max_databases: int = 100,
                            max_storage_gb: int = 100, max_compute_cu: int = 100) -> dict:
         return self._request("PUT", f"/admin/tenants/{tenant_id}/quota",
-                             json={"maxDatabases": max_databases, "maxStorageGb": max_storage_gb,
-                                   "maxComputeCu": max_compute_cu})
+                             json={"max_databases": max_databases, "max_storage_gb": max_storage_gb,
+                                   "max_compute_cu": max_compute_cu})
 
     def admin_delete_invite_code(self, code: str) -> dict:
         return self._request("DELETE", f"/admin/invite-codes/{code}")

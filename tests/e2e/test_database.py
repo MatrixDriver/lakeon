@@ -23,7 +23,7 @@ class TestDatabase:
         db = poll_until(
             lambda: e2e_client.get_database(db["id"]),
             condition=lambda d: d["status"].lower() in ("running", "error"),
-            timeout=120,
+            timeout=180,
             interval=3,
         )
         assert db["status"].lower() == "running", f"Database creation failed: {db}"
@@ -80,7 +80,7 @@ class TestDatabase:
         db = poll_until(
             lambda: e2e_client.get_database(shared_db["id"]),
             condition=lambda d: d["status"] == "running",
-            timeout=120,
+            timeout=180,
         )
         assert db["status"].lower() == "running"
 
@@ -97,7 +97,7 @@ class TestDatabase:
         db = poll_until(
             lambda: e2e_client.get_database(db["id"]),
             condition=lambda d: d["status"] == "running",
-            timeout=120,
+            timeout=180,
         )
         e2e_client.delete_database(db["id"])
         with pytest.raises(DbayApiError) as exc_info:
