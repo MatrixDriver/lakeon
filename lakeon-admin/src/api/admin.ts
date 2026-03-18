@@ -59,6 +59,8 @@ export const adminApi = {
   infraEvents: (namespace = 'lakeon-compute') => client.get(`/infra/events?namespace=${namespace}`),
   nodePoolStatus: () => client.get('/infra/node-pool'),
   autoscalingEvents: () => client.get('/infra/autoscaling-events'),
+  computeSummary: () => client.get('/infra/compute-summary'),
+  cleanupIdlePods: () => client.post('/infra/cleanup-idle-pods'),
 
   // Audit
   auditLogs: (params?: { tenant_id?: string; db_id?: string; type?: string; page?: number; size?: number }) =>

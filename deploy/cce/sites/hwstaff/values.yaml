@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.6.12"
+    tag: "0.6.13"
   resources:
     requests:
       cpu: "100m"
@@ -61,6 +61,7 @@ api:
       memory: "1Gi"
   inviteRequired: true  # 注册需要邀请码
   aiApiKey: ""          # --set api.aiApiKey=$AI_API_KEY (硅基流动)
+  suspendPodRetainMinutes: 5  # 挂起后 Pod 保留时间（热启动窗口），默认30分钟太长
   # Compute Pod 调度到弹性节点池 (autoscaler min=0 max=5)
   computeNodeSelector:
     lakeon/role: compute
@@ -130,7 +131,7 @@ admin:
   enabled: false
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-admin
-    tag: "0.2.1"
+    tag: "0.2.2"
   replicas: 1
   port: 80
   serviceType: LoadBalancer
@@ -205,6 +206,9 @@ nodeInit:
 # ── 禁用集群内组件 ─────────────────────────────────────────────
 networkPolicy:
   enabled: true
+
+embedding:
+  enabled: false
 
 minio:
   enabled: false

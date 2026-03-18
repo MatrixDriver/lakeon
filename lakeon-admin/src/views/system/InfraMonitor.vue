@@ -4,6 +4,79 @@
       <h1 class="page-title">基础设施</h1>
     </div>
 
+    <!-- Compute Pod Overview -->
+    <div class="section-card">
+      <div class="section-header">
+        <h3>Compute Pod 概览</h3>
+        <button class="btn btn-small btn-danger-outline" @click="confirmCleanup" :disabled="cleanupLoading">
+          {{ cleanupLoading ? '清理中...' : '清理闲置 Pod' }}
+        </button>
+      </div>
+      <div v-if="computeLoading" class="empty-text">加载中...</div>
+      <div v-else-if="!computeSummary" class="empty-text">无法获取数据</div>
+      <template v-else>
+        <div class="compute-stats">
+          <div class="stat-item">
+            <span class="stat-value">{{ computeSummary.total }}</span>
+            <span class="stat-label">Pod 总数</span>
+          </div>
+          <div class="stat-item stat-green">
+            <span class="stat-value">{{ computeSummary.by_status.running }}</span>
+            <span class="stat-label">运行中</span>
+          </div>
+          <div class="stat-item stat-gray">
+            <span class="stat-value">{{ computeSummary.by_status.suspended }}</span>
+            <span class="stat-label">已挂起(保留)</span>
+          </div>
+          <div class="stat-item stat-blue">
+            <span class="stat-value">{{ computeSummary.by_status.creating }}</span>
+            <span class="stat-label">创建中</span>
+          </div>
+          <div class="stat-item stat-red" v-if="computeSummary.by_status.error > 0">
+            <span class="stat-value">{{ computeSummary.by_status.error }}</span>
+            <span class="stat-label">异常</span>
+          </div>
+          <div class="stat-item stat-orange" v-if="computeSummary.by_status.orphaned > 0">
+            <span class="stat-value">{{ computeSummary.by_status.orphaned }}</span>
+            <span class="stat-label">孤儿 Pod</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ computeSummary.total_mem_request_gb }} GB</span>
+            <span class="stat-label">内存占用</span>
+          </div>
+        </div>
+        <div class="table-wrapper" v-if="computeSummary.pods.length > 0" style="margin-top: 12px;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Pod</th>
+                <th>数据库</th>
+                <th>数据库状态</th>
+                <th>Pod 状态</th>
+                <th>内存</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="p in computeSummary.pods" :key="p.pod_name"
+                :class="{ 'row-warn': p.db_status === 'suspended' || p.db_status === 'orphaned' }">
+                <td class="pod-name">{{ p.pod_name }}</td>
+                <td>{{ p.db_name || '-' }}</td>
+                <td>
+                  <span class="phase-badge" :class="dbStatusBadge(p.db_status)">
+                    {{ DB_STATUS_LABELS[p.db_status] || p.db_status }}
+                  </span>
+                </td>
+                <td>
+                  <span class="phase-badge" :class="phaseBadgeClass(p.phase, true)">{{ p.phase }}</span>
+                </td>
+                <td>{{ p.mem_request_mb }} MB</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+    </div>
+
     <!-- Elastic Node Pool -->
     <div class="section-card">
       <div class="section-header">
@@ -330,10 +403,65 @@ const events = ref<PodEvent[]>([])
 const pool = ref<NodePoolInfo | null>(null)
 const autoscaleEvents = ref<AutoscaleEvent[]>([])
 const autoscaleSummary = ref<AutoscaleSummary | null>(null)
+const computeSummary = ref<any>(null)
 const loading = ref(true)
 const eventsLoading = ref(true)
 const poolLoading = ref(true)
 const autoscaleLoading = ref(true)
+const computeLoading = ref(true)
+const cleanupLoading = ref(false)
+
+const DB_STATUS_LABELS: Record<string, string> = {
+  running: '运行中',
+  suspended: '已挂起',
+  error: '异常',
+  creating: '创建中',
+  orphaned: '孤儿',
+}
+
+function dbStatusBadge(status: string): string {
+  switch (status) {
+    case 'running': return 'phase-running'
+    case 'suspended': return 'phase-pending'
+    case 'error': return 'phase-failed'
+    case 'creating': return 'phase-starting'
+    case 'orphaned': return 'phase-failed'
+    default: return 'phase-unknown'
+  }
+}
+
+async function confirmCleanup() {
+  const idle = (computeSummary.value?.by_status?.suspended || 0)
+    + (computeSummary.value?.by_status?.orphaned || 0)
+    + (computeSummary.value?.by_status?.error || 0)
+  if (idle === 0) {
+    alert('没有需要清理的闲置 Pod')
+    return
+  }
+  if (!confirm(`确定清理 ${idle} 个闲置 Pod（已挂起 + 孤儿 + 异常）？\n这会释放节点内存，允许创建新数据库。`)) return
+  cleanupLoading.value = true
+  try {
+    const res = await adminApi.cleanupIdlePods()
+    const d = res.data
+    alert(`清理完成：删除 ${d.deleted} 个 Pod` + (d.errors?.length ? `\n失败: ${d.errors.length}` : ''))
+    await loadComputeSummary()
+    await loadData()
+  } catch (e) {
+    alert('清理失败')
+    console.error(e)
+  } finally {
+    cleanupLoading.value = false
+  }
+}
+
+async function loadComputeSummary() {
+  computeLoading.value = true
+  try {
+    const res = await adminApi.computeSummary()
+    computeSummary.value = res.data
+  } catch (e) { console.error('Failed to load compute summary', e) }
+  finally { computeLoading.value = false }
+}
 
 function progressColor(percent: number | undefined): string {
   if (percent == null) return 'fill-green'
@@ -407,7 +535,7 @@ async function loadData() {
   autoscaleLoading.value = false
 }
 
-onMounted(() => { loadData() })
+onMounted(() => { loadData(); loadComputeSummary() })
 </script>
 
 <style scoped>
@@ -718,6 +846,46 @@ onMounted(() => { loadData() })
 .event-reason  { font-size: 13px; white-space: nowrap; }
 .event-message { font-size: 12px; color: #575d6c; max-width: 320px; cursor: default; }
 .event-time    { font-size: 12px; color: #999; white-space: nowrap; }
+
+/* Compute Pod Stats */
+.compute-stats {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.stat-item {
+  text-align: center;
+  min-width: 80px;
+}
+.stat-value {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  color: #191919;
+}
+.stat-label {
+  display: block;
+  font-size: 12px;
+  color: #8a8e99;
+  margin-top: 2px;
+}
+.stat-green .stat-value { color: #389e0d; }
+.stat-gray .stat-value { color: #8a8e99; }
+.stat-blue .stat-value { color: #0073e6; }
+.stat-red .stat-value { color: #e53e3e; }
+.stat-orange .stat-value { color: #d48806; }
+.row-warn { background: #fffbe6; }
+.btn-danger-outline {
+  background: #fff;
+  color: #e53e3e;
+  border: 1px solid #e53e3e;
+  padding: 4px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.btn-danger-outline:hover:not(:disabled) { background: #fff1f0; }
+.btn-danger-outline:disabled { opacity: 0.5; cursor: not-allowed; }
 
 @media (max-width: 768px) {
   .node-grid { grid-template-columns: 1fr; }

@@ -403,6 +403,16 @@ public class AdminController {
         return result;
     }
 
+    @GetMapping("/infra/compute-summary")
+    public Map<String, Object> getComputeSummary() {
+        return adminService.getComputePodSummary();
+    }
+
+    @PostMapping("/infra/cleanup-idle-pods")
+    public Map<String, Object> cleanupIdlePods() {
+        return adminService.cleanupIdleComputePods();
+    }
+
     // ── Audit Logs ──────────────────────────────────────────────────
 
     @GetMapping("/audit/logs")

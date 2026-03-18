@@ -8,6 +8,8 @@ import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.model.enums.OperationStatus;
 import com.lakeon.model.enums.OperationType;
 import com.lakeon.neon.NeonApiClient;
+import com.lakeon.model.entity.BranchEntity;
+import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.OperationLogRepository;
 import com.lakeon.repository.TenantRepository;
@@ -41,6 +43,7 @@ public class AdminService {
 
     private final TenantRepository tenantRepository;
     private final DatabaseRepository databaseRepository;
+    private final BranchRepository branchRepository;
     private final OperationLogRepository operationLogRepository;
     private final NeonApiClient neonApiClient;
     private final LakeonProperties props;
@@ -55,6 +58,7 @@ public class AdminService {
 
     public AdminService(TenantRepository tenantRepository,
                         DatabaseRepository databaseRepository,
+                        BranchRepository branchRepository,
                         OperationLogRepository operationLogRepository,
                         NeonApiClient neonApiClient,
                         LakeonProperties props,
@@ -65,6 +69,7 @@ public class AdminService {
                         CbcBillingService cbcBillingService) {
         this.tenantRepository = tenantRepository;
         this.databaseRepository = databaseRepository;
+        this.branchRepository = branchRepository;
         this.operationLogRepository = operationLogRepository;
         this.neonApiClient = neonApiClient;
         this.props = props;
@@ -1140,5 +1145,186 @@ public class AdminService {
         } catch (NumberFormatException e) {
             return 1;
         }
+    }
+
+    // ── Compute Pod Summary ──
+
+    public Map<String, Object> getComputePodSummary() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        String computeNs = props.getK8s().getNamespace();
+
+        // Get all compute pods
+        List<io.fabric8.kubernetes.api.model.Pod> computePods;
+        try {
+            computePods = k8sClient.pods().inNamespace(computeNs).list().getItems();
+        } catch (Exception e) {
+            result.put("error", e.getMessage());
+            return result;
+        }
+
+        // Get all databases to cross-reference
+        List<DatabaseEntity> allDbs = databaseRepository.findAll();
+        Map<String, DatabaseEntity> podToDb = new java.util.HashMap<>();
+        for (DatabaseEntity db : allDbs) {
+            if (db.getComputePodName() != null) {
+                podToDb.put(db.getComputePodName(), db);
+            }
+        }
+        // Also check branches
+        List<BranchEntity> allBranches = branchRepository.findAll();
+        for (BranchEntity br : allBranches) {
+            if (br.getComputePodName() != null && !podToDb.containsKey(br.getComputePodName())) {
+                // Find parent database for context
+                DatabaseEntity parentDb = allDbs.stream()
+                    .filter(d -> d.getId().equals(br.getDatabaseId()))
+                    .findFirst().orElse(null);
+                if (parentDb != null) podToDb.put(br.getComputePodName(), parentDb);
+            }
+        }
+
+        int total = computePods.size();
+        int running = 0, suspended = 0, error = 0, creating = 0, orphaned = 0;
+        long totalMemRequestBytes = 0;
+
+        List<Map<String, Object>> podDetails = new java.util.ArrayList<>();
+        for (var pod : computePods) {
+            String podName = pod.getMetadata().getName();
+            String phase = pod.getStatus() != null ? pod.getStatus().getPhase() : "Unknown";
+
+            // Memory request
+            long memRequest = 0;
+            try {
+                var containers = pod.getSpec().getContainers();
+                if (containers != null && !containers.isEmpty()) {
+                    var req = containers.get(0).getResources().getRequests();
+                    if (req != null && req.get("memory") != null) {
+                        memRequest = req.get("memory").getNumericalAmount().longValue();
+                    }
+                }
+            } catch (Exception ignored) {}
+            totalMemRequestBytes += memRequest;
+
+            DatabaseEntity db = podToDb.get(podName);
+            String dbStatus = "orphaned";
+            String dbName = null;
+            String dbId = null;
+            if (db != null) {
+                dbStatus = db.getStatus().name().toLowerCase();
+                dbName = db.getName();
+                dbId = db.getId();
+                switch (db.getStatus()) {
+                    case RUNNING: running++; break;
+                    case SUSPENDED: suspended++; break;
+                    case ERROR: error++; break;
+                    case CREATING: creating++; break;
+                    default: orphaned++; break;
+                }
+            } else {
+                orphaned++;
+            }
+
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("pod_name", podName);
+            detail.put("phase", phase);
+            detail.put("db_name", dbName);
+            detail.put("db_id", dbId);
+            detail.put("db_status", dbStatus);
+            detail.put("mem_request_mb", memRequest / (1024 * 1024));
+            podDetails.add(detail);
+        }
+
+        result.put("total", total);
+        result.put("by_status", Map.of(
+            "running", running,
+            "suspended", suspended,
+            "error", error,
+            "creating", creating,
+            "orphaned", orphaned
+        ));
+        result.put("total_mem_request_gb", Math.round(totalMemRequestBytes / (1024.0 * 1024 * 1024) * 100) / 100.0);
+        result.put("pods", podDetails);
+        return result;
+    }
+
+    /**
+     * Cleanup idle compute pods: delete pods for SUSPENDED/ERROR databases and orphaned pods.
+     */
+    public Map<String, Object> cleanupIdleComputePods() {
+        String computeNs = props.getK8s().getNamespace();
+        List<io.fabric8.kubernetes.api.model.Pod> computePods;
+        try {
+            computePods = k8sClient.pods().inNamespace(computeNs).list().getItems();
+        } catch (Exception e) {
+            return Map.of("error", e.getMessage());
+        }
+
+        // Build pod-to-database mapping
+        List<DatabaseEntity> allDbs = databaseRepository.findAll();
+        Map<String, DatabaseEntity> podToDb = new java.util.HashMap<>();
+        for (DatabaseEntity db : allDbs) {
+            if (db.getComputePodName() != null) {
+                podToDb.put(db.getComputePodName(), db);
+            }
+        }
+        List<BranchEntity> allBranches = branchRepository.findAll();
+        Map<String, BranchEntity> podToBranch = new java.util.HashMap<>();
+        for (BranchEntity br : allBranches) {
+            if (br.getComputePodName() != null) {
+                podToBranch.put(br.getComputePodName(), br);
+            }
+        }
+
+        int deleted = 0;
+        List<String> deletedPods = new java.util.ArrayList<>();
+        List<Map<String, String>> errors = new java.util.ArrayList<>();
+
+        for (var pod : computePods) {
+            String podName = pod.getMetadata().getName();
+            DatabaseEntity db = podToDb.get(podName);
+            BranchEntity branch = podToBranch.get(podName);
+
+            boolean shouldDelete = false;
+            String reason = null;
+
+            if (db == null && branch == null) {
+                shouldDelete = true;
+                reason = "orphaned";
+            } else if (db != null && (db.getStatus() == DatabaseStatus.SUSPENDED
+                    || db.getStatus() == DatabaseStatus.ERROR)) {
+                shouldDelete = true;
+                reason = "db_" + db.getStatus().name().toLowerCase();
+            }
+
+            if (shouldDelete) {
+                try {
+                    k8sClient.pods().inNamespace(computeNs).withName(podName).delete();
+                    // Clear pod reference in database entity
+                    if (db != null) {
+                        db.setComputePodName(null);
+                        db.setComputeHost(null);
+                        db.setComputePort(null);
+                        databaseRepository.save(db);
+                    }
+                    if (branch != null) {
+                        branch.setComputePodName(null);
+                        branch.setComputeHost(null);
+                        branch.setComputePort(null);
+                        branchRepository.save(branch);
+                    }
+                    deleted++;
+                    deletedPods.add(podName);
+                    log.info("SRE cleanup: deleted idle pod {} (reason: {})", podName, reason);
+                } catch (Exception e) {
+                    errors.add(Map.of("pod", podName, "error", e.getMessage()));
+                    log.error("SRE cleanup: failed to delete pod {}: {}", podName, e.getMessage());
+                }
+            }
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("deleted", deleted);
+        result.put("deleted_pods", deletedPods);
+        if (!errors.isEmpty()) result.put("errors", errors);
+        return result;
     }
 }

@@ -39,6 +39,7 @@ class AdminServiceTest {
     @Mock private TenantRepository tenantRepository;
     @Mock private DatabaseRepository databaseRepository;
     @Mock private OperationLogRepository operationLogRepository;
+    @Mock private com.lakeon.repository.BranchRepository branchRepository;
     @Mock private NeonApiClient neonApiClient;
     @Mock private DataSource dataSource;
     @Mock private UsageMeteringService usageMeteringService;
@@ -74,8 +75,8 @@ class AdminServiceTest {
         props.setCost(cost);
 
         adminService = new AdminService(
-                tenantRepository, databaseRepository, operationLogRepository,
-                neonApiClient, props, dataSource, usageMeteringService,
+                tenantRepository, databaseRepository, branchRepository,
+                operationLogRepository, neonApiClient, props, dataSource, usageMeteringService,
                 meterRegistry, kubernetesClient, cbcBillingService);
     }
 
