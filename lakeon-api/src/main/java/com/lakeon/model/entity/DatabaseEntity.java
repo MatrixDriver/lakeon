@@ -57,6 +57,9 @@ public class DatabaseEntity {
     @Column(name = "connection_uri", length = 512)
     private String connectionUri;
 
+    @Column(name = "status_message", length = 1024)
+    private String statusMessage;
+
     @Column(name = "allowed_ips", length = 2000)
     private String allowedIps;
 
@@ -209,6 +212,9 @@ public class DatabaseEntity {
     public void setConnectionUri(String connectionUri) {
         this.connectionUri = connectionUri;
     }
+
+    public String getStatusMessage() { return statusMessage; }
+    public void setStatusMessage(String statusMessage) { this.statusMessage = statusMessage; }
 
     public String getAllowedIps() { return allowedIps; }
     public void setAllowedIps(String allowedIps) { this.allowedIps = allowedIps; }

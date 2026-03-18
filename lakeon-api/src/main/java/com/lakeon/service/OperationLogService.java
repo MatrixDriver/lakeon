@@ -80,4 +80,12 @@ public class OperationLogService {
     public List<OperationLogEntity> getRecent(String tenantId) {
         return repository.findTop10ByTenantIdOrderByStartedAtDesc(tenantId);
     }
+
+    public void failInProgressOperations(String databaseId, String errorMessage) {
+        List<OperationLogEntity> inProgress = repository.findByDatabaseIdAndStatus(
+            databaseId, OperationStatus.IN_PROGRESS);
+        for (OperationLogEntity op : inProgress) {
+            completeOperation(op, errorMessage);
+        }
+    }
 }

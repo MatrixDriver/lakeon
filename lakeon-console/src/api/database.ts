@@ -4,6 +4,7 @@ export interface Database {
   id: string
   name: string
   status: string
+  status_message?: string | null
   connection_uri: string
   password?: string
   compute_size: string

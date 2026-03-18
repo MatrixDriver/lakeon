@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.6.11"
+    tag: "0.6.12"
   resources:
     requests:
       cpu: "100m"
@@ -130,7 +130,7 @@ admin:
   enabled: false
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-admin
-    tag: "0.2.0"
+    tag: "0.2.1"
   replicas: 1
   port: 80
   serviceType: LoadBalancer
@@ -151,7 +151,7 @@ console:
   enabled: false
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-console
-    tag: "0.3.7"
+    tag: "0.3.8"
   replicas: 1
   port: 80
   serviceType: LoadBalancer

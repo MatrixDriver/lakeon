@@ -423,6 +423,7 @@ public class AdminController {
         m.put("name", db.getName());
         m.put("tenant_id", db.getTenantId());
         m.put("status", db.getStatus().name());
+        m.put("status_message", db.getStatusMessage());
         m.put("compute_size", db.getComputeSize());
         m.put("storage_limit_gb", db.getStorageLimitGb());
         m.put("compute_pod_name", db.getComputePodName());
