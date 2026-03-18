@@ -469,7 +469,7 @@ async function handleCreate() {
       storage_limit_gb: createForm.storage_limit_gb,
     })
     showCreateDialog.value = false
-    toast.success(`数据库 "${createForm.name}" 创建成功`)
+    toast.success('数据库创建已提交，正在后台初始化...')
     createForm.name = ''
     createForm.compute_size = '1cu'
     createForm.suspend_timeout = '5m'

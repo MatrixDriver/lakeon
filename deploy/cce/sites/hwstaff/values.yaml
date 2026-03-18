@@ -151,7 +151,7 @@ console:
   enabled: false
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-console
-    tag: "0.3.8"
+    tag: "0.3.9"
   replicas: 1
   port: 80
   serviceType: LoadBalancer
