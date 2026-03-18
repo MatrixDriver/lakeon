@@ -1,7 +1,12 @@
 package com.lakeon.knowledge;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -26,6 +31,17 @@ public class KnowledgeBaseEntity {
 
     @Column(name = "database_id", length = 32)
     private String databaseId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", length = 16)
+    private KnowledgeBaseType type = KnowledgeBaseType.DOCUMENT;
+
+    @Column(name = "source_database_id", length = 32)
+    private String sourceDatabaseId;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "table_names", columnDefinition = "jsonb")
+    private List<String> tableNames = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 32)
@@ -73,6 +89,15 @@ public class KnowledgeBaseEntity {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public KnowledgeBaseType getType() { return type; }
+    public void setType(KnowledgeBaseType type) { this.type = type; }
+
+    public String getSourceDatabaseId() { return sourceDatabaseId; }
+    public void setSourceDatabaseId(String sourceDatabaseId) { this.sourceDatabaseId = sourceDatabaseId; }
+
+    public List<String> getTableNames() { return tableNames; }
+    public void setTableNames(List<String> tableNames) { this.tableNames = tableNames; }
 
     public String getDatabaseId() { return databaseId; }
     public void setDatabaseId(String databaseId) { this.databaseId = databaseId; }

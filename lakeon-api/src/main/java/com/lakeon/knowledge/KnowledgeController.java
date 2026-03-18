@@ -24,6 +24,7 @@ public class KnowledgeController {
 
     // ── Knowledge Base endpoints ─────────────────────────────────────
 
+    @SuppressWarnings("unchecked")
     @PostMapping("/bases")
     @ResponseStatus(HttpStatus.CREATED)
     public Map<String, Object> createKnowledgeBase(HttpServletRequest req,
@@ -34,7 +35,23 @@ public class KnowledgeController {
         if (name == null || name.isBlank()) {
             throw new com.lakeon.service.exception.BadRequestException("name is required");
         }
-        KnowledgeBaseEntity kb = knowledgeService.createKnowledgeBase(tenant, name, description);
+
+        // Parse type (default DOCUMENT)
+        KnowledgeBaseType type = KnowledgeBaseType.DOCUMENT;
+        String typeStr = (String) body.get("type");
+        if (typeStr != null && !typeStr.isBlank()) {
+            try {
+                type = KnowledgeBaseType.valueOf(typeStr.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new com.lakeon.service.exception.BadRequestException("Invalid type: " + typeStr + ". Must be DOCUMENT or TABLE");
+            }
+        }
+
+        String sourceDatabaseId = (String) body.get("source_database_id");
+        List<String> tableNames = (List<String>) body.get("table_names");
+
+        KnowledgeBaseEntity kb = knowledgeService.createKnowledgeBase(
+                tenant, name, description, type, sourceDatabaseId, tableNames);
         return toKbResponse(kb);
     }
 
@@ -135,11 +152,6 @@ public class KnowledgeController {
         TenantEntity tenant = getTenant(req);
         String kbId = (String) body.get("kb_id");
         String query = (String) body.get("query");
-        int topK = body.containsKey("top_k") ? ((Number) body.get("top_k")).intValue() : 5;
-        List<String> documentIds = (List<String>) body.get("document_ids");
-        List<String> tags = (List<String>) body.get("tags");
-        List<Map<String, String>> conversationHistory = body.containsKey("conversation_history")
-                ? (List<Map<String, String>>) body.get("conversation_history") : null;
 
         if (kbId == null || kbId.isBlank()) {
             throw new com.lakeon.service.exception.BadRequestException("kb_id is required");
@@ -147,6 +159,20 @@ public class KnowledgeController {
         if (query == null || query.isBlank()) {
             throw new com.lakeon.service.exception.BadRequestException("query is required");
         }
+
+        // Check KB type and route accordingly
+        KnowledgeBaseEntity kb = knowledgeService.getKnowledgeBase(tenant.getId(), kbId);
+        if (kb.getType() == KnowledgeBaseType.TABLE) {
+            String modelId = (String) body.getOrDefault("model", null);
+            return knowledgeService.searchTable(tenant.getId(), kbId, query, modelId);
+        }
+
+        // DOCUMENT type: existing search flow
+        int topK = body.containsKey("top_k") ? ((Number) body.get("top_k")).intValue() : 5;
+        List<String> documentIds = (List<String>) body.get("document_ids");
+        List<String> tags = (List<String>) body.get("tags");
+        List<Map<String, String>> conversationHistory = body.containsKey("conversation_history")
+                ? (List<Map<String, String>>) body.get("conversation_history") : null;
 
         boolean rerank = body.containsKey("rerank") ? (Boolean) body.get("rerank") : false;
 
@@ -164,6 +190,19 @@ public class KnowledgeController {
         return response;
     }
 
+    // ── TABLE KB endpoints ─────────────────────────────────────────
+
+    @GetMapping("/bases/{id}/tables")
+    public ResponseEntity<?> getTableInfo(HttpServletRequest req, @PathVariable String id) {
+        TenantEntity tenant = getTenant(req);
+        KnowledgeBaseEntity kb = knowledgeService.getKnowledgeBase(tenant.getId(), id);
+        if (kb.getType() != KnowledgeBaseType.TABLE) {
+            throw new com.lakeon.service.exception.BadRequestException("Knowledge base is not TABLE type");
+        }
+        java.util.List<Map<String, Object>> schemas = knowledgeService.getTableSchema(tenant.getId(), id);
+        return ResponseEntity.ok(schemas);
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────
 
     private TenantEntity getTenant(HttpServletRequest req) {
@@ -176,7 +215,10 @@ public class KnowledgeController {
         map.put("tenant_id", kb.getTenantId());
         map.put("name", kb.getName());
         map.put("description", kb.getDescription());
+        map.put("type", kb.getType() != null ? kb.getType().name() : "DOCUMENT");
         map.put("database_id", kb.getDatabaseId());
+        map.put("source_database_id", kb.getSourceDatabaseId());
+        map.put("table_names", kb.getTableNames());
         map.put("status", kb.getStatus() != null ? kb.getStatus().name() : null);
         map.put("document_count", kb.getDocumentCount());
         map.put("error", kb.getError());

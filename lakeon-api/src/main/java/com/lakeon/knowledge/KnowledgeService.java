@@ -12,6 +12,7 @@ import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.DatabaseService;
+import com.lakeon.service.AiSqlService;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
 import org.slf4j.Logger;
@@ -36,10 +37,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+import java.sql.*;
 import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -60,6 +58,7 @@ public class KnowledgeService {
     private final KnowledgeDbHelper dbHelper;
     private final HttpClient httpClient;
     private final QueryRewriteService queryRewriteService;
+    private final AiSqlService aiSqlService;
 
     public KnowledgeService(DocumentRepository documentRepository,
                             KnowledgeBaseRepository knowledgeBaseRepository,
@@ -70,7 +69,8 @@ public class KnowledgeService {
                             ObjectMapper objectMapper,
                             DatabaseService databaseService,
                             KnowledgeDbHelper dbHelper,
-                            QueryRewriteService queryRewriteService) {
+                            QueryRewriteService queryRewriteService,
+                            AiSqlService aiSqlService) {
         this.documentRepository = documentRepository;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.jobService = jobService;
@@ -81,6 +81,7 @@ public class KnowledgeService {
         this.databaseService = databaseService;
         this.dbHelper = dbHelper;
         this.queryRewriteService = queryRewriteService;
+        this.aiSqlService = aiSqlService;
         this.restTemplate = new RestTemplate();
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
@@ -90,31 +91,87 @@ public class KnowledgeService {
     // ── Knowledge Base CRUD ──────────────────────────────────────────
 
     /**
-     * Create a KnowledgeBase and provision a hidden database for it.
-     * The database name is derived from the KB id after @PrePersist.
+     * Create a KnowledgeBase.
+     * For DOCUMENT type: provisions a hidden database asynchronously.
+     * For TABLE type: validates source database and table names, sets READY immediately.
      */
     @Transactional
     public KnowledgeBaseEntity createKnowledgeBase(TenantEntity tenant, String name, String description) {
+        return createKnowledgeBase(tenant, name, description, KnowledgeBaseType.DOCUMENT, null, null);
+    }
+
+    @Transactional
+    public KnowledgeBaseEntity createKnowledgeBase(TenantEntity tenant, String name, String description,
+                                                    KnowledgeBaseType type, String sourceDatabaseId,
+                                                    List<String> tableNames) {
         if (name == null || name.isBlank()) {
             throw new BadRequestException("name is required");
+        }
+        if (type == null) {
+            type = KnowledgeBaseType.DOCUMENT;
         }
 
         KnowledgeBaseEntity kb = new KnowledgeBaseEntity();
         kb.setTenantId(tenant.getId());
         kb.setName(name);
         kb.setDescription(description);
-        kb.setStatus(KnowledgeBaseStatus.CREATING);
+        kb.setType(type);
         kb.setDocumentCount(0);
+
+        if (type == KnowledgeBaseType.TABLE) {
+            if (sourceDatabaseId == null || sourceDatabaseId.isBlank()) {
+                throw new BadRequestException("source_database_id is required for TABLE type");
+            }
+            if (tableNames == null || tableNames.isEmpty()) {
+                throw new BadRequestException("table_names is required for TABLE type");
+            }
+
+            // Validate source database exists and belongs to tenant
+            databaseRepository.findByIdAndTenantId(sourceDatabaseId, tenant.getId())
+                    .orElseThrow(() -> new BadRequestException("Source database not found: " + sourceDatabaseId));
+
+            // Ensure compute is running for validation
+            databaseService.ensureRunning(tenant, sourceDatabaseId);
+
+            // Validate table names by connecting to compute and checking information_schema
+            try (Connection conn = dbHelper.getComputeConnectionByDbId(tenant.getId(), sourceDatabaseId);
+                 PreparedStatement ps = conn.prepareStatement(
+                         "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY(?)")) {
+                java.sql.Array arr = conn.createArrayOf("varchar", tableNames.toArray());
+                ps.setArray(1, arr);
+                Set<String> foundTables = new HashSet<>();
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        foundTables.add(rs.getString("table_name"));
+                    }
+                }
+                List<String> missing = tableNames.stream()
+                        .filter(t -> !foundTables.contains(t))
+                        .toList();
+                if (!missing.isEmpty()) {
+                    throw new BadRequestException("Tables not found in source database: " + String.join(", ", missing));
+                }
+            } catch (BadRequestException e) {
+                throw e;
+            } catch (Exception e) {
+                log.error("Failed to validate table names for source database {}: {}", sourceDatabaseId, e.getMessage(), e);
+                throw new BadRequestException("Failed to validate tables: " + e.getMessage());
+            }
+
+            kb.setSourceDatabaseId(sourceDatabaseId);
+            kb.setTableNames(tableNames);
+            kb.setStatus(KnowledgeBaseStatus.READY);
+            knowledgeBaseRepository.save(kb);
+            return kb;
+        }
+
+        // DOCUMENT type: existing flow
+        kb.setStatus(KnowledgeBaseStatus.CREATING);
         knowledgeBaseRepository.save(kb);
 
-        // Provision a hidden database via DatabaseService asynchronously.
-        // For MVP, we create the database record directly using DatabaseService.create()
-        // on a separate thread so we don't block the HTTP response.
-        // The KB id is available after save (generated in @PrePersist).
         String kbId = kb.getId();
-        String internalDbName = kbId.replace("_", "-");  // kb_487307dad1c9 → kb-487307dad1c9
+        String internalDbName = kbId.replace("_", "-");
 
-        // Spawn async provisioning in a background thread
         Thread t = new Thread(() -> provisionKbDatabase(kbId, tenant, internalDbName),
                 "kb-provision-" + kbId);
         t.setDaemon(true);
@@ -563,6 +620,159 @@ public class KnowledgeService {
             searchResult.put("rewritten_query", rewrittenQuery);
         }
         return searchResult;
+    }
+
+    // ── TABLE KB operations ────────────────────────────────────────
+
+    /**
+     * Search a TABLE type KB: generate SQL from natural language, execute on user compute, return results.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> searchTable(String tenantId, String kbId, String query, String modelId) {
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+
+        if (kb.getType() != KnowledgeBaseType.TABLE) {
+            throw new BadRequestException("Knowledge base is not TABLE type");
+        }
+        if (kb.getSourceDatabaseId() == null) {
+            throw new BadRequestException("Knowledge base has no source database");
+        }
+
+        // 1. Get schema info from source database
+        String schemaInfo = buildSchemaInfo(tenantId, kb);
+
+        // 2. Call AiSqlService to generate SQL
+        Map<String, Object> aiResult = aiSqlService.generateSql(query, schemaInfo, modelId);
+        if (aiResult.containsKey("error")) {
+            return aiResult;
+        }
+
+        String sql = (String) aiResult.get("sql");
+        if (sql == null || sql.isBlank()) {
+            return Map.of("error", "AI service returned empty SQL");
+        }
+
+        // 3. Validate: only SELECT allowed
+        String trimmedSql = sql.trim();
+        // Remove leading comments or whitespace, check first keyword
+        String sqlUpper = trimmedSql.replaceAll("^/\\*.*?\\*/\\s*", "").replaceAll("^--[^\n]*\n\\s*", "").trim().toUpperCase();
+        if (!sqlUpper.startsWith("SELECT") && !sqlUpper.startsWith("WITH")) {
+            return Map.of("error", "Only SELECT queries are allowed, got: " + sqlUpper.split("\\s+")[0]);
+        }
+
+        // 4. Execute SQL on user compute
+        try (Connection conn = dbHelper.getComputeConnectionByDbId(tenantId, kb.getSourceDatabaseId());
+             PreparedStatement ps = conn.prepareStatement(trimmedSql)) {
+
+            // Set a query timeout to prevent long-running queries
+            ps.setQueryTimeout(30);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                java.sql.ResultSetMetaData meta = rs.getMetaData();
+                int colCount = meta.getColumnCount();
+
+                List<String> columns = new ArrayList<>();
+                for (int i = 1; i <= colCount; i++) {
+                    columns.add(meta.getColumnLabel(i));
+                }
+
+                List<List<Object>> rows = new ArrayList<>();
+                int rowLimit = 200;
+                while (rs.next() && rows.size() < rowLimit) {
+                    List<Object> row = new ArrayList<>();
+                    for (int i = 1; i <= colCount; i++) {
+                        row.add(rs.getObject(i));
+                    }
+                    rows.add(row);
+                }
+
+                Map<String, Object> result = new LinkedHashMap<>();
+                result.put("type", "sql");
+                result.put("sql", trimmedSql);
+                result.put("columns", columns);
+                result.put("rows", rows);
+                result.put("row_count", rows.size());
+                result.put("model", aiResult.get("model"));
+                result.put("input_tokens", aiResult.get("input_tokens"));
+                result.put("output_tokens", aiResult.get("output_tokens"));
+                return result;
+            }
+        } catch (Exception e) {
+            log.error("Table search SQL execution failed for kb {}: {}", kbId, e.getMessage(), e);
+            Map<String, Object> errorResult = new LinkedHashMap<>();
+            errorResult.put("type", "sql");
+            errorResult.put("sql", trimmedSql);
+            errorResult.put("error", "SQL execution failed: " + e.getMessage());
+            errorResult.put("model", aiResult.get("model"));
+            errorResult.put("input_tokens", aiResult.get("input_tokens"));
+            errorResult.put("output_tokens", aiResult.get("output_tokens"));
+            return errorResult;
+        }
+    }
+
+    /**
+     * Get table schema info for a TABLE type KB.
+     */
+    public List<Map<String, Object>> getTableSchema(String tenantId, String kbId) {
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+
+        if (kb.getType() != KnowledgeBaseType.TABLE) {
+            throw new BadRequestException("Knowledge base is not TABLE type");
+        }
+        if (kb.getSourceDatabaseId() == null) {
+            throw new BadRequestException("Knowledge base has no source database");
+        }
+
+        return fetchTableSchemas(tenantId, kb.getSourceDatabaseId(), kb.getTableNames());
+    }
+
+    private String buildSchemaInfo(String tenantId, KnowledgeBaseEntity kb) {
+        List<Map<String, Object>> schemas = fetchTableSchemas(tenantId, kb.getSourceDatabaseId(), kb.getTableNames());
+        StringBuilder sb = new StringBuilder();
+        for (Map<String, Object> table : schemas) {
+            sb.append("Table: ").append(table.get("table_name")).append("\n");
+            @SuppressWarnings("unchecked")
+            List<Map<String, String>> columns = (List<Map<String, String>>) table.get("columns");
+            sb.append("Columns:\n");
+            for (Map<String, String> col : columns) {
+                sb.append("  - ").append(col.get("name")).append(" (").append(col.get("type")).append(")\n");
+            }
+            sb.append("\n");
+        }
+        return sb.toString();
+    }
+
+    private List<Map<String, Object>> fetchTableSchemas(String tenantId, String databaseId, List<String> tableNames) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        try (Connection conn = dbHelper.getComputeConnectionByDbId(tenantId, databaseId);
+             PreparedStatement ps = conn.prepareStatement(
+                     "SELECT table_name, column_name, data_type FROM information_schema.columns " +
+                     "WHERE table_schema = 'public' AND table_name = ANY(?) ORDER BY table_name, ordinal_position")) {
+            java.sql.Array arr = conn.createArrayOf("varchar", tableNames.toArray());
+            ps.setArray(1, arr);
+            try (ResultSet rs = ps.executeQuery()) {
+                Map<String, List<Map<String, String>>> grouped = new LinkedHashMap<>();
+                while (rs.next()) {
+                    String tableName = rs.getString("table_name");
+                    String colName = rs.getString("column_name");
+                    String dataType = rs.getString("data_type");
+                    grouped.computeIfAbsent(tableName, k -> new ArrayList<>())
+                            .add(Map.of("name", colName, "type", dataType));
+                }
+                for (Map.Entry<String, List<Map<String, String>>> entry : grouped.entrySet()) {
+                    Map<String, Object> tableSchema = new LinkedHashMap<>();
+                    tableSchema.put("table_name", entry.getKey());
+                    tableSchema.put("columns", entry.getValue());
+                    result.add(tableSchema);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to fetch table schemas for database {}: {}", databaseId, e.getMessage(), e);
+            throw new RuntimeException("Failed to fetch table schemas: " + e.getMessage(), e);
+        }
+        return result;
     }
 
     // ── Internal helpers ────────────────────────────────────────────

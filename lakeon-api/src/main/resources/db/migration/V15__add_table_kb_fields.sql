@@ -1,0 +1,3 @@
+ALTER TABLE knowledge_bases ADD COLUMN IF NOT EXISTS type VARCHAR(16) DEFAULT 'DOCUMENT';
+ALTER TABLE knowledge_bases ADD COLUMN IF NOT EXISTS source_database_id VARCHAR(32);
+ALTER TABLE knowledge_bases ADD COLUMN IF NOT EXISTS table_names JSONB DEFAULT '[]'::jsonb;

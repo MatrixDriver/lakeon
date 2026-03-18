@@ -101,6 +101,17 @@ public class KnowledgeDbHelper {
         return DriverManager.getConnection(jdbcUrl, user, pass);
     }
 
+    /**
+     * Get a JDBC Connection directly by databaseId (for TABLE type KBs using sourceDatabaseId).
+     */
+    public Connection getComputeConnectionByDbId(String tenantId, String databaseId) throws SQLException {
+        String connstr = resolveComputeConnstr(databaseId, tenantId);
+        String jdbcUrl = connstrToJdbc(connstr);
+        String user = extractUser(connstr);
+        String pass = extractPassword(connstr);
+        return DriverManager.getConnection(jdbcUrl, user, pass);
+    }
+
     // ── Internal helpers (same logic as KnowledgeService) ──────────
 
     String resolveComputeConnstr(String databaseId, String tenantId) {
@@ -122,7 +133,10 @@ public class KnowledgeDbHelper {
         int port = db.getComputePort() != null ? db.getComputePort() : 55433;
         boolean isProxyHost = host != null && (host.contains("dbay.cloud") || host.contains("proxy."));
         if (host != null && !host.isBlank() && !isProxyHost) {
-            return "postgresql://cloud_admin@" + host + ":" + port + "/" + db.getName();
+            // Use cloud_admin (superuser) for direct compute connections
+            // cloud_admin can create extensions (vector, pg_search)
+            return "postgresql://cloud_admin:cloud-admin-internal@" + host + ":" + port + "/" + db.getName()
+                    + "?sslmode=disable";
         }
 
         // 2. Via internal proxy with credentials
@@ -133,7 +147,7 @@ public class KnowledgeDbHelper {
         if (dbUser != null && neonTenantId != null) {
             return "postgresql://" + dbUser + ":" + pass
                     + "@proxy.lakeon.svc.cluster.local:4432/" + db.getName()
-                    + "?options=endpoint=" + neonTenantId + "&sslmode=require";
+                    + "?options=endpoint%3D" + neonTenantId + "&sslmode=require";
         }
 
         // 3. Fallback: connectionUri (already includes user + endpoint)
