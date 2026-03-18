@@ -1,4 +1,4 @@
-"""Document parsing: PDF (Marker), DOCX (python-docx), Markdown (direct read)."""
+"""Document parsing: PDF (pymupdf4llm), DOCX (python-docx), Markdown (direct read)."""
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,12 +16,8 @@ def parse_document(file_path: str, format: str) -> str:
         raise ValueError(f"Unsupported format: {format}")
 
 def _parse_pdf(file_path: str) -> str:
-    from marker.converters.pdf import PdfConverter
-    from marker.models import create_model_dict
-    models = create_model_dict()
-    converter = PdfConverter(artifact_dict=models)
-    rendered = converter(file_path)
-    return rendered.markdown
+    import pymupdf4llm
+    return pymupdf4llm.to_markdown(file_path)
 
 def _parse_docx(file_path: str) -> str:
     from docx import Document
