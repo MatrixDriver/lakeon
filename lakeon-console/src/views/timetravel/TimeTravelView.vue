@@ -42,22 +42,25 @@
               @click="selectBranchForVersions(branch.id)"
             >
               <div class="branch-item-row">
-                <span class="branch-status-dot" :class="isActiveBranch(branch) ? 'dot-green' : 'dot-gray'"></span>
+                <span
+                  class="branch-status-dot"
+                  :class="branch.compute_status === 'RUNNING' ? 'dot-green' : branch.compute_status === 'SUSPENDED' ? 'dot-yellow' : 'dot-gray'"
+                ></span>
                 <span class="branch-item-name">{{ branch.name }}</span>
                 <span v-if="branch.is_default" class="default-tag">默认</span>
-                <span v-if="isActiveBranch(branch)" class="active-tag">当前</span>
+                <span class="compute-status-label" :class="branch.compute_status === 'RUNNING' ? 'status-running' : branch.compute_status === 'SUSPENDED' ? 'status-suspended' : 'status-idle'">
+                  {{ branch.compute_status === 'RUNNING' ? '运行中' : branch.compute_status === 'SUSPENDED' ? '已挂起' : '未启动' }}
+                </span>
+              </div>
+              <div v-if="branch.connection_uri" class="branch-item-uri">
+                <code class="branch-uri-text" :title="branch.connection_uri">{{ branch.connection_uri.length > 36 ? branch.connection_uri.slice(0, 36) + '…' : branch.connection_uri }}</code>
+                <button class="btn-copy-uri" @click.stop="copyUri(branch.connection_uri)" title="复制连接串">⎘</button>
               </div>
               <div class="branch-item-meta">
                 <span class="mono-text">{{ branch.last_record_lsn || '-' }}</span>
                 <span>{{ formatSize(branch.current_logical_size_bytes) }}</span>
               </div>
               <div class="branch-item-actions" v-if="selectedBranchId === branch.id">
-                <button
-                  v-if="!isActiveBranch(branch)"
-                  class="btn btn-small btn-text"
-                  :disabled="activatingBranch"
-                  @click.stop="handleActivateBranch(branch.id)"
-                >切换</button>
                 <button
                   v-if="!branch.is_default"
                   class="btn btn-small btn-text"
@@ -190,7 +193,10 @@
                   <td>
                     {{ branch.name }}
                     <span v-if="branch.is_default" class="default-tag">默认</span>
-                    <span v-if="isActiveBranch(branch)" class="active-tag">当前</span>
+                    <span
+                      class="compute-status-label"
+                      :class="branch.compute_status === 'RUNNING' ? 'status-running' : branch.compute_status === 'SUSPENDED' ? 'status-suspended' : 'status-idle'"
+                    >{{ branch.compute_status === 'RUNNING' ? '运行中' : branch.compute_status === 'SUSPENDED' ? '已挂起' : '未启动' }}</span>
                   </td>
                   <td>{{ branch.parent_branch || '-' }}</td>
                   <td class="mono-text">{{ branch.last_record_lsn || '-' }}</td>
@@ -199,17 +205,11 @@
                   <td>{{ formatDate(branch.created_at) }}</td>
                   <td class="action-cell">
                     <button
-                      v-if="!isActiveBranch(branch)"
-                      class="btn btn-small btn-text"
-                      :disabled="activatingBranch"
-                      @click="handleActivateBranch(branch.id)"
-                    >切换</button>
-                    <button
                       v-if="!branch.is_default"
                       class="btn btn-small btn-text btn-danger-text"
                       @click="handleDeleteBranch(branch.id)"
                     >删除</button>
-                    <span v-if="branch.is_default && isActiveBranch(branch)" class="text-muted">-</span>
+                    <span v-if="branch.is_default" class="text-muted">-</span>
                   </td>
                 </tr>
               </tbody>
@@ -265,9 +265,6 @@ const databases = ref<Database[]>([])
 const dbListLoading = ref(false)
 const selectedDbId = ref('')
 
-// Database detail (for active branch detection)
-const currentDatabase = ref<Database | null>(null)
-
 // Branches
 const branches = ref<Branch[]>([])
 const branchesLoading = ref(false)
@@ -276,7 +273,6 @@ const preselectedParentId = ref('')
 const branchSearch = ref('')
 const branchPageSize = ref(10)
 const branchCurrentPage = ref(1)
-const activatingBranch = ref(false)
 const selectedBranchId = ref('')
 
 // Versions
@@ -305,17 +301,6 @@ const pagedBranches = computed(() => {
   const start = (branchCurrentPage.value - 1) * branchPageSize.value
   return filteredBranches.value.slice(start, start + branchPageSize.value)
 })
-
-const activeBranchId = computed(() => {
-  if (!currentDatabase.value) return ''
-  const dbTimelineId = currentDatabase.value.neon_timeline_id
-  const active = branches.value.find(b => b.neon_timeline_id && b.neon_timeline_id === dbTimelineId)
-  return active?.id || branches.value.find(b => b.is_default)?.id || ''
-})
-
-function isActiveBranch(branch: Branch): boolean {
-  return branch.id === activeBranchId.value
-}
 
 function formatSize(bytes: number | null): string {
   if (bytes == null) return '-'
@@ -366,17 +351,6 @@ async function fetchDatabases() {
   }
 }
 
-// Fetch database detail (for neon_timeline_id)
-async function fetchDatabaseDetail() {
-  if (!selectedDbId.value) return
-  try {
-    const res = await databaseApi.get(selectedDbId.value)
-    currentDatabase.value = res.data
-  } catch (e) {
-    console.error('Failed to load database detail', e)
-  }
-}
-
 // Branches
 async function fetchBranches() {
   if (!selectedDbId.value) return
@@ -395,17 +369,12 @@ function handleBranchCreated() {
   fetchBranches()
 }
 
-async function handleActivateBranch(branchId: string) {
-  if (!confirm('确定要切换到该分支吗？当前计算节点将重启。')) return
-  activatingBranch.value = true
+async function copyUri(uri: string) {
   try {
-    await branchApi.activate(selectedDbId.value, branchId)
-    await fetchDatabaseDetail()
-    await fetchBranches()
+    await navigator.clipboard.writeText(uri)
+    toast.success('连接串已复制')
   } catch (e) {
-    console.error('Failed to activate branch', e)
-  } finally {
-    activatingBranch.value = false
+    console.error('Failed to copy URI', e)
   }
 }
 
@@ -427,7 +396,6 @@ async function handlePromoteBranch(branchId: string) {
   if (!confirm('确定要将此分支提升为默认分支吗？')) return
   try {
     await branchApi.promote(selectedDbId.value, branchId)
-    await fetchDatabaseDetail()
     await fetchBranches()
     toast.success('分支已提升为默认分支')
   } catch (e) {
@@ -576,12 +544,11 @@ watch(selectedDbId, async (newId) => {
   expandedVersionId.value = ''
   exitSquashMode()
   // diff removed
-  currentDatabase.value = null
 
   if (newId) {
     // Update URL without navigation
     router.replace({ query: { db: newId } })
-    await Promise.all([fetchDatabaseDetail(), fetchBranches()])
+    await fetchBranches()
   }
 })
 
@@ -736,9 +703,65 @@ onMounted(() => {
 }
 
 .dot-green { background: #52c41a; }
+.dot-yellow { background: #faad14; }
 .dot-gray { background: #c2c6cc; }
 .dot-blue { background: #0073e6; }
 .dot-red { background: #e6393d; }
+
+.compute-status-label {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.status-running {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.status-suspended {
+  background: #fffbe6;
+  color: #d48806;
+}
+
+.status-idle {
+  background: #f2f3f5;
+  color: #8a8e99;
+}
+
+.branch-item-uri {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 14px;
+  margin-bottom: 2px;
+}
+
+.branch-uri-text {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 10px;
+  color: #575d6c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+.btn-copy-uri {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #8a8e99;
+  font-size: 12px;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.btn-copy-uri:hover {
+  color: #0073e6;
+}
 
 .branch-item-name {
   font-size: 13px;

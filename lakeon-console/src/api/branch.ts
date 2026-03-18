@@ -51,8 +51,6 @@ export const branchApi = {
     client.delete(`/databases/${dbId}/branches/${branchId}`),
   getTree: (dbId: string) =>
     client.get<BranchTreeResponse>(`/databases/${dbId}/branches/tree`),
-  activate: (dbId: string, branchId: string) =>
-    client.post<Branch>(`/databases/${dbId}/branches/${branchId}/activate`),
   promote: (dbId: string, branchId: string) =>
     client.post<Branch>(`/databases/${dbId}/branches/${branchId}/promote`),
   restore: (dbId: string, branchId: string, data: RestoreParams) =>
