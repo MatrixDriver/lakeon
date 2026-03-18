@@ -268,6 +268,16 @@ public class ComputePodManager {
      * Check if a Pod is ready.
      */
     /**
+     * List all compute pod names in the compute namespace.
+     */
+    public List<String> listAllPodNames() {
+        String namespace = props.getK8s().getNamespace();
+        return k8sClient.pods().inNamespace(namespace).list().getItems().stream()
+            .map(p -> p.getMetadata().getName())
+            .toList();
+    }
+
+    /**
      * Returns true if any compute pod has been in an abnormal state for longer than thresholdSeconds.
      * Abnormal states: Failed, CrashLoopBackOff, or Pending beyond threshold.
      */

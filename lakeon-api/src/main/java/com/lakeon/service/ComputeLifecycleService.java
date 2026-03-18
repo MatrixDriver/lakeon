@@ -120,6 +120,7 @@ public class ComputeLifecycleService {
         try {
             doCheckAutoSuspend();
             doCleanupExpiredPods();
+            doCleanupOrphanedPods();
         } finally {
             suspendLock.unlock();
         }
@@ -232,6 +233,41 @@ public class ComputeLifecycleService {
                     branchRepository.save(branch);
                 } catch (Exception e) {
                     log.error("Failed to cleanup Pod for branch {}: {}", branch.getId(), e.getMessage());
+                }
+            }
+        }
+    }
+
+    /**
+     * Cleanup orphaned pods: pods in lakeon-compute namespace that have no matching
+     * database or branch entity pointing to them.
+     */
+    private void doCleanupOrphanedPods() {
+        List<String> allPodNames;
+        try {
+            allPodNames = computePodManager.listAllPodNames();
+        } catch (Exception e) {
+            log.debug("Failed to list compute pods for orphan check: {}", e.getMessage());
+            return;
+        }
+        if (allPodNames.isEmpty()) return;
+
+        // Build set of all known pod names from databases and branches
+        java.util.Set<String> knownPods = new java.util.HashSet<>();
+        for (DatabaseEntity db : databaseRepository.findAll()) {
+            if (db.getComputePodName() != null) knownPods.add(db.getComputePodName());
+        }
+        for (BranchEntity br : branchRepository.findAll()) {
+            if (br.getComputePodName() != null) knownPods.add(br.getComputePodName());
+        }
+
+        for (String podName : allPodNames) {
+            if (!knownPods.contains(podName)) {
+                log.warn("Cleaning up orphaned compute pod: {}", podName);
+                try {
+                    computePodManager.deleteComputePod(podName);
+                } catch (Exception e) {
+                    log.error("Failed to delete orphaned pod {}: {}", podName, e.getMessage());
                 }
             }
         }
