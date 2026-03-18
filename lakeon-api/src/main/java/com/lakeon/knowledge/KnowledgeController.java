@@ -138,6 +138,8 @@ public class KnowledgeController {
         int topK = body.containsKey("top_k") ? ((Number) body.get("top_k")).intValue() : 5;
         List<String> documentIds = (List<String>) body.get("document_ids");
         List<String> tags = (List<String>) body.get("tags");
+        List<Map<String, String>> conversationHistory = body.containsKey("conversation_history")
+                ? (List<Map<String, String>>) body.get("conversation_history") : null;
 
         if (kbId == null || kbId.isBlank()) {
             throw new com.lakeon.service.exception.BadRequestException("kb_id is required");
@@ -148,11 +150,17 @@ public class KnowledgeController {
 
         boolean rerank = body.containsKey("rerank") ? (Boolean) body.get("rerank") : false;
 
-        List<Map<String, Object>> results = knowledgeService.search(tenant.getId(), kbId, query, topK, documentIds, tags, rerank);
+        Map<String, Object> searchResult = knowledgeService.search(
+                tenant.getId(), kbId, query, topK, documentIds, tags, rerank, conversationHistory);
+
+        List<Map<String, Object>> results = (List<Map<String, Object>>) searchResult.get("results");
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("results", results);
         response.put("count", results.size());
+        if (searchResult.containsKey("rewritten_query")) {
+            response.put("rewritten_query", searchResult.get("rewritten_query"));
+        }
         return response;
     }
 

@@ -59,6 +59,7 @@ public class KnowledgeService {
     private final DatabaseService databaseService;
     private final KnowledgeDbHelper dbHelper;
     private final HttpClient httpClient;
+    private final QueryRewriteService queryRewriteService;
 
     public KnowledgeService(DocumentRepository documentRepository,
                             KnowledgeBaseRepository knowledgeBaseRepository,
@@ -68,7 +69,8 @@ public class KnowledgeService {
                             ComputePodManager computePodManager,
                             ObjectMapper objectMapper,
                             DatabaseService databaseService,
-                            KnowledgeDbHelper dbHelper) {
+                            KnowledgeDbHelper dbHelper,
+                            QueryRewriteService queryRewriteService) {
         this.documentRepository = documentRepository;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.jobService = jobService;
@@ -78,6 +80,7 @@ public class KnowledgeService {
         this.objectMapper = objectMapper;
         this.databaseService = databaseService;
         this.dbHelper = dbHelper;
+        this.queryRewriteService = queryRewriteService;
         this.restTemplate = new RestTemplate();
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
@@ -421,14 +424,26 @@ public class KnowledgeService {
      * Accepts kbId; resolves the underlying databaseId from the KB.
      */
     @SuppressWarnings("unchecked")
-    public List<Map<String, Object>> search(String tenantId, String kbId, String query,
-                                            int topK, List<String> documentIds, List<String> tags,
-                                            boolean rerank) {
+    public Map<String, Object> search(String tenantId, String kbId, String query,
+                                      int topK, List<String> documentIds, List<String> tags,
+                                      boolean rerank, List<Map<String, String>> conversationHistory) {
         if (query == null || query.isBlank()) {
             throw new BadRequestException("Query must not be empty");
         }
         if (topK <= 0) topK = 5;
         if (topK > 50) topK = 50;
+
+        // Query rewrite with conversation history
+        String searchQuery = query;
+        String rewrittenQuery = null;
+        if (conversationHistory != null && !conversationHistory.isEmpty()) {
+            rewrittenQuery = queryRewriteService.rewriteQuery(query, conversationHistory);
+            if (!rewrittenQuery.equals(query)) {
+                searchQuery = rewrittenQuery;
+            } else {
+                rewrittenQuery = null; // no change, don't include in response
+            }
+        }
 
         // Tag filtering: resolve matching document IDs and merge with explicit documentIds
         List<String> filteredDocIds = documentIds;
@@ -439,11 +454,18 @@ public class KnowledgeService {
                 tagFilteredIds.retainAll(new HashSet<>(filteredDocIds));
             }
             filteredDocIds = tagFilteredIds;
-            if (filteredDocIds.isEmpty()) return Collections.emptyList();
+            if (filteredDocIds.isEmpty()) {
+                Map<String, Object> emptyResult = new LinkedHashMap<>();
+                emptyResult.put("results", Collections.emptyList());
+                if (rewrittenQuery != null) {
+                    emptyResult.put("rewritten_query", rewrittenQuery);
+                }
+                return emptyResult;
+            }
         }
 
-        // Get query embedding from embedding service
-        List<Double> embedding = getQueryEmbedding(query);
+        // Get query embedding from embedding service (use searchQuery which may be rewritten)
+        List<Double> embedding = getQueryEmbedding(searchQuery);
         String vectorStr = embedding.stream()
                 .map(String::valueOf)
                 .collect(Collectors.joining(",", "[", "]"));
@@ -501,7 +523,7 @@ public class KnowledgeService {
             }
             ps.setString(idx++, vectorStr); // embedding <=> ?::vector (limit order)
             // bm25 CTE params
-            ps.setString(idx++, query);     // content @@@ ?
+            ps.setString(idx++, searchQuery); // content @@@ ? (may be rewritten)
             if (filteredDocIds != null && !filteredDocIds.isEmpty()) {
                 java.sql.Array docArray = conn.createArrayOf("varchar", filteredDocIds.toArray());
                 ps.setArray(idx++, docArray);
@@ -532,10 +554,15 @@ public class KnowledgeService {
         }
 
         if (rerank && props.getKnowledge().getRerank().isEnabled() && !results.isEmpty()) {
-            results = rerankResults(query, results, topK);
+            results = rerankResults(searchQuery, results, topK);
         }
 
-        return results;
+        Map<String, Object> searchResult = new LinkedHashMap<>();
+        searchResult.put("results", results);
+        if (rewrittenQuery != null) {
+            searchResult.put("rewritten_query", rewrittenQuery);
+        }
+        return searchResult;
     }
 
     // ── Internal helpers ────────────────────────────────────────────
