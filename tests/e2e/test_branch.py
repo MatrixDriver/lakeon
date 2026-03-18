@@ -43,11 +43,11 @@ class TestBranch:
 
         db = poll_until(
             lambda: e2e_client.get_database(db["id"]),
-            condition=lambda d: d["status"] in ("running", "error"),
+            condition=lambda d: d["status"] in ("RUNNING", "ERROR"),
             timeout=120,
             interval=3,
         )
-        assert db["status"] == "running", f"Database creation failed: {db}"
+        assert db["status"] == "RUNNING", f"Database creation failed: {db}"
         db["password"] = creation_password
 
         yield db

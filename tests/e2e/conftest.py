@@ -141,11 +141,11 @@ def test_db(e2e_client):
 
     db = poll_until(
         lambda: e2e_client.get_database(db["id"]),
-        condition=lambda d: d["status"].lower() in ("running", "error"),
+        condition=lambda d: d["status"] in ("RUNNING", "ERROR"),
         timeout=180,
         interval=3,
     )
-    assert db["status"].lower() == "running", f"Database creation failed: {db}"
+    assert db["status"] == "RUNNING", f"Database creation failed: {db}"
 
     # Re-attach password since GET doesn't return it
     db["password"] = creation_password

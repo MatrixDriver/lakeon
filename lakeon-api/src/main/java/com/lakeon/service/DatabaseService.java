@@ -505,8 +505,8 @@ public class DatabaseService {
                 .id(b.getId())
                 .name(b.getName())
                 .isDefault(b.getIsDefault())
-                .status(b.getStatus() != null ? b.getStatus().name().toLowerCase() : null)
-                .computeStatus(b.getComputeStatus() != null ? b.getComputeStatus().name().toLowerCase() : null)
+                .status(b.getStatus() != null ? b.getStatus().name() : null)
+                .computeStatus(b.getComputeStatus() != null ? b.getComputeStatus().name() : null)
                 .build())
             .toList();
 

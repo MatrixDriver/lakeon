@@ -18,7 +18,7 @@ DB_LIST_WITH_TEST_DB = [
     {
         "id": "db_abc123",
         "name": "test-db",
-        "status": "running",
+        "status": "RUNNING",
         "compute_size": "1cu",
         "created_at": "2026-03-03T10:00:00Z",
     }
@@ -53,7 +53,7 @@ def db_create_response():
     return {
         "id": "db_abc123",
         "name": "test-db",
-        "status": "creating",
+        "status": "CREATING",
         "connection_uri": "postgres://user_xxx:pass_xxx@proxy.lakeon.example.com/test-db",
         "compute_size": "1cu",
         "suspend_timeout": "5m",
@@ -72,14 +72,14 @@ def db_list_response():
         {
             "id": "db_001",
             "name": "app-db-1",
-            "status": "running",
+            "status": "RUNNING",
             "compute_size": "1cu",
             "created_at": "2026-03-01T10:00:00Z",
         },
         {
             "id": "db_002",
             "name": "app-db-2",
-            "status": "suspended",
+            "status": "SUSPENDED",
             "compute_size": "2cu",
             "created_at": "2026-03-02T10:00:00Z",
         },
@@ -91,7 +91,7 @@ def db_status_response():
     return {
         "id": "db_abc123",
         "name": "test-db",
-        "status": "running",
+        "status": "RUNNING",
         "connection_uri": "postgres://user:pass@proxy/test-db",
         "compute_size": "1cu",
         "suspend_timeout": "5m",
@@ -187,8 +187,8 @@ class TestDbList:
         assert result.exit_code == 0
         assert "app-db-1" in result.stdout
         assert "app-db-2" in result.stdout
-        assert "running" in result.stdout
-        assert "suspended" in result.stdout
+        assert "RUNNING" in result.stdout
+        assert "SUSPENDED" in result.stdout
 
     def test_db_list_empty(self, httpx_mock, mock_config):
         """UT-CLI-002a: 空列表"""
@@ -226,7 +226,7 @@ class TestDbStatus:
         result = runner.invoke(app, ["db", "status", "--name", "test-db"])
 
         assert result.exit_code == 0
-        assert "running" in result.stdout
+        assert "RUNNING" in result.stdout
         assert "test-db" in result.stdout
 
 
@@ -242,7 +242,7 @@ class TestDbSuspend:
         httpx_mock.add_response(
             method="POST",
             url="http://localhost:8080/api/v1/databases/db_abc123/suspend",
-            json={"status": "suspended"},
+            json={"status": "SUSPENDED"},
             status_code=200,
         )
 
@@ -263,7 +263,7 @@ class TestDbResume:
         httpx_mock.add_response(
             method="POST",
             url="http://localhost:8080/api/v1/databases/db_abc123/resume",
-            json={"status": "running"},
+            json={"status": "RUNNING"},
             status_code=200,
         )
 
@@ -337,7 +337,7 @@ class TestDbErrorHandling:
 
         assert result.exit_code != 0
         # 验证输出包含认证相关的错误信息
-        output = result.stdout + (result.stderr or "")
+        output = result.output
         assert "401" in output or "unauthorized" in output.lower() or "认证" in output
 
     def test_api_returns_404(self, httpx_mock, mock_config):
@@ -355,7 +355,7 @@ class TestDbErrorHandling:
         result = runner.invoke(app, ["db", "status", "--name", "nonexist"])
 
         assert result.exit_code != 0
-        output = result.stdout + (result.stderr or "")
+        output = result.output
         assert "not found" in output.lower() or "404" in output
 
     def test_network_error(self, mock_config):
@@ -379,5 +379,5 @@ class TestDbMissingParams:
         result = runner.invoke(app, ["db", "create"])
 
         assert result.exit_code != 0
-        output = result.stdout + (result.stderr or "")
+        output = result.output
         assert "name" in output.lower() or "missing" in output.lower() or "required" in output.lower()

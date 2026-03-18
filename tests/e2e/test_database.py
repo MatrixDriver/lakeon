@@ -18,8 +18,8 @@ def psql_with_retry(connstr, sql, password, retries=5, delay=10):
 
 
 def _status(d):
-    """Normalize status to lowercase. API should return lowercase after DatabaseStatus @JsonValue fix."""
-    return d["status"].lower()
+    """Return database status (uppercase, e.g. RUNNING, SUSPENDED)."""
+    return d["status"]
 
 
 class TestDatabase:
@@ -38,11 +38,11 @@ class TestDatabase:
 
         db = poll_until(
             lambda: e2e_client.get_database(db["id"]),
-            condition=lambda d: _status(d) in ("running", "error"),
+            condition=lambda d: _status(d) in ("RUNNING", "ERROR"),
             timeout=180,
             interval=3,
         )
-        assert _status(db) == "running", f"Database creation failed: {db}"
+        assert _status(db) == "RUNNING", f"Database creation failed: {db}"
 
         # Re-attach password
         db["password"] = creation_password
@@ -58,7 +58,7 @@ class TestDatabase:
 
     def test_create_database(self, shared_db):
         """After creation and polling, status should be running with a connection URI."""
-        assert _status(shared_db) == "running"
+        assert _status(shared_db) == "RUNNING"
         assert shared_db.get("connection_uri") is not None
 
     def test_get_database_no_password(self, e2e_client, shared_db):
@@ -85,20 +85,20 @@ class TestDatabase:
         e2e_client.suspend_database(shared_db["id"])
         db = poll_until(
             lambda: e2e_client.get_database(shared_db["id"]),
-            condition=lambda d: _status(d) == "suspended",
+            condition=lambda d: _status(d) == "SUSPENDED",
             timeout=60,
         )
-        assert _status(db) == "suspended"
+        assert _status(db) == "SUSPENDED"
 
     def test_resume_database(self, e2e_client, shared_db):
         """Resuming a suspended database should bring it back to running."""
         e2e_client.resume_database(shared_db["id"])
         db = poll_until(
             lambda: e2e_client.get_database(shared_db["id"]),
-            condition=lambda d: _status(d) == "running",
+            condition=lambda d: _status(d) == "RUNNING",
             timeout=180,
         )
-        assert _status(db) == "running"
+        assert _status(db) == "RUNNING"
 
     def test_data_persistence(self, shared_db):
         """Data written before suspend should still be readable after resume."""
@@ -112,7 +112,7 @@ class TestDatabase:
         db = e2e_client.create_database(name=f"e2e-del-{int(time.time())}")
         db = poll_until(
             lambda: e2e_client.get_database(db["id"]),
-            condition=lambda d: _status(d) in ("running", "error"),
+            condition=lambda d: _status(d) in ("RUNNING", "ERROR"),
             timeout=180,
         )
         e2e_client.delete_database(db["id"])

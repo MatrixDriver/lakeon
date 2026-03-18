@@ -14,7 +14,7 @@ DB_LIST_WITH_MY_DB = [
     {
         "id": "db_abc123",
         "name": "my-db",
-        "status": "running",
+        "status": "RUNNING",
         "compute_size": "1cu",
         "created_at": "2026-03-03T10:00:00Z",
     }
@@ -85,7 +85,7 @@ class TestBranchCreate:
                 "id": "br_feat001",
                 "name": "feature-test",
                 "parent_branch": "main",
-                "status": "creating",
+                "status": "CREATING",
                 "connection_uri": "postgres://user:pass@proxy/my-db?branch=feature-test",
                 "created_at": "2026-03-03T10:05:00Z",
             },
@@ -175,5 +175,5 @@ class TestBranchDelete:
         ])
 
         assert result.exit_code != 0
-        output = result.stdout + (result.stderr or "")
+        output = result.output
         assert "default" in output.lower() or "400" in output

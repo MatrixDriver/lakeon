@@ -31,10 +31,10 @@ class TestMultiTenant:
         creation_password = db.get("password")
         db = poll_until(
             lambda: client.get_database(db["id"]),
-            lambda d: d["status"] in ("running", "error"),
+            lambda d: d["status"] in ("RUNNING", "ERROR"),
             timeout=120,
         )
-        assert db["status"] == "running", f"Database creation failed: {db}"
+        assert db["status"] == "RUNNING", f"Database creation failed: {db}"
         db["password"] = creation_password
         yield {"client": client, "tenant": t, "db": db}
         # cleanup
@@ -93,10 +93,10 @@ class TestMultiTenant:
         creation_password_b = db_b.get("password")
         db_b = poll_until(
             lambda: client_b.get_database(db_b["id"]),
-            lambda d: d["status"] in ("running", "error"),
+            lambda d: d["status"] in ("RUNNING", "ERROR"),
             timeout=120,
         )
-        assert db_b["status"] == "running", f"Database creation failed: {db_b}"
+        assert db_b["status"] == "RUNNING", f"Database creation failed: {db_b}"
         db_b["password"] = creation_password_b
 
         pw_b = db_b.get("password", "")
