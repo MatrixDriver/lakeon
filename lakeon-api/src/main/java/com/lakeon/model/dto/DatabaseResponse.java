@@ -32,6 +32,9 @@ public class DatabaseResponse {
     private Integer activeConnections;
     @JsonProperty("neon_timeline_id")
     private String neonTimelineId;
+    @JsonProperty("kb_id")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String kbId;
 
     public DatabaseResponse() {}
 
@@ -82,6 +85,8 @@ public class DatabaseResponse {
     public void setActiveConnections(Integer activeConnections) { this.activeConnections = activeConnections; }
     public String getNeonTimelineId() { return neonTimelineId; }
     public void setNeonTimelineId(String neonTimelineId) { this.neonTimelineId = neonTimelineId; }
+    public String getKbId() { return kbId; }
+    public void setKbId(String kbId) { this.kbId = kbId; }
 
     public static class BranchSummary {
         private String id;
@@ -150,6 +155,7 @@ public class DatabaseResponse {
         private Instant createdAt;
         private Integer activeConnections;
         private String neonTimelineId;
+        private String kbId;
 
         public Builder id(String id) { this.id = id; return this; }
         public Builder name(String name) { this.name = name; return this; }
@@ -164,6 +170,7 @@ public class DatabaseResponse {
         public Builder createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
         public Builder activeConnections(Integer activeConnections) { this.activeConnections = activeConnections; return this; }
         public Builder neonTimelineId(String neonTimelineId) { this.neonTimelineId = neonTimelineId; return this; }
+        public Builder kbId(String kbId) { this.kbId = kbId; return this; }
 
         public DatabaseResponse build() {
             DatabaseResponse r = new DatabaseResponse(id, name, status, connectionUri, computeSize,
@@ -171,6 +178,7 @@ public class DatabaseResponse {
             r.setActiveConnections(activeConnections);
             r.setNeonTimelineId(neonTimelineId);
             r.setStatusMessage(statusMessage);
+            r.setKbId(kbId);
             return r;
         }
     }

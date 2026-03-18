@@ -69,6 +69,9 @@ public class DatabaseEntity {
     @Column(name = "suspended_at")
     private Instant suspendedAt;
 
+    @Column(name = "kb_id", length = 32)
+    private String kbId;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -212,6 +215,9 @@ public class DatabaseEntity {
     public void setConnectionUri(String connectionUri) {
         this.connectionUri = connectionUri;
     }
+
+    public String getKbId() { return kbId; }
+    public void setKbId(String kbId) { this.kbId = kbId; }
 
     public String getStatusMessage() { return statusMessage; }
     public void setStatusMessage(String statusMessage) { this.statusMessage = statusMessage; }

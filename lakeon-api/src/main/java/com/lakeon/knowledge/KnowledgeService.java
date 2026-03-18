@@ -111,12 +111,13 @@ public class KnowledgeService {
     }
 
     /**
-     * Asynchronously provisions the hidden database for a KB.
-     * Updates KB status to READY or FAILED when done.
+     * Asynchronously provisions the database for a KB.
+     * Uses standard DatabaseService.create (same as user databases).
+     * Tags the database with kbId so it's identifiable in the database list.
      */
     private void provisionKbDatabase(String kbId, TenantEntity tenant, String dbName) {
         try {
-            log.info("Provisioning hidden database '{}' for knowledge base {}", dbName, kbId);
+            log.info("Provisioning database '{}' for knowledge base {}", dbName, kbId);
 
             com.lakeon.model.dto.CreateDatabaseRequest req = new com.lakeon.model.dto.CreateDatabaseRequest(
                     dbName,
@@ -125,9 +126,15 @@ public class KnowledgeService {
                     props.getDefaults().getStorageLimitGb()
             );
             com.lakeon.model.dto.DatabaseResponse dbResp = databaseService.create(tenant, req);
-
-            // Poll until the DB is RUNNING (max 5 min)
             String dbId = dbResp.getId();
+
+            // Tag the database with kbId
+            databaseRepository.findById(dbId).ifPresent(dbEntity -> {
+                dbEntity.setKbId(kbId);
+                databaseRepository.save(dbEntity);
+            });
+
+            // Poll until RUNNING (max 5 min)
             long deadline = System.currentTimeMillis() + 5 * 60 * 1000L;
             DatabaseStatus lastStatus = DatabaseStatus.CREATING;
             while (System.currentTimeMillis() < deadline) {
@@ -135,13 +142,13 @@ public class KnowledgeService {
                 if (dbEntity == null) break;
                 lastStatus = dbEntity.getStatus();
                 if (lastStatus == DatabaseStatus.RUNNING) {
-                    // Update KB to READY
                     knowledgeBaseRepository.findById(kbId).ifPresent(kb -> {
                         kb.setDatabaseId(dbId);
                         kb.setStatus(KnowledgeBaseStatus.READY);
                         knowledgeBaseRepository.save(kb);
                     });
-                    log.info("Knowledge base {} is READY (database {})", kbId, dbId);
+                    log.info("Knowledge base {} is READY (database {} host={} user={})",
+                             kbId, dbId, dbEntity.getComputeHost(), dbEntity.getDbUser());
                     return;
                 }
                 if (lastStatus == DatabaseStatus.ERROR) break;
@@ -151,7 +158,6 @@ public class KnowledgeService {
                 }
             }
 
-            // If we reach here, provisioning failed
             String errorMsg = "Database provisioning failed or timed out (last status: " + lastStatus + ")";
             log.error("Knowledge base {} failed: {}", kbId, errorMsg);
             knowledgeBaseRepository.findById(kbId).ifPresent(kb -> {
@@ -560,61 +566,33 @@ public class KnowledgeService {
         }
     }
 
+    /**
+     * Resolve connection string for a database.
+     * Priority: direct compute pod → internal proxy with credentials → connectionUri fallback.
+     */
     private String resolveComputeConnstr(String databaseId, String tenantId) {
         DatabaseEntity db = databaseRepository.findByIdAndTenantId(databaseId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Database not found: " + databaseId));
 
-        // Try direct connection to compute pod first (fastest, no proxy overhead)
+        // 1. Direct to compute pod (fastest, used when compute is running with known host)
         String host = db.getComputeHost();
         int port = db.getComputePort() != null ? db.getComputePort() : 55433;
-
         if (host != null && !host.isBlank()) {
-            String result = "postgresql://cloud_admin@" + host + ":" + port + "/" + db.getName();
-            log.info("resolveComputeConnstr: direct to compute pod {}", result);
-            return result;
+            return "postgresql://cloud_admin@" + host + ":" + port + "/" + db.getName();
         }
 
-        // Try to get pod IP from pod name
-        if (db.getComputePodName() != null) {
-            host = computePodManager.getPodIp(db.getComputePodName());
-            if (host != null && !host.isBlank()) {
-                String result = "postgresql://cloud_admin@" + host + ":" + port + "/" + db.getName();
-                log.info("resolveComputeConnstr: via pod IP {}", result);
-                return result;
-            }
-        }
-
-        // Fallback: use connection URI through proxy (handles auto-wake, SNI)
-        // Build proxy URI with db credentials: postgresql://user:pass@proxy:4432/dbname?options=endpoint%3D{tenantId}
+        // 2. Via internal proxy with DB credentials (standard path for KB databases)
         String dbUser = db.getDbUser();
         String dbPass = db.getDbPassword();
         String neonTenantId = db.getNeonTenantId();
-        if (dbUser != null && dbPass != null && neonTenantId != null) {
-            String proxyHost = "proxy.lakeon.svc.cluster.local";
-            int proxyPort = 4432;
-            String result = "postgresql://" + dbUser + ":" + dbPass + "@" + proxyHost + ":" + proxyPort
-                    + "/" + db.getName() + "?options=endpoint%3D" + neonTenantId + "&sslmode=disable"
-                    + "&ApplicationName=lakeon-knowledge";
-            log.info("resolveComputeConnstr: via proxy for db {} (user={})", databaseId, dbUser);
-            return result;
+        if (dbUser != null && neonTenantId != null) {
+            String pass = dbPass != null ? dbPass : "";
+            return "postgresql://" + dbUser + ":" + pass
+                    + "@proxy.lakeon.svc.cluster.local:4432/" + db.getName()
+                    + "?options=endpoint=" + neonTenantId + "&sslmode=disable";
         }
 
-        // Last resort: use connectionUri (through external proxy)
-        String connUri = db.getConnectionUri();
-        if (connUri != null && !connUri.isBlank()) {
-            // URL-decode %3D → = in options parameter
-            connUri = connUri.replace("%3D", "=");
-            // Replace external proxy with internal proxy
-            connUri = connUri.replace("pg.dbay.cloud:4432", "proxy.lakeon.svc.cluster.local:4432");
-            // Add sslmode=disable for internal connection
-            if (!connUri.contains("sslmode=")) {
-                connUri += (connUri.contains("?") ? "&" : "?") + "sslmode=disable";
-            }
-            log.warn("resolveComputeConnstr: using connectionUri for db {}: {}", databaseId, connUri);
-            return connUri;
-        }
-
-        throw new BadRequestException("Database compute is not available. Status: " + db.getStatus());
+        throw new BadRequestException("Database has no connection info. id=" + databaseId + " status=" + db.getStatus());
     }
 
     private String connstrToJdbc(String connstr) {
