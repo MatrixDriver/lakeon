@@ -291,6 +291,11 @@ body {
   background-color: #fff2f0;
 }
 
+.tag-blue {
+  color: #0073e6;
+  background-color: #e6f7ff;
+}
+
 /* ============================
    Empty State
    ============================ */

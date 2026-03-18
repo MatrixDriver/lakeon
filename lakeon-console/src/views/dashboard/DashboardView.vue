@@ -233,6 +233,7 @@
                 <th>状态</th>
                 <th>耗时</th>
                 <th>时间</th>
+                <th>错误信息</th>
               </tr>
             </thead>
             <tbody>
@@ -245,12 +246,14 @@
                   </span>
                 </td>
                 <td>
-                  <span class="status-tag" :class="op.status === 'SUCCESS' ? 'tag-green' : 'tag-red'">
-                    {{ op.status === 'SUCCESS' ? '成功' : '失败' }}
+                  <span class="status-tag" :class="op.status === 'SUCCESS' ? 'tag-green' : op.status === 'IN_PROGRESS' ? 'tag-blue' : 'tag-red'">
+                    {{ op.status === 'SUCCESS' ? '成功' : op.status === 'IN_PROGRESS' ? '进行中' : '失败' }}
                   </span>
                 </td>
                 <td>{{ formatDuration(op.durationMs) }}</td>
                 <td>{{ formatDate(op.startedAt) }}</td>
+                <td v-if="op.errorMessage" class="error-text" :title="op.errorMessage">{{ op.errorMessage.length > 40 ? op.errorMessage.slice(0, 40) + '...' : op.errorMessage }}</td>
+                <td v-else></td>
               </tr>
             </tbody>
           </table>

@@ -33,7 +33,8 @@
             <select v-model="opStatusFilter" class="filter-select" @change="opPage = 1">
               <option value="">全部状态</option>
               <option value="SUCCESS">成功</option>
-              <option value="FAILURE">失败</option>
+              <option value="FAILED">失败</option>
+              <option value="IN_PROGRESS">进行中</option>
             </select>
           </template>
         </TableToolbar>
@@ -64,8 +65,8 @@
                   </span>
                 </td>
                 <td>
-                  <span class="status-tag" :class="op.status === 'SUCCESS' ? 'tag-green' : 'tag-red'">
-                    {{ op.status === 'SUCCESS' ? '成功' : '失败' }}
+                  <span class="status-tag" :class="statusTagClass(op.status)">
+                    {{ statusLabel(op.status) }}
                   </span>
                 </td>
                 <td>{{ formatDuration(op.durationMs) }}</td>
@@ -228,6 +229,24 @@ const OP_LABELS: Record<string, string> = {
   IMPORT: '导入',
   UPDATE: '更新',
   RESET_PASSWORD: '重置密码',
+}
+
+function statusTagClass(status: string): string {
+  switch (status) {
+    case 'SUCCESS': return 'tag-green'
+    case 'FAILED': return 'tag-red'
+    case 'IN_PROGRESS': return 'tag-blue'
+    default: return 'tag-gray'
+  }
+}
+
+function statusLabel(status: string): string {
+  switch (status) {
+    case 'SUCCESS': return '成功'
+    case 'FAILED': return '失败'
+    case 'IN_PROGRESS': return '进行中'
+    default: return status
+  }
 }
 
 const route = useRoute()
