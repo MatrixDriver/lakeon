@@ -99,7 +99,7 @@ public class KnowledgeService {
         // on a separate thread so we don't block the HTTP response.
         // The KB id is available after save (generated in @PrePersist).
         String kbId = kb.getId();
-        String internalDbName = "kb_" + kbId.replace("-", "").toLowerCase();
+        String internalDbName = kbId.replace("_", "-");  // kb_487307dad1c9 → kb-487307dad1c9
 
         // Spawn async provisioning in a background thread
         Thread t = new Thread(() -> provisionKbDatabase(kbId, tenant, internalDbName),
