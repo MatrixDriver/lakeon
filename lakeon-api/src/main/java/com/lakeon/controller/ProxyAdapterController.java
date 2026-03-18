@@ -1,7 +1,9 @@
 package com.lakeon.controller;
 
 import com.lakeon.k8s.ComputePodManager;
+import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.model.enums.ComputeStatus;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
@@ -57,46 +59,67 @@ public class ProxyAdapterController {
             @RequestParam(value = "application_name", required = false) String applicationName) {
 
         // endpointish format: "db_name" or "db_name--branch_name"
-        // Branch-specific wake is not yet supported; always wakes main compute
         String dbName = endpointish.contains("--") ? endpointish.split("--", 2)[0] : endpointish;
 
-        DatabaseEntity instance = dbRepo.findByName(dbName)
+        DatabaseEntity db = dbRepo.findByName(dbName)
             .orElseThrow(() -> new RuntimeException("Database not found: " + dbName));
+
+        BranchEntity branch = resolveBranch(db, endpointish);
 
         String address;
         String coldStartInfo;
-        if (instance.getStatus() == DatabaseStatus.RUNNING
-            && instance.getComputeHost() != null && instance.getComputePort() != null) {
-            address = instance.getComputeHost() + ":" + instance.getComputePort();
-            instance.setLastActiveAt(Instant.now());
-            dbRepo.save(instance);
+
+        // Hot path: branch compute is RUNNING and host/port cached
+        if (branch.getComputeStatus() == ComputeStatus.RUNNING
+                && branch.getComputeHost() != null && branch.getComputePort() != null
+                && branch.getComputePodName() != null
+                && computePodManager.isPodReady(branch.getComputePodName())) {
+            address = branch.getComputeHost() + ":" + branch.getComputePort();
+            branch.setLastActiveAt(Instant.now());
+            branchRepo.save(branch);
             coldStartInfo = "warm";
-        } else if (instance.getStatus() == DatabaseStatus.RUNNING
-            && instance.getComputePodName() != null) {
-            // Pod is running but host/port not cached — look up pod IP directly
-            String podIp = computePodManager.getPodIp(instance.getComputePodName());
+        }
+        // Warm path: pod exists and is ready but host/port not cached
+        else if (branch.getComputePodName() != null
+                && computePodManager.isPodReady(branch.getComputePodName())) {
+            String podIp = computePodManager.getPodIp(branch.getComputePodName());
             if (podIp != null) {
                 address = podIp + ":55433";
-                // Cache for next time
-                instance.setComputeHost(podIp);
-                instance.setComputePort(55433);
-                instance.setLastActiveAt(Instant.now());
-                dbRepo.save(instance);
+                branch.setComputeHost(podIp);
+                branch.setComputePort(55433);
+                branch.setComputeStatus(ComputeStatus.RUNNING);
+                branch.setSuspendedAt(null);
+                branch.setLastActiveAt(Instant.now());
+                branchRepo.save(branch);
                 coldStartInfo = "warm";
             } else {
-                address = databaseService.wakeCompute(instance);
+                // Pod ready but no IP — fall through to cold path
+                address = coldStartBranch(db, branch);
                 coldStartInfo = "pool_miss";
             }
-        } else {
-            address = databaseService.wakeCompute(instance);
+        }
+        // Cold path: create new compute pod for branch
+        else {
+            address = coldStartBranch(db, branch);
             coldStartInfo = "pool_miss";
         }
 
+        // Backward compatibility: if branch is default, sync database status to RUNNING
+        if (branch.getIsDefault() && db.getStatus() != DatabaseStatus.RUNNING) {
+            db.setStatus(DatabaseStatus.RUNNING);
+            db.setComputeHost(branch.getComputeHost());
+            db.setComputePort(branch.getComputePort());
+            db.setComputePodName(branch.getComputePodName());
+            db.setSuspendedAt(null);
+            db.setLastActiveAt(Instant.now());
+            dbRepo.save(db);
+        }
+
         Map<String, Object> aux = new HashMap<>();
-        aux.put("endpoint_id", instance.getId());
-        aux.put("project_id", instance.getId());
-        aux.put("branch_id", instance.getId());
-        aux.put("compute_id", instance.getComputePodName() != null ? instance.getComputePodName() : "");
+        aux.put("endpoint_id", db.getId());
+        aux.put("project_id", db.getId());
+        aux.put("branch_id", branch.getId());
+        aux.put("compute_id", branch.getComputePodName() != null ? branch.getComputePodName() : "");
         aux.put("cold_start_info", coldStartInfo);
 
         Map<String, Object> result = new HashMap<>();
@@ -118,13 +141,16 @@ public class ProxyAdapterController {
 
         String dbName = endpointish.contains("--") ? endpointish.split("--")[0] : endpointish;
 
-        DatabaseEntity instance = dbRepo.findByName(dbName)
+        DatabaseEntity db = dbRepo.findByName(dbName)
             .orElseThrow(() -> new RuntimeException("Database not found: " + dbName));
 
+        // Resolve branch to validate it exists (but password comes from database)
+        resolveBranch(db, endpointish);
+
         Map<String, Object> result = new HashMap<>();
-        result.put("role_secret", instance.getDbPassword());
-        result.put("project_id", instance.getId());
-        String ips = instance.getAllowedIps();
+        result.put("role_secret", db.getDbPassword());
+        result.put("project_id", db.getId());
+        String ips = db.getAllowedIps();
         if (ips != null && !ips.isBlank()) {
             result.put("allowed_ips", java.util.Arrays.stream(ips.split(","))
                 .map(String::trim).filter(s -> !s.isEmpty()).toArray(String[]::new));
@@ -132,5 +158,45 @@ public class ProxyAdapterController {
             result.put("allowed_ips", new Object[0]);
         }
         return result;
+    }
+
+    /**
+     * Resolve branch from endpointish. If "db_name--branch_name", find by name;
+     * otherwise find the default branch.
+     */
+    private BranchEntity resolveBranch(DatabaseEntity db, String endpointish) {
+        if (endpointish.contains("--")) {
+            String branchName = endpointish.split("--", 2)[1];
+            return branchRepo.findByDatabaseIdAndName(db.getId(), branchName)
+                .orElseThrow(() -> new RuntimeException("Branch not found: " + branchName));
+        }
+        return branchRepo.findByDatabaseIdAndIsDefaultTrue(db.getId())
+            .orElseThrow(() -> new IllegalStateException("No default branch for database " + db.getName()));
+    }
+
+    /**
+     * Cold-start a compute pod for a branch: create pod, wait for ready, update branch fields.
+     */
+    private String coldStartBranch(DatabaseEntity db, BranchEntity branch) {
+        log.info("Cold-starting compute for database {} branch {} ({})",
+                db.getName(), branch.getName(), branch.getId());
+
+        String address = computePodManager.createComputePodForBranch(db, branch);
+        computePodManager.waitForPodReady(branch.getComputePodName(), 60_000);
+
+        // Refresh pod IP after pod is ready
+        String podIp = computePodManager.getPodIp(branch.getComputePodName());
+        if (podIp != null) {
+            branch.setComputeHost(podIp);
+            branch.setComputePort(55433);
+            address = podIp + ":55433";
+        }
+
+        branch.setComputeStatus(ComputeStatus.RUNNING);
+        branch.setSuspendedAt(null);
+        branch.setLastActiveAt(Instant.now());
+        branchRepo.save(branch);
+
+        return address;
     }
 }
