@@ -36,6 +36,7 @@ const routes = [
       // Knowledge
       { path: 'knowledge', name: 'KnowledgeBases', component: () => import('../views/knowledge/KnowledgeBases.vue') },
       { path: 'knowledge/:kbId', name: 'KnowledgeBaseDetail', component: () => import('../views/knowledge/KnowledgeBaseDetail.vue') },
+      { path: 'knowledge/:kbId/documents/:docId', name: 'DocumentDetail', component: () => import('../views/knowledge/DocumentDetail.vue') },
       { path: 'knowledge/datasources', name: 'KnowledgeDataSources', component: () => import('../views/knowledge/KnowledgeDataSources.vue') },
       { path: 'knowledge/search', name: 'KnowledgeSearch', component: () => import('../views/knowledge/KnowledgeSearch.vue') },
     ],

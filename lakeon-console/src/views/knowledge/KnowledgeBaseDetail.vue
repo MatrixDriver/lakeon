@@ -69,7 +69,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="doc in documents" :key="doc.id">
+            <tr v-for="doc in documents" :key="doc.id" class="clickable-row" @click="router.push({ name: 'DocumentDetail', params: { kbId: route.params.kbId, docId: doc.id } })">
               <td style="font-weight: 500;">{{ doc.filename }}</td>
               <td><span class="tag-blue" style="font-size: 11px; padding: 1px 6px; border-radius: 3px;">{{ doc.format }}</span></td>
               <td style="color: #666;">{{ formatSize(doc.size_bytes) }}</td>
@@ -85,7 +85,7 @@
               </td>
               <td style="color: #999;">{{ doc.created_at ? new Date(doc.created_at).toLocaleString('zh-CN') : '-' }}</td>
               <td>
-                <button class="btn btn-text btn-small" style="color: #e6393d;" @click="handleDeleteDoc(doc)">删除</button>
+                <button class="btn btn-text btn-small" style="color: #e6393d;" @click.stop="handleDeleteDoc(doc)">删除</button>
               </td>
             </tr>
           </tbody>
@@ -126,10 +126,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getKnowledgeBase, listDocuments, getUploadUrl, processDocument, deleteDocument, searchKnowledge, type KnowledgeBase as KBType, type Document, type SearchResult } from '../../api/knowledge'
 
 const route = useRoute()
+const router = useRouter()
 
 const kb = ref<KBType | null>(null)
 const documents = ref<Document[]>([])
@@ -236,5 +237,8 @@ onMounted(async () => {
   color: #0073e6;
   font-weight: 600;
   border-bottom-color: #0073e6;
+}
+.clickable-row {
+  cursor: pointer;
 }
 </style>
