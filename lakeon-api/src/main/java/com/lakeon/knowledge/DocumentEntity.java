@@ -51,6 +51,13 @@ public class DocumentEntity {
     @Column(name = "error", columnDefinition = "TEXT")
     private String error;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rechunk_status")
+    private RechunkStatus rechunkStatus = RechunkStatus.IDLE;
+
+    @Column(name = "rechunk_started_at")
+    private Instant rechunkStartedAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -108,6 +115,12 @@ public class DocumentEntity {
 
     public String getError() { return error; }
     public void setError(String error) { this.error = error; }
+
+    public RechunkStatus getRechunkStatus() { return rechunkStatus; }
+    public void setRechunkStatus(RechunkStatus rechunkStatus) { this.rechunkStatus = rechunkStatus; }
+
+    public Instant getRechunkStartedAt() { return rechunkStartedAt; }
+    public void setRechunkStartedAt(Instant rechunkStartedAt) { this.rechunkStartedAt = rechunkStartedAt; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
