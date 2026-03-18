@@ -7,9 +7,7 @@ import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.OperationLogEntity;
 import com.lakeon.model.entity.TenantEntity;
-import com.lakeon.model.enums.BranchStatus;
 import com.lakeon.model.enums.ComputeSize;
-import com.lakeon.model.enums.ComputeStatus;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.model.enums.OperationType;
 import com.lakeon.neon.NeonApiClient;
@@ -50,6 +48,7 @@ public class DatabaseService {
     private final OperationLogService operationLogService;
     private final MeterRegistry meterRegistry;
     private final TransactionTemplate txTemplate;
+    private final DatabaseProvisioningService provisioningService;
     private final Counter wakeupFailureCounter;
 
     public DatabaseService(DatabaseRepository databaseRepository,
@@ -59,7 +58,8 @@ public class DatabaseService {
                            LakeonProperties props,
                            OperationLogService operationLogService,
                            MeterRegistry meterRegistry,
-                           TransactionTemplate txTemplate) {
+                           TransactionTemplate txTemplate,
+                           @org.springframework.context.annotation.Lazy DatabaseProvisioningService provisioningService) {
         this.databaseRepository = databaseRepository;
         this.branchRepository = branchRepository;
         this.neonApiClient = neonApiClient;
@@ -68,6 +68,7 @@ public class DatabaseService {
         this.operationLogService = operationLogService;
         this.meterRegistry = meterRegistry;
         this.txTemplate = txTemplate;
+        this.provisioningService = provisioningService;
         this.wakeupFailureCounter = Counter.builder("lakeon_compute_wakeup_failures_total")
             .description("Total number of compute wakeup failures")
             .register(meterRegistry);
@@ -80,7 +81,7 @@ public class DatabaseService {
         String scramHash = ScramUtils.generateScramHash(rawPassword);
 
         // Transaction 1: validate + create Neon resources + save entity as CREATING
-        record CreateResult(DatabaseEntity entity, NeonTenant neonTenant, NeonTimeline neonTimeline) {}
+        record CreateResult(DatabaseEntity entity, NeonTimeline neonTimeline) {}
         CreateResult created = txTemplate.execute(status -> {
             // Check name uniqueness
             databaseRepository.findByTenantIdAndName(tenant.getId(), request.name()).ifPresent(existing -> {
@@ -143,6 +144,7 @@ public class DatabaseService {
             entity.setNeonTenantId(neonTenant.getId());
             entity.setNeonTimelineId(neonTimeline.getTimelineId());
             entity.setStatus(DatabaseStatus.CREATING);
+            entity.setStatusMessage("正在准备存储资源...");
             entity.setComputeSize(computeSize);
             entity.setSuspendTimeout(suspendTimeout);
             entity.setStorageLimitGb(storageLimitGb);
@@ -158,68 +160,23 @@ public class DatabaseService {
             entity.setComputePort(props.getProxy().getExternalPort());
 
             DatabaseEntity saved = databaseRepository.save(entity);
-            return new CreateResult(saved, neonTenant, neonTimeline);
+            return new CreateResult(saved, neonTimeline);
         });
 
         DatabaseEntity entity = created.entity();
-        NeonTenant neonTenant = created.neonTenant();
         NeonTimeline neonTimeline = created.neonTimeline();
 
-        // Outside transaction: K8s operations (may block 60s+)
+        // Start operation log
         OperationLogEntity opLog = operationLogService.startOperation(
                 entity.getId(), entity.getTenantId(), entity.getName(), OperationType.CREATE);
-        try {
-            computePodManager.createComputePod(entity);
-            boolean ready = computePodManager.waitForPodReady(entity.getComputePodName(), 60_000);
-            if (!ready) {
-                throw new RuntimeException("Compute pod " + entity.getComputePodName() + " not ready after 60s");
-            }
-            enableDefaultExtensions(entity);
-        } catch (Exception e) {
-            // Rollback in a new transaction
-            txTemplate.executeWithoutResult(status -> databaseRepository.delete(entity));
-            try { neonApiClient.deleteTenant(neonTenant.getId()); } catch (Exception rollbackEx) {
-                log.warn("Failed to rollback Neon tenant {}: {}", neonTenant.getId(), rollbackEx.getMessage());
-            }
-            operationLogService.completeOperation(opLog, e.getMessage());
-            throw new ServiceException("Failed to create compute Pod: " + e.getMessage(), e);
-        }
 
-        // Transaction 2: finalize entity status
-        try {
-            DatabaseResponse response = txTemplate.execute(status -> {
-                DatabaseEntity e = databaseRepository.findById(entity.getId())
-                    .orElseThrow(() -> new ServiceException("Database " + entity.getId() + " was deleted during creation"));
-                e.setConnectionUri(buildConnectionUri(dbUser, request.name()));
-                e.setStatus(DatabaseStatus.RUNNING);
-                e.setLastActiveAt(Instant.now());
-                e = databaseRepository.save(e);
+        // Launch async provisioning (via separate service to ensure @Async proxy works)
+        provisioningService.provisionAsync(entity.getId(), neonTimeline.getTimelineId(), dbUser, opLog.getId());
 
-                BranchEntity mainBranch = new BranchEntity();
-                mainBranch.setName("main");
-                mainBranch.setDatabaseId(e.getId());
-                mainBranch.setNeonTimelineId(neonTimeline.getTimelineId());
-                mainBranch.setIsDefault(true);
-                mainBranch.setStatus(BranchStatus.ACTIVE);
-                // Copy compute fields to default branch
-                mainBranch.setComputePodName(e.getComputePodName());
-                mainBranch.setComputeHost(e.getComputeHost());
-                mainBranch.setComputePort(e.getComputePort());
-                mainBranch.setComputeStatus(ComputeStatus.RUNNING);
-                mainBranch.setSuspendTimeout(e.getSuspendTimeout());
-                mainBranch.setLastActiveAt(Instant.now());
-                branchRepository.save(mainBranch);
-
-                DatabaseResponse resp = toResponse(e, List.of(mainBranch));
-                resp.setPassword(rawPassword);
-                return resp;
-            });
-            operationLogService.completeOperation(opLog, null);
-            return response;
-        } catch (Exception e) {
-            operationLogService.completeOperation(opLog, e.getMessage());
-            throw e;
-        }
+        // Return immediately with CREATING status
+        DatabaseResponse response = toResponse(entity, List.of());
+        response.setPassword(rawPassword);
+        return response;
     }
 
     public DatabaseResponse get(TenantEntity tenant, String dbId) {
@@ -557,6 +514,7 @@ public class DatabaseService {
             .id(entity.getId())
             .name(entity.getName())
             .status(entity.getStatus())
+            .statusMessage(entity.getStatusMessage())
             .connectionUri(entity.getConnectionUri())
             .computeSize(entity.getComputeSize())
             .suspendTimeout(entity.getSuspendTimeout())
@@ -680,7 +638,7 @@ public class DatabaseService {
 
     private static final List<String> DEFAULT_EXTENSIONS = List.of("vector", "pg_search");
 
-    private void enableDefaultExtensions(DatabaseEntity entity) {
+    void enableDefaultExtensions(DatabaseEntity entity) {
         String host = entity.getComputeHost() != null ? entity.getComputeHost() : "proxy.lakeon.svc.cluster.local";
         int port = entity.getComputePort() != 0 ? entity.getComputePort() : 55433;
         String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + entity.getName()

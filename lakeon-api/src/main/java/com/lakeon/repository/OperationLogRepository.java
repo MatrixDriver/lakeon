@@ -15,6 +15,7 @@ public interface OperationLogRepository extends JpaRepository<OperationLogEntity
     Page<OperationLogEntity> findByDatabaseIdAndTenantIdAndOperationTypeOrderByStartedAtDesc(
             String databaseId, String tenantId, OperationType type, Pageable pageable);
     List<OperationLogEntity> findTop10ByTenantIdOrderByStartedAtDesc(String tenantId);
+    List<OperationLogEntity> findByDatabaseIdAndStatus(String databaseId, OperationStatus status);
 
     // Admin: global operations with filters
     Page<OperationLogEntity> findAllByOrderByStartedAtDesc(Pageable pageable);

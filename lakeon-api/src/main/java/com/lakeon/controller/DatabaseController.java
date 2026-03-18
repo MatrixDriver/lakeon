@@ -24,7 +24,7 @@ public class DatabaseController {
     }
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
+    @ResponseStatus(HttpStatus.ACCEPTED)
     public DatabaseResponse createDatabase(HttpServletRequest req,
                                            @Valid @RequestBody CreateDatabaseRequest request) {
         TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");

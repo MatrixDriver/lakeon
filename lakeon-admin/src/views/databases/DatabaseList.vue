@@ -41,6 +41,7 @@
             <th>名称</th>
             <th>租户ID</th>
             <th>状态</th>
+            <th>状态信息</th>
             <th>规格</th>
             <th>存储上限</th>
             <th>Compute Pod</th>
@@ -59,6 +60,7 @@
               <span class="status-dot" :class="statusClass(db.status)"></span>
               {{ db.status }}
             </td>
+            <td class="error-cell">{{ db.status_message || '-' }}</td>
             <td>{{ db.compute_size || '-' }}</td>
             <td>{{ db.storage_limit_gb ? db.storage_limit_gb + ' GB' : '-' }}</td>
             <td style="font-family: monospace; font-size: 13px;">{{ db.compute_pod_name || '-' }}</td>
@@ -68,7 +70,7 @@
             </td>
           </tr>
           <tr v-if="databases.length === 0">
-            <td colspan="9" class="empty-state">暂无数据</td>
+            <td colspan="10" class="empty-state">暂无数据</td>
           </tr>
         </tbody>
       </table>
@@ -114,6 +116,7 @@ interface Database {
   name: string
   tenant_id: string
   status: string
+  status_message?: string
   compute_size?: string
   storage_limit_gb?: number
   compute_pod_name?: string
@@ -238,5 +241,14 @@ onMounted(loadDatabases)
 }
 .db-link:hover {
   text-decoration: underline;
+}
+
+.error-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #e53e3e;
+  font-size: 13px;
 }
 </style>

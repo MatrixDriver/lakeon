@@ -10,6 +10,9 @@ public class DatabaseResponse {
     private String id;
     private String name;
     private DatabaseStatus status;
+    @JsonProperty("status_message")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String statusMessage;
     @JsonProperty("connection_uri")
     private String connectionUri;
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -57,6 +60,8 @@ public class DatabaseResponse {
     public void setName(String name) { this.name = name; }
     public DatabaseStatus getStatus() { return status; }
     public void setStatus(DatabaseStatus status) { this.status = status; }
+    public String getStatusMessage() { return statusMessage; }
+    public void setStatusMessage(String statusMessage) { this.statusMessage = statusMessage; }
     public String getConnectionUri() { return connectionUri; }
     public void setConnectionUri(String connectionUri) { this.connectionUri = connectionUri; }
     public String getPassword() { return password; }
@@ -135,6 +140,7 @@ public class DatabaseResponse {
         private String id;
         private String name;
         private DatabaseStatus status;
+        private String statusMessage;
         private String connectionUri;
         private String computeSize;
         private String suspendTimeout;
@@ -148,6 +154,7 @@ public class DatabaseResponse {
         public Builder id(String id) { this.id = id; return this; }
         public Builder name(String name) { this.name = name; return this; }
         public Builder status(DatabaseStatus status) { this.status = status; return this; }
+        public Builder statusMessage(String statusMessage) { this.statusMessage = statusMessage; return this; }
         public Builder connectionUri(String connectionUri) { this.connectionUri = connectionUri; return this; }
         public Builder computeSize(String computeSize) { this.computeSize = computeSize; return this; }
         public Builder suspendTimeout(String suspendTimeout) { this.suspendTimeout = suspendTimeout; return this; }
@@ -163,6 +170,7 @@ public class DatabaseResponse {
                 suspendTimeout, storageLimitGb, storageUsedGb, branches, createdAt);
             r.setActiveConnections(activeConnections);
             r.setNeonTimelineId(neonTimelineId);
+            r.setStatusMessage(statusMessage);
             return r;
         }
     }

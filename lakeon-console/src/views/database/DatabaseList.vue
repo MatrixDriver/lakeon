@@ -49,8 +49,18 @@
                 </div>
               </td>
               <td>
-                <span class="status-dot" :class="statusClass(db.status)"></span>
-                {{ statusText(db.status) }}
+                <div>
+                  <div>
+                    <span class="status-dot" :class="statusClass(db.status)"></span>
+                    {{ statusText(db.status) }}
+                  </div>
+                  <div v-if="db.status === 'CREATING' && db.status_message" class="status-message text-muted">
+                    {{ db.status_message }}
+                  </div>
+                  <div v-if="db.status === 'ERROR' && db.status_message" class="status-message text-error">
+                    {{ db.status_message }}
+                  </div>
+                </div>
               </td>
               <td>
                 <span v-if="db.status === 'RUNNING'">{{ db.active_connections || 0 }}</span>
@@ -235,6 +245,7 @@ function statusText(status: string): string {
     case 'RUNNING': return '运行中'
     case 'SUSPENDED': return '已挂起'
     case 'CREATING': return '创建中'
+    case 'ERROR': return '创建失败'
     default: return '异常'
   }
 }
@@ -261,8 +272,13 @@ async function pollUntilReady(id: string) {
     await new Promise(r => setTimeout(r, 2000))
     try {
       const res = await databaseApi.get(id)
-      const status = res.data.status
-      if (['RUNNING', 'SUSPENDED', 'ERROR'].includes(status)) {
+      const db = res.data
+      // Merge polled status into local list so user sees progress messages
+      const idx = databases.value.findIndex(d => d.id === id)
+      if (idx >= 0) {
+        databases.value[idx] = db
+      }
+      if (['RUNNING', 'SUSPENDED', 'ERROR'].includes(db.status)) {
         break
       }
     } catch {
@@ -287,6 +303,7 @@ async function handleCreate() {
     createForm.compute_size = '1cu'
     createForm.suspend_timeout = '5m'
     createForm.storage_limit_gb = 10
+    toast.success('数据库创建已提交，正在后台初始化...')
     await fetchDatabases()
     pollUntilReady(res.data.id)
   } catch (e) {
@@ -407,5 +424,18 @@ onUnmounted(() => {
   .storage-bar {
     display: none;
   }
+}
+
+.status-message {
+  font-size: 12px;
+  margin-top: 2px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-error {
+  color: #e53e3e;
 }
 </style>
