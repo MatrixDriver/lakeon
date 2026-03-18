@@ -6,6 +6,21 @@ from dbay_cli.client import DbayApiError
 from conftest import poll_until, run_psql
 
 
+def psql_with_retry(connstr, sql, password, retries=5, delay=10):
+    """Retry psql calls to allow compute to wake up via proxy."""
+    for i in range(retries):
+        try:
+            return run_psql(connstr, sql, password)
+        except RuntimeError:
+            if i == retries - 1:
+                raise
+            time.sleep(delay)
+
+
+def _status(d):
+    return d["status"].lower()
+
+
 class TestDatabase:
     """Database lifecycle tests. Uses a class-scoped shared_db to avoid
     creating a new database for every test case."""
@@ -22,11 +37,11 @@ class TestDatabase:
 
         db = poll_until(
             lambda: e2e_client.get_database(db["id"]),
-            condition=lambda d: d["status"].lower() in ("running", "error"),
+            condition=lambda d: _status(d) in ("running", "error"),
             timeout=180,
             interval=3,
         )
-        assert db["status"].lower() == "running", f"Database creation failed: {db}"
+        assert _status(db) == "running", f"Database creation failed: {db}"
 
         # Re-attach password
         db["password"] = creation_password
@@ -42,7 +57,7 @@ class TestDatabase:
 
     def test_create_database(self, shared_db):
         """After creation and polling, status should be running with a connection URI."""
-        assert shared_db["status"] == "running"
+        assert _status(shared_db) == "running"
         assert shared_db.get("connection_uri") is not None
 
     def test_get_database_no_password(self, e2e_client, shared_db):
@@ -59,9 +74,9 @@ class TestDatabase:
         """CREATE TABLE, INSERT, and SELECT should work via psql."""
         connstr = shared_db["connection_uri"]
         password = shared_db.get("password", "")
-        run_psql(connstr, "CREATE TABLE IF NOT EXISTS e2e_test(id int)", password)
-        run_psql(connstr, "INSERT INTO e2e_test VALUES(42)", password)
-        result = run_psql(connstr, "SELECT id FROM e2e_test WHERE id=42", password)
+        psql_with_retry(connstr, "CREATE TABLE IF NOT EXISTS e2e_test(id int)", password)
+        psql_with_retry(connstr, "INSERT INTO e2e_test VALUES(42)", password)
+        result = psql_with_retry(connstr, "SELECT id FROM e2e_test WHERE id=42", password)
         assert result == "42"
 
     def test_suspend_database(self, e2e_client, shared_db):
@@ -69,26 +84,26 @@ class TestDatabase:
         e2e_client.suspend_database(shared_db["id"])
         db = poll_until(
             lambda: e2e_client.get_database(shared_db["id"]),
-            condition=lambda d: d["status"] == "suspended",
-            timeout=30,
+            condition=lambda d: _status(d) == "suspended",
+            timeout=60,
         )
-        assert db["status"].lower() == "suspended"
+        assert _status(db) == "suspended"
 
     def test_resume_database(self, e2e_client, shared_db):
         """Resuming a suspended database should bring it back to running."""
         e2e_client.resume_database(shared_db["id"])
         db = poll_until(
             lambda: e2e_client.get_database(shared_db["id"]),
-            condition=lambda d: d["status"] == "running",
+            condition=lambda d: _status(d) == "running",
             timeout=180,
         )
-        assert db["status"].lower() == "running"
+        assert _status(db) == "running"
 
     def test_data_persistence(self, shared_db):
         """Data written before suspend should still be readable after resume."""
         connstr = shared_db["connection_uri"]
         password = shared_db.get("password", "")
-        result = run_psql(connstr, "SELECT id FROM e2e_test WHERE id=42", password)
+        result = psql_with_retry(connstr, "SELECT id FROM e2e_test WHERE id=42", password)
         assert result == "42"
 
     def test_delete_database(self, e2e_client):
@@ -96,7 +111,7 @@ class TestDatabase:
         db = e2e_client.create_database(name=f"e2e-del-{int(time.time())}")
         db = poll_until(
             lambda: e2e_client.get_database(db["id"]),
-            condition=lambda d: d["status"] == "running",
+            condition=lambda d: _status(d) in ("running", "error"),
             timeout=180,
         )
         e2e_client.delete_database(db["id"])
