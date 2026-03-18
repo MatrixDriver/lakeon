@@ -55,11 +55,11 @@
               </router-link>
             </td>
             <td style="color: #666;">{{ kb.description || '-' }}</td>
-            <td>{{ kb.documentCount ?? 0 }}</td>
+            <td>{{ kb.document_count ?? 0 }}</td>
             <td>
               <span class="status-tag" :class="'tag-' + statusColor(kb.status)">{{ statusText(kb.status) }}</span>
             </td>
-            <td style="color: #999;">{{ formatTime(kb.createdAt) }}</td>
+            <td style="color: #999;">{{ formatTime(kb.created_at) }}</td>
             <td>
               <button class="btn btn-text btn-small" style="color: #e6393d;" @click="handleDelete(kb)">删除</button>
             </td>
@@ -82,19 +82,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-
-interface KnowledgeBase {
-  id: string
-  name: string
-  description: string
-  documentCount: number
-  status: string
-  createdAt: string
-}
+import { listKnowledgeBases, createKnowledgeBase, deleteKnowledgeBase, type KnowledgeBase } from '../../api/knowledge'
 
 const knowledgeBases = ref<KnowledgeBase[]>([])
 const showCreate = ref(false)
 const createForm = ref({ name: '', description: '' })
+const loading = ref(false)
 
 function statusColor(status: string) {
   if (status === 'READY') return 'green'
@@ -113,18 +106,38 @@ function formatTime(t: string) {
   return new Date(t).toLocaleString('zh-CN')
 }
 
+async function loadKBs() {
+  loading.value = true
+  try {
+    const res = await listKnowledgeBases()
+    knowledgeBases.value = res.data
+  } catch (e: any) {
+    console.error('Failed to load knowledge bases:', e)
+  } finally {
+    loading.value = false
+  }
+}
+
 async function handleCreate() {
-  // TODO: POST /api/v1/knowledge/bases
-  showCreate.value = false
-  createForm.value = { name: '', description: '' }
+  try {
+    await createKnowledgeBase(createForm.value.name, createForm.value.description || undefined)
+    showCreate.value = false
+    createForm.value = { name: '', description: '' }
+    await loadKBs()
+  } catch (e: any) {
+    alert('创建失败: ' + (e.response?.data?.error?.message || e.message))
+  }
 }
 
 async function handleDelete(kb: KnowledgeBase) {
   if (!confirm(`确认删除知识库"${kb.name}"？所有文档和索引数据将被永久删除。`)) return
-  // TODO: DELETE /api/v1/knowledge/bases/{id}
+  try {
+    await deleteKnowledgeBase(kb.id)
+    await loadKBs()
+  } catch (e: any) {
+    alert('删除失败: ' + (e.response?.data?.error?.message || e.message))
+  }
 }
 
-onMounted(async () => {
-  // TODO: GET /api/v1/knowledge/bases
-})
+onMounted(loadKBs)
 </script>
