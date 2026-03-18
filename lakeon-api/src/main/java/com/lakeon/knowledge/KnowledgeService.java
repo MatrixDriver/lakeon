@@ -583,7 +583,7 @@ public class KnowledgeService {
                 .credentialsProvider(StaticCredentialsProvider.create(
                         AwsBasicCredentials.create(props.getObs().getAccessKey(), props.getObs().getSecretKey())))
                 .region(Region.of("cn-north-4"))
-                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
+                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(false).build())
                 .build();
     }
 
