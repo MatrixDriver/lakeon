@@ -19,7 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.NodeMetrics;
@@ -28,7 +27,6 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.micrometer.core.instrument.Timer;
 
 import javax.sql.DataSource;
-import java.io.File;
 import java.sql.Connection;
 import java.time.Instant;
 import java.time.YearMonth;
@@ -52,9 +50,7 @@ public class AdminService {
     private final MeterRegistry meterRegistry;
     private final KubernetesClient k8sClient;
     private final CbcBillingService cbcBillingService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private volatile Map<String, Object> cloudResourcesCache;
-    private volatile long cloudResourcesCacheTime;
+
 
     public AdminService(TenantRepository tenantRepository,
                         DatabaseRepository databaseRepository,
@@ -573,27 +569,64 @@ public class AdminService {
         return trend;
     }
 
-    @SuppressWarnings("unchecked")
     public Map<String, Object> getCloudResources() {
-        long now = System.currentTimeMillis();
-        if (cloudResourcesCache != null && (now - cloudResourcesCacheTime) < 5 * 60 * 1000) {
-            return cloudResourcesCache;
-        }
-        String filePath = props.getCloud().getResourcesFile();
-        File file = new File(filePath);
-        if (!file.exists()) {
-            log.warn("Cloud resources file not found: {}", filePath);
-            return Map.of("resources", List.of(), "topology", Map.of());
-        }
+        Map<String, Object> result = new LinkedHashMap<>();
+
+        // Build topology (deployment architecture)
+        Map<String, Object> topology = new LinkedHashMap<>();
+        List<Map<String, String>> topoNodes = new java.util.ArrayList<>();
+        topoNodes.add(Map.of("id", "railway", "label", "Railway (海外)", "sublabel", "dbay.cloud", "desc", "Web 控制台 · SRE Admin", "type", "railway"));
+        topoNodes.add(Map.of("id", "eip", "label", "EIP 弹性公网IP", "sublabel", "api.dbay.cloud:8443", "desc", "HTTPS 入口", "type", "network"));
+        topoNodes.add(Map.of("id", "elb", "label", "ELB 负载均衡", "sublabel", "TCP:8443 透传", "desc", "共享型 ELB", "type", "network"));
+        topoNodes.add(Map.of("id", "cce", "label", "CCE 集群", "sublabel", "lakeon-k8s-cluster", "desc", "API · Proxy · Pageserver · Safekeeper", "type", "compute"));
+        topoNodes.add(Map.of("id", "compute-pool", "label", "弹性节点池", "sublabel", "dbay-compute-pool", "desc", "Compute Pod (用户数据库)", "type", "compute"));
+        topoNodes.add(Map.of("id", "rds", "label", "RDS PostgreSQL", "sublabel", "元数据库", "desc", "存储租户/数据库/操作日志", "type", "storage"));
+        topoNodes.add(Map.of("id", "obs", "label", "OBS 对象存储", "sublabel", props.getObs().getBucket(), "desc", "Neon 远程存储", "type", "storage"));
+        topology.put("nodes", topoNodes);
+
+        List<Map<String, String>> topoEdges = new java.util.ArrayList<>();
+        topoEdges.add(Map.of("from", "railway", "to", "eip", "label", "浏览器直连 API"));
+        topoEdges.add(Map.of("from", "eip", "to", "elb", "label", ""));
+        topoEdges.add(Map.of("from", "elb", "to", "cce", "label", "TCP 透传"));
+        topoEdges.add(Map.of("from", "cce", "to", "compute-pool", "label", "创建 Compute Pod"));
+        topoEdges.add(Map.of("from", "cce", "to", "rds", "label", "JDBC"));
+        topoEdges.add(Map.of("from", "cce", "to", "obs", "label", "S3 协议"));
+        topology.put("edges", topoEdges);
+        result.put("topology", topology);
+
+        // Build resource list
+        List<Map<String, Object>> resources = new java.util.ArrayList<>();
+
+        resources.add(buildResource("CCE 集群", "cn-north-4", "CCE", "容器集群", "ACTIVE"));
+        resources.add(buildResource("弹性节点池 dbay-compute-pool", "cn-north-4", "CCE", "节点池", "ACTIVE"));
+
+        // Count nodes
         try {
-            Map<String, Object> data = objectMapper.readValue(file, Map.class);
-            cloudResourcesCache = data;
-            cloudResourcesCacheTime = now;
-            return data;
+            int nodeCount = k8sClient.nodes().list().getItems().size();
+            resources.add(buildResource("CCE 节点 (" + nodeCount + "台)", "cn-north-4", "CCE", "弹性云服务器", "ACTIVE"));
         } catch (Exception e) {
-            log.error("Failed to read cloud resources file: {}", e.getMessage());
-            return Map.of("resources", List.of(), "topology", Map.of(), "error", e.getMessage());
+            resources.add(buildResource("CCE 节点", "cn-north-4", "CCE", "弹性云服务器", "UNKNOWN"));
         }
+
+        resources.add(buildResource("RDS PostgreSQL", "cn-north-4", "RDS", "关系型数据库", "ACTIVE"));
+        resources.add(buildResource("OBS " + props.getObs().getBucket(), "cn-north-4", "OBS", "对象存储桶", "ACTIVE"));
+        resources.add(buildResource("ELB 负载均衡", "cn-north-4", "ELB", "弹性负载均衡", "ACTIVE"));
+        resources.add(buildResource("EIP api.dbay.cloud", "cn-north-4", "EIP", "弹性公网IP", "ACTIVE"));
+        resources.add(buildResource("Railway Console", "海外 (Singapore)", "Railway", "Web 托管", "ACTIVE"));
+        resources.add(buildResource("Railway Admin", "海外 (Singapore)", "Railway", "Web 托管", "ACTIVE"));
+
+        result.put("resources", resources);
+        return result;
+    }
+
+    private Map<String, Object> buildResource(String name, String region, String service, String type, String status) {
+        Map<String, Object> r = new LinkedHashMap<>();
+        r.put("name", name);
+        r.put("region", region);
+        r.put("service", service);
+        r.put("type", type);
+        r.put("status", status);
+        return r;
     }
 
     // ── Logs ──
@@ -653,12 +686,16 @@ public class AdminService {
         Map<String, Object> api = new LinkedHashMap<>();
         Timer httpTimer = meterRegistry.find("http.server.requests").timer();
         if (httpTimer != null && httpTimer.count() > 0) {
-            double meanMs = httpTimer.mean(java.util.concurrent.TimeUnit.MILLISECONDS);
-            double maxMs = httpTimer.max(java.util.concurrent.TimeUnit.MILLISECONDS);
             api.put("request_rate_1m", Math.round(httpTimer.count() / Math.max(1, httpTimer.totalTime(java.util.concurrent.TimeUnit.SECONDS))));
-            api.put("p50_ms", Math.round(meanMs));
-            api.put("p95_ms", Math.round(meanMs * 1.5));
-            api.put("p99_ms", Math.round(maxMs));
+            // Read real percentiles from distribution snapshot
+            var snapshot = httpTimer.takeSnapshot();
+            Map<Double, Long> percentiles = new java.util.LinkedHashMap<>();
+            for (var vp : snapshot.percentileValues()) {
+                percentiles.put(vp.percentile(), Math.round(vp.value(java.util.concurrent.TimeUnit.MILLISECONDS)));
+            }
+            api.put("p50_ms", percentiles.getOrDefault(0.5, Math.round(httpTimer.mean(java.util.concurrent.TimeUnit.MILLISECONDS))));
+            api.put("p95_ms", percentiles.getOrDefault(0.95, 0L));
+            api.put("p99_ms", percentiles.getOrDefault(0.99, 0L));
         } else {
             api.put("request_rate_1m", 0);
             api.put("p50_ms", 0);

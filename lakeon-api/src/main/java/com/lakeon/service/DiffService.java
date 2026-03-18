@@ -126,7 +126,7 @@ public class DiffService {
         tempDb.setSuspendTimeout(db.getSuspendTimeout());
         try {
             computePodManager.createComputePod(tempDb);
-            computePodManager.waitForPodReady(tempDb.getComputePodName(), 60_000);
+            computePodManager.waitForPodReady(tempDb.getComputePodName(), 180_000);
             tempPods.add(tempDb.getComputePodName());
             log.info("Temp compute ready for '{}': pod={}, host={}", label, tempDb.getComputePodName(), tempDb.getComputeHost());
             return buildJdbcUrl(tempDb.getComputeHost(), tempDb.getComputePort(), db);

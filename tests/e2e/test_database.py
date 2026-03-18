@@ -18,6 +18,7 @@ def psql_with_retry(connstr, sql, password, retries=5, delay=10):
 
 
 def _status(d):
+    """Normalize status to lowercase. API should return lowercase after DatabaseStatus @JsonValue fix."""
     return d["status"].lower()
 
 
