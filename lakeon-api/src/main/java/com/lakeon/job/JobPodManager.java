@@ -39,9 +39,12 @@ public class JobPodManager {
         // Resolve image/cpu/memory from job type config
         String typeKey = job.getType().name().toLowerCase().replace("_", "-");
         LakeonProperties.JobTypeConfig typeConfig = props.getJob().getTypes().get(typeKey);
-        String image = typeConfig != null ? typeConfig.getImage() : null;
-        String cpu = typeConfig != null ? typeConfig.getCpu() : "2";
-        String memory = typeConfig != null ? typeConfig.getMemory() : "4Gi";
+        if (typeConfig == null || typeConfig.getImage() == null || typeConfig.getImage().isBlank()) {
+            throw new IllegalStateException("No image configured for job type: " + typeKey);
+        }
+        String image = typeConfig.getImage();
+        String cpu = typeConfig.getCpu() != null ? typeConfig.getCpu() : "2";
+        String memory = typeConfig.getMemory() != null ? typeConfig.getMemory() : "4Gi";
 
         // Build callback URL
         String callbackUrl = "http://lakeon-api.lakeon.svc.cluster.local:" + serverPort
@@ -134,12 +137,7 @@ public class JobPodManager {
                     .endEnv()
                     .addNewEnv()
                         .withName("OBS_ENDPOINT")
-                        .withNewValueFrom()
-                            .withNewSecretKeyRef()
-                                .withName("obs-credentials")
-                                .withKey("endpoint")
-                            .endSecretKeyRef()
-                        .endValueFrom()
+                        .withValue("https://obs.cn-north-4.myhuaweicloud.com")
                     .endEnv()
                     .addNewVolumeMount()
                         .withName("job-params")

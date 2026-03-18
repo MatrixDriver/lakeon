@@ -76,6 +76,11 @@ public class JobService {
             JobEntity job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new NotFoundException("Job not found: " + jobId));
 
+            if (job.getStatus() != JobStatus.PENDING) {
+                log.warn("Job {} is in state {}, skipping pod launch", jobId, job.getStatus());
+                return;
+            }
+
             String podName = jobPodManager.launchJobPod(job);
 
             job.setPodName(podName);
@@ -158,6 +163,11 @@ public class JobService {
      * Returns false if the token is invalid or the job is not found.
      */
     public boolean handleCallback(String jobId, String token, String status, String resultJson, String error) {
+        if (token == null || status == null) {
+            log.warn("Callback for job {} missing token or status", jobId);
+            return false;
+        }
+
         JobEntity job = jobRepository.findById(jobId).orElse(null);
         if (job == null) {
             log.warn("Callback for unknown job {}", jobId);
@@ -167,6 +177,12 @@ public class JobService {
         if (!token.equals(job.getCallbackToken())) {
             log.warn("Callback for job {} has invalid token", jobId);
             return false;
+        }
+
+        if (job.getStatus() == JobStatus.SUCCEEDED || job.getStatus() == JobStatus.FAILED
+                || job.getStatus() == JobStatus.CANCELLED) {
+            log.info("Ignoring callback for job {} already in terminal state {}", jobId, job.getStatus());
+            return true;
         }
 
         JobStatus newStatus;
@@ -211,5 +227,10 @@ public class JobService {
         }
 
         return true;
+    }
+
+    @jakarta.annotation.PreDestroy
+    public void shutdown() {
+        executor.shutdown();
     }
 }
