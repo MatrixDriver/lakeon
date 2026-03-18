@@ -544,22 +544,30 @@ public class KnowledgeService {
         DatabaseEntity db = databaseRepository.findByIdAndTenantId(databaseId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Database not found: " + databaseId));
 
-        // Ensure compute is running
-        if (db.getStatus() != DatabaseStatus.RUNNING) {
-            throw new BadRequestException("Database compute is not running. Current status: " + db.getStatus() +
-                    ". Resume the database first.");
+        // Ensure compute is running (resume if suspended)
+        if (db.getStatus() == DatabaseStatus.SUSPENDED) {
+            try {
+                // Trigger resume via DatabaseService or ComputePodManager
+                log.info("Database {} is suspended, attempting to wake compute", databaseId);
+                computePodManager.createComputePod(db);
+                databaseRepository.save(db);
+                // Wait briefly for compute to start
+                Thread.sleep(5000);
+            } catch (Exception e) {
+                log.warn("Failed to wake compute for database {}: {}", databaseId, e.getMessage());
+            }
         }
 
+        // Direct connection to compute pod (API is inside the cluster)
         String host = db.getComputeHost();
         int port = db.getComputePort() != null ? db.getComputePort() : 55433;
 
         if (host == null || host.isBlank()) {
-            // Try to get pod IP
             if (db.getComputePodName() != null) {
                 host = computePodManager.getPodIp(db.getComputePodName());
             }
             if (host == null || host.isBlank()) {
-                throw new BadRequestException("Database compute host is not available");
+                throw new BadRequestException("Database compute is not available. Status: " + db.getStatus());
             }
         }
 
