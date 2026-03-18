@@ -50,7 +50,10 @@ def main():
         obs_sk = os.environ["OBS_SECRET_KEY"]
         obs_bucket = os.environ.get("OBS_BUCKET", "lakeon-storage")
 
-        s3 = boto3.client("s3", endpoint_url=obs_endpoint, aws_access_key_id=obs_ak, aws_secret_access_key=obs_sk)
+        from botocore.config import Config as BotoConfig
+        s3 = boto3.client("s3", endpoint_url=obs_endpoint,
+                          aws_access_key_id=obs_ak, aws_secret_access_key=obs_sk,
+                          config=BotoConfig(s3={"addressing_style": "virtual"}))
 
         suffix = f".{fmt.lower()}" if fmt else ""
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:

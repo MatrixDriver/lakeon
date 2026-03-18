@@ -17,8 +17,8 @@ public class JobPodManager {
     private final KubernetesClient k8sClient;
     private final LakeonProperties props;
 
-    @Value("${server.port:8090}")
-    private int serverPort;
+    @Value("${lakeon.api.internal-port:8088}")
+    private int internalPort;
 
     public JobPodManager(KubernetesClient k8sClient, LakeonProperties props) {
         this.k8sClient = k8sClient;
@@ -46,8 +46,8 @@ public class JobPodManager {
         String cpu = typeConfig.getCpu() != null ? typeConfig.getCpu() : "2";
         String memory = typeConfig.getMemory() != null ? typeConfig.getMemory() : "4Gi";
 
-        // Build callback URL
-        String callbackUrl = "http://lakeon-api.lakeon.svc.cluster.local:" + serverPort
+        // Build callback URL (uses http-internal service port, not the SSL server port)
+        String callbackUrl = "http://lakeon-api.lakeon.svc.cluster.local:" + internalPort
                 + "/api/v1/jobs/" + job.getId() + "/callback";
 
         // Create ConfigMap with params.json
@@ -137,7 +137,11 @@ public class JobPodManager {
                     .endEnv()
                     .addNewEnv()
                         .withName("OBS_ENDPOINT")
-                        .withValue("https://obs.cn-north-4.myhuaweicloud.com")
+                        .withValue(props.getObs().getEndpoint())
+                    .endEnv()
+                    .addNewEnv()
+                        .withName("OBS_BUCKET")
+                        .withValue(props.getObs().getBucket())
                     .endEnv()
                     .addNewVolumeMount()
                         .withName("job-params")
