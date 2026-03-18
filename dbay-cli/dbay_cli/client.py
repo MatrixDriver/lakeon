@@ -171,10 +171,99 @@ class DbayClient:
         return self._request("DELETE", f"/knowledge/documents/{document_id}")
 
     # -- Knowledge Search --
-    def search_knowledge(self, kb_id: str, query: str, top_k: int = 5):
-        return self._request("POST", "/knowledge/search", json={
-            "kb_id": kb_id, "query": query, "top_k": top_k
-        })
+    def search_knowledge(self, kb_id: str, query: str, top_k: int = 5,
+                         document_ids: list | None = None):
+        body = {"kb_id": kb_id, "query": query, "top_k": top_k}
+        if document_ids:
+            body["document_ids"] = document_ids
+        return self._request("POST", "/knowledge/search", json=body)
+
+    # -- Knowledge Chunks --
+    def list_chunks(self, kb_id: str, doc_id: str, level: int = 0,
+                    offset: int = 0, limit: int = 50):
+        return self._request(
+            "GET",
+            f"/knowledge/bases/{kb_id}/documents/{doc_id}/chunks"
+            f"?level={level}&offset={offset}&limit={limit}",
+        )
+
+    def list_kb_chunks(self, kb_id: str, doc_id: str | None = None,
+                       status: str | None = None, offset: int = 0, limit: int = 50):
+        params = f"?offset={offset}&limit={limit}"
+        if doc_id:
+            params += f"&doc_id={doc_id}"
+        if status:
+            params += f"&status={status}"
+        return self._request("GET", f"/knowledge/bases/{kb_id}/chunks{params}")
+
+    def get_chunk(self, kb_id: str, doc_id: str, chunk_index: int):
+        return self._request(
+            "GET",
+            f"/knowledge/bases/{kb_id}/documents/{doc_id}/chunks/{chunk_index}",
+        )
+
+    def get_chunk_context(self, kb_id: str, doc_id: str, chunk_index: int):
+        return self._request(
+            "GET",
+            f"/knowledge/bases/{kb_id}/documents/{doc_id}/chunks/{chunk_index}/context",
+        )
+
+    def get_fulltext(self, kb_id: str, doc_id: str):
+        return self._request(
+            "GET",
+            f"/knowledge/bases/{kb_id}/documents/{doc_id}/fulltext",
+        )
+
+    def get_chunk_stats(self, kb_id: str, doc_id: str):
+        return self._request(
+            "GET",
+            f"/knowledge/bases/{kb_id}/documents/{doc_id}/chunk-stats",
+        )
+
+    def edit_chunk(self, kb_id: str, doc_id: str, chunk_index: int, content: str):
+        return self._request(
+            "PUT",
+            f"/knowledge/bases/{kb_id}/documents/{doc_id}/chunks/{chunk_index}",
+            json={"content": content},
+        )
+
+    def delete_chunk(self, kb_id: str, doc_id: str, chunk_index: int):
+        return self._request(
+            "DELETE",
+            f"/knowledge/bases/{kb_id}/documents/{doc_id}/chunks/{chunk_index}",
+        )
+
+    def create_chunk(self, kb_id: str, doc_id: str, content: str,
+                     insert_after_index: int = -1):
+        return self._request(
+            "POST",
+            f"/knowledge/bases/{kb_id}/documents/{doc_id}/chunks",
+            json={"content": content, "insert_after_index": insert_after_index},
+        )
+
+    def rechunk(self, kb_id: str, doc_id: str, max_tokens: int = 400,
+                overlap_ratio: float = 0.15, custom_separator: str | None = None):
+        body = {"max_tokens": max_tokens, "overlap_ratio": overlap_ratio}
+        if custom_separator is not None:
+            body["custom_separator"] = custom_separator
+        return self._request(
+            "POST",
+            f"/knowledge/bases/{kb_id}/documents/{doc_id}/rechunk",
+            json=body,
+        )
+
+    def rechunk_rollback(self, kb_id: str, doc_id: str, branch_id: str):
+        return self._request(
+            "POST",
+            f"/knowledge/bases/{kb_id}/documents/{doc_id}/rechunk/rollback",
+            json={"branch_id": branch_id},
+        )
+
+    def list_rechunk_branches(self, kb_id: str, doc_id: str):
+        return self._request(
+            "GET",
+            f"/knowledge/bases/{kb_id}/documents/{doc_id}/rechunk/branches",
+        )
 
     # -- Database User --
     def list_users(self, db_id: str) -> list:

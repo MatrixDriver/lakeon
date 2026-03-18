@@ -53,7 +53,11 @@ def main():
         from botocore.config import Config as BotoConfig
         s3 = boto3.client("s3", endpoint_url=obs_endpoint,
                           aws_access_key_id=obs_ak, aws_secret_access_key=obs_sk,
-                          config=BotoConfig(s3={"addressing_style": "virtual"}))
+                          region_name="cn-north-4",
+                          config=BotoConfig(
+                              s3={"addressing_style": "virtual"},
+                              signature_version="s3v4",
+                          ))
 
         suffix = f".{fmt.lower()}" if fmt else ""
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
