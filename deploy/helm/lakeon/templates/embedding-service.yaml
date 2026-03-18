@@ -1,0 +1,61 @@
+{{- if .Values.embedding.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: embedding-svc
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: lakeon-embedding
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lakeon-embedding
+  template:
+    metadata:
+      labels:
+        app: lakeon-embedding
+    spec:
+      nodeSelector:
+        lakeon/role: compute
+      containers:
+        - name: embedding
+          image: {{ .Values.embedding.image }}
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              cpu: {{ .Values.embedding.cpu | default "2" | quote }}
+              memory: {{ .Values.embedding.memory | default "4Gi" | quote }}
+            limits:
+              cpu: {{ .Values.embedding.cpu | default "2" | quote }}
+              memory: {{ .Values.embedding.memory | default "4Gi" | quote }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 120
+            periodSeconds: 30
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: embedding-svc
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: lakeon-embedding
+  ports:
+    - port: 8000
+      targetPort: 8000
+{{- end }}
