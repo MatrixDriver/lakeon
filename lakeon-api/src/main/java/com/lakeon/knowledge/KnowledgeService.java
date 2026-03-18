@@ -371,9 +371,13 @@ public class KnowledgeService {
         // Delete chunks from user PG (best-effort)
         if (doc.getDatabaseId() != null) {
             try {
-                String connstr = resolveComputeConnstr(doc.getDatabaseId(), tenantId);
-                String jdbcUrl = connstrToJdbc(connstr);
-                try (Connection conn = DriverManager.getConnection(jdbcUrl, "cloud_admin", "cloud-admin-internal");
+                String dConnstr = resolveComputeConnstr(doc.getDatabaseId(), tenantId);
+                String dJdbcUrl = connstrToJdbc(dConnstr);
+                String dUser = "cloud_admin", dPass = "cloud-admin-internal";
+                String dRaw = dConnstr.replaceFirst("^postgresql://", "");
+                int dAt = dRaw.indexOf('@');
+                if (dAt >= 0) { String ui = dRaw.substring(0, dAt); int c = ui.indexOf(':'); if (c >= 0) { dUser = ui.substring(0, c); dPass = ui.substring(c + 1); } }
+                try (Connection conn = DriverManager.getConnection(dJdbcUrl, dUser, dPass);
                      PreparedStatement ps = conn.prepareStatement("DELETE FROM knowledge_chunks WHERE document_id = ?")) {
                     ps.setString(1, documentId);
                     int deleted = ps.executeUpdate();
@@ -455,8 +459,22 @@ public class KnowledgeService {
                 " ORDER BY rrf_score DESC" +
                 " LIMIT ?";
 
+        // Extract user:pass from connstr if present (proxy path)
+        String pgUser = "cloud_admin";
+        String pgPass = "cloud-admin-internal";
+        String rawConnstr = connstr.replaceFirst("^postgresql://", "");
+        int atIdx = rawConnstr.indexOf('@');
+        if (atIdx >= 0) {
+            String userInfo = rawConnstr.substring(0, atIdx);
+            int colonIdx = userInfo.indexOf(':');
+            if (colonIdx >= 0) {
+                pgUser = userInfo.substring(0, colonIdx);
+                pgPass = userInfo.substring(colonIdx + 1);
+            }
+        }
+
         List<Map<String, Object>> results = new ArrayList<>();
-        try (Connection conn = DriverManager.getConnection(jdbcUrl, "cloud_admin", "cloud-admin-internal");
+        try (Connection conn = DriverManager.getConnection(jdbcUrl, pgUser, pgPass);
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             int idx = 1;
@@ -545,37 +563,41 @@ public class KnowledgeService {
         DatabaseEntity db = databaseRepository.findByIdAndTenantId(databaseId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Database not found: " + databaseId));
 
-        // Ensure compute is running (resume if suspended)
-        if (db.getStatus() == DatabaseStatus.SUSPENDED) {
-            try {
-                // Trigger resume via DatabaseService or ComputePodManager
-                log.info("Database {} is suspended, attempting to wake compute", databaseId);
-                computePodManager.createComputePod(db);
-                databaseRepository.save(db);
-                // Wait briefly for compute to start
-                Thread.sleep(5000);
-            } catch (Exception e) {
-                log.warn("Failed to wake compute for database {}: {}", databaseId, e.getMessage());
-            }
-        }
-
-        // Direct connection to compute pod (API is inside the cluster)
+        // Try direct connection to compute pod first (fastest, no proxy overhead)
         String host = db.getComputeHost();
         int port = db.getComputePort() != null ? db.getComputePort() : 55433;
 
-        if (host == null || host.isBlank()) {
-            if (db.getComputePodName() != null) {
-                host = computePodManager.getPodIp(db.getComputePodName());
-            }
-            if (host == null || host.isBlank()) {
-                throw new BadRequestException("Database compute is not available. Status: " + db.getStatus());
+        if (host != null && !host.isBlank()) {
+            String result = "postgresql://cloud_admin@" + host + ":" + port + "/" + db.getName();
+            log.info("resolveComputeConnstr: direct to compute pod {}", result);
+            return result;
+        }
+
+        // Try to get pod IP from pod name
+        if (db.getComputePodName() != null) {
+            host = computePodManager.getPodIp(db.getComputePodName());
+            if (host != null && !host.isBlank()) {
+                String result = "postgresql://cloud_admin@" + host + ":" + port + "/" + db.getName();
+                log.info("resolveComputeConnstr: via pod IP {}", result);
+                return result;
             }
         }
 
-        String result = "postgresql://cloud_admin@" + host + ":" + port + "/" + db.getName();
-        log.info("resolveComputeConnstr: db={} status={} host={} port={} connstr={}",
-                 databaseId, db.getStatus(), host, port, result);
-        return result;
+        // Fallback: use connection URI through proxy (handles auto-wake, SNI)
+        // Build proxy URI with db credentials: postgresql://user:pass@proxy:4432/dbname?options=endpoint%3D{tenantId}
+        String dbUser = db.getDbUser();
+        String dbPass = db.getDbPassword();
+        String neonTenantId = db.getNeonTenantId();
+        if (dbUser != null && dbPass != null && neonTenantId != null) {
+            String proxyHost = "proxy.lakeon.svc.cluster.local";
+            int proxyPort = 4432;
+            String result = "postgresql://" + dbUser + ":" + dbPass + "@" + proxyHost + ":" + proxyPort
+                    + "/" + db.getName() + "?options=endpoint%3D" + neonTenantId + "&sslmode=disable";
+            log.info("resolveComputeConnstr: via proxy for db {} (user={})", databaseId, dbUser);
+            return result;
+        }
+
+        throw new BadRequestException("Database compute is not available. Status: " + db.getStatus());
     }
 
     private String connstrToJdbc(String connstr) {
