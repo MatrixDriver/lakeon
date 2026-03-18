@@ -34,6 +34,9 @@ public class KnowledgeBaseEntity {
     @Column(name = "document_count")
     private Integer documentCount = 0;
 
+    @Column(name = "db_password", length = 256)
+    private String dbPassword;
+
     @Column(name = "error", columnDefinition = "TEXT")
     private String error;
 
@@ -79,6 +82,9 @@ public class KnowledgeBaseEntity {
 
     public Integer getDocumentCount() { return documentCount; }
     public void setDocumentCount(Integer documentCount) { this.documentCount = documentCount; }
+
+    public String getDbPassword() { return dbPassword; }
+    public void setDbPassword(String dbPassword) { this.dbPassword = dbPassword; }
 
     public String getError() { return error; }
     public void setError(String error) { this.error = error; }

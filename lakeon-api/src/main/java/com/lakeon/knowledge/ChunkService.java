@@ -16,12 +16,18 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.web.client.RestTemplate;
+
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ChunkService {
@@ -30,13 +36,18 @@ public class ChunkService {
     private final KnowledgeDbHelper dbHelper;
     private final LakeonProperties props;
     private final ObjectMapper objectMapper;
+    private final DocumentRepository documentRepository;
+    private final RestTemplate restTemplate;
 
     public ChunkService(KnowledgeDbHelper dbHelper,
                         LakeonProperties props,
-                        ObjectMapper objectMapper) {
+                        ObjectMapper objectMapper,
+                        DocumentRepository documentRepository) {
         this.dbHelper = dbHelper;
         this.props = props;
         this.objectMapper = objectMapper;
+        this.documentRepository = documentRepository;
+        this.restTemplate = new RestTemplate();
     }
 
     /**

@@ -130,11 +130,16 @@ public class KnowledgeService {
             );
             com.lakeon.model.dto.DatabaseResponse dbResp = databaseService.create(tenant, req);
             String dbId = dbResp.getId();
+            String dbPassword = dbResp.getPassword();  // plaintext, only available at creation
 
-            // Tag the database with kbId
+            // Tag the database with kbId and save password to KB
             databaseRepository.findById(dbId).ifPresent(dbEntity -> {
                 dbEntity.setKbId(kbId);
                 databaseRepository.save(dbEntity);
+            });
+            knowledgeBaseRepository.findById(kbId).ifPresent(kb -> {
+                kb.setDbPassword(dbPassword);
+                knowledgeBaseRepository.save(kb);
             });
 
             // Poll until RUNNING (max 5 min)

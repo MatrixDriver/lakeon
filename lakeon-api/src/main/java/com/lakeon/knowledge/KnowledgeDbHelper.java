@@ -50,7 +50,8 @@ public class KnowledgeDbHelper {
         if (databaseId == null) {
             throw new BadRequestException("Knowledge base has no backing database");
         }
-        return resolveComputeConnstr(databaseId, tenantId);
+        // Use KB's stored plaintext password (proxy auth needs plaintext, not SCRAM hash)
+        return resolveComputeConnstr(databaseId, tenantId, kb.getDbPassword());
     }
 
     /**
@@ -101,10 +102,20 @@ public class KnowledgeDbHelper {
     // ── Internal helpers (same logic as KnowledgeService) ──────────
 
     String resolveComputeConnstr(String databaseId, String tenantId) {
+        return resolveComputeConnstr(databaseId, tenantId, null);
+    }
+
+    /**
+     * @param plaintextPassword KB's stored plaintext password (null = use DB's stored password)
+     */
+    String resolveComputeConnstr(String databaseId, String tenantId, String plaintextPassword) {
         DatabaseEntity db = databaseRepository.findByIdAndTenantId(databaseId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Database not found: " + databaseId));
 
-        // 1. Direct to compute pod
+        log.info("resolveComputeConnstr: db={} host={} user={} neonTenant={}",
+                 databaseId, db.getComputeHost(), db.getDbUser(), db.getNeonTenantId());
+
+        // 1. Direct to compute pod (not proxy)
         String host = db.getComputeHost();
         int port = db.getComputePort() != null ? db.getComputePort() : 55433;
         boolean isProxyHost = host != null && (host.contains("dbay.cloud") || host.contains("proxy."));
@@ -112,25 +123,25 @@ public class KnowledgeDbHelper {
             return "postgresql://cloud_admin@" + host + ":" + port + "/" + db.getName();
         }
 
-        // 2. Via internal proxy with DB credentials
+        // 2. Via internal proxy with credentials
         String dbUser = db.getDbUser();
-        String dbPass = db.getDbPassword();
         String neonTenantId = db.getNeonTenantId();
+        // Use plaintext password from KB entity (proxy auth needs plaintext, not SCRAM hash)
+        String pass = plaintextPassword != null ? plaintextPassword : "";
         if (dbUser != null && neonTenantId != null) {
-            String pass = dbPass != null ? dbPass : "";
             return "postgresql://" + dbUser + ":" + pass
                     + "@proxy.lakeon.svc.cluster.local:4432/" + db.getName()
                     + "?options=endpoint=" + neonTenantId + "&sslmode=require";
         }
 
-        // 3. Fallback: parse connectionUri
+        // 3. Fallback: connectionUri (already includes user + endpoint)
         String connUri = db.getConnectionUri();
         if (connUri != null && !connUri.isBlank()) {
             connUri = connUri.replace("%3D", "=");
             connUri = connUri.replace("pg.dbay.cloud:4432", "proxy.lakeon.svc.cluster.local:4432");
-            String dbPassword = db.getDbPassword();
-            if (dbPassword != null && !connUri.contains(":" + dbPassword + "@")) {
-                connUri = connUri.replaceFirst("://([^:@]+)@", "://$1:" + dbPassword + "@");
+            // Inject password
+            if (pass != null && !pass.isEmpty()) {
+                connUri = connUri.replaceFirst("://([^:@]+)@", "://$1:" + pass + "@");
             }
             if (!connUri.contains("sslmode=")) {
                 connUri += (connUri.contains("?") ? "&" : "?") + "sslmode=require";
