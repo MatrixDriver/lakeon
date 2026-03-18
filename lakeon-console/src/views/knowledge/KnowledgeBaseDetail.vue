@@ -11,6 +11,12 @@
       <h1 class="page-title">{{ kb?.name || '加载中...' }}</h1>
     </div>
 
+    <!-- TABLE type KB: delegate to TableKbDetail -->
+    <TableKbDetail v-if="kb && kb.type === 'TABLE'" :kb="kb" />
+
+    <!-- DOCUMENT type KB (or legacy without type) -->
+    <template v-if="!kb || kb.type !== 'TABLE'">
+
     <!-- Tabs -->
     <div class="tab-bar" style="margin-top: 20px; border-bottom: 1px solid #e5e5e5; display: flex; gap: 0;">
       <div v-for="tab in tabs" :key="tab.key"
@@ -197,6 +203,8 @@
       </div>
     </div>
 
+    </template><!-- end DOCUMENT type -->
+
     <!-- Tag Edit Dialog -->
     <div v-if="tagDialog.open" class="modal-overlay" @click.self="tagDialog.open = false">
       <div class="modal-box">
@@ -239,6 +247,7 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getKnowledgeBase, listDocuments, getUploadUrl, processDocument, deleteDocument, searchKnowledge, setDocumentTags, type KnowledgeBase as KBType, type Document, type SearchResult } from '../../api/knowledge'
 import ChunkStats from '../../components/knowledge/ChunkStats.vue'
+import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
 
 const route = useRoute()
 const router = useRouter()

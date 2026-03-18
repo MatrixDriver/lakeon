@@ -9,27 +9,73 @@
 
     <!-- Create dialog -->
     <div v-if="showCreate" class="dialog-overlay" @click.self="showCreate = false">
-      <div class="dialog-box" style="max-width: 480px;">
+      <div class="dialog-box" style="max-width: 500px;">
         <div class="dialog-header">
           <h3>创建知识库</h3>
           <button class="dialog-close" @click="showCreate = false">&times;</button>
         </div>
         <div class="dialog-body">
+          <!-- Type selector -->
+          <div class="form-group">
+            <label class="form-label">类型 <span style="color:#e6393d">*</span></label>
+            <div style="display: flex; gap: 10px;">
+              <label class="type-radio" :class="{ selected: createForm.type === 'DOCUMENT' }">
+                <input type="radio" v-model="createForm.type" value="DOCUMENT" style="display: none;" />
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                <span>文档知识库</span>
+              </label>
+              <label class="type-radio" :class="{ selected: createForm.type === 'TABLE' }">
+                <input type="radio" v-model="createForm.type" value="TABLE" style="display: none;" />
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="3" y1="9" x2="21" y2="9"/>
+                  <line x1="3" y1="15" x2="21" y2="15"/>
+                  <line x1="9" y1="3" x2="9" y2="21"/>
+                </svg>
+                <span>数据表知识库</span>
+              </label>
+            </div>
+          </div>
+
           <div class="form-group">
             <label class="form-label">名称 <span style="color:#e6393d">*</span></label>
-            <input v-model="createForm.name" class="form-input" placeholder="例如：产品文档库" />
+            <input v-model="createForm.name" class="form-input" :placeholder="createForm.type === 'TABLE' ? '例如：销售数据库' : '例如：产品文档库'" />
           </div>
           <div class="form-group">
             <label class="form-label">描述</label>
             <input v-model="createForm.description" class="form-input" placeholder="可选，描述知识库用途" />
           </div>
-          <p style="font-size: 12px; color: #999; margin-top: 12px;">
+
+          <!-- TABLE-specific fields -->
+          <template v-if="createForm.type === 'TABLE'">
+            <div class="form-group">
+              <label class="form-label">关联数据库 <span style="color:#e6393d">*</span></label>
+              <select v-model="createForm.source_database_id" class="form-input" style="cursor: pointer;">
+                <option value="">-- 选择数据库 --</option>
+                <option v-for="db in databases" :key="db.id" :value="db.id">{{ db.name }}</option>
+              </select>
+              <div v-if="dbLoadError" style="font-size: 12px; color: #e6393d; margin-top: 4px;">{{ dbLoadError }}</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">数据表（逗号分隔）</label>
+              <input v-model="createForm.table_names_raw" class="form-input" placeholder="例如：orders, users, products（留空表示全部）" />
+              <p style="font-size: 12px; color: #999; margin-top: 4px;">多个表名用英文逗号分隔，留空则自动加载所有表</p>
+            </div>
+          </template>
+
+          <p v-if="createForm.type === 'DOCUMENT'" style="font-size: 12px; color: #999; margin-top: 12px;">
             系统将自动创建专用数据库，使用 BGE-M3 向量模型（1024维）和结构化切片策略。
+          </p>
+          <p v-else style="font-size: 12px; color: #999; margin-top: 12px;">
+            AI 将为所选数据表建立 schema 索引，支持用自然语言查询数据。
           </p>
         </div>
         <div class="dialog-footer">
           <button class="btn btn-default" @click="showCreate = false">取消</button>
-          <button class="btn btn-primary" @click="handleCreate" :disabled="!createForm.name.trim()">创建</button>
+          <button class="btn btn-primary" @click="handleCreate" :disabled="!createFormValid">创建</button>
         </div>
       </div>
     </div>
@@ -40,6 +86,7 @@
         <thead>
           <tr>
             <th>名称</th>
+            <th>类型</th>
             <th>描述</th>
             <th>文档数</th>
             <th>状态</th>
@@ -54,8 +101,12 @@
                 {{ kb.name }}
               </router-link>
             </td>
+            <td>
+              <span v-if="kb.type === 'TABLE'" class="type-tag type-tag-table">数据表</span>
+              <span v-else class="type-tag type-tag-doc">文档</span>
+            </td>
             <td style="color: #666;">{{ kb.description || '-' }}</td>
-            <td>{{ kb.document_count ?? 0 }}</td>
+            <td>{{ kb.type === 'TABLE' ? '-' : (kb.document_count ?? 0) }}</td>
             <td>
               <span class="status-tag" :class="'tag-' + statusColor(kb.status)">{{ statusText(kb.status) }}</span>
             </td>
@@ -81,13 +132,53 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { listKnowledgeBases, createKnowledgeBase, deleteKnowledgeBase, type KnowledgeBase } from '../../api/knowledge'
+import { databaseApi, type Database } from '../../api/database'
 
 const knowledgeBases = ref<KnowledgeBase[]>([])
 const showCreate = ref(false)
-const createForm = ref({ name: '', description: '' })
+const createForm = ref({
+  name: '',
+  description: '',
+  type: 'DOCUMENT' as 'DOCUMENT' | 'TABLE',
+  source_database_id: '',
+  table_names_raw: '',
+})
 const loading = ref(false)
+const databases = ref<Database[]>([])
+const dbLoadError = ref('')
+
+const createFormValid = computed(() => {
+  if (!createForm.value.name.trim()) return false
+  if (createForm.value.type === 'TABLE' && !createForm.value.source_database_id) return false
+  return true
+})
+
+function resetCreateForm() {
+  createForm.value = {
+    name: '',
+    description: '',
+    type: 'DOCUMENT',
+    source_database_id: '',
+    table_names_raw: '',
+  }
+}
+
+async function loadDatabases() {
+  dbLoadError.value = ''
+  try {
+    const res = await databaseApi.list()
+    databases.value = res.data
+  } catch (e: any) {
+    dbLoadError.value = '加载数据库列表失败'
+  }
+}
+
+// Load databases when dialog opens
+watch(showCreate, (val) => {
+  if (val) loadDatabases()
+})
 
 function statusColor(status: string) {
   if (status === 'READY') return 'green'
@@ -120,9 +211,21 @@ async function loadKBs() {
 
 async function handleCreate() {
   try {
-    await createKnowledgeBase(createForm.value.name, createForm.value.description || undefined)
+    const { name, description, type, source_database_id, table_names_raw } = createForm.value
+    const tableNames = table_names_raw
+      .split(',')
+      .map(t => t.trim())
+      .filter(t => t.length > 0)
+
+    const options: { type?: 'DOCUMENT' | 'TABLE'; source_database_id?: string; table_names?: string[] } = { type }
+    if (type === 'TABLE') {
+      options.source_database_id = source_database_id
+      if (tableNames.length > 0) options.table_names = tableNames
+    }
+
+    await createKnowledgeBase(name, description || undefined, options)
     showCreate.value = false
-    createForm.value = { name: '', description: '' }
+    resetCreateForm()
     await loadKBs()
   } catch (e: any) {
     alert('创建失败: ' + (e.response?.data?.error?.message || e.message))
@@ -141,3 +244,47 @@ async function handleDelete(kb: KnowledgeBase) {
 
 onMounted(loadKBs)
 </script>
+
+<style scoped>
+.type-radio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #555;
+  flex: 1;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  user-select: none;
+}
+.type-radio:hover {
+  border-color: #0073e6;
+  color: #0073e6;
+}
+.type-radio.selected {
+  border-color: #0073e6;
+  background: #e8f3ff;
+  color: #0073e6;
+  font-weight: 500;
+}
+.type-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.type-tag-doc {
+  background: #f0f7ff;
+  color: #0073e6;
+  border: 1px solid #b3d4f7;
+}
+.type-tag-table {
+  background: #f0fff4;
+  color: #389e0d;
+  border: 1px solid #b7eb8f;
+}
+</style>

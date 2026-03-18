@@ -11,6 +11,18 @@ export interface KnowledgeBase {
   error: string | null
   created_at: string
   updated_at: string
+  type: 'DOCUMENT' | 'TABLE'
+  source_database_id: string | null
+  table_names: string[]
+}
+
+export interface TableSearchResult {
+  type: 'sql'
+  sql: string
+  columns: string[]
+  rows: any[][]
+  model: string
+  tokens: { input: number; output: number }
 }
 
 export interface Document {
@@ -46,8 +58,18 @@ export function getKnowledgeBase(id: string) {
   return api.get<KnowledgeBase>(`/knowledge/bases/${id}`)
 }
 
-export function createKnowledgeBase(name: string, description?: string) {
-  return api.post<KnowledgeBase>('/knowledge/bases', { name, description })
+export function createKnowledgeBase(name: string, description?: string, options?: {
+  type?: 'DOCUMENT' | 'TABLE'
+  source_database_id?: string
+  table_names?: string[]
+}) {
+  return api.post<KnowledgeBase>('/knowledge/bases', { name, description, ...options })
+}
+
+export function getTableInfo(kbId: string) {
+  return api.get<{ tables: { table_name: string; columns: { name: string; type: string }[] }[] }>(
+    `/knowledge/bases/${kbId}/tables`
+  )
 }
 
 export function deleteKnowledgeBase(id: string) {
