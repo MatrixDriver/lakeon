@@ -34,10 +34,10 @@ const routes = [
       { path: 'account', name: 'Account', component: () => import('../views/account/AccountSettingsView.vue') },
       { path: 'docs', name: 'Docs', component: () => import('../views/docs/DocsView.vue') },
       // Knowledge
-      { path: 'knowledge', redirect: '/knowledge/documents' },
-      { path: 'knowledge/documents', name: 'KnowledgeDocuments', component: () => import('../views/knowledge/KnowledgeDocuments.vue') },
+      { path: 'knowledge', name: 'KnowledgeBases', component: () => import('../views/knowledge/KnowledgeBases.vue') },
+      { path: 'knowledge/:kbId', name: 'KnowledgeBaseDetail', component: () => import('../views/knowledge/KnowledgeBaseDetail.vue') },
+      { path: 'knowledge/datasources', name: 'KnowledgeDataSources', component: () => import('../views/knowledge/KnowledgeDataSources.vue') },
       { path: 'knowledge/search', name: 'KnowledgeSearch', component: () => import('../views/knowledge/KnowledgeSearch.vue') },
-      { path: 'knowledge/jobs', name: 'KnowledgeJobs', component: () => import('../views/knowledge/KnowledgeJobs.vue') },
     ],
   },
 ]

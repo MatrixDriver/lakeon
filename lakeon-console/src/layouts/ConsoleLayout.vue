@@ -112,9 +112,9 @@
           <!-- 知识库菜单 -->
           <template v-if="activeRail === 'kb'">
             <div class="nav-group">
-              <router-link to="/knowledge/documents" class="nav-item" active-class="active" @click="sidebarOpen = false">文档管理</router-link>
+              <router-link to="/knowledge" class="nav-item" active-class="active" @click="sidebarOpen = false">知识库</router-link>
+              <router-link to="/knowledge/datasources" class="nav-item" active-class="active" @click="sidebarOpen = false">数据源</router-link>
               <router-link to="/knowledge/search" class="nav-item" active-class="active" @click="sidebarOpen = false">知识搜索</router-link>
-              <router-link to="/knowledge/jobs" class="nav-item" active-class="active" @click="sidebarOpen = false">处理任务</router-link>
             </div>
           </template>
           <!-- 设置菜单 -->
@@ -161,7 +161,7 @@ const railTitles: Record<RailKey, string> = {
 
 const railDefaultRoutes: Record<RailKey, string> = {
   db: '/dashboard',
-  kb: '/knowledge/documents',
+  kb: '/knowledge',
   settings: '/apikey',
 }
 
