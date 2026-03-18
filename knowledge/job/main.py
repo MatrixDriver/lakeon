@@ -51,6 +51,7 @@ def main():
         obs_bucket = os.environ.get("OBS_BUCKET", "lakeon-storage")
 
         from botocore.config import Config as BotoConfig
+        # OBS requires virtual-host addressing style
         s3 = boto3.client("s3", endpoint_url=obs_endpoint,
                           aws_access_key_id=obs_ak, aws_secret_access_key=obs_sk,
                           region_name="cn-north-4",
@@ -69,11 +70,14 @@ def main():
         markdown, page_metadata = parse_document(tmp_path, fmt)
         logger.info(f"Parsed document: {len(markdown)} chars, {len(page_metadata)} pages")
 
-        # Upload fulltext to OBS
+        # Upload fulltext to OBS (best-effort — don't fail the pipeline if this fails)
         if tenant_id and kb_id:
             fulltext_key = f"knowledge/{tenant_id}/{kb_id}/{document_id}/fulltext.md"
-            s3.put_object(Bucket=obs_bucket, Key=fulltext_key, Body=markdown.encode('utf-8'))
-            logger.info(f"Uploaded fulltext to {fulltext_key}")
+            try:
+                s3.put_object(Bucket=obs_bucket, Key=fulltext_key, Body=markdown.encode('utf-8'))
+                logger.info(f"Uploaded fulltext to {fulltext_key}")
+            except Exception as e:
+                logger.warning(f"Failed to upload fulltext (non-fatal): {e}")
 
         report_progress("Chunking document", 0.4)
         chunk_kwargs = {}

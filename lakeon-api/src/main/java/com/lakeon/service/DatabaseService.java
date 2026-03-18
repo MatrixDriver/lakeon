@@ -378,6 +378,46 @@ public class DatabaseService {
         }
     }
 
+    /**
+     * Ensure the database compute is actually running. If status=RUNNING but pod is gone,
+     * force-suspend then resume to recreate the pod.
+     */
+    public void ensureRunning(TenantEntity tenant, String dbId) {
+        DatabaseEntity entity = txTemplate.execute(status ->
+            databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
+                .orElseThrow(() -> new NotFoundException("Database not found: " + dbId)));
+
+        boolean podReady = entity.getComputePodName() != null
+                && computePodManager.isPodReady(entity.getComputePodName());
+        if (entity.getStatus() == DatabaseStatus.RUNNING && podReady) {
+            return; // Truly running
+        }
+        if (entity.getStatus() == DatabaseStatus.RUNNING && !podReady) {
+            // Status says RUNNING but pod is gone — fix the status first
+            log.warn("Database {} status=RUNNING but pod gone, forcing SUSPENDED for re-resume", dbId);
+            txTemplate.executeWithoutResult(status -> {
+                DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
+                e.setStatus(DatabaseStatus.SUSPENDED);
+                e.setComputeHost(null);
+                e.setComputePort(null);
+                e.setComputePodName(null);
+                databaseRepository.save(e);
+            });
+        }
+        try {
+            resume(tenant, dbId);
+        } catch (Exception e) {
+            // May fail if pod already exists from a concurrent operation — check if it's ready now
+            log.warn("ensureRunning resume failed ({}), checking if compute is ready anyway", e.getMessage());
+            DatabaseEntity recheck = databaseRepository.findById(dbId).orElseThrow();
+            if (recheck.getComputePodName() != null && computePodManager.isPodReady(recheck.getComputePodName())) {
+                log.info("Compute pod {} is ready despite resume error", recheck.getComputePodName());
+                return;
+            }
+            throw e;
+        }
+    }
+
     public void resume(TenantEntity tenant, String dbId) {
         // Transaction 1: read entity
         DatabaseEntity entity = txTemplate.execute(status ->

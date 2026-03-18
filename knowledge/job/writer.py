@@ -35,6 +35,15 @@ CREATE TABLE IF NOT EXISTS knowledge_chunks (
 CREATE INDEX IF NOT EXISTS idx_chunks_doc_id ON knowledge_chunks(document_id);
 CREATE INDEX IF NOT EXISTS idx_chunks_embedding ON knowledge_chunks
     USING hnsw (embedding vector_cosine_ops);
+
+-- BM25 index for hybrid search (pg_search / ParadeDB)
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_chunks_bm25') THEN
+        CREATE INDEX idx_chunks_bm25 ON knowledge_chunks
+            USING bm25 (id, content)
+            WITH (key_field = 'id');
+    END IF;
+END $$;
 """
 
 MIGRATE_SQL = """
@@ -51,8 +60,21 @@ ALTER TABLE knowledge_chunks ADD COLUMN IF NOT EXISTS edited BOOLEAN DEFAULT FAL
 ALTER TABLE knowledge_chunks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
 """
 
+def _connect_with_retry(connstr, max_retries=5, delay=3):
+    """Connect to PostgreSQL with retries (compute may be waking up)."""
+    import time
+    for attempt in range(max_retries):
+        try:
+            return psycopg2.connect(connstr, connect_timeout=30)
+        except psycopg2.OperationalError as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"DB connect attempt {attempt+1}/{max_retries} failed: {e}, retrying in {delay}s")
+                time.sleep(delay)
+            else:
+                raise
+
 def write_chunks(connstr, document_id, chunks, embeddings):
-    conn = psycopg2.connect(connstr)
+    conn = _connect_with_retry(connstr)
     try:
         conn.autocommit = False
         with conn.cursor() as cur:
@@ -96,7 +118,7 @@ def write_chunks(connstr, document_id, chunks, embeddings):
         conn.close()
 
 def delete_chunks(connstr, document_id):
-    conn = psycopg2.connect(connstr)
+    conn = _connect_with_retry(connstr)
     try:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM knowledge_chunks WHERE document_id = %s", (document_id,))

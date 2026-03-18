@@ -14,7 +14,7 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, String
     List<DocumentEntity> findAllByTenantIdOrderByCreatedAtDesc(String tenantId);
     List<DocumentEntity> findAllByKbId(String kbId);
 
-    @Query(value = "SELECT id FROM documents WHERE kb_id = :kbId AND tenant_id = :tenantId AND tags ?| :tags",
+    @Query(value = "SELECT id FROM documents WHERE kb_id = :kbId AND tenant_id = :tenantId AND tags && CAST(:tags AS text[])",
            nativeQuery = true)
     List<String> findIdsByKbIdAndTenantIdAndTagsContaining(
         @Param("kbId") String kbId,

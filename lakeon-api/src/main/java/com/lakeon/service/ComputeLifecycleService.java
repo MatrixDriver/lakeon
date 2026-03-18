@@ -136,6 +136,13 @@ public class ComputeLifecycleService {
             if (entity.getComputePodName() == null) continue;
 
             Duration timeout = parseDuration(entity.getSuspendTimeout());
+
+            // Skip if entity was recently activated (grace period for job processing)
+            if (entity.getLastActiveAt() != null
+                    && entity.getLastActiveAt().isAfter(Instant.now().minus(timeout))) {
+                continue;
+            }
+
             long lastActivity = computePodManager.getLastActivityTime(entity.getComputePodName());
             long elapsed = System.currentTimeMillis() - lastActivity;
 
@@ -263,6 +270,11 @@ public class ComputeLifecycleService {
 
         for (String podName : allPodNames) {
             if (!knownPods.contains(podName)) {
+                // Skip recently created pods (grace period for async DB creation and KB processing)
+                if (computePodManager.getPodAgeSeconds(podName) < 600) {
+                    log.debug("Skipping orphan check for young pod: {} (age < 600s)", podName);
+                    continue;
+                }
                 log.warn("Cleaning up orphaned compute pod: {}", podName);
                 try {
                     computePodManager.deleteComputePod(podName);

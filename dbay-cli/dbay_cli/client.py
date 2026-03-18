@@ -6,7 +6,11 @@ class DbayApiError(Exception):
     def __init__(self, status_code: int, body: Any = None):
         self.status_code = status_code
         self.body = body
-        msg = body.get("error", {}).get("message", str(body)) if isinstance(body, dict) else str(body)
+        if isinstance(body, dict):
+            err = body.get("error", body)
+            msg = err.get("message", str(body)) if isinstance(err, dict) else str(err)
+        else:
+            msg = str(body)
         super().__init__(f"API Error [{status_code}]: {msg}")
 
 
@@ -14,7 +18,7 @@ class DbayClient:
     def __init__(self, endpoint: str, api_key: str | None = None):
         self.endpoint = endpoint.rstrip("/")
         self.api_key = api_key
-        self.http = httpx.Client(verify=False, timeout=30)
+        self.http = httpx.Client(verify=False, timeout=300)
 
     def _headers(self) -> dict:
         h = {"Content-Type": "application/json"}

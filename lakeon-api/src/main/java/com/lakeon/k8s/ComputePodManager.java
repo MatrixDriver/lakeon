@@ -278,6 +278,23 @@ public class ComputePodManager {
     }
 
     /**
+     * Get age of a pod in seconds. Returns Long.MAX_VALUE if pod not found.
+     */
+    public long getPodAgeSeconds(String podName) {
+        String namespace = props.getK8s().getNamespace();
+        try {
+            var pod = k8sClient.pods().inNamespace(namespace).withName(podName).get();
+            if (pod == null || pod.getMetadata() == null || pod.getMetadata().getCreationTimestamp() == null) {
+                return Long.MAX_VALUE;
+            }
+            var created = java.time.Instant.parse(pod.getMetadata().getCreationTimestamp());
+            return java.time.Duration.between(created, java.time.Instant.now()).getSeconds();
+        } catch (Exception e) {
+            return Long.MAX_VALUE;
+        }
+    }
+
+    /**
      * Returns true if any compute pod has been in an abnormal state for longer than thresholdSeconds.
      * Abnormal states: Failed, CrashLoopBackOff, or Pending beyond threshold.
      */
@@ -544,7 +561,8 @@ public class ComputePodManager {
         spec.put("pageserver_connstring", "postgresql://" + pageserverFqdn + ":6400");
         spec.put("safekeeper_connstrings", parseSafekeeperUrls());
         spec.put("mode", "Primary");
-        spec.put("suspend_timeout_seconds", 300);
+        // Neon compute self-suspends after this many seconds of no connections.
+        spec.put("suspend_timeout_seconds", 600);
 
         Map<String, Object> cluster = new LinkedHashMap<>();
         cluster.put("cluster_id", "lakeon_" + entity.getId());
