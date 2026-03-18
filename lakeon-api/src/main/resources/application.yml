@@ -74,6 +74,27 @@ lakeon:
     compute-size: ${LAKEON_DEFAULT_COMPUTE_SIZE:1cu}
     suspend-timeout: ${LAKEON_DEFAULT_SUSPEND_TIMEOUT:5m}
     storage-limit-gb: ${LAKEON_DEFAULT_STORAGE_LIMIT:10}
+  job:
+    timeout-minutes: ${LAKEON_JOB_TIMEOUT_MINUTES:30}
+    pending-timeout-minutes: ${LAKEON_JOB_PENDING_TIMEOUT_MINUTES:5}
+    orphan-check-interval-ms: ${LAKEON_JOB_ORPHAN_CHECK_INTERVAL_MS:60000}
+    types:
+      document-parse:
+        image: ${LAKEON_JOB_IMAGE_DOCUMENT_PARSE:rayproject/ray:2.44.1-py312}
+        cpu: "2"
+        memory: "4Gi"
+      embedding:
+        image: ${LAKEON_JOB_IMAGE_EMBEDDING:rayproject/ray:2.44.1-py312}
+        cpu: "2"
+        memory: "4Gi"
+      export-parquet:
+        image: ${LAKEON_JOB_IMAGE_EXPORT_PARQUET:rayproject/ray:2.44.1-py312}
+        cpu: "2"
+        memory: "4Gi"
+      training:
+        image: ${LAKEON_JOB_IMAGE_TRAINING:rayproject/ray:2.44.1-py312}
+        cpu: "4"
+        memory: "8Gi"
 
 management:
   endpoints:

@@ -3,7 +3,9 @@ package com.lakeon.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Component
 @ConfigurationProperties(prefix = "lakeon")
@@ -22,6 +24,7 @@ public class LakeonProperties {
     private SuspendConfig suspend = new SuspendConfig();
     private BackupConfig backup = new BackupConfig();
     private SyncConfig sync = new SyncConfig();
+    private JobConfig job = new JobConfig();
 
     public NeonConfig getNeon() { return neon; }
     public void setNeon(NeonConfig neon) { this.neon = neon; }
@@ -51,6 +54,8 @@ public class LakeonProperties {
     public void setBackup(BackupConfig backup) { this.backup = backup; }
     public SyncConfig getSync() { return sync; }
     public void setSync(SyncConfig sync) { this.sync = sync; }
+    public JobConfig getJob() { return job; }
+    public void setJob(JobConfig job) { this.job = job; }
 
     public static class NeonConfig {
         private String pageserverUrl;
@@ -261,5 +266,34 @@ public class LakeonProperties {
         public void setSuspendTimeout(String suspendTimeout) { this.suspendTimeout = suspendTimeout; }
         public Integer getStorageLimitGb() { return storageLimitGb; }
         public void setStorageLimitGb(Integer storageLimitGb) { this.storageLimitGb = storageLimitGb; }
+    }
+
+    public static class JobConfig {
+        private int timeoutMinutes = 30;
+        private int pendingTimeoutMinutes = 5;
+        private long orphanCheckIntervalMs = 60000;
+        private Map<String, JobTypeConfig> types = new HashMap<>();
+
+        public int getTimeoutMinutes() { return timeoutMinutes; }
+        public void setTimeoutMinutes(int timeoutMinutes) { this.timeoutMinutes = timeoutMinutes; }
+        public int getPendingTimeoutMinutes() { return pendingTimeoutMinutes; }
+        public void setPendingTimeoutMinutes(int pendingTimeoutMinutes) { this.pendingTimeoutMinutes = pendingTimeoutMinutes; }
+        public long getOrphanCheckIntervalMs() { return orphanCheckIntervalMs; }
+        public void setOrphanCheckIntervalMs(long orphanCheckIntervalMs) { this.orphanCheckIntervalMs = orphanCheckIntervalMs; }
+        public Map<String, JobTypeConfig> getTypes() { return types; }
+        public void setTypes(Map<String, JobTypeConfig> types) { this.types = types; }
+    }
+
+    public static class JobTypeConfig {
+        private String image;
+        private String cpu = "2";
+        private String memory = "4Gi";
+
+        public String getImage() { return image; }
+        public void setImage(String image) { this.image = image; }
+        public String getCpu() { return cpu; }
+        public void setCpu(String cpu) { this.cpu = cpu; }
+        public String getMemory() { return memory; }
+        public void setMemory(String memory) { this.memory = memory; }
     }
 }
