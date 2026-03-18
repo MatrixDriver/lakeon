@@ -138,6 +138,44 @@ class DbayClient:
         return self._request("POST", f"/databases/{db_id}/branches/{branch_id}/versions/squash",
                              json={"from_version_id": from_version_id, "to_version_id": to_version_id})
 
+    # -- Knowledge Bases --
+    def list_knowledge_bases(self):
+        return self._request("GET", "/knowledge/bases")
+
+    def create_knowledge_base(self, name: str, description: str = None):
+        body = {"name": name}
+        if description:
+            body["description"] = description
+        return self._request("POST", "/knowledge/bases", json=body)
+
+    def get_knowledge_base(self, kb_id: str):
+        return self._request("GET", f"/knowledge/bases/{kb_id}")
+
+    def delete_knowledge_base(self, kb_id: str):
+        return self._request("DELETE", f"/knowledge/bases/{kb_id}")
+
+    # -- Knowledge Documents --
+    def get_upload_url(self, kb_id: str, filename: str):
+        return self._request("GET", f"/knowledge/upload-url?kb_id={kb_id}&filename={filename}")
+
+    def process_document(self, document_id: str):
+        return self._request("POST", f"/knowledge/documents/{document_id}/process")
+
+    def list_documents(self, kb_id: str):
+        return self._request("GET", f"/knowledge/documents?kb_id={kb_id}")
+
+    def get_document(self, document_id: str):
+        return self._request("GET", f"/knowledge/documents/{document_id}")
+
+    def delete_document(self, document_id: str):
+        return self._request("DELETE", f"/knowledge/documents/{document_id}")
+
+    # -- Knowledge Search --
+    def search_knowledge(self, kb_id: str, query: str, top_k: int = 5):
+        return self._request("POST", "/knowledge/search", json={
+            "kb_id": kb_id, "query": query, "top_k": top_k
+        })
+
     # -- Database User --
     def list_users(self, db_id: str) -> list:
         return self._request("GET", f"/databases/{db_id}/users")
