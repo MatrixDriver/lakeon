@@ -111,7 +111,12 @@ public class BranchService {
         branch.setParentBranchName(parentBranchName);
         branch.setIsDefault(false);
         branch.setStatus(BranchStatus.ACTIVE);
-        branch.setConnectionUri(dbEntity.getConnectionUri() + "?branch=" + request.name());
+        // Connection URI uses "dbName--branchName" format for Neon proxy routing
+        String baseUri = dbEntity.getConnectionUri();
+        // Replace the database name in the URI path with "dbName--branchName"
+        // e.g., postgres://user@host:port/dbName -> postgres://user@host:port/dbName--branchName
+        int lastSlash = baseUri.lastIndexOf('/');
+        branch.setConnectionUri(baseUri.substring(0, lastSlash + 1) + dbEntity.getName() + "--" + request.name());
 
         // Optionally start compute
         if (Boolean.TRUE.equals(request.startCompute())) {
