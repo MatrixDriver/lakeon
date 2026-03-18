@@ -124,6 +124,12 @@ public class ApiKeyFilter implements Filter {
             return;
         }
 
+        // Job callback from Job Pods (internal only)
+        if (path.matches("/api/v1/jobs/[^/]+/callback")) {
+            chain.doFilter(req, res);
+            return;
+        }
+
         // Extract API Key
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
