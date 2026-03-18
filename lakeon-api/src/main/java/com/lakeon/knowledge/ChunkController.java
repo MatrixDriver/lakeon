@@ -159,6 +159,59 @@ public class ChunkController {
         }
     }
 
+    // ── Rechunk operations ────────────────────────────────────────
+
+    @PostMapping("/documents/{docId}/rechunk")
+    public ResponseEntity<?> rechunk(HttpServletRequest request,
+                                     @PathVariable String kbId,
+                                     @PathVariable String docId,
+                                     @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(request);
+        int maxTokens = body.get("max_tokens") != null
+                ? ((Number) body.get("max_tokens")).intValue() : 400;
+        double overlapRatio = body.get("overlap_ratio") != null
+                ? ((Number) body.get("overlap_ratio")).doubleValue() : 0.15;
+        String customSeparator = (String) body.get("custom_separator");
+        try {
+            Map<String, Object> result = chunkService.rechunk(tenant, kbId, docId,
+                    maxTokens, overlapRatio, customSeparator);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return handleError(e);
+        }
+    }
+
+    @PostMapping("/documents/{docId}/rechunk/rollback")
+    public ResponseEntity<?> rechunkRollback(HttpServletRequest request,
+                                              @PathVariable String kbId,
+                                              @PathVariable String docId,
+                                              @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(request);
+        String branchId = (String) body.get("branch_id");
+        if (branchId == null || branchId.isBlank()) {
+            return ResponseEntity.status(400).body(Map.of("error", "branch_id is required"));
+        }
+        try {
+            chunkService.rechunkRollback(tenant.getId(), kbId, docId, branchId);
+            return ResponseEntity.ok(Map.of("rolled_back", true));
+        } catch (Exception e) {
+            return handleError(e);
+        }
+    }
+
+    @GetMapping("/documents/{docId}/rechunk/branches")
+    public ResponseEntity<?> listRechunkBranches(HttpServletRequest request,
+                                                  @PathVariable String kbId,
+                                                  @PathVariable String docId) {
+        TenantEntity tenant = getTenant(request);
+        try {
+            var branches = chunkService.listRechunkBranches(tenant.getId(), kbId, docId);
+            return ResponseEntity.ok(Map.of("branches", branches));
+        } catch (Exception e) {
+            return handleError(e);
+        }
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────
 
     private TenantEntity getTenant(HttpServletRequest req) {
@@ -171,6 +224,9 @@ public class ChunkController {
         }
         if (e instanceof com.lakeon.service.exception.BadRequestException) {
             return ResponseEntity.status(400).body(Map.of("error", e.getMessage()));
+        }
+        if (e instanceof com.lakeon.service.exception.ConflictException) {
+            return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
         }
         return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
     }

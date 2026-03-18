@@ -36,6 +36,12 @@ def main():
         tenant_id = params.get("tenant_id")
         kb_id = params.get("kb_id")
 
+        # Optional rechunk params
+        max_tokens = params.get("max_tokens")
+        overlap_ratio = params.get("overlap_ratio")
+        custom_separator = params.get("custom_separator")
+        is_rechunk = params.get("rechunk", False)
+
         logger.info(f"Processing document {document_id}: {filename} ({fmt})")
         report_progress("Downloading document", 0.1)
 
@@ -63,7 +69,12 @@ def main():
             logger.info(f"Uploaded fulltext to {fulltext_key}")
 
         report_progress("Chunking document", 0.4)
-        chunks = chunk_document(markdown, filename, fmt)
+        chunk_kwargs = {}
+        if max_tokens is not None:
+            chunk_kwargs["max_tokens"] = int(max_tokens)
+        if overlap_ratio is not None:
+            chunk_kwargs["overlap_ratio"] = float(overlap_ratio)
+        chunks = chunk_document(markdown, filename, fmt, **chunk_kwargs)
         assign_pages(chunks, page_metadata)
         logger.info(f"Created {len(chunks)} chunks")
 

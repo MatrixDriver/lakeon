@@ -582,6 +582,295 @@ public class ChunkService {
         return result;
     }
 
+    // ── Rechunk operations ────────────────────────────────────────
+
+    /**
+     * Rechunk a document: create a Neon branch snapshot, then submit a DOCUMENT_PARSE
+     * job with custom chunking params. Returns immediately with {job_id, branch_id, branch_name}.
+     */
+    @Transactional
+    public Map<String, Object> rechunk(TenantEntity tenant, String kbId, String docId,
+                                        int maxTokens, double overlapRatio, String customSeparator) {
+        String tenantId = tenant.getId();
+
+        // 1. Validate document exists and belongs to this tenant/KB
+        DocumentEntity doc = documentRepository.findByIdAndTenantId(docId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Document not found: " + docId));
+        if (!kbId.equals(doc.getKbId())) {
+            throw new BadRequestException("Document does not belong to knowledge base: " + kbId);
+        }
+
+        // Auto-reset stale rechunk locks (30 min timeout)
+        resetStaleRechunkLock(doc);
+
+        // 2. CAS lock: IDLE -> IN_PROGRESS
+        int updated = documentRepository.casLockRechunk(docId);
+        if (updated == 0) {
+            throw new ConflictException("Document is already being rechunked");
+        }
+
+        // 3. Resolve KB -> database
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+        String databaseId = kb.getDatabaseId();
+        DatabaseEntity db = databaseRepository.findByIdAndTenantId(databaseId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Database not found: " + databaseId));
+
+        // 4. Create Neon branch as snapshot before rechunk
+        String branchName = "rechunk/" + docId + "/" + Instant.now().getEpochSecond();
+        CreateBranchRequest branchReq = new CreateBranchRequest(branchName, false, null, null);
+        var branchResp = branchService.create(tenant, databaseId, branchReq);
+
+        // 5. Clean up old rechunk branches: keep newest 3
+        cleanupOldRechunkBranches(tenant, databaseId, "rechunk/" + docId + "/", 3);
+
+        // 6. Submit DOCUMENT_PARSE job with rechunk params
+        String connstr = dbHelper.resolveComputeConnstr(databaseId, tenantId, kb.getDbPassword());
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("document_id", docId);
+        params.put("tenant_id", tenantId);
+        params.put("kb_id", kbId);
+        params.put("obs_key", doc.getObsKey());
+        params.put("format", doc.getFormat());
+        params.put("filename", doc.getFilename());
+        params.put("database_connstr", connstr);
+        params.put("embedding_api_url", props.getKnowledge().getEmbeddingApiUrl());
+        params.put("embedding_api_key", props.getKnowledge().getEmbeddingApiKey());
+        params.put("embedding_model", props.getKnowledge().getEmbeddingModel());
+        // Rechunk-specific params
+        params.put("max_tokens", maxTokens);
+        params.put("overlap_ratio", overlapRatio);
+        if (customSeparator != null && !customSeparator.isBlank()) {
+            params.put("custom_separator", customSeparator);
+        }
+        params.put("rechunk", true);
+
+        JobEntity job = jobService.submitJob(tenant, JobType.DOCUMENT_PARSE, params);
+
+        // Update doc status
+        doc = documentRepository.findById(docId).orElseThrow();
+        doc.setJobId(job.getId());
+        documentRepository.save(doc);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("job_id", job.getId());
+        result.put("branch_id", branchResp.getId());
+        result.put("branch_name", branchName);
+        return result;
+    }
+
+    /**
+     * Rollback rechunk: copy chunks from a branch snapshot back to the main timeline.
+     */
+    public void rechunkRollback(String tenantId, String kbId, String docId, String branchId) {
+        // 1. Validate document
+        DocumentEntity doc = documentRepository.findByIdAndTenantId(docId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Document not found: " + docId));
+        if (!kbId.equals(doc.getKbId())) {
+            throw new BadRequestException("Document does not belong to knowledge base: " + kbId);
+        }
+
+        // 2. Resolve KB -> database
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+        String databaseId = kb.getDatabaseId();
+        DatabaseEntity db = databaseRepository.findByIdAndTenantId(databaseId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Database not found: " + databaseId));
+
+        // 3. Find branch and verify it belongs to this database
+        BranchEntity branch = branchRepository.findByIdAndDatabaseId(branchId, databaseId)
+                .orElseThrow(() -> new NotFoundException("Branch not found: " + branchId));
+
+        // 4. Read all chunks from the branch
+        String branchConnstr = buildBranchConnstr(db, branch, kb.getDbPassword());
+        String branchJdbcUrl = dbHelper.connstrToJdbc(branchConnstr);
+        String branchUser = dbHelper.extractUser(branchConnstr);
+        String branchPass = dbHelper.extractPassword(branchConnstr);
+
+        List<Map<String, Object>> branchChunks = new ArrayList<>();
+        String selectSql = "SELECT id, chunk_index, content, embedding::text, metadata::text, " +
+                "char_offset_start, char_offset_end, char_count, overlap_prev, " +
+                "page_start, page_end, bbox::text, level, source_chunks, edited, updated_at " +
+                "FROM knowledge_chunks WHERE document_id = ? AND level = 0 ORDER BY chunk_index";
+
+        try (Connection conn = DriverManager.getConnection(branchJdbcUrl, branchUser, branchPass);
+             PreparedStatement ps = conn.prepareStatement(selectSql)) {
+            ps.setString(1, docId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("id", rs.getString("id"));
+                    row.put("chunk_index", rs.getInt("chunk_index"));
+                    row.put("content", rs.getString("content"));
+                    row.put("embedding", rs.getString("embedding"));
+                    row.put("metadata", rs.getString("metadata"));
+                    row.put("char_offset_start", rs.getObject("char_offset_start"));
+                    row.put("char_offset_end", rs.getObject("char_offset_end"));
+                    row.put("char_count", rs.getObject("char_count"));
+                    row.put("overlap_prev", rs.getObject("overlap_prev"));
+                    row.put("page_start", rs.getObject("page_start"));
+                    row.put("page_end", rs.getObject("page_end"));
+                    row.put("bbox", rs.getString("bbox"));
+                    row.put("level", rs.getInt("level"));
+                    row.put("source_chunks", rs.getArray("source_chunks"));
+                    row.put("edited", rs.getBoolean("edited"));
+                    row.put("updated_at", rs.getTimestamp("updated_at"));
+                    branchChunks.add(row);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to read chunks from branch {} for rollback: {}", branchId, e.getMessage(), e);
+            throw new RuntimeException("Failed to read chunks from branch: " + e.getMessage(), e);
+        }
+
+        if (branchChunks.isEmpty()) {
+            throw new BadRequestException("No chunks found in branch snapshot for document: " + docId);
+        }
+
+        // 5. Write chunks to main timeline in a single transaction
+        String deleteSql = "DELETE FROM knowledge_chunks WHERE document_id = ? AND level = 0";
+        String insertSql = "INSERT INTO knowledge_chunks " +
+                "(id, document_id, chunk_index, content, embedding, metadata, " +
+                "char_offset_start, char_offset_end, char_count, overlap_prev, " +
+                "page_start, page_end, bbox, level, source_chunks, edited, updated_at) " +
+                "VALUES (?, ?, ?, ?, ?::vector, ?::jsonb, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, now())";
+
+        try (Connection conn = dbHelper.getComputeConnection(tenantId, kbId)) {
+            conn.setAutoCommit(false);
+            try {
+                // Delete current chunks
+                try (PreparedStatement ps = conn.prepareStatement(deleteSql)) {
+                    ps.setString(1, docId);
+                    ps.executeUpdate();
+                }
+
+                // Insert branch chunks
+                try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
+                    for (Map<String, Object> chunk : branchChunks) {
+                        ps.setString(1, (String) chunk.get("id"));
+                        ps.setString(2, docId);
+                        ps.setInt(3, (int) chunk.get("chunk_index"));
+                        ps.setString(4, (String) chunk.get("content"));
+                        ps.setString(5, (String) chunk.get("embedding"));
+                        ps.setString(6, (String) chunk.get("metadata"));
+                        ps.setObject(7, chunk.get("char_offset_start"));
+                        ps.setObject(8, chunk.get("char_offset_end"));
+                        ps.setObject(9, chunk.get("char_count"));
+                        ps.setObject(10, chunk.get("overlap_prev"));
+                        ps.setObject(11, chunk.get("page_start"));
+                        ps.setObject(12, chunk.get("page_end"));
+                        ps.setString(13, (String) chunk.get("bbox"));
+                        ps.setInt(14, (int) chunk.get("level"));
+                        ps.setObject(15, chunk.get("source_chunks"));
+                        ps.setBoolean(16, (boolean) chunk.get("edited"));
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                }
+
+                conn.commit();
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
+            }
+        } catch (Exception e) {
+            log.error("Failed to rollback rechunk for doc {} from branch {}: {}", docId, branchId, e.getMessage(), e);
+            throw new RuntimeException("Failed to rollback rechunk: " + e.getMessage(), e);
+        }
+
+        // 6. Update document metadata
+        doc.setChunksCount(branchChunks.size());
+        doc.setRechunkStatus(RechunkStatus.IDLE);
+        doc.setRechunkStartedAt(null);
+        documentRepository.save(doc);
+
+        log.info("Rechunk rollback completed for doc {} from branch {}: {} chunks restored", docId, branchId, branchChunks.size());
+    }
+
+    /**
+     * List available rechunk branches for a document (for rollback UI).
+     */
+    public List<Map<String, Object>> listRechunkBranches(String tenantId, String kbId, String docId) {
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+        String databaseId = kb.getDatabaseId();
+
+        String prefix = "rechunk/" + docId + "/";
+        List<BranchEntity> branches = branchRepository
+                .findAllByDatabaseIdAndNameStartingWithOrderByCreatedAtDesc(databaseId, prefix);
+
+        return branches.stream().map(b -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("branch_id", b.getId());
+            m.put("branch_name", b.getName());
+            m.put("created_at", b.getCreatedAt() != null ? b.getCreatedAt().toString() : null);
+            return m;
+        }).collect(Collectors.toList());
+    }
+
+    // ── Rechunk helpers ─────────────────────────────────────────────
+
+    /**
+     * Auto-reset stale rechunk lock after 30 minutes.
+     */
+    private void resetStaleRechunkLock(DocumentEntity doc) {
+        if (doc.getRechunkStatus() == RechunkStatus.IN_PROGRESS
+                && doc.getRechunkStartedAt() != null
+                && doc.getRechunkStartedAt().plusSeconds(1800).isBefore(Instant.now())) {
+            log.warn("Resetting stale rechunk lock for doc {}, started at {}", doc.getId(), doc.getRechunkStartedAt());
+            doc.setRechunkStatus(RechunkStatus.IDLE);
+            doc.setRechunkStartedAt(null);
+            documentRepository.save(doc);
+        }
+    }
+
+    /**
+     * Clean up old rechunk branches, keeping the newest N.
+     */
+    private void cleanupOldRechunkBranches(TenantEntity tenant, String databaseId, String namePrefix, int keepCount) {
+        List<BranchEntity> branches = branchRepository
+                .findAllByDatabaseIdAndNameStartingWithOrderByCreatedAtDesc(databaseId, namePrefix);
+
+        if (branches.size() <= keepCount) return;
+
+        List<BranchEntity> toDelete = branches.subList(keepCount, branches.size());
+        for (BranchEntity old : toDelete) {
+            try {
+                branchService.delete(tenant, databaseId, old.getId());
+                log.info("Cleaned up old rechunk branch: {}", old.getName());
+            } catch (Exception e) {
+                log.warn("Failed to delete old rechunk branch {}: {}", old.getName(), e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Build a connection string to a specific branch's compute.
+     * Uses proxy with branch endpoint routing.
+     */
+    private String buildBranchConnstr(DatabaseEntity db, BranchEntity branch, String plaintextPassword) {
+        // If branch has its own compute, connect directly
+        if (branch.getComputeHost() != null && !branch.getComputeHost().isBlank()) {
+            int port = branch.getComputePort() != null ? branch.getComputePort() : 55433;
+            return "postgresql://cloud_admin@" + branch.getComputeHost() + ":" + port + "/" + db.getName();
+        }
+        // Use branch's stored connection URI if available
+        if (branch.getConnectionUri() != null && !branch.getConnectionUri().isBlank()) {
+            String connUri = branch.getConnectionUri();
+            // Inject password
+            if (plaintextPassword != null && !plaintextPassword.isEmpty()) {
+                connUri = connUri.replaceFirst("://([^:@]+)@", "://$1:" + plaintextPassword + "@");
+            }
+            return connUri;
+        }
+        // Fallback: construct proxy connection with branch endpoint
+        String pass = plaintextPassword != null ? plaintextPassword : "";
+        String user = db.getDbUser() != null ? db.getDbUser() : "cloud_admin";
+        return "postgresql://" + user + ":" + pass
+                + "@proxy.lakeon.svc.cluster.local:4432/" + db.getName()
+                + "?options=endpoint=" + db.getName() + "--" + branch.getName() + "&sslmode=require";
+    }
+
     // ── Internal helpers ────────────────────────────────────────────
 
     @SuppressWarnings("unchecked")
