@@ -110,7 +110,7 @@ public class BranchService {
         branch.setParentBranchId(resolvedParentBranchId);
         branch.setParentBranchName(parentBranchName);
         branch.setIsDefault(false);
-        branch.setStatus(BranchStatus.CREATING);
+        branch.setStatus(BranchStatus.ACTIVE);
         branch.setConnectionUri(dbEntity.getConnectionUri() + "?branch=" + request.name());
 
         // Optionally start compute
@@ -132,12 +132,34 @@ public class BranchService {
     }
 
     public List<BranchResponse> list(TenantEntity tenant, String dbId) {
-        databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
+        DatabaseEntity dbEntity = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
             .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
 
-        return branchRepository.findAllByDatabaseId(dbId).stream()
-            .map(this::toResponse)
-            .toList();
+        List<BranchEntity> allBranches = branchRepository.findAllByDatabaseId(dbId);
+
+        // Fetch live Neon timeline data for enrichment (LSN, size)
+        Map<String, NeonTimeline> timelineMap;
+        try {
+            List<NeonTimeline> timelines = neonApiClient.listTimelines(dbEntity.getNeonTenantId());
+            timelineMap = timelines.stream()
+                .collect(Collectors.toMap(NeonTimeline::getTimelineId, t -> t, (a, b) -> a));
+        } catch (Exception e) {
+            log.warn("Failed to fetch Neon timelines for branch list enrichment: {}", e.getMessage());
+            timelineMap = Map.of();
+        }
+
+        Map<String, NeonTimeline> finalTimelineMap = timelineMap;
+        return allBranches.stream().map(branch -> {
+            BranchResponse resp = toResponse(branch);
+            NeonTimeline timeline = branch.getNeonTimelineId() != null
+                ? finalTimelineMap.get(branch.getNeonTimelineId()) : null;
+            if (timeline != null) {
+                resp.setAncestorLsn(timeline.getAncestorLsn());
+                resp.setLastRecordLsn(timeline.getLastRecordLsn());
+                resp.setCurrentLogicalSizeBytes(timeline.getCurrentLogicalSize());
+            }
+            return resp;
+        }).toList();
     }
 
     public BranchResponse get(TenantEntity tenant, String dbId, String branchId) {

@@ -52,9 +52,9 @@
                   {{ branch.compute_status === 'RUNNING' ? '运行中' : branch.compute_status === 'SUSPENDED' ? '已挂起' : '未启动' }}
                 </span>
               </div>
-              <div v-if="branch.connection_uri" class="branch-item-uri">
-                <code class="branch-uri-text" :title="branch.connection_uri">{{ branch.connection_uri.length > 36 ? branch.connection_uri.slice(0, 36) + '…' : branch.connection_uri }}</code>
-                <button class="btn-copy-uri" @click.stop="copyUri(branch.connection_uri)" title="复制连接串">⎘</button>
+              <div v-if="branch.connection_uri" class="branch-item-uri" @click.stop="copyUri(branch.connection_uri)" title="点击复制连接串">
+                <code class="branch-uri-text">{{ branch.connection_uri.replace(/^postgres:\/\/[^@]+@/, '') }}</code>
+                <span class="btn-copy-uri">⎘</span>
               </div>
               <div class="branch-item-meta">
                 <span class="mono-text">{{ branch.last_record_lsn || '-' }}</span>
@@ -82,6 +82,12 @@
         <!-- Right: Version timeline -->
         <div class="version-timeline-panel">
           <template v-if="selectedBranchId">
+            <!-- Branch connection URI bar -->
+            <div v-if="selectedBranchObj?.connection_uri" class="branch-uri-bar">
+              <span class="branch-uri-bar-label">连接串</span>
+              <code class="branch-uri-bar-value">{{ selectedBranchObj.connection_uri }}</code>
+              <button class="btn btn-small btn-default" @click="copyUri(selectedBranchObj.connection_uri)">复制</button>
+            </div>
             <div class="version-timeline-header">
               <span class="version-timeline-title">
                 {{ branches.find(b => b.id === selectedBranchId)?.name || '' }} - 版本历史
@@ -201,7 +207,11 @@
                   <td>{{ branch.parent_branch || '-' }}</td>
                   <td class="mono-text">{{ branch.last_record_lsn || '-' }}</td>
                   <td>{{ formatSize(branch.current_logical_size_bytes) }}</td>
-                  <td>{{ branch.status }}</td>
+                  <td>
+                    <span class="branch-status-tag" :class="'branch-status-' + branch.status">
+                      {{ branch.status === 'active' ? '活跃' : branch.status === 'creating' ? '创建中' : branch.status === 'error' ? '异常' : branch.status }}
+                    </span>
+                  </td>
                   <td>{{ formatDate(branch.created_at) }}</td>
                   <td class="action-cell">
                     <button
@@ -290,6 +300,10 @@ const squashMode = ref(false)
 const squashFrom = ref<Version | null>(null)
 const squashTo = ref<Version | null>(null)
 const squashLoading = ref(false)
+
+const selectedBranchObj = computed(() => {
+  return branches.value.find(b => b.id === selectedBranchId.value) || null
+})
 
 const filteredBranches = computed(() => {
   const q = branchSearch.value.toLowerCase()
@@ -815,6 +829,57 @@ onMounted(() => {
 .mono-text {
   font-family: monospace;
   font-size: 12px;
+}
+
+/* Branch connection URI bar (right panel top) */
+.branch-uri-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: #f0f5ff;
+  border-bottom: 1px solid #d6e4ff;
+}
+
+.branch-uri-bar-label {
+  font-size: 12px;
+  color: #575d6c;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.branch-uri-bar-value {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  color: #191919;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: all;
+}
+
+/* Branch status tags */
+.branch-status-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 2px;
+  font-size: 12px;
+}
+
+.branch-status-active {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.branch-status-creating {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.branch-status-error {
+  background: #fff1f0;
+  color: #e6393d;
 }
 
 /* Version timeline panel */
