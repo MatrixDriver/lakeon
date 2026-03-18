@@ -424,10 +424,11 @@ public class KnowledgeService {
                 .map(String::valueOf)
                 .collect(Collectors.joining(",", "[", "]"));
 
-        // Resolve user PG connection (direct to compute pod, not via proxy)
+        // Resolve user PG connection (direct to compute pod, or via proxy fallback)
         String connstr = resolveComputeConnstr(databaseId, tenantId);
         String jdbcUrl = connstrToJdbc(connstr);
-        log.info("Knowledge search: connecting to {}", jdbcUrl);
+        log.warn("Knowledge search JDBC URL: {}", jdbcUrl);
+        System.err.println("Knowledge search JDBC URL: " + jdbcUrl);
 
         // Build SQL with optional document_id filter
         String docFilter = "";
@@ -462,7 +463,7 @@ public class KnowledgeService {
         // Extract user:pass from connstr if present (proxy path)
         String pgUser = "cloud_admin";
         String pgPass = "cloud-admin-internal";
-        String rawConnstr = connstr.replaceFirst("^postgresql://", "");
+        String rawConnstr = connstr.replaceFirst("^postgres(ql)?://", "");
         int atIdx = rawConnstr.indexOf('@');
         if (atIdx >= 0) {
             String userInfo = rawConnstr.substring(0, atIdx);
@@ -592,17 +593,33 @@ public class KnowledgeService {
             String proxyHost = "proxy.lakeon.svc.cluster.local";
             int proxyPort = 4432;
             String result = "postgresql://" + dbUser + ":" + dbPass + "@" + proxyHost + ":" + proxyPort
-                    + "/" + db.getName() + "?options=endpoint%3D" + neonTenantId + "&sslmode=disable";
+                    + "/" + db.getName() + "?options=endpoint%3D" + neonTenantId + "&sslmode=disable"
+                    + "&ApplicationName=lakeon-knowledge";
             log.info("resolveComputeConnstr: via proxy for db {} (user={})", databaseId, dbUser);
             return result;
+        }
+
+        // Last resort: use connectionUri (through external proxy)
+        String connUri = db.getConnectionUri();
+        if (connUri != null && !connUri.isBlank()) {
+            // URL-decode %3D → = in options parameter
+            connUri = connUri.replace("%3D", "=");
+            // Replace external proxy with internal proxy
+            connUri = connUri.replace("pg.dbay.cloud:4432", "proxy.lakeon.svc.cluster.local:4432");
+            // Add sslmode=disable for internal connection
+            if (!connUri.contains("sslmode=")) {
+                connUri += (connUri.contains("?") ? "&" : "?") + "sslmode=disable";
+            }
+            log.warn("resolveComputeConnstr: using connectionUri for db {}: {}", databaseId, connUri);
+            return connUri;
         }
 
         throw new BadRequestException("Database compute is not available. Status: " + db.getStatus());
     }
 
     private String connstrToJdbc(String connstr) {
-        // Convert postgresql://cloud_admin@host:port/dbname to jdbc:postgresql://host:port/dbname
-        String withoutScheme = connstr.replaceFirst("^postgresql://", "");
+        // Convert postgresql://user@host:port/dbname?params to jdbc:postgresql://host:port/dbname?params
+        String withoutScheme = connstr.replaceFirst("^postgres(ql)?://", "");
         // Remove user part
         int atIdx = withoutScheme.indexOf('@');
         if (atIdx >= 0) {
