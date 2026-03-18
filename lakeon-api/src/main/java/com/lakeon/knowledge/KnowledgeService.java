@@ -54,6 +54,7 @@ public class KnowledgeService {
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
     private final DatabaseService databaseService;
+    private final KnowledgeDbHelper dbHelper;
 
     public KnowledgeService(DocumentRepository documentRepository,
                             KnowledgeBaseRepository knowledgeBaseRepository,
@@ -62,7 +63,8 @@ public class KnowledgeService {
                             DatabaseRepository databaseRepository,
                             ComputePodManager computePodManager,
                             ObjectMapper objectMapper,
-                            DatabaseService databaseService) {
+                            DatabaseService databaseService,
+                            KnowledgeDbHelper dbHelper) {
         this.documentRepository = documentRepository;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.jobService = jobService;
@@ -71,6 +73,7 @@ public class KnowledgeService {
         this.computePodManager = computePodManager;
         this.objectMapper = objectMapper;
         this.databaseService = databaseService;
+        this.dbHelper = dbHelper;
         this.restTemplate = new RestTemplate();
     }
 
@@ -297,7 +300,7 @@ public class KnowledgeService {
         }
 
         // Resolve database connection string
-        String connstr = resolveComputeConnstr(doc.getDatabaseId(), tenant.getId());
+        String connstr = dbHelper.resolveComputeConnstr(doc.getDatabaseId(), tenant.getId());
 
         // Build job params
         Map<String, Object> params = new LinkedHashMap<>();
@@ -377,20 +380,12 @@ public class KnowledgeService {
         }
 
         // Delete chunks from user PG (best-effort)
-        if (doc.getDatabaseId() != null) {
-            try {
-                String dConnstr = resolveComputeConnstr(doc.getDatabaseId(), tenantId);
-                String dJdbcUrl = connstrToJdbc(dConnstr);
-                String dUser = "cloud_admin", dPass = "cloud-admin-internal";
-                String dRaw = dConnstr.replaceFirst("^postgresql://", "");
-                int dAt = dRaw.indexOf('@');
-                if (dAt >= 0) { String ui = dRaw.substring(0, dAt); int c = ui.indexOf(':'); if (c >= 0) { dUser = ui.substring(0, c); dPass = ui.substring(c + 1); } }
-                try (Connection conn = DriverManager.getConnection(dJdbcUrl, dUser, dPass);
-                     PreparedStatement ps = conn.prepareStatement("DELETE FROM knowledge_chunks WHERE document_id = ?")) {
-                    ps.setString(1, documentId);
-                    int deleted = ps.executeUpdate();
-                    log.info("Deleted {} chunks for document {}", deleted, documentId);
-                }
+        if (doc.getDatabaseId() != null && doc.getKbId() != null) {
+            try (Connection conn = dbHelper.getComputeConnection(tenantId, doc.getKbId());
+                 PreparedStatement ps = conn.prepareStatement("DELETE FROM knowledge_chunks WHERE document_id = ?")) {
+                ps.setString(1, documentId);
+                int deleted = ps.executeUpdate();
+                log.info("Deleted {} chunks for document {}", deleted, documentId);
             } catch (Exception e) {
                 log.warn("Failed to delete chunks for document {}: {}", documentId, e.getMessage());
             }
@@ -415,28 +410,16 @@ public class KnowledgeService {
         if (topK <= 0) topK = 5;
         if (topK > 50) topK = 50;
 
-        // Resolve databaseId from KB
-        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
-                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
-        if (kb.getStatus() != KnowledgeBaseStatus.READY) {
-            throw new BadRequestException("Knowledge base is not ready. Current status: " + kb.getStatus());
-        }
-        String databaseId = kb.getDatabaseId();
-        if (databaseId == null) {
-            throw new BadRequestException("Knowledge base has no backing database");
-        }
-
         // Get query embedding from embedding service
         List<Double> embedding = getQueryEmbedding(query);
         String vectorStr = embedding.stream()
                 .map(String::valueOf)
                 .collect(Collectors.joining(",", "[", "]"));
 
-        // Resolve user PG connection (direct to compute pod, or via proxy fallback)
-        String connstr = resolveComputeConnstr(databaseId, tenantId);
-        String jdbcUrl = connstrToJdbc(connstr);
+        // Resolve user PG connection via dbHelper
+        String connstr = dbHelper.resolveConnstr(tenantId, kbId);
+        String jdbcUrl = dbHelper.connstrToJdbc(connstr);
         log.warn("Knowledge search JDBC URL: {}", jdbcUrl);
-        System.err.println("Knowledge search JDBC URL: " + jdbcUrl);
 
         // Build SQL with optional document_id filter
         String docFilter = "";
@@ -468,19 +451,9 @@ public class KnowledgeService {
                 " ORDER BY rrf_score DESC" +
                 " LIMIT ?";
 
-        // Extract user:pass from connstr if present (proxy path)
-        String pgUser = "cloud_admin";
-        String pgPass = "cloud-admin-internal";
-        String rawConnstr = connstr.replaceFirst("^postgres(ql)?://", "");
-        int atIdx = rawConnstr.indexOf('@');
-        if (atIdx >= 0) {
-            String userInfo = rawConnstr.substring(0, atIdx);
-            int colonIdx = userInfo.indexOf(':');
-            if (colonIdx >= 0) {
-                pgUser = userInfo.substring(0, colonIdx);
-                pgPass = userInfo.substring(colonIdx + 1);
-            }
-        }
+        // Extract user:pass from connstr via dbHelper
+        String pgUser = dbHelper.extractUser(connstr);
+        String pgPass = dbHelper.extractPassword(connstr);
 
         List<Map<String, Object>> results = new ArrayList<>();
         try (Connection conn = DriverManager.getConnection(jdbcUrl, pgUser, pgPass);
@@ -566,73 +539,6 @@ public class KnowledgeService {
         } catch (Exception e) {
             log.debug("Failed to sync document status from job: {}", e.getMessage());
         }
-    }
-
-    /**
-     * Resolve connection string for a database.
-     * Priority: direct compute pod → internal proxy with credentials → connectionUri fallback.
-     */
-    private String resolveComputeConnstr(String databaseId, String tenantId) {
-        DatabaseEntity db = databaseRepository.findByIdAndTenantId(databaseId, tenantId)
-                .orElseThrow(() -> new NotFoundException("Database not found: " + databaseId));
-
-        log.warn("resolveComputeConnstr: db={} status={} computeHost={} dbUser={} neonTenantId={} connUri={}",
-                 databaseId, db.getStatus(), db.getComputeHost(), db.getDbUser(), db.getNeonTenantId(),
-                 db.getConnectionUri() != null ? db.getConnectionUri().substring(0, Math.min(80, db.getConnectionUri().length())) : null);
-
-        // 1. Direct to compute pod (fastest, used when compute pod IP is known)
-        //    Skip if host is the proxy address (proxy needs endpoint ID, different port/auth)
-        String host = db.getComputeHost();
-        int port = db.getComputePort() != null ? db.getComputePort() : 55433;
-        boolean isProxyHost = host != null && (host.contains("dbay.cloud") || host.contains("proxy."));
-        if (host != null && !host.isBlank() && !isProxyHost) {
-            return "postgresql://cloud_admin@" + host + ":" + port + "/" + db.getName();
-        }
-
-        // 2. Via internal proxy with DB credentials (standard path for KB databases)
-        String dbUser = db.getDbUser();
-        String dbPass = db.getDbPassword();
-        String neonTenantId = db.getNeonTenantId();
-        if (dbUser != null && neonTenantId != null) {
-            String pass = dbPass != null ? dbPass : "";
-            return "postgresql://" + dbUser + ":" + pass
-                    + "@proxy.lakeon.svc.cluster.local:4432/" + db.getName()
-                    + "?options=endpoint=" + neonTenantId + "&sslmode=require";
-        }
-
-        // 3. Fallback: parse connectionUri (always available after DB creation)
-        // Format: postgres://user_xxx@pg.dbay.cloud:4432/dbname?options=endpoint%3Dxxx
-        String connUri = db.getConnectionUri();
-        if (connUri != null && !connUri.isBlank()) {
-            // URL-decode options: %3D → =
-            connUri = connUri.replace("%3D", "=");
-            // Use internal proxy instead of external
-            connUri = connUri.replace("pg.dbay.cloud:4432", "proxy.lakeon.svc.cluster.local:4432");
-            // Inject password into URI (proxy auth requires it)
-            String dbPassword = db.getDbPassword();
-            if (dbPassword != null && !connUri.contains(":" + dbPassword + "@")) {
-                // postgres://user@host → postgres://user:pass@host
-                connUri = connUri.replaceFirst("://([^:@]+)@", "://$1:" + dbPassword + "@");
-            }
-            if (!connUri.contains("sslmode=")) {
-                connUri += (connUri.contains("?") ? "&" : "?") + "sslmode=require";
-            }
-            log.info("resolveComputeConnstr: via connectionUri for db {}", databaseId);
-            return connUri;
-        }
-
-        throw new BadRequestException("Database has no connection info. id=" + databaseId + " status=" + db.getStatus());
-    }
-
-    private String connstrToJdbc(String connstr) {
-        // Convert postgresql://user@host:port/dbname?params to jdbc:postgresql://host:port/dbname?params
-        String withoutScheme = connstr.replaceFirst("^postgres(ql)?://", "");
-        // Remove user part
-        int atIdx = withoutScheme.indexOf('@');
-        if (atIdx >= 0) {
-            withoutScheme = withoutScheme.substring(atIdx + 1);
-        }
-        return "jdbc:postgresql://" + withoutScheme;
     }
 
     @SuppressWarnings("unchecked")
