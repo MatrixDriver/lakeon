@@ -86,8 +86,9 @@ export function searchKnowledge(kbId: string, query: string, topK: number = 5, o
   tags?: string[]
   document_ids?: string[]
   rerank?: boolean
+  conversation_history?: { role: string; content: string }[]
 }) {
-  return api.post<{ results: SearchResult[] }>('/knowledge/search', {
+  return api.post<{ results: SearchResult[]; rewritten_query?: string }>('/knowledge/search', {
     kb_id: kbId,
     query,
     top_k: topK,

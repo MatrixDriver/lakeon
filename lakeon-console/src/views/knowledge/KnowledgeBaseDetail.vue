@@ -118,36 +118,82 @@
     </div>
 
     <!-- Search Tab -->
-    <div v-if="activeTab === 'search'" style="margin-top: 24px; max-width: 720px;">
-      <!-- Tag filter -->
-      <div v-if="allTags.length > 0" style="margin-bottom: 12px;">
-        <div style="font-size: 13px; color: #666; margin-bottom: 6px;">按标签过滤</div>
-        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-          <span v-for="tag in allTags" :key="tag"
-                class="tag-badge tag-filter"
-                :class="{ 'tag-filter-active': searchFilterTags.includes(tag) }"
-                @click="toggleFilterTag(tag)">
-            {{ tag }}
-          </span>
-        </div>
-      </div>
-
-      <div style="display: flex; gap: 8px;">
-        <input v-model="searchQuery" class="form-input" placeholder="在当前知识库中搜索..." style="flex: 1;" @keyup.enter="handleSearch" />
-        <button class="btn btn-primary" @click="handleSearch" :disabled="!searchQuery.trim()">搜索</button>
-      </div>
-      <p style="color: #999; font-size: 12px; margin-top: 6px;">语义搜索 + 关键词搜索（pgvector + BM25 + RRF 融合）</p>
-
-      <div v-if="searchResults.length > 0" style="margin-top: 20px;">
-        <div v-for="(r, i) in searchResults" :key="i"
-             style="border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
-          <div style="font-size: 14px; line-height: 1.6; color: #333; white-space: pre-wrap;">{{ r.content }}</div>
-          <div style="margin-top: 8px; font-size: 12px; color: #999; display: flex; gap: 12px;">
-            <span>来源: {{ r.metadata?.filename }}</span>
-            <span v-if="r.metadata?.section">章节: {{ r.metadata.section }}</span>
-            <span>得分: {{ r.score?.toFixed(3) }}</span>
+    <div v-if="activeTab === 'search'" style="margin-top: 24px; max-width: 720px; display: flex; flex-direction: column; height: calc(100vh - 220px); min-height: 400px;">
+      <!-- Top controls row: tag filter + clear button -->
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-shrink: 0;">
+        <div style="flex: 1;">
+          <div v-if="allTags.length > 0">
+            <div style="font-size: 13px; color: #666; margin-bottom: 6px;">按标签过滤</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              <span v-for="tag in allTags" :key="tag"
+                    class="tag-badge tag-filter"
+                    :class="{ 'tag-filter-active': searchFilterTags.includes(tag) }"
+                    @click="toggleFilterTag(tag)">
+                {{ tag }}
+              </span>
+            </div>
           </div>
         </div>
+        <button v-if="chatMessages.length > 0" class="btn btn-text" style="font-size: 13px; color: #999; flex-shrink: 0; margin-top: 2px;" @click="clearChat">清除对话</button>
+      </div>
+
+      <!-- Chat message list -->
+      <div ref="chatContainer" class="chat-container">
+        <div v-if="chatMessages.length === 0" class="chat-empty">
+          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#ccc" stroke-width="1.5">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <p style="color: #bbb; margin-top: 10px; font-size: 14px;">输入问题开始对话式搜索</p>
+          <p style="color: #ccc; font-size: 12px; margin-top: 4px;">语义搜索 + 关键词搜索（pgvector + BM25 + RRF 融合）</p>
+        </div>
+
+        <div v-for="(msg, idx) in chatMessages" :key="idx" class="chat-message-row" :class="msg.role">
+          <!-- User bubble -->
+          <div v-if="msg.role === 'user'" class="chat-bubble user-bubble">
+            {{ msg.content }}
+          </div>
+
+          <!-- Assistant results -->
+          <div v-if="msg.role === 'assistant'" class="chat-bubble assistant-bubble">
+            <div v-if="msg.rewritten_query && msg.rewritten_query !== msg.original_query"
+                 style="font-size: 12px; color: #888; margin-bottom: 10px; font-style: italic;">
+              搜索改写为: <span style="color: #0073e6;">{{ msg.rewritten_query }}</span>
+            </div>
+            <div v-if="msg.results && msg.results.length > 0">
+              <div v-for="(r, ri) in msg.results" :key="ri" class="result-card">
+                <div style="font-size: 13px; line-height: 1.6; color: #333; white-space: pre-wrap;">{{ r.content }}</div>
+                <div style="margin-top: 8px; font-size: 12px; color: #999; display: flex; gap: 12px; flex-wrap: wrap;">
+                  <span>来源: {{ r.metadata?.filename }}</span>
+                  <span v-if="r.metadata?.section">章节: {{ r.metadata.section }}</span>
+                  <span>得分: {{ r.score?.toFixed(3) }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-else style="font-size: 13px; color: #999;">未找到相关内容</div>
+          </div>
+
+          <!-- Loading indicator -->
+          <div v-if="msg.role === 'loading'" class="chat-bubble assistant-bubble loading-bubble">
+            <span class="loading-dot"></span>
+            <span class="loading-dot"></span>
+            <span class="loading-dot"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat input -->
+      <div class="chat-input-row" style="flex-shrink: 0;">
+        <input
+          ref="chatInput"
+          v-model="searchQuery"
+          class="form-input chat-input"
+          placeholder="在当前知识库中搜索..."
+          :disabled="isSearching"
+          @keyup.enter="handleSearch"
+        />
+        <button class="btn btn-primary" style="flex-shrink: 0;" :disabled="!searchQuery.trim() || isSearching" @click="handleSearch">
+          {{ isSearching ? '搜索中...' : '发送' }}
+        </button>
       </div>
     </div>
 
@@ -189,7 +235,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getKnowledgeBase, listDocuments, getUploadUrl, processDocument, deleteDocument, searchKnowledge, setDocumentTags, type KnowledgeBase as KBType, type Document, type SearchResult } from '../../api/knowledge'
 import ChunkStats from '../../components/knowledge/ChunkStats.vue'
@@ -201,8 +247,20 @@ const kb = ref<KBType | null>(null)
 const documents = ref<Document[]>([])
 const activeTab = ref('documents')
 const searchQuery = ref('')
-const searchResults = ref<SearchResult[]>([])
 const searchFilterTags = ref<string[]>([])
+
+// Chat-style search state
+interface ChatMessage {
+  role: 'user' | 'assistant' | 'loading'
+  content: string
+  results?: SearchResult[]
+  rewritten_query?: string
+  original_query?: string
+}
+const chatMessages = ref<ChatMessage[]>([])
+const isSearching = ref(false)
+const chatContainer = ref<HTMLElement | null>(null)
+const chatInput = ref<HTMLInputElement | null>(null)
 
 const tagDialog = ref<{
   open: boolean
@@ -318,12 +376,70 @@ async function handleDeleteDoc(doc: Document) {
   await loadDocuments()
 }
 
+function buildConversationHistory(): { role: string; content: string }[] {
+  // Take up to the last 5 user+assistant turn pairs (10 messages max)
+  const turns = chatMessages.value.filter(m => m.role === 'user' || m.role === 'assistant')
+  const recent = turns.slice(-10)
+  return recent.map(m => {
+    if (m.role === 'user') return { role: 'user', content: m.content }
+    // Summarize assistant results as a brief content line
+    const topResults = (m.results || []).slice(0, 2).map(r => r.content.slice(0, 120)).join(' | ')
+    return { role: 'assistant', content: topResults || '未找到相关内容' }
+  })
+}
+
 async function handleSearch() {
-  if (!searchQuery.value.trim()) return
+  const query = searchQuery.value.trim()
+  if (!query || isSearching.value) return
   const kbId = route.params.kbId as string
-  const options = searchFilterTags.value.length > 0 ? { tags: searchFilterTags.value } : undefined
-  const resp = await searchKnowledge(kbId, searchQuery.value, 5, options)
-  searchResults.value = resp.data.results
+
+  isSearching.value = true
+  searchQuery.value = ''
+
+  // Add user message
+  chatMessages.value.push({ role: 'user', content: query })
+  // Add loading placeholder
+  chatMessages.value.push({ role: 'loading', content: '' })
+  await nextTick()
+  scrollChatToBottom()
+
+  try {
+    const history = buildConversationHistory().slice(0, -0) // all built turns (excludes loading)
+    const options: { tags?: string[]; conversation_history?: { role: string; content: string }[] } = {}
+    if (searchFilterTags.value.length > 0) options.tags = searchFilterTags.value
+    if (history.length > 0) options.conversation_history = history
+
+    const resp = await searchKnowledge(kbId, query, 5, options)
+    const { results, rewritten_query } = resp.data
+
+    // Remove loading placeholder and add real assistant message
+    chatMessages.value.pop()
+    chatMessages.value.push({
+      role: 'assistant',
+      content: rewritten_query || query,
+      results,
+      rewritten_query,
+      original_query: query,
+    })
+  } catch {
+    chatMessages.value.pop()
+    chatMessages.value.push({ role: 'assistant', content: '搜索出错，请重试', results: [] })
+  } finally {
+    isSearching.value = false
+    await nextTick()
+    scrollChatToBottom()
+    chatInput.value?.focus()
+  }
+}
+
+function clearChat() {
+  chatMessages.value = []
+}
+
+function scrollChatToBottom() {
+  if (chatContainer.value) {
+    chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+  }
 }
 
 onMounted(async () => {
@@ -400,6 +516,98 @@ onMounted(async () => {
   background: #0073e6;
   color: #fff;
   border-color: #0073e6;
+}
+
+/* Chat */
+.chat-container {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px 10px 0 0;
+  padding: 16px;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.chat-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+}
+.chat-message-row {
+  display: flex;
+}
+.chat-message-row.user {
+  justify-content: flex-end;
+}
+.chat-message-row.assistant,
+.chat-message-row.loading {
+  justify-content: flex-start;
+}
+.chat-bubble {
+  max-width: 88%;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.user-bubble {
+  background: #0073e6;
+  color: #fff;
+  border-bottom-right-radius: 3px;
+}
+.assistant-bubble {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-bottom-left-radius: 3px;
+  width: 100%;
+  max-width: 100%;
+}
+.loading-bubble {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 12px 16px;
+}
+.loading-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #bbb;
+  animation: dot-bounce 1.2s infinite ease-in-out;
+}
+.loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.loading-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dot-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40% { transform: translateY(-5px); opacity: 1; }
+}
+.result-card {
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: #fafafa;
+}
+.result-card:last-child {
+  margin-bottom: 0;
+}
+.chat-input-row {
+  display: flex;
+  gap: 8px;
+  border: 1px solid #e5e5e5;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  padding: 10px 12px;
+  background: #fff;
+}
+.chat-input {
+  flex: 1;
+  border-radius: 6px;
 }
 
 /* Modal */
