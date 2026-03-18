@@ -101,6 +101,11 @@
       </div>
     </div>
 
+    <!-- Chunks Tab -->
+    <div v-if="activeTab === 'chunks'" style="margin-top: 8px;">
+      <ChunkStats :kb-id="(route.params.kbId as string)" />
+    </div>
+
     <!-- Search Tab -->
     <div v-if="activeTab === 'search'" style="margin-top: 24px; max-width: 720px;">
       <div style="display: flex; gap: 8px;">
@@ -128,6 +133,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getKnowledgeBase, listDocuments, getUploadUrl, processDocument, deleteDocument, searchKnowledge, type KnowledgeBase as KBType, type Document, type SearchResult } from '../../api/knowledge'
+import ChunkStats from '../../components/knowledge/ChunkStats.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -142,6 +148,7 @@ const tabs = [
   { key: 'overview', label: '概览' },
   { key: 'documents', label: '文档' },
   { key: 'search', label: '搜索' },
+  { key: 'chunks', label: '切片' },
 ]
 
 const statusCounts = computed(() => {
