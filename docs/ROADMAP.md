@@ -1,6 +1,6 @@
 # Lakeon (DBay) 产品路线图
 
-> 最后更新: 2026-03-09
+> 最后更新: 2026-03-18
 
 ## 阶段总览
 
@@ -18,11 +18,16 @@
 | Stage 7 | 品牌 & 部署架构升级 | ✅ 完成 | — |
 | Stage 8a | 自建可观测性 | ✅ 完成 | `verification/stage8a-observability.md` |
 | Stage 8b | 华为云 AOM/CES/SMN | 📋 规划中 | — |
+| Stage 9 | 性能监控 & 统一日志 | ✅ 完成 | — |
 | Stage 10a | 备份与恢复 | ✅ 完成 | — |
 | Stage 10b | 分支管理增强 | ✅ 完成 | — |
 | Stage 10c | 连接池 | ⏸️ 暂缓 | — |
 | Stage 10d | SQL 审计日志 | ✅ 完成 | — |
 | Stage 10e | 数据库级权限管理 | ✅ 完成 | — |
+| Stage 11 | 多版本多分支 (时间旅行) | ✅ 完成 | — |
+| Stage 11b | 分支独立 Compute | ✅ 完成 | — |
+| Stage 12 | 弹性节点池 & 自动扩缩容 | ✅ 完成 | — |
+| Stage 14 | DBay CLI & E2E 测试 | 📋 规划中 | — |
 
 ---
 
@@ -180,6 +185,23 @@
 - Prometheus alerts.yml 5 条告警规则
 - 10/10 集成测试通过
 
+## ✅ Stage 9: 性能监控 & 统一日志
+
+- **性能诊断仪表盘** (SRE Admin)
+  - 4 Tab 结构: 概览/性能诊断/日志管理/告警
+  - 活跃会话监控 (pg_stat_activity)
+  - 活跃会话过滤系统连接 (compute_ctl 等)
+- **统一日志管理**
+  - 组件级日志查看 (pageserver/safekeeper/proxy/api)
+  - 终端风格、搜索高亮、自动刷新
+- **弹性节点池运维** (SRE Admin)
+  - 节点池概览仪表盘 (当前/最小/最大节点数, CPU/内存利用率)
+  - 每节点详情卡片 (状态、利用率、Pod 数、空闲检测、缩容倒计时)
+  - 弹性伸缩事件时间线 (过去 48h, 扩容/缩容次数统计)
+  - API: `/admin/infra/node-pool`, `/admin/infra/autoscaling-events`, `/admin/infra/nodes`, `/admin/infra/events`
+  - 可配置: nodePoolName, nodePoolMin/Max, scaleDownUnneededMinutes
+  - RBAC: ClusterRole 授权 metrics.k8s.io + events 读取
+
 ## ✅ 运维工具链
 
 - **一键启停** (`deploy/cce/start.sh` / `stop.sh`)
@@ -192,6 +214,7 @@
   - `start-cloud` / `stop-cloud` — ECS 开关机 (不再创建/删除节点)
   - `list-resources` — 生成 JSON 供 SRE 控制台
 - **Warm Wake 优化**: 挂起时保留 Pod，连接到来即时恢复 (~1s vs ~10s)
+- **SWR Secret 自动刷新**: SwrSecretRefreshService 每 12h 用 IAM token 刷新
 
 ---
 
@@ -208,7 +231,7 @@
 - 备份列表 (名称、大小、LSN、时间戳)
 - 从备份恢复 (创建新 timeline 分支)
 - 备份自动清理 (可配置保留数量)
-- Console 备份管理 Tab + API
+- 备份管理独立页面 (侧栏入口 + 创建备份)
 - **测试**: BackupServiceTest (12) + BackupControllerTest (7) + backup-api.test.ts (5)
 
 ## ✅ Stage 10b: 分支管理增强
@@ -245,28 +268,107 @@
 - Console 用户管理 Tab
 - **测试**: DatabaseUserServiceTest (12) + DatabaseUserControllerTest (9) + CreateUserDialog.test.ts (13) + dbuser-api.test.ts (5)
 
+## ✅ Stage 11: 多版本多分支 — 时间旅行
+
+- **版本管理** (类 git 数据库版本控制)
+  - 版本 = 分支上某个 LSN 点的命名书签 + 物化快照 timeline
+  - 创建版本 (填版本号 + 提示上次版本号)
+  - 版本列表 (最新在前, LSN 标识)
+  - 版本创建者显示 tenant 用户名
+- **Schema Diff**
+  - 版本之间 Schema 对比 (表结构差异)
+  - 临时 compute 自动创建/回收 (无 compute 的分支自动启动临时节点)
+  - 加载时显示「正在启动临时计算节点」提示
+- **分支 Promote**
+  - 将分支提升为主干，原主干降为普通分支
+- **Console 页面**
+  - 「时间旅行」独立页面 (分支列表 + 版本时间线)
+  - 去掉旧 BranchTreeView SVG 图，简化为分支列表
+  - 去掉数据库详情页分支 Tab (迁移到时间旅行页面)
+- **去商业化**
+  - 去掉计费，只保留计量 (资源用量)
+  - 去掉 landing 页面所有商业性内容 (定价、免费版等)
+- **测试**: version API + diff API + LsnUtil + 组件测试
+
+## ✅ Stage 11b: 分支独立 Compute
+
+- **架构升级**: 从「单数据库单 compute」→「每个分支独立 compute（按需启动）」
+- **连接路由** (Neon Proxy 回调)
+  - `postgres://user@pg.dbay.cloud:4432/mydb--dev` 路由到 dev 分支
+  - 不指定分支时路由到默认分支 (is_default=true)
+  - ProxyAdapterController 解析 `endpointish` = `dbName--branchName`
+- **分支 Compute 生命周期**
+  - `createComputePodForBranch()` — 为分支创建独立 compute pod
+  - compute 状态 (RUNNING / SUSPENDED / STARTING / ERROR) 在 BranchEntity 管理
+  - 空闲超时自动挂起 (继承数据库的 suspendTimeout)
+  - DatabaseEntity 的 computePodName/Host/Port 废弃
+- **Console 展示**
+  - 分支列表显示 compute 状态和连接 URI
+  - 移除 switch 按钮 (每个分支独立 compute，无需切换)
+  - Promote 简化 (切换 is_default 标记)
+
+## ✅ Stage 12: 弹性节点池 & 自动扩缩容
+
+- **弹性节点池**: `dbay-compute-pool` (c9.xlarge.2, 4C/8G)
+  - 弹性伸缩: min=1, max=5
+  - 节点标签: `lakeon/role=compute`
+  - autoscaler 插件 v1.33.57, scaleDownUnneededTime=10min
+- **compute pod 调度**: nodeSelector 定向到弹性池，管控面留在固定节点
+- **node-init DaemonSet**: 自动在新弹性节点修复 containerd `LimitCORE=infinity`
+- **启动时间**: 弹性节点已存在时冷启动 ~8s，热启动 ~100ms
+- **固定节点** (2x c9.2xlarge.2) 运行管控面，弹性节点运行 compute pod
+
+## 📋 Stage 13: 记忆系统集成 & LoCoMo Benchmark
+
+> 详细方案: [`memory-integration-locomo-benchmark.md`](memory-integration-locomo-benchmark.md)
+
+目标：让 AI Agent 记忆系统用户在获得 token 下降好处的同时，获得 dbay.cloud Serverless PG 的弹性、免运维、scale-to-zero。
+
+### Phase A: MemOS + dbay（当前）
+- 补齐 MemOS PG 后端缺失方法（`search_by_fulltext`, `get_subgraph` 签名对齐, `delete_node_by_prams`, `drop_database`）
+- IVFFlat → HNSW, 连接池调优适配 Serverless
+- 用 MemOS 自带 `evaluation/scripts/locomo/` 跑 `locomo10.json`
+- 验证：token 下降 ≥ 72% + 准确率无损 + scale-to-zero 行为正常
+
+### Phase B: OpenClaw 端到端验证（后续）
+- MemOS + dbay 做成 OpenClaw 插件
+- 用 `openclaw-eval` 跑 `locomo10.json`，与 OpenViking 83% 直接对比
+
+### Phase C: OpenViking + dbay（探索性）
+- OpenViking 存储自包含（C++ + LevelDB），需写 HTTP adapter 适配 pgvector
+- 优先级低，等 OpenViking 社区活跃或原生支持 PG 时再考虑
+
+## 📋 Stage 14: DBay CLI & E2E 测试
+
+目标：开发 CLI 工具 (`dbay`) 作为用户产品和 E2E 测试基础设施，Claude 在每次功能开发后自动通过 CLI + psql 端到端验证。
+
+### Phase A: CLI 核心 (Python, pip install dbay)
+- `dbay login` / `dbay config` — API Key 配置
+- `dbay db list / create / delete / info` — 数据库管理
+- `dbay db connstr <name> [--branch <name>]` — 输出连接串 (可直接传给 psql)
+- `dbay branch list / create / delete / promote` — 分支管理
+- `dbay version list / create / delete / restore` — 版本管理
+- `dbay sql <db> "SELECT ..."` — 快捷执行 SQL
+
+### Phase B: E2E 测试框架
+- 测试用例用 CLI + psql 编写，验证完整链路 (API → Proxy → Compute → PG)
+- 覆盖: 数据库 CRUD、分支创建/隔离/Promote、版本创建/回滚、数据持久化
+- 每个功能开发完成后必须补充对应 E2E 用例并通过
+- 测试结果作为功能完成的验收标准
+
+### Phase C: MCP Server 集成
+- 将 CLI 能力封装为 MCP Server，Claude Code 可直接调用
+- 实现对话中自动化测试：开发 → CLI 验证 → 报告结果
+
+---
+
 ### Backlog
 - 多副本 pageserver / safekeeper
 - 故障转移验证
 - 华为云 IAM SSO
 - 数据库连接端到端 TLS
 - API 限流
-- 用量计费系统
 - CI/CD 流水线
-
-## 📋 待修复: 代码审查遗留项 (7 项)
-
-| 优先级 | 问题 | 文件 |
-|--------|------|------|
-| HIGH | CreateTimelineRequest 构造函数语义不一致 | BranchService.java |
-| MEDIUM | HttpClient 生命周期管理 | NeonApiClient.java |
-| MEDIUM | waitForPodReady 阻塞事务 | ComputePodManager.java |
-| MEDIUM | 密码缺少特殊字符 | DatabaseService.java |
-| LOW | DatabaseStatus 序列化风格不一致 | DatabaseStatus.java |
-| LOW | endpointish 参数缺注释 | ProxyAdapterController.java |
-| LOW | CLI 重复错误处理模式 | lakeon-cli commands |
-
-详见 `rpiv/todo/issue-remaining-code-review-fixes.md`
 
 ---
 
@@ -274,7 +376,7 @@
 
 | 组件 | 版本 | 部署位置 |
 |------|------|----------|
-| lakeon-api | 0.4.6 | CCE (hostNetwork, HTTPS) |
+| lakeon-api | 0.6.7 | CCE (hostNetwork, HTTPS) |
 | lakeon-console | 0.3.7 | Railway |
 | lakeon-admin | 0.2.0 | Railway |
 | lakeon-import | 0.2.0 | CCE (Job Pod) |
@@ -284,8 +386,9 @@
 | 资源 | 规格 |
 |------|------|
 | CCE 集群 | lakeon-k8s-cluster (cn-north-4) |
-| 计算节点 | 1x x1.4u.8g (4C8G) |
+| 固定节点 | 2x c9.2xlarge.2 (8C16G) — 管控面 |
+| 弹性节点池 | 1~5x c9.xlarge.2 (4C8G) — compute pod |
 | RDS | PostgreSQL (VPC 内网) |
-| ELB | 共享型 (TCP:8443, TCP:4432, TCP:80, TCP:8081) |
+| ELB | 独享型 (TCP:8443, TCP:4432) |
 | OBS | lakeon-storage (cn-north-4) |
-| 域名 | api.dbay.cloud (API), dbay.cloud (Console), admin.dbay.cloud (Admin) |
+| 域名 | api.dbay.cloud (API), dbay.cloud (Console), admin.dbay.cloud (Admin), pg.dbay.cloud (PG) |
