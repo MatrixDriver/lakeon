@@ -420,9 +420,10 @@ public class KnowledgeService {
                 .map(String::valueOf)
                 .collect(Collectors.joining(",", "[", "]"));
 
-        // Resolve user PG connection
+        // Resolve user PG connection (direct to compute pod, not via proxy)
         String connstr = resolveComputeConnstr(databaseId, tenantId);
         String jdbcUrl = connstrToJdbc(connstr);
+        log.info("Knowledge search: connecting to {}", jdbcUrl);
 
         // Build SQL with optional document_id filter
         String docFilter = "";
@@ -571,7 +572,10 @@ public class KnowledgeService {
             }
         }
 
-        return "postgresql://cloud_admin@" + host + ":" + port + "/" + db.getName();
+        String result = "postgresql://cloud_admin@" + host + ":" + port + "/" + db.getName();
+        log.info("resolveComputeConnstr: db={} status={} host={} port={} connstr={}",
+                 databaseId, db.getStatus(), host, port, result);
+        return result;
     }
 
     private String connstrToJdbc(String connstr) {
