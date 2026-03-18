@@ -33,6 +33,9 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -55,6 +58,7 @@ public class KnowledgeService {
     private final RestTemplate restTemplate;
     private final DatabaseService databaseService;
     private final KnowledgeDbHelper dbHelper;
+    private final HttpClient httpClient;
 
     public KnowledgeService(DocumentRepository documentRepository,
                             KnowledgeBaseRepository knowledgeBaseRepository,
@@ -75,6 +79,9 @@ public class KnowledgeService {
         this.databaseService = databaseService;
         this.dbHelper = dbHelper;
         this.restTemplate = new RestTemplate();
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
     }
 
     // ── Knowledge Base CRUD ──────────────────────────────────────────
@@ -415,7 +422,8 @@ public class KnowledgeService {
      */
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> search(String tenantId, String kbId, String query,
-                                            int topK, List<String> documentIds, List<String> tags) {
+                                            int topK, List<String> documentIds, List<String> tags,
+                                            boolean rerank) {
         if (query == null || query.isBlank()) {
             throw new BadRequestException("Query must not be empty");
         }
@@ -523,10 +531,62 @@ public class KnowledgeService {
             throw new RuntimeException("Search failed: " + e.getMessage(), e);
         }
 
+        if (rerank && props.getKnowledge().getRerank().isEnabled() && !results.isEmpty()) {
+            results = rerankResults(query, results, topK);
+        }
+
         return results;
     }
 
     // ── Internal helpers ────────────────────────────────────────────
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> rerankResults(String query,
+            List<Map<String, Object>> results, int topK) {
+        try {
+            String url = props.getKnowledge().getRerank().getUrl();
+            List<String> passages = results.stream()
+                    .map(r -> (String) r.get("content")).toList();
+
+            Map<String, Object> reqBody = Map.of("query", query, "passages", passages, "top_k", topK);
+            String jsonBody = objectMapper.writeValueAsString(reqBody);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .timeout(Duration.ofSeconds(30))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                log.warn("Rerank service returned status {}: {}", response.statusCode(), response.body());
+                return results;
+            }
+
+            Map<String, Object> respBody = objectMapper.readValue(response.body(), Map.class);
+            List<Integer> rankings = ((List<Number>) respBody.get("rankings")).stream()
+                    .map(Number::intValue).toList();
+            List<Double> scores = ((List<Number>) respBody.get("scores")).stream()
+                    .map(Number::doubleValue).toList();
+
+            List<Map<String, Object>> reranked = new ArrayList<>();
+            for (int i = 0; i < rankings.size(); i++) {
+                int idx = rankings.get(i);
+                if (idx < 0 || idx >= results.size()) continue;
+                Map<String, Object> row = new LinkedHashMap<>(results.get(idx));
+                row.put("rrf_score", row.get("score"));
+                row.put("score", scores.get(i));
+                reranked.add(row);
+            }
+            log.info("Reranked {} results for query (top_k={})", reranked.size(), topK);
+            return reranked;
+
+        } catch (Exception e) {
+            log.warn("Rerank failed, returning original results: {}", e.getMessage());
+            return results;
+        }
+    }
 
     private void syncDocumentStatusFromJob(DocumentEntity doc) {
         try {

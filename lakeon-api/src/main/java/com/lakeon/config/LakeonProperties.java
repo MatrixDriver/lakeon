@@ -306,6 +306,7 @@ public class LakeonProperties {
         private String embeddingModel = "BAAI/bge-m3";
         private int presignExpireSeconds = 900;
         private long maxFileSizeBytes = 104857600;
+        private RerankConfig rerank = new RerankConfig();
 
         public String getEmbeddingApiUrl() { return embeddingApiUrl; }
         public void setEmbeddingApiUrl(String embeddingApiUrl) { this.embeddingApiUrl = embeddingApiUrl; }
@@ -317,5 +318,17 @@ public class LakeonProperties {
         public void setPresignExpireSeconds(int presignExpireSeconds) { this.presignExpireSeconds = presignExpireSeconds; }
         public long getMaxFileSizeBytes() { return maxFileSizeBytes; }
         public void setMaxFileSizeBytes(long maxFileSizeBytes) { this.maxFileSizeBytes = maxFileSizeBytes; }
+        public RerankConfig getRerank() { return rerank; }
+        public void setRerank(RerankConfig rerank) { this.rerank = rerank; }
+    }
+
+    public static class RerankConfig {
+        private boolean enabled = true;
+        private String url = "http://embedding-service:8000/rerank";
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public String getUrl() { return url; }
+        public void setUrl(String url) { this.url = url; }
     }
 }

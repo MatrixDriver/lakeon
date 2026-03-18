@@ -85,6 +85,7 @@ export function setDocumentTags(docId: string, tags: string[]) {
 export function searchKnowledge(kbId: string, query: string, topK: number = 5, options?: {
   tags?: string[]
   document_ids?: string[]
+  rerank?: boolean
 }) {
   return api.post<{ results: SearchResult[] }>('/knowledge/search', {
     kb_id: kbId,

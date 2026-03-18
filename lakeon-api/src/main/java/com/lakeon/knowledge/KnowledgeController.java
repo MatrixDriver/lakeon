@@ -146,7 +146,9 @@ public class KnowledgeController {
             throw new com.lakeon.service.exception.BadRequestException("query is required");
         }
 
-        List<Map<String, Object>> results = knowledgeService.search(tenant.getId(), kbId, query, topK, documentIds, tags);
+        boolean rerank = body.containsKey("rerank") ? (Boolean) body.get("rerank") : false;
+
+        List<Map<String, Object>> results = knowledgeService.search(tenant.getId(), kbId, query, topK, documentIds, tags, rerank);
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("results", results);
