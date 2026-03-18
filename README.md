@@ -19,6 +19,8 @@ lakeon/
 │   ├── Dockerfile       # Nginx 静态文件托管
 │   └── nginx.conf       # 反向代理 API 请求
 ├── lakeon-cli/          # 命令行客户端 (Python)
+├── dbay-cli/            # DBay CLI (Python, E2E 测试客户端)
+├── tests/e2e/           # E2E 测试 (pytest + psql)
 ├── deploy/
 │   ├── helm/lakeon/     # Helm Chart
 │   ├── local/           # 本地部署脚本和配置
@@ -151,6 +153,25 @@ KUBECONFIG=~/.kube/cce-lakeon-config ./deploy/cce/demo.sh
 ```
 
 </details>
+
+## 测试
+
+```bash
+# 单元测试
+cd lakeon-api && mvn test
+
+# 本地集成测试 (31 用例，需要本地 K8s)
+./deploy/local/integration-test.sh
+
+# CCE 冒烟测试 (7 项)
+./deploy/cce/deploy.sh
+
+# E2E 测试 (47 用例，需要 CCE 环境 + psql)
+pip install -e dbay-cli/
+no_proxy="api.dbay.cloud,pg.dbay.cloud" pytest tests/e2e/ -v
+```
+
+详细测试指南见 [测试文档](docs/testing.md)。
 
 ## 运维管理（CCE）
 
