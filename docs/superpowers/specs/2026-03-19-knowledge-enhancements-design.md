@@ -10,16 +10,16 @@
 
 ### 数据模型
 
-- `DocumentEntity` 加 `tags` 字段：`List<String>`，RDS 中存为 JSON 字符串
-- Flyway 迁移：`ALTER TABLE documents ADD COLUMN IF NOT EXISTS tags TEXT DEFAULT '[]'`
+- `DocumentEntity` 加 `tags` 字段：`List<String>`，RDS 中存为 `JSONB`
+- Flyway V14 迁移：`ALTER TABLE documents ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '[]'::jsonb`
+- GIN 索引：`CREATE INDEX IF NOT EXISTS idx_documents_tags ON documents USING gin (tags)`
 
 ### API 变更
 
-- `POST /api/v1/knowledge/documents/{id}/tags` — 设置标签 `{tags: ["内部", "API"]}`
+- `PUT /api/v1/knowledge/documents/{id}/tags` — 替换全部标签 `{tags: ["内部", "API"]}`（set 语义，替换而非追加）
 - `GET /api/v1/knowledge/upload-url` — 新增可选 `tags` 参数，上传时直接打标签
 - `POST /api/v1/knowledge/search` — 新增可选 `tags` 参数（`List<String>`）
-  - 搜索前先按标签过滤 `document_ids`：`SELECT id FROM documents WHERE kb_id = ? AND tags 包含任一指定标签`
-  - 过滤后的 `document_ids` 传入现有向量+BM25 搜索逻辑
+  - **两数据库流程**：先在 RDS 按标签过滤 document_ids（`SELECT id FROM documents WHERE kb_id = ? AND tags ?| array[...]`），再将过滤后的 document_ids 传入用户 compute 的向量+BM25 搜索逻辑（复用现有 `documentIds` 参数）
 
 ### Console 变更
 
@@ -48,9 +48,9 @@
 
 ### 实现
 
-- 新增 `QueryRewriteService`（或在 `KnowledgeService.search()` 中内联）
-- 复用 `AiSqlService` 的 LLM HTTP 调用基础设施（同一个 OpenAI 兼容 API）
+- 新增 `QueryRewriteService`：复用 `AiSqlService` 的 LLM 配置（`props.getAi().getApiKey()`、`props.getAi().getBaseUrl()`）和 HTTP 客户端模式，但使用自己的 system prompt（不复用 `generateSql()` 方法）
 - 模型固定用 `Qwen/Qwen3.5-4B`（免费）
+- **对话历史限制**：最多取最近 5 轮（10 条消息），超出截断，避免 LLM context 溢出
 - Prompt：
   ```
   你是查询改写助手。根据对话历史，将用户的最新问题改写为一个独立的、上下文完整的搜索查询。
@@ -106,8 +106,8 @@
 
 ### API 变更
 
-- `POST /api/v1/knowledge/search` — 新增可选 `rerank` 布尔参数（默认 `true`）
-- 返回结果的 `score` 改为 rerank score（如果 rerank 开启）
+- `POST /api/v1/knowledge/search` — 新增可选 `rerank` 布尔参数（默认 `false`，初期 opt-in 保证向后兼容）
+- 返回结果的 `score` 改为 rerank score（如果 rerank 开启），同时保留 `rrf_score` 原始分数
 
 ### 配置
 
@@ -120,6 +120,7 @@
         url: ${LAKEON_RERANK_URL:http://embedding-service:8000/rerank}
   ```
 - 支持配置外部 ReRank API URL（替代本地 embedding-service）
+- **部署说明**：embedding-service 作为常驻服务始终在集群中运行（即使 embedding 用外部 API，rerank 仍需要本地服务）。内存 limits 从 2Gi 调整为 4Gi。如果节点资源不足，可通过配置外部 rerank API 替代本地模型
 
 ---
 
@@ -129,21 +130,37 @@
 
 - `KnowledgeBaseEntity` 新增字段：
   - `type`：`VARCHAR(16) DEFAULT 'DOCUMENT'` — 枚举 `DOCUMENT`, `TABLE`
-  - `tableNames`：`TEXT` — JSON 数组，TABLE 类型关联的表名列表 `["products", "orders"]`
+  - `sourceDatabaseId`：`VARCHAR(32)` — TABLE 类型关联的用户数据库 ID（区别于现有 `databaseId` 即 chunk 存储库）
+  - `tableNames`：`JSONB DEFAULT '[]'::jsonb` — TABLE 类型关联的表名列表
 - `KnowledgeBaseType` 枚举：`DOCUMENT`, `TABLE`
-- Flyway 迁移加这两个字段
+- Flyway V15 迁移加这三个字段
 
 ### API 变更
 
-- `POST /api/v1/knowledge/bases` — 新增 `type` 参数（默认 `DOCUMENT`）和 `table_names` 参数
-  - TABLE 类型创建时不需要等数据库 provisioning（复用已有数据库的表）
-  - TABLE 类型需要指定 `database_id`（关联哪个用户数据库）
+- `POST /api/v1/knowledge/bases` — 新增 `type` 参数（默认 `DOCUMENT`）、`source_database_id` 和 `table_names` 参数
+  - TABLE 类型创建时不需要 chunk 数据库 provisioning（不设 `databaseId`）
+  - TABLE 类型需要指定 `source_database_id`（关联哪个用户数据库）
+  - `table_names` 在创建时做校验：连接用户 compute，验证指定的表名确实存在于 `information_schema.tables`
 - `POST /api/v1/knowledge/search` — TABLE 类型走不同逻辑：
-  1. 获取关联表的 schema（`SELECT column_name, data_type FROM information_schema.columns WHERE table_name IN (...)`)
+  1. 获取关联表的 schema（使用**参数化查询**：`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ANY($1)`，`$1` 为 `tableNames` 数组，防止 SQL 注入）
   2. 调 `AiSqlService.generateSql(query, schemaInfo, modelId)`
-  3. 在用户 compute 上执行 SQL
-  4. 返回 `{type: "sql", sql: "SELECT ...", results: [...], model: "...", tokens: {...}}`
+  3. 在用户 compute 上执行生成的 SQL（只允许 SELECT，拒绝 DML/DDL）
+  4. 返回结果（见下方响应格式）
 - `GET /api/v1/knowledge/bases/{id}/tables` — 列出关联表的 schema 信息
+
+### 搜索响应格式
+
+DOCUMENT 类型（不变）：
+```json
+{"results": [{"content": "...", "score": 0.85, "metadata": {...}}]}
+```
+
+TABLE 类型：
+```json
+{"type": "sql", "sql": "SELECT ...", "columns": ["name", "price"], "rows": [[...], [...]], "model": "...", "tokens": {"input": 100, "output": 50}}
+```
+
+调用方通过 `type` 字段区分响应类型（DOCUMENT 类型无 `type` 字段或 `type: "semantic"`）。
 
 ### Console 变更
 
