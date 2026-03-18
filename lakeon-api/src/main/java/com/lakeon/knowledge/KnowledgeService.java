@@ -302,6 +302,8 @@ public class KnowledgeService {
         // Build job params
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("document_id", doc.getId());
+        params.put("tenant_id", tenant.getId());
+        params.put("kb_id", doc.getKbId());
         params.put("obs_key", doc.getObsKey());
         params.put("format", doc.getFormat());
         params.put("filename", doc.getFilename());

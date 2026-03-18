@@ -9,7 +9,7 @@ import boto3
 import requests
 
 from parser import parse_document
-from chunker import chunk_document
+from chunker import chunk_document, assign_pages, detect_duplicates
 from callback import report_success, report_failure, report_progress
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -29,6 +29,8 @@ def main():
         embedding_api_key = params.get("embedding_api_key", "")
         embedding_model = params.get("embedding_model", "BAAI/bge-m3")
         filename = params.get("filename", os.path.basename(obs_key))
+        tenant_id = params.get("tenant_id")
+        kb_id = params.get("kb_id")
 
         logger.info(f"Processing document {document_id}: {filename} ({fmt})")
         report_progress("Downloading document", 0.1)
@@ -47,11 +49,18 @@ def main():
             logger.info(f"Downloaded {obs_key} to {tmp_path}")
 
         report_progress("Parsing document", 0.2)
-        markdown = parse_document(tmp_path, fmt)
-        logger.info(f"Parsed document: {len(markdown)} chars")
+        markdown, page_metadata = parse_document(tmp_path, fmt)
+        logger.info(f"Parsed document: {len(markdown)} chars, {len(page_metadata)} pages")
+
+        # Upload fulltext to OBS
+        if tenant_id and kb_id:
+            fulltext_key = f"knowledge/{tenant_id}/{kb_id}/{document_id}/fulltext.md"
+            s3.put_object(Bucket=obs_bucket, Key=fulltext_key, Body=markdown.encode('utf-8'))
+            logger.info(f"Uploaded fulltext to {fulltext_key}")
 
         report_progress("Chunking document", 0.4)
         chunks = chunk_document(markdown, filename, fmt)
+        assign_pages(chunks, page_metadata)
         logger.info(f"Created {len(chunks)} chunks")
 
         if not chunks:
@@ -67,7 +76,7 @@ def main():
             headers["Authorization"] = f"Bearer {embedding_api_key}"
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i + batch_size]
-            # OpenAI-compatible embedding API (硅基流动/OpenAI)
+            # OpenAI-compatible embedding API
             resp = requests.post(embedding_api_url, json={
                 "model": embedding_model,
                 "input": batch,
@@ -80,13 +89,24 @@ def main():
             report_progress(f"Embedding {min(i + batch_size, len(texts))}/{len(texts)}", progress)
 
         logger.info(f"Generated {len(all_embeddings)} embeddings")
+
+        report_progress("Detecting duplicates", 0.85)
+        detect_duplicates(chunks, all_embeddings)
+
         report_progress("Writing to database", 0.9)
 
         from writer import write_chunks
         write_chunks(database_connstr, document_id, chunks, all_embeddings)
 
-        report_success(len(chunks))
-        logger.info(f"Done: {len(chunks)} chunks written")
+        # Compute quality stats
+        quality_stats = {
+            "anomaly_count": sum(1 for c in chunks if len(c["content"]) < 80 or len(c["content"]) > 800),
+            "duplicate_count": sum(1 for c in chunks if "duplicate_of" in c["metadata"]),
+            "avg_char_count": sum(len(c["content"]) for c in chunks) // len(chunks) if chunks else 0,
+        }
+
+        report_success(len(chunks), quality_stats)
+        logger.info(f"Done: {len(chunks)} chunks written, quality_stats={quality_stats}")
 
     except Exception as e:
         logger.exception(f"Job failed: {e}")

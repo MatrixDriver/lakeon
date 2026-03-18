@@ -1,23 +1,61 @@
 """Document parsing: PDF (pymupdf4llm), DOCX (python-docx), Markdown (direct read)."""
 import logging
+from typing import List, Dict, Tuple
 
 logger = logging.getLogger(__name__)
 
-def parse_document(file_path: str, format: str) -> str:
-    """Parse a document and return Markdown text."""
+def parse_document(file_path: str, format: str) -> Tuple[str, List[Dict]]:
+    """Parse a document and return (markdown_text, page_metadata).
+
+    page_metadata: [{page: int, char_start: int, char_end: int}, ...]
+    For non-PDF formats, page_metadata is empty.
+    """
     format = format.upper()
     if format == "PDF":
         return _parse_pdf(file_path)
     elif format == "DOCX":
-        return _parse_docx(file_path)
-    elif format == "MARKDOWN":
-        return _parse_markdown(file_path)
+        return _parse_docx(file_path), []
+    elif format in ("MARKDOWN", "TEXT"):
+        return _parse_markdown(file_path), []
     else:
         raise ValueError(f"Unsupported format: {format}")
 
-def _parse_pdf(file_path: str) -> str:
+def _parse_pdf(file_path: str) -> Tuple[str, List[Dict]]:
     import pymupdf4llm
-    return pymupdf4llm.to_markdown(file_path)
+    import pymupdf
+
+    # Get per-page markdown to build page_metadata
+    doc = pymupdf.open(file_path)
+    page_count = len(doc)
+    doc.close()
+
+    # Use pymupdf4llm with page_chunks to get per-page content
+    pages = pymupdf4llm.to_markdown(file_path, page_chunks=True)
+
+    page_metadata = []
+    parts = []
+    current_offset = 0
+
+    for page_data in pages:
+        page_num = page_data.get("metadata", {}).get("page", 0)
+        text = page_data.get("text", "")
+        if not text:
+            continue
+        char_start = current_offset
+        parts.append(text)
+        current_offset += len(text)
+        # Add separator between pages
+        if page_data != pages[-1]:
+            parts.append("\n\n")
+            current_offset += 2
+        page_metadata.append({
+            "page": page_num + 1,  # 1-based page numbers
+            "char_start": char_start,
+            "char_end": current_offset,
+        })
+
+    markdown = "".join(parts)
+    return markdown, page_metadata
 
 def _parse_docx(file_path: str) -> str:
     from docx import Document
