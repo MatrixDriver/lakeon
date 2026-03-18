@@ -1,7 +1,12 @@
 package com.lakeon.knowledge;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -54,6 +59,10 @@ public class DocumentEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "rechunk_status")
     private RechunkStatus rechunkStatus = RechunkStatus.IDLE;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "tags", columnDefinition = "jsonb")
+    private List<String> tags = new ArrayList<>();
 
     @Column(name = "rechunk_started_at")
     private Instant rechunkStartedAt;
@@ -115,6 +124,9 @@ public class DocumentEntity {
 
     public String getError() { return error; }
     public void setError(String error) { this.error = error; }
+
+    public List<String> getTags() { return tags; }
+    public void setTags(List<String> tags) { this.tags = tags; }
 
     public RechunkStatus getRechunkStatus() { return rechunkStatus; }
     public void setRechunkStatus(RechunkStatus rechunkStatus) { this.rechunkStatus = rechunkStatus; }

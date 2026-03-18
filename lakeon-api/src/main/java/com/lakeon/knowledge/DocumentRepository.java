@@ -14,6 +14,13 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, String
     List<DocumentEntity> findAllByTenantIdOrderByCreatedAtDesc(String tenantId);
     List<DocumentEntity> findAllByKbId(String kbId);
 
+    @Query(value = "SELECT id FROM documents WHERE kb_id = :kbId AND tenant_id = :tenantId AND tags ?| :tags",
+           nativeQuery = true)
+    List<String> findIdsByKbIdAndTenantIdAndTagsContaining(
+        @Param("kbId") String kbId,
+        @Param("tenantId") String tenantId,
+        @Param("tags") String[] tags);
+
     /**
      * CAS lock for rechunk: only transitions from IDLE to IN_PROGRESS.
      * Returns number of rows updated (0 means lock not acquired).

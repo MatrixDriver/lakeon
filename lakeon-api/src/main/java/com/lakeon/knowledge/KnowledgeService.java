@@ -233,7 +233,7 @@ public class KnowledgeService {
      * Accepts kbId; resolves the underlying databaseId from the KB.
      */
     @Transactional
-    public Map<String, Object> generateUploadUrl(TenantEntity tenant, String kbId, String filename) {
+    public Map<String, Object> generateUploadUrl(TenantEntity tenant, String kbId, String filename, List<String> tags) {
         KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenant.getId())
                 .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
 
@@ -260,6 +260,9 @@ public class KnowledgeService {
         doc.setFilename(filename);
         doc.setFormat(format);
         doc.setStatus(DocumentStatus.PENDING);
+        if (tags != null && !tags.isEmpty()) {
+            doc.setTags(tags);
+        }
         documentRepository.save(doc);
 
         // Generate OBS key
@@ -295,7 +298,6 @@ public class KnowledgeService {
     /**
      * Trigger document processing by submitting a DOCUMENT_PARSE job.
      */
-    @Transactional
     public DocumentEntity processDocument(TenantEntity tenant, String documentId) {
         DocumentEntity doc = documentRepository.findByIdAndTenantId(documentId, tenant.getId())
                 .orElseThrow(() -> new NotFoundException("Document not found: " + documentId));
@@ -304,8 +306,13 @@ public class KnowledgeService {
             throw new BadRequestException("Document is not in PENDING status, current: " + doc.getStatus());
         }
 
-        // Resolve database connection string
-        String connstr = dbHelper.resolveComputeConnstr(doc.getDatabaseId(), tenant.getId());
+        // Ensure backing database compute is running
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(doc.getKbId(), tenant.getId())
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + doc.getKbId()));
+        databaseService.ensureRunning(tenant, doc.getDatabaseId());
+
+        // Resolve database connection string (use KB's plaintext password for proxy auth)
+        String connstr = dbHelper.resolveComputeConnstr(doc.getDatabaseId(), tenant.getId(), kb.getDbPassword());
 
         // Build job params
         Map<String, Object> params = new LinkedHashMap<>();
@@ -320,7 +327,7 @@ public class KnowledgeService {
         params.put("embedding_api_key", props.getKnowledge().getEmbeddingApiKey());
         params.put("embedding_model", props.getKnowledge().getEmbeddingModel());
 
-        // Submit DOCUMENT_PARSE job
+        // Submit DOCUMENT_PARSE job (has its own @Transactional)
         JobEntity job = jobService.submitJob(tenant, JobType.DOCUMENT_PARSE, params);
 
         // Update doc status
@@ -408,12 +415,24 @@ public class KnowledgeService {
      */
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> search(String tenantId, String kbId, String query,
-                                            int topK, List<String> documentIds) {
+                                            int topK, List<String> documentIds, List<String> tags) {
         if (query == null || query.isBlank()) {
             throw new BadRequestException("Query must not be empty");
         }
         if (topK <= 0) topK = 5;
         if (topK > 50) topK = 50;
+
+        // Tag filtering: resolve matching document IDs and merge with explicit documentIds
+        List<String> filteredDocIds = documentIds;
+        if (tags != null && !tags.isEmpty()) {
+            List<String> tagFilteredIds = documentRepository
+                .findIdsByKbIdAndTenantIdAndTagsContaining(kbId, tenantId, tags.toArray(new String[0]));
+            if (filteredDocIds != null) {
+                tagFilteredIds.retainAll(new HashSet<>(filteredDocIds));
+            }
+            filteredDocIds = tagFilteredIds;
+            if (filteredDocIds.isEmpty()) return Collections.emptyList();
+        }
 
         // Get query embedding from embedding service
         List<Double> embedding = getQueryEmbedding(query);
@@ -428,7 +447,7 @@ public class KnowledgeService {
 
         // Build SQL with optional document_id filter
         String docFilter = "";
-        if (documentIds != null && !documentIds.isEmpty()) {
+        if (filteredDocIds != null && !filteredDocIds.isEmpty()) {
             docFilter = " AND document_id = ANY(?)";
         }
 
@@ -468,15 +487,15 @@ public class KnowledgeService {
             // semantic CTE params
             ps.setString(idx++, vectorStr); // embedding <=> ?::vector (score)
             ps.setString(idx++, vectorStr); // embedding <=> ?::vector (order/row_number)
-            if (documentIds != null && !documentIds.isEmpty()) {
-                java.sql.Array docArray = conn.createArrayOf("varchar", documentIds.toArray());
+            if (filteredDocIds != null && !filteredDocIds.isEmpty()) {
+                java.sql.Array docArray = conn.createArrayOf("varchar", filteredDocIds.toArray());
                 ps.setArray(idx++, docArray);
             }
             ps.setString(idx++, vectorStr); // embedding <=> ?::vector (limit order)
             // bm25 CTE params
             ps.setString(idx++, query);     // content @@@ ?
-            if (documentIds != null && !documentIds.isEmpty()) {
-                java.sql.Array docArray = conn.createArrayOf("varchar", documentIds.toArray());
+            if (filteredDocIds != null && !filteredDocIds.isEmpty()) {
+                java.sql.Array docArray = conn.createArrayOf("varchar", filteredDocIds.toArray());
                 ps.setArray(idx++, docArray);
             }
             // final LIMIT
