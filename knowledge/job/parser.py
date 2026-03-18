@@ -36,7 +36,7 @@ def _parse_pdf(file_path: str) -> Tuple[str, List[Dict]]:
     parts = []
     current_offset = 0
 
-    for page_data in pages:
+    for i, page_data in enumerate(pages):
         page_num = page_data.get("metadata", {}).get("page", 0)
         text = page_data.get("text", "")
         if not text:
@@ -45,7 +45,7 @@ def _parse_pdf(file_path: str) -> Tuple[str, List[Dict]]:
         parts.append(text)
         current_offset += len(text)
         # Add separator between pages
-        if page_data != pages[-1]:
+        if i < len(pages) - 1:
             parts.append("\n\n")
             current_offset += 2
         page_metadata.append({

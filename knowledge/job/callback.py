@@ -27,7 +27,13 @@ def report_progress(message, progress=0):
         logger.warning(f"Progress callback failed: {e}")
 
 def report_failure(error):
-    url = os.environ["JOB_CALLBACK_URL"]
-    token = os.environ["JOB_CALLBACK_TOKEN"]
-    resp = requests.post(url, json={"token": token, "status": "FAILED", "error": error}, timeout=30)
-    logger.info(f"Callback FAILED: {resp.status_code}")
+    try:
+        url = os.environ.get("JOB_CALLBACK_URL")
+        token = os.environ.get("JOB_CALLBACK_TOKEN")
+        if not url or not token:
+            logger.warning("JOB_CALLBACK_URL or JOB_CALLBACK_TOKEN not set, skipping failure callback")
+            return
+        resp = requests.post(url, json={"token": token, "status": "FAILED", "error": error}, timeout=30)
+        logger.info(f"Callback FAILED: {resp.status_code}")
+    except Exception as e:
+        logger.error(f"Failed to report failure callback: {e}")

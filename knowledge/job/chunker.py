@@ -32,7 +32,8 @@ def chunk_document(markdown: str, filename: str, format: str,
             # Find this block's position within the section content
             block_offset_in_content = content.find(block, search_start)
             if block_offset_in_content < 0:
-                block_offset_in_content = content.find(block)
+                logger.warning(f"Block not found at search_start={search_start}, using search_start as offset (best effort)")
+                block_offset_in_content = search_start
             if block_offset_in_content >= 0:
                 search_start = block_offset_in_content + len(block)
             block_abs_start = content_start + block_offset_in_content if block_offset_in_content >= 0 else None
@@ -218,9 +219,10 @@ def _compute_overlap(chunks: List[Dict], current_content: str) -> int:
     if not chunks:
         return 0
     prev_content = chunks[-1]["content"]
-    # Check how much of the tail of prev_content matches the head of current_content
-    max_overlap = min(len(prev_content), len(current_content))
-    for length in range(max_overlap, 0, -1):
+    # Only check around the expected overlap length based on OVERLAP_RATIO
+    expected = int(len(prev_content) * OVERLAP_RATIO)
+    max_check = min(expected * 2, len(prev_content), len(current_content))
+    for length in range(max_check, 0, -1):
         if prev_content[-length:] == current_content[:length]:
             return length
     return 0

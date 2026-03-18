@@ -91,12 +91,6 @@ def write_chunks(connstr, document_id, chunks, embeddings):
             logger.info(f"Wrote {len(values)} chunks for document {document_id}")
     except Exception:
         conn.rollback()
-        try:
-            with conn.cursor() as cur:
-                cur.execute("DELETE FROM knowledge_chunks WHERE document_id = %s", (document_id,))
-                conn.commit()
-        except Exception:
-            pass
         raise
     finally:
         conn.close()

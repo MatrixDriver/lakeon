@@ -11,6 +11,7 @@ import requests
 from parser import parse_document
 from chunker import chunk_document, assign_pages, detect_duplicates
 from callback import report_success, report_failure, report_progress
+from writer import write_chunks
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger("knowledge-job")
@@ -98,7 +99,6 @@ def main():
 
         report_progress("Writing to database", 0.9)
 
-        from writer import write_chunks
         write_chunks(database_connstr, document_id, chunks, all_embeddings)
 
         # Compute quality stats
