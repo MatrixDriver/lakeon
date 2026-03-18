@@ -70,16 +70,22 @@ def write_chunks(connstr, document_id, chunks, embeddings):
                     chunk.get("overlap_prev", 0),
                     chunk.get("page_start"),
                     chunk.get("page_end"),
+                    json.dumps(chunk["bbox"]) if chunk.get("bbox") is not None else None,
+                    chunk.get("level", 0),
+                    chunk.get("source_chunks"),
+                    chunk.get("edited", False),
+                    chunk.get("updated_at"),
                 ))
             execute_values(
                 cur,
                 """INSERT INTO knowledge_chunks
                    (document_id, chunk_index, content, embedding, metadata,
                     char_offset_start, char_offset_end, char_count, overlap_prev,
-                    page_start, page_end)
+                    page_start, page_end,
+                    bbox, level, source_chunks, edited, updated_at)
                    VALUES %s""",
                 values,
-                template="(%s, %s, %s, %s::vector, %s::jsonb, %s, %s, %s, %s, %s, %s)",
+                template="(%s, %s, %s, %s::vector, %s::jsonb, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s)",
             )
             conn.commit()
             logger.info(f"Wrote {len(values)} chunks for document {document_id}")

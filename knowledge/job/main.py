@@ -15,6 +15,9 @@ from callback import report_success, report_failure, report_progress
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger("knowledge-job")
 
+ANOMALY_SHORT_THRESHOLD = 80
+ANOMALY_LONG_THRESHOLD = 800
+
 def main():
     tmp_path = None
     try:
@@ -100,7 +103,7 @@ def main():
 
         # Compute quality stats
         quality_stats = {
-            "anomaly_count": sum(1 for c in chunks if len(c["content"]) < 80 or len(c["content"]) > 800),
+            "anomaly_count": sum(1 for c in chunks if len(c["content"]) < ANOMALY_SHORT_THRESHOLD or len(c["content"]) > ANOMALY_LONG_THRESHOLD),
             "duplicate_count": sum(1 for c in chunks if "duplicate_of" in c["metadata"]),
             "avg_char_count": sum(len(c["content"]) for c in chunks) // len(chunks) if chunks else 0,
         }

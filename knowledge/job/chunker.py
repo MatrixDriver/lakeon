@@ -26,12 +26,15 @@ def chunk_document(markdown: str, filename: str, format: str,
         blocks = _split_into_blocks(content)
         current_chunk = ""
         current_chunk_start = None  # offset in markdown for current accumulated chunk
+        search_start = 0  # tracks position in content to avoid matching earlier occurrences
 
         for block in blocks:
             # Find this block's position within the section content
-            block_offset_in_content = content.find(block, (current_chunk_start - content_start + len(current_chunk)) if current_chunk and current_chunk_start is not None else 0)
+            block_offset_in_content = content.find(block, search_start)
             if block_offset_in_content < 0:
                 block_offset_in_content = content.find(block)
+            if block_offset_in_content >= 0:
+                search_start = block_offset_in_content + len(block)
             block_abs_start = content_start + block_offset_in_content if block_offset_in_content >= 0 else None
 
             if block.startswith("```") or block.startswith("|"):
