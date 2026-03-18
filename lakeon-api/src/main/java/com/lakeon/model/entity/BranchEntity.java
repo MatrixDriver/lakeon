@@ -55,6 +55,12 @@ public class BranchEntity {
     @Column(name = "compute_port")
     private Integer computePort;
 
+    @Column(name = "suspend_timeout", length = 16)
+    private String suspendTimeout;
+
+    @Column(name = "suspended_at")
+    private Instant suspendedAt;
+
     @Column(name = "connection_uri", length = 512)
     private String connectionUri;
 
@@ -190,6 +196,22 @@ public class BranchEntity {
 
     public void setComputePort(Integer computePort) {
         this.computePort = computePort;
+    }
+
+    public String getSuspendTimeout() {
+        return suspendTimeout;
+    }
+
+    public void setSuspendTimeout(String suspendTimeout) {
+        this.suspendTimeout = suspendTimeout;
+    }
+
+    public Instant getSuspendedAt() {
+        return suspendedAt;
+    }
+
+    public void setSuspendedAt(Instant suspendedAt) {
+        this.suspendedAt = suspendedAt;
     }
 
     public String getConnectionUri() {

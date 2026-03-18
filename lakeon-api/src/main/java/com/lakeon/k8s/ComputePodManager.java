@@ -2,6 +2,7 @@ package com.lakeon.k8s;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.enums.ComputeSize;
 import io.fabric8.kubernetes.api.model.*;
@@ -195,6 +196,33 @@ public class ComputePodManager {
         entity.setComputePort(55433);
 
         return (podIp != null ? podIp : podName + "." + namespace) + ":55433";
+    }
+
+    /**
+     * Create a compute pod for a specific branch.
+     * Uses a transient DatabaseEntity proxy so existing createComputePod() works.
+     */
+    public String createComputePodForBranch(DatabaseEntity db, BranchEntity branch) {
+        DatabaseEntity proxy = new DatabaseEntity();
+        proxy.setId(branch.getId());
+        proxy.setName(db.getName());
+        proxy.setTenantId(db.getTenantId());
+        proxy.setNeonTenantId(db.getNeonTenantId());
+        proxy.setNeonTimelineId(branch.getNeonTimelineId());
+        proxy.setDbUser(db.getDbUser());
+        proxy.setDbPassword(db.getDbPassword());
+        proxy.setComputeSize(db.getComputeSize());
+        proxy.setSuspendTimeout(branch.getSuspendTimeout() != null
+            ? branch.getSuspendTimeout() : db.getSuspendTimeout());
+
+        String result = createComputePod(proxy);
+
+        // Copy compute fields back to branch entity
+        branch.setComputePodName(proxy.getComputePodName());
+        branch.setComputeHost(proxy.getComputeHost());
+        branch.setComputePort(proxy.getComputePort());
+
+        return result;
     }
 
     /**
