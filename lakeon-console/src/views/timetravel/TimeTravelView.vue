@@ -170,7 +170,7 @@
       </div>
 
       <!-- Branch table (collapsed, for detailed view) -->
-      <details class="branch-table-details">
+      <details class="branch-table-details" open>
         <summary class="branch-table-summary">分支详情表格</summary>
         <div class="section-card" style="margin-top: 12px;">
           <div class="table-toolbar-row">
