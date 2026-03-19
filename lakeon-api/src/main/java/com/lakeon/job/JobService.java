@@ -30,10 +30,18 @@ public class JobService {
     private final ObjectMapper objectMapper;
     private final ExecutorService executor = Executors.newFixedThreadPool(2);
 
+    // Lazy reference to avoid circular dependency (KbWriteQueue → JobService → KbWriteQueue)
+    private com.lakeon.knowledge.KbWriteQueue kbWriteQueue;
+
     public JobService(JobRepository jobRepository, JobPodManager jobPodManager, ObjectMapper objectMapper) {
         this.jobRepository = jobRepository;
         this.jobPodManager = jobPodManager;
         this.objectMapper = objectMapper;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setKbWriteQueue(com.lakeon.knowledge.KbWriteQueue kbWriteQueue) {
+        this.kbWriteQueue = kbWriteQueue;
     }
 
     /**
@@ -97,6 +105,11 @@ public class JobService {
                     job.setCompletedAt(Instant.now());
                     jobRepository.save(job);
                 });
+                // Notify KbWriteQueue so it can update document status and drain next task
+                if (kbWriteQueue != null) {
+                    kbWriteQueue.onJobCompleted(jobId, false, null,
+                            "Pod launch failed: " + e.getMessage());
+                }
             } catch (Exception ex) {
                 log.error("Failed to update job {} status to FAILED: {}", jobId, ex.getMessage());
             }
@@ -212,6 +225,17 @@ public class JobService {
             job.setCompletedAt(Instant.now());
             jobRepository.save(job);
             log.info("Job {} completed with status {}", jobId, newStatus);
+
+            // Notify KbWriteQueue if this job was submitted by it
+            if (kbWriteQueue != null) {
+                try {
+                    kbWriteQueue.onJobCompleted(jobId,
+                            newStatus == JobStatus.SUCCEEDED,
+                            resultJson, error);
+                } catch (Exception e) {
+                    log.warn("Failed to notify KbWriteQueue for job {}: {}", jobId, e.getMessage());
+                }
+            }
 
             // Clean up pod resources asynchronously
             executor.submit(() -> {

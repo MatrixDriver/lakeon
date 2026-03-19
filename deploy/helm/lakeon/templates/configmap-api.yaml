@@ -51,6 +51,24 @@ data:
   {{- if .Values.cloud.resourceIds }}
   LAKEON_CLOUD_RESOURCE_IDS: {{ .Values.cloud.resourceIds | join "," | quote }}
   {{- end }}
+  {{- if .Values.cloud.consoleRegion }}
+  LAKEON_CLOUD_CONSOLE_REGION: {{ .Values.cloud.consoleRegion | quote }}
+  {{- end }}
+  {{- if .Values.cloud.cceClusterId }}
+  LAKEON_CLOUD_CCE_CLUSTER_ID: {{ .Values.cloud.cceClusterId | quote }}
+  {{- end }}
+  {{- if .Values.cloud.rdsInstanceId }}
+  LAKEON_CLOUD_RDS_INSTANCE_ID: {{ .Values.cloud.rdsInstanceId | quote }}
+  {{- end }}
+  {{- if .Values.cloud.elbId }}
+  LAKEON_CLOUD_ELB_ID: {{ .Values.cloud.elbId | quote }}
+  {{- end }}
+  {{- if .Values.cloud.eipId }}
+  LAKEON_CLOUD_EIP_ID: {{ .Values.cloud.eipId | quote }}
+  {{- end }}
+  {{- if .Values.cloud.nodePoolId }}
+  LAKEON_CLOUD_NODE_POOL_ID: {{ .Values.cloud.nodePoolId | quote }}
+  {{- end }}
   {{- end }}
   {{- if .Values.sync }}
   {{- if .Values.sync.pollIntervalMs }}

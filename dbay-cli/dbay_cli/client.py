@@ -1,4 +1,5 @@
 import httpx
+import time
 from typing import Any, Optional
 
 
@@ -224,26 +225,54 @@ class DbayClient:
             f"/knowledge/bases/{kb_id}/documents/{doc_id}/chunk-stats",
         )
 
-    def edit_chunk(self, kb_id: str, doc_id: str, chunk_index: int, content: str):
+    def get_write_task(self, kb_id: str, task_id: str):
         return self._request(
+            "GET",
+            f"/knowledge/bases/{kb_id}/write-tasks/{task_id}",
+        )
+
+    def _poll_write_task(self, kb_id: str, task_id: str,
+                          timeout: int = 120, interval: float = 1) -> dict:
+        """Poll a write task until it reaches a terminal state."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            task = self.get_write_task(kb_id, task_id)
+            if task["status"] in ("SUCCEEDED", "FAILED"):
+                if task["status"] == "FAILED":
+                    raise DbayApiError(500, {"error": task.get("error", "Write task failed")})
+                return task
+            time.sleep(interval)
+        raise DbayApiError(504, {"error": f"Write task {task_id} timed out after {timeout}s"})
+
+    def edit_chunk(self, kb_id: str, doc_id: str, chunk_index: int, content: str):
+        result = self._request(
             "PUT",
             f"/knowledge/bases/{kb_id}/documents/{doc_id}/chunks/{chunk_index}",
             json={"content": content},
         )
+        if isinstance(result, dict) and "task_id" in result:
+            return self._poll_write_task(kb_id, result["task_id"])
+        return result
 
     def delete_chunk(self, kb_id: str, doc_id: str, chunk_index: int):
-        return self._request(
+        result = self._request(
             "DELETE",
             f"/knowledge/bases/{kb_id}/documents/{doc_id}/chunks/{chunk_index}",
         )
+        if isinstance(result, dict) and "task_id" in result:
+            return self._poll_write_task(kb_id, result["task_id"])
+        return result
 
     def create_chunk(self, kb_id: str, doc_id: str, content: str,
                      insert_after_index: int = -1):
-        return self._request(
+        result = self._request(
             "POST",
             f"/knowledge/bases/{kb_id}/documents/{doc_id}/chunks",
             json={"content": content, "insert_after_index": insert_after_index},
         )
+        if isinstance(result, dict) and "task_id" in result:
+            return self._poll_write_task(kb_id, result["task_id"])
+        return result
 
     def rechunk(self, kb_id: str, doc_id: str, max_tokens: int = 400,
                 overlap_ratio: float = 0.15, custom_separator: str | None = None):
@@ -257,11 +286,14 @@ class DbayClient:
         )
 
     def rechunk_rollback(self, kb_id: str, doc_id: str, branch_id: str):
-        return self._request(
+        result = self._request(
             "POST",
             f"/knowledge/bases/{kb_id}/documents/{doc_id}/rechunk/rollback",
             json={"branch_id": branch_id},
         )
+        if isinstance(result, dict) and "task_id" in result:
+            return self._poll_write_task(kb_id, result["task_id"])
+        return result
 
     def list_rechunk_branches(self, kb_id: str, doc_id: str):
         return self._request(

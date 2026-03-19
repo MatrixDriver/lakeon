@@ -58,6 +58,7 @@ public class ChunkService {
     private final BranchRepository branchRepository;
     private final JobService jobService;
     private final RestTemplate restTemplate;
+    private final KbWriteQueue kbWriteQueue;
 
     public ChunkService(KnowledgeDbHelper dbHelper,
                         LakeonProperties props,
@@ -67,7 +68,8 @@ public class ChunkService {
                         DatabaseRepository databaseRepository,
                         BranchService branchService,
                         BranchRepository branchRepository,
-                        JobService jobService) {
+                        JobService jobService,
+                        KbWriteQueue kbWriteQueue) {
         this.dbHelper = dbHelper;
         this.props = props;
         this.objectMapper = objectMapper;
@@ -77,6 +79,7 @@ public class ChunkService {
         this.branchService = branchService;
         this.branchRepository = branchRepository;
         this.jobService = jobService;
+        this.kbWriteQueue = kbWriteQueue;
         this.restTemplate = new RestTemplate();
     }
 
@@ -427,205 +430,103 @@ public class ChunkService {
 
     /**
      * Edit a chunk's content and regenerate its embedding.
+     * Submits a KbWriteTask and returns the task entity.
      */
-    public Map<String, Object> editChunk(String tenantId, String kbId, String docId,
+    public KbWriteTaskEntity editChunk(String tenantId, String kbId, String docId,
                                           int chunkIndex, String newContent) {
-        // 1. Get new embedding
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+
+        // Compute embedding before submitting (still synchronous)
         float[] embedding = getEmbedding(newContent);
         String vectorStr = floatArrayToVectorLiteral(embedding);
 
-        String updateSql = "UPDATE knowledge_chunks SET content = ?, embedding = ?::vector, " +
-                "char_count = ?, edited = true, updated_at = now() " +
-                "WHERE document_id = ? AND chunk_index = ? AND level = 0 " +
-                "RETURNING id, chunk_index, content, metadata, char_count, overlap_prev, " +
-                "char_offset_start, char_offset_end, page_start, page_end, level, edited, " +
-                "created_at, updated_at";
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("document_id", docId);
+        params.put("chunk_index", chunkIndex);
+        params.put("content", newContent);
+        params.put("embedding_vector", vectorStr);
 
-        try (Connection conn = dbHelper.getComputeConnection(tenantId, kbId);
-             PreparedStatement ps = conn.prepareStatement(updateSql)) {
-            ps.setString(1, newContent);
-            ps.setString(2, vectorStr);
-            ps.setInt(3, newContent.length());
-            ps.setString(4, docId);
-            ps.setInt(5, chunkIndex);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rowToChunkMap(rs);
-                }
-            }
-        } catch (Exception e) {
-            log.error("Failed to edit chunk {} for doc {} in kb {}: {}", chunkIndex, docId, kbId, e.getMessage(), e);
-            throw new RuntimeException("Failed to edit chunk: " + e.getMessage(), e);
-        }
-
-        throw new NotFoundException("Chunk not found: document=" + docId + " chunk_index=" + chunkIndex);
+        return kbWriteQueue.submit(tenantId, kbId, kb.getDatabaseId(),
+                KbWriteTaskType.EDIT_CHUNK, params);
     }
 
     /**
      * Delete a chunk and reindex subsequent chunks.
+     * Submits a KbWriteTask.
      */
-    public void deleteChunk(String tenantId, String kbId, String docId, int chunkIndex) {
-        String deleteSql = "DELETE FROM knowledge_chunks WHERE document_id = ? AND chunk_index = ? AND level = 0";
-        String reindexSql = "UPDATE knowledge_chunks SET chunk_index = chunk_index - 1 " +
-                "WHERE document_id = ? AND chunk_index > ? AND level = 0";
+    public KbWriteTaskEntity deleteChunk(String tenantId, String kbId, String docId, int chunkIndex) {
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
 
-        try (Connection conn = dbHelper.getComputeConnection(tenantId, kbId)) {
-            conn.setAutoCommit(false);
-            try {
-                // 1. Delete the chunk
-                int deleted;
-                try (PreparedStatement ps = conn.prepareStatement(deleteSql)) {
-                    ps.setString(1, docId);
-                    ps.setInt(2, chunkIndex);
-                    deleted = ps.executeUpdate();
-                }
-                if (deleted == 0) {
-                    conn.rollback();
-                    throw new NotFoundException("Chunk not found: document=" + docId + " chunk_index=" + chunkIndex);
-                }
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("document_id", docId);
+        params.put("chunk_index", chunkIndex);
 
-                // 2. Reindex subsequent chunks
-                try (PreparedStatement ps = conn.prepareStatement(reindexSql)) {
-                    ps.setString(1, docId);
-                    ps.setInt(2, chunkIndex);
-                    ps.executeUpdate();
-                }
-
-                conn.commit();
-            } catch (NotFoundException e) {
-                throw e;
-            } catch (Exception e) {
-                conn.rollback();
-                throw e;
-            }
-        } catch (NotFoundException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Failed to delete chunk {} for doc {} in kb {}: {}", chunkIndex, docId, kbId, e.getMessage(), e);
-            throw new RuntimeException("Failed to delete chunk: " + e.getMessage(), e);
-        }
-
-        // 3. Update chunksCount in RDS
-        DocumentEntity doc = documentRepository.findByIdAndTenantId(docId, tenantId).orElse(null);
-        if (doc != null && doc.getChunksCount() != null) {
-            doc.setChunksCount(doc.getChunksCount() - 1);
-            documentRepository.save(doc);
-        }
+        return kbWriteQueue.submit(tenantId, kbId, kb.getDatabaseId(),
+                KbWriteTaskType.DELETE_CHUNK, params);
     }
 
     /**
-     * Create a new chunk inserted after the given index, reindexing subsequent chunks.
+     * Create a new chunk inserted after the given index.
+     * Submits a KbWriteTask.
      */
-    public Map<String, Object> createChunk(String tenantId, String kbId, String docId,
+    public KbWriteTaskEntity createChunk(String tenantId, String kbId, String docId,
                                             String content, int insertAfterIndex) {
-        // 1. Get embedding
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+
+        // Compute embedding before submitting
         float[] embedding = getEmbedding(content);
         String vectorStr = floatArrayToVectorLiteral(embedding);
-        int newIndex = insertAfterIndex + 1;
 
-        String reindexSql = "UPDATE knowledge_chunks SET chunk_index = chunk_index + 1 " +
-                "WHERE document_id = ? AND chunk_index >= ? AND level = 0";
-        String insertSql = "INSERT INTO knowledge_chunks " +
-                "(id, document_id, chunk_index, content, embedding, char_count, edited, level, " +
-                "overlap_prev, created_at, updated_at) " +
-                "VALUES (?, ?, ?, ?, ?::vector, ?, true, 0, 0, now(), now()) " +
-                "RETURNING id, chunk_index, content, metadata, char_count, overlap_prev, " +
-                "char_offset_start, char_offset_end, page_start, page_end, level, edited, " +
-                "created_at, updated_at";
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("document_id", docId);
+        params.put("content", content);
+        params.put("embedding_vector", vectorStr);
+        params.put("insert_after_index", insertAfterIndex);
 
-        Map<String, Object> result;
-        try (Connection conn = dbHelper.getComputeConnection(tenantId, kbId)) {
-            conn.setAutoCommit(false);
-            try {
-                // 2. Shift subsequent chunks up
-                try (PreparedStatement ps = conn.prepareStatement(reindexSql)) {
-                    ps.setString(1, docId);
-                    ps.setInt(2, newIndex);
-                    ps.executeUpdate();
-                }
-
-                // 3. Insert the new chunk
-                String chunkId = "chk_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
-                try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
-                    ps.setString(1, chunkId);
-                    ps.setString(2, docId);
-                    ps.setInt(3, newIndex);
-                    ps.setString(4, content);
-                    ps.setString(5, vectorStr);
-                    ps.setInt(6, content.length());
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) {
-                            result = rowToChunkMap(rs);
-                        } else {
-                            throw new RuntimeException("INSERT did not return a row");
-                        }
-                    }
-                }
-
-                conn.commit();
-            } catch (Exception e) {
-                conn.rollback();
-                throw e;
-            }
-        } catch (Exception e) {
-            log.error("Failed to create chunk for doc {} in kb {}: {}", docId, kbId, e.getMessage(), e);
-            throw new RuntimeException("Failed to create chunk: " + e.getMessage(), e);
-        }
-
-        // 4. Update chunksCount in RDS
-        DocumentEntity doc = documentRepository.findByIdAndTenantId(docId, tenantId).orElse(null);
-        if (doc != null) {
-            doc.setChunksCount(doc.getChunksCount() != null ? doc.getChunksCount() + 1 : 1);
-            documentRepository.save(doc);
-        }
-
-        return result;
+        return kbWriteQueue.submit(tenantId, kbId, kb.getDatabaseId(),
+                KbWriteTaskType.CREATE_CHUNK, params);
     }
 
     // ── Rechunk operations ────────────────────────────────────────
 
     /**
-     * Rechunk a document: create a Neon branch snapshot, then submit a DOCUMENT_PARSE
-     * job with custom chunking params. Returns immediately with {job_id, branch_id, branch_name}.
+     * Rechunk a document: create a Neon branch snapshot, then submit via KbWriteQueue.
+     * Returns immediately with {task_id, branch_id, branch_name}.
      */
     @Transactional
     public Map<String, Object> rechunk(TenantEntity tenant, String kbId, String docId,
                                         int maxTokens, double overlapRatio, String customSeparator) {
         String tenantId = tenant.getId();
 
-        // 1. Validate document exists and belongs to this tenant/KB
         DocumentEntity doc = documentRepository.findByIdAndTenantId(docId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Document not found: " + docId));
         if (!kbId.equals(doc.getKbId())) {
             throw new BadRequestException("Document does not belong to knowledge base: " + kbId);
         }
 
-        // Auto-reset stale rechunk locks (30 min timeout)
         resetStaleRechunkLock(doc);
 
-        // 2. CAS lock: IDLE -> IN_PROGRESS
         int updated = documentRepository.casLockRechunk(docId);
         if (updated == 0) {
             throw new ConflictException("Document is already being rechunked");
         }
 
-        // 3. Resolve KB -> database
         KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
         String databaseId = kb.getDatabaseId();
         DatabaseEntity db = databaseRepository.findByIdAndTenantId(databaseId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Database not found: " + databaseId));
 
-        // 4. Create Neon branch as snapshot before rechunk
         String branchName = "rechunk/" + docId + "/" + Instant.now().getEpochSecond();
         CreateBranchRequest branchReq = new CreateBranchRequest(branchName, false, null, null);
         var branchResp = branchService.create(tenant, databaseId, branchReq);
 
-        // 5. Clean up old rechunk branches: keep newest 3
         cleanupOldRechunkBranches(tenant, databaseId, "rechunk/" + docId + "/", 3);
 
-        // 6. Submit DOCUMENT_PARSE job with rechunk params
-        String connstr = dbHelper.resolveComputeConnstr(databaseId, tenantId, kb.getDbPassword());
+        // Build job params — connstr will be overridden by KbWriteQueue to point to kb-write pod
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("document_id", docId);
         params.put("tenant_id", tenantId);
@@ -633,11 +534,10 @@ public class ChunkService {
         params.put("obs_key", doc.getObsKey());
         params.put("format", doc.getFormat());
         params.put("filename", doc.getFilename());
-        params.put("database_connstr", connstr);
+        params.put("database_connstr", "placeholder"); // overridden by KbWriteQueue
         params.put("embedding_api_url", props.getKnowledge().getEmbeddingApiUrl());
         params.put("embedding_api_key", props.getKnowledge().getEmbeddingApiKey());
         params.put("embedding_model", props.getKnowledge().getEmbeddingModel());
-        // Rechunk-specific params
         params.put("max_tokens", maxTokens);
         params.put("overlap_ratio", overlapRatio);
         if (customSeparator != null && !customSeparator.isBlank()) {
@@ -645,146 +545,54 @@ public class ChunkService {
         }
         params.put("rechunk", true);
 
-        JobEntity job = jobService.submitJob(tenant, JobType.DOCUMENT_PARSE, params);
+        KbWriteTaskEntity task = kbWriteQueue.submit(tenantId, kbId, databaseId,
+                KbWriteTaskType.RECHUNK, params);
 
-        // Update doc status
         doc = documentRepository.findById(docId).orElseThrow();
-        doc.setJobId(job.getId());
+        doc.setJobId(null); // will be set when KbWriteQueue creates the job
         documentRepository.save(doc);
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("job_id", job.getId());
+        result.put("task_id", task.getId());
         result.put("branch_id", branchResp.getId());
         result.put("branch_name", branchName);
         return result;
     }
 
     /**
-     * Rollback rechunk: copy chunks from a branch snapshot back to the main timeline.
+     * Rollback rechunk: submit a KbWriteTask to copy chunks from branch back to main timeline.
      */
-    public void rechunkRollback(String tenantId, String kbId, String docId, String branchId) {
-        // 1. Validate document
+    public KbWriteTaskEntity rechunkRollback(String tenantId, String kbId, String docId, String branchId) {
         DocumentEntity doc = documentRepository.findByIdAndTenantId(docId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Document not found: " + docId));
         if (!kbId.equals(doc.getKbId())) {
             throw new BadRequestException("Document does not belong to knowledge base: " + kbId);
         }
 
-        // 2. Resolve KB -> database
         KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
         String databaseId = kb.getDatabaseId();
         DatabaseEntity db = databaseRepository.findByIdAndTenantId(databaseId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Database not found: " + databaseId));
 
-        // 3. Find branch and verify it belongs to this database
         BranchEntity branch = branchRepository.findByIdAndDatabaseId(branchId, databaseId)
                 .orElseThrow(() -> new NotFoundException("Branch not found: " + branchId));
 
-        // 4. Read all chunks from the branch
+        // Build branch connection info for the task
         String branchConnstr = buildBranchConnstr(db, branch, kb.getDbPassword());
         String branchJdbcUrl = dbHelper.connstrToJdbc(branchConnstr);
         String branchUser = dbHelper.extractUser(branchConnstr);
         String branchPass = dbHelper.extractPassword(branchConnstr);
 
-        List<Map<String, Object>> branchChunks = new ArrayList<>();
-        String selectSql = "SELECT id, chunk_index, content, embedding::text, metadata::text, " +
-                "char_offset_start, char_offset_end, char_count, overlap_prev, " +
-                "page_start, page_end, bbox::text, level, source_chunks, edited, updated_at " +
-                "FROM knowledge_chunks WHERE document_id = ? AND level = 0 ORDER BY chunk_index";
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("document_id", docId);
+        params.put("branch_id", branchId);
+        params.put("branch_jdbc_url", branchJdbcUrl);
+        params.put("branch_user", branchUser);
+        params.put("branch_pass", branchPass);
 
-        try (Connection conn = DriverManager.getConnection(branchJdbcUrl, branchUser, branchPass);
-             PreparedStatement ps = conn.prepareStatement(selectSql)) {
-            ps.setString(1, docId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    Map<String, Object> row = new LinkedHashMap<>();
-                    row.put("id", rs.getString("id"));
-                    row.put("chunk_index", rs.getInt("chunk_index"));
-                    row.put("content", rs.getString("content"));
-                    row.put("embedding", rs.getString("embedding"));
-                    row.put("metadata", rs.getString("metadata"));
-                    row.put("char_offset_start", rs.getObject("char_offset_start"));
-                    row.put("char_offset_end", rs.getObject("char_offset_end"));
-                    row.put("char_count", rs.getObject("char_count"));
-                    row.put("overlap_prev", rs.getObject("overlap_prev"));
-                    row.put("page_start", rs.getObject("page_start"));
-                    row.put("page_end", rs.getObject("page_end"));
-                    row.put("bbox", rs.getString("bbox"));
-                    row.put("level", rs.getInt("level"));
-                    row.put("source_chunks", rs.getArray("source_chunks"));
-                    row.put("edited", rs.getBoolean("edited"));
-                    row.put("updated_at", rs.getTimestamp("updated_at"));
-                    branchChunks.add(row);
-                }
-            }
-        } catch (Exception e) {
-            log.error("Failed to read chunks from branch {} for rollback: {}", branchId, e.getMessage(), e);
-            throw new RuntimeException("Failed to read chunks from branch: " + e.getMessage(), e);
-        }
-
-        if (branchChunks.isEmpty()) {
-            throw new BadRequestException("No chunks found in branch snapshot for document: " + docId);
-        }
-
-        // 5. Write chunks to main timeline in a single transaction
-        String deleteSql = "DELETE FROM knowledge_chunks WHERE document_id = ? AND level = 0";
-        String insertSql = "INSERT INTO knowledge_chunks " +
-                "(id, document_id, chunk_index, content, embedding, metadata, " +
-                "char_offset_start, char_offset_end, char_count, overlap_prev, " +
-                "page_start, page_end, bbox, level, source_chunks, edited, updated_at) " +
-                "VALUES (?, ?, ?, ?, ?::vector, ?::jsonb, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, now())";
-
-        try (Connection conn = dbHelper.getComputeConnection(tenantId, kbId)) {
-            conn.setAutoCommit(false);
-            try {
-                // Delete current chunks
-                try (PreparedStatement ps = conn.prepareStatement(deleteSql)) {
-                    ps.setString(1, docId);
-                    ps.executeUpdate();
-                }
-
-                // Insert branch chunks
-                try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
-                    for (Map<String, Object> chunk : branchChunks) {
-                        ps.setString(1, (String) chunk.get("id"));
-                        ps.setString(2, docId);
-                        ps.setInt(3, (int) chunk.get("chunk_index"));
-                        ps.setString(4, (String) chunk.get("content"));
-                        ps.setString(5, (String) chunk.get("embedding"));
-                        ps.setString(6, (String) chunk.get("metadata"));
-                        ps.setObject(7, chunk.get("char_offset_start"));
-                        ps.setObject(8, chunk.get("char_offset_end"));
-                        ps.setObject(9, chunk.get("char_count"));
-                        ps.setObject(10, chunk.get("overlap_prev"));
-                        ps.setObject(11, chunk.get("page_start"));
-                        ps.setObject(12, chunk.get("page_end"));
-                        ps.setString(13, (String) chunk.get("bbox"));
-                        ps.setInt(14, (int) chunk.get("level"));
-                        ps.setObject(15, chunk.get("source_chunks"));
-                        ps.setBoolean(16, (boolean) chunk.get("edited"));
-                        ps.addBatch();
-                    }
-                    ps.executeBatch();
-                }
-
-                conn.commit();
-            } catch (Exception e) {
-                conn.rollback();
-                throw e;
-            }
-        } catch (Exception e) {
-            log.error("Failed to rollback rechunk for doc {} from branch {}: {}", docId, branchId, e.getMessage(), e);
-            throw new RuntimeException("Failed to rollback rechunk: " + e.getMessage(), e);
-        }
-
-        // 6. Update document metadata
-        doc.setChunksCount(branchChunks.size());
-        doc.setRechunkStatus(RechunkStatus.IDLE);
-        doc.setRechunkStartedAt(null);
-        documentRepository.save(doc);
-
-        log.info("Rechunk rollback completed for doc {} from branch {}: {} chunks restored", docId, branchId, branchChunks.size());
+        return kbWriteQueue.submit(tenantId, kbId, databaseId,
+                KbWriteTaskType.RECHUNK_ROLLBACK, params);
     }
 
     /**

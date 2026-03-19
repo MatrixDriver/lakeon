@@ -1,0 +1,11 @@
+package com.lakeon.knowledge;
+
+public enum KbWriteTaskType {
+    DOCUMENT_PARSE,
+    RECHUNK,
+    EDIT_CHUNK,
+    DELETE_CHUNK,
+    CREATE_CHUNK,
+    RECHUNK_ROLLBACK,
+    DELETE_DOCUMENT_CHUNKS
+}

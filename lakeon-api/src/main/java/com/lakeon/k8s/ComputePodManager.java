@@ -28,6 +28,7 @@ public class ComputePodManager {
     private final LakeonProperties props;
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
+    private final ComputeSpecBuilder specBuilder;
 
     public ComputePodManager(KubernetesClient k8sClient, LakeonProperties props, ObjectMapper objectMapper,
                              MeterRegistry meterRegistry) {
@@ -35,6 +36,7 @@ public class ComputePodManager {
         this.props = props;
         this.objectMapper = objectMapper;
         this.meterRegistry = meterRegistry;
+        this.specBuilder = new ComputeSpecBuilder(props, objectMapper);
         Gauge.builder("lakeon_compute_pods_active", this, ComputePodManager::countActivePods)
             .description("Number of active compute pods")
             .register(meterRegistry);
@@ -64,7 +66,7 @@ public class ComputePodManager {
         String namespace = props.getK8s().getNamespace();
         ComputeSize size = ComputeSize.fromLabel(entity.getComputeSize());
 
-        String configJson = generateComputeConfig(entity);
+        String configJson = specBuilder.generateComputeConfig(entity, 600);
 
         // Create ConfigMap with compute spec (safe: no shell interpretation)
         ConfigMap configMap = new ConfigMapBuilder()
@@ -268,13 +270,31 @@ public class ComputePodManager {
      * Check if a Pod is ready.
      */
     /**
-     * List all compute pod names in the compute namespace.
+     * Snapshot of a compute pod's name and health state.
      */
-    public List<String> listAllPodNames() {
+    public record PodInfo(String name, boolean crashLoop) {}
+
+    /**
+     * List all compute pods with their health state in a single K8s API call.
+     */
+    public List<PodInfo> listAllPods() {
         String namespace = props.getK8s().getNamespace();
-        return k8sClient.pods().inNamespace(namespace).list().getItems().stream()
-            .map(p -> p.getMetadata().getName())
-            .toList();
+        List<PodInfo> result = new ArrayList<>();
+        for (Pod pod : k8sClient.pods().inNamespace(namespace).list().getItems()) {
+            if (pod.getMetadata().getDeletionTimestamp() != null) continue;
+            boolean crashLoop = false;
+            if (pod.getStatus() != null && pod.getStatus().getContainerStatuses() != null) {
+                for (ContainerStatus cs : pod.getStatus().getContainerStatuses()) {
+                    if (cs.getState() != null && cs.getState().getWaiting() != null
+                            && "CrashLoopBackOff".equals(cs.getState().getWaiting().getReason())) {
+                        crashLoop = true;
+                        break;
+                    }
+                }
+            }
+            result.add(new PodInfo(pod.getMetadata().getName(), crashLoop));
+        }
+        return result;
     }
 
     /**
@@ -551,51 +571,6 @@ public class ComputePodManager {
         } catch (NumberFormatException e) { return 0; }
     }
 
-    private String generateComputeConfig(DatabaseEntity entity) {
-        Map<String, Object> spec = new LinkedHashMap<>();
-        spec.put("format_version", 2);
-        spec.put("operation_uuid", UUID.randomUUID().toString());
-        spec.put("tenant_id", entity.getNeonTenantId());
-        spec.put("timeline_id", entity.getNeonTimelineId());
-        String pageserverFqdn = extractPageserverHost() + ".lakeon.svc.cluster.local";
-        spec.put("pageserver_connstring", "postgresql://" + pageserverFqdn + ":6400");
-        spec.put("safekeeper_connstrings", parseSafekeeperUrls());
-        spec.put("mode", "Primary");
-        // Neon compute self-suspends after this many seconds of no connections.
-        spec.put("suspend_timeout_seconds", 600);
-
-        Map<String, Object> cluster = new LinkedHashMap<>();
-        cluster.put("cluster_id", "lakeon_" + entity.getId());
-        cluster.put("name", entity.getName());
-        cluster.put("state", "restarted");
-        cluster.put("roles", List.of(
-            Map.of(
-                "name", entity.getDbUser() != null ? entity.getDbUser() : "lakeon",
-                "encrypted_password", entity.getDbPassword() != null ? entity.getDbPassword() : ""
-            ),
-            Map.of(
-                "name", "cloud_admin",
-                "encrypted_password", com.lakeon.util.ScramUtils.generateScramHash("cloud-admin-internal")
-            )
-        ));
-        cluster.put("databases", List.of(Map.of(
-            "name", entity.getName(),
-            "owner", entity.getDbUser() != null ? entity.getDbUser() : "lakeon"
-        )));
-        cluster.put("settings", getDefaultPgSettings(entity));
-        spec.put("cluster", cluster);
-
-        Map<String, Object> config = Map.of(
-            "spec", spec,
-            "compute_ctl_config", Map.of("jwks", Map.of("keys", List.of()))
-        );
-        try {
-            return objectMapper.writeValueAsString(config);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to generate compute config", e);
-        }
-    }
-
     private String resolveComputeCpu(ComputeSize size) {
         String override = props.getK8s().getComputeCpu();
         return (override != null && !override.isBlank()) ? override : size.getCpu();
@@ -606,33 +581,4 @@ public class ComputePodManager {
         return (override != null && !override.isBlank()) ? override : size.getMemory();
     }
 
-    private String extractPageserverHost() {
-        String url = props.getNeon().getPageserverUrl();
-        return url.replaceAll("https?://", "").replaceAll(":\\d+$", "");
-    }
-
-    private List<String> parseSafekeeperUrls() {
-        String urls = props.getNeon().getSafekeeperUrls();
-        if (urls == null || urls.isBlank()) return List.of();
-        return Arrays.asList(urls.split(","));
-    }
-
-    private List<Map<String, String>> getDefaultPgSettings(DatabaseEntity entity) {
-        String pageserverFqdn = extractPageserverHost() + ".lakeon.svc.cluster.local";
-        List<Map<String, String>> settings = new ArrayList<>();
-        settings.add(Map.of("name", "shared_preload_libraries", "value", "neon", "vartype", "string"));
-        settings.add(Map.of("name", "fsync", "value", "off", "vartype", "bool"));
-        settings.add(Map.of("name", "wal_level", "value", "logical", "vartype", "enum"));
-        settings.add(Map.of("name", "wal_log_hints", "value", "on", "vartype", "bool"));
-        settings.add(Map.of("name", "log_connections", "value", "on", "vartype", "bool"));
-        settings.add(Map.of("name", "port", "value", "55433", "vartype", "integer"));
-        settings.add(Map.of("name", "shared_buffers", "value", "128MB", "vartype", "string"));
-        settings.add(Map.of("name", "max_connections", "value", "100", "vartype", "integer"));
-        settings.add(Map.of("name", "listen_addresses", "value", "0.0.0.0", "vartype", "string"));
-        settings.add(Map.of("name", "neon.pageserver_connstring", "value", "postgresql://pageserver." + "lakeon.svc.cluster.local:6400", "vartype", "string"));
-        settings.add(Map.of("name", "neon.safekeepers", "value", props.getNeon().getSafekeeperUrls(), "vartype", "string"));
-        settings.add(Map.of("name", "neon.tenant_id", "value", entity.getNeonTenantId(), "vartype", "string"));
-        settings.add(Map.of("name", "neon.timeline_id", "value", entity.getNeonTimelineId(), "vartype", "string"));
-        return settings;
-    }
 }

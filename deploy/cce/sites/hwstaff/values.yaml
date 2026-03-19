@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.8.25"
+    tag: "0.9.2"
   resources:
     requests:
       cpu: "100m"
@@ -182,11 +182,14 @@ cost:
 # 在华为云控制台 > 费用中心 > 账单管理 > 资源账单 中查看 resource_id
 # 或使用 CBC API 获取完整资源列表后填入
 cloud:
+  consoleRegion: "cn-north-4"
   resourceIds:
-    - "46b20c38-5c54-4781-9f00-d25d8c1717a8"  # ELB 独享型 lakeon-elb
-    # TODO: 补充以下资源 ID（从华为云控制台获取）
-    # - "<CCE-CLUSTER-ID>"                     # CCE 集群
-    # - "<RDS-INSTANCE-ID>"                    # RDS PostgreSQL
+    - "80fc030a-1577-4daf-9f4c-fa31e93a3a85"  # ELB lakeon-elb
+  cceClusterId: "9fa5350b-1780-11f1-842d-0255ac100249"
+  rdsInstanceId: "1e82b27434584ffa99f0951c22246cb7in03"
+  elbId: "80fc030a-1577-4daf-9f4c-fa31e93a3a85"
+  eipId: "e7ecf9e9-bdcd-4ab9-a85a-bb70686e4faa"
+  nodePoolId: "55859b9b"
 
 # ── 弹性节点池（compute pod 自动扩缩容）──────────────────────────
 # 节点池 dbay-compute-pool (55859b9b) 已在 CCE 控制台创建:

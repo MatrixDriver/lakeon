@@ -2,6 +2,8 @@ package com.lakeon.service;
 
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.k8s.ComputePodManager;
+import com.lakeon.k8s.KbWritePodManager;
+import com.lakeon.knowledge.KbWriteTaskRepository;
 import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.OperationLogEntity;
@@ -22,6 +24,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Service
@@ -33,6 +36,8 @@ public class ComputeLifecycleService {
     private final DatabaseRepository databaseRepository;
     private final BranchRepository branchRepository;
     private final ComputePodManager computePodManager;
+    private final KbWritePodManager kbWritePodManager;
+    private final KbWriteTaskRepository kbWriteTaskRepository;
     private final OperationLogService operationLogService;
     private final LakeonProperties props;
     private final TransactionTemplate txTemplate;
@@ -40,12 +45,16 @@ public class ComputeLifecycleService {
     public ComputeLifecycleService(DatabaseRepository databaseRepository,
                                    BranchRepository branchRepository,
                                    ComputePodManager computePodManager,
+                                   KbWritePodManager kbWritePodManager,
+                                   KbWriteTaskRepository kbWriteTaskRepository,
                                    OperationLogService operationLogService,
                                    LakeonProperties props,
                                    TransactionTemplate txTemplate) {
         this.databaseRepository = databaseRepository;
         this.branchRepository = branchRepository;
         this.computePodManager = computePodManager;
+        this.kbWritePodManager = kbWritePodManager;
+        this.kbWriteTaskRepository = kbWriteTaskRepository;
         this.operationLogService = operationLogService;
         this.props = props;
         this.txTemplate = txTemplate;
@@ -120,7 +129,8 @@ public class ComputeLifecycleService {
         try {
             doCheckAutoSuspend();
             doCleanupExpiredPods();
-            doCleanupOrphanedPods();
+            doCleanupAndRecoverPods();
+            doCleanupIdleKbWritePods();
         } finally {
             suspendLock.unlock();
         }
@@ -246,41 +256,102 @@ public class ComputeLifecycleService {
     }
 
     /**
-     * Cleanup orphaned pods: pods in lakeon-compute namespace that have no matching
-     * database or branch entity pointing to them.
+     * Single-pass pod cleanup: handles both orphaned pods and CrashLoopBackOff recovery.
+     * One K8s list call + one DB scan, instead of two separate passes.
      */
-    private void doCleanupOrphanedPods() {
-        List<String> allPodNames;
+    private void doCleanupAndRecoverPods() {
+        List<ComputePodManager.PodInfo> allPods;
         try {
-            allPodNames = computePodManager.listAllPodNames();
+            allPods = computePodManager.listAllPods();
         } catch (Exception e) {
-            log.debug("Failed to list compute pods for orphan check: {}", e.getMessage());
+            log.debug("Failed to list compute pods: {}", e.getMessage());
             return;
         }
-        if (allPodNames.isEmpty()) return;
+        if (allPods.isEmpty()) return;
 
-        // Build set of all known pod names from databases and branches
-        java.util.Set<String> knownPods = new java.util.HashSet<>();
+        // Build pod-name → entity lookup from DB (single scan)
+        java.util.Map<String, DatabaseEntity> dbByPod = new java.util.HashMap<>();
         for (DatabaseEntity db : databaseRepository.findAll()) {
-            if (db.getComputePodName() != null) knownPods.add(db.getComputePodName());
+            if (db.getComputePodName() != null) dbByPod.put(db.getComputePodName(), db);
         }
+        java.util.Map<String, BranchEntity> brByPod = new java.util.HashMap<>();
         for (BranchEntity br : branchRepository.findAll()) {
-            if (br.getComputePodName() != null) knownPods.add(br.getComputePodName());
+            if (br.getComputePodName() != null) brByPod.put(br.getComputePodName(), br);
         }
 
-        for (String podName : allPodNames) {
-            if (!knownPods.contains(podName)) {
-                // Skip recently created pods (grace period for async DB creation and KB processing)
-                if (computePodManager.getPodAgeSeconds(podName) < 600) {
-                    log.debug("Skipping orphan check for young pod: {} (age < 600s)", podName);
+        for (ComputePodManager.PodInfo pod : allPods) {
+            boolean owned = dbByPod.containsKey(pod.name()) || brByPod.containsKey(pod.name());
+
+            // CrashLoopBackOff recovery: reset owner to SUSPENDED and delete pod
+            if (pod.crashLoop() && owned && computePodManager.getPodAgeSeconds(pod.name()) >= 60) {
+                log.warn("Recovering CrashLoopBackOff pod: {}", pod.name());
+                DatabaseEntity db = dbByPod.get(pod.name());
+                if (db != null) {
+                    db.setStatus(DatabaseStatus.SUSPENDED);
+                    db.setComputePodName(null);
+                    db.setComputeHost(null);
+                    db.setComputePort(null);
+                    db.setSuspendedAt(Instant.now());
+                    databaseRepository.save(db);
+                    log.info("Reset database {} to SUSPENDED after CrashLoopBackOff", db.getId());
+                }
+                BranchEntity br = brByPod.get(pod.name());
+                if (br != null) {
+                    br.setComputeStatus(ComputeStatus.SUSPENDED);
+                    br.setComputePodName(null);
+                    br.setComputeHost(null);
+                    br.setComputePort(null);
+                    br.setSuspendedAt(Instant.now());
+                    branchRepository.save(br);
+                    log.info("Reset branch {} to SUSPENDED after CrashLoopBackOff", br.getId());
+                }
+                try {
+                    computePodManager.deleteComputePod(pod.name());
+                } catch (Exception e) {
+                    log.error("Failed to delete crash-loop pod {}: {}", pod.name(), e.getMessage());
+                }
+                continue;
+            }
+
+            // Orphan cleanup: pod has no owning entity
+            if (!owned) {
+                if (computePodManager.getPodAgeSeconds(pod.name()) < 600) {
+                    log.debug("Skipping orphan check for young pod: {} (age < 600s)", pod.name());
                     continue;
                 }
-                log.warn("Cleaning up orphaned compute pod: {}", podName);
+                log.warn("Cleaning up orphaned compute pod: {}", pod.name());
                 try {
-                    computePodManager.deleteComputePod(podName);
+                    computePodManager.deleteComputePod(pod.name());
                 } catch (Exception e) {
-                    log.error("Failed to delete orphaned pod {}: {}", podName, e.getMessage());
+                    log.error("Failed to delete orphaned pod {}: {}", pod.name(), e.getMessage());
                 }
+            }
+        }
+    }
+
+    /**
+     * Clean up kb-write pods that have no active tasks and have been idle
+     * longer than the configured timeout.
+     */
+    private void doCleanupIdleKbWritePods() {
+        int idleMinutes = props.getKbWrite().getIdleTimeoutMinutes();
+        List<String> kbWriteDbIds = kbWritePodManager.listKbWritePodDatabaseIds();
+        Set<String> activeDbIds = new java.util.HashSet<>(kbWriteTaskRepository.findDatabaseIdsWithActiveTasks());
+
+        for (String dbId : kbWriteDbIds) {
+            if (activeDbIds.contains(dbId)) continue;
+
+            // Check pod age as proxy for idle time
+            String podName = "kb-write-" + dbId.replace("_", "-");
+            long ageSeconds = computePodManager.getPodAgeSeconds(podName);
+            if (ageSeconds < idleMinutes * 60L) continue;
+
+            log.info("Cleaning up idle kb-write pod for database {} (age={}s, threshold={}min)",
+                    dbId, ageSeconds, idleMinutes);
+            try {
+                kbWritePodManager.deleteKbWritePod(dbId);
+            } catch (Exception e) {
+                log.error("Failed to delete idle kb-write pod for db {}: {}", dbId, e.getMessage());
             }
         }
     }

@@ -571,6 +571,8 @@ public class AdminService {
 
     public Map<String, Object> getCloudResources() {
         Map<String, Object> result = new LinkedHashMap<>();
+        var cloud = props.getCloud();
+        String region = cloud.getConsoleRegion();
 
         // Build topology (deployment architecture)
         Map<String, Object> topology = new LinkedHashMap<>();
@@ -594,38 +596,70 @@ public class AdminService {
         topology.put("edges", topoEdges);
         result.put("topology", topology);
 
-        // Build resource list
+        // Build resource list with IDs and console URLs
         List<Map<String, Object>> resources = new java.util.ArrayList<>();
 
-        resources.add(buildResource("CCE 集群", "cn-north-4", "CCE", "容器集群", "ACTIVE"));
-        resources.add(buildResource("弹性节点池 dbay-compute-pool", "cn-north-4", "CCE", "节点池", "ACTIVE"));
+        resources.add(buildResource("CCE 集群", region, "CCE", "容器集群", "ACTIVE",
+                cloud.getCceClusterId(), consoleUrl("cce-cluster", region, cloud.getCceClusterId())));
 
-        // Count nodes
+        resources.add(buildResource("弹性节点池 dbay-compute-pool", region, "CCE", "节点池", "ACTIVE",
+                cloud.getNodePoolId(), consoleUrl("cce-nodepool", region, cloud.getCceClusterId(), cloud.getNodePoolId())));
+
         try {
             int nodeCount = k8sClient.nodes().list().getItems().size();
-            resources.add(buildResource("CCE 节点 (" + nodeCount + "台)", "cn-north-4", "CCE", "弹性云服务器", "ACTIVE"));
+            resources.add(buildResource("CCE 节点 (" + nodeCount + "台)", region, "CCE", "弹性云服务器", "ACTIVE",
+                    "", consoleUrl("cce-nodes", region, cloud.getCceClusterId())));
         } catch (Exception e) {
-            resources.add(buildResource("CCE 节点", "cn-north-4", "CCE", "弹性云服务器", "UNKNOWN"));
+            resources.add(buildResource("CCE 节点", region, "CCE", "弹性云服务器", "UNKNOWN",
+                    "", ""));
         }
 
-        resources.add(buildResource("RDS PostgreSQL", "cn-north-4", "RDS", "关系型数据库", "ACTIVE"));
-        resources.add(buildResource("OBS " + props.getObs().getBucket(), "cn-north-4", "OBS", "对象存储桶", "ACTIVE"));
-        resources.add(buildResource("ELB 负载均衡", "cn-north-4", "ELB", "弹性负载均衡", "ACTIVE"));
-        resources.add(buildResource("EIP api.dbay.cloud", "cn-north-4", "EIP", "弹性公网IP", "ACTIVE"));
-        resources.add(buildResource("Railway Console", "海外 (Singapore)", "Railway", "Web 托管", "ACTIVE"));
-        resources.add(buildResource("Railway Admin", "海外 (Singapore)", "Railway", "Web 托管", "ACTIVE"));
+        resources.add(buildResource("RDS PostgreSQL", region, "RDS", "关系型数据库", "ACTIVE",
+                cloud.getRdsInstanceId(), consoleUrl("rds", region, cloud.getRdsInstanceId())));
+        resources.add(buildResource("OBS " + props.getObs().getBucket(), region, "OBS", "对象存储桶", "ACTIVE",
+                props.getObs().getBucket(), consoleUrl("obs", region, props.getObs().getBucket())));
+        resources.add(buildResource("ELB 负载均衡", region, "ELB", "弹性负载均衡", "ACTIVE",
+                cloud.getElbId(), consoleUrl("elb", region, cloud.getElbId())));
+        resources.add(buildResource("EIP api.dbay.cloud", region, "EIP", "弹性公网IP", "ACTIVE",
+                cloud.getEipId(), consoleUrl("eip", region, cloud.getEipId())));
+        resources.add(buildResource("Railway Console", "海外 (Singapore)", "Railway", "Web 托管", "ACTIVE",
+                "", "https://railway.com/dashboard"));
+        resources.add(buildResource("Railway Admin", "海外 (Singapore)", "Railway", "Web 托管", "ACTIVE",
+                "", "https://railway.com/dashboard"));
 
         result.put("resources", resources);
         return result;
     }
 
-    private Map<String, Object> buildResource(String name, String region, String service, String type, String status) {
+    private String consoleUrl(String type, String region, String... ids) {
+        String base = "https://console.huaweicloud.com";
+        String id = (ids.length > 0 && ids[0] != null) ? ids[0] : "";
+        if (id.isEmpty()) return "";
+        return switch (type) {
+            case "cce-cluster" -> base + "/cce2.0/?region=" + region + "#/app/cluster/detail?id=" + id;
+            case "cce-nodepool" -> {
+                String poolId = (ids.length > 1 && ids[1] != null && !ids[1].isEmpty()) ? ids[1] : "";
+                yield id.isEmpty() ? "" : base + "/cce2.0/?region=" + region + "#/app/cluster/detail/nodePool?id=" + id + (poolId.isEmpty() ? "" : "&poolId=" + poolId);
+            }
+            case "cce-nodes" -> base + "/cce2.0/?region=" + region + "#/app/cluster/detail/node?id=" + id;
+            case "rds" -> base + "/rds/?region=" + region + "#/rds/management/list/pg/" + id + "/summary";
+            case "obs" -> base + "/obs/?region=" + region + "#/obs/manage/" + id + "/overview";
+            case "elb" -> base + "/elb/?region=" + region + "#/elb/detail/" + id;
+            case "eip" -> base + "/vpc/?region=" + region + "#/eips/detail/" + id;
+            default -> "";
+        };
+    }
+
+    private Map<String, Object> buildResource(String name, String region, String service, String type, String status,
+                                               String resourceId, String consoleUrl) {
         Map<String, Object> r = new LinkedHashMap<>();
         r.put("name", name);
         r.put("region", region);
         r.put("service", service);
         r.put("type", type);
         r.put("status", status);
+        r.put("resourceId", resourceId != null ? resourceId : "");
+        r.put("consoleUrl", consoleUrl != null ? consoleUrl : "");
         return r;
     }
 

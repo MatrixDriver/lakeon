@@ -26,6 +26,7 @@ public class LakeonProperties {
     private SyncConfig sync = new SyncConfig();
     private JobConfig job = new JobConfig();
     private KnowledgeConfig knowledge = new KnowledgeConfig();
+    private KbWriteConfig kbWrite = new KbWriteConfig();
 
     public NeonConfig getNeon() { return neon; }
     public void setNeon(NeonConfig neon) { this.neon = neon; }
@@ -59,6 +60,8 @@ public class LakeonProperties {
     public void setJob(JobConfig job) { this.job = job; }
     public KnowledgeConfig getKnowledge() { return knowledge; }
     public void setKnowledge(KnowledgeConfig knowledge) { this.knowledge = knowledge; }
+    public KbWriteConfig getKbWrite() { return kbWrite; }
+    public void setKbWrite(KbWriteConfig kbWrite) { this.kbWrite = kbWrite; }
 
     public static class NeonConfig {
         private String pageserverUrl;
@@ -198,11 +201,29 @@ public class LakeonProperties {
     public static class CloudConfig {
         private String resourcesFile = "/app/data/cloud-resources.json";
         private List<String> resourceIds = List.of();
+        private String consoleRegion = "cn-north-4";
+        private String cceClusterId = "";
+        private String rdsInstanceId = "";
+        private String elbId = "";
+        private String eipId = "";
+        private String nodePoolId = "";
 
         public String getResourcesFile() { return resourcesFile; }
         public void setResourcesFile(String resourcesFile) { this.resourcesFile = resourcesFile; }
         public List<String> getResourceIds() { return resourceIds; }
         public void setResourceIds(List<String> resourceIds) { this.resourceIds = resourceIds; }
+        public String getConsoleRegion() { return consoleRegion; }
+        public void setConsoleRegion(String consoleRegion) { this.consoleRegion = consoleRegion; }
+        public String getCceClusterId() { return cceClusterId; }
+        public void setCceClusterId(String cceClusterId) { this.cceClusterId = cceClusterId; }
+        public String getRdsInstanceId() { return rdsInstanceId; }
+        public void setRdsInstanceId(String rdsInstanceId) { this.rdsInstanceId = rdsInstanceId; }
+        public String getElbId() { return elbId; }
+        public void setElbId(String elbId) { this.elbId = elbId; }
+        public String getEipId() { return eipId; }
+        public void setEipId(String eipId) { this.eipId = eipId; }
+        public String getNodePoolId() { return nodePoolId; }
+        public void setNodePoolId(String nodePoolId) { this.nodePoolId = nodePoolId; }
     }
 
     public static class AlertConfig {
@@ -330,5 +351,18 @@ public class LakeonProperties {
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
         public String getUrl() { return url; }
         public void setUrl(String url) { this.url = url; }
+    }
+
+    public static class KbWriteConfig {
+        private int idleTimeoutMinutes = 5;
+        private String cpu = "250m";
+        private String memory = "512Mi";
+
+        public int getIdleTimeoutMinutes() { return idleTimeoutMinutes; }
+        public void setIdleTimeoutMinutes(int idleTimeoutMinutes) { this.idleTimeoutMinutes = idleTimeoutMinutes; }
+        public String getCpu() { return cpu; }
+        public void setCpu(String cpu) { this.cpu = cpu; }
+        public String getMemory() { return memory; }
+        public void setMemory(String memory) { this.memory = memory; }
     }
 }

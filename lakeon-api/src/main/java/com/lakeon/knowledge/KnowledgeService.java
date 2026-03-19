@@ -59,6 +59,7 @@ public class KnowledgeService {
     private final HttpClient httpClient;
     private final QueryRewriteService queryRewriteService;
     private final AiSqlService aiSqlService;
+    private final KbWriteQueue kbWriteQueue;
 
     public KnowledgeService(DocumentRepository documentRepository,
                             KnowledgeBaseRepository knowledgeBaseRepository,
@@ -70,7 +71,8 @@ public class KnowledgeService {
                             DatabaseService databaseService,
                             KnowledgeDbHelper dbHelper,
                             QueryRewriteService queryRewriteService,
-                            AiSqlService aiSqlService) {
+                            AiSqlService aiSqlService,
+                            KbWriteQueue kbWriteQueue) {
         this.documentRepository = documentRepository;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.jobService = jobService;
@@ -82,6 +84,7 @@ public class KnowledgeService {
         this.dbHelper = dbHelper;
         this.queryRewriteService = queryRewriteService;
         this.aiSqlService = aiSqlService;
+        this.kbWriteQueue = kbWriteQueue;
         this.restTemplate = new RestTemplate();
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
@@ -363,7 +366,8 @@ public class KnowledgeService {
     }
 
     /**
-     * Trigger document processing by submitting a DOCUMENT_PARSE job.
+     * Trigger document processing by submitting via KbWriteQueue.
+     * The queue ensures the kb-write pod is ready and submits the job pod.
      */
     public DocumentEntity processDocument(TenantEntity tenant, String documentId) {
         DocumentEntity doc = documentRepository.findByIdAndTenantId(documentId, tenant.getId())
@@ -373,15 +377,10 @@ public class KnowledgeService {
             throw new BadRequestException("Document is not in PENDING status, current: " + doc.getStatus());
         }
 
-        // Ensure backing database compute is running
         KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(doc.getKbId(), tenant.getId())
                 .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + doc.getKbId()));
-        databaseService.ensureRunning(tenant, doc.getDatabaseId());
 
-        // Resolve database connection string (use KB's plaintext password for proxy auth)
-        String connstr = dbHelper.resolveComputeConnstr(doc.getDatabaseId(), tenant.getId(), kb.getDbPassword());
-
-        // Build job params
+        // Build job params — connstr will be overridden by KbWriteQueue to point to kb-write pod
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("document_id", doc.getId());
         params.put("tenant_id", tenant.getId());
@@ -389,17 +388,16 @@ public class KnowledgeService {
         params.put("obs_key", doc.getObsKey());
         params.put("format", doc.getFormat());
         params.put("filename", doc.getFilename());
-        params.put("database_connstr", connstr);
+        params.put("database_connstr", "placeholder"); // overridden by KbWriteQueue
         params.put("embedding_api_url", props.getKnowledge().getEmbeddingApiUrl());
         params.put("embedding_api_key", props.getKnowledge().getEmbeddingApiKey());
         params.put("embedding_model", props.getKnowledge().getEmbeddingModel());
 
-        // Submit DOCUMENT_PARSE job (has its own @Transactional)
-        JobEntity job = jobService.submitJob(tenant, JobType.DOCUMENT_PARSE, params);
+        KbWriteTaskEntity task = kbWriteQueue.submit(tenant.getId(), doc.getKbId(),
+                kb.getDatabaseId(), KbWriteTaskType.DOCUMENT_PARSE, params);
 
         // Update doc status
         doc.setStatus(DocumentStatus.PROCESSING);
-        doc.setJobId(job.getId());
         documentRepository.save(doc);
 
         return doc;
@@ -458,15 +456,14 @@ public class KnowledgeService {
             }
         }
 
-        // Delete chunks from user PG (best-effort)
+        // Delete chunks via KbWriteQueue (best-effort, async)
         if (doc.getDatabaseId() != null && doc.getKbId() != null) {
-            try (Connection conn = dbHelper.getComputeConnection(tenantId, doc.getKbId());
-                 PreparedStatement ps = conn.prepareStatement("DELETE FROM knowledge_chunks WHERE document_id = ?")) {
-                ps.setString(1, documentId);
-                int deleted = ps.executeUpdate();
-                log.info("Deleted {} chunks for document {}", deleted, documentId);
+            try {
+                kbWriteQueue.submit(tenantId, doc.getKbId(), doc.getDatabaseId(),
+                        KbWriteTaskType.DELETE_DOCUMENT_CHUNKS,
+                        Map.of("document_id", documentId));
             } catch (Exception e) {
-                log.warn("Failed to delete chunks for document {}: {}", documentId, e.getMessage());
+                log.warn("Failed to submit chunk deletion for document {}: {}", documentId, e.getMessage());
             }
         }
 

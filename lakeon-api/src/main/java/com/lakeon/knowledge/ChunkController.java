@@ -12,9 +12,11 @@ import java.util.Map;
 public class ChunkController {
 
     private final ChunkService chunkService;
+    private final KbWriteQueue kbWriteQueue;
 
-    public ChunkController(ChunkService chunkService) {
+    public ChunkController(ChunkService chunkService, KbWriteQueue kbWriteQueue) {
         this.chunkService = chunkService;
+        this.kbWriteQueue = kbWriteQueue;
     }
 
     @GetMapping("/documents/{docId}/chunks")
@@ -117,8 +119,8 @@ public class ChunkController {
             return ResponseEntity.status(400).body(Map.of("error", "content is required"));
         }
         try {
-            Map<String, Object> result = chunkService.editChunk(tenant.getId(), kbId, docId, chunkIndex, content);
-            return ResponseEntity.ok(result);
+            KbWriteTaskEntity task = chunkService.editChunk(tenant.getId(), kbId, docId, chunkIndex, content);
+            return ResponseEntity.status(202).body(Map.of("task_id", task.getId(), "status", task.getStatus().name()));
         } catch (Exception e) {
             return handleError(e);
         }
@@ -131,8 +133,8 @@ public class ChunkController {
                                          @PathVariable int chunkIndex) {
         TenantEntity tenant = getTenant(request);
         try {
-            chunkService.deleteChunk(tenant.getId(), kbId, docId, chunkIndex);
-            return ResponseEntity.ok(Map.of("deleted", true));
+            KbWriteTaskEntity task = chunkService.deleteChunk(tenant.getId(), kbId, docId, chunkIndex);
+            return ResponseEntity.status(202).body(Map.of("task_id", task.getId(), "status", task.getStatus().name()));
         } catch (Exception e) {
             return handleError(e);
         }
@@ -150,10 +152,10 @@ public class ChunkController {
         }
         Integer insertAfterIndex = body.get("insert_after_index") != null
                 ? ((Number) body.get("insert_after_index")).intValue()
-                : -1;  // default: insert at beginning (index 0)
+                : -1;
         try {
-            Map<String, Object> result = chunkService.createChunk(tenant.getId(), kbId, docId, content, insertAfterIndex);
-            return ResponseEntity.status(201).body(result);
+            KbWriteTaskEntity task = chunkService.createChunk(tenant.getId(), kbId, docId, content, insertAfterIndex);
+            return ResponseEntity.status(202).body(Map.of("task_id", task.getId(), "status", task.getStatus().name()));
         } catch (Exception e) {
             return handleError(e);
         }
@@ -192,8 +194,8 @@ public class ChunkController {
             return ResponseEntity.status(400).body(Map.of("error", "branch_id is required"));
         }
         try {
-            chunkService.rechunkRollback(tenant.getId(), kbId, docId, branchId);
-            return ResponseEntity.ok(Map.of("rolled_back", true));
+            KbWriteTaskEntity task = chunkService.rechunkRollback(tenant.getId(), kbId, docId, branchId);
+            return ResponseEntity.status(202).body(Map.of("task_id", task.getId(), "status", task.getStatus().name()));
         } catch (Exception e) {
             return handleError(e);
         }
@@ -207,6 +209,29 @@ public class ChunkController {
         try {
             var branches = chunkService.listRechunkBranches(tenant.getId(), kbId, docId);
             return ResponseEntity.ok(Map.of("branches", branches));
+        } catch (Exception e) {
+            return handleError(e);
+        }
+    }
+
+    // ── Write task polling ─────────────────────────────────────────
+
+    @GetMapping("/write-tasks/{taskId}")
+    public ResponseEntity<?> getWriteTask(HttpServletRequest request,
+                                           @PathVariable String kbId,
+                                           @PathVariable String taskId) {
+        TenantEntity tenant = getTenant(request);
+        try {
+            KbWriteTaskEntity task = kbWriteQueue.getTask(tenant.getId(), taskId);
+            Map<String, Object> result = new java.util.LinkedHashMap<>();
+            result.put("task_id", task.getId());
+            result.put("type", task.getType().name());
+            result.put("status", task.getStatus().name());
+            result.put("result", task.getResult());
+            result.put("error", task.getError());
+            result.put("created_at", task.getCreatedAt() != null ? task.getCreatedAt().toString() : null);
+            result.put("completed_at", task.getCompletedAt() != null ? task.getCompletedAt().toString() : null);
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
             return handleError(e);
         }

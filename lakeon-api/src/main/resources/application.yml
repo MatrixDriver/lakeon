@@ -57,6 +57,12 @@ lakeon:
     scale-down-unneeded-minutes: ${LAKEON_SCALE_DOWN_UNNEEDED_MINUTES:10}
   cloud:
     resource-ids: ${LAKEON_CLOUD_RESOURCE_IDS:}
+    console-region: ${LAKEON_CLOUD_CONSOLE_REGION:cn-north-4}
+    cce-cluster-id: ${LAKEON_CLOUD_CCE_CLUSTER_ID:}
+    rds-instance-id: ${LAKEON_CLOUD_RDS_INSTANCE_ID:}
+    elb-id: ${LAKEON_CLOUD_ELB_ID:}
+    eip-id: ${LAKEON_CLOUD_EIP_ID:}
+    node-pool-id: ${LAKEON_CLOUD_NODE_POOL_ID:}
   alert:
     smn-topic-urn: ${LAKEON_ALERT_SMN_TOPIC_URN:}
     smn-region: ${LAKEON_ALERT_SMN_REGION:cn-north-4}
@@ -104,6 +110,10 @@ lakeon:
         image: ${LAKEON_JOB_IMAGE_TRAINING:rayproject/ray:2.44.1-py312}
         cpu: "4"
         memory: "8Gi"
+  kb-write:
+    idle-timeout-minutes: ${LAKEON_KB_WRITE_IDLE_TIMEOUT_MINUTES:5}
+    cpu: ${LAKEON_KB_WRITE_CPU:250m}
+    memory: ${LAKEON_KB_WRITE_MEMORY:512Mi}
 
 management:
   endpoints:
