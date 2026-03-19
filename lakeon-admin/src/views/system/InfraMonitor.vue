@@ -430,32 +430,43 @@ const MiniLineChart = defineComponent({
       const pts = props.data
       if (pts.length === 0) return h('div', { class: 'empty-text' }, '等待数据采集...')
       const vals = pts.map(p => p.value)
-      const minV = Math.min(...vals), maxV = Math.max(...vals)
-      const rangeV = maxV === minV ? 1 : maxV - minV
+      const maxV = Math.max(...vals, 1) // at least 1 so chart isn't flat at 0
+      const minV = 0 // always start Y-axis from 0
+      const rangeV = maxV - minV || 1
       const chartW = W - PX * 2, chartH = H - PY * 2
-      const toX = (i: number) => PX + (pts.length === 1 ? chartW / 2 : (i / (pts.length - 1)) * chartW)
+      const toX = (i: number) => PX + (pts.length === 1 ? chartW : (i / (pts.length - 1)) * chartW)
       const toY = (v: number) => PY + chartH - ((v - minV) / rangeV) * chartH
-      const polyline = pts.map((p, i) => `${toX(i)},${toY(p.value)}`).join(' ')
+
+      // For single point, draw a horizontal line from left edge to the point
+      const polyPoints = pts.length === 1
+        ? `${PX},${toY(pts[0]!.value)} ${toX(0)},${toY(pts[0]!.value)}`
+        : pts.map((p, i) => `${toX(i)},${toY(p.value)}`).join(' ')
+
       const first = pts[0]!, last = pts[pts.length - 1]!
-      const areaPath = `M${toX(0)},${toY(first.value)} ` +
-        pts.slice(1).map((p, i) => `L${toX(i + 1)},${toY(p.value)}`).join(' ') +
-        ` L${toX(pts.length - 1)},${PY + chartH} L${toX(0)},${PY + chartH} Z`
-      // Y-axis labels
-      const yLabels = [minV, Math.round((minV + maxV) / 2), maxV]
+
+      // Area path
+      const areaPoints = pts.length === 1
+        ? `M${PX},${toY(first.value)} L${toX(0)},${toY(first.value)} L${toX(0)},${PY + chartH} L${PX},${PY + chartH} Z`
+        : `M${toX(0)},${toY(first.value)} ` +
+          pts.slice(1).map((p, i) => `L${toX(i + 1)},${toY(p.value)}`).join(' ') +
+          ` L${toX(pts.length - 1)},${PY + chartH} L${toX(0)},${PY + chartH} Z`
+
+      // Y-axis labels: 0, mid, max
+      const yLabels = [0, Math.round(maxV / 2), maxV]
         .filter((v, i, a) => a.indexOf(v) === i)
       // X-axis: first and last time
-      const xLabels = [first, last]
+      const xLabels = pts.length === 1 ? [first] : [first, last]
       const children = [
         // area fill
-        h('path', { d: areaPath, fill: props.color, opacity: 0.08 }),
+        h('path', { d: areaPoints, fill: props.color, opacity: 0.08 }),
         // grid lines
         ...yLabels.map(v => h('line', {
           x1: PX, x2: W - PX, y1: toY(v), y2: toY(v),
           stroke: '#e5e5e5', 'stroke-dasharray': '3,3'
         })),
         // line
-        h('polyline', { points: polyline, fill: 'none', stroke: props.color, 'stroke-width': 2 }),
-        // dots
+        h('polyline', { points: polyPoints, fill: 'none', stroke: props.color, 'stroke-width': 2 }),
+        // dots (only the actual data points)
         ...pts.map((p, i) => h('circle', {
           cx: toX(i), cy: toY(p.value), r: 3, fill: '#fff', stroke: props.color, 'stroke-width': 2
         })),
@@ -466,12 +477,14 @@ const MiniLineChart = defineComponent({
         }, String(v))),
         // X labels
         ...xLabels.map((p, i) => h('text', {
-          x: i === 0 ? PX : W - PX, y: H - 2, 'text-anchor': i === 0 ? 'start' : 'end',
+          x: pts.length === 1 ? toX(0) : (i === 0 ? PX : W - PX),
+          y: H - 2,
+          'text-anchor': pts.length === 1 ? 'end' : (i === 0 ? 'start' : 'end'),
           style: 'font-size:10px;fill:#999;'
         }, p.time)),
         // current value
         h('text', {
-          x: toX(pts.length - 1) + 8, y: toY(last.value) + 4,
+          x: toX(pts.length - 1) + 8, y: toY(last.value) - 6,
           style: `font-size:13px;fill:${props.color};font-weight:600;`
         }, String(last.value)),
       ]
