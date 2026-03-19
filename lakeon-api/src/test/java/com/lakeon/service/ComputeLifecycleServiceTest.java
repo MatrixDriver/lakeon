@@ -42,6 +42,12 @@ class ComputeLifecycleServiceTest {
     private ComputePodManager computePodManager;
 
     @Mock
+    private com.lakeon.k8s.KbWritePodManager kbWritePodManager;
+
+    @Mock
+    private com.lakeon.knowledge.KbWriteTaskRepository kbWriteTaskRepository;
+
+    @Mock
     private OperationLogService operationLogService;
 
     private LakeonProperties props;
@@ -51,7 +57,9 @@ class ComputeLifecycleServiceTest {
     void setUp() {
         props = new LakeonProperties();
         computeLifecycleService = new ComputeLifecycleService(
-                databaseRepository, branchRepository, computePodManager, operationLogService, props,
+                databaseRepository, branchRepository, computePodManager,
+                kbWritePodManager, kbWriteTaskRepository,
+                operationLogService, props,
                 TestTransactionTemplate.create());
     }
 

@@ -14,6 +14,7 @@ export interface KnowledgeBase {
   type: 'DOCUMENT' | 'TABLE'
   source_database_id: string | null
   table_names: string[]
+  embedding_model: string | null
 }
 
 export interface TableSearchResult {
@@ -62,6 +63,7 @@ export function createKnowledgeBase(name: string, description?: string, options?
   type?: 'DOCUMENT' | 'TABLE'
   source_database_id?: string
   table_names?: string[]
+  embedding_model?: string
 }) {
   return api.post<KnowledgeBase>('/knowledge/bases', { name, description, ...options })
 }

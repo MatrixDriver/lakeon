@@ -66,8 +66,19 @@
             </div>
           </template>
 
+          <!-- Embedding model selector (DOCUMENT type only) -->
+          <div v-if="createForm.type === 'DOCUMENT'" class="form-group">
+            <label class="form-label">嵌入模型</label>
+            <select v-model="createForm.embedding_model" class="form-input" style="cursor: pointer;">
+              <option v-for="m in embeddingModels" :key="m.value" :value="m.value">{{ m.label }}</option>
+            </select>
+            <p style="font-size: 12px; color: #999; margin-top: 4px;">
+              不同模型的向量维度不同，创建后不可更改
+            </p>
+          </div>
+
           <p v-if="createForm.type === 'DOCUMENT'" style="font-size: 12px; color: #999; margin-top: 12px;">
-            系统将自动创建专用数据库，使用 BGE-M3 向量模型（1024维）和结构化切片策略。
+            系统将自动创建专用数据库，使用所选向量模型生成嵌入并建立检索索引。
           </p>
           <p v-else style="font-size: 12px; color: #999; margin-top: 12px;">
             AI 将为所选数据表建立 schema 索引，支持用自然语言查询数据。
@@ -87,6 +98,7 @@
           <tr>
             <th>名称</th>
             <th>类型</th>
+            <th>嵌入模型</th>
             <th>描述</th>
             <th>文档数</th>
             <th>状态</th>
@@ -105,6 +117,7 @@
               <span v-if="kb.type === 'TABLE'" class="type-tag type-tag-table">数据表</span>
               <span v-else class="type-tag type-tag-doc">文档</span>
             </td>
+            <td style="color: #666; font-size: 12px;">{{ kb.embedding_model || '-' }}</td>
             <td style="color: #666;">{{ kb.description || '-' }}</td>
             <td>{{ kb.type === 'TABLE' ? '-' : (kb.document_count ?? 0) }}</td>
             <td>
@@ -144,10 +157,20 @@ const createForm = ref({
   type: 'DOCUMENT' as 'DOCUMENT' | 'TABLE',
   source_database_id: '',
   table_names_raw: '',
+  embedding_model: 'BAAI/bge-m3',
 })
 const loading = ref(false)
 const databases = ref<Database[]>([])
 const dbLoadError = ref('')
+
+const embeddingModels = [
+  { value: 'BAAI/bge-m3', label: 'BGE-M3 (1024维, 推荐)' },
+  { value: 'BAAI/bge-large-zh-v1.5', label: 'BGE-Large-ZH v1.5 (1024维)' },
+  { value: 'BAAI/bge-large-en-v1.5', label: 'BGE-Large-EN v1.5 (1024维)' },
+  { value: 'Pro/BAAI/bge-m3', label: 'BGE-M3 Pro (1024维)' },
+  { value: 'text-embedding-3-small', label: 'OpenAI text-embedding-3-small (1536维)' },
+  { value: 'text-embedding-3-large', label: 'OpenAI text-embedding-3-large (3072维)' },
+]
 
 const createFormValid = computed(() => {
   if (!createForm.value.name.trim()) return false
@@ -162,6 +185,7 @@ function resetCreateForm() {
     type: 'DOCUMENT',
     source_database_id: '',
     table_names_raw: '',
+    embedding_model: 'BAAI/bge-m3',
   }
 }
 
@@ -217,10 +241,13 @@ async function handleCreate() {
       .map(t => t.trim())
       .filter(t => t.length > 0)
 
-    const options: { type?: 'DOCUMENT' | 'TABLE'; source_database_id?: string; table_names?: string[] } = { type }
+    const options: { type?: 'DOCUMENT' | 'TABLE'; source_database_id?: string; table_names?: string[]; embedding_model?: string } = { type }
     if (type === 'TABLE') {
       options.source_database_id = source_database_id
       if (tableNames.length > 0) options.table_names = tableNames
+    }
+    if (type === 'DOCUMENT' && createForm.value.embedding_model) {
+      options.embedding_model = createForm.value.embedding_model
     }
 
     await createKnowledgeBase(name, description || undefined, options)

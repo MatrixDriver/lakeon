@@ -438,7 +438,9 @@ public class ChunkService {
                 .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
 
         // Compute embedding before submitting (still synchronous)
-        float[] embedding = getEmbedding(newContent);
+        String embModel = kb.getEmbeddingModel() != null
+                ? kb.getEmbeddingModel() : props.getKnowledge().getEmbeddingModel();
+        float[] embedding = getEmbedding(newContent, embModel);
         String vectorStr = floatArrayToVectorLiteral(embedding);
 
         Map<String, Object> params = new LinkedHashMap<>();
@@ -477,7 +479,9 @@ public class ChunkService {
                 .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
 
         // Compute embedding before submitting
-        float[] embedding = getEmbedding(content);
+        String embModel = kb.getEmbeddingModel() != null
+                ? kb.getEmbeddingModel() : props.getKnowledge().getEmbeddingModel();
+        float[] embedding = getEmbedding(content, embModel);
         String vectorStr = floatArrayToVectorLiteral(embedding);
 
         Map<String, Object> params = new LinkedHashMap<>();
@@ -537,7 +541,8 @@ public class ChunkService {
         params.put("database_connstr", "placeholder"); // overridden by KbWriteQueue
         params.put("embedding_api_url", props.getKnowledge().getEmbeddingApiUrl());
         params.put("embedding_api_key", props.getKnowledge().getEmbeddingApiKey());
-        params.put("embedding_model", props.getKnowledge().getEmbeddingModel());
+        params.put("embedding_model", kb.getEmbeddingModel() != null
+                ? kb.getEmbeddingModel() : props.getKnowledge().getEmbeddingModel());
         params.put("max_tokens", maxTokens);
         params.put("overlap_ratio", overlapRatio);
         if (customSeparator != null && !customSeparator.isBlank()) {
@@ -682,10 +687,9 @@ public class ChunkService {
     // ── Internal helpers ────────────────────────────────────────────
 
     @SuppressWarnings("unchecked")
-    private float[] getEmbedding(String text) {
+    private float[] getEmbedding(String text, String model) {
         String apiUrl = props.getKnowledge().getEmbeddingApiUrl();
         String apiKey = props.getKnowledge().getEmbeddingApiKey();
-        String model = props.getKnowledge().getEmbeddingModel();
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

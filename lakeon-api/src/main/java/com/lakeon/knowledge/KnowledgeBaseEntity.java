@@ -53,6 +53,9 @@ public class KnowledgeBaseEntity {
     @Column(name = "db_password", length = 256)
     private String dbPassword;
 
+    @Column(name = "embedding_model", length = 128)
+    private String embeddingModel;
+
     @Column(name = "error", columnDefinition = "TEXT")
     private String error;
 
@@ -110,6 +113,9 @@ public class KnowledgeBaseEntity {
 
     public String getDbPassword() { return dbPassword; }
     public void setDbPassword(String dbPassword) { this.dbPassword = dbPassword; }
+
+    public String getEmbeddingModel() { return embeddingModel; }
+    public void setEmbeddingModel(String embeddingModel) { this.embeddingModel = embeddingModel; }
 
     public String getError() { return error; }
     public void setError(String error) { this.error = error; }

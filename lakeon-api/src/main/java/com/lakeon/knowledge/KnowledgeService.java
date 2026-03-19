@@ -100,13 +100,13 @@ public class KnowledgeService {
      */
     @Transactional
     public KnowledgeBaseEntity createKnowledgeBase(TenantEntity tenant, String name, String description) {
-        return createKnowledgeBase(tenant, name, description, KnowledgeBaseType.DOCUMENT, null, null);
+        return createKnowledgeBase(tenant, name, description, KnowledgeBaseType.DOCUMENT, null, null, null);
     }
 
     @Transactional
     public KnowledgeBaseEntity createKnowledgeBase(TenantEntity tenant, String name, String description,
                                                     KnowledgeBaseType type, String sourceDatabaseId,
-                                                    List<String> tableNames) {
+                                                    List<String> tableNames, String embeddingModel) {
         if (name == null || name.isBlank()) {
             throw new BadRequestException("name is required");
         }
@@ -120,6 +120,12 @@ public class KnowledgeService {
         kb.setDescription(description);
         kb.setType(type);
         kb.setDocumentCount(0);
+
+        // Set embedding model: use provided value or fall back to global default
+        String resolvedModel = (embeddingModel != null && !embeddingModel.isBlank())
+                ? embeddingModel.trim()
+                : props.getKnowledge().getEmbeddingModel();
+        kb.setEmbeddingModel(resolvedModel);
 
         if (type == KnowledgeBaseType.TABLE) {
             if (sourceDatabaseId == null || sourceDatabaseId.isBlank()) {
@@ -391,7 +397,8 @@ public class KnowledgeService {
         params.put("database_connstr", "placeholder"); // overridden by KbWriteQueue
         params.put("embedding_api_url", props.getKnowledge().getEmbeddingApiUrl());
         params.put("embedding_api_key", props.getKnowledge().getEmbeddingApiKey());
-        params.put("embedding_model", props.getKnowledge().getEmbeddingModel());
+        params.put("embedding_model", kb.getEmbeddingModel() != null
+                ? kb.getEmbeddingModel() : props.getKnowledge().getEmbeddingModel());
 
         KbWriteTaskEntity task = kbWriteQueue.submit(tenant.getId(), doc.getKbId(),
                 kb.getDatabaseId(), KbWriteTaskType.DOCUMENT_PARSE, params);
@@ -519,7 +526,11 @@ public class KnowledgeService {
         }
 
         // Get query embedding from embedding service (use searchQuery which may be rewritten)
-        List<Double> embedding = getQueryEmbedding(searchQuery);
+        KnowledgeBaseEntity kbEntity = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+        String embModel = kbEntity.getEmbeddingModel() != null
+                ? kbEntity.getEmbeddingModel() : props.getKnowledge().getEmbeddingModel();
+        List<Double> embedding = getQueryEmbedding(searchQuery, embModel);
         String vectorStr = embedding.stream()
                 .map(String::valueOf)
                 .collect(Collectors.joining(",", "[", "]"));
@@ -860,10 +871,9 @@ public class KnowledgeService {
     }
 
     @SuppressWarnings("unchecked")
-    private List<Double> getQueryEmbedding(String query) {
+    private List<Double> getQueryEmbedding(String query, String model) {
         String apiUrl = props.getKnowledge().getEmbeddingApiUrl();
         String apiKey = props.getKnowledge().getEmbeddingApiKey();
-        String model = props.getKnowledge().getEmbeddingModel();
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

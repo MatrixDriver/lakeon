@@ -49,9 +49,10 @@ public class KnowledgeController {
 
         String sourceDatabaseId = (String) body.get("source_database_id");
         List<String> tableNames = (List<String>) body.get("table_names");
+        String embeddingModel = (String) body.get("embedding_model");
 
         KnowledgeBaseEntity kb = knowledgeService.createKnowledgeBase(
-                tenant, name, description, type, sourceDatabaseId, tableNames);
+                tenant, name, description, type, sourceDatabaseId, tableNames, embeddingModel);
         return toKbResponse(kb);
     }
 
@@ -220,6 +221,7 @@ public class KnowledgeController {
         map.put("source_database_id", kb.getSourceDatabaseId());
         map.put("table_names", kb.getTableNames());
         map.put("status", kb.getStatus() != null ? kb.getStatus().name() : null);
+        map.put("embedding_model", kb.getEmbeddingModel());
         map.put("document_count", kb.getDocumentCount());
         map.put("error", kb.getError());
         map.put("created_at", kb.getCreatedAt() != null ? kb.getCreatedAt().toString() : null);
