@@ -6,24 +6,117 @@
 
     <!-- Tabs -->
     <div class="infra-tabs">
-      <button class="infra-tab" :class="{ active: activeTab === 'compute' }" @click="activeTab = 'compute'">计算资源</button>
+      <button class="infra-tab" :class="{ active: activeTab === 'pods' }" @click="activeTab = 'pods'">计算 Pod</button>
+      <button class="infra-tab" :class="{ active: activeTab === 'pool' }" @click="activeTab = 'pool'">弹性节点池</button>
       <button class="infra-tab" :class="{ active: activeTab === 'control' }" @click="activeTab = 'control'">管控面</button>
       <button class="infra-tab" :class="{ active: activeTab === 'events' }" @click="activeTab = 'events'">事件日志</button>
       <button class="infra-tab" :class="{ active: activeTab === 'cloud' }" @click="activeTab = 'cloud'; loadCloudResources()">云资源</button>
     </div>
 
-    <!-- Tab 1: 计算资源 -->
-    <div v-if="activeTab === 'compute'">
-      <!-- Elastic Node Pool -->
+    <!-- Tab 1: 计算 Pod -->
+    <div v-if="activeTab === 'pods'">
+      <!-- Pod Count Chart -->
       <div class="section-card">
         <div class="section-header">
-          <h3>弹性节点池</h3>
+          <h3>Pod 数量趋势</h3>
+          <span class="chart-hint">每 30 秒采样，页面打开后开始记录</span>
+        </div>
+        <MiniLineChart :data="podHistory" label="Pod 数" color="#52c41a" />
+      </div>
+
+      <!-- Compute Pod Overview -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Compute Pod 概览</h3>
+          <button class="btn btn-small btn-danger-outline" @click="confirmCleanup" :disabled="cleanupLoading">
+            {{ cleanupLoading ? '清理中...' : '清理闲置 Pod' }}
+          </button>
+        </div>
+        <div v-if="computeLoading" class="empty-text">加载中...</div>
+        <div v-else-if="!computeSummary" class="empty-text">无法获取数据</div>
+        <template v-else>
+          <div class="compute-stats">
+            <div class="stat-item">
+              <span class="stat-value">{{ computeSummary.total }}</span>
+              <span class="stat-label">Pod 总数</span>
+            </div>
+            <div class="stat-item stat-green">
+              <span class="stat-value">{{ computeSummary.by_status.running }}</span>
+              <span class="stat-label">运行中</span>
+            </div>
+            <div class="stat-item stat-gray">
+              <span class="stat-value">{{ computeSummary.by_status.suspended }}</span>
+              <span class="stat-label">已挂起(保留)</span>
+            </div>
+            <div class="stat-item stat-blue">
+              <span class="stat-value">{{ computeSummary.by_status.creating }}</span>
+              <span class="stat-label">创建中</span>
+            </div>
+            <div class="stat-item stat-red" v-if="computeSummary.by_status.error > 0">
+              <span class="stat-value">{{ computeSummary.by_status.error }}</span>
+              <span class="stat-label">异常</span>
+            </div>
+            <div class="stat-item stat-orange" v-if="computeSummary.by_status.orphaned > 0">
+              <span class="stat-value">{{ computeSummary.by_status.orphaned }}</span>
+              <span class="stat-label">孤儿 Pod</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ computeSummary.total_mem_request_gb }} GB</span>
+              <span class="stat-label">内存占用</span>
+            </div>
+          </div>
+          <div class="table-wrapper" v-if="computeSummary.pods.length > 0" style="margin-top: 12px;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Pod</th>
+                  <th>数据库</th>
+                  <th>数据库状态</th>
+                  <th>Pod 状态</th>
+                  <th>内存</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="p in computeSummary.pods" :key="p.pod_name"
+                  :class="{ 'row-warn': p.db_status === 'suspended' || p.db_status === 'orphaned' }">
+                  <td class="pod-name">{{ p.pod_name }}</td>
+                  <td>{{ p.db_name || '-' }}</td>
+                  <td>
+                    <span class="phase-badge" :class="dbStatusBadge(p.db_status)">
+                      {{ DB_STATUS_LABELS[p.db_status] || p.db_status }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="phase-badge" :class="phaseBadgeClass(p.phase, true)">{{ p.phase }}</span>
+                  </td>
+                  <td>{{ p.mem_request_mb }} MB</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- Tab 2: 弹性节点池 -->
+    <div v-if="activeTab === 'pool'">
+      <!-- Node Count Chart -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3>节点数趋势</h3>
           <span v-if="pool" class="pool-name-tag">{{ pool.pool_name }}</span>
+        </div>
+        <MiniLineChart :data="nodeHistory" label="节点数" color="#1890ff" />
+      </div>
+
+      <!-- Node Pool Info -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3>节点池概览</h3>
         </div>
         <div v-if="poolLoading" class="empty-text">加载中...</div>
         <div v-else-if="!pool" class="empty-text">无法获取节点池信息</div>
         <template v-else>
-          <!-- Pool Summary -->
           <div class="pool-summary">
             <div class="pool-gauge">
               <div class="gauge-label">节点数</div>
@@ -107,79 +200,6 @@
                 </div>
               </template>
             </div>
-          </div>
-        </template>
-      </div>
-
-      <!-- Compute Pod Overview -->
-      <div class="section-card">
-        <div class="section-header">
-          <h3>Compute Pod 概览</h3>
-          <button class="btn btn-small btn-danger-outline" @click="confirmCleanup" :disabled="cleanupLoading">
-            {{ cleanupLoading ? '清理中...' : '清理闲置 Pod' }}
-          </button>
-        </div>
-        <div v-if="computeLoading" class="empty-text">加载中...</div>
-        <div v-else-if="!computeSummary" class="empty-text">无法获取数据</div>
-        <template v-else>
-          <div class="compute-stats">
-            <div class="stat-item">
-              <span class="stat-value">{{ computeSummary.total }}</span>
-              <span class="stat-label">Pod 总数</span>
-            </div>
-            <div class="stat-item stat-green">
-              <span class="stat-value">{{ computeSummary.by_status.running }}</span>
-              <span class="stat-label">运行中</span>
-            </div>
-            <div class="stat-item stat-gray">
-              <span class="stat-value">{{ computeSummary.by_status.suspended }}</span>
-              <span class="stat-label">已挂起(保留)</span>
-            </div>
-            <div class="stat-item stat-blue">
-              <span class="stat-value">{{ computeSummary.by_status.creating }}</span>
-              <span class="stat-label">创建中</span>
-            </div>
-            <div class="stat-item stat-red" v-if="computeSummary.by_status.error > 0">
-              <span class="stat-value">{{ computeSummary.by_status.error }}</span>
-              <span class="stat-label">异常</span>
-            </div>
-            <div class="stat-item stat-orange" v-if="computeSummary.by_status.orphaned > 0">
-              <span class="stat-value">{{ computeSummary.by_status.orphaned }}</span>
-              <span class="stat-label">孤儿 Pod</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-value">{{ computeSummary.total_mem_request_gb }} GB</span>
-              <span class="stat-label">内存占用</span>
-            </div>
-          </div>
-          <div class="table-wrapper" v-if="computeSummary.pods.length > 0" style="margin-top: 12px;">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Pod</th>
-                  <th>数据库</th>
-                  <th>数据库状态</th>
-                  <th>Pod 状态</th>
-                  <th>内存</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="p in computeSummary.pods" :key="p.pod_name"
-                  :class="{ 'row-warn': p.db_status === 'suspended' || p.db_status === 'orphaned' }">
-                  <td class="pod-name">{{ p.pod_name }}</td>
-                  <td>{{ p.db_name || '-' }}</td>
-                  <td>
-                    <span class="phase-badge" :class="dbStatusBadge(p.db_status)">
-                      {{ DB_STATUS_LABELS[p.db_status] || p.db_status }}
-                    </span>
-                  </td>
-                  <td>
-                    <span class="phase-badge" :class="phaseBadgeClass(p.phase, true)">{{ p.phase }}</span>
-                  </td>
-                  <td>{{ p.mem_request_mb }} MB</td>
-                </tr>
-              </tbody>
-            </table>
           </div>
         </template>
       </div>
@@ -358,21 +378,28 @@
             <thead>
               <tr>
                 <th>名称</th>
+                <th>资源 ID</th>
                 <th>区域</th>
                 <th>服务</th>
                 <th>资源类型</th>
                 <th>状态</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="r in cloudResources" :key="r.name">
                 <td style="font-weight: 500;">{{ r.name }}</td>
+                <td><span v-if="r.resourceId" class="resource-id-text" :title="r.resourceId">{{ r.resourceId }}</span><span v-else style="color:#ccc;">—</span></td>
                 <td>{{ r.region }}</td>
                 <td><span class="service-tag" :class="serviceTagClass(r.service)">{{ r.service }}</span></td>
                 <td>{{ r.type }}</td>
                 <td>
                   <span class="status-dot" :class="r.status === 'ACTIVE' ? 'dot-green' : 'dot-red'"></span>
                   {{ r.status }}
+                </td>
+                <td>
+                  <a v-if="r.consoleUrl" :href="r.consoleUrl" target="_blank" rel="noopener" class="console-link">控制台 ↗</a>
+                  <span v-else style="color:#ccc;">—</span>
                 </td>
               </tr>
             </tbody>
@@ -384,8 +411,77 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, defineComponent, h } from 'vue'
 import { adminApi } from '../../api/admin'
+
+// ── Inline SVG Line Chart ──
+interface ChartPoint { time: string; value: number }
+
+const MiniLineChart = defineComponent({
+  name: 'MiniLineChart',
+  props: {
+    data: { type: Array as () => ChartPoint[], required: true },
+    label: { type: String, default: '' },
+    color: { type: String, default: '#52c41a' },
+  },
+  setup(props) {
+    const W = 600, H = 120, PX = 40, PY = 20
+    return () => {
+      const pts = props.data
+      if (pts.length === 0) return h('div', { class: 'empty-text' }, '等待数据采集...')
+      const vals = pts.map(p => p.value)
+      const minV = Math.min(...vals), maxV = Math.max(...vals)
+      const rangeV = maxV === minV ? 1 : maxV - minV
+      const chartW = W - PX * 2, chartH = H - PY * 2
+      const toX = (i: number) => PX + (pts.length === 1 ? chartW / 2 : (i / (pts.length - 1)) * chartW)
+      const toY = (v: number) => PY + chartH - ((v - minV) / rangeV) * chartH
+      const polyline = pts.map((p, i) => `${toX(i)},${toY(p.value)}`).join(' ')
+      const first = pts[0]!, last = pts[pts.length - 1]!
+      const areaPath = `M${toX(0)},${toY(first.value)} ` +
+        pts.slice(1).map((p, i) => `L${toX(i + 1)},${toY(p.value)}`).join(' ') +
+        ` L${toX(pts.length - 1)},${PY + chartH} L${toX(0)},${PY + chartH} Z`
+      // Y-axis labels
+      const yLabels = [minV, Math.round((minV + maxV) / 2), maxV]
+        .filter((v, i, a) => a.indexOf(v) === i)
+      // X-axis: first and last time
+      const xLabels = [first, last]
+      const children = [
+        // area fill
+        h('path', { d: areaPath, fill: props.color, opacity: 0.08 }),
+        // grid lines
+        ...yLabels.map(v => h('line', {
+          x1: PX, x2: W - PX, y1: toY(v), y2: toY(v),
+          stroke: '#e5e5e5', 'stroke-dasharray': '3,3'
+        })),
+        // line
+        h('polyline', { points: polyline, fill: 'none', stroke: props.color, 'stroke-width': 2 }),
+        // dots
+        ...pts.map((p, i) => h('circle', {
+          cx: toX(i), cy: toY(p.value), r: 3, fill: '#fff', stroke: props.color, 'stroke-width': 2
+        })),
+        // Y labels
+        ...yLabels.map(v => h('text', {
+          x: PX - 6, y: toY(v) + 4, 'text-anchor': 'end',
+          style: 'font-size:11px;fill:#999;'
+        }, String(v))),
+        // X labels
+        ...xLabels.map((p, i) => h('text', {
+          x: i === 0 ? PX : W - PX, y: H - 2, 'text-anchor': i === 0 ? 'start' : 'end',
+          style: 'font-size:10px;fill:#999;'
+        }, p.time)),
+        // current value
+        h('text', {
+          x: toX(pts.length - 1) + 8, y: toY(last.value) + 4,
+          style: `font-size:13px;fill:${props.color};font-weight:600;`
+        }, String(last.value)),
+      ]
+      return h('svg', {
+        viewBox: `0 0 ${W} ${H}`, style: 'width:100%;height:auto;max-height:140px;',
+        'aria-label': `${props.label} 趋势图`
+      }, children)
+    }
+  }
+})
 
 interface NodeInfo {
   name: string
@@ -463,7 +559,7 @@ interface AutoscaleSummary {
   last_scale_down: string | null
 }
 
-const activeTab = ref('compute')
+const activeTab = ref('pods')
 const nodes = ref<NodeInfo[]>([])
 const pods = ref<PodInfo[]>([])
 const events = ref<PodEvent[]>([])
@@ -477,6 +573,33 @@ const poolLoading = ref(true)
 const autoscaleLoading = ref(true)
 const computeLoading = ref(true)
 const cleanupLoading = ref(false)
+
+// ── Time-series history (accumulated in-browser) ──
+const MAX_HISTORY = 60 // keep last 60 data points (~30 min at 30s interval)
+const podHistory = ref<ChartPoint[]>([])
+const nodeHistory = ref<ChartPoint[]>([])
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+function timeLabel(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+function recordSnapshot() {
+  const t = timeLabel()
+  if (computeSummary.value) {
+    podHistory.value = [...podHistory.value, { time: t, value: computeSummary.value.total }].slice(-MAX_HISTORY)
+  }
+  if (pool.value) {
+    nodeHistory.value = [...nodeHistory.value, { time: t, value: pool.value.current_nodes }].slice(-MAX_HISTORY)
+  }
+}
+
+async function pollData() {
+  await Promise.allSettled([loadData(), loadComputeSummary()])
+  recordSnapshot()
+}
 
 const controlPlaneNodes = computed(() => {
   const poolNodeNames = new Set(pool.value?.nodes?.map(n => n.name) || [])
@@ -652,7 +775,15 @@ async function loadData() {
   autoscaleLoading.value = false
 }
 
-onMounted(() => { loadData(); loadComputeSummary() })
+onMounted(async () => {
+  await Promise.allSettled([loadData(), loadComputeSummary()])
+  recordSnapshot()
+  pollTimer = setInterval(pollData, 30000)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+})
 </script>
 
 <style scoped>
@@ -973,6 +1104,7 @@ onMounted(() => { loadData(); loadComputeSummary() })
 .restarts-warn  { color: #e37318; font-weight: 600; }
 
 .empty-text { color: #999; font-size: 14px; padding: 20px 0; }
+.chart-hint { font-size: 12px; color: #999; font-weight: 400; }
 
 .event-type-badge {
   display: inline-block;
@@ -1073,6 +1205,26 @@ onMounted(() => { loadData(); loadComputeSummary() })
 .svc-storage { background: #dcfce7; color: #15803d; }
 .svc-network { background: #ffedd5; color: #c2410c; }
 .svc-railway { background: #f3e8ff; color: #7c3aed; }
+
+.resource-id-text {
+  font-family: monospace;
+  font-size: 12px;
+  color: #575d6c;
+  max-width: 180px;
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+  cursor: default;
+}
+.console-link {
+  color: #0073e6;
+  text-decoration: none;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.console-link:hover { text-decoration: underline; }
 
 @media (max-width: 768px) {
   .node-grid { grid-template-columns: 1fr; }
