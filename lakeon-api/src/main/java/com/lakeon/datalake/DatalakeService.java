@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -22,6 +23,9 @@ public class DatalakeService {
 
     private final DatalakeJobRepository repository;
     private final ObjectMapper objectMapper;
+
+    @Autowired(required = false)
+    private PythonJobRunner pythonJobRunner;
 
     public DatalakeService(DatalakeJobRepository repository, ObjectMapper objectMapper) {
         this.repository = repository;
@@ -52,7 +56,10 @@ public class DatalakeService {
 
         entity = repository.save(entity);
 
-        // Runners will be dispatched in Tasks 4-6; for now just return PENDING
+        if (req.getType() == DatalakeJobType.PYTHON && pythonJobRunner != null) {
+            pythonJobRunner.start(entity, req);
+        }
+
         return DatalakeJobResponse.from(entity);
     }
 
@@ -86,8 +93,13 @@ public class DatalakeService {
         if (TERMINAL_STATUSES.contains(entity.getStatus())) {
             throw new BadRequestException("Job is already in terminal state: " + entity.getStatus());
         }
+        if (entity.getType() == DatalakeJobType.PYTHON
+                && entity.getK8sJobName() != null
+                && pythonJobRunner != null) {
+            pythonJobRunner.cancel(entity);
+            return;
+        }
         entity.setStatus(DatalakeJobStatus.CANCELLED);
         repository.save(entity);
-        // Actual K8s resource cleanup will be added in Tasks 4-6
     }
 }
