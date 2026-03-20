@@ -1,6 +1,5 @@
 package com.lakeon.datalake;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResourceBuilder;
@@ -34,8 +33,7 @@ public class RayJobRunner {
 
     public RayJobRunner(KubernetesClient k8sClient,
                         LakeonProperties props,
-                        DatalakeJobRepository repository,
-                        ObjectMapper objectMapper) {
+                        DatalakeJobRepository repository) {
         this.k8sClient = k8sClient;
         this.props = props;
         this.repository = repository;
