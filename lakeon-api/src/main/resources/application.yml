@@ -114,6 +114,16 @@ lakeon:
     idle-timeout-minutes: ${LAKEON_KB_WRITE_IDLE_TIMEOUT_MINUTES:5}
     cpu: ${LAKEON_KB_WRITE_CPU:250m}
     memory: ${LAKEON_KB_WRITE_MEMORY:512Mi}
+  datalake:
+    cci-namespace-prefix: "datalake-"
+    vk-node-selector-key: "type"
+    vk-node-selector-value: "virtual-kubelet"
+    poll-interval-ms: 10000
+    preset-images:
+      python-slim: "${DATALAKE_IMAGE_PYTHON_SLIM:swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-slim}"
+      python-data: "${DATALAKE_IMAGE_PYTHON_DATA:swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-data}"
+      ray: "${DATALAKE_IMAGE_RAY:swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311}"
+      ray-gpu: "${DATALAKE_IMAGE_RAY_GPU:swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311-gpu}"
 
 management:
   endpoints:

@@ -27,6 +27,7 @@ public class LakeonProperties {
     private JobConfig job = new JobConfig();
     private KnowledgeConfig knowledge = new KnowledgeConfig();
     private KbWriteConfig kbWrite = new KbWriteConfig();
+    private DatalakeConfig datalake = new DatalakeConfig();
 
     public NeonConfig getNeon() { return neon; }
     public void setNeon(NeonConfig neon) { this.neon = neon; }
@@ -62,6 +63,8 @@ public class LakeonProperties {
     public void setKnowledge(KnowledgeConfig knowledge) { this.knowledge = knowledge; }
     public KbWriteConfig getKbWrite() { return kbWrite; }
     public void setKbWrite(KbWriteConfig kbWrite) { this.kbWrite = kbWrite; }
+    public DatalakeConfig getDatalake() { return datalake; }
+    public void setDatalake(DatalakeConfig datalake) { this.datalake = datalake; }
 
     public static class NeonConfig {
         private String pageserverUrl;
@@ -364,5 +367,29 @@ public class LakeonProperties {
         public void setCpu(String cpu) { this.cpu = cpu; }
         public String getMemory() { return memory; }
         public void setMemory(String memory) { this.memory = memory; }
+    }
+
+    public static class DatalakeConfig {
+        private String cciNamespacePrefix = "datalake-";
+        private String vkNodeSelectorKey = "type";
+        private String vkNodeSelectorValue = "virtual-kubelet";
+        private long pollIntervalMs = 10000;
+        private Map<String, String> presetImages = new HashMap<>(Map.of(
+            "python-slim", "swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-slim",
+            "python-data",  "swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-data",
+            "ray",          "swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311",
+            "ray-gpu",      "swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311-gpu"
+        ));
+
+        public String getCciNamespacePrefix() { return cciNamespacePrefix; }
+        public void setCciNamespacePrefix(String cciNamespacePrefix) { this.cciNamespacePrefix = cciNamespacePrefix; }
+        public String getVkNodeSelectorKey() { return vkNodeSelectorKey; }
+        public void setVkNodeSelectorKey(String vkNodeSelectorKey) { this.vkNodeSelectorKey = vkNodeSelectorKey; }
+        public String getVkNodeSelectorValue() { return vkNodeSelectorValue; }
+        public void setVkNodeSelectorValue(String vkNodeSelectorValue) { this.vkNodeSelectorValue = vkNodeSelectorValue; }
+        public long getPollIntervalMs() { return pollIntervalMs; }
+        public void setPollIntervalMs(long pollIntervalMs) { this.pollIntervalMs = pollIntervalMs; }
+        public Map<String, String> getPresetImages() { return presetImages; }
+        public void setPresetImages(Map<String, String> presetImages) { this.presetImages = presetImages; }
     }
 }
