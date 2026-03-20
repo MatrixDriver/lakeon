@@ -27,6 +27,9 @@ public class DatalakeService {
     @Autowired(required = false)
     private PythonJobRunner pythonJobRunner;
 
+    @Autowired(required = false)
+    private RayJobRunner rayJobRunner;
+
     public DatalakeService(DatalakeJobRepository repository, ObjectMapper objectMapper) {
         this.repository = repository;
         this.objectMapper = objectMapper;
@@ -58,6 +61,8 @@ public class DatalakeService {
 
         if (req.getType() == DatalakeJobType.PYTHON && pythonJobRunner != null) {
             pythonJobRunner.start(entity, req);
+        } else if (req.getType() == DatalakeJobType.RAY && rayJobRunner != null) {
+            rayJobRunner.start(entity, req);
         }
 
         return DatalakeJobResponse.from(entity);
@@ -97,6 +102,11 @@ public class DatalakeService {
                 && entity.getK8sJobName() != null
                 && pythonJobRunner != null) {
             pythonJobRunner.cancel(entity);
+            return;
+        } else if (entity.getType() == DatalakeJobType.RAY
+                && entity.getRayJobName() != null
+                && rayJobRunner != null) {
+            rayJobRunner.cancel(entity);
             return;
         }
         entity.setStatus(DatalakeJobStatus.CANCELLED);
