@@ -8,7 +8,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -16,9 +15,11 @@ import java.util.List;
 public class DatalakeController {
 
     private final DatalakeService service;
+    private final DatalakeLogService logService;
 
-    public DatalakeController(DatalakeService service) {
+    public DatalakeController(DatalakeService service, DatalakeLogService logService) {
         this.service = service;
+        this.logService = logService;
     }
 
     @PostMapping("/jobs")
@@ -60,18 +61,7 @@ public class DatalakeController {
     @GetMapping(value = "/jobs/{id}/logs", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamLogs(HttpServletRequest req, @PathVariable String id) {
         TenantEntity tenant = getTenant(req);
-        // Verify access
-        service.getJob(tenant.getId(), id);
-
-        // Stub: SSE streaming will be implemented in Task 8
-        SseEmitter emitter = new SseEmitter(0L);
-        try {
-            emitter.send(SseEmitter.event().comment("Log streaming not yet implemented"));
-            emitter.complete();
-        } catch (IOException e) {
-            emitter.completeWithError(e);
-        }
-        return emitter;
+        return logService.streamLogs(tenant.getId(), id);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────
