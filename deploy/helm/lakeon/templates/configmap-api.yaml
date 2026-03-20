@@ -103,3 +103,13 @@ data:
   LAKEON_ALERT_SMN_REGION: {{ .smnRegion | default "cn-north-4" | quote }}
   {{- end }}
   {{- end }}
+  {{- with .Values.datalake }}
+  LAKEON_DATALAKE_CCI_NS_PREFIX: {{ .cciNamespacePrefix | quote }}
+  LAKEON_DATALAKE_VK_NODE_SELECTOR_KEY: {{ .vkNodeSelectorKey | quote }}
+  LAKEON_DATALAKE_VK_NODE_SELECTOR_VALUE: {{ .vkNodeSelectorValue | quote }}
+  LAKEON_DATALAKE_POLL_INTERVAL_MS: {{ .pollIntervalMs | quote }}
+  LAKEON_DATALAKE_IMAGE_PYTHON_SLIM: {{ .images.pythonSlim | quote }}
+  LAKEON_DATALAKE_IMAGE_PYTHON_DATA: {{ .images.pythonData | quote }}
+  LAKEON_DATALAKE_IMAGE_RAY: {{ .images.ray | quote }}
+  LAKEON_DATALAKE_IMAGE_RAY_GPU: {{ .images.rayGpu | quote }}
+  {{- end }}

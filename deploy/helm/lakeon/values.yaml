@@ -147,6 +147,17 @@ admin:
       cpu: "200m"
       memory: "256Mi"
 
+datalake:
+  cciNamespacePrefix: "datalake-"
+  vkNodeSelectorKey: "type"
+  vkNodeSelectorValue: "virtual-kubelet"
+  pollIntervalMs: "10000"
+  images:
+    pythonSlim: "swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-slim"
+    pythonData: "swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-data"
+    ray: "swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311"
+    rayGpu: "swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311-gpu"
+
 # Node init DaemonSet — fixes containerd core ulimit for Neon compute_ctl
 # See: doc/neon-modifications.md (问题 1)
 nodeInit:

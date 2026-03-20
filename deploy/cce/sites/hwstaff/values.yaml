@@ -215,3 +215,15 @@ embedding:
 
 minio:
   enabled: false
+
+# ── 数据湖任务配置 ─────────────────────────────────────────────
+datalake:
+  cciNamespacePrefix: "datalake-"
+  vkNodeSelectorKey: "type"
+  vkNodeSelectorValue: "virtual-kubelet"
+  pollIntervalMs: "10000"
+  images:
+    pythonSlim: "swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-slim"
+    pythonData: "swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-data"
+    ray: "swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311"
+    rayGpu: "swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311-gpu"
