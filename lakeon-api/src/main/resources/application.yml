@@ -115,15 +115,15 @@ lakeon:
     cpu: ${LAKEON_KB_WRITE_CPU:250m}
     memory: ${LAKEON_KB_WRITE_MEMORY:512Mi}
   datalake:
-    cci-namespace-prefix: "datalake-"
-    vk-node-selector-key: "type"
-    vk-node-selector-value: "virtual-kubelet"
-    poll-interval-ms: 10000
+    cci-namespace-prefix: "${LAKEON_DATALAKE_CCI_NS_PREFIX:datalake-}"
+    vk-node-selector-key: "${LAKEON_DATALAKE_VK_NODE_SELECTOR_KEY:type}"
+    vk-node-selector-value: "${LAKEON_DATALAKE_VK_NODE_SELECTOR_VALUE:virtual-kubelet}"
+    poll-interval-ms: "${LAKEON_DATALAKE_POLL_INTERVAL_MS:10000}"
     preset-images:
-      python-slim: "${DATALAKE_IMAGE_PYTHON_SLIM:swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-slim}"
-      python-data: "${DATALAKE_IMAGE_PYTHON_DATA:swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-data}"
-      ray: "${DATALAKE_IMAGE_RAY:swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311}"
-      ray-gpu: "${DATALAKE_IMAGE_RAY_GPU:swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311-gpu}"
+      python-slim: "${LAKEON_DATALAKE_IMAGE_PYTHON_SLIM:swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-slim}"
+      python-data: "${LAKEON_DATALAKE_IMAGE_PYTHON_DATA:swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-data}"
+      ray: "${LAKEON_DATALAKE_IMAGE_RAY:swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311}"
+      ray-gpu: "${LAKEON_DATALAKE_IMAGE_RAY_GPU:swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311-gpu}"
 
 management:
   endpoints:
