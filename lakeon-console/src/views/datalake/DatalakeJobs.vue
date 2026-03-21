@@ -1,0 +1,532 @@
+<template>
+  <div class="page-container">
+    <div class="page-header">
+      <h1 class="page-title">作业管理</h1>
+      <div class="page-header-actions">
+        <button class="btn btn-primary" @click="showSubmit = true">提交作业</button>
+      </div>
+    </div>
+
+    <!-- Status filter tabs -->
+    <div class="status-tabs">
+      <button
+        v-for="tab in statusTabs"
+        :key="tab.value"
+        class="status-tab"
+        :class="{ active: statusFilter === tab.value }"
+        @click="statusFilter = tab.value"
+      >
+        {{ tab.label }}
+        <span v-if="tab.value && statusCounts[tab.value]" class="tab-count">{{ statusCounts[tab.value] }}</span>
+      </button>
+    </div>
+
+    <!-- Submit job dialog -->
+    <div v-if="showSubmit" class="dialog-overlay" @click.self="showSubmit = false">
+      <div class="dialog-box" style="max-width: 560px;">
+        <div class="dialog-header">
+          <h3>提交作业</h3>
+          <button class="dialog-close" @click="showSubmit = false">&times;</button>
+        </div>
+        <div class="dialog-body">
+          <!-- Type selector -->
+          <div class="form-group">
+            <label class="form-label">作业类型 <span style="color:#e6393d">*</span></label>
+            <div style="display: flex; gap: 10px;">
+              <label
+                v-for="jt in jobTypes"
+                :key="jt.value"
+                class="type-radio"
+                :class="{ selected: submitForm.type === jt.value }"
+              >
+                <input type="radio" v-model="submitForm.type" :value="jt.value" style="display: none;" />
+                <span>{{ jt.label }}</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">作业名称 <span style="color:#e6393d">*</span></label>
+            <input v-model="submitForm.name" class="form-input" placeholder="例如：data-preprocessing-01" />
+          </div>
+
+          <!-- PYTHON / RAY fields -->
+          <template v-if="submitForm.type !== 'FINETUNE'">
+            <div class="form-group">
+              <label class="form-label">入口命令 <span style="color:#e6393d">*</span></label>
+              <input v-model="submitForm.entrypoint" class="form-input" placeholder='例如：python main.py --epochs 10' />
+            </div>
+            <div class="form-group">
+              <label class="form-label">依赖包</label>
+              <textarea v-model="submitForm.requirements" class="form-input" rows="3" placeholder="每行一个包名，例如：&#10;pandas==2.0&#10;scikit-learn"></textarea>
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="flex:1">
+                <label class="form-label">CPU</label>
+                <input v-model="submitForm.cpu" class="form-input" placeholder="例如：1" />
+              </div>
+              <div class="form-group" style="flex:1">
+                <label class="form-label">内存</label>
+                <input v-model="submitForm.memory" class="form-input" placeholder="例如：2Gi" />
+              </div>
+              <div class="form-group" style="flex:1">
+                <label class="form-label">超时(秒)</label>
+                <input v-model.number="submitForm.timeout_seconds" class="form-input" type="number" placeholder="600" />
+              </div>
+            </div>
+          </template>
+
+          <!-- FINETUNE fields -->
+          <template v-if="submitForm.type === 'FINETUNE'">
+            <div class="form-group">
+              <label class="form-label">基础模型 <span style="color:#e6393d">*</span></label>
+              <input v-model="submitForm.base_model" class="form-input" placeholder="例如：Qwen/Qwen2.5-7B" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">数据集路径 <span style="color:#e6393d">*</span></label>
+              <input v-model="submitForm.dataset_path" class="form-input" placeholder="OBS 路径或 HuggingFace 数据集" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">输出路径</label>
+              <input v-model="submitForm.output_path" class="form-input" placeholder="模型输出的 OBS 路径" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">GPU</label>
+              <input v-model="submitForm.gpu" class="form-input" placeholder="例如：1" />
+            </div>
+          </template>
+
+          <div class="form-group">
+            <label class="form-label">环境变量</label>
+            <textarea v-model="submitForm.env_vars_raw" class="form-input" rows="2" placeholder="KEY=VALUE 格式，每行一个"></textarea>
+          </div>
+        </div>
+        <div class="dialog-footer">
+          <button class="btn btn-default" @click="showSubmit = false">取消</button>
+          <button class="btn btn-primary" @click="handleSubmit" :disabled="!submitFormValid || submitting">
+            {{ submitting ? '提交中...' : '提交' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Job list table -->
+    <div v-if="filteredJobs.length > 0" class="table-wrapper" style="margin-top: 16px;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>作业名称</th>
+            <th>类型</th>
+            <th>状态</th>
+            <th>创建时间</th>
+            <th>运行时长</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="job in filteredJobs" :key="job.id">
+            <td>
+              <router-link :to="`/datalake/jobs/${job.id}`" class="job-name-link">
+                {{ job.name }}
+              </router-link>
+              <div class="job-id-hint">{{ job.id }}</div>
+            </td>
+            <td>
+              <span class="type-tag" :class="'type-tag-' + job.type.toLowerCase()">{{ typeLabel(job.type) }}</span>
+            </td>
+            <td>
+              <span class="status-dot" :class="'dot-' + statusColor(job.status)"></span>
+              {{ statusText(job.status) }}
+            </td>
+            <td style="color: #999;">{{ formatTime(job.createdAt) }}</td>
+            <td style="color: #666;">{{ duration(job) }}</td>
+            <td>
+              <button
+                v-if="canCancel(job)"
+                class="btn btn-text btn-small"
+                style="color: #e6393d;"
+                @click="handleCancel(job)"
+              >取消</button>
+              <router-link
+                :to="`/datalake/jobs/${job.id}`"
+                class="btn btn-text btn-small"
+                style="color: #0073e6;"
+              >详情</router-link>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Empty state -->
+    <div v-else-if="!loading" class="empty-state" style="margin-top: 64px; text-align: center;">
+      <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#ccc" stroke-width="1.5">
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+        <line x1="8" y1="21" x2="16" y2="21"/>
+        <line x1="12" y1="17" x2="12" y2="21"/>
+      </svg>
+      <p style="color: #666; margin-top: 12px;">
+        {{ statusFilter ? '没有符合条件的作业' : '还没有数据湖作业' }}
+      </p>
+      <p style="color: #999; font-size: 13px;">提交 Python、Ray 或微调作业，在 Serverless 容器中运行</p>
+    </div>
+
+    <!-- Loading -->
+    <div v-if="loading" style="text-align: center; padding: 40px; color: #999;">加载中...</div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import {
+  listDatalakeJobs,
+  submitDatalakeJob,
+  cancelDatalakeJob,
+  type DatalakeJob,
+  type DatalakeJobStatus,
+  type DatalakeJobType,
+} from '../../api/datalake'
+
+const jobs = ref<DatalakeJob[]>([])
+const loading = ref(false)
+const showSubmit = ref(false)
+const submitting = ref(false)
+const statusFilter = ref<string>('')
+
+const statusTabs: { value: string; label: string }[] = [
+  { value: '', label: '全部' },
+  { value: 'RUNNING', label: '运行中' },
+  { value: 'PENDING', label: '等待中' },
+  { value: 'SUCCEEDED', label: '已完成' },
+  { value: 'FAILED', label: '失败' },
+  { value: 'CANCELLED', label: '已取消' },
+]
+
+const jobTypes: { value: DatalakeJobType; label: string }[] = [
+  { value: 'PYTHON', label: 'Python' },
+  { value: 'RAY', label: 'Ray' },
+  { value: 'FINETUNE', label: '微调' },
+]
+
+const submitForm = ref({
+  name: '',
+  type: 'PYTHON' as DatalakeJobType,
+  entrypoint: '',
+  requirements: '',
+  cpu: '1',
+  memory: '2Gi',
+  timeout_seconds: 600,
+  env_vars_raw: '',
+  // finetune
+  base_model: '',
+  dataset_path: '',
+  output_path: '',
+  gpu: '1',
+})
+
+const submitFormValid = computed(() => {
+  if (!submitForm.value.name.trim()) return false
+  if (submitForm.value.type === 'FINETUNE') {
+    return !!submitForm.value.base_model.trim() && !!submitForm.value.dataset_path.trim()
+  }
+  return !!submitForm.value.entrypoint.trim()
+})
+
+const filteredJobs = computed(() => {
+  if (!statusFilter.value) return jobs.value
+  return jobs.value.filter(j => j.status === statusFilter.value)
+})
+
+const statusCounts = computed(() => {
+  const counts: Record<string, number> = {}
+  for (const j of jobs.value) {
+    counts[j.status] = (counts[j.status] || 0) + 1
+  }
+  return counts
+})
+
+const TERMINAL_STATUSES: DatalakeJobStatus[] = ['SUCCEEDED', 'FAILED', 'CANCELLED']
+
+function canCancel(job: DatalakeJob) {
+  return !TERMINAL_STATUSES.includes(job.status)
+}
+
+function statusColor(status: DatalakeJobStatus) {
+  const map: Record<string, string> = {
+    PENDING: 'gray',
+    STARTING: 'blue',
+    RUNNING: 'blue',
+    SUCCEEDED: 'green',
+    FAILED: 'red',
+    CANCELLED: 'gray',
+  }
+  return map[status] || 'gray'
+}
+
+function statusText(status: DatalakeJobStatus) {
+  const map: Record<string, string> = {
+    PENDING: '等待中',
+    STARTING: '启动中',
+    RUNNING: '运行中',
+    SUCCEEDED: '已完成',
+    FAILED: '失败',
+    CANCELLED: '已取消',
+  }
+  return map[status] || status
+}
+
+function typeLabel(type: DatalakeJobType) {
+  const map: Record<string, string> = { PYTHON: 'Python', RAY: 'Ray', FINETUNE: '微调' }
+  return map[type] || type
+}
+
+function formatTime(t: string) {
+  if (!t) return '-'
+  return new Date(t).toLocaleString('zh-CN')
+}
+
+function duration(job: DatalakeJob) {
+  const start = job.startedAt ? new Date(job.startedAt).getTime() : null
+  const end = job.finishedAt ? new Date(job.finishedAt).getTime() : (start ? Date.now() : null)
+  if (!start || !end) return '-'
+  const sec = Math.floor((end - start) / 1000)
+  if (sec < 60) return `${sec}s`
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`
+  return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`
+}
+
+function parseEnvVars(raw: string): Record<string, string> | undefined {
+  const lines = raw.split('\n').map(l => l.trim()).filter(l => l && l.includes('='))
+  if (lines.length === 0) return undefined
+  const result: Record<string, string> = {}
+  for (const line of lines) {
+    const idx = line.indexOf('=')
+    result[line.slice(0, idx)] = line.slice(idx + 1)
+  }
+  return result
+}
+
+async function loadJobs() {
+  loading.value = true
+  try {
+    const res = await listDatalakeJobs()
+    jobs.value = res.data
+  } catch (e: any) {
+    console.error('Failed to load datalake jobs:', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handleSubmit() {
+  submitting.value = true
+  try {
+    const f = submitForm.value
+    const body: any = { name: f.name, type: f.type }
+
+    if (f.type === 'FINETUNE') {
+      body.base_model = f.base_model
+      body.dataset_path = f.dataset_path
+      if (f.output_path) body.output_path = f.output_path
+      if (f.gpu) body.gpu = f.gpu
+    } else {
+      body.entrypoint = f.entrypoint
+      if (f.requirements.trim()) body.requirements = f.requirements.trim()
+      body.resources = { cpu: f.cpu || '1', memory: f.memory || '2Gi' }
+      if (f.timeout_seconds) body.timeout_seconds = f.timeout_seconds
+    }
+
+    const envVars = parseEnvVars(f.env_vars_raw)
+    if (envVars) body.env_vars = envVars
+
+    await submitDatalakeJob(body)
+    showSubmit.value = false
+    resetForm()
+    await loadJobs()
+  } catch (e: any) {
+    alert('提交失败: ' + (e.response?.data?.error?.message || e.message))
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function handleCancel(job: DatalakeJob) {
+  if (!confirm(`确认取消作业"${job.name}"？`)) return
+  try {
+    await cancelDatalakeJob(job.id)
+    await loadJobs()
+  } catch (e: any) {
+    alert('取消失败: ' + (e.response?.data?.error?.message || e.message))
+  }
+}
+
+function resetForm() {
+  submitForm.value = {
+    name: '',
+    type: 'PYTHON',
+    entrypoint: '',
+    requirements: '',
+    cpu: '1',
+    memory: '2Gi',
+    timeout_seconds: 600,
+    env_vars_raw: '',
+    base_model: '',
+    dataset_path: '',
+    output_path: '',
+    gpu: '1',
+  }
+}
+
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+onMounted(() => {
+  loadJobs()
+  // Auto-refresh every 10s if there are active jobs
+  pollTimer = setInterval(() => {
+    const hasActive = jobs.value.some(j => !TERMINAL_STATUSES.includes(j.status))
+    if (hasActive) loadJobs()
+  }, 10000)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+})
+</script>
+
+<style scoped>
+.status-tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 16px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.status-tab {
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  transition: all 0.15s;
+}
+
+.status-tab:hover {
+  color: #333;
+}
+
+.status-tab.active {
+  color: #0073e6;
+  border-bottom-color: #0073e6;
+  font-weight: 500;
+}
+
+.tab-count {
+  display: inline-block;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 9px;
+  background: #f0f0f0;
+  font-size: 11px;
+  margin-left: 4px;
+  padding: 0 5px;
+}
+
+.status-tab.active .tab-count {
+  background: #e8f3ff;
+  color: #0073e6;
+}
+
+.job-name-link {
+  color: #0073e6;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.job-name-link:hover {
+  text-decoration: underline;
+}
+
+.job-id-hint {
+  font-size: 11px;
+  color: #bbb;
+  margin-top: 2px;
+  font-family: monospace;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.dot-green { background-color: #52c41a; }
+.dot-blue { background-color: #1890ff; }
+.dot-red { background-color: #e6393d; }
+.dot-gray { background-color: #d9d9d9; }
+
+.type-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.type-tag-python {
+  background: #fff7e6;
+  color: #d48806;
+  border: 1px solid #ffe58f;
+}
+
+.type-tag-ray {
+  background: #f0f7ff;
+  color: #0073e6;
+  border: 1px solid #b3d4f7;
+}
+
+.type-tag-finetune {
+  background: #f9f0ff;
+  color: #722ed1;
+  border: 1px solid #d3adf7;
+}
+
+.type-radio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #555;
+  flex: 1;
+  justify-content: center;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  user-select: none;
+}
+
+.type-radio:hover {
+  border-color: #0073e6;
+  color: #0073e6;
+}
+
+.type-radio.selected {
+  border-color: #0073e6;
+  background: #e8f3ff;
+  color: #0073e6;
+  font-weight: 500;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+</style>
