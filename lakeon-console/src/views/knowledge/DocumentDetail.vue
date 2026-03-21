@@ -106,7 +106,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   getKnowledgeBase,
@@ -204,7 +204,7 @@ async function onChunkUpdated() {
   }
 }
 
-async function onChunkDeleted(chunkIndex: number) {
+async function onChunkDeleted(_chunkIndex: number) {
   selectedChunk.value = null
   selectedChunkIndex.value = -1
   chunkContext.value = null
@@ -212,7 +212,7 @@ async function onChunkDeleted(chunkIndex: number) {
   await loadStats()
   // Select the first chunk if available
   if (chunks.value.length > 0) {
-    await selectChunk(chunks.value[0].chunk_index)
+    await selectChunk(chunks.value[0]!.chunk_index)
   }
 }
 
@@ -252,7 +252,7 @@ async function onRechunkCompleted() {
   selectedChunkIndex.value = -1
   chunkContext.value = null
   if (chunks.value.length > 0) {
-    await selectChunk(chunks.value[0].chunk_index)
+    await selectChunk(chunks.value[0]!.chunk_index)
   }
 }
 
@@ -271,7 +271,7 @@ onMounted(async () => {
 
     // Auto-select first chunk
     if (chunks.value.length > 0) {
-      await selectChunk(chunks.value[0].chunk_index)
+      await selectChunk(chunks.value[0]!.chunk_index)
     }
   } catch (e: any) {
     console.error('Failed to load document detail:', e)

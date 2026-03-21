@@ -205,7 +205,7 @@ async function loadTableInfo() {
     tableInfoList.value = resp.data.tables
     // auto-expand first table if only one
     if (tableInfoList.value.length === 1) {
-      expandedTables.value.add(tableInfoList.value[0].table_name)
+      expandedTables.value.add(tableInfoList.value[0]!.table_name)
     }
   } catch (e: any) {
     tablesError.value = '加载数据表信息失败: ' + (e.response?.data?.error?.message || e.message)

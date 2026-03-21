@@ -9,7 +9,7 @@
 
     <!-- Chunk cards -->
     <div
-      v-for="(chunk, idx) in chunks"
+      v-for="chunk in chunks"
       :key="chunk.id"
       class="chunk-card"
       :class="{
