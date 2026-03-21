@@ -60,8 +60,8 @@ ALTER TABLE knowledge_chunks ADD COLUMN IF NOT EXISTS edited BOOLEAN DEFAULT FAL
 ALTER TABLE knowledge_chunks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
 """
 
-def _connect_with_retry(connstr, max_retries=5, delay=3):
-    """Connect to PostgreSQL with retries (compute may be waking up)."""
+def _connect_with_retry(connstr, max_retries=20, delay=5):
+    """Connect to PostgreSQL with retries (compute may be waking up or in WAL recovery)."""
     import time
     for attempt in range(max_retries):
         try:

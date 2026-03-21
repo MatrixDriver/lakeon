@@ -27,7 +27,7 @@ public class DatalakeJobEntity {
     @Column(nullable = false)
     private DatalakeJobStatus status;
 
-    @Column(columnDefinition = "jsonb", nullable = false)
+    @Column(columnDefinition = "text", nullable = false)
     private String spec;
 
     @Column(name = "cci_namespace")

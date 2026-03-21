@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.9.3"
+    tag: "0.9.11"
   resources:
     requests:
       cpu: "100m"
@@ -65,6 +65,11 @@ api:
   # Compute Pod 调度到弹性节点池 (autoscaler min=0 max=5)
   computeNodeSelector:
     lakeon/role: compute
+  computeMemory: "1Gi"  # 允许多个KB并发创建（弹性节点4C/8G）
+  kbWriteCpu: "1"      # kb-write pod CPU: 足够WAL恢复快速完成（250m太慢>15s）
+  kbWriteMemory: "1Gi"
+
+knowledgeJobImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-knowledge-job:0.2.2"
 
 # ── Neon 组件（单副本开发模式，最小资源请求）─────────────────────
 pageserver:

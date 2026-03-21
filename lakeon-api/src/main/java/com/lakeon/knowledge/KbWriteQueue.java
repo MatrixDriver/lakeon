@@ -13,6 +13,7 @@ import com.lakeon.service.ComputeLifecycleService;
 import com.lakeon.service.exception.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.sql.Connection;
@@ -61,7 +62,7 @@ public class KbWriteQueue {
                          DatabaseRepository databaseRepository,
                          KnowledgeBaseRepository knowledgeBaseRepository,
                          DocumentRepository documentRepository,
-                         JobService jobService,
+                         @Lazy JobService jobService,
                          LakeonProperties props,
                          ObjectMapper objectMapper) {
         this.taskRepository = taskRepository;

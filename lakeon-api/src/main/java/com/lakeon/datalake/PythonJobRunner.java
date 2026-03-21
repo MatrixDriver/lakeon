@@ -128,11 +128,24 @@ public class PythonJobRunner {
                 .withSpec(jobSpecBuilder.build())
                 .build();
 
-        // 8. Create the Job
+        // 8. Ensure namespace exists
+        if (k8sClient.namespaces().withName(ns).get() == null) {
+            k8sClient.namespaces().resource(
+                new io.fabric8.kubernetes.api.model.NamespaceBuilder()
+                    .withNewMetadata().withName(ns)
+                        .addToLabels("app", "datalake")
+                        .addToLabels("lakeon.io/tenant-id", job.getTenantId())
+                    .endMetadata()
+                    .build()
+            ).create();
+            log.info("Created namespace: {}", ns);
+        }
+
+        // 9. Create the Job
         k8sClient.batch().v1().jobs().inNamespace(ns).resource(k8sJob).create();
         log.info("Created K8s Job: {}/{}", ns, jobName);
 
-        // 9. Update entity
+        // 10. Update entity
         job.setK8sJobName(jobName);
         job.setCciNamespace(ns);
         job.setStatus(DatalakeJobStatus.STARTING);

@@ -16,15 +16,17 @@ class DbayApiError(Exception):
 
 
 class DbayClient:
-    def __init__(self, endpoint: str, api_key: str | None = None):
+    def __init__(self, endpoint: str, api_key: str | None = None, extra_headers: dict | None = None):
         self.endpoint = endpoint.rstrip("/")
         self.api_key = api_key
+        self.extra_headers = extra_headers or {}
         self.http = httpx.Client(verify=False, timeout=300)
 
     def _headers(self) -> dict:
         h = {"Content-Type": "application/json"}
         if self.api_key:
             h["Authorization"] = f"Bearer {self.api_key}"
+        h.update(self.extra_headers)
         return h
 
     def _url(self, path: str) -> str:
@@ -310,3 +312,26 @@ class DbayClient:
 
     def delete_user(self, db_id: str, user_id: str) -> dict:
         return self._request("DELETE", f"/databases/{db_id}/users/{user_id}")
+
+    # -- Datalake Jobs --
+    def submit_datalake_job(self, body: dict) -> dict:
+        return self._request("POST", "/datalake/jobs", json=body)
+
+    def list_datalake_jobs(self, status: str | None = None) -> list:
+        path = "/datalake/jobs"
+        if status:
+            path += f"?status={status}"
+        return self._request("GET", path)
+
+    def get_datalake_job(self, job_id: str) -> dict:
+        return self._request("GET", f"/datalake/jobs/{job_id}")
+
+    def cancel_datalake_job(self, job_id: str) -> dict:
+        return self._request("DELETE", f"/datalake/jobs/{job_id}")
+
+    def stream_datalake_logs_raw(self, job_id: str):
+        """Returns raw SSE response for log streaming."""
+        import httpx
+        url = self._url(f"/datalake/jobs/{job_id}/logs")
+        headers = {**self._headers(), "Accept": "text/event-stream"}
+        return httpx.Client(verify=False, timeout=None).stream("GET", url, headers=headers)

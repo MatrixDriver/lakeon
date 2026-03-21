@@ -62,12 +62,19 @@ public class DatalakeService {
 
         entity = repository.save(entity);
 
-        if (req.getType() == DatalakeJobType.PYTHON && pythonJobRunner != null) {
-            pythonJobRunner.start(entity, req);
-        } else if (req.getType() == DatalakeJobType.RAY && rayJobRunner != null) {
-            rayJobRunner.start(entity, req);
-        } else if (req.getType() == DatalakeJobType.FINETUNE && finetuneJobRunner != null) {
-            finetuneJobRunner.start(entity, req);
+        try {
+            if (req.getType() == DatalakeJobType.PYTHON && pythonJobRunner != null) {
+                pythonJobRunner.start(entity, req);
+            } else if (req.getType() == DatalakeJobType.RAY && rayJobRunner != null) {
+                rayJobRunner.start(entity, req);
+            } else if (req.getType() == DatalakeJobType.FINETUNE && finetuneJobRunner != null) {
+                finetuneJobRunner.start(entity, req);
+            }
+        } catch (Exception e) {
+            entity.setStatus(DatalakeJobStatus.FAILED);
+            entity.setErrorMessage("Failed to start job: " + e.getMessage());
+            entity.setFinishedAt(java.time.Instant.now());
+            repository.save(entity);
         }
 
         return DatalakeJobResponse.from(entity);

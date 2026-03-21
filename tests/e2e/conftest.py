@@ -1,5 +1,6 @@
 import sys
 import os
+import random
 import time
 import subprocess
 
@@ -71,14 +72,16 @@ def _create_tenant_with_invite(endpoint: str, admin_token: str,
     invite = admin.admin_create_invite_code(max_uses=1)
     invite_code = invite.get("code")
 
-    client = DbayClient(endpoint=endpoint)
-    tenant = client.create_tenant(
+    # Use a unique spoofed IP per session to avoid per-IP rate limits on /tenants
+    fake_ip = f"10.{random.randint(0,255)}.{random.randint(0,255)}.{random.randint(1,254)}"
+    reg_client = DbayClient(endpoint=endpoint, extra_headers={"X-Forwarded-For": fake_ip})
+    tenant = reg_client.create_tenant(
         username=username,
         password=password,
         name=name,
         invite_code=invite_code,
     )
-    client.api_key = tenant["api_key"]
+    client = DbayClient(endpoint=endpoint, api_key=tenant["api_key"])
 
     # Increase quota for test tenant
     tenant_id = tenant.get("id")

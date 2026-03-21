@@ -22,6 +22,12 @@ data:
   {{- if .Values.api.computeMemory }}
   LAKEON_COMPUTE_MEMORY: {{ .Values.api.computeMemory | quote }}
   {{- end }}
+  {{- if .Values.api.kbWriteCpu }}
+  LAKEON_KB_WRITE_CPU: {{ .Values.api.kbWriteCpu | quote }}
+  {{- end }}
+  {{- if .Values.api.kbWriteMemory }}
+  LAKEON_KB_WRITE_MEMORY: {{ .Values.api.kbWriteMemory | quote }}
+  {{- end }}
   LAKEON_API_PORT: {{ .Values.api.port | quote }}
   {{- if .Values.api.ssl.enabled }}
   LAKEON_SSL_ENABLED: "true"
@@ -102,6 +108,10 @@ data:
   {{- if .smnRegion }}
   LAKEON_ALERT_SMN_REGION: {{ .smnRegion | default "cn-north-4" | quote }}
   {{- end }}
+  {{- end }}
+  {{- if .Values.knowledgeJobImage }}
+  LAKEON_JOB_IMAGE_DOCUMENT_PARSE: {{ .Values.knowledgeJobImage | quote }}
+  LAKEON_JOB_IMAGE_EMBEDDING: {{ .Values.knowledgeJobImage | quote }}
   {{- end }}
   {{- with .Values.datalake }}
   LAKEON_DATALAKE_CCI_NS_PREFIX: {{ .cciNamespacePrefix | quote }}
