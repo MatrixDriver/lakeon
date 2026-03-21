@@ -72,7 +72,9 @@ public class DatalakeService {
             }
         } catch (Exception e) {
             entity.setStatus(DatalakeJobStatus.FAILED);
-            entity.setErrorMessage("Failed to start job: " + e.getMessage());
+            String errMsg = "Failed to start job: " + e.getMessage();
+            if (errMsg.length() > 250) errMsg = errMsg.substring(0, 250);
+            entity.setErrorMessage(errMsg);
             entity.setFinishedAt(java.time.Instant.now());
             repository.save(entity);
         }
