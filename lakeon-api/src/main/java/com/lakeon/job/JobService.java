@@ -33,6 +33,8 @@ public class JobService {
     // Lazy reference to avoid circular dependency (KbWriteQueue → JobService → KbWriteQueue)
     private com.lakeon.knowledge.KbWriteQueue kbWriteQueue;
 
+    private com.lakeon.dataset.DatasetRepository datasetRepository;
+
     public JobService(JobRepository jobRepository, JobPodManager jobPodManager, ObjectMapper objectMapper) {
         this.jobRepository = jobRepository;
         this.jobPodManager = jobPodManager;
@@ -42,6 +44,11 @@ public class JobService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     public void setKbWriteQueue(com.lakeon.knowledge.KbWriteQueue kbWriteQueue) {
         this.kbWriteQueue = kbWriteQueue;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setDatasetRepository(com.lakeon.dataset.DatasetRepository datasetRepository) {
+        this.datasetRepository = datasetRepository;
     }
 
     /**
@@ -237,6 +244,19 @@ public class JobService {
                 }
             }
 
+            // Update DatasetEntity for EXPORT_PARQUET jobs
+            if (datasetRepository != null && job.getType() == JobType.EXPORT_PARQUET) {
+                try {
+                    if (newStatus == JobStatus.SUCCEEDED) {
+                        updateDatasetFromExport(job, resultJson);
+                    } else if (newStatus == JobStatus.FAILED) {
+                        failDatasetFromExport(job, error);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to update dataset for job {}: {}", jobId, e.getMessage());
+                }
+            }
+
             // Clean up pod resources asynchronously
             executor.submit(() -> {
                 try {
@@ -251,6 +271,33 @@ public class JobService {
         }
 
         return true;
+    }
+
+    private void updateDatasetFromExport(JobEntity job, String resultJson) {
+        datasetRepository.findByJobId(job.getId()).ifPresent(ds -> {
+            ds.setStatus(com.lakeon.dataset.DatasetStatus.READY);
+            if (resultJson != null) {
+                try {
+                    Map<String, Object> result = objectMapper.readValue(resultJson, Map.class);
+                    if (result.get("row_count") instanceof Number n) ds.setRowCount(n.longValue());
+                    if (result.get("file_size") instanceof Number n) ds.setFileSize(n.longValue());
+                    if (result.get("obs_path") instanceof String s) ds.setObsPath(s);
+                } catch (Exception e) {
+                    log.warn("Failed to parse export result for job {}: {}", job.getId(), e.getMessage());
+                }
+            }
+            datasetRepository.save(ds);
+            log.info("Dataset {} marked READY from job {}", ds.getId(), job.getId());
+        });
+    }
+
+    private void failDatasetFromExport(JobEntity job, String error) {
+        datasetRepository.findByJobId(job.getId()).ifPresent(ds -> {
+            ds.setStatus(com.lakeon.dataset.DatasetStatus.FAILED);
+            ds.setError(error);
+            datasetRepository.save(ds);
+            log.info("Dataset {} marked FAILED from job {}", ds.getId(), job.getId());
+        });
     }
 
     @jakarta.annotation.PreDestroy
