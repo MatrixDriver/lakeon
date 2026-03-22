@@ -36,9 +36,9 @@ const routes = [
       // Datalake
       { path: 'datalake', name: 'DatalakeJobs', component: () => import('../views/datalake/DatalakeJobs.vue') },
       { path: 'datalake/jobs/:jobId', name: 'DatalakeJobDetail', component: () => import('../views/datalake/DatalakeJobDetail.vue') },
-      { path: 'datalake/notebooks', name: 'DatalakeNotebooks', component: () => import('../views/datalake/DatalakeNotebooks.vue') },
       { path: 'datalake/datasets', name: 'DatalakeDatasets', component: () => import('../views/datalake/DatalakeDatasets.vue') },
-      { path: 'datalake/models', name: 'DatalakeModels', component: () => import('../views/datalake/DatalakeModels.vue') },
+      { path: 'datalake/datasets/new', name: 'DatalakeDatasetNew', component: () => import('../views/datalake/DatalakeDatasetNew.vue') },
+      { path: 'datalake/datasets/:id', name: 'DatalakeDatasetDetail', component: () => import('../views/datalake/DatalakeDatasetDetail.vue') },
       // Knowledge
       { path: 'knowledge', name: 'KnowledgeBases', component: () => import('../views/knowledge/KnowledgeBases.vue') },
       { path: 'knowledge/:kbId', name: 'KnowledgeBaseDetail', component: () => import('../views/knowledge/KnowledgeBaseDetail.vue') },
