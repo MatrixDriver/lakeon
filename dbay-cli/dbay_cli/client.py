@@ -335,3 +335,27 @@ class DbayClient:
         url = self._url(f"/datalake/jobs/{job_id}/logs")
         headers = {**self._headers(), "Accept": "text/event-stream"}
         return httpx.Client(verify=False, timeout=None).stream("GET", url, headers=headers)
+
+    # -- Datasets --
+    def create_dataset(self, name: str, database_id: str, query_mode: str, 
+                      tables: list | None = None, sql: str | None = None, 
+                      description: str | None = None) -> dict:
+        body = {"name": name, "database_id": database_id, "query_mode": query_mode}
+        if tables: body["tables"] = tables
+        if sql: body["sql"] = sql
+        if description: body["description"] = description
+        return self._request("POST", "/datasets", json=body)
+
+    def list_datasets(self, status: str | None = None) -> list:
+        path = "/datasets"
+        if status: path += f"?status={status}"
+        return self._request("GET", path)
+
+    def get_dataset(self, dataset_id: str) -> dict:
+        return self._request("GET", f"/datasets/{dataset_id}")
+
+    def trigger_export(self, dataset_id: str) -> dict:
+        return self._request("POST", f"/datasets/{dataset_id}/export")
+
+    def delete_dataset(self, dataset_id: str) -> dict:
+        return self._request("DELETE", f"/datasets/{dataset_id}")
