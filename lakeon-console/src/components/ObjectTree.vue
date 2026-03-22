@@ -25,6 +25,13 @@
             >
               <span class="table-type-icon" :class="t.type === 'VIEW' ? 'type-view' : 'type-table'">{{ t.type === 'VIEW' ? 'V' : 'T' }}</span>
               <span class="tree-label">{{ t.name }}</span>
+              <router-link
+                v-if="t.type !== 'VIEW'"
+                :to="`/datalake/datasets/new?database_id=${props.dbId}&table=${t.name}`"
+                class="table-export-link"
+                title="导出到数据集"
+                @click.stop
+              >导出</router-link>
             </div>
             <div v-if="getTables(schema.name).length === 0" class="tree-empty">无表</div>
           </template>
@@ -258,6 +265,17 @@ onMounted(loadSchemas)
 
 .table-item {
   padding-left: 28px;
+}
+.table-export-link {
+  display: none;
+  margin-left: auto;
+  font-size: 11px;
+  color: #0073e6;
+  text-decoration: none;
+  padding: 0 4px;
+}
+.table-item:hover .table-export-link {
+  display: inline;
 }
 
 .table-type-icon {
