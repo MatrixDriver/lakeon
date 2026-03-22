@@ -38,7 +38,7 @@ class DatalakeServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new DatalakeService(repository, new ObjectMapper());
+        service = new DatalakeService(repository, new ObjectMapper(), new com.lakeon.config.LakeonProperties());
         // inject optional runner fields via reflection
         setField(service, "pythonJobRunner", pythonJobRunner);
         setField(service, "rayJobRunner", rayJobRunner);
