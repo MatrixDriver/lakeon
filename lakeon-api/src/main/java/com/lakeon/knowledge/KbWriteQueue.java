@@ -381,17 +381,15 @@ public class KbWriteQueue {
                 ps.setInt(2, newIndex);
                 ps.executeUpdate();
             }
-            String chunkId = "chk_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
             try (PreparedStatement ps = conn.prepareStatement(
-                    "INSERT INTO knowledge_chunks (id, document_id, chunk_index, content, embedding, " +
+                    "INSERT INTO knowledge_chunks (document_id, chunk_index, content, embedding, " +
                     "char_count, edited, level, overlap_prev, created_at, updated_at) " +
-                    "VALUES (?, ?, ?, ?, ?::vector, ?, true, 0, 0, now(), now())")) {
-                ps.setString(1, chunkId);
-                ps.setString(2, docId);
-                ps.setInt(3, newIndex);
-                ps.setString(4, content);
-                ps.setString(5, vectorStr);
-                ps.setInt(6, content.length());
+                    "VALUES (?, ?, ?, ?::vector, ?, true, 0, 0, now(), now())")) {
+                ps.setString(1, docId);
+                ps.setInt(2, newIndex);
+                ps.setString(3, content);
+                ps.setString(4, vectorStr);
+                ps.setInt(5, content.length());
                 ps.executeUpdate();
             }
             conn.commit();
