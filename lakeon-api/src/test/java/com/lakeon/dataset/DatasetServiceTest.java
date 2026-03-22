@@ -56,7 +56,8 @@ class DatasetServiceTest {
 
         datasetService = new DatasetService(
                 datasetRepository, computeLifecycleService, databaseRepository,
-                databaseQueryService, jobService, props, tenantRepository);
+                databaseQueryService, jobService, props, tenantRepository,
+                new com.fasterxml.jackson.databind.ObjectMapper());
     }
 
     // ─── create ─────────────────────────────────────────────────────

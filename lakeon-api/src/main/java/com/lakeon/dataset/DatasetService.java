@@ -27,6 +27,8 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
@@ -44,6 +46,7 @@ public class DatasetService {
     private final JobService jobService;
     private final LakeonProperties props;
     private final TenantRepository tenantRepository;
+    private final ObjectMapper objectMapper;
 
     public DatasetService(DatasetRepository datasetRepository,
                           ComputeLifecycleService computeLifecycleService,
@@ -51,7 +54,8 @@ public class DatasetService {
                           DatabaseQueryService databaseQueryService,
                           JobService jobService,
                           LakeonProperties props,
-                          TenantRepository tenantRepository) {
+                          TenantRepository tenantRepository,
+                          ObjectMapper objectMapper) {
         this.datasetRepository = datasetRepository;
         this.computeLifecycleService = computeLifecycleService;
         this.databaseRepository = databaseRepository;
@@ -59,6 +63,7 @@ public class DatasetService {
         this.jobService = jobService;
         this.props = props;
         this.tenantRepository = tenantRepository;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -80,7 +85,11 @@ public class DatasetService {
         entity.setDescription(description);
         entity.setDatabaseId(databaseId);
         entity.setSourceSql(sourceSql);
-        entity.setSourceTables(tables != null ? tables.toString() : null);
+        try {
+            entity.setSourceTables(tables != null ? objectMapper.writeValueAsString(tables) : null);
+        } catch (Exception e) {
+            entity.setSourceTables(null);
+        }
         entity.setSourceType(DatasetSourceType.DB_EXPORT);
         entity.setStatus(DatasetStatus.DRAFT);
 
@@ -258,11 +267,11 @@ public class DatasetService {
             columnsPart = "*";
         } else {
             columnsPart = columns.stream()
-                    .map(c -> "\"" + c + "\"")
+                    .map(c -> "\"" + c.replace("\"", "\"\"") + "\"")
                     .collect(Collectors.joining(", "));
         }
 
-        return "SELECT " + columnsPart + " FROM \"" + tableName + "\"";
+        return "SELECT " + columnsPart + " FROM \"" + tableName.replace("\"", "\"\"") + "\"";
     }
 
     private void validateCustomSql(String sql) {
@@ -339,14 +348,13 @@ public class DatasetService {
     }
 
     private void deleteObsFile(String obsPath) {
-        try {
-            S3Client s3 = S3Client.builder()
-                    .endpointOverride(URI.create(props.getObs().getEndpoint()))
-                    .credentialsProvider(StaticCredentialsProvider.create(
-                            AwsBasicCredentials.create(props.getObs().getAccessKey(), props.getObs().getSecretKey())))
-                    .region(Region.of("cn-north-4"))
-                    .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(false).build())
-                    .build();
+        try (S3Client s3 = S3Client.builder()
+                .endpointOverride(URI.create(props.getObs().getEndpoint()))
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(props.getObs().getAccessKey(), props.getObs().getSecretKey())))
+                .region(Region.of("cn-north-4"))
+                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(false).build())
+                .build()) {
 
             s3.deleteObject(DeleteObjectRequest.builder()
                     .bucket(props.getObs().getBucket())
