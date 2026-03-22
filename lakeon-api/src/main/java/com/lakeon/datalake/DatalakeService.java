@@ -2,6 +2,10 @@ package com.lakeon.datalake;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lakeon.config.LakeonProperties;
+import com.lakeon.dataset.DatasetEntity;
+import com.lakeon.dataset.DatasetRepository;
+import com.lakeon.dataset.DatasetStatus;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,7 +13,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -23,6 +29,10 @@ public class DatalakeService {
 
     private final DatalakeJobRepository repository;
     private final ObjectMapper objectMapper;
+    private final LakeonProperties properties;
+
+    @Autowired(required = false)
+    private DatasetRepository datasetRepository;
 
     @Autowired(required = false)
     private PythonJobRunner pythonJobRunner;
@@ -33,9 +43,10 @@ public class DatalakeService {
     @Autowired(required = false)
     private FinetuneJobRunner finetuneJobRunner;
 
-    public DatalakeService(DatalakeJobRepository repository, ObjectMapper objectMapper) {
+    public DatalakeService(DatalakeJobRepository repository, ObjectMapper objectMapper, LakeonProperties properties) {
         this.repository = repository;
         this.objectMapper = objectMapper;
+        this.properties = properties;
     }
 
     public DatalakeJobResponse submitJob(String tenantId, DatalakeJobRequest req) {
@@ -61,6 +72,24 @@ public class DatalakeService {
         entity.setSpec(spec);
 
         entity = repository.save(entity);
+
+        // Resolve input dataset: inject DATASET_PATH env var if input_dataset_id is provided
+        if (req.getInputDatasetId() != null && datasetRepository != null) {
+            DatasetEntity dataset = datasetRepository.findById(req.getInputDatasetId())
+                    .orElseThrow(() -> new NotFoundException("Dataset not found: " + req.getInputDatasetId()));
+            if (dataset.getStatus() != DatasetStatus.READY) {
+                throw new BadRequestException("Dataset is not ready: " + req.getInputDatasetId()
+                        + " (status=" + dataset.getStatus() + ")");
+            }
+            String bucket = properties.getObs().getBucket();
+            String datasetPath = "s3://" + bucket + "/" + dataset.getObsPath();
+            Map<String, String> envVars = req.getEnvVars() != null ? new HashMap<>(req.getEnvVars()) : new HashMap<>();
+            envVars.put("DATASET_PATH", datasetPath);
+            req.setEnvVars(envVars);
+        }
+
+        // TODO: output_dataset_name — create output DatasetEntity after job completes
+        // This requires DatalakeStatusPoller integration (planned).
 
         try {
             if (req.getType() == DatalakeJobType.PYTHON && pythonJobRunner != null) {
