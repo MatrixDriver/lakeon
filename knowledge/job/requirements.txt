@@ -4,3 +4,4 @@ psycopg2-binary==2.9.10
 boto3==1.36.0
 requests==2.32.3
 numpy>=1.26.0
+duckdb

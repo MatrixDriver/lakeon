@@ -20,6 +20,12 @@ ANOMALY_SHORT_THRESHOLD = 80
 ANOMALY_LONG_THRESHOLD = 800
 
 def main():
+    job_type = os.environ.get("JOB_TYPE", "DOCUMENT_PARSE")
+    if job_type == "EXPORT_PARQUET":
+        from export_parquet import main as export_main
+        export_main()
+        return
+
     tmp_path = None
     try:
         with open("/etc/job/params.json") as f:
