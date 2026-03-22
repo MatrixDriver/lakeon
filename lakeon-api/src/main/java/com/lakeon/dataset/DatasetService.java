@@ -1,0 +1,361 @@
+package com.lakeon.dataset;
+
+import com.lakeon.config.LakeonProperties;
+import com.lakeon.job.JobEntity;
+import com.lakeon.job.JobService;
+import com.lakeon.job.JobType;
+import com.lakeon.model.dto.QueryResult;
+import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.model.entity.TenantEntity;
+import com.lakeon.repository.DatabaseRepository;
+import com.lakeon.repository.TenantRepository;
+import com.lakeon.service.ComputeLifecycleService;
+import com.lakeon.service.DatabaseQueryService;
+import com.lakeon.service.exception.BadRequestException;
+import com.lakeon.service.exception.NotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+
+import java.net.URI;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+public class DatasetService {
+    private static final Logger log = LoggerFactory.getLogger(DatasetService.class);
+
+    private final DatasetRepository datasetRepository;
+    private final ComputeLifecycleService computeLifecycleService;
+    private final DatabaseRepository databaseRepository;
+    private final DatabaseQueryService databaseQueryService;
+    private final JobService jobService;
+    private final LakeonProperties props;
+    private final TenantRepository tenantRepository;
+
+    public DatasetService(DatasetRepository datasetRepository,
+                          ComputeLifecycleService computeLifecycleService,
+                          DatabaseRepository databaseRepository,
+                          DatabaseQueryService databaseQueryService,
+                          JobService jobService,
+                          LakeonProperties props,
+                          TenantRepository tenantRepository) {
+        this.datasetRepository = datasetRepository;
+        this.computeLifecycleService = computeLifecycleService;
+        this.databaseRepository = databaseRepository;
+        this.databaseQueryService = databaseQueryService;
+        this.jobService = jobService;
+        this.props = props;
+        this.tenantRepository = tenantRepository;
+    }
+
+    /**
+     * Create a new dataset in DRAFT status.
+     */
+    @Transactional
+    public DatasetEntity create(String tenantId, String name, String description,
+                                String databaseId, String queryMode,
+                                List<Map<String, Object>> tables, String sql) {
+        if (name == null || name.isBlank()) {
+            throw new BadRequestException("Dataset name is required");
+        }
+
+        String sourceSql = resolveSourceSql(queryMode, tables, sql);
+
+        DatasetEntity entity = new DatasetEntity();
+        entity.setTenantId(tenantId);
+        entity.setName(name);
+        entity.setDescription(description);
+        entity.setDatabaseId(databaseId);
+        entity.setSourceSql(sourceSql);
+        entity.setSourceTables(tables != null ? tables.toString() : null);
+        entity.setSourceType(DatasetSourceType.DB_EXPORT);
+        entity.setStatus(DatasetStatus.DRAFT);
+
+        datasetRepository.save(entity);
+        log.info("Created dataset {} for tenant {}", entity.getId(), tenantId);
+        return entity;
+    }
+
+    /**
+     * Preview query results: returns columns, rows (limit 10), total count, and the SQL used.
+     */
+    public Map<String, Object> preview(String tenantId, String databaseId,
+                                       String queryMode, List<Map<String, Object>> tables, String sql) {
+        String sourceSql = resolveSourceSql(queryMode, tables, sql);
+        TenantEntity tenant = findTenant(tenantId);
+
+        computeLifecycleService.wakeCompute(databaseId);
+
+        String previewSql = sourceSql + " LIMIT 10";
+        QueryResult previewResult = databaseQueryService.executeQuery(tenant, databaseId, previewSql);
+
+        String countSql = "SELECT COUNT(*) FROM (" + sourceSql + ") sub";
+        QueryResult countResult = databaseQueryService.executeQuery(tenant, databaseId, countSql);
+
+        long totalCount = 0;
+        if (!countResult.rows().isEmpty() && !countResult.rows().get(0).isEmpty()) {
+            Object val = countResult.rows().get(0).get(0);
+            totalCount = val instanceof Number ? ((Number) val).longValue() : Long.parseLong(val.toString());
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("columns", previewResult.columns());
+        result.put("rows", previewResult.rows());
+        result.put("total_count", totalCount);
+        result.put("preview_sql", sourceSql);
+        return result;
+    }
+
+    /**
+     * Trigger Parquet export for a DRAFT dataset.
+     */
+    @Transactional
+    public DatasetEntity triggerExport(String tenantId, String datasetId) {
+        DatasetEntity dataset = findDataset(tenantId, datasetId);
+        if (dataset.getStatus() != DatasetStatus.DRAFT) {
+            throw new BadRequestException("Dataset must be in DRAFT status to export, current: " + dataset.getStatus());
+        }
+
+        DatabaseEntity db = databaseRepository.findById(dataset.getDatabaseId())
+                .orElseThrow(() -> new NotFoundException("Database not found: " + dataset.getDatabaseId()));
+
+        String hostPort = computeLifecycleService.wakeCompute(db.getId());
+
+        // Refresh last active time to prevent auto-suspend during export
+        db.setLastActiveAt(Instant.now());
+        databaseRepository.save(db);
+
+        String connstr = "postgresql://cloud_admin:cloud-admin-internal@" + hostPort
+                + "/" + db.getName() + "?sslmode=disable";
+
+        String obsPath = "datasets/" + tenantId + "/" + datasetId + "/data.parquet";
+
+        TenantEntity tenant = findTenant(tenantId);
+
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("database_connstr", connstr);
+        params.put("source_sql", dataset.getSourceSql());
+        params.put("obs_output_path", obsPath);
+
+        JobEntity job = jobService.submitJob(tenant, JobType.EXPORT_PARQUET, params);
+
+        dataset.setStatus(DatasetStatus.EXPORTING);
+        dataset.setJobId(job.getId());
+        dataset.setObsPath(obsPath);
+        datasetRepository.save(dataset);
+
+        log.info("Triggered export for dataset {}, job {}", datasetId, job.getId());
+        return dataset;
+    }
+
+    /**
+     * List datasets for a tenant, optionally filtered by status.
+     */
+    public List<DatasetEntity> listDatasets(String tenantId, DatasetStatus status) {
+        if (status != null) {
+            return datasetRepository.findAllByTenantIdAndStatusOrderByCreatedAtDesc(tenantId, status);
+        }
+        return datasetRepository.findAllByTenantIdOrderByCreatedAtDesc(tenantId);
+    }
+
+    /**
+     * Get a dataset by ID, scoped to tenant.
+     */
+    public DatasetEntity getDataset(String tenantId, String datasetId) {
+        return findDataset(tenantId, datasetId);
+    }
+
+    /**
+     * Get a detailed dataset response including download URL and code snippets when READY.
+     */
+    public Map<String, Object> getDatasetResponse(String tenantId, String datasetId) {
+        DatasetEntity dataset = findDataset(tenantId, datasetId);
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("id", dataset.getId());
+        response.put("name", dataset.getName());
+        response.put("description", dataset.getDescription());
+        response.put("source_type", dataset.getSourceType());
+        response.put("database_id", dataset.getDatabaseId());
+        response.put("source_sql", dataset.getSourceSql());
+        response.put("status", dataset.getStatus());
+        response.put("job_id", dataset.getJobId());
+        response.put("obs_path", dataset.getObsPath());
+        response.put("row_count", dataset.getRowCount());
+        response.put("file_size", dataset.getFileSize());
+        response.put("error", dataset.getError());
+        response.put("created_at", dataset.getCreatedAt());
+        response.put("updated_at", dataset.getUpdatedAt());
+
+        if (dataset.getStatus() == DatasetStatus.READY && dataset.getObsPath() != null) {
+            String downloadUrl = generatePresignedUrl(dataset.getObsPath());
+            response.put("download_url", downloadUrl);
+            response.put("code_snippets", buildCodeSnippets(downloadUrl, dataset.getObsPath()));
+        }
+
+        return response;
+    }
+
+    /**
+     * Delete a dataset and its OBS file if present.
+     */
+    @Transactional
+    public void deleteDataset(String tenantId, String datasetId) {
+        DatasetEntity dataset = findDataset(tenantId, datasetId);
+
+        if (dataset.getObsPath() != null) {
+            deleteObsFile(dataset.getObsPath());
+        }
+
+        datasetRepository.delete(dataset);
+        log.info("Deleted dataset {} for tenant {}", datasetId, tenantId);
+    }
+
+    // ─── Private helpers ────────────────────────────────────────────
+
+    private String resolveSourceSql(String queryMode, List<Map<String, Object>> tables, String sql) {
+        if ("TABLE_SELECT".equals(queryMode)) {
+            return generateTableSelectSql(tables);
+        } else if ("CUSTOM_SQL".equals(queryMode)) {
+            validateCustomSql(sql);
+            return sql.trim();
+        } else {
+            throw new BadRequestException("Invalid queryMode: " + queryMode + ". Must be TABLE_SELECT or CUSTOM_SQL");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private String generateTableSelectSql(List<Map<String, Object>> tables) {
+        if (tables == null || tables.isEmpty()) {
+            throw new BadRequestException("At least one table is required for TABLE_SELECT mode");
+        }
+        if (tables.size() > 1) {
+            throw new BadRequestException("TABLE_SELECT mode supports one table at a time");
+        }
+
+        Map<String, Object> table = tables.get(0);
+        String tableName = (String) table.get("name");
+        if (tableName == null || tableName.isBlank()) {
+            throw new BadRequestException("Table name is required");
+        }
+
+        List<String> columns = (List<String>) table.get("columns");
+        String columnsPart;
+        if (columns == null || columns.isEmpty()) {
+            columnsPart = "*";
+        } else {
+            columnsPart = columns.stream()
+                    .map(c -> "\"" + c + "\"")
+                    .collect(Collectors.joining(", "));
+        }
+
+        return "SELECT " + columnsPart + " FROM \"" + tableName + "\"";
+    }
+
+    private void validateCustomSql(String sql) {
+        if (sql == null || sql.isBlank()) {
+            throw new BadRequestException("SQL is required for CUSTOM_SQL mode");
+        }
+        String normalized = sql.trim().toLowerCase();
+        if (!normalized.startsWith("select")) {
+            throw new BadRequestException("Only SELECT statements are allowed");
+        }
+        if (normalized.contains(";")) {
+            throw new BadRequestException("Multiple statements not allowed");
+        }
+    }
+
+    private DatasetEntity findDataset(String tenantId, String datasetId) {
+        return datasetRepository.findByIdAndTenantId(datasetId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Dataset not found: " + datasetId));
+    }
+
+    private TenantEntity findTenant(String tenantId) {
+        return tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new NotFoundException("Tenant not found: " + tenantId));
+    }
+
+    private String generatePresignedUrl(String obsPath) {
+        try (S3Presigner presigner = S3Presigner.builder()
+                .endpointOverride(URI.create(props.getObs().getEndpoint()))
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(props.getObs().getAccessKey(), props.getObs().getSecretKey())))
+                .region(Region.of("cn-north-4"))
+                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(false).build())
+                .build()) {
+
+            GetObjectRequest getRequest = GetObjectRequest.builder()
+                    .bucket(props.getObs().getBucket())
+                    .key(obsPath)
+                    .build();
+
+            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofMinutes(60))
+                    .getObjectRequest(getRequest)
+                    .build();
+
+            return presigner.presignGetObject(presignRequest).url().toString();
+        } catch (Exception e) {
+            log.warn("Failed to generate presigned URL for {}, falling back to plain URL: {}", obsPath, e.getMessage());
+            return "https://" + props.getObs().getBucket() + "." +
+                    props.getObs().getEndpoint().replaceFirst("https?://", "") +
+                    "/" + obsPath;
+        }
+    }
+
+    private Map<String, String> buildCodeSnippets(String downloadUrl, String obsPath) {
+        String bucket = props.getObs().getBucket();
+        String endpoint = props.getObs().getEndpoint();
+
+        Map<String, String> snippets = new LinkedHashMap<>();
+
+        snippets.put("pandas", String.format(
+                "import pandas as pd\ndf = pd.read_parquet(\"%s\")\nprint(df.head())", downloadUrl));
+
+        snippets.put("ray", String.format(
+                "import ray\nds = ray.data.read_parquet(\"s3://%s/%s\",\n"
+                + "    storage_options={\"endpoint_url\": \"%s\"})\nds.show(5)",
+                bucket, obsPath, endpoint));
+
+        snippets.put("duckdb", String.format(
+                "import duckdb\ncon = duckdb.connect()\ndf = con.execute(\n"
+                + "    \"SELECT * FROM read_parquet('%s') LIMIT 100\"\n).fetchdf()\nprint(df)",
+                downloadUrl));
+
+        return snippets;
+    }
+
+    private void deleteObsFile(String obsPath) {
+        try {
+            S3Client s3 = S3Client.builder()
+                    .endpointOverride(URI.create(props.getObs().getEndpoint()))
+                    .credentialsProvider(StaticCredentialsProvider.create(
+                            AwsBasicCredentials.create(props.getObs().getAccessKey(), props.getObs().getSecretKey())))
+                    .region(Region.of("cn-north-4"))
+                    .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(false).build())
+                    .build();
+
+            s3.deleteObject(DeleteObjectRequest.builder()
+                    .bucket(props.getObs().getBucket())
+                    .key(obsPath)
+                    .build());
+
+            log.info("Deleted OBS file: {}", obsPath);
+        } catch (Exception e) {
+            log.warn("Failed to delete OBS file {}: {}", obsPath, e.getMessage());
+        }
+    }
+}
