@@ -1,40 +1,52 @@
 # Lakeon
 
-基于 [Neon](https://github.com/neondatabase/neon) 存储引擎的自托管 Serverless PostgreSQL 平台。
+基于 [Neon](https://github.com/neondatabase/neon) 存储引擎的自托管 Serverless PostgreSQL 平台，提供 AI 知识库管理和 Serverless 数据湖计算。
 
 Lakeon 将 Neon 的存算分离架构封装为一套可私有部署的 Kubernetes 原生方案，支持按需创建数据库、自动挂起/唤醒计算节点、多租户隔离和对象存储持久化。
 
 详细架构设计请参考 [架构文档](docs/architecture.md)。使用 Neon 官方镜像遇到的兼容性问题及修改建议见 [Neon 修改建议](docs/neon-modifications.md)。
 
+## 核心功能
+
+- **Serverless 数据库**: 按需创建 PG 实例，自动挂起/唤醒，存算分离 (Neon)
+- **数据库分支**: 类 Git 的 copy-on-write 分支，版本管理和时间旅行
+- **AI 知识库**: 文档上传 → 解析 → 切片 → 向量化 → 混合检索 (pgvector + tsvector RRF)
+- **Serverless 数据湖**: Python/Ray/微调任务，CCI Kata VM 隔离
+- **多租户隔离**: API Key 认证，租户间数据完全隔离
+- **弹性扩缩容**: Compute Pod 弹性节点池，min=1 max=5 自动扩缩
+
 ## 项目结构
 
 ```
 lakeon/
-├── lakeon-api/          # 控制面 API (Spring Boot)
-│   ├── src/main/java/   # Java 源码
-│   ├── src/test/        # 单元测试 + 集成测试
-│   └── Dockerfile
+├── lakeon-api/          # 控制面 API (Spring Boot 3.3.5, Java 17)
+│   ├── src/main/java/com/lakeon/
+│   │   ├── auth/        # 认证 (API Key + 用户名密码)
+│   │   ├── database/    # 数据库管理 (CRUD, 分支, 版本)
+│   │   ├── knowledge/   # 知识库 (KB CRUD, 文档上传, 搜索)
+│   │   ├── datalake/    # 数据湖 (Python/Ray/微调任务)
+│   │   ├── job/         # 通用 Job 框架
+│   │   ├── service/     # 核心服务 (Compute, Neon, Database)
+│   │   └── admin/       # SRE 管理 API
+│   └── src/test/        # 单元测试
 ├── lakeon-console/      # Web 控制台 (Vue 3 + TinyVue)
-│   ├── src/             # 前端源码
-│   ├── Dockerfile       # Nginx 静态文件托管
-│   └── nginx.conf       # 反向代理 API 请求
-├── lakeon-cli/          # 命令行客户端 (Python)
 ├── dbay-cli/            # DBay CLI (Python, E2E 测试客户端)
-├── tests/e2e/           # E2E 测试 (pytest + psql)
+│   └── dbay_cli/
+│       └── commands/    # db, branch, version, user, kb, datalake
+├── dbay-mcp/            # MCP Server (knowledge_search/upload/list)
+├── knowledge/
+│   ├── job/             # Knowledge Pipeline (parse → chunk → embed → write)
+│   └── embedding-service/ # BGE-M3 + BGE-Reranker (FastAPI)
+├── tests/e2e/           # E2E 测试 (pytest, 48+ test cases)
 ├── deploy/
 │   ├── helm/lakeon/     # Helm Chart
-│   ├── local/           # 本地部署脚本和配置
-│   │   ├── values-local.yaml
-│   │   ├── setup.sh
-│   │   └── integration-test.sh
+│   ├── local/           # 本地部署
 │   └── cce/             # 华为云 CCE 部署
-│       ├── values-cce.yaml
-│       ├── start.sh         # 一键启动（云资源+部署+冒烟测试）
-│       ├── stop.sh          # 一键关停
-│       ├── deploy.sh        # 仅重新部署（自动加载凭据）
-│       ├── smoke-test.sh    # 冒烟测试（6 项检查）
-│       └── hwcloud.py       # 华为云资源管理
-└── docs/                # 设计文档、验证报告和实施计划
+│       ├── sites/       # 多站点配置 (hwstaff, jackylk, cceap)
+│       ├── deploy.sh    # 标准部署脚本
+│       ├── start.sh     # 一键启动
+│       └── stop.sh      # 一键关停
+└── docs/                # 设计文档、架构、路线图
 ```
 
 ## 快速开始（本地部署）
@@ -166,7 +178,7 @@ cd lakeon-api && mvn test
 # CCE 冒烟测试 (7 项)
 ./deploy/cce/deploy.sh
 
-# E2E 测试 (47 用例，需要 CCE 环境 + psql)
+# E2E 测试 (48+ 用例，需要 CCE 环境)
 pip install -e dbay-cli/
 no_proxy="api.dbay.cloud,pg.dbay.cloud" pytest tests/e2e/ -v
 ```

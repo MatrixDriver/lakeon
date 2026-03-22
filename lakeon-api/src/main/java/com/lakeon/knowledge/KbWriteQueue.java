@@ -5,7 +5,7 @@ import com.lakeon.config.LakeonProperties;
 import com.lakeon.job.JobEntity;
 import com.lakeon.job.JobService;
 import com.lakeon.job.JobType;
-import com.lakeon.k8s.KbWritePodManager;
+import com.lakeon.k8s.ComputePodManager;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.repository.DatabaseRepository;
@@ -30,15 +30,17 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * Core scheduler for KB write operations.
  * Ensures per-database serial execution: only one write task runs at a time per database.
- * Lightweight tasks (chunk CRUD) execute directly via API → kb-write pod PG.
- * Heavyweight tasks (document parse, rechunk) submit a job pod that connects to kb-write pod.
+ * All writes go through the user's compute pod (Neon only supports one writer per timeline).
+ * Lightweight tasks (chunk CRUD) execute SQL directly via the compute pod.
+ * Heavyweight tasks (document parse, rechunk) submit a job pod that connects to the compute pod.
  */
 @Service
 public class KbWriteQueue {
     private static final Logger log = LoggerFactory.getLogger(KbWriteQueue.class);
 
     private final KbWriteTaskRepository taskRepository;
-    private final KbWritePodManager kbWritePodManager;
+    private final ComputeLifecycleService computeLifecycleService;
+    private final ComputePodManager computePodManager;
     private final DatabaseRepository databaseRepository;
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final DocumentRepository documentRepository;
@@ -58,7 +60,8 @@ public class KbWriteQueue {
     );
 
     public KbWriteQueue(KbWriteTaskRepository taskRepository,
-                         KbWritePodManager kbWritePodManager,
+                         @Lazy ComputeLifecycleService computeLifecycleService,
+                         ComputePodManager computePodManager,
                          DatabaseRepository databaseRepository,
                          KnowledgeBaseRepository knowledgeBaseRepository,
                          DocumentRepository documentRepository,
@@ -66,7 +69,8 @@ public class KbWriteQueue {
                          LakeonProperties props,
                          ObjectMapper objectMapper) {
         this.taskRepository = taskRepository;
-        this.kbWritePodManager = kbWritePodManager;
+        this.computeLifecycleService = computeLifecycleService;
+        this.computePodManager = computePodManager;
         this.databaseRepository = databaseRepository;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.documentRepository = documentRepository;
@@ -239,14 +243,37 @@ public class KbWriteQueue {
     }
 
     /**
-     * Execute a lightweight task: connect directly to kb-write pod PG and run SQL.
+     * Wake the user's compute pod and return its internal pod IP address (host:55433).
+     * wakeCompute() returns the proxy address (for user connections), but KB writes
+     * need direct pod access to bypass SSL requirements and use cloud_admin auth.
+     */
+    private String wakeAndGetPodAddress(DatabaseEntity db) {
+        String dbId = db.getId();
+        computeLifecycleService.wakeCompute(dbId);
+        // Derive pod name from database ID (same convention as ComputePodManager)
+        String podName = "compute-" + dbId.replace("_", "-");
+        // Wait for pod to be ready (wakeCompute may still be initializing)
+        if (!computePodManager.waitForPodReady(podName, 120_000)) {
+            throw new RuntimeException("Compute pod not ready: " + podName);
+        }
+        String podIp = computePodManager.getPodIp(podName);
+        if (podIp == null) {
+            throw new RuntimeException("Compute pod IP not available for: " + podName);
+        }
+        log.info("kb-write: using compute pod {} at {} for db {}", podName, podIp, dbId);
+        return podIp + ":55433";
+    }
+
+    /**
+     * Execute a lightweight task: connect directly to the user's compute pod PG and run SQL.
      */
     @SuppressWarnings("unchecked")
     private void executeLightweight(KbWriteTaskEntity task) throws Exception {
         DatabaseEntity db = databaseRepository.findById(task.getDatabaseId())
             .orElseThrow(() -> new NotFoundException("Database not found: " + task.getDatabaseId()));
 
-        String address = kbWritePodManager.ensureKbWritePod(db);
+        // Wake compute and get internal pod address (bypasses proxy SSL)
+        String address = wakeAndGetPodAddress(db);
         String jdbcUrl = "jdbc:postgresql://" + address + "/" + db.getName() + "?sslmode=disable";
 
         Map<String, Object> params = objectMapper.readValue(task.getParams(), Map.class);
@@ -264,20 +291,20 @@ public class KbWriteQueue {
     }
 
     /**
-     * Execute a heavyweight task: submit a job pod that connects to kb-write pod PG.
+     * Execute a heavyweight task: submit a job pod that connects to the user's compute pod PG.
      */
     @SuppressWarnings("unchecked")
     private void executeHeavyweight(KbWriteTaskEntity task) throws Exception {
         DatabaseEntity db = databaseRepository.findById(task.getDatabaseId())
             .orElseThrow(() -> new NotFoundException("Database not found: " + task.getDatabaseId()));
 
-        // Ensure kb-write pod is ready
-        String address = kbWritePodManager.ensureKbWritePod(db);
+        // Wake compute and get internal pod address (bypasses proxy SSL)
+        String address = wakeAndGetPodAddress(db);
         String connstr = "postgresql://cloud_admin:cloud-admin-internal@" + address + "/" + db.getName()
                 + "?sslmode=disable";
 
         Map<String, Object> params = objectMapper.readValue(task.getParams(), Map.class);
-        // Override database_connstr to point to kb-write pod
+        // Override database_connstr to point to the user's compute pod (internal IP)
         params.put("database_connstr", connstr);
 
         TenantEntity tenant = new TenantEntity();

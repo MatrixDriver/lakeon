@@ -49,13 +49,13 @@ public class KbWritePodManager {
             if (podIp != null) {
                 return podIp + ":55433";
             }
-            // Pod exists but no IP yet, wait for it
-            if (waitForPodReady(podName, 60_000)) {
+            // Pod exists but no IP yet, wait for it (up to 5min for image pull on cold node)
+            if (waitForPodReady(podName, 300_000)) {
                 podIp = getPodIp(podName);
                 return (podIp != null ? podIp : podName + "." + namespace) + ":55433";
             }
             // Pod stuck, delete and recreate
-            log.warn("kb-write pod {} exists but not ready, recreating", podName);
+            log.warn("kb-write pod {} exists but not ready after 300s, recreating", podName);
             deleteKbWritePod(entity.getId());
         }
 
@@ -156,9 +156,9 @@ public class KbWritePodManager {
         k8sClient.pods().inNamespace(namespace).resource(pod).create();
         log.info("Created kb-write pod: {}/{}", namespace, podName);
 
-        // Wait for pod to become ready
-        if (!waitForPodReady(podName, 120_000)) {
-            log.error("kb-write pod {} did not become ready in 120s", podName);
+        // Wait for pod to become ready (up to 5min for image pull on cold elastic node)
+        if (!waitForPodReady(podName, 300_000)) {
+            log.error("kb-write pod {} did not become ready in 300s", podName);
             throw new RuntimeException("kb-write pod did not become ready: " + podName);
         }
 

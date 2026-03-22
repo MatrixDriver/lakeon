@@ -1,6 +1,6 @@
 # Lakeon (DBay) 产品路线图
 
-> 最后更新: 2026-03-18
+> 最后更新: 2026-03-22
 
 ## 阶段总览
 
@@ -27,8 +27,12 @@
 | Stage 11 | 多版本多分支 (时间旅行) | ✅ 完成 | — |
 | Stage 11b | 分支独立 Compute | ✅ 完成 | — |
 | Stage 12 | 弹性节点池 & 自动扩缩容 | ✅ 完成 | — |
-| Stage 14 | DBay CLI & E2E 测试 | 📋 规划中 | — |
-| Stage 15 | Job 框架 & Knowledge Pipeline | 📋 规划中 | — |
+| Stage 14 | DBay CLI & E2E 测试 | ✅ 完成 | — |
+| Stage 15 | Job 框架 & Knowledge Pipeline | 🔨 进行中 | — |
+| Stage 15b | 知识库增强 (标签/重写/重排/表KB) | ✅ 完成 | — |
+| Stage 15c | 切片管理 | ✅ 完成 | — |
+| Stage 16 | DBay 数据湖 | 🔨 进行中 | — |
+| Stage 16b | BM25 → tsvector 全文搜索 | ✅ 完成 | — |
 
 ---
 
@@ -339,7 +343,33 @@
 - OpenViking 存储自包含（C++ + LevelDB），需写 HTTP adapter 适配 pgvector
 - 优先级低，等 OpenViking 社区活跃或原生支持 PG 时再考虑
 
-## 📋 Stage 15: Job 框架 & Knowledge Pipeline
+## ✅ Stage 14: DBay CLI & E2E 测试
+
+目标：开发 CLI 工具 (`dbay`) 作为用户产品和 E2E 测试基础设施，Claude 在每次功能开发后自动通过 CLI + psql 端到端验证。
+
+- **Phase A: CLI 核心** ✅ — `dbay` CLI with db/branch/version/user/kb commands
+- **Phase B: E2E 测试框架** ✅ — pytest-based, 48+ test cases covering all features
+- **Phase C: MCP Server** ✅ — `dbay-mcp` package, knowledge_search/upload/list tools
+
+### Phase A: CLI 核心 (Python, pip install dbay)
+- `dbay login` / `dbay config` — API Key 配置
+- `dbay db list / create / delete / info` — 数据库管理
+- `dbay db connstr <name> [--branch <name>]` — 输出连接串 (可直接传给 psql)
+- `dbay branch list / create / delete / promote` — 分支管理
+- `dbay version list / create / delete / restore` — 版本管理
+- `dbay sql <db> "SELECT ..."` — 快捷执行 SQL
+
+### Phase B: E2E 测试框架
+- 测试用例用 CLI + psql 编写，验证完整链路 (API → Proxy → Compute → PG)
+- 覆盖: 数据库 CRUD、分支创建/隔离/Promote、版本创建/回滚、数据持久化
+- 每个功能开发完成后必须补充对应 E2E 用例并通过
+- 测试结果作为功能完成的验收标准
+
+### Phase C: MCP Server 集成
+- 将 CLI 能力封装为 MCP Server，Claude Code 可直接调用
+- 实现对话中自动化测试：开发 → CLI 验证 → 报告结果
+
+## 🔨 Stage 15: Job 框架 & Knowledge Pipeline
 
 > 详细方案: [`plans/2026-03-18-job-framework-and-knowledge-pipeline.md`](plans/2026-03-18-job-framework-and-knowledge-pipeline.md)
 
@@ -362,7 +392,11 @@
 - **Knowledge Pipeline MVP**:
   - 用户上传文档 → OBS → Job Pod (parse → chunk → embed) → 写入用户 PG (pgvector)
   - 单 Pod Ray (ray start)，串行处理
-  - MCP 端点: `knowledge_search` (pgvector + BM25 hybrid retrieval)
+  - MCP 端点: `knowledge_search` (pgvector + tsvector hybrid retrieval with RRF)
+- **Job 框架** ✅
+- **Knowledge Pipeline MVP** ✅ (parse → chunk → embed → pgvector)
+- **KbWriteQueue 重构** ✅ — 复用用户 compute pod 写入，避免 WAL 冲突
+- **BM25 → tsvector** ✅ — pg_search BM25 index 与 Neon SMGR 不兼容，改用 GIN tsvector
 
 ### Phase 2: 数据飞轮管线
 
@@ -379,27 +413,76 @@
 - Job 提交 API + 状态回调 + 计量
 - 多模态存储: 引入 Lance 格式存储图片/音频/视频 + 元数据
 
-## 📋 Stage 14: DBay CLI & E2E 测试
+## ✅ Stage 15b: 知识库增强
 
-目标：开发 CLI 工具 (`dbay`) 作为用户产品和 E2E 测试基础设施，Claude 在每次功能开发后自动通过 CLI + psql 端到端验证。
+- **文档标签**: JSONB 字段 + GIN 索引，支持标签过滤搜索
+- **查询重写**: LLM-based query rewrite，结合对话历史上下文
+- **重排序**: BGE-Reranker-v2-m3 集成，搜索流水线自动重排
+- **表知识库**: 基于已有数据库表创建 KB，自然语言查询 (AiSqlService)
+- **Per-KB Embedding 模型选择**: 每个 KB 可独立配置 embedding 模型
+- **Console 前端**: 标签 UI、聊天式搜索、表 KB 管理
+- **48 个 E2E 测试通过**
 
-### Phase A: CLI 核心 (Python, pip install dbay)
-- `dbay login` / `dbay config` — API Key 配置
-- `dbay db list / create / delete / info` — 数据库管理
-- `dbay db connstr <name> [--branch <name>]` — 输出连接串 (可直接传给 psql)
-- `dbay branch list / create / delete / promote` — 分支管理
-- `dbay version list / create / delete / restore` — 版本管理
-- `dbay sql <db> "SELECT ..."` — 快捷执行 SQL
+## ✅ Stage 15c: 切片管理
 
-### Phase B: E2E 测试框架
-- 测试用例用 CLI + psql 编写，验证完整链路 (API → Proxy → Compute → PG)
-- 覆盖: 数据库 CRUD、分支创建/隔离/Promote、版本创建/回滚、数据持久化
-- 每个功能开发完成后必须补充对应 E2E 用例并通过
-- 测试结果作为功能完成的验收标准
+- **切片读取 API**: 列表、详情、上下文、统计、全文高亮
+- **切片写入 API**: 编辑、删除、创建（自动重新生成 embedding）
+- **重切片**: 参数化重切片 + 进度跟踪 + 前后对比
+- **Console 前端**:
+  - 文档详情页 — 切片列表和内容查看
+  - 全文高亮 — Markdown 渲染 + 切片位置高亮
+  - KB 级切片 Tab — 统计、直方图、可过滤切片表
+  - 重切片对话框 — 参数输入、进度、对比视图
 
-### Phase C: MCP Server 集成
-- 将 CLI 能力封装为 MCP Server，Claude Code 可直接调用
-- 实现对话中自动化测试：开发 → CLI 验证 → 报告结果
+## 🔨 Stage 16: DBay 数据湖
+
+> 详细架构: [`AI-DataLake.md`](AI-DataLake.md)
+
+三类任务统一调度，CCI Serverless (Kata VM 隔离) 运行用户代码：
+
+### 架构
+- **DatalakeController + DatalakeService**: REST API for job submit/get/list/cancel
+- **PythonJobRunner**: K8s Job via Virtual Kubelet → CCI
+- **RayJobRunner**: RayJob CRD via Fabric8 GenericKubernetesResource
+- **FinetuneJobRunner**: Ray Train 模板注入
+- **DatalakeStatusPoller**: K8s Job/RayJob 状态同步
+- **DatalakeLogService**: SSE 日志流 (从 CCI Pod via VK 读取)
+
+### 任务类型
+| 类型 | 运行环境 | 用途 |
+|------|---------|------|
+| PYTHON | CCI K8s Job | 数据处理、ETL |
+| RAY | CCI RayJob | 分布式计算 |
+| FINETUNE | CCI Ray Train | 模型微调 (SFT/DPO/GRPO) |
+
+### 已完成
+- ✅ DatalakeJobEntity + Repository + V16/V17 migration
+- ✅ DatalakeController + DatalakeService skeleton
+- ✅ PythonJobRunner — K8s Job via VK → CCI
+- ✅ RayJobRunner — RayJob CRD
+- ✅ FinetuneJobRunner — Ray Train template
+- ✅ DatalakeStatusPoller — sync K8s/RayJob status
+- ✅ DatalakeLogService — SSE log streaming
+- ✅ Helm values + configmap for datalake config
+- ✅ 14 DatalakeService unit tests
+- ✅ E2E tests + CCE/CCI deployment fixes
+- ✅ Console 前端 — job 管理页面 + sidebar rail
+
+### 待完成
+- 📋 CCI namespace 自动创建 + 租户隔离
+- 📋 Job 计量和配额
+- 📋 GPU 任务支持 (Ray GPU image)
+
+## ✅ Stage 16b: BM25 → tsvector 全文搜索
+
+- **根因**: pg_search (ParadeDB) 的 BM25 index 与 Neon 自研 SMGR 不兼容
+  - `CREATE INDEX ... USING bm25` 触发 `PANIC: Page X of relation Y is evicted with zero LSN`
+  - Compute pod 进入 CrashLoopBackOff
+- **修复**:
+  - writer.py: 移除 `CREATE EXTENSION pg_search` 和 BM25 index，改用 GIN tsvector
+  - DatabaseService: 从 DEFAULT_EXTENSIONS 移除 `pg_search`
+  - KnowledgeService: hybrid search SQL 从 `paradedb.score()` + `content @@@ ?` 改为 `ts_rank_cd()` + `plainto_tsquery()` (RRF 融合不变)
+- **影响**: 搜索质量略低于 BM25（tsvector 是简单词频匹配），但 Neon 兼容性保证稳定运行
 
 ---
 
@@ -417,10 +500,13 @@
 
 | 组件 | 版本 | 部署位置 |
 |------|------|----------|
-| lakeon-api | 0.6.7 | CCE (hostNetwork, HTTPS) |
-| lakeon-console | 0.3.7 | Railway |
-| lakeon-admin | 0.2.0 | Railway |
+| lakeon-api | 0.9.21 | CCE (hostNetwork, HTTPS) |
+| lakeon-console | — | Railway |
+| lakeon-admin | — | Railway |
+| lakeon-knowledge-job | 0.2.3 | CCE (Job Pod) |
 | lakeon-import | 0.2.0 | CCE (Job Pod) |
+| dbay-cli | 0.1.0 | pip install |
+| dbay-mcp | 0.1.0 | MCP Server |
 
 ## 基础设施
 

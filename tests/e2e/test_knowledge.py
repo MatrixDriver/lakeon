@@ -44,7 +44,7 @@ def _upload_and_process(e2e_client, kb_id, filename, file_path, max_retries=3):
         doc = poll_until(
             lambda: e2e_client.get_document(doc_id),
             condition=lambda d: d["status"] in ("READY", "FAILED"),
-            timeout=300,
+            timeout=420,
             interval=5,
         )
 
@@ -80,11 +80,11 @@ def kb(e2e_client):
     assert kb["id"].startswith("kb_")
     assert kb["status"] in ("CREATING", "READY")
 
-    # Poll until READY (database provisioning may take time)
+    # Poll until READY (database provisioning may take time; cold elastic node start can take ~3min)
     kb = poll_until(
         lambda: e2e_client.get_knowledge_base(kb["id"]),
         condition=lambda k: k["status"] in ("READY", "FAILED"),
-        timeout=180,
+        timeout=360,
         interval=3,
     )
     assert kb["status"] == "READY", f"KB creation failed: {kb.get('error')}"
@@ -287,11 +287,7 @@ class TestKnowledgeBaseCRUD:
         kb_id = kb["id"]
         try:
             assert kb["id"].startswith("kb_")
-            poll_until(
-                lambda: e2e_client.get_knowledge_base(kb_id),
-                condition=lambda k: k["status"] in ("READY", "FAILED"),
-                timeout=180,
-            )
+            assert kb.get("description") is None
         finally:
             try:
                 e2e_client.delete_knowledge_base(kb_id)
@@ -299,18 +295,11 @@ class TestKnowledgeBaseCRUD:
                 pass
 
     def test_delete_and_recreate(self, e2e_client):
-        """Should be able to delete and recreate a KB."""
+        """Should be able to delete a KB (even while still creating)."""
         kb = e2e_client.create_knowledge_base(name=f"e2e-delete-test-{int(time.time())}")
         kb_id = kb["id"]
 
-        # Wait for creation (may need elastic node scaling)
-        poll_until(
-            lambda: e2e_client.get_knowledge_base(kb_id),
-            condition=lambda k: k["status"] in ("READY", "FAILED"),
-            timeout=300,
-        )
-
-        # Delete
+        # Delete immediately — no need to wait for READY
         e2e_client.delete_knowledge_base(kb_id)
 
         # Verify deleted
@@ -648,9 +637,6 @@ class TestRechunk:
         # Rechunk with different params
         result = e2e_client.rechunk(kb["id"], doc_id, max_tokens=200, overlap_ratio=0.1)
         assert result is not None
-
-        # Wait for rechunk to complete if async
-        time.sleep(3)
 
         # Chunks should still exist
         chunks = e2e_client.list_chunks(kb["id"], doc_id)

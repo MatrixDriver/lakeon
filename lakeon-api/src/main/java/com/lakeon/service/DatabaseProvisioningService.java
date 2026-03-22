@@ -49,9 +49,9 @@ public class DatabaseProvisioningService {
             updateStatusMessage(databaseId, "正在启动计算节点（如需扩容节点可能需要1~2分钟）...");
             DatabaseEntity entity = databaseRepository.findById(databaseId).orElseThrow();
             computePodManager.createComputePod(entity);
-            boolean ready = computePodManager.waitForPodReady(entity.getComputePodName(), 180_000);
+            boolean ready = computePodManager.waitForPodReady(entity.getComputePodName(), 300_000);
             if (!ready) {
-                throw new RuntimeException("计算节点启动超时(180s)，可能需要等待弹性节点扩容");
+                throw new RuntimeException("计算节点启动超时(300s)，可能需要等待弹性节点扩容或镜像拉取");
             }
 
             // Step 2: Enable extensions

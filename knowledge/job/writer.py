@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 
 SETUP_SQL = """
 CREATE EXTENSION IF NOT EXISTS vector;
-CREATE EXTENSION IF NOT EXISTS pg_search;
 
 CREATE TABLE IF NOT EXISTS knowledge_chunks (
     id SERIAL PRIMARY KEY,
@@ -36,14 +35,9 @@ CREATE INDEX IF NOT EXISTS idx_chunks_doc_id ON knowledge_chunks(document_id);
 CREATE INDEX IF NOT EXISTS idx_chunks_embedding ON knowledge_chunks
     USING hnsw (embedding vector_cosine_ops);
 
--- BM25 index for hybrid search (pg_search / ParadeDB)
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_chunks_bm25') THEN
-        CREATE INDEX idx_chunks_bm25 ON knowledge_chunks
-            USING bm25 (id, content)
-            WITH (key_field = 'id');
-    END IF;
-END $$;
+-- GIN index on content tsvector for full-text search (replaces BM25 which crashes Neon SMGR)
+CREATE INDEX IF NOT EXISTS idx_chunks_content_fts ON knowledge_chunks
+    USING gin (to_tsvector('simple', content));
 """
 
 MIGRATE_SQL = """

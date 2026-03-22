@@ -481,7 +481,7 @@ public class KnowledgeService {
     }
 
     /**
-     * Hybrid search: vector + BM25 with Reciprocal Rank Fusion.
+     * Hybrid search: vector + full-text (tsvector) with Reciprocal Rank Fusion.
      * Accepts kbId; resolves the underlying databaseId from the KB.
      */
     @SuppressWarnings("unchecked")
@@ -554,19 +554,19 @@ public class KnowledgeService {
                 "  WHERE 1=1" + docFilter +
                 "  ORDER BY embedding <=> ?::vector" +
                 "  LIMIT 20" +
-                "), bm25 AS (" +
+                "), fts AS (" +
                 "  SELECT id, content, metadata," +
-                "         paradedb.score(id) AS score," +
-                "         ROW_NUMBER() OVER (ORDER BY paradedb.score(id) DESC) AS rank" +
+                "         ts_rank_cd(to_tsvector('simple', content), plainto_tsquery('simple', ?)) AS score," +
+                "         ROW_NUMBER() OVER (ORDER BY ts_rank_cd(to_tsvector('simple', content), plainto_tsquery('simple', ?)) DESC) AS rank" +
                 "  FROM knowledge_chunks" +
-                "  WHERE content @@@ ?" + docFilter +
+                "  WHERE to_tsvector('simple', content) @@ plainto_tsquery('simple', ?)" + docFilter +
                 "  LIMIT 20" +
                 ") " +
-                "SELECT COALESCE(s.id, b.id) AS id," +
-                "       COALESCE(s.content, b.content) AS content," +
-                "       COALESCE(s.metadata, b.metadata)::text AS metadata," +
-                "       COALESCE(1.0/(60+s.rank), 0) + COALESCE(1.0/(60+b.rank), 0) AS rrf_score" +
-                " FROM semantic s FULL OUTER JOIN bm25 b ON s.id = b.id" +
+                "SELECT COALESCE(s.id, f.id) AS id," +
+                "       COALESCE(s.content, f.content) AS content," +
+                "       COALESCE(s.metadata, f.metadata)::text AS metadata," +
+                "       COALESCE(1.0/(60+s.rank), 0) + COALESCE(1.0/(60+f.rank), 0) AS rrf_score" +
+                " FROM semantic s FULL OUTER JOIN fts f ON s.id = f.id" +
                 " ORDER BY rrf_score DESC" +
                 " LIMIT ?";
 
@@ -587,8 +587,10 @@ public class KnowledgeService {
                 ps.setArray(idx++, docArray);
             }
             ps.setString(idx++, vectorStr); // embedding <=> ?::vector (limit order)
-            // bm25 CTE params
-            ps.setString(idx++, searchQuery); // content @@@ ? (may be rewritten)
+            // fts CTE params
+            ps.setString(idx++, searchQuery); // ts_rank_cd score
+            ps.setString(idx++, searchQuery); // ts_rank_cd in ROW_NUMBER
+            ps.setString(idx++, searchQuery); // WHERE plainto_tsquery
             if (filteredDocIds != null && !filteredDocIds.isEmpty()) {
                 java.sql.Array docArray = conn.createArrayOf("varchar", filteredDocIds.toArray());
                 ps.setArray(idx++, docArray);

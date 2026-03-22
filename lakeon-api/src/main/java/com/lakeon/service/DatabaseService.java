@@ -677,7 +677,7 @@ public class DatabaseService {
             .map(String::trim).filter(s -> !s.isEmpty()).toList();
     }
 
-    private static final List<String> DEFAULT_EXTENSIONS = List.of("vector", "pg_search");
+    private static final List<String> DEFAULT_EXTENSIONS = List.of("vector");
 
     void enableDefaultExtensions(DatabaseEntity entity) {
         String host = entity.getComputeHost() != null ? entity.getComputeHost() : "proxy.lakeon.svc.cluster.local";
