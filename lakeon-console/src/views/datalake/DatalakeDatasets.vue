@@ -22,7 +22,8 @@
     </div>
 
     <!-- Dataset list table -->
-    <div v-if="filteredDatasets.length > 0" class="table-wrapper" style="margin-top: 16px;">
+    <TableToolbar v-model="dsSearch" placeholder="搜索数据集名称" :loading="loading" @refresh="fetchDatasets" style="margin-top: 16px;" />
+    <div v-if="searchedDatasets.length > 0" class="table-wrapper">
       <table class="data-table">
         <thead>
           <tr>
@@ -36,7 +37,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="ds in filteredDatasets" :key="ds.id">
+          <tr v-for="ds in searchedDatasets" :key="ds.id">
             <td>
               <router-link :to="`/datalake/datasets/${ds.id}`" class="dataset-name-link">
                 {{ ds.name }}
@@ -81,6 +82,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import TableToolbar from '../../components/TableToolbar.vue'
 import client from '../../api/client'
 
 interface Dataset {
@@ -95,6 +97,7 @@ interface Dataset {
 
 const datasets = ref<Dataset[]>([])
 const loading = ref(false)
+const dsSearch = ref('')
 const statusFilter = ref<string>('')
 
 const statusTabs: { value: string; label: string }[] = [
@@ -108,6 +111,12 @@ const statusTabs: { value: string; label: string }[] = [
 const filteredDatasets = computed(() => {
   if (!statusFilter.value) return datasets.value
   return datasets.value.filter(d => d.status === statusFilter.value)
+})
+
+const searchedDatasets = computed(() => {
+  if (!dsSearch.value) return filteredDatasets.value
+  const q = dsSearch.value.toLowerCase()
+  return filteredDatasets.value.filter(d => d.name.toLowerCase().includes(q))
 })
 
 const statusCounts = computed(() => {

@@ -92,7 +92,8 @@
     </div>
 
     <!-- Knowledge base list -->
-    <div v-if="knowledgeBases.length > 0" class="table-wrapper" style="margin-top: 20px;">
+    <TableToolbar v-model="kbSearch" placeholder="搜索知识库" :loading="loading" @refresh="loadKBs" style="margin-top: 20px;" />
+    <div v-if="filteredKBs.length > 0" class="table-wrapper">
       <table class="data-table">
         <thead>
           <tr>
@@ -107,7 +108,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="kb in knowledgeBases" :key="kb.id">
+          <tr v-for="kb in filteredKBs" :key="kb.id">
             <td>
               <router-link :to="`/knowledge/${kb.id}`" style="color: #0073e6; text-decoration: none; font-weight: 500;">
                 {{ kb.name }}
@@ -133,7 +134,7 @@
     </div>
 
     <!-- Empty state -->
-    <div v-else class="empty-state" style="margin-top: 64px; text-align: center;">
+    <div v-else-if="!loading" class="empty-state" style="margin-top: 64px; text-align: center;">
       <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#ccc" stroke-width="1.5">
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
         <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
@@ -148,6 +149,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { listKnowledgeBases, createKnowledgeBase, deleteKnowledgeBase, type KnowledgeBase } from '../../api/knowledge'
 import { databaseApi, type Database } from '../../api/database'
+import TableToolbar from '../../components/TableToolbar.vue'
 
 const knowledgeBases = ref<KnowledgeBase[]>([])
 const showCreate = ref(false)
@@ -160,6 +162,7 @@ const createForm = ref({
   embedding_model: 'BAAI/bge-m3',
 })
 const loading = ref(false)
+const kbSearch = ref('')
 const databases = ref<Database[]>([])
 const dbLoadError = ref('')
 
@@ -171,6 +174,12 @@ const embeddingModels = [
   { value: 'text-embedding-3-small', label: 'OpenAI text-embedding-3-small (1536维)' },
   { value: 'text-embedding-3-large', label: 'OpenAI text-embedding-3-large (3072维)' },
 ]
+
+const filteredKBs = computed(() => {
+  if (!kbSearch.value) return knowledgeBases.value
+  const q = kbSearch.value.toLowerCase()
+  return knowledgeBases.value.filter(kb => kb.name.toLowerCase().includes(q) || (kb.description || '').toLowerCase().includes(q))
+})
 
 const createFormValid = computed(() => {
   if (!createForm.value.name.trim()) return false

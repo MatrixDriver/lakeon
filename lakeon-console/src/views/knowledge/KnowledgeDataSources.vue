@@ -32,7 +32,8 @@
       </div>
 
       <!-- Document table -->
-      <div v-if="documents.length > 0" class="table-wrapper" style="margin-top: 16px;">
+      <TableToolbar v-model="docSearch" placeholder="搜索文件名" :loading="docLoading" @refresh="loadDocuments" style="margin-top: 16px;" />
+      <div v-if="filteredDocs.length > 0" class="table-wrapper">
         <table class="data-table">
           <thead>
             <tr>
@@ -46,7 +47,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="doc in documents" :key="doc.id">
+            <tr v-for="doc in filteredDocs" :key="doc.id">
               <td style="font-weight: 500;">{{ doc.filename }}</td>
               <td><span style="background: #e8f4ff; color: #0073e6; font-size: 11px; padding: 1px 6px; border-radius: 3px;">{{ doc.format }}</span></td>
               <td style="color: #666;">{{ formatSize(doc.size_bytes) }}</td>
@@ -83,14 +84,23 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { listKnowledgeBases, listDocuments, getUploadUrl, processDocument, deleteDocument, type KnowledgeBase, type Document } from '../../api/knowledge'
+import TableToolbar from '../../components/TableToolbar.vue'
 
 const knowledgeBases = ref<KnowledgeBase[]>([])
 const selectedKbId = ref('')
 const documents = ref<Document[]>([])
+const docLoading = ref(false)
+const docSearch = ref('')
 
 const processingCount = computed(() => documents.value.filter(d => d.status === 'PROCESSING').length)
 const readyCount = computed(() => documents.value.filter(d => d.status === 'READY').length)
 const failedCount = computed(() => documents.value.filter(d => d.status === 'FAILED').length)
+
+const filteredDocs = computed(() => {
+  if (!docSearch.value) return documents.value
+  const q = docSearch.value.toLowerCase()
+  return documents.value.filter(d => d.filename.toLowerCase().includes(q))
+})
 
 function statusColor(s: string) {
   if (s === 'READY') return '#52c41a'
@@ -116,21 +126,35 @@ function formatTime(t: string) {
 
 async function loadDocuments() {
   if (!selectedKbId.value) { documents.value = []; return }
-  const resp = await listDocuments(selectedKbId.value)
-  documents.value = resp.data
+  docLoading.value = true
+  try {
+    const resp = await listDocuments(selectedKbId.value)
+    documents.value = resp.data
+  } finally {
+    docLoading.value = false
+  }
 }
 
 async function handleUpload(e: Event) {
   const input = e.target as HTMLInputElement
   if (!input.files?.length) return
-  for (const file of Array.from(input.files)) {
-    const urlResp = await getUploadUrl(selectedKbId.value, file.name)
-    const { document_id, upload_url } = urlResp.data
-    await fetch(upload_url, { method: 'PUT', body: file })
-    await processDocument(document_id)
+  try {
+    for (const file of Array.from(input.files)) {
+      const urlResp = await getUploadUrl(selectedKbId.value, file.name)
+      const { document_id, upload_url } = urlResp.data
+      const uploadResp = await fetch(upload_url, { method: 'PUT', body: file })
+      if (!uploadResp.ok) {
+        alert(`文件 "${file.name}" 上传失败 (HTTP ${uploadResp.status})`)
+        continue
+      }
+      await processDocument(document_id)
+    }
+  } catch (err: any) {
+    alert(`上传失败: ${err.message || err}`)
+  } finally {
+    await loadDocuments()
+    input.value = ''
   }
-  await loadDocuments()
-  input.value = ''
 }
 
 async function handleDelete(doc: Document) {

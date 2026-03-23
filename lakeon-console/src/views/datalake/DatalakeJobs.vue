@@ -111,7 +111,8 @@
     </div>
 
     <!-- Job list table -->
-    <div v-if="filteredJobs.length > 0" class="table-wrapper" style="margin-top: 16px;">
+    <TableToolbar v-model="jobSearch" placeholder="搜索作业名称" :loading="loading" @refresh="loadJobs" style="margin-top: 16px;" />
+    <div v-if="searchedJobs.length > 0" class="table-wrapper">
       <table class="data-table">
         <thead>
           <tr>
@@ -124,7 +125,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="job in filteredJobs" :key="job.id">
+          <tr v-for="job in searchedJobs" :key="job.id">
             <td>
               <router-link :to="`/datalake/jobs/${job.id}`" class="job-name-link">
                 {{ job.name }}
@@ -186,9 +187,11 @@ import {
   type DatalakeJobStatus,
   type DatalakeJobType,
 } from '../../api/datalake'
+import TableToolbar from '../../components/TableToolbar.vue'
 
 const jobs = ref<DatalakeJob[]>([])
 const loading = ref(false)
+const jobSearch = ref('')
 const showSubmit = ref(false)
 const submitting = ref(false)
 const statusFilter = ref<string>('')
@@ -235,6 +238,12 @@ const submitFormValid = computed(() => {
 const filteredJobs = computed(() => {
   if (!statusFilter.value) return jobs.value
   return jobs.value.filter(j => j.status === statusFilter.value)
+})
+
+const searchedJobs = computed(() => {
+  if (!jobSearch.value) return filteredJobs.value
+  const q = jobSearch.value.toLowerCase()
+  return filteredJobs.value.filter(j => j.name.toLowerCase().includes(q))
 })
 
 const statusCounts = computed(() => {

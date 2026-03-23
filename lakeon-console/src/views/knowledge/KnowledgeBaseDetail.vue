@@ -62,7 +62,8 @@
         <span v-else style="color: #999; font-size: 13px; margin-left: 12px;">支持 PDF、DOCX、Markdown</span>
       </div>
 
-      <div v-if="documents.length > 0" class="table-wrapper">
+      <TableToolbar v-model="docSearch" placeholder="搜索文件名" :loading="docLoading" @refresh="loadDocuments" />
+      <div v-if="filteredDocs.length > 0" class="table-wrapper">
         <table class="data-table">
           <thead>
             <tr>
@@ -76,7 +77,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="doc in documents" :key="doc.id" class="clickable-row" @click="router.push({ name: 'DocumentDetail', params: { kbId: route.params.kbId, docId: doc.id } })">
+            <tr v-for="doc in filteredDocs" :key="doc.id" class="clickable-row" @click="router.push({ name: 'DocumentDetail', params: { kbId: route.params.kbId, docId: doc.id } })">
               <td>
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                   <span style="font-weight: 500;">{{ doc.filename }}</span>
@@ -249,6 +250,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { getKnowledgeBase, listDocuments, getUploadUrl, processDocument, deleteDocument, searchKnowledge, setDocumentTags, type KnowledgeBase as KBType, type Document, type SearchResult } from '../../api/knowledge'
 import ChunkStats from '../../components/knowledge/ChunkStats.vue'
 import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
+import TableToolbar from '../../components/TableToolbar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -270,6 +272,8 @@ interface ChatMessage {
 const chatMessages = ref<ChatMessage[]>([])
 const isSearching = ref(false)
 const uploading = ref(false)
+const docLoading = ref(false)
+const docSearch = ref('')
 const chatContainer = ref<HTMLElement | null>(null)
 const chatInput = ref<HTMLInputElement | null>(null)
 
@@ -361,10 +365,21 @@ function toggleFilterTag(tag: string) {
   }
 }
 
+const filteredDocs = computed(() => {
+  if (!docSearch.value) return documents.value
+  const q = docSearch.value.toLowerCase()
+  return documents.value.filter(d => d.filename.toLowerCase().includes(q))
+})
+
 async function loadDocuments() {
   const kbId = route.params.kbId as string
-  const resp = await listDocuments(kbId)
-  documents.value = resp.data
+  docLoading.value = true
+  try {
+    const resp = await listDocuments(kbId)
+    documents.value = resp.data
+  } finally {
+    docLoading.value = false
+  }
 }
 
 async function handleUpload(e: Event) {
@@ -376,13 +391,20 @@ async function handleUpload(e: Event) {
     for (const file of Array.from(input.files)) {
       const urlResp = await getUploadUrl(kbId, file.name)
       const { document_id, upload_url } = urlResp.data
-      await fetch(upload_url, { method: 'PUT', body: file })
+      const uploadResp = await fetch(upload_url, { method: 'PUT', body: file })
+      if (!uploadResp.ok) {
+        alert(`文件 "${file.name}" 上传失败 (HTTP ${uploadResp.status})`)
+        continue
+      }
       await processDocument(document_id)
       await loadDocuments()
     }
+  } catch (err: any) {
+    alert(`上传失败: ${err.message || err}`)
   } finally {
     uploading.value = false
     input.value = ''
+    await loadDocuments()
   }
 }
 
