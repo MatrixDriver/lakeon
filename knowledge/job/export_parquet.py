@@ -42,25 +42,31 @@ def main():
             SET s3_use_ssl = true;
         """)
 
-        report_progress("Counting rows", 0.2)
+        report_progress("Attaching PostgreSQL database", 0.2)
+
+        # Attach the PostgreSQL database so postgres_query can reference it
+        safe_connstr = connstr.replace("'", "''")
+        conn.execute(f"ATTACH '{safe_connstr}' AS src (TYPE postgres, READ_ONLY)")
 
         # Escape single quotes in source_sql for DuckDB string embedding
         safe_sql = source_sql.replace("'", "''")
 
+        report_progress("Counting rows", 0.3)
+
         # Count rows first
         count_result = conn.execute(
-            f"SELECT COUNT(*) FROM postgres_query('{connstr}', '{safe_sql}')"
+            f"SELECT COUNT(*) FROM postgres_query('src', '{safe_sql}')"
         ).fetchone()
         row_count = count_result[0]
         logger.info(f"Row count: {row_count}")
 
-        report_progress(f"Exporting {row_count} rows to Parquet", 0.3)
+        report_progress(f"Exporting {row_count} rows to Parquet", 0.4)
 
         # Export to Parquet on OBS
         full_obs_path = f"s3://{obs_bucket}/{obs_path}"
         conn.execute(f"""
             COPY (
-                SELECT * FROM postgres_query('{connstr}', '{safe_sql}')
+                SELECT * FROM postgres_query('src', '{safe_sql}')
             )
             TO '{full_obs_path}'
             (FORMAT PARQUET, ROW_GROUP_SIZE 100000, COMPRESSION ZSTD)
