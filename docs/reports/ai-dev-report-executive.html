@@ -380,11 +380,11 @@
         <div class="kpi-label">开发周期</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-value">77K<small> 行</small></div>
+        <div class="kpi-value">71K<small> 行</small></div>
         <div class="kpi-label">生产代码</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-value" style="color:#ffd700;">85-169<small>x</small></div>
+        <div class="kpi-value" style="color:#ffd700;">~79-157<small>x</small></div>
         <div class="kpi-label">效率提升 vs 基线</div>
       </div>
       <div class="kpi-card">
@@ -403,23 +403,24 @@
 
     <table class="data-table">
       <thead>
-        <tr><th>指标</th><th>数据</th></tr>
+        <tr><th>指标</th><th>数据</th><th style="font-size:0.8rem;color:#6c7a89;">来源</th></tr>
       </thead>
       <tbody>
-        <tr><td>开发周期</td><td class="val">20 天 (0.9 人月)</td></tr>
-        <tr><td>生产代码</td><td class="val">77,000 行</td></tr>
-        <tr><td>效率</td><td class="val">84,700 行/人月</td></tr>
-        <tr><td>公司基线</td><td>500 - 1,000 行/人月</td></tr>
-        <tr><td>效率提升</td><td class="val-gold">85x ~ 169x</td></tr>
-        <tr><td>AI 成本</td><td class="val" style="color:#2ecc71;">$100/月 (Max 订阅)</td></tr>
-        <tr><td>等效 API 按量费用</td><td>~$10,000</td></tr>
-        <tr><td>订阅 ROI</td><td class="val-gold">50x</td></tr>
+        <tr><td>开发周期</td><td class="val">20 天 (0.9 人月)</td><td style="font-size:0.8rem;color:#6c7a89;">git log</td></tr>
+        <tr><td>生产代码</td><td class="val">~71,500 行</td><td style="font-size:0.8rem;color:#6c7a89;">wc -l 统计</td></tr>
+        <tr><td>效率</td><td class="val">~78,500 行/人月</td><td style="font-size:0.8rem;color:#6c7a89;">代码行/人月</td></tr>
+        <tr><td>公司基线</td><td>500 - 1,000 行/人月</td><td style="font-size:0.8rem;color:#6c7a89;">公司标准</td></tr>
+        <tr><td>效率提升</td><td class="val-gold">~79x ~ 157x</td><td style="font-size:0.8rem;color:#6c7a89;">效率/基线</td></tr>
+        <tr><td>AI 成本</td><td class="val" style="color:#2ecc71;">$100/月 (Max 订阅)</td><td style="font-size:0.8rem;color:#6c7a89;">订阅价格</td></tr>
+        <tr><td>等效 API 按量费用</td><td>~$10,000</td><td style="font-size:0.8rem;color:#6c7a89;">估算</td></tr>
+        <tr><td>订阅 ROI</td><td class="val-gold">~100x</td><td style="font-size:0.8rem;color:#6c7a89;">估算</td></tr>
       </tbody>
     </table>
 
     <div class="highlight-box">
-      <strong>一句话结论：</strong>1 个云服务架构师 + Claude AI，用 20 天完成了一个完整的云服务原型，按公司基线估算等效 <span class="accent-gold">77 - 154 人月</span>的代码量。原型需产品化团队落入正式产品。
+      <strong>一句话结论：</strong>1 个云服务架构师 + Claude AI，用 20 天完成了一个完整的云服务原型，按公司基线估算等效 <span class="accent-gold">~72 - 143 人月</span>的代码量。原型需产品化团队落入正式产品。
     </div>
+    <p style="font-size:0.8rem;color:#6c7a89;margin-top:12px;">* 代码行数为 wc -l 精确统计；效率倍数仅供量级参考，代码行数不等于工作量。AI 相关数据（token、API 调用数）为估算值，Claude Max 订阅不提供按项目用量统计。</p>
   </div>
 </section>
 
@@ -832,40 +833,28 @@
       </div>
     </div>
 
-    <h3 style="margin-top:30px;">AI 投入数据</h3>
-    <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);">
+    <h3 style="margin-top:30px;">AI 投入数据 <span style="font-size:0.7rem;color:#6c7a89;font-weight:400;">（估算值，Max 订阅无按项目统计）</span></h3>
+    <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
       <div class="kpi-card">
-        <div class="kpi-value" style="font-size:2rem;">73</div>
-        <div class="kpi-label">会话数</div>
+        <div class="kpi-value" style="font-size:2rem;">466</div>
+        <div class="kpi-label">git 提交 (精确)</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-value" style="font-size:2rem;">31,384</div>
-        <div class="kpi-label">API 调用</div>
+        <div class="kpi-value" style="font-size:2rem;">20</div>
+        <div class="kpi-label">开发天数 (精确)</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-value" style="font-size:2rem;">41 亿</div>
-        <div class="kpi-label">input tokens</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-value" style="font-size:2rem;">590 万</div>
-        <div class="kpi-label">output tokens</div>
+        <div class="kpi-value" style="font-size:2rem;">$100<small>/月</small></div>
+        <div class="kpi-label">AI 工具成本 (精确)</div>
       </div>
     </div>
 
     <div style="margin-top:20px;">
-      <div style="font-size:0.85rem;color:#8ecae6;margin-bottom:6px;">模型分布</div>
+      <div style="font-size:0.85rem;color:#8ecae6;margin-bottom:6px;">模型分布 (估算)</div>
       <div class="token-bar-outer">
-        <div class="token-seg cache" style="width:90.4%;background:rgba(0,210,255,0.55);">Opus 90.4%</div>
-        <div class="token-seg fresh" style="width:9.2%;background:rgba(255,215,0,0.55);">Sonnet 9.2%</div>
-        <div class="token-seg" style="width:0.4%;background:rgba(46,204,113,0.5);font-size:0;"></div>
-      </div>
-    </div>
-
-    <div style="margin-top:16px;">
-      <div style="font-size:0.85rem;color:#8ecae6;margin-bottom:6px;">Cache 效率 — 长会话中 AI 充分理解项目上下文</div>
-      <div class="token-bar-outer">
-        <div class="token-seg cache" style="width:97%;">Cache Read 97%</div>
-        <div class="token-seg fresh" style="width:3%;">3%</div>
+        <div class="token-seg cache" style="width:90%;background:rgba(0,210,255,0.55);">Opus ~90%</div>
+        <div class="token-seg fresh" style="width:9%;background:rgba(255,215,0,0.55);">Sonnet ~9%</div>
+        <div class="token-seg" style="width:1%;background:rgba(46,204,113,0.5);font-size:0;"></div>
       </div>
     </div>
   </div>
@@ -904,7 +893,7 @@
         <div class="kpi-card" style="margin-bottom:16px;text-align:left;padding:20px 24px;">
           <div style="display:flex;align-items:baseline;gap:12px;">
             <span class="big-number" style="font-size:2.8rem;color:#e74c3c;">27%</span>
-            <span style="color:#ccc;font-size:0.95rem;">提交是修 bug (124/463)</span>
+            <span style="color:#ccc;font-size:0.95rem;">提交是修 bug (124/466)</span>
           </div>
           <p style="font-size:0.85rem;color:#999;margin-top:8px;">快不等于对</p>
         </div>
@@ -1017,7 +1006,7 @@
         <div style="margin:14px 0;">
           <div style="display:flex;justify-content:space-between;font-size:0.88rem;margin-bottom:4px;">
             <span>架构师级别</span>
-            <span class="accent">85x+</span>
+            <span class="accent">~79x+</span>
           </div>
           <div class="progress-track">
             <div class="progress-fill" style="width:85%;"></div>
