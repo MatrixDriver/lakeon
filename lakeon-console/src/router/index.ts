@@ -14,6 +14,12 @@ const routes = [
     meta: { noAuth: true },
   },
   {
+    path: '/report',
+    name: 'Report',
+    component: () => import('../views/report/ReportView.vue'),
+    meta: { noAuth: true },
+  },
+  {
     path: '/',
     component: () => import('../layouts/ConsoleLayout.vue'),
     children: [

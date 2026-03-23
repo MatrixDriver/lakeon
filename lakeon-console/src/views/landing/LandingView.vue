@@ -40,12 +40,18 @@
         </div>
         <p class="hero-hint">{{ t('无需注册，30 秒创建临时数据库', 'No signup needed, get a database in 30 seconds') }}</p>
         <div v-if="trialError" class="trial-error">{{ trialError }}</div>
-        <div class="cap-row" id="capabilities">
-          <div class="cap-item" v-for="c in capabilities" :key="c.label">
-            <div class="cap-icon">{{ c.icon }}</div>
-            <div class="cap-label">{{ c.name }}</div>
-            <div class="cap-desc">{{ c.label }}</div>
-            <span v-if="c.soon" class="badge-soon">{{ t('即将上线', 'Coming Soon') }}</span>
+        <div class="hero-arch" id="capabilities">
+          <div class="arch-diagram">
+            <div class="arch-box app-box">{{ t('AI Agent / 应用', 'AI Agent / App') }}</div>
+            <div class="arch-arrow">&rarr;</div>
+            <div class="arch-box lakeon-box">DBay</div>
+            <div class="arch-arrow">&rarr;</div>
+            <div class="arch-capabilities">
+              <div class="arch-cap-box">Lakebase</div>
+              <div class="arch-cap-box">{{ t('知识库', 'KB') }}</div>
+              <div class="arch-cap-box">{{ t('数据湖', 'Data Lake') }}</div>
+              <div class="arch-cap-box">{{ t('记忆库', 'Memory') }}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -142,18 +148,6 @@
     <section class="section" id="architecture">
       <div class="container">
         <h2 class="section-title">{{ t('架构亮点', 'Architecture Highlights') }}</h2>
-        <div class="arch-diagram">
-          <div class="arch-box app-box">{{ t('AI Agent / 应用', 'AI Agent / App') }}</div>
-          <div class="arch-arrow">&rarr;</div>
-          <div class="arch-box lakeon-box">DBay</div>
-          <div class="arch-arrow">&rarr;</div>
-          <div class="arch-capabilities">
-            <div class="arch-cap-box">Lakebase</div>
-            <div class="arch-cap-box">{{ t('知识库', 'KB') }}</div>
-            <div class="arch-cap-box">{{ t('数据湖', 'Data Lake') }}</div>
-            <div class="arch-cap-box">{{ t('记忆库', 'Memory') }}</div>
-          </div>
-        </div>
         <div class="arch-highlights">
           <div class="arch-point">
             <span class="arch-bullet">1</span>
@@ -286,14 +280,6 @@ const features = computed(() => [
   { icon: '\uD83D\uDCCA', title: t('监控运维', 'Monitoring & Ops'), desc: t('内置监控面板、日志管理、备份管理，全方位运维能力', 'Built-in monitoring dashboard, log management, backup management — full ops capabilities') },
 ])
 
-const capabilities = computed(() => [
-  { icon: '\uD83D\uDC18', name: 'PostgreSQL', label: t('关系型查询', 'Relational Queries'), soon: false },
-  { icon: '\uD83D\uDD0D', name: 'pgvector', label: t('向量 & 多模态检索', 'Vector & Multimodal Search'), soon: false },
-  { icon: '\uD83D\uDCC4', name: 'RUM', label: t('全文检索', 'Full-text Search'), soon: false },
-  { icon: '\uD83D\uDD78', name: 'SQL Graph', label: t('图查询 (CTE)', 'Graph Queries (CTE)'), soon: false },
-  { icon: '\uD83E\uDDE0', name: 'pgrag', label: t('内置 RAG', 'Built-in RAG'), soon: false },
-  { icon: '\u23F3', name: 'Time Travel', label: t('时间旅行', 'Time Travel'), soon: false },
-])
 
 const useCases = computed(() => [
   { icon: '\uD83E\uDDE0', title: t('AI Agent 长期记忆', 'AI Agent Long-term Memory'), desc: t('持久化对话历史、用户画像和行为偏好，让 Agent 真正"记住"用户。利用数据库分支实现时间旅行，随时回溯 Agent 的任意历史状态', 'Persist conversation history, user profiles and preferences. Use database branching for time travel — roll back to any historical state of your Agent') },
@@ -752,46 +738,9 @@ const useCases = computed(() => [
   margin: 0;
 }
 
-/* Capabilities */
-.cap-row {
-  display: flex;
-  justify-content: center;
-  gap: 40px;
-  flex-wrap: wrap;
-}
-
-.cap-item {
-  text-align: center;
-  position: relative;
-  min-width: 120px;
-}
-
-.cap-icon {
-  font-size: 36px;
-  margin-bottom: 10px;
-}
-
-.cap-label {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin-bottom: 4px;
-}
-
-.cap-desc {
-  font-size: 13px;
-  color: #888;
-}
-
-.badge-soon {
-  display: inline-block;
-  margin-top: 8px;
-  background: #fff3e0;
-  color: #e67700;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 10px;
+/* Hero Architecture Diagram */
+.hero-arch {
+  margin-top: 40px;
 }
 
 /* Architecture */
@@ -1025,10 +974,6 @@ const useCases = computed(() => [
   .card-grid.three,
   .module-grid {
     grid-template-columns: 1fr;
-  }
-
-  .cap-row {
-    gap: 24px;
   }
 
   .arch-diagram {
