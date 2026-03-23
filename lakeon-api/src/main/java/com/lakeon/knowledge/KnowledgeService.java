@@ -913,15 +913,12 @@ public class KnowledgeService {
     }
 
     private void deleteObsFile(String obsKey) {
-        try (S3Presigner presigner = buildPresigner()) {
-            // Use S3Client for deletion instead of presigner
-        }
         S3Client s3 = S3Client.builder()
                 .endpointOverride(URI.create(props.getObs().getEndpoint()))
                 .credentialsProvider(StaticCredentialsProvider.create(
                         AwsBasicCredentials.create(props.getObs().getAccessKey(), props.getObs().getSecretKey())))
                 .region(Region.of("cn-north-4"))
-                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
+                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(false).build())
                 .build();
         try {
             s3.deleteObject(DeleteObjectRequest.builder()
