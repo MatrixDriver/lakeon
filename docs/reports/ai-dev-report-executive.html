@@ -388,7 +388,7 @@
         <div class="kpi-label">效率提升 vs 基线</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-value" style="color:#2ecc71;">$200<small>/月</small></div>
+        <div class="kpi-value" style="color:#2ecc71;">$100<small>/月</small></div>
         <div class="kpi-label">AI 工具成本</div>
       </div>
     </div>
@@ -411,7 +411,7 @@
         <tr><td>效率</td><td class="val">84,700 行/人月</td></tr>
         <tr><td>公司基线</td><td>500 - 1,000 行/人月</td></tr>
         <tr><td>效率提升</td><td class="val-gold">85x ~ 169x</td></tr>
-        <tr><td>AI 成本</td><td class="val" style="color:#2ecc71;">$200/月 (Max 订阅)</td></tr>
+        <tr><td>AI 成本</td><td class="val" style="color:#2ecc71;">$100/月 (Max 订阅)</td></tr>
         <tr><td>等效 API 按量费用</td><td>~$10,000</td></tr>
         <tr><td>订阅 ROI</td><td class="val-gold">50x</td></tr>
       </tbody>
@@ -454,6 +454,97 @@
 
     <div class="highlight-box" style="margin-bottom:24px;background:rgba(255,215,0,0.06);border-left-color:#ffd700;">
       <strong>记忆库计划：</strong>Neuromem 记忆库当前在独立项目中开发，<span class="accent-gold">计划未来合入 DBay</span>，形成完整的 Agent 数据底座（知识库 + 记忆库 + 数据湖）
+    </div>
+
+    <h3 style="margin-top:32px;">系统架构</h3>
+    <div style="background:rgba(255,255,255,0.02);border-radius:12px;padding:20px;margin:20px 0;">
+      <svg style="width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 650">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d2ff;stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:#00d2ff;stop-opacity:0.05" />
+    </linearGradient>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffd700;stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:#ffd700;stop-opacity:0.05" />
+    </linearGradient>
+    <linearGradient id="grad3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#2ecc71;stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:#2ecc71;stop-opacity:0.05" />
+    </linearGradient>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#8ecae6" />
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="650" fill="#0d0d1a"/>
+
+  <!-- Title -->
+  <text x="600" y="35" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#00d2ff" text-anchor="middle">DBay 数据港湾 - 系统架构</text>
+  <text x="600" y="60" font-family="Arial, sans-serif" font-size="14" fill="#8ecae6" text-anchor="middle">面向 Agent 的 Serverless 数据底座</text>
+
+  <!-- Bottom: Lakebase (Neon Core) -->
+  <rect x="100" y="320" width="500" height="150" rx="12" fill="url(#grad1)" stroke="#00d2ff" stroke-width="3"/>
+  <text x="350" y="360" font-family="Arial, sans-serif" font-size="26" font-weight="bold" fill="#00d2ff" text-anchor="middle">Lakebase (Neon 内核)</text>
+  <text x="350" y="390" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">存算分离 · 多版本 · 时间旅行 · 分支管理</text>
+  <text x="350" y="415" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">按需启动 (3ms 热启动) · 自动扩缩容 · 多租户隔离</text>
+  <text x="350" y="445" font-family="Arial, sans-serif" font-size="12" fill="#8ecae6" text-anchor="middle">Serverless PostgreSQL · 对标 Databricks Lakebase</text>
+
+  <!-- Middle Left: Knowledge Base -->
+  <rect x="100" y="110" width="240" height="180" rx="10" fill="url(#grad2)" stroke="#ffd700" stroke-width="2"/>
+  <text x="220" y="145" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#ffd700" text-anchor="middle">知识库</text>
+  <text x="220" y="175" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">• 文档解析</text>
+  <text x="220" y="200" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">• 向量检索 (pgvector)</text>
+  <text x="220" y="225" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">• 全文搜索 (tsvector)</text>
+  <text x="220" y="250" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">• 表知识库</text>
+  <text x="220" y="275" font-family="Arial, sans-serif" font-size="11" fill="#ffd700" text-anchor="middle">对标华为云 CSS</text>
+
+  <!-- Middle Right: Memory Store (Future) -->
+  <rect x="360" y="110" width="240" height="180" rx="10" fill="rgba(255,255,255,0.03)" stroke="#8ecae6" stroke-width="2" stroke-dasharray="8,4"/>
+  <text x="480" y="145" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#8ecae6" text-anchor="middle">记忆库 (计划中)</text>
+  <text x="480" y="180" font-family="Arial, sans-serif" font-size="13" fill="#8ecae6" text-anchor="middle">Neuromem</text>
+  <text x="480" y="210" font-family="Arial, sans-serif" font-size="12" fill="#8ecae6" text-anchor="middle">独立项目开发中</text>
+  <text x="480" y="235" font-family="Arial, sans-serif" font-size="12" fill="#8ecae6" text-anchor="middle">未来合入 DBay</text>
+
+  <!-- Connection: KB/Memory -> Lakebase -->
+  <line x1="220" y="290" x2="220" y="320" stroke="#ffd700" stroke-width="2"/>
+  <line x1="480" y="290" x2="480" y="320" stroke="#8ecae6" stroke-width="2" stroke-dasharray="5,5"/>
+
+  <!-- Right: AI Data Lake (Full Height) -->
+  <rect x="700" y="110" width="400" height="360" rx="12" fill="url(#grad3)" stroke="#2ecc71" stroke-width="3"/>
+  <text x="900" y="150" font-family="Arial, sans-serif" font-size="26" font-weight="bold" fill="#2ecc71" text-anchor="middle">AI 多模数据湖</text>
+  <text x="900" y="190" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">• Python/Ray 任务调度</text>
+  <text x="900" y="220" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">• Dataset 导出 (Parquet)</text>
+  <text x="900" y="250" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">• 模型微调</text>
+  <text x="900" y="280" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">• Kata VM 隔离</text>
+  <text x="900" y="310" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">• 增量 CDC 调度</text>
+  <text x="900" y="350" font-family="Arial, sans-serif" font-size="13" fill="#2ecc71" text-anchor="middle">对标 DataArts Fabric + DLI</text>
+  <text x="900" y="395" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#ffd700" text-anchor="middle">🔄 数据飞轮</text>
+  <text x="900" y="425" font-family="Arial, sans-serif" font-size="13" fill="#8ecae6" text-anchor="middle">Lakebase ↔ 数据湖双向流转</text>
+
+  <!-- Data Flywheel Arrows: Lakebase <-> Data Lake -->
+  <path d="M 600 360 L 690 280" stroke="#8ecae6" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+  <path d="M 690 340 L 600 410" stroke="#8ecae6" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+  <text x="640" y="310" font-family="Arial, sans-serif" font-size="13" fill="#ffd700" text-anchor="middle">导出</text>
+  <text x="640" y="390" font-family="Arial, sans-serif" font-size="13" fill="#ffd700" text-anchor="middle">导入</text>
+
+  <!-- Infrastructure Layer -->
+  <rect x="100" y="520" width="1000" height="90" rx="10" fill="rgba(255,255,255,0.02)" stroke="#6c7a89" stroke-width="1"/>
+  <text x="600" y="550" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#8ecae6" text-anchor="middle">基础设施层</text>
+  <text x="300" y="580" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">Kubernetes (CCE)</text>
+  <text x="500" y="580" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">对象存储 (OBS)</text>
+  <text x="700" y="580" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">元数据库 (RDS)</text>
+  <text x="900" y="580" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">弹性节点池</text>
+  <text x="600" y="600" font-family="Arial, sans-serif" font-size="11" fill="#6c7a89" text-anchor="middle">华为云 CCE · 存算分离 · 按需扩缩容</text>
+
+</svg>
+    </div>
+
+    <h3 style="margin-top:32px;">产品界面</h3>
+    <div style="background:rgba(255,255,255,0.02);border-radius:12px;padding:20px;margin:20px 0;">
+      <img src="Snip20260323_15.png" alt="DBay 产品界面" style="width:100%;height:auto;border-radius:8px;"/>
+      <p style="text-align:center;color:#8ecae6;font-size:0.85rem;margin-top:12px;">DBay Console - SQL 编辑器与 AI 助手</p>
     </div>
 
     <div class="highlight-box gold" style="margin-bottom:24px;">
@@ -707,6 +798,18 @@
       <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,215,0,0.2);">
         <strong>案例：</strong>热启动从 KPI 目标 &lt;10s 优化到 <span class="accent-gold">3ms</span>，提前达成 2026 年目标
       </div>
+    </div>
+
+    <h3>AI 工具组合使用</h3>
+    <div class="highlight-box" style="background:rgba(0,210,255,0.06);">
+      <strong>主力工具：</strong>Claude Code (Opus 4.6) - $100/月订阅，97% cache read 效率<br>
+      <strong>辅助服务：</strong>
+      <ul style="margin:8px 0 0 20px;line-height:1.8;">
+        <li>硅基流动 - Embedding + LLM API</li>
+        <li>OpenRouter - Embedding + LLM API</li>
+        <li>国内 LLM 中转服务</li>
+        <li>自动分析竞品：火山云、阿里云、AWS 对应云服务</li>
+      </ul>
     </div>
 
     <h3>具体方法</h3>

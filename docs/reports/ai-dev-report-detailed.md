@@ -73,10 +73,18 @@
 | Input tokens | 41 亿 (97% cache read) |
 | Output tokens | 590 万 |
 | 模型分布 | Opus 90.4% / Sonnet 9.2% / Haiku 0.1% |
-| AI 成本 | $200/月 (Claude Max 订阅) |
+| AI 成本 | $100/月 (Claude Max 订阅) |
 | 等效按量费用 | ~$10,000 |
 
 **关键洞察**：97% cache read 说明长会话中 AI 充分理解项目上下文后，迭代效率极高。
+
+**AI 工具组合**：
+- **主力工具**：Claude Code (Opus 4.6)，$100/月订阅
+- **辅助服务**：
+  - 硅基流动 - Embedding + LLM API
+  - OpenRouter - Embedding + LLM API
+  - 国内 LLM 中转服务
+  - 自动分析竞品：火山云、阿里云、AWS 对应云服务
 
 ### 1.6 开发时间线
 
