@@ -58,7 +58,8 @@
           上传文档
           <input type="file" accept=".pdf,.docx,.md,.markdown" multiple style="display: none;" @change="handleUpload" />
         </label>
-        <span style="color: #999; font-size: 13px; margin-left: 12px;">支持 PDF、DOCX、Markdown</span>
+        <span v-if="uploading" style="color: #1890ff; font-size: 13px; margin-left: 12px;">上传中...</span>
+        <span v-else style="color: #999; font-size: 13px; margin-left: 12px;">支持 PDF、DOCX、Markdown</span>
       </div>
 
       <div v-if="documents.length > 0" class="table-wrapper">
@@ -268,6 +269,7 @@ interface ChatMessage {
 }
 const chatMessages = ref<ChatMessage[]>([])
 const isSearching = ref(false)
+const uploading = ref(false)
 const chatContainer = ref<HTMLElement | null>(null)
 const chatInput = ref<HTMLInputElement | null>(null)
 
@@ -369,14 +371,19 @@ async function handleUpload(e: Event) {
   const input = e.target as HTMLInputElement
   if (!input.files?.length) return
   const kbId = route.params.kbId as string
-  for (const file of Array.from(input.files)) {
-    const urlResp = await getUploadUrl(kbId, file.name)
-    const { document_id, upload_url } = urlResp.data
-    await fetch(upload_url, { method: 'PUT', body: file })
-    await processDocument(document_id)
+  uploading.value = true
+  try {
+    for (const file of Array.from(input.files)) {
+      const urlResp = await getUploadUrl(kbId, file.name)
+      const { document_id, upload_url } = urlResp.data
+      await fetch(upload_url, { method: 'PUT', body: file })
+      await processDocument(document_id)
+      await loadDocuments()
+    }
+  } finally {
+    uploading.value = false
+    input.value = ''
   }
-  await loadDocuments()
-  input.value = ''
 }
 
 async function handleDeleteDoc(doc: Document) {
