@@ -230,6 +230,50 @@
     font-weight: 600;
   }
 
+  /* ── Accordion (expandable details) ── */
+  .accordion { margin: 24px 0; }
+  .accordion-item { margin-bottom: 8px; }
+  .accordion-header {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(0,210,255,0.15);
+    border-radius: 8px;
+    padding: 14px 20px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: background 0.2s;
+  }
+  .accordion-header:hover { background: rgba(0,210,255,0.08); }
+  .accordion-header .arrow { transition: transform 0.3s; font-size: 0.8rem; color: #8ecae6; }
+  .accordion-item.open .accordion-header .arrow { transform: rotate(90deg); }
+  .accordion-body {
+    display: none;
+    padding: 16px 20px;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    background: rgba(255,255,255,0.02);
+    font-size: 0.88rem;
+    line-height: 1.7;
+    color: #ccc;
+  }
+  .accordion-item.open .accordion-body { display: block; }
+  .accordion-body h4 { color: #00d2ff; font-size: 0.95rem; margin: 16px 0 8px; }
+  .accordion-body h4:first-child { margin-top: 0; }
+  .accordion-body p { margin-bottom: 10px; }
+  .accordion-body ul { margin: 8px 0 12px 20px; }
+  .accordion-body li { margin-bottom: 4px; }
+  .accordion-body code { background: rgba(0,210,255,0.1); padding: 2px 6px; border-radius: 3px; font-size: 0.85rem; color: #00d2ff; }
+  .accordion-body .case-good { border-left: 3px solid #2ecc71; padding-left: 16px; margin: 12px 0; }
+  .accordion-body .case-bad { border-left: 3px solid #e74c3c; padding-left: 16px; margin: 12px 0; }
+  .accordion-body .mini-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  .accordion-body .mini-table th, .accordion-body .mini-table td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); text-align: left; font-size: 0.85rem; }
+  .accordion-body .mini-table th { color: #8ecae6; font-weight: 600; }
+
   /* ── Checklist ── */
   .checklist { margin: 20px 0; }
   .check-row {
@@ -813,7 +857,7 @@
       </ul>
     </div>
 
-    <h3>具体方法</h3>
+    <h3>具体方法 <span style="font-size:0.75rem;color:#6c7a89;font-weight:400;">点击展开详情</span></h3>
     <div class="method-grid">
       <div class="method-card">
         <h4>三段式开发</h4>
@@ -830,6 +874,123 @@
       <div class="method-card">
         <h4>Skill 沉淀</h4>
         <p>部署、前端风格、SRE 模板、云操作<br>封装为可复用 AI 技能</p>
+      </div>
+    </div>
+
+    <div class="accordion">
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+          <span>实践一：人定目标，AI 结构化路线图</span><span class="arrow">&#9654;</span>
+        </div>
+        <div class="accordion-body">
+          <p><strong>核心理念：</strong>你有产品愿景，AI 帮你拆解成可执行的阶段化计划。人负责"做什么"和"为什么"，AI 负责"怎么做"和"分几步"。</p>
+          <h4>ROADMAP 演进过程</h4>
+          <ul>
+            <li><strong>初版 (03-04)：</strong>Stage 0-5（本地 → OBS → RDS → CCE → 控制台 → SRE）</li>
+            <li><strong>第一次扩展 (03-06)：</strong>加入 Stage 6b（PG 导入）</li>
+            <li><strong>第二次扩展 (03-08)：</strong>加入 Stage 10a-10e（备份、分支、审计、权限）</li>
+            <li><strong>第三次扩展 (03-17)：</strong>加入 Stage 11-12（时间旅行、弹性节点池）</li>
+            <li><strong>最终版 (03-22)：</strong>16 个阶段，覆盖全功能</li>
+          </ul>
+          <p><strong>关键：</strong>路线图不是一次定好的，是随着项目推进、技术验证、需求变化不断调整的。</p>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+          <span>实践二：Design Spec → Plan → Code 三段式</span><span class="arrow">&#9654;</span>
+        </div>
+        <div class="accordion-body">
+          <p><strong>核心理念：</strong>AI 写代码很快但容易偏离方向，前期 review 文档比后期修代码成本低 10 倍。</p>
+          <h4>正面案例：Stage 15b 知识库增强</h4>
+          <div class="case-good">
+            <p>设计文档 (30min) → 实现计划 (30min) → 编码 (7h) → <strong>一次性通过，无返工</strong></p>
+            <p>1 天完成 4 个特性：文档标签、查询重写、重排序、表知识库</p>
+          </div>
+          <h4>反面案例：Stage 15 KB Pipeline</h4>
+          <div class="case-bad">
+            <p>没有仔细审查设计就开始编码 → AI 方案用独立 <code>kb-write</code> Pod 写入 → 触发 Neon WAL 冲突 → 反复调试浪费大量时间</p>
+            <p><strong>教训：</strong>如果在设计阶段就讨论"多个 Pod 同时写入 Neon 会怎样"，30 分钟就能发现并修正。</p>
+          </div>
+          <p>Fix 提交占 27% (124/466)，很多是设计不清晰导致的返工。严格 review 设计可降到 15% 以下。</p>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+          <span>实践三：多窗口并行 + worktree 隔离</span><span class="arrow">&#9654;</span>
+        </div>
+        <div class="accordion-body">
+          <p><strong>核心理念：</strong>AI 可以同时处理多个任务，人的瓶颈是注意力切换。</p>
+          <table class="mini-table">
+            <tr><th>窗口</th><th>用途</th><th>示例</th></tr>
+            <tr><td>A</td><td>主特性开发</td><td>Lakeon Stage 16 数据湖</td></tr>
+            <tr><td>B</td><td>同项目另一特性 (worktree)</td><td>Stage 15c 切片管理</td></tr>
+            <tr><td>C</td><td>另一个项目</td><td>MemOS 记忆库集成</td></tr>
+            <tr><td>D</td><td>调试/部署/运维</td><td>CCE 环境问题排查</td></tr>
+          </table>
+          <h4>避免打架的关键</h4>
+          <ul>
+            <li>不同窗口不要改同一个文件</li>
+            <li>worktree 做特性开发，主目录做集成和部署</li>
+            <li>每个窗口有独立的 Memory context</li>
+          </ul>
+          <p>理论上 4 个窗口 = 4x 效率，实际 ≈ <strong>2-3x</strong>（有等待和协调成本），但比单窗口快得多。</p>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+          <span>实践四：CLI 驱动的 E2E 测试闭环</span><span class="arrow">&#9654;</span>
+        </div>
+        <div class="accordion-body">
+          <p><strong>核心理念：</strong>让 AI 能自己验证自己的工作，形成自动化调试循环。</p>
+          <h4>传统方式 vs CLI 驱动方式</h4>
+          <div class="case-bad">
+            <p><strong>传统：</strong>AI 写代码 → 人手动测试 → 发现问题 → 告诉 AI → AI 修 → 人再测试</p>
+          </div>
+          <div class="case-good">
+            <p><strong>CLI 驱动：</strong>AI 写代码 → AI 写测试 → AI 跑测试 → 失败 → AI 读错误 → AI 自己修 → 再跑 → 通过</p>
+          </div>
+          <p><strong>关键差异：</strong>人从测试执行者变成验收者，AI 完成了整个调试循环。</p>
+          <h4>真实案例</h4>
+          <p>测试数据库创建后立即连接失败 → AI 自动判断 compute pod 未就绪 → 添加等待逻辑 → 重新跑测试通过。耗时 3 分钟（人工至少 15 分钟）。</p>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+          <span>实践五：Skill 沉淀 — 把经验变成 AI 的能力</span><span class="arrow">&#9654;</span>
+        </div>
+        <div class="accordion-body">
+          <p><strong>核心理念：</strong>把踩坑经验固化为 AI 的行为规范，团队可共享复用。</p>
+          <table class="mini-table">
+            <tr><th>Skill</th><th>用途</th><th>价值</th></tr>
+            <tr><td>huawei-cloud-style</td><td>华为云 UI 风格</td><td>参考真实截图提取规范，AI 生成一致风格前端</td></tr>
+            <tr><td>sre-console</td><td>SRE 运维模板</td><td>标准化运维页面结构</td></tr>
+            <tr><td>hcloud</td><td>华为云 CLI</td><td>封装 CLI 用法，避免 REST API 出错</td></tr>
+            <tr><td>deploy</td><td>部署前预检</td><td>防止凭据丢失、tag 错误等历史事故</td></tr>
+            <tr><td>weekly-report</td><td>周报生成</td><td>自动化格式化周报</td></tr>
+          </table>
+          <h4>案例：deploy Skill</h4>
+          <p>手动部署出过多次事故（RDS 配置丢失、Helm 冲突、忘记测试），把所有事故总结成检查清单写成 Skill。AI 部署前自动调用：检查环境变量、强制跑测试、确认 tag、禁止手动 kubectl。<strong>部署事故从频繁发生降到 0。</strong></p>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+          <span>实践六：用 /insight 让 AI 帮你改进工作方式</span><span class="arrow">&#9654;</span>
+        </div>
+        <div class="accordion-body">
+          <p><strong>核心理念：</strong>AI 不只是写代码的工具，也是改进工作流程的顾问。</p>
+          <h4>采纳的改进</h4>
+          <ul>
+            <li><strong>创建 Skill 自动化重复性工作</strong> — AI 观察到反复手动检查部署环境变量，建议创建 deploy Skill，部署事故率降为 0</li>
+            <li><strong>调整会话策略</strong> — AI 发现长会话里混杂太多不相关任务，建议一个会话一个主题，AI 输出质量明显提升</li>
+            <li><strong>优化 worktree 使用</strong> — AI 建议用 worktree 隔离并行特性开发，多窗口并行效率从 1.5x 提升到 2-3x</li>
+          </ul>
+          <p>这是一种<strong>"元认知"</strong>能力 — AI 帮你反思自己的工作方式，而不只是执行任务。</p>
+        </div>
       </div>
     </div>
 
@@ -906,6 +1067,54 @@
         </div>
         <div class="highlight-box" style="margin-top:20px;">
           需要<strong>有经验的开发者</strong>驾驭 AI 输出质量
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:32px;">踩坑分类 <span style="font-size:0.75rem;color:#6c7a89;font-weight:400;">点击展开详情</span></h3>
+    <div class="accordion">
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+          <span>AI 不了解的事（必须人判断）</span><span class="arrow">&#9654;</span>
+        </div>
+        <div class="accordion-body">
+          <table class="mini-table">
+            <tr><th>类别</th><th>案例</th><th>教训</th></tr>
+            <tr><td>云服务兼容性</td><td>pg_search BM25 与 Neon SMGR 不兼容 → PANIC crash</td><td>AI 不知道底层存储引擎细节</td></tr>
+            <tr><td>网络拓扑</td><td>CCE overlay 不通 RDS（需 hostNetwork）</td><td>AI 看不到 VPC 配置和路由表</td></tr>
+            <tr><td>跨境限制</td><td>ISP 拦截 Railway→中国 IP 的 POST 请求</td><td>AI 不知道中国网络政策</td></tr>
+            <tr><td>容器运行时</td><td>CCE Autopilot setrlimit(CORE, INFINITY) 失败</td><td>AI 不知道容器安全策略</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+          <span>AI 常犯的错误（需要人 review）</span><span class="arrow">&#9654;</span>
+        </div>
+        <div class="accordion-body">
+          <table class="mini-table">
+            <tr><th>错误类型</th><th>典型案例</th><th>预防</th></tr>
+            <tr><td>API 大小写不一致</td><td>后端返回 RUNNING，前端期望 running</td><td>设计文档明确约定</td></tr>
+            <tr><td>环境变量为空不报错</td><td>helm upgrade 用 $RDS_PRIVATE_IP 为空 → 配置丢失</td><td>部署脚本校验</td></tr>
+            <tr><td>测试 mock ≠ 真实行为</td><td>单元测试 mock 通过，E2E 失败</td><td>E2E 测试兜底</td></tr>
+            <tr><td>忘记废弃旧字段</td><td>加新字段忘删旧字段 → 数据不一致</td><td>标注 breaking changes</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+          <span>人常犯的错误（和 AI 协作时）</span><span class="arrow">&#9654;</span>
+        </div>
+        <div class="accordion-body">
+          <table class="mini-table">
+            <tr><th>错误</th><th>后果</th><th>正确做法</th></tr>
+            <tr><td>没 review 设计就让 AI 编码</td><td>KB Pipeline 返工，浪费大量时间</td><td>花 30 分钟 review 设计文档</td></tr>
+            <tr><td>手动 helm upgrade</td><td>RDS 配置丢失，API CrashLoopBackOff</td><td>永远用 deploy.sh 脚本部署</td></tr>
+            <tr><td>长会话里混太多任务</td><td>Context 污染，AI 输出变差</td><td>一个会话一个主题</td></tr>
+            <tr><td>跳过 E2E 测试直接部署</td><td>线上 bug</td><td>E2E 测试强制门禁</td></tr>
+          </table>
         </div>
       </div>
     </div>
