@@ -1181,7 +1181,46 @@
       </div>
     </div>
 
-    <div class="highlight-box gold" style="margin-top:30px;">
+    <h3 style="margin-top:36px;">AI 开发规范：还需要补齐什么</h3>
+    <p style="color:#8ecae6;margin-bottom:16px;font-size:0.9rem;">当前只有 Superpowers + 项目级 Skill + Memory 系统，要让 AI 开发产出的代码达到产品上线标准，还需要建立以下规范：</p>
+
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:24px;">
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(0,210,255,0.15);border-radius:10px;padding:20px;">
+        <div style="color:#00d2ff;font-weight:700;font-size:1rem;margin-bottom:8px;">1. AI 代码 review 标准</div>
+        <p style="font-size:0.85rem;color:#bbb;">谁来 review AI 写的代码？用什么标准？<br>需要明确 AI 代码与人工代码的 review 流程差异。</p>
+      </div>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(0,210,255,0.15);border-radius:10px;padding:20px;">
+        <div style="color:#00d2ff;font-weight:700;font-size:1rem;margin-bottom:8px;">2. 安全审计流程</div>
+        <p style="font-size:0.85rem;color:#bbb;">AI 是否引入了安全漏洞？如何检测？<br>需要建立 AI 代码的安全扫描和审计机制。</p>
+      </div>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(0,210,255,0.15);border-radius:10px;padding:20px;">
+        <div style="color:#00d2ff;font-weight:700;font-size:1rem;margin-bottom:8px;">3. 可维护性评估</div>
+        <p style="font-size:0.85rem;color:#bbb;">AI 写的代码别人能看懂吗？注释够吗？<br>需要可维护性标准和文档化要求。</p>
+      </div>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(0,210,255,0.15);border-radius:10px;padding:20px;">
+        <div style="color:#00d2ff;font-weight:700;font-size:1rem;margin-bottom:8px;">4. 性能基准</div>
+        <p style="font-size:0.85rem;color:#bbb;">AI 写的代码性能如何？有没有明显的性能问题？<br>需要建立性能测试基准和回归机制。</p>
+      </div>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(0,210,255,0.15);border-radius:10px;padding:20px;">
+        <div style="color:#00d2ff;font-weight:700;font-size:1rem;margin-bottom:8px;">5. 容灾测试</div>
+        <p style="font-size:0.85rem;color:#bbb;">故障转移、数据恢复是否可靠？<br>AI 开发的系统需要经过完整的容灾演练。</p>
+      </div>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(0,210,255,0.15);border-radius:10px;padding:20px;">
+        <div style="color:#00d2ff;font-weight:700;font-size:1rem;margin-bottom:8px;">6. CI/CD 集成</div>
+        <p style="font-size:0.85rem;color:#bbb;">如何把 AI 开发流程集成到现有 CI/CD？<br>需要将 AI 质量门禁纳入流水线。</p>
+      </div>
+    </div>
+
+    <div class="highlight-box" style="margin-bottom:24px;">
+      <strong>当前已有的：</strong>
+      <span style="display:inline-block;background:rgba(46,204,113,0.15);color:#2ecc71;padding:2px 10px;border-radius:4px;margin:0 4px;font-size:0.85rem;">Superpowers 内置实践</span>
+      <span style="display:inline-block;background:rgba(46,204,113,0.15);color:#2ecc71;padding:2px 10px;border-radius:4px;margin:0 4px;font-size:0.85rem;">5 个项目级 Skill</span>
+      <span style="display:inline-block;background:rgba(46,204,113,0.15);color:#2ecc71;padding:2px 10px;border-radius:4px;margin:0 4px;font-size:0.85rem;">Memory 跨会话上下文</span>
+      <br><br>
+      <strong>结论：</strong>只用 Superpowers 远远不够。<span class="accent-gold">AI 开发规范需要覆盖代码 review、安全审计、可维护性、性能、容灾、CI/CD 六个维度</span>，才能让 AI 产出的代码达到产品上线标准。
+    </div>
+
+    <div class="highlight-box gold">
       <strong>启示：</strong>AI 大幅加速了原型开发，但<span class="accent-gold">产品化需要团队协作，合规和流程规范也需要适应 AI 开发模式做出改变</span>。
     </div>
   </div>
