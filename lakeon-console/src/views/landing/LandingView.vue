@@ -5,6 +5,7 @@
       <div class="nav-inner">
         <div class="nav-logo">DBay <span class="nav-tagline">数据港湾</span></div>
         <div class="nav-links">
+          <a href="#modules" @click.prevent="scrollTo('modules')">{{ t('产品', 'Products') }}</a>
           <a href="#features" @click.prevent="scrollTo('features')">{{ t('特性', 'Features') }}</a>
           <a href="#capabilities" @click.prevent="scrollTo('capabilities')">{{ t('能力', 'Capabilities') }}</a>
           <a href="#scenarios" @click.prevent="scrollTo('scenarios')">{{ t('场景', 'Scenarios') }}</a>
@@ -17,6 +18,7 @@
         <button class="mobile-menu-btn" @click="mobileMenuOpen = !mobileMenuOpen">&#9776;</button>
       </div>
       <div v-if="mobileMenuOpen" class="mobile-menu">
+        <a href="#modules" @click.prevent="scrollTo('modules'); mobileMenuOpen = false">{{ t('产品', 'Products') }}</a>
         <a href="#features" @click.prevent="scrollTo('features'); mobileMenuOpen = false">{{ t('特性', 'Features') }}</a>
         <a href="#capabilities" @click.prevent="scrollTo('capabilities'); mobileMenuOpen = false">{{ t('能力', 'Capabilities') }}</a>
         <a href="#scenarios" @click.prevent="scrollTo('scenarios'); mobileMenuOpen = false">{{ t('场景', 'Scenarios') }}</a>
@@ -49,11 +51,70 @@
       </div>
     </section>
 
+    <!-- Product Modules -->
+    <section class="section" id="modules">
+      <div class="container">
+        <h2 class="section-title">{{ t('三大产品模块', 'Three Product Modules') }}</h2>
+        <p class="section-desc">{{ t('以 Neon 为内核的 Lakebase，为知识库、记忆库、AI 多模数据湖提供统一的 Serverless 数据底座', 'Lakebase powered by Neon provides a unified Serverless data foundation for Knowledge Base, Memory Store, and AI Data Lake') }}</p>
+        <div class="module-grid">
+          <div class="module-card module-lakebase">
+            <div class="module-badge">{{ t('核心引擎', 'Core Engine') }}</div>
+            <div class="module-icon">&#x1F418;</div>
+            <h3>Lakebase</h3>
+            <p class="module-subtitle">Serverless PostgreSQL</p>
+            <ul class="module-features">
+              <li>{{ t('3ms 热启动，3s 冷启动', '3ms hot start, 3s cold start') }}</li>
+              <li>{{ t('存算分离，自动扩缩容', 'Disaggregated storage, auto-scaling') }}</li>
+              <li>{{ t('数据库分支与时间旅行', 'Database branching & time travel') }}</li>
+              <li>{{ t('多版本管理与回滚', 'Version management & rollback') }}</li>
+              <li>{{ t('多租户隔离', 'Multi-tenant isolation') }}</li>
+              <li>{{ t('AI SQL 助手 (自然语言生成 SQL)', 'AI SQL Assistant (NL to SQL)') }}</li>
+            </ul>
+          </div>
+          <div class="module-card module-kb">
+            <div class="module-badge">{{ t('已上线', 'Live') }}</div>
+            <div class="module-icon">&#x1F4DA;</div>
+            <h3>{{ t('知识库', 'Knowledge Base') }}</h3>
+            <p class="module-subtitle">{{ t('文档 + 表 + 向量检索', 'Documents + Tables + Vector Search') }}</p>
+            <ul class="module-features">
+              <li>{{ t('文档自动解析 (PDF/Word/Markdown)', 'Auto document parsing (PDF/Word/MD)') }}</li>
+              <li>{{ t('向量检索 (pgvector)', 'Vector search (pgvector)') }}</li>
+              <li>{{ t('全文搜索 (tsvector/RUM)', 'Full-text search (tsvector/RUM)') }}</li>
+              <li>{{ t('表知识库 (结构化数据)', 'Table KB (structured data)') }}</li>
+              <li>{{ t('向量 + 全文混合检索', 'Hybrid vector + full-text retrieval') }}</li>
+              <li>{{ t('内置 Embedding 与 Reranker', 'Built-in embedding & reranker') }}</li>
+            </ul>
+          </div>
+          <div class="module-card module-lake">
+            <div class="module-badge">{{ t('已上线', 'Live') }}</div>
+            <div class="module-icon">&#x1F30A;</div>
+            <h3>{{ t('AI 数据湖', 'AI Data Lake') }}</h3>
+            <p class="module-subtitle">{{ t('数据处理 + 训练 + 飞轮', 'Data Processing + Training + Flywheel') }}</p>
+            <ul class="module-features">
+              <li>{{ t('Python/Ray 任务调度', 'Python/Ray task scheduling') }}</li>
+              <li>{{ t('Dataset 导出 (Parquet)', 'Dataset export (Parquet)') }}</li>
+              <li>{{ t('模型微调支持', 'Model fine-tuning support') }}</li>
+              <li>{{ t('Kata VM 安全隔离', 'Kata VM security isolation') }}</li>
+              <li>{{ t('DB ↔ 数据湖 数据飞轮', 'DB ↔ Data Lake data flywheel') }}</li>
+              <li>{{ t('增量 CDC 调度', 'Incremental CDC scheduling') }}</li>
+            </ul>
+          </div>
+        </div>
+        <div class="module-coming">
+          <span class="module-coming-icon">&#x1F9E0;</span>
+          <div>
+            <strong>{{ t('记忆库 (即将推出)', 'Memory Store (Coming Soon)') }}</strong>
+            <span class="module-coming-desc">{{ t(' — Neuromem 记忆引擎，为 AI Agent 提供长期记忆能力，计划合入 DBay', ' — Neuromem memory engine for AI Agent long-term memory, planned integration into DBay') }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Core Features -->
     <section class="section bg-alt" id="features">
       <div class="container">
         <h2 class="section-title">{{ t('核心特性', 'Core Features') }}</h2>
-        <div class="card-grid">
+        <div class="card-grid three">
           <div class="card" v-for="f in features" :key="f.icon">
             <div class="card-icon">{{ f.icon }}</div>
             <h3>{{ f.title }}</h3>
@@ -82,17 +143,15 @@
       <div class="container">
         <h2 class="section-title">{{ t('架构亮点', 'Architecture Highlights') }}</h2>
         <div class="arch-diagram">
-          <div class="arch-box app-box">{{ t('你的应用', 'Your App') }}</div>
+          <div class="arch-box app-box">{{ t('AI Agent / 应用', 'AI Agent / App') }}</div>
           <div class="arch-arrow">&rarr;</div>
           <div class="arch-box lakeon-box">DBay</div>
           <div class="arch-arrow">&rarr;</div>
           <div class="arch-capabilities">
-            <div class="arch-cap-box">SQL</div>
-            <div class="arch-cap-box">Vector</div>
-            <div class="arch-cap-box">Search</div>
-            <div class="arch-cap-box">Graph</div>
-            <div class="arch-cap-box">RAG</div>
-            <div class="arch-cap-box">Time Travel</div>
+            <div class="arch-cap-box">Lakebase</div>
+            <div class="arch-cap-box">{{ t('知识库', 'KB') }}</div>
+            <div class="arch-cap-box">{{ t('数据湖', 'Data Lake') }}</div>
+            <div class="arch-cap-box">{{ t('记忆库', 'Memory') }}</div>
           </div>
         </div>
         <div class="arch-highlights">
@@ -102,7 +161,7 @@
           </div>
           <div class="arch-point">
             <span class="arch-bullet">2</span>
-            <span>{{ t('自动弹性伸缩，从零到海量无感切换', 'Auto-scaling from zero to massive, seamlessly') }}</span>
+            <span>{{ t('三大模块共享 Lakebase 底座，统一管理数据资产', 'Three modules share Lakebase foundation, unified data asset management') }}</span>
           </div>
           <div class="arch-point">
             <span class="arch-bullet">3</span>
@@ -110,7 +169,7 @@
           </div>
           <div class="arch-point">
             <span class="arch-bullet">4</span>
-            <span>{{ t('数据库分支实现时间旅行，像 Git 一样管理 AI 数据版本', 'Database branching enables time travel — manage AI data versions like Git') }}</span>
+            <span>{{ t('DB ↔ 数据湖 数据飞轮，打通数据处理与模型训练闭环', 'DB ↔ Data Lake flywheel, connecting data processing and model training') }}</span>
           </div>
         </div>
       </div>
@@ -219,10 +278,12 @@ function scrollTo(id: string) {
 }
 
 const features = computed(() => [
-  { icon: '\u2601', title: t('Serverless 架构', 'Serverless Architecture'), desc: t('自动休眠唤醒，弹性伸缩', 'Auto sleep/wake, elastic scaling') },
-  { icon: '\u26A1', title: t('秒级就绪', 'Instant Ready'), desc: t('几秒内创建数据库，零运维负担', 'Create a database in seconds, zero ops burden') },
-  { icon: '\uD83C\uDF3F', title: t('数据库分支', 'Database Branching'), desc: t('像 Git 一样管理数据，安全地开发和测试', 'Manage data like Git, develop and test safely') },
-  { icon: '\uD83D\uDD17', title: t('存算分离', 'Disaggregated Storage'), desc: t('存储弹性扩展，计算按需启停', 'Elastic storage scaling, on-demand compute') },
+  { icon: '\u26A1', title: t('极速启动', 'Ultra-fast Start'), desc: t('热启动 3ms，冷启动 3 秒。弹性节点池按需扩缩，零等待', 'Hot start 3ms, cold start 3s. Elastic node pool scales on demand, zero wait') },
+  { icon: '\u2601', title: t('Serverless 架构', 'Serverless Architecture'), desc: t('自动休眠唤醒，存算分离，存储弹性扩展，计算按需启停', 'Auto sleep/wake, disaggregated storage, elastic scaling, on-demand compute') },
+  { icon: '\uD83C\uDF3F', title: t('数据库分支', 'Database Branching'), desc: t('像 Git 一样管理数据。创建版本、对比差异、安全回滚，copy-on-write 零开销', 'Manage data like Git. Create versions, compare diffs, safely rollback with copy-on-write') },
+  { icon: '\uD83E\uDDE0', title: t('AI SQL 助手', 'AI SQL Assistant'), desc: t('自然语言描述需求，AI 自动生成 SQL。内置多种 LLM 模型可选', 'Describe what you need in natural language, AI generates SQL. Multiple LLM models available') },
+  { icon: '\uD83D\uDCE5', title: t('数据迁移', 'Data Migration'), desc: t('一键从外部数据库导入数据。支持 PostgreSQL、MySQL 等主流数据库', 'One-click data import from external databases. Supports PostgreSQL, MySQL, and more') },
+  { icon: '\uD83D\uDCCA', title: t('监控运维', 'Monitoring & Ops'), desc: t('内置监控面板、日志管理、备份管理，全方位运维能力', 'Built-in monitoring dashboard, log management, backup management — full ops capabilities') },
 ])
 
 const capabilities = computed(() => [
@@ -541,6 +602,114 @@ const useCases = computed(() => [
   white-space: nowrap;
 }
 
+/* Product Modules */
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.module-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 32px 28px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  position: relative;
+  border-top: 4px solid #ddd;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.module-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.module-lakebase { border-top-color: #0073e6; }
+.module-kb { border-top-color: #e6a700; }
+.module-lake { border-top-color: #2ecc71; }
+
+.module-badge {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: #e8f4fd;
+  color: #0073e6;
+}
+
+.module-kb .module-badge { background: #fff8e0; color: #b38600; }
+.module-lake .module-badge { background: #e8faf0; color: #1a9c4a; }
+
+.module-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.module-card h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+
+.module-subtitle {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 16px;
+}
+
+.module-features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.module-features li {
+  font-size: 14px;
+  color: #555;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+  line-height: 1.5;
+}
+
+.module-features li:last-child {
+  border-bottom: none;
+}
+
+.module-features li::before {
+  content: '✓ ';
+  color: #0073e6;
+  font-weight: 600;
+}
+
+.module-kb .module-features li::before { color: #e6a700; }
+.module-lake .module-features li::before { color: #2ecc71; }
+
+.module-coming {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f7f9fc;
+  border: 1px dashed #ccc;
+  border-radius: 8px;
+  padding: 16px 24px;
+  font-size: 14px;
+  color: #666;
+}
+
+.module-coming-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.module-coming-desc {
+  color: #888;
+}
+
 /* Cards */
 .card-grid {
   display: grid;
@@ -853,7 +1022,8 @@ const useCases = computed(() => [
   }
 
   .card-grid,
-  .card-grid.three {
+  .card-grid.three,
+  .module-grid {
     grid-template-columns: 1fr;
   }
 
