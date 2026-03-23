@@ -132,23 +132,91 @@
     <section class="section" id="architecture">
       <div class="container">
         <h2 class="section-title">{{ t('架构亮点', 'Architecture Highlights') }}</h2>
-        <div class="arch-highlights">
-          <div class="arch-point">
-            <span class="arch-bullet">1</span>
-            <span>{{ t('标准 PostgreSQL 协议，无需学习新接口', 'Standard PostgreSQL protocol, no new interfaces to learn') }}</span>
-          </div>
-          <div class="arch-point">
-            <span class="arch-bullet">2</span>
-            <span>{{ t('三大模块共享 Lakebase 底座，统一管理数据资产', 'Three modules share Lakebase foundation, unified data asset management') }}</span>
-          </div>
-          <div class="arch-point">
-            <span class="arch-bullet">3</span>
-            <span>{{ t('向量、全文、图查询、RAG 全部内置，一个连接串搞定所有', 'Vector, full-text, graph, RAG all built-in — one connection string for everything') }}</span>
-          </div>
-          <div class="arch-point">
-            <span class="arch-bullet">4</span>
-            <span>{{ t('DB ↔ 数据湖 数据飞轮，打通数据处理与模型训练闭环', 'DB ↔ Data Lake flywheel, connecting data processing and model training') }}</span>
-          </div>
+        <p class="section-desc">{{ t('一个连接串，统一关系型、向量、全文、图查询、RAG — 数据在库与湖之间自动流转', 'One connection string for relational, vector, full-text, graph, RAG — data flows automatically between DB and Lake') }}</p>
+        <div class="arch-svg-wrap">
+          <svg viewBox="0 0 960 520" xmlns="http://www.w3.org/2000/svg" class="arch-svg">
+            <defs>
+              <linearGradient id="gBase" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0073e6"/><stop offset="100%" stop-color="#005bb5"/></linearGradient>
+              <linearGradient id="gKB" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#5b21b6"/></linearGradient>
+              <linearGradient id="gLake" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0891b2"/><stop offset="100%" stop-color="#0e7490"/></linearGradient>
+              <linearGradient id="gTime" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#d97706"/><stop offset="100%" stop-color="#b45309"/></linearGradient>
+              <marker id="arrowR" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#0073e6"/></marker>
+              <marker id="arrowL" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto"><path d="M8,0 L0,3 L8,6" fill="#0891b2"/></marker>
+              <marker id="arrowD" markerWidth="6" markerHeight="8" refX="3" refY="8" orient="auto"><path d="M0,0 L3,8 L6,0" fill="#d97706"/></marker>
+            </defs>
+
+            <!-- AI Agent / App - top -->
+            <rect x="340" y="16" width="280" height="52" rx="26" fill="#f0f5ff" stroke="#b3d4fc" stroke-width="2"/>
+            <text x="480" y="48" text-anchor="middle" font-size="15" font-weight="600" fill="#333">AI Agent / {{ locale === 'zh' ? '应用' : 'App' }}</text>
+
+            <!-- Arrow down from agent to Lakebase -->
+            <line x1="480" y1="68" x2="480" y2="104" stroke="#0073e6" stroke-width="2" marker-end="url(#arrowD)"/>
+
+            <!-- Lakebase - center foundation -->
+            <rect x="180" y="110" width="600" height="80" rx="12" fill="url(#gBase)"/>
+            <text x="480" y="145" text-anchor="middle" font-size="22" font-weight="700" fill="#fff">Lakebase</text>
+            <text x="480" y="172" text-anchor="middle" font-size="13" fill="rgba(255,255,255,0.8)">Serverless PostgreSQL · {{ locale === 'zh' ? '存算分离 · 自动扩缩容' : 'Disaggregated Storage · Auto-scaling' }}</text>
+
+            <!-- Capability badges inside Lakebase area -->
+            <g transform="translate(200, 200)">
+              <rect x="0" y="0" width="110" height="34" rx="17" fill="#e0edff" stroke="#b3d4fc" stroke-width="1"/>
+              <text x="55" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="#0052a3">{{ locale === 'zh' ? '关系型' : 'Relational' }}</text>
+
+              <rect x="124" y="0" width="100" height="34" rx="17" fill="#e0edff" stroke="#b3d4fc" stroke-width="1"/>
+              <text x="174" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="#0052a3">pgvector</text>
+
+              <rect x="238" y="0" width="100" height="34" rx="17" fill="#e0edff" stroke="#b3d4fc" stroke-width="1"/>
+              <text x="288" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="#0052a3">{{ locale === 'zh' ? '全文检索' : 'Full-text' }}</text>
+
+              <rect x="352" y="0" width="80" height="34" rx="17" fill="#e0edff" stroke="#b3d4fc" stroke-width="1"/>
+              <text x="392" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="#0052a3">{{ locale === 'zh' ? '图查询' : 'Graph' }}</text>
+
+              <rect x="446" y="0" width="110" height="34" rx="17" fill="#e0edff" stroke="#b3d4fc" stroke-width="1"/>
+              <text x="501" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="#0052a3">{{ locale === 'zh' ? '内置 RAG' : 'Built-in RAG' }}</text>
+            </g>
+
+            <!-- Knowledge Base - left -->
+            <rect x="40" y="270" width="260" height="100" rx="12" fill="url(#gKB)"/>
+            <text x="170" y="308" text-anchor="middle" font-size="17" font-weight="700" fill="#fff">{{ locale === 'zh' ? '知识库' : 'Knowledge Base' }}</text>
+            <text x="170" y="332" text-anchor="middle" font-size="12" fill="rgba(255,255,255,0.8)">{{ locale === 'zh' ? '文档 · 表 · 向量 · 全文混合检索' : 'Docs · Tables · Hybrid Vector+FTS' }}</text>
+            <text x="170" y="352" text-anchor="middle" font-size="12" fill="rgba(255,255,255,0.8)">{{ locale === 'zh' ? '内置 Embedding & Reranker' : 'Built-in Embedding & Reranker' }}</text>
+
+            <!-- Line from Lakebase down to KB -->
+            <line x1="300" y1="234" x2="220" y2="270" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.6"/>
+
+            <!-- AI Data Lake - right -->
+            <rect x="660" y="270" width="260" height="100" rx="12" fill="url(#gLake)"/>
+            <text x="790" y="308" text-anchor="middle" font-size="17" font-weight="700" fill="#fff">{{ locale === 'zh' ? 'AI 数据湖' : 'AI Data Lake' }}</text>
+            <text x="790" y="332" text-anchor="middle" font-size="12" fill="rgba(255,255,255,0.8)">{{ locale === 'zh' ? 'Python · Ray · 微调 · Parquet' : 'Python · Ray · Fine-tune · Parquet' }}</text>
+            <text x="790" y="352" text-anchor="middle" font-size="12" fill="rgba(255,255,255,0.8)">{{ locale === 'zh' ? 'Kata VM 安全隔离' : 'Kata VM Isolation' }}</text>
+
+            <!-- Line from Lakebase down to Data Lake -->
+            <line x1="660" y1="234" x2="740" y2="270" stroke="#0891b2" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.6"/>
+
+            <!-- Data Flywheel - bidirectional arrows between Lakebase and Data Lake -->
+            <line x1="780" y1="155" x2="870" y2="270" stroke="#0073e6" stroke-width="2" marker-end="url(#arrowR)"/>
+            <line x1="870" y1="270" x2="780" y2="190" stroke="#0891b2" stroke-width="2" marker-start="url(#arrowL)"/>
+            <rect x="850" y="200" width="110" height="28" rx="14" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+            <text x="905" y="219" text-anchor="middle" font-size="11" font-weight="700" fill="#92400e">{{ locale === 'zh' ? '数据飞轮' : 'Data Flywheel' }}</text>
+
+            <!-- Time Travel - bottom center -->
+            <rect x="320" y="280" width="320" height="80" rx="12" fill="url(#gTime)" opacity="0.9"/>
+            <text x="480" y="312" text-anchor="middle" font-size="17" font-weight="700" fill="#fff">{{ locale === 'zh' ? '时间旅行' : 'Time Travel' }}</text>
+            <text x="480" y="336" text-anchor="middle" font-size="12" fill="rgba(255,255,255,0.85)">{{ locale === 'zh' ? '数据库分支 · 版本管理 · 即时回滚' : 'DB Branching · Versioning · Instant Rollback' }}</text>
+            <text x="480" y="352" text-anchor="middle" font-size="12" fill="rgba(255,255,255,0.85)">{{ locale === 'zh' ? '像 Git 一样管理数据' : 'Manage data like Git' }}</text>
+
+            <!-- Line from Lakebase down to Time Travel -->
+            <line x1="480" y1="234" x2="480" y2="280" stroke="#d97706" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.6"/>
+
+            <!-- Memory Store - coming soon -->
+            <rect x="40" y="400" width="200" height="60" rx="10" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="6,4"/>
+            <text x="140" y="428" text-anchor="middle" font-size="14" font-weight="600" fill="#6b7280">{{ locale === 'zh' ? '记忆库 (规划中)' : 'Memory Store (Planned)' }}</text>
+            <text x="140" y="448" text-anchor="middle" font-size="11" fill="#9ca3af">Neuromem</text>
+
+            <!-- Infrastructure bar - bottom -->
+            <rect x="40" y="484" width="880" height="32" rx="6" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
+            <text x="480" y="505" text-anchor="middle" font-size="12" font-weight="500" fill="#64748b">Kubernetes · OBS · RDS · {{ locale === 'zh' ? '弹性节点池 · 自动扩缩' : 'Elastic Node Pool · Auto-scaling' }}</text>
+          </svg>
         </div>
       </div>
     </section>
@@ -723,87 +791,15 @@ const useCases = computed(() => [
 }
 
 
-/* Architecture */
-.arch-diagram {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin-bottom: 48px;
-  flex-wrap: wrap;
+/* Architecture SVG */
+.arch-svg-wrap {
+  max-width: 800px;
+  margin: 32px auto 0;
 }
 
-.arch-box {
-  padding: 18px 28px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 16px;
-  text-align: center;
-}
-
-.app-box {
-  background: #f0f5ff;
-  border: 2px solid #b3d4fc;
-  color: #333;
-}
-
-.lakeon-box {
-  background: #0073e6;
-  color: #fff;
-  border: 2px solid #005bb5;
-  font-size: 20px;
-  padding: 18px 36px;
-}
-
-.arch-arrow {
-  font-size: 28px;
-  color: #999;
-}
-
-.arch-capabilities {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.arch-cap-box {
-  background: #f7f9fc;
-  border: 1px solid #d0d0d0;
-  border-radius: 6px;
-  padding: 10px 18px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.arch-highlights {
-  max-width: 600px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.arch-point {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  font-size: 15px;
-  color: #333;
-  line-height: 1.5;
-}
-
-.arch-bullet {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  min-width: 26px;
-  background: #0073e6;
-  color: #fff;
-  border-radius: 50%;
-  font-size: 13px;
-  font-weight: 700;
+.arch-svg {
+  width: 100%;
+  height: auto;
 }
 
 /* Steps */
@@ -954,18 +950,6 @@ const useCases = computed(() => [
   .card-grid.three,
   .module-grid {
     grid-template-columns: 1fr;
-  }
-
-  .arch-diagram {
-    flex-direction: column;
-  }
-
-  .arch-arrow {
-    transform: rotate(90deg);
-  }
-
-  .arch-capabilities {
-    justify-content: center;
   }
 
   .footer-inner {
