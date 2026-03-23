@@ -395,10 +395,74 @@
   /* ── Print / Projector ── */
   @media print {
     .slide { min-height: auto; page-break-after: always; padding: 30px; }
+    .pw-gate { display: none !important; }
   }
+
+  /* ── Password Gate ── */
+  .pw-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #0d0d1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .pw-gate.hidden { display: none; }
+  .pw-box {
+    text-align: center;
+    max-width: 380px;
+    padding: 48px 40px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(0,210,255,0.2);
+    border-radius: 16px;
+  }
+  .pw-box h2 { font-size: 1.4rem; margin-bottom: 8px; }
+  .pw-box p { font-size: 0.85rem; color: #8ecae6; margin-bottom: 24px; }
+  .pw-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid rgba(0,210,255,0.3);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    font-size: 1rem;
+    outline: none;
+    margin-bottom: 16px;
+  }
+  .pw-input:focus { border-color: #00d2ff; }
+  .pw-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: #00d2ff;
+    color: #0d0d1a;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .pw-btn:hover { opacity: 0.85; }
+  .pw-error { color: #e74c3c; font-size: 0.85rem; margin-top: 12px; display: none; }
+  .report-content { display: none; }
+  .report-content.visible { display: block; }
 </style>
 </head>
 <body>
+
+<!-- Password Gate -->
+<div class="pw-gate" id="pwGate">
+  <div class="pw-box">
+    <h2>DBay 内部报告</h2>
+    <p>此报告仅限授权人员查看，请输入访问密码</p>
+    <input type="password" class="pw-input" id="pwInput" placeholder="请输入密码" autofocus>
+    <button class="pw-btn" onclick="checkPw()">进入</button>
+    <div class="pw-error" id="pwError">密码错误，请重试</div>
+  </div>
+</div>
+
+<div class="report-content" id="reportContent">
 
 <!-- TOC Navigation -->
 <nav class="toc-nav">
@@ -1297,5 +1361,39 @@
   </div>
 </section>
 
+</div><!-- end .report-content -->
+
+<script>
+const PW_HASH = 'a318ffdfb72b8b5a4d2ebe480b7fd590a8434822e593d9e9fa86d6cfa5a81614';
+
+async function sha256(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function checkPw() {
+  const input = document.getElementById('pwInput').value;
+  const hash = await sha256(input);
+  if (hash === PW_HASH) {
+    document.getElementById('pwGate').classList.add('hidden');
+    document.getElementById('reportContent').classList.add('visible');
+    sessionStorage.setItem('report_auth', '1');
+  } else {
+    document.getElementById('pwError').style.display = 'block';
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwInput').focus();
+  }
+}
+
+document.getElementById('pwInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') checkPw();
+});
+
+// Auto-unlock if already authenticated in this session
+if (sessionStorage.getItem('report_auth') === '1') {
+  document.getElementById('pwGate').classList.add('hidden');
+  document.getElementById('reportContent').classList.add('visible');
+}
+</script>
 </body>
 </html>
