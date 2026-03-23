@@ -359,3 +359,157 @@ class DbayClient:
 
     def delete_dataset(self, dataset_id: str) -> dict:
         return self._request("DELETE", f"/datasets/{dataset_id}")
+
+    # -- Database extended --
+    def update_database(self, db_id: str, **kwargs) -> dict:
+        return self._request("PATCH", f"/databases/{db_id}", json=kwargs)
+
+    def reset_database_password(self, db_id: str) -> dict:
+        return self._request("POST", f"/databases/{db_id}/reset-password")
+
+    def get_database_metrics(self, db_id: str) -> dict:
+        return self._request("GET", f"/databases/{db_id}/metrics")
+
+    def get_database_logs(self, db_id: str, tail: int = 100) -> Any:
+        return self._request("GET", f"/databases/{db_id}/logs?tail={tail}")
+
+    def get_allowed_ips(self, db_id: str) -> dict:
+        return self._request("GET", f"/databases/{db_id}/allowed-ips")
+
+    def set_allowed_ips(self, db_id: str, ips: list) -> dict:
+        return self._request("PUT", f"/databases/{db_id}/allowed-ips", json={"ips": ips})
+
+    def clear_allowed_ips(self, db_id: str) -> dict:
+        return self._request("DELETE", f"/databases/{db_id}/allowed-ips")
+
+    # -- Database Query & Schema --
+    def list_schemas(self, db_id: str) -> list:
+        return self._request("GET", f"/databases/{db_id}/schemas")
+
+    def list_tables(self, db_id: str, schema: str = "public") -> list:
+        return self._request("GET", f"/databases/{db_id}/schemas/{schema}/tables")
+
+    def list_columns(self, db_id: str, schema: str, table: str) -> list:
+        return self._request("GET", f"/databases/{db_id}/schemas/{schema}/tables/{table}/columns")
+
+    def list_indexes(self, db_id: str, schema: str, table: str) -> list:
+        return self._request("GET", f"/databases/{db_id}/schemas/{schema}/tables/{table}/indexes")
+
+    def list_constraints(self, db_id: str, schema: str, table: str) -> list:
+        return self._request("GET", f"/databases/{db_id}/schemas/{schema}/tables/{table}/constraints")
+
+    def query_table_data(self, db_id: str, schema: str, table: str,
+                         limit: int = 50, offset: int = 0) -> dict:
+        return self._request("GET", f"/databases/{db_id}/schemas/{schema}/tables/{table}/data?limit={limit}&offset={offset}")
+
+    def get_table_stats(self, db_id: str, schema: str, table: str) -> dict:
+        return self._request("GET", f"/databases/{db_id}/schemas/{schema}/tables/{table}/stats")
+
+    def execute_query(self, db_id: str, sql: str, branch_id: str | None = None) -> dict:
+        body: dict[str, Any] = {"sql": sql}
+        if branch_id:
+            body["branch_id"] = branch_id
+        return self._request("POST", f"/databases/{db_id}/query", json=body)
+
+    def get_connections(self, db_id: str) -> list:
+        return self._request("GET", f"/databases/{db_id}/connections")
+
+    # -- Query History --
+    def get_query_history(self, db_id: str) -> list:
+        return self._request("GET", f"/databases/{db_id}/query-history")
+
+    def clear_query_history(self, db_id: str) -> dict:
+        return self._request("DELETE", f"/databases/{db_id}/query-history")
+
+    def list_all_query_history(self) -> list:
+        return self._request("GET", "/query-history")
+
+    def clear_all_query_history(self) -> dict:
+        return self._request("DELETE", "/query-history")
+
+    # -- Operations --
+    def get_database_operations(self, db_id: str) -> list:
+        return self._request("GET", f"/databases/{db_id}/operations")
+
+    def get_recent_operations(self) -> list:
+        return self._request("GET", "/operations/recent")
+
+    # -- Backups --
+    def create_backup(self, db_id: str, name: str | None = None) -> dict:
+        body = {}
+        if name:
+            body["name"] = name
+        return self._request("POST", f"/databases/{db_id}/backups", json=body)
+
+    def list_backups(self, db_id: str) -> list:
+        return self._request("GET", f"/databases/{db_id}/backups")
+
+    def list_all_backups(self) -> list:
+        return self._request("GET", "/backups")
+
+    def get_backup(self, db_id: str, backup_id: str) -> dict:
+        return self._request("GET", f"/databases/{db_id}/backups/{backup_id}")
+
+    def restore_backup(self, db_id: str, backup_id: str, new_name: str | None = None) -> dict:
+        body = {}
+        if new_name:
+            body["name"] = new_name
+        return self._request("POST", f"/databases/{db_id}/backups/{backup_id}/restore", json=body)
+
+    def delete_backup(self, db_id: str, backup_id: str) -> dict:
+        return self._request("DELETE", f"/databases/{db_id}/backups/{backup_id}")
+
+    # -- Database Users extended --
+    def update_user_role(self, db_id: str, user_id: str, role: str) -> dict:
+        return self._request("PUT", f"/databases/{db_id}/users/{user_id}/role", json={"role": role})
+
+    def reset_user_password(self, db_id: str, user_id: str) -> dict:
+        return self._request("POST", f"/databases/{db_id}/users/{user_id}/reset-password")
+
+    # -- Extensions --
+    def list_extensions(self, db_id: str) -> list:
+        return self._request("GET", f"/databases/{db_id}/extensions")
+
+    def enable_extension(self, db_id: str, name: str) -> dict:
+        return self._request("POST", f"/databases/{db_id}/extensions/{name}/enable")
+
+    def disable_extension(self, db_id: str, name: str) -> dict:
+        return self._request("POST", f"/databases/{db_id}/extensions/{name}/disable")
+
+    # -- Tenant / Account --
+    def check_username(self, username: str) -> dict:
+        return self._request("GET", f"/auth/check-username?username={username}")
+
+    def list_api_keys(self) -> list:
+        return self._request("GET", "/api-keys")
+
+    def create_api_key(self, name: str | None = None) -> dict:
+        body = {}
+        if name:
+            body["name"] = name
+        return self._request("POST", "/api-keys", json=body)
+
+    def delete_api_key(self, key_id: str) -> dict:
+        return self._request("DELETE", f"/api-keys/{key_id}")
+
+    # -- Branch tree --
+    def get_branch_tree(self, db_id: str) -> dict:
+        return self._request("GET", f"/databases/{db_id}/branches/tree")
+
+    # -- Schema Diff --
+    def get_schema_diff(self, db_id: str, **params) -> dict:
+        qs = "&".join(f"{k}={v}" for k, v in params.items() if v)
+        path = f"/databases/{db_id}/diff/schema"
+        if qs:
+            path += f"?{qs}"
+        return self._request("GET", path)
+
+    # -- Audit --
+    def get_audit_config(self, db_id: str) -> dict:
+        return self._request("GET", f"/databases/{db_id}/audit/config")
+
+    def update_audit_config(self, db_id: str, **kwargs) -> dict:
+        return self._request("PUT", f"/databases/{db_id}/audit/config", json=kwargs)
+
+    def get_audit_logs(self, db_id: str, limit: int = 50, offset: int = 0) -> dict:
+        return self._request("GET", f"/databases/{db_id}/audit/logs?limit={limit}&offset={offset}")
