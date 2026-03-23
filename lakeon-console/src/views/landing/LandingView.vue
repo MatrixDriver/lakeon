@@ -7,7 +7,6 @@
         <div class="nav-links">
           <a href="#modules" @click.prevent="scrollTo('modules')">{{ t('产品', 'Products') }}</a>
           <a href="#features" @click.prevent="scrollTo('features')">{{ t('特性', 'Features') }}</a>
-          <a href="#capabilities" @click.prevent="scrollTo('capabilities')">{{ t('能力', 'Capabilities') }}</a>
           <a href="#scenarios" @click.prevent="scrollTo('scenarios')">{{ t('场景', 'Scenarios') }}</a>
           <a href="#quickstart" @click.prevent="scrollTo('quickstart')">{{ t('快速开始', 'Quick Start') }}</a>
         </div>
@@ -20,7 +19,6 @@
       <div v-if="mobileMenuOpen" class="mobile-menu">
         <a href="#modules" @click.prevent="scrollTo('modules'); mobileMenuOpen = false">{{ t('产品', 'Products') }}</a>
         <a href="#features" @click.prevent="scrollTo('features'); mobileMenuOpen = false">{{ t('特性', 'Features') }}</a>
-        <a href="#capabilities" @click.prevent="scrollTo('capabilities'); mobileMenuOpen = false">{{ t('能力', 'Capabilities') }}</a>
         <a href="#scenarios" @click.prevent="scrollTo('scenarios'); mobileMenuOpen = false">{{ t('场景', 'Scenarios') }}</a>
         <a href="#quickstart" @click.prevent="scrollTo('quickstart'); mobileMenuOpen = false">{{ t('快速开始', 'Quick Start') }}</a>
         <router-link to="/login" @click="mobileMenuOpen = false">{{ t('登录', 'Sign In') }}</router-link>
@@ -40,20 +38,6 @@
         </div>
         <p class="hero-hint">{{ t('无需注册，30 秒创建临时数据库', 'No signup needed, get a database in 30 seconds') }}</p>
         <div v-if="trialError" class="trial-error">{{ trialError }}</div>
-        <div class="hero-arch" id="capabilities">
-          <div class="arch-diagram">
-            <div class="arch-box app-box">{{ t('AI Agent / 应用', 'AI Agent / App') }}</div>
-            <div class="arch-arrow">&rarr;</div>
-            <div class="arch-box lakeon-box">DBay</div>
-            <div class="arch-arrow">&rarr;</div>
-            <div class="arch-capabilities">
-              <div class="arch-cap-box">Lakebase</div>
-              <div class="arch-cap-box">{{ t('知识库', 'KB') }}</div>
-              <div class="arch-cap-box">{{ t('数据湖', 'Data Lake') }}</div>
-              <div class="arch-cap-box">{{ t('记忆库', 'Memory') }}</div>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -738,10 +722,6 @@ const useCases = computed(() => [
   margin: 0;
 }
 
-/* Hero Architecture Diagram */
-.hero-arch {
-  margin-top: 40px;
-}
 
 /* Architecture */
 .arch-diagram {
