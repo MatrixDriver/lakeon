@@ -1,30 +1,5 @@
 <template>
   <div class="landing-page">
-    <!-- Top Navigation Bar -->
-    <nav class="nav-bar">
-      <div class="nav-inner">
-        <div class="nav-logo">DBay <span class="nav-tagline">数据港湾</span></div>
-        <div class="nav-links">
-          <a href="#modules" @click.prevent="scrollTo('modules')">{{ t('产品', 'Products') }}</a>
-          <a href="#features" @click.prevent="scrollTo('features')">{{ t('特性', 'Features') }}</a>
-          <a href="#scenarios" @click.prevent="scrollTo('scenarios')">{{ t('场景', 'Scenarios') }}</a>
-          <a href="#quickstart" @click.prevent="scrollTo('quickstart')">{{ t('快速开始', 'Quick Start') }}</a>
-        </div>
-        <div class="nav-right">
-          <button class="lang-toggle" @click="toggleLocale">{{ locale === 'zh' ? 'EN' : '中' }}</button>
-          <router-link to="/login" class="btn-signin">{{ t('登录', 'Sign In') }}</router-link>
-        </div>
-        <button class="mobile-menu-btn" @click="mobileMenuOpen = !mobileMenuOpen">&#9776;</button>
-      </div>
-      <div v-if="mobileMenuOpen" class="mobile-menu">
-        <a href="#modules" @click.prevent="scrollTo('modules'); mobileMenuOpen = false">{{ t('产品', 'Products') }}</a>
-        <a href="#features" @click.prevent="scrollTo('features'); mobileMenuOpen = false">{{ t('特性', 'Features') }}</a>
-        <a href="#scenarios" @click.prevent="scrollTo('scenarios'); mobileMenuOpen = false">{{ t('场景', 'Scenarios') }}</a>
-        <a href="#quickstart" @click.prevent="scrollTo('quickstart'); mobileMenuOpen = false">{{ t('快速开始', 'Quick Start') }}</a>
-        <router-link to="/login" @click="mobileMenuOpen = false">{{ t('登录', 'Sign In') }}</router-link>
-      </div>
-    </nav>
-
     <!-- Hero Section -->
     <section class="hero" id="hero">
       <div class="container">
@@ -44,7 +19,7 @@
     <!-- Product Modules -->
     <section class="section" id="modules">
       <div class="container">
-        <h2 class="section-title">{{ t('三大产品模块', 'Three Product Modules') }}</h2>
+        <h2 class="section-title">{{ t('四大产品模块', 'Four Product Modules') }}</h2>
         <p class="section-desc">{{ t('以 Neon 为内核的 Lakebase，为知识库、记忆库、AI 多模数据湖提供统一的 Serverless 数据底座', 'Lakebase powered by Neon provides a unified Serverless data foundation for Knowledge Base, Memory Store, and AI Data Lake') }}</p>
         <div class="module-grid">
           <div class="module-card module-lakebase">
@@ -75,6 +50,20 @@
               <li>{{ t('内置 Embedding 与 Reranker', 'Built-in embedding & reranker') }}</li>
             </ul>
           </div>
+          <div class="module-card module-memory">
+            <div class="module-badge">{{ t('已上线', 'Live') }}</div>
+            <div class="module-icon">&#x1F9E0;</div>
+            <h3>{{ t('记忆库', 'Memory Store') }}</h3>
+            <p class="module-subtitle">{{ t('AI Agent 长期记忆引擎', 'Long-term Memory Engine') }}</p>
+            <ul class="module-features">
+              <li>{{ t('事实 / 事件 / 特征 / 文档四类记忆', 'Fact / Episode / Trait / Document memory types') }}</li>
+              <li>{{ t('ingest · recall · digest 三个核心 API', 'Three core APIs: ingest · recall · digest') }}</li>
+              <li>{{ t('向量 + BM25 + 知识图谱混合检索', 'Hybrid: vector + BM25 + knowledge graph') }}</li>
+              <li>{{ t('特征生命周期 6 阶段自动演化', '6-stage trait lifecycle evolution') }}</li>
+              <li>{{ t('LoCoMo 基准测试 81.7% 综合得分', 'LoCoMo benchmark: 81.7% overall score') }}</li>
+              <li>{{ t('MCP 协议接入，5 分钟集成', 'MCP protocol, 5-minute integration') }}</li>
+            </ul>
+          </div>
           <div class="module-card module-lake">
             <div class="module-badge">{{ t('已上线', 'Live') }}</div>
             <div class="module-icon">&#x1F30A;</div>
@@ -88,13 +77,6 @@
               <li>{{ t('DB ↔ 数据湖 数据飞轮', 'DB ↔ Data Lake data flywheel') }}</li>
               <li>{{ t('增量 CDC 调度', 'Incremental CDC scheduling') }}</li>
             </ul>
-          </div>
-        </div>
-        <div class="module-coming">
-          <span class="module-coming-icon">&#x1F9E0;</span>
-          <div>
-            <strong>{{ t('记忆库 (即将推出)', 'Memory Store (Coming Soon)') }}</strong>
-            <span class="module-coming-desc">{{ t(' — Neuromem 记忆引擎，为 AI Agent 提供长期记忆能力，计划合入 DBay', ' — Neuromem memory engine for AI Agent long-term memory, planned integration into DBay') }}</span>
           </div>
         </div>
       </div>
@@ -208,10 +190,10 @@
             <!-- Line from Lakebase down to Time Travel -->
             <line x1="480" y1="234" x2="480" y2="280" stroke="#d97706" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.6"/>
 
-            <!-- Memory Store - coming soon -->
-            <rect x="40" y="400" width="200" height="60" rx="10" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="6,4"/>
-            <text x="140" y="428" text-anchor="middle" font-size="14" font-weight="600" fill="#6b7280">{{ locale === 'zh' ? '记忆库 (规划中)' : 'Memory Store (Planned)' }}</text>
-            <text x="140" y="448" text-anchor="middle" font-size="11" fill="#9ca3af">Neuromem</text>
+            <!-- Memory Store - live -->
+            <rect x="40" y="400" width="200" height="60" rx="10" fill="#1a1a2e" stroke="#7c3aed" stroke-width="1.5"/>
+            <text x="140" y="428" text-anchor="middle" font-size="14" font-weight="600" fill="#a78bfa">{{ locale === 'zh' ? '记忆库' : 'Memory Store' }}</text>
+            <text x="140" y="448" text-anchor="middle" font-size="11" fill="#a78bfa">{{ locale === 'zh' ? '已上线' : 'Live' }}</text>
 
             <!-- Infrastructure bar - bottom -->
             <rect x="40" y="484" width="880" height="32" rx="6" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
@@ -281,7 +263,6 @@ const { locale, setLocale, t } = useLocale()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const mobileMenuOpen = ref(false)
 const trialLoading = ref(false)
 const trialError = ref('')
 
@@ -350,117 +331,6 @@ const useCases = computed(() => [
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   color: #1a1a1a;
   scroll-behavior: smooth;
-}
-
-/* Nav Bar */
-.nav-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 56px;
-  background: #fff;
-  border-bottom: 1px solid #e8e8e8;
-  z-index: 100;
-}
-
-.nav-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  padding: 0 24px;
-}
-
-.nav-logo {
-  font-size: 22px;
-  font-weight: 700;
-  color: #0073e6;
-  margin-right: 40px;
-  white-space: nowrap;
-}
-
-.nav-tagline {
-  font-size: 13px;
-  font-weight: 400;
-  color: #888;
-  margin-left: 6px;
-}
-
-.nav-links {
-  display: flex;
-  gap: 28px;
-  flex: 1;
-  justify-content: center;
-}
-
-.nav-links a {
-  color: #333;
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 500;
-  transition: color 0.2s;
-}
-
-.nav-links a:hover {
-  color: #0073e6;
-}
-
-.nav-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.lang-toggle {
-  background: #f5f5f5;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 4px 12px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.btn-signin {
-  background: #0073e6;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  padding: 6px 18px;
-  font-size: 14px;
-  text-decoration: none;
-  font-weight: 500;
-  transition: background 0.2s;
-}
-
-.btn-signin:hover {
-  background: #005bb5;
-}
-
-.mobile-menu-btn {
-  display: none;
-  background: none;
-  border: none;
-  font-size: 22px;
-  cursor: pointer;
-  margin-left: auto;
-}
-
-.mobile-menu {
-  display: none;
-  flex-direction: column;
-  background: #fff;
-  padding: 12px 24px;
-  border-bottom: 1px solid #e8e8e8;
-}
-
-.mobile-menu a {
-  padding: 8px 0;
-  color: #333;
-  text-decoration: none;
-  font-size: 14px;
 }
 
 /* Container */
@@ -666,6 +536,15 @@ const useCases = computed(() => [
 .module-lakebase { border-top-color: #0073e6; }
 .module-kb { border-top-color: #e6a700; }
 .module-lake { border-top-color: #2ecc71; }
+.module-memory {
+  border-color: #7c3aed;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+.module-memory .module-badge {
+  background: #7c3aed22;
+  color: #a78bfa;
+  border-color: #7c3aed44;
+}
 
 .module-badge {
   position: absolute;
@@ -726,6 +605,10 @@ const useCases = computed(() => [
 
 .module-kb .module-features li::before { color: #e6a700; }
 .module-lake .module-features li::before { color: #2ecc71; }
+.module-memory .module-features li::before { color: #a78bfa; }
+.module-memory .module-features li { color: #c4b5fd; border-bottom-color: #2d2d4e; }
+.module-memory h3 { color: #e9d5ff; }
+.module-memory .module-subtitle { color: #a78bfa; }
 
 .module-coming {
   display: flex;
@@ -921,19 +804,6 @@ const useCases = computed(() => [
 
 /* Responsive */
 @media (max-width: 768px) {
-  .nav-links,
-  .nav-right {
-    display: none;
-  }
-
-  .mobile-menu-btn {
-    display: block;
-  }
-
-  .mobile-menu {
-    display: flex;
-  }
-
   .hero-title {
     font-size: 28px;
   }

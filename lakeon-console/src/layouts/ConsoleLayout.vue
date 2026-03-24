@@ -155,7 +155,7 @@
             </div>
             <div class="nav-group">
               <div class="nav-group-title">帮助</div>
-              <router-link to="/docs" class="nav-item" active-class="active" @click="sidebarOpen = false">使用指南</router-link>
+              <router-link to="/help" class="nav-item" active-class="active" @click="sidebarOpen = false">使用指南</router-link>
             </div>
           </template>
         </nav>
@@ -214,7 +214,7 @@ watch(() => route.path, (path) => {
     activeRail.value = 'memory'
   } else if (path.startsWith('/datalake')) {
     activeRail.value = 'datalake'
-  } else if (['/apikey', '/usage', '/account', '/docs'].some(p => path.startsWith(p))) {
+  } else if (['/apikey', '/usage', '/account', '/help'].some(p => path.startsWith(p))) {
     activeRail.value = 'settings'
   } else {
     activeRail.value = 'db'

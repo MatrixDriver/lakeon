@@ -8,16 +8,35 @@ const routes = [
     meta: { noAuth: true },
   },
   {
-    path: '/landing',
-    name: 'Landing',
-    component: () => import('../views/landing/LandingView.vue'),
-    meta: { noAuth: true },
-  },
-  {
     path: '/report',
     name: 'Report',
     component: () => import('../views/report/ReportView.vue'),
     meta: { noAuth: true },
+  },
+  {
+    path: '/',
+    component: () => import('../layouts/PublicLayout.vue'),
+    meta: { noAuth: true },
+    children: [
+      { path: '', name: 'Landing', component: () => import('../views/landing/LandingView.vue') },
+      { path: 'landing', redirect: '/' },
+      { path: 'product', name: 'Product', component: () => import('../views/product/ProductView.vue') },
+      { path: 'integrations', name: 'Integrations', component: () => import('../views/integrations/IntegrationsView.vue') },
+      { path: 'integrations/openclaw', name: 'OpenClaw', component: () => import('../views/integrations/OpenClawView.vue') },
+      { path: 'blog', name: 'BlogList', component: () => import('../views/blog/BlogListView.vue') },
+      { path: 'blog/:slug', name: 'BlogPost', component: () => import('../views/blog/BlogPostView.vue') },
+      {
+        path: 'docs',
+        component: () => import('../views/docs/DocsLayout.vue'),
+        children: [
+          { path: '', name: 'DocsHome', component: () => import('../views/docs/DocsHome.vue') },
+          { path: 'rest-api', name: 'DocsRestApi', component: () => import('../views/docs/DocsRestApi.vue') },
+          { path: 'python-sdk', name: 'DocsPythonSdk', component: () => import('../views/docs/DocsPythonSdk.vue') },
+          { path: 'deploy', name: 'DocsDeploy', component: () => import('../views/docs/DocsDeploy.vue') },
+          { path: 'mcp', name: 'DocsMcp', component: () => import('../views/docs/DocsMcp.vue') },
+        ],
+      },
+    ],
   },
   {
     path: '/',
@@ -38,7 +57,7 @@ const routes = [
       { path: 'apikey', name: 'ApiKey', component: () => import('../views/apikey/ApiKeyView.vue') },
       { path: 'usage', name: 'Usage', component: () => import('../views/usage/UsageBillingView.vue') },
       { path: 'account', name: 'Account', component: () => import('../views/account/AccountSettingsView.vue') },
-      { path: 'docs', name: 'Docs', component: () => import('../views/docs/DocsView.vue') },
+      { path: 'help', name: 'Docs', component: () => import('../views/docs/DocsView.vue') },
       // Datalake
       { path: 'datalake', name: 'DatalakeJobs', component: () => import('../views/datalake/DatalakeJobs.vue') },
       { path: 'datalake/jobs/:jobId', name: 'DatalakeJobDetail', component: () => import('../views/datalake/DatalakeJobDetail.vue') },
@@ -74,10 +93,15 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
+  // Authenticated users visiting '/' go to dashboard
+  if (to.path === '/') {
+    const apiKey = localStorage.getItem('lakeon_api_key')
+    if (apiKey) return '/dashboard'
+  }
   if (!to.meta.noAuth) {
     const apiKey = localStorage.getItem('lakeon_api_key')
     if (!apiKey) {
-      return '/landing'
+      return '/'
     }
   }
 })
