@@ -27,18 +27,24 @@
 
     <!-- Overview tab -->
     <div v-if="base && activeTab === 'overview'" style="margin-top: 24px;">
-      <div class="section-card" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
-        <div style="text-align: center; padding: 24px;">
-          <div style="font-size: 32px; font-weight: 600; color: #0073e6;">{{ base.memory_count ?? 0 }}</div>
-          <div style="color: #666; margin-top: 8px; font-size: 14px;">记忆数</div>
-        </div>
-        <div style="text-align: center; padding: 24px;">
-          <div style="font-size: 32px; font-weight: 600; color: #0073e6;">{{ base.trait_count ?? 0 }}</div>
-          <div style="color: #666; margin-top: 8px; font-size: 14px;">特征数</div>
-        </div>
-        <div style="text-align: center; padding: 24px;">
-          <div style="font-size: 20px; font-weight: 600; color: #333;">{{ typeLabel }}</div>
-          <div style="color: #666; margin-top: 8px; font-size: 14px;">类型</div>
+      <div class="section-card">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 24px; padding: 24px;">
+          <div>
+            <div style="font-size: 28px; font-weight: 700;">{{ stats?.total || 0 }}</div>
+            <div style="color: #999; margin-top: 4px;">记忆总数</div>
+          </div>
+          <div v-for="(count, type) in (stats?.by_type || {})" :key="type">
+            <div style="font-size: 28px; font-weight: 700;">{{ count }}</div>
+            <div style="color: #999; margin-top: 4px;">{{ type }}</div>
+          </div>
+          <div>
+            <div style="font-size: 28px; font-weight: 700;">{{ stats?.trait_count || 0 }}</div>
+            <div style="color: #999; margin-top: 4px;">特征</div>
+          </div>
+          <div>
+            <div style="font-size: 28px; font-weight: 700;">{{ typeLabel }}</div>
+            <div style="color: #999; margin-top: 4px;">类型</div>
+          </div>
         </div>
       </div>
       <div v-if="base.description" style="margin-top: 16px; color: #666; font-size: 14px;">{{ base.description }}</div>
@@ -50,8 +56,112 @@
 
     <!-- Memories tab -->
     <div v-if="base && activeTab === 'memories'" style="margin-top: 24px;">
-      <div class="section-card" style="padding: 40px; text-align: center; color: #999;">
-        记忆列表（Phase 2 实现）
+      <div v-if="activeTab === 'memories'">
+        <!-- Filter + Search bar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div style="display: flex; gap: 8px;">
+            <button class="btn" :class="memoryTypeFilter === '' ? 'btn-primary' : 'btn-default'" @click="setTypeFilter('')" style="height:28px;font-size:12px;padding:0 12px;">全部</button>
+            <button class="btn" :class="memoryTypeFilter === 'fact' ? 'btn-primary' : 'btn-default'" @click="setTypeFilter('fact')" style="height:28px;font-size:12px;padding:0 12px;">fact</button>
+            <button class="btn" :class="memoryTypeFilter === 'episode' ? 'btn-primary' : 'btn-default'" @click="setTypeFilter('episode')" style="height:28px;font-size:12px;padding:0 12px;">episode</button>
+            <button class="btn" :class="memoryTypeFilter === 'procedural' ? 'btn-primary' : 'btn-default'" @click="setTypeFilter('procedural')" style="height:28px;font-size:12px;padding:0 12px;">procedural</button>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input v-model="memorySearch" class="form-input" placeholder="语义搜索..." style="width: 240px; height: 32px;" @keyup.enter="onSearchEnter" />
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div v-if="memories.length > 0" class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width:45%">内容</th>
+                <th>类型</th>
+                <th>重要度</th>
+                <th>访问</th>
+                <th>创建时间</th>
+                <th style="width:60px">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="mem in memories" :key="mem.id" @click="showDetail(mem)" style="cursor:pointer;">
+                <td>{{ mem.content.length > 100 ? mem.content.slice(0, 100) + '...' : mem.content }}</td>
+                <td>
+                  <span style="padding:2px 8px;border-radius:4px;font-size:12px;"
+                    :style="mem.memory_type === 'fact' ? 'background:#e6f7ff;color:#1890ff' : mem.memory_type === 'episode' ? 'background:#f9f0ff;color:#722ed1' : 'background:#fff7e6;color:#d48806'">
+                    {{ mem.memory_type }}
+                  </span>
+                </td>
+                <td>{{ (mem.importance * 100).toFixed(0) }}%</td>
+                <td>{{ mem.access_count }}</td>
+                <td>{{ new Date(mem.created_at).toLocaleDateString() }}</td>
+                <td @click.stop>
+                  <button class="btn btn-default" style="height:24px;font-size:11px;padding:0 8px;color:#e6393d;" @click="confirmDelete(mem.id)">删除</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Empty state -->
+        <div v-else-if="!memoryLoading" class="empty-state" style="padding: 60px 0;">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#ccc" stroke-width="1.5">
+            <path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/>
+            <line x1="10" y1="21" x2="14" y2="21"/>
+          </svg>
+          <p style="color: #999; margin-top: 12px;">暂无记忆数据</p>
+        </div>
+
+        <!-- Pagination -->
+        <div v-if="memoryTotal > PAGE_SIZE" style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:16px;">
+          <button class="btn btn-default" :disabled="memoryPage === 0" @click="prevPage" style="height:28px;font-size:12px;">上一页</button>
+          <span style="font-size:13px;color:#666;">第 {{ memoryPage + 1 }} / {{ Math.ceil(memoryTotal / PAGE_SIZE) }} 页</span>
+          <button class="btn btn-default" :disabled="(memoryPage + 1) * PAGE_SIZE >= memoryTotal" @click="nextPage" style="height:28px;font-size:12px;">下一页</button>
+        </div>
+
+        <!-- Memory detail dialog -->
+        <div v-if="showMemoryDetail" class="dialog-overlay" @click.self="showMemoryDetail = false">
+          <div class="dialog-box" style="max-width: 600px;">
+            <div class="dialog-header">
+              <h3>记忆详情</h3>
+              <button class="dialog-close" @click="showMemoryDetail = false">&times;</button>
+            </div>
+            <div class="dialog-body" style="max-height: 400px; overflow-y: auto;">
+              <div style="margin-bottom: 12px;">
+                <span style="padding:2px 8px;border-radius:4px;font-size:12px;"
+                  :style="selectedMemory?.memory_type === 'fact' ? 'background:#e6f7ff;color:#1890ff' : selectedMemory?.memory_type === 'episode' ? 'background:#f9f0ff;color:#722ed1' : 'background:#fff7e6;color:#d48806'">
+                  {{ selectedMemory?.memory_type }}
+                </span>
+                <span style="margin-left:12px;font-size:12px;color:#999;">重要度: {{ ((selectedMemory?.importance || 0) * 100).toFixed(0) }}%</span>
+                <span style="margin-left:12px;font-size:12px;color:#999;">访问: {{ selectedMemory?.access_count }}</span>
+              </div>
+              <p style="font-size:14px;line-height:1.8;white-space:pre-wrap;">{{ selectedMemory?.content }}</p>
+              <div v-if="selectedMemory?.event_time" style="margin-top:12px;font-size:12px;color:#999;">
+                事件时间: {{ new Date(selectedMemory.event_time).toLocaleString() }}
+              </div>
+              <div style="margin-top:8px;font-size:12px;color:#999;">
+                创建时间: {{ selectedMemory?.created_at ? new Date(selectedMemory.created_at).toLocaleString() : '' }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Delete confirm dialog -->
+        <div v-if="showDeleteConfirm" class="dialog-overlay" @click.self="showDeleteConfirm = false">
+          <div class="dialog-box" style="max-width: 400px;">
+            <div class="dialog-header">
+              <h3>确认删除</h3>
+              <button class="dialog-close" @click="showDeleteConfirm = false">&times;</button>
+            </div>
+            <div class="dialog-body">
+              <p>确定要删除这条记忆吗？此操作不可撤销。</p>
+            </div>
+            <div class="dialog-footer">
+              <button class="btn btn-default" @click="showDeleteConfirm = false">取消</button>
+              <button class="btn" style="background:#e6393d;color:#fff;" @click="doDelete">删除</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -193,11 +303,92 @@ SSL:      require</pre>
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getMemoryBase, type MemoryBase } from '../../api/memory'
+import { getMemoryBase, type MemoryBase, type MemoryItem, type MemoryStats, getMemoryStats, listMemories, deleteMemory, recallMemories } from '../../api/memory'
 
 const route = useRoute()
 const base = ref<MemoryBase | null>(null)
 const activeTab = ref('overview')
+
+const memories = ref<MemoryItem[]>([])
+const memoryTotal = ref(0)
+const memoryPage = ref(0)
+const memoryTypeFilter = ref('')
+const memorySearch = ref('')
+const memoryLoading = ref(false)
+const showMemoryDetail = ref(false)
+const selectedMemory = ref<MemoryItem | null>(null)
+const showDeleteConfirm = ref(false)
+const deletingMemoryId = ref<number | null>(null)
+const stats = ref<MemoryStats | null>(null)
+const PAGE_SIZE = 20
+
+async function loadMemories() {
+  const memId = route.params.memId as string
+  memoryLoading.value = true
+  try {
+    if (memorySearch.value.trim()) {
+      const resp = await recallMemories(memId, memorySearch.value)
+      memories.value = resp.data.memories
+      memoryTotal.value = resp.data.memories.length
+    } else {
+      const resp = await listMemories(memId, {
+        memory_type: memoryTypeFilter.value || undefined,
+        offset: memoryPage.value * PAGE_SIZE,
+        limit: PAGE_SIZE,
+      })
+      memories.value = resp.data.memories
+      memoryTotal.value = resp.data.total
+    }
+  } finally {
+    memoryLoading.value = false
+  }
+}
+
+async function loadStats() {
+  const memId = route.params.memId as string
+  try {
+    const resp = await getMemoryStats(memId)
+    stats.value = resp.data
+  } catch {}
+}
+
+function setTypeFilter(t: string) {
+  memoryTypeFilter.value = t
+  memoryPage.value = 0
+  loadMemories()
+}
+
+function onSearchEnter() {
+  memoryPage.value = 0
+  loadMemories()
+}
+
+function prevPage() {
+  if (memoryPage.value > 0) { memoryPage.value--; loadMemories() }
+}
+function nextPage() {
+  if ((memoryPage.value + 1) * PAGE_SIZE < memoryTotal.value) { memoryPage.value++; loadMemories() }
+}
+
+function showDetail(mem: MemoryItem) {
+  selectedMemory.value = mem
+  showMemoryDetail.value = true
+}
+
+function confirmDelete(id: number) {
+  deletingMemoryId.value = id
+  showDeleteConfirm.value = true
+}
+
+async function doDelete() {
+  if (deletingMemoryId.value == null) return
+  const memId = route.params.memId as string
+  await deleteMemory(memId, deletingMemoryId.value)
+  showDeleteConfirm.value = false
+  deletingMemoryId.value = null
+  loadMemories()
+  loadStats()
+}
 
 const typeLabels: Record<string, string> = { BUILTIN: '自研', MEM0: 'mem0', HINDSIGHT: 'hindsight', CUSTOM: '自定义' }
 const typeLabel = computed(() => typeLabels[base.value?.type || ''] || base.value?.type || '')
@@ -211,5 +402,7 @@ onMounted(async () => {
   const memId = route.params.memId as string
   const resp = await getMemoryBase(memId)
   base.value = resp.data
+  loadStats()
+  loadMemories()
 })
 </script>
