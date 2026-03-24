@@ -26,7 +26,7 @@
                   <circle cx="12" cy="12" r="10"/>
                   <line x1="12" y1="17" x2="12.01" y2="17"/>
                 </svg>
-                <span>自研记忆库</span>
+                <span>DBay记忆库</span>
               </label>
               <label class="type-radio" :class="{ selected: createForm.type === 'MEM0' }">
                 <input type="radio" v-model="createForm.type" value="MEM0" style="display: none;" />
