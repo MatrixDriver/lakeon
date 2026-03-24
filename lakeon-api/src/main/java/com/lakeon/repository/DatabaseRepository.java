@@ -16,6 +16,7 @@ public interface DatabaseRepository extends JpaRepository<DatabaseEntity, String
     Optional<DatabaseEntity> findByIdAndTenantId(String id, String tenantId);
     Optional<DatabaseEntity> findByNeonTenantId(String neonTenantId);
     List<DatabaseEntity> findAllByStatus(DatabaseStatus status);
+    Optional<DatabaseEntity> findByComputePodName(String computePodName);
     Optional<DatabaseEntity> findByName(String name);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
