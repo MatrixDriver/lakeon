@@ -2,14 +2,13 @@ package com.lakeon.service;
 
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.k8s.ComputePodManager;
-import com.lakeon.k8s.KbWritePodManager;
-import com.lakeon.knowledge.KbWriteTaskRepository;
 import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.OperationLogEntity;
 import com.lakeon.model.enums.ComputeStatus;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.model.enums.OperationType;
+import com.lakeon.neon.NeonApiClient;
 import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.exception.NotFoundException;
@@ -24,38 +23,34 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 public class ComputeLifecycleService {
     private static final Logger log = LoggerFactory.getLogger(ComputeLifecycleService.class);
-    private static final long DEFAULT_WAKE_TIMEOUT_MS = 120_000L;
+    private static final long DEFAULT_WAKE_TIMEOUT_MS = 300_000L;
     private final ReentrantLock suspendLock = new ReentrantLock();
 
     private final DatabaseRepository databaseRepository;
     private final BranchRepository branchRepository;
     private final ComputePodManager computePodManager;
-    private final KbWritePodManager kbWritePodManager;
-    private final KbWriteTaskRepository kbWriteTaskRepository;
     private final OperationLogService operationLogService;
+    private final NeonApiClient neonApiClient;
     private final LakeonProperties props;
     private final TransactionTemplate txTemplate;
 
     public ComputeLifecycleService(DatabaseRepository databaseRepository,
                                    BranchRepository branchRepository,
                                    ComputePodManager computePodManager,
-                                   KbWritePodManager kbWritePodManager,
-                                   KbWriteTaskRepository kbWriteTaskRepository,
                                    OperationLogService operationLogService,
+                                   NeonApiClient neonApiClient,
                                    LakeonProperties props,
                                    TransactionTemplate txTemplate) {
         this.databaseRepository = databaseRepository;
         this.branchRepository = branchRepository;
         this.computePodManager = computePodManager;
-        this.kbWritePodManager = kbWritePodManager;
-        this.kbWriteTaskRepository = kbWriteTaskRepository;
         this.operationLogService = operationLogService;
+        this.neonApiClient = neonApiClient;
         this.props = props;
         this.txTemplate = txTemplate;
     }
@@ -71,9 +66,11 @@ public class ComputeLifecycleService {
             databaseRepository.findById(dbId)
                 .orElseThrow(() -> new NotFoundException("Database not found: " + dbId)));
 
-        // If already running, return existing address
+        // If already running AND pod is actually alive, return existing address
         if (entity.getStatus() == DatabaseStatus.RUNNING
-            && entity.getComputeHost() != null && entity.getComputePort() != null) {
+            && entity.getComputeHost() != null && entity.getComputePort() != null
+            && entity.getComputePodName() != null
+            && computePodManager.isPodReady(entity.getComputePodName())) {
             return entity.getComputeHost() + ":" + entity.getComputePort();
         }
 
@@ -90,9 +87,29 @@ public class ComputeLifecycleService {
             return entity.getComputeHost() + ":" + entity.getComputePort();
         }
 
-        // Cold path: create new Pod (outside transaction, may block 120s)
+        // Cold path: ensure pageserver has tenant attached before creating Pod
+        if (entity.getNeonTenantId() != null) {
+            try {
+                log.info("Ensuring tenant {} is active on pageserver before cold start", entity.getNeonTenantId());
+                neonApiClient.waitForTenantActive(entity.getNeonTenantId(), 30);
+            } catch (Exception e) {
+                log.warn("Failed to ensure tenant active (will proceed anyway): {}", e.getMessage());
+            }
+        }
+
+        // Create new Pod (outside transaction, may block 120s)
         String address = computePodManager.createComputePod(entity);
         String podName = entity.getComputePodName();
+
+        // Persist pod name immediately so the orphan-cleanup scheduler won't delete it
+        txTemplate.executeWithoutResult(status -> {
+            DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
+            e.setComputePodName(podName);
+            e.setComputeHost(entity.getComputeHost());
+            e.setComputePort(entity.getComputePort());
+            databaseRepository.save(e);
+        });
+
         boolean ready = computePodManager.waitForPodReady(podName, DEFAULT_WAKE_TIMEOUT_MS);
 
         // Transaction 2: update status
@@ -130,7 +147,6 @@ public class ComputeLifecycleService {
             doCheckAutoSuspend();
             doCleanupExpiredPods();
             doCleanupAndRecoverPods();
-            doCleanupIdleKbWritePods();
         } finally {
             suspendLock.unlock();
         }
@@ -225,6 +241,10 @@ public class ComputeLifecycleService {
             log.info("Cleaning up expired Pod for database {} (suspended since {}, retain={}min)",
                 entity.getId(), entity.getSuspendedAt(), retainMinutes);
             try {
+                // Flush WAL before deleting to prevent data loss
+                if (computePodManager.isPodReady(entity.getComputePodName())) {
+                    computePodManager.executeCheckpoint(entity.getComputePodName());
+                }
                 computePodManager.deleteComputePod(entity.getComputePodName());
                 entity.setComputePodName(null);
                 entity.setComputeHost(null);
@@ -241,8 +261,25 @@ public class ComputeLifecycleService {
             if (branch.getComputePodName() == null) continue;
             if (branch.getSuspendedAt() != null
                     && branch.getSuspendedAt().plus(Duration.ofMinutes(retainMinutes)).isBefore(Instant.now())) {
+                // Skip if the pod is owned by a database that is RUNNING or being resumed
+                String bpn = branch.getComputePodName();
+                boolean ownedByActiveDb = suspendedInstances.stream().noneMatch(d -> bpn.equals(d.getComputePodName()))
+                    && databaseRepository.findByComputePodName(bpn)
+                        .map(d -> d.getStatus() != DatabaseStatus.SUSPENDED)
+                        .orElse(false);
+                if (ownedByActiveDb) {
+                    log.debug("Skipping branch pod cleanup for {} — owned by active database", bpn);
+                    branch.setComputePodName(null);
+                    branchRepository.save(branch);
+                    continue;
+                }
+
                 log.info("Cleaning up expired branch Pod: {}", branch.getComputePodName());
                 try {
+                    // Flush WAL before deleting to prevent data loss
+                    if (computePodManager.isPodReady(branch.getComputePodName())) {
+                        computePodManager.executeCheckpoint(branch.getComputePodName());
+                    }
                     computePodManager.deleteComputePod(branch.getComputePodName());
                     branch.setComputePodName(null);
                     branch.setComputeHost(null);
@@ -315,8 +352,8 @@ public class ComputeLifecycleService {
 
             // Orphan cleanup: pod has no owning entity
             if (!owned) {
-                if (computePodManager.getPodAgeSeconds(pod.name()) < 600) {
-                    log.debug("Skipping orphan check for young pod: {} (age < 600s)", pod.name());
+                if (computePodManager.getPodAgeSeconds(pod.name()) < 60) {
+                    log.debug("Skipping orphan check for young pod: {} (age < 60s)", pod.name());
                     continue;
                 }
                 log.warn("Cleaning up orphaned compute pod: {}", pod.name());
@@ -325,33 +362,6 @@ public class ComputeLifecycleService {
                 } catch (Exception e) {
                     log.error("Failed to delete orphaned pod {}: {}", pod.name(), e.getMessage());
                 }
-            }
-        }
-    }
-
-    /**
-     * Clean up kb-write pods that have no active tasks and have been idle
-     * longer than the configured timeout.
-     */
-    private void doCleanupIdleKbWritePods() {
-        int idleMinutes = props.getKbWrite().getIdleTimeoutMinutes();
-        List<String> kbWriteDbIds = kbWritePodManager.listKbWritePodDatabaseIds();
-        Set<String> activeDbIds = new java.util.HashSet<>(kbWriteTaskRepository.findDatabaseIdsWithActiveTasks());
-
-        for (String dbId : kbWriteDbIds) {
-            if (activeDbIds.contains(dbId)) continue;
-
-            // Check pod age as proxy for idle time
-            String podName = "kb-write-" + dbId.replace("_", "-");
-            long ageSeconds = computePodManager.getPodAgeSeconds(podName);
-            if (ageSeconds < idleMinutes * 60L) continue;
-
-            log.info("Cleaning up idle kb-write pod for database {} (age={}s, threshold={}min)",
-                    dbId, ageSeconds, idleMinutes);
-            try {
-                kbWritePodManager.deleteKbWritePod(dbId);
-            } catch (Exception e) {
-                log.error("Failed to delete idle kb-write pod for db {}: {}", dbId, e.getMessage());
             }
         }
     }

@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.LinkedHashMap;
@@ -48,6 +49,7 @@ public class QueryHistoryController {
 
     @DeleteMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Transactional
     public void clearAll(HttpServletRequest req) {
         TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
         queryHistoryRepository.deleteAllByTenantId(tenant.getId());

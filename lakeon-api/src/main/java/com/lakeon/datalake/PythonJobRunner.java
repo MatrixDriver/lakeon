@@ -44,10 +44,10 @@ public class PythonJobRunner {
         String ns = dl.getCciNamespacePrefix() + job.getTenantId();
         String jobName = k8sJobName(job);
 
-        // 3. Build command from entrypoint
+        // 3. Build command from entrypoint — use shell wrapper to handle quotes and pipes
         List<String> command = new ArrayList<>();
         if (req.getEntrypoint() != null && !req.getEntrypoint().isBlank()) {
-            command.addAll(Arrays.asList(req.getEntrypoint().trim().split("\\s+")));
+            command.addAll(List.of("/bin/sh", "-c", req.getEntrypoint().trim()));
         }
 
         // 4. Build resource requests/limits

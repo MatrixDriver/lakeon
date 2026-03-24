@@ -15,7 +15,7 @@ import pytest
 from dbay_cli.client import DbayClient, DbayApiError
 from conftest import ENDPOINT, ADMIN_TOKEN, poll_until, _create_tenant_with_invite
 
-SKIP_COMPLETION = os.environ.get("DATALAKE_SKIP_COMPLETION", "1") == "1"
+SKIP_COMPLETION = os.environ.get("DATALAKE_SKIP_COMPLETION", "0") == "1"
 JOB_COMPLETION_TIMEOUT = int(os.environ.get("JOB_COMPLETION_TIMEOUT", "180"))
 
 VALID_INITIAL_STATUSES = {"PENDING", "STARTING", "RUNNING", "FAILED"}

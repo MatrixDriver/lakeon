@@ -42,13 +42,10 @@ class ComputeLifecycleServiceTest {
     private ComputePodManager computePodManager;
 
     @Mock
-    private com.lakeon.k8s.KbWritePodManager kbWritePodManager;
-
-    @Mock
-    private com.lakeon.knowledge.KbWriteTaskRepository kbWriteTaskRepository;
-
-    @Mock
     private OperationLogService operationLogService;
+
+    @Mock
+    private com.lakeon.neon.NeonApiClient neonApiClient;
 
     private LakeonProperties props;
     private ComputeLifecycleService computeLifecycleService;
@@ -58,8 +55,7 @@ class ComputeLifecycleServiceTest {
         props = new LakeonProperties();
         computeLifecycleService = new ComputeLifecycleService(
                 databaseRepository, branchRepository, computePodManager,
-                kbWritePodManager, kbWriteTaskRepository,
-                operationLogService, props,
+                operationLogService, neonApiClient, props,
                 TestTransactionTemplate.create());
     }
 
@@ -90,10 +86,12 @@ class ComputeLifecycleServiceTest {
         verify(computePodManager).createComputePod(any());
         verify(computePodManager).waitForPodReady(anyString(), anyLong());
 
+        // save() called twice: once to persist pod name, once to set RUNNING status
         ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
-        verify(databaseRepository).save(captor.capture());
-        assertThat(captor.getValue().getStatus()).isEqualTo(DatabaseStatus.RUNNING);
-        assertThat(captor.getValue().getSuspendedAt()).isNull();
+        verify(databaseRepository, atLeast(2)).save(captor.capture());
+        var lastSaved = captor.getAllValues().get(captor.getAllValues().size() - 1);
+        assertThat(lastSaved.getStatus()).isEqualTo(DatabaseStatus.RUNNING);
+        assertThat(lastSaved.getSuspendedAt()).isNull();
     }
 
     @Test
@@ -123,8 +121,10 @@ class ComputeLifecycleServiceTest {
                 .hasMessageContaining("timeout");
 
         ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
-        verify(databaseRepository).save(captor.capture());
-        assertThat(captor.getValue().getStatus()).isEqualTo(DatabaseStatus.ERROR);
+        verify(databaseRepository, atLeast(1)).save(captor.capture());
+        // Last save should set status to ERROR
+        var lastSaved = captor.getAllValues().get(captor.getAllValues().size() - 1);
+        assertThat(lastSaved.getStatus()).isEqualTo(DatabaseStatus.ERROR);
     }
 
     @Test

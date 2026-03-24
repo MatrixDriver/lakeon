@@ -139,8 +139,23 @@ public class DiffService {
     }
 
     private String buildJdbcUrl(String host, int port, DatabaseEntity db) {
-        return String.format("jdbc:postgresql://%s:%d/neondb?user=%s&password=%s",
-            host, port, db.getDbUser(), db.getDbPassword());
+        // Use internal admin credentials — compute pods always accept cloud_admin/cloud-admin-internal
+        return String.format("jdbc:postgresql://%s:%d/%s?user=cloud_admin&password=cloud-admin-internal",
+            host, port, db.getName());
+    }
+
+    private Connection getConnectionWithRetry(String jdbcUrl) throws SQLException {
+        int maxRetries = 5;
+        for (int i = 0; i < maxRetries; i++) {
+            try {
+                return DriverManager.getConnection(jdbcUrl);
+            } catch (SQLException e) {
+                if (i == maxRetries - 1) throw e;
+                log.debug("JDBC connection attempt {} failed, retrying in 2s: {}", i + 1, e.getMessage());
+                try { Thread.sleep(2000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); throw e; }
+            }
+        }
+        throw new SQLException("Failed to connect after " + maxRetries + " attempts");
     }
 
     private Map<String, List<ColumnInfo>> queryTables(String jdbcUrl) {
@@ -151,7 +166,7 @@ public class DiffService {
             WHERE table_schema = 'public'
             ORDER BY table_name, ordinal_position
             """;
-        try (Connection conn = DriverManager.getConnection(jdbcUrl);
+        try (Connection conn = getConnectionWithRetry(jdbcUrl);
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
@@ -178,7 +193,7 @@ public class DiffService {
             WHERE schemaname = 'public'
             ORDER BY indexname
             """;
-        try (Connection conn = DriverManager.getConnection(jdbcUrl);
+        try (Connection conn = getConnectionWithRetry(jdbcUrl);
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {

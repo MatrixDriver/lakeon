@@ -386,9 +386,9 @@ public class DatabaseQueryService {
                 ResultSet rs = ps.executeQuery();
                 while (rs.next()) {
                     Array colArr = rs.getArray("columns");
-                    String[] cols = colArr != null ? (String[]) colArr.getArray() : new String[0];
+                    String[] cols = colArr != null ? Arrays.stream((Object[]) colArr.getArray()).map(Object::toString).toArray(String[]::new) : new String[0];
                     Array refColArr = rs.getArray("ref_columns");
-                    String[] refCols = refColArr != null ? (String[]) refColArr.getArray() : new String[0];
+                    String[] refCols = refColArr != null ? Arrays.stream((Object[]) refColArr.getArray()).map(Object::toString).toArray(String[]::new) : new String[0];
                     constraints.add(new ConstraintInfo(
                         rs.getString("constraint_name"),
                         rs.getString("constraint_type"),

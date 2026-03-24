@@ -53,6 +53,7 @@ class DatasetServiceTest {
         props.getObs().setBucket("test-bucket");
         props.getObs().setAccessKey("test-ak");
         props.getObs().setSecretKey("test-sk");
+        props.getK8s().setNamespace("lakeon-compute");
 
         datasetService = new DatasetService(
                 datasetRepository, computeLifecycleService, databaseRepository,
@@ -239,9 +240,12 @@ class DatasetServiceTest {
         DatabaseEntity db = new DatabaseEntity();
         db.setId(DB_ID);
         db.setName("mydb");
+        db.setComputePodName("compute-db-test001");
+        db.setComputeHost("10.0.1.50");
+        db.setComputePort(55433);
         when(databaseRepository.findById(DB_ID)).thenReturn(Optional.of(db));
 
-        when(computeLifecycleService.wakeCompute(DB_ID)).thenReturn("10.0.1.50:5432");
+        when(computeLifecycleService.wakeCompute(DB_ID)).thenReturn("10.0.1.50:55433");
 
         TenantEntity tenant = new TenantEntity();
         tenant.setId(TENANT_ID);
@@ -267,7 +271,7 @@ class DatasetServiceTest {
         verify(jobService).submitJob(eq(tenant), eq(JobType.EXPORT_PARQUET), paramsCaptor.capture());
         Map<String, Object> params = paramsCaptor.getValue();
         assertThat(params.get("database_connstr")).asString()
-                .contains("cloud_admin").contains("10.0.1.50:5432").contains("mydb");
+                .contains("cloud_admin").contains("10.0.1.50").contains("mydb");
         assertThat(params.get("source_sql")).isEqualTo("SELECT * FROM \"orders\"");
         assertThat(params.get("obs_output_path")).asString().contains("ds_export001");
 

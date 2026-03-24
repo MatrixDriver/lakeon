@@ -51,13 +51,17 @@ class TestBranchTree:
             pass
 
     def test_get_branch_tree(self, e2e_client, tree_db):
-        """Branch tree should return hierarchical structure."""
+        """Branch tree should return flat node list with all branches."""
         tree = e2e_client.get_branch_tree(tree_db["id"])
-        assert isinstance(tree, (dict, list))
-        # Should contain all 3 branches
-        if isinstance(tree, dict):
-            # Tree root should be 'main'
-            assert tree.get("name") == "main"
+        assert isinstance(tree, dict)
+        nodes = tree.get("nodes", [])
+        assert isinstance(nodes, list)
+        # Should contain all 3 branches: main, dev, feature
+        assert len(nodes) >= 3
+        names = [n.get("name") for n in nodes]
+        assert "main" in names
+        assert "dev" in names
+        assert "feature" in names
 
     def test_get_branch_by_id(self, e2e_client, tree_db):
         """GET individual branch by ID."""
@@ -90,6 +94,11 @@ class TestSchemaDiff:
             "CREATE TABLE diff_test(id INT PRIMARY KEY, name TEXT)",
             creation_password,
         )
+        # Create version to ensure WAL flush to pageserver before branching
+        branches = e2e_client.list_branches(db["id"])
+        main_br = next(b for b in branches if b.get("is_default"))
+        e2e_client.create_version(db["id"], main_br["id"], name="pre-diff-snap")
+        time.sleep(3)
 
         # Create branch, add column on branch
         branch = e2e_client.create_branch(db["id"], name="diff-branch")
@@ -118,8 +127,9 @@ class TestSchemaDiff:
 
         diff = e2e_client.get_schema_diff(
             diff_db["id"],
-            source_branch_id=main_branch["id"],
-            target_branch_id=diff_db["diff_branch_id"],
+            source_type="branch",
+            source_id=main_branch["id"],
+            target_type="branch",
+            target_id=diff_db["diff_branch_id"],
         )
         assert isinstance(diff, (dict, list))
-        # Diff should contain something about the 'email' column addition

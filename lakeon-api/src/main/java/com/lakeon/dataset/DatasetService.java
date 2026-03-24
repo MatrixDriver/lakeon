@@ -141,13 +141,17 @@ public class DatasetService {
         DatabaseEntity db = databaseRepository.findById(dataset.getDatabaseId())
                 .orElseThrow(() -> new NotFoundException("Database not found: " + dataset.getDatabaseId()));
 
-        String hostPort = computeLifecycleService.wakeCompute(db.getId());
+        computeLifecycleService.wakeCompute(db.getId());
 
-        // Refresh last active time to prevent auto-suspend during export
+        // Re-read to get updated compute info
+        db = databaseRepository.findById(db.getId()).orElseThrow();
         db.setLastActiveAt(Instant.now());
         databaseRepository.save(db);
 
-        String connstr = "postgresql://cloud_admin:cloud-admin-internal@" + hostPort
+        // Use pod IP directly — CCE overlay network ensures pod IPs are routable cluster-wide
+        String computeHost = db.getComputeHost();
+        int computePort = db.getComputePort() != null ? db.getComputePort() : 55433;
+        String connstr = "postgresql://cloud_admin:cloud-admin-internal@" + computeHost + ":" + computePort
                 + "/" + db.getName() + "?sslmode=disable";
 
         String obsPath = "datasets/" + tenantId + "/" + datasetId + "/data.parquet";

@@ -1,3 +1,4 @@
+import subprocess
 import time
 
 import pytest
@@ -6,15 +7,19 @@ from dbay_cli.client import DbayApiError
 from conftest import poll_until, run_psql
 
 
-def psql_with_retry(connstr, sql, password, retries=5, delay=10):
+def psql_with_retry(connstr, sql, password, retries=8, delay=15):
     """Retry psql calls to allow compute to wake up via proxy."""
     for i in range(retries):
         try:
             return run_psql(connstr, sql, password)
-        except RuntimeError:
+        except (RuntimeError, subprocess.TimeoutExpired) as e:
             if i == retries - 1:
                 raise
-            time.sleep(delay)
+            # Postgres recovery takes longer than pod startup
+            if "not yet accepting connections" in str(e):
+                time.sleep(20)
+            else:
+                time.sleep(delay)
 
 
 def find_default_branch(branches):
@@ -65,7 +70,7 @@ class TestBranch:
         """Create branch 'dev', verify status=active and parent_branch set."""
         branch = e2e_client.create_branch(branch_db["id"], name="dev")
         assert branch["name"] == "dev"
-        assert branch.get("status") == "active"
+        assert branch.get("status", "").lower() == "active"
         assert branch.get("parent_branch_id") is not None or branch.get("parentBranchId") is not None
 
     def test_list_branches(self, e2e_client, branch_db):
@@ -289,6 +294,11 @@ class TestBranch:
             "CREATE TABLE IF NOT EXISTS e2e_nested(v int); INSERT INTO e2e_nested VALUES(50)",
             password,
         )
+        # Verify data is readable on parent
+        psql_with_retry(parent_connstr, "SELECT v FROM e2e_nested WHERE v=50", password)
+        # Create a version to ensure WAL is flushed and LSN is recorded on pageserver
+        e2e_client.create_version(db_id, parent_br["id"], name="pre-child-snap")
+        time.sleep(3)
 
         # Create child branch from parent
         child_br = e2e_client.create_branch(db_id, name="child-br", parent_branch_id=parent_br["id"])

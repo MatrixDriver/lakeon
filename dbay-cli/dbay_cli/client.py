@@ -411,24 +411,24 @@ class DbayClient:
             body["branch_id"] = branch_id
         return self._request("POST", f"/databases/{db_id}/query", json=body)
 
-    def get_connections(self, db_id: str) -> list:
+    def get_connections(self, db_id: str) -> dict:
         return self._request("GET", f"/databases/{db_id}/connections")
 
     # -- Query History --
-    def get_query_history(self, db_id: str) -> list:
+    def get_query_history(self, db_id: str) -> dict:
         return self._request("GET", f"/databases/{db_id}/query-history")
 
     def clear_query_history(self, db_id: str) -> dict:
         return self._request("DELETE", f"/databases/{db_id}/query-history")
 
-    def list_all_query_history(self) -> list:
+    def list_all_query_history(self) -> dict:
         return self._request("GET", "/query-history")
 
     def clear_all_query_history(self) -> dict:
         return self._request("DELETE", "/query-history")
 
     # -- Operations --
-    def get_database_operations(self, db_id: str) -> list:
+    def get_database_operations(self, db_id: str) -> dict:
         return self._request("GET", f"/databases/{db_id}/operations")
 
     def get_recent_operations(self) -> list:

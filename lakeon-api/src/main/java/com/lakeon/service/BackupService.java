@@ -17,6 +17,7 @@ import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.enums.BranchStatus;
 import com.lakeon.repository.BackupRepository;
 import com.lakeon.repository.BranchRepository;
+import com.lakeon.k8s.ComputePodManager;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.exception.NotFoundException;
 import org.slf4j.Logger;
@@ -38,19 +39,22 @@ public class BackupService {
     private final NeonApiClient neonApiClient;
     private final OperationLogService operationLogService;
     private final DatabaseService databaseService;
+    private final ComputePodManager computePodManager;
 
     public BackupService(BackupRepository backupRepository,
                          DatabaseRepository databaseRepository,
                          BranchRepository branchRepository,
                          NeonApiClient neonApiClient,
                          OperationLogService operationLogService,
-                         DatabaseService databaseService) {
+                         DatabaseService databaseService,
+                         ComputePodManager computePodManager) {
         this.backupRepository = backupRepository;
         this.databaseRepository = databaseRepository;
         this.branchRepository = branchRepository;
         this.neonApiClient = neonApiClient;
         this.operationLogService = operationLogService;
         this.databaseService = databaseService;
+        this.computePodManager = computePodManager;
     }
 
     @Transactional
@@ -72,10 +76,27 @@ public class BackupService {
             dbId, tenant.getId(), database.getName(), OperationType.BACKUP);
 
         try {
-            // Get current LSN from the database's timeline
+            // Flush WAL before backup to ensure all committed data is captured
+            String podName = database.getComputePodName();
+            if (podName == null) {
+                podName = "compute-" + database.getId().replace("_", "-");
+            }
+            String flushLsn = null;
+            {
+                try {
+                    if (computePodManager.isPodReady(podName)) {
+                        computePodManager.executeCheckpoint(podName);
+                        flushLsn = computePodManager.getWalFlushLsn(podName);
+                    }
+                } catch (Exception e) {
+                    log.debug("CHECKPOINT before backup skipped: {}", e.getMessage());
+                }
+            }
+
+            // Get current LSN from the database's timeline (fallback if compute is down)
             NeonTimeline currentTimeline = neonApiClient.getTimeline(
                 database.getNeonTenantId(), database.getNeonTimelineId());
-            String currentLsn = currentTimeline.getLastRecordLsn();
+            String currentLsn = flushLsn != null ? flushLsn : currentTimeline.getLastRecordLsn();
             Long currentSize = currentTimeline.getCurrentLogicalSize();
 
             // Create a branch timeline at the current LSN (instant operation in Neon)

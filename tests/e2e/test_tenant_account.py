@@ -47,7 +47,8 @@ class TestTenantAuth:
             invite_code=invite["code"],
         )
         assert tenant.get("api_key") is not None
-        assert tenant.get("username") == test_user["username"]
+        # TenantResponse.name is set to username by the API
+        assert tenant.get("name") == test_user["username"]
         test_user["api_key"] = tenant["api_key"]
         test_user["id"] = tenant.get("id")
 
@@ -72,10 +73,12 @@ class TestTenantAuth:
 
     def test_get_me(self, test_user):
         """GET /tenants/me should return current tenant info."""
+        assert "api_key" in test_user, "test_register_tenant must pass first"
         client = DbayClient(endpoint=ENDPOINT, api_key=test_user["api_key"])
         me = client.get_me()
-        assert me.get("username") == test_user["username"]
-        assert me.get("name") == test_user["name"]
+        # TenantResponse.name is set to username by the API
+        assert me.get("name") == test_user["username"]
+        assert me.get("id") is not None
 
     def test_register_duplicate_username(self, test_user):
         """Registering with an existing username should fail."""

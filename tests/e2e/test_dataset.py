@@ -10,6 +10,7 @@ class TestDataset:
     def shared_db(self, e2e_client):
         """Create a database with test data for dataset export."""
         db = e2e_client.create_database(name=f"e2e-dataset-{int(time.time())}")
+        creation_password = db.get("password")
         db = poll_until(
             lambda: e2e_client.get_database(db["id"]),
             condition=lambda d: d["status"] == "RUNNING",
@@ -17,11 +18,12 @@ class TestDataset:
             interval=3,
         )
         assert db["status"] == "RUNNING"
+        db["password"] = creation_password
 
         # Insert test data via SQL
         from conftest import run_psql
         connstr = db["connection_uri"]
-        password = db.get("password")
+        password = creation_password
         run_psql(connstr, "CREATE TABLE test_export (id INT, name TEXT)", password)
         run_psql(connstr, "INSERT INTO test_export VALUES (1, 'Alice'), (2, 'Bob')", password)
 

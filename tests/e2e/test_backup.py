@@ -52,6 +52,12 @@ class TestBackup:
             creation_password,
         )
 
+        # Create a version to flush WAL to pageserver before backup
+        branches = e2e_client.list_branches(db["id"])
+        main_br = next(b for b in branches if b.get("is_default"))
+        e2e_client.create_version(db["id"], main_br["id"], name="pre-backup-snap")
+        time.sleep(3)
+
         yield db
         try:
             e2e_client.delete_database(db["id"])
@@ -108,13 +114,23 @@ class TestBackup:
         )
         assert restored.get("id") is not None
 
-        # Wait for restored DB to be running
+        # Wait for restored DB to be available (may be RUNNING or SUSPENDED)
         restored_db = poll_until(
             lambda: e2e_client.get_database(restored["id"]),
-            condition=lambda d: d["status"] in ("RUNNING", "ERROR"),
+            condition=lambda d: d["status"] in ("RUNNING", "SUSPENDED", "ERROR"),
             timeout=180, interval=3,
         )
-        assert restored_db["status"] == "RUNNING"
+        assert restored_db["status"] in ("RUNNING", "SUSPENDED"), f"Restore failed: {restored_db}"
+
+        # Resume if suspended
+        if restored_db["status"] == "SUSPENDED":
+            e2e_client.resume_database(restored_db["id"])
+            restored_db = poll_until(
+                lambda: e2e_client.get_database(restored["id"]),
+                condition=lambda d: d["status"] in ("RUNNING", "ERROR"),
+                timeout=180, interval=3,
+            )
+            assert restored_db["status"] == "RUNNING"
 
         # Verify data exists in restored database
         password = backup_db.get("password", "")

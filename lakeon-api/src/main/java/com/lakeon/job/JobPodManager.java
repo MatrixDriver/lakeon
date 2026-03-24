@@ -64,7 +64,7 @@ public class JobPodManager {
             .endMetadata()
             .addToData("params.json", job.getParams() != null ? job.getParams() : "{}")
             .build();
-        k8sClient.configMaps().inNamespace(namespace).resource(configMap).serverSideApply();
+        k8sClient.configMaps().inNamespace(namespace).resource(configMap).createOrReplace();
         log.info("Created job ConfigMap: {}/{}", namespace, configMapName);
 
         // Create the job Pod
