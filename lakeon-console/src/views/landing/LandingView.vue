@@ -338,7 +338,7 @@ const useCases = computed(() => [
 
 /* Sections */
 .section {
-  padding: 80px 0;
+  padding: 60px 0;
 }
 
 .bg-alt {
@@ -364,7 +364,7 @@ const useCases = computed(() => [
 
 /* Hero */
 .hero {
-  padding: 140px 0 80px;
+  padding: 80px 0 40px;
   background: linear-gradient(180deg, #f0f5ff 0%, #fff 100%);
   text-align: center;
 }
