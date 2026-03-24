@@ -167,8 +167,43 @@
 
     <!-- Traits tab -->
     <div v-if="base && activeTab === 'traits'" style="margin-top: 24px;">
-      <div class="section-card" style="padding: 40px; text-align: center; color: #999;">
-        特征可视化（Phase 2 实现）
+      <div v-if="activeTab === 'traits'">
+        <!-- Main stages: core, established, emerging -->
+        <template v-for="stage in ['core', 'established', 'emerging']" :key="stage">
+          <div v-if="traitsByStage[stage]?.length" style="margin-bottom: 24px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <h3 style="margin:0;font-size:15px;">{{ {core:'核心特征',established:'稳定特征',emerging:'新兴特征'}[stage] }}</h3>
+              <span style="background:#f0f0f0;padding:1px 8px;border-radius:10px;font-size:12px;color:#666;">{{ traitsByStage[stage].length }}</span>
+            </div>
+            <TraitCard v-for="t in traitsByStage[stage]" :key="t.id" :trait="t" />
+          </div>
+        </template>
+
+        <!-- Early stages (collapsible) -->
+        <div v-if="earlyStageCount > 0" style="margin-top:16px;">
+          <button class="btn btn-default" style="font-size:12px;height:28px;" @click="showEarlyStages = !showEarlyStages">
+            {{ showEarlyStages ? '收起' : '展开' }}早期特征 ({{ earlyStageCount }})
+          </button>
+          <div v-if="showEarlyStages" style="margin-top:12px;">
+            <template v-for="stage in ['candidate', 'trend']" :key="stage">
+              <div v-if="traitsByStage[stage]?.length" style="margin-bottom: 24px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                  <h3 style="margin:0;font-size:15px;color:#999;">{{ {candidate:'候选特征',trend:'趋势特征'}[stage] }}</h3>
+                  <span style="background:#f0f0f0;padding:1px 8px;border-radius:10px;font-size:12px;color:#666;">{{ traitsByStage[stage].length }}</span>
+                </div>
+                <TraitCard v-for="t in traitsByStage[stage]" :key="t.id" :trait="t" />
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <div v-if="traits.length === 0 && !traitsLoading" class="empty-state" style="padding: 60px 0;">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#ccc" stroke-width="1.5">
+            <path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/>
+          </svg>
+          <p style="color:#999;margin-top:12px;">暂无特征，记忆库积累足够记忆后系统会自动发现行为特征</p>
+        </div>
       </div>
     </div>
 
@@ -303,7 +338,8 @@ SSL:      require</pre>
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getMemoryBase, type MemoryBase, type MemoryItem, type MemoryStats, getMemoryStats, listMemories, deleteMemory, recallMemories } from '../../api/memory'
+import { getMemoryBase, type MemoryBase, type MemoryItem, type MemoryStats, type Trait, getMemoryStats, listMemories, deleteMemory, recallMemories, listTraits } from '../../api/memory'
+import TraitCard from '../../components/memory/TraitCard.vue'
 
 const route = useRoute()
 const base = ref<MemoryBase | null>(null)
@@ -390,6 +426,36 @@ async function doDelete() {
   loadStats()
 }
 
+const traits = ref<Trait[]>([])
+const traitsLoading = ref(false)
+const showEarlyStages = ref(false)
+
+const traitsByStage = computed(() => {
+  const stages = ['core', 'established', 'emerging', 'candidate', 'trend']
+  const grouped: Record<string, Trait[]> = {}
+  for (const s of stages) grouped[s] = []
+  for (const t of traits.value) {
+    if (grouped[t.trait_stage]) grouped[t.trait_stage].push(t)
+    else grouped[t.trait_stage] = [t]
+  }
+  return grouped
+})
+
+const earlyStageCount = computed(() =>
+  (traitsByStage.value['candidate']?.length || 0) + (traitsByStage.value['trend']?.length || 0)
+)
+
+async function loadTraits() {
+  const memId = route.params.memId as string
+  traitsLoading.value = true
+  try {
+    const resp = await listTraits(memId)
+    traits.value = resp.data
+  } finally {
+    traitsLoading.value = false
+  }
+}
+
 const typeLabels: Record<string, string> = { BUILTIN: '自研', MEM0: 'mem0', HINDSIGHT: 'hindsight', CUSTOM: '自定义' }
 const typeLabel = computed(() => typeLabels[base.value?.type || ''] || base.value?.type || '')
 
@@ -404,5 +470,6 @@ onMounted(async () => {
   base.value = resp.data
   loadStats()
   loadMemories()
+  loadTraits()
 })
 </script>

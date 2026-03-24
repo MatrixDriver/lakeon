@@ -71,3 +71,19 @@ export function deleteMemory(memId: string, memoryId: number) {
 export function recallMemories(memId: string, query: string, topK = 10) {
   return api.post<{ memories: MemoryItem[] }>(`/memory/bases/${memId}/recall`, { query, top_k: topK })
 }
+
+export interface Trait {
+  id: number
+  content: string
+  trait_stage: 'trend' | 'candidate' | 'emerging' | 'established' | 'core'
+  trait_subtype: string | null
+  confidence: number
+  reinforcement_count: number
+  contradiction_count: number
+  context: string | null
+  created_at: string
+}
+
+export function listTraits(memId: string) {
+  return api.get<Trait[]>(`/memory/bases/${memId}/traits`)
+}
