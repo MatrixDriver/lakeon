@@ -64,7 +64,9 @@
 
     <!-- Settings tab -->
     <div v-if="base && activeTab === 'settings'" style="margin-top: 24px;">
-      <div class="section-card" style="padding: 24px;">
+
+      <!-- BUILTIN type -->
+      <div v-if="base?.type === 'BUILTIN'" class="section-card" style="padding: 24px;">
         <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 20px; color: #333;">接入信息</h3>
 
         <div class="form-group">
@@ -89,6 +91,96 @@ client.ingest("用户喜欢使用 TypeScript")
 results = client.recall("用户的技术偏好")</pre>
         </div>
       </div>
+
+      <!-- MEM0 type -->
+      <div v-else-if="base?.type === 'MEM0'" class="section-card" style="padding: 24px;">
+        <h3 style="margin-bottom: 16px;">mem0 + DBay 集成指南</h3>
+        <p style="color: #666; font-size: 14px; line-height: 1.6;">在您的 DBay 数据库上运行 mem0，享受 Serverless PostgreSQL 的便利。</p>
+
+        <h4 style="margin: 20px 0 8px; font-size: 14px;">1. 安装 mem0</h4>
+        <pre style="background: #f5f5f5; padding: 16px; border-radius: 4px; font-size: 13px; overflow-x: auto; white-space: pre-wrap;">pip install mem0ai</pre>
+
+        <h4 style="margin: 20px 0 8px; font-size: 14px;">2. 获取数据库连接信息</h4>
+        <p style="color: #666; font-size: 14px; line-height: 1.6;">在「数据库」页面找到您的数据库，复制连接串：</p>
+        <pre style="background: #f5f5f5; padding: 16px; border-radius: 4px; font-size: 13px; overflow-x: auto; white-space: pre-wrap;">postgresql://&lt;user&gt;:&lt;password&gt;@&lt;host&gt;:5432/&lt;dbname&gt;</pre>
+
+        <h4 style="margin: 20px 0 8px; font-size: 14px;">3. 配置 mem0 使用 DBay</h4>
+        <pre style="background: #f5f5f5; padding: 16px; border-radius: 4px; font-size: 13px; overflow-x: auto; white-space: pre-wrap;">from mem0 import Memory
+
+config = {
+    "vector_store": {
+        "provider": "pgvector",
+        "config": {
+            "connection_string": "your_dbay_connection_string",
+            "collection_name": "memories"
+        }
+    },
+    "llm": {
+        "provider": "openai",
+        "config": {
+            "model": "gpt-4o-mini",
+            "api_key": "your_openai_key"
+        }
+    }
+}
+
+m = Memory.from_config(config)
+m.add("用户喜欢使用 Python", user_id="user1")
+results = m.search("编程语言偏好", user_id="user1")</pre>
+
+        <h4 style="margin: 20px 0 8px; font-size: 14px;">4. 参考文档</h4>
+        <p style="color: #666; font-size: 14px; line-height: 1.6;"><a href="https://docs.mem0.ai" target="_blank" style="color: #1890ff;">mem0 官方文档</a></p>
+      </div>
+
+      <!-- HINDSIGHT type -->
+      <div v-else-if="base?.type === 'HINDSIGHT'" class="section-card" style="padding: 24px;">
+        <h3 style="margin-bottom: 16px;">Hindsight + DBay 集成指南</h3>
+        <p style="color: #666; font-size: 14px; line-height: 1.6;">Hindsight 是一个开源的 AI 记忆框架，支持 PostgreSQL 后端。</p>
+
+        <h4 style="margin: 20px 0 8px; font-size: 14px;">1. 安装 Hindsight</h4>
+        <pre style="background: #f5f5f5; padding: 16px; border-radius: 4px; font-size: 13px; overflow-x: auto; white-space: pre-wrap;">pip install hindsight-ai</pre>
+
+        <h4 style="margin: 20px 0 8px; font-size: 14px;">2. 获取数据库连接信息</h4>
+        <p style="color: #666; font-size: 14px; line-height: 1.6;">在「数据库」页面找到您的数据库，复制连接串。</p>
+
+        <h4 style="margin: 20px 0 8px; font-size: 14px;">3. 配置 Hindsight</h4>
+        <pre style="background: #f5f5f5; padding: 16px; border-radius: 4px; font-size: 13px; overflow-x: auto; white-space: pre-wrap;">from hindsight import Hindsight
+
+hs = Hindsight(
+    database_url="your_dbay_connection_string"
+)
+hs.remember("用户偏好 TypeScript")
+results = hs.recall("编程语言")</pre>
+
+        <h4 style="margin: 20px 0 8px; font-size: 14px;">4. 参考文档</h4>
+        <p style="color: #666; font-size: 14px; line-height: 1.6;"><a href="https://github.com/anthropics/hindsight" target="_blank" style="color: #1890ff;">Hindsight GitHub</a></p>
+      </div>
+
+      <!-- CUSTOM type (fallback) -->
+      <div v-else class="section-card" style="padding: 24px;">
+        <h3 style="margin-bottom: 16px;">自定义记忆系统集成</h3>
+        <p style="color: #666; font-size: 14px; line-height: 1.6;">您可以将任何支持 PostgreSQL 的记忆系统连接到 DBay 数据库。</p>
+
+        <h4 style="margin: 20px 0 8px; font-size: 14px;">数据库连接信息</h4>
+        <p style="color: #666; font-size: 14px; line-height: 1.6;">在「数据库」页面创建或选择一个数据库，获取连接信息：</p>
+        <pre style="background: #f5f5f5; padding: 16px; border-radius: 4px; font-size: 13px; overflow-x: auto; white-space: pre-wrap;">Host:     proxy.dbay.cloud
+Port:     5432
+Database: your_db_name
+User:     your_username
+Password: your_password
+SSL:      require</pre>
+
+        <h4 style="margin: 20px 0 8px; font-size: 14px;">推荐扩展</h4>
+        <p style="color: #666; font-size: 14px; line-height: 1.6;">DBay 数据库已预装以下扩展，适合记忆系统使用：</p>
+        <ul style="color: #666; font-size: 14px; line-height: 1.8;">
+          <li><strong>pgvector</strong> — 向量相似度搜索</li>
+          <li><strong>pg_search</strong> — BM25 全文检索</li>
+        </ul>
+
+        <h4 style="margin: 20px 0 8px; font-size: 14px;">建议</h4>
+        <p style="color: #666; font-size: 14px; line-height: 1.6;">确保您的记忆系统使用 <code>pgvector</code> 存储嵌入向量，并利用 <code>pg_search</code> 进行混合检索以获得最佳效果。</p>
+      </div>
+
     </div>
 
     <!-- Loading state -->
