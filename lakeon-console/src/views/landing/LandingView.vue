@@ -325,7 +325,8 @@ const useCases = computed(() => [
 
 .landing-page {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  color: #1a1a1a;
+  color: var(--pub-text);
+  background: var(--pub-bg);
   scroll-behavior: smooth;
 }
 
@@ -342,7 +343,7 @@ const useCases = computed(() => [
 }
 
 .bg-alt {
-  background: #f7f9fc;
+  background: var(--pub-hover);
 }
 
 .section-title {
@@ -350,13 +351,13 @@ const useCases = computed(() => [
   font-size: 28px;
   font-weight: 700;
   margin-bottom: 48px;
-  color: #1a1a1a;
+  color: var(--pub-text);
 }
 
 .section-desc {
   text-align: center;
   font-size: 16px;
-  color: #555;
+  color: var(--pub-text-2);
   max-width: 720px;
   margin: -28px auto 48px;
   line-height: 1.7;
@@ -365,7 +366,7 @@ const useCases = computed(() => [
 /* Hero */
 .hero {
   padding: 80px 0 40px;
-  background: linear-gradient(180deg, #f0f5ff 0%, #fff 100%);
+  background: linear-gradient(180deg, var(--pub-hero-start) 0%, var(--pub-hero-end) 100%);
   text-align: center;
 }
 
@@ -374,12 +375,12 @@ const useCases = computed(() => [
   font-weight: 800;
   line-height: 1.3;
   margin-bottom: 20px;
-  color: #1a1a1a;
+  color: var(--pub-text);
 }
 
 .hero-subtitle {
   font-size: 18px;
-  color: #555;
+  color: var(--pub-text-2);
   max-width: 680px;
   margin: 0 auto 28px;
   line-height: 1.6;
@@ -387,7 +388,7 @@ const useCases = computed(() => [
 
 .hero-hint {
   font-size: 13px;
-  color: #999;
+  color: var(--pub-text-4);
   margin-top: 12px;
   margin-bottom: 32px;
 }
@@ -451,7 +452,7 @@ const useCases = computed(() => [
 }
 
 .btn-secondary {
-  background: #fff;
+  background: var(--pub-surface);
   color: #0073e6;
   border: 1px solid #0073e6;
   border-radius: 6px;
@@ -460,10 +461,12 @@ const useCases = computed(() => [
   font-weight: 500;
   cursor: pointer;
   transition: background 0.2s;
+  text-decoration: none;
+  display: inline-block;
 }
 
 .btn-secondary:hover {
-  background: #f0f5ff;
+  background: var(--pub-hover);
 }
 
 
@@ -476,18 +479,18 @@ const useCases = computed(() => [
 }
 
 .module-card {
-  background: #fff;
+  background: var(--pub-surface);
   border-radius: 12px;
   padding: 32px 28px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 12px var(--pub-shadow);
   position: relative;
-  border-top: 4px solid #ddd;
+  border-top: 4px solid var(--pub-border);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .module-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 24px var(--pub-shadow);
 }
 
 .module-lakebase { border-top-color: #0073e6; }
@@ -545,13 +548,13 @@ const useCases = computed(() => [
 .module-card h3 {
   font-size: 20px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--pub-text);
   margin-bottom: 4px;
 }
 
 .module-subtitle {
   font-size: 13px;
-  color: #888;
+  color: var(--pub-text-3);
   margin-bottom: 16px;
 }
 
@@ -563,9 +566,9 @@ const useCases = computed(() => [
 
 .module-features li {
   font-size: 14px;
-  color: #555;
+  color: var(--pub-text-2);
   padding: 6px 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--pub-border);
   line-height: 1.5;
 }
 
@@ -595,15 +598,15 @@ const useCases = computed(() => [
 }
 
 .card {
-  background: #fff;
+  background: var(--pub-surface);
   border-radius: 8px;
   padding: 32px 28px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px var(--pub-shadow);
   transition: box-shadow 0.2s;
 }
 
 .card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 16px var(--pub-shadow);
 }
 
 .card-icon {
@@ -615,12 +618,12 @@ const useCases = computed(() => [
   font-size: 18px;
   font-weight: 600;
   margin-bottom: 10px;
-  color: #1a1a1a;
+  color: var(--pub-text);
 }
 
 .card p {
   font-size: 14px;
-  color: #666;
+  color: var(--pub-text-2);
   line-height: 1.6;
   margin: 0;
 }
@@ -668,19 +671,19 @@ const useCases = computed(() => [
   font-size: 18px;
   font-weight: 600;
   margin-bottom: 12px;
-  color: #1a1a1a;
+  color: var(--pub-text);
 }
 
 .step p {
   font-size: 14px;
-  color: #666;
+  color: var(--pub-text-2);
   margin-bottom: 12px;
 }
 
 .code-label {
   font-size: 13px;
   font-weight: 600;
-  color: #888;
+  color: var(--pub-text-3);
   margin-bottom: 4px;
 }
 

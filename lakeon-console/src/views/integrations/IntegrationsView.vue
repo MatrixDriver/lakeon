@@ -97,38 +97,38 @@ const integrations = [
 </script>
 
 <style scoped>
-.integrations-page { min-height: 100vh; background: #f7f9fc; color: #1a1a1a; }
+.integrations-page { min-height: 100vh; background: var(--pub-bg); color: var(--pub-text); }
 .integrations-inner { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
 h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
-.integ-subtitle { color: #666; font-size: 15px; margin-bottom: 32px; max-width: 600px; }
+.integ-subtitle { color: var(--pub-text-2); font-size: 15px; margin-bottom: 32px; max-width: 600px; }
 .mcp-quickstart {
-  background: #fff; border: 1px solid #e5e5e5;
+  background: var(--pub-surface); border: 1px solid var(--pub-border);
   border-radius: 10px; padding: 20px; margin-bottom: 40px;
 }
 .mcp-quickstart h3 { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
 .code-block {
-  background: #f4f4f6; border: 1px solid #e5e5e5; border-radius: 6px;
-  padding: 14px; font-size: 12px; color: #7c3aed;
+  background: var(--pub-code-bg); border: 1px solid var(--pub-border); border-radius: 6px;
+  padding: 14px; font-size: 12px; color: var(--pub-code);
   overflow-x: auto; margin: 0; font-family: monospace; white-space: pre;
 }
 .integ-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .integ-card {
-  background: #fff; border: 1px solid #e5e5e5; border-radius: 10px;
+  background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 10px;
   padding: 18px; text-decoration: none; display: flex;
   flex-direction: column; gap: 8px; transition: border-color 0.15s;
 }
-.integ-card:hover { border-color: #7c3aed; }
-.integ-card.featured { border-color: #7c3aed33; background: #f5f3ff; }
-.integ-card.coming { border-style: dashed; border-color: #ddd; cursor: default; }
-.integ-card.coming:hover { border-color: #ddd; }
+.integ-card:hover { border-color: var(--pub-code); }
+.integ-card.featured { border-color: var(--pub-accent-border); background: var(--pub-accent-bg); }
+.integ-card.coming { border-style: dashed; border-color: var(--pub-border); cursor: default; }
+.integ-card.coming:hover { border-color: var(--pub-border); }
 .integ-card-hd { display: flex; align-items: center; gap: 8px; }
-.integ-name { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+.integ-name { font-size: 15px; font-weight: 600; color: var(--pub-text); }
 .badge-featured {
-  font-size: 10px; background: #7c3aed15; color: #7c3aed;
+  font-size: 10px; background: #7c3aed15; color: var(--pub-code);
   padding: 1px 6px; border-radius: 4px;
 }
-.integ-card p { font-size: 12px; color: #666; margin: 0; line-height: 1.5; flex: 1; }
-.integ-link { font-size: 12px; color: #7c3aed; margin-top: auto; }
+.integ-card p { font-size: 12px; color: var(--pub-text-2); margin: 0; line-height: 1.5; flex: 1; }
+.integ-link { font-size: 12px; color: var(--pub-code); margin-top: auto; }
 @media (max-width: 768px) {
   .integ-grid { grid-template-columns: 1fr; }
 }

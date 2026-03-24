@@ -35,7 +35,7 @@ defineEmits<{ close: [] }>()
 .mobile-nav {
   position: fixed;
   inset: 0;
-  background: #fff;
+  background: var(--pub-surface);
   z-index: 200;
   display: flex;
   flex-direction: column;
@@ -44,12 +44,12 @@ defineEmits<{ close: [] }>()
   display: flex;
   justify-content: flex-end;
   padding: 16px 20px;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid var(--pub-border);
 }
 .mobile-nav-close {
   background: none;
   border: none;
-  color: #666;
+  color: var(--pub-text-2);
   font-size: 18px;
   cursor: pointer;
 }
@@ -61,19 +61,18 @@ defineEmits<{ close: [] }>()
 }
 .mobile-nav-link {
   font-size: 15px;
-  color: #333;
+  color: var(--pub-text);
   padding: 12px 16px;
   border-radius: 8px;
   text-decoration: none;
 }
 .mobile-nav-link:hover {
-  background: #f5f5f5;
-  color: #1a1a1a;
+  background: var(--pub-hover);
 }
 .mobile-nav-cta {
   margin-top: 12px;
-  background: #1a1a1a;
-  color: #fff;
+  background: var(--pub-btn-bg);
+  color: var(--pub-btn-text);
   font-size: 15px;
   font-weight: 600;
   padding: 12px 16px;

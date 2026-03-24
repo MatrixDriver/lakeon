@@ -166,31 +166,31 @@ llm = AnthropicLLM(
 
 <style scoped>
 .sdk-docs h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; }
-.subtitle { color: #666; font-size: 15px; margin-bottom: 40px; }
+.subtitle { color: var(--pub-text-2); font-size: 15px; margin-bottom: 40px; }
 .section { margin-bottom: 40px; }
-.section h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #e5e5e5; }
-.section p { font-size: 14px; color: #666; margin-bottom: 12px; line-height: 1.6; }
-.signature { background: #f4f4f6; border: 1px solid #e5e5e5; border-radius: 6px; padding: 10px 14px; font-family: monospace; font-size: 13px; color: #444; margin-bottom: 16px; }
-.param-table { border: 1px solid #e5e5e5; border-radius: 6px; overflow: hidden; margin-bottom: 16px; font-size: 13px; }
-.param-row { display: grid; grid-template-columns: 140px 120px 60px 1fr; gap: 1px; background: #e5e5e5; }
-.param-row.header { background: #f5f5f5; }
-.param-row > * { background: #fff; padding: 8px 10px; }
-.param-row.header > * { background: #f9f9f9; color: #999; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-.param-row code { font-family: monospace; color: #7c3aed; background: transparent; padding: 8px 10px; }
-.type { color: #999; font-family: monospace; }
+.section h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border: 1px solid var(--pub-border); }
+.section p { font-size: 14px; color: var(--pub-text-2); margin-bottom: 12px; line-height: 1.6; }
+.signature { background: var(--pub-code-bg); border: 1px solid var(--pub-border); border-radius: 6px; padding: 10px 14px; font-family: monospace; font-size: 13px; color: var(--pub-text-2); margin-bottom: 16px; }
+.param-table { border: 1px solid var(--pub-border); border-radius: 6px; overflow: hidden; margin-bottom: 16px; font-size: 13px; }
+.param-row { display: grid; grid-template-columns: 140px 120px 60px 1fr; gap: 1px; background: var(--pub-border); }
+.param-row.header { background: var(--pub-hover); }
+.param-row > * { background: var(--pub-surface); padding: 8px 10px; }
+.param-row.header > * { background: var(--pub-surface); color: var(--pub-text-4); font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.param-row code { font-family: monospace; color: var(--pub-code); background: transparent; padding: 8px 10px; }
+.type { color: var(--pub-text-4); font-family: monospace; }
 .req-yes { color: #ea580c; font-size: 11px; font-weight: 600; }
 .req-no { color: #bbb; font-size: 11px; }
-.method-card { border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: #fff; }
-.method-sig { font-family: monospace; font-size: 13px; color: #444; font-weight: 600; margin-bottom: 8px; }
-.method-desc { font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6; }
+.method-card { border: 1px solid var(--pub-border); border-radius: 8px; padding: 16px; margin-bottom: 16px; background: var(--pub-surface); }
+.method-sig { font-family: monospace; font-size: 13px; color: var(--pub-text-2); font-weight: 600; margin-bottom: 8px; }
+.method-desc { font-size: 13px; color: var(--pub-text-2); margin-bottom: 12px; line-height: 1.6; }
 .code-block {
-  background: #f4f4f6; border: 1px solid #e5e5e5; border-radius: 6px;
-  padding: 12px 14px; font-size: 12px; color: #7c3aed;
+  background: var(--pub-code-bg); border: 1px solid var(--pub-border); border-radius: 6px;
+  padding: 12px 14px; font-size: 12px; color: var(--pub-code);
   overflow-x: auto; margin: 0; font-family: monospace; white-space: pre;
 }
 .code-block.small { font-size: 11px; }
 .provider-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.provider-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; }
+.provider-card { background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 8px; padding: 16px; }
 .provider-card h3 { font-size: 14px; font-weight: 600; margin: 0 0 12px; }
 @media (max-width: 600px) {
   .provider-grid { grid-template-columns: 1fr; }

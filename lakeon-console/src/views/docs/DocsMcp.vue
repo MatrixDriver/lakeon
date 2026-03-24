@@ -139,36 +139,36 @@ const examples = computed(() => [
 
 <style scoped>
 .mcp-docs h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; }
-.subtitle { color: #666; font-size: 15px; margin-bottom: 40px; }
+.subtitle { color: var(--pub-text-2); font-size: 15px; margin-bottom: 40px; }
 .section { margin-bottom: 40px; }
-.section h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #e5e5e5; }
-.section h3 { font-size: 14px; font-weight: 600; color: #444; margin: 16px 0 8px; }
-.section p { font-size: 14px; color: #666; line-height: 1.6; margin-bottom: 8px; }
-.section code { background: #f4f4f6; padding: 1px 6px; border-radius: 3px; color: #7c3aed; font-family: monospace; font-size: 12px; }
-.tip { font-size: 12px; color: #999; margin-top: 8px; }
+.section h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border: 1px solid var(--pub-border); }
+.section h3 { font-size: 14px; font-weight: 600; color: var(--pub-text-2); margin: 16px 0 8px; }
+.section p { font-size: 14px; color: var(--pub-text-2); line-height: 1.6; margin-bottom: 8px; }
+.section code { background: var(--pub-code-bg); padding: 1px 6px; border-radius: 3px; color: var(--pub-code); font-family: monospace; font-size: 12px; }
+.tip { font-size: 12px; color: var(--pub-text-4); margin-top: 8px; }
 .code-block {
-  background: #f4f4f6; border: 1px solid #e5e5e5; border-radius: 6px;
-  padding: 12px 14px; font-size: 12px; color: #7c3aed;
+  background: var(--pub-code-bg); border: 1px solid var(--pub-border); border-radius: 6px;
+  padding: 12px 14px; font-size: 12px; color: var(--pub-code);
   overflow-x: auto; margin-bottom: 12px; font-family: monospace; white-space: pre;
 }
-.param-table { border: 1px solid #e5e5e5; border-radius: 6px; overflow: hidden; font-size: 13px; margin-bottom: 0; }
-.param-row { display: grid; grid-template-columns: 180px 60px 1fr; gap: 1px; background: #e5e5e5; }
-.param-row.header > * { background: #f9f9f9; color: #999; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-.param-row > * { background: #fff; padding: 8px 10px; }
-.param-row code { font-family: monospace; color: #7c3aed; background: transparent; padding: 8px 10px; }
+.param-table { border: 1px solid var(--pub-border); border-radius: 6px; overflow: hidden; font-size: 13px; margin-bottom: 0; }
+.param-row { display: grid; grid-template-columns: 180px 60px 1fr; gap: 1px; background: var(--pub-border); }
+.param-row.header > * { background: var(--pub-surface); color: var(--pub-text-4); font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.param-row > * { background: var(--pub-surface); padding: 8px 10px; }
+.param-row code { font-family: monospace; color: var(--pub-code); background: transparent; padding: 8px 10px; }
 .req-yes { color: #ea580c; font-size: 11px; font-weight: 600; }
 .req-no { color: #bbb; font-size: 11px; }
-.tools-table { border: 1px solid #e5e5e5; border-radius: 6px; overflow: hidden; font-size: 13px; }
-.tool-row { display: grid; grid-template-columns: 160px 1fr 180px; gap: 1px; background: #e5e5e5; }
-.tool-row.header > * { background: #f9f9f9; color: #999; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-.tool-row > * { background: #fff; padding: 8px 10px; color: #444; }
-.tool-row code { font-family: monospace; color: #7c3aed; background: transparent; padding: 8px 10px; }
-.params { font-family: monospace; font-size: 11px; color: #999; }
+.tools-table { border: 1px solid var(--pub-border); border-radius: 6px; overflow: hidden; font-size: 13px; }
+.tool-row { display: grid; grid-template-columns: 160px 1fr 180px; gap: 1px; background: var(--pub-border); }
+.tool-row.header > * { background: var(--pub-surface); color: var(--pub-text-4); font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.tool-row > * { background: var(--pub-surface); padding: 8px 10px; color: var(--pub-text-2); }
+.tool-row code { font-family: monospace; color: var(--pub-code); background: transparent; padding: 8px 10px; }
+.params { font-family: monospace; font-size: 11px; color: var(--pub-text-4); }
 .example-list { display: flex; flex-direction: column; gap: 12px; }
-.example-item { background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 14px; }
-.prompt-label, .action-label { font-size: 10px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.06em; }
-.prompt-text { font-size: 13px; color: #444; margin: 4px 0 10px; font-style: italic; }
-.tool-call { font-family: monospace; font-size: 12px; color: #7c3aed; background: #f4f4f6; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; }
+.example-item { background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 8px; padding: 14px; }
+.prompt-label, .action-label { font-size: 10px; font-weight: 600; color: var(--pub-text-4); text-transform: uppercase; letter-spacing: 0.06em; }
+.prompt-text { font-size: 13px; color: var(--pub-text-2); margin: 4px 0 10px; font-style: italic; }
+.tool-call { font-family: monospace; font-size: 12px; color: var(--pub-code); background: var(--pub-code-bg); padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; }
 @media (max-width: 600px) {
   .tool-row { grid-template-columns: 140px 1fr; }
   .tool-row .params { display: none; }

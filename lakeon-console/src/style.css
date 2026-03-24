@@ -1,3 +1,47 @@
+/* ── Public site theme variables ── */
+:root {
+  --pub-bg: #f7f9fc;
+  --pub-surface: #fff;
+  --pub-text: #1a1a1a;
+  --pub-text-2: #666;
+  --pub-text-3: #888;
+  --pub-text-4: #999;
+  --pub-border: #e5e5e5;
+  --pub-hover: #f5f5f5;
+  --pub-code-bg: #f4f4f6;
+  --pub-code: #7c3aed;
+  --pub-accent-bg: #f5f3ff;
+  --pub-accent-border: #7c3aed33;
+  --pub-btn-bg: #1a1a1a;
+  --pub-btn-text: #fff;
+  --pub-btn-hover: #333;
+  --pub-shadow: rgba(0,0,0,0.08);
+  --pub-hero-start: #f0f5ff;
+  --pub-hero-end: #fff;
+}
+
+[data-theme="dark"] {
+  --pub-bg: #0a0a0a;
+  --pub-surface: #111;
+  --pub-text: #e5e5e5;
+  --pub-text-2: #888;
+  --pub-text-3: #666;
+  --pub-text-4: #555;
+  --pub-border: #222;
+  --pub-hover: #1a1a1a;
+  --pub-code-bg: #1a1a1a;
+  --pub-code: #a78bfa;
+  --pub-accent-bg: #1a1a2e;
+  --pub-accent-border: #7c3aed44;
+  --pub-btn-bg: #fff;
+  --pub-btn-text: #000;
+  --pub-btn-hover: #e5e5e5;
+  --pub-shadow: rgba(0,0,0,0.4);
+  --pub-hero-start: #0d0d18;
+  --pub-hero-end: #0a0a0a;
+}
+/* ── end theme variables ── */
+
 :root {
   font-family: 'HuaweiSans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   line-height: 1.5;

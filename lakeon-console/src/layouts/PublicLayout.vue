@@ -90,6 +90,11 @@
 
         <!-- Right side -->
         <div class="pub-nav-right">
+          <!-- Theme toggle -->
+          <button class="theme-btn" @click="toggleTheme" :aria-label="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">
+            <span v-if="theme === 'dark'">☀️</span>
+            <span v-else>🌙</span>
+          </button>
           <button class="lang-btn" @click="toggleLocale">{{ locale === 'zh' ? 'EN' : '中' }}</button>
           <router-link to="/login" class="btn-signin">{{ t('登录', 'Sign In') }}</router-link>
           <!-- Mobile hamburger -->
@@ -100,7 +105,7 @@
       </div>
 
       <!-- Mobile overlay menu -->
-      <MobileNav v-if="mobileOpen" :locale="locale" @close="mobileOpen = false" />
+      <MobileNav v-if="mobileOpen" @close="mobileOpen = false" />
     </nav>
 
     <router-view />
@@ -110,10 +115,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useLocale } from '../stores/locale'
+import { useTheme } from '../stores/theme'
 import NavDropdown from '../components/public/NavDropdown.vue'
 import MobileNav from '../components/public/MobileNav.vue'
 
 const { locale, setLocale, t } = useLocale()
+const { theme, toggle: toggleTheme } = useTheme()
 const mobileOpen = ref(false)
 
 function toggleLocale() {
@@ -126,8 +133,8 @@ function toggleLocale() {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: #fff;
-  border-bottom: 1px solid #e5e5e5;
+  background: var(--pub-surface);
+  border-bottom: 1px solid var(--pub-border);
 }
 .pub-nav-inner {
   max-width: 1200px;
@@ -141,7 +148,7 @@ function toggleLocale() {
 .pub-brand {
   font-weight: 700;
   font-size: 17px;
-  color: #1a1a1a;
+  color: var(--pub-text);
   text-decoration: none;
   white-space: nowrap;
   margin-right: 8px;
@@ -149,7 +156,7 @@ function toggleLocale() {
 .pub-tagline {
   font-weight: 400;
   font-size: 12px;
-  color: #999;
+  color: var(--pub-text-4);
   margin-left: 4px;
 }
 .pub-nav-links {
@@ -160,35 +167,47 @@ function toggleLocale() {
 }
 .pub-nav-link {
   font-size: 13px;
-  color: #555;
+  color: var(--pub-text-2);
   padding: 6px 12px;
   border-radius: 6px;
   text-decoration: none;
   transition: color 0.15s, background 0.15s;
 }
 .pub-nav-link:hover {
-  color: #1a1a1a;
-  background: #f5f5f5;
+  color: var(--pub-text);
+  background: var(--pub-hover);
 }
 .pub-nav-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   margin-left: auto;
 }
+.theme-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 16px;
+  line-height: 1;
+  transition: background 0.15s;
+}
+.theme-btn:hover { background: var(--pub-hover); }
 .lang-btn {
   background: none;
   border: none;
-  color: #666;
+  color: var(--pub-text-2);
   font-size: 13px;
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
 }
-.lang-btn:hover { color: #333; background: #f5f5f5; }
+.lang-btn:hover { color: var(--pub-text); background: var(--pub-hover); }
 .btn-signin {
-  background: #1a1a1a;
-  color: #fff;
+  background: var(--pub-btn-bg);
+  color: var(--pub-btn-text);
   font-size: 13px;
   font-weight: 500;
   padding: 6px 16px;
@@ -196,7 +215,7 @@ function toggleLocale() {
   text-decoration: none;
   transition: background 0.15s;
 }
-.btn-signin:hover { background: #333; }
+.btn-signin:hover { background: var(--pub-btn-hover); }
 .hamburger {
   display: none;
   flex-direction: column;
@@ -210,7 +229,7 @@ function toggleLocale() {
   display: block;
   width: 20px;
   height: 2px;
-  background: #555;
+  background: var(--pub-text-2);
   border-radius: 1px;
 }
 .badge-new {
@@ -239,15 +258,15 @@ function toggleLocale() {
   text-decoration: none;
   transition: background 0.15s;
 }
-.nav-item:hover { background: #f5f5f5; }
+.nav-item:hover { background: var(--pub-hover); }
 .nav-item-title {
   font-size: 13px;
   font-weight: 500;
-  color: #1a1a1a;
+  color: var(--pub-text);
 }
 .nav-item-desc {
   font-size: 11px;
-  color: #888;
+  color: var(--pub-text-3);
   margin-top: 1px;
 }
 @media (max-width: 768px) {

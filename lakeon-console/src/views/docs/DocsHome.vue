@@ -86,7 +86,7 @@ for m in results["merged"]:
 
 <style scoped>
 .docs-home h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; }
-.subtitle { color: #666; font-size: 15px; margin-bottom: 40px; line-height: 1.6; }
+.subtitle { color: var(--pub-text-2); font-size: 15px; margin-bottom: 40px; line-height: 1.6; }
 .qs-section { margin-bottom: 48px; }
 .qs-section h2 { font-size: 18px; font-weight: 600; margin-bottom: 24px; }
 .step { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 20px; }
@@ -97,20 +97,20 @@ for m in results["merged"]:
 }
 .step strong { font-size: 14px; font-weight: 600; display: block; margin-bottom: 8px; }
 .code-block {
-  background: #f4f4f6; border: 1px solid #e5e5e5; border-radius: 6px;
-  padding: 12px 14px; font-size: 12px; color: #7c3aed;
+  background: var(--pub-code-bg); border: 1px solid var(--pub-border); border-radius: 6px;
+  padding: 12px 14px; font-size: 12px; color: var(--pub-code);
   overflow-x: auto; margin: 0; font-family: monospace; white-space: pre;
 }
 .link-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .link-card {
-  background: #fff; border: 1px solid #e5e5e5; border-radius: 8px;
+  background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 8px;
   padding: 16px; text-decoration: none; display: flex;
   flex-direction: column; gap: 6px; transition: border-color 0.15s;
 }
-.link-card:hover { border-color: #7c3aed; }
-.link-card h3 { font-size: 14px; font-weight: 600; color: #1a1a1a; margin: 0; }
-.link-card p { font-size: 12px; color: #666; margin: 0; flex: 1; line-height: 1.5; }
-.more { font-size: 12px; color: #7c3aed; }
+.link-card:hover { border-color: var(--pub-code); }
+.link-card h3 { font-size: 14px; font-weight: 600; color: var(--pub-text); margin: 0; }
+.link-card p { font-size: 12px; color: var(--pub-text-2); margin: 0; flex: 1; line-height: 1.5; }
+.more { font-size: 12px; color: var(--pub-code); }
 @media (max-width: 768px) {
   .link-cards { grid-template-columns: 1fr; }
 }
