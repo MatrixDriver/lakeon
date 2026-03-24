@@ -490,13 +490,11 @@ const useCases = computed(() => [
 .module-kb { border-top-color: #e6a700; }
 .module-lake { border-top-color: #2ecc71; }
 .module-memory {
-  border-color: #7c3aed;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-top-color: #7c3aed;
 }
 .module-memory .module-badge {
-  background: #7c3aed22;
-  color: #a78bfa;
-  border-color: #7c3aed44;
+  background: #f5f3ff;
+  color: #7c3aed;
 }
 
 .module-badge {
@@ -558,10 +556,7 @@ const useCases = computed(() => [
 
 .module-kb .module-features li::before { color: #e6a700; }
 .module-lake .module-features li::before { color: #2ecc71; }
-.module-memory .module-features li::before { color: #a78bfa; }
-.module-memory .module-features li { color: #c4b5fd; border-bottom-color: #2d2d4e; }
-.module-memory h3 { color: #e9d5ff; }
-.module-memory .module-subtitle { color: #a78bfa; }
+.module-memory .module-features li::before { color: #7c3aed; }
 
 /* Cards */
 .card-grid {
