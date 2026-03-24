@@ -63,7 +63,7 @@ def main():
                           region_name="cn-north-4",
                           config=BotoConfig(
                               s3={"addressing_style": "virtual"},
-                              signature_version="s3",
+                              signature_version="s3v4",
                           ))
 
         suffix = f".{fmt.lower()}" if fmt else ""
@@ -83,7 +83,7 @@ def main():
                 s3.put_object(Bucket=obs_bucket, Key=fulltext_key, Body=markdown.encode('utf-8'))
                 logger.info(f"Uploaded fulltext to {fulltext_key}")
             except Exception as e:
-                logger.warning(f"Failed to upload fulltext (non-fatal): {e}")
+                logger.error(f"Failed to upload fulltext to OBS (non-fatal): {e}")
 
         report_progress("Chunking document", 0.4)
         chunk_kwargs = {}

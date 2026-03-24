@@ -327,11 +327,11 @@ public class ChunkService {
     }
 
     /**
-     * Get fulltext from OBS (no compute needed).
+     * Get fulltext from OBS, falling back to concatenating chunk contents from DB.
      */
     public String getFulltext(String tenantId, String kbId, String docId) {
+        // Try OBS first
         String key = String.format("knowledge/%s/%s/%s/fulltext.md", tenantId, kbId, docId);
-
         S3Client s3 = S3Client.builder()
                 .endpointOverride(URI.create(props.getObs().getEndpoint()))
                 .credentialsProvider(StaticCredentialsProvider.create(
@@ -347,13 +347,39 @@ public class ChunkService {
                     .build());
             return new String(resp.readAllBytes(), StandardCharsets.UTF_8);
         } catch (NoSuchKeyException e) {
-            throw new NotFoundException("Fulltext not found for document: " + docId);
+            log.warn("Fulltext not in OBS for doc {}, falling back to chunk concatenation", docId);
         } catch (Exception e) {
-            log.error("Failed to read fulltext from OBS for doc {}: {}", docId, e.getMessage(), e);
-            throw new RuntimeException("Failed to read fulltext: " + e.getMessage(), e);
+            log.warn("Failed to read fulltext from OBS for doc {}, falling back to chunks: {}", docId, e.getMessage());
         } finally {
             s3.close();
         }
+
+        // Fallback: concatenate all level-0 chunks ordered by chunk_index
+        return getFulltextFromChunks(tenantId, kbId, docId);
+    }
+
+    private String getFulltextFromChunks(String tenantId, String kbId, String docId) {
+        String sql = "SELECT content FROM knowledge_chunks " +
+                "WHERE document_id = ? AND level = 0 ORDER BY chunk_index";
+        StringBuilder sb = new StringBuilder();
+        try (Connection conn = dbHelper.getComputeConnection(tenantId, kbId)) {
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, docId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        if (sb.length() > 0) sb.append("\n\n");
+                        sb.append(rs.getString("content"));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to read chunks for fulltext fallback, doc {}: {}", docId, e.getMessage(), e);
+            throw new RuntimeException("Failed to read fulltext: " + e.getMessage(), e);
+        }
+        if (sb.length() == 0) {
+            throw new NotFoundException("No content found for document: " + docId);
+        }
+        return sb.toString();
     }
 
     /**
