@@ -35,7 +35,7 @@ neon:
     pullPolicy: IfNotPresent
   computeImage:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/compute-node-v17
-    tag: pg-search-v22  # pg_search 0.22.0 (Neon ABI compatible)
+    tag: no-rlimit  # setrlimit shim — no node-init race condition
 
 api:
   replicas: 2
@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.9.22"
+    tag: "0.9.46"
   resources:
     requests:
       cpu: "100m"
@@ -191,7 +191,7 @@ cloud:
   resourceIds:
     - "80fc030a-1577-4daf-9f4c-fa31e93a3a85"  # ELB lakeon-elb
   cceClusterId: "9fa5350b-1780-11f1-842d-0255ac100249"
-  rdsInstanceId: "1e82b27434584ffa99f0951c22246cb7in03"
+  rdsInstanceId: "2aaa155a36bd42cea64d81e5d20c54c2in03"
   elbId: "80fc030a-1577-4daf-9f4c-fa31e93a3a85"
   eipId: "e7ecf9e9-bdcd-4ab9-a85a-bb70686e4faa"
   nodePoolId: "55859b9b"

@@ -44,9 +44,26 @@ def main():
 
         report_progress("Attaching PostgreSQL database", 0.2)
 
-        # Attach the PostgreSQL database so postgres_query can reference it
+        # Retry ATTACH — compute pod may need a moment after wakeCompute
         safe_connstr = connstr.replace("'", "''")
-        conn.execute(f"ATTACH '{safe_connstr}' AS src (TYPE postgres, READ_ONLY)")
+        for attempt in range(5):
+            try:
+                conn.execute(f"ATTACH '{safe_connstr}' AS src (TYPE postgres, READ_ONLY)")
+                # Verify attachment works
+                conn.execute("SELECT 1 FROM postgres_query('src', 'SELECT 1')").fetchone()
+                logger.info(f"ATTACH succeeded on attempt {attempt + 1}")
+                break
+            except Exception as e:
+                if attempt < 4:
+                    logger.warning(f"ATTACH attempt {attempt + 1} failed: {e}, retrying in 5s...")
+                    try:
+                        conn.execute("DETACH src")
+                    except Exception:
+                        pass
+                    import time
+                    time.sleep(5)
+                else:
+                    raise RuntimeError(f"Failed to attach PostgreSQL after 5 attempts: {e}")
 
         # Escape single quotes in source_sql for DuckDB string embedding
         safe_sql = source_sql.replace("'", "''")

@@ -7,6 +7,11 @@
 #   SITE=jackylk ./deploy/cce/deploy.sh # 部署 jackylk 站点
 
 set -e
+
+# Disable proxy for Helm/kubectl/SWR access
+export no_proxy="*"
+export NO_PROXY="*"
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/site.sh"
 

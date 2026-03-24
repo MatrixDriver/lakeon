@@ -30,8 +30,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.Instant;
+
 import java.util.List;
 import java.util.Map;
+
 import java.util.stream.Collectors;
 
 @Service
@@ -97,9 +99,72 @@ public class BranchService {
                 .orElse(null);
         }
 
-        // Create timeline with optional ancestor LSN
-        CreateTimelineRequest timelineRequest = request.ancestorLsn() != null
-            ? CreateTimelineRequest.forBranchAtLsn(newTimelineId, ancestorTimelineId, request.ancestorLsn())
+        // Flush parent's WAL to pageserver before branching to prevent data loss.
+        // Strategy: Ensure the parent branch's compute is running, CHECKPOINT it,
+        // and get the exact WAL flush LSN from the compute (not the stale pageserver LSN).
+        String branchAtLsn = request.ancestorLsn();
+
+        if (branchAtLsn == null) {
+            // Determine which compute pod to CHECKPOINT
+            String targetPodName = null;
+            boolean isParentBranch = requestParentId != null && !requestParentId.isBlank();
+
+            if (isParentBranch) {
+                // Non-default parent: ensure its compute is running
+                BranchEntity parentBranch = branchRepository.findByIdAndDatabaseId(requestParentId, dbId).orElse(null);
+                if (parentBranch != null) {
+                    targetPodName = parentBranch.getComputePodName();
+                    if (targetPodName == null || !computePodManager.isPodReady(targetPodName)) {
+                        // Cold-start the parent branch compute
+                        try {
+                            computePodManager.createComputePodForBranch(dbEntity, parentBranch);
+                            computePodManager.waitForPodReady(parentBranch.getComputePodName(), 120_000);
+                            targetPodName = parentBranch.getComputePodName();
+                            branchRepository.save(parentBranch);
+                        } catch (Exception e) {
+                            log.warn("Failed to start parent branch compute for CHECKPOINT: {}", e.getMessage());
+                        }
+                    }
+                }
+            } else {
+                // Default parent: use database's main compute
+                targetPodName = dbEntity.getComputePodName();
+                if (targetPodName == null) {
+                    targetPodName = "compute-" + dbEntity.getId().replace("_", "-");
+                }
+            }
+
+            // CHECKPOINT + get WAL flush LSN
+            if (targetPodName != null) {
+                try {
+                    if (computePodManager.isPodReady(targetPodName)) {
+                        computePodManager.executeCheckpoint(targetPodName);
+                        String walLsn = computePodManager.getWalFlushLsn(targetPodName);
+                        if (walLsn != null) {
+                            branchAtLsn = walLsn;
+                            log.info("Branching at WAL flush LSN {} from pod {}", branchAtLsn, targetPodName);
+                        }
+                    }
+                } catch (Exception e) {
+                    log.debug("CHECKPOINT on pod {} skipped: {}", targetPodName, e.getMessage());
+                }
+            }
+        }
+
+        // Fallback: use pageserver's lastRecordLsn (may be stale if pod was deleted)
+        if (branchAtLsn == null) {
+            try {
+                NeonTimeline parentTimeline = neonApiClient.getTimeline(
+                    dbEntity.getNeonTenantId(), ancestorTimelineId);
+                branchAtLsn = parentTimeline.getLastRecordLsn();
+                log.info("Branching at pageserver LSN: {}", branchAtLsn);
+            } catch (Exception e) {
+                log.warn("Failed to get parent timeline LSN, branching at latest: {}", e.getMessage());
+            }
+        }
+
+        CreateTimelineRequest timelineRequest = branchAtLsn != null
+            ? CreateTimelineRequest.forBranchAtLsn(newTimelineId, ancestorTimelineId, branchAtLsn)
             : CreateTimelineRequest.forBranch(newTimelineId, ancestorTimelineId);
         NeonTimeline timeline = neonApiClient.createTimeline(dbEntity.getNeonTenantId(), timelineRequest);
 
@@ -192,11 +257,32 @@ public class BranchService {
         }
 
         if (branch.getComputePodName() != null) {
+            // Flush WAL before deleting compute pod
+            if (computePodManager.isPodReady(branch.getComputePodName())) {
+                computePodManager.executeCheckpoint(branch.getComputePodName());
+            }
             computePodManager.deleteComputePod(branch.getComputePodName());
         }
 
+        // Delete version snapshot timelines first (they are children of the branch timeline)
+        List<VersionEntity> versions = versionRepository.findAllByBranchIdOrderByLsnAsc(branchId);
+        for (VersionEntity v : versions) {
+            if (v.getSnapshotTimelineId() != null) {
+                try {
+                    neonApiClient.deleteTimeline(dbEntity.getNeonTenantId(), v.getSnapshotTimelineId());
+                } catch (Exception e) {
+                    log.warn("Failed to delete version snapshot timeline {}: {}", v.getSnapshotTimelineId(), e.getMessage());
+                }
+            }
+        }
+        versionRepository.deleteAll(versions);
+
         if (branch.getNeonTimelineId() != null) {
-            neonApiClient.deleteTimeline(dbEntity.getNeonTenantId(), branch.getNeonTimelineId());
+            try {
+                neonApiClient.deleteTimeline(dbEntity.getNeonTenantId(), branch.getNeonTimelineId());
+            } catch (Exception e) {
+                log.warn("Failed to delete branch timeline {}: {}", branch.getNeonTimelineId(), e.getMessage());
+            }
         }
 
         branchRepository.delete(branch);
@@ -250,6 +336,15 @@ public class BranchService {
             throw new BadRequestException("Branch is already the default");
         }
 
+        // Flush WAL on the target branch before promoting
+        try {
+            if (target.getComputePodName() != null && computePodManager.isPodReady(target.getComputePodName())) {
+                computePodManager.executeCheckpoint(target.getComputePodName());
+            }
+        } catch (Exception e) {
+            log.warn("CHECKPOINT on target branch {} failed (non-fatal): {}", branchId, e.getMessage());
+        }
+
         // Find current default
         BranchEntity currentDefault = branchRepository.findByDatabaseIdAndIsDefaultTrue(dbId)
             .orElseThrow(() -> new IllegalStateException("No default branch found"));
@@ -263,6 +358,26 @@ public class BranchService {
         // Promote target
         target.setIsDefault(true);
         branchRepository.save(target);
+
+        // Clean up old compute pods to invalidate Neon proxy cache.
+        // The proxy caches wake_compute results by endpoint; deleting old pods forces re-fetch.
+        String oldDbPodName = "compute-" + db.getId().replace("_", "-");
+        if (currentDefault.getComputePodName() != null) {
+            try { computePodManager.deleteComputePod(currentDefault.getComputePodName()); } catch (Exception e) {
+                log.warn("Failed to delete old default branch compute pod {}: {}", currentDefault.getComputePodName(), e.getMessage());
+            }
+            currentDefault.setComputePodName(null);
+            currentDefault.setComputeHost(null);
+            currentDefault.setComputePort(null);
+            currentDefault.setComputeStatus(com.lakeon.model.enums.ComputeStatus.SUSPENDED);
+            branchRepository.save(currentDefault);
+        }
+        // Also delete the database's original compute pod if different from promoted branch's
+        if (!oldDbPodName.equals(target.getComputePodName())) {
+            try { computePodManager.deleteComputePod(oldDbPodName); } catch (Exception e) {
+                log.debug("No stale database compute pod {} to delete", oldDbPodName);
+            }
+        }
 
         // Update database entity: timeline + compute fields sync to promoted branch
         db.setNeonTimelineId(target.getNeonTimelineId());
@@ -305,6 +420,16 @@ public class BranchService {
             throw new BadRequestException("Either target_version_id or target_lsn is required");
         }
 
+        // Flush WAL before restoring to ensure all data is durable
+        try {
+            String podName = branch.getComputePodName() != null ? branch.getComputePodName() : db.getComputePodName();
+            if (podName != null && computePodManager.isPodReady(podName)) {
+                computePodManager.executeCheckpoint(podName);
+            }
+        } catch (Exception e) {
+            log.warn("CHECKPOINT before restore on branch {} failed (non-fatal): {}", branchId, e.getMessage());
+        }
+
         String oldTimelineId = branch.getNeonTimelineId();
 
         // 1. Create backup branch (keeps old timeline — DO NOT delete it, it's ancestor of snapshot timelines)
@@ -343,12 +468,25 @@ public class BranchService {
             if (db.getComputePodName() != null) {
                 computePodManager.deleteComputePod(db.getComputePodName(), true);
             }
+            // Also delete stale compute pod with the database's canonical name if different
+            String canonicalPodName = "compute-" + db.getId().replace("_", "-");
+            if (!canonicalPodName.equals(db.getComputePodName())) {
+                try { computePodManager.deleteComputePod(canonicalPodName, true); } catch (Exception e) {
+                    log.debug("No stale canonical compute pod {} to delete", canonicalPodName);
+                }
+            }
             db.setComputePodName(null);
             db.setComputeHost(null);
             db.setComputePort(null);
             databaseRepository.save(db);
             computePodManager.createComputePod(db);
             databaseRepository.save(db);
+            // Sync branch compute info with database
+            branch.setComputePodName(db.getComputePodName());
+            branch.setComputeHost(db.getComputeHost());
+            branch.setComputePort(db.getComputePort());
+            branch.setComputeStatus(com.lakeon.model.enums.ComputeStatus.RUNNING);
+            branchRepository.save(branch);
         }
 
         return toResponse(branch);

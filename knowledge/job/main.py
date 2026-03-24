@@ -54,7 +54,7 @@ def main():
         obs_endpoint = os.environ.get("OBS_ENDPOINT", "https://obs.cn-north-4.myhuaweicloud.com")
         obs_ak = os.environ["OBS_ACCESS_KEY"]
         obs_sk = os.environ["OBS_SECRET_KEY"]
-        obs_bucket = os.environ.get("OBS_BUCKET", "lakeon-storage")
+        obs_bucket = os.environ.get("OBS_BUCKET", "dbay-mainstore")
 
         from botocore.config import Config as BotoConfig
         # OBS requires virtual-host addressing style
@@ -63,7 +63,7 @@ def main():
                           region_name="cn-north-4",
                           config=BotoConfig(
                               s3={"addressing_style": "virtual"},
-                              signature_version="s3v4",
+                              signature_version="s3",
                           ))
 
         suffix = f".{fmt.lower()}" if fmt else ""

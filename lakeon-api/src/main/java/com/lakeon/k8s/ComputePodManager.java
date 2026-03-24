@@ -536,6 +536,25 @@ public class ComputePodManager {
         } catch (Exception e) {
             log.warn("Failed to sync password for user {} on pod {}: {}", username, podName, e.getMessage());
         }
+
+        // Also update ConfigMap so password survives pod restarts
+        String configMapName = podName + "-config";
+        try {
+            ConfigMap cm = k8sClient.configMaps().inNamespace(namespace).withName(configMapName).get();
+            if (cm != null && cm.getData() != null && cm.getData().containsKey("config.json")) {
+                String config = cm.getData().get("config.json");
+                String updated = config.replaceFirst(
+                    "(\"name\"\\s*:\\s*\"" + java.util.regex.Pattern.quote(username) + "\"[^}]*\"encrypted_password\"\\s*:\\s*\")[^\"]*\"",
+                    "$1" + java.util.regex.Matcher.quoteReplacement(scramHash) + "\"");
+                if (!updated.equals(config)) {
+                    cm.getData().put("config.json", updated);
+                    k8sClient.configMaps().inNamespace(namespace).withName(configMapName).createOrReplace(cm);
+                    log.info("Updated ConfigMap {} with new password for {}", configMapName, username);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to update ConfigMap {} password: {}", configMapName, e.getMessage());
+        }
     }
 
     /**
