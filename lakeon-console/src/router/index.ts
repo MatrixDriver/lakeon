@@ -51,6 +51,9 @@ const routes = [
       { path: 'knowledge/:kbId/documents/:docId', name: 'DocumentDetail', component: () => import('../views/knowledge/DocumentDetail.vue') },
       { path: 'knowledge/datasources', name: 'KnowledgeDataSources', component: () => import('../views/knowledge/KnowledgeDataSources.vue') },
       { path: 'knowledge/search', name: 'KnowledgeSearch', component: () => import('../views/knowledge/KnowledgeSearch.vue') },
+      // Memory
+      { path: 'memory', name: 'MemoryBases', component: () => import('../views/memory/MemoryBases.vue') },
+      { path: 'memory/:memId', name: 'MemoryBaseDetail', component: () => import('../views/memory/MemoryBaseDetail.vue') },
     ],
   },
 ]

@@ -78,6 +78,14 @@
           </svg>
           <span class="rail-label">知识库</span>
         </div>
+        <div class="rail-icon" :class="{ active: activeRail === 'memory' }" @click="switchRail('memory')" title="记忆库">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/>
+            <line x1="10" y1="21" x2="14" y2="21"/>
+            <line x1="9" y1="17" x2="15" y2="17"/>
+          </svg>
+          <span class="rail-label">记忆库</span>
+        </div>
         <div class="rail-icon" :class="{ active: activeRail === 'datalake' }" @click="switchRail('datalake')" title="数据湖">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
@@ -125,6 +133,12 @@
               <router-link to="/knowledge/search" class="nav-item" active-class="active" @click="sidebarOpen = false">知识搜索</router-link>
             </div>
           </template>
+          <!-- 记忆库菜单 -->
+          <template v-if="activeRail === 'memory'">
+            <div class="nav-group">
+              <router-link to="/memory" class="nav-item" active-class="active" @click="sidebarOpen = false">记忆库</router-link>
+            </div>
+          </template>
           <!-- 数据湖菜单 -->
           <template v-if="activeRail === 'datalake'">
             <div class="nav-group">
@@ -165,12 +179,13 @@ const route = useRoute()
 const authStore = useAuthStore()
 const sidebarOpen = ref(false)
 
-type RailKey = 'db' | 'kb' | 'datalake' | 'settings'
+type RailKey = 'db' | 'kb' | 'memory' | 'datalake' | 'settings'
 const activeRail = ref<RailKey>('db')
 
 const railTitles: Record<RailKey, string> = {
   db: '数据库',
   kb: '知识库',
+  memory: '记忆库',
   datalake: '数据湖',
   settings: '设置',
 }
@@ -178,6 +193,7 @@ const railTitles: Record<RailKey, string> = {
 const railDefaultRoutes: Record<RailKey, string> = {
   db: '/dashboard',
   kb: '/knowledge',
+  memory: '/memory',
   datalake: '/datalake',
   settings: '/apikey',
 }
@@ -194,6 +210,8 @@ function switchRail(rail: RailKey) {
 watch(() => route.path, (path) => {
   if (path.startsWith('/knowledge')) {
     activeRail.value = 'kb'
+  } else if (path.startsWith('/memory')) {
+    activeRail.value = 'memory'
   } else if (path.startsWith('/datalake')) {
     activeRail.value = 'datalake'
   } else if (['/apikey', '/usage', '/account', '/docs'].some(p => path.startsWith(p))) {
