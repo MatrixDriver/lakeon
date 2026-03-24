@@ -22,20 +22,6 @@
         <h2 class="section-title">{{ t('四大产品模块', 'Four Product Modules') }}</h2>
         <p class="section-desc">{{ t('以 Neon 为内核的 Lakebase，为知识库、记忆库、AI 多模数据湖提供统一的 Serverless 数据底座', 'Lakebase powered by Neon provides a unified Serverless data foundation for Knowledge Base, Memory Store, and AI Data Lake') }}</p>
         <div class="module-grid">
-          <div class="module-card module-lakebase">
-            <div class="module-badge">{{ t('核心引擎', 'Core Engine') }}</div>
-            <div class="module-icon">&#x1F418;</div>
-            <h3>Lakebase</h3>
-            <p class="module-subtitle">Serverless PostgreSQL</p>
-            <ul class="module-features">
-              <li>{{ t('3ms 热启动，3s 冷启动', '3ms hot start, 3s cold start') }}</li>
-              <li>{{ t('存算分离，自动扩缩容', 'Disaggregated storage, auto-scaling') }}</li>
-              <li>{{ t('数据库分支与时间旅行', 'Database branching & time travel') }}</li>
-              <li>{{ t('多版本管理与回滚', 'Version management & rollback') }}</li>
-              <li>{{ t('多租户隔离', 'Multi-tenant isolation') }}</li>
-              <li>{{ t('AI SQL 助手 (自然语言生成 SQL)', 'AI SQL Assistant (NL to SQL)') }}</li>
-            </ul>
-          </div>
           <div class="module-card module-kb">
             <div class="module-badge">{{ t('已上线', 'Live') }}</div>
             <div class="module-icon">&#x1F4DA;</div>
@@ -76,6 +62,24 @@
               <li>{{ t('Kata VM 安全隔离', 'Kata VM security isolation') }}</li>
               <li>{{ t('DB ↔ 数据湖 数据飞轮', 'DB ↔ Data Lake data flywheel') }}</li>
               <li>{{ t('增量 CDC 调度', 'Incremental CDC scheduling') }}</li>
+            </ul>
+          </div>
+          <div class="module-card module-lakebase module-lakebase-wide">
+            <div class="module-badge">{{ t('核心引擎', 'Core Engine') }}</div>
+            <div class="lakebase-hd">
+              <div class="module-icon">&#x1F418;</div>
+              <div>
+                <h3>Lakebase</h3>
+                <p class="module-subtitle">Serverless PostgreSQL</p>
+              </div>
+            </div>
+            <ul class="module-features lakebase-features">
+              <li>{{ t('3ms 热启动，3s 冷启动', '3ms hot start, 3s cold start') }}</li>
+              <li>{{ t('存算分离，自动扩缩容', 'Disaggregated storage, auto-scaling') }}</li>
+              <li>{{ t('数据库分支与时间旅行', 'Database branching & time travel') }}</li>
+              <li>{{ t('多版本管理与回滚', 'Version management & rollback') }}</li>
+              <li>{{ t('多租户隔离', 'Multi-tenant isolation') }}</li>
+              <li>{{ t('AI SQL 助手 (自然语言生成 SQL)', 'AI SQL Assistant (NL to SQL)') }}</li>
             </ul>
           </div>
         </div>
@@ -487,6 +491,27 @@ const useCases = computed(() => [
 }
 
 .module-lakebase { border-top-color: #0073e6; }
+.module-lakebase-wide {
+  grid-column: 1 / -1;
+}
+.lakebase-hd {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.lakebase-hd .module-icon {
+  font-size: 40px;
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+.lakebase-hd h3 { margin-bottom: 2px; }
+.lakebase-hd .module-subtitle { margin-bottom: 0; }
+.lakebase-features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0 24px;
+}
 .module-kb { border-top-color: #e6a700; }
 .module-lake { border-top-color: #2ecc71; }
 .module-memory {
@@ -725,6 +750,9 @@ const useCases = computed(() => [
   .card-grid,
   .card-grid.three,
   .module-grid {
+    grid-template-columns: 1fr;
+  }
+  .lakebase-features {
     grid-template-columns: 1fr;
   }
 
