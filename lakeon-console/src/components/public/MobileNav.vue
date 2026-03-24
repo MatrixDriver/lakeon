@@ -5,27 +5,30 @@
     </div>
     <div class="mobile-nav-body">
       <router-link to="/product" class="mobile-nav-link" @click="$emit('close')">
-        {{ locale === 'zh' ? '产品' : 'Products' }}
+        {{ t('产品', 'Products') }}
       </router-link>
       <router-link to="/integrations" class="mobile-nav-link" @click="$emit('close')">
-        {{ locale === 'zh' ? '集成' : 'Integrations' }}
+        {{ t('集成', 'Integrations') }}
       </router-link>
       <router-link to="/blog" class="mobile-nav-link" @click="$emit('close')">
-        {{ locale === 'zh' ? '博客' : 'Blog' }}
+        {{ t('博客', 'Blog') }}
       </router-link>
       <router-link to="/docs" class="mobile-nav-link" @click="$emit('close')">
-        {{ locale === 'zh' ? '文档' : 'Docs' }}
+        {{ t('文档', 'Docs') }}
       </router-link>
       <router-link to="/login" class="mobile-nav-cta" @click="$emit('close')">
-        {{ locale === 'zh' ? '登录' : 'Sign In' }}
+        {{ t('登录', 'Sign In') }}
       </router-link>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{ locale: 'zh' | 'en' }>()
-defineEmits(['close'])
+import { useLocale } from '../../stores/locale'
+
+const { t } = useLocale()
+
+defineEmits<{ close: [] }>()
 </script>
 
 <style scoped>

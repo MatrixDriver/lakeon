@@ -1,6 +1,6 @@
 <template>
-  <div class="nav-dropdown">
-    <button class="nav-dropdown-trigger" @click="open = !open">
+  <div ref="el" class="nav-dropdown">
+    <button class="nav-dropdown-trigger" :aria-expanded="open" @click="open = !open">
       {{ label }}
       <span class="nav-dropdown-chevron">▾</span>
     </button>
@@ -11,11 +11,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 defineProps<{ label: string }>()
 
 const open = ref(false)
+const el = ref<HTMLElement | null>(null)
+
+function onClickOutside(event: MouseEvent) {
+  if (!el.value?.contains(event.target as Node)) {
+    open.value = false
+  }
+}
+
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    open.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', onClickOutside)
+  document.addEventListener('keydown', onKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', onClickOutside)
+  document.removeEventListener('keydown', onKeydown)
+})
 </script>
 
 <style scoped>
