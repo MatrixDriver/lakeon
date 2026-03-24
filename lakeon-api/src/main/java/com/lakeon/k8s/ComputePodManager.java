@@ -123,11 +123,17 @@ public class ComputePodManager {
                         .map(name -> new LocalObjectReferenceBuilder().withName(name).build())
                         .toList()
                 )
+                .withTerminationGracePeriodSeconds(60L)
                 .withNodeSelector(
                     props.getK8s().getComputeNodeSelector().isEmpty()
                         ? null
                         : new LinkedHashMap<>(props.getK8s().getComputeNodeSelector())
                 )
+                .withTolerations(new TolerationBuilder()
+                    .withKey("lakeon/compute-only")
+                    .withOperator("Exists")
+                    .withEffect("NoSchedule")
+                    .build())
                 .addNewContainer()
                     .withName("compute")
                     .withImage(props.getK8s().getComputeImage())
@@ -170,6 +176,14 @@ public class ComputePodManager {
                         .withInitialDelaySeconds(1)
                         .withPeriodSeconds(1)
                     .endReadinessProbe()
+                    .withNewLifecycle()
+                        .withNewPreStop()
+                            .withNewExec()
+                                .withCommand("psql", "-h", "127.0.0.1", "-p", "55433",
+                                    "-U", "cloud_admin", "-d", "postgres", "-c", "CHECKPOINT")
+                            .endExec()
+                        .endPreStop()
+                    .endLifecycle()
                 .endContainer()
                 .addNewVolume()
                     .withName("config-volume")
@@ -522,6 +536,71 @@ public class ComputePodManager {
         } catch (Exception e) {
             log.warn("Failed to sync password for user {} on pod {}: {}", username, podName, e.getMessage());
         }
+    }
+
+    /**
+     * Execute CHECKPOINT on a running compute pod to flush WAL to pageserver/safekeepers.
+     * Must be called before branch creation or pod deletion to prevent data loss.
+     */
+    public boolean executeCheckpoint(String podName) {
+        String namespace = props.getK8s().getNamespace();
+        log.info("Executing CHECKPOINT on pod {}/{}", namespace, podName);
+        int maxAttempts = 15;
+        for (int attempt = 0; attempt < maxAttempts; attempt++) {
+            try {
+                ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+                ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+                try (ExecWatch exec = k8sClient.pods().inNamespace(namespace).withName(podName)
+                        .writingOutput(stdout)
+                        .writingError(stderr)
+                        .exec("psql", "-h", "127.0.0.1", "-p", "55433",
+                            "-U", "cloud_admin", "-d", "postgres", "-c", "CHECKPOINT")) {
+                    Integer exitCode = exec.exitCode().get(30, java.util.concurrent.TimeUnit.SECONDS);
+                    String stderrStr = stderr.toString();
+                    if (exitCode != null && exitCode == 0) {
+                        log.info("CHECKPOINT on pod {} succeeded (attempt {})", podName, attempt + 1);
+                        return true;
+                    }
+                    log.warn("CHECKPOINT on pod {} failed (attempt {}/{}, exit={}): {}",
+                        podName, attempt + 1, maxAttempts, exitCode, stderrStr.trim());
+                }
+            } catch (Exception e) {
+                log.warn("CHECKPOINT on pod {} error (attempt {}/{}): {}", podName, attempt + 1, maxAttempts, e.getMessage());
+            }
+            try { Thread.sleep(3000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); return false; }
+        }
+        log.error("CHECKPOINT on pod {} failed after {} attempts", podName, maxAttempts);
+        return false;
+    }
+
+    /**
+     * Get the current WAL flush LSN from a running compute pod.
+     * Returns the LSN as a hex string (e.g., "0/1A2B3C0") or null if unavailable.
+     */
+    public String getWalFlushLsn(String podName) {
+        String namespace = props.getK8s().getNamespace();
+        try {
+            ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+            ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+            try (ExecWatch exec = k8sClient.pods().inNamespace(namespace).withName(podName)
+                    .writingOutput(stdout)
+                    .writingError(stderr)
+                    .exec("psql", "-h", "127.0.0.1", "-p", "55433",
+                        "-U", "cloud_admin", "-d", "postgres", "-t", "-A",
+                        "-c", "SELECT pg_current_wal_flush_lsn()")) {
+                Integer exitCode = exec.exitCode().get(10, java.util.concurrent.TimeUnit.SECONDS);
+                if (exitCode != null && exitCode == 0) {
+                    String lsn = stdout.toString().trim();
+                    if (!lsn.isEmpty()) {
+                        log.info("WAL flush LSN on pod {}: {}", podName, lsn);
+                        return lsn;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Failed to get WAL flush LSN from pod {}: {}", podName, e.getMessage());
+        }
+        return null;
     }
 
     /**
