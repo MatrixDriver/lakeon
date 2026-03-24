@@ -13,6 +13,10 @@
 
 set -euo pipefail
 
+# Disable proxy for SWR access
+export no_proxy="*"
+export NO_PROXY="*"
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # 加载站点配置获取 SWR_ORG（如果未手动指定）
 if [ -z "${SWR_ORG:-}" ] && [ -f "$SCRIPT_DIR/site.sh" ]; then

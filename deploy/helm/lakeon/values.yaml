@@ -180,3 +180,9 @@ console:
     limits:
       cpu: "200m"
       memory: "256Mi"
+
+memory:
+  enabled: false
+  image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.1.0
+  cpu: 500m
+  memorySize: 512Mi

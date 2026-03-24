@@ -218,6 +218,10 @@ networkPolicy:
 embedding:
   enabled: false
 
+memory:
+  enabled: true
+  image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.1.0
+
 minio:
   enabled: false
 

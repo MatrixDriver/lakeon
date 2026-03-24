@@ -21,4 +21,4 @@ spec:
       targetPort: http
     - name: http-internal
       port: {{ .Values.api.internalPort | default 8088 }}
-      targetPort: {{ if .Values.api.ssl.enabled }}http-internal{{ else }}http{{ end }}
+      targetPort: http-internal
