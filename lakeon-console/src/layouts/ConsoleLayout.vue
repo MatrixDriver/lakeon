@@ -88,9 +88,9 @@
         </div>
         <div class="rail-icon" :class="{ active: activeRail === 'datalake' }" @click="switchRail('datalake')" title="数据湖">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <ellipse cx="12" cy="5" rx="9" ry="3"/>
-            <path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/>
-            <path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6"/>
+            <path d="M2 16c2-2 4-3 6-1s4 1 6-1 4-1 6 1"/>
+            <path d="M2 20c2-2 4-3 6-1s4 1 6-1 4-1 6 1"/>
+            <path d="M4 16V8a8 8 0 0 1 16 0v8" stroke-linecap="round"/>
           </svg>
           <span class="rail-label">数据湖</span>
         </div>
