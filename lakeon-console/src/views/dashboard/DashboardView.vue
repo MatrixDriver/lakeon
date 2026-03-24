@@ -522,21 +522,18 @@ function confirmDelete(db: Database) {
   deleteTarget.value = db
 }
 
-async function handleDelete() {
+function handleDelete() {
   if (!deleteTarget.value) return
-  deleteLoading.value = true
-  try {
-    const name = deleteTarget.value.name
-    await databaseApi.delete(deleteTarget.value.id)
-    deleteTarget.value = null
-    toast.success(`数据库 "${name}" 已删除`)
-    await fetchData()
-  } catch (e) {
-    toast.error('删除数据库失败')
+  const { id, name } = deleteTarget.value
+  deleteTarget.value = null
+  toast.success(`正在删除数据库 "${name}"`)
+  databaseApi.delete(id).then(() => {
+    fetchData()
+  }).catch((e) => {
+    toast.error(`删除数据库 "${name}" 失败`)
     console.error('Failed to delete', e)
-  } finally {
-    deleteLoading.value = false
-  }
+    fetchData()
+  })
 }
 
 onMounted(() => {
