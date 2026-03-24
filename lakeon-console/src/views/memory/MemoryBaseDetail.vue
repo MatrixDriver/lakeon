@@ -22,6 +22,7 @@
       <button class="tab-item" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">概览</button>
       <button v-if="base.type === 'BUILTIN'" class="tab-item" :class="{ active: activeTab === 'memories' }" @click="activeTab = 'memories'">记忆</button>
       <button v-if="base.type === 'BUILTIN'" class="tab-item" :class="{ active: activeTab === 'traits' }" @click="activeTab = 'traits'">特征</button>
+      <button v-if="base.type === 'BUILTIN'" class="tab-item" :class="{ active: activeTab === 'graph' }" @click="activeTab = 'graph'">图谱</button>
       <button class="tab-item" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">接入</button>
     </div>
 
@@ -207,6 +208,11 @@
       </div>
     </div>
 
+    <!-- Graph tab -->
+    <div v-if="activeTab === 'graph'" style="min-height: 500px; margin-top: 24px;">
+      <KnowledgeGraph :data="graphData" />
+    </div>
+
     <!-- Settings tab -->
     <div v-if="base && activeTab === 'settings'" style="margin-top: 24px;">
 
@@ -338,8 +344,9 @@ SSL:      require</pre>
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getMemoryBase, type MemoryBase, type MemoryItem, type MemoryStats, type Trait, getMemoryStats, listMemories, deleteMemory, recallMemories, listTraits } from '../../api/memory'
+import { getMemoryBase, type MemoryBase, type MemoryItem, type MemoryStats, type Trait, getMemoryStats, listMemories, deleteMemory, recallMemories, listTraits, getGraph, type GraphData } from '../../api/memory'
 import TraitCard from '../../components/memory/TraitCard.vue'
+import KnowledgeGraph from '../../components/memory/KnowledgeGraph.vue'
 
 const route = useRoute()
 const base = ref<MemoryBase | null>(null)
@@ -356,6 +363,7 @@ const selectedMemory = ref<MemoryItem | null>(null)
 const showDeleteConfirm = ref(false)
 const deletingMemoryId = ref<number | null>(null)
 const stats = ref<MemoryStats | null>(null)
+const graphData = ref<GraphData>({ nodes: [], edges: [] })
 const PAGE_SIZE = 20
 
 async function loadMemories() {
@@ -445,6 +453,14 @@ const earlyStageCount = computed(() =>
   (traitsByStage.value['candidate']?.length || 0) + (traitsByStage.value['trend']?.length || 0)
 )
 
+async function loadGraph() {
+  const memId = route.params.memId as string
+  try {
+    const resp = await getGraph(memId)
+    graphData.value = resp.data
+  } catch {}
+}
+
 async function loadTraits() {
   const memId = route.params.memId as string
   traitsLoading.value = true
@@ -471,5 +487,6 @@ onMounted(async () => {
   loadStats()
   loadMemories()
   loadTraits()
+  loadGraph()
 })
 </script>

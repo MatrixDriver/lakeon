@@ -87,3 +87,12 @@ export interface Trait {
 export function listTraits(memId: string) {
   return api.get<Trait[]>(`/memory/bases/${memId}/traits`)
 }
+
+export interface GraphData {
+  nodes: { node_type: string; node_id: string; properties: Record<string, any> }[]
+  edges: { source_type: string; source_id: string; target_type: string; target_id: string; edge_type: string }[]
+}
+
+export function getGraph(memId: string) {
+  return api.get<GraphData>(`/memory/bases/${memId}/graph`)
+}
