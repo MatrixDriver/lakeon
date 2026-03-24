@@ -126,8 +126,8 @@ function toggleLocale() {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: #0a0a0a;
-  border-bottom: 1px solid #1a1a1a;
+  background: #fff;
+  border-bottom: 1px solid #e5e5e5;
 }
 .pub-nav-inner {
   max-width: 1200px;
@@ -141,7 +141,7 @@ function toggleLocale() {
 .pub-brand {
   font-weight: 700;
   font-size: 17px;
-  color: #fff;
+  color: #1a1a1a;
   text-decoration: none;
   white-space: nowrap;
   margin-right: 8px;
@@ -149,7 +149,7 @@ function toggleLocale() {
 .pub-tagline {
   font-weight: 400;
   font-size: 12px;
-  color: #555;
+  color: #999;
   margin-left: 4px;
 }
 .pub-nav-links {
@@ -160,15 +160,15 @@ function toggleLocale() {
 }
 .pub-nav-link {
   font-size: 13px;
-  color: #999;
+  color: #555;
   padding: 6px 12px;
   border-radius: 6px;
   text-decoration: none;
   transition: color 0.15s, background 0.15s;
 }
 .pub-nav-link:hover {
-  color: #fff;
-  background: #1a1a1a;
+  color: #1a1a1a;
+  background: #f5f5f5;
 }
 .pub-nav-right {
   display: flex;
@@ -185,10 +185,10 @@ function toggleLocale() {
   padding: 4px 8px;
   border-radius: 4px;
 }
-.lang-btn:hover { color: #ccc; background: #1a1a1a; }
+.lang-btn:hover { color: #333; background: #f5f5f5; }
 .btn-signin {
-  background: #fff;
-  color: #000;
+  background: #1a1a1a;
+  color: #fff;
   font-size: 13px;
   font-weight: 500;
   padding: 6px 16px;
@@ -196,7 +196,7 @@ function toggleLocale() {
   text-decoration: none;
   transition: background 0.15s;
 }
-.btn-signin:hover { background: #e5e5e5; }
+.btn-signin:hover { background: #333; }
 .hamburger {
   display: none;
   flex-direction: column;
@@ -210,7 +210,7 @@ function toggleLocale() {
   display: block;
   width: 20px;
   height: 2px;
-  background: #ccc;
+  background: #555;
   border-radius: 1px;
 }
 .badge-new {
@@ -224,8 +224,8 @@ function toggleLocale() {
 }
 .badge-featured {
   font-size: 10px;
-  background: #7c3aed22;
-  color: #a78bfa;
+  background: #7c3aed15;
+  color: #7c3aed;
   padding: 1px 5px;
   border-radius: 3px;
   margin-left: 5px;
@@ -239,15 +239,15 @@ function toggleLocale() {
   text-decoration: none;
   transition: background 0.15s;
 }
-.nav-item:hover { background: #1a1a1a; }
+.nav-item:hover { background: #f5f5f5; }
 .nav-item-title {
   font-size: 13px;
   font-weight: 500;
-  color: #e5e5e5;
+  color: #1a1a1a;
 }
 .nav-item-desc {
   font-size: 11px;
-  color: #666;
+  color: #888;
   margin-top: 1px;
 }
 @media (max-width: 768px) {

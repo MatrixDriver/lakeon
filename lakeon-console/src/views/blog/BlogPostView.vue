@@ -44,27 +44,27 @@ const renderedContent = computed(() => {
 </script>
 
 <style scoped>
-.blog-post-page { min-height: 100vh; background: #0a0a0a; color: #e5e5e5; }
+.blog-post-page { min-height: 100vh; background: #f7f9fc; color: #1a1a1a; }
 .post-not-found { max-width: 400px; margin: 120px auto; text-align: center; }
-.post-not-found h1 { font-size: 64px; color: #333; }
+.post-not-found h1 { font-size: 64px; color: #ccc; }
 .post-not-found p { color: #888; margin: 8px 0 24px; }
 .post-not-found a { color: #7c3aed; text-decoration: none; }
 .post-article { max-width: 720px; margin: 0 auto; padding: 48px 24px 80px; }
-.post-header { margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #1a1a1a; }
+.post-header { margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e5e5e5; }
 .post-meta { display: flex; gap: 8px; margin-bottom: 12px; }
-.post-date { font-size: 12px; color: #555; }
-.post-category { font-size: 11px; color: #a78bfa; background: #7c3aed22; padding: 1px 6px; border-radius: 4px; }
+.post-date { font-size: 12px; color: #999; }
+.post-category { font-size: 11px; color: #7c3aed; background: #7c3aed15; padding: 1px 6px; border-radius: 4px; }
 .post-header h1 { font-size: 28px; font-weight: 700; margin: 0 0 12px; line-height: 1.3; }
-.post-summary { color: #888; font-size: 15px; line-height: 1.6; margin: 0; }
+.post-summary { color: #666; font-size: 15px; line-height: 1.6; margin: 0; }
 .post-content :deep(h2) { font-size: 20px; font-weight: 600; margin: 32px 0 12px; }
 .post-content :deep(h3) { font-size: 16px; font-weight: 600; margin: 24px 0 8px; }
-.post-content :deep(p) { font-size: 14px; color: #ccc; line-height: 1.8; margin: 0 0 16px; }
+.post-content :deep(p) { font-size: 14px; color: #444; line-height: 1.8; margin: 0 0 16px; }
 .post-content :deep(ul), .post-content :deep(ol) { padding-left: 20px; margin: 0 0 16px; }
-.post-content :deep(li) { font-size: 14px; color: #ccc; line-height: 1.8; }
-.post-content :deep(code) { font-family: monospace; background: #1a1a1a; padding: 1px 5px; border-radius: 3px; font-size: 13px; color: #60a5fa; }
-.post-content :deep(pre) { background: #111; border: 1px solid #222; border-radius: 8px; padding: 16px; overflow-x: auto; margin: 0 0 16px; }
-.post-content :deep(pre code) { background: none; padding: 0; color: #ccc; }
-.post-content :deep(blockquote) { border-left: 3px solid #7c3aed; padding-left: 16px; color: #888; margin: 0 0 16px; }
-.post-footer { margin-top: 48px; padding-top: 24px; border-top: 1px solid #1a1a1a; }
+.post-content :deep(li) { font-size: 14px; color: #444; line-height: 1.8; }
+.post-content :deep(code) { font-family: monospace; background: #f4f4f6; padding: 1px 5px; border-radius: 3px; font-size: 13px; color: #2563eb; }
+.post-content :deep(pre) { background: #f9f9fb; border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; overflow-x: auto; margin: 0 0 16px; }
+.post-content :deep(pre code) { background: none; padding: 0; color: #444; }
+.post-content :deep(blockquote) { border-left: 3px solid #7c3aed; padding-left: 16px; color: #666; margin: 0 0 16px; }
+.post-footer { margin-top: 48px; padding-top: 24px; border-top: 1px solid #e5e5e5; }
 .post-footer a { color: #7c3aed; text-decoration: none; font-size: 14px; }
 </style>

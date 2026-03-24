@@ -49,7 +49,7 @@ onUnmounted(() => {
   background: none;
   border: none;
   font-size: 13px;
-  color: #999;
+  color: #555;
   cursor: pointer;
   padding: 6px 12px;
   border-radius: 6px;
@@ -59,22 +59,22 @@ onUnmounted(() => {
   transition: color 0.15s, background 0.15s;
 }
 .nav-dropdown-trigger:hover {
-  color: #fff;
-  background: #1a1a1a;
+  color: #1a1a1a;
+  background: #f5f5f5;
 }
 .nav-dropdown-chevron {
   font-size: 10px;
-  color: #555;
+  color: #999;
 }
 .nav-dropdown-panel {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
   min-width: 260px;
-  background: #111;
-  border: 1px solid #222;
+  background: #fff;
+  border: 1px solid #e5e5e5;
   border-radius: 10px;
   padding: 6px;
-  box-shadow: 0 8px 32px #0008;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
 }
 </style>

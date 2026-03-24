@@ -30,13 +30,14 @@ const { t } = useLocale()
 .docs-shell {
   display: flex;
   min-height: 100vh;
-  background: #0a0a0a;
-  color: #e5e5e5;
+  background: #f7f9fc;
+  color: #1a1a1a;
 }
 .docs-sidebar {
   width: 220px;
   flex-shrink: 0;
-  border-right: 1px solid #1a1a1a;
+  border-right: 1px solid #e5e5e5;
+  background: #fff;
   padding: 48px 0 80px;
   position: sticky;
   top: 0;
@@ -48,7 +49,7 @@ const { t } = useLocale()
 .nav-label {
   font-size: 10px;
   font-weight: 600;
-  color: #555;
+  color: #999;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   display: block;
@@ -59,14 +60,14 @@ const { t } = useLocale()
   display: block;
   padding: 6px 8px;
   font-size: 13px;
-  color: #888;
+  color: #666;
   text-decoration: none;
   border-radius: 5px;
   transition: color 0.15s, background 0.15s;
   margin-bottom: 2px;
 }
-.nav-link:hover { color: #e5e5e5; background: #111; }
-.nav-link.active { color: #a78bfa; background: #7c3aed15; }
+.nav-link:hover { color: #1a1a1a; background: #f5f5f5; }
+.nav-link.active { color: #7c3aed; background: #f5f3ff; }
 .docs-content {
   flex: 1;
   min-width: 0;

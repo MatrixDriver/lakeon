@@ -97,37 +97,37 @@ const integrations = [
 </script>
 
 <style scoped>
-.integrations-page { min-height: 100vh; background: #0a0a0a; color: #e5e5e5; }
+.integrations-page { min-height: 100vh; background: #f7f9fc; color: #1a1a1a; }
 .integrations-inner { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
 h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
-.integ-subtitle { color: #888; font-size: 15px; margin-bottom: 32px; max-width: 600px; }
+.integ-subtitle { color: #666; font-size: 15px; margin-bottom: 32px; max-width: 600px; }
 .mcp-quickstart {
-  background: #0a0a14; border: 1px solid #2a2a3a;
+  background: #fff; border: 1px solid #e5e5e5;
   border-radius: 10px; padding: 20px; margin-bottom: 40px;
 }
 .mcp-quickstart h3 { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
 .code-block {
-  background: #0d0d0d; border: 1px solid #222; border-radius: 6px;
-  padding: 14px; font-size: 12px; color: #a78bfa;
+  background: #f4f4f6; border: 1px solid #e5e5e5; border-radius: 6px;
+  padding: 14px; font-size: 12px; color: #7c3aed;
   overflow-x: auto; margin: 0; font-family: monospace; white-space: pre;
 }
 .integ-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .integ-card {
-  background: #111; border: 1px solid #222; border-radius: 10px;
+  background: #fff; border: 1px solid #e5e5e5; border-radius: 10px;
   padding: 18px; text-decoration: none; display: flex;
   flex-direction: column; gap: 8px; transition: border-color 0.15s;
 }
 .integ-card:hover { border-color: #7c3aed; }
-.integ-card.featured { border-color: #7c3aed44; background: #1a1a2e; }
-.integ-card.coming { border-style: dashed; border-color: #2a2a2a; cursor: default; }
-.integ-card.coming:hover { border-color: #2a2a2a; }
+.integ-card.featured { border-color: #7c3aed33; background: #f5f3ff; }
+.integ-card.coming { border-style: dashed; border-color: #ddd; cursor: default; }
+.integ-card.coming:hover { border-color: #ddd; }
 .integ-card-hd { display: flex; align-items: center; gap: 8px; }
-.integ-name { font-size: 15px; font-weight: 600; color: #e5e5e5; }
+.integ-name { font-size: 15px; font-weight: 600; color: #1a1a1a; }
 .badge-featured {
-  font-size: 10px; background: #7c3aed22; color: #a78bfa;
+  font-size: 10px; background: #7c3aed15; color: #7c3aed;
   padding: 1px 6px; border-radius: 4px;
 }
-.integ-card p { font-size: 12px; color: #888; margin: 0; line-height: 1.5; flex: 1; }
+.integ-card p { font-size: 12px; color: #666; margin: 0; line-height: 1.5; flex: 1; }
 .integ-link { font-size: 12px; color: #7c3aed; margin-top: auto; }
 @media (max-width: 768px) {
   .integ-grid { grid-template-columns: 1fr; }

@@ -35,24 +35,24 @@ const sortedPosts = computed(() =>
 </script>
 
 <style scoped>
-.blog-list-page { min-height: 100vh; background: #0a0a0a; color: #e5e5e5; }
+.blog-list-page { min-height: 100vh; background: #f7f9fc; color: #1a1a1a; }
 .blog-list-inner { max-width: 720px; margin: 0 auto; padding: 48px 24px; }
 h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
-.blog-subtitle { color: #888; margin-bottom: 32px; }
+.blog-subtitle { color: #666; margin-bottom: 32px; }
 .post-list { display: flex; flex-direction: column; gap: 16px; }
 .post-card {
-  background: #111; border: 1px solid #222; border-radius: 10px;
+  background: #fff; border: 1px solid #e5e5e5; border-radius: 10px;
   padding: 20px; text-decoration: none; display: block;
   transition: border-color 0.15s;
 }
 .post-card:hover { border-color: #7c3aed; }
 .post-meta { display: flex; gap: 8px; margin-bottom: 8px; }
-.post-date { font-size: 12px; color: #555; }
+.post-date { font-size: 12px; color: #999; }
 .post-category {
-  font-size: 11px; color: #a78bfa;
-  background: #7c3aed22; padding: 1px 6px; border-radius: 4px;
+  font-size: 11px; color: #7c3aed;
+  background: #7c3aed15; padding: 1px 6px; border-radius: 4px;
 }
-.post-card h2 { font-size: 16px; font-weight: 600; color: #e5e5e5; margin: 0 0 8px; }
-.post-card p { font-size: 13px; color: #888; margin: 0 0 12px; line-height: 1.6; }
+.post-card h2 { font-size: 16px; font-weight: 600; color: #1a1a1a; margin: 0 0 8px; }
+.post-card p { font-size: 13px; color: #666; margin: 0 0 12px; line-height: 1.6; }
 .post-read-more { font-size: 12px; color: #7c3aed; }
 </style>

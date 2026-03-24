@@ -134,37 +134,37 @@ const envVars = computed(() => [
 
 <style scoped>
 .deploy-docs h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; }
-.subtitle { color: #888; font-size: 15px; margin-bottom: 40px; }
+.subtitle { color: #666; font-size: 15px; margin-bottom: 40px; }
 .section { margin-bottom: 40px; }
-.section h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #1a1a1a; }
-.section p { font-size: 14px; color: #888; line-height: 1.6; }
-.section code { background: #1a1a1a; padding: 1px 6px; border-radius: 3px; color: #a78bfa; font-family: monospace; font-size: 13px; }
+.section h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #e5e5e5; }
+.section p { font-size: 14px; color: #666; line-height: 1.6; }
+.section code { background: #f4f4f6; padding: 1px 6px; border-radius: 3px; color: #7c3aed; font-family: monospace; font-size: 13px; }
 .mode-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 0; }
-.mode-card { background: #111; border: 1px solid #1a1a1a; border-radius: 8px; padding: 16px; }
-.mode-card.recommended { border-color: #7c3aed44; background: #1a1a2e; }
+.mode-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; }
+.mode-card.recommended { border-color: #7c3aed33; background: #f5f3ff; }
 .mode-hd { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.mode-name { font-size: 14px; font-weight: 600; color: #e5e5e5; }
-.badge { font-size: 10px; background: #7c3aed22; color: #a78bfa; padding: 1px 6px; border-radius: 4px; }
-.mode-card p { font-size: 13px; color: #888; margin-bottom: 10px; }
+.mode-name { font-size: 14px; font-weight: 600; color: #1a1a1a; }
+.badge { font-size: 10px; background: #7c3aed15; color: #7c3aed; padding: 1px 6px; border-radius: 4px; }
+.mode-card p { font-size: 13px; color: #666; margin-bottom: 10px; }
 .mode-card ul { padding-left: 16px; margin: 0; }
-.mode-card li { font-size: 12px; color: #666; line-height: 1.8; }
+.mode-card li { font-size: 12px; color: #888; line-height: 1.8; }
 .guide-steps { padding-left: 20px; display: flex; flex-direction: column; gap: 16px; }
-.guide-steps li { font-size: 14px; color: #ccc; }
+.guide-steps li { font-size: 14px; color: #444; }
 .guide-steps strong { display: block; margin-bottom: 4px; }
 .guide-steps p { margin: 4px 0 8px; }
 .code-block {
-  background: #0d0d0d; border: 1px solid #1a1a1a; border-radius: 6px;
-  padding: 12px 14px; font-size: 12px; color: #a78bfa;
+  background: #f4f4f6; border: 1px solid #e5e5e5; border-radius: 6px;
+  padding: 12px 14px; font-size: 12px; color: #7c3aed;
   overflow-x: auto; margin-bottom: 12px; font-family: monospace; white-space: pre;
 }
-.param-table { border: 1px solid #1a1a1a; border-radius: 6px; overflow: hidden; font-size: 13px; }
-.param-row { display: grid; grid-template-columns: 200px 60px 1fr; gap: 1px; background: #1a1a1a; }
-.param-row.header { background: #111; }
-.param-row > * { background: #0d0d0d; padding: 8px 10px; }
-.param-row.header > * { background: #111; color: #555; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-.param-row code { font-family: monospace; color: #a78bfa; background: transparent; padding: 8px 10px; }
-.req-yes { color: #fb923c; font-size: 11px; font-weight: 600; }
-.req-no { color: #444; font-size: 11px; }
+.param-table { border: 1px solid #e5e5e5; border-radius: 6px; overflow: hidden; font-size: 13px; }
+.param-row { display: grid; grid-template-columns: 200px 60px 1fr; gap: 1px; background: #e5e5e5; }
+.param-row.header { background: #f5f5f5; }
+.param-row > * { background: #fff; padding: 8px 10px; }
+.param-row.header > * { background: #f9f9f9; color: #999; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.param-row code { font-family: monospace; color: #7c3aed; background: transparent; padding: 8px 10px; }
+.req-yes { color: #ea580c; font-size: 11px; font-weight: 600; }
+.req-no { color: #bbb; font-size: 11px; }
 @media (max-width: 768px) {
   .mode-grid { grid-template-columns: 1fr; }
 }

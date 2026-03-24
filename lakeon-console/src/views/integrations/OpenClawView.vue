@@ -92,32 +92,32 @@ const memoryLoop = computed(() => [
 </script>
 
 <style scoped>
-.openclaw-page { min-height: 100vh; background: #0a0a0a; color: #e5e5e5; }
+.openclaw-page { min-height: 100vh; background: #f7f9fc; color: #1a1a1a; }
 .openclaw-inner { max-width: 760px; margin: 0 auto; padding: 48px 24px 80px; }
 .back-link { font-size: 13px; color: #7c3aed; text-decoration: none; display: inline-block; margin-bottom: 32px; }
 .openclaw-hd { margin-bottom: 48px; }
 .openclaw-hd h1 { font-size: 28px; font-weight: 700; margin-bottom: 10px; }
-.openclaw-hd p { color: #888; font-size: 15px; line-height: 1.6; }
+.openclaw-hd p { color: #666; font-size: 15px; line-height: 1.6; }
 .oc-section { margin-bottom: 48px; }
-.oc-section h2 { font-size: 20px; font-weight: 600; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 1px solid #1a1a1a; }
-.oc-section h3 { font-size: 15px; font-weight: 600; color: #ccc; margin: 16px 0 8px; }
+.oc-section h2 { font-size: 20px; font-weight: 600; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 1px solid #e5e5e5; }
+.oc-section h3 { font-size: 15px; font-weight: 600; color: #444; margin: 16px 0 8px; }
 .oc-steps { padding-left: 20px; display: flex; flex-direction: column; gap: 10px; }
-.oc-steps li { font-size: 14px; color: #ccc; line-height: 1.6; }
-.oc-steps code { font-family: monospace; background: #1a1a1a; padding: 1px 6px; border-radius: 3px; color: #60a5fa; font-size: 13px; }
+.oc-steps li { font-size: 14px; color: #444; line-height: 1.6; }
+.oc-steps code { font-family: monospace; background: #f4f4f6; padding: 1px 6px; border-radius: 3px; color: #2563eb; font-size: 13px; }
 .oc-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.oc-feature { background: #111; border: 1px solid #222; border-radius: 8px; padding: 16px; }
-.oc-feature h3 { font-size: 14px; font-weight: 600; margin: 0 0 8px; color: #a78bfa; }
-.oc-feature p { font-size: 13px; color: #888; margin: 0; line-height: 1.6; }
+.oc-feature { background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; }
+.oc-feature h3 { font-size: 14px; font-weight: 600; margin: 0 0 8px; color: #7c3aed; }
+.oc-feature p { font-size: 13px; color: #666; margin: 0; line-height: 1.6; }
 .code-block {
-  background: #0d0d0d; border: 1px solid #222; border-radius: 6px;
-  padding: 14px; font-size: 12px; color: #a78bfa;
+  background: #f4f4f6; border: 1px solid #e5e5e5; border-radius: 6px;
+  padding: 14px; font-size: 12px; color: #7c3aed;
   overflow-x: auto; margin: 8px 0 16px; font-family: monospace; white-space: pre;
 }
 .oc-loop { display: flex; flex-direction: column; gap: 12px; }
-.loop-step { display: flex; gap: 16px; align-items: flex-start; padding: 14px; background: #111; border: 1px solid #222; border-radius: 8px; }
+.loop-step { display: flex; gap: 16px; align-items: flex-start; padding: 14px; background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; }
 .loop-num { width: 24px; height: 24px; border-radius: 50%; background: #7c3aed; color: #fff; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .loop-step strong { font-size: 14px; font-weight: 600; display: block; margin-bottom: 4px; }
-.loop-step p { font-size: 13px; color: #888; margin: 0; }
+.loop-step p { font-size: 13px; color: #666; margin: 0; }
 @media (max-width: 768px) {
   .oc-features { grid-template-columns: 1fr; }
 }
