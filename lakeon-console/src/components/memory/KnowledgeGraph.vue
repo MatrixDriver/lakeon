@@ -116,7 +116,7 @@ function initSimulation() {
       source: nodeMap.get(edgeSourceKey(e)),
       target: nodeMap.get(edgeTargetKey(e)),
     }))
-    .filter(l => l.source && l.target)
+    .filter((l): l is { source: (typeof simNodes)[0]; target: (typeof simNodes)[0] } => !!l.source && !!l.target)
 
   simulation = d3.forceSimulation(simNodes)
     .force('link', d3.forceLink(simLinks).distance(80))

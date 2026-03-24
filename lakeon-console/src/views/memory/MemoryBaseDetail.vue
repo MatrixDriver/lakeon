@@ -443,8 +443,9 @@ const traitsByStage = computed(() => {
   const grouped: Record<string, Trait[]> = {}
   for (const s of stages) grouped[s] = []
   for (const t of traits.value) {
-    if (grouped[t.trait_stage]) grouped[t.trait_stage].push(t)
-    else grouped[t.trait_stage] = [t]
+    const stage = t.trait_stage
+    if (grouped[stage]) grouped[stage]!.push(t)
+    else grouped[stage] = [t]
   }
   return grouped
 })
