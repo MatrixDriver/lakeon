@@ -259,7 +259,7 @@ import { useLocale } from '../../stores/locale'
 import { useAuthStore } from '../../stores/auth'
 import client from '../../api/client'
 
-const { locale, setLocale, t } = useLocale()
+const { locale, t } = useLocale()
 const router = useRouter()
 const authStore = useAuthStore()
 
@@ -294,14 +294,6 @@ async function startTrial() {
   } finally {
     trialLoading.value = false
   }
-}
-
-function toggleLocale() {
-  setLocale(locale.value === 'zh' ? 'en' : 'zh')
-}
-
-function scrollTo(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
 }
 
 const features = computed(() => [
@@ -471,45 +463,6 @@ const useCases = computed(() => [
 }
 
 
-.api-key-result {
-  margin-top: 24px;
-}
-
-.api-key-box {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  background: #f5f5f5;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 10px 16px;
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-.api-key-label {
-  font-weight: 600;
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-.api-key-value {
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 13px;
-  word-break: break-all;
-}
-
-.btn-copy {
-  background: #0073e6;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  padding: 4px 12px;
-  font-size: 12px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
 /* Product Modules */
 .module-grid {
   display: grid;
@@ -609,27 +562,6 @@ const useCases = computed(() => [
 .module-memory .module-features li { color: #c4b5fd; border-bottom-color: #2d2d4e; }
 .module-memory h3 { color: #e9d5ff; }
 .module-memory .module-subtitle { color: #a78bfa; }
-
-.module-coming {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: #f7f9fc;
-  border: 1px dashed #ccc;
-  border-radius: 8px;
-  padding: 16px 24px;
-  font-size: 14px;
-  color: #666;
-}
-
-.module-coming-icon {
-  font-size: 28px;
-  flex-shrink: 0;
-}
-
-.module-coming-desc {
-  color: #888;
-}
 
 /* Cards */
 .card-grid {
@@ -753,19 +685,6 @@ const useCases = computed(() => [
   text-align: center;
 }
 
-.pricing-headline {
-  font-size: 22px;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin-bottom: 8px;
-}
-
-.pricing-sub {
-  font-size: 15px;
-  color: #888;
-  margin-bottom: 28px;
-}
-
 /* Footer */
 .footer {
   background: #1a1a1a;
@@ -798,10 +717,6 @@ const useCases = computed(() => [
   color: #fff;
 }
 
-.footer-sep {
-  color: #555;
-}
-
 /* Responsive */
 @media (max-width: 768px) {
   .hero-title {
@@ -810,10 +725,6 @@ const useCases = computed(() => [
 
   .hero-subtitle {
     font-size: 15px;
-  }
-
-  .register-form {
-    flex-direction: column;
   }
 
   .card-grid,

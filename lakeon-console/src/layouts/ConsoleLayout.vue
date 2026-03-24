@@ -21,7 +21,7 @@
             <rect x="11" y="11" width="4" height="4" rx="0.5" />
           </svg>
         </div>
-        <router-link to="/" class="logo-brand" style="text-decoration:none;color:#0073e6;">DBay</router-link>
+        <router-link to="/" class="logo-brand">DBay</router-link>
         <span class="header-divider"></span>
         <span class="header-console-text">控制台</span>
         <span class="header-region">
@@ -264,7 +264,8 @@ function handleLogout() {
 }
 
 .logo-brand {
-  color: #e6393d;
+  color: #0073e6;
+  text-decoration: none;
   font-size: 18px;
   font-weight: 700;
   letter-spacing: 0.5px;
