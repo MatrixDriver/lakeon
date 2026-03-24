@@ -3,6 +3,7 @@ package com.lakeon.memory;
 import com.lakeon.model.entity.TenantEntity;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.*;
 
 @RestController
@@ -46,6 +47,69 @@ public class MemoryController {
         TenantEntity tenant = getTenant(req);
         memoryService.deleteBase(tenant.getId(), id);
         return Map.of("status", "deleted");
+    }
+
+    // ── Proxy endpoints to Python memory microservice ──────────
+
+    @PostMapping("/bases/{id}/ingest")
+    public Object ingest(HttpServletRequest req, @PathVariable String id, @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        return memoryService.proxyPost(tenant.getId(), id, "/ingest", body);
+    }
+
+    @PostMapping("/bases/{id}/recall")
+    public Object recall(HttpServletRequest req, @PathVariable String id, @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        return memoryService.proxyPost(tenant.getId(), id, "/recall", body);
+    }
+
+    @PostMapping("/bases/{id}/digest")
+    public Object digest(HttpServletRequest req, @PathVariable String id) {
+        TenantEntity tenant = getTenant(req);
+        return memoryService.proxyPost(tenant.getId(), id, "/digest", null);
+    }
+
+    @GetMapping("/bases/{id}/memories")
+    public Object listMemories(HttpServletRequest req, @PathVariable String id,
+            @RequestParam(required = false) String memory_type,
+            @RequestParam(defaultValue = "0") String offset,
+            @RequestParam(defaultValue = "20") String limit) {
+        TenantEntity tenant = getTenant(req);
+        Map<String, String> params = new HashMap<>();
+        if (memory_type != null) params.put("memory_type", memory_type);
+        params.put("offset", offset);
+        params.put("limit", limit);
+        return memoryService.proxyGet(tenant.getId(), id, "/memories", params);
+    }
+
+    @GetMapping("/bases/{id}/memories/{memoryId}")
+    public Object getMemory(HttpServletRequest req, @PathVariable String id, @PathVariable int memoryId) {
+        TenantEntity tenant = getTenant(req);
+        return memoryService.proxyGet(tenant.getId(), id, "/memories/" + memoryId, null);
+    }
+
+    @DeleteMapping("/bases/{id}/memories/{memoryId}")
+    public Object deleteMemory(HttpServletRequest req, @PathVariable String id, @PathVariable int memoryId) {
+        TenantEntity tenant = getTenant(req);
+        return memoryService.proxyDelete(tenant.getId(), id, "/memories/" + memoryId);
+    }
+
+    @GetMapping("/bases/{id}/stats")
+    public Object stats(HttpServletRequest req, @PathVariable String id) {
+        TenantEntity tenant = getTenant(req);
+        return memoryService.proxyGet(tenant.getId(), id, "/stats", null);
+    }
+
+    @GetMapping("/bases/{id}/traits")
+    public Object traits(HttpServletRequest req, @PathVariable String id) {
+        TenantEntity tenant = getTenant(req);
+        return memoryService.proxyGet(tenant.getId(), id, "/traits", null);
+    }
+
+    @GetMapping("/bases/{id}/graph")
+    public Object graph(HttpServletRequest req, @PathVariable String id) {
+        TenantEntity tenant = getTenant(req);
+        return memoryService.proxyGet(tenant.getId(), id, "/graph", null);
     }
 
     private TenantEntity getTenant(HttpServletRequest req) {

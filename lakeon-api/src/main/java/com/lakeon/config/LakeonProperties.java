@@ -26,8 +26,8 @@ public class LakeonProperties {
     private SyncConfig sync = new SyncConfig();
     private JobConfig job = new JobConfig();
     private KnowledgeConfig knowledge = new KnowledgeConfig();
-    private KbWriteConfig kbWrite = new KbWriteConfig();
     private DatalakeConfig datalake = new DatalakeConfig();
+    private MemoryConfig memory = new MemoryConfig();
 
     public NeonConfig getNeon() { return neon; }
     public void setNeon(NeonConfig neon) { this.neon = neon; }
@@ -61,10 +61,10 @@ public class LakeonProperties {
     public void setJob(JobConfig job) { this.job = job; }
     public KnowledgeConfig getKnowledge() { return knowledge; }
     public void setKnowledge(KnowledgeConfig knowledge) { this.knowledge = knowledge; }
-    public KbWriteConfig getKbWrite() { return kbWrite; }
-    public void setKbWrite(KbWriteConfig kbWrite) { this.kbWrite = kbWrite; }
     public DatalakeConfig getDatalake() { return datalake; }
     public void setDatalake(DatalakeConfig datalake) { this.datalake = datalake; }
+    public MemoryConfig getMemory() { return memory; }
+    public void setMemory(MemoryConfig memory) { this.memory = memory; }
 
     public static class NeonConfig {
         private String pageserverUrl;
@@ -356,17 +356,12 @@ public class LakeonProperties {
         public void setUrl(String url) { this.url = url; }
     }
 
-    public static class KbWriteConfig {
-        private int idleTimeoutMinutes = 5;
-        private String cpu = "250m";
-        private String memory = "512Mi";
 
-        public int getIdleTimeoutMinutes() { return idleTimeoutMinutes; }
-        public void setIdleTimeoutMinutes(int idleTimeoutMinutes) { this.idleTimeoutMinutes = idleTimeoutMinutes; }
-        public String getCpu() { return cpu; }
-        public void setCpu(String cpu) { this.cpu = cpu; }
-        public String getMemory() { return memory; }
-        public void setMemory(String memory) { this.memory = memory; }
+    public static class MemoryConfig {
+        private String serviceUrl = "http://memory-svc:8001";
+
+        public String getServiceUrl() { return serviceUrl; }
+        public void setServiceUrl(String serviceUrl) { this.serviceUrl = serviceUrl; }
     }
 
     public static class DatalakeConfig {

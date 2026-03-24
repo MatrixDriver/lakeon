@@ -114,6 +114,8 @@ lakeon:
     idle-timeout-minutes: ${LAKEON_KB_WRITE_IDLE_TIMEOUT_MINUTES:5}
     cpu: ${LAKEON_KB_WRITE_CPU:250m}
     memory: ${LAKEON_KB_WRITE_MEMORY:512Mi}
+  memory:
+    service-url: ${LAKEON_MEMORY_SERVICE_URL:http://memory-svc:8001}
   datalake:
     cci-namespace-prefix: "${LAKEON_DATALAKE_CCI_NS_PREFIX:datalake-}"
     vk-node-selector-key: "${LAKEON_DATALAKE_VK_NODE_SELECTOR_KEY:type}"
