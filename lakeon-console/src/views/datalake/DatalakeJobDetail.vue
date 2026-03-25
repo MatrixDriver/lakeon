@@ -28,9 +28,14 @@
           >取消作业</button>
           <button
             v-if="canResubmit"
-            class="btn btn-primary"
+            class="btn btn-default"
             @click="handleResubmit"
           >重跑作业</button>
+          <button
+            v-if="canResubmit"
+            class="btn btn-primary"
+            @click="handleEditAndRerun"
+          >编辑并重跑</button>
         </div>
       </div>
 
@@ -200,6 +205,22 @@ async function handleResubmit() {
     router.push(`/datalake/jobs/${data.id}`)
   } catch (e: any) {
     alert('重跑失败: ' + (e.response?.data?.error?.message || e.message))
+  }
+}
+
+function handleEditAndRerun() {
+  if (!job.value) return
+  try {
+    const spec = JSON.parse(job.value.spec || '{}')
+    // Navigate to creation page with spec pre-filled via query params
+    router.push({
+      path: '/datalake/jobs/new',
+      query: { from: job.value.id }
+    })
+    // Store spec in sessionStorage for the creation page to pick up
+    sessionStorage.setItem('datalake_job_prefill', JSON.stringify(spec))
+  } catch {
+    router.push('/datalake/jobs/new')
   }
 }
 

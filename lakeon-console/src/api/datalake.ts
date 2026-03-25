@@ -18,6 +18,7 @@ export interface DatalakeJob {
   coreHours: number | null
   gpuHours: number | null
   errorMessage: string | null
+  spec: string | null
   startedAt: string | null
   finishedAt: string | null
   createdAt: string

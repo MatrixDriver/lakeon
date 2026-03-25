@@ -107,7 +107,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { submitDatalakeJob, type DatalakeJobType } from '../../api/datalake'
 import DatalakeJobNewBasic from './components/DatalakeJobNewBasic.vue'
@@ -135,6 +135,31 @@ const form = ref({
 
 const currentSection = ref('basic')
 const submitting = ref(false)
+
+// Pre-fill from failed job (via "编辑并重跑")
+onMounted(() => {
+  const raw = sessionStorage.getItem('datalake_job_prefill')
+  if (raw) {
+    sessionStorage.removeItem('datalake_job_prefill')
+    try {
+      const spec = JSON.parse(raw)
+      form.value.name = spec.name || ''
+      form.value.type = spec.type || 'PYTHON'
+      form.value.inlineScript = spec.inline_script || ''
+      form.value.requirements = spec.requirements || ''
+      form.value.inputDatasetIds = spec.input_dataset_ids || []
+      form.value.outputPath = spec.output_path || ''
+      if (spec.resources) {
+        form.value.cpu = spec.resources.cpu || '1'
+        form.value.memory = spec.resources.memory || '2Gi'
+      }
+      form.value.timeoutSeconds = spec.timeout_seconds ?? 3600
+      form.value.retryCount = spec.retry_count ?? 0
+      // Jump to code section since that's likely what needs editing
+      if (spec.inline_script) currentSection.value = 'code'
+    } catch { /* ignore parse errors */ }
+  }
+})
 
 type Section = { key: string; num: string; label: string; required?: boolean; types?: DatalakeJobType[] }
 
