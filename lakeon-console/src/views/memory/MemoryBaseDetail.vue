@@ -39,6 +39,11 @@
             <span style="color: #999;">记忆数</span><span>{{ stats?.total ?? 0 }}</span>
             <span style="color: #999;">特征数</span><span>{{ stats?.trait_count ?? 0 }}</span>
             <span style="color: #999;">创建时间</span><span>{{ base.created_at ? new Date(base.created_at).toLocaleString('zh-CN') : '-' }}</span>
+            <span style="color: #999;">底层数据库</span>
+            <span v-if="base.database_id">
+              <router-link :to="'/database/' + base.database_id" style="color: #2563eb; text-decoration: none;">{{ base.database_id }}</router-link>
+            </span>
+            <span v-else>-</span>
           </div>
         </div>
 

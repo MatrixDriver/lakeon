@@ -40,6 +40,11 @@
           <span style="color: #999;">状态</span>
           <span><span class="status-tag" :class="'tag-' + (kb?.status === 'READY' ? 'green' : 'blue')">{{ kb?.status === 'READY' ? '就绪' : kb?.status }}</span></span>
           <span style="color: #999;">创建时间</span><span>{{ kb?.created_at ? new Date(kb.created_at).toLocaleString('zh-CN') : '-' }}</span>
+          <span style="color: #999;">底层数据库</span>
+          <span v-if="kb?.database_id">
+            <router-link :to="'/database/' + kb.database_id" style="color: #2563eb; text-decoration: none;">{{ kb.database_id }}</router-link>
+          </span>
+          <span v-else>-</span>
         </div>
       </div>
     </div>
