@@ -10,6 +10,8 @@
 
 The memory module sidebar has only one menu item ("记忆库" — the base list). Users cannot browse individual memories, view digest-generated traits, or see usage statistics from the console. All memory operations require CLI or API calls.
 
+**Existing overlap:** `MemoryBaseDetail.vue` (`/memory/:memId`) has tabs for "记忆", "特征", "图谱". The new pages replace these inline tabs with standalone sidebar navigation. After this change, `MemoryBaseDetail.vue` should **remove** the "记忆", "特征", "图谱" tabs and keep only "概览" and "接入" tabs. The standalone pages provide a richer experience (lifecycle visualization, search, type distribution) that doesn't fit in a tab.
+
 ---
 
 ## Goals
@@ -46,9 +48,9 @@ Current memory menu (line 137-141):
 </template>
 ```
 
-The last 3 items require a selected memory base. The pages read `memoryBaseId` from a shared store or URL query param. If no base is selected, show a prompt to select one.
+The last 3 items require a selected memory base. The pages read `memoryBaseId` from route query param `?base=mem_xxx`. If no base is selected, show a prompt to select one.
 
-**Memory base selector:** A dropdown at the top of each sub-page (browse/traits/stats) that lists the user's memory bases. Selection persists in route query `?base=mem_xxx` or a Pinia store.
+**Memory base selector:** A dropdown at the top of each sub-page (browse/traits/stats) that lists the user's memory bases. Selection persists in route query `?base=mem_xxx` (bookmarkable, no new Pinia store needed).
 
 ---
 
@@ -86,24 +88,30 @@ The last 3 items require a selected memory base. The pages read `memoryBaseId` f
 
 ### 2.2 Type Filter Buttons
 
-Reuse `typeColors` from `MemoryBaseDetail.vue`:
+Extract `typeColors` into a shared constants file `src/constants/memory.ts` (currently inline in `MemoryBaseDetail.vue`). Use the existing hex values from `MemoryBaseDetail.vue` to avoid visual changes:
 
-```javascript
-const typeColors = {
-  fact:       { bg: '#e8f4fd', text: '#1976d2', border: '#90caf9' },
-  episode:    { bg: '#f3e5f5', text: '#7b1fa2', border: '#ce93d8' },
-  procedural: { bg: '#fff3e0', text: '#e65100', border: '#ffcc80' },
-  decision:   { bg: '#e8f5e9', text: '#2e7d32', border: '#a5d6a7' },
-  rejection:  { bg: '#ffebee', text: '#c62828', border: '#ef9a9a' },
-  convention: { bg: '#ede7f6', text: '#4527a0', border: '#b39ddb' },
-}
+```typescript
+// src/constants/memory.ts
+export const MEMORY_TYPE_COLORS: Record<string, { bg: string; text: string }> = {
+  fact:       { bg: '#e6f7ff', text: '#1890ff' },
+  episode:    { bg: '#f9f0ff', text: '#722ed1' },
+  procedural: { bg: '#fff7e6', text: '#d48806' },
+  decision:   { bg: '#f6ffed', text: '#389e0d' },
+  rejection:  { bg: '#fff1f0', text: '#cf1322' },
+  convention: { bg: '#f0f5ff', text: '#2f54eb' },
+};
+
+export const MEMORY_TYPES = ['fact', 'episode', 'procedural', 'decision', 'rejection', 'convention'] as const;
 ```
+
+Both `MemoryBaseDetail.vue` and the new pages import from this file.
 
 ### 2.3 Search Mode vs List Mode
 
 - **Empty search box:** calls `GET /api/v1/memory/bases/{id}/memories?memory_type=X&offset=0&limit=20` (list mode)
-- **With search text:** calls `POST /api/v1/memory/bases/{id}/recall` with `{query, top_k: 20, memory_types: [X]}` (semantic search mode)
+- **With search text:** calls `POST /api/v1/memory/bases/{id}/recall` with `{query, top_k: 20, memory_types: [X]}` (semantic search mode). Note: `api/memory.ts` `recallMemories()` needs updating to pass `memory_types` param (currently only sends `query` and `top_k`).
 - Search results show relevance score badge instead of importance
+- **Pagination in search mode:** recall returns `top_k` results with no offset — pagination controls are hidden in search mode (same as existing `MemoryBaseDetail.vue` behavior)
 
 ### 2.4 Memory Card
 
@@ -214,10 +222,10 @@ The existing `/traits` endpoint returns traits ordered by stage + confidence. No
 │ [记忆库选择器 ▼]                                  │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
-│  │    42    │  │     5    │  │  3 小时前  │      │
-│  │ 总记忆数  │  │ Trait 数  │  │ 最后活跃   │      │
-│  └──────────┘  └──────────┘  └──────────┘      │
+│  ┌──────────────┐  ┌──────────────┐             │
+│  │      42      │  │       5      │             │
+│  │   总记忆数    │  │   Trait 数    │             │
+│  └──────────────┘  └──────────────┘             │
 │                                                 │
 │  类型分布                                        │
 │  ┌─────────────────────────────────────────┐    │
@@ -234,8 +242,8 @@ The existing `/traits` endpoint returns traits ordered by stage + confidence. No
 
 ### 4.2 Components
 
-- **Summary cards** (3 个): total memories, trait count, last activity time
-- **Type distribution bar chart**: horizontal bars, colored by type, sorted by count descending
+- **Summary cards** (2 个): total memories, trait count. (Remove "最后活跃" — the stats API doesn't return a last_activity timestamp, and adding one is out of scope.)
+- **Type distribution bar chart**: horizontal bars, colored by type (from shared `MEMORY_TYPE_COLORS`), sorted by count descending
 
 ### 4.3 API Calls
 
@@ -251,12 +259,15 @@ Response: `{total, by_type: {fact: 18, decision: 12, ...}, trait_count: 5}`
 
 **File:** `lakeon-console/src/router/index.ts`
 
-Add 3 new routes under memory:
+Add 3 new routes **before** the existing `/memory/:memId` dynamic route (Vue Router matches first match):
 
 ```javascript
+// These MUST come before { path: 'memory/:memId' } to avoid "browse" matching as memId
 { path: '/memory/browse', component: () => import('@/views/memory/MemoryBrowse.vue') },
 { path: '/memory/traits', component: () => import('@/views/memory/MemoryTraits.vue') },
 { path: '/memory/stats',  component: () => import('@/views/memory/MemoryStats.vue') },
+// Existing:
+{ path: '/memory/:memId', component: () => import('@/views/memory/MemoryBaseDetail.vue') },
 ```
 
 ---
@@ -284,13 +295,17 @@ Shared dropdown component used by all 3 new pages:
 
 | File | Action |
 |------|--------|
-| `views/memory/MemoryBrowse.vue` | Create |
-| `views/memory/MemoryTraits.vue` | Create |
-| `views/memory/MemoryStats.vue` | Create |
-| `components/MemoryBaseSelector.vue` | Create |
-| `layouts/ConsoleLayout.vue` | Modify (sidebar menu) |
-| `router/index.ts` | Modify (add routes) |
-| `api/memory.ts` | Modify (add recall, delete, traits, stats API methods if missing) |
+| `constants/memory.ts` | Create (shared type colors + type list) |
+| `components/MemoryBaseSelector.vue` | Create (shared base dropdown) |
+| `views/memory/MemoryBrowse.vue` | Create (browse/search page) |
+| `views/memory/MemoryTraits.vue` | Create (traits page with lifecycle) |
+| `views/memory/MemoryStats.vue` | Create (stats page with bar chart) |
+| `layouts/ConsoleLayout.vue` | Modify (add 3 sidebar menu items) |
+| `router/index.ts` | Modify (add 3 routes BEFORE `:memId`) |
+| `api/memory.ts` | Modify (add `memory_types` param to `recallMemories`) |
+| `views/memory/MemoryBaseDetail.vue` | Modify (remove 记忆/特征/图谱 tabs, keep 概览+接入; import shared `MEMORY_TYPE_COLORS`) |
+
+**UI patterns:** follow existing codebase — `window.confirm()` for delete confirmation, `console.error` for load failures, loading ref + "加载中..." text for loading states.
 
 ---
 
