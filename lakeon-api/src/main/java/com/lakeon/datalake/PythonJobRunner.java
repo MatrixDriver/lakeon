@@ -195,15 +195,16 @@ public class PythonJobRunner {
 
     /** Creates a ConfigMap containing the inline script as main.py */
     private void createScriptConfigMap(String ns, String jobId, String script) {
+        String safeId = jobId.replace("_", "-");
         ConfigMap cm = new ConfigMapBuilder()
                 .withNewMetadata()
-                    .withName("dl-script-" + jobId)
+                    .withName("dl-script-" + safeId)
                     .withNamespace(ns)
                 .endMetadata()
                 .addToData("main.py", script)
                 .build();
         k8sClient.configMaps().inNamespace(ns).resource(cm).create();
-        log.info("Created script ConfigMap: {}/dl-script-{}", ns, jobId);
+        log.info("Created script ConfigMap: {}/dl-script-{}", ns, safeId);
     }
 
     public void cancel(DatalakeJobEntity job) {
