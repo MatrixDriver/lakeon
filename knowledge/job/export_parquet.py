@@ -30,19 +30,6 @@ def main():
 
         conn = duckdb.connect()
         conn.execute("INSTALL postgres; LOAD postgres;")
-        conn.execute("INSTALL httpfs; LOAD httpfs;")
-
-        # Configure S3 (OBS is S3-compatible)
-        s3_host = obs_endpoint.replace("https://", "").replace("http://", "")
-        obs_region = os.environ.get("OBS_REGION", "cn-north-4")
-        conn.execute(f"""
-            SET s3_endpoint = '{s3_host}';
-            SET s3_access_key_id = '{obs_ak}';
-            SET s3_secret_access_key = '{obs_sk}';
-            SET s3_region = '{obs_region}';
-            SET s3_url_style = 'vhost';
-            SET s3_use_ssl = true;
-        """)
 
         report_progress("Attaching PostgreSQL database", 0.2)
 
@@ -81,25 +68,31 @@ def main():
 
         report_progress(f"Exporting {row_count} rows to Parquet", 0.4)
 
-        # Export to Parquet on OBS
-        full_obs_path = f"s3://{obs_bucket}/{obs_path}"
+        # Export to local Parquet file first, then upload via boto3
+        # (DuckDB httpfs has compatibility issues with Huawei OBS S3)
+        local_path = "/tmp/export.parquet"
         conn.execute(f"""
             COPY (
                 SELECT * FROM postgres_query('src', '{safe_sql}')
             )
-            TO '{full_obs_path}'
+            TO '{local_path}'
             (FORMAT PARQUET, ROW_GROUP_SIZE 100000, COMPRESSION ZSTD)
         """)
 
-        report_progress("Getting file size", 0.9)
+        report_progress("Uploading to OBS", 0.8)
 
-        # Get file size from OBS
+        # Upload via boto3 (proven compatible with OBS)
         s3 = boto3.client("s3",
             endpoint_url=obs_endpoint,
             aws_access_key_id=obs_ak,
-            aws_secret_access_key=obs_sk)
-        head = s3.head_object(Bucket=obs_bucket, Key=obs_path)
-        file_size = head["ContentLength"]
+            aws_secret_access_key=obs_sk,
+            region_name=os.environ.get("OBS_REGION", "cn-north-4"))
+        s3.upload_file(local_path, obs_bucket, obs_path)
+
+        report_progress("Getting file size", 0.9)
+
+        file_size = os.path.getsize(local_path)
+        os.remove(local_path)
 
         logger.info(f"Export complete: {row_count} rows, {file_size} bytes -> {obs_path}")
 
