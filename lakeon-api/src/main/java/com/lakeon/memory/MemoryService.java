@@ -4,6 +4,7 @@ import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.dto.CreateDatabaseRequest;
 import com.lakeon.model.dto.DatabaseResponse;
 import com.lakeon.model.entity.TenantEntity;
+import com.lakeon.repository.TenantRepository;
 import com.lakeon.service.DatabaseService;
 import com.lakeon.service.exception.NotFoundException;
 import org.springframework.http.*;
@@ -22,15 +23,18 @@ public class MemoryService {
     private final LakeonProperties props;
     private final RestTemplate restTemplate;
     private final DatabaseService databaseService;
+    private final TenantRepository tenantRepository;
 
     public MemoryService(MemoryBaseRepository repository,
                          MemoryDbHelper dbHelper,
                          LakeonProperties props,
-                         @org.springframework.context.annotation.Lazy DatabaseService databaseService) {
+                         @org.springframework.context.annotation.Lazy DatabaseService databaseService,
+                         TenantRepository tenantRepository) {
         this.repository = repository;
         this.dbHelper = dbHelper;
         this.props = props;
         this.databaseService = databaseService;
+        this.tenantRepository = tenantRepository;
         this.restTemplate = new RestTemplate();
     }
 
@@ -48,12 +52,11 @@ public class MemoryService {
         return mem;
     }
 
-    public MemoryBaseEntity createBase(String tenantId, String name, String description,
+    public MemoryBaseEntity createBase(TenantEntity tenant, String name, String description,
                                         MemoryBaseType type, String embeddingModel, boolean oneLlmMode) {
-        // Create backing database
+        String tenantId = tenant.getId();
+        // Create backing database — pass real tenant entity for quota check
         var dbRequest = new CreateDatabaseRequest("mem_" + name, null, null, null);
-        var tenant = new TenantEntity();
-        tenant.setId(tenantId);
         DatabaseResponse dbResp = databaseService.create(tenant, dbRequest);
 
         var entity = new MemoryBaseEntity();

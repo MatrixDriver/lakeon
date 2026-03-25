@@ -35,7 +35,7 @@ public class MemoryController {
         TenantEntity tenant = getTenant(req);
         boolean oneLlmMode = Boolean.TRUE.equals(body.get("one_llm_mode"));
         return toMemResponse(memoryService.createBase(
-            tenant.getId(),
+            tenant,
             (String) body.get("name"),
             (String) body.get("description"),
             MemoryBaseType.valueOf(body.getOrDefault("type", "BUILTIN").toString()),
