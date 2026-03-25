@@ -78,6 +78,7 @@
             <router-link to="/databases" class="nav-item" active-class="active" @click="sidebarOpen = false">数据库实例</router-link>
             <router-link to="/operations" class="nav-item" active-class="active" @click="sidebarOpen = false">操作日志</router-link>
             <router-link to="/knowledge" class="nav-item" active-class="active" @click="sidebarOpen = false">知识库</router-link>
+            <router-link to="/memory" class="nav-item" active-class="active" @click="sidebarOpen = false">记忆库</router-link>
             <router-link to="/audit" class="nav-item" active-class="active" @click="sidebarOpen = false">审计日志</router-link>
           </div>
           <div class="nav-group">

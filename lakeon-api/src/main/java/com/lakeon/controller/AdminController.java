@@ -18,6 +18,9 @@ import com.lakeon.service.AuditService;
 import com.lakeon.model.entity.InviteCodeEntity;
 import com.lakeon.repository.InviteCodeRepository;
 import com.lakeon.knowledge.*;
+import com.lakeon.memory.MemoryBaseEntity;
+import com.lakeon.memory.MemoryBaseRepository;
+import com.lakeon.memory.MemoryService;
 import com.lakeon.service.CbcBillingService;
 import com.lakeon.service.DatabaseService;
 import com.lakeon.service.TenantService;
@@ -52,6 +55,8 @@ public class AdminController {
     private final DocumentRepository documentRepository;
     private final KbWriteTaskRepository kbWriteTaskRepository;
     private final KnowledgeService knowledgeService;
+    private final MemoryBaseRepository memoryBaseRepository;
+    private final MemoryService memoryService;
 
     public AdminController(TenantService tenantService,
                            AdminService adminService,
@@ -67,7 +72,9 @@ public class AdminController {
                            KnowledgeBaseRepository knowledgeBaseRepository,
                            DocumentRepository documentRepository,
                            KbWriteTaskRepository kbWriteTaskRepository,
-                           KnowledgeService knowledgeService) {
+                           KnowledgeService knowledgeService,
+                           MemoryBaseRepository memoryBaseRepository,
+                           MemoryService memoryService) {
         this.tenantService = tenantService;
         this.adminService = adminService;
         this.databaseService = databaseService;
@@ -83,6 +90,8 @@ public class AdminController {
         this.documentRepository = documentRepository;
         this.kbWriteTaskRepository = kbWriteTaskRepository;
         this.knowledgeService = knowledgeService;
+        this.memoryBaseRepository = memoryBaseRepository;
+        this.memoryService = memoryService;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────
@@ -557,6 +566,101 @@ public class AdminController {
                 .limit(limit)
                 .map(this::taskToMap)
                 .toList();
+    }
+
+    // ── Memory Admin ──────────────────────────────────────
+
+    @GetMapping("/memory/stats")
+    public Map<String, Object> getMemoryStats() {
+        List<MemoryBaseEntity> all = memoryBaseRepository.findAll();
+        Map<String, Long> byStatus = all.stream()
+                .collect(java.util.stream.Collectors.groupingBy(MemoryBaseEntity::getStatus, java.util.stream.Collectors.counting()));
+        long totalMemories = all.stream().mapToInt(m -> m.getMemoryCount() != null ? m.getMemoryCount() : 0).sum();
+        long totalTraits = all.stream().mapToInt(m -> m.getTraitCount() != null ? m.getTraitCount() : 0).sum();
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("base_count", all.size());
+        result.put("total_memories", totalMemories);
+        result.put("total_traits", totalTraits);
+        result.put("by_status", byStatus);
+        return result;
+    }
+
+    @GetMapping("/memory/bases")
+    public List<Map<String, Object>> listAllMemoryBases(
+            @RequestParam(required = false, name = "tenant_id") String tenantId,
+            @RequestParam(required = false) String status) {
+        List<MemoryBaseEntity> bases;
+        if (tenantId != null) {
+            bases = memoryBaseRepository.findByTenantIdOrderByCreatedAtDesc(tenantId);
+        } else {
+            bases = memoryBaseRepository.findAll();
+            bases.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+        }
+        if (status != null) {
+            bases = bases.stream().filter(b -> status.equalsIgnoreCase(b.getStatus())).toList();
+        }
+        return bases.stream().map(this::memBaseToMap).toList();
+    }
+
+    @GetMapping("/memory/bases/{id}")
+    public Map<String, Object> getMemoryBaseAdmin(@PathVariable String id) {
+        MemoryBaseEntity mem = memoryBaseRepository.findById(id)
+                .orElseThrow(() -> new com.lakeon.service.exception.NotFoundException("Memory base not found: " + id));
+        Map<String, Object> result = memBaseToMap(mem);
+        // Try to fetch recent memories via proxy
+        try {
+            Object memories = memoryService.proxyGet(mem.getTenantId(), id, "/memories",
+                    Map.of("limit", "10"));
+            result.put("recent_memories", memories);
+        } catch (Exception e) {
+            result.put("recent_memories", List.of());
+            result.put("recent_memories_error", e.getMessage());
+        }
+        return result;
+    }
+
+    @DeleteMapping("/memory/bases/{id}")
+    public Map<String, Object> deleteMemoryBaseAdmin(@PathVariable String id) {
+        MemoryBaseEntity mem = memoryBaseRepository.findById(id)
+                .orElseThrow(() -> new com.lakeon.service.exception.NotFoundException("Memory base not found: " + id));
+        memoryBaseRepository.delete(mem);
+        return Map.of("deleted", id);
+    }
+
+    @DeleteMapping("/memory/bases/batch")
+    public Map<String, Object> batchDeleteMemoryBases(@RequestBody Map<String, List<String>> body) {
+        List<String> ids = body.getOrDefault("ids", List.of());
+        int count = 0;
+        for (String id : ids) {
+            memoryBaseRepository.findById(id).ifPresent(mem -> memoryBaseRepository.delete(mem));
+            count++;
+        }
+        return Map.of("deleted", count);
+    }
+
+    @PostMapping("/memory/bases/{id}/digest")
+    public Object triggerMemoryDigest(@PathVariable String id) {
+        MemoryBaseEntity mem = memoryBaseRepository.findById(id)
+                .orElseThrow(() -> new com.lakeon.service.exception.NotFoundException("Memory base not found: " + id));
+        return memoryService.proxyPost(mem.getTenantId(), id, "/digest", null);
+    }
+
+    private Map<String, Object> memBaseToMap(MemoryBaseEntity m) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("id", m.getId());
+        map.put("tenant_id", m.getTenantId());
+        map.put("name", m.getName());
+        map.put("description", m.getDescription());
+        map.put("type", m.getType() != null ? m.getType().name() : null);
+        map.put("status", m.getStatus());
+        map.put("one_llm_mode", Boolean.TRUE.equals(m.getOneLlmMode()));
+        map.put("database_id", m.getDatabaseId());
+        map.put("memory_count", m.getMemoryCount());
+        map.put("trait_count", m.getTraitCount());
+        map.put("embedding_model", m.getEmbeddingModel());
+        map.put("error", m.getError());
+        map.put("created_at", m.getCreatedAt() != null ? m.getCreatedAt().toString() : null);
+        return map;
     }
 
     private Map<String, Object> kbToMap(KnowledgeBaseEntity kb) {

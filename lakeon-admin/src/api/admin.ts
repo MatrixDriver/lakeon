@@ -78,4 +78,14 @@ export const adminApi = {
   reprocessDocument: (id: string) => client.post(`/knowledge/documents/${id}/reprocess`),
   listWriteTasks: (params?: { status?: string; limit?: number }) =>
     client.get('/knowledge/write-tasks', { params }),
+
+  // Memory Admin
+  memoryStats: () => client.get('/memory/stats'),
+  listMemoryBases: (params?: { tenant_id?: string; status?: string }) =>
+    client.get('/memory/bases', { params }),
+  getMemoryBase: (id: string) => client.get(`/memory/bases/${id}`),
+  deleteMemoryBase: (id: string) => client.delete(`/memory/bases/${id}`),
+  batchDeleteMemoryBases: (ids: string[]) =>
+    client.delete('/memory/bases/batch', { data: { ids } }),
+  triggerDigest: (id: string) => client.post(`/memory/bases/${id}/digest`),
 }
