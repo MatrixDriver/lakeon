@@ -86,10 +86,12 @@ public class DatalakeService {
                             + " (status=" + dataset.getStatus() + ")");
                 }
                 String datasetPath = "s3://" + bucket + "/" + dataset.getObsPath();
-                String varName = single
-                        ? "DATASET_PATH"
-                        : "DATASET_PATH_" + dataset.getName().replaceAll("\\s+", "_").toLowerCase();
-                envVars.put(varName, datasetPath);
+                String namedVar = "DATASET_PATH_" + dataset.getName().replaceAll("\\s+", "_").toLowerCase();
+                envVars.put(namedVar, datasetPath);
+                // Single dataset: also inject plain DATASET_PATH for backward compat
+                if (single) {
+                    envVars.put("DATASET_PATH", datasetPath);
+                }
             }
             req.setEnvVars(envVars);
         }
