@@ -1,9 +1,10 @@
-"""DBay Knowledge Base MCP server for Claude Code.
+"""DBay MCP server for Claude Code.
 
-Provides knowledge_search, knowledge_list, and knowledge_upload tools
-that call the DBay API over HTTPS.
+Provides two tool groups:
+- Knowledge: knowledge_search, knowledge_list, knowledge_upload — document retrieval
+- Memory: memory_recall, memory_record, memory_record_extracted — agent memory
 
-Config: env vars DBAY_API_KEY / DBAY_ENDPOINT, or ~/.dbay/config.json
+Config: env vars DBAY_API_KEY / DBAY_ENDPOINT / DBAY_MEMORY_BASE, or ~/.dbay/config.json
 """
 
 import json
@@ -78,7 +79,7 @@ def _api(method: str, path: str, **kwargs) -> dict:
 # MCP server
 # ---------------------------------------------------------------------------
 
-mcp = FastMCP("dbay-knowledge")
+mcp = FastMCP("dbay")
 
 
 def _resolve_kb_id(name_or_id: str) -> str:
@@ -281,6 +282,160 @@ def knowledge_upload_directory(
     if errors:
         parts.append(f"Errors:\n" + "\n".join(f"  - {e}" for e in errors[:10]))
     return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Memory tools
+# ---------------------------------------------------------------------------
+
+
+def _get_memory_base_id() -> str:
+    """Get the default memory base ID from env or config."""
+    mem_id = os.environ.get("DBAY_MEMORY_BASE") or _load_config().get("memory_base")
+    if mem_id:
+        return mem_id
+    # Auto-detect: if user has exactly one READY memory base, use it
+    bases = _api("GET", "/memory/bases")
+    ready = [b for b in bases if b.get("status") == "READY"]
+    if len(ready) == 1:
+        return ready[0]["id"]
+    if len(ready) == 0:
+        raise RuntimeError("No READY memory bases found. Create one at https://console.dbay.cloud")
+    names = ", ".join(f"{b['name']} ({b['id']})" for b in ready)
+    raise RuntimeError(
+        f"Multiple memory bases found: {names}. "
+        f"Set DBAY_MEMORY_BASE env var or memory_base in ~/.dbay/config.json"
+    )
+
+
+def _resolve_mem_id(name_or_id: str | None) -> str:
+    """Resolve a memory base name/ID, or use default."""
+    if not name_or_id:
+        return _get_memory_base_id()
+    if name_or_id.startswith("mem_"):
+        return name_or_id
+    bases = _api("GET", "/memory/bases")
+    for b in bases:
+        if b.get("name") == name_or_id:
+            return b["id"]
+    raise RuntimeError(f"Memory base '{name_or_id}' not found")
+
+
+@mcp.tool(description="Search memory for past decisions, rejections, conventions, facts, and experiences. "
+          "Use this when you need to recall what was decided before, what approaches were rejected, "
+          "or what project conventions exist.")
+def memory_recall(
+    query: str,
+    memory_types: list[str] | None = None,
+    top_k: int = 10,
+    memory_base: str | None = None,
+) -> str:
+    """Search agent memory using semantic similarity.
+
+    Args:
+        query: Natural language query (e.g. "why did we choose asyncpg", "naming conventions")
+        memory_types: Optional filter — any of: fact, episode, procedural, decision, rejection, convention
+        top_k: Number of results (default 10)
+        memory_base: Memory base name or ID (optional, auto-detected if only one exists)
+    """
+    mem_id = _resolve_mem_id(memory_base)
+    body: dict = {"query": query, "top_k": min(top_k, 50)}
+    if memory_types:
+        body["memory_types"] = memory_types
+    data = _api("POST", f"/memory/bases/{mem_id}/recall", json=body)
+
+    memories = data.get("memories", [])
+    if not memories:
+        return "No memories found."
+
+    parts = []
+    for i, m in enumerate(memories, 1):
+        mtype = m.get("memory_type", "?")
+        content = m.get("content", "").strip()
+        meta = m.get("metadata", {})
+        meta_str = ""
+        if meta:
+            meta_parts = [f"{k}={v}" for k, v in meta.items() if v and k != "source"]
+            if meta_parts:
+                meta_str = f" ({', '.join(meta_parts)})"
+        parts.append(f"{i}. [{mtype}] {content}{meta_str}")
+
+    return "\n".join(parts)
+
+
+@mcp.tool(description="Record a conversation snippet into memory for future recall. "
+          "The server returns an extraction prompt — you MUST execute it against the conversation context, "
+          "then call memory_record_extracted with the structured result.")
+def memory_record(
+    content: str,
+    source: str = "claude-code",
+    memory_base: str | None = None,
+) -> str:
+    """Store a conversation snippet and get an extraction prompt.
+
+    After calling this, you will receive an extraction_prompt. Execute it to extract
+    structured memories (decisions, rejections, conventions, facts, etc.) from the
+    conversation context, then call memory_record_extracted with the result.
+
+    Args:
+        content: The conversation content to remember
+        source: Client identifier (default "claude-code")
+        memory_base: Memory base name or ID (optional)
+    """
+    mem_id = _resolve_mem_id(memory_base)
+    data = _api("POST", f"/memory/bases/{mem_id}/ingest", json={
+        "content": content,
+        "role": "user",
+        "source": source,
+    })
+
+    msg_id = data.get("message_id", "")
+    if data.get("extraction_required"):
+        prompt = data.get("extraction_prompt", "")
+        return (
+            f"Message stored (id={msg_id}).\n\n"
+            f"[Extraction required]\n"
+            f"Execute the following prompt against the FULL conversation context, "
+            f"then call memory_record_extracted with memory_base=\"{mem_id}\", "
+            f"message_id=\"{msg_id}\", and the JSON result as extracted_data.\n\n"
+            f"--- EXTRACTION PROMPT ---\n{prompt}\n--- END PROMPT ---"
+        )
+    else:
+        status = data.get("status", "done")
+        return f"Message stored (id={msg_id}, status={status}). Server is extracting memories automatically."
+
+
+@mcp.tool(description="Store structured memories extracted by the agent. "
+          "Call this after memory_record returns an extraction prompt and you have executed it.")
+def memory_record_extracted(
+    message_id: str,
+    extracted_data: str,
+    memory_base: str | None = None,
+) -> str:
+    """Store pre-extracted structured memories.
+
+    Args:
+        message_id: The message_id returned by memory_record
+        extracted_data: JSON string with extracted memories, e.g.:
+            {"facts": [...], "decisions": [{"content": "...", "rationale": "..."}], ...}
+        memory_base: Memory base name or ID (optional)
+    """
+    mem_id = _resolve_mem_id(memory_base)
+    try:
+        parsed = json.loads(extracted_data) if isinstance(extracted_data, str) else extracted_data
+    except json.JSONDecodeError as e:
+        return f"Error: invalid JSON in extracted_data: {e}"
+
+    data = _api("POST", f"/memory/bases/{mem_id}/ingest_extracted", json={
+        "message_id": message_id,
+        "data": parsed,
+    })
+
+    parts = []
+    for key, count in data.items():
+        if count and count > 0:
+            parts.append(f"{key}: {count}")
+    return "Memories stored: " + ", ".join(parts) if parts else "No memories extracted."
 
 
 def _guess_content_type(filename: str) -> str:

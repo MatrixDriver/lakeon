@@ -84,13 +84,64 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Python SDK</label>
-            <pre style="font-family: monospace; font-size: 13px; padding: 16px; background: #1e1e1e; border-radius: 6px; color: #d4d4d4; overflow-x: auto; margin: 0;">pip install dbay
+            <label class="form-label">模式</label>
+            <div style="font-size: 14px; color: #333;">
+              {{ base.one_llm_mode ? 'Agent-Extract 模式 — 客户端提取记忆，零服务端 LLM 成本' : '普通模式 — 服务端自动提取记忆' }}
+            </div>
+          </div>
+        </div>
 
-from dbay import MemoryClient
-client = MemoryClient(api_key="your_api_key", base_id="{{ base.id }}")
-client.ingest("用户喜欢使用 TypeScript")
-results = client.recall("用户的技术偏好")</pre>
+        <!-- Claude Code / MCP integration -->
+        <div v-if="base?.type === 'BUILTIN'" class="section-card" style="padding: 24px; margin-top: 16px;">
+          <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 20px; color: #333;">Claude Code 接入（MCP）</h3>
+
+          <div class="form-group">
+            <label class="form-label">1. 配置 MCP Server</label>
+            <p style="font-size: 13px; color: #666; margin-bottom: 8px;">在项目根目录 <code>.mcp.json</code> 中添加：</p>
+            <pre style="font-family: monospace; font-size: 13px; padding: 16px; background: #1e1e1e; border-radius: 6px; color: #d4d4d4; overflow-x: auto; margin: 0;">{
+  "mcpServers": {
+    "dbay": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/dbay-mcp", "server.py"],
+      "env": {
+        "DBAY_API_KEY": "your_api_key",
+        "DBAY_MEMORY_BASE": "{{ base.id }}"
+      }
+    }
+  }
+}</pre>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">2. 在 CLAUDE.md 中添加记忆指引</label>
+            <pre style="font-family: monospace; font-size: 13px; padding: 16px; background: #1e1e1e; border-radius: 6px; color: #d4d4d4; overflow-x: auto; margin: 0; white-space: pre-wrap;"># Memory
+- 当做出技术/架构决策时，调用 memory_record 记录
+- 当用户明确拒绝某方案时，调用 memory_record 记录
+- 当需要查询历史决策时，调用 memory_recall
+- memory_record 返回 extraction_prompt 后，执行提取并调用 memory_record_extracted</pre>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">提供的 MCP 工具</label>
+            <div style="font-size: 13px; color: #666; line-height: 1.8;">
+              <div><strong>memory_recall</strong> — 检索记忆（决策、排除项、约定等）</div>
+              <div><strong>memory_record</strong> — 存入对话，返回提取 prompt</div>
+              <div><strong>memory_record_extracted</strong> — 存入提取后的结构化记忆</div>
+              <div style="margin-top: 4px; color: #999;">另有 knowledge_search / knowledge_upload 用于知识库</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- REST API -->
+        <div v-if="base?.type === 'BUILTIN'" class="section-card" style="padding: 24px; margin-top: 16px;">
+          <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 20px; color: #333;">REST API</h3>
+          <div class="form-group">
+            <label class="form-label">CLI</label>
+            <pre style="font-family: monospace; font-size: 13px; padding: 16px; background: #1e1e1e; border-radius: 6px; color: #d4d4d4; overflow-x: auto; margin: 0;">pip install dbay-cli
+dbay login
+dbay mem ingest {{ base.id }} "我们决定用 asyncpg"
+dbay mem recall {{ base.id }} "数据库选型"
+dbay mem stats {{ base.id }}</pre>
           </div>
         </div>
 
