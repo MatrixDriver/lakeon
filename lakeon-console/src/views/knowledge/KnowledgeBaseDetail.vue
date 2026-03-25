@@ -467,7 +467,7 @@ async function runBatchUpload(files: File[]) {
       const CONCURRENCY = 3
       const documentIds: string[] = new Array(docItems.length)
       const uploadTasks = docItems.map((item, i) => async () => {
-        const idx = batchIndices[i]
+        const idx = batchIndices[i]!
         uploadProgress.value[idx] = { filename: item.filename, status: 'uploading' }
         const uploadResp = await fetch(item.upload_url, { method: 'PUT', body: batchFiles[i] })
         if (!uploadResp.ok) {
@@ -493,7 +493,7 @@ async function runBatchUpload(files: File[]) {
       // Mark as processing
       batchIndices.forEach((idx, i) => {
         if (results[i] !== null) {
-          uploadProgress.value[idx] = { filename: files[idx].name, status: 'processing' }
+          uploadProgress.value[idx] = { filename: files[idx]!.name, status: 'processing' }
         }
       })
 
@@ -503,7 +503,7 @@ async function runBatchUpload(files: File[]) {
       // Mark done
       batchIndices.forEach((idx, i) => {
         if (results[i] !== null) {
-          uploadProgress.value[idx] = { filename: files[idx].name, status: 'done' }
+          uploadProgress.value[idx] = { filename: files[idx]!.name, status: 'done' }
         }
       })
 
