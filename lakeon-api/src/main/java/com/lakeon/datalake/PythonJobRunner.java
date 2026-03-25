@@ -58,6 +58,30 @@ public class PythonJobRunner {
                     .build()
             ).create();
             log.info("Created namespace: {}", ns);
+
+            // Copy SWR image pull secret into new namespace
+            String sourceNs = props.getK8s().getNamespace();
+            try {
+                var srcSecret = k8sClient.secrets().inNamespace(sourceNs).withName("swr-secret").get();
+                if (srcSecret != null) {
+                    var newSecret = new io.fabric8.kubernetes.api.model.SecretBuilder()
+                        .withNewMetadata().withName("swr-secret").withNamespace(ns).endMetadata()
+                        .withType(srcSecret.getType())
+                        .withData(srcSecret.getData())
+                        .build();
+                    k8sClient.secrets().inNamespace(ns).resource(newSecret).createOrReplace();
+                    // Patch default SA with imagePullSecrets
+                    k8sClient.serviceAccounts().inNamespace(ns).withName("default")
+                        .edit(sa -> new io.fabric8.kubernetes.api.model.ServiceAccountBuilder(sa)
+                            .withImagePullSecrets(
+                                new io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder()
+                                    .withName("swr-secret").build())
+                            .build());
+                    log.info("Copied swr-secret to namespace: {}", ns);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to copy swr-secret to {}: {}", ns, e.getMessage());
+            }
         }
 
         // 3. Determine command
@@ -137,6 +161,11 @@ public class PythonJobRunner {
         // 8. Build pod spec
         var podSpecBuilder = new PodSpecBuilder()
                 .withRestartPolicy("Never")
+                .withImagePullSecrets(
+                    props.getK8s().getImagePullSecrets().stream()
+                        .filter(name -> name != null && !name.isBlank())
+                        .map(name -> new io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder().withName(name).build())
+                        .toList())
                 .withNodeSelector(Map.of(
                         dl.getVkNodeSelectorKey(), dl.getVkNodeSelectorValue()))
                 .withTolerations(vkToleration)
