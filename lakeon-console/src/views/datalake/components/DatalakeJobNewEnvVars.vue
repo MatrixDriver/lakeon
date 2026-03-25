@@ -9,9 +9,16 @@
         <div class="env-cell">值</div>
         <div class="env-cell env-del"></div>
       </div>
-      <div v-if="inputDatasetId" class="env-row env-auto">
+      <!-- Single dataset: show DATASET_PATH -->
+      <div v-if="inputDatasetIds.length === 1" class="env-row env-auto">
         <div class="env-cell env-key">DATASET_PATH</div>
         <div class="env-cell">OBS 路径（自动注入）</div>
+        <div class="env-cell env-del">—</div>
+      </div>
+      <!-- Multiple datasets: show summary -->
+      <div v-else-if="inputDatasetIds.length > 1" class="env-row env-auto">
+        <div class="env-cell env-key">DATASET_PATH_*</div>
+        <div class="env-cell">{{ inputDatasetIds.length }} 个数据集路径（自动注入）</div>
         <div class="env-cell env-del">—</div>
       </div>
       <div class="env-row env-auto">
@@ -35,7 +42,7 @@
 
 <script setup lang="ts">
 const props = defineProps<{
-  inputDatasetId: string
+  inputDatasetIds: string[]
   outputPath: string
   userVars: { key: string; value: string }[]
 }>()

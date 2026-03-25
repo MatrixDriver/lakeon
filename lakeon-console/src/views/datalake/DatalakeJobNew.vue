@@ -51,12 +51,13 @@
           v-else-if="currentSection === 'code'"
           :script="form.inlineScript"
           @update:script="form.inlineScript = $event"
+          @update:usedDatasetIds="form.inputDatasetIds = $event"
         />
         <DatalakeJobNewDataset
           v-else-if="currentSection === 'dataset'"
-          :input-dataset-id="form.inputDatasetId"
+          :input-dataset-ids="form.inputDatasetIds"
           :output-path="form.outputPath"
-          @update:inputDatasetId="form.inputDatasetId = $event"
+          @update:inputDatasetIds="form.inputDatasetIds = $event"
           @update:outputPath="form.outputPath = $event"
         />
         <DatalakeJobNewResources
@@ -69,7 +70,7 @@
         />
         <DatalakeJobNewEnvVars
           v-else-if="currentSection === 'envvars'"
-          :input-dataset-id="form.inputDatasetId"
+          :input-dataset-ids="form.inputDatasetIds"
           :output-path="form.outputPath"
           :user-vars="form.userEnvVars"
           @update:userVars="form.userEnvVars = $event"
@@ -88,7 +89,7 @@
       <div class="submit-summary">
         <strong>{{ typeLabel(form.type) }}</strong>
         <template v-if="form.inlineScript"> · 内联脚本</template>
-        <template v-if="form.inputDatasetId"> · 输入数据集已选</template>
+        <template v-if="form.inputDatasetIds.length"> · 输入数据集 ×{{ form.inputDatasetIds.length }}</template>
         · CPU {{ form.cpu }} / 内存 {{ form.memory }}
       </div>
       <div class="submit-actions">
@@ -118,7 +119,7 @@ const form = ref({
   name: '',
   type: 'PYTHON' as DatalakeJobType,
   inlineScript: '',
-  inputDatasetId: '',
+  inputDatasetIds: [] as string[],
   outputPath: '',
   cpu: '1',
   memory: '2Gi',
@@ -169,7 +170,7 @@ async function handleSubmit() {
       name: form.value.name,
       type: form.value.type,
       inline_script: form.value.inlineScript || undefined,
-      input_dataset_id: form.value.inputDatasetId || undefined,
+      input_dataset_ids: form.value.inputDatasetIds.length ? form.value.inputDatasetIds : undefined,
       output_path: form.value.outputPath || undefined,
       resources: { cpu: form.value.cpu, memory: form.value.memory },
       env_vars: Object.keys(envVars).length ? envVars : undefined,

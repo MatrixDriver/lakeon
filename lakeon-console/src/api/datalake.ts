@@ -32,7 +32,7 @@ export interface DatalakeJobSubmitRequest {
   entrypoint?: string
   requirements?: string
   // Data
-  input_dataset_id?: string
+  input_dataset_ids?: string[]
   output_path?: string
   // Resources
   env_vars?: Record<string, string>
@@ -48,6 +48,19 @@ export interface DatalakeJobSubmitRequest {
   hyperparams?: Record<string, any>
   gpu?: string
   image_key?: string
+}
+
+export interface AiScriptResult {
+  script?: string
+  error?: string
+  model?: string
+  input_tokens?: number
+  output_tokens?: number
+  used_dataset_ids?: string[]
+}
+
+export function generateDatalakeScript(prompt: string, model: string) {
+  return api.post<AiScriptResult>('/datalake/ai-script/generate', { prompt, model })
 }
 
 export function listDatalakeJobs(status?: string) {
