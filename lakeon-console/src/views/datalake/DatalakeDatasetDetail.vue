@@ -92,10 +92,10 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(col, i) in dataset.schema" :key="col.column_name">
+            <tr v-for="(col, i) in dataset.schema" :key="col.name">
               <td style="color: #999;">{{ i + 1 }}</td>
-              <td style="font-family: monospace;">{{ col.column_name }}</td>
-              <td style="font-family: monospace; color: #666;">{{ col.data_type }}</td>
+              <td style="font-family: monospace;">{{ col.name }}</td>
+              <td style="font-family: monospace; color: #666;">{{ col.type }}</td>
             </tr>
           </tbody>
         </table>
@@ -161,7 +161,7 @@ interface Dataset {
   created_at: string
   updated_at: string
   code_snippets?: CodeSnippets
-  schema?: { column_name: string; data_type: string }[]
+  schema?: { name: string; type: string }[]
 }
 
 const route = useRoute()
