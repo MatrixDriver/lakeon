@@ -71,12 +71,14 @@ public class DatalakeStatusPoller {
         boolean changed = false;
         if (status.getSucceeded() != null && status.getSucceeded() > 0) {
             if (job.getStatus() != DatalakeJobStatus.SUCCEEDED) {
+                deleteScriptConfigMap(job);
                 job.setStatus(DatalakeJobStatus.SUCCEEDED);
                 job.setFinishedAt(java.time.Instant.now());
                 changed = true;
             }
         } else if (status.getFailed() != null && status.getFailed() > 0) {
             if (job.getStatus() != DatalakeJobStatus.FAILED) {
+                deleteScriptConfigMap(job);
                 job.setStatus(DatalakeJobStatus.FAILED);
                 job.setFinishedAt(java.time.Instant.now());
                 // Try to get error from conditions
@@ -153,6 +155,20 @@ public class DatalakeStatusPoller {
 
         if (changed) {
             repository.save(job);
+        }
+    }
+
+    private void deleteScriptConfigMap(DatalakeJobEntity job) {
+        if (job.getCciNamespace() == null) return;
+        String cmName = "dl-script-" + job.getId();
+        try {
+            k8sClient.configMaps()
+                    .inNamespace(job.getCciNamespace())
+                    .withName(cmName)
+                    .delete();
+            log.debug("Deleted script ConfigMap: {}/{}", job.getCciNamespace(), cmName);
+        } catch (Exception e) {
+            log.warn("Failed to delete ConfigMap {}/{}: {}", job.getCciNamespace(), cmName, e.getMessage());
         }
     }
 }
