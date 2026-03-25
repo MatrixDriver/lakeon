@@ -56,6 +56,9 @@ public class DatasetEntity {
     @Column(columnDefinition = "text")
     private String error;
 
+    @Column(name = "schema_json", columnDefinition = "text")
+    private String schemaJson;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -203,5 +206,13 @@ public class DatasetEntity {
 
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getSchemaJson() {
+        return schemaJson;
+    }
+
+    public void setSchemaJson(String schemaJson) {
+        this.schemaJson = schemaJson;
     }
 }
