@@ -16,8 +16,8 @@
 | 决策项 | 选择 | 原因 |
 |--------|------|------|
 | 凭据类型 | 华为云 IAM STS 临时凭据 | 有效期可控，可附加 IAM Policy 限定前缀 |
-| 有效期 | 15 分钟 | 足够 Job 运行，超时 Job 本身也会失败 |
-| 路径隔离 | `datasets/tn_{tenantId}/*` + `knowledge/tn_{tenantId}/*` | 租户只能访问自己的数据 |
+| 有效期 | 24 小时 | 知识库 batch job 可能运行 30+ 分钟，需覆盖最长 Job 生命周期 |
+| 路径隔离 | `datasets/{tenantId}/*` + `knowledge/{tenantId}/*` | tenantId 已含 `tn_` 前缀（如 `tn_abc12345`），租户只能访问自己的数据 |
 | 注入方式 | 环境变量直接注入（非 Secret 引用） | STS 凭据是临时的，不需要持久化为 Secret |
 | API Pod | 不改动 | 服务端凭据不暴露给用户 |
 
@@ -43,11 +43,13 @@ POST https://iam.{region}.myhuaweicloud.com/v3.0/OS-CREDENTIAL/securitytokens
     "Action": [
       "obs:object:GetObject",
       "obs:object:PutObject",
-      "obs:object:DeleteObject"
+      "obs:object:DeleteObject",
+      "obs:object:AbortMultipartUpload",
+      "obs:object:ListMultipartUploadParts"
     ],
     "Resource": [
-      "obs:*:*:object:{bucket}/datasets/tn_{tenantId}/*",
-      "obs:*:*:object:{bucket}/knowledge/tn_{tenantId}/*"
+      "obs:*:*:object:{bucket}/datasets/{tenantId}/*",
+      "obs:*:*:object:{bucket}/knowledge/{tenantId}/*"
     ]
   }]
 }
@@ -65,7 +67,7 @@ public record StsCredentials(
 ) {}
 ```
 
-**缓存**：按 `tenantId` 缓存，距过期 2 分钟内刷新。避免每个 Job 都调 IAM API。
+**缓存**：使用 Caffeine `LoadingCache<String, StsCredentials>`，按 `tenantId` 缓存，`expireAfterWrite = 23h`（留 1 小时余量），线程安全，避免 thundering herd。
 
 ### 2. `JobPodManager` 改造
 
@@ -90,7 +92,7 @@ s3 = boto3.client("s3",
     endpoint_url=obs_endpoint,
     aws_access_key_id=os.environ["OBS_ACCESS_KEY"],
     aws_secret_access_key=os.environ["OBS_SECRET_KEY"],
-    aws_session_token=os.environ.get("OBS_SESSION_TOKEN"),  # 新增
+    aws_session_token=os.environ.get("OBS_SESSION_TOKEN"),  # 新增，.get() 兼容无 STS 场景（本地开发）
     region_name=os.environ.get("OBS_REGION", "cn-north-4"),
     config=BotoConfig(
         s3={"addressing_style": "virtual"},
@@ -102,7 +104,7 @@ s3 = boto3.client("s3",
 
 ### 4. Datalake Job Pod 凭据注入
 
-**`DatalakeService`**（或 `PythonJobRunner`）：创建 CCI Job 时注入 STS 临时凭据作为环境变量，让用户脚本可以通过 `DATASET_PATH_*` 读取自己的数据集。
+**所有 Job Runner**（`PythonJobRunner`、`RayJobRunner`、`FinetuneJobRunner`）：创建 Job 时注入 STS 临时凭据作为环境变量，让用户脚本可以通过 `DATASET_PATH_*` 读取自己的数据集。
 
 环境变量注入：
 - `OBS_ACCESS_KEY` = STS accessKey
@@ -116,28 +118,21 @@ s3 = boto3.client("s3",
 
 **`DatasetService.buildCodeSnippets()`**：不再暴露桶名和 endpoint。
 
-所有代码示例改为使用 `DATASET_PATH` 环境变量（与作业运行时一致）：
+UI 上展示两类示例：
 
-Pandas 示例：
+**本地使用**（预签名下载 URL，保留，已有过期时间）：
+```python
+import pandas as pd
+df = pd.read_parquet("https://...presigned-url...")
+```
+
+**作业内使用**（环境变量，在数据湖作业 Pod 中运行）：
 ```python
 import os, pandas as pd
 df = pd.read_parquet(os.environ["DATASET_PATH"])
 ```
 
-Ray 示例：
-```python
-import os, ray
-ds = ray.data.read_parquet(os.environ["DATASET_PATH"])
-```
-
-DuckDB 示例：
-```python
-import os, duckdb
-conn = duckdb.connect()
-df = conn.execute(f"SELECT * FROM '{os.environ[\"DATASET_PATH\"]}'").df()
-```
-
-预签名下载 URL 保留（已有过期时间，安全）。
+移除当前 Ray 和 DuckDB 示例中直接暴露 `s3://bucket/path` 和 endpoint 的代码。
 
 ---
 
@@ -148,7 +143,9 @@ df = conn.execute(f"SELECT * FROM '{os.environ[\"DATASET_PATH\"]}'").df()
 | 新建 `ObsStsService.java` | 华为 IAM STS 调用 + 租户策略 + 缓存 |
 | `JobPodManager.java` | Secret 引用 → STS 环境变量注入 |
 | `JobService.java` | 传递 tenantId 给 JobPodManager |
-| `DatalakeService.java` 或 `PythonJobRunner.java` | 注入 STS 凭据到 CCI Job |
+| `DatalakeService.java` | 注入 STS 凭据到 CCI Job（Python/Ray/Finetune） |
+| `RayJobRunner.java` | 注入 STS 凭据到 Ray Job |
+| `FinetuneJobRunner.java` | 注入 STS 凭据到 Finetune Job |
 | `knowledge/job/main.py` | 加 `aws_session_token` |
 | `knowledge/job/export_parquet.py` | 加 `aws_session_token` |
 | `DatasetService.java` | buildCodeSnippets 不暴露桶名 |
