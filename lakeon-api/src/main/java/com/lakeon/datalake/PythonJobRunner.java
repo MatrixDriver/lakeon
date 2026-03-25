@@ -47,6 +47,19 @@ public class PythonJobRunner {
         String ns = dl.getCciNamespacePrefix() + job.getTenantId();
         String jobName = k8sJobName(job);
 
+        // 2.5. Ensure namespace exists (must be before configmap/job creation)
+        if (k8sClient.namespaces().withName(ns).get() == null) {
+            k8sClient.namespaces().resource(
+                new io.fabric8.kubernetes.api.model.NamespaceBuilder()
+                    .withNewMetadata().withName(ns)
+                        .addToLabels("app", "datalake")
+                        .addToLabels("lakeon.io/tenant-id", job.getTenantId())
+                    .endMetadata()
+                    .build()
+            ).create();
+            log.info("Created namespace: {}", ns);
+        }
+
         // 3. Determine command
         List<String> command;
         boolean hasInlineScript = req.getInlineScript() != null && !req.getInlineScript().isBlank();
@@ -169,20 +182,7 @@ public class PythonJobRunner {
                 .withSpec(jobSpecBuilder.build())
                 .build();
 
-        // 10. Ensure namespace exists
-        if (k8sClient.namespaces().withName(ns).get() == null) {
-            k8sClient.namespaces().resource(
-                new io.fabric8.kubernetes.api.model.NamespaceBuilder()
-                    .withNewMetadata().withName(ns)
-                        .addToLabels("app", "datalake")
-                        .addToLabels("lakeon.io/tenant-id", job.getTenantId())
-                    .endMetadata()
-                    .build()
-            ).create();
-            log.info("Created namespace: {}", ns);
-        }
-
-        // 11. Create the Job
+        // 10. Create the Job (namespace already ensured in step 2.5)
         k8sClient.batch().v1().jobs().inNamespace(ns).resource(k8sJob).create();
         log.info("Created K8s Job: {}/{}", ns, jobName);
 
