@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/datalake")
@@ -16,10 +17,12 @@ public class DatalakeController {
 
     private final DatalakeService service;
     private final DatalakeLogService logService;
+    private final AiScriptService aiScriptService;
 
-    public DatalakeController(DatalakeService service, DatalakeLogService logService) {
+    public DatalakeController(DatalakeService service, DatalakeLogService logService, AiScriptService aiScriptService) {
         this.service = service;
         this.logService = logService;
+        this.aiScriptService = aiScriptService;
     }
 
     @PostMapping("/jobs")
@@ -62,6 +65,23 @@ public class DatalakeController {
     public SseEmitter streamLogs(HttpServletRequest req, @PathVariable String id) {
         TenantEntity tenant = getTenant(req);
         return logService.streamLogs(tenant.getId(), id);
+    }
+
+    @PostMapping("/ai-script/generate")
+    public Map<String, Object> generateScript(HttpServletRequest req,
+                                              @RequestBody Map<String, String> body) {
+        String tenantId = getTenant(req).getId();
+        String prompt = body.get("prompt");
+        if (prompt == null || prompt.isBlank()) {
+            return Map.of("error", "prompt is required");
+        }
+        String model = body.get("model");
+        return aiScriptService.generateScript(tenantId, prompt, model);
+    }
+
+    @GetMapping("/ai-script/models")
+    public List<Map<String, Object>> getScriptModels() {
+        return AiScriptService.AVAILABLE_MODELS;
     }
 
     // ── Helpers ──────────────────────────────────────────────────────
