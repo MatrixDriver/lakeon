@@ -27,6 +27,7 @@ lakeon:
   obs:
     endpoint: ${LAKEON_OBS_ENDPOINT:}
     bucket: ${LAKEON_OBS_BUCKET:neon}
+    region: ${LAKEON_OBS_REGION:cn-north-4}
     access-key: ${LAKEON_OBS_ACCESS_KEY:}
     secret-key: ${LAKEON_OBS_SECRET_KEY:}
   proxy:

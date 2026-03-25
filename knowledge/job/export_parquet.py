@@ -34,10 +34,12 @@ def main():
 
         # Configure S3 (OBS is S3-compatible)
         s3_host = obs_endpoint.replace("https://", "").replace("http://", "")
+        obs_region = os.environ.get("OBS_REGION", "cn-north-4")
         conn.execute(f"""
             SET s3_endpoint = '{s3_host}';
             SET s3_access_key_id = '{obs_ak}';
             SET s3_secret_access_key = '{obs_sk}';
+            SET s3_region = '{obs_region}';
             SET s3_url_style = 'path';
             SET s3_use_ssl = true;
         """)

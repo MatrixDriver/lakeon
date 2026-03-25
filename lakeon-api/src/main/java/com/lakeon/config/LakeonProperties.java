@@ -84,6 +84,7 @@ public class LakeonProperties {
         private String bucket;
         private String accessKey;
         private String secretKey;
+        private String region = "cn-north-4";
 
         public String getEndpoint() { return endpoint; }
         public void setEndpoint(String endpoint) { this.endpoint = endpoint; }
@@ -93,6 +94,8 @@ public class LakeonProperties {
         public void setAccessKey(String accessKey) { this.accessKey = accessKey; }
         public String getSecretKey() { return secretKey; }
         public void setSecretKey(String secretKey) { this.secretKey = secretKey; }
+        public String getRegion() { return region; }
+        public void setRegion(String region) { this.region = region; }
     }
 
     public static class ProxyConfig {

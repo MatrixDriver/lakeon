@@ -36,6 +36,7 @@ data:
   LAKEON_OBS_ENDPOINT: {{ .Values.obs.endpoint | quote }}
   {{- end }}
   LAKEON_OBS_BUCKET: {{ .Values.obs.bucket | default "lakeon-storage" | quote }}
+  LAKEON_OBS_REGION: {{ .Values.obs.region | default "cn-north-4" | quote }}
   {{- if .Values.proxy.externalHost }}
   LAKEON_PROXY_EXTERNAL_HOST: {{ .Values.proxy.externalHost | quote }}
   {{- end }}
