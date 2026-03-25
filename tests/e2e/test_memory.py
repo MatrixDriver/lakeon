@@ -242,36 +242,30 @@ def test_digest_server(mem_base_server_mode, e2e_client):
     assert "traits_generated" in result
 
 
-def test_multi_tenant_isolation(e2e_client, e2e_tenant):
-    """Tenant A cannot access tenant B's memories."""
-    import random
+@pytest.fixture
+def tenant_b():
+    """Create a second tenant for isolation tests. Always cleaned up."""
     from tests.e2e.conftest import _create_tenant_with_invite, ENDPOINT, ADMIN_TOKEN
-
+    from dbay_cli.client import DbayClient
     ts = int(time.time())
     client_b, tenant_b = _create_tenant_with_invite(
         ENDPOINT, ADMIN_TOKEN,
         f"e2e-memb-{ts}", f"E2eTest@{ts}", f"Tenant B {ts}"
     )
+    yield client_b, tenant_b
+    # Guaranteed cleanup
+    admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+    try:
+        admin.admin_batch_delete_tenants([tenant_b["id"]])
+    except Exception:
+        pass
 
-    base_a = e2e_client.create_memory_base(name=f"isolation-a-{ts}")
-    for _ in range(60):
-        info = e2e_client.get_memory_base(base_a["id"])
-        if info["status"] == "READY":
-            break
-        time.sleep(2)
+
+def test_multi_tenant_isolation(e2e_client, mem_base, tenant_b):
+    """Tenant A cannot access tenant B's memories."""
+    client_b, _ = tenant_b
 
     from dbay_cli.client import DbayApiError
     with pytest.raises(DbayApiError) as exc:
-        client_b.get_memory_base(base_a["id"])
+        client_b.get_memory_base(mem_base["id"])
     assert exc.value.status_code == 404
-
-    try:
-        e2e_client.delete_memory_base(base_a["id"])
-    except Exception:
-        pass
-    try:
-        from dbay_cli.client import DbayClient
-        admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
-        admin.admin_batch_delete_tenants([tenant_b.get("id")])
-    except Exception:
-        pass

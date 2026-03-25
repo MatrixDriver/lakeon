@@ -60,6 +60,45 @@ def run_psql(connstr: str, sql: str, password: str = None) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Session-start cleanup: delete stale e2e tenants from previous failed runs
+# ---------------------------------------------------------------------------
+
+def _cleanup_stale_tenants():
+    """Delete test tenants older than 1 hour. Prevents accumulation from crashed runs."""
+    from datetime import datetime, timezone, timedelta
+    try:
+        admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+        tenants = admin._request("GET", "/admin/tenants")
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
+        stale = []
+        for t in tenants:
+            name = t.get("name", "")
+            # Only clean up test tenants (e2e-*, dbg*, test*, kb-debug-*, etc.)
+            if not any(name.startswith(p) for p in ("e2e-", "dbg", "test", "kb-debug", "kb-0",
+                                                      "debug", "compute-test", "sql-test",
+                                                      "ext-test", "url-", "export-debug",
+                                                      "quota-", "memtest")):
+                continue
+            created = t.get("created_at", "")
+            if created:
+                try:
+                    ct = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                    if ct < cutoff:
+                        stale.append(t["id"])
+                except (ValueError, KeyError):
+                    pass
+        if stale:
+            for i in range(0, len(stale), 20):
+                admin.admin_batch_delete_tenants(stale[i:i+20])
+            print(f"\n🧹 Cleaned up {len(stale)} stale test tenants")
+    except Exception as e:
+        print(f"\n⚠️  Stale tenant cleanup failed: {e}")
+
+
+_cleanup_stale_tenants()
+
+
+# ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
