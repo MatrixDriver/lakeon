@@ -48,7 +48,7 @@ public class RayJobRunner {
      * The RayJob spec follows KubeRay Operator's ray.io/v1 schema.
      */
     public void start(DatalakeJobEntity job, DatalakeJobRequest req) {
-        String ns = props.getDatalake().getCciNamespacePrefix() + job.getTenantId();
+        String ns = props.getDatalake().getCciNamespacePrefix() + job.getTenantId().replace("_", "-");
         String rayJobName = rayJobName(job);
         String image = resolveImage(req, "ray");
 

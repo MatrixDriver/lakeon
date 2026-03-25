@@ -44,7 +44,7 @@ public class PythonJobRunner {
                 dl.getPresetImages().getOrDefault("python-slim", "python:3.11-slim"));
 
         // 2. Build namespace and job name
-        String ns = dl.getCciNamespacePrefix() + job.getTenantId();
+        String ns = dl.getCciNamespacePrefix() + job.getTenantId().replace("_", "-");
         String jobName = k8sJobName(job);
 
         // 2.5. Ensure namespace exists (must be before configmap/job creation)
