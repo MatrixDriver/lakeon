@@ -142,8 +142,8 @@
           <!-- 数据湖菜单 -->
           <template v-if="activeRail === 'datalake'">
             <div class="nav-group">
-              <router-link to="/datalake" class="nav-item" active-class="active" @click="sidebarOpen = false">作业管理</router-link>
               <router-link to="/datalake/datasets" class="nav-item" active-class="active" @click="sidebarOpen = false">数据集</router-link>
+              <router-link to="/datalake" class="nav-item" active-class="active" @click="sidebarOpen = false">作业管理</router-link>
             </div>
           </template>
           <!-- 设置菜单 -->
