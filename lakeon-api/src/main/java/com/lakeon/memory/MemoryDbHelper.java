@@ -40,14 +40,20 @@ public class MemoryDbHelper {
      */
     public void trySyncStatus(MemoryBaseEntity mem) {
         if (!"PROVISIONING".equals(mem.getStatus()) || mem.getDatabaseId() == null) return;
-        databaseRepository.findById(mem.getDatabaseId()).ifPresent(db -> {
-            String dbStatus = db.getStatus().name();
-            if ("RUNNING".equals(dbStatus) || "SUSPENDED".equals(dbStatus)) {
-                mem.setStatus("READY");
-                memoryBaseRepository.save(mem);
-                log.info("Memory base {} status synced to READY (db={}, dbStatus={})", mem.getId(), mem.getDatabaseId(), dbStatus);
-            }
-        });
+        log.info("trySyncStatus: checking mem={} db={}", mem.getId(), mem.getDatabaseId());
+        var optDb = databaseRepository.findById(mem.getDatabaseId());
+        if (optDb.isEmpty()) {
+            log.warn("trySyncStatus: backing database {} not found", mem.getDatabaseId());
+            return;
+        }
+        var db = optDb.get();
+        String dbStatus = db.getStatus().name();
+        log.info("trySyncStatus: db={} status={}", mem.getDatabaseId(), dbStatus);
+        if ("RUNNING".equals(dbStatus) || "SUSPENDED".equals(dbStatus)) {
+            mem.setStatus("READY");
+            memoryBaseRepository.save(mem);
+            log.info("Memory base {} status synced to READY (db={}, dbStatus={})", mem.getId(), mem.getDatabaseId(), dbStatus);
+        }
     }
 
     /**
