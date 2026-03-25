@@ -38,7 +38,7 @@ export function deleteMemoryBase(id: string) {
 export interface MemoryItem {
   id: number
   content: string
-  memory_type: 'fact' | 'episode' | 'procedural'
+  memory_type: 'fact' | 'episode' | 'procedural' | 'decision' | 'rejection' | 'convention'
   importance: number
   access_count: number
   metadata: Record<string, any>
