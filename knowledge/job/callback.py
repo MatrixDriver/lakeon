@@ -24,6 +24,20 @@ def report_success(chunks_count, quality_stats=None):
     resp = requests.post(url, json={"token": token, "status": "SUCCEEDED", "result": result}, timeout=30)
     logger.info(f"Callback SUCCEEDED: {resp.status_code}")
 
+
+def report_success_batch(documents):
+    """Report successful batch completion.
+
+    documents: [{"document_id": "...", "chunks_count": N}, ...]
+    """
+    if _is_exec_mode():
+        return
+    url = os.environ["JOB_CALLBACK_URL"]
+    token = os.environ["JOB_CALLBACK_TOKEN"]
+    result = {"documents": documents}
+    resp = requests.post(url, json={"token": token, "status": "SUCCEEDED", "result": result}, timeout=30)
+    logger.info(f"Callback SUCCEEDED (batch {len(documents)} docs): {resp.status_code}")
+
 def report_progress(message, progress=0):
     if _is_exec_mode():
         logger.info(f"Progress: {message} ({progress:.0%})")

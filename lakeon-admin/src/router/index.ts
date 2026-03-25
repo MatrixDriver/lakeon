@@ -25,6 +25,7 @@ const routes = [
       { path: 'cost', name: 'CostView', component: () => import('../views/cost/CostView.vue') },
       { path: 'cloud', redirect: '/infra' },
       { path: 'audit', name: 'AuditLogs', component: () => import('../views/AuditLogs.vue') },
+      { path: 'knowledge', name: 'KnowledgeAdmin', component: () => import('../views/knowledge/KnowledgeList.vue') },
     ],
   },
 ]

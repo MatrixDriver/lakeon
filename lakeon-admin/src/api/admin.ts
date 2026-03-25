@@ -65,4 +65,17 @@ export const adminApi = {
   // Audit
   auditLogs: (params?: { tenant_id?: string; db_id?: string; type?: string; page?: number; size?: number }) =>
     client.get('/audit/logs', { params }),
+
+  // Knowledge Base Admin
+  knowledgeStats: () => client.get('/knowledge/stats'),
+  listKnowledgeBases: (params?: { tenant_id?: string; status?: string; type?: string }) =>
+    client.get('/knowledge/bases', { params }),
+  getKnowledgeBase: (id: string) => client.get(`/knowledge/bases/${id}`),
+  deleteKnowledgeBase: (id: string) => client.delete(`/knowledge/bases/${id}`),
+  listKnowledgeDocuments: (params?: { kb_id?: string; tenant_id?: string; status?: string }) =>
+    client.get('/knowledge/documents', { params }),
+  deleteKnowledgeDocument: (id: string) => client.delete(`/knowledge/documents/${id}`),
+  reprocessDocument: (id: string) => client.post(`/knowledge/documents/${id}/reprocess`),
+  listWriteTasks: (params?: { status?: string; limit?: number }) =>
+    client.get('/knowledge/write-tasks', { params }),
 }

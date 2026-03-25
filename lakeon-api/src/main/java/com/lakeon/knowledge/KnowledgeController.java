@@ -91,6 +91,30 @@ public class KnowledgeController {
         return knowledgeService.generateUploadUrl(tenant, kbId, filename, tags);
     }
 
+    @SuppressWarnings("unchecked")
+    @PostMapping("/batch-upload-urls")
+    public Map<String, Object> batchUploadUrls(HttpServletRequest req, @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        String kbId = (String) body.get("kb_id");
+        if (kbId == null || kbId.isBlank()) {
+            throw new com.lakeon.service.exception.BadRequestException("kb_id is required");
+        }
+        List<Map<String, Object>> files = (List<Map<String, Object>>) body.get("files");
+        List<Map<String, Object>> documents = knowledgeService.batchGenerateUploadUrls(tenant, kbId, files);
+        return Map.of("documents", documents);
+    }
+
+    @SuppressWarnings("unchecked")
+    @PostMapping("/batch-process")
+    public Map<String, Object> batchProcess(HttpServletRequest req, @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        List<String> documentIds = (List<String>) body.get("document_ids");
+        if (documentIds == null || documentIds.isEmpty()) {
+            throw new com.lakeon.service.exception.BadRequestException("document_ids is required");
+        }
+        return knowledgeService.batchProcessDocuments(tenant, documentIds);
+    }
+
     @PostMapping("/documents/{id}/process")
     public Map<String, Object> processDocument(HttpServletRequest req, @PathVariable String id) {
         TenantEntity tenant = getTenant(req);

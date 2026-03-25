@@ -17,6 +17,7 @@ import com.lakeon.service.AlertService;
 import com.lakeon.service.AuditService;
 import com.lakeon.model.entity.InviteCodeEntity;
 import com.lakeon.repository.InviteCodeRepository;
+import com.lakeon.knowledge.*;
 import com.lakeon.service.CbcBillingService;
 import com.lakeon.service.DatabaseService;
 import com.lakeon.service.TenantService;
@@ -47,6 +48,10 @@ public class AdminController {
     private final AlertService alertService;
     private final AuditService auditService;
     private final InviteCodeRepository inviteCodeRepository;
+    private final KnowledgeBaseRepository knowledgeBaseRepository;
+    private final DocumentRepository documentRepository;
+    private final KbWriteTaskRepository kbWriteTaskRepository;
+    private final KnowledgeService knowledgeService;
 
     public AdminController(TenantService tenantService,
                            AdminService adminService,
@@ -58,7 +63,11 @@ public class AdminController {
                            CbcBillingService cbcBillingService,
                            AlertService alertService,
                            AuditService auditService,
-                           InviteCodeRepository inviteCodeRepository) {
+                           InviteCodeRepository inviteCodeRepository,
+                           KnowledgeBaseRepository knowledgeBaseRepository,
+                           DocumentRepository documentRepository,
+                           KbWriteTaskRepository kbWriteTaskRepository,
+                           KnowledgeService knowledgeService) {
         this.tenantService = tenantService;
         this.adminService = adminService;
         this.databaseService = databaseService;
@@ -70,6 +79,10 @@ public class AdminController {
         this.alertService = alertService;
         this.auditService = auditService;
         this.inviteCodeRepository = inviteCodeRepository;
+        this.knowledgeBaseRepository = knowledgeBaseRepository;
+        this.documentRepository = documentRepository;
+        this.kbWriteTaskRepository = kbWriteTaskRepository;
+        this.knowledgeService = knowledgeService;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────
@@ -423,6 +436,174 @@ public class AdminController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return auditService.getLogsForAdmin(tenantId, dbId, type, page, size);
+    }
+
+    // ── Knowledge Base Admin ──────────────────────────────────────
+
+    @GetMapping("/knowledge/stats")
+    public Map<String, Object> getKnowledgeStats() {
+        long kbCount = knowledgeBaseRepository.count();
+        long docCount = documentRepository.count();
+        long processingCount = documentRepository.countByStatus(DocumentStatus.PROCESSING);
+        long failedCount = documentRepository.countByStatus(DocumentStatus.FAILED);
+        long readyCount = documentRepository.countByStatus(DocumentStatus.READY);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("kb_count", kbCount);
+        result.put("document_count", docCount);
+        result.put("processing_count", processingCount);
+        result.put("failed_count", failedCount);
+        result.put("ready_count", readyCount);
+        return result;
+    }
+
+    @GetMapping("/knowledge/bases")
+    public List<Map<String, Object>> listAllKnowledgeBases(
+            @RequestParam(required = false, name = "tenant_id") String tenantId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String type) {
+        List<KnowledgeBaseEntity> kbs;
+        if (tenantId != null) {
+            kbs = knowledgeBaseRepository.findAllByTenantIdOrderByCreatedAtDesc(tenantId);
+        } else {
+            kbs = knowledgeBaseRepository.findAll();
+        }
+        return kbs.stream()
+                .filter(kb -> status == null || (kb.getStatus() != null && kb.getStatus().name().equalsIgnoreCase(status)))
+                .filter(kb -> type == null || (kb.getType() != null && kb.getType().name().equalsIgnoreCase(type)))
+                .map(this::kbToMap)
+                .toList();
+    }
+
+    @GetMapping("/knowledge/bases/{id}")
+    public Map<String, Object> getKnowledgeBaseAdmin(@PathVariable String id) {
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findById(id)
+                .orElseThrow(() -> new com.lakeon.service.exception.NotFoundException("Knowledge base not found: " + id));
+        Map<String, Object> result = kbToMap(kb);
+        List<DocumentEntity> docs = documentRepository.findAllByKbId(id);
+        result.put("documents", docs.stream().map(this::docToMap).toList());
+        return result;
+    }
+
+    @DeleteMapping("/knowledge/bases/{id}")
+    public Map<String, Object> deleteKnowledgeBaseAdmin(@PathVariable String id) {
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findById(id)
+                .orElseThrow(() -> new com.lakeon.service.exception.NotFoundException("Knowledge base not found: " + id));
+        TenantEntity tenant = tenantRepository.findById(kb.getTenantId()).orElse(null);
+        if (tenant != null) {
+            knowledgeService.deleteKnowledgeBase(tenant.getId(), id);
+        }
+        return Map.of("deleted", id);
+    }
+
+    @GetMapping("/knowledge/documents")
+    public List<Map<String, Object>> listAllDocuments(
+            @RequestParam(required = false, name = "kb_id") String kbId,
+            @RequestParam(required = false, name = "tenant_id") String tenantId,
+            @RequestParam(required = false) String status) {
+        List<DocumentEntity> docs;
+        if (kbId != null) {
+            docs = documentRepository.findAllByKbId(kbId);
+        } else if (tenantId != null) {
+            docs = documentRepository.findAllByTenantIdOrderByCreatedAtDesc(tenantId);
+        } else {
+            docs = documentRepository.findAll();
+        }
+        return docs.stream()
+                .filter(d -> status == null || (d.getStatus() != null && d.getStatus().name().equalsIgnoreCase(status)))
+                .map(this::docToMap)
+                .toList();
+    }
+
+    @DeleteMapping("/knowledge/documents/{id}")
+    public Map<String, Object> deleteDocumentAdmin(@PathVariable String id) {
+        DocumentEntity doc = documentRepository.findById(id)
+                .orElseThrow(() -> new com.lakeon.service.exception.NotFoundException("Document not found: " + id));
+        TenantEntity tenant = tenantRepository.findById(doc.getTenantId()).orElse(null);
+        if (tenant != null) {
+            knowledgeService.deleteDocument(tenant.getId(), id);
+        }
+        return Map.of("deleted", id);
+    }
+
+    @PostMapping("/knowledge/documents/{id}/reprocess")
+    public Map<String, Object> reprocessDocument(@PathVariable String id) {
+        DocumentEntity doc = documentRepository.findById(id)
+                .orElseThrow(() -> new com.lakeon.service.exception.NotFoundException("Document not found: " + id));
+        // Reset to PENDING so it can be reprocessed
+        doc.setStatus(DocumentStatus.PENDING);
+        doc.setError(null);
+        documentRepository.save(doc);
+        TenantEntity tenant = tenantRepository.findById(doc.getTenantId()).orElse(null);
+        if (tenant != null) {
+            knowledgeService.processDocument(tenant, id);
+        }
+        return Map.of("document_id", id, "status", "PROCESSING");
+    }
+
+    @GetMapping("/knowledge/write-tasks")
+    public List<Map<String, Object>> listWriteTasks(
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "50") int limit) {
+        List<KbWriteTaskEntity> tasks;
+        if (status != null) {
+            tasks = kbWriteTaskRepository.findAll().stream()
+                    .filter(t -> t.getStatus().name().equalsIgnoreCase(status))
+                    .toList();
+        } else {
+            tasks = kbWriteTaskRepository.findAll();
+        }
+        return tasks.stream()
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                .limit(limit)
+                .map(this::taskToMap)
+                .toList();
+    }
+
+    private Map<String, Object> kbToMap(KnowledgeBaseEntity kb) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", kb.getId());
+        m.put("tenant_id", kb.getTenantId());
+        m.put("name", kb.getName());
+        m.put("description", kb.getDescription());
+        m.put("type", kb.getType() != null ? kb.getType().name() : "DOCUMENT");
+        m.put("status", kb.getStatus() != null ? kb.getStatus().name() : null);
+        m.put("database_id", kb.getDatabaseId());
+        m.put("embedding_model", kb.getEmbeddingModel());
+        m.put("document_count", kb.getDocumentCount());
+        m.put("error", kb.getError());
+        m.put("created_at", kb.getCreatedAt() != null ? kb.getCreatedAt().toString() : null);
+        return m;
+    }
+
+    private Map<String, Object> docToMap(DocumentEntity doc) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", doc.getId());
+        m.put("tenant_id", doc.getTenantId());
+        m.put("kb_id", doc.getKbId());
+        m.put("filename", doc.getFilename());
+        m.put("format", doc.getFormat());
+        m.put("status", doc.getStatus() != null ? doc.getStatus().name() : null);
+        m.put("size_bytes", doc.getSizeBytes());
+        m.put("chunks_count", doc.getChunksCount());
+        m.put("error", doc.getError());
+        m.put("created_at", doc.getCreatedAt() != null ? doc.getCreatedAt().toString() : null);
+        return m;
+    }
+
+    private Map<String, Object> taskToMap(KbWriteTaskEntity t) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", t.getId());
+        m.put("tenant_id", t.getTenantId());
+        m.put("kb_id", t.getKbId());
+        m.put("database_id", t.getDatabaseId());
+        m.put("type", t.getType().name());
+        m.put("status", t.getStatus().name());
+        m.put("job_id", t.getJobId());
+        m.put("error", t.getError());
+        m.put("created_at", t.getCreatedAt() != null ? t.getCreatedAt().toString() : null);
+        m.put("started_at", t.getStartedAt() != null ? t.getStartedAt().toString() : null);
+        m.put("completed_at", t.getCompletedAt() != null ? t.getCompletedAt().toString() : null);
+        return m;
     }
 
     // ── Helpers ────────────────────────────────────────────────────

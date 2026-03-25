@@ -93,6 +93,18 @@ export function processDocument(documentId: string) {
   return api.post(`/knowledge/documents/${documentId}/process`)
 }
 
+export function batchGetUploadUrls(kbId: string, files: { filename: string; tags?: string[] }[]) {
+  return api.post<{ documents: { document_id: string; filename: string; upload_url: string; expires_in: number }[] }>(
+    '/knowledge/batch-upload-urls', { kb_id: kbId, files }
+  )
+}
+
+export function batchProcessDocuments(documentIds: string[]) {
+  return api.post<{ task_id: string; document_count: number }>(
+    '/knowledge/batch-process', { document_ids: documentIds }
+  )
+}
+
 export function getDocument(documentId: string) {
   return api.get<Document>(`/knowledge/documents/${documentId}`)
 }

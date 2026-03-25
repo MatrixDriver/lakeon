@@ -186,6 +186,103 @@ def knowledge_upload(kb_name_or_id: str, file_path: str, tags: list[str] | None 
     return f"Uploaded {filename} → document {doc_id} (status={status}). Processing will run in the background."
 
 
+SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".md", ".markdown", ".txt"}
+
+BATCH_SIZE = 20
+UPLOAD_CONCURRENCY = 3
+
+
+@mcp.tool(description="Upload all supported files from a local directory to a knowledge base")
+def knowledge_upload_directory(
+    kb_name_or_id: str,
+    directory_path: str,
+    recursive: bool = True,
+    tags: list[str] | None = None,
+) -> str:
+    """Upload all supported documents from a directory to a knowledge base.
+
+    Scans for .pdf, .docx, .md, .markdown, .txt files. Uses batch API for efficiency.
+
+    Args:
+        kb_name_or_id: Knowledge base name or ID
+        directory_path: Absolute path to the directory
+        recursive: Whether to scan subdirectories (default True)
+        tags: Optional tags to apply to all uploaded documents
+    """
+    import asyncio
+
+    kb_id = _resolve_kb_id(kb_name_or_id)
+    dir_path = Path(directory_path).expanduser().resolve()
+    if not dir_path.is_dir():
+        raise RuntimeError(f"Not a directory: {dir_path}")
+
+    # Collect supported files
+    if recursive:
+        files = [f for f in dir_path.rglob("*") if f.is_file() and f.suffix.lower() in SUPPORTED_EXTENSIONS]
+    else:
+        files = [f for f in dir_path.iterdir() if f.is_file() and f.suffix.lower() in SUPPORTED_EXTENSIONS]
+
+    if not files:
+        return f"No supported files found in {dir_path}. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
+
+    files.sort(key=lambda f: f.name)
+
+    total = len(files)
+    uploaded = 0
+    failed = 0
+    processed_batches = 0
+    errors: list[str] = []
+
+    # Process in batches of BATCH_SIZE
+    for batch_start in range(0, total, BATCH_SIZE):
+        batch_files = files[batch_start:batch_start + BATCH_SIZE]
+        file_specs = [{"filename": f.name, **({"tags": tags} if tags else {})} for f in batch_files]
+
+        try:
+            # 1. Get presigned URLs
+            batch_resp = _api("POST", "/knowledge/batch-upload-urls", json={"kb_id": kb_id, "files": file_specs})
+            doc_items = batch_resp["documents"]
+
+            # 2. Upload files concurrently (UPLOAD_CONCURRENCY at a time)
+            doc_ids: list[str] = []
+            for i in range(0, len(doc_items), UPLOAD_CONCURRENCY):
+                chunk_items = doc_items[i:i + UPLOAD_CONCURRENCY]
+                chunk_files = batch_files[i:i + UPLOAD_CONCURRENCY]
+                for item, fp in zip(chunk_items, chunk_files):
+                    content_type = _guess_content_type(fp.name)
+                    with open(fp, "rb") as fh:
+                        put_resp = httpx.put(
+                            item["upload_url"],
+                            content=fh.read(),
+                            headers={"Content-Type": content_type},
+                            verify=False,
+                            timeout=300,
+                        )
+                    if put_resp.status_code < 400:
+                        doc_ids.append(item["document_id"])
+                        uploaded += 1
+                    else:
+                        failed += 1
+                        errors.append(f"{fp.name}: upload HTTP {put_resp.status_code}")
+
+            # 3. Trigger batch processing
+            if doc_ids:
+                _api("POST", "/knowledge/batch-process", json={"document_ids": doc_ids})
+                processed_batches += 1
+
+        except Exception as e:
+            failed += len(batch_files)
+            errors.append(f"Batch starting at {batch_files[0].name}: {e}")
+
+    # Summary
+    parts = [f"Directory: {dir_path}", f"Total files found: {total}", f"Uploaded: {uploaded}", f"Failed: {failed}"]
+    if processed_batches:
+        parts.append(f"Batch jobs submitted: {processed_batches} (processing runs in background)")
+    if errors:
+        parts.append(f"Errors:\n" + "\n".join(f"  - {e}" for e in errors[:10]))
+    return "\n".join(parts)
+
+
 def _guess_content_type(filename: str) -> str:
     ext = Path(filename).suffix.lower()
     return {

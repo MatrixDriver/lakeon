@@ -411,6 +411,159 @@ public class KnowledgeService {
     }
 
     /**
+     * Batch generate presigned upload URLs for multiple files (max 20).
+     * Returns list of {document_id, filename, upload_url, expires_in}.
+     */
+    @Transactional
+    public List<Map<String, Object>> batchGenerateUploadUrls(TenantEntity tenant, String kbId,
+            List<Map<String, Object>> files) {
+        if (files == null || files.isEmpty()) {
+            throw new BadRequestException("files is required");
+        }
+        if (files.size() > 20) {
+            throw new BadRequestException("Maximum 20 files per batch");
+        }
+
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenant.getId())
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+        if (kb.getStatus() != KnowledgeBaseStatus.READY) {
+            throw new BadRequestException("Knowledge base is not ready. Current status: " + kb.getStatus());
+        }
+        String databaseId = kb.getDatabaseId();
+        if (databaseId == null) {
+            throw new BadRequestException("Knowledge base has no backing database");
+        }
+
+        int expireSeconds = props.getKnowledge().getPresignExpireSeconds();
+        List<Map<String, Object>> results = new ArrayList<>();
+
+        try (S3Presigner presigner = buildPresigner()) {
+            for (Map<String, Object> fileSpec : files) {
+                String filename = (String) fileSpec.get("filename");
+                if (filename == null || filename.isBlank()) {
+                    throw new BadRequestException("filename is required for each file");
+                }
+                @SuppressWarnings("unchecked")
+                List<String> tags = (List<String>) fileSpec.get("tags");
+
+                String format = detectFormat(filename);
+                if (format == null) {
+                    throw new BadRequestException("Unsupported format for file: " + filename);
+                }
+
+                DocumentEntity doc = new DocumentEntity();
+                doc.setTenantId(tenant.getId());
+                doc.setDatabaseId(databaseId);
+                doc.setKbId(kbId);
+                doc.setFilename(filename);
+                doc.setFormat(format);
+                doc.setStatus(DocumentStatus.PENDING);
+                if (tags != null && !tags.isEmpty()) {
+                    doc.setTags(tags);
+                }
+                documentRepository.save(doc);
+
+                String obsKey = "knowledge/" + tenant.getId() + "/" + kbId + "/" + doc.getId() + "/" + filename;
+                doc.setObsKey(obsKey);
+                documentRepository.save(doc);
+
+                PutObjectRequest putRequest = PutObjectRequest.builder()
+                        .bucket(props.getObs().getBucket())
+                        .key(obsKey)
+                        .build();
+                PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                        .signatureDuration(Duration.ofSeconds(expireSeconds))
+                        .putObjectRequest(putRequest)
+                        .build();
+                String uploadUrl = presigner.presignPutObject(presignRequest).url().toString();
+
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("document_id", doc.getId());
+                item.put("filename", filename);
+                item.put("upload_url", uploadUrl);
+                item.put("expires_in", expireSeconds);
+                results.add(item);
+            }
+        }
+
+        return results;
+    }
+
+    /**
+     * Batch process multiple documents with a single job pod (max 20).
+     * All documents must be PENDING and belong to the same KB.
+     */
+    public Map<String, Object> batchProcessDocuments(TenantEntity tenant, List<String> documentIds) {
+        if (documentIds == null || documentIds.isEmpty()) {
+            throw new BadRequestException("document_ids is required");
+        }
+        if (documentIds.size() > 20) {
+            throw new BadRequestException("Maximum 20 documents per batch");
+        }
+
+        List<DocumentEntity> docs = new ArrayList<>();
+        String kbId = null;
+        String databaseId = null;
+
+        for (String docId : documentIds) {
+            DocumentEntity doc = documentRepository.findByIdAndTenantId(docId, tenant.getId())
+                    .orElseThrow(() -> new NotFoundException("Document not found: " + docId));
+            if (doc.getStatus() != DocumentStatus.PENDING) {
+                throw new BadRequestException("Document " + docId + " is not PENDING (status: " + doc.getStatus() + ")");
+            }
+            if (kbId == null) {
+                kbId = doc.getKbId();
+            } else if (!kbId.equals(doc.getKbId())) {
+                throw new BadRequestException("All documents must belong to the same knowledge base");
+            }
+            docs.add(doc);
+        }
+
+        final String finalKbId = kbId;
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(finalKbId, tenant.getId())
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + finalKbId));
+        databaseId = kb.getDatabaseId();
+
+        // Build per-document params list
+        List<Map<String, Object>> docParams = new ArrayList<>();
+        for (DocumentEntity doc : docs) {
+            Map<String, Object> dp = new LinkedHashMap<>();
+            dp.put("document_id", doc.getId());
+            dp.put("obs_key", doc.getObsKey());
+            dp.put("format", doc.getFormat());
+            dp.put("filename", doc.getFilename());
+            dp.put("kb_id", doc.getKbId());
+            dp.put("tenant_id", tenant.getId());
+            docParams.add(dp);
+        }
+
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("document_ids", documentIds);
+        params.put("documents", docParams);
+        params.put("tenant_id", tenant.getId());
+        params.put("kb_id", kbId);
+        params.put("database_connstr", "placeholder"); // overridden by KbWriteQueue
+        params.put("embedding_api_url", props.getKnowledge().getEmbeddingApiUrl());
+        params.put("embedding_api_key", props.getKnowledge().getEmbeddingApiKey());
+        params.put("embedding_model", kb.getEmbeddingModel() != null
+                ? kb.getEmbeddingModel() : props.getKnowledge().getEmbeddingModel());
+
+        KbWriteTaskEntity task = kbWriteQueue.submit(tenant.getId(), kbId,
+                databaseId, KbWriteTaskType.BATCH_DOCUMENT_PARSE, params);
+
+        // Mark all docs as PROCESSING
+        for (DocumentEntity doc : docs) {
+            doc.setStatus(DocumentStatus.PROCESSING);
+            documentRepository.save(doc);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("task_id", task.getId());
+        result.put("document_count", docs.size());
+        return result;
+    }
+
+    /**
      * Get a document, syncing status from its job if still PROCESSING.
      */
     public DocumentEntity getDocument(String tenantId, String documentId) {
@@ -451,6 +604,17 @@ public class KnowledgeService {
                 deleteObsFile(doc.getObsKey());
             } catch (Exception e) {
                 log.warn("Failed to delete OBS file {}: {}", doc.getObsKey(), e.getMessage());
+            }
+        }
+
+        // Delete fulltext OBS file (best-effort)
+        if (doc.getKbId() != null) {
+            try {
+                String fulltextKey = String.format("knowledge/%s/%s/%s/fulltext.md",
+                        tenantId, doc.getKbId(), documentId);
+                deleteObsFile(fulltextKey);
+            } catch (Exception e) {
+                log.warn("Failed to delete fulltext OBS file for doc {}: {}", documentId, e.getMessage());
             }
         }
 

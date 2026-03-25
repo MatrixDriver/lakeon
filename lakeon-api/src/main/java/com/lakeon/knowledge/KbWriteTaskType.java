@@ -2,6 +2,7 @@ package com.lakeon.knowledge;
 
 public enum KbWriteTaskType {
     DOCUMENT_PARSE,
+    BATCH_DOCUMENT_PARSE,
     RECHUNK,
     EDIT_CHUNK,
     DELETE_CHUNK,

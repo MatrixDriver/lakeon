@@ -119,9 +119,11 @@ public class KbWriteQueue {
             log.info("kb-write task {} completed via job {}: {}", task.getId(), jobId,
                      success ? "SUCCEEDED" : "FAILED");
 
-            // Sync document status for DOCUMENT_PARSE tasks
+            // Sync document status for DOCUMENT_PARSE / BATCH_DOCUMENT_PARSE tasks
             if (task.getType() == KbWriteTaskType.DOCUMENT_PARSE) {
                 syncDocumentFromTask(task, success, result, error);
+            } else if (task.getType() == KbWriteTaskType.BATCH_DOCUMENT_PARSE) {
+                syncBatchDocumentsFromTask(task, success, result, error);
             }
 
             // Trigger drain for next task
@@ -168,6 +170,66 @@ public class KbWriteQueue {
             });
         } catch (Exception e) {
             log.warn("Failed to sync document status from task {}: {}", task.getId(), e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void syncBatchDocumentsFromTask(KbWriteTaskEntity task, boolean success,
+                                             String result, String error) {
+        try {
+            Map<String, Object> params = objectMapper.readValue(task.getParams(), Map.class);
+            List<String> documentIds = (List<String>) params.get("document_ids");
+            if (documentIds == null || documentIds.isEmpty()) return;
+
+            if (!success) {
+                // Mark all documents as FAILED
+                for (String docId : documentIds) {
+                    documentRepository.findById(docId).ifPresent(doc -> {
+                        doc.setStatus(DocumentStatus.FAILED);
+                        doc.setError(error);
+                        documentRepository.save(doc);
+                    });
+                }
+                return;
+            }
+
+            // Parse per-document results: {"documents": [{"document_id": "...", "chunks_count": N}, ...]}
+            Map<String, Integer> chunkCounts = new HashMap<>();
+            if (result != null) {
+                try {
+                    Map<String, Object> res = objectMapper.readValue(result, Map.class);
+                    List<Map<String, Object>> docs = (List<Map<String, Object>>) res.get("documents");
+                    if (docs != null) {
+                        for (Map<String, Object> d : docs) {
+                            String docId = (String) d.get("document_id");
+                            Object chunks = d.get("chunks_count");
+                            if (docId != null && chunks instanceof Number) {
+                                chunkCounts.put(docId, ((Number) chunks).intValue());
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.debug("Failed to parse batch task result: {}", e.getMessage());
+                }
+            }
+
+            for (String docId : documentIds) {
+                documentRepository.findById(docId).ifPresent(doc -> {
+                    doc.setStatus(DocumentStatus.READY);
+                    Integer chunks = chunkCounts.get(docId);
+                    if (chunks != null) doc.setChunksCount(chunks);
+                    documentRepository.save(doc);
+                    if (doc.getKbId() != null) {
+                        knowledgeBaseRepository.findById(doc.getKbId()).ifPresent(kb -> {
+                            kb.setDocumentCount((kb.getDocumentCount() == null ? 0 : kb.getDocumentCount()) + 1);
+                            knowledgeBaseRepository.save(kb);
+                        });
+                    }
+                });
+            }
+            log.info("Synced {} batch documents from task {}", documentIds.size(), task.getId());
+        } catch (Exception e) {
+            log.warn("Failed to sync batch document status from task {}: {}", task.getId(), e.getMessage());
         }
     }
 
@@ -233,6 +295,8 @@ public class KbWriteQueue {
                     // Sync document status on failure
                     if (task.getType() == KbWriteTaskType.DOCUMENT_PARSE) {
                         syncDocumentFromTask(task, false, null, e.getMessage());
+                    } else if (task.getType() == KbWriteTaskType.BATCH_DOCUMENT_PARSE) {
+                        syncBatchDocumentsFromTask(task, false, null, e.getMessage());
                     }
                     // Continue draining next task
                 }

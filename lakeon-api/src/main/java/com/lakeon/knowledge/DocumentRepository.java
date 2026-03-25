@@ -13,6 +13,7 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, String
     List<DocumentEntity> findAllByTenantIdAndKbIdOrderByCreatedAtDesc(String tenantId, String kbId);
     List<DocumentEntity> findAllByTenantIdOrderByCreatedAtDesc(String tenantId);
     List<DocumentEntity> findAllByKbId(String kbId);
+    long countByStatus(DocumentStatus status);
 
     @Query(value = "SELECT id FROM documents WHERE kb_id = :kbId AND tenant_id = :tenantId AND tags && CAST(:tags AS text[])",
            nativeQuery = true)

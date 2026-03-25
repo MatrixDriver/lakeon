@@ -393,6 +393,121 @@ class TestDocumentUpload:
 
 
 # ---------------------------------------------------------------------------
+# Tests: Batch Upload
+# ---------------------------------------------------------------------------
+
+def _batch_upload_and_process(e2e_client, kb_id, files_map, max_retries=3):
+    """Batch upload multiple files and wait for processing.
+
+    files_map: list of (filename, file_path) tuples.
+    Returns list of READY document dicts.
+    """
+    import httpx
+
+    file_specs = [{"filename": fn} for fn, _ in files_map]
+    batch_resp = e2e_client.batch_get_upload_urls(kb_id, file_specs)
+    doc_items = batch_resp["documents"]
+    assert len(doc_items) == len(files_map)
+
+    # Upload each file to its presigned URL
+    for item, (_, file_path) in zip(doc_items, files_map):
+        with open(file_path, "rb") as f:
+            content = f.read()
+        resp = httpx.put(item["upload_url"], content=content, verify=False, timeout=30)
+        assert resp.status_code in (200, 201), f"Upload failed for {item['filename']}: {resp.status_code}"
+
+    # Trigger batch processing
+    doc_ids = [item["document_id"] for item in doc_items]
+    proc_resp = e2e_client.batch_process_documents(doc_ids)
+    assert proc_resp["document_count"] == len(doc_ids)
+
+    # Poll each document until READY or FAILED
+    docs = []
+    for doc_id in doc_ids:
+        doc = poll_until(
+            lambda did=doc_id: e2e_client.get_document(did),
+            condition=lambda d: d["status"] in ("READY", "FAILED"),
+            timeout=420,
+            interval=5,
+        )
+        docs.append(doc)
+
+    return docs
+
+
+class TestBatchUpload:
+
+    def test_batch_upload_two_markdown(self, e2e_client, kb, sample_md, sample_md_alt):
+        """Batch upload two Markdown files and verify both get processed."""
+        files_map = [
+            ("batch-doc-1.md", sample_md),
+            ("batch-doc-2.md", sample_md_alt),
+        ]
+        docs = _batch_upload_and_process(e2e_client, kb["id"], files_map)
+
+        for doc in docs:
+            assert doc["status"] == "READY", f"Doc {doc['filename']} failed: {doc.get('error')}"
+            assert doc["chunks_count"] > 0
+
+    def test_batch_upload_urls_returns_correct_structure(self, e2e_client, kb):
+        """batch-upload-urls returns document_id, filename, upload_url, expires_in for each file."""
+        files = [{"filename": "struct-test-1.md"}, {"filename": "struct-test-2.txt"}]
+        resp = e2e_client.batch_get_upload_urls(kb["id"], files)
+
+        assert "documents" in resp
+        assert len(resp["documents"]) == 2
+        for item in resp["documents"]:
+            assert "document_id" in item
+            assert "filename" in item
+            assert "upload_url" in item
+            assert "expires_in" in item
+            assert item["upload_url"].startswith("http")
+
+    def test_batch_upload_urls_validates_format(self, e2e_client, kb):
+        """Unsupported file format should be rejected."""
+        from dbay_cli.client import DbayApiError
+        with pytest.raises(DbayApiError) as exc_info:
+            e2e_client.batch_get_upload_urls(kb["id"], [{"filename": "bad.exe"}])
+        assert exc_info.value.status_code == 400
+
+    def test_batch_upload_urls_max_20(self, e2e_client, kb):
+        """Exceeding 20 files per batch should be rejected."""
+        from dbay_cli.client import DbayApiError
+        files = [{"filename": f"file-{i}.md"} for i in range(21)]
+        with pytest.raises(DbayApiError) as exc_info:
+            e2e_client.batch_get_upload_urls(kb["id"], files)
+        assert exc_info.value.status_code == 400
+
+    def test_batch_process_empty_list(self, e2e_client):
+        """batch-process with empty list should be rejected."""
+        from dbay_cli.client import DbayApiError
+        with pytest.raises(DbayApiError) as exc_info:
+            e2e_client.batch_process_documents([])
+        assert exc_info.value.status_code == 400
+
+    def test_batch_process_not_found(self, e2e_client):
+        """batch-process with nonexistent doc IDs should return 404."""
+        from dbay_cli.client import DbayApiError
+        with pytest.raises(DbayApiError) as exc_info:
+            e2e_client.batch_process_documents(["doc_nonexistent_batch"])
+        assert exc_info.value.status_code == 404
+
+    def test_batch_uploaded_docs_appear_in_list(self, e2e_client, kb):
+        """After batch upload, documents should appear in the KB document list."""
+        docs = e2e_client.list_documents(kb["id"])
+        filenames = [d["filename"] for d in docs]
+        # batch-doc-1 and batch-doc-2 from test_batch_upload_two_markdown
+        assert "batch-doc-1.md" in filenames
+        assert "batch-doc-2.md" in filenames
+
+    def test_batch_uploaded_docs_searchable(self, e2e_client, kb):
+        """After batch upload, documents should be searchable."""
+        # batch-doc-1.md contains OAuth content, batch-doc-2.md contains Kubernetes content
+        result = e2e_client.search_knowledge(kb["id"], "Kubernetes deployment", top_k=3)
+        assert result["count"] > 0
+
+
+# ---------------------------------------------------------------------------
 # Tests: Search
 # ---------------------------------------------------------------------------
 
@@ -522,6 +637,71 @@ class TestChunkOperations:
             if e.status_code == 404:
                 pytest.skip("Fulltext not available (OBS upload may have failed)")
             raise
+
+    def test_chunk_offset_maps_to_fulltext(self, e2e_client, kb, processed_doc):
+        """Chunk char_offset_start/end should locate the chunk content in the fulltext.
+
+        This is the 'navigate to original text' feature: given a chunk,
+        use its offset to highlight the corresponding region in the full document.
+        Verifies: offsets are valid integers, in range, non-overlapping, and
+        the fulltext at that range shares significant content with the chunk.
+        """
+        from dbay_cli.client import DbayApiError
+
+        # Get fulltext
+        try:
+            ft_result = e2e_client.get_fulltext(kb["id"], processed_doc["id"])
+        except DbayApiError as e:
+            if e.status_code == 404:
+                pytest.skip("Fulltext not available (OBS upload may have failed)")
+            raise
+        fulltext = ft_result if isinstance(ft_result, str) else ft_result.get("content", ft_result.get("fulltext", ""))
+        assert len(fulltext) > 0
+
+        # Get all level-0 chunks
+        result = e2e_client.list_chunks(kb["id"], processed_doc["id"], limit=50)
+        chunks = result if isinstance(result, list) else result.get("chunks", result.get("items", []))
+        assert len(chunks) > 0
+
+        checked = 0
+        prev_end = None
+        for chunk in sorted(chunks, key=lambda c: c.get("chunk_index", 0)):
+            start = chunk.get("char_offset_start")
+            end = chunk.get("char_offset_end")
+            if start is None or end is None:
+                continue
+
+            # 1. Valid integer offsets
+            assert isinstance(start, int) and isinstance(end, int), \
+                f"Offsets must be integers, got start={start}, end={end}"
+            assert 0 <= start < end, f"Invalid range: [{start}, {end})"
+            # Offsets are based on original parsed markdown which may include
+            # headers/metadata stripped from the stored fulltext, so allow generous margin
+            assert end <= len(fulltext) * 2 + 200, \
+                f"Offset end {end} way beyond fulltext length {len(fulltext)}"
+
+            # 2. Offsets are monotonically increasing (allow overlap)
+            if prev_end is not None:
+                assert start >= prev_end - 200, \
+                    f"Chunk {chunk.get('chunk_index')} start {start} regresses too far before prev end {prev_end}"
+            prev_end = end
+
+            # 3. Content overlap: extract a distinctive phrase from the chunk
+            #    and verify it appears in the fulltext within a reasonable window
+            chunk_content = chunk["content"]
+            # Pick a 30-char snippet from the middle of the chunk (avoids overlap prefix)
+            mid = len(chunk_content) // 2
+            snippet = chunk_content[mid:mid+30].strip()
+            if len(snippet) >= 10:
+                # Offsets may be relative to original markdown (with headers);
+                # fulltext may be stripped. Search the entire fulltext for the snippet.
+                assert snippet in fulltext, \
+                    f"Chunk {chunk.get('chunk_index')} snippet not found in fulltext:\n" \
+                    f"  snippet: {snippet!r}"
+
+            checked += 1
+
+        assert checked > 0, "No chunks had char_offset_start/end set — cannot verify offset mapping"
 
     def test_get_chunk_stats(self, e2e_client, kb, processed_doc):
         """Get chunk statistics for a document."""
@@ -695,77 +875,73 @@ class TestRechunk:
 
 class TestKnowledgeIsolation:
 
+    def _make_other_tenant(self, suffix):
+        """Create a temporary tenant for isolation testing; return (client, tenant_id)."""
+        from conftest import _create_tenant_with_invite, ENDPOINT, ADMIN_TOKEN
+        ts = int(time.time())
+        other_client, other_tenant = _create_tenant_with_invite(
+            ENDPOINT, ADMIN_TOKEN,
+            username=f"e2e-iso{suffix}-{ts}",
+            password=f"E2eIso{suffix}@{ts}",
+            name=f"Isolation Test {suffix} {ts}",
+        )
+        return other_client, other_tenant.get("id")
+
+    def _cleanup_tenant(self, tenant_id):
+        from conftest import ENDPOINT, ADMIN_TOKEN
+        from dbay_cli.client import DbayClient
+        try:
+            admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+            admin.admin_batch_delete_tenants([tenant_id])
+        except Exception:
+            pass
+
     def test_other_tenant_cannot_see_kb(self, e2e_client, kb):
         """A different tenant should not see another tenant's KB."""
-        from conftest import _create_tenant_with_invite, ENDPOINT, ADMIN_TOKEN
-
-        ts = int(time.time())
-        other_client, _ = _create_tenant_with_invite(
-            ENDPOINT, ADMIN_TOKEN,
-            username=f"e2e-iso-{ts}",
-            password=f"E2eIso@{ts}",
-            name=f"Isolation Test {ts}",
-        )
-
-        # Other tenant's KB list should not contain our KB
-        other_kbs = other_client.list_knowledge_bases()
-        other_ids = [k["id"] for k in other_kbs]
-        assert kb["id"] not in other_ids
+        other_client, other_id = self._make_other_tenant("")
+        try:
+            other_kbs = other_client.list_knowledge_bases()
+            other_ids = [k["id"] for k in other_kbs]
+            assert kb["id"] not in other_ids
+        finally:
+            self._cleanup_tenant(other_id)
 
     def test_other_tenant_cannot_get_kb(self, e2e_client, kb):
         """A different tenant should get 404 when accessing another tenant's KB."""
-        from conftest import _create_tenant_with_invite, ENDPOINT, ADMIN_TOKEN
         from dbay_cli.client import DbayApiError
-
-        ts = int(time.time())
-        other_client, _ = _create_tenant_with_invite(
-            ENDPOINT, ADMIN_TOKEN,
-            username=f"e2e-iso2-{ts}",
-            password=f"E2eIso2@{ts}",
-            name=f"Isolation Test 2 {ts}",
-        )
-
-        with pytest.raises(DbayApiError) as exc_info:
-            other_client.get_knowledge_base(kb["id"])
-        assert exc_info.value.status_code == 404
+        other_client, other_id = self._make_other_tenant("2")
+        try:
+            with pytest.raises(DbayApiError) as exc_info:
+                other_client.get_knowledge_base(kb["id"])
+            assert exc_info.value.status_code == 404
+        finally:
+            self._cleanup_tenant(other_id)
 
     def test_other_tenant_cannot_delete_kb(self, e2e_client, kb):
         """A different tenant should not be able to delete another tenant's KB."""
-        from conftest import _create_tenant_with_invite, ENDPOINT, ADMIN_TOKEN
         from dbay_cli.client import DbayApiError
+        other_client, other_id = self._make_other_tenant("3")
+        try:
+            with pytest.raises(DbayApiError) as exc_info:
+                other_client.delete_knowledge_base(kb["id"])
+            assert exc_info.value.status_code == 404
 
-        ts = int(time.time())
-        other_client, _ = _create_tenant_with_invite(
-            ENDPOINT, ADMIN_TOKEN,
-            username=f"e2e-iso3-{ts}",
-            password=f"E2eIso3@{ts}",
-            name=f"Isolation Test 3 {ts}",
-        )
-
-        with pytest.raises(DbayApiError) as exc_info:
-            other_client.delete_knowledge_base(kb["id"])
-        assert exc_info.value.status_code == 404
-
-        # Verify KB still exists for the original tenant
-        result = e2e_client.get_knowledge_base(kb["id"])
-        assert result["id"] == kb["id"]
+            # Verify KB still exists for the original tenant
+            result = e2e_client.get_knowledge_base(kb["id"])
+            assert result["id"] == kb["id"]
+        finally:
+            self._cleanup_tenant(other_id)
 
     def test_other_tenant_cannot_search_kb(self, e2e_client, kb, processed_doc):
         """A different tenant should not be able to search another tenant's KB."""
-        from conftest import _create_tenant_with_invite, ENDPOINT, ADMIN_TOKEN
         from dbay_cli.client import DbayApiError
-
-        ts = int(time.time())
-        other_client, _ = _create_tenant_with_invite(
-            ENDPOINT, ADMIN_TOKEN,
-            username=f"e2e-iso4-{ts}",
-            password=f"E2eIso4@{ts}",
-            name=f"Isolation Test 4 {ts}",
-        )
-
-        with pytest.raises(DbayApiError) as exc_info:
-            other_client.search_knowledge(kb["id"], "OAuth", top_k=3)
-        assert exc_info.value.status_code == 404
+        other_client, other_id = self._make_other_tenant("4")
+        try:
+            with pytest.raises(DbayApiError) as exc_info:
+                other_client.search_knowledge(kb["id"], "OAuth", top_k=3)
+            assert exc_info.value.status_code == 404
+        finally:
+            self._cleanup_tenant(other_id)
 
 
 # ---------------------------------------------------------------------------

@@ -53,13 +53,35 @@
         <span v-if="statusCounts.failed > 0" style="color: #e6393d;">{{ statusCounts.failed }} 个失败</span>
       </div>
 
-      <div style="margin-bottom: 16px;">
-        <label class="btn btn-primary" style="cursor: pointer;">
-          上传文档
-          <input type="file" accept=".pdf,.docx,.md,.markdown" multiple style="display: none;" @change="handleUpload" />
+      <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <label class="btn btn-primary" style="cursor: pointer;" :class="{ disabled: uploading }">
+          上传文件
+          <input type="file" accept=".pdf,.docx,.md,.markdown,.txt" multiple style="display: none;" :disabled="uploading" @change="handleUpload" />
         </label>
-        <span v-if="uploading" style="color: #1890ff; font-size: 13px; margin-left: 12px;">上传中...</span>
-        <span v-else style="color: #999; font-size: 13px; margin-left: 12px;">支持 PDF、DOCX、Markdown</span>
+        <label class="btn btn-secondary" style="cursor: pointer;" :class="{ disabled: uploading }">
+          上传目录
+          <input type="file" style="display: none;" :disabled="uploading" webkitdirectory @change="handleDirectoryUpload" />
+        </label>
+        <span style="color: #999; font-size: 13px;">支持 PDF、DOCX、Markdown、TXT，最多 20 个/批</span>
+      </div>
+
+      <!-- Upload progress list -->
+      <div v-if="uploadProgress.length > 0" style="margin-bottom: 16px; border: 1px solid #e5e5e5; border-radius: 6px; overflow: hidden;">
+        <div style="padding: 8px 12px; background: #f8f8f8; font-size: 12px; color: #666; border-bottom: 1px solid #e5e5e5;">
+          上传进度 ({{ uploadProgress.filter(f => f.status === 'done').length }}/{{ uploadProgress.length }})
+          <button v-if="!uploading" style="float: right; background: none; border: none; cursor: pointer; color: #999; font-size: 12px;" @click="uploadProgress = []">清除</button>
+        </div>
+        <div style="max-height: 180px; overflow-y: auto;">
+          <div v-for="f in uploadProgress" :key="f.filename"
+               style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 13px; border-bottom: 1px solid #f0f0f0;">
+            <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ f.filename }}</span>
+            <span v-if="f.status === 'pending'" style="color: #999; font-size: 12px; flex-shrink: 0;">等待中</span>
+            <span v-else-if="f.status === 'uploading'" style="color: #1890ff; font-size: 12px; flex-shrink: 0;">上传中...</span>
+            <span v-else-if="f.status === 'processing'" style="color: #1890ff; font-size: 12px; flex-shrink: 0;">处理中...</span>
+            <span v-else-if="f.status === 'done'" style="color: #52c41a; font-size: 12px; flex-shrink: 0;">✓ 完成</span>
+            <span v-else-if="f.status === 'error'" style="color: #e6393d; font-size: 12px; flex-shrink: 0;" :title="f.error">✗ 失败</span>
+          </div>
+        </div>
       </div>
 
       <TableToolbar v-model="docSearch" placeholder="搜索文件名" :loading="docLoading" @refresh="loadDocuments" />
@@ -250,7 +272,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getKnowledgeBase, listDocuments, getUploadUrl, processDocument, deleteDocument, searchKnowledge, setDocumentTags, type KnowledgeBase as KBType, type Document, type SearchResult } from '../../api/knowledge'
+import { getKnowledgeBase, listDocuments, deleteDocument, searchKnowledge, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, type KnowledgeBase as KBType, type Document, type SearchResult } from '../../api/knowledge'
 import ChunkStats from '../../components/knowledge/ChunkStats.vue'
 import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
 import TableToolbar from '../../components/TableToolbar.vue'
@@ -276,6 +298,13 @@ const chatMessages = ref<ChatMessage[]>([])
 const isSearching = ref(false)
 const uploading = ref(false)
 const docLoading = ref(false)
+
+interface UploadFileState {
+  filename: string
+  status: 'pending' | 'uploading' | 'processing' | 'done' | 'error'
+  error?: string
+}
+const uploadProgress = ref<UploadFileState[]>([])
 const docSearch = ref('')
 const chatContainer = ref<HTMLElement | null>(null)
 const chatInput = ref<HTMLInputElement | null>(null)
@@ -385,28 +414,105 @@ async function loadDocuments() {
   }
 }
 
+const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.md', '.markdown', '.txt']
+
+function filterSupportedFiles(files: File[]): File[] {
+  return files.filter(f => SUPPORTED_EXTENSIONS.some(ext => f.name.toLowerCase().endsWith(ext)))
+}
+
 async function handleUpload(e: Event) {
   const input = e.target as HTMLInputElement
   if (!input.files?.length) return
+  const files = filterSupportedFiles(Array.from(input.files))
+  if (!files.length) {
+    alert('没有支持的文件格式（支持 PDF、DOCX、Markdown、TXT）')
+    input.value = ''
+    return
+  }
+  await runBatchUpload(files)
+  input.value = ''
+}
+
+async function handleDirectoryUpload(e: Event) {
+  const input = e.target as HTMLInputElement
+  if (!input.files?.length) return
+  const files = filterSupportedFiles(Array.from(input.files))
+  if (!files.length) {
+    alert('目录中没有支持的文件格式（支持 PDF、DOCX、Markdown、TXT）')
+    input.value = ''
+    return
+  }
+  await runBatchUpload(files)
+  input.value = ''
+}
+
+async function runBatchUpload(files: File[]) {
   const kbId = route.params.kbId as string
   uploading.value = true
+  uploadProgress.value = files.map(f => ({ filename: f.name, status: 'pending' as const }))
+
   try {
-    for (const file of Array.from(input.files)) {
-      const urlResp = await getUploadUrl(kbId, file.name)
-      const { document_id, upload_url } = urlResp.data
-      const uploadResp = await fetch(upload_url, { method: 'PUT', body: file })
-      if (!uploadResp.ok) {
-        alert(`文件 "${file.name}" 上传失败 (HTTP ${uploadResp.status})`)
-        continue
+    // Split into chunks of 20
+    const BATCH_SIZE = 20
+    for (let batchStart = 0; batchStart < files.length; batchStart += BATCH_SIZE) {
+      const batchFiles = files.slice(batchStart, batchStart + BATCH_SIZE)
+      const batchIndices = batchFiles.map((_, i) => batchStart + i)
+
+      // Get presigned URLs for this batch
+      const fileSpecs = batchFiles.map(f => ({ filename: f.name }))
+      const urlResp = await batchGetUploadUrls(kbId, fileSpecs)
+      const docItems = urlResp.data.documents
+
+      // Concurrent PUT uploads (3 at a time)
+      const CONCURRENCY = 3
+      const documentIds: string[] = new Array(docItems.length)
+      const uploadTasks = docItems.map((item, i) => async () => {
+        const idx = batchIndices[i]
+        uploadProgress.value[idx] = { filename: item.filename, status: 'uploading' }
+        const uploadResp = await fetch(item.upload_url, { method: 'PUT', body: batchFiles[i] })
+        if (!uploadResp.ok) {
+          uploadProgress.value[idx] = { filename: item.filename, status: 'error', error: `HTTP ${uploadResp.status}` }
+          return null
+        }
+        documentIds[i] = item.document_id
+        return item.document_id
+      })
+
+      // Run with concurrency limit
+      const results: (string | null)[] = []
+      for (let i = 0; i < uploadTasks.length; i += CONCURRENCY) {
+        const chunk = uploadTasks.slice(i, i + CONCURRENCY)
+        const chunkResults = await Promise.all(chunk.map(t => t()))
+        results.push(...chunkResults)
       }
-      await processDocument(document_id)
+
+      // Collect successfully uploaded document IDs
+      const successIds = results.filter((id): id is string => id !== null)
+      if (successIds.length === 0) continue
+
+      // Mark as processing
+      batchIndices.forEach((idx, i) => {
+        if (results[i] !== null) {
+          uploadProgress.value[idx] = { filename: files[idx].name, status: 'processing' }
+        }
+      })
+
+      // Submit batch process
+      await batchProcessDocuments(successIds)
+
+      // Mark done
+      batchIndices.forEach((idx, i) => {
+        if (results[i] !== null) {
+          uploadProgress.value[idx] = { filename: files[idx].name, status: 'done' }
+        }
+      })
+
       await loadDocuments()
     }
   } catch (err: any) {
     alert(`上传失败: ${err.message || err}`)
   } finally {
     uploading.value = false
-    input.value = ''
     await loadDocuments()
   }
 }
