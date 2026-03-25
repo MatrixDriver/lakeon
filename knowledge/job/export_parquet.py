@@ -81,12 +81,17 @@ def main():
 
         report_progress("Uploading to OBS", 0.8)
 
-        # Upload via boto3 (proven compatible with OBS)
+        # Upload via boto3 (same config as knowledge job — proven compatible with OBS)
+        from botocore.config import Config as BotoConfig
         s3 = boto3.client("s3",
             endpoint_url=obs_endpoint,
             aws_access_key_id=obs_ak,
             aws_secret_access_key=obs_sk,
-            region_name=os.environ.get("OBS_REGION", "cn-north-4"))
+            region_name=os.environ.get("OBS_REGION", "cn-north-4"),
+            config=BotoConfig(
+                s3={"addressing_style": "virtual"},
+                signature_version="s3v4",
+            ))
         s3.upload_file(local_path, obs_bucket, obs_path)
 
         report_progress("Getting file size", 0.9)
