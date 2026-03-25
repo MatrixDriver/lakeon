@@ -34,11 +34,16 @@
 private String schemaJson;  // JSON: [{"name":"col1","type":"int64"}, ...]
 ```
 
-在数据集导出流程中（`DatasetService` 创建数据集时），从源数据库查询列信息并序列化为 JSON 存入该字段。
+**Flyway 迁移**：创建 `V21__add_dataset_schema_json.sql`：
+```sql
+ALTER TABLE datasets ADD COLUMN IF NOT EXISTS schema_json TEXT;
+```
+
+Schema 在 `DatasetService.triggerExport()` 中填充——此时源数据库 compute pod 已唤醒，JDBC 连接可用。仅对 `TABLE_SELECT` 类型数据集填充；`CUSTOM_SQL` 类型因涉及多表 JOIN，`schema_json` 保持为 null。详见下方「数据集 Schema 填充」节。
 
 ### 2. 新增 API：`POST /api/v1/datalake/ai-script/generate`
 
-**Controller**：`DatalakeController`（或新建 `AiScriptController`）
+**Controller**：`DatalakeController`
 
 **请求体**：
 ```json
@@ -52,6 +57,8 @@ private String schemaJson;  // JSON: [{"name":"col1","type":"int64"}, ...]
 - `prompt`：必填，用户自然语言描述
 - `model`：可选，默认 `Qwen/Qwen3.5-4B`
 - `dataset_id`：必填，用于查询 schema 上下文
+
+**租户隔离**：通过 `req.getAttribute("tenant")` 获取 tenantId，使用 `DatasetRepository.findByIdAndTenantId(datasetId, tenantId)` 查询数据集，确保不能读取其他租户的 schema。
 
 **响应体**：
 ```json
@@ -94,7 +101,13 @@ Schema:
 User request: {prompt}
 ```
 
-**参数**：`temperature: 0.1`，`max_tokens: 2000`（与 SQL 助手一致）
+**参数**：`temperature: 0.1`，`max_tokens: 2000`，`timeout: 60s`（脚本比 SQL 长，超时比 SQL 助手的 30s 更宽松）
+
+**Markdown 防御性剥离**：与 `AiSqlService` 一致，即使 system prompt 要求不输出 markdown，仍然防御性剥离 `` ```python ... ``` `` 代码围栏。
+
+**Schema 为 null 时的降级**：当 `schema_json` 为 null 时（CUSTOM_SQL 数据集或旧数据集），User Message 中 Schema 部分替换为 `Schema: (unavailable — use generic column references)`，仍然允许生成但提示 AI 使用通用列引用。
+
+**模型列表**：复用 `AiSqlService.AVAILABLE_MODELS` 中的 4 个模型及其定价信息，前端显示与 SQL 助手一致。
 
 ---
 
@@ -115,6 +128,7 @@ User request: {prompt}
 
 **数据集依赖**：
 - 面板从父组件接收 `inputDatasetId` prop
+- **需同步修改 `DatalakeJobNew.vue`**：在 `<DatalakeJobNewCode>` 上新增 `:input-dataset-id="form.inputDatasetId"` 传递 prop
 - 若未选数据集，显示提示「请先在「数据集」节选择输入数据集」，禁用生成按钮
 - `dataset_id` 通过 API 请求传给后端
 
@@ -143,15 +157,18 @@ export function generateDatalakeScript(prompt: string, model: string, datasetId:
 
 ## 数据集 Schema 填充
 
-在 `DatasetService` 的导出流程中，创建数据集后、状态变为 READY 前，查询源数据库获取列信息：
+在 `DatasetService.triggerExport()` 中，源数据库 compute pod 唤醒后、提交导出 Job 前，查询源数据库获取列信息：
 
 ```sql
 SELECT column_name, data_type FROM information_schema.columns
-WHERE table_schema = ? AND table_name = ?
+WHERE table_schema = 'public' AND table_name = ?
 ORDER BY ordinal_position
 ```
 
-将结果序列化为 JSON 存入 `schema_json`。对于非 SQL 导出型数据集（如未来的文件上传），`schema_json` 为 null，AI 生成时仅使用基本元信息。
+- **table_name**：从 `DatasetEntity.sourceTables` 获取（`TABLE_SELECT` 类型存储的是单个表名）
+- **仅 `TABLE_SELECT` 类型**：`CUSTOM_SQL` 类型因涉及多表 JOIN 无法简单提取列信息，`schema_json` 保持为 null
+- 将查询结果序列化为 `[{"name":"col1","type":"int64"}, ...]` 格式 JSON，存入 `schema_json`
+- 对于非 SQL 导出型数据集（如未来的文件上传），`schema_json` 为 null
 
 ---
 
