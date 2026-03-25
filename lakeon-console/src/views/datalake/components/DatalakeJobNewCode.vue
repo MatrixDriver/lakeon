@@ -25,6 +25,17 @@
       <div class="obs-stub-desc">将代码包上传到 OBS，填写路径后自动下载到容器执行。</div>
     </div>
 
+    <!-- Requirements -->
+    <div class="requirements-section">
+      <label class="req-label">依赖包 <span class="req-hint">（可选，空格分隔，预装：pandas pyarrow boto3）</span></label>
+      <input
+        class="req-input"
+        :value="requirements"
+        @input="$emit('update:requirements', ($event.target as HTMLInputElement).value)"
+        placeholder="例如：scikit-learn matplotlib seaborn"
+      />
+    </div>
+
     <!-- AI Panel -->
     <div class="ai-panel" :class="{ expanded: aiOpen }">
       <div class="ai-toggle" @click="aiOpen = !aiOpen">
@@ -72,9 +83,10 @@ import { python } from '@codemirror/lang-python'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { generateDatalakeScript } from '../../../api/datalake'
 
-const props = defineProps<{ script: string }>()
+const props = defineProps<{ script: string; requirements?: string }>()
 const emit = defineEmits<{
   'update:script': [value: string]
+  'update:requirements': [value: string]
   'update:usedDatasetIds': [value: string[]]
 }>()
 
@@ -190,6 +202,11 @@ code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 11p
 .obs-stub-icon { font-size: 32px; margin-bottom: 8px; }
 .obs-stub-title { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 6px; }
 .obs-stub-desc { font-size: 12px; color: #64748b; }
+.requirements-section { margin-top: 12px; }
+.req-label { font-size: 12px; font-weight: 600; color: #374151; display: block; margin-bottom: 4px; }
+.req-hint { font-weight: 400; color: #94a3b8; font-size: 11px; }
+.req-input { width: 100%; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-family: monospace; color: #334155; outline: none; }
+.req-input:focus { border-color: #2563eb; }
 .ai-panel { margin-top: 12px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
 .ai-panel.expanded { border-color: rgba(99,102,241,.3); }
 .ai-toggle { display: flex; align-items: center; gap: 8px; padding: 10px 14px; font-size: 12px; color: #6366f1; cursor: pointer; background: rgba(99,102,241,.04); }

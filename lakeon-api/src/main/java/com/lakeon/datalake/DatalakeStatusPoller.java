@@ -81,12 +81,18 @@ public class DatalakeStatusPoller {
                 deleteScriptConfigMap(job);
                 job.setStatus(DatalakeJobStatus.FAILED);
                 job.setFinishedAt(java.time.Instant.now());
-                // Try to get error from conditions
+                // Try to get error from conditions, translate K8s messages for users
                 if (status.getConditions() != null) {
                     status.getConditions().stream()
                         .filter(c -> "Failed".equals(c.getType()))
                         .findFirst()
-                        .ifPresent(c -> job.setErrorMessage(c.getMessage()));
+                        .ifPresent(c -> {
+                            String msg = c.getMessage();
+                            if (msg != null && msg.contains("backoff limit")) {
+                                msg = "脚本执行出错（退出码非 0），请查看运行日志";
+                            }
+                            job.setErrorMessage(msg);
+                        });
                 }
                 changed = true;
             }

@@ -84,14 +84,21 @@ public class PythonJobRunner {
             }
         }
 
-        // 3. Determine command
+        // 3. Determine command (prepend pip install if requirements specified)
+        String pipInstall = "";
+        if (req.getRequirements() != null && !req.getRequirements().isBlank()) {
+            // requirements is a space/newline-separated list of packages, e.g. "scikit-learn matplotlib"
+            String pkgs = req.getRequirements().trim().replaceAll("\\s+", " ");
+            pipInstall = "pip install --no-cache-dir " + pkgs + " && ";
+        }
+
         List<String> command;
         boolean hasInlineScript = req.getInlineScript() != null && !req.getInlineScript().isBlank();
         if (hasInlineScript) {
             createScriptConfigMap(ns, job.getId(), req.getInlineScript());
-            command = List.of("/bin/sh", "-c", "python /app/main.py");
+            command = List.of("/bin/sh", "-c", pipInstall + "python /app/main.py");
         } else if (req.getEntrypoint() != null && !req.getEntrypoint().isBlank()) {
-            command = List.of("/bin/sh", "-c", req.getEntrypoint().trim());
+            command = List.of("/bin/sh", "-c", pipInstall + req.getEntrypoint().trim());
         } else {
             command = List.of();
         }

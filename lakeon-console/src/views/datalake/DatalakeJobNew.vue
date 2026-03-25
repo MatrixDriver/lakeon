@@ -50,7 +50,9 @@
         <DatalakeJobNewCode
           v-else-if="currentSection === 'code'"
           :script="form.inlineScript"
+          :requirements="form.requirements"
           @update:script="form.inlineScript = $event"
+          @update:requirements="form.requirements = $event"
           @update:usedDatasetIds="form.inputDatasetIds = $event"
         />
         <DatalakeJobNewDataset
@@ -119,6 +121,7 @@ const form = ref({
   name: '',
   type: 'PYTHON' as DatalakeJobType,
   inlineScript: '',
+  requirements: '',
   inputDatasetIds: [] as string[],
   outputPath: '',
   cpu: '1',
@@ -170,6 +173,7 @@ async function handleSubmit() {
       name: form.value.name,
       type: form.value.type,
       inline_script: form.value.inlineScript || undefined,
+      requirements: form.value.requirements || undefined,
       input_dataset_ids: form.value.inputDatasetIds.length ? form.value.inputDatasetIds : undefined,
       output_path: form.value.outputPath || undefined,
       resources: { cpu: form.value.cpu, memory: form.value.memory },
