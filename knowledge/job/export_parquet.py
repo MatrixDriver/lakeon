@@ -40,7 +40,7 @@ def main():
             SET s3_access_key_id = '{obs_ak}';
             SET s3_secret_access_key = '{obs_sk}';
             SET s3_region = '{obs_region}';
-            SET s3_url_style = 'path';
+            SET s3_url_style = 'vhost';
             SET s3_use_ssl = true;
         """)
 
