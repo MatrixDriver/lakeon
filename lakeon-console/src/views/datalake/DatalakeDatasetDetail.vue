@@ -80,6 +80,27 @@
         <strong>错误信息：</strong>{{ dataset.error }}
       </div>
 
+      <!-- Schema -->
+      <div v-if="dataset.schema && dataset.schema.length > 0" class="section">
+        <h3 class="section-title" style="margin-bottom: 12px;">Schema</h3>
+        <table class="data-table" style="width: 100%;">
+          <thead>
+            <tr>
+              <th style="width: 40px;">#</th>
+              <th>列名</th>
+              <th>类型</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(col, i) in dataset.schema" :key="col.column_name">
+              <td style="color: #999;">{{ i + 1 }}</td>
+              <td style="font-family: monospace;">{{ col.column_name }}</td>
+              <td style="font-family: monospace; color: #666;">{{ col.data_type }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
       <!-- Code snippets -->
       <div v-if="dataset.status === 'READY' && dataset.code_snippets" class="section">
         <h3 class="section-title" style="margin-bottom: 12px;">使用示例</h3>
@@ -140,6 +161,7 @@ interface Dataset {
   created_at: string
   updated_at: string
   code_snippets?: CodeSnippets
+  schema?: { column_name: string; data_type: string }[]
 }
 
 const route = useRoute()

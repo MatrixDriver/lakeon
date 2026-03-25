@@ -248,6 +248,15 @@ public class DatasetService {
         response.put("created_at", dataset.getCreatedAt());
         response.put("updated_at", dataset.getUpdatedAt());
 
+        // Schema (column names + types from source table)
+        if (dataset.getSchemaJson() != null) {
+            try {
+                response.put("schema", objectMapper.readValue(dataset.getSchemaJson(), List.class));
+            } catch (Exception e) {
+                response.put("schema", null);
+            }
+        }
+
         if (dataset.getStatus() == DatasetStatus.READY && dataset.getObsPath() != null) {
             String downloadUrl = generatePresignedUrl(dataset.getObsPath());
             response.put("download_url", downloadUrl);
