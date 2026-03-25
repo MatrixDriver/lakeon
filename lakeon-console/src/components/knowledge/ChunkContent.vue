@@ -42,6 +42,7 @@
       <FulltextHighlight
         v-else-if="cachedFulltext != null"
         :fulltext="cachedFulltext"
+        :chunkContent="chunk.content"
         :chunkOffsetStart="chunk.char_offset_start"
         :chunkOffsetEnd="chunk.char_offset_end"
       />
