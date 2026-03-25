@@ -3,7 +3,7 @@
     <div class="page-header">
       <h1 class="page-title">作业管理</h1>
       <div class="page-header-actions">
-        <button class="btn btn-primary" @click="showSubmit = true">提交作业</button>
+        <button class="btn btn-primary" @click="router.push('/datalake/jobs/new')">提交作业</button>
       </div>
     </div>
 
@@ -19,95 +19,6 @@
         {{ tab.label }}
         <span v-if="tab.value && statusCounts[tab.value]" class="tab-count">{{ statusCounts[tab.value] }}</span>
       </button>
-    </div>
-
-    <!-- Submit job dialog -->
-    <div v-if="showSubmit" class="dialog-overlay" @click.self="showSubmit = false">
-      <div class="dialog-box" style="max-width: 560px;">
-        <div class="dialog-header">
-          <h3>提交作业</h3>
-          <button class="dialog-close" @click="showSubmit = false">&times;</button>
-        </div>
-        <div class="dialog-body">
-          <!-- Type selector -->
-          <div class="form-group">
-            <label class="form-label">作业类型 <span style="color:#e6393d">*</span></label>
-            <div style="display: flex; gap: 10px;">
-              <label
-                v-for="jt in jobTypes"
-                :key="jt.value"
-                class="type-radio"
-                :class="{ selected: submitForm.type === jt.value }"
-              >
-                <input type="radio" v-model="submitForm.type" :value="jt.value" style="display: none;" />
-                <span>{{ jt.label }}</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">作业名称 <span style="color:#e6393d">*</span></label>
-            <input v-model="submitForm.name" class="form-input" placeholder="例如：data-preprocessing-01" />
-          </div>
-
-          <!-- PYTHON / RAY fields -->
-          <template v-if="submitForm.type !== 'FINETUNE'">
-            <div class="form-group">
-              <label class="form-label">入口命令 <span style="color:#e6393d">*</span></label>
-              <input v-model="submitForm.entrypoint" class="form-input" placeholder='例如：python main.py --epochs 10' />
-            </div>
-            <div class="form-group">
-              <label class="form-label">依赖包</label>
-              <textarea v-model="submitForm.requirements" class="form-input" rows="3" placeholder="每行一个包名，例如：&#10;pandas==2.0&#10;scikit-learn"></textarea>
-            </div>
-            <div class="form-row">
-              <div class="form-group" style="flex:1">
-                <label class="form-label">CPU</label>
-                <input v-model="submitForm.cpu" class="form-input" placeholder="例如：1" />
-              </div>
-              <div class="form-group" style="flex:1">
-                <label class="form-label">内存</label>
-                <input v-model="submitForm.memory" class="form-input" placeholder="例如：2Gi" />
-              </div>
-              <div class="form-group" style="flex:1">
-                <label class="form-label">超时(秒)</label>
-                <input v-model.number="submitForm.timeout_seconds" class="form-input" type="number" placeholder="600" />
-              </div>
-            </div>
-          </template>
-
-          <!-- FINETUNE fields -->
-          <template v-if="submitForm.type === 'FINETUNE'">
-            <div class="form-group">
-              <label class="form-label">基础模型 <span style="color:#e6393d">*</span></label>
-              <input v-model="submitForm.base_model" class="form-input" placeholder="例如：Qwen/Qwen2.5-7B" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">数据集路径 <span style="color:#e6393d">*</span></label>
-              <input v-model="submitForm.dataset_path" class="form-input" placeholder="OBS 路径或 HuggingFace 数据集" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">输出路径</label>
-              <input v-model="submitForm.output_path" class="form-input" placeholder="模型输出的 OBS 路径" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">GPU</label>
-              <input v-model="submitForm.gpu" class="form-input" placeholder="例如：1" />
-            </div>
-          </template>
-
-          <div class="form-group">
-            <label class="form-label">环境变量</label>
-            <textarea v-model="submitForm.env_vars_raw" class="form-input" rows="2" placeholder="KEY=VALUE 格式，每行一个"></textarea>
-          </div>
-        </div>
-        <div class="dialog-footer">
-          <button class="btn btn-default" @click="showSubmit = false">取消</button>
-          <button class="btn btn-primary" @click="handleSubmit" :disabled="!submitFormValid || submitting">
-            {{ submitting ? '提交中...' : '提交' }}
-          </button>
-        </div>
-      </div>
     </div>
 
     <!-- Job list table -->
@@ -179,9 +90,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   listDatalakeJobs,
-  submitDatalakeJob,
   cancelDatalakeJob,
   type DatalakeJob,
   type DatalakeJobStatus,
@@ -189,11 +100,11 @@ import {
 } from '../../api/datalake'
 import TableToolbar from '../../components/TableToolbar.vue'
 
+const router = useRouter()
+
 const jobs = ref<DatalakeJob[]>([])
 const loading = ref(false)
 const jobSearch = ref('')
-const showSubmit = ref(false)
-const submitting = ref(false)
 const statusFilter = ref<string>('')
 
 const statusTabs: { value: string; label: string }[] = [
@@ -204,36 +115,6 @@ const statusTabs: { value: string; label: string }[] = [
   { value: 'FAILED', label: '失败' },
   { value: 'CANCELLED', label: '已取消' },
 ]
-
-const jobTypes: { value: DatalakeJobType; label: string }[] = [
-  { value: 'PYTHON', label: 'Python' },
-  { value: 'RAY', label: 'Ray' },
-  { value: 'FINETUNE', label: '微调' },
-]
-
-const submitForm = ref({
-  name: '',
-  type: 'PYTHON' as DatalakeJobType,
-  entrypoint: '',
-  requirements: '',
-  cpu: '1',
-  memory: '2Gi',
-  timeout_seconds: 600,
-  env_vars_raw: '',
-  // finetune
-  base_model: '',
-  dataset_path: '',
-  output_path: '',
-  gpu: '1',
-})
-
-const submitFormValid = computed(() => {
-  if (!submitForm.value.name.trim()) return false
-  if (submitForm.value.type === 'FINETUNE') {
-    return !!submitForm.value.base_model.trim() && !!submitForm.value.dataset_path.trim()
-  }
-  return !!submitForm.value.entrypoint.trim()
-})
 
 const filteredJobs = computed(() => {
   if (!statusFilter.value) return jobs.value
@@ -304,17 +185,6 @@ function duration(job: DatalakeJob) {
   return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`
 }
 
-function parseEnvVars(raw: string): Record<string, string> | undefined {
-  const lines = raw.split('\n').map(l => l.trim()).filter(l => l && l.includes('='))
-  if (lines.length === 0) return undefined
-  const result: Record<string, string> = {}
-  for (const line of lines) {
-    const idx = line.indexOf('=')
-    result[line.slice(0, idx)] = line.slice(idx + 1)
-  }
-  return result
-}
-
 async function loadJobs() {
   loading.value = true
   try {
@@ -327,38 +197,6 @@ async function loadJobs() {
   }
 }
 
-async function handleSubmit() {
-  submitting.value = true
-  try {
-    const f = submitForm.value
-    const body: any = { name: f.name, type: f.type }
-
-    if (f.type === 'FINETUNE') {
-      body.base_model = f.base_model
-      body.dataset_path = f.dataset_path
-      if (f.output_path) body.output_path = f.output_path
-      if (f.gpu) body.gpu = f.gpu
-    } else {
-      body.entrypoint = f.entrypoint
-      if (f.requirements.trim()) body.requirements = f.requirements.trim()
-      body.resources = { cpu: f.cpu || '1', memory: f.memory || '2Gi' }
-      if (f.timeout_seconds) body.timeout_seconds = f.timeout_seconds
-    }
-
-    const envVars = parseEnvVars(f.env_vars_raw)
-    if (envVars) body.env_vars = envVars
-
-    await submitDatalakeJob(body)
-    showSubmit.value = false
-    resetForm()
-    await loadJobs()
-  } catch (e: any) {
-    alert('提交失败: ' + (e.response?.data?.error?.message || e.message))
-  } finally {
-    submitting.value = false
-  }
-}
-
 async function handleCancel(job: DatalakeJob) {
   if (!confirm(`确认取消作业"${job.name}"？`)) return
   try {
@@ -366,23 +204,6 @@ async function handleCancel(job: DatalakeJob) {
     await loadJobs()
   } catch (e: any) {
     alert('取消失败: ' + (e.response?.data?.error?.message || e.message))
-  }
-}
-
-function resetForm() {
-  submitForm.value = {
-    name: '',
-    type: 'PYTHON',
-    entrypoint: '',
-    requirements: '',
-    cpu: '1',
-    memory: '2Gi',
-    timeout_seconds: 600,
-    env_vars_raw: '',
-    base_model: '',
-    dataset_path: '',
-    output_path: '',
-    gpu: '1',
   }
 }
 

@@ -60,6 +60,7 @@ const routes = [
       { path: 'help', name: 'Docs', component: () => import('../views/docs/DocsView.vue') },
       // Datalake
       { path: 'datalake', name: 'DatalakeJobs', component: () => import('../views/datalake/DatalakeJobs.vue') },
+      { path: 'datalake/jobs/new', name: 'DatalakeJobNew', component: () => import('../views/datalake/DatalakeJobNew.vue') },
       { path: 'datalake/jobs/:jobId', name: 'DatalakeJobDetail', component: () => import('../views/datalake/DatalakeJobDetail.vue') },
       { path: 'datalake/datasets', name: 'DatalakeDatasets', component: () => import('../views/datalake/DatalakeDatasets.vue') },
       { path: 'datalake/datasets/new', name: 'DatalakeDatasetNew', component: () => import('../views/datalake/DatalakeDatasetNew.vue') },

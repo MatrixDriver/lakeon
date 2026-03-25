@@ -27,18 +27,24 @@ export interface DatalakeJob {
 export interface DatalakeJobSubmitRequest {
   name: string
   type: DatalakeJobType
+  // Code
+  inline_script?: string
   entrypoint?: string
   requirements?: string
+  // Data
+  input_dataset_id?: string
+  output_path?: string
+  // Resources
   env_vars?: Record<string, string>
   resources?: { cpu?: string; memory?: string; gpu?: string }
   timeout_seconds?: number
+  retry_count?: number
   // Ray
   head?: { cpu?: string; memory?: string }
   workers?: { replicas?: number; cpu?: string; memory?: string; gpu?: string }
   // Finetune
   base_model?: string
   dataset_path?: string
-  output_path?: string
   hyperparams?: Record<string, any>
   gpu?: string
   image_key?: string
