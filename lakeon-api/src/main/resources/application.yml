@@ -98,7 +98,7 @@ lakeon:
       document-parse:
         image: ${LAKEON_JOB_IMAGE_DOCUMENT_PARSE:swr.cn-north-4.myhuaweicloud.com/flex/lakeon-knowledge-job:0.2.1}
         cpu: ${LAKEON_JOB_CPU_DOCUMENT_PARSE:500m}
-        memory: ${LAKEON_JOB_MEMORY_DOCUMENT_PARSE:512Mi}
+        memory: ${LAKEON_JOB_MEMORY_DOCUMENT_PARSE:1Gi}
       embedding:
         image: ${LAKEON_JOB_IMAGE_EMBEDDING:swr.cn-north-4.myhuaweicloud.com/flex/lakeon-knowledge-job:0.2.1}
         cpu: ${LAKEON_JOB_CPU_EMBEDDING:500m}
