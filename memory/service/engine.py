@@ -28,14 +28,14 @@ async def ingest(connstr: str, content: str, role: str, memory_type: str,
         conn.close()
 
 
-async def store_raw_message(connstr: str, content: str, role: str) -> str:
+async def store_raw_message(connstr: str, content: str, role: str, source: str = None) -> str:
     """Store raw message and return its UUID."""
     conn = _connect(connstr)
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                INSERT INTO raw_messages (content, role) VALUES (%s, %s) RETURNING id
-            """, (content, role))
+                INSERT INTO raw_messages (content, role, source) VALUES (%s, %s, %s) RETURNING id
+            """, (content, role, source))
             row = cur.fetchone()
             conn.commit()
             return str(row["id"])
@@ -52,13 +52,15 @@ async def ingest_extracted(connstr: str, message_id: str, data: dict) -> dict:
     counts = {}
     try:
         with conn.cursor() as cur:
-            # Validate message_id exists in raw_messages
+            # Validate message_id exists and get source
             try:
-                cur.execute("SELECT id FROM raw_messages WHERE id = %s", (message_id,))
+                cur.execute("SELECT id, source FROM raw_messages WHERE id = %s", (message_id,))
             except Exception:
                 raise ValueError(f"Invalid message_id: {message_id}")
-            if not cur.fetchone():
+            msg_row = cur.fetchone()
+            if not msg_row:
                 raise ValueError(f"Message not found: {message_id}")
+            msg_source = msg_row[1]  # source column
 
             type_map = {
                 "facts": ("fact", parsed.facts),
@@ -76,6 +78,8 @@ async def ingest_extracted(connstr: str, message_id: str, data: dict) -> dict:
                     embedding = await get_embedding(item.content)
                     metadata = {k: v for k, v in item.model_dump().items()
                                 if k not in ("content", "importance") and v is not None}
+                    if msg_source:
+                        metadata["source"] = msg_source
                     cur.execute("""
                         INSERT INTO memories (content, memory_type, importance, embedding, metadata, created_at)
                         VALUES (%s, %s, %s, %s::vector, %s, now())

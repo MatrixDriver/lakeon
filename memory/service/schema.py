@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS raw_messages (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     content     TEXT NOT NULL,
     role        VARCHAR(20) NOT NULL DEFAULT 'user',
+    source      VARCHAR(50),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

@@ -65,6 +65,7 @@ class IngestRequest(BaseModel):
     """New ingest: raw content, mode-aware extraction."""
     content: str
     role: str = "user"
+    source: Optional[str] = None  # e.g. "openclaw", "claude-code", "api"
     auto_extract: Optional[bool] = None  # None = use X-One-Llm-Mode header default
 
     model_config = {"extra": "ignore"}
