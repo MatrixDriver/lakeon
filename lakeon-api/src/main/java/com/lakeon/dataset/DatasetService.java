@@ -156,6 +156,41 @@ public class DatasetService {
 
         String obsPath = "datasets/" + tenantId + "/" + datasetId + "/data.parquet";
 
+        // Populate schema_json for datasets with known source tables
+        if (dataset.getSourceTables() != null) {
+            try {
+                String tableName = dataset.getSourceTables();
+                if (tableName.startsWith("[")) {
+                    var tables = objectMapper.readValue(tableName,
+                        new com.fasterxml.jackson.core.type.TypeReference<java.util.List<java.util.Map<String, Object>>>(){});
+                    if (!tables.isEmpty()) {
+                        tableName = (String) tables.get(0).get("name");
+                    }
+                }
+                String schemaQuery = "SELECT column_name, data_type FROM information_schema.columns " +
+                        "WHERE table_schema = 'public' AND table_name = ? ORDER BY ordinal_position";
+                java.util.List<java.util.Map<String, String>> columns = new java.util.ArrayList<>();
+                try (var conn = java.sql.DriverManager.getConnection(
+                        "jdbc:postgresql://" + computeHost + ":" + computePort + "/" + db.getName()
+                                + "?sslmode=disable",
+                        "cloud_admin", "cloud-admin-internal");
+                     var ps = conn.prepareStatement(schemaQuery)) {
+                    ps.setString(1, tableName);
+                    var rs = ps.executeQuery();
+                    while (rs.next()) {
+                        columns.add(java.util.Map.of(
+                            "name", rs.getString("column_name"),
+                            "type", rs.getString("data_type")));
+                    }
+                }
+                if (!columns.isEmpty()) {
+                    dataset.setSchemaJson(objectMapper.writeValueAsString(columns));
+                }
+            } catch (Exception e) {
+                log.warn("Failed to populate schema_json for dataset {}: {}", dataset.getId(), e.getMessage());
+            }
+        }
+
         TenantEntity tenant = findTenant(tenantId);
 
         Map<String, Object> params = new LinkedHashMap<>();
