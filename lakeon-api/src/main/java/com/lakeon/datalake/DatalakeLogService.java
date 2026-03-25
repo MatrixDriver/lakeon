@@ -1,5 +1,6 @@
 package com.lakeon.datalake;
 
+import com.lakeon.config.LakeonProperties;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
@@ -9,9 +10,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @Service
@@ -20,10 +28,12 @@ public class DatalakeLogService {
 
     private final KubernetesClient k8sClient;
     private final DatalakeJobRepository repository;
+    private final LakeonProperties props;
 
-    public DatalakeLogService(KubernetesClient k8sClient, DatalakeJobRepository repository) {
+    public DatalakeLogService(KubernetesClient k8sClient, DatalakeJobRepository repository, LakeonProperties props) {
         this.k8sClient = k8sClient;
         this.repository = repository;
+        this.props = props;
     }
 
     /**
@@ -65,6 +75,8 @@ public class DatalakeLogService {
 
     private void streamPythonLogs(DatalakeJobEntity job, SseEmitter emitter) throws Exception {
         if (job.getCciNamespace() == null || job.getK8sJobName() == null) {
+            // Try OBS persisted logs
+            if (streamObsLogs(job, emitter)) return;
             sendLine(emitter, "[no pod assigned yet]");
             return;
         }
@@ -75,6 +87,8 @@ public class DatalakeLogService {
             .list().getItems();
 
         if (pods.isEmpty()) {
+            // Pod gone — try OBS persisted logs
+            if (streamObsLogs(job, emitter)) return;
             sendLine(emitter, "[pod not yet scheduled]");
             return;
         }
@@ -97,6 +111,7 @@ public class DatalakeLogService {
             .list().getItems();
 
         if (pods.isEmpty()) {
+            if (streamObsLogs(job, emitter)) return;
             sendLine(emitter, "[Ray cluster pods not yet scheduled]");
             return;
         }
@@ -117,6 +132,39 @@ public class DatalakeLogService {
                     sendLine(emitter, line);
                 }
             }
+        }
+    }
+
+    /**
+     * Stream logs from OBS (persisted after job completion).
+     * Returns true if logs were found and streamed, false otherwise.
+     */
+    private boolean streamObsLogs(DatalakeJobEntity job, SseEmitter emitter) throws Exception {
+        if (job.getLogObsPath() == null || job.getLogObsPath().isBlank()) return false;
+
+        String ak = props.getObs().getAccessKey();
+        String sk = props.getObs().getSecretKey();
+        if (ak == null || ak.isBlank()) return false;
+
+        try (S3Client s3 = S3Client.builder()
+                .endpointOverride(URI.create(props.getObs().getEndpoint()))
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(ak, sk)))
+                .region(Region.of(props.getObs().getRegion() != null ? props.getObs().getRegion() : "cn-north-4"))
+                .build()) {
+
+            var response = s3.getObject(GetObjectRequest.builder()
+                    .bucket(props.getObs().getBucket())
+                    .key(job.getLogObsPath())
+                    .build());
+
+            String content = new String(response.readAllBytes(), StandardCharsets.UTF_8);
+            for (String line : content.split("\n")) {
+                sendLine(emitter, line);
+            }
+            return true;
+        } catch (Exception e) {
+            log.warn("Failed to read OBS logs for job {}: {}", job.getId(), e.getMessage());
+            return false;
         }
     }
 

@@ -1,11 +1,23 @@
 package com.lakeon.datalake;
 
+import com.lakeon.config.LakeonProperties;
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -15,10 +27,12 @@ public class DatalakeStatusPoller {
 
     private final KubernetesClient k8sClient;
     private final DatalakeJobRepository repository;
+    private final LakeonProperties props;
 
-    public DatalakeStatusPoller(KubernetesClient k8sClient, DatalakeJobRepository repository) {
+    public DatalakeStatusPoller(KubernetesClient k8sClient, DatalakeJobRepository repository, LakeonProperties props) {
         this.k8sClient = k8sClient;
         this.repository = repository;
+        this.props = props;
     }
 
     /**
@@ -105,6 +119,8 @@ public class DatalakeStatusPoller {
         }
 
         if (changed) {
+            // Persist logs to OBS before pod is cleaned up
+            persistJobLogs(job);
             repository.save(job);
         }
     }
@@ -160,7 +176,83 @@ public class DatalakeStatusPoller {
         }
 
         if (changed) {
+            persistJobLogs(job);
             repository.save(job);
+        }
+    }
+
+    /**
+     * Capture pod logs and upload to OBS for persistence.
+     * Must be called before pod cleanup (while pod still exists).
+     */
+    private void persistJobLogs(DatalakeJobEntity job) {
+        if (job.getCciNamespace() == null) return;
+        try {
+            // Find pods for this job
+            List<Pod> pods;
+            if (job.getK8sJobName() != null) {
+                pods = k8sClient.pods().inNamespace(job.getCciNamespace())
+                    .withLabel("job-name", job.getK8sJobName())
+                    .list().getItems();
+            } else if (job.getRayJobName() != null) {
+                pods = k8sClient.pods().inNamespace(job.getCciNamespace())
+                    .withLabel("lakeon.io/job-id", job.getId())
+                    .list().getItems();
+            } else {
+                return;
+            }
+
+            if (pods.isEmpty()) return;
+
+            // Collect logs from all pods
+            StringBuilder allLogs = new StringBuilder();
+            for (Pod pod : pods) {
+                String podName = pod.getMetadata().getName();
+                if (pods.size() > 1) {
+                    allLogs.append("=== Pod: ").append(podName).append(" ===\n");
+                }
+                try {
+                    String podLog = k8sClient.pods()
+                        .inNamespace(job.getCciNamespace())
+                        .withName(podName)
+                        .getLog();
+                    if (podLog != null) {
+                        allLogs.append(podLog);
+                        if (!podLog.endsWith("\n")) allLogs.append("\n");
+                    }
+                } catch (Exception e) {
+                    allLogs.append("[failed to get logs: ").append(e.getMessage()).append("]\n");
+                }
+            }
+
+            if (allLogs.isEmpty()) return;
+
+            // Upload to OBS
+            String obsKey = "datalake-logs/" + job.getTenantId() + "/" + job.getId() + "/output.log";
+            String ak = props.getObs().getAccessKey();
+            String sk = props.getObs().getSecretKey();
+            if (ak == null || ak.isBlank()) return;
+
+            try (S3Client s3 = S3Client.builder()
+                    .endpointOverride(URI.create(props.getObs().getEndpoint()))
+                    .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(ak, sk)))
+                    .region(Region.of(props.getObs().getRegion() != null ? props.getObs().getRegion() : "cn-north-4"))
+                    .build()) {
+
+                byte[] bytes = allLogs.toString().getBytes(StandardCharsets.UTF_8);
+                s3.putObject(
+                    PutObjectRequest.builder()
+                        .bucket(props.getObs().getBucket())
+                        .key(obsKey)
+                        .contentType("text/plain; charset=utf-8")
+                        .build(),
+                    RequestBody.fromBytes(bytes));
+
+                job.setLogObsPath(obsKey);
+                log.info("Persisted logs for job {} to OBS: {} ({} bytes)", job.getId(), obsKey, bytes.length);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to persist logs for job {}: {}", job.getId(), e.getMessage());
         }
     }
 
