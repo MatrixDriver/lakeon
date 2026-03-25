@@ -13,7 +13,7 @@
 
     <template v-if="base">
       <!-- Tabs -->
-      <div class="tab-bar" style="margin-top: 20px; border-bottom: 1px solid #e5e5e5; display: flex; gap: 0;">
+      <div class="tab-bar" style="margin-top: 20px;">
         <div v-for="tab in tabs" :key="tab.key"
              class="tab-item"
              :class="{ active: activeTab === tab.key }"
@@ -258,3 +258,27 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+.tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #e5e5e5;
+}
+.tab-item {
+  padding: 10px 20px;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+.tab-item:hover {
+  color: #333;
+}
+.tab-item.active {
+  color: #0073e6;
+  font-weight: 600;
+  border-bottom-color: #0073e6;
+}
+</style>
