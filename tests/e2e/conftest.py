@@ -117,10 +117,39 @@ def e2e_tenant():
 
     yield info
 
+    # Cleanup: delete all knowledge bases created during the session
+    try:
+        for kb in client.list_knowledge_bases():
+            try:
+                client.delete_knowledge_base(kb["id"])
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # Cleanup: delete all memory bases created during the session
+    try:
+        for mb in client.list_memory_bases():
+            try:
+                client.delete_memory_base(mb["id"])
+            except Exception:
+                pass
+    except Exception:
+        pass
+
     # Cleanup: delete all databases created during the session
     for db in client.list_databases():
         try:
             client.delete_database(db["id"])
+        except Exception:
+            pass
+
+    # Cleanup: delete the tenant itself via admin API
+    tenant_id = info.get("id")
+    if tenant_id:
+        try:
+            admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+            admin.admin_batch_delete_tenants([tenant_id])
         except Exception:
             pass
 

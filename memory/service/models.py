@@ -40,7 +40,7 @@ class GraphEdge(BaseModel):
     edge_type: str
 
 
-class IngestRequest(BaseModel):
+class LegacyIngestRequest(BaseModel):
     content: str
     role: str = "user"
     memory_type: Literal['fact', 'episode', 'procedural', 'decision', 'rejection', 'convention'] = "fact"
@@ -58,3 +58,56 @@ class MemoryStats(BaseModel):
     total: int
     by_type: dict
     trait_count: int
+
+
+# New IngestRequest for refactored /ingest endpoint
+class IngestRequest(BaseModel):
+    """New ingest: raw content, mode-aware extraction."""
+    content: str
+    role: str = "user"
+    auto_extract: Optional[bool] = None  # None = use X-One-Llm-Mode header default
+
+    model_config = {"extra": "ignore"}
+
+
+class IngestExtractedItem(BaseModel):
+    content: str
+    importance: float = 0.5
+    category: Optional[str] = None
+    timestamp: Optional[str] = None
+    rationale: Optional[str] = None
+    project: Optional[str] = None
+    reason: Optional[str] = None
+    scope: Optional[str] = None
+
+    model_config = {"extra": "ignore"}
+
+
+class IngestExtractedData(BaseModel):
+    facts: list[IngestExtractedItem] = []
+    episodes: list[IngestExtractedItem] = []
+    procedural: list[IngestExtractedItem] = []
+    decisions: list[IngestExtractedItem] = []
+    rejections: list[IngestExtractedItem] = []
+    conventions: list[IngestExtractedItem] = []
+
+    model_config = {"extra": "ignore"}  # silently drop "triples" from LLM response
+
+
+class IngestExtractedRequest(BaseModel):
+    message_id: str
+    data: IngestExtractedData
+
+
+class DigestExtractedTrait(BaseModel):
+    content: str
+    category: Optional[str] = None
+    importance: int = 5  # 1-10 scale; only >= 7 stored
+
+
+class DigestExtractedData(BaseModel):
+    traits: list[DigestExtractedTrait] = []
+
+
+class DigestExtractedRequest(BaseModel):
+    data: DigestExtractedData

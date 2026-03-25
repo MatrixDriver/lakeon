@@ -1,6 +1,10 @@
 package com.lakeon.memory;
 
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.model.dto.CreateDatabaseRequest;
+import com.lakeon.model.dto.DatabaseResponse;
+import com.lakeon.model.entity.TenantEntity;
+import com.lakeon.service.DatabaseService;
 import com.lakeon.service.exception.NotFoundException;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -17,13 +21,16 @@ public class MemoryService {
     private final MemoryDbHelper dbHelper;
     private final LakeonProperties props;
     private final RestTemplate restTemplate;
+    private final DatabaseService databaseService;
 
     public MemoryService(MemoryBaseRepository repository,
                          MemoryDbHelper dbHelper,
-                         LakeonProperties props) {
+                         LakeonProperties props,
+                         @org.springframework.context.annotation.Lazy DatabaseService databaseService) {
         this.repository = repository;
         this.dbHelper = dbHelper;
         this.props = props;
+        this.databaseService = databaseService;
         this.restTemplate = new RestTemplate();
     }
 
@@ -37,14 +44,22 @@ public class MemoryService {
     }
 
     public MemoryBaseEntity createBase(String tenantId, String name, String description,
-                                        MemoryBaseType type, String embeddingModel) {
+                                        MemoryBaseType type, String embeddingModel, boolean oneLlmMode) {
+        // Create backing database
+        var dbRequest = new CreateDatabaseRequest("mem_" + name, null, null, null);
+        var tenant = new TenantEntity();
+        tenant.setId(tenantId);
+        DatabaseResponse dbResp = databaseService.create(tenant, dbRequest);
+
         var entity = new MemoryBaseEntity();
         entity.setTenantId(tenantId);
         entity.setName(name);
         entity.setDescription(description);
         entity.setType(type);
         entity.setEmbeddingModel(embeddingModel != null ? embeddingModel : "BAAI/bge-m3");
-        entity.setStatus("READY");
+        entity.setOneLlmMode(oneLlmMode);
+        entity.setDatabaseId(dbResp.getId());
+        entity.setStatus("PROVISIONING");
         entity = repository.save(entity);
         return entity;
     }
@@ -57,10 +72,12 @@ public class MemoryService {
     // ── Proxy methods to Python memory microservice ──────────
 
     public Object proxyPost(String tenantId, String memId, String path, Object body) {
+        MemoryBaseEntity mem = getBase(tenantId, memId);
         String connstr = dbHelper.resolveConnstr(tenantId, memId);
         String url = props.getMemory().getServiceUrl() + path;
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-Database-Connstr", connstr);
+        headers.set("X-One-Llm-Mode", String.valueOf(Boolean.TRUE.equals(mem.getOneLlmMode())));
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<?> entity = new HttpEntity<>(body, headers);
         ResponseEntity<Object> resp = restTemplate.exchange(url, HttpMethod.POST, entity, Object.class);

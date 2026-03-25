@@ -2,7 +2,7 @@ import typer
 
 app = typer.Typer(name="dbay", help="DBay Serverless PostgreSQL CLI")
 
-from dbay_cli.commands import auth, db, branch, version, user, kb, datalake
+from dbay_cli.commands import auth, db, branch, version, user, kb, datalake, mem
 
 app.add_typer(auth.app, name="config", help="CLI configuration")
 app.add_typer(db.app, name="db", help="Database management")
@@ -11,6 +11,7 @@ app.add_typer(version.app, name="version", help="Version management")
 app.add_typer(user.app, name="user", help="Database user management")
 app.add_typer(kb.app, name="kb", help="Knowledge base management")
 app.add_typer(datalake.app, name="datalake", help="Data lake job management")
+app.add_typer(mem.app, name="mem", help="Memory base management")
 
 @app.command()
 def login(username: str = typer.Option(..., prompt=True),

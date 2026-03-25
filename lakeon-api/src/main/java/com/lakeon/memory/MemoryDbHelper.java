@@ -41,7 +41,19 @@ public class MemoryDbHelper {
         MemoryBaseEntity mem = memoryBaseRepository.findByIdAndTenantId(memId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Memory base not found: " + memId));
         if (!"READY".equals(mem.getStatus())) {
-            throw new BadRequestException("Memory base is not ready. Current status: " + mem.getStatus());
+            if (mem.getDatabaseId() != null) {
+                DatabaseEntity db = databaseRepository.findByIdAndTenantId(mem.getDatabaseId(), tenantId)
+                        .orElse(null);
+                if (db != null && "ACTIVE".equals(db.getStatus().name())) {
+                    mem.setStatus("READY");
+                    memoryBaseRepository.save(mem);
+                    log.info("Memory base {} status synced to READY (db={})", memId, mem.getDatabaseId());
+                } else {
+                    throw new BadRequestException("Memory base is not ready. Current status: " + mem.getStatus());
+                }
+            } else {
+                throw new BadRequestException("Memory base has no backing database");
+            }
         }
         String databaseId = mem.getDatabaseId();
         if (databaseId == null) {

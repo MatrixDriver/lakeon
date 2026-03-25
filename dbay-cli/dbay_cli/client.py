@@ -61,6 +61,9 @@ class DbayClient:
     def admin_delete_invite_code(self, code: str) -> dict:
         return self._request("DELETE", f"/admin/invite-codes/{code}")
 
+    def admin_batch_delete_tenants(self, tenant_ids: list) -> dict:
+        return self._request("DELETE", "/admin/tenants/batch", json={"ids": tenant_ids})
+
     # -- Tenant --
     def create_tenant(self, username: str, password: str, name: str | None = None,
                       invite_code: str | None = None) -> dict:
@@ -167,6 +170,14 @@ class DbayClient:
 
     def process_document(self, document_id: str):
         return self._request("POST", f"/knowledge/documents/{document_id}/process")
+
+    def batch_get_upload_urls(self, kb_id: str, files: list[dict]):
+        """Get presigned upload URLs for multiple files. files: [{"filename": "..."}]"""
+        return self._request("POST", "/knowledge/batch-upload-urls", json={"kb_id": kb_id, "files": files})
+
+    def batch_process_documents(self, document_ids: list[str]):
+        """Submit batch processing for multiple uploaded documents."""
+        return self._request("POST", "/knowledge/batch-process", json={"document_ids": document_ids})
 
     def list_documents(self, kb_id: str):
         return self._request("GET", f"/knowledge/documents?kb_id={kb_id}")
@@ -513,3 +524,59 @@ class DbayClient:
 
     def get_audit_logs(self, db_id: str, limit: int = 50, offset: int = 0) -> dict:
         return self._request("GET", f"/databases/{db_id}/audit/logs?limit={limit}&offset={offset}")
+
+    # ── Memory Bases ──────────────────────────────────────────────
+    def list_memory_bases(self) -> list:
+        return self._request("GET", "/memory/bases")
+
+    def create_memory_base(self, name: str, description: str = None,
+                           one_llm_mode: bool = False) -> dict:
+        body: dict = {"name": name, "one_llm_mode": one_llm_mode}
+        if description:
+            body["description"] = description
+        return self._request("POST", "/memory/bases", json=body)
+
+    def get_memory_base(self, mem_id: str) -> dict:
+        return self._request("GET", f"/memory/bases/{mem_id}")
+
+    def delete_memory_base(self, mem_id: str) -> dict:
+        return self._request("DELETE", f"/memory/bases/{mem_id}")
+
+    # ── Memory Operations ─────────────────────────────────────────
+    def mem_ingest(self, mem_id: str, content: str, role: str = "user",
+                   auto_extract: bool = None) -> dict:
+        body: dict = {"content": content, "role": role}
+        if auto_extract is not None:
+            body["auto_extract"] = auto_extract
+        return self._request("POST", f"/memory/bases/{mem_id}/ingest", json=body)
+
+    def mem_ingest_extracted(self, mem_id: str, message_id: str, data: dict) -> dict:
+        return self._request("POST", f"/memory/bases/{mem_id}/ingest_extracted",
+                             json={"message_id": message_id, "data": data})
+
+    def mem_recall(self, mem_id: str, query: str, top_k: int = 10,
+                   memory_types: list = None) -> dict:
+        body: dict = {"query": query, "top_k": top_k}
+        if memory_types:
+            body["memory_types"] = memory_types
+        return self._request("POST", f"/memory/bases/{mem_id}/recall", json=body)
+
+    def mem_list(self, mem_id: str, memory_type: str = None,
+                 offset: int = 0, limit: int = 20) -> dict:
+        params = {"offset": str(offset), "limit": str(limit)}
+        if memory_type:
+            params["memory_type"] = memory_type
+        return self._request("GET", f"/memory/bases/{mem_id}/memories", params=params)
+
+    def mem_delete(self, mem_id: str, memory_id: int) -> dict:
+        return self._request("DELETE", f"/memory/bases/{mem_id}/memories/{memory_id}")
+
+    def mem_stats(self, mem_id: str) -> dict:
+        return self._request("GET", f"/memory/bases/{mem_id}/stats")
+
+    def mem_digest(self, mem_id: str) -> dict:
+        return self._request("POST", f"/memory/bases/{mem_id}/digest")
+
+    def mem_digest_extracted(self, mem_id: str, data: dict) -> dict:
+        return self._request("POST", f"/memory/bases/{mem_id}/digest_extracted",
+                             json={"data": data})

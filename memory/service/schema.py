@@ -54,6 +54,18 @@ CREATE TABLE IF NOT EXISTS graph_edges (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS raw_messages (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    content     TEXT NOT NULL,
+    role        VARCHAR(20) NOT NULL DEFAULT 'user',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS reflection_watermark (
+    id              SERIAL PRIMARY KEY,
+    last_reflected  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(memory_type);
 CREATE INDEX IF NOT EXISTS idx_memories_embedding ON memories USING hnsw (embedding vector_cosine_ops);
 CREATE INDEX IF NOT EXISTS idx_traits_stage ON traits(trait_stage);

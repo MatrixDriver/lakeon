@@ -28,6 +28,161 @@ async def ingest(connstr: str, content: str, role: str, memory_type: str,
         conn.close()
 
 
+async def store_raw_message(connstr: str, content: str, role: str) -> str:
+    """Store raw message and return its UUID."""
+    conn = _connect(connstr)
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                INSERT INTO raw_messages (content, role) VALUES (%s, %s) RETURNING id
+            """, (content, role))
+            row = cur.fetchone()
+            conn.commit()
+            return str(row["id"])
+    finally:
+        conn.close()
+
+
+async def ingest_extracted(connstr: str, message_id: str, data: dict) -> dict:
+    """Store pre-extracted structured memories. Returns counts per type."""
+    from models import IngestExtractedData
+    parsed = IngestExtractedData.model_validate(data)
+
+    conn = _connect(connstr)
+    counts = {}
+    try:
+        with conn.cursor() as cur:
+            # Validate message_id exists in raw_messages
+            try:
+                cur.execute("SELECT id FROM raw_messages WHERE id = %s", (message_id,))
+            except Exception:
+                raise ValueError(f"Invalid message_id: {message_id}")
+            if not cur.fetchone():
+                raise ValueError(f"Message not found: {message_id}")
+
+            type_map = {
+                "facts": ("fact", parsed.facts),
+                "episodes": ("episode", parsed.episodes),
+                "procedural": ("procedural", parsed.procedural),
+                "decisions": ("decision", parsed.decisions),
+                "rejections": ("rejection", parsed.rejections),
+                "conventions": ("convention", parsed.conventions),
+            }
+            for key, (mem_type, items) in type_map.items():
+                count = 0
+                for item in items:
+                    if not item.content:
+                        continue
+                    embedding = await get_embedding(item.content)
+                    metadata = {k: v for k, v in item.model_dump().items()
+                                if k not in ("content", "importance") and v is not None}
+                    cur.execute("""
+                        INSERT INTO memories (content, memory_type, importance, embedding, metadata, created_at)
+                        VALUES (%s, %s, %s, %s::vector, %s, now())
+                    """, (item.content, mem_type, item.importance, json.dumps(embedding), json.dumps(metadata)))
+                    count += 1
+                counts[f"{key}_stored"] = count
+            conn.commit()
+    finally:
+        conn.close()
+    return counts
+
+
+async def background_extract(connstr: str, message_id: str, content: str):
+    """Background task: call LLM to extract memories, then store them."""
+    import logging
+    from extraction_prompt import build_extraction_prompt
+    from llm_client import chat_extract
+
+    logger = logging.getLogger(__name__)
+    try:
+        prompt = build_extraction_prompt(content)
+        result = await chat_extract(prompt)
+        counts = await ingest_extracted(connstr, message_id, result)
+        logger.info("Background extraction for %s: %s", message_id, counts)
+    except Exception as e:
+        logger.error("Background extraction failed for %s: %s", message_id, e, exc_info=True)
+
+
+async def get_unreflected_memories(connstr: str, limit: int = 50) -> tuple[list[dict], int]:
+    """Get memories created after the last reflection watermark."""
+    conn = _connect(connstr)
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT last_reflected FROM reflection_watermark ORDER BY id DESC LIMIT 1")
+            row = cur.fetchone()
+            watermark = row["last_reflected"] if row else None
+
+            if watermark:
+                cur.execute("SELECT count(*) as cnt FROM memories WHERE created_at > %s", (watermark,))
+            else:
+                cur.execute("SELECT count(*) as cnt FROM memories")
+            total = cur.fetchone()["cnt"]
+
+            if total == 0:
+                return [], 0
+
+            if watermark:
+                cur.execute("""
+                    SELECT id, content, memory_type, metadata, created_at FROM memories
+                    WHERE created_at > %s ORDER BY created_at ASC LIMIT %s
+                """, (watermark, limit))
+            else:
+                cur.execute("""
+                    SELECT id, content, memory_type, metadata, created_at FROM memories
+                    ORDER BY created_at ASC LIMIT %s
+                """, (limit,))
+            memories = [dict(r) for r in cur.fetchall()]
+            for m in memories:
+                m["created_at"] = str(m["created_at"]) if m["created_at"] else None
+            return memories, total
+    finally:
+        conn.close()
+
+
+async def get_existing_traits(connstr: str, limit: int = 20) -> list[dict]:
+    """Get recent traits for dedup context in digest."""
+    conn = _connect(connstr)
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT id, content, trait_stage FROM traits
+                ORDER BY created_at DESC LIMIT %s
+            """, (limit,))
+            return [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+async def store_digest_traits(connstr: str, traits: list[dict]) -> int:
+    """Store digest traits (importance >= 7) and advance watermark."""
+    valid = [t for t in traits if t.get("content") and t.get("importance", 0) >= 7]
+    if not valid:
+        return 0
+
+    conn = _connect(connstr)
+    stored = 0
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            for t in valid:
+                cur.execute("""
+                    INSERT INTO traits (content, trait_stage, trait_subtype, confidence, created_at)
+                    VALUES (%s, 'trend', %s, %s, now())
+                """, (t["content"], t.get("category", "pattern"), round(t.get("importance", 7) / 10.0, 2)))
+                stored += 1
+
+            # Advance watermark
+            cur.execute("SELECT max(created_at) as max_ts FROM memories")
+            row = cur.fetchone()
+            if row and row["max_ts"]:
+                cur.execute("INSERT INTO reflection_watermark (last_reflected) VALUES (%s)", (row["max_ts"],))
+
+            conn.commit()
+    finally:
+        conn.close()
+    return stored
+
+
 async def recall(connstr: str, query: str, top_k: int,
                  memory_types: Optional[list[str]]) -> list[Memory]:
     """Hybrid search: vector cosine + text search + RRF merge."""

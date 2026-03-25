@@ -31,14 +31,16 @@ public class MemoryController {
     }
 
     @PostMapping("/bases")
-    public Map<String, Object> createBase(HttpServletRequest req, @RequestBody Map<String, String> body) {
+    public Map<String, Object> createBase(HttpServletRequest req, @RequestBody Map<String, Object> body) {
         TenantEntity tenant = getTenant(req);
+        boolean oneLlmMode = Boolean.TRUE.equals(body.get("one_llm_mode"));
         return toMemResponse(memoryService.createBase(
             tenant.getId(),
-            body.get("name"),
-            body.get("description"),
-            MemoryBaseType.valueOf(body.getOrDefault("type", "BUILTIN")),
-            body.get("embedding_model")
+            (String) body.get("name"),
+            (String) body.get("description"),
+            MemoryBaseType.valueOf(body.getOrDefault("type", "BUILTIN").toString()),
+            (String) body.get("embedding_model"),
+            oneLlmMode
         ));
     }
 
@@ -67,6 +69,20 @@ public class MemoryController {
     public Object digest(HttpServletRequest req, @PathVariable String id) {
         TenantEntity tenant = getTenant(req);
         return memoryService.proxyPost(tenant.getId(), id, "/digest", null);
+    }
+
+    @PostMapping("/bases/{id}/ingest_extracted")
+    public Object ingestExtracted(HttpServletRequest req, @PathVariable String id,
+                                   @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        return memoryService.proxyPost(tenant.getId(), id, "/ingest_extracted", body);
+    }
+
+    @PostMapping("/bases/{id}/digest_extracted")
+    public Object digestExtracted(HttpServletRequest req, @PathVariable String id,
+                                   @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        return memoryService.proxyPost(tenant.getId(), id, "/digest_extracted", body);
     }
 
     @GetMapping("/bases/{id}/memories")
@@ -129,6 +145,7 @@ public class MemoryController {
         map.put("trait_count", mem.getTraitCount());
         map.put("embedding_model", mem.getEmbeddingModel());
         map.put("error", mem.getError());
+        map.put("one_llm_mode", Boolean.TRUE.equals(mem.getOneLlmMode()));
         map.put("created_at", mem.getCreatedAt() != null ? mem.getCreatedAt().toString() : null);
         map.put("updated_at", mem.getUpdatedAt() != null ? mem.getUpdatedAt().toString() : null);
         return map;

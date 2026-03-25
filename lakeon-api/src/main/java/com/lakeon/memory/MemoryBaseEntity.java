@@ -50,6 +50,9 @@ public class MemoryBaseEntity {
     @Column(name = "error", columnDefinition = "TEXT")
     private String error;
 
+    @Column(name = "one_llm_mode")
+    private Boolean oneLlmMode = false;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -107,6 +110,9 @@ public class MemoryBaseEntity {
 
     public String getError() { return error; }
     public void setError(String error) { this.error = error; }
+
+    public Boolean getOneLlmMode() { return oneLlmMode; }
+    public void setOneLlmMode(Boolean oneLlmMode) { this.oneLlmMode = oneLlmMode; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
