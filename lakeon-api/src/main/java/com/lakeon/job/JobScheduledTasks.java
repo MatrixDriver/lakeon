@@ -1,8 +1,10 @@
 package com.lakeon.job;
 
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.knowledge.KbWriteQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -16,11 +18,14 @@ public class JobScheduledTasks {
     private final JobRepository jobRepository;
     private final JobPodManager jobPodManager;
     private final LakeonProperties props;
+    private final KbWriteQueue kbWriteQueue;
 
-    public JobScheduledTasks(JobRepository jobRepository, JobPodManager jobPodManager, LakeonProperties props) {
+    public JobScheduledTasks(JobRepository jobRepository, JobPodManager jobPodManager,
+                              LakeonProperties props, @Lazy KbWriteQueue kbWriteQueue) {
         this.jobRepository = jobRepository;
         this.jobPodManager = jobPodManager;
         this.props = props;
+        this.kbWriteQueue = kbWriteQueue;
     }
 
     @Scheduled(fixedDelayString = "${lakeon.job.orphan-check-interval-ms:60000}")
@@ -60,6 +65,7 @@ public class JobScheduledTasks {
                 job.setError("Job timed out in PENDING state after " + pendingTimeoutMinutes + " minutes");
                 job.setCompletedAt(now);
                 jobRepository.save(job);
+                notifyKbWriteQueue(job);
             }
         }
     }
@@ -74,6 +80,7 @@ public class JobScheduledTasks {
             job.setCompletedAt(now);
             jobRepository.save(job);
             deleteResourcesQuietly(job.getId());
+            notifyKbWriteQueue(job);
             return;
         }
 
@@ -88,7 +95,16 @@ public class JobScheduledTasks {
                 job.setCompletedAt(now);
                 jobRepository.save(job);
                 deleteResourcesQuietly(job.getId());
+                notifyKbWriteQueue(job);
             }
+        }
+    }
+
+    private void notifyKbWriteQueue(JobEntity job) {
+        try {
+            kbWriteQueue.onJobCompleted(job.getId(), false, null, job.getError());
+        } catch (Exception e) {
+            log.debug("No write task linked to job {}", job.getId());
         }
     }
 
