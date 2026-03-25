@@ -1,4 +1,4 @@
-# DBay 数据湖 — AI 脚本助手设计
+# DBay 数据湖 — AI 脚本助手 + 多数据集输入设计
 
 > 状态：待实现
 > 日期：2026-03-25
@@ -8,7 +8,9 @@
 
 ## 背景
 
-数据湖创建作业页（已实现）包含 CodeMirror 内联编辑器，用户手写 Python 脚本。现需加入 AI 辅助生成能力，与现有 AI SQL 助手（`AiSqlService` + `SqlEditor.vue`）采用相同架构模式。
+数据湖创建作业页（已实现）包含 CodeMirror 内联编辑器，用户手写 Python 脚本。现需：
+1. 加入 AI 辅助生成能力，与现有 AI SQL 助手（`AiSqlService` + `SqlEditor.vue`）采用相同架构模式
+2. 支持多数据集输入——当前仅支持单个 `input_dataset_id`，但数据处理常需多表关联
 
 ---
 
@@ -21,11 +23,38 @@
 | UI 位置 | 编辑器下方内联面板 | 代码编辑器已占右侧内容区，无空间开侧边栏 |
 | 生成模式 | 全脚本替换 | 与 SQL 助手一致，适合初始脚本生成场景 |
 | LLM 接入 | 复用 SiliconFlow API + `LakeonProperties.AiConfig` | 已有配置和密钥管理 |
-| 数据集依赖 | 必须先选数据集才能用 AI | 无 schema 上下文时生成质量低 |
+| 数据集依赖 | 不要求预选，AI 自动获取所有数据集 schema | 与 SQL 助手一致，用户只描述需求，AI 决定用哪些数据集 |
+| 数据集输入 | 多选（数组） | 数据处理常需多表关联，不应人为限制为单输入 |
+| 环境变量命名 | `DATASET_PATH_{name}` | 每个数据集独立变量，用户在环境变量节可直接看到 |
 
 ---
 
-## 后端
+## 多数据集输入
+
+### 后端变更
+
+**`DatalakeJobRequest`**：`input_dataset_id`（String）→ `input_dataset_ids`（`List<String>`）
+
+**`PythonJobRunner`**：遍历 `input_dataset_ids`，为每个数据集注入 `DATASET_PATH_{datasetName}` 环境变量（name 取 `DatasetEntity.name`，空格替换为下划线，转小写）。保持向后兼容：若只选一个数据集，同时注入 `DATASET_PATH`（无后缀）。
+
+**Flyway 迁移**：无需改表——`datalake_jobs.spec` 是 TEXT/JSON 字段，已存储完整请求。`datasets` 表不变。
+
+### 前端变更
+
+**`DatalakeJobNewDataset.vue`**：单选 `<select>` 改为**多选列表**（勾选框 + 列表），选中的数据集显示为 chips/tags。
+
+**`DatalakeJobNewEnvVars.vue`**：根据选中的数据集数量动态显示绿色行：
+- 选 1 个 `orders`：`🟢 DATASET_PATH = obs://...`
+- 选 2 个 `orders` + `users`：`🟢 DATASET_PATH_orders = obs://...` + `🟢 DATASET_PATH_users = obs://...`
+- 始终显示 `🟢 OUTPUT_PATH`
+
+**`DatalakeJobNew.vue`**：`form.inputDatasetId`（string）→ `form.inputDatasetIds`（string[]）
+
+**`datalake.ts`**：`input_dataset_id?: string` → `input_dataset_ids?: string[]`
+
+---
+
+## AI 脚本助手 — 后端
 
 ### 1. `DatasetEntity` 新增 `schema_json` 字段
 
@@ -48,17 +77,15 @@ Schema 在 `DatasetService.triggerExport()` 中填充——此时源数据库 co
 **请求体**：
 ```json
 {
-  "prompt": "过滤 score > 0.8 的行，按 category 分组统计数量",
-  "model": "Qwen/Qwen3.5-4B",
-  "dataset_id": "ds_abc123"
+  "prompt": "关联 orders 和 users，统计每个用户的订单总额",
+  "model": "Qwen/Qwen3.5-4B"
 }
 ```
 
 - `prompt`：必填，用户自然语言描述
 - `model`：可选，默认 `Qwen/Qwen3.5-4B`
-- `dataset_id`：必填，用于查询 schema 上下文
 
-**租户隔离**：通过 `req.getAttribute("tenant")` 获取 tenantId，使用 `DatasetRepository.findByIdAndTenantId(datasetId, tenantId)` 查询数据集，确保不能读取其他租户的 schema。
+**上下文自动获取**：后端通过 `req.getAttribute("tenant")` 获取 tenantId，自动查询该租户所有 READY 状态数据集及其 `schema_json`，全部注入 LLM 上下文（与 SQL 助手自动获取所有表 schema 一致）。
 
 **响应体**：
 ```json
@@ -66,9 +93,12 @@ Schema 在 `DatasetService.triggerExport()` 中填充——此时源数据库 co
   "script": "import os\nimport pandas as pd\n...",
   "model": "Qwen/Qwen3.5-4B",
   "input_tokens": 280,
-  "output_tokens": 150
+  "output_tokens": 150,
+  "used_dataset_ids": ["ds_abc123", "ds_def456"]
 }
 ```
+
+- `used_dataset_ids`：AI 生成脚本中引用的数据集 ID 列表。后端通过匹配生成代码中的 `DATASET_PATH_{name}` 引用与数据集名称来确定。前端收到后自动勾选这些数据集。
 
 错误时返回 `{ "error": "..." }`。
 
@@ -82,21 +112,33 @@ You are a Python data processing expert. Generate a Python script based on the u
 
 Rules:
 - Output ONLY the Python script, no explanations, no markdown code fences
-- Read input data from the path in os.environ["DATASET_PATH"] (Parquet format)
+- Read input datasets from os.environ["DATASET_PATH_{name}"] (Parquet format). If only one dataset, also available as os.environ["DATASET_PATH"]
 - Write output data to the path in os.environ["OUTPUT_PATH"] (Parquet format)
 - Use pandas for data processing
-- Use the exact column names from the provided dataset schema
+- Use the exact column names from the provided dataset schemas
 - Always include: import os, import pandas as pd
 - Use lowercase for variable names
 ```
 
-**User Message 格式**：
+**User Message 格式**（多数据集）：
 ```
-Dataset: {name} ({rowCount} rows, {fileSize} bytes)
-Schema:
-  - col1: int64
-  - col2: string
-  - col3: float64
+Datasets:
+
+1. orders (12000 rows, 2.1 MB)
+   Env var: DATASET_PATH_orders
+   Schema:
+     - order_id: int64
+     - user_id: int64
+     - amount: float64
+
+2. users (500 rows, 45 KB)
+   Env var: DATASET_PATH_users
+   Schema:
+     - user_id: int64
+     - name: string
+     - city: string
+
+Output: OUTPUT_PATH
 
 User request: {prompt}
 ```
@@ -126,15 +168,12 @@ User request: {prompt}
 - **Token 用量**：生成后显示 `{input} + {output} tokens · ¥{cost}`
 - **错误提示**：红色文字
 
-**数据集依赖**：
-- 面板从父组件接收 `inputDatasetId` prop
-- **需同步修改 `DatalakeJobNew.vue`**：在 `<DatalakeJobNewCode>` 上新增 `:input-dataset-id="form.inputDatasetId"` 传递 prop
-- 若未选数据集，显示提示「请先在「数据集」节选择输入数据集」，禁用生成按钮
-- `dataset_id` 通过 API 请求传给后端
+**无需预选数据集**：AI 面板独立工作，不依赖数据集节的选择。后端自动获取所有数据集 schema。
 
 **生成结果处理**：
-- 返回的 `script` 替换 CodeMirror 编辑器全部内容
-- 同时 emit `update:script` 通知父组件
+- 返回的 `script` 替换 CodeMirror 编辑器全部内容，emit `update:script` 通知父组件
+- 返回的 `used_dataset_ids` emit `update:usedDatasetIds` 通知父组件
+- **`DatalakeJobNew.vue` 监听该事件**：自动将 `form.inputDatasetIds` 设置为 AI 返回的 `used_dataset_ids`，实现数据集自动勾选
 
 ### 新增 API 函数
 
@@ -146,10 +185,11 @@ export interface AiScriptResult {
   model?: string
   input_tokens?: number
   output_tokens?: number
+  used_dataset_ids?: string[]
 }
 
-export function generateDatalakeScript(prompt: string, model: string, datasetId: string) {
-  return client.post<AiScriptResult>('/datalake/ai-script/generate', { prompt, model, dataset_id: datasetId })
+export function generateDatalakeScript(prompt: string, model: string) {
+  return client.post<AiScriptResult>('/datalake/ai-script/generate', { prompt, model })
 }
 ```
 
@@ -177,5 +217,5 @@ ORDER BY ordinal_position
 - 流式输出（非 MVP）
 - 多轮对话 / 上下文记忆
 - 代码补全（只做全脚本生成）
-- 无数据集时的 AI 生成
+- 无数据集时仍可使用 AI（但生成质量较低，无 schema 上下文）
 - 自定义 system prompt
