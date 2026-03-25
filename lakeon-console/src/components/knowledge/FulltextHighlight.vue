@@ -1,6 +1,6 @@
 <template>
-  <div class="fulltext-highlight" ref="containerRef">
-    <div class="fulltext-rendered" v-html="renderedHtml"></div>
+  <div class="fulltext-highlight">
+    <div class="fulltext-rendered" ref="contentRef" v-html="baseHtml"></div>
   </div>
 </template>
 
@@ -16,85 +16,101 @@ const props = defineProps<{
 }>()
 
 const md = new MarkdownIt({ html: false, linkify: true, typographer: false })
-const containerRef = ref<HTMLElement | null>(null)
+const contentRef = ref<HTMLElement | null>(null)
 
-const MARKER_START = '\x00HLSTART\x00'
-const MARKER_END = '\x00HLEND\x00'
+const baseHtml = computed(() => md.render(props.fulltext || ''))
 
 /**
- * Find the highlight range: prefer text search (reliable), fall back to offsets.
- * Returns [start, end] in the fulltext string, or null if not found.
+ * Find and highlight the chunk content in the rendered DOM using text node walking.
+ * This avoids issues with markdown rendering eating markers.
  */
-function findHighlightRange(): [number, number] | null {
-  const text = props.fulltext
-  if (!text) return null
+function highlightChunkInDom() {
+  if (!contentRef.value) return
 
-  // Strategy 1: search for chunk content in fulltext (skip overlap prefix)
-  if (props.chunkContent) {
-    const content = props.chunkContent
-    // Try progressively shorter snippets from the middle to find a match
-    // (start of chunk may have overlap from previous chunk)
-    for (const skipChars of [0, 100, 200, 300]) {
-      const searchText = content.substring(skipChars, skipChars + 200)
-      if (searchText.length < 20) continue
-      const idx = text.indexOf(searchText)
-      if (idx >= 0) {
-        // Found — expand to find full chunk boundaries
-        // Search backward for the chunk start
-        let start = idx
-        const contentStart = content.substring(0, 50)
-        const backSearch = text.lastIndexOf(contentStart, idx + 50)
-        if (backSearch >= 0 && backSearch <= idx) {
-          start = backSearch
-        }
-        // End = start + content length, clamped
-        const end = Math.min(start + content.length, text.length)
-        return [start, end]
-      }
+  // Remove any previous highlights
+  contentRef.value.querySelectorAll('.chunk-highlight').forEach(el => {
+    const parent = el.parentNode
+    if (parent) {
+      while (el.firstChild) parent.insertBefore(el.firstChild, el)
+      parent.removeChild(el)
+    }
+  })
+
+  const searchText = findSearchText()
+  if (!searchText || searchText.length < 10) return
+
+  // Walk text nodes and find the search text
+  const textNodes: Text[] = []
+  const walker = document.createTreeWalker(contentRef.value, NodeFilter.SHOW_TEXT)
+  let node: Text | null
+  while ((node = walker.nextNode() as Text | null)) {
+    textNodes.push(node)
+  }
+
+  // Build concatenated text with node boundaries
+  let fullText = ''
+  const nodeMap: { node: Text; start: number; end: number }[] = []
+  for (const tn of textNodes) {
+    const start = fullText.length
+    fullText += tn.textContent || ''
+    nodeMap.push({ node: tn, start, end: fullText.length })
+  }
+
+  // Find the chunk text in the concatenated text
+  const idx = fullText.indexOf(searchText)
+  if (idx < 0) return
+
+  const highlightStart = idx
+  const highlightEnd = idx + searchText.length
+
+  // Find which text nodes overlap with the highlight range
+  for (const entry of nodeMap) {
+    if (entry.end <= highlightStart || entry.start >= highlightEnd) continue
+
+    const nodeStart = Math.max(0, highlightStart - entry.start)
+    const nodeEnd = Math.min(entry.node.textContent!.length, highlightEnd - entry.start)
+
+    if (nodeStart === 0 && nodeEnd === entry.node.textContent!.length) {
+      // Whole node is highlighted
+      const mark = document.createElement('mark')
+      mark.className = 'chunk-highlight'
+      entry.node.parentNode!.replaceChild(mark, entry.node)
+      mark.appendChild(entry.node)
+    } else {
+      // Partial highlight — split the text node
+      const range = document.createRange()
+      range.setStart(entry.node, nodeStart)
+      range.setEnd(entry.node, nodeEnd)
+      const mark = document.createElement('mark')
+      mark.className = 'chunk-highlight'
+      range.surroundContents(mark)
     }
   }
 
-  // Strategy 2: use offsets (may be inaccurate)
-  if (props.chunkOffsetStart != null && props.chunkOffsetEnd != null) {
-    const s = Math.max(0, Math.min(props.chunkOffsetStart, text.length))
-    const e = Math.max(s, Math.min(props.chunkOffsetEnd, text.length))
-    if (e > s) return [s, e]
-  }
-
-  return null
+  // Scroll to first highlight
+  nextTick(() => {
+    const mark = contentRef.value?.querySelector('.chunk-highlight')
+    if (mark) {
+      mark.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  })
 }
 
-const renderedHtml = computed(() => {
-  const text = props.fulltext
-  if (!text) return ''
-
-  const range = findHighlightRange()
-  if (!range) return md.render(text)
-
-  const [s, e] = range
-  const before = text.substring(0, s)
-  const highlight = text.substring(s, e)
-  const after = text.substring(e)
-
-  const marked = before + MARKER_START + highlight + MARKER_END + after
-  let html = md.render(marked)
-  html = html
-    .replace(/\x00HLSTART\x00/g, '<mark class="chunk-highlight">')
-    .replace(/\x00HLEND\x00/g, '</mark>')
-  return html
-})
-
-function scrollHighlightIntoView() {
-  if (!containerRef.value) return
-  const mark = containerRef.value.querySelector('.chunk-highlight')
-  if (mark) {
-    mark.scrollIntoView({ behavior: 'smooth', block: 'center' })
+function findSearchText(): string | null {
+  if (!props.chunkContent) return null
+  const content = props.chunkContent
+  // Use a middle snippet (200 chars) to avoid overlap prefix issues
+  // Try multiple positions
+  for (const skip of [Math.floor(content.length / 3), 0, 100, 200]) {
+    const snippet = content.substring(skip, skip + 200).trim()
+    if (snippet.length >= 20) return snippet
   }
+  return content.length >= 20 ? content.substring(0, 200) : null
 }
 
 watch(
-  () => [props.chunkContent, props.chunkOffsetStart, props.chunkOffsetEnd],
-  () => { nextTick(scrollHighlightIntoView) },
+  () => [props.chunkContent, props.chunkOffsetStart, baseHtml.value],
+  () => { nextTick(() => nextTick(highlightChunkInDom)) },
   { immediate: true }
 )
 </script>
@@ -125,9 +141,8 @@ watch(
 .fulltext-rendered :deep(blockquote) { border-left: 3px solid #d0d5de; margin: 0 0 12px 0; padding: 4px 12px; color: #666; }
 
 .fulltext-rendered :deep(.chunk-highlight) {
-  background: rgba(0, 115, 230, 0.1);
+  background: rgba(0, 115, 230, 0.12);
   border-left: 3px solid #0073e6;
   padding: 2px 0;
-  display: inline;
 }
 </style>
