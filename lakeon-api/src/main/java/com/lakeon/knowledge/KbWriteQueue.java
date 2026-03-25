@@ -14,6 +14,7 @@ import com.lakeon.service.exception.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.sql.Connection;
@@ -77,6 +78,69 @@ public class KbWriteQueue {
         this.jobService = jobService;
         this.props = props;
         this.objectMapper = objectMapper;
+    }
+
+    private static final long STUCK_TASK_TIMEOUT_MINUTES = 30;
+
+    /**
+     * On startup, recover any databases that have QUEUED tasks sitting in the DB.
+     * Without this, tasks submitted before a restart would never be drained.
+     */
+    @jakarta.annotation.PostConstruct
+    public void recoverOnStartup() {
+        try {
+            List<String> dbIds = taskRepository.findDatabaseIdsWithActiveTasks();
+            if (!dbIds.isEmpty()) {
+                log.info("Recovering drain for {} databases with active tasks", dbIds.size());
+                for (String dbId : dbIds) {
+                    executor.submit(() -> drain(dbId));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to recover drain on startup: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Every 5 minutes, check for RUNNING tasks stuck longer than 30 minutes.
+     * Mark them FAILED so drain can proceed.
+     */
+    @Scheduled(fixedDelay = 300_000, initialDelay = 60_000)
+    public void detectStuckTasks() {
+        try {
+            Instant cutoff = Instant.now().minusSeconds(STUCK_TASK_TIMEOUT_MINUTES * 60);
+            List<KbWriteTaskEntity> stuck = taskRepository.findStuckRunningBefore(cutoff);
+            for (KbWriteTaskEntity task : stuck) {
+                log.warn("Marking stuck task {} as FAILED (RUNNING since {})", task.getId(), task.getStartedAt());
+                task.setStatus(KbWriteTaskStatus.FAILED);
+                task.setError("Job pod lost or timed out (>" + STUCK_TASK_TIMEOUT_MINUTES + "m)");
+                task.setCompletedAt(Instant.now());
+                taskRepository.save(task);
+                // Sync document status
+                if (task.getType() == KbWriteTaskType.DOCUMENT_PARSE) {
+                    syncDocumentFromTask(task, false, null, task.getError());
+                } else if (task.getType() == KbWriteTaskType.BATCH_DOCUMENT_PARSE) {
+                    syncBatchDocumentsFromTask(task, false, null, task.getError());
+                }
+                // Re-trigger drain for this database
+                executor.submit(() -> drain(task.getDatabaseId()));
+            }
+            if (!stuck.isEmpty()) {
+                log.info("Detected and failed {} stuck tasks", stuck.size());
+            }
+        } catch (Exception e) {
+            log.warn("Error detecting stuck tasks: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Cancel all active tasks for a KB (called when KB is deleted).
+     */
+    public void cancelTasksForKb(String kbId) {
+        int cancelled = taskRepository.cancelByKbId(kbId);
+        if (cancelled > 0) {
+            log.info("Cancelled {} active tasks for KB {}", cancelled, kbId);
+        }
     }
 
     /**

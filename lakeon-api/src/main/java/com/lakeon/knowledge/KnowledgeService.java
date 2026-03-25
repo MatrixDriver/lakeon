@@ -274,6 +274,9 @@ public class KnowledgeService {
         KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
 
+        // Cancel any pending/running write tasks for this KB first
+        kbWriteQueue.cancelTasksForKb(kbId);
+
         // Delete all documents in this KB (OBS files, jobs, chunks)
         List<DocumentEntity> docs = documentRepository.findAllByKbId(kbId);
         for (DocumentEntity doc : docs) {

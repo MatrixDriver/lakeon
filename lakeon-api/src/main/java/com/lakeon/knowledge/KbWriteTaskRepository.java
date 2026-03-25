@@ -3,6 +3,9 @@ package com.lakeon.knowledge;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.transaction.annotation.Transactional;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,4 +23,11 @@ public interface KbWriteTaskRepository extends JpaRepository<KbWriteTaskEntity, 
 
     @Query("SELECT DISTINCT t.databaseId FROM KbWriteTaskEntity t WHERE t.status IN ('QUEUED', 'RUNNING')")
     List<String> findDatabaseIdsWithActiveTasks();
+
+    @Query("SELECT t FROM KbWriteTaskEntity t WHERE t.status = 'RUNNING' AND t.startedAt < ?1")
+    List<KbWriteTaskEntity> findStuckRunningBefore(Instant cutoff);
+
+    @Modifying @Transactional
+    @Query("UPDATE KbWriteTaskEntity t SET t.status = 'FAILED', t.error = 'Cancelled: KB deleted', t.completedAt = CURRENT_TIMESTAMP WHERE t.kbId = ?1 AND t.status IN ('QUEUED', 'RUNNING')")
+    int cancelByKbId(String kbId);
 }
