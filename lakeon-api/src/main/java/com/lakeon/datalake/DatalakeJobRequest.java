@@ -48,6 +48,12 @@ public class DatalakeJobRequest {
     @JsonProperty("output_dataset_name")
     private String outputDatasetName;
 
+    @JsonProperty("inline_script")
+    private String inlineScript;
+
+    @JsonProperty("retry_count")
+    private int retryCount = 0;
+
     public String getName() {
         return name;
     }
@@ -182,5 +188,21 @@ public class DatalakeJobRequest {
 
     public void setOutputDatasetName(String outputDatasetName) {
         this.outputDatasetName = outputDatasetName;
+    }
+
+    public String getInlineScript() {
+        return inlineScript;
+    }
+
+    public void setInlineScript(String inlineScript) {
+        this.inlineScript = inlineScript;
+    }
+
+    public int getRetryCount() {
+        return retryCount;
+    }
+
+    public void setRetryCount(int retryCount) {
+        this.retryCount = retryCount;
     }
 }
