@@ -20,6 +20,7 @@
         >
           <span class="section-num">{{ isDone(s.key) ? '✓' : s.num }}</span>
           {{ s.label }}
+          <span v-if="s.required" class="required-dot">*</span>
         </div>
       </nav>
 
@@ -134,11 +135,11 @@ const form = ref({
 const currentSection = ref('basic')
 const submitting = ref(false)
 
-type Section = { key: string; num: string; label: string; types?: DatalakeJobType[] }
+type Section = { key: string; num: string; label: string; required?: boolean; types?: DatalakeJobType[] }
 
 const allSections: Section[] = [
-  { key: 'basic',     num: '1', label: '基本信息' },
-  { key: 'code',      num: '2', label: '代码',      types: ['PYTHON', 'RAY'] },
+  { key: 'basic',     num: '1', label: '基本信息',     required: true },
+  { key: 'code',      num: '2', label: '代码',         required: true, types: ['PYTHON', 'RAY'] },
   { key: 'dataset',   num: '3', label: '数据集' },
   { key: 'resources', num: '4', label: '资源' },
   { key: 'envvars',   num: '5', label: '环境变量' },
@@ -155,7 +156,11 @@ const isDone = (key: string) => {
   return false
 }
 
-const canSubmit = computed(() => !!form.value.name.trim())
+const canSubmit = computed(() => {
+  if (!form.value.name.trim()) return false
+  if (!form.value.inlineScript.trim()) return false
+  return true
+})
 
 const typeLabel = (t: DatalakeJobType) =>
   ({ PYTHON: '🐍 Python', RAY: '⚡ Ray', FINETUNE: '🧠 微调' })[t] ?? t
@@ -210,6 +215,7 @@ async function handleSubmit() {
 .section-num { width: 18px; height: 18px; border-radius: 50%; background: #e2e8f0; color: #64748b; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .section-nav-item.active .section-num { background: #2563eb; color: #fff; }
 .section-nav-item.done .section-num { background: #22c55e; color: #fff; font-size: 10px; }
+.required-dot { color: #ef4444; font-size: 11px; margin-left: 2px; }
 .section-content { flex: 1; overflow-y: auto; padding: 20px 24px; }
 .summary-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .summary-left { display: flex; gap: 24px; align-items: center; }
