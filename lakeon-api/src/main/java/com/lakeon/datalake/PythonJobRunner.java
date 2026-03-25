@@ -98,9 +98,23 @@ public class PythonJobRunner {
         String logUpload = String.format(
             "; EXIT_CODE=$?; python -c \""
             + "import boto3,os; "
-            + "s3=boto3.client('s3',endpoint_url=os.environ.get('OBS_ENDPOINT',''),aws_access_key_id=os.environ.get('OBS_ACCESS_KEY',''),aws_secret_access_key=os.environ.get('OBS_SECRET_KEY',''),aws_session_token=os.environ.get('OBS_SESSION_TOKEN'),region_name=os.environ.get('OBS_REGION','cn-north-4')); "
-            + "s3.upload_file('/tmp/job.log',os.environ.get('OBS_BUCKET',''),'%s')"
+            + "from botocore.config import Config; "
+            + "s3=boto3.client('s3',endpoint_url=os.environ.get('OBS_ENDPOINT',''),aws_access_key_id=os.environ.get('OBS_ACCESS_KEY',''),aws_secret_access_key=os.environ.get('OBS_SECRET_KEY',''),aws_session_token=os.environ.get('OBS_SESSION_TOKEN'),region_name=os.environ.get('OBS_REGION','cn-north-4'),config=Config(signature_version='s3',s3={'addressing_style':'virtual'})); "
+            + "s3.upload_file('/tmp/job.log',os.environ.get('OBS_BUCKET',''),'%s'); "
+            + "okey=os.environ.get('_OUTPUT_OBS_KEY',''); "
+            + "[s3.upload_file('/data/output.parquet',os.environ['OBS_BUCKET'],okey) if okey and os.path.exists('/data/output.parquet') else None]"
             + "\" 2>/dev/null; exit $EXIT_CODE", logKey);
+
+        // Pre-download step: download datasets from OBS to local /data/ using boto3
+        // Env vars _OBS_KEY_{name} are set by DatalakeService for each dataset
+        String preDownload = "python -c \""
+            + "import boto3,os; "
+            + "from botocore.config import Config; "
+            + "s3=boto3.client('s3',endpoint_url=os.environ.get('OBS_ENDPOINT',''),aws_access_key_id=os.environ.get('OBS_ACCESS_KEY',''),aws_secret_access_key=os.environ.get('OBS_SECRET_KEY',''),aws_session_token=os.environ.get('OBS_SESSION_TOKEN'),region_name=os.environ.get('OBS_REGION','cn-north-4'),config=Config(signature_version='s3',s3={'addressing_style':'virtual'})); "
+            + "os.makedirs('/data',exist_ok=True); "
+            + "[s3.download_file(os.environ['OBS_BUCKET'],v,'/data/'+k.replace('_OBS_KEY_','')+'.parquet') for k,v in os.environ.items() if k.startswith('_OBS_KEY_')];"
+            + "print('Downloaded',sum(1 for k in os.environ if k.startswith('_OBS_KEY_')),'dataset(s) to /data/')"
+            + "\" && ";
 
         List<String> command;
         boolean hasInlineScript = req.getInlineScript() != null && !req.getInlineScript().isBlank();
@@ -113,9 +127,9 @@ public class PythonJobRunner {
         } else {
             userCmd = "echo 'No script or entrypoint specified'";
         }
-        // Wrap: run user cmd with tee to capture logs, then upload
-        // set -o pipefail ensures tee pipe returns the script's exit code, not tee's
-        command = List.of("/bin/sh", "-c", "set -o pipefail; (" + userCmd + ") 2>&1 | tee /tmp/job.log" + logUpload);
+        // Wrap: pre-download datasets, run user cmd with tee, upload logs
+        // set -o pipefail ensures tee pipe returns the script's exit code
+        command = List.of("/bin/sh", "-c", "set -o pipefail; " + preDownload + "(" + userCmd + ") 2>&1 | tee /tmp/job.log" + logUpload);
 
         // Pre-set logObsPath so DatalakeLogService can find it
         job.setLogObsPath(logKey);
@@ -131,13 +145,11 @@ public class PythonJobRunner {
             req.getEnvVars().forEach((k, v) ->
                     envVars.add(new EnvVarBuilder().withName(k).withValue(v).build()));
         }
-        String outputPath = req.getOutputPath();
-        if (outputPath == null || outputPath.isBlank()) {
-            String bucket = props.getObs().getBucket();
-            outputPath = "s3://" + bucket + "/tenant-" + job.getTenantId()
-                    + "/jobs/" + job.getId() + "/output/";
-        }
-        envVars.add(new EnvVarBuilder().withName("OUTPUT_PATH").withValue(outputPath).build());
+        // OUTPUT_PATH is local; output will be uploaded to OBS after script runs
+        String outputLocalPath = "/data/output.parquet";
+        String outputObsKey = "tenant-" + job.getTenantId() + "/jobs/" + job.getId() + "/output/data.parquet";
+        envVars.add(new EnvVarBuilder().withName("OUTPUT_PATH").withValue(outputLocalPath).build());
+        envVars.add(new EnvVarBuilder().withName("_OUTPUT_OBS_KEY").withValue(outputObsKey).build());
 
         // Inject OBS STS credentials for tenant isolation
         ObsStsService.StsCredentials stsCreds = obsStsService.getCredentials(job.getTenantId());

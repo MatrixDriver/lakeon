@@ -85,12 +85,15 @@ public class DatalakeService {
                     throw new BadRequestException("Dataset is not ready: " + dsId
                             + " (status=" + dataset.getStatus() + ")");
                 }
-                String datasetPath = "s3://" + bucket + "/" + dataset.getObsPath();
-                String namedVar = "DATASET_PATH_" + dataset.getName().replaceAll("\\s+", "_").toLowerCase();
-                envVars.put(namedVar, datasetPath);
-                // Single dataset: also inject plain DATASET_PATH for backward compat
+                String safeName = dataset.getName().replaceAll("\\s+", "_").toLowerCase();
+                // Local path — file will be downloaded from OBS before script runs
+                String localPath = "/data/" + safeName + ".parquet";
+                // Store OBS key for download step (prefixed with _OBS_KEY_)
+                envVars.put("_OBS_KEY_" + safeName, dataset.getObsPath());
+                String namedVar = "DATASET_PATH_" + safeName;
+                envVars.put(namedVar, localPath);
                 if (single) {
-                    envVars.put("DATASET_PATH", datasetPath);
+                    envVars.put("DATASET_PATH", localPath);
                 }
             }
             req.setEnvVars(envVars);
