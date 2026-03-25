@@ -42,8 +42,8 @@ public class DatalakeJobRequest {
     @JsonProperty("image_key")
     private String imageKey;
 
-    @JsonProperty("input_dataset_id")
-    private String inputDatasetId;
+    @JsonProperty("input_dataset_ids")
+    private java.util.List<String> inputDatasetIds;
 
     @JsonProperty("output_dataset_name")
     private String outputDatasetName;
@@ -174,12 +174,12 @@ public class DatalakeJobRequest {
         this.imageKey = imageKey;
     }
 
-    public String getInputDatasetId() {
-        return inputDatasetId;
+    public java.util.List<String> getInputDatasetIds() {
+        return inputDatasetIds;
     }
 
-    public void setInputDatasetId(String inputDatasetId) {
-        this.inputDatasetId = inputDatasetId;
+    public void setInputDatasetIds(java.util.List<String> inputDatasetIds) {
+        this.inputDatasetIds = inputDatasetIds;
     }
 
     public String getOutputDatasetName() {

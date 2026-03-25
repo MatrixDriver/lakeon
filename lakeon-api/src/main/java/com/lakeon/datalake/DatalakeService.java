@@ -73,18 +73,24 @@ public class DatalakeService {
 
         entity = repository.save(entity);
 
-        // Resolve input dataset: inject DATASET_PATH env var if input_dataset_id is provided
-        if (req.getInputDatasetId() != null && datasetRepository != null) {
-            DatasetEntity dataset = datasetRepository.findById(req.getInputDatasetId())
-                    .orElseThrow(() -> new NotFoundException("Dataset not found: " + req.getInputDatasetId()));
-            if (dataset.getStatus() != DatasetStatus.READY) {
-                throw new BadRequestException("Dataset is not ready: " + req.getInputDatasetId()
-                        + " (status=" + dataset.getStatus() + ")");
-            }
-            String bucket = properties.getObs().getBucket();
-            String datasetPath = "s3://" + bucket + "/" + dataset.getObsPath();
+        // Resolve input datasets: inject DATASET_PATH (single) or DATASET_PATH_{name} (multi) env vars
+        if (req.getInputDatasetIds() != null && !req.getInputDatasetIds().isEmpty() && datasetRepository != null) {
             Map<String, String> envVars = req.getEnvVars() != null ? new HashMap<>(req.getEnvVars()) : new HashMap<>();
-            envVars.put("DATASET_PATH", datasetPath);
+            String bucket = properties.getObs().getBucket();
+            boolean single = req.getInputDatasetIds().size() == 1;
+            for (String dsId : req.getInputDatasetIds()) {
+                DatasetEntity dataset = datasetRepository.findById(dsId)
+                        .orElseThrow(() -> new NotFoundException("Dataset not found: " + dsId));
+                if (dataset.getStatus() != DatasetStatus.READY) {
+                    throw new BadRequestException("Dataset is not ready: " + dsId
+                            + " (status=" + dataset.getStatus() + ")");
+                }
+                String datasetPath = "s3://" + bucket + "/" + dataset.getObsPath();
+                String varName = single
+                        ? "DATASET_PATH"
+                        : "DATASET_PATH_" + dataset.getName().replaceAll("\\s+", "_").toLowerCase();
+                envVars.put(varName, datasetPath);
+            }
             req.setEnvVars(envVars);
         }
 
