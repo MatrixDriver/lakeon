@@ -41,10 +41,11 @@ public class MemoryDbHelper {
     public void trySyncStatus(MemoryBaseEntity mem) {
         if (!"PROVISIONING".equals(mem.getStatus()) || mem.getDatabaseId() == null) return;
         databaseRepository.findById(mem.getDatabaseId()).ifPresent(db -> {
-            if ("RUNNING".equals(db.getStatus().name())) {
+            String dbStatus = db.getStatus().name();
+            if ("RUNNING".equals(dbStatus) || "SUSPENDED".equals(dbStatus)) {
                 mem.setStatus("READY");
                 memoryBaseRepository.save(mem);
-                log.info("Memory base {} status synced to READY (db={})", mem.getId(), mem.getDatabaseId());
+                log.info("Memory base {} status synced to READY (db={}, dbStatus={})", mem.getId(), mem.getDatabaseId(), dbStatus);
             }
         });
     }
@@ -59,7 +60,8 @@ public class MemoryDbHelper {
             if (mem.getDatabaseId() != null) {
                 DatabaseEntity db = databaseRepository.findByIdAndTenantId(mem.getDatabaseId(), tenantId)
                         .orElse(null);
-                if (db != null && "RUNNING".equals(db.getStatus().name())) {
+                String dbSt = db != null ? db.getStatus().name() : "";
+                if ("RUNNING".equals(dbSt) || "SUSPENDED".equals(dbSt)) {
                     mem.setStatus("READY");
                     memoryBaseRepository.save(mem);
                     log.info("Memory base {} status synced to READY (db={})", memId, mem.getDatabaseId());
