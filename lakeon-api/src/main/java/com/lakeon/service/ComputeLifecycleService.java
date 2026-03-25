@@ -112,10 +112,14 @@ public class ComputeLifecycleService {
 
         boolean ready = computePodManager.waitForPodReady(podName, DEFAULT_WAKE_TIMEOUT_MS);
 
-        // Transaction 2: update status
+        // Transaction 2: update status + ensure computeHost is set (pod IP may not have been ready earlier)
         if (ready) {
+            String actualPodIp = computePodManager.getPodIp(podName);
             txTemplate.executeWithoutResult(status -> {
                 DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
+                if (actualPodIp != null) {
+                    e.setComputeHost(actualPodIp);
+                }
                 e.setStatus(DatabaseStatus.RUNNING);
                 e.setSuspendedAt(null);
                 e.setLastActiveAt(Instant.now());
