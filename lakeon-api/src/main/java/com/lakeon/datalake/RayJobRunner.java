@@ -1,6 +1,7 @@
 package com.lakeon.datalake;
 
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.obs.ObsStsService;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResourceBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -30,13 +31,16 @@ public class RayJobRunner {
     private final KubernetesClient k8sClient;
     private final LakeonProperties props;
     private final DatalakeJobRepository repository;
+    private final ObsStsService obsStsService;
 
     public RayJobRunner(KubernetesClient k8sClient,
                         LakeonProperties props,
-                        DatalakeJobRepository repository) {
+                        DatalakeJobRepository repository,
+                        ObsStsService obsStsService) {
         this.k8sClient = k8sClient;
         this.props = props;
         this.repository = repository;
+        this.obsStsService = obsStsService;
     }
 
     /**
@@ -49,7 +53,7 @@ public class RayJobRunner {
         String image = resolveImage(req, "ray");
 
         // Build the RayJob spec as a nested Map structure
-        Map<String, Object> rayJobSpec = buildRayJobSpec(req, image);
+        Map<String, Object> rayJobSpec = buildRayJobSpec(req, image, job.getTenantId());
 
         // Create GenericKubernetesResource
         GenericKubernetesResource resource = new GenericKubernetesResourceBuilder()
@@ -79,7 +83,7 @@ public class RayJobRunner {
         repository.save(job);
     }
 
-    private Map<String, Object> buildRayJobSpec(DatalakeJobRequest req, String image) {
+    private Map<String, Object> buildRayJobSpec(DatalakeJobRequest req, String image, String tenantId) {
         // entrypoint
         String entrypoint = req.getEntrypoint() != null ? req.getEntrypoint() : "echo 'no entrypoint'";
 
@@ -108,6 +112,32 @@ public class RayJobRunner {
             Map.of("key", "virtual-kubelet.io/provider", "operator", "Exists", "effect", "NoSchedule")
         );
 
+        // OBS STS env vars for tenant isolation
+        ObsStsService.StsCredentials stsCreds = obsStsService.getCredentials(tenantId);
+        List<Map<String, String>> obsEnv = List.of(
+            Map.of("name", "OBS_ACCESS_KEY",    "value", stsCreds.accessKey()),
+            Map.of("name", "OBS_SECRET_KEY",    "value", stsCreds.secretKey()),
+            Map.of("name", "OBS_SESSION_TOKEN", "value", stsCreds.sessionToken()),
+            Map.of("name", "OBS_ENDPOINT",      "value", props.getObs().getEndpoint()),
+            Map.of("name", "OBS_BUCKET",        "value", props.getObs().getBucket()),
+            Map.of("name", "OBS_REGION",        "value",
+                props.getObs().getRegion() != null ? props.getObs().getRegion() : "cn-north-4")
+        );
+
+        // Head container
+        Map<String, Object> headContainer = new LinkedHashMap<>();
+        headContainer.put("name", "ray-head");
+        headContainer.put("image", image);
+        headContainer.put("resources", headResources);
+        headContainer.put("env", obsEnv);
+
+        // Worker container
+        Map<String, Object> workerContainer = new LinkedHashMap<>();
+        workerContainer.put("name", "ray-worker");
+        workerContainer.put("image", image);
+        workerContainer.put("resources", workerResources);
+        workerContainer.put("env", obsEnv);
+
         // Build the full RayJob spec
         return Map.of(
             "entrypoint", entrypoint,
@@ -120,11 +150,7 @@ public class RayJobRunner {
                         "spec", Map.of(
                             "nodeSelector", nodeSelector,
                             "tolerations", tolerations,
-                            "containers", List.of(Map.of(
-                                "name", "ray-head",
-                                "image", image,
-                                "resources", headResources
-                            ))
+                            "containers", List.of(headContainer)
                         )
                     )
                 ),
@@ -137,11 +163,7 @@ public class RayJobRunner {
                         "spec", Map.of(
                             "nodeSelector", nodeSelector,
                             "tolerations", tolerations,
-                            "containers", List.of(Map.of(
-                                "name", "ray-worker",
-                                "image", image,
-                                "resources", workerResources
-                            ))
+                            "containers", List.of(workerContainer)
                         )
                     )
                 ))
