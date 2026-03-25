@@ -1,38 +1,38 @@
 # Lakeon (DBay) 产品路线图
 
-> 最后更新: 2026-03-22
+> 最后更新: 2026-03-23
 
 ## 阶段总览
 
-| 阶段 | 名称 | 状态 | 验证报告 |
-|------|------|------|----------|
-| Stage 0 | 本地 K8s 开发环境 | ✅ 完成 | `verification/stage0-local-k8s.md` |
-| Stage 1 | OBS 对象存储集成 | ✅ 完成 | `verification/stage1-obs-storage.md` |
-| Stage 2 | RDS 元数据库 | ✅ 完成 | `verification/stage2-rds-metadata.md` |
-| Stage 3 | CCE 集群部署 | ✅ 完成 | `verification/stage3-cce-cluster.md` |
-| Stage 4 | Web 控制台 & 用户接入 | ✅ 完成 | `verification/stage4-user-access.md` |
-| Stage 5 | SRE 运维控制台 | ✅ 完成 | `verification/stage5-sre-admin.md` |
-| Stage 6 | 简化数据库管理 | ✅ 完成 | `verification/simplified-db-manager.md` |
-| Stage 6b | PG 数据导入 | ✅ 完成 | — |
-| Stage 6c | 持续数据同步 | ✅ 完成 | — |
-| Stage 7 | 品牌 & 部署架构升级 | ✅ 完成 | — |
-| Stage 8a | 自建可观测性 | ✅ 完成 | `verification/stage8a-observability.md` |
-| Stage 8b | 华为云 AOM/CES/SMN | 📋 规划中 | — |
-| Stage 9 | 性能监控 & 统一日志 | ✅ 完成 | — |
-| Stage 10a | 备份与恢复 | ✅ 完成 | — |
-| Stage 10b | 分支管理增强 | ✅ 完成 | — |
-| Stage 10c | 连接池 | ⏸️ 暂缓 | — |
-| Stage 10d | SQL 审计日志 | ✅ 完成 | — |
-| Stage 10e | 数据库级权限管理 | ✅ 完成 | — |
-| Stage 11 | 多版本多分支 (时间旅行) | ✅ 完成 | — |
-| Stage 11b | 分支独立 Compute | ✅ 完成 | — |
-| Stage 12 | 弹性节点池 & 自动扩缩容 | ✅ 完成 | — |
-| Stage 14 | DBay CLI & E2E 测试 | ✅ 完成 | — |
-| Stage 15 | Job 框架 & Knowledge Pipeline | 🔨 进行中 | — |
-| Stage 15b | 知识库增强 (标签/重写/重排/表KB) | ✅ 完成 | — |
-| Stage 15c | 切片管理 | ✅ 完成 | — |
-| Stage 16 | DBay 数据湖 | 🔨 进行中 | — |
-| Stage 16b | BM25 → tsvector 全文搜索 | ✅ 完成 | — |
+| 阶段 | 名称 | 时间 | 状态 | 验证报告 |
+|------|------|------|------|----------|
+| Stage 0 | 本地 K8s 开发环境 | 03-03 → 03-04 | ✅ 完成 | `verification/stage0-local-k8s.md` |
+| Stage 1 | OBS 对象存储集成 | 03-04 | ✅ 完成 | `verification/stage1-obs-storage.md` |
+| Stage 2 | RDS 元数据库 | 03-04 | ✅ 完成 | `verification/stage2-rds-metadata.md` |
+| Stage 3 | CCE 集群部署 | 03-04 | ✅ 完成 | `verification/stage3-cce-cluster.md` |
+| Stage 4 | Web 控制台 & 用户接入 | 03-04 | ✅ 完成 | `verification/stage4-user-access.md` |
+| Stage 5 | SRE 运维控制台 | 03-04 | ✅ 完成 | `verification/stage5-sre-admin.md` |
+| Stage 6 | 简化数据库管理 | 03-05 | ✅ 完成 | `verification/simplified-db-manager.md` |
+| Stage 6b | PG 数据导入 | 03-06 → 03-07 | ✅ 完成 | — |
+| Stage 6c | 持续数据同步 | 03-09 | ✅ 完成 | — |
+| Stage 7 | 品牌 & 部署架构升级 | 03-05 → 03-08 | ✅ 完成 | — |
+| Stage 8a | 自建可观测性 | 03-05 | ✅ 完成 | `verification/stage8a-observability.md` |
+| Stage 8b | 华为云 AOM/CES/SMN | — | 📋 规划中 | — |
+| Stage 9 | 性能监控 & 统一日志 | 03-09 | ✅ 完成 | — |
+| Stage 10a | 备份与恢复 | 03-08 → 03-09 | ✅ 完成 | — |
+| Stage 10b | 分支管理增强 | 03-08 | ✅ 完成 | — |
+| Stage 10c | 连接池 | — | ⏸️ 暂缓 | — |
+| Stage 10d | SQL 审计日志 | 03-08 | ✅ 完成 | — |
+| Stage 10e | 数据库级权限管理 | 03-08 | ✅ 完成 | — |
+| Stage 11 | 多版本多分支 (时间旅行) | 03-17 | ✅ 完成 | — |
+| Stage 11b | 分支独立 Compute | 03-18 | ✅ 完成 | — |
+| Stage 12 | 弹性节点池 & 自动扩缩容 | 03-15 → 03-19 | ✅ 完成 | — |
+| Stage 14 | DBay CLI & E2E 测试 | 03-18 → 03-19 | ✅ 完成 | — |
+| Stage 15 | Job 框架 & Knowledge Pipeline | 03-18 → | 🔨 进行中 | — |
+| Stage 15b | 知识库增强 (标签/重写/重排/表KB) | 03-19 | ✅ 完成 | — |
+| Stage 15c | 切片管理 | 03-18 | ✅ 完成 | — |
+| Stage 16 | DBay 数据湖 | 03-20 → | 🔨 进行中 | — |
+| Stage 16b | BM25 → tsvector 全文搜索 | 03-22 | ✅ 完成 | — |
 
 ---
 
@@ -343,6 +343,19 @@
 - OpenViking 存储自包含（C++ + LevelDB），需写 HTTP adapter 适配 pgvector
 - 优先级低，等 OpenViking 社区活跃或原生支持 PG 时再考虑
 
+### Future Work: 记忆混合加密模式（Form 2）
+
+参考 neuromem-cloud Form 2 设计，为不信任 DBay 基础设施的用户提供端到端加密。
+
+**架构**：RSA-2048 + AES-256-GCM 混合加密
+- 内容在客户端本地加密后上传，私钥永不离开用户设备
+- 向量（embedding）明文存储，服务端可做向量搜索但无法读取内容
+- 新增 `encrypted_memories` 表和 `/sync/push`、`/sync/recall`、`/sync/pull` 端点
+
+**约束**：加密模式仅兼容 Agent-Extract Mode（服务端 LLM 提取需读明文，不可用）
+
+**前置条件**：记忆端点对齐 neuromem（`/ingest_extracted`、`/digest_extracted`）完成后实施
+
 ## ✅ Stage 14: DBay CLI & E2E 测试
 
 目标：开发 CLI 工具 (`dbay`) 作为用户产品和 E2E 测试基础设施，Claude 在每次功能开发后自动通过 CLI + psql 端到端验证。
@@ -458,7 +471,7 @@
 ### 已完成
 - ✅ DatalakeJobEntity + Repository + V16/V17 migration
 - ✅ DatalakeController + DatalakeService skeleton
-- ✅ PythonJobRunner — K8s Job via VK → CCI
+- ✅ PythonJobRunner — K8s Job via VK → CCI（CCI 上 Python 作业端到端跑通）
 - ✅ RayJobRunner — RayJob CRD
 - ✅ FinetuneJobRunner — Ray Train template
 - ✅ DatalakeStatusPoller — sync K8s/RayJob status
@@ -467,11 +480,13 @@
 - ✅ 14 DatalakeService unit tests
 - ✅ E2E tests + CCE/CCI deployment fixes
 - ✅ Console 前端 — job 管理页面 + sidebar rail
+- ✅ CCI per-tenant namespace 自动创建（PythonJobRunner 自动建 namespace，含 tenant label）
 
 ### 待完成
-- 📋 CCI namespace 自动创建 + 租户隔离
-- 📋 Job 计量和配额
-- 📋 GPU 任务支持 (Ray GPU image)
+- 📋 Job 计量和配额（core_hours / gpu_hours 字段已有，计算逻辑未实现）
+- 📋 日志持久化到 OBS（任务完成后写 logs.txt，当前只有实时 SSE 流）
+- 📋 output_dataset_name — 任务完成后自动创建 DatasetEntity
+- 📋 GPU 任务支持 (Ray GPU image + FINETUNE 端到端验证)
 
 ## ✅ Stage 16b: BM25 → tsvector 全文搜索
 
