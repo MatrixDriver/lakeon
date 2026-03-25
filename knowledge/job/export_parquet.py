@@ -89,12 +89,10 @@ def main():
             aws_secret_access_key=obs_sk,
             region_name=os.environ.get("OBS_REGION", "cn-north-4"),
             config=BotoConfig(
-                s3={"addressing_style": "virtual", "payload_signing_enabled": True},
-                signature_version="s3v4",
+                s3={"addressing_style": "virtual"},
+                signature_version="s3",
             ))
-        # Use put_object instead of upload_file to avoid chunked transfer SHA256 mismatch with OBS
-        with open(local_path, "rb") as f:
-            s3.put_object(Bucket=obs_bucket, Key=obs_path, Body=f)
+        s3.upload_file(local_path, obs_bucket, obs_path)
 
         report_progress("Getting file size", 0.9)
 
