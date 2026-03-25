@@ -145,6 +145,22 @@ dbay mem stats {{ base.id }}</pre>
           </div>
         </div>
 
+        <!-- Supported clients -->
+        <div v-if="base?.type === 'BUILTIN'" class="section-card" style="padding: 24px; margin-top: 16px;">
+          <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 16px; color: #333;">支持的客户端</h3>
+          <p style="font-size: 13px; color: #666; margin-bottom: 16px;">DBay 记忆库通过 MCP 协议支持以下 AI 工具，配置方式相同——只需指向 dbay-mcp server。</p>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px;">
+            <div v-for="client in supportedClients" :key="client.name"
+                 style="padding: 12px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 13px;">
+              <div style="font-weight: 600; margin-bottom: 4px;">{{ client.name }}</div>
+              <div style="color: #999; font-size: 12px;">{{ client.desc }}</div>
+            </div>
+          </div>
+          <p style="font-size: 12px; color: #999; margin-top: 12px;">
+            <router-link to="/integrations" style="color: #0073e6;">查看所有集成文档 →</router-link>
+          </p>
+        </div>
+
         <!-- MEM0 type -->
         <div v-else-if="base?.type === 'MEM0'" class="section-card" style="padding: 24px;">
           <h3 style="margin-bottom: 16px;">mem0 + DBay 集成指南</h3>
@@ -180,6 +196,15 @@ const stats = ref<MemoryStats | null>(null)
 const tabs = [
   { key: 'overview', label: '概览' },
   { key: 'settings', label: '接入' },
+]
+
+const supportedClients = [
+  { name: 'Claude Code', desc: '通过 .mcp.json 配置' },
+  { name: 'Claude Desktop', desc: '通过 claude_desktop_config.json' },
+  { name: 'Cursor', desc: '通过 MCP 配置' },
+  { name: 'Gemini CLI', desc: '通过 MCP 配置' },
+  { name: 'ChatGPT', desc: 'Actions/GPTs 集成' },
+  { name: 'OpenClaw', desc: '原生集成，自动记忆' },
 ]
 
 const typeLabels: Record<string, string> = { BUILTIN: 'DBay记忆库', MEM0: 'mem0', HINDSIGHT: 'hindsight', CUSTOM: '自定义' }
