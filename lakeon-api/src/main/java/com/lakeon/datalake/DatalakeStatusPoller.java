@@ -299,6 +299,19 @@ public class DatalakeStatusPoller {
 
                 long fileSize = head.contentLength();
 
+                // Try to read metadata (row_count, schema)
+                String metaKey = "tenant-" + job.getTenantId() + "/jobs/" + job.getId() + "/output/_metadata.json";
+                Long rowCount = null;
+                String schemaJson = null;
+                try {
+                    var metaResp = s3.getObject(software.amazon.awssdk.services.s3.model.GetObjectRequest.builder()
+                            .bucket(bucket).key(metaKey).build());
+                    var meta = objectMapper.readValue(metaResp.readAllBytes(),
+                            new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {});
+                    if (meta.get("row_count") instanceof Number n) rowCount = n.longValue();
+                    if (meta.get("schema") != null) schemaJson = objectMapper.writeValueAsString(meta.get("schema"));
+                } catch (Exception ignored) {}
+
                 // Create dataset entity
                 DatasetEntity ds = new DatasetEntity();
                 ds.setTenantId(job.getTenantId());
@@ -307,6 +320,8 @@ public class DatalakeStatusPoller {
                 ds.setSourceType(DatasetSourceType.JOB_OUTPUT);
                 ds.setObsPath(outputKey);
                 ds.setFileSize(fileSize);
+                ds.setRowCount(rowCount);
+                ds.setSchemaJson(schemaJson);
                 ds.setStatus(DatasetStatus.READY);
                 ds.setJobId(job.getId());
                 datasetRepository.save(ds);

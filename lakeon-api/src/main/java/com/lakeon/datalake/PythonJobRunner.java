@@ -95,15 +95,27 @@ public class PythonJobRunner {
         // Build the log upload wrapper:
         // Run user script, tee output to /tmp/job.log, then upload log to OBS
         String logKey = "datalake-logs/" + job.getTenantId() + "/" + job.getId() + "/output.log";
+        String metaKey = "tenant-" + job.getTenantId() + "/jobs/" + job.getId() + "/output/_metadata.json";
         String logUpload = String.format(
             "; EXIT_CODE=$?; python -c \""
-            + "import boto3,os; "
+            + "import boto3,os,json; "
             + "from botocore.config import Config; "
             + "s3=boto3.client('s3',endpoint_url=os.environ.get('OBS_ENDPOINT',''),aws_access_key_id=os.environ.get('OBS_ACCESS_KEY',''),aws_secret_access_key=os.environ.get('OBS_SECRET_KEY',''),aws_session_token=os.environ.get('OBS_SESSION_TOKEN'),region_name=os.environ.get('OBS_REGION','cn-north-4'),config=Config(signature_version='s3',s3={'addressing_style':'virtual'})); "
             + "s3.upload_file('/tmp/job.log',os.environ.get('OBS_BUCKET',''),'%s'); "
             + "okey=os.environ.get('_OUTPUT_OBS_KEY',''); "
-            + "[s3.upload_file('/data/output.parquet',os.environ['OBS_BUCKET'],okey) if okey and os.path.exists('/data/output.parquet') else None]"
-            + "\" 2>/dev/null; exit $EXIT_CODE", logKey);
+            + "B=os.environ.get('OBS_BUCKET',''); "
+            // Upload output file + extract metadata (row_count, schema)
+            + "exec_ok=okey and os.path.exists(os.environ.get('OUTPUT_PATH','')); "
+            + "[s3.upload_file(os.environ['OUTPUT_PATH'],B,okey) if exec_ok else None]; "
+            + "meta={}; "
+            + "try:\\n"
+            + " import pyarrow.parquet as pq\\n"
+            + " if exec_ok:\\n"
+            + "  pf=pq.ParquetFile(os.environ['OUTPUT_PATH'])\\n"
+            + "  meta={'row_count':pf.metadata.num_rows,'schema':[{'name':f.name,'type':str(f.type)} for f in pf.schema]}\\n"
+            + "  s3.put_object(Bucket=B,Key='%s',Body=json.dumps(meta))\\n"
+            + "except: pass"
+            + "\" 2>/dev/null; exit $EXIT_CODE", logKey, metaKey);
 
         List<String> command;
         boolean hasInlineScript = req.getInlineScript() != null && !req.getInlineScript().isBlank();
