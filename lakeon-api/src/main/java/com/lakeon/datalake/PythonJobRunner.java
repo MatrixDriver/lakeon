@@ -140,13 +140,21 @@ public class PythonJobRunner {
 
         // Inject OBS STS credentials for tenant isolation
         ObsStsService.StsCredentials stsCreds = obsStsService.getCredentials(job.getTenantId());
+        String obsEndpoint = props.getObs().getEndpoint();
+        String obsRegion = props.getObs().getRegion() != null ? props.getObs().getRegion() : "cn-north-4";
+        // OBS_* for our scripts (export_parquet.py, log upload)
         envVars.add(new EnvVarBuilder().withName("OBS_ACCESS_KEY").withValue(stsCreds.accessKey()).build());
         envVars.add(new EnvVarBuilder().withName("OBS_SECRET_KEY").withValue(stsCreds.secretKey()).build());
         envVars.add(new EnvVarBuilder().withName("OBS_SESSION_TOKEN").withValue(stsCreds.sessionToken()).build());
-        envVars.add(new EnvVarBuilder().withName("OBS_ENDPOINT").withValue(props.getObs().getEndpoint()).build());
+        envVars.add(new EnvVarBuilder().withName("OBS_ENDPOINT").withValue(obsEndpoint).build());
         envVars.add(new EnvVarBuilder().withName("OBS_BUCKET").withValue(props.getObs().getBucket()).build());
-        envVars.add(new EnvVarBuilder().withName("OBS_REGION")
-                .withValue(props.getObs().getRegion() != null ? props.getObs().getRegion() : "cn-north-4").build());
+        envVars.add(new EnvVarBuilder().withName("OBS_REGION").withValue(obsRegion).build());
+        // AWS_* for pandas/s3fs/boto3 auto-detection (reads s3:// paths automatically)
+        envVars.add(new EnvVarBuilder().withName("AWS_ACCESS_KEY_ID").withValue(stsCreds.accessKey()).build());
+        envVars.add(new EnvVarBuilder().withName("AWS_SECRET_ACCESS_KEY").withValue(stsCreds.secretKey()).build());
+        envVars.add(new EnvVarBuilder().withName("AWS_SESSION_TOKEN").withValue(stsCreds.sessionToken()).build());
+        envVars.add(new EnvVarBuilder().withName("AWS_ENDPOINT_URL").withValue(obsEndpoint).build());
+        envVars.add(new EnvVarBuilder().withName("AWS_DEFAULT_REGION").withValue(obsRegion).build());
 
         // 6. Build toleration for VK
         Toleration vkToleration = new TolerationBuilder()
