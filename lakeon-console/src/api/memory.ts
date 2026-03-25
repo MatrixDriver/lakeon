@@ -28,6 +28,7 @@ export function getMemoryBase(id: string) {
 export function createMemoryBase(name: string, description?: string, options?: {
   type?: MemoryBase['type']
   embedding_model?: string
+  one_llm_mode?: boolean
 }) {
   return api.post<MemoryBase>('/memory/bases', { name, description, ...options })
 }

@@ -75,6 +75,20 @@
             </p>
           </div>
 
+          <!-- Agent-Extract mode toggle (BUILTIN only) -->
+          <div v-if="createForm.type === 'BUILTIN'" class="form-group">
+            <label class="form-label">提取模式</label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px;">
+              <input type="checkbox" v-model="createForm.agent_extract" style="width: 16px; height: 16px;" />
+              Agent-Extract 模式
+            </label>
+            <p style="font-size: 12px; color: #999; margin-top: 4px;">
+              {{ createForm.agent_extract
+                ? '客户端（如 Claude Code）自行提取记忆，零服务端 LLM 成本。适用于自带 LLM 的客户端。'
+                : '服务端自动提取记忆（默认）。适用于没有 LLM 的客户端（如 OpenClaw）。' }}
+            </p>
+          </div>
+
           <!-- Info text for non-BUILTIN types -->
           <p v-if="createForm.type !== 'BUILTIN'" style="font-size: 12px; color: #999; margin-top: 12px;">
             请参考文档在您的 DBay 数据库上配置 {{ typeNameMap[createForm.type] }}
@@ -157,6 +171,7 @@ const createForm = ref({
   description: '',
   type: 'BUILTIN' as MemoryBase['type'],
   embedding_model: 'BAAI/bge-m3',
+  agent_extract: false,
 })
 
 const typeNameMap: Record<string, string> = {
@@ -181,6 +196,7 @@ function resetCreateForm() {
     description: '',
     type: 'BUILTIN',
     embedding_model: 'BAAI/bge-m3',
+    agent_extract: false,
   }
 }
 
@@ -198,10 +214,13 @@ async function loadMemoryBases() {
 
 async function handleCreate() {
   try {
-    const { name, description, type, embedding_model } = createForm.value
-    const options: { type?: MemoryBase['type']; embedding_model?: string } = { type }
+    const { name, description, type, embedding_model, agent_extract } = createForm.value
+    const options: { type?: MemoryBase['type']; embedding_model?: string; one_llm_mode?: boolean } = { type }
     if (type === 'BUILTIN' && embedding_model) {
       options.embedding_model = embedding_model
+    }
+    if (type === 'BUILTIN' && agent_extract) {
+      options.one_llm_mode = true
     }
     await createMemoryBase(name, description || undefined, options)
     showCreate.value = false
