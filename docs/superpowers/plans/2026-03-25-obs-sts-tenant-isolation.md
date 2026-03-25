@@ -20,6 +20,8 @@
 - `lakeon-api/pom.xml` — add Caffeine dependency
 - `lakeon-api/src/main/java/com/lakeon/job/JobPodManager.java` — Secret refs → STS env vars
 - `lakeon-api/src/main/java/com/lakeon/datalake/PythonJobRunner.java` — inject OBS STS env vars
+- `lakeon-api/src/main/java/com/lakeon/datalake/RayJobRunner.java` — inject OBS STS env vars into Ray head/worker
+- `lakeon-api/src/main/java/com/lakeon/datalake/FinetuneJobRunner.java` — inject OBS STS env vars (delegates to RayJobRunner)
 - `lakeon-api/src/main/java/com/lakeon/dataset/DatasetService.java` — fix buildCodeSnippets()
 
 **Python — modify:**
@@ -104,12 +106,13 @@ public class ObsStsService {
         return cache.get(tenantId, this::fetchFromIam);
     }
 
-    StsCredentials fetchFromIam(String tenantId) {
+    /**
+     * Build the IAM policy JSON for a tenant's OBS access scope.
+     * Package-private for unit testing.
+     */
+    Map<String, Object> buildPolicy(String tenantId) {
         String bucket = props.getObs().getBucket();
-        String region = props.getObs().getRegion() != null ? props.getObs().getRegion() : "cn-north-4";
-
-        // Build IAM policy scoped to tenant's OBS prefixes
-        Map<String, Object> policy = Map.of(
+        return Map.of(
             "Version", "1.1",
             "Statement", List.of(Map.of(
                 "Effect", "Allow",
@@ -126,13 +129,39 @@ public class ObsStsService {
                 )
             ))
         );
+    }
+
+    StsCredentials fetchFromIam(String tenantId) {
+        String region = props.getObs().getRegion() != null ? props.getObs().getRegion() : "cn-north-4";
+        String iamHost = "iam." + region + ".myhuaweicloud.com";
+        String ak = props.getObs().getAccessKey();
+        String sk = props.getObs().getSecretKey();
 
         try {
-            String policyJson = objectMapper.writeValueAsString(policy);
+            // Step 1: Get IAM token using AK/SK (same pattern as SwrSecretRefreshService)
+            String iamBody = String.format(
+                    "{\"auth\":{\"identity\":{\"methods\":[\"hw_ak_sk\"]," +
+                    "\"hw_ak_sk\":{\"access\":{\"key\":\"%s\"},\"secret\":{\"key\":\"%s\"}}}," +
+                    "\"scope\":{\"project\":{\"name\":\"%s\"}}}}", ak, sk, region);
 
-            // Build STS request body
-            // Huawei IAM STS: https://support.huaweicloud.com/api-iam/iam_04_0002.html
-            Map<String, Object> requestBody = Map.of(
+            HttpRequest iamRequest = HttpRequest.newBuilder()
+                    .uri(URI.create("https://" + iamHost + "/v3/auth/tokens"))
+                    .header("Content-Type", "application/json")
+                    .timeout(Duration.ofSeconds(30))
+                    .POST(HttpRequest.BodyPublishers.ofString(iamBody))
+                    .build();
+
+            HttpResponse<String> iamResponse = httpClient.send(iamRequest, HttpResponse.BodyHandlers.ofString());
+            if (iamResponse.statusCode() != 201) {
+                throw new RuntimeException("IAM token request failed: " + iamResponse.statusCode());
+            }
+
+            String iamToken = iamResponse.headers().firstValue("x-subject-token")
+                    .orElseThrow(() -> new RuntimeException("IAM response missing x-subject-token"));
+
+            // Step 2: Get STS temporary credentials with tenant-scoped policy
+            Map<String, Object> policy = buildPolicy(tenantId);
+            Map<String, Object> stsBody = Map.of(
                 "auth", Map.of(
                     "identity", Map.of(
                         "methods", List.of("token"),
@@ -144,27 +173,21 @@ public class ObsStsService {
                 )
             );
 
-            String body = objectMapper.writeValueAsString(requestBody);
-            String iamEndpoint = "https://iam." + region + ".myhuaweicloud.com";
-
-            // First, get an IAM token using AK/SK
-            // For STS with policy, we need to use the agency token approach
-            // Simplified: use the AK/SK to get a scoped security token
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(iamEndpoint + "/v3.0/OS-CREDENTIAL/securitytokens"))
+            String stsJson = objectMapper.writeValueAsString(stsBody);
+            HttpRequest stsRequest = HttpRequest.newBuilder()
+                    .uri(URI.create("https://" + iamHost + "/v3.0/OS-CREDENTIAL/securitytokens"))
                     .header("Content-Type", "application/json")
+                    .header("X-Auth-Token", iamToken)
                     .timeout(Duration.ofSeconds(30))
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .POST(HttpRequest.BodyPublishers.ofString(stsJson))
                     .build();
 
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() != 201) {
-                log.error("IAM STS request failed: status={}, body={}", response.statusCode(), response.body());
-                throw new RuntimeException("IAM STS request failed: " + response.statusCode());
+            HttpResponse<String> stsResponse = httpClient.send(stsRequest, HttpResponse.BodyHandlers.ofString());
+            if (stsResponse.statusCode() != 201) {
+                throw new RuntimeException("STS request failed: " + stsResponse.statusCode() + " - " + stsResponse.body());
             }
 
-            JsonNode root = objectMapper.readTree(response.body());
+            JsonNode root = objectMapper.readTree(stsResponse.body());
             JsonNode credential = root.path("credential");
 
             String accessKey = credential.path("access").asText();
@@ -172,10 +195,8 @@ public class ObsStsService {
             String sessionToken = credential.path("securitytoken").asText();
             String expiresAtStr = credential.path("expires_at").asText();
 
-            Instant expiresAt = Instant.parse(expiresAtStr);
-
             log.info("Obtained STS credentials for tenant {} (expires {})", tenantId, expiresAtStr);
-            return new StsCredentials(accessKey, secretKey, sessionToken, expiresAt);
+            return new StsCredentials(accessKey, secretKey, sessionToken, Instant.parse(expiresAtStr));
 
         } catch (Exception e) {
             log.error("Failed to obtain STS credentials for tenant {}: {}", tenantId, e.getMessage());
@@ -209,29 +230,55 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.Map;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ObsStsService 单元测试")
 class ObsStsServiceTest {
 
     ObsStsService service;
-    ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
     void setUp() {
         LakeonProperties props = new LakeonProperties();
         props.getObs().setBucket("dbay-mainstore");
         props.getObs().setRegion("cn-north-4");
-        service = new ObsStsService(props, objectMapper);
+        service = new ObsStsService(props, new ObjectMapper());
     }
 
     @Test
-    @DisplayName("STS credentials are cached by tenantId")
-    void credentialsCached() {
-        // Note: This test verifies cache behavior only, not actual IAM calls.
-        // Real IAM calls require network access and are tested via E2E.
-        // We verify the cache infrastructure works by checking the service is constructed.
-        assertThat(service).isNotNull();
+    @DisplayName("buildPolicy scopes resources to tenant prefix")
+    void buildPolicyScopesToTenant() throws Exception {
+        Map<String, Object> policy = service.buildPolicy("tn_abc12345");
+        String json = new ObjectMapper().writeValueAsString(policy);
+
+        assertThat(json).contains("obs:*:*:object:dbay-mainstore/datasets/tn_abc12345/*");
+        assertThat(json).contains("obs:*:*:object:dbay-mainstore/knowledge/tn_abc12345/*");
+        assertThat(json).contains("obs:object:GetObject");
+        assertThat(json).contains("obs:object:PutObject");
+        assertThat(json).contains("obs:object:AbortMultipartUpload");
+    }
+
+    @Test
+    @DisplayName("buildPolicy uses configured bucket name")
+    void buildPolicyUsesBucketFromConfig() throws Exception {
+        LakeonProperties props2 = new LakeonProperties();
+        props2.getObs().setBucket("other-bucket");
+        ObsStsService service2 = new ObsStsService(props2, new ObjectMapper());
+
+        String json = new ObjectMapper().writeValueAsString(service2.buildPolicy("tn_xyz"));
+        assertThat(json).contains("other-bucket/datasets/tn_xyz/*");
+        assertThat(json).doesNotContain("dbay-mainstore");
+    }
+
+    @Test
+    @DisplayName("buildPolicy does not double-prefix tenant ID")
+    void buildPolicyNoDoublePrefix() throws Exception {
+        // tenantId already contains "tn_" prefix — verify no "tn_tn_" in policy
+        String json = new ObjectMapper().writeValueAsString(service.buildPolicy("tn_abc12345"));
+        assertThat(json).doesNotContain("tn_tn_");
     }
 }
 ```
@@ -261,6 +308,8 @@ git commit -m "feat(obs): add ObsStsService — tenant-scoped STS temporary cred
 Understand the current `launchJobPod(JobEntity job)` method, especially lines 120-148 where OBS credentials are injected as Secret refs.
 
 - [ ] **Step 2: Add ObsStsService dependency and replace credential injection**
+
+**Note**: `launchJobPod(JobEntity job)` signature stays unchanged — `tenantId` is already available via `job.getTenantId()`. `JobService.java` requires no modification.
 
 Add `ObsStsService` to the constructor:
 ```java
@@ -369,7 +418,41 @@ git commit -m "feat(datalake): inject OBS STS credentials into Python job pods"
 
 ---
 
-## Task 4: Python scripts — add aws_session_token support
+## Task 4: RayJobRunner + FinetuneJobRunner — inject OBS STS credentials
+
+**Files:**
+- Modify: `lakeon-api/src/main/java/com/lakeon/datalake/RayJobRunner.java`
+- Modify: `lakeon-api/src/main/java/com/lakeon/datalake/FinetuneJobRunner.java`
+
+- [ ] **Step 1: Read RayJobRunner.java**
+
+Understand how it builds the RayJob CRD spec, especially container env vars. Note: it likely uses `Map<String, Object>` structures, not Fabric8 builder API.
+
+- [ ] **Step 2: Add ObsStsService to RayJobRunner and inject OBS env vars**
+
+Add `ObsStsService` to the constructor. In the method that builds the container env vars for head and worker pods, add the same 6 OBS env vars as PythonJobRunner (OBS_ACCESS_KEY, OBS_SECRET_KEY, OBS_SESSION_TOKEN, OBS_ENDPOINT, OBS_BUCKET, OBS_REGION).
+
+Read the existing code to understand the exact Map structure for env vars and follow the same pattern.
+
+- [ ] **Step 3: Update FinetuneJobRunner if needed**
+
+Read `FinetuneJobRunner.java`. If it delegates to RayJobRunner (likely), it may need no changes. If it creates its own pod spec, add the same OBS env vars.
+
+- [ ] **Step 4: Compile**
+```bash
+cd lakeon-api && mvn compile -q
+```
+
+- [ ] **Step 5: Commit**
+```bash
+git add lakeon-api/src/main/java/com/lakeon/datalake/RayJobRunner.java \
+        lakeon-api/src/main/java/com/lakeon/datalake/FinetuneJobRunner.java
+git commit -m "feat(datalake): inject OBS STS credentials into Ray and Finetune job pods"
+```
+
+---
+
+## Task 5: Python scripts — add aws_session_token support
 
 **Files:**
 - Modify: `knowledge/job/main.py`
@@ -417,7 +500,7 @@ git commit -m "feat(obs): add STS session token support to knowledge job and exp
 
 ---
 
-## Task 5: Fix code snippets — remove bucket/endpoint exposure
+## Task 6: Fix code snippets — remove bucket/endpoint exposure
 
 **Files:**
 - Modify: `lakeon-api/src/main/java/com/lakeon/dataset/DatasetService.java`
@@ -468,7 +551,7 @@ git commit -m "security(dataset): remove bucket/endpoint exposure from code snip
 
 ---
 
-## Task 6: Build, deploy, and E2E test
+## Task 7: Build, deploy, and E2E test
 
 - [ ] **Step 1: Full backend build**
 ```bash
