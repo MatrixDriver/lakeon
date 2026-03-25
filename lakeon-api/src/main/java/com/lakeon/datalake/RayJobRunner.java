@@ -192,7 +192,7 @@ public class RayJobRunner {
     }
 
     private String rayJobName(DatalakeJobEntity job) {
-        String name = "ray-" + job.getId();
+        String name = "ray-" + job.getId().replace("_", "-");
         return name.length() > 63 ? name.substring(0, 63) : name;
     }
 

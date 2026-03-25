@@ -160,7 +160,7 @@ public class DatalakeStatusPoller {
 
     private void deleteScriptConfigMap(DatalakeJobEntity job) {
         if (job.getCciNamespace() == null) return;
-        String cmName = "dl-script-" + job.getId();
+        String cmName = "dl-script-" + job.getId().replace("_", "-");
         try {
             k8sClient.configMaps()
                     .inNamespace(job.getCciNamespace())

@@ -146,7 +146,7 @@ public class PythonJobRunner {
             podSpecBuilder.withVolumes(new VolumeBuilder()
                     .withName("script-vol")
                     .withNewConfigMap()
-                        .withName("dl-script-" + job.getId())
+                        .withName("dl-script-" + job.getId().replace("_", "-"))
                     .endConfigMap()
                     .build());
         }
@@ -224,7 +224,7 @@ public class PythonJobRunner {
     }
 
     private String k8sJobName(DatalakeJobEntity job) {
-        String name = "dl-" + job.getId();
+        String name = "dl-" + job.getId().replace("_", "-");
         return name.length() > 63 ? name.substring(0, 63) : name;
     }
 }
