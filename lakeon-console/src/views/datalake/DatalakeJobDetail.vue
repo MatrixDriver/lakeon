@@ -34,45 +34,21 @@
         </div>
       </div>
 
-      <!-- Info cards -->
-      <div class="info-grid">
-        <div class="info-card">
-          <div class="info-label">状态</div>
-          <div class="info-value">
-            <span class="status-dot" :class="'dot-' + statusColor(job.status)"></span>
-            {{ statusText(job.status) }}
-          </div>
+      <!-- Info bar (compact) -->
+      <div class="info-bar">
+        <div class="info-item">
+          <span class="status-dot" :class="'dot-' + statusColor(job.status)"></span>
+          {{ statusText(job.status) }}
         </div>
-        <div class="info-card">
-          <div class="info-label">类型</div>
-          <div class="info-value">
-            <span class="type-tag" :class="'type-tag-' + job.type.toLowerCase()">{{ typeLabel(job.type) }}</span>
-          </div>
+        <div class="info-item">
+          <span class="type-tag" :class="'type-tag-' + job.type.toLowerCase()">{{ typeLabel(job.type) }}</span>
         </div>
-        <div class="info-card">
-          <div class="info-label">创建时间</div>
-          <div class="info-value">{{ formatTime(job.createdAt) }}</div>
-        </div>
-        <div class="info-card">
-          <div class="info-label">运行时长</div>
-          <div class="info-value">{{ duration }}</div>
-        </div>
-        <div class="info-card" v-if="job.startedAt">
-          <div class="info-label">开始时间</div>
-          <div class="info-value">{{ formatTime(job.startedAt) }}</div>
-        </div>
-        <div class="info-card" v-if="job.finishedAt">
-          <div class="info-label">结束时间</div>
-          <div class="info-value">{{ formatTime(job.finishedAt) }}</div>
-        </div>
-        <div class="info-card" v-if="job.coreHours">
-          <div class="info-label">CPU 用量</div>
-          <div class="info-value">{{ job.coreHours }} core·h</div>
-        </div>
-        <div class="info-card" v-if="job.gpuHours">
-          <div class="info-label">GPU 用量</div>
-          <div class="info-value">{{ job.gpuHours }} GPU·h</div>
-        </div>
+        <div class="info-item"><span class="info-label-inline">创建</span> {{ formatTime(job.createdAt) }}</div>
+        <div class="info-item"><span class="info-label-inline">时长</span> {{ duration }}</div>
+        <div class="info-item" v-if="job.startedAt"><span class="info-label-inline">开始</span> {{ formatTime(job.startedAt) }}</div>
+        <div class="info-item" v-if="job.finishedAt"><span class="info-label-inline">结束</span> {{ formatTime(job.finishedAt) }}</div>
+        <div class="info-item" v-if="job.coreHours"><span class="info-label-inline">CPU</span> {{ job.coreHours }} core·h</div>
+        <div class="info-item" v-if="job.gpuHours"><span class="info-label-inline">GPU</span> {{ job.gpuHours }} GPU·h</div>
       </div>
 
       <!-- Error message -->
@@ -348,18 +324,27 @@ onUnmounted(() => {
   color: #bbb;
 }
 
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.info-card {
-  padding: 12px 16px;
+.info-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  padding: 10px 16px;
   background: #fafbfc;
   border: 1px solid #eee;
   border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.info-label-inline {
+  color: #999;
+  font-size: 12px;
 }
 
 .info-label {

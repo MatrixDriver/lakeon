@@ -39,9 +39,9 @@ public class PythonJobRunner {
         LakeonProperties.DatalakeConfig dl = props.getDatalake();
 
         // 1. Determine image
-        String imageKey = req.getImageKey() != null ? req.getImageKey() : "python-slim";
+        String imageKey = req.getImageKey() != null ? req.getImageKey() : "python-data";
         String image = dl.getPresetImages().getOrDefault(imageKey,
-                dl.getPresetImages().getOrDefault("python-slim", "python:3.11-slim"));
+                dl.getPresetImages().getOrDefault("python-data", "python:3.11-slim"));
 
         // 2. Build namespace and job name
         String ns = dl.getCciNamespacePrefix() + job.getTenantId().replace("_", "-");
