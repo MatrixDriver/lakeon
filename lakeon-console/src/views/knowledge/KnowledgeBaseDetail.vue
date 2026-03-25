@@ -119,8 +119,9 @@
                 <div style="display: flex; align-items: center; gap: 6px;">
                   <span class="status-dot" :style="{ background: docStatusColor(doc.status) }"></span>
                   <span>{{ docStatusText(doc.status) }}</span>
-                  <span v-if="doc.status === 'PROCESSING' && doc.progress" style="color: #999; font-size: 12px;">
+                  <span v-if="doc.status === 'PROCESSING' && doc.progress != null" style="color: #1890ff; font-size: 12px;">
                     {{ Math.round(doc.progress * 100) }}%
+                    <span v-if="doc.progress_message" style="color: #999; margin-left: 4px;">{{ doc.progress_message }}</span>
                   </span>
                   <span v-if="doc.status === 'FAILED' && doc.error" :title="doc.error" style="color: #e6393d; font-size: 12px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help;">
                     {{ doc.error }}
@@ -270,7 +271,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getKnowledgeBase, listDocuments, deleteDocument, searchKnowledge, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, type KnowledgeBase as KBType, type Document, type SearchResult } from '../../api/knowledge'
 import ChunkStats from '../../components/knowledge/ChunkStats.vue'
@@ -588,6 +589,38 @@ function scrollChatToBottom() {
     chatContainer.value.scrollTop = chatContainer.value.scrollHeight
   }
 }
+
+// ── Auto-poll PROCESSING documents for progress ────────────────
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+function startPollingIfNeeded() {
+  const hasProcessing = documents.value.some(d => d.status === 'PROCESSING')
+  if (hasProcessing && !pollTimer) {
+    pollTimer = setInterval(async () => {
+      const kbId = route.params.kbId as string
+      try {
+        const resp = await listDocuments(kbId)
+        documents.value = resp.data
+        // Stop polling when no more PROCESSING docs
+        if (!resp.data.some(d => d.status === 'PROCESSING')) {
+          stopPolling()
+        }
+      } catch { /* ignore */ }
+    }, 3000)
+  } else if (!hasProcessing && pollTimer) {
+    stopPolling()
+  }
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+watch(documents, startPollingIfNeeded, { deep: true })
+onUnmounted(stopPolling)
 
 onMounted(async () => {
   const kbId = route.params.kbId as string

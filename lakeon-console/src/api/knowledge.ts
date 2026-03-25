@@ -35,6 +35,7 @@ export interface Document {
   chunks_count: number | null
   status: string
   progress?: number
+  progress_message?: string
   error: string | null
   tags: string[]
   created_at: string

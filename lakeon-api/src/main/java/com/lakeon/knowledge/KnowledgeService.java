@@ -578,6 +578,29 @@ public class KnowledgeService {
     }
 
     /**
+     * Get processing progress for a document (from its job's RUNNING result).
+     * Returns null if no progress info available.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getDocumentProgress(DocumentEntity doc) {
+        if (doc.getStatus() != DocumentStatus.PROCESSING || doc.getJobId() == null) {
+            return null;
+        }
+        try {
+            JobEntity job = jobService.getJob(doc.getTenantId(), doc.getJobId());
+            if (job.getResult() != null) {
+                Map<String, Object> result = objectMapper.readValue(job.getResult(), Map.class);
+                if (result.containsKey("progress")) {
+                    return result;
+                }
+            }
+        } catch (Exception e) {
+            // ignore — progress is best-effort
+        }
+        return null;
+    }
+
+    /**
      * List documents, optionally filtered by kbId (preferred) or databaseId (legacy).
      */
     public List<DocumentEntity> listDocuments(String tenantId, String kbId, String databaseId) {

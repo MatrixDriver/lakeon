@@ -270,6 +270,12 @@ public class KnowledgeController {
         map.put("error", doc.getError());
         map.put("created_at", doc.getCreatedAt() != null ? doc.getCreatedAt().toString() : null);
         map.put("updated_at", doc.getUpdatedAt() != null ? doc.getUpdatedAt().toString() : null);
+        // Include progress info for PROCESSING documents
+        Map<String, Object> progress = knowledgeService.getDocumentProgress(doc);
+        if (progress != null) {
+            map.put("progress", progress.get("progress"));
+            map.put("progress_message", progress.get("message"));
+        }
         return map;
     }
 }
