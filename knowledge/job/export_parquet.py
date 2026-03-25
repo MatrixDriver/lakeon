@@ -87,6 +87,7 @@ def main():
             endpoint_url=obs_endpoint,
             aws_access_key_id=obs_ak,
             aws_secret_access_key=obs_sk,
+            aws_session_token=os.environ.get("OBS_SESSION_TOKEN"),
             region_name=os.environ.get("OBS_REGION", "cn-north-4"),
             config=BotoConfig(
                 s3={"addressing_style": "virtual"},

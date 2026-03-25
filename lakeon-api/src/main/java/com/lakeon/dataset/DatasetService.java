@@ -374,23 +374,16 @@ public class DatasetService {
     }
 
     private Map<String, String> buildCodeSnippets(String downloadUrl, String obsPath) {
-        String bucket = props.getObs().getBucket();
-        String endpoint = props.getObs().getEndpoint();
-
         Map<String, String> snippets = new LinkedHashMap<>();
 
+        // Local download — uses presigned URL (safe, time-limited)
         snippets.put("pandas", String.format(
                 "import pandas as pd\ndf = pd.read_parquet(\"%s\")\nprint(df.head())", downloadUrl));
 
-        snippets.put("ray", String.format(
-                "import ray\nds = ray.data.read_parquet(\"s3://%s/%s\",\n"
-                + "    storage_options={\"endpoint_url\": \"%s\"})\nds.show(5)",
-                bucket, obsPath, endpoint));
-
-        snippets.put("duckdb", String.format(
-                "import duckdb\ncon = duckdb.connect()\ndf = con.execute(\n"
-                + "    \"SELECT * FROM read_parquet('%s') LIMIT 100\"\n).fetchdf()\nprint(df)",
-                downloadUrl));
+        // Job runtime — uses DATASET_PATH env var (no credentials exposed)
+        snippets.put("job", "import os, pandas as pd\n"
+                + "df = pd.read_parquet(os.environ[\"DATASET_PATH\"])\n"
+                + "print(df.head())");
 
         return snippets;
     }
