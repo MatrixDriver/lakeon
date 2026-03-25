@@ -84,6 +84,9 @@ public class JobPodManager {
                     "lakeon.io/tenant-id", job.getTenantId(),
                     "lakeon.io/job-type", typeKey
                 ))
+                .withAnnotations(Map.of(
+                    "cluster-autoscaler.kubernetes.io/safe-to-evict", "false"
+                ))
             .endMetadata()
             .withNewSpec()
                 .withImagePullSecrets(
