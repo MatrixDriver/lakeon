@@ -69,6 +69,11 @@ def init_schema(connstr: str, retries: int = 10, delay: float = 3.0):
             conn.autocommit = True
             with conn.cursor() as cur:
                 cur.execute(SCHEMA_SQL)
+                cur.execute("""
+                    ALTER TABLE memories DROP CONSTRAINT IF EXISTS memories_memory_type_check;
+                    ALTER TABLE memories ADD CONSTRAINT memories_memory_type_check
+                      CHECK (memory_type IN ('fact', 'episode', 'procedural', 'decision', 'rejection', 'convention'));
+                """)
             conn.close()
             return
         except psycopg2.OperationalError:

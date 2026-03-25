@@ -65,6 +65,9 @@
             <button class="btn" :class="memoryTypeFilter === 'fact' ? 'btn-primary' : 'btn-default'" @click="setTypeFilter('fact')" style="height:28px;font-size:12px;padding:0 12px;">fact</button>
             <button class="btn" :class="memoryTypeFilter === 'episode' ? 'btn-primary' : 'btn-default'" @click="setTypeFilter('episode')" style="height:28px;font-size:12px;padding:0 12px;">episode</button>
             <button class="btn" :class="memoryTypeFilter === 'procedural' ? 'btn-primary' : 'btn-default'" @click="setTypeFilter('procedural')" style="height:28px;font-size:12px;padding:0 12px;">procedural</button>
+            <button class="btn" :class="memoryTypeFilter === 'decision' ? 'btn-primary' : 'btn-default'" @click="setTypeFilter('decision')" style="height:28px;font-size:12px;padding:0 12px;">decision</button>
+            <button class="btn" :class="memoryTypeFilter === 'rejection' ? 'btn-primary' : 'btn-default'" @click="setTypeFilter('rejection')" style="height:28px;font-size:12px;padding:0 12px;">rejection</button>
+            <button class="btn" :class="memoryTypeFilter === 'convention' ? 'btn-primary' : 'btn-default'" @click="setTypeFilter('convention')" style="height:28px;font-size:12px;padding:0 12px;">convention</button>
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
             <input v-model="memorySearch" class="form-input" placeholder="语义搜索..." style="width: 240px; height: 32px;" @keyup.enter="onSearchEnter" />
@@ -89,7 +92,7 @@
                 <td>{{ mem.content.length > 100 ? mem.content.slice(0, 100) + '...' : mem.content }}</td>
                 <td>
                   <span style="padding:2px 8px;border-radius:4px;font-size:12px;"
-                    :style="mem.memory_type === 'fact' ? 'background:#e6f7ff;color:#1890ff' : mem.memory_type === 'episode' ? 'background:#f9f0ff;color:#722ed1' : 'background:#fff7e6;color:#d48806'">
+                    :style="typeStyle(mem.memory_type)">
                     {{ mem.memory_type }}
                   </span>
                 </td>
@@ -130,7 +133,7 @@
             <div class="dialog-body" style="max-height: 400px; overflow-y: auto;">
               <div style="margin-bottom: 12px;">
                 <span style="padding:2px 8px;border-radius:4px;font-size:12px;"
-                  :style="selectedMemory?.memory_type === 'fact' ? 'background:#e6f7ff;color:#1890ff' : selectedMemory?.memory_type === 'episode' ? 'background:#f9f0ff;color:#722ed1' : 'background:#fff7e6;color:#d48806'">
+                  :style="typeStyle(selectedMemory?.memory_type || '')">
                   {{ selectedMemory?.memory_type }}
                 </span>
                 <span style="margin-left:12px;font-size:12px;color:#999;">重要度: {{ ((selectedMemory?.importance || 0) * 100).toFixed(0) }}%</span>
@@ -142,6 +145,20 @@
               </div>
               <div style="margin-top:8px;font-size:12px;color:#999;">
                 创建时间: {{ selectedMemory?.created_at ? new Date(selectedMemory.created_at).toLocaleString() : '' }}
+              </div>
+              <div v-if="selectedMemory?.metadata && Object.keys(selectedMemory.metadata).length > 0" style="margin-top:12px;padding:10px;background:#f5f5f5;border-radius:4px;">
+                <div v-if="selectedMemory.metadata.rationale" style="font-size:13px;color:#333;margin-bottom:4px;">
+                  <strong>决策理由：</strong>{{ selectedMemory.metadata.rationale }}
+                </div>
+                <div v-if="selectedMemory.metadata.reason" style="font-size:13px;color:#333;margin-bottom:4px;">
+                  <strong>排除原因：</strong>{{ selectedMemory.metadata.reason }}
+                </div>
+                <div v-if="selectedMemory.metadata.scope" style="font-size:13px;color:#333;margin-bottom:4px;">
+                  <strong>范围：</strong>{{ selectedMemory.metadata.scope }}
+                </div>
+                <div v-if="selectedMemory.metadata.project" style="font-size:13px;color:#999;">
+                  项目：{{ selectedMemory.metadata.project }}
+                </div>
               </div>
             </div>
           </div>
@@ -366,6 +383,16 @@ const stats = ref<MemoryStats | null>(null)
 const graphData = ref<GraphData>({ nodes: [], edges: [] })
 const PAGE_SIZE = 20
 
+const typeColors: Record<string, string> = {
+  fact: 'background:#e6f7ff;color:#1890ff',
+  episode: 'background:#f9f0ff;color:#722ed1',
+  procedural: 'background:#fff7e6;color:#d48806',
+  decision: 'background:#e6fffb;color:#13c2c2',
+  rejection: 'background:#fff1f0;color:#f5222d',
+  convention: 'background:#f6ffed;color:#52c41a',
+}
+function typeStyle(t: string) { return typeColors[t] || 'background:#f0f0f0;color:#666' }
+
 async function loadMemories() {
   const memId = route.params.memId as string
   memoryLoading.value = true
@@ -473,7 +500,7 @@ async function loadTraits() {
   }
 }
 
-const typeLabels: Record<string, string> = { BUILTIN: '自研', MEM0: 'mem0', HINDSIGHT: 'hindsight', CUSTOM: '自定义' }
+const typeLabels: Record<string, string> = { BUILTIN: 'DBay记忆库', MEM0: 'mem0', HINDSIGHT: 'hindsight', CUSTOM: '自定义' }
 const typeLabel = computed(() => typeLabels[base.value?.type || ''] || base.value?.type || '')
 
 function statusText(status: string) {
