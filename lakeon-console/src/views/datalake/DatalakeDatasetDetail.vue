@@ -82,23 +82,25 @@
 
       <!-- Schema -->
       <div v-if="dataset.schema && dataset.schema.length > 0" class="section">
-        <h3 class="section-title" style="margin-bottom: 12px;">Schema</h3>
-        <table class="data-table" style="width: 100%;">
-          <thead>
-            <tr>
-              <th style="width: 40px;">#</th>
-              <th>列名</th>
-              <th>类型</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(col, i) in dataset.schema" :key="col.name">
-              <td style="color: #999;">{{ i + 1 }}</td>
-              <td style="font-family: monospace;">{{ col.name }}</td>
-              <td style="font-family: monospace; color: #666;">{{ col.type }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <h3 class="section-title" style="margin-bottom: 12px;">Schema <span style="color: #999; font-size: 13px; font-weight: 400;">({{ dataset.schema.length }} 列)</span></h3>
+        <div class="schema-table-wrap">
+          <table class="schema-table">
+            <thead>
+              <tr>
+                <th class="schema-col-pos">#</th>
+                <th>列名</th>
+                <th>类型</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(col, i) in dataset.schema" :key="col.name">
+                <td class="schema-col-pos">{{ i + 1 }}</td>
+                <td class="schema-col-name">{{ col.name }}</td>
+                <td class="schema-col-type">{{ col.type }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Code snippets -->
@@ -475,5 +477,51 @@ onUnmounted(() => {
   white-space: pre-wrap;
   word-break: break-all;
   overflow-x: auto;
+}
+
+/* Schema table — matches StructureView style */
+.schema-table-wrap {
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.schema-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.schema-table thead {
+  background: #f7f8fa;
+}
+.schema-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-weight: 600;
+  color: #666;
+  font-size: 12px;
+  border-bottom: 1px solid #e5e5e5;
+}
+.schema-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.schema-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.schema-table tbody tr:hover {
+  background: #f7f8fa;
+}
+.schema-col-pos {
+  width: 36px;
+  color: #8a8e99;
+}
+.schema-col-name {
+  font-weight: 500;
+  color: #191919;
+}
+.schema-col-type {
+  color: #0073e6;
+  font-family: monospace;
+  font-size: 12px;
 }
 </style>
