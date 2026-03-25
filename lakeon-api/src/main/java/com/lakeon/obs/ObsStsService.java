@@ -60,7 +60,9 @@ public class ObsStsService {
         String bucket = props.getObs().getBucket();
         List<String> resources = List.of(
                 "obs:*:*:object:" + bucket + "/datasets/" + tenantId + "/*",
-                "obs:*:*:object:" + bucket + "/knowledge/" + tenantId + "/*"
+                "obs:*:*:object:" + bucket + "/knowledge/" + tenantId + "/*",
+                "obs:*:*:object:" + bucket + "/tenant-" + tenantId + "/*",
+                "obs:*:*:object:" + bucket + "/datalake-logs/" + tenantId + "/*"
         );
 
         Map<String, Object> statement = Map.of(
