@@ -193,7 +193,7 @@ function formatTime(t: string | null) {
 }
 
 async function loadJob() {
-  loading.value = true
+  if (!job.value) loading.value = true  // only show loading on first load
   try {
     const res = await getDatalakeJob(jobId)
     job.value = res.data
