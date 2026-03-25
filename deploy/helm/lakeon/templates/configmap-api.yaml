@@ -113,6 +113,7 @@ data:
   {{- if .Values.knowledgeJobImage }}
   LAKEON_JOB_IMAGE_DOCUMENT_PARSE: {{ .Values.knowledgeJobImage | quote }}
   LAKEON_JOB_IMAGE_EMBEDDING: {{ .Values.knowledgeJobImage | quote }}
+  LAKEON_JOB_IMAGE_EXPORT_PARQUET: {{ .Values.knowledgeJobImage | quote }}
   {{- end }}
   {{- with .Values.datalake }}
   LAKEON_DATALAKE_CCI_NS_PREFIX: {{ .cciNamespacePrefix | quote }}
