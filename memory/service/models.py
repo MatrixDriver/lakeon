@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Literal
 from datetime import datetime
 
 
@@ -43,7 +43,7 @@ class GraphEdge(BaseModel):
 class IngestRequest(BaseModel):
     content: str
     role: str = "user"
-    memory_type: str = "fact"
+    memory_type: Literal['fact', 'episode', 'procedural', 'decision', 'rejection', 'convention'] = "fact"
     importance: float = 0.5
     metadata: dict = {}
 
