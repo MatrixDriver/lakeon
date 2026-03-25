@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.9.58"
+    tag: "0.9.59"
   resources:
     requests:
       cpu: "100m"
@@ -69,7 +69,7 @@ api:
   kbWriteCpu: "500m"   # 降低以便和compute pod共存于同一个弹性节点(4C)
   kbWriteMemory: "1Gi"
 
-knowledgeJobImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-knowledge-job:0.2.9"
+knowledgeJobImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-knowledge-job:0.2.11"
 
 # ── Neon 组件（单副本开发模式，最小资源请求）─────────────────────
 pageserver:
@@ -157,7 +157,7 @@ console:
   enabled: false
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-console
-    tag: "0.3.11"
+    tag: "0.3.12"
   replicas: 1
   port: 80
   serviceType: LoadBalancer

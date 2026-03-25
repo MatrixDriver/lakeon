@@ -71,8 +71,11 @@ const routes = [
       { path: 'knowledge/:kbId/documents/:docId', name: 'DocumentDetail', component: () => import('../views/knowledge/DocumentDetail.vue') },
       { path: 'knowledge/datasources', name: 'KnowledgeDataSources', component: () => import('../views/knowledge/KnowledgeDataSources.vue') },
       { path: 'knowledge/search', name: 'KnowledgeSearch', component: () => import('../views/knowledge/KnowledgeSearch.vue') },
-      // Memory
+      // Memory — static routes MUST come before :memId
       { path: 'memory', name: 'MemoryBases', component: () => import('../views/memory/MemoryBases.vue') },
+      { path: 'memory/browse', name: 'MemoryBrowse', component: () => import('../views/memory/MemoryBrowse.vue') },
+      { path: 'memory/traits', name: 'MemoryTraits', component: () => import('../views/memory/MemoryTraits.vue') },
+      { path: 'memory/stats', name: 'MemoryStats', component: () => import('../views/memory/MemoryStats.vue') },
       { path: 'memory/:memId', name: 'MemoryBaseDetail', component: () => import('../views/memory/MemoryBaseDetail.vue') },
     ],
   },

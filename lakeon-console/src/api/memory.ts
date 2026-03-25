@@ -68,8 +68,10 @@ export function deleteMemory(memId: string, memoryId: number) {
   return api.delete(`/memory/bases/${memId}/memories/${memoryId}`)
 }
 
-export function recallMemories(memId: string, query: string, topK = 10) {
-  return api.post<{ memories: MemoryItem[] }>(`/memory/bases/${memId}/recall`, { query, top_k: topK })
+export function recallMemories(memId: string, query: string, topK = 10, memoryTypes?: string[]) {
+  const body: Record<string, any> = { query, top_k: topK }
+  if (memoryTypes && memoryTypes.length > 0) body.memory_types = memoryTypes
+  return api.post<{ memories: MemoryItem[] }>(`/memory/bases/${memId}/recall`, body)
 }
 
 export interface Trait {

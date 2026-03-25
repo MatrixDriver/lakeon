@@ -20,9 +20,6 @@
     <!-- Tab bar -->
     <div v-if="base" class="tab-bar" style="margin-top: 20px;">
       <button class="tab-item" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">概览</button>
-      <button v-if="base.type === 'BUILTIN'" class="tab-item" :class="{ active: activeTab === 'memories' }" @click="activeTab = 'memories'">记忆</button>
-      <button v-if="base.type === 'BUILTIN'" class="tab-item" :class="{ active: activeTab === 'traits' }" @click="activeTab = 'traits'">特征</button>
-      <button v-if="base.type === 'BUILTIN'" class="tab-item" :class="{ active: activeTab === 'graph' }" @click="activeTab = 'graph'">图谱</button>
       <button class="tab-item" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">接入</button>
     </div>
 
@@ -53,181 +50,6 @@
       <div v-if="base.error" style="margin-top: 12px; padding: 12px; background: #fff2f0; border: 1px solid #ffccc7; border-radius: 6px; color: #e6393d; font-size: 13px;">
         错误：{{ base.error }}
       </div>
-    </div>
-
-    <!-- Memories tab -->
-    <div v-if="base && activeTab === 'memories'" style="margin-top: 24px;">
-      <div v-if="activeTab === 'memories'">
-        <!-- Filter + Search bar -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <div style="display: flex; gap: 8px;">
-            <button class="btn" :class="memoryTypeFilter === '' ? 'btn-primary' : 'btn-default'" @click="setTypeFilter('')" style="height:28px;font-size:12px;padding:0 12px;">全部</button>
-            <button class="btn" :class="memoryTypeFilter === 'fact' ? 'btn-primary' : 'btn-default'" @click="setTypeFilter('fact')" style="height:28px;font-size:12px;padding:0 12px;">fact</button>
-            <button class="btn" :class="memoryTypeFilter === 'episode' ? 'btn-primary' : 'btn-default'" @click="setTypeFilter('episode')" style="height:28px;font-size:12px;padding:0 12px;">episode</button>
-            <button class="btn" :class="memoryTypeFilter === 'procedural' ? 'btn-primary' : 'btn-default'" @click="setTypeFilter('procedural')" style="height:28px;font-size:12px;padding:0 12px;">procedural</button>
-            <button class="btn" :class="memoryTypeFilter === 'decision' ? 'btn-primary' : 'btn-default'" @click="setTypeFilter('decision')" style="height:28px;font-size:12px;padding:0 12px;">decision</button>
-            <button class="btn" :class="memoryTypeFilter === 'rejection' ? 'btn-primary' : 'btn-default'" @click="setTypeFilter('rejection')" style="height:28px;font-size:12px;padding:0 12px;">rejection</button>
-            <button class="btn" :class="memoryTypeFilter === 'convention' ? 'btn-primary' : 'btn-default'" @click="setTypeFilter('convention')" style="height:28px;font-size:12px;padding:0 12px;">convention</button>
-          </div>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <input v-model="memorySearch" class="form-input" placeholder="语义搜索..." style="width: 240px; height: 32px;" @keyup.enter="onSearchEnter" />
-          </div>
-        </div>
-
-        <!-- Table -->
-        <div v-if="memories.length > 0" class="table-wrapper">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th style="width:45%">内容</th>
-                <th>类型</th>
-                <th>重要度</th>
-                <th>访问</th>
-                <th>创建时间</th>
-                <th style="width:60px">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="mem in memories" :key="mem.id" @click="showDetail(mem)" style="cursor:pointer;">
-                <td>{{ mem.content.length > 100 ? mem.content.slice(0, 100) + '...' : mem.content }}</td>
-                <td>
-                  <span style="padding:2px 8px;border-radius:4px;font-size:12px;"
-                    :style="typeStyle(mem.memory_type)">
-                    {{ mem.memory_type }}
-                  </span>
-                </td>
-                <td>{{ (mem.importance * 100).toFixed(0) }}%</td>
-                <td>{{ mem.access_count }}</td>
-                <td>{{ new Date(mem.created_at).toLocaleDateString() }}</td>
-                <td @click.stop>
-                  <button class="btn btn-default" style="height:24px;font-size:11px;padding:0 8px;color:#e6393d;" @click="confirmDelete(mem.id)">删除</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Empty state -->
-        <div v-else-if="!memoryLoading" class="empty-state" style="padding: 60px 0;">
-          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#ccc" stroke-width="1.5">
-            <path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/>
-            <line x1="10" y1="21" x2="14" y2="21"/>
-          </svg>
-          <p style="color: #999; margin-top: 12px;">暂无记忆数据</p>
-        </div>
-
-        <!-- Pagination -->
-        <div v-if="memoryTotal > PAGE_SIZE" style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:16px;">
-          <button class="btn btn-default" :disabled="memoryPage === 0" @click="prevPage" style="height:28px;font-size:12px;">上一页</button>
-          <span style="font-size:13px;color:#666;">第 {{ memoryPage + 1 }} / {{ Math.ceil(memoryTotal / PAGE_SIZE) }} 页</span>
-          <button class="btn btn-default" :disabled="(memoryPage + 1) * PAGE_SIZE >= memoryTotal" @click="nextPage" style="height:28px;font-size:12px;">下一页</button>
-        </div>
-
-        <!-- Memory detail dialog -->
-        <div v-if="showMemoryDetail" class="dialog-overlay" @click.self="showMemoryDetail = false">
-          <div class="dialog-box" style="max-width: 600px;">
-            <div class="dialog-header">
-              <h3>记忆详情</h3>
-              <button class="dialog-close" @click="showMemoryDetail = false">&times;</button>
-            </div>
-            <div class="dialog-body" style="max-height: 400px; overflow-y: auto;">
-              <div style="margin-bottom: 12px;">
-                <span style="padding:2px 8px;border-radius:4px;font-size:12px;"
-                  :style="typeStyle(selectedMemory?.memory_type || '')">
-                  {{ selectedMemory?.memory_type }}
-                </span>
-                <span style="margin-left:12px;font-size:12px;color:#999;">重要度: {{ ((selectedMemory?.importance || 0) * 100).toFixed(0) }}%</span>
-                <span style="margin-left:12px;font-size:12px;color:#999;">访问: {{ selectedMemory?.access_count }}</span>
-              </div>
-              <p style="font-size:14px;line-height:1.8;white-space:pre-wrap;">{{ selectedMemory?.content }}</p>
-              <div v-if="selectedMemory?.event_time" style="margin-top:12px;font-size:12px;color:#999;">
-                事件时间: {{ new Date(selectedMemory.event_time).toLocaleString() }}
-              </div>
-              <div style="margin-top:8px;font-size:12px;color:#999;">
-                创建时间: {{ selectedMemory?.created_at ? new Date(selectedMemory.created_at).toLocaleString() : '' }}
-              </div>
-              <div v-if="selectedMemory?.metadata && Object.keys(selectedMemory.metadata).length > 0" style="margin-top:12px;padding:10px;background:#f5f5f5;border-radius:4px;">
-                <div v-if="selectedMemory.metadata.rationale" style="font-size:13px;color:#333;margin-bottom:4px;">
-                  <strong>决策理由：</strong>{{ selectedMemory.metadata.rationale }}
-                </div>
-                <div v-if="selectedMemory.metadata.reason" style="font-size:13px;color:#333;margin-bottom:4px;">
-                  <strong>排除原因：</strong>{{ selectedMemory.metadata.reason }}
-                </div>
-                <div v-if="selectedMemory.metadata.scope" style="font-size:13px;color:#333;margin-bottom:4px;">
-                  <strong>范围：</strong>{{ selectedMemory.metadata.scope }}
-                </div>
-                <div v-if="selectedMemory.metadata.project" style="font-size:13px;color:#999;">
-                  项目：{{ selectedMemory.metadata.project }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Delete confirm dialog -->
-        <div v-if="showDeleteConfirm" class="dialog-overlay" @click.self="showDeleteConfirm = false">
-          <div class="dialog-box" style="max-width: 400px;">
-            <div class="dialog-header">
-              <h3>确认删除</h3>
-              <button class="dialog-close" @click="showDeleteConfirm = false">&times;</button>
-            </div>
-            <div class="dialog-body">
-              <p>确定要删除这条记忆吗？此操作不可撤销。</p>
-            </div>
-            <div class="dialog-footer">
-              <button class="btn btn-default" @click="showDeleteConfirm = false">取消</button>
-              <button class="btn" style="background:#e6393d;color:#fff;" @click="doDelete">删除</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Traits tab -->
-    <div v-if="base && activeTab === 'traits'" style="margin-top: 24px;">
-      <div v-if="activeTab === 'traits'">
-        <!-- Main stages: core, established, emerging -->
-        <template v-for="stage in ['core', 'established', 'emerging']" :key="stage">
-          <div v-if="traitsByStage[stage]?.length" style="margin-bottom: 24px;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-              <h3 style="margin:0;font-size:15px;">{{ {core:'核心特征',established:'稳定特征',emerging:'新兴特征'}[stage] }}</h3>
-              <span style="background:#f0f0f0;padding:1px 8px;border-radius:10px;font-size:12px;color:#666;">{{ traitsByStage[stage].length }}</span>
-            </div>
-            <TraitCard v-for="t in traitsByStage[stage]" :key="t.id" :trait="t" />
-          </div>
-        </template>
-
-        <!-- Early stages (collapsible) -->
-        <div v-if="earlyStageCount > 0" style="margin-top:16px;">
-          <button class="btn btn-default" style="font-size:12px;height:28px;" @click="showEarlyStages = !showEarlyStages">
-            {{ showEarlyStages ? '收起' : '展开' }}早期特征 ({{ earlyStageCount }})
-          </button>
-          <div v-if="showEarlyStages" style="margin-top:12px;">
-            <template v-for="stage in ['candidate', 'trend']" :key="stage">
-              <div v-if="traitsByStage[stage]?.length" style="margin-bottom: 24px;">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-                  <h3 style="margin:0;font-size:15px;color:#999;">{{ {candidate:'候选特征',trend:'趋势特征'}[stage] }}</h3>
-                  <span style="background:#f0f0f0;padding:1px 8px;border-radius:10px;font-size:12px;color:#666;">{{ traitsByStage[stage].length }}</span>
-                </div>
-                <TraitCard v-for="t in traitsByStage[stage]" :key="t.id" :trait="t" />
-              </div>
-            </template>
-          </div>
-        </div>
-
-        <!-- Empty state -->
-        <div v-if="traits.length === 0 && !traitsLoading" class="empty-state" style="padding: 60px 0;">
-          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#ccc" stroke-width="1.5">
-            <path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/>
-          </svg>
-          <p style="color:#999;margin-top:12px;">暂无特征，记忆库积累足够记忆后系统会自动发现行为特征</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Graph tab -->
-    <div v-if="activeTab === 'graph'" style="min-height: 500px; margin-top: 24px;">
-      <KnowledgeGraph :data="graphData" />
     </div>
 
     <!-- Settings tab -->
@@ -361,59 +183,12 @@ SSL:      require</pre>
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getMemoryBase, type MemoryBase, type MemoryItem, type MemoryStats, type Trait, getMemoryStats, listMemories, deleteMemory, recallMemories, listTraits, getGraph, type GraphData } from '../../api/memory'
-import TraitCard from '../../components/memory/TraitCard.vue'
-import KnowledgeGraph from '../../components/memory/KnowledgeGraph.vue'
+import { getMemoryBase, type MemoryBase, type MemoryStats, getMemoryStats } from '../../api/memory'
 
 const route = useRoute()
 const base = ref<MemoryBase | null>(null)
 const activeTab = ref('overview')
-
-const memories = ref<MemoryItem[]>([])
-const memoryTotal = ref(0)
-const memoryPage = ref(0)
-const memoryTypeFilter = ref('')
-const memorySearch = ref('')
-const memoryLoading = ref(false)
-const showMemoryDetail = ref(false)
-const selectedMemory = ref<MemoryItem | null>(null)
-const showDeleteConfirm = ref(false)
-const deletingMemoryId = ref<number | null>(null)
 const stats = ref<MemoryStats | null>(null)
-const graphData = ref<GraphData>({ nodes: [], edges: [] })
-const PAGE_SIZE = 20
-
-const typeColors: Record<string, string> = {
-  fact: 'background:#e6f7ff;color:#1890ff',
-  episode: 'background:#f9f0ff;color:#722ed1',
-  procedural: 'background:#fff7e6;color:#d48806',
-  decision: 'background:#e6fffb;color:#13c2c2',
-  rejection: 'background:#fff1f0;color:#f5222d',
-  convention: 'background:#f6ffed;color:#52c41a',
-}
-function typeStyle(t: string) { return typeColors[t] || 'background:#f0f0f0;color:#666' }
-
-async function loadMemories() {
-  const memId = route.params.memId as string
-  memoryLoading.value = true
-  try {
-    if (memorySearch.value.trim()) {
-      const resp = await recallMemories(memId, memorySearch.value)
-      memories.value = resp.data.memories
-      memoryTotal.value = resp.data.memories.length
-    } else {
-      const resp = await listMemories(memId, {
-        memory_type: memoryTypeFilter.value || undefined,
-        offset: memoryPage.value * PAGE_SIZE,
-        limit: PAGE_SIZE,
-      })
-      memories.value = resp.data.memories
-      memoryTotal.value = resp.data.total
-    }
-  } finally {
-    memoryLoading.value = false
-  }
-}
 
 async function loadStats() {
   const memId = route.params.memId as string
@@ -421,83 +196,6 @@ async function loadStats() {
     const resp = await getMemoryStats(memId)
     stats.value = resp.data
   } catch {}
-}
-
-function setTypeFilter(t: string) {
-  memoryTypeFilter.value = t
-  memoryPage.value = 0
-  loadMemories()
-}
-
-function onSearchEnter() {
-  memoryPage.value = 0
-  loadMemories()
-}
-
-function prevPage() {
-  if (memoryPage.value > 0) { memoryPage.value--; loadMemories() }
-}
-function nextPage() {
-  if ((memoryPage.value + 1) * PAGE_SIZE < memoryTotal.value) { memoryPage.value++; loadMemories() }
-}
-
-function showDetail(mem: MemoryItem) {
-  selectedMemory.value = mem
-  showMemoryDetail.value = true
-}
-
-function confirmDelete(id: number) {
-  deletingMemoryId.value = id
-  showDeleteConfirm.value = true
-}
-
-async function doDelete() {
-  if (deletingMemoryId.value == null) return
-  const memId = route.params.memId as string
-  await deleteMemory(memId, deletingMemoryId.value)
-  showDeleteConfirm.value = false
-  deletingMemoryId.value = null
-  loadMemories()
-  loadStats()
-}
-
-const traits = ref<Trait[]>([])
-const traitsLoading = ref(false)
-const showEarlyStages = ref(false)
-
-const traitsByStage = computed(() => {
-  const stages = ['core', 'established', 'emerging', 'candidate', 'trend']
-  const grouped: Record<string, Trait[]> = {}
-  for (const s of stages) grouped[s] = []
-  for (const t of traits.value) {
-    const stage = t.trait_stage
-    if (grouped[stage]) grouped[stage]!.push(t)
-    else grouped[stage] = [t]
-  }
-  return grouped
-})
-
-const earlyStageCount = computed(() =>
-  (traitsByStage.value['candidate']?.length || 0) + (traitsByStage.value['trend']?.length || 0)
-)
-
-async function loadGraph() {
-  const memId = route.params.memId as string
-  try {
-    const resp = await getGraph(memId)
-    graphData.value = resp.data
-  } catch {}
-}
-
-async function loadTraits() {
-  const memId = route.params.memId as string
-  traitsLoading.value = true
-  try {
-    const resp = await listTraits(memId)
-    traits.value = resp.data
-  } finally {
-    traitsLoading.value = false
-  }
 }
 
 const typeLabels: Record<string, string> = { BUILTIN: 'DBay记忆库', MEM0: 'mem0', HINDSIGHT: 'hindsight', CUSTOM: '自定义' }
@@ -513,8 +211,5 @@ onMounted(async () => {
   const resp = await getMemoryBase(memId)
   base.value = resp.data
   loadStats()
-  loadMemories()
-  loadTraits()
-  loadGraph()
 })
 </script>
