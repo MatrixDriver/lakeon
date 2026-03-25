@@ -118,7 +118,8 @@ async function loadFulltext() {
   fulltextError.value = null
   try {
     const res = await getFulltext(props.kbId, props.docId)
-    cachedFulltext.value = res.data
+    const data = res.data
+    cachedFulltext.value = typeof data === 'string' ? data : (data as any).fulltext ?? (data as any).content ?? String(data)
     cachedFulltextDocId = props.docId
   } catch (e: any) {
     fulltextError.value = e.response?.data?.error || e.message || '未知错误'
