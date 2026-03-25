@@ -114,7 +114,8 @@ public class PythonJobRunner {
             userCmd = "echo 'No script or entrypoint specified'";
         }
         // Wrap: run user cmd with tee to capture logs, then upload
-        command = List.of("/bin/sh", "-c", "(" + userCmd + ") 2>&1 | tee /tmp/job.log" + logUpload);
+        // set -o pipefail ensures tee pipe returns the script's exit code, not tee's
+        command = List.of("/bin/sh", "-c", "set -o pipefail; (" + userCmd + ") 2>&1 | tee /tmp/job.log" + logUpload);
 
         // Pre-set logObsPath so DatalakeLogService can find it
         job.setLogObsPath(logKey);
