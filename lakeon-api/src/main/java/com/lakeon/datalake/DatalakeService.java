@@ -86,14 +86,12 @@ public class DatalakeService {
                             + " (status=" + dataset.getStatus() + ")");
                 }
                 String safeName = dataset.getName().replaceAll("\\s+", "_").toLowerCase();
-                // Local path — file will be downloaded from OBS before script runs
-                String localPath = "/data/" + safeName + ".parquet";
-                // Store OBS key for download step (prefixed with _OBS_KEY_)
-                envVars.put("_OBS_KEY_" + safeName, dataset.getObsPath());
+                // obs:// URI — pyobsfs (fsspec) handles OBS natively
+                String obsUri = "obs://" + bucket + "/" + dataset.getObsPath();
                 String namedVar = "DATASET_PATH_" + safeName;
-                envVars.put(namedVar, localPath);
+                envVars.put(namedVar, obsUri);
                 if (single) {
-                    envVars.put("DATASET_PATH", localPath);
+                    envVars.put("DATASET_PATH", obsUri);
                 }
             }
             req.setEnvVars(envVars);

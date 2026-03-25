@@ -105,17 +105,6 @@ public class PythonJobRunner {
             + "[s3.upload_file('/data/output.parquet',os.environ['OBS_BUCKET'],okey) if okey and os.path.exists('/data/output.parquet') else None]"
             + "\" 2>/dev/null; exit $EXIT_CODE", logKey);
 
-        // Pre-download step: download datasets from OBS to local /data/ using boto3
-        // Env vars _OBS_KEY_{name} are set by DatalakeService for each dataset
-        String preDownload = "python -c \""
-            + "import boto3,os; "
-            + "from botocore.config import Config; "
-            + "s3=boto3.client('s3',endpoint_url=os.environ.get('OBS_ENDPOINT',''),aws_access_key_id=os.environ.get('OBS_ACCESS_KEY',''),aws_secret_access_key=os.environ.get('OBS_SECRET_KEY',''),aws_session_token=os.environ.get('OBS_SESSION_TOKEN'),region_name=os.environ.get('OBS_REGION','cn-north-4'),config=Config(signature_version='s3',s3={'addressing_style':'virtual'})); "
-            + "os.makedirs('/data',exist_ok=True); "
-            + "[s3.download_file(os.environ['OBS_BUCKET'],v,'/data/'+k.replace('_OBS_KEY_','')+'.parquet') for k,v in os.environ.items() if k.startswith('_OBS_KEY_')];"
-            + "print('Downloaded',sum(1 for k in os.environ if k.startswith('_OBS_KEY_')),'dataset(s) to /data/')"
-            + "\" && ";
-
         List<String> command;
         boolean hasInlineScript = req.getInlineScript() != null && !req.getInlineScript().isBlank();
         String userCmd;
@@ -127,9 +116,9 @@ public class PythonJobRunner {
         } else {
             userCmd = "echo 'No script or entrypoint specified'";
         }
-        // Wrap: pre-download datasets, run user cmd with tee, upload logs
+        // Wrap: run user cmd with tee to capture logs, then upload logs to OBS
         // set -o pipefail ensures tee pipe returns the script's exit code
-        command = List.of("/bin/sh", "-c", "set -o pipefail; " + preDownload + "(" + userCmd + ") 2>&1 | tee /tmp/job.log" + logUpload);
+        command = List.of("/bin/sh", "-c", "set -o pipefail; (" + userCmd + ") 2>&1 | tee /tmp/job.log" + logUpload);
 
         // Pre-set logObsPath so DatalakeLogService can find it
         job.setLogObsPath(logKey);
@@ -145,29 +134,27 @@ public class PythonJobRunner {
             req.getEnvVars().forEach((k, v) ->
                     envVars.add(new EnvVarBuilder().withName(k).withValue(v).build()));
         }
-        // OUTPUT_PATH is local; output will be uploaded to OBS after script runs
-        String outputLocalPath = "/data/output.parquet";
-        String outputObsKey = "tenant-" + job.getTenantId() + "/jobs/" + job.getId() + "/output/data.parquet";
-        envVars.add(new EnvVarBuilder().withName("OUTPUT_PATH").withValue(outputLocalPath).build());
-        envVars.add(new EnvVarBuilder().withName("_OUTPUT_OBS_KEY").withValue(outputObsKey).build());
+        // OUTPUT_PATH as obs:// URI — pyobsfs handles writes natively
+        String bucket = props.getObs().getBucket();
+        String outputObsUri = "obs://" + bucket + "/tenant-" + job.getTenantId()
+                + "/jobs/" + job.getId() + "/output/data.parquet";
+        envVars.add(new EnvVarBuilder().withName("OUTPUT_PATH").withValue(outputObsUri).build());
 
         // Inject OBS STS credentials for tenant isolation
         ObsStsService.StsCredentials stsCreds = obsStsService.getCredentials(job.getTenantId());
         String obsEndpoint = props.getObs().getEndpoint();
         String obsRegion = props.getObs().getRegion() != null ? props.getObs().getRegion() : "cn-north-4";
-        // OBS_* for our scripts (export_parquet.py, log upload)
+        // pyobsfs env vars (for pandas obs:// protocol)
+        envVars.add(new EnvVarBuilder().withName("OBS_ACCESS_KEY_ID").withValue(stsCreds.accessKey()).build());
+        envVars.add(new EnvVarBuilder().withName("OBS_SECRET_ACCESS_KEY").withValue(stsCreds.secretKey()).build());
+        envVars.add(new EnvVarBuilder().withName("OBS_SECURITY_TOKEN").withValue(stsCreds.sessionToken()).build());
+        envVars.add(new EnvVarBuilder().withName("OBS_ENDPOINT").withValue(obsEndpoint).build());
+        // Also keep OBS_ACCESS_KEY/OBS_SECRET_KEY/OBS_SESSION_TOKEN for log upload boto3 script
         envVars.add(new EnvVarBuilder().withName("OBS_ACCESS_KEY").withValue(stsCreds.accessKey()).build());
         envVars.add(new EnvVarBuilder().withName("OBS_SECRET_KEY").withValue(stsCreds.secretKey()).build());
         envVars.add(new EnvVarBuilder().withName("OBS_SESSION_TOKEN").withValue(stsCreds.sessionToken()).build());
-        envVars.add(new EnvVarBuilder().withName("OBS_ENDPOINT").withValue(obsEndpoint).build());
         envVars.add(new EnvVarBuilder().withName("OBS_BUCKET").withValue(props.getObs().getBucket()).build());
         envVars.add(new EnvVarBuilder().withName("OBS_REGION").withValue(obsRegion).build());
-        // AWS_* for pandas/s3fs/boto3 auto-detection (reads s3:// paths automatically)
-        envVars.add(new EnvVarBuilder().withName("AWS_ACCESS_KEY_ID").withValue(stsCreds.accessKey()).build());
-        envVars.add(new EnvVarBuilder().withName("AWS_SECRET_ACCESS_KEY").withValue(stsCreds.secretKey()).build());
-        envVars.add(new EnvVarBuilder().withName("AWS_SESSION_TOKEN").withValue(stsCreds.sessionToken()).build());
-        envVars.add(new EnvVarBuilder().withName("AWS_ENDPOINT_URL").withValue(obsEndpoint).build());
-        envVars.add(new EnvVarBuilder().withName("AWS_DEFAULT_REGION").withValue(obsRegion).build());
 
         // 6. Build toleration for VK
         Toleration vkToleration = new TolerationBuilder()
