@@ -1,6 +1,7 @@
 package com.lakeon.job;
 
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.obs.ObsStsService;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import org.slf4j.Logger;
@@ -16,13 +17,15 @@ public class JobPodManager {
 
     private final KubernetesClient k8sClient;
     private final LakeonProperties props;
+    private final ObsStsService obsStsService;
 
     @Value("${lakeon.api.internal-port:8088}")
     private int internalPort;
 
-    public JobPodManager(KubernetesClient k8sClient, LakeonProperties props) {
+    public JobPodManager(KubernetesClient k8sClient, LakeonProperties props, ObsStsService obsStsService) {
         this.k8sClient = k8sClient;
         this.props = props;
+        this.obsStsService = obsStsService;
     }
 
     /**
@@ -66,6 +69,9 @@ public class JobPodManager {
             .build();
         k8sClient.configMaps().inNamespace(namespace).resource(configMap).createOrReplace();
         log.info("Created job ConfigMap: {}/{}", namespace, configMapName);
+
+        // Get STS credentials for the tenant
+        ObsStsService.StsCredentials stsCreds = obsStsService.getCredentials(job.getTenantId());
 
         // Create the job Pod
         Pod pod = new PodBuilder()
@@ -119,21 +125,15 @@ public class JobPodManager {
                     .endEnv()
                     .addNewEnv()
                         .withName("OBS_ACCESS_KEY")
-                        .withNewValueFrom()
-                            .withNewSecretKeyRef()
-                                .withName("obs-credentials")
-                                .withKey("access-key")
-                            .endSecretKeyRef()
-                        .endValueFrom()
+                        .withValue(stsCreds.accessKey())
                     .endEnv()
                     .addNewEnv()
                         .withName("OBS_SECRET_KEY")
-                        .withNewValueFrom()
-                            .withNewSecretKeyRef()
-                                .withName("obs-credentials")
-                                .withKey("secret-key")
-                            .endSecretKeyRef()
-                        .endValueFrom()
+                        .withValue(stsCreds.secretKey())
+                    .endEnv()
+                    .addNewEnv()
+                        .withName("OBS_SESSION_TOKEN")
+                        .withValue(stsCreds.sessionToken())
                     .endEnv()
                     .addNewEnv()
                         .withName("OBS_ENDPOINT")
