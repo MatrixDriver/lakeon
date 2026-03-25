@@ -31,8 +31,8 @@ spec:
             - name: EMBEDDING_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: lakeon-secrets
-                  key: embedding-api-key
+                  name: api-credentials
+                  key: ai-api-key
                   optional: true
             - name: EMBEDDING_MODEL
               value: {{ .Values.embedding.model | default "BAAI/bge-m3" }}
@@ -43,8 +43,8 @@ spec:
             - name: CHAT_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: lakeon-secrets
-                  key: embedding-api-key
+                  name: api-credentials
+                  key: ai-api-key
                   optional: true
           resources:
             requests:

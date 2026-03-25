@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d2ff;stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:#00d2ff;stop-opacity:0.05" />
+    </linearGradient>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffd700;stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:#ffd700;stop-opacity:0.05" />
+    </linearGradient>
+    <linearGradient id="grad3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#2ecc71;stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:#2ecc71;stop-opacity:0.05" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="800" fill="#0d0d1a"/>
+
+  <!-- Title -->
+  <text x="600" y="50" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#00d2ff" text-anchor="middle">DBay 数据港湾 - 系统架构</text>
+  <text x="600" y="80" font-family="Arial, sans-serif" font-size="16" fill="#8ecae6" text-anchor="middle">面向 Agent 的 Serverless 数据底座</text>
+
+  <!-- Core: Neon Lakebase -->
+  <rect x="400" y="120" width="400" height="100" rx="12" fill="url(#grad1)" stroke="#00d2ff" stroke-width="2"/>
+  <text x="600" y="155" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#00d2ff" text-anchor="middle">Neon Lakebase 内核</text>
+  <text x="600" y="185" font-family="Arial, sans-serif" font-size="14" fill="#8ecae6" text-anchor="middle">存算分离 · 多版本 · 时间旅行 · 分支管理</text>
+  <text x="600" y="205" font-family="Arial, sans-serif" font-size="12" fill="#6c7a89" text-anchor="middle">Serverless PostgreSQL</text>
+
+  <!-- Three Modules -->
+  <!-- Module 1: Serverless PG -->
+  <rect x="80" y="280" width="300" height="180" rx="10" fill="url(#grad1)" stroke="#00d2ff" stroke-width="2"/>
+  <text x="230" y="315" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#00d2ff" text-anchor="middle">Serverless PG</text>
+  <text x="230" y="345" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">• 按需启动 (3ms 热启动)</text>
+  <text x="230" y="370" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">• 自动扩缩容</text>
+  <text x="230" y="395" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">• 多租户隔离</text>
+  <text x="230" y="420" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">• 版本 + 分支管理</text>
+  <text x="230" y="445" font-family="Arial, sans-serif" font-size="11" fill="#8ecae6" text-anchor="middle">对标 Databricks Lakebase</text>
+
+  <!-- Module 2: Knowledge Base -->
+  <rect x="450" y="280" width="300" height="180" rx="10" fill="url(#grad2)" stroke="#ffd700" stroke-width="2"/>
+  <text x="600" y="315" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#ffd700" text-anchor="middle">知识库</text>
+  <text x="600" y="345" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">• 文档解析 (PDF/Word/Markdown)</text>
+  <text x="600" y="370" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">• 向量检索 (pgvector)</text>
+  <text x="600" y="395" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">• 全文搜索 (tsvector)</text>
+  <text x="600" y="420" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">• 表知识库</text>
+  <text x="600" y="445" font-family="Arial, sans-serif" font-size="11" fill="#ffd700" text-anchor="middle">对标华为云 CSS</text>
+
+  <!-- Module 3: AI Data Lake -->
+  <rect x="820" y="280" width="300" height="180" rx="10" fill="url(#grad3)" stroke="#2ecc71" stroke-width="2"/>
+  <text x="970" y="315" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#2ecc71" text-anchor="middle">AI 数据湖</text>
+  <text x="970" y="345" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">• Python/Ray 任务调度</text>
+  <text x="970" y="370" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">• Dataset 导出 (Parquet)</text>
+  <text x="970" y="395" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">• 模型微调</text>
+  <text x="970" y="420" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">• Kata VM 隔离</text>
+  <text x="970" y="445" font-family="Arial, sans-serif" font-size="11" fill="#2ecc71" text-anchor="middle">对标 DataArts Fabric + DLI</text>
+
+  <!-- Connection Lines -->
+  <line x1="230" y="220" x2="230" y="280" stroke="#00d2ff" stroke-width="2" stroke-dasharray="5,5"/>
+  <line x1="600" y="220" x2="600" y="280" stroke="#ffd700" stroke-width="2" stroke-dasharray="5,5"/>
+  <line x1="970" y="220" x2="970" y="280" stroke="#2ecc71" stroke-width="2" stroke-dasharray="5,5"/>
+
+  <!-- Future: Memory Store -->
+  <rect x="400" y="510" width="400" height="80" rx="10" fill="rgba(255,255,255,0.03)" stroke="#8ecae6" stroke-width="2" stroke-dasharray="8,4"/>
+  <text x="600" y="540" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#8ecae6" text-anchor="middle">记忆库 (计划中)</text>
+  <text x="600" y="565" font-family="Arial, sans-serif" font-size="13" fill="#8ecae6" text-anchor="middle">Neuromem - 独立项目开发中，未来合入 DBay</text>
+  <line x1="600" y="460" x2="600" y="510" stroke="#8ecae6" stroke-width="2" stroke-dasharray="5,5"/>
+
+  <!-- Infrastructure Layer -->
+  <rect x="80" y="640" width="1040" height="120" rx="10" fill="rgba(255,255,255,0.02)" stroke="#6c7a89" stroke-width="1"/>
+  <text x="600" y="670" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#8ecae6" text-anchor="middle">基础设施层</text>
+  <text x="300" y="700" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">Kubernetes (CCE)</text>
+  <text x="500" y="700" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">对象存储 (OBS)</text>
+  <text x="700" y="700" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">元数据库 (RDS)</text>
+  <text x="900" y="700" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">弹性节点池</text>
+  <text x="600" y="730" font-family="Arial, sans-serif" font-size="12" fill="#6c7a89" text-anchor="middle">华为云 CCE · 存算分离 · 按需扩缩容</text>
+
+</svg>

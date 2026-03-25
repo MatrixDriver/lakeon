@@ -1,3 +1,4 @@
+import subprocess
 import time
 
 import pytest
@@ -6,15 +7,19 @@ from dbay_cli.client import DbayApiError
 from conftest import poll_until, run_psql
 
 
-def psql_with_retry(connstr, sql, password, retries=5, delay=10):
+def psql_with_retry(connstr, sql, password, retries=8, delay=15):
     """Retry psql calls to allow compute to wake up via proxy."""
     for i in range(retries):
         try:
             return run_psql(connstr, sql, password)
-        except RuntimeError:
+        except (RuntimeError, subprocess.TimeoutExpired) as e:
             if i == retries - 1:
                 raise
-            time.sleep(delay)
+            # Postgres recovery takes longer than pod startup
+            if "not yet accepting connections" in str(e):
+                time.sleep(20)
+            else:
+                time.sleep(delay)
 
 
 def get_default_branch(client, db_id):

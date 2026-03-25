@@ -22,11 +22,19 @@ class TestTenantAuth:
     @pytest.fixture(scope="class")
     def test_user(self):
         ts = int(time.time())
-        return {
+        info = {
             "username": f"e2e-auth-{ts}",
             "password": f"AuthTest@{ts}",
             "name": f"Auth Test {ts}",
         }
+        yield info
+        tenant_id = info.get("id")
+        if tenant_id:
+            try:
+                admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+                admin.admin_batch_delete_tenants([tenant_id])
+            except Exception:
+                pass
 
     def test_check_username_available(self, test_user):
         """Check that a new username is available."""
@@ -115,11 +123,16 @@ class TestApiKeyManagement:
     @pytest.fixture(scope="class")
     def key_client(self):
         ts = int(time.time())
-        client, _ = _create_tenant_with_invite(
+        client, t = _create_tenant_with_invite(
             ENDPOINT, ADMIN_TOKEN,
             f"e2e-apikey-{ts}", f"ApiKey@{ts}", f"API Key Test {ts}",
         )
-        return client
+        yield client
+        try:
+            admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+            admin.admin_batch_delete_tenants([t["id"]])
+        except Exception:
+            pass
 
     def test_list_api_keys(self, key_client):
         """List API keys should include at least the default key."""

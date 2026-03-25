@@ -54,11 +54,16 @@ class TestDatalakeCRUD:
     @pytest.fixture(scope="class")
     def client(self):
         ts = int(time.time())
-        c, _ = _create_tenant_with_invite(
+        c, t = _create_tenant_with_invite(
             ENDPOINT, ADMIN_TOKEN,
             f"e2e-dl-crud-{ts}", f"DlCrud@{ts}", f"DL CRUD {ts}",
         )
-        return c
+        yield c
+        try:
+            admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+            admin.admin_batch_delete_tenants([t["id"]])
+        except Exception:
+            pass
 
     @pytest.fixture(scope="class")
     def submitted_job(self, client):
@@ -174,20 +179,30 @@ class TestDatalakeTenantIsolation:
     @pytest.fixture(scope="class")
     def tenant_a(self):
         ts = int(time.time())
-        c, _ = _create_tenant_with_invite(
+        c, t = _create_tenant_with_invite(
             ENDPOINT, ADMIN_TOKEN,
             f"e2e-dl-ta-{ts}", f"DlTa@{ts}", f"DL-A {ts}",
         )
-        return c
+        yield c
+        try:
+            admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+            admin.admin_batch_delete_tenants([t["id"]])
+        except Exception:
+            pass
 
     @pytest.fixture(scope="class")
     def tenant_b(self):
         ts = int(time.time())
-        c, _ = _create_tenant_with_invite(
+        c, t = _create_tenant_with_invite(
             ENDPOINT, ADMIN_TOKEN,
             f"e2e-dl-tb-{ts}", f"DlTb@{ts}", f"DL-B {ts}",
         )
-        return c
+        yield c
+        try:
+            admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+            admin.admin_batch_delete_tenants([t["id"]])
+        except Exception:
+            pass
 
     @pytest.fixture(scope="class")
     def jobs(self, tenant_a, tenant_b):
@@ -259,11 +274,16 @@ class TestDatalakeAuthAndValidation:
     @pytest.fixture(scope="class")
     def client(self):
         ts = int(time.time())
-        c, _ = _create_tenant_with_invite(
+        c, t = _create_tenant_with_invite(
             ENDPOINT, ADMIN_TOKEN,
             f"e2e-dl-val-{ts}", f"DlVal@{ts}", f"DL VAL {ts}",
         )
-        return c
+        yield c
+        try:
+            admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+            admin.admin_batch_delete_tenants([t["id"]])
+        except Exception:
+            pass
 
     # ── DL-E2E-020: No auth → 401 ─────────────────────────────────────────────
 
@@ -325,11 +345,16 @@ class TestDatalakeJobCompletion:
     @pytest.fixture(scope="class")
     def client(self):
         ts = int(time.time())
-        c, _ = _create_tenant_with_invite(
+        c, t = _create_tenant_with_invite(
             ENDPOINT, ADMIN_TOKEN,
             f"e2e-dl-comp-{ts}", f"DlComp@{ts}", f"DL COMP {ts}",
         )
-        return c
+        yield c
+        try:
+            admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+            admin.admin_batch_delete_tenants([t["id"]])
+        except Exception:
+            pass
 
     @pytest.fixture(scope="class")
     def completed_job(self, client):

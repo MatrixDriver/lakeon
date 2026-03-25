@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 560" font-family="'SF Pro Display','PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <filter id="shadow" x="-4%" y="-4%" width="108%" height="112%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.08"/>
+    </filter>
+    <linearGradient id="agentGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0fdf4"/>
+      <stop offset="100%" stop-color="#dcfce7"/>
+    </linearGradient>
+    <linearGradient id="nmGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#eff6ff"/>
+      <stop offset="100%" stop-color="#dbeafe"/>
+    </linearGradient>
+    <linearGradient id="dbGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f5f3ff"/>
+      <stop offset="100%" stop-color="#ede9fe"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Title -->
+  <text x="400" y="32" text-anchor="middle" font-size="18" font-weight="600" fill="#1e293b">双产品架构</text>
+
+  <!-- Agent Layer -->
+  <rect x="60" y="50" width="680" height="90" rx="12" fill="url(#agentGrad)" stroke="#86efac" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="100" y="78" font-size="13" font-weight="600" fill="#166534">Agent 层（我们服务的对象）</text>
+  <!-- Agent icons -->
+  <rect x="100" y="90" width="90" height="28" rx="6" fill="#22c55e" opacity="0.15"/>
+  <text x="145" y="109" text-anchor="middle" font-size="11" font-weight="500" fill="#166534">OpenClaw</text>
+  <rect x="200" y="90" width="90" height="28" rx="6" fill="#22c55e" opacity="0.15"/>
+  <text x="245" y="109" text-anchor="middle" font-size="11" font-weight="500" fill="#166534">Claude Code</text>
+  <rect x="300" y="90" width="70" height="28" rx="6" fill="#22c55e" opacity="0.15"/>
+  <text x="335" y="109" text-anchor="middle" font-size="11" font-weight="500" fill="#166534">Cursor</text>
+  <rect x="380" y="90" width="70" height="28" rx="6" fill="#22c55e" opacity="0.15"/>
+  <text x="415" y="109" text-anchor="middle" font-size="11" font-weight="500" fill="#166534">Gemini</text>
+  <rect x="460" y="90" width="80" height="28" rx="6" fill="#22c55e" opacity="0.15"/>
+  <text x="500" y="109" text-anchor="middle" font-size="11" font-weight="500" fill="#166534">LangChain</text>
+  <rect x="550" y="90" width="80" height="28" rx="6" fill="#22c55e" opacity="0.15"/>
+  <text x="590" y="109" text-anchor="middle" font-size="11" font-weight="500" fill="#166534">任意 Agent</text>
+
+  <!-- Protocol bar -->
+  <rect x="200" y="148" width="400" height="28" rx="14" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="400" y="167" text-anchor="middle" font-size="12" font-weight="500" fill="#64748b">MCP  ·  Function Calling  ·  REST API</text>
+  <!-- Arrows -->
+  <line x1="400" y1="140" x2="400" y2="148" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+  <line x1="400" y1="176" x2="400" y2="190" stroke="#94a3b8" stroke-width="1.5"/>
+
+  <!-- ZhiXing Layer -->
+  <rect x="60" y="190" width="680" height="160" rx="12" fill="url(#nmGrad)" stroke="#93c5fd" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="100" y="218" font-size="14" font-weight="700" fill="#1e40af">ZhiXing</text>
+  <text x="220" y="218" font-size="12" fill="#3b82f6">Agent 的知识与记忆智能层</text>
+
+  <!-- API boxes -->
+  <rect x="90" y="232" width="130" height="44" rx="8" fill="white" stroke="#93c5fd" stroke-width="1"/>
+  <text x="155" y="252" text-anchor="middle" font-size="12" font-weight="600" fill="#1e40af">recall()</text>
+  <text x="155" y="268" text-anchor="middle" font-size="10" fill="#64748b">记忆检索</text>
+
+  <rect x="230" y="232" width="130" height="44" rx="8" fill="white" stroke="#93c5fd" stroke-width="1"/>
+  <text x="295" y="252" text-anchor="middle" font-size="12" font-weight="600" fill="#1e40af">search()</text>
+  <text x="295" y="268" text-anchor="middle" font-size="10" fill="#64748b">知识检索</text>
+
+  <rect x="370" y="232" width="130" height="44" rx="8" fill="white" stroke="#93c5fd" stroke-width="1"/>
+  <text x="435" y="252" text-anchor="middle" font-size="12" font-weight="600" fill="#1e40af">profile()</text>
+  <text x="435" y="268" text-anchor="middle" font-size="10" fill="#64748b">用户画像</text>
+
+  <rect x="510" y="232" width="130" height="44" rx="8" fill="white" stroke="#93c5fd" stroke-width="1"/>
+  <text x="575" y="252" text-anchor="middle" font-size="12" font-weight="600" fill="#1e40af">ingest()</text>
+  <text x="575" y="268" text-anchor="middle" font-size="10" fill="#64748b">记忆提取</text>
+
+  <rect x="90" y="286" width="130" height="44" rx="8" fill="white" stroke="#93c5fd" stroke-width="1"/>
+  <text x="155" y="306" text-anchor="middle" font-size="12" font-weight="600" fill="#1e40af">digest()</text>
+  <text x="155" y="322" text-anchor="middle" font-size="10" fill="#64748b">Trait 反思</text>
+
+  <rect x="230" y="286" width="130" height="44" rx="8" fill="white" stroke="#93c5fd" stroke-width="1"/>
+  <text x="295" y="306" text-anchor="middle" font-size="12" font-weight="600" fill="#1e40af">feedback()</text>
+  <text x="295" y="322" text-anchor="middle" font-size="10" fill="#64748b">MemRL 飞轮</text>
+
+  <rect x="370" y="286" width="130" height="44" rx="8" fill="white" stroke="#93c5fd" stroke-width="1"/>
+  <text x="435" y="306" text-anchor="middle" font-size="12" font-weight="600" fill="#1e40af">export()</text>
+  <text x="435" y="322" text-anchor="middle" font-size="10" fill="#64748b">训练数据导出</text>
+
+  <!-- SDK + Cloud labels -->
+  <rect x="548" y="292" width="82" height="22" rx="4" fill="#3b82f6"/>
+  <text x="589" y="307" text-anchor="middle" font-size="10" font-weight="600" fill="white">SDK + Cloud</text>
+  <text x="589" y="340" text-anchor="middle" font-size="10" fill="#64748b">可运行在任意 PG</text>
+
+  <!-- PG Protocol bar -->
+  <line x1="400" y1="350" x2="400" y2="372" stroke="#94a3b8" stroke-width="1.5"/>
+  <rect x="250" y="358" width="300" height="28" rx="14" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="400" y="377" text-anchor="middle" font-size="12" font-weight="500" fill="#64748b">PostgreSQL 协议</text>
+
+  <!-- dbay.cloud Layer -->
+  <rect x="60" y="398" width="680" height="140" rx="12" fill="url(#dbGrad)" stroke="#c4b5fd" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="100" y="426" font-size="14" font-weight="700" fill="#5b21b6">dbay.cloud</text>
+  <text x="220" y="426" font-size="12" fill="#7c3aed">Serverless Agent 数据平台 · PG + OBS + Lance + Ray</text>
+
+  <!-- Feature boxes -->
+  <rect x="90" y="440" width="175" height="44" rx="8" fill="white" stroke="#c4b5fd" stroke-width="1"/>
+  <text x="177" y="460" text-anchor="middle" font-size="12" font-weight="600" fill="#5b21b6">Serverless PG 17</text>
+  <text x="177" y="476" text-anchor="middle" font-size="10" fill="#64748b">pgvector · pg_search · scale-to-zero</text>
+
+  <rect x="275" y="440" width="175" height="44" rx="8" fill="white" stroke="#c4b5fd" stroke-width="1"/>
+  <text x="362" y="460" text-anchor="middle" font-size="12" font-weight="600" fill="#5b21b6">分支 / 回滚</text>
+  <text x="362" y="476" text-anchor="middle" font-size="10" fill="#64748b">Git 式 CoW · 检查点 · 时间旅行</text>
+
+  <rect x="460" y="440" width="175" height="44" rx="8" fill="white" stroke="#c4b5fd" stroke-width="1"/>
+  <text x="547" y="460" text-anchor="middle" font-size="12" font-weight="600" fill="#5b21b6">Ray 计算集群</text>
+  <text x="547" y="476" text-anchor="middle" font-size="10" fill="#64748b">数据飞轮训练 · 规划中</text>
+
+  <!-- Bottom note -->
+  <text x="400" y="525" text-anchor="middle" font-size="11" fill="#94a3b8">两个独立产品，各自直接产生价值</text>
+  <text x="400" y="545" text-anchor="middle" font-size="11" fill="#94a3b8">"需要记忆" → ZhiXing    "需要数据库" → dbay.cloud</text>
+</svg>

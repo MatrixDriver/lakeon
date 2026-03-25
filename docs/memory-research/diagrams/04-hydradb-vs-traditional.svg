@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 340" font-family="'SF Pro Display','PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <filter id="sh5" x="-2%" y="-4%" width="104%" height="112%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.06"/>
+    </filter>
+  </defs>
+
+  <text x="410" y="28" text-anchor="middle" font-size="17" font-weight="600" fill="#1e293b">传统向量数据库 vs HydraDB</text>
+
+  <!-- Traditional -->
+  <rect x="30" y="50" width="370" height="270" rx="12" fill="white" stroke="#fca5a5" stroke-width="1.5" filter="url(#sh5)"/>
+  <rect x="30" y="50" width="370" height="36" rx="12" fill="#fef2f2"/>
+  <text x="215" y="74" text-anchor="middle" font-size="14" font-weight="700" fill="#991b1b">传统向量数据库</text>
+
+  <text x="55" y="106" font-size="11" fill="#64748b">对话 → 切片 → 向量化 → 扁平索引</text>
+
+  <!-- Flat chunks -->
+  <rect x="55" y="120" width="325" height="70" rx="8" fill="#fef2f2" stroke="#fecaca" stroke-width="1"/>
+  <rect x="65" y="132" width="60" height="24" rx="4" fill="#fee2e2" stroke="#fca5a5" stroke-width="1"/>
+  <text x="95" y="149" text-anchor="middle" font-size="9" fill="#991b1b">chunk1</text>
+  <rect x="135" y="132" width="60" height="24" rx="4" fill="#fee2e2" stroke="#fca5a5" stroke-width="1"/>
+  <text x="165" y="149" text-anchor="middle" font-size="9" fill="#991b1b">chunk2</text>
+  <rect x="205" y="132" width="60" height="24" rx="4" fill="#fee2e2" stroke="#fca5a5" stroke-width="1"/>
+  <text x="235" y="149" text-anchor="middle" font-size="9" fill="#991b1b">chunk3</text>
+  <rect x="275" y="132" width="30" height="24" rx="4" fill="#fee2e2" stroke="#fca5a5" stroke-width="1"/>
+  <text x="290" y="149" text-anchor="middle" font-size="9" fill="#991b1b">...</text>
+  <rect x="315" y="132" width="55" height="24" rx="4" fill="#fee2e2" stroke="#fca5a5" stroke-width="1"/>
+  <text x="342" y="149" text-anchor="middle" font-size="9" fill="#991b1b">chunkN</text>
+  <text x="215" y="178" text-anchor="middle" font-size="10" fill="#991b1b">扁平的 "embedding soup"</text>
+
+  <!-- Problems -->
+  <text x="55" y="210" font-size="11" fill="#ef4444">&#x2717; 所有 chunk 平等，无关系</text>
+  <text x="55" y="230" font-size="11" fill="#ef4444">&#x2717; 无时间线，不知道先后</text>
+  <text x="55" y="250" font-size="11" fill="#ef4444">&#x2717; 无决策理由</text>
+  <text x="55" y="270" font-size="11" fill="#ef4444">&#x2717; 更新 = 覆盖旧数据</text>
+  <rect x="55" y="282" width="150" height="22" rx="4" fill="#fee2e2"/>
+  <text x="130" y="297" text-anchor="middle" font-size="10" font-weight="600" fill="#991b1b">余弦相似度检索</text>
+
+  <!-- HydraDB -->
+  <rect x="420" y="50" width="370" height="270" rx="12" fill="white" stroke="#86efac" stroke-width="1.5" filter="url(#sh5)"/>
+  <rect x="420" y="50" width="370" height="36" rx="12" fill="#f0fdf4"/>
+  <text x="605" y="74" text-anchor="middle" font-size="14" font-weight="700" fill="#166534">HydraDB 时序图</text>
+
+  <text x="445" y="106" font-size="11" fill="#64748b">对话 → 滑动窗口推理 → 实体/关系 → 时序图</text>
+
+  <!-- Graph structure -->
+  <rect x="445" y="120" width="325" height="120" rx="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1"/>
+
+  <!-- Alice node -->
+  <circle cx="490" cy="160" r="22" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="490" y="164" text-anchor="middle" font-size="10" font-weight="600" fill="#166534">Alice</text>
+
+  <!-- Google node -->
+  <rect x="560" y="138" width="60" height="20" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1"/>
+  <text x="590" y="153" text-anchor="middle" font-size="9" fill="#1e40af">Google</text>
+
+  <!-- Meta node -->
+  <rect x="560" y="170" width="50" height="20" rx="4" fill="#e0e7ff" stroke="#6366f1" stroke-width="1"/>
+  <text x="585" y="185" text-anchor="middle" font-size="9" fill="#4338ca">Meta</text>
+
+  <!-- Python node -->
+  <rect x="660" y="138" width="55" height="20" rx="4" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
+  <text x="687" y="153" text-anchor="middle" font-size="9" fill="#92400e">Python</text>
+
+  <!-- Edges -->
+  <line x1="512" y1="152" x2="558" y2="148" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="534" y="142" font-size="7" fill="#166534">WORKS_AT</text>
+  <text x="534" y="152" font-size="7" fill="#94a3b8">2024-2025</text>
+
+  <line x1="512" y1="168" x2="558" y2="178" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="534" y="181" font-size="7" fill="#4338ca">WORKS_AT</text>
+  <text x="534" y="191" font-size="7" fill="#94a3b8">2025-now</text>
+
+  <line x1="620" y1="148" x2="658" y2="148" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="640" y="142" font-size="7" fill="#92400e">PREFERS</text>
+
+  <text x="460" y="226" font-size="9" fill="#166534">有类型的图 · 每条边有时间线 · 保留决策理由</text>
+
+  <!-- Advantages -->
+  <text x="445" y="258" font-size="11" fill="#22c55e">&#x2713; 实体+关系，有结构</text>
+  <text x="445" y="278" font-size="11" fill="#22c55e">&#x2713; 时间线追踪，知道先后</text>
+  <text x="445" y="298" font-size="11" fill="#22c55e">&#x2713; append-only，不丢旧数据</text>
+  <rect x="625" y="282" width="150" height="22" rx="4" fill="#dcfce7"/>
+  <text x="700" y="297" text-anchor="middle" font-size="10" font-weight="600" fill="#166534">时序推理 90.97%</text>
+</svg>

@@ -131,11 +131,16 @@ class TestDatasetTenantIsolation:
     @pytest.fixture(scope="class")
     def two_tenants(self, e2e_client):
         ts = int(time.time())
-        client2, _ = _create_tenant_with_invite(
+        client2, t2 = _create_tenant_with_invite(
             ENDPOINT, ADMIN_TOKEN,
             f"e2e-dsiso-{ts}", f"DsIso@{ts}", f"DS Iso {ts}",
         )
-        return {"client1": e2e_client, "client2": client2}
+        yield {"client1": e2e_client, "client2": client2}
+        try:
+            admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+            admin.admin_batch_delete_tenants([t2["id"]])
+        except Exception:
+            pass
 
     def test_cross_tenant_get_dataset_404(self, two_tenants, e2e_client):
         """Tenant 2 should not see tenant 1's datasets."""

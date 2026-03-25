@@ -1,0 +1,127 @@
+<h2>集成 / 博客 / 文档 页面布局</h2>
+<p class="subtitle">三个页面的内容结构确认</p>
+
+<div class="section">
+  <h3>/integrations — 集成页</h3>
+  <div class="mockup">
+    <div class="mockup-header">/integrations</div>
+    <div class="mockup-body" style="padding:16px;font-family:system-ui,sans-serif;font-size:12px;">
+      <div style="text-align:center;margin-bottom:16px;">
+        <div style="font-size:16px;font-weight:700;color:#fff;">连接你的 AI 工具</div>
+        <div style="color:#666;font-size:11px;margin-top:4px;">通过 MCP 协议，让任何 AI 应用接入 DBay 的记忆、知识和数据能力</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+        <div style="background:#111;border:1px solid #7c3aed;border-radius:6px;padding:10px;position:relative;">
+          <div style="position:absolute;top:6px;right:6px;font-size:9px;background:#7c3aed22;color:#a78bfa;padding:1px 5px;border-radius:3px;">精选</div>
+          <div style="font-weight:600;color:#e5e5e5;margin-bottom:3px;">Claude Code</div>
+          <div style="font-size:10px;color:#888;">通过 MCP 接入记忆库与知识库</div>
+        </div>
+        <div style="background:#111;border:1px solid #333;border-radius:6px;padding:10px;">
+          <div style="font-weight:600;color:#e5e5e5;margin-bottom:3px;">Claude Desktop</div>
+          <div style="font-size:10px;color:#888;">桌面客户端记忆持久化</div>
+        </div>
+        <div style="background:#111;border:1px solid #333;border-radius:6px;padding:10px;">
+          <div style="font-weight:600;color:#e5e5e5;margin-bottom:3px;">Cursor</div>
+          <div style="font-size:10px;color:#888;">代码库知识库检索</div>
+        </div>
+        <div style="background:#111;border:1px solid #333;border-radius:6px;padding:10px;">
+          <div style="font-weight:600;color:#e5e5e5;margin-bottom:3px;">Gemini CLI</div>
+          <div style="font-size:10px;color:#888;">命令行 AI 长期记忆</div>
+        </div>
+        <div style="background:#111;border:1px solid #333;border-radius:6px;padding:10px;">
+          <div style="font-weight:600;color:#e5e5e5;margin-bottom:3px;">ChatGPT</div>
+          <div style="font-size:10px;color:#888;">跨会话用户记忆同步</div>
+        </div>
+        <div style="background:#111;border:1px dashed #333;border-radius:6px;padding:10px;display:flex;align-items:center;justify-content:center;">
+          <div style="color:#555;font-size:10px;">+ 更多即将支持</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;background:#0a0a14;border:1px solid #2a2a3a;border-radius:6px;padding:10px;">
+        <div style="font-size:10px;color:#888;margin-bottom:4px;">通过 MCP 接入示例（claude_desktop_config.json）</div>
+        <div style="font-family:monospace;font-size:10px;color:#60a5fa;">"dbay-memory": {"command": "uvx", "args": ["dbay-mcp"]}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>/blog — 博客列表页</h3>
+  <div class="mockup">
+    <div class="mockup-header">/blog（10 篇文章，从 neuromem 迁移并改品牌）</div>
+    <div class="mockup-body" style="padding:16px;font-family:system-ui,sans-serif;font-size:12px;">
+      <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:12px;">博客</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="background:#111;border:1px solid #333;border-radius:6px;padding:10px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:600;color:#e5e5e5;font-size:12px;">记忆架构：事实、事件、特征与文档</div>
+            <div style="font-size:10px;color:#666;margin-top:2px;">2026-03 · 产品</div>
+          </div>
+          <div style="color:#444;">→</div>
+        </div>
+        <div style="background:#111;border:1px solid #333;border-radius:6px;padding:10px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:600;color:#e5e5e5;font-size:12px;">特征生命周期：从趋势到核心的 6 个阶段</div>
+            <div style="font-size:10px;color:#666;margin-top:2px;">2026-03 · 技术</div>
+          </div>
+          <div style="color:#444;">→</div>
+        </div>
+        <div style="background:#111;border:1px solid #333;border-radius:6px;padding:10px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:600;color:#e5e5e5;font-size:12px;">平台更新：记忆库正式合入 DBay</div>
+            <div style="font-size:10px;color:#666;margin-top:2px;">2026-03 · 公告</div>
+          </div>
+          <div style="color:#444;">→</div>
+        </div>
+        <div style="color:#555;font-size:10px;text-align:center;padding:4px;">⋯ 共 10 篇（存储在 data/blog-posts.ts，静态内容）⋯</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>/docs — 文档页（侧边栏导航）</h3>
+  <div class="mockup">
+    <div class="mockup-header">/docs — 左侧导航 + 右侧内容</div>
+    <div class="mockup-body" style="padding:0;font-family:system-ui,sans-serif;font-size:12px;display:flex;min-height:140px;">
+      <div style="width:140px;background:#0a0a0a;border-right:1px solid #222;padding:12px;flex-shrink:0;">
+        <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">文档</div>
+        <div style="color:#a78bfa;padding:4px 8px;background:#1a1a2e;border-radius:4px;margin-bottom:4px;font-size:11px;">快速开始</div>
+        <div style="color:#888;padding:4px 8px;margin-bottom:4px;font-size:11px;">REST API</div>
+        <div style="color:#888;padding:4px 8px;margin-bottom:4px;font-size:11px;">Python SDK</div>
+        <div style="color:#888;padding:4px 8px;margin-bottom:4px;font-size:11px;">部署指南</div>
+        <div style="color:#888;padding:4px 8px;margin-bottom:4px;font-size:11px;">MCP 接入</div>
+      </div>
+      <div style="flex:1;padding:12px;">
+        <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:8px;">快速开始</div>
+        <div style="color:#888;font-size:11px;margin-bottom:8px;">3 步接入 DBay 记忆库与知识库</div>
+        <div style="background:#0a0a14;border:1px solid #2a2a3a;border-radius:4px;padding:8px;font-family:monospace;font-size:10px;color:#60a5fa;">
+          pip install dbay-sdk<br/>
+          <span style="color:#888;"># 初始化客户端</span><br/>
+          from dbay import DBayClient<br/>
+          client = DBayClient(api_key="...")
+        </div>
+        <div style="color:#555;font-size:10px;margin-top:8px;">⋯ REST API 和 Python SDK 内容从 neuromem docs 迁移，改品牌名 ⋯</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>全部页面确认</h3>
+  <div class="options">
+    <div class="option" data-choice="approve-all" onclick="toggleSelect(this)">
+      <div class="letter">✓</div>
+      <div class="content">
+        <h3>全部 OK，写设计文档</h3>
+        <p>整体方案确认，进入写 spec → 实现计划阶段</p>
+      </div>
+    </div>
+    <div class="option" data-choice="adjust" onclick="toggleSelect(this)">
+      <div class="letter">✎</div>
+      <div class="content">
+        <h3>某些页面需要调整</h3>
+        <p>在终端告诉我哪里需要改</p>
+      </div>
+    </div>
+  </div>
+</div>

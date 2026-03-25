@@ -35,6 +35,21 @@ public class MemoryDbHelper {
     }
 
     /**
+     * Try to sync PROVISIONING -> READY if backing database is ACTIVE.
+     * Called from getBase() so polling clients see the status change.
+     */
+    public void trySyncStatus(MemoryBaseEntity mem) {
+        if (!"PROVISIONING".equals(mem.getStatus()) || mem.getDatabaseId() == null) return;
+        databaseRepository.findById(mem.getDatabaseId()).ifPresent(db -> {
+            if ("RUNNING".equals(db.getStatus().name())) {
+                mem.setStatus("READY");
+                memoryBaseRepository.save(mem);
+                log.info("Memory base {} status synced to READY (db={})", mem.getId(), mem.getDatabaseId());
+            }
+        });
+    }
+
+    /**
      * Resolve memory base -> databaseId -> compute pod -> connection string.
      */
     public String resolveConnstr(String tenantId, String memId) {
@@ -44,7 +59,7 @@ public class MemoryDbHelper {
             if (mem.getDatabaseId() != null) {
                 DatabaseEntity db = databaseRepository.findByIdAndTenantId(mem.getDatabaseId(), tenantId)
                         .orElse(null);
-                if (db != null && "ACTIVE".equals(db.getStatus().name())) {
+                if (db != null && "RUNNING".equals(db.getStatus().name())) {
                     mem.setStatus("READY");
                     memoryBaseRepository.save(mem);
                     log.info("Memory base {} status synced to READY (db={})", memId, mem.getDatabaseId());

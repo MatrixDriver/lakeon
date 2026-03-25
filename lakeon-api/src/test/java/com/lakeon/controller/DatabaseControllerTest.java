@@ -92,7 +92,7 @@ class DatabaseControllerTest {
                                       "storage_limit_gb": 10
                                     }
                                     """))
-                    .andExpect(status().isCreated())
+                    .andExpect(status().isAccepted())
                     .andExpect(jsonPath("$.id").value("db_abc123"))
                     .andExpect(jsonPath("$.name").value("my-app-db"))
                     .andExpect(jsonPath("$.status").value("CREATING"))

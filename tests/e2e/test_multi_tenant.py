@@ -42,6 +42,11 @@ class TestMultiTenant:
             client.delete_database(db["id"])
         except Exception:
             pass
+        try:
+            admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+            admin.admin_batch_delete_tenants([t["id"]])
+        except Exception:
+            pass
 
     @pytest.fixture(scope="class")
     def tenant_b(self):
@@ -51,6 +56,11 @@ class TestMultiTenant:
             ENDPOINT, ADMIN_TOKEN, f"e2e-mt-b-{ts}", f"MtTestB@{ts}", f"MT-B {ts}"
         )
         yield {"client": client, "tenant": t}
+        try:
+            admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+            admin.admin_batch_delete_tenants([t["id"]])
+        except Exception:
+            pass
 
     # -----------------------------------------------------------------------
     # Isolation tests

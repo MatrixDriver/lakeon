@@ -364,6 +364,11 @@ public class DatabaseService {
             return; // Already suspended
         }
 
+        // Flush WAL before suspending to prevent data loss on cold resume
+        if (entity.getComputePodName() != null && computePodManager.isPodReady(entity.getComputePodName())) {
+            computePodManager.executeCheckpoint(entity.getComputePodName());
+        }
+
         OperationLogEntity opLog = operationLogService.startOperation(
                 entity.getId(), entity.getTenantId(), entity.getName(), OperationType.SUSPEND);
         try {
@@ -680,10 +685,12 @@ public class DatabaseService {
     private static final List<String> DEFAULT_EXTENSIONS = List.of("vector");
 
     void enableDefaultExtensions(DatabaseEntity entity) {
+        // Connect directly to compute pod (not proxy) — no options=endpoint needed
         String host = entity.getComputeHost() != null ? entity.getComputeHost() : "proxy.lakeon.svc.cluster.local";
         int port = entity.getComputePort() != 0 ? entity.getComputePort() : 55433;
+        boolean directPod = entity.getComputeHost() != null;
         String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + entity.getName()
-                + "?options=endpoint%3D" + entity.getName();
+                + (directPod ? "" : "?options=endpoint%3D" + entity.getName());
         for (int attempt = 0; attempt < 5; attempt++) {
             try (java.sql.Connection conn = java.sql.DriverManager.getConnection(jdbcUrl, "cloud_admin", "cloud-admin-internal");
                  java.sql.Statement st = conn.createStatement()) {

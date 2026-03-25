@@ -48,6 +48,9 @@ class VersionServiceTest {
     @Mock
     private NeonApiClient neonApiClient;
 
+    @Mock
+    private com.lakeon.k8s.ComputePodManager computePodManager;
+
     @InjectMocks
     private VersionService versionService;
 

@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 340" font-family="'SF Pro Display','PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <linearGradient id="specGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#86efac"/>
+      <stop offset="33%" stop-color="#93c5fd"/>
+      <stop offset="66%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#c084fc"/>
+    </linearGradient>
+    <filter id="sh0" x="-2%" y="-4%" width="104%" height="112%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.06"/>
+    </filter>
+  </defs>
+
+  <text x="430" y="28" text-anchor="middle" font-size="17" font-weight="600" fill="#1e293b">Agent 记忆需求光谱</text>
+
+  <!-- Gradient bar -->
+  <rect x="60" y="44" width="740" height="8" rx="4" fill="url(#specGrad)"/>
+  <text x="60" y="68" font-size="11" font-weight="500" fill="#22c55e">简单</text>
+  <text x="800" y="68" text-anchor="end" font-size="11" font-weight="500" fill="#a855f7">复杂</text>
+
+  <!-- Card 1: Claude Code -->
+  <rect x="40" y="82" width="180" height="130" rx="10" fill="white" stroke="#86efac" stroke-width="2" filter="url(#sh0)"/>
+  <rect x="40" y="82" width="180" height="32" rx="10" fill="#f0fdf4"/>
+  <text x="130" y="103" text-anchor="middle" font-size="13" font-weight="700" fill="#166534">Claude Code</text>
+  <text x="60" y="132" font-size="11" fill="#475569">Markdown 全量加载</text>
+  <text x="60" y="150" font-size="11" fill="#475569">无检索</text>
+  <text x="60" y="168" font-size="11" fill="#475569">几千 token</text>
+  <rect x="55" y="180" width="150" height="20" rx="4" fill="#f0fdf4"/>
+  <text x="130" y="194" text-anchor="middle" font-size="10" fill="#166534">编码助手 · 项目规范</text>
+
+  <!-- Card 2: OpenClaw -->
+  <rect x="240" y="82" width="180" height="130" rx="10" fill="white" stroke="#93c5fd" stroke-width="2" filter="url(#sh0)"/>
+  <rect x="240" y="82" width="180" height="32" rx="10" fill="#eff6ff"/>
+  <text x="330" y="103" text-anchor="middle" font-size="13" font-weight="700" fill="#1e40af">OpenClaw 原生</text>
+  <text x="260" y="132" font-size="11" fill="#475569">Markdown + SQLite</text>
+  <text x="260" y="150" font-size="11" fill="#475569">BM25 + Vec + 时间衰减</text>
+  <text x="260" y="168" font-size="11" fill="#475569">几万 token</text>
+  <rect x="255" y="180" width="150" height="20" rx="4" fill="#eff6ff"/>
+  <text x="330" y="194" text-anchor="middle" font-size="10" fill="#1e40af">轻度聊天 · 短期任务</text>
+
+  <!-- Card 3: ZhiXing -->
+  <rect x="440" y="82" width="180" height="130" rx="10" fill="white" stroke="#818cf8" stroke-width="2" filter="url(#sh0)"/>
+  <rect x="440" y="82" width="180" height="32" rx="10" fill="#eef2ff"/>
+  <text x="530" y="103" text-anchor="middle" font-size="13" font-weight="700" fill="#4338ca">ZhiXing</text>
+  <text x="460" y="132" font-size="11" fill="#475569">PG + 向量 + 图谱</text>
+  <text x="460" y="150" font-size="11" fill="#475569">9 步反思 + Trait</text>
+  <text x="460" y="168" font-size="11" fill="#475569">几十万 token</text>
+  <rect x="455" y="180" width="150" height="20" rx="4" fill="#eef2ff"/>
+  <text x="530" y="194" text-anchor="middle" font-size="10" fill="#4338ca">个人助理 · 长期陪伴</text>
+
+  <!-- Card 4: HydraDB -->
+  <rect x="640" y="82" width="180" height="130" rx="10" fill="white" stroke="#c084fc" stroke-width="2" filter="url(#sh0)"/>
+  <rect x="640" y="82" width="180" height="32" rx="10" fill="#faf5ff"/>
+  <text x="730" y="103" text-anchor="middle" font-size="13" font-weight="700" fill="#7e22ce">HydraDB</text>
+  <text x="660" y="132" font-size="11" fill="#475569">时序图 + 版本链</text>
+  <text x="660" y="150" font-size="11" fill="#475569">决策链 + 滑动窗口</text>
+  <text x="660" y="168" font-size="11" fill="#475569">百万+ token</text>
+  <rect x="655" y="180" width="150" height="20" rx="4" fill="#faf5ff"/>
+  <text x="730" y="194" text-anchor="middle" font-size="10" fill="#7e22ce">业务 Agent · 时序推理</text>
+
+  <!-- ZhiXing positioning -->
+  <rect x="100" y="232" width="660" height="90" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="130" y="256" font-size="12" font-weight="600" fill="#1e293b">ZhiXing 定位</text>
+  <circle cx="128" cy="276" r="4" fill="#818cf8"/>
+  <text x="140" y="280" font-size="11" fill="#475569">当前能力：个人助理场景（知识+记忆+Trait 反思）</text>
+  <circle cx="128" cy="296" r="4" fill="#c084fc"/>
+  <text x="140" y="300" font-size="11" fill="#475569">借鉴 HydraDB 时序图 + chunk 增强 → 支持业务 Agent</text>
+  <circle cx="128" cy="316" r="4" fill="#94a3b8"/>
+  <text x="140" y="320" font-size="11" fill="#94a3b8">编码助手增量有限（仅跨项目画像同步）</text>
+</svg>

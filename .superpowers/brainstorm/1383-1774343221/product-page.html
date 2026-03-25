@@ -1,0 +1,146 @@
+<h2>/product 页面内容布局</h2>
+<p class="subtitle">四模块完整介绍 + 记忆库专题区域（从 neuromem-cloud 融入）</p>
+
+<div class="section">
+  <h3>页面结构（从上到下）</h3>
+  <div style="border:1px solid #222;border-radius:8px;overflow:hidden;font-family:system-ui,sans-serif;font-size:13px;max-width:700px;">
+    <!-- Nav placeholder -->
+    <div style="background:#0a0a0a;padding:10px 20px;border-bottom:1px solid #222;color:#555;font-size:11px;">▲ 公共导航栏 (PublicLayout)</div>
+
+    <!-- Hero -->
+    <div style="background:#0d0d0d;padding:20px;text-align:center;border-bottom:1px solid #1a1a1a;">
+      <div style="font-size:22px;font-weight:700;color:#fff;margin-bottom:6px;">DBay 四大产品模块</div>
+      <div style="color:#666;font-size:12px;">以 Lakebase 为底座，覆盖知识库、记忆库、AI 数据湖全场景</div>
+    </div>
+
+    <!-- Section 1: 4 module cards -->
+    <div style="padding:20px;border-bottom:1px solid #1a1a1a;background:#0a0a0a;">
+      <div style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">四大模块</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+        <div style="background:#0052a322;border:1px solid #0052a3;border-radius:6px;padding:12px;">
+          <div>🐘</div><div style="font-weight:600;color:#fff;font-size:12px;margin:4px 0;">Lakebase</div>
+          <div style="color:#666;font-size:10px;">Serverless PG</div>
+        </div>
+        <div style="background:#5b21b622;border:1px solid #5b21b6;border-radius:6px;padding:12px;">
+          <div>📚</div><div style="font-weight:600;color:#fff;font-size:12px;margin:4px 0;">知识库</div>
+          <div style="color:#666;font-size:10px;">向量+全文检索</div>
+        </div>
+        <div style="background:#1a1a2e;border:1px solid #a78bfa;border-radius:6px;padding:12px;position:relative;">
+          <div style="position:absolute;top:4px;right:4px;font-size:9px;background:#7c3aed;color:#fff;padding:1px 4px;border-radius:3px;">New</div>
+          <div>🧠</div><div style="font-weight:600;color:#a78bfa;font-size:12px;margin:4px 0;">记忆库</div>
+          <div style="color:#666;font-size:10px;">Agent 长期记忆</div>
+        </div>
+        <div style="background:#0e749022;border:1px solid #0e7490;border-radius:6px;padding:12px;">
+          <div>🌊</div><div style="font-weight:600;color:#fff;font-size:12px;margin:4px 0;">AI 数据湖</div>
+          <div style="color:#666;font-size:10px;">Python·Ray·微调</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: 记忆库 专题（核心新增） -->
+    <div style="padding:20px;border-bottom:1px solid #1a1a1a;background:#0d0d18;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <span style="font-size:14px;font-weight:700;color:#a78bfa;">🧠 记忆库</span>
+        <span style="font-size:9px;background:#7c3aed;color:#fff;padding:2px 6px;border-radius:4px;">New</span>
+      </div>
+      <div style="color:#666;font-size:11px;margin-bottom:14px;">为 AI Agent 提供结构化长期记忆，越用越懂你</div>
+
+      <!-- 三个核心 API -->
+      <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">三个核心操作</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">
+        <div style="background:#0a0a14;border:1px solid #2a2a3a;border-radius:6px;padding:10px;">
+          <div style="font-family:monospace;font-size:12px;color:#60a5fa;margin-bottom:4px;">ingest</div>
+          <div style="font-size:10px;color:#888;">将对话和事实存入长期记忆，自动提取实体、偏好和事件</div>
+        </div>
+        <div style="background:#0a0a14;border:1px solid #2a2a3a;border-radius:6px;padding:10px;">
+          <div style="font-family:monospace;font-size:12px;color:#60a5fa;margin-bottom:4px;">recall</div>
+          <div style="font-size:10px;color:#888;">混合检索记忆，结合向量、BM25 和知识图谱</div>
+        </div>
+        <div style="background:#0a0a14;border:1px solid #2a2a3a;border-radius:6px;padding:10px;">
+          <div style="font-family:monospace;font-size:12px;color:#60a5fa;margin-bottom:4px;">digest</div>
+          <div style="font-size:10px;color:#888;">将记忆合成洞察，生成用户画像和行为模式</div>
+        </div>
+      </div>
+
+      <!-- 四种记忆类型 -->
+      <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">四种记忆类型</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:14px;">
+        <div style="background:#0a0a14;border:1px solid #2a2a3a;border-radius:6px;padding:10px;display:flex;gap:8px;align-items:flex-start;">
+          <span>📋</span>
+          <div><div style="font-size:11px;font-weight:600;color:#e5e5e5;">事实</div><div style="font-size:10px;color:#888;margin-top:2px;">离散可验证的客观信息，向量嵌入 + 知识图谱</div></div>
+        </div>
+        <div style="background:#0a0a14;border:1px solid #2a2a3a;border-radius:6px;padding:10px;display:flex;gap:8px;align-items:flex-start;">
+          <span>🕐</span>
+          <div><div style="font-size:11px;font-weight:600;color:#e5e5e5;">事件</div><div style="font-size:10px;color:#888;margin-top:2px;">时间绑定的体验，含情绪元数据（效价/唤醒度）</div></div>
+        </div>
+        <div style="background:#0a0a14;border:1px solid #2a2a3a;border-radius:6px;padding:10px;display:flex;gap:8px;align-items:flex-start;">
+          <span>🧠</span>
+          <div><div style="font-size:11px;font-weight:600;color:#e5e5e5;">特征</div><div style="font-size:10px;color:#888;margin-top:2px;">多会话反思发现的行为模式，6 阶段生命周期</div></div>
+        </div>
+        <div style="background:#0a0a14;border:1px solid #2a2a3a;border-radius:6px;padding:10px;display:flex;gap:8px;align-items:flex-start;">
+          <span>📄</span>
+          <div><div style="font-size:11px;font-weight:600;color:#e5e5e5;">文档</div><div style="font-size:10px;color:#888;margin-top:2px;">上传的静态参考资料，RAG 风格检索</div></div>
+        </div>
+      </div>
+
+      <!-- 基准测试 -->
+      <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">LoCoMo 基准测试</div>
+      <div style="background:#0a0a14;border:1px solid #2a2a3a;border-radius:6px;padding:12px;display:flex;align-items:center;gap:20px;">
+        <div style="text-align:center;">
+          <div style="font-size:32px;font-weight:700;color:#fff;">81.7<span style="font-size:18px;color:#888;">%</span></div>
+          <div style="font-size:10px;color:#888;">综合得分</div>
+        </div>
+        <div style="flex:1;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-size:10px;color:#888;width:60px;">DBay 记忆库</span>
+            <div style="flex:1;background:#1a1a1a;border-radius:4px;height:10px;margin:0 8px;overflow:hidden;">
+              <div style="width:81.7%;height:100%;background:#a78bfa;border-radius:4px;"></div>
+            </div>
+            <span style="font-size:10px;color:#e5e5e5;width:32px;text-align:right;">81.7%</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-size:10px;color:#555;width:60px;">Framework A</span>
+            <div style="flex:1;background:#1a1a1a;border-radius:4px;height:10px;margin:0 8px;overflow:hidden;">
+              <div style="width:75.8%;height:100%;background:#444;border-radius:4px;"></div>
+            </div>
+            <span style="font-size:10px;color:#555;width:32px;text-align:right;">75.8%</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:10px;color:#555;width:60px;">Framework B</span>
+            <div style="flex:1;background:#1a1a1a;border-radius:4px;height:10px;margin:0 8px;overflow:hidden;">
+              <div style="width:68.4%;height:100%;background:#444;border-radius:4px;"></div>
+            </div>
+            <span style="font-size:10px;color:#555;width:32px;text-align:right;">68.4%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Other modules abbreviated -->
+    <div style="padding:16px;border-bottom:1px solid #1a1a1a;background:#0a0a0a;">
+      <div style="color:#555;font-size:11px;text-align:center;">⋯ Lakebase / 知识库 / AI 数据湖 各模块介绍（现有内容保留）⋯</div>
+    </div>
+
+    <div style="background:#0a0a0a;padding:10px 20px;border-top:1px solid #222;color:#555;font-size:11px;text-align:center;">▼ 页脚</div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>这个 /product 页面布局 OK 吗？</h3>
+  <div class="options">
+    <div class="option" data-choice="approve" onclick="toggleSelect(this)">
+      <div class="letter">✓</div>
+      <div class="content">
+        <h3>OK，继续展示集成 / 博客 / 文档页面</h3>
+        <p>下一步看其他三个页面的布局</p>
+      </div>
+    </div>
+    <div class="option" data-choice="adjust" onclick="toggleSelect(this)">
+      <div class="letter">✎</div>
+      <div class="content">
+        <h3>需要调整记忆库部分</h3>
+        <p>内容取舍或布局有问题</p>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 440" font-family="'SF Pro Display','PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <filter id="sh6" x="-2%" y="-4%" width="104%" height="112%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.06"/>
+    </filter>
+    <marker id="ar6b" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#3b82f6"/>
+    </marker>
+    <marker id="ar6p" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#7c3aed"/>
+    </marker>
+    <marker id="ar6g" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#22c55e"/>
+    </marker>
+    <marker id="ar6d" markerWidth="8" markerHeight="6" refX="4" refY="6" orient="auto">
+      <path d="M0,0 L4,6 L8,0" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <text x="430" y="28" text-anchor="middle" font-size="17" font-weight="600" fill="#1e293b">Agent 数据从运行态到学习态的流转</text>
+
+  <!-- Left: Runtime data -->
+  <rect x="30" y="54" width="260" height="170" rx="12" fill="white" stroke="#3b82f6" stroke-width="2" filter="url(#sh6)"/>
+  <rect x="30" y="54" width="260" height="32" rx="12" fill="#eff6ff"/>
+  <text x="160" y="76" text-anchor="middle" font-size="13" font-weight="700" fill="#1e40af">运行态（ZhiXing 产生）</text>
+
+  <circle cx="52" cy="104" r="4" fill="#3b82f6"/>
+  <text x="62" y="108" font-size="11" fill="#475569">对话日志</text>
+  <circle cx="52" cy="124" r="4" fill="#3b82f6"/>
+  <text x="62" y="128" font-size="11" fill="#475569">工具调用记录</text>
+  <circle cx="52" cy="144" r="4" fill="#3b82f6"/>
+  <text x="62" y="148" font-size="11" fill="#475569">检索的记忆 + 是否有用</text>
+  <circle cx="52" cy="164" r="4" fill="#3b82f6"/>
+  <text x="62" y="168" font-size="11" fill="#475569">提取的 facts/episodes/traits</text>
+  <circle cx="52" cy="184" r="4" fill="#3b82f6"/>
+  <text x="62" y="188" font-size="11" fill="#475569">Q-value 变化轨迹</text>
+  <circle cx="52" cy="204" r="4" fill="#3b82f6"/>
+  <text x="62" y="208" font-size="11" fill="#475569">任务结果（成功/失败）</text>
+
+  <!-- Right: Learning data -->
+  <rect x="570" y="54" width="260" height="170" rx="12" fill="white" stroke="#22c55e" stroke-width="2" filter="url(#sh6)"/>
+  <rect x="570" y="54" width="260" height="32" rx="12" fill="#f0fdf4"/>
+  <text x="700" y="76" text-anchor="middle" font-size="13" font-weight="700" fill="#166534">学习态（训练管线消费）</text>
+
+  <circle cx="592" cy="104" r="4" fill="#22c55e"/>
+  <text x="602" y="108" font-size="11" fill="#475569">偏好对 (chosen/rejected)</text>
+  <circle cx="592" cy="124" r="4" fill="#22c55e"/>
+  <text x="602" y="128" font-size="11" fill="#475569">奖励信号（成功/失败）</text>
+  <circle cx="592" cy="144" r="4" fill="#22c55e"/>
+  <text x="602" y="148" font-size="11" fill="#475569">轨迹 (state-action-reward)</text>
+  <circle cx="592" cy="164" r="4" fill="#22c55e"/>
+  <text x="602" y="168" font-size="11" fill="#475569">蒸馏输出（大→小模型）</text>
+  <circle cx="592" cy="184" r="4" fill="#22c55e"/>
+  <text x="602" y="188" font-size="11" fill="#475569">策略梯度数据</text>
+
+  <!-- Middle: Pipeline -->
+  <line x1="290" y1="140" x2="340" y2="140" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#ar6b)"/>
+  <line x1="520" y1="140" x2="568" y2="140" stroke="#22c55e" stroke-width="1.5" marker-end="url(#ar6g)"/>
+
+  <!-- dbay.cloud storage -->
+  <rect x="342" y="66" width="176" height="60" rx="10" fill="white" stroke="#7c3aed" stroke-width="2" filter="url(#sh6)"/>
+  <text x="430" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#5b21b6">dbay.cloud PG</text>
+  <text x="430" y="106" text-anchor="middle" font-size="10" fill="#64748b">记忆 + 日志 + Q-value</text>
+
+  <line x1="430" y1="126" x2="430" y2="142" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#ar6p)"/>
+
+  <!-- Lance -->
+  <rect x="342" y="144" width="176" height="60" rx="10" fill="white" stroke="#f97316" stroke-width="2" filter="url(#sh6)"/>
+  <text x="430" y="166" text-anchor="middle" font-size="12" font-weight="700" fill="#c2410c">OBS → Lance</text>
+  <text x="430" y="184" text-anchor="middle" font-size="10" fill="#64748b">AI 原生格式 · 版本化</text>
+
+  <!-- Arrow down -->
+  <line x1="430" y1="204" x2="430" y2="250" stroke="#94a3b8" stroke-width="1.5"/>
+
+  <!-- Ray Job -->
+  <rect x="200" y="256" width="460" height="160" rx="12" fill="white" stroke="#8b5cf6" stroke-width="2" filter="url(#sh6)"/>
+  <rect x="200" y="256" width="460" height="32" rx="12" fill="#f5f3ff"/>
+  <text x="430" y="278" text-anchor="middle" font-size="14" font-weight="700" fill="#5b21b6">Ray Job（dbay.cloud 计算层）</text>
+
+  <!-- Ray tasks -->
+  <rect x="220" y="300" width="130" height="44" rx="8" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="1"/>
+  <text x="285" y="318" text-anchor="middle" font-size="11" font-weight="500" fill="#5b21b6">轨迹过滤/清洗</text>
+  <text x="285" y="334" text-anchor="middle" font-size="9" fill="#94a3b8">Ray Data 850K/s</text>
+
+  <rect x="360" y="300" width="130" height="44" rx="8" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="1"/>
+  <text x="425" y="318" text-anchor="middle" font-size="11" font-weight="500" fill="#5b21b6">偏好对生成</text>
+  <text x="425" y="334" text-anchor="middle" font-size="9" fill="#94a3b8">成功/失败对比</text>
+
+  <rect x="500" y="300" width="140" height="44" rx="8" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="1"/>
+  <text x="570" y="318" text-anchor="middle" font-size="11" font-weight="500" fill="#5b21b6">SFT + DPO + RL</text>
+  <text x="570" y="334" text-anchor="middle" font-size="9" fill="#94a3b8">OpenRLHF (Ray+vLLM)</text>
+
+  <!-- Output -->
+  <rect x="280" y="356" width="300" height="40" rx="8" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="430" y="381" text-anchor="middle" font-size="12" font-weight="600" fill="#166534">改进的记忆策略/检索模型 → 回写到 ZhiXing</text>
+</svg>

@@ -97,8 +97,10 @@ class DatabaseServiceTest {
         lenient().when(props.getProxy()).thenReturn(proxy);
 
         // Setup operation log mock (lenient because not all tests trigger operations)
+        OperationLogEntity mockOpLog = new OperationLogEntity();
+        mockOpLog.setId("oplog_test");
         lenient().when(operationLogService.startOperation(anyString(), anyString(), anyString(), any(OperationType.class)))
-                .thenReturn(new OperationLogEntity());
+                .thenReturn(mockOpLog);
 
         // Quota check: default to empty list (no existing databases)
         lenient().when(databaseRepository.findAllByTenantId(anyString()))

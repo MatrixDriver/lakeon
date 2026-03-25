@@ -8,7 +8,6 @@ import java.util.*;
 
 /**
  * Shared utility for generating Neon compute_ctl config JSON.
- * Used by both ComputePodManager (user compute) and KbWritePodManager (kb-write compute).
  */
 public class ComputeSpecBuilder {
 
@@ -23,7 +22,7 @@ public class ComputeSpecBuilder {
     /**
      * Generate compute config JSON for a Neon compute_ctl instance.
      * @param entity database entity with tenant/timeline IDs
-     * @param suspendTimeoutSeconds 0 = never auto-suspend (for kb-write), 600 = default
+     * @param suspendTimeoutSeconds suspend timeout in seconds (0 = never auto-suspend)
      */
     public String generateComputeConfig(DatabaseEntity entity, int suspendTimeoutSeconds) {
         Map<String, Object> spec = new LinkedHashMap<>();

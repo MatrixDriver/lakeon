@@ -1,7 +1,7 @@
 # DBay 数据湖 MVP 设计
 
-> 状态：待实现
-> 日期：2026-03-20
+> 状态：进行中（Python Job CCI 端到端已验证，Ray/GPU/计量待完成）
+> 日期：2026-03-20，最后更新：2026-03-25
 > 参考：`docs/superpowers/specs/2026-03-20-datalake-v4-architecture.md`（V4 基础设施方案）
 
 ---

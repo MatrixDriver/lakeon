@@ -13,6 +13,7 @@ import com.lakeon.neon.dto.NeonTimeline;
 import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.VersionRepository;
+import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.ConflictException;
 import com.lakeon.service.exception.NotFoundException;
 import com.lakeon.util.LsnUtil;
@@ -20,6 +21,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.lakeon.k8s.ComputePodManager;
 
 import java.security.SecureRandom;
 import java.util.List;
@@ -33,15 +36,18 @@ public class VersionService {
     private final BranchRepository branchRepository;
     private final DatabaseRepository databaseRepository;
     private final NeonApiClient neonApiClient;
+    private final ComputePodManager computePodManager;
 
     public VersionService(VersionRepository versionRepository,
                           BranchRepository branchRepository,
                           DatabaseRepository databaseRepository,
-                          NeonApiClient neonApiClient) {
+                          NeonApiClient neonApiClient,
+                          ComputePodManager computePodManager) {
         this.versionRepository = versionRepository;
         this.branchRepository = branchRepository;
         this.databaseRepository = databaseRepository;
         this.neonApiClient = neonApiClient;
+        this.computePodManager = computePodManager;
     }
 
     public VersionResponse create(TenantEntity tenant, String dbId, String branchId,
@@ -53,6 +59,12 @@ public class VersionService {
         versionRepository.findByBranchIdAndName(branchId, request.name()).ifPresent(existing -> {
             throw new ConflictException("Version '" + request.name() + "' already exists");
         });
+
+        // Flush WAL before snapshotting to ensure all data is durable
+        String podName = branch.getComputePodName() != null ? branch.getComputePodName() : dbEntity.getComputePodName();
+        if (podName != null && computePodManager.isPodReady(podName)) {
+            computePodManager.executeCheckpoint(podName);
+        }
 
         // Resolve LSN
         String lsnHex;
@@ -108,10 +120,15 @@ public class VersionService {
         VersionEntity entity = versionRepository.findByIdAndBranchId(versionId, branchId)
                 .orElseThrow(() -> new NotFoundException("Version not found: " + versionId));
 
-        // Delete snapshot timeline from pageserver
+        // Delete snapshot timeline from pageserver (may fail with 412 if timeline has children)
         if (entity.getSnapshotTimelineId() != null) {
-            neonApiClient.deleteTimeline(dbEntity.getNeonTenantId(),
-                    entity.getSnapshotTimelineId());
+            try {
+                neonApiClient.deleteTimeline(dbEntity.getNeonTenantId(),
+                        entity.getSnapshotTimelineId());
+            } catch (Exception e) {
+                log.warn("Could not delete snapshot timeline {} for version '{}': {}",
+                        entity.getSnapshotTimelineId(), entity.getName(), e.getMessage());
+            }
         }
         versionRepository.delete(entity);
         log.info("Deleted version '{}' from branch {}", entity.getName(), branchId);
@@ -135,12 +152,22 @@ public class VersionService {
                 versionRepository.findAllByBranchIdAndLsnBetweenOrderByLsnAsc(
                         branchId, fromVersion.getLsn(), toVersion.getLsn());
 
+        // Need at least 3 versions (from + middle + to) to have something to squash
+        if (versionsInRange.size() < 3) {
+            throw new BadRequestException("Need at least 3 versions in range to squash; got " + versionsInRange.size());
+        }
+
         // Delete middle versions (exclude from and to)
         for (VersionEntity v : versionsInRange) {
             if (!v.getId().equals(fromVersion.getId()) && !v.getId().equals(toVersion.getId())) {
                 if (v.getSnapshotTimelineId() != null) {
-                    neonApiClient.deleteTimeline(dbEntity.getNeonTenantId(),
-                            v.getSnapshotTimelineId());
+                    try {
+                        neonApiClient.deleteTimeline(dbEntity.getNeonTenantId(),
+                                v.getSnapshotTimelineId());
+                    } catch (Exception e) {
+                        log.warn("Could not delete snapshot timeline {} for version '{}': {}",
+                                v.getSnapshotTimelineId(), v.getName(), e.getMessage());
+                    }
                 }
                 versionRepository.delete(v);
                 log.info("Squashed version '{}' from branch {}", v.getName(), branchId);

@@ -39,8 +39,13 @@ public class MemoryService {
     }
 
     public MemoryBaseEntity getBase(String tenantId, String id) {
-        return repository.findByIdAndTenantId(id, tenantId)
+        var mem = repository.findByIdAndTenantId(id, tenantId)
             .orElseThrow(() -> new NotFoundException("Memory base not found: " + id));
+        // Lazy sync: if PROVISIONING, check if backing database is now ACTIVE
+        if ("PROVISIONING".equals(mem.getStatus()) && mem.getDatabaseId() != null) {
+            dbHelper.trySyncStatus(mem);
+        }
+        return mem;
     }
 
     public MemoryBaseEntity createBase(String tenantId, String name, String description,
@@ -71,9 +76,25 @@ public class MemoryService {
 
     // ── Proxy methods to Python memory microservice ──────────
 
+    private void ensureSchemaInitialized(String connstr) {
+        String url = props.getMemory().getServiceUrl() + "/init";
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Database-Connstr", connstr);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        try {
+            restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(null, headers), Object.class);
+        } catch (Exception e) {
+            // Schema init is idempotent; log but don't fail
+            log.warn("Schema init call failed (may already be initialized): {}", e.getMessage());
+        }
+    }
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MemoryService.class);
+
     public Object proxyPost(String tenantId, String memId, String path, Object body) {
         MemoryBaseEntity mem = getBase(tenantId, memId);
         String connstr = dbHelper.resolveConnstr(tenantId, memId);
+        ensureSchemaInitialized(connstr);
         String url = props.getMemory().getServiceUrl() + path;
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-Database-Connstr", connstr);
@@ -86,6 +107,7 @@ public class MemoryService {
 
     public Object proxyGet(String tenantId, String memId, String path, Map<String, String> params) {
         String connstr = dbHelper.resolveConnstr(tenantId, memId);
+        ensureSchemaInitialized(connstr);
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(props.getMemory().getServiceUrl() + path);
         if (params != null) {
             params.forEach((k, v) -> { if (v != null) builder.queryParam(k, v); });

@@ -77,6 +77,7 @@ class BranchServiceTest {
         testDatabase.setStatus(DatabaseStatus.RUNNING);
         testDatabase.setNeonTenantId("neon-tenant-abc");
         testDatabase.setNeonTimelineId("neon-timeline-main");
+        testDatabase.setConnectionUri("postgres://user@pg.test:4432/my-db?options=endpoint%3Dmy-db");
     }
 
     @Nested
@@ -106,7 +107,7 @@ class BranchServiceTest {
             assertThat(result).isNotNull();
             assertThat(result.getName()).isEqualTo("feature-test");
             assertThat(result.getParentBranch()).isEqualTo("main");
-            assertThat(result.getConnectionUri()).contains("branch=feature-test");
+            assertThat(result.getConnectionUri()).contains("feature-test");
             verify(neonApiClient).createTimeline(eq("neon-tenant-abc"), any());
             verify(branchRepository).save(any(BranchEntity.class));
             // 不启动 compute

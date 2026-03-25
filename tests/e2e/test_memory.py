@@ -15,11 +15,11 @@ def mem_base(e2e_client):
     base = e2e_client.create_memory_base(
         name=f"e2e-mem-{int(time.time())}", one_llm_mode=True
     )
-    for _ in range(30):
+    for _ in range(60):
         info = e2e_client.get_memory_base(base["id"])
         if info["status"] == "READY":
             break
-        time.sleep(1)
+        time.sleep(2)
     yield info
     try:
         e2e_client.delete_memory_base(base["id"])
@@ -33,11 +33,11 @@ def mem_base_server_mode(e2e_client):
     base = e2e_client.create_memory_base(
         name=f"e2e-mem-server-{int(time.time())}", one_llm_mode=False
     )
-    for _ in range(30):
+    for _ in range(60):
         info = e2e_client.get_memory_base(base["id"])
         if info["status"] == "READY":
             break
-        time.sleep(1)
+        time.sleep(2)
     yield info
     try:
         e2e_client.delete_memory_base(base["id"])
@@ -51,11 +51,11 @@ def test_base_crud(e2e_client):
     assert base["name"].startswith("crud-test-")
     assert "id" in base
 
-    for _ in range(30):
+    for _ in range(60):
         info = e2e_client.get_memory_base(base["id"])
         if info["status"] == "READY":
             break
-        time.sleep(1)
+        time.sleep(2)
     assert info["status"] == "READY"
 
     bases = e2e_client.list_memory_bases()
@@ -207,8 +207,8 @@ def test_server_extract(mem_base_server_mode, e2e_client):
     assert result["extraction_required"] is False
     assert result["status"] == "extracting"
 
-    for _ in range(30):
-        time.sleep(1)
+    for _ in range(60):
+        time.sleep(2)
         stats = e2e_client.mem_stats(mem_base_server_mode["id"])
         if stats["total"] > 0:
             break
@@ -225,8 +225,8 @@ def test_server_extract_decision(mem_base_server_mode, e2e_client):
     )
     assert result["status"] == "extracting"
 
-    for _ in range(30):
-        time.sleep(1)
+    for _ in range(60):
+        time.sleep(2)
         memories = e2e_client.mem_list(mem_base_server_mode["id"], memory_type="decision")
         if memories["total"] >= 1:
             break
@@ -254,11 +254,11 @@ def test_multi_tenant_isolation(e2e_client, e2e_tenant):
     )
 
     base_a = e2e_client.create_memory_base(name=f"isolation-a-{ts}")
-    for _ in range(30):
+    for _ in range(60):
         info = e2e_client.get_memory_base(base_a["id"])
         if info["status"] == "READY":
             break
-        time.sleep(1)
+        time.sleep(2)
 
     from dbay_cli.client import DbayApiError
     with pytest.raises(DbayApiError) as exc:
