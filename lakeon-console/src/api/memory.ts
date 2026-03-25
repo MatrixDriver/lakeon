@@ -11,6 +11,7 @@ export interface MemoryBase {
   memory_count: number
   trait_count: number
   embedding_model: string | null
+  one_llm_mode: boolean
   error: string | null
   created_at: string
   updated_at: string
