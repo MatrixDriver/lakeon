@@ -145,38 +145,49 @@ Python · 内联脚本 · 输入: user_behavior_march · CPU 1 / 内存 2Gi    [
 
 ## 后端影响
 
-当前 `DatalakeJobRequest` 已有所需字段。需新增：
+### 新增字段（`DatalakeJobRequest`）
 
-| 字段 | 说明 |
-|------|------|
-| `inline_script` | string，内联脚本内容（MVP）|
-| `input_dataset_id` | UUID，选中的 DBay 数据集 ID（已有，`DatalakeService` 已处理注入逻辑）|
-| `output_path` | string，OBS 输出路径前缀（可选，留空自动生成）|
+| 字段 | 现状 | 变更 |
+|------|------|------|
+| `inline_script` | 不存在 | **新增**：string，内联脚本内容 |
+| `input_dataset_id` | **已有**，`DatalakeService` 已处理 → DATASET_PATH 注入 | 无需改动 |
+| `output_path` | **已有**（getOutputPath/setOutputPath） | 无需改动字段，补充注入逻辑（见下） |
+| `retry_count` | 不存在 | **新增**：int（默认 0，范围 0–3），对应 K8s Job `backoffLimit` |
 
-后端在创建 K8s Job 时：
-1. 将 `inline_script` 写入 ConfigMap，挂载到容器 `/app/main.py`
-2. `DATASET_PATH` 从 `input_dataset_id` 解析注入
-3. `OUTPUT_PATH` 使用 `output_path` 或自动生成路径
+### `PythonJobRunner` 变更
+
+当 `inline_script` 非空时：
+
+1. **创建 ConfigMap**：在 `cciNamespacePrefix + tenantId` 命名空间中，以 `dl-script-{jobId}` 为名，内容为 `main.py → inline_script` 的单键 ConfigMap
+2. **挂载 Volume**：Pod spec 添加 `configMap` volume（name: `script-vol`），container 挂载到 `/app/main.py`（subPath: `main.py`，readOnly: true）
+3. **Entrypoint**：command 固定为 `["/bin/sh", "-c", "python /app/main.py"]`，忽略 `req.getEntrypoint()`
+4. **ConfigMap 生命周期**：Job 完成/失败后由 `DatalakeStatusPoller` 在状态变为终态时删除该 ConfigMap（`k8sClient.configMaps().inNamespace(ns).withName("dl-script-" + jobId).delete()`）
+5. **backoffLimit**：使用 `req.getRetryCount()` 替代硬编码的 `0`
+
+### `OUTPUT_PATH` 注入（`PythonJobRunner`）
+
+- 若 `req.getOutputPath()` 非空：注入 `OUTPUT_PATH = req.getOutputPath()`
+- 若为空：自动生成 `obs://{bucket}/tenant-{tenantId}/jobs/{jobId}/output/`，同样注入为环境变量
 
 ---
 
 ## 前端影响
 
-**路由变更**：
-- 删除 `DatalakeJobs.vue` 中的提交弹窗
-- 新增路由 `/datalake/jobs/new` → `DatalakeJobNew.vue`（新建组件）
-- 「新建作业」按钮改为 `router.push('/datalake/jobs/new')`
+**路由变更**（`src/router/index.ts`）：
+- 新增路由 `{ path: 'jobs/new', component: DatalakeJobNew }` 必须注册在 `{ path: 'jobs/:jobId', component: DatalakeJobDetail }` **之前**，否则 Vue Router 会将 `/datalake/jobs/new` 匹配为 `jobId = "new"`
+- `DatalakeJobs.vue`：将「提交作业」按钮的 `@click="showSubmit = true"` 改为 `router.push('/datalake/jobs/new')`；删除 `showSubmit` 相关的弹窗模板（约 L24–L111）和 `handleSubmit` 方法
 
-**新增组件**：
-- `DatalakeJobNew.vue`：主页面，管理左栏节状态、整体表单数据
-- `DatalakeJobNewBasic.vue`：基本信息节
-- `DatalakeJobNewCode.vue`：代码节（含 Monaco Editor）
-- `DatalakeJobNewDataset.vue`：数据集节
-- `DatalakeJobNewResources.vue`：资源节（按类型渲染）
-- `DatalakeJobNewEnvVars.vue`：环境变量节
+**新增组件**（`src/views/datalake/`）：
+- `DatalakeJobNew.vue`：主页面，管理左栏节状态、整体表单 reactive 数据、提交逻辑
+- `DatalakeJobNewBasic.vue`：基本信息节（名称 + 类型 pills）
+- `DatalakeJobNewCode.vue`：代码节（含 Monaco Editor，Tab 切换内联/OBS）
+- `DatalakeJobNewDataset.vue`：数据集节（输入选择 + 输出路径）
+- `DatalakeJobNewResources.vue`：资源节（按类型渲染不同字段）
+- `DatalakeJobNewEnvVars.vue`：环境变量节（KV 表格，含自动注入只读行）
+- `DatalakeJobNewAdvanced.vue`：高级节（超时秒数 + 重试次数）
 
 **依赖**：
-- Monaco Editor（`@monaco-editor/vue`）或轻量替代（CodeMirror 6）
+- Monaco Editor for Vue 3：`@guolao/vue-monaco-editor`（注意：`@monaco-editor/vue` 是 Vue 2 包，不可用）
 
 ---
 
