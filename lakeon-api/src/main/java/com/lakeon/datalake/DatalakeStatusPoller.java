@@ -1,6 +1,11 @@
 package com.lakeon.datalake;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.dataset.DatasetEntity;
+import com.lakeon.dataset.DatasetRepository;
+import com.lakeon.dataset.DatasetSourceType;
+import com.lakeon.dataset.DatasetStatus;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import org.slf4j.Logger;
@@ -27,12 +32,17 @@ public class DatalakeStatusPoller {
 
     private final KubernetesClient k8sClient;
     private final DatalakeJobRepository repository;
+    private final DatasetRepository datasetRepository;
     private final LakeonProperties props;
+    private final ObjectMapper objectMapper;
 
-    public DatalakeStatusPoller(KubernetesClient k8sClient, DatalakeJobRepository repository, LakeonProperties props) {
+    public DatalakeStatusPoller(KubernetesClient k8sClient, DatalakeJobRepository repository,
+                                DatasetRepository datasetRepository, LakeonProperties props, ObjectMapper objectMapper) {
         this.k8sClient = k8sClient;
         this.repository = repository;
+        this.datasetRepository = datasetRepository;
         this.props = props;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -88,6 +98,7 @@ public class DatalakeStatusPoller {
                 deleteScriptConfigMap(job);
                 job.setStatus(DatalakeJobStatus.SUCCEEDED);
                 job.setFinishedAt(java.time.Instant.now());
+                registerOutputDataset(job);
                 changed = true;
             }
         } else if (status.getFailed() != null && status.getFailed() > 0) {
@@ -253,6 +264,59 @@ public class DatalakeStatusPoller {
             }
         } catch (Exception e) {
             log.warn("Failed to persist logs for job {}: {}", job.getId(), e.getMessage());
+        }
+    }
+
+    /**
+     * Register the job's output as a new dataset if output was written.
+     */
+    private void registerOutputDataset(DatalakeJobEntity job) {
+        try {
+            String spec = job.getSpec();
+            if (spec == null) return;
+            var specMap = objectMapper.readValue(spec, new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {});
+
+            // OUTPUT_PATH obs key is stored in the job entity spec indirectly
+            // The OBS key pattern: tenant-{tenantId}/jobs/{jobId}/output/data.parquet
+            String bucket = props.getObs().getBucket();
+            String outputKey = "tenant-" + job.getTenantId() + "/jobs/" + job.getId() + "/output/data.parquet";
+
+            // Check if file exists on OBS
+            String ak = props.getObs().getAccessKey();
+            String sk = props.getObs().getSecretKey();
+            if (ak == null || ak.isBlank()) return;
+
+            try (var s3 = software.amazon.awssdk.services.s3.S3Client.builder()
+                    .endpointOverride(java.net.URI.create(props.getObs().getEndpoint()))
+                    .credentialsProvider(software.amazon.awssdk.auth.credentials.StaticCredentialsProvider.create(
+                            software.amazon.awssdk.auth.credentials.AwsBasicCredentials.create(ak, sk)))
+                    .region(software.amazon.awssdk.regions.Region.of(
+                            props.getObs().getRegion() != null ? props.getObs().getRegion() : "cn-north-4"))
+                    .build()) {
+
+                var head = s3.headObject(software.amazon.awssdk.services.s3.model.HeadObjectRequest.builder()
+                        .bucket(bucket).key(outputKey).build());
+
+                long fileSize = head.contentLength();
+
+                // Create dataset entity
+                DatasetEntity ds = new DatasetEntity();
+                ds.setTenantId(job.getTenantId());
+                ds.setName(job.getName() + "-output");
+                ds.setDescription("由作业 " + job.getName() + " 生成");
+                ds.setSourceType(DatasetSourceType.JOB_OUTPUT);
+                ds.setObsPath(outputKey);
+                ds.setFileSize(fileSize);
+                ds.setStatus(DatasetStatus.READY);
+                ds.setJobId(job.getId());
+                datasetRepository.save(ds);
+                log.info("Registered output dataset '{}' for job {}", ds.getName(), job.getId());
+            }
+        } catch (software.amazon.awssdk.services.s3.model.NoSuchKeyException e) {
+            // No output file — job didn't write output, which is fine
+            log.debug("No output file for job {}", job.getId());
+        } catch (Exception e) {
+            log.warn("Failed to register output dataset for job {}: {}", job.getId(), e.getMessage());
         }
     }
 
