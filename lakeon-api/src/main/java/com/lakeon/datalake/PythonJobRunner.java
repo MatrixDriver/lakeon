@@ -1,6 +1,7 @@
 package com.lakeon.datalake;
 
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.obs.ObsStsService;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.api.model.batch.v1.JobBuilder;
@@ -22,13 +23,16 @@ public class PythonJobRunner {
     private final KubernetesClient k8sClient;
     private final LakeonProperties props;
     private final DatalakeJobRepository repository;
+    private final ObsStsService obsStsService;
 
     public PythonJobRunner(KubernetesClient k8sClient,
                            LakeonProperties props,
-                           DatalakeJobRepository repository) {
+                           DatalakeJobRepository repository,
+                           ObsStsService obsStsService) {
         this.k8sClient = k8sClient;
         this.props = props;
         this.repository = repository;
+        this.obsStsService = obsStsService;
     }
 
     public void start(DatalakeJobEntity job, DatalakeJobRequest req) {
@@ -73,6 +77,16 @@ public class PythonJobRunner {
                     + "/jobs/" + job.getId() + "/output/";
         }
         envVars.add(new EnvVarBuilder().withName("OUTPUT_PATH").withValue(outputPath).build());
+
+        // Inject OBS STS credentials for tenant isolation
+        ObsStsService.StsCredentials stsCreds = obsStsService.getCredentials(job.getTenantId());
+        envVars.add(new EnvVarBuilder().withName("OBS_ACCESS_KEY").withValue(stsCreds.accessKey()).build());
+        envVars.add(new EnvVarBuilder().withName("OBS_SECRET_KEY").withValue(stsCreds.secretKey()).build());
+        envVars.add(new EnvVarBuilder().withName("OBS_SESSION_TOKEN").withValue(stsCreds.sessionToken()).build());
+        envVars.add(new EnvVarBuilder().withName("OBS_ENDPOINT").withValue(props.getObs().getEndpoint()).build());
+        envVars.add(new EnvVarBuilder().withName("OBS_BUCKET").withValue(props.getObs().getBucket()).build());
+        envVars.add(new EnvVarBuilder().withName("OBS_REGION")
+                .withValue(props.getObs().getRegion() != null ? props.getObs().getRegion() : "cn-north-4").build());
 
         // 6. Build toleration for VK
         Toleration vkToleration = new TolerationBuilder()

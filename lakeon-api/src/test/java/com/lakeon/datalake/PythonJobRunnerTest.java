@@ -1,6 +1,7 @@
 package com.lakeon.datalake;
 
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.obs.ObsStsService;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -25,6 +26,7 @@ class PythonJobRunnerTest {
 
     @Mock KubernetesClient k8sClient;
     @Mock DatalakeJobRepository repository;
+    @Mock ObsStsService obsStsService;
     @Mock NonNamespaceOperation<Namespace, NamespaceList, Resource<Namespace>> namespaceOp;
     @Mock Resource<Namespace> namespaceResource;
     @Mock MixedOperation<ConfigMap, ConfigMapList, Resource<ConfigMap>> configMapOp;
@@ -44,7 +46,12 @@ class PythonJobRunnerTest {
         props.getDatalake().setVkNodeSelectorValue("cci");
         props.getObs().setBucket("lakeon-storage");
 
-        runner = new PythonJobRunner(k8sClient, props, repository);
+        runner = new PythonJobRunner(k8sClient, props, repository, obsStsService);
+
+        // Stub OBS STS credentials
+        when(obsStsService.getCredentials(any())).thenReturn(
+                new ObsStsService.StsCredentials("ak", "sk", "token",
+                        java.time.Instant.now().plusSeconds(3600)));
 
         // Stub namespace check: namespace exists
         when(k8sClient.namespaces()).thenReturn(namespaceOp);
