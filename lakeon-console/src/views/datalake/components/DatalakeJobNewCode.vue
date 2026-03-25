@@ -25,8 +25,41 @@
       <div class="obs-stub-desc">将代码包上传到 OBS，填写路径后自动下载到容器执行。</div>
     </div>
 
-    <div class="ai-hint">
-      ✨ <strong>AI 辅助（即将推出）</strong>：描述你想做什么，AI 帮你生成初始脚本
+    <!-- AI Panel -->
+    <div class="ai-panel" :class="{ expanded: aiOpen }">
+      <div class="ai-toggle" @click="aiOpen = !aiOpen">
+        ✨ <strong>AI 辅助</strong>：描述你想做什么，AI 帮你生成脚本
+        <span class="ai-toggle-arrow">{{ aiOpen ? '▼' : '▶' }}</span>
+      </div>
+      <div v-if="aiOpen" class="ai-body">
+        <div class="ai-row">
+          <label class="ai-label">模型</label>
+          <select v-model="aiModel" class="ai-select">
+            <option v-for="m in models" :key="m.id" :value="m.id">
+              {{ m.name }} {{ m.input_price === 0 ? '(免费)' : `(¥${m.input_price}/${m.output_price} per M)` }}
+            </option>
+          </select>
+        </div>
+        <textarea
+          v-model="aiPrompt"
+          class="ai-prompt"
+          rows="3"
+          placeholder="例：过滤 score > 0.8 的行，按 category 分组统计数量"
+          :disabled="aiLoading"
+          @keydown.ctrl.enter="handleGenerate"
+          @keydown.meta.enter="handleGenerate"
+        ></textarea>
+        <div class="ai-actions">
+          <button class="ai-btn" :disabled="aiLoading || !aiPrompt.trim()" @click="handleGenerate">
+            {{ aiLoading ? '生成中...' : '生成脚本' }}
+          </button>
+          <span v-if="aiTokens" class="ai-tokens">
+            {{ aiTokens.input }} + {{ aiTokens.output }} tokens
+            <template v-if="aiTokens.cost > 0"> · ¥{{ aiTokens.cost.toFixed(4) }}</template>
+          </span>
+        </div>
+        <div v-if="aiError" class="ai-error">{{ aiError }}</div>
+      </div>
     </div>
   </div>
 </template>
@@ -37,9 +70,13 @@ import { EditorState } from '@codemirror/state'
 import { EditorView, lineNumbers, highlightActiveLine } from '@codemirror/view'
 import { python } from '@codemirror/lang-python'
 import { oneDark } from '@codemirror/theme-one-dark'
+import { generateDatalakeScript } from '../../../api/datalake'
 
 const props = defineProps<{ script: string }>()
-const emit = defineEmits<{ 'update:script': [value: string] }>()
+const emit = defineEmits<{
+  'update:script': [value: string]
+  'update:usedDatasetIds': [value: string[]]
+}>()
 
 const tab = ref<'inline' | 'obs'>('inline')
 const editorContainer = ref<HTMLElement | null>(null)
@@ -84,6 +121,58 @@ onMounted(() => {
 })
 
 onUnmounted(() => view?.destroy())
+
+const aiOpen = ref(false)
+const aiPrompt = ref('')
+const aiModel = ref('Qwen/Qwen3.5-4B')
+const aiLoading = ref(false)
+const aiError = ref('')
+const aiTokens = ref<{ input: number; output: number; cost: number } | null>(null)
+
+const models = [
+  { id: 'Qwen/Qwen3.5-4B', name: 'Qwen 3.5 4B', input_price: 0, output_price: 0 },
+  { id: 'deepseek-ai/DeepSeek-V3.2', name: 'DeepSeek V3.2', input_price: 2.0, output_price: 3.0 },
+  { id: 'Qwen/Qwen3-Coder-480B-A35B-Instruct', name: 'Qwen3 Coder 480B', input_price: 8.0, output_price: 16.0 },
+  { id: 'Qwen/Qwen3-Coder-30B-A3B-Instruct', name: 'Qwen3 Coder 30B', input_price: 0.7, output_price: 2.8 },
+]
+
+async function handleGenerate() {
+  if (!aiPrompt.value.trim() || aiLoading.value) return
+  aiLoading.value = true
+  aiError.value = ''
+  aiTokens.value = null
+  try {
+    const res = await generateDatalakeScript(aiPrompt.value, aiModel.value)
+    const data = res.data as any
+    if (data.error) {
+      aiError.value = data.error
+      return
+    }
+    if (data.script && view) {
+      // Replace editor content
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: data.script }
+      })
+      emit('update:script', data.script)
+    }
+    if (data.used_dataset_ids) {
+      emit('update:usedDatasetIds', data.used_dataset_ids)
+    }
+    // Token usage + cost
+    const m = models.find(x => x.id === aiModel.value)
+    const inputCost = (data.input_tokens || 0) * (m?.input_price || 0) / 1_000_000
+    const outputCost = (data.output_tokens || 0) * (m?.output_price || 0) / 1_000_000
+    aiTokens.value = {
+      input: data.input_tokens || 0,
+      output: data.output_tokens || 0,
+      cost: inputCost + outputCost
+    }
+  } catch (e: any) {
+    aiError.value = e?.response?.data?.error?.message || e.message || 'Generation failed'
+  } finally {
+    aiLoading.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -101,5 +190,20 @@ code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 11p
 .obs-stub-icon { font-size: 32px; margin-bottom: 8px; }
 .obs-stub-title { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 6px; }
 .obs-stub-desc { font-size: 12px; color: #64748b; }
-.ai-hint { display: flex; align-items: center; gap: 8px; background: rgba(99,102,241,.08); border: 1px solid rgba(99,102,241,.2); border-radius: 6px; padding: 8px 12px; margin-top: 12px; font-size: 11px; color: #6366f1; cursor: pointer; }
+.ai-panel { margin-top: 12px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+.ai-panel.expanded { border-color: rgba(99,102,241,.3); }
+.ai-toggle { display: flex; align-items: center; gap: 8px; padding: 10px 14px; font-size: 12px; color: #6366f1; cursor: pointer; background: rgba(99,102,241,.04); }
+.ai-toggle:hover { background: rgba(99,102,241,.08); }
+.ai-toggle-arrow { margin-left: auto; font-size: 10px; }
+.ai-body { padding: 12px 14px; border-top: 1px solid #e2e8f0; background: #fff; }
+.ai-row { margin-bottom: 8px; }
+.ai-label { font-size: 11px; font-weight: 600; color: #374151; margin-right: 8px; }
+.ai-select { font-size: 12px; padding: 4px 8px; border: 1px solid #e2e8f0; border-radius: 4px; color: #334155; outline: none; }
+.ai-prompt { width: 100%; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; font-size: 12px; color: #334155; outline: none; resize: vertical; font-family: inherit; }
+.ai-prompt:focus { border-color: #6366f1; }
+.ai-actions { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+.ai-btn { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none; padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.ai-btn:disabled { opacity: 0.5; cursor: default; }
+.ai-tokens { font-size: 11px; color: #94a3b8; }
+.ai-error { margin-top: 8px; font-size: 11px; color: #ef4444; }
 </style>
