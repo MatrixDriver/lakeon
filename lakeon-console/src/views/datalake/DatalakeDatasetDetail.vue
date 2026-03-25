@@ -65,6 +65,22 @@
           <div class="info-label">更新时间</div>
           <div class="info-value">{{ formatTime(dataset.updated_at) }}</div>
         </div>
+        <div class="info-card" v-if="dataset.job_id">
+          <div class="info-label">生成作业</div>
+          <div class="info-value">
+            <router-link :to="'/datalake/jobs/' + dataset.job_id" style="color: #2563eb; text-decoration: none;">
+              {{ dataset.job_id }}
+            </router-link>
+          </div>
+        </div>
+        <div class="info-card" v-if="dataset.database_id">
+          <div class="info-label">源数据库</div>
+          <div class="info-value">
+            <router-link :to="'/databases/' + dataset.database_id" style="color: #2563eb; text-decoration: none;">
+              {{ dataset.database_id }}
+            </router-link>
+          </div>
+        </div>
       </div>
 
       <!-- Exporting progress -->
@@ -158,6 +174,7 @@ interface Dataset {
   row_count: number | null
   file_size: number | null
   obs_path: string
+  job_id: string | null
   download_url: string
   error: string
   created_at: string
