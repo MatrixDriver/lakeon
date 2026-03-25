@@ -98,7 +98,7 @@
         </div>
         <div ref="logContainer" class="log-container">
           <div v-if="logLines.length === 0" style="color: #999; padding: 16px;">
-            {{ streaming ? '等待日志输出...' : '点击"实时日志"查看运行输出' }}
+            {{ streaming ? '等待日志输出...' : (job && TERMINAL.includes(job.status) ? '暂无日志记录' : '点击"实时日志"查看运行输出') }}
           </div>
           <pre v-else class="log-content">{{ logLines.join('\n') }}</pre>
         </div>
@@ -276,9 +276,17 @@ function scrollToBottom() {
   }
 }
 
+// Auto-load logs for terminal jobs (persisted in OBS)
+async function autoLoadLogs() {
+  if (!job.value || logLines.value.length > 0 || streaming.value) return
+  if (TERMINAL.includes(job.value.status) && job.value.logObsPath) {
+    startStream()
+  }
+}
+
 // Auto-refresh job status while not terminal
 onMounted(() => {
-  loadJob()
+  loadJob().then(() => autoLoadLogs())
   pollTimer = setInterval(() => {
     if (job.value && !TERMINAL.includes(job.value.status)) {
       loadJob()

@@ -21,6 +21,7 @@
           <span class="section-num">{{ isDone(s.key) ? '✓' : s.num }}</span>
           {{ s.label }}
           <span v-if="s.required" class="required-dot">*</span>
+          <span v-if="s.key === 'dataset' && datasetWarning" class="warning-dot" title="脚本引用了数据集但未选择">!</span>
         </div>
       </nav>
 
@@ -153,8 +154,14 @@ const visibleSections = computed(() =>
 const isDone = (key: string) => {
   if (key === 'basic') return !!(form.value.name && form.value.type)
   if (key === 'code') return !!form.value.inlineScript.trim()
+  if (key === 'dataset') return form.value.inputDatasetIds.length > 0
   return false
 }
+
+// Show warning dot on dataset nav if script uses DATASET_PATH but none selected
+const datasetWarning = computed(() =>
+  form.value.inlineScript.includes('DATASET_PATH') && !form.value.inputDatasetIds.length
+)
 
 const canSubmit = computed(() => {
   if (!form.value.name.trim()) return false
@@ -167,6 +174,10 @@ const typeLabel = (t: DatalakeJobType) =>
 
 async function handleSubmit() {
   if (!canSubmit.value) return
+  // Warn if script references DATASET_PATH but no datasets selected
+  if (form.value.inlineScript.includes('DATASET_PATH') && !form.value.inputDatasetIds.length) {
+    if (!confirm('脚本中引用了 DATASET_PATH，但未选择输入数据集。是否仍要提交？')) return
+  }
   submitting.value = true
   try {
     const envVars: Record<string, string> = {}
@@ -216,6 +227,7 @@ async function handleSubmit() {
 .section-nav-item.active .section-num { background: #2563eb; color: #fff; }
 .section-nav-item.done .section-num { background: #22c55e; color: #fff; font-size: 10px; }
 .required-dot { color: #ef4444; font-size: 11px; margin-left: 2px; }
+.warning-dot { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: #f59e0b; color: #fff; font-size: 9px; font-weight: 700; margin-left: 4px; }
 .section-content { flex: 1; overflow-y: auto; padding: 20px 24px; }
 .summary-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .summary-left { display: flex; gap: 24px; align-items: center; }

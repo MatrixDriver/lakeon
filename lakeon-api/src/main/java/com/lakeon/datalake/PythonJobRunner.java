@@ -92,16 +92,32 @@ public class PythonJobRunner {
             pipInstall = "pip install --no-cache-dir " + pkgs + " && ";
         }
 
+        // Build the log upload wrapper:
+        // Run user script, tee output to /tmp/job.log, then upload log to OBS
+        String logKey = "datalake-logs/" + job.getTenantId() + "/" + job.getId() + "/output.log";
+        String logUpload = String.format(
+            "; EXIT_CODE=$?; python -c \""
+            + "import boto3,os; "
+            + "s3=boto3.client('s3',endpoint_url=os.environ.get('OBS_ENDPOINT',''),aws_access_key_id=os.environ.get('OBS_ACCESS_KEY',''),aws_secret_access_key=os.environ.get('OBS_SECRET_KEY',''),aws_session_token=os.environ.get('OBS_SESSION_TOKEN'),region_name=os.environ.get('OBS_REGION','cn-north-4')); "
+            + "s3.upload_file('/tmp/job.log',os.environ.get('OBS_BUCKET',''),'%s')"
+            + "\" 2>/dev/null; exit $EXIT_CODE", logKey);
+
         List<String> command;
         boolean hasInlineScript = req.getInlineScript() != null && !req.getInlineScript().isBlank();
+        String userCmd;
         if (hasInlineScript) {
             createScriptConfigMap(ns, job.getId(), req.getInlineScript());
-            command = List.of("/bin/sh", "-c", pipInstall + "python /app/main.py");
+            userCmd = pipInstall + "python /app/main.py";
         } else if (req.getEntrypoint() != null && !req.getEntrypoint().isBlank()) {
-            command = List.of("/bin/sh", "-c", pipInstall + req.getEntrypoint().trim());
+            userCmd = pipInstall + req.getEntrypoint().trim();
         } else {
-            command = List.of();
+            userCmd = "echo 'No script or entrypoint specified'";
         }
+        // Wrap: run user cmd with tee to capture logs, then upload
+        command = List.of("/bin/sh", "-c", "(" + userCmd + ") 2>&1 | tee /tmp/job.log" + logUpload);
+
+        // Pre-set logObsPath so DatalakeLogService can find it
+        job.setLogObsPath(logKey);
 
         // 4. Build resource requests/limits
         Map<String, String> resources = req.getResources() != null ? req.getResources() : Map.of();
