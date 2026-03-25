@@ -206,7 +206,7 @@ async def recall(connstr: str, query: str, top_k: int,
             """, type_params + [json.dumps(embedding), top_k * 3])
             vector_results = cur.fetchall()
 
-            # Text search
+            # Text search — param order: ts_rank query, [type_filter], WHERE query, limit
             cur.execute(f"""
                 SELECT id, content, memory_type, importance, access_count, metadata,
                        event_time, created_at,
@@ -216,7 +216,7 @@ async def recall(connstr: str, query: str, top_k: int,
                 to_tsvector('simple', content) @@ plainto_tsquery('simple', %s)
                 ORDER BY text_score DESC
                 LIMIT %s
-            """, ([memory_types] if memory_types else []) + [query, query, top_k * 3])
+            """, [query] + ([memory_types] if memory_types else []) + [query, top_k * 3])
             text_results = cur.fetchall()
 
             # RRF merge (k=60)
