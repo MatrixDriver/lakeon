@@ -64,6 +64,12 @@
                 class="btn btn-text btn-small"
                 style="color: #0073e6;"
               >详情</router-link>
+              <button
+                v-if="job.status === 'FAILED' || job.status === 'CANCELLED' || job.status === 'SUCCEEDED'"
+                class="btn btn-text btn-small"
+                style="color: #0073e6;"
+                @click="handleResubmit(job)"
+              >重跑</button>
             </td>
           </tr>
         </tbody>
@@ -94,6 +100,7 @@ import { useRouter } from 'vue-router'
 import {
   listDatalakeJobs,
   cancelDatalakeJob,
+  resubmitDatalakeJob,
   type DatalakeJob,
   type DatalakeJobStatus,
   type DatalakeJobType,
@@ -204,6 +211,16 @@ async function handleCancel(job: DatalakeJob) {
     await loadJobs()
   } catch (e: any) {
     alert('取消失败: ' + (e.response?.data?.error?.message || e.message))
+  }
+}
+
+async function handleResubmit(job: DatalakeJob) {
+  if (!confirm(`确认重跑作业"${job.name}"？将创建新作业。`)) return
+  try {
+    await resubmitDatalakeJob(job.id)
+    await loadJobs()
+  } catch (e: any) {
+    alert('重跑失败: ' + (e.response?.data?.error?.message || e.message))
   }
 }
 

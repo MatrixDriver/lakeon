@@ -81,6 +81,10 @@ export function cancelDatalakeJob(jobId: string) {
   return api.delete(`/datalake/jobs/${jobId}`)
 }
 
+export function resubmitDatalakeJob(jobId: string) {
+  return api.post(`/datalake/jobs/${jobId}/resubmit`)
+}
+
 export function streamDatalakeLogsUrl(jobId: string): string {
   const apiKey = localStorage.getItem('lakeon_api_key') || ''
   return `https://api.dbay.cloud:8443/api/v1/datalake/jobs/${jobId}/logs?token=${encodeURIComponent(apiKey)}`

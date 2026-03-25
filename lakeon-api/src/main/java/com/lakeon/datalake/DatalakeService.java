@@ -117,6 +117,22 @@ public class DatalakeService {
         return DatalakeJobResponse.from(entity);
     }
 
+    public DatalakeJobResponse resubmitJob(String tenantId, String jobId) {
+        DatalakeJobEntity old = repository.findById(jobId)
+                .orElseThrow(() -> new NotFoundException("Job not found: " + jobId));
+        if (!old.getTenantId().equals(tenantId)) {
+            throw new NotFoundException("Job not found: " + jobId);
+        }
+        // Parse original spec and resubmit
+        try {
+            DatalakeJobRequest req = objectMapper.readValue(old.getSpec(), DatalakeJobRequest.class);
+            return submitJob(tenantId, req);
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to parse job spec for resubmit: " + e.getMessage(), e);
+        }
+    }
+
     public DatalakeJobResponse getJob(String tenantId, String jobId) {
         DatalakeJobEntity entity = repository.findById(jobId)
                 .orElseThrow(() -> new NotFoundException("Job not found: " + jobId));

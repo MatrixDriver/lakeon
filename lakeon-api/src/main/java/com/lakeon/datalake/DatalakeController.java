@@ -61,6 +61,13 @@ public class DatalakeController {
         service.cancelJob(tenant.getId(), id);
     }
 
+    @PostMapping("/jobs/{id}/resubmit")
+    @ResponseStatus(HttpStatus.CREATED)
+    public DatalakeJobResponse resubmitJob(HttpServletRequest req, @PathVariable String id) {
+        TenantEntity tenant = getTenant(req);
+        return service.resubmitJob(tenant.getId(), id);
+    }
+
     @GetMapping(value = "/jobs/{id}/logs", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamLogs(HttpServletRequest req, @PathVariable String id) {
         TenantEntity tenant = getTenant(req);

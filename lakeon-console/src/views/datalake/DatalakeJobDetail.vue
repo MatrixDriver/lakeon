@@ -26,6 +26,11 @@
             style="color: #e6393d; border-color: #e6393d;"
             @click="handleCancel"
           >取消作业</button>
+          <button
+            v-if="canResubmit"
+            class="btn btn-primary"
+            @click="handleResubmit"
+          >重跑作业</button>
         </div>
       </div>
 
@@ -129,7 +134,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getDatalakeJob, cancelDatalakeJob, type DatalakeJob, type DatalakeJobStatus, type DatalakeJobType } from '../../api/datalake'
+import { getDatalakeJob, cancelDatalakeJob, resubmitDatalakeJob, type DatalakeJob, type DatalakeJobStatus, type DatalakeJobType } from '../../api/datalake'
 
 const route = useRoute()
 const router = useRouter()
@@ -148,6 +153,7 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
 const TERMINAL: DatalakeJobStatus[] = ['SUCCEEDED', 'FAILED', 'CANCELLED']
 
 const canCancel = computed(() => job.value && !TERMINAL.includes(job.value.status))
+const canResubmit = computed(() => job.value && TERMINAL.includes(job.value.status))
 const canStream = computed(() => job.value && !TERMINAL.includes(job.value.status))
 
 const duration = computed(() => {
@@ -208,6 +214,16 @@ async function handleCancel() {
     await loadJob()
   } catch (e: any) {
     alert('取消失败: ' + (e.response?.data?.error?.message || e.message))
+  }
+}
+
+async function handleResubmit() {
+  if (!confirm(`确认重跑作业"${job.value?.name}"？将创建新作业。`)) return
+  try {
+    const { data } = await resubmitDatalakeJob(jobId)
+    router.push(`/datalake/jobs/${data.id}`)
+  } catch (e: any) {
+    alert('重跑失败: ' + (e.response?.data?.error?.message || e.message))
   }
 }
 
