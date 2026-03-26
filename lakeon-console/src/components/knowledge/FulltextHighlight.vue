@@ -90,13 +90,16 @@ function highlightChunkInDom() {
     }
   }
 
-  // Scroll to first highlight
-  nextTick(() => {
+  // Scroll to first highlight — use setTimeout to ensure layout is complete
+  setTimeout(() => {
+    const container = contentRef.value?.closest('.tab-panel-fulltext') || contentRef.value?.parentElement
     const mark = contentRef.value?.querySelector('.chunk-highlight')
-    if (mark) {
-      mark.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (mark && container) {
+      const markRect = mark.getBoundingClientRect()
+      const containerRect = container.getBoundingClientRect()
+      container.scrollTop += markRect.top - containerRect.top - containerRect.height / 3
     }
-  })
+  }, 100)
 }
 
 /**
