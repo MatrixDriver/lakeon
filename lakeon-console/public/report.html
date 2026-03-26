@@ -396,7 +396,173 @@
   @media print {
     .slide { min-height: auto; page-break-after: always; padding: 30px; }
     .pw-gate { display: none !important; }
+    .theme-toggle { display: none !important; }
   }
+
+  /* ── Theme Toggle Button ── */
+  .theme-toggle {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1001;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(0,210,255,0.3);
+    border-radius: 10px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: #8ecae6;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .theme-toggle:hover { background: rgba(0,210,255,0.15); color: #fff; }
+  .theme-toggle .icon { font-size: 1rem; }
+
+  /* ══════════════════════════════════════════
+     LIGHT THEME OVERRIDES
+     ══════════════════════════════════════════ */
+  html.light body { background: #f5f6fa; color: #333; }
+
+  html.light .slide--cover { background: linear-gradient(135deg, #e8edf5 0%, #dce3f0 50%, #c9d6e8 100%); }
+  html.light .slide--s1 { background: #f0f2f7; }
+  html.light .slide--s2 { background: linear-gradient(180deg, #e8edf5 0%, #f0f2f7 100%); }
+  html.light .slide--s3 { background: #f0f2f7; }
+  html.light .slide--s4 { background: linear-gradient(180deg, #eceef5 0%, #f0f2f7 100%); }
+  html.light .slide--s5 { background: #e8edf5; }
+  html.light .slide--s6 { background: linear-gradient(135deg, #f0f2f7 0%, #c9d6e8 100%); }
+  html.light .slide + .slide { border-top-color: rgba(0,120,200,0.15); }
+
+  html.light h2 { color: #1a1a2e; }
+  html.light h3 { color: #0078c8; }
+  html.light .subtitle { color: #4a6fa5; }
+  html.light .date-line { color: #888; }
+  html.light .accent { color: #0078c8; }
+  html.light .accent-gold { color: #b8860b; }
+  html.light .accent-green { color: #1a8a4a; }
+  html.light .accent-red { color: #c0392b; }
+  html.light .big-number { color: #0078c8; }
+  html.light .big-number small { color: #4a6fa5; }
+
+  html.light .highlight-box { background: rgba(0,120,200,0.06); border-left-color: #0078c8; color: #333; }
+  html.light .highlight-box.gold { background: rgba(184,134,11,0.06); border-left-color: #b8860b; }
+
+  html.light .data-table th { color: #4a6fa5; }
+  html.light .data-table td { color: #444; }
+  html.light .data-table th, html.light .data-table td { border-bottom-color: rgba(0,0,0,0.08); }
+  html.light .data-table tr:hover td { background: rgba(0,120,200,0.04); }
+  html.light .data-table .val { color: #0078c8; }
+  html.light .data-table .val-gold { color: #b8860b; }
+
+  html.light .kpi-card { background: #fff; border-color: rgba(0,120,200,0.15); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  html.light .kpi-card .kpi-value { color: #0078c8; }
+  html.light .kpi-card .kpi-label { color: #4a6fa5; }
+
+  html.light .bar-track { background: rgba(0,0,0,0.04); }
+  html.light .bar-fill { background: linear-gradient(90deg, #4a6fa5, #0078c8); }
+  html.light .bar-fill.commits { background: linear-gradient(90deg, #4a6fa5, #b8860b); }
+  html.light .bar-label { color: #4a6fa5; }
+  html.light .bar-annotation { color: #b8860b; border-left-color: #b8860b; }
+
+  html.light .layer:nth-child(1) { background: rgba(0,120,200,0.08); border-color: rgba(0,120,200,0.2); }
+  html.light .layer:nth-child(2) { background: rgba(184,134,11,0.06); border-color: rgba(184,134,11,0.15); }
+  html.light .layer:nth-child(3) { background: rgba(26,138,74,0.06); border-color: rgba(26,138,74,0.15); }
+  html.light .layer-title { color: #1a1a2e; }
+  html.light .layer-desc { color: #555; }
+
+  html.light .method-card { background: #fff; border-color: rgba(0,0,0,0.08); box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+  html.light .method-card h4 { color: #0078c8; }
+  html.light .method-card p { color: #555; }
+
+  html.light .toc-nav { background: rgba(255,255,255,0.95); border-color: rgba(0,120,200,0.2); }
+  html.light .toc-nav h4 { color: #0078c8; }
+  html.light .toc-nav a { color: #4a6fa5; }
+  html.light .toc-nav a:hover { color: #0078c8; }
+  html.light .toc-nav a.active { color: #b8860b; }
+
+  html.light .accordion-header { background: #fff; border-color: rgba(0,120,200,0.12); color: #333; }
+  html.light .accordion-header:hover { background: rgba(0,120,200,0.06); }
+  html.light .accordion-header .arrow { color: #4a6fa5; }
+  html.light .accordion-body { background: #fafbfd; border-color: rgba(0,0,0,0.06); color: #444; }
+  html.light .accordion-body h4 { color: #0078c8; }
+  html.light .accordion-body code { background: rgba(0,120,200,0.08); color: #0078c8; }
+  html.light .accordion-body .mini-table th { color: #4a6fa5; }
+  html.light .accordion-body .mini-table th, html.light .accordion-body .mini-table td { border-bottom-color: rgba(0,0,0,0.06); }
+
+  html.light .check-cat { color: #4a6fa5; }
+  html.light .check-item { color: #333; }
+  html.light .check-row { border-bottom-color: rgba(0,0,0,0.05); }
+
+  html.light .progress-track { background: rgba(0,0,0,0.06); }
+  html.light .progress-fill { background: #0078c8; }
+  html.light .progress-fill.gold { background: #b8860b; }
+
+  html.light .section-num { color: rgba(0,120,200,0.35); }
+
+  html.light .token-bar-outer { background: rgba(0,0,0,0.04); }
+  html.light .token-seg.cache { background: rgba(0,120,200,0.6); }
+  html.light .token-seg.fresh { background: rgba(184,134,11,0.6); }
+
+  html.light .stage-group-title { color: #b8860b; border-left-color: #b8860b; }
+  html.light .stage-tag { background: rgba(0,120,200,0.08); border-color: rgba(0,120,200,0.15); color: #4a6fa5; }
+
+  html.light .big-quote { color: #1a1a2e; }
+  html.light .big-quote .em { color: #b8860b; }
+
+  html.light .pw-gate { background: #f5f6fa; }
+  html.light .pw-box { background: #fff; border-color: rgba(0,120,200,0.2); box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+  html.light .pw-box h2 { color: #1a1a2e; }
+  html.light .pw-box p { color: #4a6fa5; }
+  html.light .pw-input { background: #f5f6fa; border-color: rgba(0,120,200,0.2); color: #333; }
+  html.light .pw-input:focus { border-color: #0078c8; }
+  html.light .pw-btn { background: #0078c8; color: #fff; }
+
+  html.light .theme-toggle { background: rgba(0,0,0,0.05); border-color: rgba(0,120,200,0.2); color: #4a6fa5; }
+  html.light .theme-toggle:hover { background: rgba(0,120,200,0.1); color: #0078c8; }
+
+  /* Light theme: inline style color overrides (for elements with hardcoded style= colors) */
+  html.light [style*="color:#fff"], html.light [style*="color: #fff"] { color: #1a1a2e !important; }
+  html.light [style*="color:#ccc"], html.light [style*="color: #ccc"] { color: #555 !important; }
+  html.light [style*="color:#aaa"], html.light [style*="color: #aaa"] { color: #666 !important; }
+  html.light [style*="color:#999"], html.light [style*="color: #999"] { color: #777 !important; }
+  html.light [style*="color:#8ecae6"], html.light [style*="color: #8ecae6"] { color: #4a6fa5 !important; }
+  html.light [style*="color:#00d2ff"], html.light [style*="color: #00d2ff"] { color: #0078c8 !important; }
+  html.light [style*="color:#ffd700"], html.light [style*="color: #ffd700"] { color: #b8860b !important; }
+  html.light [style*="color:#2ecc71"], html.light [style*="color: #2ecc71"] { color: #1a8a4a !important; }
+  html.light [style*="color:#e056fd"], html.light [style*="color: #e056fd"] { color: #9b30ff !important; }
+  html.light [style*="color:#e74c3c"], html.light [style*="color: #e74c3c"] { color: #c0392b !important; }
+  html.light [style*="color:#6c7a89"], html.light [style*="color: #6c7a89"] { color: #888 !important; }
+
+  /* Light theme: inline background overrides */
+  html.light [style*="background:rgba(0,210,255"] { background: rgba(0,120,200,0.06) !important; }
+  html.light [style*="background:rgba(255,215,0"] { background: rgba(184,134,11,0.06) !important; }
+  html.light [style*="background:rgba(46,204,113"] { background: rgba(26,138,74,0.06) !important; }
+  html.light [style*="background:rgba(224,86,253"] { background: rgba(155,48,255,0.06) !important; }
+  html.light [style*="background:rgba(255,255,255,0.0"] { background: #fff !important; }
+  html.light [style*="background:rgba(231,76,60"] { background: rgba(192,57,43,0.08) !important; }
+  html.light [style*="border:1px solid rgba(255,215,0"] { border-color: rgba(184,134,11,0.2) !important; }
+  html.light [style*="border:1px solid rgba(0,210,255"] { border-color: rgba(0,120,200,0.15) !important; }
+
+  /* Light theme: inline SVG overrides */
+  html.light .arch-svg rect[fill="#0d0d1a"] { fill: #f5f6fa; }
+  html.light .arch-svg text[fill="#00d2ff"] { fill: #0078c8; }
+  html.light .arch-svg text[fill="#8ecae6"] { fill: #4a6fa5; }
+  html.light .arch-svg text[fill="#e0e0e0"] { fill: #444; }
+  html.light .arch-svg text[fill="#ffd700"] { fill: #b8860b; }
+  html.light .arch-svg text[fill="#2ecc71"] { fill: #1a8a4a; }
+  html.light .arch-svg text[fill="#e056fd"] { fill: #9b30ff; }
+  html.light .arch-svg text[fill="#6c7a89"] { fill: #888; }
+  html.light .arch-svg line[stroke="#e056fd"] { stroke: #9b30ff; }
+  html.light .arch-svg line[stroke="#ffd700"] { stroke: #b8860b; }
+  html.light .arch-svg path[stroke="#8ecae6"] { stroke: #4a6fa5; }
+  html.light .arch-svg rect[stroke="#e056fd"] { stroke: #9b30ff; }
+  html.light .arch-svg rect[stroke="#00d2ff"] { stroke: #0078c8; }
+  html.light .arch-svg rect[stroke="#ffd700"] { stroke: #b8860b; }
+  html.light .arch-svg rect[stroke="#2ecc71"] { stroke: #1a8a4a; }
+  html.light .arch-svg rect[stroke="#6c7a89"] { stroke: #aaa; }
+  html.light .arch-svg polygon[fill="#8ecae6"] { fill: #4a6fa5; }
 
   /* ── Password Gate ── */
   .pw-gate {
@@ -463,6 +629,12 @@
 </div>
 
 <div class="report-content" id="reportContent">
+
+<!-- Theme Toggle -->
+<button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">
+  <span class="icon" id="themeIcon">&#9788;</span>
+  <span id="themeLabel">浅色</span>
+</button>
 
 <!-- TOC Navigation -->
 <nav class="toc-nav">
@@ -571,7 +743,7 @@
 
     <h3 style="margin-top:32px;">系统架构</h3>
     <div style="background:rgba(255,255,255,0.02);border-radius:12px;padding:20px;margin:20px 0;">
-      <svg style="width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720">
+      <svg class="arch-svg" style="width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720">
   <defs>
     <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" style="stop-color:#00d2ff;stop-opacity:0.2" />
@@ -1419,6 +1591,24 @@ document.getElementById('pwInput').addEventListener('keydown', function(e) {
 if (sessionStorage.getItem('report_auth') === '1') {
   document.getElementById('pwGate').classList.add('hidden');
   document.getElementById('reportContent').classList.add('visible');
+}
+
+// Theme toggle
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('light');
+  localStorage.setItem('report_theme', isLight ? 'light' : 'dark');
+  updateThemeUI(isLight);
+}
+
+function updateThemeUI(isLight) {
+  document.getElementById('themeIcon').innerHTML = isLight ? '&#9790;' : '&#9788;';
+  document.getElementById('themeLabel').textContent = isLight ? '深色' : '浅色';
+}
+
+// Restore saved theme
+if (localStorage.getItem('report_theme') === 'light') {
+  document.documentElement.classList.add('light');
+  updateThemeUI(true);
 }
 </script>
 </body>
