@@ -61,7 +61,7 @@ def _ensure_compute_ready(connstr, retries=5, wait=15):
 MAX_EMBED_CHARS = 8000  # BGE-M3 supports ~8192 tokens; truncate to stay under API payload limits
 
 
-def embed_texts(texts, embedding_api_url, embedding_api_key, embedding_model, batch_size=4):
+def embed_texts(texts, embedding_api_url, embedding_api_key, embedding_model, batch_size=64):
     """Embed texts via OpenAI-compatible API. Auto-halves batch on 413.
     Truncates texts exceeding MAX_EMBED_CHARS to avoid payload limits."""
     headers = {"Content-Type": "application/json"}
