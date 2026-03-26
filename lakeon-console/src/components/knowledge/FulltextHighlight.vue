@@ -11,6 +11,7 @@ import MarkdownIt from 'markdown-it'
 const props = defineProps<{
   fulltext: string
   chunkContent?: string
+  overlapPrev?: number
   chunkOffsetStart: number | null
   chunkOffsetEnd: number | null
 }>()
@@ -36,8 +37,10 @@ function highlightChunkInDom() {
     }
   })
 
-  const searchText = findSearchText()
-  if (!searchText || searchText.length < 10) return
+  const match = findHighlightInFulltext()
+  if (!match) return
+  const searchText = match.searchText
+  if (searchText.length < 10) return
 
   // Walk text nodes and find the search text
   const textNodes: Text[] = []
@@ -96,16 +99,38 @@ function highlightChunkInDom() {
   })
 }
 
-function findSearchText(): string | null {
-  if (!props.chunkContent) return null
+/**
+ * Find the chunk's unique text in the fulltext, accounting for overlap.
+ * Returns the position + length to highlight, or uses full content as fallback.
+ */
+function findHighlightInFulltext(): { searchText: string; startIdx: number } | null {
+  if (!props.chunkContent || !props.fulltext) return null
+
   const content = props.chunkContent
-  // Use a middle snippet (200 chars) to avoid overlap prefix issues
-  // Try multiple positions
-  for (const skip of [Math.floor(content.length / 3), 0, 100, 200]) {
-    const snippet = content.substring(skip, skip + 200).trim()
-    if (snippet.length >= 20) return snippet
+  const overlap = props.overlapPrev ?? 0
+  const text = props.fulltext
+
+  // Skip overlap prefix — the unique part starts after overlap chars
+  const uniqueStart = Math.min(overlap, content.length)
+  const uniquePart = content.substring(uniqueStart)
+
+  if (uniquePart.length >= 20) {
+    // Search for the unique part (after overlap) — this avoids matching the previous chunk's text
+    const idx = text.indexOf(uniquePart.substring(0, Math.min(300, uniquePart.length)))
+    if (idx >= 0) {
+      // Expand highlight backward to include overlap area
+      const highlightStart = Math.max(0, idx - overlap)
+      return { searchText: text.substring(highlightStart, idx + uniquePart.length), startIdx: highlightStart }
+    }
   }
-  return content.length >= 20 ? content.substring(0, 200) : null
+
+  // Fallback: search for full content
+  const idx = text.indexOf(content.substring(0, Math.min(300, content.length)))
+  if (idx >= 0) {
+    return { searchText: content, startIdx: idx }
+  }
+
+  return null
 }
 
 watch(

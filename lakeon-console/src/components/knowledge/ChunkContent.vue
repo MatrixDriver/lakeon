@@ -43,6 +43,7 @@
         v-else-if="cachedFulltext != null"
         :fulltext="cachedFulltext"
         :chunkContent="chunk.content"
+        :overlapPrev="chunk.overlap_prev ?? 0"
         :chunkOffsetStart="chunk.char_offset_start"
         :chunkOffsetEnd="chunk.char_offset_end"
       />
