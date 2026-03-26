@@ -1,5 +1,5 @@
 <template>
-  <div class="fulltext-highlight">
+  <div class="fulltext-highlight" ref="scrollRef">
     <div class="fulltext-rendered" ref="contentRef" v-html="baseHtml"></div>
   </div>
 </template>
@@ -17,6 +17,7 @@ const props = defineProps<{
 }>()
 
 const md = new MarkdownIt({ html: false, linkify: true, typographer: false })
+const scrollRef = ref<HTMLElement | null>(null)
 const contentRef = ref<HTMLElement | null>(null)
 
 const baseHtml = computed(() => md.render(props.fulltext || ''))
@@ -90,16 +91,13 @@ function highlightChunkInDom() {
     }
   }
 
-  // Scroll to first highlight — use setTimeout to ensure layout is complete
+  // Scroll to first highlight
   setTimeout(() => {
-    const container = contentRef.value?.closest('.tab-panel-fulltext') || contentRef.value?.parentElement
-    const mark = contentRef.value?.querySelector('.chunk-highlight')
-    if (mark && container) {
-      const markRect = mark.getBoundingClientRect()
-      const containerRect = container.getBoundingClientRect()
-      container.scrollTop += markRect.top - containerRect.top - containerRect.height / 3
+    const mark = contentRef.value?.querySelector('.chunk-highlight') as HTMLElement | null
+    if (mark && scrollRef.value) {
+      scrollRef.value.scrollTop = mark.offsetTop - 60
     }
-  }, 100)
+  }, 150)
 }
 
 /**
