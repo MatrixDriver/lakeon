@@ -1,6 +1,6 @@
 # Knowledge Pipeline & 数据飞轮路线图
 
-> 2026-03-18 创建，记录实现进度和下一步
+> 2026-03-18 创建，2026-03-26 更新
 
 ## Phase 1 进度
 
@@ -13,72 +13,100 @@
 - JobPodManager (K8s Pod + ConfigMap + /dev/shm + nodeSelector)
 - JobCallbackController (token 验证, 进度上报)
 - JobScheduledTasks (PENDING 5min + RUNNING timeout 孤儿检测)
+- **[2026-03-26] Job Pod 异常终止时捕获详细原因**（exit code、OOM、pod logs）
+- **[2026-03-26] Job Pod 运行在 CCI serverless**（virtual-kubelet, 独立 lakeon-jobs namespace）
 
-### 1b. Knowledge Pipeline MVP ✅ 代码完成，⏳ 待部署
+### 1b. Knowledge Pipeline ✅ 完成（已部署，48+ E2E 测试通过）
 
-三个组件，19 个新文件：
-
-**Embedding Service** (`knowledge/embedding-service/`)
-- BGE-M3 (568M, 1024维) + FastAPI 常驻 Pod
-- Helm template: `deploy/helm/lakeon/templates/embedding-service.yaml`
+**Embedding Service** — BGE-M3 (1024维) + 硅基流动 API（不再自托管）
 
 **Knowledge Job Pod** (`knowledge/job/`)
-- parser.py: Marker (PDF) + python-docx (DOCX) + 直读 (Markdown)
-- chunker.py: Structure-aware (标题边界 + 代码/表格完整 + overlap)
-- writer.py: 写入用户 PG (pgvector + pg_search)
-- 不用 Ray，普通 Python Pod，HTTP 调 Embedding Service
+- parser.py: pymupdf4llm (PDF) + python-docx (DOCX) + ebooklib (EPUB) + 直读 (Markdown/TXT)
+- chunker.py: Structure-aware (标题边界 + 代码/表格完整 + overlap + char_offset)
+- writer.py: 写入用户 PG (pgvector + tsvector)
+- Compute pod 挂起自动唤醒（`_ensure_compute_ready`）
 
 **API Layer** (`com.lakeon.knowledge/`)
-- DocumentEntity + KnowledgeService + KnowledgeController
-- OBS 预签名 URL 直传、Job 提交、RRF 搜索
-- chunks 存在用户自己的 PG，搜索通过 proxy 连接
+- KnowledgeBase CRUD、Document 上传/处理/批量、Chunk CRUD
+- OBS 预签名 URL 直传、RRF 混合搜索（vector + tsvector + rerank）
+- Fulltext 原文定位（char_offset → stripMarkdown → DOM 高亮）
 
-### 部署待办
-- [ ] 构建 embedding-service 镜像推 SWR
-- [ ] 构建 knowledge-job 镜像推 SWR
-- [ ] 构建新版 API 镜像部署 CCE
-- [ ] Helm 部署 embedding-service
-- [ ] 端到端 smoke test（上传 PDF → 解析 → 搜索）
+**Console UI** ✅ 完成
+- 知识库管理、文档上传（单文件/批量/目录）、搜索、切片查看/编辑
+- 原文定位高亮、切片质量统计
+- **[2026-03-26] 文档批量删除**（checkbox 全选 + 批量删除按钮）
 
-### 后续待办
-- [ ] Console UI（文档上传/管理/搜索页面）
-- [ ] MCP endpoint（knowledge_search tool for Claude Code/Cursor）
+### 1c. MCP Server ✅ 完成（2026-03-26）
+
+原生 HTTP MCP 端点内嵌到 lakeon-api，Streamable HTTP transport。
+
+**9 个 Tools：**
+- 知识库: `knowledge_list_bases`, `knowledge_search`, `knowledge_list_documents`, `knowledge_get_chunk`
+- 记忆库: `memory_recall`, `memory_ingest`, `memory_ingest_extracted`, `memory_list`, `memory_delete`
+
+**接入方式：**
+- Claude Code: `claude mcp add --scope user --transport http dbay https://api.dbay.cloud:8443/mcp --header "Authorization: Bearer lk_..."`
+- Cursor/Windsurf: `.mcp.json` HTTP transport
+- Console 接入指南已更新（记忆库详情页 + 文档页）
+
+**定位：CC 的跨项目大脑**
+- CC 原生 memory = L1 缓存（小量、全量注入、per-project）
+- DBay memory = L2/L3 存储（大量、语义检索、cross-project、Q-value）
+- 工具描述优化：`memory_ingest` 在用户说"记住"时触发，`memory_recall` 在凭据/经验/卡住时触发
+
+### 1d. 记忆库场景类型 ✅ 完成（2026-03-26）
+
+创建记忆库时选择场景（`scene` 字段），系统据此配置提取策略。
+
+| 场景 | 值 | 提取策略 |
+|------|---|---------|
+| 开发者工具 | `DEVELOPER_TOOL` | fact/procedural/decision/rejection/convention，无 episode，无衰减 |
+| 对话助理 | `CHAT_ASSISTANT` | 全类型含 episode，时间衰减，定期 trait 反思 |
+
+- API: 创建时必填 `scene`，通过 `X-Scene` header 传给 Python 微服务
+- Python: `extraction_prompt.py` 按 scene 切换提取 prompt
+- Console: 两步式创建向导（Step 1 选场景卡片 → Step 2 填配置）
+- **[2026-03-26] 修复中文库名编码 bug**（DB 名改用 ASCII slug）
+
+### 其他修复（2026-03-26）
+- 原文定位高亮失败：chunk 含 markdown 语法但 DOM 已渲染为纯文本，indexOf 匹配不上。修复：`stripMarkdown()` 去语法后匹配。
+- EPUB 上传失败：Job pod 在 CCI 终止但无 callback。增强 `getTerminationReason()` 捕获 exit code、OOM、pod logs。
+- Console 错误信息截断：改为可点击展开完整错误。
 
 ## Phase 2：高级 RAG + 数据飞轮
 
-| 技术 | 作用 | 依赖 |
-|------|------|------|
-| RAPTOR 层次摘要 | L0/L1/L2 分层检索 | LLM |
-| v_inferred chunk 增强 | 补全代词/引用 | LLM |
-| ColBERT 重排序 | 精排 top-K | 额外模型 |
-| LightRAG 知识图谱 | 跨文档实体关联 | 实体抽取 |
-| DuckDB → Parquet 导出 | PG 数据导出到 OBS | Job 框架 |
-| OpenRLHF 训练 | SFT/DPO/PPO | GPU 节点, 用户数据 |
+| 技术 | 作用 | 依赖 | 状态 |
+|------|------|------|------|
+| RAPTOR 层次摘要 | L0/L1/L2 分层检索 | LLM | 待启动 |
+| v_inferred chunk 增强 | 补全代词/引用 | LLM | 待启动 |
+| Reranker 重排序 | 精排 top-K | 硅基流动 API | ✅ 已集成 |
+| LightRAG 知识图谱 | 跨文档实体关联 | 实体抽取 | 待启动 |
+| DuckDB → Parquet 导出 | PG 数据导出到 OBS | Job 框架 | ✅ 代码完成 |
+| Q-value 记忆检索 | 记忆质量排序 | 用户反馈信号 | 待启动 |
 
-## Phase 3：用户自定义 Job (CCI)
+## Phase 3：数据湖 — 用户自定义 Job (CCI)
 
-CCI 验证已通过 (2026-03-18)：Ray + RDS + OBS + 公网全部 OK。
-技术风险已消除，等有用户需求时启动。
+CCI 验证已通过。三种任务类型：
 
-## CCI 验证记录
+| 类型 | 运行环境 | 状态 |
+|------|---------|------|
+| Python 脚本 | CCI Pod (virtual-kubelet) | ✅ 完成 |
+| Ray 分布式 | KubeRay on CCI | ✅ 完成 |
+| 微调训练 | GPU 节点 | 待启动 |
 
-关键配置：
-- CCI Network `attachedVPC` 必须是 `d66706ac`（CCE/RDS/NAT 所在 VPC）
-- `networkID` = `f28729ee`，`subnetID` = `2455b2f4`
-- `availableZone` 只能选 `cn-north-4a` 或 `cn-north-4g`
-- SWR 镜像拉取需要 `imagepull-secret`（`hcloud SWR CreateAuthorizationToken`）
+Console UI: 作业管理（分步创建向导 + 代码编辑器 + SSE 日志流 + 资源配置）
 
 ## 决策记录
 
-| 决策 | 原因 |
-|------|------|
-| Trusted Plane 用 CCE 弹性节点池 | 冷启动 8s, RDS/OBS 直连, 我们的代码不需要 Kata 隔离 |
-| Untrusted Plane 用 CCI (Phase 3) | 用户代码需要 Kata microVM 隔离 |
-| 不用 KubeRay | Job 短生命周期, API 直接编排 Pod |
-| Embedding 独立服务 | 模型只加载一次, Job Pod 和搜索共用 |
-| chunks 存用户 PG | 天然租户隔离, 避免 RDS 膨胀 |
-| OBS 预签名 URL 直传 | 大文件不过 API |
-| Phase 1 只做 pgvector + BM25 + RRF | 不需要 LLM 的技术先做 |
-| Phase 1-2 用 Parquet, 多模态引入 Lance | Parquet 生态成熟, 顺序扫描最优 |
-| RL 训练用 OpenRLHF | Ray 原生, 4B-8B 匹配 |
-| Embedding 用 BGE-M3 | 568M 参数, 4C/8G 够跑 |
+| 决策 | 原因 | 日期 |
+|------|------|------|
+| Trusted Plane 用 CCE 弹性节点池 | 冷启动 8s, RDS/OBS 直连 | 03-18 |
+| Untrusted Plane 用 CCI | 用户代码 Kata microVM 隔离 | 03-18 |
+| KB Job Pod 迁移到 CCI | 释放弹性节点资源给 compute pod | 03-26 |
+| MCP 原生 HTTP 内嵌 API | 零额外部署，复用 Service 层和认证 | 03-26 |
+| 不用 Spring AI MCP starter | 协议简单（3 个 JSON-RPC 方法），避免重依赖 | 03-26 |
+| 记忆库按场景区分提取策略 | 编码助手 vs 对话助理需求根本不同 | 03-26 |
+| 记忆库 DB 名用 ASCII slug | 中文名在 HTTP header 编码损坏 | 03-26 |
+| Embedding 用硅基流动 API | 省去自托管 GPU，降本 | 03-20 |
+| chunks 存用户 PG | 天然租户隔离, 避免 RDS 膨胀 | 03-18 |
+| Phase 1 只做 pgvector + tsvector + RRF | 不需要 LLM 的技术先做 | 03-18 |
