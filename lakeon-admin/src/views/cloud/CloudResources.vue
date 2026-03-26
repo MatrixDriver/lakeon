@@ -11,58 +11,69 @@
     <div class="section">
       <h3 class="section-title">部署架构</h3>
       <div class="arch-diagram" v-if="topology">
-        <!-- Railway Layer (External) -->
+
+        <!-- Top Row: Railway + External APIs -->
         <div class="arch-layer arch-layer-storage">
           <div class="arch-box arch-box-railway">
             <div class="arch-box-label">Railway (海外)</div>
             <div class="arch-box-value">dbay.cloud</div>
             <div class="arch-box-pods">Web 控制台 &middot; SRE Admin</div>
           </div>
+          <div class="arch-box arch-box-external">
+            <div class="arch-box-label">外部 API</div>
+            <div class="arch-box-value">SiliconFlow</div>
+            <div class="arch-box-pods">Embedding (BGE-M3) &middot; LLM (DeepSeek)</div>
+          </div>
         </div>
 
-        <div class="arch-arrow">&#8595; 浏览器直连 API</div>
+        <div class="arch-arrow">&#8595; 浏览器直连 API &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &#8593; KB/Memory 调用</div>
 
-        <!-- EIP Layer -->
-        <div class="arch-layer arch-layer-network" v-if="topology.eip">
-          <a :href="topology.eip.console_url" target="_blank" class="arch-box arch-box-network">
+        <!-- EIP → ELB -->
+        <div class="arch-layer arch-layer-storage">
+          <a v-if="topology.eip" :href="topology.eip.console_url" target="_blank" class="arch-box arch-box-network">
             <div class="arch-box-label">EIP</div>
             <div class="arch-box-value">{{ topology.eip.ip }}</div>
           </a>
-        </div>
-
-        <div class="arch-arrow">&#8595;</div>
-
-        <!-- ELB Layer -->
-        <div class="arch-layer" v-if="topology.elb">
-          <a :href="topology.elb.console_url" target="_blank" class="arch-box arch-box-network">
+          <a v-if="topology.elb" :href="topology.elb.console_url" target="_blank" class="arch-box arch-box-network">
             <div class="arch-box-label">ELB</div>
             <div class="arch-box-value">{{ topology.elb.name }}</div>
-            <div class="arch-box-ports">:8443 API (HTTPS) &middot; :4432 PG Proxy &middot; :8080 API (内部)</div>
+            <div class="arch-box-ports">:8443 API &middot; :4432 PG Proxy</div>
           </a>
         </div>
 
         <div class="arch-arrow">&#8595;</div>
 
-        <!-- CCE Cluster Layer -->
-        <div class="arch-layer" v-if="topology.cce">
-          <a :href="topology.cce.console_url" target="_blank" class="arch-box arch-box-compute arch-box-cluster">
-            <div class="arch-box-label">CCE 集群</div>
-            <div class="arch-box-value">{{ topology.cce.name }}</div>
-            <div class="arch-box-pods">
-              pageserver &middot; safekeeper &middot; storage-broker &middot; proxy<br>
-              lakeon-api (HTTPS, hostNetwork) &middot; compute pods (按需创建)
-            </div>
-          </a>
-          <div class="arch-nodes">
-            <a v-for="node in topology.cce.nodes" :key="node.name"
-               :href="node.console_url" target="_blank"
-               class="arch-box arch-box-compute arch-box-node">
-              <div class="arch-box-label">节点</div>
-              <div class="arch-box-value">{{ node.flavor }}</div>
-              <div class="arch-box-status" :class="node.phase === 'Active' ? 'status-ok' : 'status-error'">
-                {{ node.phase }}
+        <!-- CCE Cluster + CCI -->
+        <div class="arch-layer arch-layer-storage" style="align-items: flex-start;">
+          <!-- CCE -->
+          <div v-if="topology.cce" style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <a :href="topology.cce.console_url" target="_blank" class="arch-box arch-box-compute arch-box-cluster">
+              <div class="arch-box-label">CCE 集群</div>
+              <div class="arch-box-value">{{ topology.cce.name }}</div>
+              <div class="arch-box-pods">
+                lakeon-api &middot; pageserver &middot; safekeeper<br>
+                storage-broker &middot; proxy &middot; memory-service<br>
+                compute pods &middot; KB job pods
               </div>
             </a>
+            <div class="arch-nodes">
+              <a v-for="node in topology.cce.nodes" :key="node.name"
+                 :href="node.console_url" target="_blank"
+                 class="arch-box arch-box-compute arch-box-node">
+                <div class="arch-box-label">{{ node.flavor }}</div>
+                <div class="arch-box-status" :class="node.phase === 'Active' ? 'status-ok' : 'status-error'">
+                  {{ node.phase }}
+                </div>
+              </a>
+            </div>
+          </div>
+          <!-- CCI -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <div class="arch-box arch-box-cci">
+              <div class="arch-box-label">CCI (Serverless)</div>
+              <div class="arch-box-value">数据湖任务</div>
+              <div class="arch-box-pods">Python &middot; Ray &middot; 微调</div>
+            </div>
           </div>
         </div>
 
@@ -84,6 +95,11 @@
             <div class="arch-box-value">{{ topology.obs.bucket }}</div>
             <div class="arch-box-status status-ok">Active</div>
           </a>
+          <div class="arch-box arch-box-storage">
+            <div class="arch-box-label">SWR 镜像仓库</div>
+            <div class="arch-box-value">flex</div>
+            <div class="arch-box-pods">API &middot; Console &middot; KB Job &middot; Memory</div>
+          </div>
         </div>
       </div>
       <div v-else-if="!loading" class="empty-state">暂无拓扑数据</div>
@@ -317,6 +333,16 @@ onMounted(loadData)
 .arch-box-railway {
   background: #faf5ff;
   border-color: #a855f7;
+}
+
+.arch-box-external {
+  background: #fefce8;
+  border-color: #eab308;
+}
+
+.arch-box-cci {
+  background: #ecfeff;
+  border-color: #06b6d4;
 }
 
 .arch-box-label {
