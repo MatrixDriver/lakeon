@@ -10,16 +10,6 @@
   https://api.dbay.cloud:8443/mcp \
   --header "Authorization: Bearer lk_your_api_key"</code></pre>
       <p class="tip">{{ t('使用 --scope user 全局生效，所有项目共享。API Key 不会进入代码仓库。', 'Using --scope user makes it global across all projects. API Key stays out of your repo.') }}</p>
-
-      <div class="migration-note">
-        <h3>{{ t('从旧版 dbay-mcp 迁移', 'Migrating from dbay-mcp package') }}</h3>
-        <p>{{ t('如果你之前使用的是', 'If you previously used') }} <code>pip install dbay-mcp</code> / <code>uvx dbay-mcp</code>{{ t('，请先移除旧配置，再按上方命令重新添加：', ', remove the old config first, then re-add using the command above:') }}</p>
-        <pre class="code-block"><code>claude mcp remove dbay
-claude mcp add --scope user --transport http dbay \
-  https://api.dbay.cloud:8443/mcp \
-  --header "Authorization: Bearer lk_your_api_key"</code></pre>
-        <p class="tip">{{ t('新版使用原生 HTTP 端点，无需安装 Python 包，连接更快更稳定。', 'The new version uses a native HTTP endpoint — no Python package needed, faster and more reliable.') }}</p>
-      </div>
     </section>
 
     <section class="section">
@@ -190,9 +180,6 @@ const examples = computed(() => [
 .section p { font-size: 14px; color: var(--pub-text-2); line-height: 1.6; margin-bottom: 8px; }
 .section code { background: var(--pub-code-bg); padding: 1px 6px; border-radius: 3px; color: var(--pub-code); font-family: monospace; font-size: 12px; }
 .tip { font-size: 12px; color: var(--pub-text-4); margin-top: 8px; }
-.migration-note { margin-top: 20px; padding: 16px; background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 8px; border-left: 3px solid #f59e0b; }
-.migration-note h3 { font-size: 13px; font-weight: 600; color: #b45309; margin: 0 0 8px; }
-.migration-note p { font-size: 13px; color: var(--pub-text-2); margin-bottom: 8px; }
 .code-block {
   background: var(--pub-code-bg); border: 1px solid var(--pub-border); border-radius: 6px;
   padding: 12px 14px; font-size: 12px; color: var(--pub-code);
