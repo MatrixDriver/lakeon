@@ -205,6 +205,7 @@ public class RayJobRunner {
                 "minReplicas", workerCount,
                 "maxReplicas", workerCount,
                 "groupName", "worker-group",
+                "rayStartParams", Map.of(),
                 "template", Map.of(
                     "spec", workerPodSpec
                 )
