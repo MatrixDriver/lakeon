@@ -108,5 +108,12 @@ def _parse_epub(file_path: str) -> str:
 
 
 def _parse_markdown(file_path: str) -> str:
-    with open(file_path, "r", encoding="utf-8") as f:
-        return f.read()
+    for encoding in ["utf-8", "gbk", "gb2312", "latin1"]:
+        try:
+            with open(file_path, "r", encoding=encoding) as f:
+                return f.read()
+        except (UnicodeDecodeError, LookupError):
+            continue
+    # Last resort: read as bytes and decode with replacement
+    with open(file_path, "rb") as f:
+        return f.read().decode("utf-8", errors="replace")

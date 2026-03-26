@@ -202,7 +202,10 @@ public class JobPodManager {
         try {
             Pod pod = k8sClient.pods().inNamespace(namespace).withName(podName).get();
             if (pod == null) {
-                return true;
+                // Pod not found — could be CCI (name prefix differs) or not yet registered.
+                // Return false to avoid killing running CCI jobs.
+                // Stuck task timeout will catch truly lost pods.
+                return false;
             }
             String phase = pod.getStatus() != null ? pod.getStatus().getPhase() : null;
             return "Succeeded".equals(phase) || "Failed".equals(phase);
