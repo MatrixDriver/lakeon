@@ -55,8 +55,9 @@ public class MemoryService {
     public MemoryBaseEntity createBase(TenantEntity tenant, String name, String description,
                                         MemoryBaseType type, String embeddingModel, boolean oneLlmMode) {
         String tenantId = tenant.getId();
-        // Create backing database — pass real tenant entity for quota check
-        var dbRequest = new CreateDatabaseRequest("mem_" + name, null, null, null);
+        // Use a generated slug for DB name (ASCII-safe, avoids HTTP header encoding issues with Chinese names)
+        String dbSlug = "mem_" + java.util.UUID.randomUUID().toString().substring(0, 8);
+        var dbRequest = new CreateDatabaseRequest(dbSlug, null, null, null);
         DatabaseResponse dbResp = databaseService.create(tenant, dbRequest);
 
         var entity = new MemoryBaseEntity();

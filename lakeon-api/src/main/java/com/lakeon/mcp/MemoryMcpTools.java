@@ -28,7 +28,7 @@ public class MemoryMcpTools {
     @PostConstruct
     void register() {
         registry.register("memory_recall",
-                "Search memories by semantic similarity. Use this to recall cross-project knowledge, user preferences, credentials, or past decisions.",
+                "Search saved memories. Use when: (1) you need credentials, preferences, project context, or past decisions the user may have shared before, (2) you're stuck on a problem after 2+ failed attempts — check for past lessons or solutions, (3) the user asks about something they told you previously.",
                 schema(b -> {
                     b.prop("base_id", "string", "Memory base ID", true);
                     b.prop("query", "string", "Search query", true);
@@ -49,7 +49,7 @@ public class MemoryMcpTools {
                 });
 
         registry.register("memory_ingest",
-                "Store a single memory from conversation content. Use this to remember important facts, decisions, or preferences mentioned by the user.",
+                "Save a persistent memory. Use when the user says 'remember/记住', or when you discover important information worth preserving: credentials, user preferences, decisions, lessons learned from debugging, solutions to tricky problems, or operational conventions.",
                 schema(b -> {
                     b.prop("base_id", "string", "Memory base ID", true);
                     b.prop("content", "string", "Memory content to store", true);
