@@ -48,6 +48,8 @@ public class KbWriteQueue {
     private final JobService jobService;
     private final LakeonProperties props;
     private final ObjectMapper objectMapper;
+    @org.springframework.beans.factory.annotation.Value("${lakeon.job.callback-base-url:}")
+    private String callbackBaseUrl;
     private final ExecutorService executor = Executors.newFixedThreadPool(4);
     private final ConcurrentHashMap<String, ReentrantLock> dbLocks = new ConcurrentHashMap<>();
 
@@ -371,6 +373,18 @@ public class KbWriteQueue {
     }
 
     /**
+     * Wake compute and return a fresh connstr for the given database.
+     * Used by job pods to refresh their connection after compute suspend.
+     */
+    public String wakeAndGetConnstr(String databaseId) {
+        DatabaseEntity db = databaseRepository.findById(databaseId)
+            .orElseThrow(() -> new NotFoundException("Database not found: " + databaseId));
+        String address = wakeAndGetPodAddress(db);
+        return "postgresql://cloud_admin:cloud-admin-internal@" + address + "/" + db.getName()
+                + "?sslmode=disable";
+    }
+
+    /**
      * Wake the user's compute pod and return its internal pod IP address (host:55433).
      * wakeCompute() returns the proxy address (for user connections), but KB writes
      * need direct pod access to bypass SSL requirements and use cloud_admin auth.
@@ -436,8 +450,9 @@ public class KbWriteQueue {
         databaseRepository.save(db);
 
         Map<String, Object> params = objectMapper.readValue(task.getParams(), Map.class);
-        // Override database_connstr to point to the user's compute pod (internal IP)
         params.put("database_connstr", connstr);
+        params.put("database_id", db.getId());
+        params.put("database_name", db.getName());
 
         TenantEntity tenant = new TenantEntity();
         tenant.setId(task.getTenantId());
@@ -445,6 +460,21 @@ public class KbWriteQueue {
         JobEntity job = jobService.submitJob(tenant, JobType.DOCUMENT_PARSE, params);
         task.setJobId(job.getId());
         taskRepository.save(task);
+
+        // Build connstr_refresh_url using callback base URL + job token
+        if (callbackBaseUrl != null && !callbackBaseUrl.isBlank()) {
+            String refreshUrl = callbackBaseUrl + "/api/v1/jobs/" + job.getId()
+                    + "/connstr?token=" + job.getCallbackToken();
+            params.put("connstr_refresh_url", refreshUrl);
+            // Re-save params with the refresh URL
+            try {
+                job.setParams(objectMapper.writeValueAsString(params));
+                jobService.saveJob(job);
+            } catch (Exception e) {
+                log.warn("Failed to save connstr_refresh_url to job params: {}", e.getMessage());
+            }
+        }
+
         log.info("kb-write task {} submitted job {} for db {}", task.getId(), job.getId(), task.getDatabaseId());
     }
 

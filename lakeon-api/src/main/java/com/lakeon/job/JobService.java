@@ -131,6 +131,14 @@ public class JobService {
             .orElseThrow(() -> new NotFoundException("Job not found: " + jobId));
     }
 
+    public JobEntity findById(String jobId) {
+        return jobRepository.findById(jobId).orElse(null);
+    }
+
+    public void saveJob(JobEntity job) {
+        jobRepository.save(job);
+    }
+
     /**
      * List jobs for a tenant, optionally filtered by type and/or status.
      */

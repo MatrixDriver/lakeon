@@ -54,21 +54,36 @@ ALTER TABLE knowledge_chunks ADD COLUMN IF NOT EXISTS edited BOOLEAN DEFAULT FAL
 ALTER TABLE knowledge_chunks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
 """
 
-def _connect_with_retry(connstr, max_retries=20, delay=5):
-    """Connect to PostgreSQL with retries (compute may be waking up or in WAL recovery)."""
+def _connect_with_retry(connstr, max_retries=20, delay=5, connstr_refresh_url=None):
+    """Connect to PostgreSQL with retries. If connstr_refresh_url is provided,
+    refresh the connection string (wake compute + get new IP) on failure."""
     import time
+    import os
+    current_connstr = connstr
     for attempt in range(max_retries):
         try:
-            return psycopg2.connect(connstr, connect_timeout=30)
+            return psycopg2.connect(current_connstr, connect_timeout=30)
         except psycopg2.OperationalError as e:
             if attempt < max_retries - 1:
-                logger.warning(f"DB connect attempt {attempt+1}/{max_retries} failed: {e}, retrying in {delay}s")
+                logger.warning(f"DB connect attempt {attempt+1}/{max_retries} failed: {e}")
+                # Try refreshing connstr (wake compute, get new IP)
+                if connstr_refresh_url and attempt >= 1:
+                    try:
+                        import requests
+                        resp = requests.get(connstr_refresh_url, timeout=120, verify=False)
+                        if resp.status_code == 200:
+                            new_connstr = resp.json().get("connstr")
+                            if new_connstr and new_connstr != current_connstr:
+                                logger.info(f"Refreshed connstr from API (compute pod woke up)")
+                                current_connstr = new_connstr
+                    except Exception as re:
+                        logger.warning(f"Failed to refresh connstr: {re}")
                 time.sleep(delay)
             else:
                 raise
 
-def write_chunks(connstr, document_id, chunks, embeddings):
-    conn = _connect_with_retry(connstr)
+def write_chunks(connstr, document_id, chunks, embeddings, connstr_refresh_url=None):
+    conn = _connect_with_retry(connstr, connstr_refresh_url=connstr_refresh_url)
     try:
         conn.autocommit = False
         with conn.cursor() as cur:

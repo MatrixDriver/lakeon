@@ -1,8 +1,10 @@
 package com.lakeon.job;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lakeon.knowledge.KbWriteQueue;
 import com.lakeon.model.entity.TenantEntity;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,10 +20,13 @@ public class JobCallbackController {
 
     private final JobService jobService;
     private final ObjectMapper objectMapper;
+    private final KbWriteQueue kbWriteQueue;
 
-    public JobCallbackController(JobService jobService, ObjectMapper objectMapper) {
+    public JobCallbackController(JobService jobService, ObjectMapper objectMapper,
+                                  @Lazy KbWriteQueue kbWriteQueue) {
         this.jobService = jobService;
         this.objectMapper = objectMapper;
+        this.kbWriteQueue = kbWriteQueue;
     }
 
     @PostMapping
@@ -107,6 +112,33 @@ public class JobCallbackController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Get a fresh database connstr for a job pod.
+     * Wakes the compute pod and returns the latest connection string.
+     * Authenticated by job callback token (same as callback endpoint).
+     */
+    @SuppressWarnings("unchecked")
+    @GetMapping("/{id}/connstr")
+    public ResponseEntity<?> getConnstr(@PathVariable String id, @RequestParam String token) {
+        JobEntity job = jobService.findById(id);
+        if (job == null || !token.equals(job.getCallbackToken())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        try {
+            // Extract database_id from job params
+            Map<String, Object> params = objectMapper.readValue(job.getParams(), Map.class);
+            String databaseId = (String) params.get("database_id");
+            if (databaseId == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "No database_id in job params"));
+            }
+            String connstr = kbWriteQueue.wakeAndGetConnstr(databaseId);
+            return ResponseEntity.ok(Map.of("connstr", connstr));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("error", "Failed to wake compute: " + e.getMessage()));
+        }
     }
 
     private Map<String, Object> jobToMap(JobEntity job) {

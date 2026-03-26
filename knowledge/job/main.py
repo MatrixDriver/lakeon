@@ -150,10 +150,9 @@ def process_single_document(s3, obs_bucket, doc_params, database_connstr,
 
         detect_duplicates(chunks, all_embeddings)
 
-        # Wake compute pod before writing — it may have been suspended during embedding
-        _ensure_compute_ready(database_connstr)
-
-        write_chunks(database_connstr, document_id, chunks, all_embeddings)
+        connstr_refresh_url = doc_params.get("connstr_refresh_url")
+        write_chunks(database_connstr, document_id, chunks, all_embeddings,
+                     connstr_refresh_url=connstr_refresh_url)
 
         logger.info(f"{prefix}Done: {len(chunks)} chunks written for {document_id}")
         return {"document_id": document_id, "chunks_count": len(chunks)}
@@ -278,7 +277,9 @@ def main():
             detect_duplicates(chunks, all_embeddings)
 
             report_progress("Writing to database", 0.9)
-            write_chunks(database_connstr, document_id, chunks, all_embeddings)
+            connstr_refresh_url = params.get("connstr_refresh_url")
+            write_chunks(database_connstr, document_id, chunks, all_embeddings,
+                         connstr_refresh_url=connstr_refresh_url)
 
             quality_stats = {
                 "anomaly_count": sum(1 for c in chunks if len(c["content"]) < ANOMALY_SHORT_THRESHOLD or len(c["content"]) > ANOMALY_LONG_THRESHOLD),

@@ -124,8 +124,8 @@ public class ApiKeyFilter implements Filter {
             return;
         }
 
-        // Job callback from Job Pods (internal only)
-        if (path.matches("/api/v1/jobs/[^/]+/callback")) {
+        // Job callback and connstr refresh from Job Pods (token-authenticated internally)
+        if (path.matches("/api/v1/jobs/[^/]+/callback") || path.matches("/api/v1/jobs/[^/]+/connstr")) {
             chain.doFilter(req, res);
             return;
         }
