@@ -548,19 +548,19 @@
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;text-align:center;">
         <div>
           <div style="font-size:1.1rem;font-weight:600;color:#00d2ff;margin-bottom:4px;">Serverless PG</div>
-          <div style="font-size:0.85rem;color:#8ecae6;">对标 Databricks Lakebase</div>
+          <div style="font-size:0.85rem;color:#8ecae6;">存算分离 · 按需扩缩容</div>
         </div>
         <div>
           <div style="font-size:1.1rem;font-weight:600;color:#ffd700;margin-bottom:4px;">知识库</div>
-          <div style="font-size:0.85rem;color:#8ecae6;">对标华为云 CSS</div>
+          <div style="font-size:0.85rem;color:#8ecae6;">向量 + 全文 + 表知识</div>
         </div>
         <div>
           <div style="font-size:1.1rem;font-weight:600;color:#e056fd;margin-bottom:4px;">记忆库</div>
-          <div style="font-size:0.85rem;color:#8ecae6;">对标 MemGPT / Mem0</div>
+          <div style="font-size:0.85rem;color:#8ecae6;">Agent 长期记忆 + 轨迹</div>
         </div>
         <div>
           <div style="font-size:1.1rem;font-weight:600;color:#2ecc71;margin-bottom:4px;">AI 数据湖</div>
-          <div style="font-size:0.85rem;color:#8ecae6;">对标 DataArts Fabric + DLI</div>
+          <div style="font-size:0.85rem;color:#8ecae6;">SFT + RL 训练 + 数据飞轮</div>
         </div>
       </div>
     </div>
@@ -624,7 +624,7 @@
   <text x="220" y="253" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">&#x2022; 向量检索 (pgvector)</text>
   <text x="220" y="278" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">&#x2022; 全文搜索 (tsvector)</text>
   <text x="220" y="303" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">&#x2022; 表知识库</text>
-  <text x="220" y="345" font-family="Arial, sans-serif" font-size="11" fill="#ffd700" text-anchor="middle">对标华为云 CSS</text>
+  <text x="220" y="330" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">&#x2022; 切片管理 + 版本回滚</text>
 
   <!-- Middle Right: Memory Store (Active) -->
   <rect x="360" y="170" width="240" height="190" rx="10" fill="url(#grad4)" stroke="#e056fd" stroke-width="2"/>
@@ -633,7 +633,7 @@
   <text x="480" y="253" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">&#x2022; 多类型记忆管理</text>
   <text x="480" y="278" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">&#x2022; 语义检索 + 时间衰减</text>
   <text x="480" y="303" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">&#x2022; 记忆压缩与合并</text>
-  <text x="480" y="345" font-family="Arial, sans-serif" font-size="11" fill="#e056fd" text-anchor="middle">对标 MemGPT / Mem0</text>
+  <text x="480" y="330" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">&#x2022; 对话轨迹存储</text>
 
   <!-- Connection: KB/Memory -> Lakebase -->
   <line x1="220" y1="360" x2="220" y2="390" stroke="#ffd700" stroke-width="2"/>
@@ -644,25 +644,25 @@
   <text x="350" y="425" font-family="Arial, sans-serif" font-size="26" font-weight="bold" fill="#00d2ff" text-anchor="middle">Lakebase (Neon 内核)</text>
   <text x="350" y="455" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">存算分离 · 多版本 · 时间旅行 · 分支管理</text>
   <text x="350" y="480" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">按需启动 (3ms 热启动) · 自动扩缩容 · 多租户隔离</text>
-  <text x="350" y="515" font-family="Arial, sans-serif" font-size="12" fill="#8ecae6" text-anchor="middle">Serverless PostgreSQL · 对标 Databricks Lakebase</text>
+  <text x="350" y="515" font-family="Arial, sans-serif" font-size="12" fill="#8ecae6" text-anchor="middle">Serverless PostgreSQL · 存算分离 · 按需扩缩容</text>
 
   <!-- Right: AI Data Lake (Full Height) -->
   <rect x="700" y="170" width="400" height="370" rx="12" fill="url(#grad3)" stroke="#2ecc71" stroke-width="3"/>
   <text x="900" y="210" font-family="Arial, sans-serif" font-size="26" font-weight="bold" fill="#2ecc71" text-anchor="middle">AI 多模数据湖</text>
-  <text x="900" y="250" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">&#x2022; Python/Ray 任务调度</text>
-  <text x="900" y="280" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">&#x2022; Dataset 导出 (Parquet)</text>
-  <text x="900" y="310" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">&#x2022; 模型微调</text>
-  <text x="900" y="340" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">&#x2022; Kata VM 隔离</text>
-  <text x="900" y="370" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">&#x2022; 增量 CDC 调度</text>
-  <text x="900" y="410" font-family="Arial, sans-serif" font-size="13" fill="#2ecc71" text-anchor="middle">对标 DataArts Fabric + DLI</text>
-  <text x="900" y="460" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#ffd700" text-anchor="middle">&#x1F504; 数据飞轮</text>
-  <text x="900" y="490" font-family="Arial, sans-serif" font-size="13" fill="#8ecae6" text-anchor="middle">Lakebase &#x2194; 数据湖双向流转</text>
+  <text x="900" y="248" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">&#x2022; Python/Ray 任务调度</text>
+  <text x="900" y="275" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">&#x2022; Dataset 导出 (Parquet)</text>
+  <text x="900" y="302" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">&#x2022; 模型微调 (SFT)</text>
+  <text x="900" y="329" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">&#x2022; 强化学习 (RL) 训练</text>
+  <text x="900" y="356" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">&#x2022; Kata VM 隔离</text>
+  <text x="900" y="383" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">&#x2022; 增量 CDC 调度</text>
+  <text x="900" y="440" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#ffd700" text-anchor="middle">&#x1F504; 数据飞轮</text>
+  <text x="900" y="470" font-family="Arial, sans-serif" font-size="13" fill="#8ecae6" text-anchor="middle">Lakebase &#x2194; 数据湖双向流转</text>
 
   <!-- Data Flywheel Arrows: Lakebase <-> Data Lake -->
   <path d="M 600 425 L 690 340" stroke="#8ecae6" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
   <path d="M 690 400 L 600 480" stroke="#8ecae6" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
-  <text x="640" y="375" font-family="Arial, sans-serif" font-size="13" fill="#ffd700" text-anchor="middle">导出</text>
-  <text x="640" y="455" font-family="Arial, sans-serif" font-size="13" fill="#ffd700" text-anchor="middle">导入</text>
+  <text x="632" y="365" font-family="Arial, sans-serif" font-size="12" fill="#ffd700" text-anchor="middle">导出 + 轨迹数据</text>
+  <text x="655" y="455" font-family="Arial, sans-serif" font-size="12" fill="#ffd700" text-anchor="middle">导入</text>
 
   <!-- Infrastructure Layer -->
   <rect x="100" y="590" width="1000" height="90" rx="10" fill="rgba(255,255,255,0.02)" stroke="#6c7a89" stroke-width="1"/>
