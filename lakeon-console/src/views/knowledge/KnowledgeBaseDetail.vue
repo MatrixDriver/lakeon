@@ -89,11 +89,20 @@
         </div>
       </div>
 
-      <TableToolbar v-model="docSearch" placeholder="搜索文件名" :loading="docLoading" @refresh="loadDocuments" />
+      <TableToolbar v-model="docSearch" placeholder="搜索文件名" :loading="docLoading" @refresh="loadDocuments">
+        <template #extra>
+          <button v-if="selectedDocIds.size > 0" style="background: #e6393d; color: #fff; border: none; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12px; white-space: nowrap;" @click="handleBatchDelete">
+            删除选中 ({{ selectedDocIds.size }})
+          </button>
+        </template>
+      </TableToolbar>
       <div v-if="filteredDocs.length > 0" class="table-wrapper">
         <table class="data-table">
           <thead>
             <tr>
+              <th style="width: 36px; text-align: center;">
+                <input type="checkbox" ref="selectAllCheckbox" :checked="isAllSelected" @change="toggleSelectAll" style="cursor: pointer;">
+              </th>
               <th>文件名</th>
               <th>格式</th>
               <th>大小</th>
@@ -105,6 +114,9 @@
           </thead>
           <tbody>
             <tr v-for="doc in filteredDocs" :key="doc.id" class="clickable-row" @click="router.push({ name: 'DocumentDetail', params: { kbId: route.params.kbId, docId: doc.id } })">
+              <td style="text-align: center;" @click.stop>
+                <input type="checkbox" :checked="selectedDocIds.has(doc.id)" @change="toggleSelect(doc.id)" style="cursor: pointer;">
+              </td>
               <td>
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                   <span style="font-weight: 500;">{{ doc.filename }}</span>
@@ -569,6 +581,47 @@ async function runBatchUpload(files: File[]) {
 async function handleDeleteDoc(doc: Document) {
   if (!confirm(`确认删除文档"${doc.filename}"？`)) return
   await deleteDocument(doc.id)
+  selectedDocIds.value.delete(doc.id)
+  await loadDocuments()
+}
+
+// ── Batch selection ──
+const selectedDocIds = ref<Set<string>>(new Set())
+const selectAllCheckbox = ref<HTMLInputElement | null>(null)
+
+const isAllSelected = computed(() =>
+  filteredDocs.value.length > 0 && filteredDocs.value.every(d => selectedDocIds.value.has(d.id))
+)
+const isIndeterminate = computed(() =>
+  !isAllSelected.value && filteredDocs.value.some(d => selectedDocIds.value.has(d.id))
+)
+
+watch(isIndeterminate, (val) => {
+  if (selectAllCheckbox.value) selectAllCheckbox.value.indeterminate = val
+})
+
+function toggleSelect(docId: string) {
+  const s = new Set(selectedDocIds.value)
+  if (s.has(docId)) s.delete(docId); else s.add(docId)
+  selectedDocIds.value = s
+}
+
+function toggleSelectAll() {
+  if (isAllSelected.value) {
+    selectedDocIds.value = new Set()
+  } else {
+    selectedDocIds.value = new Set(filteredDocs.value.map(d => d.id))
+  }
+}
+
+async function handleBatchDelete() {
+  const count = selectedDocIds.value.size
+  if (!confirm(`确认删除选中的 ${count} 个文档？`)) return
+  const ids = [...selectedDocIds.value]
+  for (const id of ids) {
+    try { await deleteDocument(id) } catch (e) { console.error('Failed to delete', id, e) }
+  }
+  selectedDocIds.value = new Set()
   await loadDocuments()
 }
 
