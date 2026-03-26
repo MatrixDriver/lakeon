@@ -45,6 +45,7 @@ export interface MemoryItem {
   memory_type: 'fact' | 'episode' | 'procedural' | 'decision' | 'rejection' | 'convention'
   importance: number
   access_count: number
+  last_accessed_at: string | null
   metadata: Record<string, any>
   event_time: string | null
   created_at: string

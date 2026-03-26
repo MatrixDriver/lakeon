@@ -9,6 +9,7 @@ class Memory(BaseModel):
     memory_type: str
     importance: float = 0.5
     access_count: int = 0
+    last_accessed_at: Optional[datetime] = None
     metadata: dict = {}
     event_time: Optional[datetime] = None
     created_at: datetime

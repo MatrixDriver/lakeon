@@ -19,7 +19,7 @@ async def ingest(connstr: str, content: str, role: str, memory_type: str,
             cur.execute("""
                 INSERT INTO memories (content, memory_type, importance, embedding, metadata, created_at)
                 VALUES (%s, %s, %s, %s::vector, %s, now())
-                RETURNING id, content, memory_type, importance, access_count, metadata, event_time, created_at
+                RETURNING id, content, memory_type, importance, access_count, last_accessed_at, metadata, event_time, created_at
             """, (content, memory_type, importance, json.dumps(embedding), json.dumps(metadata)))
             row = cur.fetchone()
             conn.commit()
@@ -202,7 +202,7 @@ async def recall(connstr: str, query: str, top_k: int,
 
             # Vector search
             cur.execute(f"""
-                SELECT id, content, memory_type, importance, access_count, metadata,
+                SELECT id, content, memory_type, importance, access_count, last_accessed_at, metadata,
                        event_time, created_at
                 FROM memories {type_filter}
                 ORDER BY embedding <=> %s::vector
@@ -212,7 +212,7 @@ async def recall(connstr: str, query: str, top_k: int,
 
             # Text search — param order: ts_rank query, [type_filter], WHERE query, limit
             cur.execute(f"""
-                SELECT id, content, memory_type, importance, access_count, metadata,
+                SELECT id, content, memory_type, importance, access_count, last_accessed_at, metadata,
                        event_time, created_at,
                        ts_rank(to_tsvector('simple', content), plainto_tsquery('simple', %s)) AS text_score
                 FROM memories
@@ -265,7 +265,7 @@ async def list_memories(connstr: str, memory_type: Optional[str],
             total = cur.fetchone()["total"]
 
             cur.execute(f"""
-                SELECT id, content, memory_type, importance, access_count, metadata,
+                SELECT id, content, memory_type, importance, access_count, last_accessed_at, metadata,
                        event_time, created_at
                 FROM memories {where}
                 ORDER BY created_at DESC
@@ -282,7 +282,7 @@ async def get_memory(connstr: str, memory_id: int) -> Memory:
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                SELECT id, content, memory_type, importance, access_count, metadata,
+                SELECT id, content, memory_type, importance, access_count, last_accessed_at, metadata,
                        event_time, created_at FROM memories WHERE id = %s
             """, (memory_id,))
             row = cur.fetchone()

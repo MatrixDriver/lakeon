@@ -61,6 +61,7 @@ public class MemoryMcpTools {
                     String baseId = args.get("base_id").asText();
                     Map<String, Object> body = new LinkedHashMap<>();
                     body.put("content", args.get("content").asText());
+                    body.put("source", "mcp");
                     if (args.has("role")) body.put("role", args.get("role").asText());
                     if (args.has("memory_type")) body.put("memory_type", args.get("memory_type").asText());
                     if (args.has("importance")) body.put("importance", args.get("importance").asDouble());
