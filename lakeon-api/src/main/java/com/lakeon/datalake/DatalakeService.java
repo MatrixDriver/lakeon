@@ -79,7 +79,7 @@ public class DatalakeService {
             String bucket = properties.getObs().getBucket();
             boolean single = req.getInputDatasetIds().size() == 1;
             for (String dsId : req.getInputDatasetIds()) {
-                DatasetEntity dataset = datasetRepository.findById(dsId)
+                DatasetEntity dataset = datasetRepository.findByIdAndTenantId(dsId, entity.getTenantId())
                         .orElseThrow(() -> new NotFoundException("Dataset not found: " + dsId));
                 if (dataset.getStatus() != DatasetStatus.READY) {
                     throw new BadRequestException("Dataset is not ready: " + dsId
