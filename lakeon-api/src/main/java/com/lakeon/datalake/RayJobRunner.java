@@ -181,10 +181,22 @@ public class RayJobRunner {
         }
 
         // Worker pod spec
+        // CCI requires CPU >= 250m for all containers including init containers.
+        // KubeRay auto-injects a wait-gcs-ready init container with 200m CPU which fails on CCI.
+        // Pre-define it with 250m so KubeRay merges our resource values.
+        Map<String, Object> gcsInitContainer = new LinkedHashMap<>();
+        gcsInitContainer.put("name", "wait-gcs-ready");
+        gcsInitContainer.put("image", image);
+        gcsInitContainer.put("resources", Map.of(
+            "requests", Map.of("cpu", "250m", "memory", "256Mi"),
+            "limits", Map.of("cpu", "250m", "memory", "256Mi")
+        ));
+
         Map<String, Object> workerPodSpec = new LinkedHashMap<>();
         workerPodSpec.put("nodeSelector", nodeSelector);
         workerPodSpec.put("tolerations", tolerations);
         workerPodSpec.put("imagePullSecrets", imagePullSecrets);
+        workerPodSpec.put("initContainers", List.of(gcsInitContainer));
         workerPodSpec.put("containers", List.of(workerContainer));
 
         // Build full RayJob spec
