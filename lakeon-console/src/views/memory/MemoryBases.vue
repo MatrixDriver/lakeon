@@ -15,6 +15,27 @@
           <button class="dialog-close" @click="showCreate = false">&times;</button>
         </div>
         <div class="dialog-body">
+          <!-- Scene selector -->
+          <div class="form-group">
+            <label class="form-label">应用场景 <span style="color:#e6393d">*</span></label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="scene-card" :class="{ selected: createForm.scene === 'DEVELOPER_TOOL' }"
+                   @click="createForm.scene = 'DEVELOPER_TOOL'">
+                <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">开发者工具</div>
+                <div style="font-size: 12px; color: #666; line-height: 1.5;">
+                  适用于 Claude Code、Cursor 等编码助手。记录事实、流程、决策和教训，不记录对话情景，不自动衰减。
+                </div>
+              </div>
+              <div class="scene-card" :class="{ selected: createForm.scene === 'CHAT_ASSISTANT' }"
+                   @click="createForm.scene = 'CHAT_ASSISTANT'">
+                <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">对话助理</div>
+                <div style="font-size: 12px; color: #666; line-height: 1.5;">
+                  适用于聊天机器人、个人助理、客服等。记录完整对话情景，自动提炼用户特征，支持时间衰减。
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Type selector -->
           <div class="form-group">
             <label class="form-label">类型 <span style="color:#e6393d">*</span></label>
@@ -99,7 +120,7 @@
         </div>
         <div class="dialog-footer">
           <button class="btn btn-default" @click="showCreate = false">取消</button>
-          <button class="btn btn-primary" @click="handleCreate" :disabled="!createForm.name.trim()">创建</button>
+          <button class="btn btn-primary" @click="handleCreate" :disabled="!createForm.name.trim() || !createForm.scene">创建</button>
         </div>
       </div>
     </div>
@@ -120,7 +141,13 @@
         </thead>
         <tbody>
           <tr v-for="item in memoryBases" :key="item.id" style="cursor: pointer;" @click="handleRowClick(item)">
-            <td style="font-weight: 500; color: #0073e6;">{{ item.name }}</td>
+            <td style="font-weight: 500; color: #0073e6;">
+              {{ item.name }}
+              <span v-if="item.scene" style="font-size: 11px; padding: 1px 6px; border-radius: 3px; margin-left: 8px;"
+                    :style="item.scene === 'DEVELOPER_TOOL' ? 'background:#e8f5e9;color:#2e7d32' : 'background:#e3f2fd;color:#1565c0'">
+                {{ item.scene === 'DEVELOPER_TOOL' ? '开发者工具' : '对话助理' }}
+              </span>
+            </td>
             <td>
               <span v-if="item.type === 'BUILTIN'" style="display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;background:#fef2f0;color:#e6393d;">自研</span>
               <span v-else-if="item.type === 'MEM0'" style="display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;background:#e6f7ff;color:#1890ff;">mem0</span>
@@ -170,6 +197,7 @@ const createForm = ref({
   name: '',
   description: '',
   type: 'BUILTIN' as MemoryBase['type'],
+  scene: '' as string,
   embedding_model: 'BAAI/bge-m3',
   agent_extract: false,
 })
@@ -195,6 +223,7 @@ function resetCreateForm() {
     name: '',
     description: '',
     type: 'BUILTIN',
+    scene: '',
     embedding_model: 'BAAI/bge-m3',
     agent_extract: false,
   }
@@ -214,8 +243,8 @@ async function loadMemoryBases() {
 
 async function handleCreate() {
   try {
-    const { name, description, type, embedding_model, agent_extract } = createForm.value
-    const options: { type?: MemoryBase['type']; embedding_model?: string; one_llm_mode?: boolean } = { type }
+    const { name, description, type, scene, embedding_model, agent_extract } = createForm.value
+    const options: { type?: MemoryBase['type']; scene?: MemoryBase['scene']; embedding_model?: string; one_llm_mode?: boolean } = { type, scene: scene as MemoryBase['scene'] }
     if (type === 'BUILTIN' && embedding_model) {
       options.embedding_model = embedding_model
     }
@@ -272,5 +301,20 @@ onMounted(loadMemoryBases)
   background: #e8f3ff;
   color: #0073e6;
   font-weight: 500;
+}
+.scene-card {
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.scene-card:hover {
+  border-color: #0073e6;
+}
+.scene-card.selected {
+  border-color: #0073e6;
+  background: #f0f7ff;
+  box-shadow: 0 0 0 1px #0073e6;
 }
 </style>

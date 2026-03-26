@@ -6,6 +6,7 @@ export interface MemoryBase {
   name: string
   description: string | null
   type: 'BUILTIN' | 'MEM0' | 'HINDSIGHT' | 'CUSTOM'
+  scene: 'DEVELOPER_TOOL' | 'CHAT_ASSISTANT'
   status: string
   database_id: string | null
   memory_count: number
@@ -27,6 +28,7 @@ export function getMemoryBase(id: string) {
 
 export function createMemoryBase(name: string, description?: string, options?: {
   type?: MemoryBase['type']
+  scene?: MemoryBase['scene']
   embedding_model?: string
   one_llm_mode?: boolean
 }) {
