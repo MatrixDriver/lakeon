@@ -94,6 +94,7 @@ lakeon:
     timeout-minutes: ${LAKEON_JOB_TIMEOUT_MINUTES:30}
     pending-timeout-minutes: ${LAKEON_JOB_PENDING_TIMEOUT_MINUTES:5}
     orphan-check-interval-ms: ${LAKEON_JOB_ORPHAN_CHECK_INTERVAL_MS:60000}
+    callback-base-url: ${LAKEON_JOB_CALLBACK_BASE_URL:}
     types:
       document-parse:
         image: ${LAKEON_JOB_IMAGE_DOCUMENT_PARSE:swr.cn-north-4.myhuaweicloud.com/flex/lakeon-knowledge-job:0.2.1}

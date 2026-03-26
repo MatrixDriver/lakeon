@@ -128,7 +128,7 @@
                     {{ Math.round(doc.progress * 100) }}%
                     <span v-if="doc.progress_message" style="color: #999; margin-left: 4px;">{{ doc.progress_message }}</span>
                   </span>
-                  <span v-if="doc.status === 'FAILED' && doc.error" :title="doc.error" style="color: #e6393d; font-size: 12px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help;">
+                  <span v-if="doc.status === 'FAILED' && doc.error" class="error-msg" :title="doc.error">
                     {{ doc.error }}
                   </span>
                 </div>
@@ -830,5 +830,19 @@ onMounted(async () => {
   gap: 8px;
   padding: 12px 20px 16px;
   border-top: 1px solid #f0f0f0;
+}
+.error-msg {
+  color: #e6393d;
+  font-size: 12px;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: underline dashed #e6393d;
+  text-underline-offset: 2px;
+}
+.error-msg:hover {
+  opacity: 0.8;
 }
 </style>

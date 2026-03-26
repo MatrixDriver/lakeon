@@ -22,6 +22,9 @@ public class JobPodManager {
     @Value("${lakeon.api.internal-port:8088}")
     private int internalPort;
 
+    @Value("${lakeon.job.callback-base-url:}")
+    private String callbackBaseUrl;
+
     public JobPodManager(KubernetesClient k8sClient, LakeonProperties props, ObsStsService obsStsService) {
         this.k8sClient = k8sClient;
         this.props = props;
@@ -49,9 +52,14 @@ public class JobPodManager {
         String cpu = typeConfig.getCpu() != null ? typeConfig.getCpu() : "2";
         String memory = typeConfig.getMemory() != null ? typeConfig.getMemory() : "4Gi";
 
-        // Build callback URL (uses http-internal service port, not the SSL server port)
-        String callbackUrl = "http://lakeon-api.lakeon.svc.cluster.local:" + internalPort
-                + "/api/v1/jobs/" + job.getId() + "/callback";
+        // Build callback URL — use configured base URL (for CCI) or internal service
+        String callbackUrl;
+        if (callbackBaseUrl != null && !callbackBaseUrl.isBlank()) {
+            callbackUrl = callbackBaseUrl + "/api/v1/jobs/" + job.getId() + "/callback";
+        } else {
+            callbackUrl = "http://lakeon-api.lakeon.svc.cluster.local:" + internalPort
+                    + "/api/v1/jobs/" + job.getId() + "/callback";
+        }
 
         // Create ConfigMap with params.json
         ConfigMap configMap = new ConfigMapBuilder()
@@ -202,6 +210,106 @@ public class JobPodManager {
             log.warn("Error checking pod {} status: {}", podName, e.getMessage());
             return false;
         }
+    }
+
+    /**
+     * Returns a human-readable termination reason from the pod status.
+     * Extracts exit code, OOMKilled, and container last-state info.
+     * Also attempts to read a tail of pod logs for the error message.
+     */
+    public String getTerminationReason(String podName) {
+        String namespace = props.getK8s().getNamespace();
+        try {
+            Pod pod = k8sClient.pods().inNamespace(namespace).withName(podName).get();
+            if (pod == null || pod.getStatus() == null) {
+                return "Pod not found";
+            }
+
+            StringBuilder sb = new StringBuilder();
+            String phase = pod.getStatus().getPhase();
+            sb.append("Pod phase: ").append(phase);
+
+            // Check pod-level reason (e.g. Evicted)
+            if (pod.getStatus().getReason() != null) {
+                sb.append(", reason: ").append(pod.getStatus().getReason());
+            }
+            if (pod.getStatus().getMessage() != null) {
+                sb.append(", message: ").append(pod.getStatus().getMessage());
+            }
+
+            // Check container statuses for termination details
+            if (pod.getStatus().getContainerStatuses() != null) {
+                for (var cs : pod.getStatus().getContainerStatuses()) {
+                    var terminated = cs.getState() != null ? cs.getState().getTerminated() : null;
+                    if (terminated != null) {
+                        sb.append(". Container '").append(cs.getName()).append("': ");
+                        sb.append("exitCode=").append(terminated.getExitCode());
+                        if (terminated.getReason() != null) {
+                            sb.append(", reason=").append(terminated.getReason());
+                        }
+                        if (terminated.getMessage() != null) {
+                            sb.append(", message=").append(terminated.getMessage());
+                        }
+                    }
+                    // Also check lastState (for CrashLoopBackOff scenarios)
+                    var lastTerminated = cs.getLastState() != null ? cs.getLastState().getTerminated() : null;
+                    if (lastTerminated != null && terminated == null) {
+                        sb.append(". Container '").append(cs.getName()).append("' last terminated: ");
+                        sb.append("exitCode=").append(lastTerminated.getExitCode());
+                        if (lastTerminated.getReason() != null) {
+                            sb.append(", reason=").append(lastTerminated.getReason());
+                        }
+                    }
+                }
+            }
+
+            // Try to get tail of pod logs for error details
+            try {
+                String logs = k8sClient.pods().inNamespace(namespace).withName(podName)
+                        .tailingLines(20).getLog();
+                if (logs != null && !logs.isBlank()) {
+                    // Extract last error/exception line
+                    String lastError = extractLastError(logs);
+                    if (lastError != null) {
+                        sb.append(". Log: ").append(lastError);
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("Could not read logs for pod {}: {}", podName, e.getMessage());
+            }
+
+            return sb.toString();
+        } catch (Exception e) {
+            log.warn("Error getting termination reason for pod {}: {}", podName, e.getMessage());
+            return "Unable to determine: " + e.getMessage();
+        }
+    }
+
+    /**
+     * Extract the last meaningful error line from pod logs.
+     */
+    private String extractLastError(String logs) {
+        String[] lines = logs.split("\n");
+        // Search backwards for error/exception/traceback lines
+        for (int i = lines.length - 1; i >= 0; i--) {
+            String line = lines[i].trim();
+            if (line.isEmpty()) continue;
+            String lower = line.toLowerCase();
+            if (lower.contains("error") || lower.contains("exception") ||
+                lower.contains("traceback") || lower.contains("failed") ||
+                lower.contains("killed") || lower.contains("oom")) {
+                // Truncate very long lines
+                return line.length() > 300 ? line.substring(0, 300) + "..." : line;
+            }
+        }
+        // If no error line found, return last non-empty line
+        for (int i = lines.length - 1; i >= 0; i--) {
+            String line = lines[i].trim();
+            if (!line.isEmpty()) {
+                return line.length() > 300 ? line.substring(0, 300) + "..." : line;
+            }
+        }
+        return null;
     }
 
     /**

@@ -59,7 +59,7 @@
                   <span v-if="doc.status === 'PROCESSING' && doc.progress" style="color: #999; font-size: 12px;">
                     {{ Math.round(doc.progress * 100) }}%
                   </span>
-                  <span v-if="doc.status === 'FAILED' && doc.error" :title="doc.error" style="color: #e6393d; font-size: 12px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help;">
+                  <span v-if="doc.status === 'FAILED' && doc.error" class="error-msg" :title="doc.error">
                     {{ doc.error }}
                   </span>
                 </div>
@@ -171,3 +171,20 @@ onMounted(async () => {
   knowledgeBases.value = resp.data
 })
 </script>
+
+<style scoped>
+.error-msg {
+  color: #e6393d;
+  font-size: 12px;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: underline dashed #e6393d;
+  text-underline-offset: 2px;
+}
+.error-msg:hover {
+  opacity: 0.8;
+}
+</style>

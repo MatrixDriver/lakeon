@@ -115,6 +115,9 @@ data:
   LAKEON_JOB_IMAGE_EMBEDDING: {{ .Values.knowledgeJobImage | quote }}
   LAKEON_JOB_IMAGE_EXPORT_PARQUET: {{ .Values.knowledgeJobImage | quote }}
   {{- end }}
+  {{- if .Values.api.jobCallbackBaseUrl }}
+  LAKEON_JOB_CALLBACK_BASE_URL: {{ .Values.api.jobCallbackBaseUrl | quote }}
+  {{- end }}
   {{- with .Values.datalake }}
   LAKEON_DATALAKE_CCI_NS_PREFIX: {{ .cciNamespacePrefix | quote }}
   LAKEON_DATALAKE_VK_NODE_SELECTOR_KEY: {{ .vkNodeSelectorKey | quote }}

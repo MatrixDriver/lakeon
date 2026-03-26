@@ -21,7 +21,7 @@ def report_success(chunks_count, quality_stats=None):
     result = {"chunks_count": chunks_count}
     if quality_stats:
         result["quality_stats"] = quality_stats
-    resp = requests.post(url, json={"token": token, "status": "SUCCEEDED", "result": result}, timeout=30)
+    resp = requests.post(url, json={"token": token, "status": "SUCCEEDED", "result": result}, timeout=30, verify=False)
     logger.info(f"Callback SUCCEEDED: {resp.status_code}")
 
 
@@ -35,7 +35,7 @@ def report_success_batch(documents):
     url = os.environ["JOB_CALLBACK_URL"]
     token = os.environ["JOB_CALLBACK_TOKEN"]
     result = {"documents": documents}
-    resp = requests.post(url, json={"token": token, "status": "SUCCEEDED", "result": result}, timeout=30)
+    resp = requests.post(url, json={"token": token, "status": "SUCCEEDED", "result": result}, timeout=30, verify=False)
     logger.info(f"Callback SUCCEEDED (batch {len(documents)} docs): {resp.status_code}")
 
 def report_progress(message, progress=0):
@@ -45,7 +45,7 @@ def report_progress(message, progress=0):
     url = os.environ["JOB_CALLBACK_URL"]
     token = os.environ["JOB_CALLBACK_TOKEN"]
     try:
-        requests.post(url, json={"token": token, "status": "RUNNING", "result": {"progress": progress, "message": message}}, timeout=10)
+        requests.post(url, json={"token": token, "status": "RUNNING", "result": {"progress": progress, "message": message}}, timeout=10, verify=False)
     except Exception as e:
         logger.warning(f"Progress callback failed: {e}")
 
@@ -56,7 +56,7 @@ def report_failure(error):
         if not url or not token:
             logger.warning("JOB_CALLBACK_URL or JOB_CALLBACK_TOKEN not set, skipping failure callback")
             return
-        resp = requests.post(url, json={"token": token, "status": "FAILED", "error": error}, timeout=30)
+        resp = requests.post(url, json={"token": token, "status": "FAILED", "error": error}, timeout=30, verify=False)
         logger.info(f"Callback FAILED: {resp.status_code}")
     except Exception as e:
         logger.error(f"Failed to report failure callback: {e}")
