@@ -62,10 +62,11 @@ public class ObsStsService {
                 "obs:*:*:object:" + bucket + "/datasets/" + tenantId + "/*",
                 "obs:*:*:object:" + bucket + "/knowledge/" + tenantId + "/*",
                 "obs:*:*:object:" + bucket + "/tenant-" + tenantId + "/*",
-                "obs:*:*:object:" + bucket + "/datalake-logs/" + tenantId + "/*"
+                "obs:*:*:object:" + bucket + "/datalake-logs/" + tenantId + "/*",
+                "obs:*:*:object:" + bucket + "/datasources/" + tenantId + "/*"
         );
 
-        Map<String, Object> statement = Map.of(
+        Map<String, Object> objectStatement = Map.of(
                 "Effect", "Allow",
                 "Action", List.of(
                         "obs:object:GetObject",
@@ -77,9 +78,15 @@ public class ObsStsService {
                 "Resource", resources
         );
 
+        Map<String, Object> listStatement = Map.of(
+                "Effect", "Allow",
+                "Action", List.of("obs:bucket:ListBucket"),
+                "Resource", List.of("obs:*:*:bucket:" + bucket)
+        );
+
         return Map.of(
                 "Version", "1.1",
-                "Statement", List.of(statement)
+                "Statement", List.of(objectStatement, listStatement)
         );
     }
 
