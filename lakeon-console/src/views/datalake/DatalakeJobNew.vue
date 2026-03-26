@@ -69,8 +69,12 @@
           :type="form.type"
           :cpu="form.cpu"
           :memory="form.memory"
+          :head="form.head"
+          :workers="form.workers"
           @update:cpu="form.cpu = $event"
           @update:memory="form.memory = $event"
+          @update:head="form.head = $event"
+          @update:workers="form.workers = $event"
         />
         <DatalakeJobNewEnvVars
           v-else-if="currentSection === 'envvars'"
@@ -128,6 +132,8 @@ const form = ref({
   outputPath: '',
   cpu: '1',
   memory: '2Gi',
+  head: { cpu: '2', memory: '4Gi' },
+  workers: { replicas: 2, cpu: '2', memory: '4Gi' },
   userEnvVars: [] as { key: string; value: string }[],
   timeoutSeconds: 3600,
   retryCount: 0,
@@ -218,6 +224,8 @@ async function handleSubmit() {
       input_dataset_ids: form.value.inputDatasetIds.length ? form.value.inputDatasetIds : undefined,
       output_path: form.value.outputPath || undefined,
       resources: { cpu: form.value.cpu, memory: form.value.memory },
+      head: form.value.type === 'RAY' ? form.value.head : undefined,
+      workers: form.value.type === 'RAY' ? form.value.workers : undefined,
       env_vars: Object.keys(envVars).length ? envVars : undefined,
       timeout_seconds: form.value.timeoutSeconds,
       retry_count: form.value.retryCount,
