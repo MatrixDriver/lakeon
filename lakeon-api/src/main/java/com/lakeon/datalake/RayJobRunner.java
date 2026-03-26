@@ -181,22 +181,13 @@ public class RayJobRunner {
         }
 
         // Worker pod spec
-        // CCI requires CPU >= 250m for all containers including init containers.
-        // KubeRay auto-injects a wait-gcs-ready init container with 200m CPU which fails on CCI.
-        // Pre-define it with 250m so KubeRay merges our resource values.
-        Map<String, Object> gcsInitContainer = new LinkedHashMap<>();
-        gcsInitContainer.put("name", "wait-gcs-ready");
-        gcsInitContainer.put("image", image);
-        gcsInitContainer.put("resources", Map.of(
-            "requests", Map.of("cpu", "250m", "memory", "256Mi"),
-            "limits", Map.of("cpu", "250m", "memory", "256Mi")
-        ));
-
+        // KubeRay init container injection is disabled (ENABLE_INIT_CONTAINER_INJECTION=false)
+        // because ray health-check gRPC times out in CCI despite TCP connectivity.
+        // Ray worker's own startup handles GCS connection retry, so no init container needed.
         Map<String, Object> workerPodSpec = new LinkedHashMap<>();
         workerPodSpec.put("nodeSelector", nodeSelector);
         workerPodSpec.put("tolerations", tolerations);
         workerPodSpec.put("imagePullSecrets", imagePullSecrets);
-        workerPodSpec.put("initContainers", List.of(gcsInitContainer));
         workerPodSpec.put("containers", List.of(workerContainer));
 
         // Build full RayJob spec
@@ -238,6 +229,7 @@ public class RayJobRunner {
             "limits", Map.of("cpu", "250m", "memory", "512Mi")
         ));
         Map<String, Object> submitterPodSpec = new LinkedHashMap<>();
+        submitterPodSpec.put("restartPolicy", "Never");
         submitterPodSpec.put("imagePullSecrets", imagePullSecrets);
         submitterPodSpec.put("nodeSelector", nodeSelector);
         submitterPodSpec.put("tolerations", tolerations);
