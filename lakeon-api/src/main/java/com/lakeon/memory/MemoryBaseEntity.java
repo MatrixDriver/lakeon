@@ -53,6 +53,9 @@ public class MemoryBaseEntity {
     @Column(name = "one_llm_mode")
     private Boolean oneLlmMode = false;
 
+    @Column(name = "scene", length = 32)
+    private String scene = "CHAT_ASSISTANT";
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -113,6 +116,9 @@ public class MemoryBaseEntity {
 
     public Boolean getOneLlmMode() { return oneLlmMode; }
     public void setOneLlmMode(Boolean oneLlmMode) { this.oneLlmMode = oneLlmMode; }
+
+    public String getScene() { return scene; }
+    public void setScene(String scene) { this.scene = scene; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

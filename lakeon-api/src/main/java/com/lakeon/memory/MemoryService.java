@@ -53,7 +53,8 @@ public class MemoryService {
     }
 
     public MemoryBaseEntity createBase(TenantEntity tenant, String name, String description,
-                                        MemoryBaseType type, String embeddingModel, boolean oneLlmMode) {
+                                        MemoryBaseType type, String embeddingModel, boolean oneLlmMode,
+                                        String scene) {
         String tenantId = tenant.getId();
         // Use a generated slug for DB name (ASCII-safe, avoids HTTP header encoding issues with Chinese names)
         String dbSlug = "mem_" + java.util.UUID.randomUUID().toString().substring(0, 8);
@@ -67,6 +68,7 @@ public class MemoryService {
         entity.setType(type);
         entity.setEmbeddingModel(embeddingModel != null ? embeddingModel : "BAAI/bge-m3");
         entity.setOneLlmMode(oneLlmMode);
+        entity.setScene(scene != null ? scene : "CHAT_ASSISTANT");
         entity.setDatabaseId(dbResp.getId());
         entity.setStatus("PROVISIONING");
         entity = repository.save(entity);
@@ -103,6 +105,7 @@ public class MemoryService {
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-Database-Connstr", connstr);
         headers.set("X-One-Llm-Mode", String.valueOf(Boolean.TRUE.equals(mem.getOneLlmMode())));
+        headers.set("X-Scene", mem.getScene() != null ? mem.getScene() : "CHAT_ASSISTANT");
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<?> entity = new HttpEntity<>(body, headers);
         ResponseEntity<Object> resp = restTemplate.exchange(url, HttpMethod.POST, entity, Object.class);
