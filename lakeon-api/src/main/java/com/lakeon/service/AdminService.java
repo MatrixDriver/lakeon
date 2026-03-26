@@ -581,8 +581,8 @@ public class AdminService {
         topoNodes.add(Map.of("id", "eip", "label", "EIP 弹性公网IP", "sublabel", "api.dbay.cloud:8443", "desc", "HTTPS 入口", "type", "network"));
         topoNodes.add(Map.of("id", "elb", "label", "ELB 负载均衡", "sublabel", "TCP:8443 透传", "desc", "共享型 ELB", "type", "network"));
         topoNodes.add(Map.of("id", "external-api", "label", "外部 API", "sublabel", "SiliconFlow", "desc", "Embedding (BGE-M3) · LLM (DeepSeek)", "type", "railway"));
-        topoNodes.add(Map.of("id", "cce", "label", "CCE 集群", "sublabel", "lakeon-k8s-cluster", "desc", "API · Proxy · Pageserver · Safekeeper · Memory", "type", "compute"));
-        topoNodes.add(Map.of("id", "compute-pool", "label", "弹性节点池", "sublabel", "dbay-compute-pool", "desc", "Compute Pod · KB Job Pod", "type", "compute"));
+        topoNodes.add(Map.of("id", "cce", "label", "CCE 集群", "sublabel", "lakeon-k8s-cluster", "desc", "API · Proxy · Pageserver · Safekeeper · Memory · KubeRay Operator", "type", "compute"));
+        topoNodes.add(Map.of("id", "compute-pool", "label", "弹性节点池", "sublabel", "dbay-compute-pool", "desc", "Compute Pod · KB Job Pod · RayCluster", "type", "compute"));
         topoNodes.add(Map.of("id", "cci", "label", "CCI (Serverless)", "sublabel", "数据湖任务", "desc", "Python · Ray · 微调", "type", "compute"));
         topoNodes.add(Map.of("id", "rds", "label", "RDS PostgreSQL", "sublabel", "元数据库", "desc", "存储租户/数据库/操作日志", "type", "storage"));
         topoNodes.add(Map.of("id", "obs", "label", "OBS 对象存储", "sublabel", props.getObs().getBucket(), "desc", "Neon 远程存储 · 文档 · 数据集", "type", "storage"));
