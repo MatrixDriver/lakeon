@@ -3,124 +3,88 @@
     <div class="page-header">
       <h1 class="page-title">记忆库</h1>
       <div class="page-header-actions">
-        <button class="btn btn-primary" @click="showCreate = true">创建记忆库</button>
+        <button class="btn btn-primary" @click="showCreate = true; createStep = 1; resetCreateForm()">创建记忆库</button>
       </div>
     </div>
 
-    <!-- Create dialog -->
+    <!-- Create dialog — two-step wizard -->
     <div v-if="showCreate" class="dialog-overlay" @click.self="showCreate = false">
-      <div class="dialog-box" style="max-width: 500px;">
+      <div class="dialog-box" style="max-width: 520px;">
         <div class="dialog-header">
-          <h3>创建记忆库</h3>
+          <h3>{{ createStep === 1 ? '选择应用场景' : '配置记忆库' }}</h3>
           <button class="dialog-close" @click="showCreate = false">&times;</button>
         </div>
         <div class="dialog-body">
-          <!-- Scene selector -->
-          <div class="form-group">
-            <label class="form-label">应用场景 <span style="color:#e6393d">*</span></label>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <!-- Step 1: Scene selection -->
+          <template v-if="createStep === 1">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
               <div class="scene-card" :class="{ selected: createForm.scene === 'DEVELOPER_TOOL' }"
-                   @click="createForm.scene = 'DEVELOPER_TOOL'">
-                <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">开发者工具</div>
-                <div style="font-size: 12px; color: #666; line-height: 1.5;">
+                   @click="createForm.scene = 'DEVELOPER_TOOL'; createStep = 2">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                  <span style="font-size: 20px;">🛠</span>
+                  <span style="font-weight: 600; font-size: 15px;">开发者工具</span>
+                </div>
+                <div style="font-size: 13px; color: #666; line-height: 1.6;">
                   适用于 Claude Code、Cursor 等编码助手。记录事实、流程、决策和教训，不记录对话情景，不自动衰减。
                 </div>
               </div>
               <div class="scene-card" :class="{ selected: createForm.scene === 'CHAT_ASSISTANT' }"
-                   @click="createForm.scene = 'CHAT_ASSISTANT'">
-                <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">对话助理</div>
-                <div style="font-size: 12px; color: #666; line-height: 1.5;">
+                   @click="createForm.scene = 'CHAT_ASSISTANT'; createStep = 2">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                  <span style="font-size: 20px;">💬</span>
+                  <span style="font-weight: 600; font-size: 15px;">对话助理</span>
+                </div>
+                <div style="font-size: 13px; color: #666; line-height: 1.6;">
                   适用于聊天机器人、个人助理、客服等。记录完整对话情景，自动提炼用户特征，支持时间衰减。
                 </div>
               </div>
             </div>
-          </div>
+          </template>
 
-          <!-- Type selector -->
-          <div class="form-group">
-            <label class="form-label">类型 <span style="color:#e6393d">*</span></label>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-              <label class="type-radio" :class="{ selected: createForm.type === 'BUILTIN' }">
-                <input type="radio" v-model="createForm.type" value="BUILTIN" style="display: none;" />
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;">
-                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-                <span>DBay记忆库</span>
-              </label>
-              <label class="type-radio" :class="{ selected: createForm.type === 'MEM0' }">
-                <input type="radio" v-model="createForm.type" value="MEM0" style="display: none;" />
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;">
-                  <circle cx="12" cy="12" r="10"/>
-                </svg>
-                <span>mem0</span>
-              </label>
-              <label class="type-radio" :class="{ selected: createForm.type === 'HINDSIGHT' }">
-                <input type="radio" v-model="createForm.type" value="HINDSIGHT" style="display: none;" />
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-                <span>hindsight</span>
-              </label>
-              <label class="type-radio" :class="{ selected: createForm.type === 'CUSTOM' }">
-                <input type="radio" v-model="createForm.type" value="CUSTOM" style="display: none;" />
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;">
-                  <circle cx="12" cy="12" r="3"/>
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
-                </svg>
-                <span>自定义</span>
-              </label>
+          <!-- Step 2: Details -->
+          <template v-else>
+            <!-- Scene summary (clickable to go back) -->
+            <div class="scene-summary" @click="createStep = 1">
+              <span>{{ createForm.scene === 'DEVELOPER_TOOL' ? '🛠 开发者工具' : '💬 对话助理' }}</span>
+              <span style="color: #0073e6; font-size: 12px;">更改</span>
             </div>
-          </div>
 
-          <div class="form-group">
-            <label class="form-label">名称 <span style="color:#e6393d">*</span></label>
-            <input v-model="createForm.name" class="form-input" placeholder="例如：用户偏好记忆库" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">描述</label>
-            <input v-model="createForm.description" class="form-input" placeholder="可选，描述记忆库用途" />
-          </div>
+            <div class="form-group">
+              <label class="form-label">名称 <span style="color:#e6393d">*</span></label>
+              <input v-model="createForm.name" class="form-input" placeholder="例如：用户偏好记忆库" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">描述</label>
+              <input v-model="createForm.description" class="form-input" placeholder="可选，描述记忆库用途" />
+            </div>
 
-          <!-- Embedding model selector (BUILTIN type only) -->
-          <div v-if="createForm.type === 'BUILTIN'" class="form-group">
-            <label class="form-label">嵌入模型</label>
-            <select v-model="createForm.embedding_model" class="form-input" style="cursor: pointer;">
-              <option value="BAAI/bge-m3">BAAI/bge-m3</option>
-              <option value="text-embedding-3-small">text-embedding-3-small</option>
-            </select>
-            <p style="font-size: 12px; color: #999; margin-top: 4px;">
-              不同模型的向量维度不同，创建后不可更改
-            </p>
-          </div>
+            <!-- Embedding model selector -->
+            <div v-if="createForm.type === 'BUILTIN'" class="form-group">
+              <label class="form-label">嵌入模型</label>
+              <select v-model="createForm.embedding_model" class="form-input" style="cursor: pointer;">
+                <option value="BAAI/bge-m3">BAAI/bge-m3</option>
+                <option value="text-embedding-3-small">text-embedding-3-small</option>
+              </select>
+            </div>
 
-          <!-- Agent-Extract mode toggle (BUILTIN only) -->
-          <div v-if="createForm.type === 'BUILTIN'" class="form-group">
-            <label class="form-label">提取模式</label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px;">
-              <input type="checkbox" v-model="createForm.agent_extract" style="width: 16px; height: 16px;" />
-              Agent-Extract 模式
-            </label>
-            <p style="font-size: 12px; color: #999; margin-top: 4px;">
-              {{ createForm.agent_extract
-                ? '客户端（如 Claude Code）自行提取记忆，零服务端 LLM 成本。适用于自带 LLM 的客户端。'
-                : '服务端自动提取记忆（默认）。适用于没有 LLM 的客户端（如 OpenClaw）。' }}
-            </p>
-          </div>
-
-          <!-- Info text for non-BUILTIN types -->
-          <p v-if="createForm.type !== 'BUILTIN'" style="font-size: 12px; color: #999; margin-top: 12px;">
-            请参考文档在您的 DBay 数据库上配置 {{ typeNameMap[createForm.type] }}
-          </p>
-          <p v-else style="font-size: 12px; color: #999; margin-top: 12px;">
-            系统将自动创建专用数据库，使用所选向量模型生成嵌入并建立检索索引。
-          </p>
+            <!-- Agent-Extract mode toggle -->
+            <div v-if="createForm.type === 'BUILTIN'" class="form-group">
+              <label class="form-label">提取模式</label>
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px;">
+                <input type="checkbox" v-model="createForm.agent_extract" style="width: 16px; height: 16px;" />
+                Agent-Extract 模式
+              </label>
+              <p style="font-size: 12px; color: #999; margin-top: 4px;">
+                {{ createForm.agent_extract
+                  ? '客户端（如 Claude Code）自行提取记忆，零服务端 LLM 成本。'
+                  : '服务端自动提取记忆（默认）。' }}
+              </p>
+            </div>
+          </template>
         </div>
-        <div class="dialog-footer">
-          <button class="btn btn-default" @click="showCreate = false">取消</button>
-          <button class="btn btn-primary" @click="handleCreate" :disabled="!createForm.name.trim() || !createForm.scene">创建</button>
+        <div v-if="createStep === 2" class="dialog-footer">
+          <button class="btn btn-default" @click="createStep = 1">上一步</button>
+          <button class="btn btn-primary" @click="handleCreate" :disabled="!createForm.name.trim()">创建</button>
         </div>
       </div>
     </div>
@@ -191,6 +155,7 @@ import { listMemoryBases, createMemoryBase, deleteMemoryBase, type MemoryBase } 
 const router = useRouter()
 const memoryBases = ref<MemoryBase[]>([])
 const showCreate = ref(false)
+const createStep = ref(1)
 const loading = ref(false)
 
 const createForm = ref({
@@ -201,12 +166,6 @@ const createForm = ref({
   embedding_model: 'BAAI/bge-m3',
   agent_extract: false,
 })
-
-const typeNameMap: Record<string, string> = {
-  MEM0: 'mem0',
-  HINDSIGHT: 'hindsight',
-  CUSTOM: '自定义',
-}
 
 function statusText(status: string) {
   const map: Record<string, string> = { READY: '就绪', CREATING: '创建中', FAILED: '失败' }
@@ -316,5 +275,21 @@ onMounted(loadMemoryBases)
   border-color: #0073e6;
   background: #f0f7ff;
   box-shadow: 0 0 0 1px #0073e6;
+}
+.scene-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #f7f8fa;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+.scene-summary:hover {
+  border-color: #0073e6;
 }
 </style>
