@@ -84,26 +84,60 @@ function highlightChunkInDom() {
   }, 200)
 }
 
+/**
+ * Strip markdown syntax to get plain text for DOM matching.
+ * The DOM text nodes don't contain markdown syntax (MarkdownIt removes it),
+ * so we must strip it from the chunk content before indexOf.
+ */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/^#{1,6}\s+/gm, '')           // headings
+    .replace(/\*\*(.+?)\*\*/g, '$1')       // bold
+    .replace(/\*(.+?)\*/g, '$1')           // italic
+    .replace(/__(.+?)__/g, '$1')           // bold alt
+    .replace(/_(.+?)_/g, '$1')             // italic alt
+    .replace(/`([^`]+)`/g, '$1')           // inline code
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links
+    .replace(/^\s*[-*+]\s+/gm, '')         // list markers
+    .replace(/^\s*\d+\.\s+/gm, '')         // ordered list
+    .replace(/^\s*>\s?/gm, '')             // blockquote
+    .replace(/\|/g, '')                    // table pipes
+    .replace(/[-:]{3,}/g, '')              // table separators
+    .replace(/```[\s\S]*?```/g, '')        // fenced code blocks
+}
+
 function findSearchText(): string | null {
   if (!props.chunkContent || !props.fulltext) return null
 
   const content = props.chunkContent
   const overlap = props.overlapPrev ?? 0
 
-  // Skip overlap prefix to get unique part
-  const uniqueStart = Math.min(overlap, content.length)
-  const uniquePart = content.substring(uniqueStart)
-
-  if (uniquePart.length >= 20) {
-    const snippet = uniquePart.substring(0, Math.min(300, uniquePart.length))
-    if (props.fulltext.indexOf(snippet) >= 0) return snippet
+  // Strategy 1: Use char_offset to extract from fulltext, then strip markdown
+  if (props.chunkOffsetStart != null && props.chunkOffsetEnd != null) {
+    const raw = props.fulltext.substring(props.chunkOffsetStart, props.chunkOffsetEnd)
+    const plain = stripMarkdown(raw).trim()
+    // Use a 60-char snippet from the middle (more unique than start)
+    const mid = Math.max(0, Math.floor(plain.length / 2) - 30)
+    const snippet = plain.substring(mid, mid + 60).trim()
+    if (snippet.length >= 10) {
+      // Build fullText from DOM to search in
+      return snippet
+    }
   }
 
-  // Fallback: use start of content
-  const snippet = content.substring(0, Math.min(300, content.length))
-  if (props.fulltext.indexOf(snippet) >= 0) return snippet
+  // Strategy 2: Strip markdown from chunk content, match in DOM
+  const stripped = stripMarkdown(content)
+  const uniqueStart = Math.min(overlap, stripped.length)
+  const uniquePart = stripped.substring(uniqueStart).trim()
 
-  return null
+  if (uniquePart.length >= 20) {
+    const snippet = uniquePart.substring(0, Math.min(200, uniquePart.length))
+    return snippet
+  }
+
+  // Strategy 3: Fallback with raw content start
+  const snippet = stripped.substring(0, Math.min(200, stripped.length)).trim()
+  return snippet.length >= 10 ? snippet : null
 }
 
 // Highlight after mount (DOM is ready) and on chunk change
