@@ -70,7 +70,7 @@
                 <span>创建: {{ new Date(m.created_at).toLocaleString('zh-CN') }}</span>
                 <span v-if="m.last_accessed_at">最近访问: {{ new Date(m.last_accessed_at).toLocaleString('zh-CN') }}</span>
                 <span>访问 {{ m.access_count }} 次</span>
-                <span>重要性 {{ Math.round(m.importance * 100) }}%</span>
+                <span>重要性 {{ m.importance <= 1 ? Math.round(m.importance * 100) : Math.round(m.importance * 10) }}%</span>
               </div>
             </div>
 
