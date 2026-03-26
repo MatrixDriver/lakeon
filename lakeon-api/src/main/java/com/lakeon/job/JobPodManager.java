@@ -96,7 +96,6 @@ public class JobPodManager {
                         .toList()
                 )
                 .withRestartPolicy("Never")
-                .withNodeSelector(Map.of("lakeon/role", "compute"))
                 .addNewContainer()
                     .withName("job")
                     .withImage(image)
