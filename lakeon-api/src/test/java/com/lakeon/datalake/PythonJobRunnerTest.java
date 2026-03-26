@@ -27,8 +27,7 @@ class PythonJobRunnerTest {
     @Mock KubernetesClient k8sClient;
     @Mock DatalakeJobRepository repository;
     @Mock ObsStsService obsStsService;
-    @Mock NonNamespaceOperation<Namespace, NamespaceList, Resource<Namespace>> namespaceOp;
-    @Mock Resource<Namespace> namespaceResource;
+    @Mock DatalakeNamespaceManager nsManager;
     @Mock MixedOperation<ConfigMap, ConfigMapList, Resource<ConfigMap>> configMapOp;
     @Mock Resource<ConfigMap> configMapResource;
 
@@ -46,17 +45,15 @@ class PythonJobRunnerTest {
         props.getDatalake().setVkNodeSelectorValue("cci");
         props.getObs().setBucket("lakeon-storage");
 
-        runner = new PythonJobRunner(k8sClient, props, repository, obsStsService);
+        runner = new PythonJobRunner(k8sClient, props, repository, obsStsService, nsManager);
 
         // Stub OBS STS credentials
         when(obsStsService.getCredentials(any())).thenReturn(
                 new ObsStsService.StsCredentials("ak", "sk", "token",
                         java.time.Instant.now().plusSeconds(3600)));
 
-        // Stub namespace check: namespace exists
-        when(k8sClient.namespaces()).thenReturn(namespaceOp);
-        when(namespaceOp.withName(any())).thenReturn(namespaceResource);
-        when(namespaceResource.get()).thenReturn(new Namespace());
+        // Stub nsManager to return a fixed namespace
+        when(nsManager.ensureNamespace(any())).thenReturn("datalake-tn-t1");
 
         // Stub batch job creation
         stubBatchCreate();

@@ -24,15 +24,18 @@ public class PythonJobRunner {
     private final LakeonProperties props;
     private final DatalakeJobRepository repository;
     private final ObsStsService obsStsService;
+    private final DatalakeNamespaceManager nsManager;
 
     public PythonJobRunner(KubernetesClient k8sClient,
                            LakeonProperties props,
                            DatalakeJobRepository repository,
-                           ObsStsService obsStsService) {
+                           ObsStsService obsStsService,
+                           DatalakeNamespaceManager nsManager) {
         this.k8sClient = k8sClient;
         this.props = props;
         this.repository = repository;
         this.obsStsService = obsStsService;
+        this.nsManager = nsManager;
     }
 
     public void start(DatalakeJobEntity job, DatalakeJobRequest req) {
@@ -44,45 +47,8 @@ public class PythonJobRunner {
                 dl.getPresetImages().getOrDefault("python-data", "python:3.11-slim"));
 
         // 2. Build namespace and job name
-        String ns = dl.getCciNamespacePrefix() + job.getTenantId().replace("_", "-");
+        String ns = nsManager.ensureNamespace(job.getTenantId());
         String jobName = k8sJobName(job);
-
-        // 2.5. Ensure namespace exists (must be before configmap/job creation)
-        if (k8sClient.namespaces().withName(ns).get() == null) {
-            k8sClient.namespaces().resource(
-                new io.fabric8.kubernetes.api.model.NamespaceBuilder()
-                    .withNewMetadata().withName(ns)
-                        .addToLabels("app", "datalake")
-                        .addToLabels("lakeon.io/tenant-id", job.getTenantId())
-                    .endMetadata()
-                    .build()
-            ).create();
-            log.info("Created namespace: {}", ns);
-
-            // Copy SWR image pull secret into new namespace
-            String sourceNs = props.getK8s().getNamespace();
-            try {
-                var srcSecret = k8sClient.secrets().inNamespace(sourceNs).withName("swr-secret").get();
-                if (srcSecret != null) {
-                    var newSecret = new io.fabric8.kubernetes.api.model.SecretBuilder()
-                        .withNewMetadata().withName("swr-secret").withNamespace(ns).endMetadata()
-                        .withType(srcSecret.getType())
-                        .withData(srcSecret.getData())
-                        .build();
-                    k8sClient.secrets().inNamespace(ns).resource(newSecret).createOrReplace();
-                    // Patch default SA with imagePullSecrets
-                    k8sClient.serviceAccounts().inNamespace(ns).withName("default")
-                        .edit(sa -> new io.fabric8.kubernetes.api.model.ServiceAccountBuilder(sa)
-                            .withImagePullSecrets(
-                                new io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder()
-                                    .withName("swr-secret").build())
-                            .build());
-                    log.info("Copied swr-secret to namespace: {}", ns);
-                }
-            } catch (Exception e) {
-                log.warn("Failed to copy swr-secret to {}: {}", ns, e.getMessage());
-            }
-        }
 
         // 3. Determine command (prepend pip install if requirements specified)
         String pipInstall = "";
