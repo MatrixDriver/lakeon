@@ -4,6 +4,7 @@ import sys
 import json
 import logging
 import tempfile
+import time
 
 import boto3
 import requests
@@ -18,6 +19,43 @@ logger = logging.getLogger("knowledge-job")
 
 ANOMALY_SHORT_THRESHOLD = 80
 ANOMALY_LONG_THRESHOLD = 800
+
+
+def _ensure_compute_ready(connstr, retries=5, wait=15):
+    """Try connecting to the database; if compute pod was suspended, the API's
+    orphan-check or KbWriteQueue will re-wake it. We just need to wait and retry."""
+    import psycopg2
+
+    # First: trigger a wake via the callback API (best-effort)
+    try:
+        callback_url = os.environ.get("JOB_CALLBACK_URL", "")
+        if callback_url:
+            # Extract base URL from callback URL (remove /api/v1/jobs/.../callback)
+            base = callback_url.rsplit("/api/v1/jobs/", 1)[0]
+            job_id = os.environ.get("JOB_ID", "")
+            token = os.environ.get("JOB_CALLBACK_TOKEN", "")
+            # Send a progress update — this keeps the job alive and API can detect
+            # the compute pod needs to be ready
+            requests.post(callback_url, json={
+                "token": token, "status": "RUNNING",
+                "result": {"progress": 0.88, "message": "Waking compute pod for write..."}
+            }, timeout=10, verify=False)
+    except Exception as e:
+        logger.debug(f"Wake hint failed (non-fatal): {e}")
+
+    for attempt in range(retries):
+        try:
+            conn = psycopg2.connect(connstr, connect_timeout=30)
+            conn.close()
+            logger.info("Compute pod is ready")
+            return
+        except Exception as e:
+            if attempt < retries - 1:
+                logger.warning(f"Compute not ready ({attempt+1}/{retries}): {e}, retry in {wait}s")
+                time.sleep(wait)
+            else:
+                logger.error(f"Compute not ready after {retries} attempts")
+                raise RuntimeError(f"Database connection failed after {retries} retries: {e}")
 
 
 MAX_EMBED_CHARS = 8000  # BGE-M3 supports ~8192 tokens; truncate to stay under API payload limits
@@ -111,6 +149,10 @@ def process_single_document(s3, obs_bucket, doc_params, database_connstr,
         all_embeddings = embed_texts(texts, embedding_api_url, embedding_api_key, embedding_model)
 
         detect_duplicates(chunks, all_embeddings)
+
+        # Wake compute pod before writing — it may have been suspended during embedding
+        _ensure_compute_ready(database_connstr)
+
         write_chunks(database_connstr, document_id, chunks, all_embeddings)
 
         logger.info(f"{prefix}Done: {len(chunks)} chunks written for {document_id}")

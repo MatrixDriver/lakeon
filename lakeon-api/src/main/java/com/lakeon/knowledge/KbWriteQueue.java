@@ -431,6 +431,10 @@ public class KbWriteQueue {
         String connstr = "postgresql://cloud_admin:cloud-admin-internal@" + address + "/" + db.getName()
                 + "?sslmode=disable";
 
+        // Prevent auto-suspend during job execution (embedding may take 20+ minutes)
+        db.setLastActiveAt(Instant.now().plusSeconds(1800)); // 30 min grace
+        databaseRepository.save(db);
+
         Map<String, Object> params = objectMapper.readValue(task.getParams(), Map.class);
         // Override database_connstr to point to the user's compute pod (internal IP)
         params.put("database_connstr", connstr);
