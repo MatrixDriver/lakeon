@@ -2,7 +2,7 @@
 
 Provides two tool groups:
 - Knowledge: knowledge_search, knowledge_list, knowledge_upload — document retrieval
-- Memory: memory_recall, memory_record, memory_record_extracted — agent memory
+- Memory: memory_recall, memory_ingest, memory_ingest_extracted — agent memory
 
 Config: env vars DBAY_API_KEY / DBAY_ENDPOINT / DBAY_MEMORY_BASE, or ~/.dbay/config.json
 """
@@ -363,10 +363,11 @@ def memory_recall(
     return "\n".join(parts)
 
 
-@mcp.tool(description="Record a conversation snippet into memory for future recall. "
+@mcp.tool(description="Save a persistent memory. Use when the user says 'remember', "
+          "or when you discover important information worth preserving. "
           "The server returns an extraction prompt — you MUST execute it against the conversation context, "
-          "then call memory_record_extracted with the structured result.")
-def memory_record(
+          "then call memory_ingest_extracted with the structured result.")
+def memory_ingest(
     content: str,
     source: str = "claude-code",
     memory_base: str | None = None,
@@ -375,7 +376,7 @@ def memory_record(
 
     After calling this, you will receive an extraction_prompt. Execute it to extract
     structured memories (decisions, rejections, conventions, facts, etc.) from the
-    conversation context, then call memory_record_extracted with the result.
+    conversation context, then call memory_ingest_extracted with the result.
 
     Args:
         content: The conversation content to remember
@@ -396,7 +397,7 @@ def memory_record(
             f"Message stored (id={msg_id}).\n\n"
             f"[Extraction required]\n"
             f"Execute the following prompt against the FULL conversation context, "
-            f"then call memory_record_extracted with memory_base=\"{mem_id}\", "
+            f"then call memory_ingest_extracted with memory_base=\"{mem_id}\", "
             f"message_id=\"{msg_id}\", and the JSON result as extracted_data.\n\n"
             f"--- EXTRACTION PROMPT ---\n{prompt}\n--- END PROMPT ---"
         )
@@ -405,9 +406,9 @@ def memory_record(
         return f"Message stored (id={msg_id}, status={status}). Server is extracting memories automatically."
 
 
-@mcp.tool(description="Store structured memories extracted by the agent. "
-          "Call this after memory_record returns an extraction prompt and you have executed it.")
-def memory_record_extracted(
+@mcp.tool(description="Store pre-extracted memories. "
+          "Call this after memory_ingest returns an extraction prompt and you have executed it.")
+def memory_ingest_extracted(
     message_id: str,
     extracted_data: str,
     memory_base: str | None = None,
@@ -415,7 +416,7 @@ def memory_record_extracted(
     """Store pre-extracted structured memories.
 
     Args:
-        message_id: The message_id returned by memory_record
+        message_id: The message_id returned by memory_ingest
         extracted_data: JSON string with extracted memories, e.g.:
             {"facts": [...], "decisions": [{"content": "...", "rationale": "..."}], ...}
         memory_base: Memory base name or ID (optional)

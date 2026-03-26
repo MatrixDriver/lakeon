@@ -5,10 +5,10 @@
 
     <section class="section">
       <h2>Claude Code {{ t('（推荐）', '(Recommended)') }}</h2>
-      <p>{{ t('一行命令完成配置，API Key 在', 'One command to configure. Get your API Key from') }} <router-link to="/settings">{{ t('设置页', 'Settings') }}</router-link>{{ t('获取。', '.') }}</p>
+      <p>{{ t('复制以下命令到终端执行即可完成配置：', 'Copy and run the following command in your terminal:') }}</p>
       <pre class="code-block"><code>claude mcp add --scope user --transport http dbay \
   https://api.dbay.cloud:8443/mcp \
-  --header "Authorization: Bearer lk_your_api_key"</code></pre>
+  --header "Authorization: Bearer {{ apiKey }}"</code></pre>
       <p class="tip">{{ t('使用 --scope user 全局生效，所有项目共享。API Key 不会进入代码仓库。', 'Using --scope user makes it global across all projects. API Key stays out of your repo.') }}</p>
     </section>
 
@@ -21,7 +21,7 @@
       "transport": "http",
       "url": "https://api.dbay.cloud:8443/mcp",
       "headers": {
-        "Authorization": "Bearer lk_your_api_key"
+        "Authorization": "Bearer {{ apiKey }}"
       }
     }
   }
@@ -47,6 +47,19 @@
       </div>
 
       <h3>{{ t('记忆库', 'Memory') }}</h3>
+
+      <div v-if="memoryBases.length" class="base-id-box">
+        <span class="base-id-label">{{ t('你的记忆库', 'Your Memory Bases') }}</span>
+        <div v-for="mb in memoryBases" :key="mb.id" class="base-id-item">
+          <code>{{ mb.id }}</code>
+          <span class="base-id-name">{{ mb.name }}</span>
+        </div>
+        <p class="base-id-hint">{{ t('在调用记忆工具时使用上面的 base_id', 'Use the base_id above when calling memory tools') }}</p>
+      </div>
+      <div v-else class="base-id-box empty">
+        <span>{{ t('你还没有记忆库。', 'You don\'t have a memory base yet.') }} <router-link to="/memory">{{ t('去创建', 'Create one') }}</router-link></span>
+      </div>
+
       <div class="tools-table">
         <div class="tool-row header">
           <span>{{ t('工具名', 'Tool') }}</span>
@@ -86,10 +99,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useLocale } from '../../stores/locale'
+import { listMemoryBases, type MemoryBase } from '../../api/memory'
 
 const { t } = useLocale()
+
+const memoryBases = ref<MemoryBase[]>([])
+
+onMounted(async () => {
+  try {
+    const { data } = await listMemoryBases()
+    memoryBases.value = data.filter(b => b.status === 'READY')
+  } catch { /* ignore */ }
+})
+
+const firstBaseId = computed(() => memoryBases.value[0]?.id ?? 'your_base_id')
+
+const apiKey = computed(() => localStorage.getItem('lakeon_api_key') || 'lk_your_api_key')
 
 const knowledgeTools = computed(() => [
   {
@@ -158,15 +185,15 @@ const examples = computed(() => [
   },
   {
     prompt: t('记住我的华为云 AK 是 xxx', 'Remember my Huawei Cloud AK is xxx'),
-    tool: 'memory_ingest(base_id, content="...", memory_type="fact")',
+    tool: `memory_ingest(base_id="${firstBaseId.value}", content="...", memory_type="fact")`,
   },
   {
     prompt: t('我之前怎么解决 OOM 问题的？', 'How did I solve the OOM issue before?'),
-    tool: 'memory_recall(base_id, query="OOM solution")',
+    tool: `memory_recall(base_id="${firstBaseId.value}", query="OOM solution")`,
   },
   {
     prompt: t('删掉那条过时的记忆', 'Delete that outdated memory'),
-    tool: 'memory_delete(base_id, memory_id)',
+    tool: `memory_delete(base_id="${firstBaseId.value}", memory_id)`,
   },
 ])
 </script>
@@ -191,6 +218,13 @@ const examples = computed(() => [
 .tool-row > * { background: var(--pub-surface); padding: 8px 10px; color: var(--pub-text-2); }
 .tool-row code { font-family: monospace; color: var(--pub-code); background: transparent; padding: 8px 10px; }
 .params { font-family: monospace; font-size: 11px; color: var(--pub-text-4); }
+.base-id-box { background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 6px; padding: 12px 14px; margin-bottom: 12px; }
+.base-id-box.empty { color: var(--pub-text-4); font-size: 13px; }
+.base-id-label { font-size: 11px; font-weight: 600; color: var(--pub-text-4); text-transform: uppercase; letter-spacing: 0.06em; }
+.base-id-item { margin-top: 6px; display: flex; align-items: center; gap: 10px; }
+.base-id-item code { font-family: monospace; font-size: 13px; color: var(--pub-code); background: var(--pub-code-bg); padding: 2px 8px; border-radius: 3px; }
+.base-id-name { font-size: 13px; color: var(--pub-text-2); }
+.base-id-hint { font-size: 11px; color: var(--pub-text-4); margin-top: 8px; margin-bottom: 0; }
 .memory-types { margin-top: 16px; }
 .type-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .type-chip { font-size: 13px; color: var(--pub-text-2); background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 6px; padding: 4px 10px; }

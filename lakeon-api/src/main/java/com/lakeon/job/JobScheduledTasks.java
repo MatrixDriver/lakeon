@@ -73,10 +73,11 @@ public class JobScheduledTasks {
     private void handleRunningJob(JobEntity job, Instant now, int timeoutMinutes) {
         // Check if pod terminated without callback
         if (job.getPodName() != null && jobPodManager.isPodTerminated(job.getPodName())) {
-            log.warn("Running job {} has terminated pod but no callback received — marking FAILED",
-                    job.getId());
+            String reason = jobPodManager.getTerminationReason(job.getPodName());
+            log.warn("Running job {} has terminated pod but no callback received — {}",
+                    job.getId(), reason);
             job.setStatus(JobStatus.FAILED);
-            job.setError("Job pod terminated without sending a callback");
+            job.setError("处理任务异常终止: " + reason);
             job.setCompletedAt(now);
             jobRepository.save(job);
             deleteResourcesQuietly(job.getId());

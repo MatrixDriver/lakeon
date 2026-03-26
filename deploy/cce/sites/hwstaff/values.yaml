@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.9.102"
+    tag: "0.9.104"
   jobCallbackBaseUrl: "https://api.dbay.cloud:8443"
   jobNamespace: "lakeon-jobs"
   resources:
@@ -222,7 +222,7 @@ embedding:
 
 memory:
   enabled: true
-  image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.2.1
+  image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.2.2
   chatApiUrl: ""
   chatModel: ""
 

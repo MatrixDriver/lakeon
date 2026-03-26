@@ -5,7 +5,15 @@
       "mcp__plugin_playwright_playwright__browser_navigate",
       "mcp__plugin_playwright_playwright__browser_click",
       "mcp__plugin_playwright_playwright__browser_evaluate",
-      "mcp__plugin_playwright_playwright__browser_snapshot"
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "WebFetch(domain:mvnrepository.com)",
+      "WebFetch(domain:mcpcat.io)",
+      "WebFetch(domain:portkey.ai)",
+      "mcp__dbay__knowledge_list_bases",
+      "mcp__dbay__memory_ingest",
+      "mcp__dbay__knowledge_search",
+      "mcp__dbay__memory_recall",
+      "mcp__dbay__memory_list"
     ]
   }
 }
