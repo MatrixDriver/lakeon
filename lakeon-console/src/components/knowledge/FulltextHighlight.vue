@@ -1,5 +1,5 @@
 <template>
-  <div class="fulltext-highlight" ref="scrollRef">
+  <div class="fulltext-highlight">
     <div class="fulltext-rendered" ref="contentRef" v-html="baseHtml"></div>
   </div>
 </template>
@@ -17,19 +17,14 @@ const props = defineProps<{
 }>()
 
 const md = new MarkdownIt({ html: false, linkify: true, typographer: false })
-const scrollRef = ref<HTMLElement | null>(null)
 const contentRef = ref<HTMLElement | null>(null)
 
 const baseHtml = computed(() => md.render(props.fulltext || ''))
 
-/**
- * Find and highlight the chunk content in the rendered DOM using text node walking.
- * This avoids issues with markdown rendering eating markers.
- */
 function highlightChunkInDom() {
   if (!contentRef.value) return
 
-  // Remove any previous highlights
+  // Remove previous highlights
   contentRef.value.querySelectorAll('.chunk-highlight').forEach(el => {
     const parent = el.parentNode
     if (parent) {
@@ -38,12 +33,10 @@ function highlightChunkInDom() {
     }
   })
 
-  const match = findHighlightInFulltext()
-  if (!match) return
-  const searchText = match.searchText
-  if (searchText.length < 10) return
+  const searchText = findSearchText()
+  if (!searchText || searchText.length < 10) return
 
-  // Walk text nodes and find the search text
+  // Walk text nodes
   const textNodes: Text[] = []
   const walker = document.createTreeWalker(contentRef.value, NodeFilter.SHOW_TEXT)
   let node: Text | null
@@ -51,7 +44,7 @@ function highlightChunkInDom() {
     textNodes.push(node)
   }
 
-  // Build concatenated text with node boundaries
+  // Build concatenated text
   let fullText = ''
   const nodeMap: { node: Text; start: number; end: number }[] = []
   for (const tn of textNodes) {
@@ -60,14 +53,13 @@ function highlightChunkInDom() {
     nodeMap.push({ node: tn, start, end: fullText.length })
   }
 
-  // Find the chunk text in the concatenated text
   const idx = fullText.indexOf(searchText)
   if (idx < 0) return
 
   const highlightStart = idx
   const highlightEnd = idx + searchText.length
 
-  // Find which text nodes overlap with the highlight range
+  // Wrap matching text nodes with <mark>
   for (const entry of nodeMap) {
     if (entry.end <= highlightStart || entry.start >= highlightEnd) continue
 
@@ -75,13 +67,11 @@ function highlightChunkInDom() {
     const nodeEnd = Math.min(entry.node.textContent!.length, highlightEnd - entry.start)
 
     if (nodeStart === 0 && nodeEnd === entry.node.textContent!.length) {
-      // Whole node is highlighted
       const mark = document.createElement('mark')
       mark.className = 'chunk-highlight'
       entry.node.parentNode!.replaceChild(mark, entry.node)
       mark.appendChild(entry.node)
     } else {
-      // Partial highlight — split the text node
       const range = document.createRange()
       range.setStart(entry.node, nodeStart)
       range.setEnd(entry.node, nodeEnd)
@@ -91,45 +81,33 @@ function highlightChunkInDom() {
     }
   }
 
-  // Scroll to first highlight
+  // Scroll: find the nearest scrollable ancestor and use scrollIntoView
   setTimeout(() => {
-    const mark = contentRef.value?.querySelector('.chunk-highlight') as HTMLElement | null
-    if (mark && scrollRef.value) {
-      scrollRef.value.scrollTop = mark.offsetTop - 60
+    const mark = contentRef.value?.querySelector('.chunk-highlight')
+    if (mark) {
+      (mark as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
-  }, 150)
+  }, 200)
 }
 
-/**
- * Find the chunk's unique text in the fulltext, accounting for overlap.
- * Returns the position + length to highlight, or uses full content as fallback.
- */
-function findHighlightInFulltext(): { searchText: string; startIdx: number } | null {
+function findSearchText(): string | null {
   if (!props.chunkContent || !props.fulltext) return null
 
   const content = props.chunkContent
   const overlap = props.overlapPrev ?? 0
-  const text = props.fulltext
 
-  // Skip overlap prefix — the unique part starts after overlap chars
+  // Skip overlap prefix to get unique part
   const uniqueStart = Math.min(overlap, content.length)
   const uniquePart = content.substring(uniqueStart)
 
   if (uniquePart.length >= 20) {
-    // Search for the unique part (after overlap) — this avoids matching the previous chunk's text
-    const idx = text.indexOf(uniquePart.substring(0, Math.min(300, uniquePart.length)))
-    if (idx >= 0) {
-      // Expand highlight backward to include overlap area
-      const highlightStart = Math.max(0, idx - overlap)
-      return { searchText: text.substring(highlightStart, idx + uniquePart.length), startIdx: highlightStart }
-    }
+    const snippet = uniquePart.substring(0, Math.min(300, uniquePart.length))
+    if (props.fulltext.indexOf(snippet) >= 0) return snippet
   }
 
-  // Fallback: search for full content
-  const idx = text.indexOf(content.substring(0, Math.min(300, content.length)))
-  if (idx >= 0) {
-    return { searchText: content, startIdx: idx }
-  }
+  // Fallback: use start of content
+  const snippet = content.substring(0, Math.min(300, content.length))
+  if (props.fulltext.indexOf(snippet) >= 0) return snippet
 
   return null
 }
@@ -143,8 +121,7 @@ watch(
 
 <style scoped>
 .fulltext-highlight {
-  height: 100%;
-  overflow-y: auto;
+  /* No overflow here — let parent .tab-panel-fulltext be the scroll container */
 }
 
 .fulltext-rendered {
