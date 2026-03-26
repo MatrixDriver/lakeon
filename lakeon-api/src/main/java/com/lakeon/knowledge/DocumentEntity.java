@@ -37,6 +37,18 @@ public class DocumentEntity {
     @Column(name = "obs_key", length = 512)
     private String obsKey;
 
+    @Column(name = "datasource_id", length = 32)
+    private String datasourceId;
+
+    @Column(name = "obs_etag", length = 64)
+    private String obsEtag;
+
+    @Column(name = "obs_size")
+    private Long obsSize;
+
+    @Column(name = "obs_last_modified")
+    private Instant obsLastModified;
+
     @Column(name = "format", length = 16)
     private String format;
 
@@ -139,4 +151,16 @@ public class DocumentEntity {
 
     public Instant getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+
+    public String getDatasourceId() { return datasourceId; }
+    public void setDatasourceId(String datasourceId) { this.datasourceId = datasourceId; }
+
+    public String getObsEtag() { return obsEtag; }
+    public void setObsEtag(String obsEtag) { this.obsEtag = obsEtag; }
+
+    public Long getObsSize() { return obsSize; }
+    public void setObsSize(Long obsSize) { this.obsSize = obsSize; }
+
+    public Instant getObsLastModified() { return obsLastModified; }
+    public void setObsLastModified(Instant obsLastModified) { this.obsLastModified = obsLastModified; }
 }
