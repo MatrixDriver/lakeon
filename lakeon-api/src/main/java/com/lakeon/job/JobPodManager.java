@@ -85,7 +85,7 @@ public class JobPodManager {
                     "lakeon.io/job-type", typeKey
                 ))
                 .withAnnotations(Map.of(
-                    "cluster-autoscaler.kubernetes.io/safe-to-evict", "false"
+                    "virtual-kubelet.io/burst-to-cci", "enforce"
                 ))
             .endMetadata()
             .withNewSpec()
@@ -96,6 +96,11 @@ public class JobPodManager {
                         .toList()
                 )
                 .withRestartPolicy("Never")
+                .withNodeSelector(Map.of("type", "virtual-kubelet"))
+                .withTolerations(new io.fabric8.kubernetes.api.model.TolerationBuilder()
+                    .withKey("virtual-kubelet.io/provider")
+                    .withOperator("Exists")
+                    .build())
                 .addNewContainer()
                     .withName("job")
                     .withImage(image)
