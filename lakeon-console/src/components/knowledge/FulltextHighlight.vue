@@ -5,7 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import MarkdownIt from 'markdown-it'
 
 const props = defineProps<{
@@ -112,10 +112,14 @@ function findSearchText(): string | null {
   return null
 }
 
+// Highlight after mount (DOM is ready) and on chunk change
+onMounted(() => {
+  setTimeout(highlightChunkInDom, 100)
+})
+
 watch(
-  () => [props.chunkContent, props.chunkOffsetStart, baseHtml.value],
-  () => { nextTick(() => nextTick(highlightChunkInDom)) },
-  { immediate: true }
+  () => [props.chunkContent, props.chunkOffsetStart],
+  () => { nextTick(() => setTimeout(highlightChunkInDom, 100)) }
 )
 </script>
 
