@@ -580,10 +580,13 @@ public class AdminService {
         topoNodes.add(Map.of("id", "railway", "label", "Railway (海外)", "sublabel", "dbay.cloud", "desc", "Web 控制台 · SRE Admin", "type", "railway"));
         topoNodes.add(Map.of("id", "eip", "label", "EIP 弹性公网IP", "sublabel", "api.dbay.cloud:8443", "desc", "HTTPS 入口", "type", "network"));
         topoNodes.add(Map.of("id", "elb", "label", "ELB 负载均衡", "sublabel", "TCP:8443 透传", "desc", "共享型 ELB", "type", "network"));
-        topoNodes.add(Map.of("id", "cce", "label", "CCE 集群", "sublabel", "lakeon-k8s-cluster", "desc", "API · Proxy · Pageserver · Safekeeper", "type", "compute"));
-        topoNodes.add(Map.of("id", "compute-pool", "label", "弹性节点池", "sublabel", "dbay-compute-pool", "desc", "Compute Pod (用户数据库)", "type", "compute"));
+        topoNodes.add(Map.of("id", "external-api", "label", "外部 API", "sublabel", "SiliconFlow", "desc", "Embedding (BGE-M3) · LLM (DeepSeek)", "type", "railway"));
+        topoNodes.add(Map.of("id", "cce", "label", "CCE 集群", "sublabel", "lakeon-k8s-cluster", "desc", "API · Proxy · Pageserver · Safekeeper · Memory", "type", "compute"));
+        topoNodes.add(Map.of("id", "compute-pool", "label", "弹性节点池", "sublabel", "dbay-compute-pool", "desc", "Compute Pod · KB Job Pod", "type", "compute"));
+        topoNodes.add(Map.of("id", "cci", "label", "CCI (Serverless)", "sublabel", "数据湖任务", "desc", "Python · Ray · 微调", "type", "compute"));
         topoNodes.add(Map.of("id", "rds", "label", "RDS PostgreSQL", "sublabel", "元数据库", "desc", "存储租户/数据库/操作日志", "type", "storage"));
-        topoNodes.add(Map.of("id", "obs", "label", "OBS 对象存储", "sublabel", props.getObs().getBucket(), "desc", "Neon 远程存储", "type", "storage"));
+        topoNodes.add(Map.of("id", "obs", "label", "OBS 对象存储", "sublabel", props.getObs().getBucket(), "desc", "Neon 远程存储 · 文档 · 数据集", "type", "storage"));
+        topoNodes.add(Map.of("id", "swr", "label", "SWR 镜像仓库", "sublabel", "flex", "desc", "API · Console · KB Job · Memory", "type", "storage"));
         topology.put("nodes", topoNodes);
 
         List<Map<String, String>> topoEdges = new java.util.ArrayList<>();
@@ -591,8 +594,11 @@ public class AdminService {
         topoEdges.add(Map.of("from", "eip", "to", "elb", "label", ""));
         topoEdges.add(Map.of("from", "elb", "to", "cce", "label", "TCP 透传"));
         topoEdges.add(Map.of("from", "cce", "to", "compute-pool", "label", "创建 Compute Pod"));
+        topoEdges.add(Map.of("from", "cce", "to", "cci", "label", "数据湖任务调度"));
+        topoEdges.add(Map.of("from", "cce", "to", "external-api", "label", "Embedding/LLM 调用"));
         topoEdges.add(Map.of("from", "cce", "to", "rds", "label", "JDBC"));
         topoEdges.add(Map.of("from", "cce", "to", "obs", "label", "S3 协议"));
+        topoEdges.add(Map.of("from", "cce", "to", "swr", "label", "镜像拉取"));
         topology.put("edges", topoEdges);
         result.put("topology", topology);
 
@@ -622,10 +628,16 @@ public class AdminService {
                 cloud.getElbId(), consoleUrl("elb", region, cloud.getElbId())));
         resources.add(buildResource("EIP api.dbay.cloud", region, "EIP", "弹性公网IP", "ACTIVE",
                 cloud.getEipId(), consoleUrl("eip", region, cloud.getEipId())));
+        resources.add(buildResource("SWR 镜像仓库 (flex)", region, "SWR", "容器镜像仓库", "ACTIVE",
+                "", "https://console.huaweicloud.com/swr/?region=" + region + "#/swr/organization/list"));
+        resources.add(buildResource("CCI 数据湖任务", region, "CCI", "容器实例 (Serverless)", "ACTIVE",
+                "", "https://console.huaweicloud.com/cci/?region=" + region));
         resources.add(buildResource("Railway Console", "海外 (Singapore)", "Railway", "Web 托管", "ACTIVE",
                 "", "https://railway.com/dashboard"));
         resources.add(buildResource("Railway Admin", "海外 (Singapore)", "Railway", "Web 托管", "ACTIVE",
                 "", "https://railway.com/dashboard"));
+        resources.add(buildResource("SiliconFlow API", "海外", "SiliconFlow", "Embedding/LLM", "ACTIVE",
+                "", "https://cloud.siliconflow.cn"));
 
         result.put("resources", resources);
         return result;
