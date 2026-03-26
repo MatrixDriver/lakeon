@@ -328,7 +328,7 @@ public class KnowledgeService {
         // Detect format from extension
         String format = detectFormat(filename);
         if (format == null) {
-            throw new BadRequestException("Unsupported file format. Supported: .pdf, .docx, .md, .txt");
+            throw new BadRequestException("Unsupported file format. Supported: .pdf, .docx, .md, .txt, .epub");
         }
 
         // Create DocumentEntity in PENDING status
@@ -1128,6 +1128,7 @@ public class KnowledgeService {
         if (lower.endsWith(".docx")) return "DOCX";
         if (lower.endsWith(".md")) return "MARKDOWN";
         if (lower.endsWith(".txt")) return "TEXT";
+        if (lower.endsWith(".epub")) return "EPUB";
         return null;
     }
 }

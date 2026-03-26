@@ -15,6 +15,8 @@ def parse_document(file_path: str, format: str) -> Tuple[str, List[Dict]]:
         return _parse_pdf(file_path)
     elif format == "DOCX":
         return _parse_docx(file_path), []
+    elif format == "EPUB":
+        return _parse_epub(file_path), []
     elif format in ("MARKDOWN", "TEXT"):
         return _parse_markdown(file_path), []
     else:
@@ -85,6 +87,25 @@ def _parse_docx(file_path: str) -> str:
             parts.append(header_sep)
             parts.extend(rows[1:])
     return "\n\n".join(parts)
+
+def _parse_epub(file_path: str) -> str:
+    import ebooklib
+    from ebooklib import epub
+    from bs4 import BeautifulSoup
+
+    book = epub.read_epub(file_path, options={"ignore_ncx": True})
+    parts = []
+    for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
+        soup = BeautifulSoup(item.get_content(), "html.parser")
+        # Convert headings to markdown
+        for tag in soup.find_all(["h1", "h2", "h3", "h4"]):
+            level = int(tag.name[1])
+            tag.replace_with(f"\n{'#' * level} {tag.get_text().strip()}\n")
+        text = soup.get_text(separator="\n").strip()
+        if text:
+            parts.append(text)
+    return "\n\n".join(parts)
+
 
 def _parse_markdown(file_path: str) -> str:
     with open(file_path, "r", encoding="utf-8") as f:

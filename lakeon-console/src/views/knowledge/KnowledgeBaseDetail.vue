@@ -61,13 +61,13 @@
       <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
         <label class="btn btn-primary" style="cursor: pointer;" :class="{ disabled: uploading }">
           上传文件
-          <input type="file" accept=".pdf,.docx,.md,.markdown,.txt" multiple style="display: none;" :disabled="uploading" @change="handleUpload" />
+          <input type="file" accept=".pdf,.docx,.md,.markdown,.txt,.epub" multiple style="display: none;" :disabled="uploading" @change="handleUpload" />
         </label>
         <label class="btn btn-secondary" style="cursor: pointer;" :class="{ disabled: uploading }">
           上传目录
           <input type="file" style="display: none;" :disabled="uploading" webkitdirectory @change="handleDirectoryUpload" />
         </label>
-        <span style="color: #999; font-size: 13px;">支持 PDF、DOCX、Markdown、TXT，最多 20 个/批</span>
+        <span style="color: #999; font-size: 13px;">支持 PDF、DOCX、EPUB、Markdown、TXT，最多 20 个/批</span>
       </div>
 
       <!-- Upload progress list -->
@@ -420,7 +420,7 @@ async function loadDocuments() {
   }
 }
 
-const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.md', '.markdown', '.txt']
+const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.md', '.markdown', '.txt', '.epub']
 
 function filterSupportedFiles(files: File[]): File[] {
   return files.filter(f => SUPPORTED_EXTENSIONS.some(ext => f.name.toLowerCase().endsWith(ext)))
@@ -431,7 +431,7 @@ async function handleUpload(e: Event) {
   if (!input.files?.length) return
   const files = filterSupportedFiles(Array.from(input.files))
   if (!files.length) {
-    alert('没有支持的文件格式（支持 PDF、DOCX、Markdown、TXT）')
+    alert('没有支持的文件格式（支持 PDF、DOCX、EPUB、Markdown、TXT）')
     input.value = ''
     return
   }
@@ -444,7 +444,7 @@ async function handleDirectoryUpload(e: Event) {
   if (!input.files?.length) return
   const files = filterSupportedFiles(Array.from(input.files))
   if (!files.length) {
-    alert('目录中没有支持的文件格式（支持 PDF、DOCX、Markdown、TXT）')
+    alert('目录中没有支持的文件格式（支持 PDF、DOCX、EPUB、Markdown、TXT）')
     input.value = ''
     return
   }
