@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.9.66"
+    tag: "0.9.87"
   resources:
     requests:
       cpu: "100m"
@@ -69,7 +69,7 @@ api:
   kbWriteCpu: "500m"   # 降低以便和compute pod共存于同一个弹性节点(4C)
   kbWriteMemory: "1Gi"
 
-knowledgeJobImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-knowledge-job:0.2.15"
+knowledgeJobImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-knowledge-job:0.2.16"
 
 # ── Neon 组件（单副本开发模式，最小资源请求）─────────────────────
 pageserver:
@@ -234,7 +234,7 @@ datalake:
   vkNodeSelectorValue: "virtual-kubelet"
   pollIntervalMs: "10000"
   images:
-    pythonSlim: "swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-slim"
-    pythonData: "swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-data"
-    ray: "swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311"
-    rayGpu: "swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311-gpu"
+    pythonSlim: "swr.cn-north-4.myhuaweicloud.com/flex/python:3.11-slim"
+    pythonData: "swr.cn-north-4.myhuaweicloud.com/flex/python:3.11-data"
+    ray: "swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311"
+    rayGpu: "swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311"
