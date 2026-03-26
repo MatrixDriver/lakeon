@@ -236,3 +236,48 @@ export function listKbChunks(
 ) {
   return api.get<ChunkListResponse>(`/knowledge/bases/${kbId}/chunks`, { params: options })
 }
+
+// Datasources
+export interface DataSource {
+  id: string
+  kb_id: string
+  name: string
+  obs_prefix: string
+  status: string
+  file_count: number
+  last_synced_at: string | null
+  last_sync_stats: { added: number; modified: number; deleted: number; skipped: number } | null
+  error: string | null
+  created_at: string
+}
+
+export interface DataSourceCredentials {
+  endpoint: string
+  bucket: string
+  prefix: string
+  access_key: string
+  secret_key: string
+  security_token: string
+  expires_at: string
+  upload_commands: { hcloud: string; obsutil: string }
+}
+
+export function listDataSources(kbId: string) {
+  return api.get<DataSource[]>(`/knowledge/${kbId}/datasources`)
+}
+
+export function createDataSource(kbId: string, name: string) {
+  return api.post<DataSource>(`/knowledge/${kbId}/datasources`, { name })
+}
+
+export function deleteDataSource(kbId: string, dsId: string) {
+  return api.delete(`/knowledge/${kbId}/datasources/${dsId}`)
+}
+
+export function syncDataSource(kbId: string, dsId: string) {
+  return api.post<{ datasource_id: string; status: string; sync_stats: any }>(`/knowledge/${kbId}/datasources/${dsId}/sync`)
+}
+
+export function getDataSourceCredentials(kbId: string, dsId: string) {
+  return api.get<DataSourceCredentials>(`/knowledge/${kbId}/datasources/${dsId}/credentials`)
+}
