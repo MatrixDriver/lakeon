@@ -193,13 +193,18 @@ public class RayJobRunner {
         spec.put("shutdownAfterJobFinishes", true);
         spec.put("ttlSecondsAfterFinished", 300);
         spec.put("runtimeEnvYAML", runtimeEnvYaml);
+        // headService: headless (clusterIP: None) so DNS resolves to pod IP
+        // Required for CCI — CCI pods can't route to K8s ClusterIP, only to pod IPs
+        Map<String, Object> headServiceSpec = new LinkedHashMap<>();
+        headServiceSpec.put("spec", Map.of("clusterIP", "None"));
+
+        Map<String, Object> headGroupSpec = new LinkedHashMap<>();
+        headGroupSpec.put("rayStartParams", Map.of("dashboard-host", "0.0.0.0"));
+        headGroupSpec.put("headService", headServiceSpec);
+        headGroupSpec.put("template", Map.of("spec", headPodSpec));
+
         spec.put("rayClusterSpec", Map.of(
-            "headGroupSpec", Map.of(
-                "rayStartParams", Map.of("dashboard-host", "0.0.0.0"),
-                "template", Map.of(
-                    "spec", headPodSpec
-                )
-            ),
+            "headGroupSpec", headGroupSpec,
             "workerGroupSpecs", List.of(Map.of(
                 "replicas", workerCount,
                 "minReplicas", workerCount,
