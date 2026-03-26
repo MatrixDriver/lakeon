@@ -25,6 +25,9 @@ public class JobPodManager {
     @Value("${lakeon.job.callback-base-url:}")
     private String callbackBaseUrl;
 
+    @Value("${lakeon.job.namespace:}")
+    private String jobNamespace;
+
     public JobPodManager(KubernetesClient k8sClient, LakeonProperties props, ObsStsService obsStsService) {
         this.k8sClient = k8sClient;
         this.props = props;
@@ -36,8 +39,12 @@ public class JobPodManager {
      * Creates a ConfigMap (job-{safePodId}-params with params.json) and a Pod.
      * Returns the pod name.
      */
+    private String getJobNamespace() {
+        return (jobNamespace != null && !jobNamespace.isBlank()) ? jobNamespace : props.getK8s().getNamespace();
+    }
+
     public String launchJobPod(JobEntity job) {
-        String namespace = props.getK8s().getNamespace();
+        String namespace = getJobNamespace();
         String safePodId = job.getId().replace("_", "-");
         String podName = "job-" + safePodId;
         String configMapName = podName + "-params";
@@ -198,7 +205,7 @@ public class JobPodManager {
      * Returns true if the pod is null, Succeeded, or Failed.
      */
     public boolean isPodTerminated(String podName) {
-        String namespace = props.getK8s().getNamespace();
+        String namespace = getJobNamespace();
         try {
             Pod pod = k8sClient.pods().inNamespace(namespace).withName(podName).get();
             if (pod == null) {
@@ -221,7 +228,7 @@ public class JobPodManager {
      * Also attempts to read a tail of pod logs for the error message.
      */
     public String getTerminationReason(String podName) {
-        String namespace = props.getK8s().getNamespace();
+        String namespace = getJobNamespace();
         try {
             Pod pod = k8sClient.pods().inNamespace(namespace).withName(podName).get();
             if (pod == null || pod.getStatus() == null) {
@@ -319,7 +326,7 @@ public class JobPodManager {
      * Returns true if the pod exists (is not null).
      */
     public boolean podExists(String podName) {
-        String namespace = props.getK8s().getNamespace();
+        String namespace = getJobNamespace();
         try {
             Pod pod = k8sClient.pods().inNamespace(namespace).withName(podName).get();
             return pod != null;
@@ -333,7 +340,7 @@ public class JobPodManager {
      * Deletes the pod and configmap for the given job ID.
      */
     public void deleteJobResources(String jobId) {
-        String namespace = props.getK8s().getNamespace();
+        String namespace = getJobNamespace();
         String safePodId = jobId.replace("_", "-");
         String podName = "job-" + safePodId;
         String configMapName = podName + "-params";

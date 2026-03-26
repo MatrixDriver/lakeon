@@ -118,6 +118,9 @@ data:
   {{- if .Values.api.jobCallbackBaseUrl }}
   LAKEON_JOB_CALLBACK_BASE_URL: {{ .Values.api.jobCallbackBaseUrl | quote }}
   {{- end }}
+  {{- if .Values.api.jobNamespace }}
+  LAKEON_JOB_NAMESPACE: {{ .Values.api.jobNamespace | quote }}
+  {{- end }}
   {{- with .Values.datalake }}
   LAKEON_DATALAKE_CCI_NS_PREFIX: {{ .cciNamespacePrefix | quote }}
   LAKEON_DATALAKE_VK_NODE_SELECTOR_KEY: {{ .vkNodeSelectorKey | quote }}

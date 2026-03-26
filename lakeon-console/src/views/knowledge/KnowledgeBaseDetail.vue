@@ -121,16 +121,28 @@
               <td style="color: #666;">{{ formatSize(doc.size_bytes) }}</td>
               <td>{{ doc.chunks_count ?? '-' }}</td>
               <td>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <span class="status-dot" :style="{ background: docStatusColor(doc.status) }"></span>
-                  <span>{{ docStatusText(doc.status) }}</span>
-                  <span v-if="doc.status === 'PROCESSING' && doc.progress != null" style="color: #1890ff; font-size: 12px;">
-                    {{ Math.round(doc.progress * 100) }}%
-                    <span v-if="doc.progress_message" style="color: #999; margin-left: 4px;">{{ doc.progress_message }}</span>
-                  </span>
-                  <span v-if="doc.status === 'FAILED' && doc.error" class="error-msg" :title="doc.error">
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <span class="status-dot" :style="{ background: docStatusColor(doc.status) }"></span>
+                    <span>{{ docStatusText(doc.status) }}</span>
+                  </div>
+                  <!-- Progress bar for PROCESSING -->
+                  <div v-if="doc.status === 'PROCESSING' && doc.progress != null" style="display: flex; align-items: center; gap: 8px;">
+                    <div style="flex: 1; height: 4px; background: #e5e5e5; border-radius: 2px; max-width: 120px;">
+                      <div :style="{ width: Math.round(doc.progress * 100) + '%', height: '100%', background: '#1890ff', borderRadius: '2px', transition: 'width 0.3s' }"></div>
+                    </div>
+                    <span style="color: #1890ff; font-size: 12px; white-space: nowrap;">{{ Math.round(doc.progress * 100) }}%</span>
+                  </div>
+                  <div v-if="doc.status === 'PROCESSING' && doc.progress_message" style="color: #999; font-size: 11px;">
+                    {{ doc.progress_message }}
+                  </div>
+                  <!-- Error with click to expand -->
+                  <div v-if="doc.status === 'FAILED' && doc.error"
+                       style="color: #e6393d; font-size: 12px; cursor: pointer; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                       :title="doc.error"
+                       @click.stop="showErrorDetail(doc)">
                     {{ doc.error }}
-                  </span>
+                  </div>
                 </div>
               </td>
               <td style="color: #999;">{{ doc.created_at ? new Date(doc.created_at).toLocaleString('zh-CN') : '-' }}</td>
@@ -238,6 +250,29 @@
 
     </template><!-- end DOCUMENT type -->
 
+    <!-- Error Detail Dialog -->
+    <div v-if="errorDetail.open" class="modal-overlay" @click.self="errorDetail.open = false">
+      <div class="modal-box" style="max-width: 600px;">
+        <div class="modal-header">
+          <span>处理失败详情</span>
+          <button class="btn-icon" @click="errorDetail.open = false">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 13px; color: #666; margin-bottom: 8px;">
+            文档: <strong>{{ errorDetail.filename }}</strong>
+          </p>
+          <pre style="font-size: 13px; color: #e6393d; background: #fff5f5; border: 1px solid #fee; border-radius: 4px; padding: 12px; white-space: pre-wrap; word-break: break-word; max-height: 300px; overflow-y: auto;">{{ errorDetail.error }}</pre>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-text" @click="errorDetail.open = false">关闭</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Tag Edit Dialog -->
     <div v-if="tagDialog.open" class="modal-overlay" @click.self="tagDialog.open = false">
       <div class="modal-box">
@@ -314,6 +349,14 @@ const uploadProgress = ref<UploadFileState[]>([])
 const docSearch = ref('')
 const chatContainer = ref<HTMLElement | null>(null)
 const chatInput = ref<HTMLInputElement | null>(null)
+
+const errorDetail = ref<{ open: boolean; filename: string; error: string }>({
+  open: false, filename: '', error: ''
+})
+
+function showErrorDetail(doc: Document) {
+  errorDetail.value = { open: true, filename: doc.filename, error: doc.error || '未知错误' }
+}
 
 const tagDialog = ref<{
   open: boolean
