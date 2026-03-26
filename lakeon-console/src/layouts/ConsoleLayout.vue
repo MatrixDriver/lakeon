@@ -138,6 +138,7 @@
             <div class="nav-group">
               <router-link to="/memory" class="nav-item" active-class="active" @click="sidebarOpen = false">记忆库</router-link>
               <router-link to="/memory/browse" class="nav-item" active-class="active" @click="sidebarOpen = false">记忆浏览</router-link>
+              <router-link to="/memory/messages" class="nav-item" active-class="active" @click="sidebarOpen = false">消息日志</router-link>
               <router-link to="/memory/traits" class="nav-item" active-class="active" @click="sidebarOpen = false">反思洞察</router-link>
               <router-link to="/memory/stats" class="nav-item" active-class="active" @click="sidebarOpen = false">用量统计</router-link>
             </div>

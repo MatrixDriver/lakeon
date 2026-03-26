@@ -115,6 +115,23 @@ public class MemoryController {
         return memoryService.proxyDelete(tenant.getId(), id, "/memories/" + memoryId);
     }
 
+    @GetMapping("/bases/{id}/raw_messages")
+    public Object listRawMessages(HttpServletRequest req, @PathVariable String id,
+            @RequestParam(defaultValue = "0") String offset,
+            @RequestParam(defaultValue = "20") String limit) {
+        TenantEntity tenant = getTenant(req);
+        Map<String, String> params = new HashMap<>();
+        params.put("offset", offset);
+        params.put("limit", limit);
+        return memoryService.proxyGet(tenant.getId(), id, "/raw_messages", params);
+    }
+
+    @GetMapping("/bases/{id}/raw_messages/{messageId}")
+    public Object getRawMessage(HttpServletRequest req, @PathVariable String id, @PathVariable String messageId) {
+        TenantEntity tenant = getTenant(req);
+        return memoryService.proxyGet(tenant.getId(), id, "/raw_messages/" + messageId, null);
+    }
+
     @GetMapping("/bases/{id}/stats")
     public Object stats(HttpServletRequest req, @PathVariable String id) {
         TenantEntity tenant = getTenant(req);

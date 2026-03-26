@@ -103,3 +103,32 @@ export interface GraphData {
 export function getGraph(memId: string) {
   return api.get<GraphData>(`/memory/bases/${memId}/graph`)
 }
+
+export interface RawMessage {
+  id: string
+  content: string
+  content_preview: string
+  role: string
+  source: string | null
+  created_at: string
+}
+
+export interface RawMessageDetail {
+  message: RawMessage
+  extracted_memories: {
+    id: number
+    content: string
+    memory_type: string
+    importance: number
+    metadata: Record<string, any>
+    created_at: string
+  }[]
+}
+
+export function listRawMessages(memId: string, options?: { offset?: number; limit?: number }) {
+  return api.get<{ messages: RawMessage[]; total: number }>(`/memory/bases/${memId}/raw_messages`, { params: options })
+}
+
+export function getRawMessage(memId: string, messageId: string) {
+  return api.get<RawMessageDetail>(`/memory/bases/${memId}/raw_messages/${messageId}`)
+}

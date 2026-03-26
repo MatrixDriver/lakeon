@@ -348,3 +348,62 @@ async def get_graph(connstr: str) -> dict:
                     "edges": [e.model_dump() for e in edges]}
     finally:
         conn.close()
+
+
+async def list_raw_messages(connstr: str, offset: int, limit: int) -> dict:
+    conn = _connect(connstr)
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT count(*) as total FROM raw_messages")
+            total = cur.fetchone()["total"]
+            cur.execute("""
+                SELECT id, content, role, source, created_at
+                FROM raw_messages ORDER BY created_at DESC
+                LIMIT %s OFFSET %s
+            """, (limit, offset))
+            rows = cur.fetchall()
+            for r in rows:
+                r["id"] = str(r["id"])
+                r["created_at"] = str(r["created_at"]) if r["created_at"] else None
+                # Truncate content for list view
+                if r["content"] and len(r["content"]) > 200:
+                    r["content_preview"] = r["content"][:200] + "..."
+                else:
+                    r["content_preview"] = r["content"]
+            return {"messages": rows, "total": total}
+    finally:
+        conn.close()
+
+
+async def get_raw_message_with_memories(connstr: str, message_id: str) -> dict:
+    """Get a raw message and the memories extracted from it."""
+    conn = _connect(connstr)
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT id, content, role, source, created_at
+                FROM raw_messages WHERE id = %s
+            """, (message_id,))
+            msg = cur.fetchone()
+            if not msg:
+                return None
+            msg["id"] = str(msg["id"])
+            msg["created_at"] = str(msg["created_at"]) if msg["created_at"] else None
+
+            # Find memories that were extracted from this message
+            # (memories created within 60s of the message, with matching source)
+            cur.execute("""
+                SELECT id, content, memory_type, importance, metadata, created_at
+                FROM memories
+                WHERE created_at BETWEEN %s::timestamptz - interval '5 seconds'
+                                      AND %s::timestamptz + interval '120 seconds'
+                ORDER BY id
+            """, (msg["created_at"], msg["created_at"]))
+            memories = []
+            for r in cur.fetchall():
+                r["created_at"] = str(r["created_at"]) if r["created_at"] else None
+                memories.append(r)
+
+            return {"message": msg, "extracted_memories": memories}
+    finally:
+        conn.close()

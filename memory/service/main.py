@@ -127,6 +127,24 @@ async def digest_extracted(req: DigestExtractedRequest, x_database_connstr: str 
     return {"traits_stored": stored}
 
 
+@app.get("/raw_messages")
+async def list_raw_messages(
+    x_database_connstr: str = Header(...),
+    offset: int = 0,
+    limit: int = 20,
+):
+    result = await engine.list_raw_messages(x_database_connstr, offset, limit)
+    return result
+
+
+@app.get("/raw_messages/{message_id}")
+async def get_raw_message(message_id: str, x_database_connstr: str = Header(...)):
+    result = await engine.get_raw_message_with_memories(x_database_connstr, message_id)
+    if not result:
+        raise HTTPException(404, "Message not found")
+    return result
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
