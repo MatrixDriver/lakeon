@@ -24,14 +24,8 @@ const baseHtml = computed(() => md.render(props.fulltext || ''))
 function highlightChunkInDom() {
   if (!contentRef.value) return
 
-  // Remove previous highlights
-  contentRef.value.querySelectorAll('.chunk-highlight').forEach(el => {
-    const parent = el.parentNode
-    if (parent) {
-      while (el.firstChild) parent.insertBefore(el.firstChild, el)
-      parent.removeChild(el)
-    }
-  })
+  // Reset DOM to clean HTML (removes previous highlights and text node fragmentation)
+  contentRef.value.innerHTML = baseHtml.value
 
   const searchText = findSearchText()
   if (!searchText || searchText.length < 10) return
