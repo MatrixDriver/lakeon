@@ -228,6 +228,22 @@ public class RayJobRunner {
                 )
             ))
         ));
+
+        // Submitter pod template — needs imagePullSecrets + CCI resources for the job submitter
+        Map<String, Object> submitterContainer = new LinkedHashMap<>();
+        submitterContainer.put("name", "ray-job-submitter");
+        submitterContainer.put("image", image);
+        submitterContainer.put("resources", Map.of(
+            "requests", Map.of("cpu", "250m", "memory", "512Mi"),
+            "limits", Map.of("cpu", "250m", "memory", "512Mi")
+        ));
+        Map<String, Object> submitterPodSpec = new LinkedHashMap<>();
+        submitterPodSpec.put("imagePullSecrets", imagePullSecrets);
+        submitterPodSpec.put("nodeSelector", nodeSelector);
+        submitterPodSpec.put("tolerations", tolerations);
+        submitterPodSpec.put("containers", List.of(submitterContainer));
+        spec.put("submitterPodTemplate", Map.of("spec", submitterPodSpec));
+
         return spec;
     }
 
