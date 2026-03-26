@@ -107,6 +107,14 @@ public class RayJobRunner {
             entrypoint = "echo 'no entrypoint'";
         }
 
+        // Inject OUTPUT_PATH into env vars if not already set
+        String bucket = props.getObs().getBucket();
+        String outputObsUri = "obs://" + bucket + "/tenant-" + tenantId
+                + "/jobs/" + job.getId() + "/output/data.parquet";
+        Map<String, String> envVars = req.getEnvVars() != null ? new java.util.HashMap<>(req.getEnvVars()) : new java.util.HashMap<>();
+        envVars.putIfAbsent("OUTPUT_PATH", outputObsUri);
+        req.setEnvVars(envVars);
+
         // OBS STS credentials for runtime_env env_vars
         ObsStsService.StsCredentials stsCreds = obsStsService.getCredentials(tenantId);
         String obsEndpoint = props.getObs().getEndpoint();

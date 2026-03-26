@@ -172,6 +172,7 @@ public class DatalakeStatusPoller {
                 if (job.getStatus() != DatalakeJobStatus.SUCCEEDED) {
                     job.setStatus(DatalakeJobStatus.SUCCEEDED);
                     job.setFinishedAt(java.time.Instant.now());
+                    registerOutputDataset(job);
                     changed = true;
                 }
             }
