@@ -183,17 +183,14 @@ function copyCode(code: string) {
   setTimeout(() => { copied.value = null }, 2000)
 }
 
-function mcpJson(configPath: string) {
-  const memId = base.value?.id || 'mem_xxx'
-  return `// ${configPath}
-{
+function httpMcpJson() {
+  return `{
   "mcpServers": {
     "dbay": {
-      "command": "uv",
-      "args": ["run", "--directory", "/path/to/dbay-mcp", "server.py"],
-      "env": {
-        "DBAY_API_KEY": "your_api_key",
-        "DBAY_MEMORY_BASE": "${memId}"
+      "transport": "http",
+      "url": "https://api.dbay.cloud:8443/mcp",
+      "headers": {
+        "Authorization": "Bearer your_api_key"
       }
     }
   }
@@ -201,17 +198,14 @@ function mcpJson(configPath: string) {
 }
 
 const clients = computed(() => {
-  const memId = base.value?.id || 'mem_xxx'
   return [
     {
-      id: 'claude-code', name: 'Claude Code', short: 'MCP via .mcp.json',
+      id: 'claude-code', name: 'Claude Code', short: 'claude mcp add',
       steps: [
-        { title: '配置 MCP Server', desc: '在项目根目录创建或编辑 .mcp.json：', code: mcpJson('.mcp.json') },
-        { title: '添加记忆指引到 CLAUDE.md', desc: '让 Claude 知道何时使用记忆工具：', code: `# Memory
-- 当做出技术/架构决策时，调用 memory_record 记录
-- 当用户明确拒绝某方案时，调用 memory_record 记录
-- 当需要查询历史决策时，调用 memory_recall
-- memory_record 返回 extraction_prompt 后，执行提取并调用 memory_record_extracted` },
+        { title: '注册 MCP Server（推荐）', desc: '在终端执行以下命令，全局生效：', code: `claude mcp add --scope user --transport http dbay \\
+  https://api.dbay.cloud:8443/mcp \\
+  --header "Authorization: Bearer your_api_key"` },
+        { title: '或使用 .mcp.json 配置', desc: '在项目根目录创建 .mcp.json（记得加入 .gitignore）：', code: httpMcpJson() },
         { title: '验证', desc: '重启 Claude Code，输入 /mcp 查看 dbay server 是否已连接。', code: '' },
       ],
     },
@@ -219,46 +213,28 @@ const clients = computed(() => {
       id: 'claude-desktop', name: 'Claude Desktop', short: 'MCP via config.json',
       steps: [
         { title: '打开配置文件', desc: 'macOS: ~/Library/Application Support/Claude/claude_desktop_config.json\nWindows: %APPDATA%\\Claude\\claude_desktop_config.json', code: '' },
-        { title: '添加 dbay MCP server', desc: '在 mcpServers 中添加：', code: mcpJson('claude_desktop_config.json') },
+        { title: '添加 dbay MCP server', desc: '在 mcpServers 中添加：', code: httpMcpJson() },
         { title: '重启 Claude Desktop', desc: '关闭并重新打开 Claude Desktop，在工具图标中确认 dbay 已连接。', code: '' },
       ],
     },
     {
       id: 'cursor', name: 'Cursor', short: 'MCP via .cursor/',
       steps: [
-        { title: '创建 MCP 配置', desc: '在项目根目录创建 .cursor/mcp.json：', code: mcpJson('.cursor/mcp.json') },
+        { title: '创建 MCP 配置', desc: '在项目根目录创建 .cursor/mcp.json：', code: httpMcpJson() },
         { title: '启用 MCP', desc: '打开 Cursor Settings → Features → 确保 MCP 已启用。', code: '' },
-        { title: '在 .cursorrules 中添加记忆指引', desc: '', code: `# Memory
-当做出技术决策或排除方案时，使用 memory_record 工具记录。
-查询历史决策时使用 memory_recall。` },
       ],
     },
     {
       id: 'gemini-cli', name: 'Gemini CLI', short: 'MCP via settings.json',
       steps: [
-        { title: '编辑 Gemini CLI 配置', desc: '编辑 ~/.gemini/settings.json：', code: `// ~/.gemini/settings.json
-{
-  "mcpServers": {
-    "dbay": {
-      "command": "uv",
-      "args": ["run", "--directory", "/path/to/dbay-mcp", "server.py"],
-      "env": {
-        "DBAY_API_KEY": "your_api_key",
-        "DBAY_MEMORY_BASE": "${memId}"
-      }
-    }
-  }
-}` },
-        { title: '添加记忆指引到 GEMINI.md', desc: '', code: `# Memory
-- 使用 memory_record 记录重要决策和排除项
-- 使用 memory_recall 查询历史记忆` },
+        { title: '编辑 Gemini CLI 配置', desc: '编辑 ~/.gemini/settings.json，添加 MCP server：', code: httpMcpJson() },
       ],
     },
     {
       id: 'openclaw', name: 'OpenClaw', short: '原生集成',
       steps: [
         { title: '无需额外配置', desc: 'OpenClaw 原生支持 DBay 记忆库，每次对话自动回忆、自动捕获、自动反思。', code: '' },
-        { title: '关联记忆库', desc: '在 OpenClaw 设置中选择记忆库：', code: `记忆库 ID: ${memId}
+        { title: '关联记忆库', desc: '在 OpenClaw 设置中选择记忆库：', code: `记忆库 ID: ${base.value?.id || 'mem_xxx'}
 API Endpoint: https://api.dbay.cloud:8443` },
       ],
     },
