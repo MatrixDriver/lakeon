@@ -1131,4 +1131,17 @@ public class KnowledgeService {
         if (lower.endsWith(".epub")) return "EPUB";
         return null;
     }
+
+    public String detectFormatPublic(String filename) {
+        return detectFormat(filename);
+    }
+
+    public void deleteDocumentInternal(DocumentEntity doc) {
+        if (doc.getObsKey() != null) {
+            try { deleteObsFile(doc.getObsKey()); } catch (Exception e) {
+                log.warn("Failed to delete OBS file {}: {}", doc.getObsKey(), e.getMessage());
+            }
+        }
+        documentRepository.delete(doc);
+    }
 }

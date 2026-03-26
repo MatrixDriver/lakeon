@@ -16,18 +16,27 @@ import java.util.*;
 public class DataSourceController {
 
     private final DataSourceRepository dsRepository;
+    private final DocumentRepository documentRepository;
     private final KnowledgeBaseRepository kbRepository;
     private final ObsStsService obsStsService;
     private final LakeonProperties props;
+    private final DataSourceSyncService syncService;
+    private final KnowledgeService knowledgeService;
 
     public DataSourceController(DataSourceRepository dsRepository,
+                                 DocumentRepository documentRepository,
                                  KnowledgeBaseRepository kbRepository,
                                  ObsStsService obsStsService,
-                                 LakeonProperties props) {
+                                 LakeonProperties props,
+                                 DataSourceSyncService syncService,
+                                 KnowledgeService knowledgeService) {
         this.dsRepository = dsRepository;
+        this.documentRepository = documentRepository;
         this.kbRepository = kbRepository;
         this.obsStsService = obsStsService;
         this.props = props;
+        this.syncService = syncService;
+        this.knowledgeService = knowledgeService;
     }
 
     @PostMapping
@@ -77,8 +86,27 @@ public class DataSourceController {
         TenantEntity tenant = getTenant(req);
         DataSourceEntity ds = dsRepository.findByIdAndTenantId(dsId, tenant.getId())
             .orElseThrow(() -> new NotFoundException("Datasource not found: " + dsId));
+        List<DocumentEntity> docs = documentRepository.findByDatasourceId(dsId);
+        for (DocumentEntity doc : docs) {
+            knowledgeService.deleteDocumentInternal(doc);
+        }
         dsRepository.delete(ds);
         return Map.of("deleted", true);
+    }
+
+    @PostMapping("/{dsId}/sync")
+    public Map<String, Object> sync(HttpServletRequest req,
+                                     @PathVariable String kbId,
+                                     @PathVariable String dsId) {
+        TenantEntity tenant = getTenant(req);
+        DataSourceEntity ds = dsRepository.findByIdAndTenantId(dsId, tenant.getId())
+            .orElseThrow(() -> new NotFoundException("Datasource not found: " + dsId));
+        Map<String, Object> stats = syncService.sync(ds);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("datasource_id", ds.getId());
+        response.put("status", ds.getStatus().name());
+        response.put("sync_stats", stats);
+        return response;
     }
 
     @GetMapping("/{dsId}/credentials")
