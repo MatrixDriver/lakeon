@@ -136,13 +136,12 @@ onUnmounted(() => view?.destroy())
 
 const aiOpen = ref(false)
 const aiPrompt = ref('')
-const aiModel = ref('Qwen/Qwen3.5-4B')
+const aiModel = ref('deepseek-ai/DeepSeek-V3.2')
 const aiLoading = ref(false)
 const aiError = ref('')
 const aiTokens = ref<{ input: number; output: number; cost: number } | null>(null)
 
 const models = [
-  { id: 'Qwen/Qwen3.5-4B', name: 'Qwen 3.5 4B', input_price: 0, output_price: 0 },
   { id: 'deepseek-ai/DeepSeek-V3.2', name: 'DeepSeek V3.2', input_price: 2.0, output_price: 3.0 },
   { id: 'Qwen/Qwen3-Coder-480B-A35B-Instruct', name: 'Qwen3 Coder 480B', input_price: 8.0, output_price: 16.0 },
   { id: 'Qwen/Qwen3-Coder-30B-A3B-Instruct', name: 'Qwen3 Coder 30B', input_price: 0.7, output_price: 2.8 },

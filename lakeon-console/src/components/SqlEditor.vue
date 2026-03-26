@@ -154,12 +154,11 @@ const aiLoading = ref(false)
 const aiError = ref('')
 const aiTokenInfo = ref('')
 const aiModels = ref<AiModel[]>([
-  { id: 'Qwen/Qwen3.5-4B', name: 'Qwen3.5 4B', input_price: 0, output_price: 0, desc: '免费模型，适合日常 SQL 生成' },
   { id: 'deepseek-ai/DeepSeek-V3.2', name: 'DeepSeek V3.2', input_price: 2.0, output_price: 3.0, desc: '综合能力强，性价比高' },
   { id: 'Qwen/Qwen3-Coder-480B-A35B-Instruct', name: 'Qwen3 Coder 480B', input_price: 8.0, output_price: 16.0, desc: '最强代码模型，SQL 生成质量最高' },
   { id: 'Qwen/Qwen3-Coder-30B-A3B-Instruct', name: 'Qwen3 Coder 30B', input_price: 0.7, output_price: 2.8, desc: '轻量代码模型，速度快价格低' },
 ])
-const aiModel = ref('Qwen/Qwen3.5-4B')
+const aiModel = ref('deepseek-ai/DeepSeek-V3.2')
 
 const selectedModelInfo = computed(() => aiModels.value.find(m => m.id === aiModel.value))
 
