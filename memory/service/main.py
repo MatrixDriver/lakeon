@@ -16,18 +16,19 @@ async def init_memory(x_database_connstr: str = Header(...)):
 
 @app.post("/ingest")
 async def ingest(req: IngestRequest, x_database_connstr: str = Header(...),
-                 x_one_llm_mode: str = Header("false")):
+                 x_one_llm_mode: str = Header("false"),
+                 x_scene: str = Header("CHAT_ASSISTANT")):
     one_llm = x_one_llm_mode.lower() == "true"
     auto_extract = req.auto_extract if req.auto_extract is not None else (not one_llm)
 
     message_id = await engine.store_raw_message(x_database_connstr, req.content, req.role, req.source)
 
     if auto_extract:
-        asyncio.create_task(engine.background_extract(x_database_connstr, message_id, req.content))
+        asyncio.create_task(engine.background_extract(x_database_connstr, message_id, req.content, x_scene))
         return {"message_id": message_id, "extraction_required": False, "status": "extracting"}
     else:
         from extraction_prompt import build_extraction_prompt
-        prompt = build_extraction_prompt(req.content)
+        prompt = build_extraction_prompt(req.content, scene=x_scene)
         return {"message_id": message_id, "extraction_required": True, "extraction_prompt": prompt}
 
 

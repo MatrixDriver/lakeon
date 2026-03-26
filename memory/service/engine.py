@@ -92,7 +92,7 @@ async def ingest_extracted(connstr: str, message_id: str, data: dict) -> dict:
     return counts
 
 
-async def background_extract(connstr: str, message_id: str, content: str):
+async def background_extract(connstr: str, message_id: str, content: str, scene: str = "CHAT_ASSISTANT"):
     """Background task: call LLM to extract memories, then store them."""
     import logging
     from extraction_prompt import build_extraction_prompt
@@ -100,10 +100,10 @@ async def background_extract(connstr: str, message_id: str, content: str):
 
     logger = logging.getLogger(__name__)
     try:
-        prompt = build_extraction_prompt(content)
+        prompt = build_extraction_prompt(content, scene=scene)
         result = await chat_extract(prompt)
         counts = await ingest_extracted(connstr, message_id, result)
-        logger.info("Background extraction for %s: %s", message_id, counts)
+        logger.info("Background extraction for %s (scene=%s): %s", message_id, scene, counts)
     except Exception as e:
         logger.error("Background extraction failed for %s: %s", message_id, e, exc_info=True)
 

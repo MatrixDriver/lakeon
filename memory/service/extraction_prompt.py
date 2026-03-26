@@ -15,12 +15,17 @@ def detect_language(content: str) -> str:
     return "zh" if ratio > 0.1 else "en"
 
 
-def build_extraction_prompt(content: str) -> str:
-    """Build the extraction prompt, auto-detecting language from content."""
+def build_extraction_prompt(content: str, scene: str = "CHAT_ASSISTANT") -> str:
+    """Build the extraction prompt, auto-detecting language and switching by scene."""
     language = detect_language(content)
-    if language == "en":
-        return _build_en_prompt(content)
-    return _build_zh_prompt(content)
+    if scene == "DEVELOPER_TOOL":
+        if language == "en":
+            return _build_developer_en_prompt(content)
+        return _build_developer_zh_prompt(content)
+    else:
+        if language == "en":
+            return _build_en_prompt(content)
+        return _build_zh_prompt(content)
 
 
 def _build_en_prompt(content: str) -> str:
@@ -167,6 +172,97 @@ def _build_zh_prompt(content: str) -> str:
   "episodes": [...],
   "procedural": [...],
   "triples": [...],
+  "decisions": [...],
+  "rejections": [...],
+  "conventions": [...]
+}}
+```"""
+
+
+def _build_developer_en_prompt(content: str) -> str:
+    return f"""Extract structured memory information from the following content.
+Return results strictly in JSON format.
+
+<content>
+{content}
+</content>
+
+Extract ONLY these memory types (skip episodes and emotional context):
+
+1. **Facts**: Persistent information about the user — preferences, credentials, project details
+   - Format: {{"content": "fact description", "category": "category", "confidence": 0.0-1.0, "importance": 1-10}}
+   - Category: identity, work, skill, hobby, personal, values
+   - Must be atomic (one fact per item) and self-contained (no pronouns)
+   - Preserve specific details, never generalize
+
+2. **Procedural**: Commands, workflows, deployment steps, tool usage patterns
+   - Format: {{"content": "procedural description", "category": "category"}}
+   - Category: workflow, tool_usage, coding_pattern, configuration, process
+
+3. **Decisions**: Deliberate technical or architectural choices with rationale
+   - Format: {{"content": "decision description", "rationale": "why", "project": "project or null", "confidence": 0.0-1.0}}
+
+4. **Rejections**: Approaches explicitly excluded with stated reason
+   - Format: {{"content": "what was rejected", "reason": "why", "project": "project or null", "confidence": 0.0-1.0}}
+
+5. **Conventions**: Rules, coding standards, naming conventions, operational norms
+   - Format: {{"content": "convention description", "scope": "applicability", "project": "project or null", "confidence": 0.0-1.0}}
+
+Requirements:
+- Only extract explicitly mentioned information
+- All content must be self-contained (explicit subject, no pronouns)
+- Return valid JSON only, no additional text
+
+Return format:
+```json
+{{
+  "facts": [...],
+  "procedural": [...],
+  "decisions": [...],
+  "rejections": [...],
+  "conventions": [...]
+}}
+```"""
+
+
+def _build_developer_zh_prompt(content: str) -> str:
+    return f"""分析以下内容，提取结构化记忆信息。请严格按照 JSON 格式返回结果。
+
+<content>
+{content}
+</content>
+
+只提取以下记忆类型（跳过情景记忆和情感标注）：
+
+1. **Facts（事实）**: 用户的持久性信息 — 偏好、凭据、项目细节
+   - 格式: {{"content": "事实描述", "category": "分类", "confidence": 0.0-1.0, "importance": 1-10}}
+   - category: identity, work, skill, hobby, personal, values
+   - 每条必须原子化（一条信息）且自包含（不使用代词）
+   - 保留具体细节，禁止模糊泛化
+
+2. **Procedural（流程）**: 命令、工作流、部署步骤、工具使用模式
+   - 格式: {{"content": "流程描述", "category": "分类"}}
+   - category: workflow, tool_usage, coding_pattern, configuration, process
+
+3. **Decisions（决策）**: 有明确理由的技术或架构选择
+   - 格式: {{"content": "决策描述", "rationale": "原因", "project": "项目名或null", "confidence": 0.0-1.0}}
+
+4. **Rejections（排除项）**: 明确被排除的方案及原因
+   - 格式: {{"content": "被排除的方案", "reason": "原因", "project": "项目名或null", "confidence": 0.0-1.0}}
+
+5. **Conventions（约定）**: 规则、编码标准、命名规范、运维惯例
+   - 格式: {{"content": "约定描述", "scope": "适用范围", "project": "项目名或null", "confidence": 0.0-1.0}}
+
+要求:
+- 只提取明确提到的信息
+- 所有 content 必须自包含（有明确主语，不使用代词）
+- 只返回有效 JSON，不要有其他文字
+
+返回格式:
+```json
+{{
+  "facts": [...],
+  "procedural": [...],
   "decisions": [...],
   "rejections": [...],
   "conventions": [...]
