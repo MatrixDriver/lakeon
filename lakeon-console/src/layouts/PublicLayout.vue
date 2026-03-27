@@ -11,52 +11,60 @@
         <div class="pub-nav-links">
           <!-- 产品 dropdown -->
           <NavDropdown :label="t('产品', 'Products')">
-            <router-link to="/product#lakebase" class="nav-item">
-              <span class="nav-item-title">Lakebase</span>
-              <span class="nav-item-desc">{{ t('Serverless PostgreSQL · 存算分离', 'Serverless PostgreSQL · Disaggregated') }}</span>
-            </router-link>
-            <router-link to="/product#knowledge" class="nav-item">
-              <span class="nav-item-title">{{ t('知识库', 'Knowledge Base') }}</span>
-              <span class="nav-item-desc">{{ t('文档 + 向量 + 全文混合检索', 'Docs + Vector + Hybrid FTS') }}</span>
-            </router-link>
-            <router-link to="/product#memory" class="nav-item">
-              <span class="nav-item-title">
-                {{ t('记忆库', 'Memory Store') }}
-                <span class="badge-new">New</span>
-              </span>
-              <span class="nav-item-desc">{{ t('AI Agent 长期记忆引擎', 'Long-term memory for AI Agents') }}</span>
-            </router-link>
-            <router-link to="/product#datalake" class="nav-item">
-              <span class="nav-item-title">{{ t('AI 数据湖', 'AI Data Lake') }}</span>
-              <span class="nav-item-desc">{{ t('Python · Ray · 微调 · 数据飞轮', 'Python · Ray · Fine-tuning · Flywheel') }}</span>
-            </router-link>
+            <div class="nav-product-grid">
+              <router-link to="/product#lakebase" class="nav-item nav-item-grid">
+                <span class="nav-item-icon">🐘</span>
+                <div>
+                  <div class="nav-item-title">Lakebase</div>
+                  <div class="nav-item-desc">Serverless PostgreSQL</div>
+                </div>
+              </router-link>
+              <router-link to="/product#knowledge" class="nav-item nav-item-grid">
+                <span class="nav-item-icon">📚</span>
+                <div>
+                  <div class="nav-item-title">{{ t('知识库', 'Knowledge Base') }}</div>
+                  <div class="nav-item-desc">{{ t('文档 + 向量搜索', 'Docs + Vector Search') }}</div>
+                </div>
+              </router-link>
+              <router-link to="/product#memory" class="nav-item nav-item-grid">
+                <span class="nav-item-icon">🧠</span>
+                <div>
+                  <div class="nav-item-title">{{ t('记忆库', 'Memory Store') }}</div>
+                  <div class="nav-item-desc">{{ t('Agent 长期记忆', 'Agent Long-term Memory') }}</div>
+                </div>
+              </router-link>
+              <router-link to="/product#datalake" class="nav-item nav-item-grid">
+                <span class="nav-item-icon">🌊</span>
+                <div>
+                  <div class="nav-item-title">{{ t('数据湖', 'Data Lake') }}</div>
+                  <div class="nav-item-desc">{{ t('数据处理 + 训练', 'Processing + Training') }}</div>
+                </div>
+              </router-link>
+            </div>
           </NavDropdown>
 
           <!-- 集成 dropdown -->
           <NavDropdown :label="t('集成', 'Integrations')">
-            <router-link to="/integrations/openclaw" class="nav-item">
-              <span class="nav-item-title">OpenClaw <span class="badge-featured">{{ t('精选', 'Featured') }}</span></span>
-              <span class="nav-item-desc">{{ t('龙虾 AI 助手，原生记忆集成', 'OpenClaw AI with native memory') }}</span>
+            <router-link to="/integrations#mcp" class="nav-item">
+              <span class="nav-item-icon">🤖</span>
+              <span class="nav-item-title">{{ t('MCP 集成', 'MCP Integration') }}</span>
             </router-link>
-            <router-link to="/integrations#claude-code" class="nav-item">
-              <span class="nav-item-title">Claude Code</span>
-              <span class="nav-item-desc">{{ t('通过 MCP 接入记忆库与知识库', 'Memory + KB via MCP') }}</span>
+            <router-link to="/integrations#skill" class="nav-item">
+              <span class="nav-item-icon">🔧</span>
+              <span class="nav-item-title">{{ t('Skill 集成', 'Skill Integration') }}</span>
             </router-link>
-            <router-link to="/integrations#claude-desktop" class="nav-item">
-              <span class="nav-item-title">Claude Desktop</span>
-              <span class="nav-item-desc">{{ t('桌面客户端记忆持久化', 'Persistent memory for desktop') }}</span>
+            <router-link to="/integrations#pg" class="nav-item">
+              <span class="nav-item-icon">🐘</span>
+              <span class="nav-item-title">{{ t('PostgreSQL 协议', 'PostgreSQL Protocol') }}</span>
             </router-link>
-            <router-link to="/integrations#cursor" class="nav-item">
-              <span class="nav-item-title">Cursor</span>
-              <span class="nav-item-desc">{{ t('代码库知识库检索', 'Codebase knowledge retrieval') }}</span>
+            <router-link to="/integrations#rest" class="nav-item">
+              <span class="nav-item-icon">🔌</span>
+              <span class="nav-item-title">REST API</span>
             </router-link>
-            <router-link to="/integrations#gemini-cli" class="nav-item">
-              <span class="nav-item-title">Gemini CLI</span>
-              <span class="nav-item-desc">{{ t('命令行 AI 长期记忆', 'Long-term memory for CLI AI') }}</span>
-            </router-link>
-            <router-link to="/integrations#chatgpt" class="nav-item">
-              <span class="nav-item-title">ChatGPT</span>
-              <span class="nav-item-desc">{{ t('跨会话用户记忆同步', 'Cross-session memory sync') }}</span>
+            <div class="nav-divider"></div>
+            <router-link to="/docs/rest-api" class="nav-item">
+              <span class="nav-item-icon">📖</span>
+              <span class="nav-item-title" style="color: var(--pub-primary)">{{ t('API 文档', 'API Docs') }}</span>
             </router-link>
           </NavDropdown>
 
@@ -97,6 +105,7 @@
           </button>
           <button class="lang-btn" @click="toggleLocale">{{ locale === 'zh' ? 'EN' : '中' }}</button>
           <router-link to="/login" class="btn-signin">{{ t('登录', 'Sign In') }}</router-link>
+          <a href="#" class="btn-trial" @click.prevent="handleNavTrial">{{ t('立即试用', 'Try Now') }}</a>
           <!-- Mobile hamburger -->
           <button class="hamburger" @click="mobileOpen = !mobileOpen" aria-label="Menu">
             <span></span><span></span><span></span>
@@ -114,17 +123,34 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useLocale } from '../stores/locale'
 import { useTheme } from '../stores/theme'
+import { useAuthStore } from '../stores/auth'
+import client from '../api/client'
 import NavDropdown from '../components/public/NavDropdown.vue'
 import MobileNav from '../components/public/MobileNav.vue'
 
 const { locale, setLocale, t } = useLocale()
 const { theme, toggle: toggleTheme } = useTheme()
+const router = useRouter()
+const authStore = useAuthStore()
 const mobileOpen = ref(false)
 
 function toggleLocale() {
   setLocale(locale.value === 'zh' ? 'en' : 'zh')
+}
+
+async function handleNavTrial() {
+  try {
+    localStorage.removeItem('lakeon_api_key')
+    const { data } = await client.post('/trial')
+    authStore.setTenant(data.tenant_id, data.username || 'trial')
+    authStore.setTrialState(true, data.expires_at)
+    router.push('/dashboard')
+  } catch {
+    router.push('/login')
+  }
 }
 </script>
 
@@ -268,6 +294,38 @@ function toggleLocale() {
   font-size: 11px;
   color: var(--pub-text-3);
   margin-top: 1px;
+}
+.nav-product-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.nav-item-grid {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.nav-item-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.nav-divider {
+  height: 1px;
+  background: var(--pub-border);
+  margin: 4px 0;
+}
+.btn-trial {
+  background: var(--pub-primary, #0073e6);
+  color: #fff !important;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+.btn-trial:hover {
+  opacity: 0.9;
 }
 @media (max-width: 768px) {
   .pub-nav-links { display: none; }
