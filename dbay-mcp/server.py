@@ -364,22 +364,20 @@ def memory_recall(
 
 
 @mcp.tool(description="Save a persistent memory. Use when the user says 'remember', "
-          "or when you discover important information worth preserving. "
-          "The server returns an extraction prompt — you MUST execute it against the conversation context, "
-          "then call memory_ingest_extracted with the structured result.")
+          "or when you discover important information worth preserving.")
 def memory_ingest(
     content: str,
+    memory_type: str = "fact",
+    importance: float = 0.5,
     source: str = "claude-code",
     memory_base: str | None = None,
 ) -> str:
-    """Store a conversation snippet and get an extraction prompt.
-
-    After calling this, you will receive an extraction_prompt. Execute it to extract
-    structured memories (decisions, rejections, conventions, facts, etc.) from the
-    conversation context, then call memory_ingest_extracted with the result.
+    """Store a memory directly. The content should be a concise, structured fact or decision.
 
     Args:
-        content: The conversation content to remember
+        content: The memory content to store
+        memory_type: One of: fact, episode, procedural, decision, rejection, convention
+        importance: Importance score 0.0-1.0 (default 0.5)
         source: Client identifier (default "claude-code")
         memory_base: Memory base name or ID (optional)
     """
@@ -388,22 +386,14 @@ def memory_ingest(
         "content": content,
         "role": "user",
         "source": source,
+        "memory_type": memory_type,
+        "importance": importance,
     })
 
-    msg_id = data.get("message_id", "")
-    if data.get("extraction_required"):
-        prompt = data.get("extraction_prompt", "")
-        return (
-            f"Message stored (id={msg_id}).\n\n"
-            f"[Extraction required]\n"
-            f"Execute the following prompt against the FULL conversation context, "
-            f"then call memory_ingest_extracted with memory_base=\"{mem_id}\", "
-            f"message_id=\"{msg_id}\", and the JSON result as extracted_data.\n\n"
-            f"--- EXTRACTION PROMPT ---\n{prompt}\n--- END PROMPT ---"
-        )
-    else:
-        status = data.get("status", "done")
-        return f"Message stored (id={msg_id}, status={status}). Server is extracting memories automatically."
+    if data.get("status") == "stored":
+        return f"Memory stored (id={data.get('memory_id')}, type={data.get('memory_type')})."
+    # Fallback for older server versions
+    return f"Memory stored (status={data.get('status', 'ok')})."
 
 
 @mcp.tool(description="Store pre-extracted memories. "

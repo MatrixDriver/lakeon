@@ -49,21 +49,26 @@ public class MemoryMcpTools {
                 });
 
         registry.register("memory_ingest",
-                "Save a persistent memory. Use when the user says 'remember/记住', or when you discover important information worth preserving: credentials, user preferences, decisions, lessons learned from debugging, solutions to tricky problems, or operational conventions.",
+                "Save a persistent memory. Use when the user says 'remember/记住', or when you discover important information worth preserving. "
+                + "You MUST choose the correct memory_type: "
+                + "fact (credentials, preferences, project info, technical specs), "
+                + "decision (choices made and their rationale, e.g. 'chose PostgreSQL over MySQL because...'), "
+                + "rejection (approaches explicitly rejected and why, e.g. 'don't use mocks in integration tests because...'), "
+                + "convention (team/project conventions, naming rules, workflow patterns), "
+                + "procedural (step-by-step procedures, deployment steps, setup guides), "
+                + "episode (notable incidents, debugging stories, production outages).",
                 schema(b -> {
                     b.prop("base_id", "string", "Memory base ID", true);
                     b.prop("content", "string", "Memory content to store", true);
-                    b.prop("role", "string", "Role of the speaker (e.g. user, assistant)", false);
-                    b.prop("memory_type", "string", "Type: fact, episode, procedural, decision, rejection, convention", false);
-                    b.prop("importance", "number", "Importance score 0.0-1.0", false);
+                    b.prop("memory_type", "string", "REQUIRED. One of: fact, decision, rejection, convention, procedural, episode", true);
+                    b.prop("importance", "number", "Importance score 0.0-1.0 (default 0.5). Use 0.8+ for credentials, critical decisions, painful lessons", false);
                 }),
                 (tenant, args) -> {
                     String baseId = args.get("base_id").asText();
                     Map<String, Object> body = new LinkedHashMap<>();
                     body.put("content", args.get("content").asText());
                     body.put("source", "mcp");
-                    if (args.has("role")) body.put("role", args.get("role").asText());
-                    if (args.has("memory_type")) body.put("memory_type", args.get("memory_type").asText());
+                    body.put("memory_type", args.has("memory_type") ? args.get("memory_type").asText() : "fact");
                     if (args.has("importance")) body.put("importance", args.get("importance").asDouble());
                     return memoryService.proxyPost(tenant.getId(), baseId, "/ingest", body);
                 });

@@ -18,6 +18,13 @@ async def init_memory(x_database_connstr: str = Header(...)):
 async def ingest(req: IngestRequest, x_database_connstr: str = Header(...),
                  x_one_llm_mode: str = Header("false"),
                  x_scene: str = Header("CHAT_ASSISTANT")):
+    # Agent-extract mode: when memory_type is provided, content is already extracted — store directly
+    if req.memory_type:
+        metadata = {"source": req.source} if req.source else {}
+        mem = await engine.ingest(x_database_connstr, req.content, req.role,
+                                  req.memory_type, req.importance, metadata)
+        return {"memory_id": mem.id, "memory_type": mem.memory_type, "status": "stored"}
+
     one_llm = x_one_llm_mode.lower() == "true"
     auto_extract = req.auto_extract if req.auto_extract is not None else (not one_llm)
 
