@@ -69,6 +69,7 @@
             <td style="font-family: monospace; font-size: 13px;">{{ db.compute_pod_name || '-' }}</td>
             <td>{{ formatDate(db.created_at) }}</td>
             <td>
+              <button v-if="db.status === 'FAILED'" class="btn btn-text btn-small" style="color: #0073e6;" @click="diagnose(db)">AI 诊断</button>
               <button class="btn btn-text btn-small" style="color: #e53e3e;" @click="confirmDeleteOne(db)">删除</button>
             </td>
           </tr>
@@ -107,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { adminApi } from '../../api/admin'
 import { formatDate } from '../../utils/format'
@@ -115,6 +116,13 @@ import { useTenantStore } from '../../stores/tenants'
 
 const router = useRouter()
 const tenantStore = useTenantStore()
+
+const openAiDiagnose = inject<(type: string, id: string, q: string) => void>('openAiDiagnose')
+
+function diagnose(db: Database) {
+  const q = `数据库 ${db.name} (${db.id}) 状态为 FAILED，错误信息: "${db.status_message || '无'}"。请诊断原因并给出修复建议。`
+  openAiDiagnose?.('database', db.id, q)
+}
 
 interface Database {
   id: string
