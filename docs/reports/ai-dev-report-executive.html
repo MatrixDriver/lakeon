@@ -1298,6 +1298,43 @@
       </div>
     </div>
 
+    <div class="accordion" style="margin-top:30px;">
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+          <span>Skill 与插件清单</span><span class="arrow">&#9654;</span>
+        </div>
+        <div class="accordion-body">
+          <p style="font-size:0.9rem;color:#b0b8c1;margin-bottom:16px;">以下 Skill 已在实际开发中验证有效，可通过 Claude Code 插件市场安装。</p>
+
+          <table class="mini-table" style="margin-bottom:20px;">
+            <tr><th>Skill</th><th>用途</th><th>来源</th></tr>
+            <tr><td><code>hcloud</code></td><td>华为云 CLI 操作封装，避免直接调 REST API 出错</td><td>jackylk/claude-plugins</td></tr>
+            <tr><td><code>huawei-cloud-style</code></td><td>华为云 UI 风格规范，AI 生成一致风格前端</td><td>jackylk/claude-plugins</td></tr>
+            <tr><td><code>sre-console</code></td><td>SRE 运维控制台模板，标准化运维页面结构</td><td>jackylk/claude-plugins</td></tr>
+            <tr><td><code>deploy</code></td><td>部署前预检，防止凭据丢失、tag 错误等历史事故</td><td>项目自建 (.claude/skills)</td></tr>
+            <tr><td><code>challenge</code></td><td>红蓝对抗，方案开发前的结构化攻防审查</td><td>zhuqingxun/zqxbase</td></tr>
+          </table>
+
+          <h4>安装方式</h4>
+          <p>Claude Code 支持通过插件市场（Marketplace）安装第三方 Skill：</p>
+          <h4 style="font-size:0.9rem;">1. 添加插件市场源</h4>
+          <p>在 Claude Code 中执行 <code>/install</code>，搜索并安装对应插件包：</p>
+          <ul>
+            <li><strong>jackylk/claude-plugins</strong> — 包含 hcloud、huawei-cloud-style、sre-console</li>
+            <li><strong>zhuqingxun/zqxbase</strong> — 包含 challenge（红蓝对抗）</li>
+          </ul>
+          <h4 style="font-size:0.9rem;">2. 启用插件</h4>
+          <p>安装后在 <code>~/.claude/settings.json</code> 的 <code>enabledPlugins</code> 中确认已启用：</p>
+          <div class="case-good">
+            <pre style="font-size:0.8rem;margin:0;white-space:pre-wrap;">"sre-console@jackylk-hcloud": true,
+"challenge@zqxbase": true</pre>
+          </div>
+          <h4 style="font-size:0.9rem;">3. 项目级 Skill（如 deploy）</h4>
+          <p>项目级 Skill 不通过插件市场安装，而是直接放在项目的 <code>.claude/skills/</code> 目录或写入 <code>CLAUDE.md</code>，随代码仓库分发，团队成员 clone 即可使用。</p>
+        </div>
+      </div>
+    </div>
+
     <h3 style="margin-top:30px;">AI 投入数据 <span style="font-size:0.7rem;color:#6c7a89;font-weight:400;">（估算值，Max 订阅无按项目统计）</span></h3>
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
       <div class="kpi-card">
