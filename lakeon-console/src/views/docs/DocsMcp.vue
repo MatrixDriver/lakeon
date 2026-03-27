@@ -39,6 +39,21 @@
     </section>
 
     <section class="section">
+      <h2>{{ t('第 3 步：启用记忆提示（推荐）', 'Step 3: Enable Memory Hints (Recommended)') }}</h2>
+      <p>{{ t('让 AI 工具在你说"记住"时自动调用 DBay 记忆库，而不是只存在本地。', 'Tell your AI tool to use DBay memory when you say "remember", instead of local-only storage.') }}</p>
+
+      <div v-for="agent in agentSetups" :key="agent.name" class="agent-setup">
+        <h3>{{ agent.name }}</h3>
+        <div class="code-wrapper">
+          <pre class="code-block"><code>{{ agent.command }}</code></pre>
+          <button class="copy-btn" @click="copy(agent.command)">{{ copyLabel }}</button>
+        </div>
+      </div>
+
+      <p class="tip">{{ t('已安装 dbay-mcp 的用户也可以用：', 'If you have dbay-mcp installed:') }} <code>dbay setup claude-code</code></p>
+    </section>
+
+    <section class="section">
       <h2>{{ t('可用工具', 'Available Tools') }}</h2>
 
       <h3>{{ t('知识库', 'Knowledge Base') }}</h3>
@@ -139,6 +154,27 @@ function copy(text: string) {
 }
 
 const loginSnippet = 'pip install dbay-mcp\ndbay login'
+
+const memoryHint = 'When the user says "记住/remember", call dbay MCP `memory_ingest` to store it in the user\'s long-term memory (persists across projects and sessions). When the user asks about past decisions or context, call `memory_recall` first.'
+
+const agentSetups = [
+  {
+    name: 'Claude Code',
+    command: `mkdir -p ~/.claude\ncat >> ~/.claude/CLAUDE.md << 'EOF'\n\n<!-- dbay-memory -->\n## DBay Memory\n${memoryHint}\nEOF`,
+  },
+  {
+    name: 'Gemini CLI',
+    command: `mkdir -p ~/.gemini\ncat >> ~/.gemini/GEMINI.md << 'EOF'\n\n<!-- dbay-memory -->\n## DBay Memory\n${memoryHint}\nEOF`,
+  },
+  {
+    name: 'Cursor',
+    command: `mkdir -p ~/.cursor/rules\ncat > ~/.cursor/rules/dbay.mdc << 'EOF'\n---\ndescription: DBay memory integration\nglobs:\nalwaysApply: true\n---\n${memoryHint}\nEOF`,
+  },
+  {
+    name: 'Windsurf',
+    command: `mkdir -p ~/.windsurf/rules\ncat > ~/.windsurf/rules/dbay.md << 'EOF'\n\n<!-- dbay-memory -->\n## DBay Memory\n${memoryHint}\nEOF`,
+  },
+]
 
 const configSnippet = computed(() =>
 `mkdir -p ~/.dbay
@@ -243,6 +279,8 @@ const examples = computed(() => [
 </script>
 
 <style scoped>
+.agent-setup { margin-bottom: 16px; }
+.agent-setup h3 { margin-bottom: 6px; }
 .mcp-docs h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; }
 .subtitle { color: var(--pub-text-2); font-size: 15px; margin-bottom: 40px; }
 .section { margin-bottom: 40px; }

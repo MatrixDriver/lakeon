@@ -1,5 +1,5 @@
-# DBay MCP Tool Descriptions
-# ===========================
+# DBay MCP — Descriptions & Agent Instructions
+# ===============================================
 # SRE/运维可直接编辑此文件来调整 AI agent 的行为。
 # 修改后重启 MCP server 即可生效（或重新发布 pip 包）。
 #
@@ -7,6 +7,7 @@
 #   server.instructions — 全局指引，所有 MCP 客户端启动时加载
 #   tools.<tool_name>.description — 单个工具的描述，告诉 agent 何时、如何调用
 #   tools.<tool_name>.args.<arg_name> — 参数描述
+#   agents.<agent_name> — `dbay setup <agent>` 注入到各 agent 指令文件的内容
 
 server:
   instructions: |
@@ -106,3 +107,50 @@ tools:
     args:
       memory_id: The ID of the memory to delete
       memory_base: Memory base name or ID (optional, auto-detected)
+
+# ---------------------------------------------------------------------------
+# Agent instruction injection (`dbay setup <agent>`)
+# ---------------------------------------------------------------------------
+# Each agent entry defines:
+#   file — the instruction file path (~ will be expanded)
+#   instruction — the text to append
+#   marker — unique string to detect if already injected (prevents duplicates)
+#
+# SRE 可在此统一维护注入到各 agent 的指令内容。
+# Console 接入页面也可以直接展示这些内容给用户复制。
+
+agents:
+  claude-code:
+    file: "~/.claude/CLAUDE.md"
+    marker: "<!-- dbay-memory -->"
+    instruction: |
+      <!-- dbay-memory -->
+      ## DBay Memory
+      When the user says "记住/remember", call dbay MCP `memory_ingest` to store it in the user's long-term memory (persists across projects and sessions). When the user asks about past decisions or context, call `memory_recall` first.
+
+  gemini:
+    file: "~/.gemini/GEMINI.md"
+    marker: "<!-- dbay-memory -->"
+    instruction: |
+      <!-- dbay-memory -->
+      ## DBay Memory
+      When the user says "记住/remember", call dbay MCP `memory_ingest` to store it in the user's long-term memory (persists across projects and sessions). When the user asks about past decisions or context, call `memory_recall` first.
+
+  cursor:
+    file: "~/.cursor/rules/dbay.mdc"
+    marker: "dbay-memory"
+    instruction: |
+      ---
+      description: DBay memory integration
+      globs:
+      alwaysApply: true
+      ---
+      When the user says "记住/remember", call dbay MCP `memory_ingest` to store it in the user's long-term memory (persists across projects and sessions). When the user asks about past decisions or context, call `memory_recall` first.
+
+  windsurf:
+    file: "~/.windsurf/rules/dbay.md"
+    marker: "<!-- dbay-memory -->"
+    instruction: |
+      <!-- dbay-memory -->
+      ## DBay Memory
+      When the user says "记住/remember", call dbay MCP `memory_ingest` to store it in the user's long-term memory (persists across projects and sessions). When the user asks about past decisions or context, call `memory_recall` first.

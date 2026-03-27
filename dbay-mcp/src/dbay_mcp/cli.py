@@ -1,4 +1,4 @@
-"""DBay CLI — `dbay login` to configure credentials."""
+"""DBay CLI — `dbay login` / `dbay setup` / `dbay status`."""
 
 import json
 import sys
@@ -6,6 +6,7 @@ from getpass import getpass
 from pathlib import Path
 
 import httpx
+import yaml
 
 CONFIG_DIR = Path.home() / ".dbay"
 CONFIG_FILE = CONFIG_DIR / "config.json"
@@ -122,8 +123,10 @@ def cmd_login() -> None:
         new_cfg["memory_base"] = cfg["memory_base"]
 
     _save_config(new_cfg)
-    print("\nDone! Next step — register MCP server:")
-    print("  claude mcp add --scope user dbay -- uvx dbay-mcp")
+    print("\nDone! Next steps:")
+    print("  1. Register MCP server:  claude mcp add --scope user dbay -- uvx dbay-mcp")
+    print("  2. Enable memory hints:  dbay setup claude-code")
+    print("     (also available: dbay setup gemini | cursor | windsurf)")
 
 
 def cmd_status() -> None:
@@ -140,14 +143,60 @@ def cmd_status() -> None:
     print(f"Memory:    {cfg.get('memory_base', '(auto)')}")
 
 
+def _load_descs() -> dict:
+    descs_file = Path(__file__).parent / "tool_descriptions.yaml"
+    if descs_file.exists():
+        return yaml.safe_load(descs_file.read_text()) or {}
+    return {}
+
+
+def cmd_setup(agent_name: str) -> None:
+    """Inject DBay memory instructions into an agent's instruction file."""
+    descs = _load_descs()
+    agents = descs.get("agents", {})
+
+    if agent_name not in agents:
+        available = ", ".join(sorted(agents.keys()))
+        print(f"Unknown agent: {agent_name}")
+        print(f"Available: {available}")
+        sys.exit(1)
+
+    agent = agents[agent_name]
+    target = Path(agent["file"]).expanduser()
+    marker = agent["marker"]
+    instruction = agent["instruction"]
+
+    # Check if already injected
+    if target.exists() and marker in target.read_text():
+        print(f"Already configured: {target}")
+        return
+
+    # Append instruction
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with open(target, "a") as f:
+        if target.exists() and target.stat().st_size > 0:
+            f.write("\n")
+        f.write(instruction)
+
+    print(f"Done: {target}")
+
+
 def main() -> None:
     args = sys.argv[1:]
     if not args or args[0] == "login":
         cmd_login()
     elif args[0] == "status":
         cmd_status()
+    elif args[0] == "setup":
+        if len(args) < 2:
+            descs = _load_descs()
+            available = ", ".join(sorted(descs.get("agents", {}).keys()))
+            print(f"Usage: dbay setup <agent>")
+            print(f"Available agents: {available}")
+            sys.exit(1)
+        cmd_setup(args[1])
     else:
-        print(f"Usage: dbay [login|status]")
+        print("Usage: dbay [login|status|setup <agent>]")
         sys.exit(1)
 
 
