@@ -101,4 +101,34 @@ export const adminApi = {
     client.get('/datalake/datasets', { params }),
   getDataset: (id: string) => client.get(`/datalake/datasets/${id}`),
   deleteDataset: (id: string) => client.delete(`/datalake/datasets/${id}`),
+
+  // AI Assistant
+  aiChat: (messages: Array<{role: string; content: string}>, context?: {resource_type: string; resource_id: string}) => {
+    const token = localStorage.getItem('lakeon_admin_token')
+    const baseUrl = '/api/v1/admin'
+    const directUrl = 'https://api.dbay.cloud:8443/api/v1/admin'
+
+    // Try proxy first, fall back to direct — use fetch for SSE (axios doesn't support streaming)
+    return fetch(`${baseUrl}/ai/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ messages, context }),
+    }).then(res => {
+      if (res.status === 502 || res.status === 503 || res.status === 504) {
+        // Retry with direct URL
+        return fetch(`${directUrl}/ai/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ messages, context }),
+        })
+      }
+      return res
+    })
+  },
 }
