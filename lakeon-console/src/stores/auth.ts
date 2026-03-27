@@ -6,6 +6,8 @@ export const useAuthStore = defineStore('auth', () => {
   const apiKey = ref(localStorage.getItem('lakeon_api_key') || '')
   const tenantId = ref(localStorage.getItem('lakeon_tenant_id') || '')
   const tenantName = ref(localStorage.getItem('lakeon_tenant_name') || '')
+  const isTrial = ref(localStorage.getItem('lakeon_is_trial') === 'true')
+  const trialExpiresAt = ref(localStorage.getItem('lakeon_trial_expires_at') || '')
 
   async function login(username: string, password: string): Promise<{ ok: boolean; error?: string }> {
     try {
@@ -35,14 +37,30 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('lakeon_tenant_name', name)
   }
 
+  function setTrialState(trial: boolean, expiresAt?: string) {
+    isTrial.value = trial
+    trialExpiresAt.value = expiresAt || ''
+    if (trial) {
+      localStorage.setItem('lakeon_is_trial', 'true')
+      if (expiresAt) localStorage.setItem('lakeon_trial_expires_at', expiresAt)
+    } else {
+      localStorage.removeItem('lakeon_is_trial')
+      localStorage.removeItem('lakeon_trial_expires_at')
+    }
+  }
+
   function logout() {
     apiKey.value = ''
     tenantId.value = ''
     tenantName.value = ''
+    isTrial.value = false
+    trialExpiresAt.value = ''
     localStorage.removeItem('lakeon_api_key')
     localStorage.removeItem('lakeon_tenant_id')
     localStorage.removeItem('lakeon_tenant_name')
+    localStorage.removeItem('lakeon_is_trial')
+    localStorage.removeItem('lakeon_trial_expires_at')
   }
 
-  return { apiKey, tenantId, tenantName, login, setTenant, logout }
+  return { apiKey, tenantId, tenantName, isTrial, trialExpiresAt, login, setTenant, setTrialState, logout }
 })
