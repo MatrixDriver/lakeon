@@ -16,6 +16,38 @@
     <!-- Tab: CCE 弹性节点池 -->
     <div v-if="activeTab === 'cce'">
 
+      <!-- CCE Pressure Overview -->
+      <div class="stats-row" v-if="pool" style="margin-bottom: 16px;">
+        <div class="stat-card">
+          <div class="stat-value" :style="{ color: progressColorVal(pool.cpu_percent ?? 0) }">{{ pool.cpu_percent ?? '-' }}<span class="stat-unit">%</span></div>
+          <div class="stat-label">CPU 使用率</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" :style="{ color: progressColorVal(pool.mem_percent ?? 0) }">{{ pool.mem_percent ?? '-' }}<span class="stat-unit">%</span></div>
+          <div class="stat-label">内存使用率</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ pool.current_nodes }}<span class="stat-unit"> / {{ pool.max_nodes }}</span></div>
+          <div class="stat-label">节点数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ computeSummary?.total ?? '-' }}</div>
+          <div class="stat-label">计算 Pod</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: #52c41a;">{{ computeSummary?.by_status?.running ?? 0 }}</div>
+          <div class="stat-label">运行中</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ pool.used_cpu_cores }}<span class="stat-unit"> / {{ pool.total_cpu_cores }} cores</span></div>
+          <div class="stat-label">CPU 分配</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ pool.used_mem_gb }}<span class="stat-unit"> / {{ pool.total_mem_gb }} GB</span></div>
+          <div class="stat-label">内存分配</div>
+        </div>
+      </div>
+
       <!-- Sub tabs -->
       <div class="sub-tabs">
         <button class="sub-tab" :class="{ active: cceSubTab === 'nodes' }" @click="cceSubTab = 'nodes'">节点管理</button>
@@ -249,6 +281,36 @@
 
     <!-- Tab: Neon 数据层 -->
     <div v-if="activeTab === 'neon'">
+      <!-- Neon Pressure Overview -->
+      <div class="stats-row" v-if="psMetrics" style="margin-bottom: 16px;">
+        <div class="stat-card">
+          <div class="stat-value" :style="{ color: psMetrics.pressure === 'low' ? '#52c41a' : psMetrics.pressure === 'medium' ? '#faad14' : '#e53e3e' }">
+            {{ psMetrics.pressure === 'low' ? '低' : psMetrics.pressure === 'medium' ? '中' : '高' }}
+          </div>
+          <div class="stat-label">Pageserver 压力</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ psMetrics.tenants?.active ?? '-' }}</div>
+          <div class="stat-label">活跃租户</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ psMetrics.memory?.rss_mb ?? '-' }}<span class="stat-unit">MB</span></div>
+          <div class="stat-label">内存 RSS</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ psMetrics.wal_redo?.redo_count?.toLocaleString() ?? '-' }}</div>
+          <div class="stat-label">WAL Redo 次数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ psMetrics.remote_reads?.s3_request_count?.toLocaleString() ?? '-' }}</div>
+          <div class="stat-label">S3/OBS 请求</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ psCachePercent }}<span class="stat-unit">%</span></div>
+          <div class="stat-label">缓存使用率</div>
+        </div>
+      </div>
+
       <div class="section-card">
         <div class="section-header"><h3>Neon 组件 Pod</h3></div>
         <div v-if="!neonPods.length" class="empty-text">暂无数据</div>
@@ -636,6 +698,18 @@ const autoscaleLoading = ref(true)
 const computeLoading = ref(true)
 const cleanupLoading = ref(false)
 const metrics = ref<any>(null)
+const psMetrics = ref<any>(null)
+const psCachePercent = computed(() => {
+  if (!psMetrics.value?.cache) return 0
+  const { current_bytes, max_bytes } = psMetrics.value.cache
+  if (!max_bytes) return 0
+  return Math.round(current_bytes / max_bytes * 100)
+})
+function progressColorVal(pct: number): string {
+  if (pct < 60) return '#52c41a'
+  if (pct < 80) return '#faad14'
+  return '#e53e3e'
+}
 const heapPercent = computed(() => {
   if (!metrics.value?.jvm) return 0
   return Math.round(metrics.value.jvm.heap_used_mb / metrics.value.jvm.heap_max_mb * 100)
@@ -864,8 +938,12 @@ async function loadData() {
 
 async function loadMetrics() {
   try {
-    const res = await adminApi.metricsSummary()
-    metrics.value = res.data
+    const [mRes, psRes] = await Promise.allSettled([
+      adminApi.metricsSummary(),
+      adminApi.pageserverMetrics(),
+    ])
+    if (mRes.status === 'fulfilled') metrics.value = mRes.value.data
+    if (psRes.status === 'fulfilled') psMetrics.value = psRes.value.data
   } catch (e) { console.error('Failed to load metrics', e) }
 }
 
