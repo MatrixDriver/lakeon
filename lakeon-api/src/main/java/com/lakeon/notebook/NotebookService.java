@@ -89,7 +89,15 @@ public class NotebookService {
         session = sessionRepo.save(session);
 
         // Create the pod
-        createNotebookPod(session, tenantId, datasetIds, image, podName, ns);
+        try {
+            createNotebookPod(session, tenantId, datasetIds, image, podName, ns);
+            session.setStatus(NotebookSessionStatus.RUNNING);
+            session = sessionRepo.save(session);
+        } catch (Exception e) {
+            log.error("Failed to create notebook pod for tenant {}: {}", tenantId, e.getMessage());
+            session.setStatus(NotebookSessionStatus.STOPPED);
+            session = sessionRepo.save(session);
+        }
 
         return session;
     }
