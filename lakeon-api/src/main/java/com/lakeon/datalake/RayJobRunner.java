@@ -108,24 +108,32 @@ public class RayJobRunner {
             userCmd = "echo 'no entrypoint'";
         }
 
-        // Wrap entrypoint with a Python log wrapper that captures stdout and uploads to OBS.
-        // Can't use bash -c wrapping because RayJob entrypoint is a single string field
-        // and nested quotes break. Instead, write a wrapper script to /tmp and run that.
+        // Wrap entrypoint: write a wrapper Python script to /tmp, then run it.
+        // Can't use inline python -c because newlines don't work in RayJob entrypoint string.
         String logKey = "datalake-logs/" + tenantId + "/" + jobId + "/output.log";
-        String entrypoint = "python -c \""
-            + "import subprocess,sys,os\\n"
-            + "proc=subprocess.run('" + userCmd.replace("'", "'\\''") + "',shell=True,capture_output=True,text=True)\\n"
-            + "out=proc.stdout+(proc.stderr or '')\\n"
-            + "print(out,end='')\\n"
-            + "open('/tmp/job.log','w').write(out)\\n"
-            + "try:\\n"
-            + " import boto3\\n"
-            + " from botocore.config import Config\\n"
-            + " s3=boto3.client('s3',endpoint_url=os.environ.get('OBS_ENDPOINT',''),aws_access_key_id=os.environ.get('OBS_ACCESS_KEY_ID',''),aws_secret_access_key=os.environ.get('OBS_SECRET_ACCESS_KEY',''),aws_session_token=os.environ.get('OBS_SECURITY_TOKEN'),region_name=os.environ.get('OBS_REGION','cn-north-4'),config=Config(signature_version='s3',s3={'addressing_style':'virtual'}))\\n"
-            + " s3.upload_file('/tmp/job.log',os.environ.get('OBS_BUCKET',''),'" + logKey + "')\\n"
-            + "except: pass\\n"
-            + "sys.exit(proc.returncode)\\n"
-            + "\"";
+        String wrapperScript = String.join("\n",
+            "import subprocess,sys,os",
+            "proc=subprocess.run('" + userCmd.replace("'", "'\"'\"'") + "',shell=True,capture_output=True,text=True)",
+            "out=proc.stdout+(proc.stderr or '')",
+            "print(out,end='')",
+            "open('/tmp/job.log','w').write(out)",
+            "try:",
+            "  import boto3",
+            "  from botocore.config import Config",
+            "  s3=boto3.client('s3',endpoint_url=os.environ.get('OBS_ENDPOINT',''),aws_access_key_id=os.environ.get('OBS_ACCESS_KEY_ID',''),aws_secret_access_key=os.environ.get('OBS_SECRET_ACCESS_KEY',''),aws_session_token=os.environ.get('OBS_SECURITY_TOKEN'),region_name=os.environ.get('OBS_REGION','cn-north-4'),config=Config(signature_version='s3',s3={'addressing_style':'virtual'}))",
+            "  s3.upload_file('/tmp/job.log',os.environ.get('OBS_BUCKET',''),'" + logKey + "')",
+            "except: pass",
+            "sys.exit(proc.returncode)",
+            ""
+        );
+        // Write wrapper to /tmp/wrapper.py via echo, then execute it
+        String escapedScript = wrapperScript.replace("\"", "\\\"");
+        String entrypoint = "python -c \"" + "import base64,os; "
+            + "os.makedirs('/tmp',exist_ok=True); "
+            + "open('/tmp/_wrapper.py','w').write(base64.b64decode('"
+            + java.util.Base64.getEncoder().encodeToString(wrapperScript.getBytes(java.nio.charset.StandardCharsets.UTF_8))
+            + "').decode()); "
+            + "\" && python /tmp/_wrapper.py";
 
         // Inject OUTPUT_PATH into env vars if not already set
         String bucket = props.getObs().getBucket();
