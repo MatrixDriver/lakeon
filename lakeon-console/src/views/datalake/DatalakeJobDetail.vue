@@ -298,31 +298,43 @@ function scrollToBottom() {
 }
 
 // Auto-start log streaming: always open by default
+let logRetryCount = 0
 async function autoLoadLogs() {
   if (!job.value || streaming.value) return
+  // Skip if we already have real log content
+  if (logLines.value.length > 0 && !logLines.value.every(l => l.startsWith('['))) return
+
   if (TERMINAL.includes(job.value.status)) {
-    // Terminal job: load persisted logs (only once)
-    if (logLines.value.length === 0 && job.value.logObsPath) {
-      startStream()
+    // Terminal job: load persisted logs from OBS via SSE
+    if (job.value.logObsPath) {
+      logLines.value = []
+      await startStream()
+      // If no real logs arrived (OBS upload may still be in progress), retry after delay
+      if (logLines.value.length === 0 && logRetryCount < 3) {
+        logRetryCount++
+        setTimeout(() => { loadJob().then(() => autoLoadLogs()) }, 3000)
+      }
     }
   } else if (job.value.status === 'RUNNING') {
-    // Running job: start live stream (retry if previous attempt failed)
-    if (logLines.value.length === 0 || logLines.value.every(l => l.startsWith('['))) {
-      logLines.value = []
-      startStream()
-    }
+    logLines.value = []
+    startStream()
   }
-  // PENDING/STARTING: wait for next poll to retry
+  // PENDING/STARTING: wait for next poll
 }
 
 // Auto-refresh job status while not terminal
 onMounted(() => {
   loadJob().then(() => autoLoadLogs())
   pollTimer = setInterval(() => {
-    if (job.value && !TERMINAL.includes(job.value.status)) {
-      loadJob().then(() => autoLoadLogs())
+    if (!job.value) return
+    if (TERMINAL.includes(job.value.status)) {
+      // Terminal: one final attempt to load logs, then stop polling
+      autoLoadLogs()
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+      return
     }
-  }, 10000)
+    loadJob().then(() => autoLoadLogs())
+  }, 5000) // 5s for faster response
 })
 
 onUnmounted(() => {
