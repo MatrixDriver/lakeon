@@ -1,37 +1,37 @@
 <template>
   <div>
-    <h2>记忆库管理</h2>
+    <div class="page-header">
+      <h1 class="page-title">记忆库管理</h1>
+    </div>
+
+    <!-- Stats cards -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-value" style="color: #1890ff;">{{ stats.base_count ?? '-' }}</div>
+        <div class="stat-label">记忆库</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color: #52c41a;">{{ stats.total_memories ?? '-' }}</div>
+        <div class="stat-label">总记忆</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color: #722ed1;">{{ stats.total_traits ?? '-' }}</div>
+        <div class="stat-label">Traits</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color: #e53e3e;">{{ errorCount }}</div>
+        <div class="stat-label">异常</div>
+      </div>
+    </div>
 
     <!-- Tabs -->
-    <div class="tabs" style="display: flex; gap: 0; margin-bottom: 24px; border-bottom: 2px solid #f0f0f0;">
-      <button v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key"
-              :style="{ padding: '8px 20px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: activeTab === tab.key ? '600' : '400', color: activeTab === tab.key ? '#1890ff' : '#666', borderBottom: activeTab === tab.key ? '2px solid #1890ff' : '2px solid transparent', marginBottom: '-2px' }">
-        {{ tab.label }}
-      </button>
+    <div class="tab-bar">
+      <div class="tab-item" :class="{ active: activeTab === 'bases' }" @click="activeTab = 'bases'">记忆库列表</div>
+      <div class="tab-item" :class="{ active: activeTab === 'mcp' }" @click="activeTab = 'mcp'">MCP 工具描述</div>
     </div>
 
     <!-- Tab: 记忆库列表 -->
     <div v-if="activeTab === 'bases'">
-
-    <!-- Stats cards -->
-    <div class="stats-row" style="display: flex; gap: 16px; margin-bottom: 24px;">
-      <div class="section-card" style="flex: 1; text-align: center; padding: 16px;">
-        <div style="font-size: 28px; font-weight: 600; color: #1890ff;">{{ stats.base_count ?? '-' }}</div>
-        <div style="font-size: 12px; color: #999;">记忆库</div>
-      </div>
-      <div class="section-card" style="flex: 1; text-align: center; padding: 16px;">
-        <div style="font-size: 28px; font-weight: 600; color: #52c41a;">{{ stats.total_memories ?? '-' }}</div>
-        <div style="font-size: 12px; color: #999;">总记忆</div>
-      </div>
-      <div class="section-card" style="flex: 1; text-align: center; padding: 16px;">
-        <div style="font-size: 28px; font-weight: 600; color: #722ed1;">{{ stats.total_traits ?? '-' }}</div>
-        <div style="font-size: 12px; color: #999;">Traits</div>
-      </div>
-      <div class="section-card" style="flex: 1; text-align: center; padding: 16px;">
-        <div style="font-size: 28px; font-weight: 600; color: #e53e3e;">{{ errorCount }}</div>
-        <div style="font-size: 12px; color: #999;">异常</div>
-      </div>
-    </div>
 
     <!-- Filters -->
     <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: center;">
@@ -154,10 +154,6 @@ import { useTenantStore } from '../../stores/tenants'
 
 const tenantStore = useTenantStore()
 
-const tabs = [
-  { key: 'bases', label: '记忆库列表' },
-  { key: 'mcp', label: 'MCP 工具描述' },
-]
 const activeTab = ref('bases')
 
 // MCP descriptions
