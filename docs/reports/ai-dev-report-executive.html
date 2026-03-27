@@ -37,6 +37,7 @@
   .slide--s4      { background: linear-gradient(180deg, #1e1e3a 0%, #1a1a2e 100%); }
   .slide--s5      { background: #16213e; }
   .slide--s6      { background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%); }
+  .slide--s7      { background: linear-gradient(180deg, #0f3460 0%, #1a1a2e 100%); }
 
   /* ── Divider line between slides ── */
   .slide + .slide { border-top: 3px solid rgba(0,210,255,0.25); }
@@ -433,6 +434,7 @@
   html.light .slide--s4 { background: linear-gradient(180deg, #eceef5 0%, #f0f2f7 100%); }
   html.light .slide--s5 { background: #e8edf5; }
   html.light .slide--s6 { background: linear-gradient(135deg, #f0f2f7 0%, #c9d6e8 100%); }
+  html.light .slide--s7 { background: linear-gradient(180deg, #c9d6e8 0%, #f0f2f7 100%); }
   html.light .slide + .slide { border-top-color: rgba(0,120,200,0.15); }
 
   html.light h2 { color: #1a1a2e; }
@@ -646,6 +648,7 @@
   <a href="#s4">04 局限性</a>
   <a href="#s5">05 从原型到产品</a>
   <a href="#s6">06 团队建议</a>
+  <a href="#s7">07 AI 时代的团队</a>
 </nav>
 
 <!-- ════════════════════════════ COVER ════════════════════════════ -->
@@ -1634,6 +1637,241 @@
       AI 是能力放大器。<br>
       <span class="em">架构师 + AI &gt;&gt; 初级工程师 + AI</span><br>
       <span style="font-size:1.1rem;color:#ccc;">投资 AI 工具的同时，要投资人的判断力。</span>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════ S7: AI 时代的产品团队 ════════════════════════════ -->
+<section id="s7" class="slide slide--s7">
+  <div class="slide-inner">
+    <p class="section-num">Section 07</p>
+    <h2>AI Agent 时代的产品团队</h2>
+    <p class="subtitle">从"人写代码"到"人驾驭 AI 写代码"——组织结构必须跟着变</p>
+
+    <!-- ── 传统 vs 新型 对比 ── -->
+    <h3>传统团队 vs AI-Native 团队</h3>
+    <div class="two-col" style="margin-bottom:36px;">
+      <div>
+        <div style="background:rgba(231,76,60,0.08);border:1px solid rgba(231,76,60,0.25);border-radius:12px;padding:24px;">
+          <div style="color:#e74c3c;font-weight:700;font-size:1.1rem;margin-bottom:14px;">传统产品团队 (10-15 人)</div>
+          <div style="font-size:0.88rem;color:#ccc;line-height:2;">
+            PM &times; 1-2<br>
+            UX/UI &times; 1-2<br>
+            前端 &times; 2-3<br>
+            后端 &times; 3-4<br>
+            测试 &times; 2-3<br>
+            运维/SRE &times; 1<br>
+          </div>
+          <div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08);">
+            <span style="color:#e74c3c;font-weight:600;">瓶颈：</span><span style="font-size:0.88rem;color:#aaa;">沟通成本 O(n&sup2;)，需求传递失真，人力堆叠≠产出线性增长</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="background:rgba(0,210,255,0.08);border:1px solid rgba(0,210,255,0.25);border-radius:12px;padding:24px;">
+          <div style="color:#00d2ff;font-weight:700;font-size:1.1rem;margin-bottom:14px;">AI-Native 产品团队 (3-5 人)</div>
+          <div style="font-size:0.88rem;color:#ccc;line-height:2;">
+            产品架构师 &times; 1 <span style="color:#8ecae6;">(PM + 架构 + AI 驾驭)</span><br>
+            全栈工程师 &times; 1-2 <span style="color:#8ecae6;">(前后端 + AI pair)</span><br>
+            质量/安全工程师 &times; 1 <span style="color:#8ecae6;">(审计 + 规范 + 门禁)</span><br>
+            平台工程师 &times; 0-1 <span style="color:#8ecae6;">(基建 + CI/CD + SRE)</span><br>
+          </div>
+          <div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08);">
+            <span style="color:#2ecc71;font-weight:600;">优势：</span><span style="font-size:0.88rem;color:#aaa;">沟通成本极低，每人 + AI 覆盖传统 3-5 人工作量</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 核心角色详解 ── -->
+    <h3>四个核心角色</h3>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:32px;">
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(0,210,255,0.15);border-radius:10px;padding:22px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <div style="background:rgba(0,210,255,0.15);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;">&#x1f3af;</div>
+          <div style="color:#00d2ff;font-weight:700;font-size:1.05rem;">产品架构师</div>
+        </div>
+        <p style="font-size:0.85rem;color:#bbb;margin-bottom:8px;">兼具产品思维和技术架构能力。定义做什么、怎么做、技术选型。</p>
+        <div style="font-size:0.82rem;color:#8ecae6;">
+          <strong>关键能力：</strong>需求拆解 &bull; 系统设计 &bull; AI Prompt/Skill 编写 &bull; 技术判断力
+        </div>
+        <div style="font-size:0.82rem;color:#ffd700;margin-top:6px;">
+          <strong>AI 杠杆：</strong>用 AI 做竞品分析、原型设计、架构方案比较
+        </div>
+      </div>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(0,210,255,0.15);border-radius:10px;padding:22px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <div style="background:rgba(46,204,113,0.15);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;">&#x1f6e0;</div>
+          <div style="color:#2ecc71;font-weight:700;font-size:1.05rem;">全栈工程师</div>
+        </div>
+        <p style="font-size:0.85rem;color:#bbb;margin-bottom:8px;">前后端通吃，与 AI Agent 结对编程。不再需要前后端分离的人力配置。</p>
+        <div style="font-size:0.82rem;color:#8ecae6;">
+          <strong>关键能力：</strong>全栈开发 &bull; AI 结对编程 &bull; Code Review &bull; 性能优化
+        </div>
+        <div style="font-size:0.82rem;color:#ffd700;margin-top:6px;">
+          <strong>AI 杠杆：</strong>AI 写 80% 代码，人审 100% 代码，效率翻 10-50 倍
+        </div>
+      </div>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(0,210,255,0.15);border-radius:10px;padding:22px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <div style="background:rgba(255,215,0,0.15);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;">&#x1f6e1;</div>
+          <div style="color:#ffd700;font-weight:700;font-size:1.05rem;">质量/安全工程师</div>
+        </div>
+        <p style="font-size:0.85rem;color:#bbb;margin-bottom:8px;">AI 产出代码量暴增，质量门禁比以往更关键。负责审计、安全扫描、规范制定。</p>
+        <div style="font-size:0.82rem;color:#8ecae6;">
+          <strong>关键能力：</strong>安全审计 &bull; 自动化测试 &bull; AI 代码审查标准 &bull; 合规
+        </div>
+        <div style="font-size:0.82rem;color:#ffd700;margin-top:6px;">
+          <strong>AI 杠杆：</strong>AI 自动化安全扫描、测试生成、漏洞检测
+        </div>
+      </div>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(0,210,255,0.15);border-radius:10px;padding:22px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <div style="background:rgba(224,86,253,0.15);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;">&#x2601;</div>
+          <div style="color:#e056fd;font-weight:700;font-size:1.05rem;">平台工程师</div>
+        </div>
+        <p style="font-size:0.85rem;color:#bbb;margin-bottom:8px;">维护 CI/CD、基础设施、监控告警。可多团队共享，小团队可由全栈工程师兼任。</p>
+        <div style="font-size:0.82rem;color:#8ecae6;">
+          <strong>关键能力：</strong>K8s/云原生 &bull; CI/CD &bull; 可观测性 &bull; 成本优化
+        </div>
+        <div style="font-size:0.82rem;color:#ffd700;margin-top:6px;">
+          <strong>AI 杠杆：</strong>AI 辅助运维脚本、故障排查、容量规划
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 工作模式 ── -->
+    <h3>工作模式：人 + AI Agent 协作流</h3>
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(0,210,255,0.12);border-radius:12px;padding:28px;margin-bottom:32px;">
+      <div style="display:flex;gap:0;align-items:stretch;justify-content:center;flex-wrap:wrap;">
+        <div style="text-align:center;padding:16px 20px;flex:1;min-width:140px;">
+          <div style="font-size:2rem;margin-bottom:6px;">&#x1f4dd;</div>
+          <div style="color:#00d2ff;font-weight:600;font-size:0.9rem;">需求 & 设计</div>
+          <div style="font-size:0.78rem;color:#888;margin-top:4px;">产品架构师<br>+ AI 头脑风暴</div>
+        </div>
+        <div style="display:flex;align-items:center;color:rgba(0,210,255,0.4);font-size:1.5rem;">&#x279C;</div>
+        <div style="text-align:center;padding:16px 20px;flex:1;min-width:140px;">
+          <div style="font-size:2rem;margin-bottom:6px;">&#x1f916;</div>
+          <div style="color:#2ecc71;font-weight:600;font-size:0.9rem;">AI 编码</div>
+          <div style="font-size:0.78rem;color:#888;margin-top:4px;">AI Agent 生成<br>全栈工程师引导</div>
+        </div>
+        <div style="display:flex;align-items:center;color:rgba(0,210,255,0.4);font-size:1.5rem;">&#x279C;</div>
+        <div style="text-align:center;padding:16px 20px;flex:1;min-width:140px;">
+          <div style="font-size:2rem;margin-bottom:6px;">&#x1f50d;</div>
+          <div style="color:#ffd700;font-weight:600;font-size:0.9rem;">审查 & 门禁</div>
+          <div style="font-size:0.78rem;color:#888;margin-top:4px;">质量工程师<br>+ AI 自动审计</div>
+        </div>
+        <div style="display:flex;align-items:center;color:rgba(0,210,255,0.4);font-size:1.5rem;">&#x279C;</div>
+        <div style="text-align:center;padding:16px 20px;flex:1;min-width:140px;">
+          <div style="font-size:2rem;margin-bottom:6px;">&#x1f680;</div>
+          <div style="color:#e056fd;font-weight:600;font-size:0.9rem;">部署 & 运维</div>
+          <div style="font-size:0.78rem;color:#888;margin-top:4px;">平台工程师<br>+ AI 自动化</div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:20px;font-size:0.85rem;color:#8ecae6;">
+        每个环节，人做<span class="accent-gold">决策和判断</span>，AI 做<span class="accent">执行和加速</span>
+      </div>
+    </div>
+
+    <!-- ── 关键原则 ── -->
+    <h3>组织设计三原则</h3>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;">
+      <div style="background:rgba(0,210,255,0.06);border-radius:10px;padding:22px;text-align:center;">
+        <div style="font-size:2.4rem;margin-bottom:8px;color:#00d2ff;">T</div>
+        <div style="color:#fff;font-weight:700;margin-bottom:6px;">T 型人才优先</div>
+        <p style="font-size:0.82rem;color:#aaa;">广度 + 一个深度。AI 消除了技能壁垒，"只会前端"或"只会后端"不再成立。每个人都应该能端到端交付。</p>
+      </div>
+      <div style="background:rgba(255,215,0,0.06);border-radius:10px;padding:22px;text-align:center;">
+        <div style="font-size:2.4rem;margin-bottom:8px;color:#ffd700;">&#x2696;</div>
+        <div style="color:#fff;font-weight:700;margin-bottom:6px;">审查权 &gt; 编码权</div>
+        <p style="font-size:0.82rem;color:#aaa;">AI 产出代码的速度远超人类，瓶颈从"写代码"转移到"判断代码好不好"。审查能力是核心竞争力。</p>
+      </div>
+      <div style="background:rgba(46,204,113,0.06);border-radius:10px;padding:22px;text-align:center;">
+        <div style="font-size:2.4rem;margin-bottom:8px;color:#2ecc71;">&#x1f4e6;</div>
+        <div style="color:#fff;font-weight:700;margin-bottom:6px;">Skill 沉淀 = 组织资产</div>
+        <p style="font-size:0.82rem;color:#aaa;">个人的 AI 使用经验通过 Skill/Prompt 沉淀为团队可复用资产。一个人摸索出的最佳实践，全团队即刻受益。</p>
+      </div>
+    </div>
+
+    <!-- ── 效能对比 ── -->
+    <h3>效能对比</h3>
+    <table class="data-table" style="margin-bottom:32px;">
+      <thead>
+        <tr>
+          <th>维度</th>
+          <th>传统 10 人团队</th>
+          <th>AI-Native 4 人团队</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>月产出（代码行）</td>
+          <td>5,000 - 10,000</td>
+          <td class="val">70,000+</td>
+        </tr>
+        <tr>
+          <td>沟通成本</td>
+          <td>日均 2-3h 会议</td>
+          <td class="val-gold">极低，站会 15min</td>
+        </tr>
+        <tr>
+          <td>需求响应速度</td>
+          <td>Sprint 粒度（2 周）</td>
+          <td class="val">天级别</td>
+        </tr>
+        <tr>
+          <td>人力成本（月）</td>
+          <td>约 ¥300K-500K</td>
+          <td class="val-gold">约 ¥120K-200K + AI ¥4K</td>
+        </tr>
+        <tr>
+          <td>知识传递</td>
+          <td>口口相传 + 文档</td>
+          <td class="val">Skill/Memory 自动沉淀</td>
+        </tr>
+        <tr>
+          <td>关键人风险</td>
+          <td>高（知识在人脑）</td>
+          <td class="val-gold">低（知识在 Skill + Memory）</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ── 转型路径 ── -->
+    <h3>转型路径建议</h3>
+    <div style="position:relative;margin-bottom:32px;padding-left:40px;">
+      <div style="position:absolute;left:18px;top:0;bottom:0;width:2px;background:rgba(0,210,255,0.2);"></div>
+
+      <div style="position:relative;margin-bottom:28px;">
+        <div style="position:absolute;left:-30px;top:2px;width:24px;height:24px;border-radius:50%;background:rgba(0,210,255,0.15);display:flex;align-items:center;justify-content:center;color:#00d2ff;font-weight:700;font-size:0.8rem;">1</div>
+        <div style="color:#00d2ff;font-weight:700;margin-bottom:4px;">Phase 1: 试点（1-2 月）</div>
+        <p style="font-size:0.88rem;color:#bbb;">选 1 个新项目或独立模块，配置 1 架构师 + 1 全栈，全量使用 AI 工具。验证效率数据。</p>
+      </div>
+
+      <div style="position:relative;margin-bottom:28px;">
+        <div style="position:absolute;left:-30px;top:2px;width:24px;height:24px;border-radius:50%;background:rgba(255,215,0,0.15);display:flex;align-items:center;justify-content:center;color:#ffd700;font-weight:700;font-size:0.8rem;">2</div>
+        <div style="color:#ffd700;font-weight:700;margin-bottom:4px;">Phase 2: 沉淀规范（2-3 月）</div>
+        <p style="font-size:0.88rem;color:#bbb;">建立 AI 代码审查标准、安全扫描流程、Skill 库。质量工程师角色就位。</p>
+      </div>
+
+      <div style="position:relative;margin-bottom:28px;">
+        <div style="position:absolute;left:-30px;top:2px;width:24px;height:24px;border-radius:50%;background:rgba(46,204,113,0.15);display:flex;align-items:center;justify-content:center;color:#2ecc71;font-weight:700;font-size:0.8rem;">3</div>
+        <div style="color:#2ecc71;font-weight:700;margin-bottom:4px;">Phase 3: 组织重构（3-6 月）</div>
+        <p style="font-size:0.88rem;color:#bbb;">基于试点数据，调整团队编制。传统角色向 T 型转型，专职测试/前端/后端逐步合并。</p>
+      </div>
+
+      <div style="position:relative;">
+        <div style="position:absolute;left:-30px;top:2px;width:24px;height:24px;border-radius:50%;background:rgba(224,86,253,0.15);display:flex;align-items:center;justify-content:center;color:#e056fd;font-weight:700;font-size:0.8rem;">4</div>
+        <div style="color:#e056fd;font-weight:700;margin-bottom:4px;">Phase 4: 规模化（6 月+）</div>
+        <p style="font-size:0.88rem;color:#bbb;">多产品线推广 AI-Native 团队模型。Skill 跨团队共享，平台工程师统一支撑多个产品团队。</p>
+      </div>
+    </div>
+
+    <!-- ── 结论 ── -->
+    <div class="big-quote" style="border:1px solid rgba(255,215,0,0.2);border-radius:16px;background:rgba(255,215,0,0.04);">
+      AI 时代的产品团队，核心不再是"人多力量大"，<br>
+      而是 <span class="em">少数高判断力的人 + 强大的 AI 工具链 + 沉淀为组织资产的 Skill</span>。<br>
+      <span style="font-size:1.1rem;color:#ccc;">3-5 人的 AI-Native 团队，能做到过去 15 人团队做不到的事。</span>
     </div>
   </div>
 </section>
