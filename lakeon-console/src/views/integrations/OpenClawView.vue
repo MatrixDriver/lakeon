@@ -398,15 +398,16 @@ const capabilities = computed(() => [
 <style scoped>
 .oc-page { min-height: 100vh; background: var(--pub-bg); color: var(--pub-text); }
 .oc-inner { max-width: 820px; margin: 0 auto; padding: 48px 24px 80px; }
-.back-link { font-size: 13px; color: var(--pub-code); text-decoration: none; display: inline-block; margin-bottom: 32px; }
+.back-link { font-size: 13px; color: var(--pub-primary, #0073e6); text-decoration: none; display: inline-block; margin-bottom: 32px; }
 
 /* Hero */
 .oc-hero { margin-bottom: 40px; }
 .oc-hero h1 { font-size: 32px; font-weight: 700; margin-bottom: 12px; }
 .oc-hero-sub { font-size: 16px; color: var(--pub-text-2); line-height: 1.6; margin-bottom: 20px; max-width: 600px; }
 .oc-hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.btn-primary-sm { background: var(--pub-btn-bg); color: var(--pub-btn-text); border: none; border-radius: 6px; padding: 8px 20px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; }
-.btn-outline-sm { background: transparent; color: var(--pub-text-2); border: 1px solid var(--pub-border); border-radius: 6px; padding: 8px 20px; font-size: 14px; cursor: pointer; text-decoration: none; }
+.btn-primary-sm { background: var(--pub-primary, #0073e6); color: #fff; border: none; border-radius: 8px; padding: 8px 20px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; transition: opacity 0.15s; }
+.btn-primary-sm:hover { opacity: 0.9; }
+.btn-outline-sm { background: transparent; color: var(--pub-text-2); border: 1px solid var(--pub-border); border-radius: 8px; padding: 8px 20px; font-size: 14px; cursor: pointer; text-decoration: none; }
 
 /* TOC */
 .oc-toc { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 48px; padding: 16px; background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 8px; }
@@ -420,7 +421,7 @@ const capabilities = computed(() => [
 
 /* Pain Points */
 .pain-list { display: flex; flex-direction: column; gap: 16px; }
-.pain-card { background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 10px; padding: 18px; }
+.pain-card { background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 12px; padding: 18px; }
 .pain-hd { display: flex; gap: 12px; margin-bottom: 12px; }
 .pain-hd h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; color: var(--pub-text); }
 .pain-hd p { font-size: 13px; color: var(--pub-text-2); line-height: 1.6; margin: 0; }
@@ -432,7 +433,7 @@ const capabilities = computed(() => [
 
 /* Value */
 .value-list { display: flex; flex-direction: column; gap: 16px; }
-.value-card { background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 10px; padding: 18px; }
+.value-card { background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 12px; padding: 18px; }
 .value-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--pub-text); }
 .value-card p { font-size: 13px; color: var(--pub-text-2); margin: 0; line-height: 1.6; }
 .value-example { margin-top: 10px; background: var(--pub-code-bg); border: 1px solid var(--pub-border); border-radius: 5px; padding: 8px 12px; font-size: 12px; color: var(--pub-code); font-family: monospace; }
@@ -516,10 +517,11 @@ const capabilities = computed(() => [
 .oc-cta { text-align: center; padding: 48px 0 0; border-top: 1px solid var(--pub-border); }
 .oc-cta h2 { font-size: 24px; font-weight: 600; margin-bottom: 10px; }
 .oc-cta p { font-size: 14px; color: var(--pub-text-2); margin-bottom: 20px; }
-.btn-primary-lg { background: var(--pub-btn-bg); color: var(--pub-btn-text); border: none; border-radius: 8px; padding: 12px 32px; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; }
+.btn-primary-lg { background: var(--pub-primary, #0073e6); color: #fff; border: none; border-radius: 8px; padding: 12px 32px; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; transition: opacity 0.15s; }
+.btn-primary-lg:hover { opacity: 0.9; }
 
 /* Common */
-.code-block { background: var(--pub-code-bg); border: 1px solid var(--pub-border); border-radius: 6px; padding: 12px 16px; font-size: 12px; color: var(--pub-code); overflow-x: auto; margin: 0 0 16px; font-family: monospace; white-space: pre; }
+.code-block { background: #1e293b; border: none; border-radius: 8px; padding: 14px 16px; font-size: 12px; color: #a5f3fc; overflow-x: auto; margin: 0 0 16px; font-family: monospace; white-space: pre; }
 .mono-sm { font-size: 12px; font-family: monospace; color: var(--pub-text-3); }
 
 @media (max-width: 768px) {
