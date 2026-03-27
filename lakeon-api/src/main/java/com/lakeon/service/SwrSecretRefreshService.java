@@ -91,6 +91,25 @@ public class SwrSecretRefreshService {
                     log.warn("SwrSecretRefreshService: failed to refresh in '{}': {}", controlNs, e.getMessage());
                 }
             }
+
+            // Refresh in all datalake-* namespaces (per-tenant namespaces for datalake jobs)
+            try {
+                k8sClient.namespaces().list().getItems().stream()
+                        .map(ns -> ns.getMetadata().getName())
+                        .filter(name -> name.startsWith("datalake-"))
+                        .forEach(dlNs -> {
+                            try {
+                                updateK8sSecret(dlNs, dockerConfigJson);
+                                patchServiceAccountImagePullSecrets(dlNs);
+                                log.debug("SwrSecretRefreshService: refreshed SWR secret in datalake namespace '{}'", dlNs);
+                            } catch (Exception e) {
+                                log.warn("SwrSecretRefreshService: failed to refresh in '{}': {}", dlNs, e.getMessage());
+                            }
+                        });
+                log.info("SwrSecretRefreshService: refreshed SWR secret in all datalake-* namespaces");
+            } catch (Exception e) {
+                log.warn("SwrSecretRefreshService: failed to list/refresh datalake namespaces: {}", e.getMessage());
+            }
         } catch (Exception e) {
             log.error("SwrSecretRefreshService: error during SWR secret refresh", e);
         }
