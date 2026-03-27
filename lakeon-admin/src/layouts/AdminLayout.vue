@@ -86,7 +86,7 @@
           <div class="nav-group">
             <div class="nav-group-title">基础设施</div>
             <router-link to="/infra" class="nav-item" active-class="active" @click="sidebarOpen = false">基础设施</router-link>
-            <router-link to="/cloud" class="nav-item" active-class="active" @click="sidebarOpen = false">云资源</router-link>
+            <router-link to="/cloud" class="nav-item" active-class="active" @click="sidebarOpen = false">华为云控制台</router-link>
             <router-link to="/cost" class="nav-item" active-class="active" @click="sidebarOpen = false">成本监控</router-link>
           </div>
           <div class="nav-group">

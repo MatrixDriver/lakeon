@@ -10,7 +10,6 @@
       <button class="infra-tab" :class="{ active: activeTab === 'neon' }" @click="activeTab = 'neon'">Neon 数据层</button>
       <button class="infra-tab" :class="{ active: activeTab === 'cce' }" @click="activeTab = 'cce'">CCE 弹性节点池</button>
       <button class="infra-tab" :class="{ active: activeTab === 'cci' }" @click="activeTab = 'cci'">CCI Pod</button>
-      <button class="infra-tab" :class="{ active: activeTab === 'cloud' }" @click="activeTab = 'cloud'; loadCloudResources()">云资源</button>
     </div>
 
     <!-- Tab: CCE 弹性节点池 -->
@@ -460,63 +459,6 @@
     </div>
 
     <!-- Tab 3: 事件日志 -->
-    <!-- Tab: 云资源 -->
-    <div v-if="activeTab === 'cloud'">
-      <!-- Architecture Diagram -->
-      <div class="section-card">
-        <div class="section-header"><h3>部署架构</h3></div>
-        <div v-if="cloudLoading" class="empty-text">加载中...</div>
-        <div v-else-if="!cloudTopology" class="empty-text">暂无拓扑数据</div>
-        <div class="arch-diagram" v-else>
-          <!-- Render nodes grouped by type rows: railway → network → compute → storage -->
-          <div class="arch-row" v-for="group in topoGroups" :key="group.type">
-            <div class="arch-box" :class="'arch-box-' + group.type" v-for="node in group.nodes" :key="node.id">
-              <div class="arch-box-label">{{ node.label }}</div>
-              <div class="arch-box-value">{{ node.sublabel }}</div>
-              <div class="arch-box-desc">{{ node.desc }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Resource Table -->
-      <div class="section-card">
-        <div class="section-header"><h3>资源清单</h3></div>
-        <div v-if="!cloudResources.length && !cloudLoading" class="empty-text">暂无资源数据</div>
-        <div class="table-wrapper" v-else>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>名称</th>
-                <th>资源 ID</th>
-                <th>区域</th>
-                <th>服务</th>
-                <th>资源类型</th>
-                <th>状态</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="r in cloudResources" :key="r.name">
-                <td style="font-weight: 500;">{{ r.name }}</td>
-                <td><span v-if="r.resourceId" class="resource-id-text" :title="r.resourceId">{{ r.resourceId }}</span><span v-else style="color:#ccc;">—</span></td>
-                <td>{{ r.region }}</td>
-                <td><span class="service-tag" :class="serviceTagClass(r.service)">{{ r.service }}</span></td>
-                <td>{{ r.type }}</td>
-                <td>
-                  <span class="status-dot" :class="r.status === 'ACTIVE' ? 'dot-green' : 'dot-red'"></span>
-                  {{ r.status }}
-                </td>
-                <td>
-                  <a v-if="r.consoleUrl" :href="r.consoleUrl" target="_blank" rel="noopener" class="console-link">控制台 ↗</a>
-                  <span v-else style="color:#ccc;">—</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -816,46 +758,6 @@ async function confirmCleanup() {
   }
 }
 
-// ── Cloud Resources Tab ──
-const cloudTopology = ref<any>(null)
-const cloudResources = ref<any[]>([])
-const cloudLoading = ref(false)
-
-const TOPO_TYPE_ORDER = ['railway', 'network', 'compute', 'storage']
-
-const topoGroups = computed(() => {
-  if (!cloudTopology.value?.nodes) return []
-  const groups: Record<string, any[]> = {}
-  for (const node of cloudTopology.value.nodes) {
-    const t = node.type || 'other'
-    if (!groups[t]) groups[t] = []
-    groups[t].push(node)
-  }
-  return TOPO_TYPE_ORDER
-    .filter(t => groups[t])
-    .map(t => ({ type: t, nodes: groups[t] }))
-})
-
-function serviceTagClass(service: string): string {
-  const map: Record<string, string> = {
-    CCE: 'svc-compute', ECS: 'svc-compute',
-    RDS: 'svc-storage', OBS: 'svc-storage',
-    ELB: 'svc-network', EIP: 'svc-network',
-    Railway: 'svc-railway',
-  }
-  return map[service] || ''
-}
-
-async function loadCloudResources() {
-  if (cloudTopology.value) return // already loaded
-  cloudLoading.value = true
-  try {
-    const res = await adminApi.cloudResources()
-    cloudTopology.value = res.data.topology || null
-    cloudResources.value = res.data.resources || []
-  } catch (e) { console.error('Failed to load cloud resources', e) }
-  finally { cloudLoading.value = false }
-}
 
 async function loadComputeSummary() {
   computeLoading.value = true
