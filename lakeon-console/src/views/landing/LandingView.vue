@@ -4,8 +4,8 @@
     <section class="hero">
       <p class="hero-eyebrow">{{ t('数据库 · 知识库 · 记忆库 · 数据湖', 'Database · Knowledge · Memory · Data Lake') }}</p>
       <h1 class="hero-title">
-        {{ t('AI 时代的', 'Data Infrastructure') }}<br>
-        <span class="hero-accent">{{ t('数据基础设施', 'for the AI Era') }}</span>
+        {{ t('Agent 时代的', 'Serverless Data Infrastructure') }}<br>
+        <span class="hero-accent">{{ t('Serverless 数据基础设施', 'for the Agent Era') }}</span>
       </h1>
       <p class="hero-subtitle">
         {{ t(
