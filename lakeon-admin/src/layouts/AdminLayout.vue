@@ -107,13 +107,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAdminAuthStore } from '../stores/auth'
+import { useTenantStore } from '../stores/tenants'
 
 const router = useRouter()
 const authStore = useAdminAuthStore()
 const sidebarOpen = ref(false)
+const tenantStore = useTenantStore()
+onMounted(() => tenantStore.load())
 
 function handleLogout() {
   authStore.logout()
