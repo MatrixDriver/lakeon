@@ -199,9 +199,15 @@ CREATE INDEX idx_notebook_sessions_status ON notebook_sessions(status);
 - **No cross-tenant access**: Session lookup always filters by tenant_id
 - **WebSocket auth**: API key validated on WS handshake, connection rejected if invalid
 
+## Ray Support
+
+Phase 1: When user selects "ray" image in the toolbar, the REPL pod uses the ray image. `ray.init()` starts Ray in single-node mode on the same pod. `@ray.remote` functions work but run locally — enough for debugging script logic, API correctness, and data flow. "Submit as Job" creates a real distributed Ray cluster for production execution.
+
+Phase 2 (future): Notebook pod becomes Ray head, worker pods auto-created alongside. User gets distributed execution directly in notebook.
+
 ## Not In Scope (Phase 1)
 
-- Ray notebook mode (only Python for now)
+- Distributed Ray cluster in notebook (single-node only, see above)
 - Code completion / IntelliSense
 - Collaborative editing (multi-user same notebook)
 - Persistent notebook saving to OBS (cells only in localStorage)
