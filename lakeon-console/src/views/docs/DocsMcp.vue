@@ -4,29 +4,40 @@
     <p class="subtitle">{{ t('将知识库和记忆库接入 Claude Code、Cursor 等 AI 工具', 'Connect knowledge base and memory to Claude Code, Cursor, and other AI tools') }}</p>
 
     <section class="section">
-      <h2>Claude Code {{ t('（推荐）', '(Recommended)') }}</h2>
-      <p>{{ t('复制以下命令到终端执行即可完成配置：', 'Copy and run the following command in your terminal:') }}</p>
-      <pre class="code-block"><code>claude mcp add --scope user --transport http dbay \
-  https://api.dbay.cloud:8443/mcp \
-  --header "Authorization: Bearer {{ apiKey }}"</code></pre>
-      <p class="tip">{{ t('使用 --scope user 全局生效，所有项目共享。API Key 不会进入代码仓库。', 'Using --scope user makes it global across all projects. API Key stays out of your repo.') }}</p>
+      <h2>{{ t('第 1 步：配置凭据', 'Step 1: Configure Credentials') }}</h2>
+      <p>{{ t('在主目录创建', 'Create') }} <code>~/.dbay/config.json</code>{{ t('，所有 MCP 客户端共用同一份配置：', ', shared by all MCP clients:') }}</p>
+      <pre class="code-block"><code>mkdir -p ~/.dbay
+cat > ~/.dbay/config.json &lt;&lt; 'EOF'
+{
+  "endpoint": "https://api.dbay.cloud:8443",
+  "api_key": "{{ apiKey }}",
+  "knowledge_base": "{{ firstKbId }}",
+  "memory_base": "{{ firstBaseId }}"
+}
+EOF</code></pre>
+      <p class="tip">{{ t('API Key 和资源 ID 只存放在本地 ~/.dbay/ 目录，不会进入 AI 工具的配置文件或代码仓库。', 'API Key and resource IDs live in ~/.dbay/ only — never enter AI tool configs or your repo.') }}</p>
     </section>
 
     <section class="section">
-      <h2>Cursor / Windsurf / {{ t('其他 MCP 客户端', 'Other MCP Clients') }}</h2>
-      <p>{{ t('在项目根目录创建', 'Create') }} <code>.mcp.json</code> {{ t('文件：', 'in your project root:') }}</p>
+      <h2>{{ t('第 2 步：注册 MCP 服务', 'Step 2: Register MCP Server') }}</h2>
+
+      <h3>Claude Code {{ t('（推荐）', '(Recommended)') }}</h3>
+      <p>{{ t('终端执行：', 'Run in terminal:') }}</p>
+      <pre class="code-block"><code>claude mcp add --scope user dbay -- \
+  uv run --directory /path/to/dbay-mcp python server.py</code></pre>
+      <p class="tip">{{ t('--scope user 全局生效。配置中只有启动命令，不含任何密钥。', '--scope user makes it global. Config only contains the launch command, no secrets.') }}</p>
+
+      <h3>Cursor / Windsurf / {{ t('其他 MCP 客户端', 'Other MCP Clients') }}</h3>
+      <p>{{ t('在项目根目录创建', 'Create') }} <code>.mcp.json</code>{{ t('：', ':') }}</p>
       <pre class="code-block"><code>{
   "mcpServers": {
     "dbay": {
-      "transport": "http",
-      "url": "https://api.dbay.cloud:8443/mcp",
-      "headers": {
-        "Authorization": "Bearer {{ apiKey }}"
-      }
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/dbay-mcp", "python", "server.py"]
     }
   }
 }</code></pre>
-      <p class="tip">{{ t('注意：请将 .mcp.json 加入 .gitignore，避免 API Key 泄露。', 'Note: Add .mcp.json to .gitignore to keep your API Key safe.') }}</p>
+      <p class="tip">{{ t('MCP 配置中不含 API Key，可安全提交到 git 仓库。', 'No API Key in MCP config — safe to commit to git.') }}</p>
     </section>
 
     <section class="section">
@@ -101,20 +112,24 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useLocale } from '../../stores/locale'
+import { listKnowledgeBases, type KnowledgeBase } from '../../api/knowledge'
 import { listMemoryBases, type MemoryBase } from '../../api/memory'
 
 const { t } = useLocale()
 
+const knowledgeBases = ref<KnowledgeBase[]>([])
 const memoryBases = ref<MemoryBase[]>([])
 
 onMounted(async () => {
   try {
-    const { data } = await listMemoryBases()
-    memoryBases.value = data.filter(b => b.status === 'READY')
+    const [kbRes, memRes] = await Promise.all([listKnowledgeBases(), listMemoryBases()])
+    knowledgeBases.value = kbRes.data
+    memoryBases.value = memRes.data.filter(b => b.status === 'READY')
   } catch { /* ignore */ }
 })
 
-const firstBaseId = computed(() => memoryBases.value[0]?.id ?? 'your_base_id')
+const firstBaseId = computed(() => memoryBases.value[0]?.id ?? 'mem_your_base_id')
+const firstKbId = computed(() => knowledgeBases.value[0]?.id ?? 'kb_your_kb_id')
 
 const apiKey = computed(() => localStorage.getItem('lakeon_api_key') || 'lk_your_api_key')
 

@@ -9,19 +9,21 @@
       <!-- MCP 快速接入 -->
       <div class="mcp-quickstart">
         <h3>{{ t('5 分钟接入', '5-minute Setup') }}</h3>
-        <pre class="code-block"><code>pip install dbay-mcp
-
-# Claude Desktop / Claude Code
-# {{ t('在 claude_desktop_config.json 中添加：', 'Add to claude_desktop_config.json:') }}
+        <pre class="code-block"><code># 1. {{ t('配置凭据（只需一次）', 'Configure credentials (one-time)') }}
+mkdir -p ~/.dbay
+cat > ~/.dbay/config.json &lt;&lt; 'EOF'
 {
-  "mcpServers": {
-    "dbay": {
-      "command": "uvx",
-      "args": ["dbay-mcp"],
-      "env": { "DBAY_API_KEY": "your-api-key" }
-    }
-  }
-}</code></pre>
+  "endpoint": "https://api.dbay.cloud:8443",
+  "api_key": "{{ apiKey }}",
+  "knowledge_base": "{{ firstKbId }}",
+  "memory_base": "{{ firstMemId }}"
+}
+EOF
+
+# 2. {{ t('注册 MCP 服务', 'Register MCP server') }}
+claude mcp add --scope user dbay -- \
+  uv run --directory /path/to/dbay-mcp python server.py</code></pre>
+        <p class="tip">{{ t('API Key 存放在 ~/.dbay/config.json，不进入 Claude 配置文件或代码仓库。', 'API Key lives in ~/.dbay/config.json — never enters Claude config or your repo.') }}</p>
       </div>
 
       <!-- 集成卡片 -->
@@ -52,9 +54,27 @@
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
 import { useLocale } from '../../stores/locale'
+import { listKnowledgeBases, type KnowledgeBase } from '../../api/knowledge'
+import { listMemoryBases, type MemoryBase } from '../../api/memory'
 
 const { locale, t } = useLocale()
+
+const knowledgeBases = ref<KnowledgeBase[]>([])
+const memoryBases = ref<MemoryBase[]>([])
+
+onMounted(async () => {
+  try {
+    const [kbRes, memRes] = await Promise.all([listKnowledgeBases(), listMemoryBases()])
+    knowledgeBases.value = kbRes.data
+    memoryBases.value = memRes.data.filter(b => b.status === 'READY')
+  } catch { /* ignore */ }
+})
+
+const apiKey = computed(() => localStorage.getItem('lakeon_api_key') || 'lk_your_api_key')
+const firstKbId = computed(() => knowledgeBases.value[0]?.id ?? 'kb_your_kb_id')
+const firstMemId = computed(() => memoryBases.value[0]?.id ?? 'mem_your_base_id')
 
 const integrations = [
   {

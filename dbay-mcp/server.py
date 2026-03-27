@@ -4,7 +4,7 @@ Provides two tool groups:
 - Knowledge: knowledge_search, knowledge_list, knowledge_upload — document retrieval
 - Memory: memory_recall, memory_ingest, memory_ingest_extracted — agent memory
 
-Config: env vars DBAY_API_KEY / DBAY_ENDPOINT / DBAY_MEMORY_BASE, or ~/.dbay/config.json
+Config: env vars DBAY_API_KEY / DBAY_ENDPOINT / DBAY_MEMORY_BASE / DBAY_KNOWLEDGE_BASE, or ~/.dbay/config.json
 """
 
 import json
@@ -82,8 +82,28 @@ def _api(method: str, path: str, **kwargs) -> dict:
 mcp = FastMCP("dbay")
 
 
-def _resolve_kb_id(name_or_id: str) -> str:
-    """Resolve a KB name to its ID. If it looks like an ID (kb_ prefix), return as-is."""
+def _get_knowledge_base_id() -> str | None:
+    """Get the default knowledge base ID from env or config."""
+    return os.environ.get("DBAY_KNOWLEDGE_BASE") or _load_config().get("knowledge_base")
+
+
+def _resolve_kb_id(name_or_id: str | None) -> str:
+    """Resolve a KB name/ID, or use default from config."""
+    if not name_or_id:
+        default = _get_knowledge_base_id()
+        if default:
+            return default
+        # Auto-detect: if user has exactly one KB, use it
+        bases = _api("GET", "/knowledge/bases")
+        if len(bases) == 1:
+            return bases[0]["id"]
+        if len(bases) == 0:
+            raise RuntimeError("No knowledge bases found. Create one at https://console.dbay.cloud")
+        names = ", ".join(f"{b['name']} ({b['id']})" for b in bases)
+        raise RuntimeError(
+            f"Multiple knowledge bases found: {names}. "
+            f"Set DBAY_KNOWLEDGE_BASE env var or knowledge_base in ~/.dbay/config.json"
+        )
     if name_or_id.startswith("kb_"):
         return name_or_id
     bases = _api("GET", "/knowledge/bases")
@@ -108,12 +128,12 @@ def knowledge_list() -> str:
 
 
 @mcp.tool(description="Search a knowledge base using hybrid vector + BM25 search")
-def knowledge_search(kb_name_or_id: str, query: str, top_k: int = 5) -> str:
+def knowledge_search(query: str, kb_name_or_id: str | None = None, top_k: int = 5) -> str:
     """Search a knowledge base by name or ID.
 
     Args:
-        kb_name_or_id: Knowledge base name or ID (e.g. "my-kb" or "kb_abc123")
         query: Search query in natural language
+        kb_name_or_id: Knowledge base name or ID (optional, uses default from ~/.dbay/config.json)
         top_k: Number of results to return (default 5, max 50)
     """
     kb_id = _resolve_kb_id(kb_name_or_id)
@@ -144,12 +164,12 @@ def knowledge_search(kb_name_or_id: str, query: str, top_k: int = 5) -> str:
 
 
 @mcp.tool(description="Upload a local file to a knowledge base for processing")
-def knowledge_upload(kb_name_or_id: str, file_path: str, tags: list[str] | None = None) -> str:
+def knowledge_upload(file_path: str, kb_name_or_id: str | None = None, tags: list[str] | None = None) -> str:
     """Upload a document to a knowledge base. Supports PDF, DOCX, Markdown, and plain text.
 
     Args:
-        kb_name_or_id: Knowledge base name or ID
         file_path: Absolute path to the file to upload
+        kb_name_or_id: Knowledge base name or ID (optional, uses default from ~/.dbay/config.json)
         tags: Optional list of tags for the document
     """
     kb_id = _resolve_kb_id(kb_name_or_id)
@@ -195,8 +215,8 @@ UPLOAD_CONCURRENCY = 3
 
 @mcp.tool(description="Upload all supported files from a local directory to a knowledge base")
 def knowledge_upload_directory(
-    kb_name_or_id: str,
     directory_path: str,
+    kb_name_or_id: str | None = None,
     recursive: bool = True,
     tags: list[str] | None = None,
 ) -> str:
@@ -205,8 +225,8 @@ def knowledge_upload_directory(
     Scans for .pdf, .docx, .md, .markdown, .txt files. Uses batch API for efficiency.
 
     Args:
-        kb_name_or_id: Knowledge base name or ID
         directory_path: Absolute path to the directory
+        kb_name_or_id: Knowledge base name or ID (optional, uses default from ~/.dbay/config.json)
         recursive: Whether to scan subdirectories (default True)
         tags: Optional tags to apply to all uploaded documents
     """
