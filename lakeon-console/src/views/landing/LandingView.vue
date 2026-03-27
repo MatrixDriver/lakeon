@@ -2,14 +2,15 @@
   <div class="landing">
     <!-- Hero -->
     <section class="hero">
+      <p class="hero-eyebrow">{{ t('数据库 · 知识库 · 记忆库 · 数据湖', 'Database · Knowledge · Memory · Data Lake') }}</p>
       <h1 class="hero-title">
-        Serverless PostgreSQL<br>
-        <span class="hero-accent">{{ t('为 AI Agent 而生', 'Built for AI Agents') }}</span>
+        {{ t('AI 时代的', 'Data Infrastructure') }}<br>
+        <span class="hero-accent">{{ t('数据基础设施', 'for the AI Era') }}</span>
       </h1>
       <p class="hero-subtitle">
         {{ t(
-          '按需弹性 · 时间旅行 · 零运维 — 用你熟悉的 PG 协议，获得云原生的全部能力',
-          'Elastic scaling · Time travel · Zero ops — Use the PG protocol you know, get cloud-native superpowers'
+          '一个平台，赋予你的 Agent 存储、检索、记忆和分析的全部能力',
+          'One platform — give your agents the power to store, retrieve, remember, and analyze'
         ) }}
       </p>
       <div class="hero-ctas">
@@ -181,8 +182,16 @@ async function startTrial() {
   text-align: center;
   background: var(--pub-surface);
 }
+.hero-eyebrow {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--pub-primary);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin: 0 0 12px;
+}
 .hero-title {
-  font-size: 44px;
+  font-size: 48px;
   font-weight: 800;
   color: var(--pub-text);
   line-height: 1.15;
@@ -410,7 +419,7 @@ async function startTrial() {
 /* Responsive */
 @media (max-width: 768px) {
   .hero { padding: 32px 20px 0; }
-  .hero-title { font-size: 28px; }
+  .hero-title { font-size: 32px; }
   .hero-subtitle { font-size: 15px; }
   .stats { gap: 24px; padding: 20px; flex-wrap: wrap; }
   .stat-value { font-size: 24px; }
