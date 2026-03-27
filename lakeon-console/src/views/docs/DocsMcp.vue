@@ -42,6 +42,15 @@
       <h2>{{ t('第 3 步：启用记忆提示（推荐）', 'Step 3: Enable Memory Hints (Recommended)') }}</h2>
       <p>{{ t('让 AI 工具在你说"记住"时自动调用 DBay 记忆库，而不是只存在本地。', 'Tell your AI tool to use DBay memory when you say "remember", instead of local-only storage.') }}</p>
 
+      <h3>Claude Code{{ t('（Skill 插件，推荐）', ' (Skill Plugin, Recommended)') }}</h3>
+      <p>{{ t('在 Claude Code 中执行：', 'Run in Claude Code:') }}</p>
+      <div class="code-wrapper">
+        <pre class="code-block"><code>{{ skillSnippet }}</code></pre>
+        <button class="copy-btn" @click="copy(skillSnippet)">{{ copyLabel }}</button>
+      </div>
+      <p class="tip">{{ t('安装后，说"记住"时 CC 会自动调用 DBay 记忆库，不会只存本地文件。', 'After install, CC will automatically use DBay memory when you say "remember".') }}</p>
+
+      <h3>{{ t('其他 AI 工具', 'Other AI Tools') }}</h3>
       <div v-for="agent in agentSetups" :key="agent.name" class="agent-setup">
         <h3>{{ agent.name }}</h3>
         <div class="code-wrapper">
@@ -49,8 +58,6 @@
           <button class="copy-btn" @click="copy(agent.command)">{{ copyLabel }}</button>
         </div>
       </div>
-
-      <p class="tip">{{ t('已安装 dbay-mcp 的用户也可以用：', 'If you have dbay-mcp installed:') }} <code>dbay setup claude-code</code></p>
     </section>
 
     <section class="section">
@@ -189,6 +196,8 @@ cat > ~/.dbay/config.json << 'EOF'
 EOF`)
 
 const claudeCodeSnippet = 'claude mcp add --scope user dbay -- uvx dbay-mcp'
+
+const skillSnippet = '/plugin marketplace add jackylk/dbay-plugins\n/plugin install memory'
 
 const cursorSnippet = `{
   "mcpServers": {

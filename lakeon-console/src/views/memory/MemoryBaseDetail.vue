@@ -201,7 +201,7 @@ const clients = computed(() => {
       steps: [
         loginStep,
         { title: '注册 MCP Server', desc: '在终端执行以下命令，全局生效：', code: 'claude mcp add --scope user dbay -- uvx dbay-mcp' },
-        { title: '启用记忆提示（推荐）', desc: '让 Claude Code 在你说"记住"时自动调用 DBay 记忆库：', code: 'dbay setup claude-code' },
+        { title: '安装记忆 Skill（推荐）', desc: '在 Claude Code 中执行以下命令，安装后说"记住"时会自动调用 DBay 记忆库：', code: '/plugin marketplace add jackylk/dbay-plugins\n/plugin install memory' },
         { title: '验证', desc: '重启 Claude Code，输入 /mcp 查看 dbay server 是否已连接。', code: '' },
       ],
     },

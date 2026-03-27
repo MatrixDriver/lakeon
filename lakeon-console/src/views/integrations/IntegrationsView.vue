@@ -61,7 +61,12 @@ pip install dbay-cli
 dbay login
 
 # 2. Register MCP server (Claude Code)
-claude mcp add --scope user dbay -- uvx dbay-mcp`
+claude mcp add --scope user dbay -- uvx dbay-mcp
+
+# 3. Install memory skill (Claude Code, recommended)
+# In Claude Code, run:
+#   /plugin marketplace add jackylk/dbay-plugins
+#   /plugin install memory`
 
 const integrations = [
   {

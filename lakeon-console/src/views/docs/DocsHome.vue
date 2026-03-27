@@ -43,43 +43,38 @@ const { t } = useLocale()
 
 const steps = computed(() => [
   {
-    title: t('安装 SDK', 'Install SDK'),
-    code: 'pip install dbay-memory',
+    title: t('安装并登录', 'Install & Login'),
+    code: 'pip install dbay-cli\ndbay login',
   },
   {
-    title: t('初始化客户端', 'Initialize Client'),
-    code: `from dbay_memory import DBayMemory
+    title: t('注册 MCP 服务（Claude Code）', 'Register MCP Server (Claude Code)'),
+    code: 'claude mcp add --scope user dbay -- uvx dbay-mcp',
+  },
+  {
+    title: t('安装记忆 Skill（推荐）', 'Install Memory Skill (Recommended)'),
+    code: `# Claude Code 用户：安装 dbay skill 插件
+# /plugin marketplace add jackylk/dbay-plugins
+# /plugin install memory
+# 安装后，说"记住"时 CC 自动调用 DBay 记忆库
 
-mem = DBayMemory(api_key="dbay_sk_your_key_here")`,
+# 其他 AI 工具：注入记忆提示
+dbay setup gemini    # Gemini CLI
+dbay setup cursor    # Cursor
+dbay setup windsurf  # Windsurf`,
   },
   {
-    title: t('写入记忆', 'Ingest Memory'),
-    code: `await mem.ingest(
-    user_id="alice",
-    content="User prefers dark mode and uses TypeScript daily"
-)`,
+    title: t('存入记忆', 'Store a Memory'),
+    code: t(
+      '# 在 AI 工具中直接说：\n# "记住我的 PyPI token 是 pypi-xxx"\n# AI 会自动调用 DBay 记忆库存储',
+      '# Just tell your AI tool:\n# "Remember my PyPI token is pypi-xxx"\n# It will automatically call DBay memory to store it'
+    ),
   },
   {
     title: t('检索记忆', 'Recall Memories'),
-    code: `results = await mem.recall(
-    user_id="alice",
-    query="programming preferences"
-)
-for m in results["merged"]:
-    print(m["content"])`,
-  },
-  {
-    title: t('接入 Claude Code（MCP）', 'Connect to Claude Code (MCP)'),
-    code: `# claude_desktop_config.json
-{
-  "mcpServers": {
-    "dbay": {
-      "command": "uvx",
-      "args": ["dbay-mcp"],
-      "env": { "DBAY_API_KEY": "dbay_sk_your_key_here" }
-    }
-  }
-}`,
+    code: t(
+      '# 在 AI 工具中直接问：\n# "我之前的 PyPI token 是什么？"\n# AI 会自动从 DBay 记忆库检索',
+      '# Just ask your AI tool:\n# "What was my PyPI token?"\n# It will automatically recall from DBay memory'
+    ),
   },
 ])
 </script>

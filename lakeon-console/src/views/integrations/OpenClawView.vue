@@ -136,13 +136,16 @@
           </div>
           <div class="tab-content" v-else>
             <p class="step-label">1. {{ t('配置 MCP 连接', 'Configure MCP connection') }}</p>
-            <pre class="code-block"><code>// ~/.openclaw/mcp.json
+            <pre class="code-block"><code>// 1. 先配置凭据
+pip install dbay-cli
+dbay login
+
+// 2. 配置 ~/.openclaw/mcp.json
 {
   "mcpServers": {
     "dbay": {
       "command": "uvx",
-      "args": ["dbay-mcp"],
-      "env": { "DBAY_API_KEY": "dbay_sk_your_key_here" }
+      "args": ["dbay-mcp"]
     }
   }
 }</code></pre>
