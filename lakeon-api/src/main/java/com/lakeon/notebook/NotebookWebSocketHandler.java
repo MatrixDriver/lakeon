@@ -124,23 +124,27 @@ public class NotebookWebSocketHandler extends TextWebSocketHandler {
             InputStream stdout = exec.getOutput();
             InputStream stderr = exec.getError();
 
+            log.info("Exec streams: stdin={}, stdout={}, stderr={}", stdin != null, stdout != null, stderr != null);
+
             // Background thread: read stdout line by line, forward to WS
             Thread readerThread = new Thread(() -> {
+                log.info("Exec reader thread started for {}", session.getPodName());
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(stdout, StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
+                        log.debug("Exec stdout: {}", line);
                         if (!line.isBlank() && wsSession.isOpen()) {
                             try {
                                 wsSession.sendMessage(new TextMessage(line));
                             } catch (Exception e) {
+                                log.warn("Failed to send WS message: {}", e.getMessage());
                                 break;
                             }
                         }
                     }
+                    log.info("Exec reader thread ended (readLine returned null)");
                 } catch (Exception e) {
-                    if (!e.getMessage().contains("closed")) {
-                        log.warn("Exec stdout reader error: {}", e.getMessage());
-                    }
+                    log.warn("Exec stdout reader error: {}", e.getMessage());
                 }
             }, "notebook-reader-" + session.getId());
             readerThread.setDaemon(true);
