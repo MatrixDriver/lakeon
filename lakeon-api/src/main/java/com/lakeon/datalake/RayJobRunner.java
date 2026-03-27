@@ -166,11 +166,23 @@ public class RayJobRunner {
             .map(name -> Map.of("name", name))
             .toList();
 
-        // Head container (with optional ConfigMap volumeMount)
+        // Head container (with optional ConfigMap volumeMount + OBS env for log upload)
         Map<String, Object> headContainer = new LinkedHashMap<>();
         headContainer.put("name", "ray-head");
         headContainer.put("image", image);
         headContainer.put("resources", headResources);
+
+        // Inject OBS credentials as container-level env vars (needed by entrypoint log upload)
+        ObsStsService.StsCredentials headCreds = obsStsService.getCredentials(tenantId);
+        List<Map<String, String>> headEnv = new ArrayList<>();
+        headEnv.add(Map.of("name", "OBS_ACCESS_KEY_ID", "value", headCreds.accessKey()));
+        headEnv.add(Map.of("name", "OBS_SECRET_ACCESS_KEY", "value", headCreds.secretKey()));
+        headEnv.add(Map.of("name", "OBS_SECURITY_TOKEN", "value", headCreds.sessionToken()));
+        headEnv.add(Map.of("name", "OBS_ENDPOINT", "value", props.getObs().getEndpoint()));
+        headEnv.add(Map.of("name", "OBS_BUCKET", "value", props.getObs().getBucket()));
+        headEnv.add(Map.of("name", "OBS_REGION", "value", props.getObs().getRegion() != null ? props.getObs().getRegion() : "cn-north-4"));
+        headContainer.put("env", headEnv);
+
         if (hasInlineScript) {
             headContainer.put("volumeMounts", List.of(Map.of(
                 "name", "script-vol",
