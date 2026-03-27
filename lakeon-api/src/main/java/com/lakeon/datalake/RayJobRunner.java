@@ -108,16 +108,24 @@ public class RayJobRunner {
             userCmd = "echo 'no entrypoint'";
         }
 
-        // Wrap entrypoint with log capture + OBS upload (same pattern as PythonJobRunner)
+        // Wrap entrypoint with a Python log wrapper that captures stdout and uploads to OBS.
+        // Can't use bash -c wrapping because RayJob entrypoint is a single string field
+        // and nested quotes break. Instead, write a wrapper script to /tmp and run that.
         String logKey = "datalake-logs/" + tenantId + "/" + jobId + "/output.log";
-        String logUpload = String.format(
-            "; EXIT_CODE=$?; python -c \""
-            + "import boto3,os; "
-            + "from botocore.config import Config; "
-            + "s3=boto3.client('s3',endpoint_url=os.environ.get('OBS_ENDPOINT',''),aws_access_key_id=os.environ.get('OBS_ACCESS_KEY_ID',''),aws_secret_access_key=os.environ.get('OBS_SECRET_ACCESS_KEY',''),aws_session_token=os.environ.get('OBS_SECURITY_TOKEN'),region_name=os.environ.get('OBS_REGION','cn-north-4'),config=Config(signature_version='s3',s3={'addressing_style':'virtual'})); "
-            + "s3.upload_file('/tmp/job.log',os.environ.get('OBS_BUCKET',''),'%s')"
-            + "\" 2>/dev/null; exit $EXIT_CODE", logKey);
-        String entrypoint = "bash -c 'set -o pipefail; (" + userCmd + ") 2>&1 | tee /tmp/job.log" + logUpload + "'";
+        String entrypoint = "python -c \""
+            + "import subprocess,sys,os\\n"
+            + "proc=subprocess.run('" + userCmd.replace("'", "'\\''") + "',shell=True,capture_output=True,text=True)\\n"
+            + "out=proc.stdout+(proc.stderr or '')\\n"
+            + "print(out,end='')\\n"
+            + "open('/tmp/job.log','w').write(out)\\n"
+            + "try:\\n"
+            + " import boto3\\n"
+            + " from botocore.config import Config\\n"
+            + " s3=boto3.client('s3',endpoint_url=os.environ.get('OBS_ENDPOINT',''),aws_access_key_id=os.environ.get('OBS_ACCESS_KEY_ID',''),aws_secret_access_key=os.environ.get('OBS_SECRET_ACCESS_KEY',''),aws_session_token=os.environ.get('OBS_SECURITY_TOKEN'),region_name=os.environ.get('OBS_REGION','cn-north-4'),config=Config(signature_version='s3',s3={'addressing_style':'virtual'}))\\n"
+            + " s3.upload_file('/tmp/job.log',os.environ.get('OBS_BUCKET',''),'" + logKey + "')\\n"
+            + "except: pass\\n"
+            + "sys.exit(proc.returncode)\\n"
+            + "\"";
 
         // Inject OUTPUT_PATH into env vars if not already set
         String bucket = props.getObs().getBucket();
