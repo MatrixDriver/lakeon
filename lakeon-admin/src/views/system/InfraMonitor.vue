@@ -522,6 +522,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, defineComponent, h } from 'vue'
+import { useRoute } from 'vue-router'
 import { adminApi } from '../../api/admin'
 
 // ── Inline SVG Line Chart ──
@@ -682,7 +683,8 @@ interface AutoscaleSummary {
   last_scale_down: string | null
 }
 
-const activeTab = ref('control')
+const route = useRoute()
+const activeTab = ref((route.query.tab as string) || 'control')
 const cceSubTab = ref('nodes')
 const nodes = ref<NodeInfo[]>([])
 const pods = ref<PodInfo[]>([])

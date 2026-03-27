@@ -128,9 +128,9 @@
 
     <!-- Tab: MCP 工具描述 -->
     <div v-if="activeTab === 'mcp'">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
         <p style="color: #666; font-size: 13px; margin: 0;">
-          编辑 MCP 工具描述（YAML 格式）。保存后 MCP server 下次启动时自动加载，无需重新发布 pip 包。
+          编辑 MCP Server 和工具描述。保存后 MCP server 下次启动时自动加载，无需重新发布 pip 包。
         </p>
         <div style="display: flex; gap: 8px;">
           <button class="btn" @click="loadMcpDescriptions">刷新</button>
@@ -139,10 +139,30 @@
           </button>
         </div>
       </div>
-      <div v-if="mcpUpdatedAt" style="font-size: 11px; color: #999; margin-bottom: 8px;">
+      <div v-if="mcpUpdatedAt" style="font-size: 11px; color: #999; margin-bottom: 16px;">
         上次更新: {{ mcpUpdatedAt }}
       </div>
-      <textarea v-model="mcpContent" style="width: 100%; min-height: 500px; font-family: monospace; font-size: 12px; padding: 12px; border: 1px solid #d9d9d9; border-radius: 4px; line-height: 1.6; background: #fafafa; resize: vertical;" spellcheck="false"></textarea>
+
+      <!-- Server instructions -->
+      <div class="mcp-section">
+        <h3 class="mcp-section-title">Server 总体描述</h3>
+        <p style="font-size: 12px; color: #999; margin: 0 0 8px;">所有 MCP 客户端启动时加载的全局指引，告诉 AI agent 何时调用 memory/knowledge 工具。</p>
+        <textarea v-model="mcpServerInstructions" class="mcp-textarea" rows="6" spellcheck="false"></textarea>
+      </div>
+
+      <!-- Tools -->
+      <div class="mcp-section">
+        <h3 class="mcp-section-title">工具描述 ({{ mcpTools.length }})</h3>
+        <div v-for="tool in mcpTools" :key="tool.name" class="mcp-tool-card">
+          <div class="mcp-tool-header">
+            <code class="mcp-tool-name">{{ tool.name }}</code>
+          </div>
+          <textarea v-model="tool.description" class="mcp-textarea" rows="3" spellcheck="false"></textarea>
+        </div>
+        <p v-if="mcpTools.length === 0" style="color: #999; font-size: 13px; text-align: center; padding: 24px;">
+          暂无工具描述。点击"刷新"加载。
+        </p>
+      </div>
     </div>
   </div>
 </template>
@@ -156,15 +176,17 @@ const tenantStore = useTenantStore()
 
 const activeTab = ref('bases')
 
-// MCP descriptions
-const mcpContent = ref('')
+// MCP descriptions (structured)
+const mcpServerInstructions = ref('')
+const mcpTools = ref<{ name: string; description: string }[]>([])
 const mcpUpdatedAt = ref('')
 const mcpSaving = ref(false)
 
 async function loadMcpDescriptions() {
   try {
     const { data } = await adminApi.getMcpDescriptions()
-    mcpContent.value = data.content || ''
+    mcpServerInstructions.value = data.server_instructions || ''
+    mcpTools.value = (data.tools || []).map((t: any) => ({ name: t.name, description: t.description || '' }))
     mcpUpdatedAt.value = data.updated_at ? new Date(data.updated_at).toLocaleString() : ''
   } catch (e) {
     console.error('Failed to load MCP descriptions', e)
@@ -174,7 +196,10 @@ async function loadMcpDescriptions() {
 async function saveMcpDescriptions() {
   mcpSaving.value = true
   try {
-    await adminApi.updateMcpDescriptions(mcpContent.value)
+    await adminApi.updateMcpDescriptions({
+      server_instructions: mcpServerInstructions.value,
+      tools: mcpTools.value,
+    })
     mcpUpdatedAt.value = new Date().toLocaleString()
     alert('保存成功')
   } catch (e: any) {
@@ -203,7 +228,7 @@ onMounted(() => {
 })
 
 watch(activeTab, (tab) => {
-  if (tab === 'mcp' && !mcpContent.value) loadMcpDescriptions()
+  if (tab === 'mcp' && !mcpServerInstructions.value) loadMcpDescriptions()
 })
 
 async function loadStats() {
