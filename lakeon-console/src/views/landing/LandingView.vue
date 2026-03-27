@@ -280,18 +280,13 @@ async function startTrial() {
 
     const res = await client.post('/trial')
     const data = res.data
-    // Save trial auth to localStorage + store
-    const key = data.api_key
-    localStorage.setItem('lakeon_api_key', key)
-    authStore.apiKey = key
+    localStorage.setItem('lakeon_api_key', data.api_key)
+    authStore.apiKey = data.api_key
     authStore.setTenant(data.tenant_id, data.username || 'trial')
-    // Navigate to database manager if database was created
-    const db = data.database
-    if (db && db.id) {
-      router.push(`/databases/${db.id}/manager`)
-    } else {
-      router.push('/dashboard')
-    }
+    authStore.setTrialState(true, data.expires_at)
+
+    // Navigate to dashboard (trial users see demo data)
+    router.push('/dashboard')
   } catch (e: any) {
     const msg = e?.response?.data?.error?.message || e?.message || t('创建失败，请稍后重试', 'Failed, please try again')
     trialError.value = msg
