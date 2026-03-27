@@ -124,6 +124,12 @@ public class ApiKeyFilter implements Filter {
             return;
         }
 
+        // WebSocket endpoints handle their own auth via query param
+        if (path.startsWith("/ws/")) {
+            chain.doFilter(req, res);
+            return;
+        }
+
         // Import callback from Job Pods (internal only)
         if (path.startsWith("/api/v1/import/callback/")) {
             chain.doFilter(req, res);
