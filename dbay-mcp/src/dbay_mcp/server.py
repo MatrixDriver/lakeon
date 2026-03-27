@@ -458,6 +458,58 @@ def memory_ingest_extracted(
     return "Memories stored: " + ", ".join(parts) if parts else "No memories extracted."
 
 
+@mcp.tool(description=_desc("memory_list"))
+def memory_list(
+    memory_base: str | None = None,
+    memory_type: str | None = None,
+    limit: int = 20,
+) -> str:
+    """Browse memories in a memory base, optionally filtered by type.
+
+    Args:
+        memory_base: Memory base name or ID (optional, auto-detected)
+        memory_type: Optional filter — one of: fact, episode, procedural, decision, rejection, convention
+        limit: Max number of memories to return (default 20)
+    """
+    mem_id = _resolve_mem_id(memory_base)
+    params = f"?limit={min(limit, 100)}"
+    if memory_type:
+        params += f"&memory_type={memory_type}"
+    data = _api("GET", f"/memory/bases/{mem_id}/memories{params}")
+
+    memories = data.get("memories", [])
+    if not memories:
+        return "No memories found."
+
+    total = data.get("total", len(memories))
+    parts = [f"Showing {len(memories)} of {total} memories:\n"]
+    for m in memories:
+        mid = m.get("id", "?")
+        mtype = m.get("memory_type", "?")
+        content = m.get("content", "").strip()
+        importance = m.get("importance", 0)
+        preview = content[:120] + "..." if len(content) > 120 else content
+        parts.append(f"  [{mid}] ({mtype}, imp={importance}) {preview}")
+
+    return "\n".join(parts)
+
+
+@mcp.tool(description=_desc("memory_delete"))
+def memory_delete(
+    memory_id: int,
+    memory_base: str | None = None,
+) -> str:
+    """Delete a specific memory by ID.
+
+    Args:
+        memory_id: The ID of the memory to delete
+        memory_base: Memory base name or ID (optional, auto-detected)
+    """
+    mem_id = _resolve_mem_id(memory_base)
+    _api("DELETE", f"/memory/bases/{mem_id}/memories/{memory_id}")
+    return f"Memory {memory_id} deleted."
+
+
 def _guess_content_type(filename: str) -> str:
     ext = Path(filename).suffix.lower()
     return {
