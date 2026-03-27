@@ -22,6 +22,7 @@ export const adminApi = {
 
   // Compute
   computeStats: () => client.get('/compute/stats'),
+  coldStartAnalysis: (days = 7) => client.get('/compute/cold-start', { params: { days } }),
 
   // System health
   systemHealth: () => client.get('/system/health'),

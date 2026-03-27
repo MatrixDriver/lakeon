@@ -82,6 +82,7 @@
             <router-link to="/knowledge" class="nav-item" active-class="active" @click="sidebarOpen = false">知识库</router-link>
             <router-link to="/memory" class="nav-item" active-class="active" @click="sidebarOpen = false">记忆库</router-link>
             <router-link to="/datalake" class="nav-item" active-class="active" @click="sidebarOpen = false">数据湖</router-link>
+            <router-link to="/cold-start" class="nav-item" active-class="active" @click="sidebarOpen = false">冷启动分析</router-link>
           </div>
           <div class="nav-group">
             <div class="nav-group-title">日志审计</div>

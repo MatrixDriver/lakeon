@@ -316,6 +316,112 @@ public class AdminController {
         return adminService.getComputeStats();
     }
 
+    // ── Cold Start Analysis ─────────────────────────────────────────
+
+    @GetMapping("/compute/cold-start")
+    public Map<String, Object> getColdStartAnalysis(
+            @RequestParam(defaultValue = "7") int days) {
+        Instant since = Instant.now().minus(java.time.Duration.ofDays(days));
+        List<OperationLogEntity> ops = operationLogRepository
+            .findByOperationTypeAndStatusAndStartedAtAfter(OperationType.RESUME, OperationStatus.SUCCESS, since);
+
+        // Separate cold and warm
+        List<Long> coldMs = new ArrayList<>();
+        List<Long> warmMs = new ArrayList<>();
+        List<Map<String, Object>> coldOps = new ArrayList<>();
+        Map<String, List<Long>> byDatabase = new LinkedHashMap<>();
+        // Hourly distribution
+        Map<String, long[]> hourly = new LinkedHashMap<>(); // hour -> [count, totalMs]
+
+        for (OperationLogEntity op : ops) {
+            boolean isCold = !"WARM".equals(op.getResumeType());
+            long dur = op.getDurationMs() != null ? op.getDurationMs() : 0;
+            if (isCold) {
+                coldMs.add(dur);
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", op.getId());
+                entry.put("database_id", op.getDatabaseId());
+                entry.put("database_name", op.getDatabaseName());
+                entry.put("tenant_id", op.getTenantId());
+                entry.put("duration_ms", dur);
+                entry.put("started_at", op.getStartedAt());
+                coldOps.add(entry);
+
+                String dbKey = op.getDatabaseName() != null ? op.getDatabaseName() : op.getDatabaseId();
+                byDatabase.computeIfAbsent(dbKey, k -> new ArrayList<>()).add(dur);
+
+                // Group by date for trend
+                String dateKey = op.getStartedAt().toString().substring(0, 10);
+                hourly.computeIfAbsent(dateKey, k -> new long[2]);
+                hourly.get(dateKey)[0]++;
+                hourly.get(dateKey)[1] += dur;
+            } else {
+                warmMs.add(dur);
+            }
+        }
+
+        // Percentiles for cold
+        java.util.Collections.sort(coldMs);
+        Map<String, Object> result = new LinkedHashMap<>();
+
+        Map<String, Object> cold = new LinkedHashMap<>();
+        cold.put("count", coldMs.size());
+        cold.put("avg_ms", coldMs.isEmpty() ? 0 : coldMs.stream().mapToLong(Long::longValue).average().orElse(0));
+        cold.put("p50_ms", percentile(coldMs, 50));
+        cold.put("p90_ms", percentile(coldMs, 90));
+        cold.put("p99_ms", percentile(coldMs, 99));
+        cold.put("min_ms", coldMs.isEmpty() ? 0 : coldMs.get(0));
+        cold.put("max_ms", coldMs.isEmpty() ? 0 : coldMs.get(coldMs.size() - 1));
+        result.put("cold", cold);
+
+        java.util.Collections.sort(warmMs);
+        Map<String, Object> warm = new LinkedHashMap<>();
+        warm.put("count", warmMs.size());
+        warm.put("avg_ms", warmMs.isEmpty() ? 0 : warmMs.stream().mapToLong(Long::longValue).average().orElse(0));
+        warm.put("p50_ms", percentile(warmMs, 50));
+        result.put("warm", warm);
+
+        // Daily trend
+        List<Map<String, Object>> trend = new ArrayList<>();
+        hourly.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(e -> {
+            Map<String, Object> t = new LinkedHashMap<>();
+            t.put("date", e.getKey());
+            t.put("count", e.getValue()[0]);
+            t.put("avg_ms", e.getValue()[0] > 0 ? e.getValue()[1] / e.getValue()[0] : 0);
+            trend.add(t);
+        });
+        result.put("trend", trend);
+
+        // Per-database breakdown
+        List<Map<String, Object>> dbBreakdown = new ArrayList<>();
+        byDatabase.forEach((db, durations) -> {
+            java.util.Collections.sort(durations);
+            Map<String, Object> d = new LinkedHashMap<>();
+            d.put("database", db);
+            d.put("count", durations.size());
+            d.put("avg_ms", durations.stream().mapToLong(Long::longValue).average().orElse(0));
+            d.put("p50_ms", percentile(durations, 50));
+            d.put("max_ms", durations.get(durations.size() - 1));
+            dbBreakdown.add(d);
+        });
+        dbBreakdown.sort((a, b) -> Long.compare(
+            ((Number) b.get("avg_ms")).longValue(), ((Number) a.get("avg_ms")).longValue()));
+        result.put("by_database", dbBreakdown);
+
+        // Recent cold starts (latest 20)
+        coldOps.sort((a, b) -> ((Instant) b.get("started_at")).compareTo((Instant) a.get("started_at")));
+        result.put("recent", coldOps.subList(0, Math.min(20, coldOps.size())));
+
+        result.put("days", days);
+        return result;
+    }
+
+    private long percentile(List<Long> sorted, int p) {
+        if (sorted.isEmpty()) return 0;
+        int idx = (int) Math.ceil(p / 100.0 * sorted.size()) - 1;
+        return sorted.get(Math.max(0, idx));
+    }
+
     // ── System Health ──────────────────────────────────────────────
 
     @GetMapping("/system/health")
