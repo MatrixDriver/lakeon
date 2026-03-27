@@ -1,7 +1,7 @@
 package com.lakeon.notebook;
 
-import com.lakeon.repository.TenantRepository;
 import com.lakeon.model.entity.TenantEntity;
+import com.lakeon.service.TenantService;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.ExecWatch;
 import org.slf4j.Logger;
@@ -22,15 +22,15 @@ import java.util.concurrent.ConcurrentHashMap;
 public class NotebookWebSocketHandler extends TextWebSocketHandler {
     private static final Logger log = LoggerFactory.getLogger(NotebookWebSocketHandler.class);
 
-    private final TenantRepository tenantRepository;
+    private final TenantService tenantService;
     private final NotebookService notebookService;
     private final KubernetesClient k8sClient;
     private final Map<String, ExecConnection> execConnections = new ConcurrentHashMap<>();
 
-    public NotebookWebSocketHandler(TenantRepository tenantRepository,
+    public NotebookWebSocketHandler(TenantService tenantService,
                                      NotebookService notebookService,
                                      KubernetesClient k8sClient) {
-        this.tenantRepository = tenantRepository;
+        this.tenantService = tenantService;
         this.notebookService = notebookService;
         this.k8sClient = k8sClient;
     }
@@ -43,7 +43,7 @@ public class NotebookWebSocketHandler extends TextWebSocketHandler {
             wsSession.close(CloseStatus.POLICY_VIOLATION.withReason("Missing token"));
             return;
         }
-        TenantEntity tenant = tenantRepository.findByApiKey(token).orElse(null);
+        TenantEntity tenant = tenantService.authenticateByApiKey(token);
         if (tenant == null) {
             wsSession.close(CloseStatus.POLICY_VIOLATION.withReason("Invalid token"));
             return;
