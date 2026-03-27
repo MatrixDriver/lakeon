@@ -91,6 +91,7 @@ public class RayJobRunner {
 
         job.setRayJobName(rayJobName);
         job.setCciNamespace(ns);
+        job.setLogObsPath("datalake-logs/" + job.getTenantId() + "/" + job.getId() + "/output.log");
         job.setStatus(DatalakeJobStatus.STARTING);
         repository.save(job);
     }
@@ -98,14 +99,25 @@ public class RayJobRunner {
     private Map<String, Object> buildRayJobSpec(DatalakeJobRequest req, String image, String tenantId,
                                                  boolean hasInlineScript, String jobId) {
         // entrypoint: inline script wins, then explicit entrypoint
-        String entrypoint;
+        String userCmd;
         if (hasInlineScript) {
-            entrypoint = "python /app/main.py";
+            userCmd = "python /app/main.py";
         } else if (req.getEntrypoint() != null && !req.getEntrypoint().isBlank()) {
-            entrypoint = req.getEntrypoint();
+            userCmd = req.getEntrypoint();
         } else {
-            entrypoint = "echo 'no entrypoint'";
+            userCmd = "echo 'no entrypoint'";
         }
+
+        // Wrap entrypoint with log capture + OBS upload (same pattern as PythonJobRunner)
+        String logKey = "datalake-logs/" + tenantId + "/" + jobId + "/output.log";
+        String logUpload = String.format(
+            "; EXIT_CODE=$?; python -c \""
+            + "import boto3,os; "
+            + "from botocore.config import Config; "
+            + "s3=boto3.client('s3',endpoint_url=os.environ.get('OBS_ENDPOINT',''),aws_access_key_id=os.environ.get('OBS_ACCESS_KEY_ID',''),aws_secret_access_key=os.environ.get('OBS_SECRET_ACCESS_KEY',''),aws_session_token=os.environ.get('OBS_SECURITY_TOKEN'),region_name=os.environ.get('OBS_REGION','cn-north-4'),config=Config(signature_version='s3',s3={'addressing_style':'virtual'})); "
+            + "s3.upload_file('/tmp/job.log',os.environ.get('OBS_BUCKET',''),'%s')"
+            + "\" 2>/dev/null; exit $EXIT_CODE", logKey);
+        String entrypoint = "bash -c 'set -o pipefail; (" + userCmd + ") 2>&1 | tee /tmp/job.log" + logUpload + "'";
 
         // Inject OUTPUT_PATH into env vars if not already set
         String bucket = props.getObs().getBucket();
@@ -273,6 +285,8 @@ public class RayJobRunner {
         sb.append("  OBS_SECRET_ACCESS_KEY: \"").append(escape(stsCreds.secretKey())).append("\"\n");
         sb.append("  OBS_SECURITY_TOKEN: \"").append(escape(stsCreds.sessionToken())).append("\"\n");
         sb.append("  OBS_ENDPOINT: \"").append(escape(obsEndpoint)).append("\"\n");
+        sb.append("  OBS_BUCKET: \"").append(escape(props.getObs().getBucket())).append("\"\n");
+        sb.append("  OBS_REGION: \"").append(escape(props.getObs().getRegion() != null ? props.getObs().getRegion() : "cn-north-4")).append("\"\n");
 
         // Pass through user-supplied env vars (DATASET_PATH, OUTPUT_PATH, etc.)
         if (req.getEnvVars() != null) {
