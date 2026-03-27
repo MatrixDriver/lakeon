@@ -81,6 +81,8 @@ lakeon:
     compute-size: ${LAKEON_DEFAULT_COMPUTE_SIZE:1cu}
     suspend-timeout: ${LAKEON_DEFAULT_SUSPEND_TIMEOUT:2m}
     storage-limit-gb: ${LAKEON_DEFAULT_STORAGE_LIMIT:10}
+  demo:
+    tenant-id: ${LAKEON_DEMO_TENANT_ID:}
   knowledge:
     embedding-api-url: ${LAKEON_EMBEDDING_API_URL:https://api.siliconflow.cn/v1/embeddings}
     embedding-api-key: ${LAKEON_EMBEDDING_API_KEY:${LAKEON_AI_API_KEY:}}
