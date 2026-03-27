@@ -445,38 +445,6 @@ def memory_ingest(
     return f"Memory stored (status={data.get('status', 'ok')})."
 
 
-@mcp.tool(description=_desc("memory_ingest_extracted"))
-def memory_ingest_extracted(
-    message_id: str,
-    extracted_data: str,
-    memory_base: str | None = None,
-) -> str:
-    """Store pre-extracted structured memories.
-
-    Args:
-        message_id: The message_id returned by memory_ingest
-        extracted_data: JSON string with extracted memories, e.g.:
-            {"facts": [...], "decisions": [{"content": "...", "rationale": "..."}], ...}
-        memory_base: Memory base name or ID (optional)
-    """
-    mem_id = _resolve_mem_id(memory_base)
-    try:
-        parsed = json.loads(extracted_data) if isinstance(extracted_data, str) else extracted_data
-    except json.JSONDecodeError as e:
-        return f"Error: invalid JSON in extracted_data: {e}"
-
-    data = _api("POST", f"/memory/bases/{mem_id}/ingest_extracted", json={
-        "message_id": message_id,
-        "data": parsed,
-    })
-
-    parts = []
-    for key, count in data.items():
-        if count and count > 0:
-            parts.append(f"{key}: {count}")
-    return "Memories stored: " + ", ".join(parts) if parts else "No memories extracted."
-
-
 @mcp.tool(description=_desc("memory_list"))
 def memory_list(
     memory_base: str | None = None,
