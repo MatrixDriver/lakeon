@@ -301,3 +301,13 @@ function formatDate(d: string | null): string {
   return new Date(d).toLocaleString()
 }
 </script>
+
+<style scoped>
+.stats-row { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.stat-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 6px; padding: 16px 24px; min-width: 120px; text-align: center; }
+.stat-value { font-size: 28px; font-weight: 600; color: #333; }
+.stat-label { font-size: 13px; color: #999; margin-top: 4px; }
+.tab-bar { display: flex; border-bottom: 1px solid #e5e5e5; margin-bottom: 16px; }
+.tab-item { padding: 8px 16px; cursor: pointer; font-size: 14px; color: #666; border-bottom: 2px solid transparent; }
+.tab-item.active { color: #1890ff; border-bottom-color: #1890ff; }
+</style>
