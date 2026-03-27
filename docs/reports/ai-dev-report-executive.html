@@ -1088,7 +1088,7 @@
         <div class="layer-icon" style="color:#2ecc71;">III</div>
         <div class="layer-content">
           <div class="layer-title">方法论 — 减少浪费</div>
-          <div class="layer-desc">三段式流程、CLI E2E、Skill 沉淀，返工率压到 27%</div>
+          <div class="layer-desc">三段式流程、红蓝对抗、CLI E2E、Skill 沉淀，返工率压到 27%</div>
         </div>
       </div>
     </div>
@@ -1268,6 +1268,32 @@
             <li><strong>优化 worktree 使用</strong> — AI 建议用 worktree 隔离并行特性开发，多窗口并行效率从 1.5x 提升到 2-3x</li>
           </ul>
           <p>这是一种<strong>"元认知"</strong>能力 — AI 帮你反思自己的工作方式，而不只是执行任务。</p>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+          <span>实践七：红蓝对抗 — 方案开发前的压力测试</span><span class="arrow">&#9654;</span>
+        </div>
+        <div class="accordion-body">
+          <p><strong>核心理念：</strong>方案设计完成后，让 AI 扮演蓝军挑战方案假设，红军用数据回应，多轮攻防后收敛到更健壮的方案。</p>
+          <h4>为什么有效</h4>
+          <ul>
+            <li><strong>前置暴露风险：</strong>在写代码之前发现架构弱点，修改成本最低</li>
+            <li><strong>结构化思辨：</strong>不是随意质疑，而是按"挑战假设 → 数据回应 → 迭代收敛"的流程进行</li>
+            <li><strong>补充三段式：</strong>与实践二（Design Spec → Plan → Code）配合，在 Design Spec 阶段用红蓝对抗细化方案</li>
+          </ul>
+          <h4>使用方式</h4>
+          <div class="case-good">
+            <p>设计文档完成 → 调用 <code>/challenge</code> Skill → 蓝军从可行性、性能、安全、运维等角度挑战 → 红军逐一回应并补充论据 → 多轮后形成最终方案</p>
+          </div>
+          <h4>适用场景</h4>
+          <ul>
+            <li>重要架构决策（如数据湖任务调度、存储方案选型）</li>
+            <li>多方案纠结时，暴露各自弱点帮助决策</li>
+            <li>对方案信心不足，需要压力测试验证</li>
+          </ul>
+          <p><strong>关键：</strong>对抗的目的不是否定方案，而是让方案在"纸上"经历实战考验，<span class="accent-gold">把踩坑从生产环境前移到设计阶段</span>。</p>
         </div>
       </div>
     </div>
