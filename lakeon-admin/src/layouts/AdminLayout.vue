@@ -112,23 +112,34 @@
       <main class="console-main">
         <router-view />
       </main>
+
+      <!-- AI Chat Panel -->
+      <AiChatPanel ref="aiChatRef" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, provide } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAdminAuthStore } from '../stores/auth'
+import AiChatPanel from '../components/AiChatPanel.vue'
 
 const router = useRouter()
 const authStore = useAdminAuthStore()
 const sidebarOpen = ref(false)
+const aiChatRef = ref<InstanceType<typeof AiChatPanel>>()
 
 function handleLogout() {
   authStore.logout()
   router.push('/login')
 }
+
+function openAiDiagnose(resourceType: string, resourceId: string, question: string) {
+  aiChatRef.value?.openWithContext(resourceType, resourceId, question)
+}
+
+provide('openAiDiagnose', openAiDiagnose)
 </script>
 
 <style scoped>
