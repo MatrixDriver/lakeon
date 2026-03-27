@@ -335,4 +335,18 @@ function formatDate(d: string | null): string {
 .tab-bar { display: flex; border-bottom: 1px solid #e5e5e5; margin-bottom: 16px; }
 .tab-item { padding: 8px 16px; cursor: pointer; font-size: 14px; color: #666; border-bottom: 2px solid transparent; }
 .tab-item.active { color: #1890ff; border-bottom-color: #1890ff; }
+.mcp-section { margin-bottom: 24px; }
+.mcp-section-title { font-size: 14px; font-weight: 600; color: #333; margin: 0 0 8px; }
+.mcp-textarea {
+  width: 100%; font-family: monospace; font-size: 12px; padding: 10px 12px;
+  border: 1px solid #d9d9d9; border-radius: 4px; line-height: 1.6;
+  background: #fafafa; resize: vertical; box-sizing: border-box;
+}
+.mcp-textarea:focus { border-color: #1890ff; outline: none; }
+.mcp-tool-card {
+  border: 1px solid #e5e5e5; border-radius: 6px; padding: 12px 16px;
+  margin-bottom: 8px; background: #fff;
+}
+.mcp-tool-header { margin-bottom: 8px; }
+.mcp-tool-name { font-size: 13px; font-weight: 600; color: #1890ff; background: #f0f5ff; padding: 2px 8px; border-radius: 3px; }
 </style>

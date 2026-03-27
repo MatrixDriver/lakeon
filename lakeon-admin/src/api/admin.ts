@@ -92,7 +92,8 @@ export const adminApi = {
 
   // MCP Tool Descriptions
   getMcpDescriptions: () => client.get('/mcp/descriptions'),
-  updateMcpDescriptions: (content: string) => client.put('/mcp/descriptions', { content }),
+  updateMcpDescriptions: (data: { server_instructions: string; tools: { name: string; description: string }[] }) =>
+    client.put('/mcp/descriptions', data),
 
   // Datalake Admin
   datalakeStats: () => client.get('/datalake/stats'),

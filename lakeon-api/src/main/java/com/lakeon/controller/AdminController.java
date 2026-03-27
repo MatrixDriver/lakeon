@@ -842,26 +842,88 @@ public class AdminController {
 
     private static final String MCP_DESCRIPTIONS_KEY = "mcp_tool_descriptions";
 
+    @SuppressWarnings("unchecked")
     @GetMapping("/mcp/descriptions")
     public Map<String, Object> getMcpDescriptions() {
-        return systemConfigRepository.findById(MCP_DESCRIPTIONS_KEY)
-                .map(e -> Map.of("content", (Object) e.getValue(), "updated_at", e.getUpdatedAt().toString()))
-                .orElse(Map.of("content", "", "updated_at", ""));
+        var entity = systemConfigRepository.findById(MCP_DESCRIPTIONS_KEY).orElse(null);
+        if (entity == null || entity.getValue() == null || entity.getValue().isBlank()) {
+            return Map.of("server_instructions", "", "tools", List.of(), "updated_at", "");
+        }
+        try {
+            var yaml = new org.yaml.snakeyaml.Yaml();
+            Map<String, Object> parsed = yaml.load(entity.getValue());
+            // Extract server instructions
+            String instructions = "";
+            var server = (Map<String, Object>) parsed.getOrDefault("server", Map.of());
+            if (server.get("instructions") != null) instructions = server.get("instructions").toString().trim();
+            // Extract tools as list
+            var toolsMap = (Map<String, Object>) parsed.getOrDefault("tools", Map.of());
+            var toolsList = new ArrayList<Map<String, Object>>();
+            toolsMap.forEach((name, val) -> {
+                var toolDef = (Map<String, Object>) val;
+                var item = new LinkedHashMap<String, Object>();
+                item.put("name", name);
+                item.put("description", toolDef.getOrDefault("description", "").toString().trim());
+                toolsList.add(item);
+            });
+            return Map.of(
+                "server_instructions", instructions,
+                "tools", toolsList,
+                "updated_at", entity.getUpdatedAt() != null ? entity.getUpdatedAt().toString() : ""
+            );
+        } catch (Exception e) {
+            return Map.of("server_instructions", "", "tools", List.of(), "updated_at",
+                entity.getUpdatedAt() != null ? entity.getUpdatedAt().toString() : "", "error", e.getMessage());
+        }
     }
 
     @PutMapping("/mcp/descriptions")
-    public Map<String, Object> updateMcpDescriptions(@RequestBody Map<String, String> body) {
-        String content = body.get("content");
-        if (content == null) throw new com.lakeon.service.exception.BadRequestException("content is required");
+    public Map<String, Object> updateMcpDescriptions(@RequestBody Map<String, Object> body) {
+        // Accept structured JSON, serialize to YAML for storage
+        String serverInstructions = (String) body.getOrDefault("server_instructions", "");
+        @SuppressWarnings("unchecked")
+        var tools = (List<Map<String, String>>) body.getOrDefault("tools", List.of());
+
+        // Build YAML structure
+        var yamlMap = new LinkedHashMap<String, Object>();
+        var serverMap = new LinkedHashMap<String, Object>();
+        serverMap.put("instructions", serverInstructions);
+        yamlMap.put("server", serverMap);
+
+        var toolsMap = new LinkedHashMap<String, Object>();
+        for (var tool : tools) {
+            var toolDef = new LinkedHashMap<String, Object>();
+            toolDef.put("description", tool.getOrDefault("description", ""));
+            toolsMap.put(tool.get("name"), toolDef);
+        }
+        yamlMap.put("tools", toolsMap);
+
+        // Preserve agents section from existing YAML if present
+        var existing = systemConfigRepository.findById(MCP_DESCRIPTIONS_KEY).orElse(null);
+        if (existing != null && existing.getValue() != null) {
+            try {
+                var yaml = new org.yaml.snakeyaml.Yaml();
+                @SuppressWarnings("unchecked")
+                Map<String, Object> oldParsed = yaml.load(existing.getValue());
+                if (oldParsed.containsKey("agents")) {
+                    yamlMap.put("agents", oldParsed.get("agents"));
+                }
+            } catch (Exception ignored) {}
+        }
+
+        var dumperOptions = new org.yaml.snakeyaml.DumperOptions();
+        dumperOptions.setDefaultFlowStyle(org.yaml.snakeyaml.DumperOptions.FlowStyle.BLOCK);
+        dumperOptions.setDefaultScalarStyle(org.yaml.snakeyaml.DumperOptions.ScalarStyle.LITERAL);
+        dumperOptions.setPrettyFlow(true);
+        var yaml = new org.yaml.snakeyaml.Yaml(dumperOptions);
+        String yamlStr = yaml.dump(yamlMap);
+
         SystemConfigEntity entity = systemConfigRepository.findById(MCP_DESCRIPTIONS_KEY)
                 .orElseGet(() -> { var e = new SystemConfigEntity(); e.setKey(MCP_DESCRIPTIONS_KEY); return e; });
-        entity.setValue(content);
+        entity.setValue(yamlStr);
         systemConfigRepository.save(entity);
         return Map.of("status", "saved");
     }
-
-    // Also expose as public API (no admin auth) so MCP server can fetch it
-    // This is handled in McpDescriptionsController
 
     private Map<String, Object> memBaseToMap(MemoryBaseEntity m) {
         Map<String, Object> map = new LinkedHashMap<>();
