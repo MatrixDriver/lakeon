@@ -50,6 +50,33 @@ public class NotebookWebSocketHandler extends TextWebSocketHandler {
         }
         wsSession.getAttributes().put("tenantId", tenant.getId());
         log.info("Notebook WS connected: tenant={}, wsSession={}", tenant.getId(), wsSession.getId());
+
+        // Create exec connection eagerly so client receives "ready" message
+        Thread initThread = new Thread(() -> {
+            try {
+                // Wait for pod to be running (poll up to 30s)
+                NotebookSessionEntity session = null;
+                for (int i = 0; i < 30; i++) {
+                    session = notebookService.getSession(tenant.getId()).orElse(null);
+                    if (session != null && session.getStatus() == NotebookSessionStatus.RUNNING) break;
+                    Thread.sleep(1000);
+                }
+                if (session == null || session.getStatus() != NotebookSessionStatus.RUNNING) {
+                    wsSession.sendMessage(new TextMessage("{\"type\":\"error\",\"traceback\":\"Kernel pod not ready after 30s.\"}"));
+                    return;
+                }
+                ExecConnection conn = createExecConnection(session, wsSession);
+                if (conn != null) {
+                    execConnections.put(wsSession.getId(), conn);
+                } else {
+                    wsSession.sendMessage(new TextMessage("{\"type\":\"error\",\"traceback\":\"Failed to connect to kernel pod.\"}"));
+                }
+            } catch (Exception e) {
+                log.warn("Failed to init exec for WS {}: {}", wsSession.getId(), e.getMessage());
+            }
+        }, "notebook-init-" + wsSession.getId());
+        initThread.setDaemon(true);
+        initThread.start();
     }
 
     @Override
@@ -57,22 +84,12 @@ public class NotebookWebSocketHandler extends TextWebSocketHandler {
         String tenantId = (String) wsSession.getAttributes().get("tenantId");
         if (tenantId == null) { wsSession.close(CloseStatus.POLICY_VIOLATION); return; }
 
-        NotebookSessionEntity session = notebookService.getSession(tenantId).orElse(null);
-        if (session == null || session.getStatus() != NotebookSessionStatus.RUNNING) {
-            wsSession.sendMessage(new TextMessage("{\"type\":\"error\",\"traceback\":\"No active kernel. Start a session first.\"}"));
-            return;
-        }
-        notebookService.touchSession(session.getId());
+        notebookService.getSession(tenantId).ifPresent(s -> notebookService.touchSession(s.getId()));
 
         ExecConnection conn = execConnections.get(wsSession.getId());
         if (conn == null || conn.closed) {
-            execConnections.remove(wsSession.getId());
-            conn = createExecConnection(session, wsSession);
-            if (conn == null) {
-                wsSession.sendMessage(new TextMessage("{\"type\":\"error\",\"traceback\":\"Failed to connect to kernel pod.\"}"));
-                return;
-            }
-            execConnections.put(wsSession.getId(), conn);
+            wsSession.sendMessage(new TextMessage("{\"type\":\"error\",\"traceback\":\"Kernel not connected yet. Please wait...\"}"));
+            return;
         }
 
         try {
