@@ -7,99 +7,23 @@
     <!-- Tabs -->
     <div class="infra-tabs">
       <button class="infra-tab" :class="{ active: activeTab === 'control' }" @click="activeTab = 'control'">管控面</button>
-      <button class="infra-tab" :class="{ active: activeTab === 'pods' }" @click="activeTab = 'pods'">计算 Pod</button>
-      <button class="infra-tab" :class="{ active: activeTab === 'pool' }" @click="activeTab = 'pool'">弹性节点池</button>
-      <button class="infra-tab" :class="{ active: activeTab === 'events' }" @click="activeTab = 'events'">事件日志</button>
+      <button class="infra-tab" :class="{ active: activeTab === 'neon' }" @click="activeTab = 'neon'">Neon 数据层</button>
+      <button class="infra-tab" :class="{ active: activeTab === 'cce' }" @click="activeTab = 'cce'">CCE 弹性节点池</button>
+      <button class="infra-tab" :class="{ active: activeTab === 'cci' }" @click="activeTab = 'cci'">CCI Pod</button>
       <button class="infra-tab" :class="{ active: activeTab === 'cloud' }" @click="activeTab = 'cloud'; loadCloudResources()">云资源</button>
     </div>
 
-    <!-- Tab 1: 计算 Pod -->
-    <div v-if="activeTab === 'pods'">
-      <!-- Pod Count Chart -->
-      <div class="section-card">
-        <div class="section-header">
-          <h3>Pod 数量趋势</h3>
-          <span class="chart-hint">每 30 秒采样，页面打开后开始记录</span>
-        </div>
-        <MiniLineChart :data="podHistory" label="Pod 数" color="#52c41a" />
+    <!-- Tab: CCE 弹性节点池 -->
+    <div v-if="activeTab === 'cce'">
+
+      <!-- Sub tabs -->
+      <div class="sub-tabs">
+        <button class="sub-tab" :class="{ active: cceSubTab === 'nodes' }" @click="cceSubTab = 'nodes'">节点管理</button>
+        <button class="sub-tab" :class="{ active: cceSubTab === 'pods' }" @click="cceSubTab = 'pods'">计算 Pod</button>
       </div>
 
-      <!-- Compute Pod Overview -->
-      <div class="section-card">
-        <div class="section-header">
-          <h3>Compute Pod 概览</h3>
-          <button class="btn btn-small btn-danger-outline" @click="confirmCleanup" :disabled="cleanupLoading">
-            {{ cleanupLoading ? '清理中...' : '清理闲置 Pod' }}
-          </button>
-        </div>
-        <div v-if="computeLoading" class="empty-text">加载中...</div>
-        <div v-else-if="!computeSummary" class="empty-text">无法获取数据</div>
-        <template v-else>
-          <div class="compute-stats">
-            <div class="stat-item">
-              <span class="stat-value">{{ computeSummary.total }}</span>
-              <span class="stat-label">Pod 总数</span>
-            </div>
-            <div class="stat-item stat-green">
-              <span class="stat-value">{{ computeSummary.by_status.running }}</span>
-              <span class="stat-label">运行中</span>
-            </div>
-            <div class="stat-item stat-gray">
-              <span class="stat-value">{{ computeSummary.by_status.suspended }}</span>
-              <span class="stat-label">已挂起(保留)</span>
-            </div>
-            <div class="stat-item stat-blue">
-              <span class="stat-value">{{ computeSummary.by_status.creating }}</span>
-              <span class="stat-label">创建中</span>
-            </div>
-            <div class="stat-item stat-red" v-if="computeSummary.by_status.error > 0">
-              <span class="stat-value">{{ computeSummary.by_status.error }}</span>
-              <span class="stat-label">异常</span>
-            </div>
-            <div class="stat-item stat-orange" v-if="computeSummary.by_status.orphaned > 0">
-              <span class="stat-value">{{ computeSummary.by_status.orphaned }}</span>
-              <span class="stat-label">孤儿 Pod</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-value">{{ computeSummary.total_mem_request_gb }} GB</span>
-              <span class="stat-label">内存占用</span>
-            </div>
-          </div>
-          <div class="table-wrapper" v-if="computeSummary.pods.length > 0" style="margin-top: 12px;">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Pod</th>
-                  <th>数据库</th>
-                  <th>数据库状态</th>
-                  <th>Pod 状态</th>
-                  <th>内存</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="p in computeSummary.pods" :key="p.pod_name"
-                  :class="{ 'row-warn': p.db_status === 'suspended' || p.db_status === 'orphaned' }">
-                  <td class="pod-name">{{ p.pod_name }}</td>
-                  <td>{{ p.db_name || '-' }}</td>
-                  <td>
-                    <span class="phase-badge" :class="dbStatusBadge(p.db_status)">
-                      {{ DB_STATUS_LABELS[p.db_status] || p.db_status }}
-                    </span>
-                  </td>
-                  <td>
-                    <span class="phase-badge" :class="phaseBadgeClass(p.phase, true)">{{ p.phase }}</span>
-                  </td>
-                  <td>{{ p.mem_request_mb }} MB</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </template>
-      </div>
-    </div>
-
-    <!-- Tab 2: 弹性节点池 -->
-    <div v-if="activeTab === 'pool'">
+      <!-- Sub: 节点管理 -->
+      <div v-if="cceSubTab === 'nodes'">
       <!-- Node Count Chart -->
       <div class="section-card">
         <div class="section-header">
@@ -203,9 +127,173 @@
           </div>
         </template>
       </div>
+
+      <!-- Autoscaling Events (in nodes sub-tab) -->
+      <div class="section-card" style="margin-top: 16px;">
+        <div class="section-header">
+          <h3>弹性伸缩事件</h3>
+          <div class="autoscale-summary" v-if="autoscaleSummary">
+            <span class="as-stat as-up">24h 扩容 {{ autoscaleSummary.scale_up_count_24h }} 次</span>
+            <span class="as-stat as-down">24h 缩容 {{ autoscaleSummary.scale_down_count_24h }} 次</span>
+          </div>
+        </div>
+        <div v-if="autoscaleLoading" class="empty-text">加载中...</div>
+        <div v-else-if="!autoscaleEvents.length" class="empty-text">近48小时无伸缩事件</div>
+        <div class="timeline" v-else>
+          <div class="timeline-item" v-for="(event, idx) in autoscaleEvents" :key="idx">
+            <div class="timeline-dot" :class="isScaleUp(event.reason) ? 'dot-up' : 'dot-down'"></div>
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <span class="timeline-reason" :class="isScaleUp(event.reason) ? 'reason-up' : 'reason-down'">
+                  {{ event.reason }}
+                </span>
+                <span class="timeline-time">{{ formatTime(event.last_time) }}</span>
+              </div>
+              <div class="timeline-message">{{ event.message }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div><!-- end cceSubTab === 'nodes' -->
+
+      <!-- Sub: 计算 Pod -->
+      <div v-if="cceSubTab === 'pods'">
+      <!-- Pod Count Chart -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Pod 数量趋势</h3>
+          <span class="chart-hint">每 30 秒采样，页面打开后开始记录</span>
+        </div>
+        <MiniLineChart :data="podHistory" label="Pod 数" color="#52c41a" />
+      </div>
+      <!-- Compute Pod Overview -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Compute Pod 概览</h3>
+          <button class="btn btn-small btn-danger-outline" @click="confirmCleanup" :disabled="cleanupLoading">
+            {{ cleanupLoading ? '清理中...' : '清理闲置 Pod' }}
+          </button>
+        </div>
+        <div v-if="computeLoading" class="empty-text">加载中...</div>
+        <div v-else-if="!computeSummary" class="empty-text">无法获取数据</div>
+        <template v-else>
+          <div class="compute-stats">
+            <div class="stat-item">
+              <span class="stat-value">{{ computeSummary.total }}</span>
+              <span class="stat-label">Pod 总数</span>
+            </div>
+            <div class="stat-item stat-green">
+              <span class="stat-value">{{ computeSummary.by_status.running }}</span>
+              <span class="stat-label">运行中</span>
+            </div>
+            <div class="stat-item stat-gray">
+              <span class="stat-value">{{ computeSummary.by_status.suspended }}</span>
+              <span class="stat-label">已挂起(保留)</span>
+            </div>
+            <div class="stat-item stat-blue">
+              <span class="stat-value">{{ computeSummary.by_status.creating }}</span>
+              <span class="stat-label">创建中</span>
+            </div>
+            <div class="stat-item stat-red" v-if="computeSummary.by_status.error > 0">
+              <span class="stat-value">{{ computeSummary.by_status.error }}</span>
+              <span class="stat-label">异常</span>
+            </div>
+            <div class="stat-item stat-orange" v-if="computeSummary.by_status.orphaned > 0">
+              <span class="stat-value">{{ computeSummary.by_status.orphaned }}</span>
+              <span class="stat-label">孤儿 Pod</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ computeSummary.total_mem_request_gb }} GB</span>
+              <span class="stat-label">内存占用</span>
+            </div>
+          </div>
+          <div class="table-wrapper" v-if="computeSummary.pods.length > 0" style="margin-top: 12px;">
+            <table class="data-table">
+              <thead><tr><th>Pod</th><th>数据库</th><th>数据库状态</th><th>Pod 状态</th><th>内存</th></tr></thead>
+              <tbody>
+                <tr v-for="p in computeSummary.pods" :key="p.pod_name" :class="{ 'row-warn': p.db_status === 'suspended' || p.db_status === 'orphaned' }">
+                  <td class="pod-name">{{ p.pod_name }}</td>
+                  <td>{{ p.db_name || '-' }}</td>
+                  <td><span class="phase-badge" :class="dbStatusBadge(p.db_status)">{{ DB_STATUS_LABELS[p.db_status] || p.db_status }}</span></td>
+                  <td><span class="phase-badge" :class="phaseBadgeClass(p.phase, true)">{{ p.phase }}</span></td>
+                  <td>{{ p.mem_request_mb }} MB</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+      </div>
+      <!-- Pod Events -->
+      <div class="section-card" style="margin-top: 16px;">
+        <div class="section-header"><h3>Pod 事件（近6小时）</h3></div>
+        <div v-if="eventsLoading" class="empty-text">加载中...</div>
+        <div v-else-if="!events.length" class="empty-text">近6小时无事件</div>
+        <div class="table-wrapper" v-else>
+          <table class="data-table">
+            <thead><tr><th>类型</th><th>Pod 名称</th><th>原因</th><th>消息</th><th>次数</th><th>最后发生</th></tr></thead>
+            <tbody>
+              <tr v-for="(event, idx) in events" :key="idx">
+                <td><span class="event-type-badge" :class="event.type === 'Warning' ? 'badge-warning' : 'badge-normal'">{{ event.type }}</span></td>
+                <td class="event-object">{{ event.object }}</td>
+                <td class="event-reason">{{ event.reason }}</td>
+                <td class="event-message" :title="event.message">{{ truncate(event.message, 80) }}</td>
+                <td>{{ event.count }}</td>
+                <td class="event-time">{{ formatTime(event.last_time) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </div><!-- end cceSubTab === 'pods' -->
+    </div><!-- end activeTab === 'cce' -->
+
+    <!-- Tab: Neon 数据层 -->
+    <div v-if="activeTab === 'neon'">
+      <div class="section-card">
+        <div class="section-header"><h3>Neon 组件 Pod</h3></div>
+        <div v-if="!neonPods.length" class="empty-text">暂无数据</div>
+        <div class="table-wrapper" v-else>
+          <table class="data-table">
+            <thead><tr><th>Pod 名称</th><th>组件</th><th>状态</th><th>重启次数</th><th>CPU (cores)</th><th>内存 (MB)</th></tr></thead>
+            <tbody>
+              <tr v-for="pod in neonPods" :key="pod.name + pod.namespace">
+                <td class="pod-name">{{ pod.name }}</td>
+                <td><span class="ns-tag">{{ neonComponentLabel(pod.name) }}</span></td>
+                <td><span class="phase-badge" :class="phaseBadgeClass(pod.phase, pod.ready)">{{ pod.phase }}</span></td>
+                <td :class="pod.restarts > 0 ? 'restarts-warn' : ''">{{ pod.restarts }}</td>
+                <td>{{ pod.cpu_cores ?? '—' }}</td>
+                <td>{{ pod.mem_mb ?? '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
-    <!-- Tab 2: 管控面 -->
+    <!-- Tab: CCI Pod -->
+    <div v-if="activeTab === 'cci'">
+      <div class="section-card">
+        <div class="section-header"><h3>Job Pod（知识库/数据湖任务）</h3></div>
+        <div v-if="!jobPods.length" class="empty-text">当前无运行中的 Job Pod</div>
+        <div class="table-wrapper" v-else>
+          <table class="data-table">
+            <thead><tr><th>Pod 名称</th><th>命名空间</th><th>状态</th><th>重启次数</th><th>CPU (cores)</th><th>内存 (MB)</th></tr></thead>
+            <tbody>
+              <tr v-for="pod in jobPods" :key="pod.name + pod.namespace">
+                <td class="pod-name">{{ pod.name }}</td>
+                <td><span class="ns-tag">{{ pod.namespace }}</span></td>
+                <td><span class="phase-badge" :class="phaseBadgeClass(pod.phase, pod.ready)">{{ pod.phase }}</span></td>
+                <td :class="pod.restarts > 0 ? 'restarts-warn' : ''">{{ pod.restarts }}</td>
+                <td>{{ pod.cpu_cores ?? '—' }}</td>
+                <td>{{ pod.mem_mb ?? '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: 管控面 -->
     <div v-if="activeTab === 'control'">
       <!-- API Pressure Overview -->
       <div class="stats-row" v-if="metrics" style="margin-bottom: 16px;">
@@ -310,71 +398,7 @@
     </div>
 
     <!-- Tab 3: 事件日志 -->
-    <div v-if="activeTab === 'events'">
-      <!-- Autoscaling Events -->
-      <div class="section-card">
-        <div class="section-header">
-          <h3>弹性伸缩事件</h3>
-          <div class="autoscale-summary" v-if="autoscaleSummary">
-            <span class="as-stat as-up">24h 扩容 {{ autoscaleSummary.scale_up_count_24h }} 次</span>
-            <span class="as-stat as-down">24h 缩容 {{ autoscaleSummary.scale_down_count_24h }} 次</span>
-          </div>
-        </div>
-        <div v-if="autoscaleLoading" class="empty-text">加载中...</div>
-        <div v-else-if="!autoscaleEvents.length" class="empty-text">近48小时无伸缩事件</div>
-        <div class="timeline" v-else>
-          <div class="timeline-item" v-for="(event, idx) in autoscaleEvents" :key="idx">
-            <div class="timeline-dot" :class="isScaleUp(event.reason) ? 'dot-up' : 'dot-down'"></div>
-            <div class="timeline-content">
-              <div class="timeline-header">
-                <span class="timeline-reason" :class="isScaleUp(event.reason) ? 'reason-up' : 'reason-down'">
-                  {{ event.reason }}
-                </span>
-                <span class="timeline-time">{{ formatTime(event.last_time) }}</span>
-              </div>
-              <div class="timeline-message">{{ event.message }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Pod Events -->
-      <div class="section-card">
-        <div class="section-header"><h3>Pod 事件（近6小时 · lakeon-compute）</h3></div>
-        <div v-if="eventsLoading" class="empty-text">加载中...</div>
-        <div v-else-if="!events.length" class="empty-text">近6小时无事件</div>
-        <div class="table-wrapper" v-else>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>类型</th>
-                <th>Pod 名称</th>
-                <th>原因</th>
-                <th>消息</th>
-                <th>次数</th>
-                <th>最后发生</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(event, idx) in events" :key="idx">
-                <td>
-                  <span class="event-type-badge" :class="event.type === 'Warning' ? 'badge-warning' : 'badge-normal'">
-                    {{ event.type }}
-                  </span>
-                </td>
-                <td class="event-object">{{ event.object }}</td>
-                <td class="event-reason">{{ event.reason }}</td>
-                <td class="event-message" :title="event.message">{{ truncate(event.message, 80) }}</td>
-                <td>{{ event.count }}</td>
-                <td class="event-time">{{ formatTime(event.last_time) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab 4: 云资源 -->
+    <!-- Tab: 云资源 -->
     <div v-if="activeTab === 'cloud'">
       <!-- Architecture Diagram -->
       <div class="section-card">
@@ -597,6 +621,7 @@ interface AutoscaleSummary {
 }
 
 const activeTab = ref('control')
+const cceSubTab = ref('nodes')
 const nodes = ref<NodeInfo[]>([])
 const pods = ref<PodInfo[]>([])
 const events = ref<PodEvent[]>([])
@@ -648,9 +673,29 @@ const controlPlaneNodes = computed(() => {
   return nodes.value.filter(n => !poolNodeNames.has(n.name))
 })
 
+const NEON_COMPONENTS = ['pageserver', 'safekeeper', 'storage-broker']
+
 const controlPlanePods = computed(() => {
-  return pods.value.filter(p => p.namespace !== 'lakeon-compute')
+  return pods.value.filter(p =>
+    p.namespace !== 'lakeon-compute'
+    && !NEON_COMPONENTS.some(c => p.name.startsWith(c))
+    && p.namespace !== 'lakeon-jobs')
 })
+
+const neonPods = computed(() => {
+  return pods.value.filter(p => NEON_COMPONENTS.some(c => p.name.startsWith(c)))
+})
+
+const jobPods = computed(() => {
+  return pods.value.filter(p => p.namespace === 'lakeon-jobs')
+})
+
+function neonComponentLabel(podName: string): string {
+  if (podName.startsWith('pageserver')) return 'Pageserver'
+  if (podName.startsWith('safekeeper')) return 'Safekeeper'
+  if (podName.startsWith('storage-broker')) return 'Storage Broker'
+  return podName
+}
 
 const DB_STATUS_LABELS: Record<string, string> = {
   running: '运行中',
@@ -1291,4 +1336,15 @@ onUnmounted(() => {
 .stat-value { font-size: 28px; font-weight: 600; color: #333; }
 .stat-unit { font-size: 14px; font-weight: 400; color: #999; }
 .stat-label { font-size: 13px; color: #999; margin-top: 4px; }
+
+.sub-tabs {
+  display: flex; gap: 0; margin-bottom: 16px;
+  border: 1px solid #e5e5e5; border-radius: 6px; overflow: hidden; width: fit-content;
+}
+.sub-tab {
+  padding: 6px 16px; border: none; background: #fff; cursor: pointer;
+  font-size: 13px; color: #666; border-right: 1px solid #e5e5e5;
+}
+.sub-tab:last-child { border-right: none; }
+.sub-tab.active { background: #0073e6; color: #fff; }
 </style>
