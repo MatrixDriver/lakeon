@@ -4,6 +4,13 @@
       <h1 class="page-title">数据库实例</h1>
     </div>
 
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <div class="tab-item" :class="{ active: activeTab === 'list' }" @click="activeTab = 'list'">数据库列表</div>
+      <div class="tab-item" :class="{ active: activeTab === 'coldstart' }" @click="activeTab = 'coldstart'; loadColdStart()">冷启动分析</div>
+    </div>
+
+    <template v-if="activeTab === 'list'">
     <!-- Stats Cards -->
     <div class="stats-row">
       <div class="stat-card">
@@ -104,6 +111,100 @@
       </table>
     </div>
 
+    </template><!-- end activeTab === 'list' -->
+
+    <!-- Cold Start Analysis Tab -->
+    <template v-if="activeTab === 'coldstart'">
+      <!-- Summary Cards -->
+      <div class="stats-row" v-if="csData">
+        <div class="stat-card">
+          <div class="stat-value" :style="{ color: csColor(csData.cold?.avg_ms) }">{{ csFormatMs(csData.cold?.avg_ms) }}</div>
+          <div class="stat-label">冷启动均值</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" :style="{ color: csColor(csData.cold?.p50_ms) }">{{ csFormatMs(csData.cold?.p50_ms) }}</div>
+          <div class="stat-label">P50</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" :style="{ color: csColor(csData.cold?.p90_ms) }">{{ csFormatMs(csData.cold?.p90_ms) }}</div>
+          <div class="stat-label">P90</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" :style="{ color: csColor(csData.cold?.p99_ms) }">{{ csFormatMs(csData.cold?.p99_ms) }}</div>
+          <div class="stat-label">P99</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ csData.cold?.count || 0 }}</div>
+          <div class="stat-label">冷启动次数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: #52c41a;">{{ csFormatMs(csData.warm?.avg_ms) }}</div>
+          <div class="stat-label">热启动均值</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: #52c41a;">{{ csData.warm?.count || 0 }}</div>
+          <div class="stat-label">热启动次数</div>
+        </div>
+      </div>
+
+      <!-- Daily Trend -->
+      <div class="section-card" v-if="csData?.trend?.length">
+        <div class="section-header"><h3>每日趋势</h3></div>
+        <div style="padding: 16px; display: flex; gap: 8px; align-items: flex-end; min-height: 160px; overflow-x: auto;">
+          <div v-for="d in csData.trend" :key="d.date" style="display: flex; flex-direction: column; align-items: center; min-width: 48px;">
+            <div style="height: 120px; display: flex; align-items: flex-end;">
+              <div :style="{ width: '32px', borderRadius: '4px 4px 0 0', minHeight: '4px', background: csColor(d.avg_ms), height: csBarHeight(d.avg_ms) + 'px' }"
+                :title="`${d.date}: 均值 ${csFormatMs(d.avg_ms)}, ${d.count} 次`"></div>
+            </div>
+            <div style="font-size: 11px; color: #999; margin-top: 4px;">{{ d.date.substring(5) }}</div>
+            <div style="font-size: 11px; font-weight: 600;">{{ csFormatMs(d.avg_ms) }}</div>
+            <div style="font-size: 10px; color: #bbb;">{{ d.count }}次</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Per-Database Breakdown -->
+      <div class="section-card" v-if="csData?.by_database?.length" style="margin-top: 16px;">
+        <div class="section-header"><h3>按数据库分布</h3></div>
+        <table class="data-table">
+          <thead><tr><th>数据库</th><th>次数</th><th>平均耗时</th><th>P50</th><th>最大值</th></tr></thead>
+          <tbody>
+            <tr v-for="db in csData.by_database" :key="db.database">
+              <td><strong>{{ db.database }}</strong></td>
+              <td>{{ db.count }}</td>
+              <td :style="{ color: csColor(db.avg_ms), fontWeight: 600 }">{{ csFormatMs(db.avg_ms) }}</td>
+              <td>{{ csFormatMs(db.p50_ms) }}</td>
+              <td :style="{ color: csColor(db.max_ms) }">{{ csFormatMs(db.max_ms) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Recent Cold Starts -->
+      <div class="section-card" style="margin-top: 16px;">
+        <div class="section-header">
+          <h3>最近冷启动记录</h3>
+          <select class="form-select" v-model="csDays" @change="loadColdStart" style="width: 120px;">
+            <option :value="1">最近 1 天</option>
+            <option :value="3">最近 3 天</option>
+            <option :value="7">最近 7 天</option>
+            <option :value="30">最近 30 天</option>
+          </select>
+        </div>
+        <table class="data-table" v-if="csData?.recent?.length">
+          <thead><tr><th>时间</th><th>数据库</th><th>耗时</th></tr></thead>
+          <tbody>
+            <tr v-for="op in csData.recent" :key="op.id">
+              <td style="font-size: 12px; color: #666;">{{ new Date(op.started_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) }}</td>
+              <td>{{ op.database_name || op.database_id }}</td>
+              <td :style="{ color: csColor(op.duration_ms), fontWeight: 600 }">{{ csFormatMs(op.duration_ms) }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-else style="padding: 24px; text-align: center; color: #999;">暂无冷启动记录</div>
+      </div>
+    </template><!-- end activeTab === 'coldstart' -->
+
     <!-- Delete Confirm Dialog -->
     <div class="dialog-overlay" v-if="showDeleteDialog" @click.self="showDeleteDialog = false">
       <div class="dialog-box">
@@ -161,9 +262,39 @@ interface Database {
   created_at: string
 }
 
+const activeTab = ref('list')
 const databases = ref<Database[]>([])
 const statusFilter = ref('')
 const tenantFilter = ref('')
+
+// Cold start analysis state
+const csData = ref<any>(null)
+const csDays = ref(7)
+
+async function loadColdStart() {
+  try {
+    const res = await adminApi.coldStartAnalysis(csDays.value)
+    csData.value = res.data
+  } catch (e) { console.error('Failed to load cold start data', e) }
+}
+
+function csFormatMs(ms: number | null | undefined): string {
+  if (ms == null || ms === 0) return '-'
+  if (ms < 1000) return ms + 'ms'
+  return (ms / 1000).toFixed(1) + 's'
+}
+
+function csColor(ms: number | null | undefined): string {
+  if (ms == null) return '#333'
+  if (ms < 5000) return '#52c41a'
+  if (ms < 15000) return '#faad14'
+  return '#e53e3e'
+}
+
+function csBarHeight(ms: number): number {
+  if (!csData.value?.cold?.max_ms) return 10
+  return Math.max(8, (ms / csData.value.cold.max_ms) * 120)
+}
 
 // Selection state
 const selectedIds = ref<Set<string>>(new Set())
@@ -262,6 +393,22 @@ onMounted(() => { tenantStore.load(); loadDatabases() })
 }
 .stat-value { font-size: 28px; font-weight: 600; color: #333; }
 .stat-label { font-size: 13px; color: #999; margin-top: 4px; }
+
+.tab-bar { display: flex; border-bottom: 1px solid #e5e5e5; margin-bottom: 16px; }
+.tab-item {
+  padding: 8px 16px; cursor: pointer; font-size: 14px; color: #666;
+  border-bottom: 2px solid transparent;
+}
+.tab-item.active { color: #1890ff; border-bottom-color: #1890ff; }
+
+.section-card {
+  background: #fff; border: 1px solid #e5e5e5; border-radius: 6px; overflow: hidden;
+}
+.section-header {
+  padding: 12px 16px; border-bottom: 1px solid #f0f0f0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.section-header h3 { margin: 0; font-size: 14px; font-weight: 600; }
 
 .row-selected {
   background-color: #fff5f5;
