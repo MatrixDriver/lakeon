@@ -89,6 +89,10 @@ export const adminApi = {
     client.delete('/memory/bases/batch', { data: { ids } }),
   triggerDigest: (id: string) => client.post(`/memory/bases/${id}/digest`),
 
+  // MCP Tool Descriptions
+  getMcpDescriptions: () => client.get('/mcp/descriptions'),
+  updateMcpDescriptions: (content: string) => client.put('/mcp/descriptions', { content }),
+
   // Datalake Admin
   datalakeStats: () => client.get('/datalake/stats'),
   listDatalakeJobs: (params?: { tenant_id?: string; status?: string; type?: string }) =>

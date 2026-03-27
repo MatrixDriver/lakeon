@@ -13,22 +13,41 @@ import yaml
 from fastmcp import FastMCP
 
 # ---------------------------------------------------------------------------
-# Tool descriptions (loaded from YAML — SRE-editable)
-# ---------------------------------------------------------------------------
-
-_DESCS_FILE = Path(__file__).parent / "tool_descriptions.yaml"
-_DESCS: dict = yaml.safe_load(_DESCS_FILE.read_text()) if _DESCS_FILE.exists() else {}
-
-
-def _desc(tool_name: str) -> str:
-    """Get tool description from YAML, or empty string as fallback."""
-    return _DESCS.get("tools", {}).get(tool_name, {}).get("description", "")
-
-# ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 
 CONFIG_FILE = Path.home() / ".dbay" / "config.json"
+
+# ---------------------------------------------------------------------------
+# Tool descriptions (remote API → local YAML fallback)
+# ---------------------------------------------------------------------------
+
+_DESCS_FILE = Path(__file__).parent / "tool_descriptions.yaml"
+
+
+def _load_descriptions() -> dict:
+    """Load tool descriptions: try remote API first, fallback to local YAML."""
+    # Try remote API
+    try:
+        cfg = json.loads(CONFIG_FILE.read_text()) if CONFIG_FILE.exists() else {}
+        endpoint = cfg.get("endpoint", "https://api.dbay.cloud:8443")
+        resp = httpx.get(f"{endpoint}/api/v1/mcp/descriptions", verify=False, timeout=5)
+        if resp.status_code == 200 and resp.text.strip():
+            return yaml.safe_load(resp.text) or {}
+    except Exception:
+        pass
+    # Fallback to local YAML
+    if _DESCS_FILE.exists():
+        return yaml.safe_load(_DESCS_FILE.read_text()) or {}
+    return {}
+
+
+_DESCS: dict = _load_descriptions()
+
+
+def _desc(tool_name: str) -> str:
+    """Get tool description from loaded descriptions."""
+    return _DESCS.get("tools", {}).get(tool_name, {}).get("description", "")
 
 
 def _load_config() -> dict:

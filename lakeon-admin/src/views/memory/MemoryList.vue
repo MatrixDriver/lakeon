@@ -2,6 +2,17 @@
   <div>
     <h2>记忆库管理</h2>
 
+    <!-- Tabs -->
+    <div class="tabs" style="display: flex; gap: 0; margin-bottom: 24px; border-bottom: 2px solid #f0f0f0;">
+      <button v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key"
+              :style="{ padding: '8px 20px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: activeTab === tab.key ? '600' : '400', color: activeTab === tab.key ? '#1890ff' : '#666', borderBottom: activeTab === tab.key ? '2px solid #1890ff' : '2px solid transparent', marginBottom: '-2px' }">
+        {{ tab.label }}
+      </button>
+    </div>
+
+    <!-- Tab: 记忆库列表 -->
+    <div v-if="activeTab === 'bases'">
+
     <!-- Stats cards -->
     <div class="stats-row" style="display: flex; gap: 16px; margin-bottom: 24px;">
       <div class="section-card" style="flex: 1; text-align: center; padding: 16px;">
@@ -112,15 +123,70 @@
     </table>
 
     <p v-if="bases.length === 0" style="text-align: center; color: #999; padding: 32px;">暂无记忆库</p>
+
+    </div><!-- end tab: bases -->
+
+    <!-- Tab: MCP 工具描述 -->
+    <div v-if="activeTab === 'mcp'">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <p style="color: #666; font-size: 13px; margin: 0;">
+          编辑 MCP 工具描述（YAML 格式）。保存后 MCP server 下次启动时自动加载，无需重新发布 pip 包。
+        </p>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn" @click="loadMcpDescriptions">刷新</button>
+          <button class="btn" style="background: #1890ff; color: #fff;" @click="saveMcpDescriptions" :disabled="mcpSaving">
+            {{ mcpSaving ? '保存中...' : '保存' }}
+          </button>
+        </div>
+      </div>
+      <div v-if="mcpUpdatedAt" style="font-size: 11px; color: #999; margin-bottom: 8px;">
+        上次更新: {{ mcpUpdatedAt }}
+      </div>
+      <textarea v-model="mcpContent" style="width: 100%; min-height: 500px; font-family: monospace; font-size: 12px; padding: 12px; border: 1px solid #d9d9d9; border-radius: 4px; line-height: 1.6; background: #fafafa; resize: vertical;" spellcheck="false"></textarea>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { adminApi } from '../../api/admin'
 import { useTenantStore } from '../../stores/tenants'
 
 const tenantStore = useTenantStore()
+
+const tabs = [
+  { key: 'bases', label: '记忆库列表' },
+  { key: 'mcp', label: 'MCP 工具描述' },
+]
+const activeTab = ref('bases')
+
+// MCP descriptions
+const mcpContent = ref('')
+const mcpUpdatedAt = ref('')
+const mcpSaving = ref(false)
+
+async function loadMcpDescriptions() {
+  try {
+    const { data } = await adminApi.getMcpDescriptions()
+    mcpContent.value = data.content || ''
+    mcpUpdatedAt.value = data.updated_at ? new Date(data.updated_at).toLocaleString() : ''
+  } catch (e) {
+    console.error('Failed to load MCP descriptions', e)
+  }
+}
+
+async function saveMcpDescriptions() {
+  mcpSaving.value = true
+  try {
+    await adminApi.updateMcpDescriptions(mcpContent.value)
+    mcpUpdatedAt.value = new Date().toLocaleString()
+    alert('保存成功')
+  } catch (e: any) {
+    alert(`保存失败: ${e.message}`)
+  } finally {
+    mcpSaving.value = false
+  }
+}
 
 const stats = ref<Record<string, any>>({})
 const bases = ref<any[]>([])
@@ -138,6 +204,10 @@ onMounted(() => {
   tenantStore.load()
   loadStats()
   loadBases()
+})
+
+watch(activeTab, (tab) => {
+  if (tab === 'mcp' && !mcpContent.value) loadMcpDescriptions()
 })
 
 async function loadStats() {

@@ -24,6 +24,8 @@ import com.lakeon.memory.MemoryService;
 import com.lakeon.datalake.*;
 import com.lakeon.dataset.*;
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.model.entity.SystemConfigEntity;
+import com.lakeon.repository.SystemConfigRepository;
 import com.lakeon.service.CbcBillingService;
 import com.lakeon.service.DatabaseService;
 import com.lakeon.service.TenantService;
@@ -66,6 +68,7 @@ public class AdminController {
     private final DatasetRepository datasetRepository;
     private final DatasetService datasetService;
     private final LakeonProperties props;
+    private final SystemConfigRepository systemConfigRepository;
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AdminController.class);
 
@@ -91,7 +94,8 @@ public class AdminController {
                            DatalakeService datalakeService,
                            DatasetRepository datasetRepository,
                            DatasetService datasetService,
-                           LakeonProperties props) {
+                           LakeonProperties props,
+                           SystemConfigRepository systemConfigRepository) {
         this.tenantService = tenantService;
         this.adminService = adminService;
         this.databaseService = databaseService;
@@ -115,6 +119,7 @@ public class AdminController {
         this.datasetRepository = datasetRepository;
         this.datasetService = datasetService;
         this.props = props;
+        this.systemConfigRepository = systemConfigRepository;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────
@@ -726,6 +731,31 @@ public class AdminController {
                 .orElseThrow(() -> new com.lakeon.service.exception.NotFoundException("Memory base not found: " + id));
         return memoryService.proxyPost(mem.getTenantId(), id, "/digest", null);
     }
+
+    // ── MCP Tool Descriptions ──────────────────────────────────
+
+    private static final String MCP_DESCRIPTIONS_KEY = "mcp_tool_descriptions";
+
+    @GetMapping("/mcp/descriptions")
+    public Map<String, Object> getMcpDescriptions() {
+        return systemConfigRepository.findById(MCP_DESCRIPTIONS_KEY)
+                .map(e -> Map.of("content", (Object) e.getValue(), "updated_at", e.getUpdatedAt().toString()))
+                .orElse(Map.of("content", "", "updated_at", ""));
+    }
+
+    @PutMapping("/mcp/descriptions")
+    public Map<String, Object> updateMcpDescriptions(@RequestBody Map<String, String> body) {
+        String content = body.get("content");
+        if (content == null) throw new com.lakeon.service.exception.BadRequestException("content is required");
+        SystemConfigEntity entity = systemConfigRepository.findById(MCP_DESCRIPTIONS_KEY)
+                .orElseGet(() -> { var e = new SystemConfigEntity(); e.setKey(MCP_DESCRIPTIONS_KEY); return e; });
+        entity.setValue(content);
+        systemConfigRepository.save(entity);
+        return Map.of("status", "saved");
+    }
+
+    // Also expose as public API (no admin auth) so MCP server can fetch it
+    // This is handled in McpDescriptionsController
 
     private Map<String, Object> memBaseToMap(MemoryBaseEntity m) {
         Map<String, Object> map = new LinkedHashMap<>();
