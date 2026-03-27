@@ -4,6 +4,30 @@
       <h1 class="page-title">数据库实例</h1>
     </div>
 
+    <!-- Stats Cards -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-value">{{ databases.length }}</div>
+        <div class="stat-label">总数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color: #52c41a;">{{ databases.filter(d => d.status === 'RUNNING').length }}</div>
+        <div class="stat-label">运行中</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color: #8c8c8c;">{{ databases.filter(d => d.status === 'SUSPENDED').length }}</div>
+        <div class="stat-label">已暂停</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color: #1890ff;">{{ databases.filter(d => d.status === 'CREATING').length }}</div>
+        <div class="stat-label">创建中</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color: #e53e3e;">{{ databases.filter(d => d.status === 'FAILED' || d.status === 'ERROR').length }}</div>
+        <div class="stat-label">异常</div>
+      </div>
+    </div>
+
     <div class="action-toolbar">
       <select class="form-select" v-model="statusFilter" style="width: 160px;" @change="loadDatabases">
         <option value="">全部状态</option>
@@ -229,6 +253,16 @@ onMounted(() => { tenantStore.load(); loadDatabases() })
 </script>
 
 <style scoped>
+.stats-row {
+  display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;
+}
+.stat-card {
+  background: #fff; border: 1px solid #e5e5e5; border-radius: 6px;
+  padding: 16px 24px; min-width: 120px; text-align: center;
+}
+.stat-value { font-size: 28px; font-weight: 600; color: #333; }
+.stat-label { font-size: 13px; color: #999; margin-top: 4px; }
+
 .row-selected {
   background-color: #fff5f5;
 }

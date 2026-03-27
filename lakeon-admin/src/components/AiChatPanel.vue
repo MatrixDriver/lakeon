@@ -188,12 +188,30 @@ function scrollToBottom() {
 }
 
 function renderMarkdown(text: string): string {
-  return text
+  // Escape HTML
+  let html = text
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n/g, '<br>')
+  // Code blocks (must be before inline replacements)
+  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+  // Inline code
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>')
+  // Bold
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  // Headings (### before ## before #)
+  html = html.replace(/^### (.+)$/gm, '<h4 style="margin:8px 0 4px;font-size:14px;">$1</h4>')
+  html = html.replace(/^## (.+)$/gm, '<h3 style="margin:10px 0 4px;font-size:15px;">$1</h3>')
+  html = html.replace(/^# (.+)$/gm, '<h3 style="margin:10px 0 4px;font-size:16px;">$1</h3>')
+  // Unordered lists (- item)
+  html = html.replace(/^- (.+)$/gm, '<li style="margin-left:16px;list-style:disc;">$1</li>')
+  // Ordered lists (1. item)
+  html = html.replace(/^\d+\. (.+)$/gm, '<li style="margin-left:16px;list-style:decimal;">$1</li>')
+  // Line breaks (for remaining newlines not consumed by headings/lists)
+  html = html.replace(/\n/g, '<br>')
+  // Clean up <br> after block elements
+  html = html.replace(/<\/h[34]><br>/g, '</h3>').replace(/<\/h4><br>/g, '</h4>')
+  html = html.replace(/<\/li><br>/g, '</li>')
+  html = html.replace(/<\/pre><br>/g, '</pre>')
+  return html
 }
 
 watch(open, (val) => {

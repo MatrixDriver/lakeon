@@ -1,6 +1,7 @@
 package com.lakeon.controller;
 
 import com.lakeon.service.SreAiService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -23,8 +24,12 @@ public class SreAiController {
 
     @SuppressWarnings("unchecked")
     @PostMapping(value = "/ai/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter chat(@RequestBody Map<String, Object> body) {
-        SseEmitter emitter = new SseEmitter(120_000L); // 2 min timeout
+    public SseEmitter chat(@RequestBody Map<String, Object> body, HttpServletResponse response) {
+        // Prevent nginx/proxy buffering for real-time SSE
+        response.setHeader("X-Accel-Buffering", "no");
+        response.setHeader("Cache-Control", "no-cache, no-transform");
+
+        SseEmitter emitter = new SseEmitter(120_000L);
 
         List<Map<String, Object>> messages = (List<Map<String, Object>>) body.getOrDefault("messages", List.of());
         Map<String, String> context = (Map<String, String>) body.get("context");
