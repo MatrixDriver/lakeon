@@ -189,6 +189,7 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { tenantApi } from '../api/tenant'
 
 const router = useRouter()
 const route = useRoute()
@@ -261,7 +262,23 @@ function updateTrialCountdown() {
   trialTimeLeft.value = `${h}h ${m}m`
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // Refresh trial state from server
+  if (authStore.apiKey) {
+    try {
+      const res = await tenantApi.me()
+      const t = res.data
+      if (t.trial) {
+        authStore.setTrialState(true, t.expires_at)
+      } else {
+        authStore.setTrialState(false)
+      }
+    } catch {
+      // ignore — will use cached state
+    }
+  }
+
+  // Trial countdown timer
   if (authStore.isTrial) {
     updateTrialCountdown()
     trialTimer = setInterval(updateTrialCountdown, 60000)
