@@ -25,6 +25,8 @@
           <div class="health-card-status">
             {{ comp.healthy ? '正常运行' : '异常' }}
           </div>
+          <button v-if="!comp.healthy" class="btn btn-text btn-small" style="color: #0073e6; margin-top: 4px;"
+            @click.stop="diagnose(comp)">AI 诊断</button>
           <div class="health-card-detail" v-if="expandedCard === comp.name && comp.detailList.length > 0">
             <div class="detail-row" v-for="(d, i) in comp.detailList" :key="i">
               <span class="detail-key">{{ d.key }}</span>
@@ -41,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, inject } from 'vue'
 import { adminApi } from '../../api/admin'
 
 interface DetailItem { key: string; value: string }
@@ -68,6 +70,13 @@ const loading = ref(false)
 const expandedCard = ref<string | null>(null)
 
 const healthyCount = computed(() => components.value.filter(c => c.healthy).length)
+
+const openAiDiagnose = inject<(type: string, id: string, q: string) => void>('openAiDiagnose')
+
+function diagnose(comp: { name: string; label: string }) {
+  const q = `组件 ${comp.label} (${comp.name}) 状态异常。请检查健康状态和日志，诊断原因。`
+  openAiDiagnose?.('component', comp.name, q)
+}
 
 async function loadHealth() {
   loading.value = true
