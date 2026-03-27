@@ -139,7 +139,8 @@ const canStream = computed(() => job.value && !TERMINAL.includes(job.value.statu
 
 const duration = computed(() => {
   if (!job.value) return '-'
-  const start = job.value.startedAt ? new Date(job.value.startedAt).getTime() : null
+  const start = job.value.startedAt ? new Date(job.value.startedAt).getTime()
+    : (job.value.createdAt ? new Date(job.value.createdAt).getTime() : null)
   const end = job.value.finishedAt ? new Date(job.value.finishedAt).getTime() : (start ? Date.now() : null)
   if (!start || !end) return '-'
   const sec = Math.floor((end - start) / 1000)

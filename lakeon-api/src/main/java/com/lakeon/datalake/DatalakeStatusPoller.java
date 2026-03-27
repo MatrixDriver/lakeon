@@ -171,6 +171,7 @@ public class DatalakeStatusPoller {
             case "SUCCEEDED" -> {
                 if (job.getStatus() != DatalakeJobStatus.SUCCEEDED) {
                     job.setStatus(DatalakeJobStatus.SUCCEEDED);
+                    if (job.getStartedAt() == null) job.setStartedAt(job.getCreatedAt());
                     job.setFinishedAt(java.time.Instant.now());
                     registerOutputDataset(job);
                     changed = true;
@@ -179,6 +180,7 @@ public class DatalakeStatusPoller {
             case "FAILED" -> {
                 if (job.getStatus() != DatalakeJobStatus.FAILED) {
                     job.setStatus(DatalakeJobStatus.FAILED);
+                    if (job.getStartedAt() == null) job.setStartedAt(job.getCreatedAt());
                     job.setFinishedAt(java.time.Instant.now());
                     Object message = statusMap.get("message");
                     if (message != null) job.setErrorMessage(message.toString());
