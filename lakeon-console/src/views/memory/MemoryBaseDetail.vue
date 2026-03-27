@@ -101,10 +101,11 @@
               <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f0;">
                 <label class="form-label">提供的 MCP 工具</label>
                 <div style="font-size: 13px; color: #666; line-height: 1.8;">
-                  <div><strong>memory_recall</strong> — 检索记忆（决策、排除项、约定等）</div>
-                  <div><strong>memory_record</strong> — 存入对话，返回提取 prompt</div>
-                  <div><strong>memory_record_extracted</strong> — 存入提取后的结构化记忆</div>
-                  <div style="margin-top: 4px; color: #999;">另有 knowledge_search / knowledge_upload 用于知识库</div>
+                  <div><strong>memory_recall</strong> — 语义检索相关记忆（决策、约定、事实等）</div>
+                  <div><strong>memory_ingest</strong> — 存储一条记忆，自动分类</div>
+                  <div><strong>memory_list</strong> — 浏览记忆列表，可按类型过滤</div>
+                  <div><strong>memory_delete</strong> — 删除指定记忆</div>
+                  <div style="margin-top: 4px; color: #999;">另有 knowledge_search / knowledge_list 用于知识库</div>
                 </div>
               </div>
             </div>
@@ -127,12 +128,10 @@
           <div class="section-card" style="padding: 24px; margin-top: 16px;">
             <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 16px; color: #333;">CLI</h3>
             <div style="position: relative;">
-              <pre class="code-block">pip install dbay-cli
+              <pre class="code-block">pip install dbay-mcp
 dbay login
-dbay mem ingest {{ base.id }} "我们决定用 asyncpg"
-dbay mem recall {{ base.id }} "数据库选型"
-dbay mem stats {{ base.id }}</pre>
-              <button class="copy-btn" @click="copyCode(`pip install dbay-cli\ndbay login\ndbay mem ingest ${base.id} &quot;我们决定用 asyncpg&quot;\ndbay mem recall ${base.id} &quot;数据库选型&quot;\ndbay mem stats ${base.id}`)">{{ copied === 'cli' ? '已复制 ✓' : '复制' }}</button>
+dbay status</pre>
+              <button class="copy-btn" @click="copyCode('pip install dbay-mcp\ndbay login\ndbay status')">{{ copied === 'pip install dbay-mcp\ndbay login\ndbay status' ? '已复制 ✓' : '复制' }}</button>
             </div>
           </div>
         </div>
@@ -183,51 +182,54 @@ function copyCode(code: string) {
   setTimeout(() => { copied.value = null }, 2000)
 }
 
-function httpMcpJson() {
+function uvxMcpJson() {
   return `{
   "mcpServers": {
     "dbay": {
-      "transport": "http",
-      "url": "https://api.dbay.cloud:8443/mcp",
-      "headers": {
-        "Authorization": "Bearer your_api_key"
-      }
+      "command": "uvx",
+      "args": ["dbay-mcp"]
     }
   }
 }`
 }
+
+const loginStep = { title: '安装并登录（只需一次）', desc: '凭据保存在 ~/.dbay/config.json，不进入任何配置文件或代码仓库。', code: 'pip install dbay-mcp\ndbay login' }
 
 const clients = computed(() => {
   return [
     {
       id: 'claude-code', name: 'Claude Code', short: 'claude mcp add',
       steps: [
-        { title: '注册 MCP Server（推荐）', desc: '在终端执行以下命令，全局生效：', code: `claude mcp add --scope user --transport http dbay \\
-  https://api.dbay.cloud:8443/mcp \\
-  --header "Authorization: Bearer your_api_key"` },
-        { title: '或使用 .mcp.json 配置', desc: '在项目根目录创建 .mcp.json（记得加入 .gitignore）：', code: httpMcpJson() },
+        loginStep,
+        { title: '注册 MCP Server', desc: '在终端执行以下命令，全局生效：', code: 'claude mcp add --scope user dbay -- uvx dbay-mcp' },
+        { title: '启用记忆提示（推荐）', desc: '让 Claude Code 在你说"记住"时自动调用 DBay 记忆库：', code: 'dbay setup claude-code' },
         { title: '验证', desc: '重启 Claude Code，输入 /mcp 查看 dbay server 是否已连接。', code: '' },
       ],
     },
     {
       id: 'claude-desktop', name: 'Claude Desktop', short: 'MCP via config.json',
       steps: [
+        loginStep,
         { title: '打开配置文件', desc: 'macOS: ~/Library/Application Support/Claude/claude_desktop_config.json\nWindows: %APPDATA%\\Claude\\claude_desktop_config.json', code: '' },
-        { title: '添加 dbay MCP server', desc: '在 mcpServers 中添加：', code: httpMcpJson() },
+        { title: '添加 dbay MCP server', desc: '在 mcpServers 中添加：', code: uvxMcpJson() },
         { title: '重启 Claude Desktop', desc: '关闭并重新打开 Claude Desktop，在工具图标中确认 dbay 已连接。', code: '' },
       ],
     },
     {
       id: 'cursor', name: 'Cursor', short: 'MCP via .cursor/',
       steps: [
-        { title: '创建 MCP 配置', desc: '在项目根目录创建 .cursor/mcp.json：', code: httpMcpJson() },
+        loginStep,
+        { title: '创建 MCP 配置', desc: '在项目根目录创建 .cursor/mcp.json：', code: uvxMcpJson() },
+        { title: '启用记忆提示（推荐）', desc: '', code: 'dbay setup cursor' },
         { title: '启用 MCP', desc: '打开 Cursor Settings → Features → 确保 MCP 已启用。', code: '' },
       ],
     },
     {
       id: 'gemini-cli', name: 'Gemini CLI', short: 'MCP via settings.json',
       steps: [
-        { title: '编辑 Gemini CLI 配置', desc: '编辑 ~/.gemini/settings.json，添加 MCP server：', code: httpMcpJson() },
+        loginStep,
+        { title: '编辑 Gemini CLI 配置', desc: '编辑 ~/.gemini/settings.json，添加 MCP server：', code: uvxMcpJson() },
+        { title: '启用记忆提示（推荐）', desc: '', code: 'dbay setup gemini' },
       ],
     },
     {
