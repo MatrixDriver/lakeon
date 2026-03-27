@@ -50,7 +50,16 @@ public class TrialService {
 
         Optional<TenantEntity> existing = tenantRepository.findById(demoTenantId);
         if (existing.isPresent()) {
-            log.info("Demo tenant {} already exists (name={})", demoTenantId, existing.get().getName());
+            TenantEntity t = existing.get();
+            // Fix api_key if it was created without one
+            if (t.getApiKey() == null || t.getApiKey().isBlank()) {
+                t.prePersist();
+                tenantRepository.save(t);
+                log.info("Demo tenant {} — generated missing api_key", demoTenantId);
+            }
+            log.info("Demo tenant {} already exists (name={}, api_key={}...)",
+                    demoTenantId, t.getName(),
+                    t.getApiKey() != null && t.getApiKey().length() > 10 ? t.getApiKey().substring(0, 10) : "null");
             return;
         }
 
@@ -64,7 +73,9 @@ public class TrialService {
         demo.setMaxDatabases(10);
         demo.setMaxStorageGb(10);
         demo.setMaxComputeCu(2);
-        tenantRepository.save(demo);
+        // Manually trigger prePersist since Spring Data may call merge() when id is pre-set
+        demo.prePersist();
+        demo = tenantRepository.save(demo);
 
         log.info("Created demo tenant: {} (api_key={})", demo.getId(), demo.getApiKey());
     }
