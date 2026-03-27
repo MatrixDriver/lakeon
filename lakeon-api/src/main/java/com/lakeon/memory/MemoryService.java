@@ -97,6 +97,26 @@ public class MemoryService {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MemoryService.class);
 
+    @SuppressWarnings("unchecked")
+    public void refreshCountAsync(String tenantId, String memId) {
+        // Fire-and-forget: update memory_count from stats endpoint
+        try {
+            Object statsObj = proxyGet(tenantId, memId, "/stats", null);
+            if (statsObj instanceof Map) {
+                Map<String, Object> stats = (Map<String, Object>) statsObj;
+                Number total = (Number) stats.get("total");
+                Number traitCount = (Number) stats.get("trait_count");
+                repository.findByIdAndTenantId(memId, tenantId).ifPresent(mem -> {
+                    if (total != null) mem.setMemoryCount(total.intValue());
+                    if (traitCount != null) mem.setTraitCount(traitCount.intValue());
+                    repository.save(mem);
+                });
+            }
+        } catch (Exception e) {
+            log.warn("Failed to refresh memory count for {}: {}", memId, e.getMessage());
+        }
+    }
+
     public Object proxyPost(String tenantId, String memId, String path, Object body) {
         MemoryBaseEntity mem = getBase(tenantId, memId);
         String connstr = dbHelper.resolveConnstr(tenantId, memId);

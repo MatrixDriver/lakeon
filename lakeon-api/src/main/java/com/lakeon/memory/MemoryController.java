@@ -61,7 +61,9 @@ public class MemoryController {
     @PostMapping("/bases/{id}/ingest")
     public Object ingest(HttpServletRequest req, @PathVariable String id, @RequestBody Map<String, Object> body) {
         TenantEntity tenant = getTenant(req);
-        return memoryService.proxyPost(tenant.getId(), id, "/ingest", body);
+        Object result = memoryService.proxyPost(tenant.getId(), id, "/ingest", body);
+        memoryService.refreshCountAsync(tenant.getId(), id);
+        return result;
     }
 
     @PostMapping("/bases/{id}/recall")
@@ -80,7 +82,9 @@ public class MemoryController {
     public Object ingestExtracted(HttpServletRequest req, @PathVariable String id,
                                    @RequestBody Map<String, Object> body) {
         TenantEntity tenant = getTenant(req);
-        return memoryService.proxyPost(tenant.getId(), id, "/ingest_extracted", body);
+        Object result = memoryService.proxyPost(tenant.getId(), id, "/ingest_extracted", body);
+        memoryService.refreshCountAsync(tenant.getId(), id);
+        return result;
     }
 
     @PostMapping("/bases/{id}/digest_extracted")
@@ -112,7 +116,9 @@ public class MemoryController {
     @DeleteMapping("/bases/{id}/memories/{memoryId}")
     public Object deleteMemory(HttpServletRequest req, @PathVariable String id, @PathVariable int memoryId) {
         TenantEntity tenant = getTenant(req);
-        return memoryService.proxyDelete(tenant.getId(), id, "/memories/" + memoryId);
+        Object result = memoryService.proxyDelete(tenant.getId(), id, "/memories/" + memoryId);
+        memoryService.refreshCountAsync(tenant.getId(), id);
+        return result;
     }
 
     @GetMapping("/bases/{id}/raw_messages")

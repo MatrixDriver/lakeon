@@ -1,12 +1,13 @@
 [project]
 name = "dbay-mcp"
-version = "0.3.0"
+version = "0.3.1"
 description = "DBay MCP server — knowledge base and agent memory for AI tools"
 requires-python = ">=3.11"
 dependencies = [
     "fastmcp>=2.0.0",
     "httpx>=0.27.0",
     "pyyaml>=6.0",
+    "dbay-cli>=0.1.0",
 ]
 
 [project.scripts]
