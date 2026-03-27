@@ -27,7 +27,6 @@ const routes = [
       { path: 'audit', name: 'AuditLogs', component: () => import('../views/AuditLogs.vue') },
       { path: 'knowledge', name: 'KnowledgeAdmin', component: () => import('../views/knowledge/KnowledgeList.vue') },
       { path: 'memory', name: 'MemoryAdmin', component: () => import('../views/memory/MemoryList.vue') },
-      { path: 'datalake', name: 'DatalakeAdmin', component: () => import('../views/datalake/DatalakeAdmin.vue') },
     ],
   },
 ]

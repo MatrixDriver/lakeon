@@ -37,7 +37,7 @@
         <thead>
           <tr>
             <th>数据库</th>
-            <th>租户</th>
+            <th>租户ID</th>
             <th>操作类型</th>
             <th>状态</th>
             <th>耗时(ms)</th>
@@ -48,7 +48,7 @@
         <tbody>
           <tr v-for="op in operations" :key="op.id">
             <td>{{ op.database_name || '-' }}</td>
-            <td>{{ tenantStore.name(op.tenant_id) }}<br><span style="font-size: 11px; color: #999; font-family: monospace;">{{ op.tenant_id }}</span></td>
+            <td style="font-family: monospace; font-size: 13px;">{{ op.tenant_id }}</td>
             <td>
               {{ OP_LABELS[op.type] || op.type }}
               <span v-if="op.type === 'RESUME' && op.resume_type" class="resume-type-tag" :class="'rt-' + op.resume_type.toLowerCase()">
@@ -83,9 +83,6 @@
 import { ref, onMounted } from 'vue'
 import { adminApi } from '../../api/admin'
 import { formatDate } from '../../utils/format'
-import { useTenantStore } from '../../stores/tenants'
-
-const tenantStore = useTenantStore()
 
 interface Operation {
   id: string
@@ -187,13 +184,13 @@ async function exportCsv() {
     p++
   }
 
-  const header = '数据库,租户,租户ID,操作类型,唤醒类型,状态,耗时(ms),开始时间,错误信息'
+  const header = '数据库,租户ID,操作类型,唤醒类型,状态,耗时(ms),开始时间,错误信息'
   const rows = allOps.map(op => {
     const typeLabel = OP_LABELS[op.type] || op.type
     const statusLabel = STATUS_LABELS[op.status] || op.status
     const resumeLabel = op.type === 'RESUME' && op.resume_type
       ? (op.resume_type === 'WARM' ? '热启动' : '冷启动') : ''
-    return [op.database_name, tenantStore.name(op.tenant_id), op.tenant_id, typeLabel, resumeLabel, statusLabel, op.duration_ms, op.started_at, op.error_message]
+    return [op.database_name, op.tenant_id, typeLabel, resumeLabel, statusLabel, op.duration_ms, op.started_at, op.error_message]
       .map(v => `"${String(v ?? '').replace(/"/g, '""')}"`)
       .join(',')
   })

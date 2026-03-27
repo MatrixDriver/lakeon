@@ -34,7 +34,7 @@
         <thead>
           <tr>
             <th>时间</th>
-            <th>租户</th>
+            <th>租户ID</th>
             <th>数据库ID</th>
             <th>用户</th>
             <th>类型</th>
@@ -46,7 +46,7 @@
         <tbody>
           <tr v-for="log in logs" :key="log.id">
             <td>{{ formatDate(log.timestamp) }}</td>
-            <td>{{ tenantStore.name(log.tenant_id) }}<br><span style="font-size: 11px; color: #999; font-family: monospace;">{{ log.tenant_id }}</span></td>
+            <td style="font-family: monospace; font-size: 13px;">{{ log.tenant_id }}</td>
             <td style="font-family: monospace; font-size: 13px;">{{ log.database_id }}</td>
             <td>{{ log.user_name || '-' }}</td>
             <td>
@@ -77,9 +77,6 @@
 import { ref, onMounted } from 'vue'
 import { adminApi } from '../api/admin'
 import { formatDate } from '../utils/format'
-import { useTenantStore } from '../stores/tenants'
-
-const tenantStore = useTenantStore()
 
 interface AuditLog {
   id: string

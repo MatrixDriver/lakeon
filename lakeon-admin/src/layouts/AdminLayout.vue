@@ -79,7 +79,6 @@
             <router-link to="/operations" class="nav-item" active-class="active" @click="sidebarOpen = false">操作日志</router-link>
             <router-link to="/knowledge" class="nav-item" active-class="active" @click="sidebarOpen = false">知识库</router-link>
             <router-link to="/memory" class="nav-item" active-class="active" @click="sidebarOpen = false">记忆库</router-link>
-            <router-link to="/datalake" class="nav-item" active-class="active" @click="sidebarOpen = false">数据湖</router-link>
             <router-link to="/audit" class="nav-item" active-class="active" @click="sidebarOpen = false">审计日志</router-link>
           </div>
           <div class="nav-group">
@@ -108,16 +107,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAdminAuthStore } from '../stores/auth'
-import { useTenantStore } from '../stores/tenants'
 
 const router = useRouter()
 const authStore = useAdminAuthStore()
 const sidebarOpen = ref(false)
-const tenantStore = useTenantStore()
-onMounted(() => tenantStore.load())
 
 function handleLogout() {
   authStore.logout()

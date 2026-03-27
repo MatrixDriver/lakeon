@@ -21,8 +21,6 @@ import com.lakeon.knowledge.*;
 import com.lakeon.memory.MemoryBaseEntity;
 import com.lakeon.memory.MemoryBaseRepository;
 import com.lakeon.memory.MemoryService;
-import com.lakeon.datalake.*;
-import com.lakeon.dataset.*;
 import com.lakeon.service.CbcBillingService;
 import com.lakeon.service.DatabaseService;
 import com.lakeon.service.TenantService;
@@ -59,9 +57,6 @@ public class AdminController {
     private final KnowledgeService knowledgeService;
     private final MemoryBaseRepository memoryBaseRepository;
     private final MemoryService memoryService;
-    private final DatalakeJobRepository datalakeJobRepository;
-    private final DatalakeLogService datalakeLogService;
-    private final DatasetRepository datasetRepository;
 
     public AdminController(TenantService tenantService,
                            AdminService adminService,
@@ -79,10 +74,7 @@ public class AdminController {
                            KbWriteTaskRepository kbWriteTaskRepository,
                            KnowledgeService knowledgeService,
                            MemoryBaseRepository memoryBaseRepository,
-                           MemoryService memoryService,
-                           DatalakeJobRepository datalakeJobRepository,
-                           DatalakeLogService datalakeLogService,
-                           DatasetRepository datasetRepository) {
+                           MemoryService memoryService) {
         this.tenantService = tenantService;
         this.adminService = adminService;
         this.databaseService = databaseService;
@@ -100,9 +92,6 @@ public class AdminController {
         this.knowledgeService = knowledgeService;
         this.memoryBaseRepository = memoryBaseRepository;
         this.memoryService = memoryService;
-        this.datalakeJobRepository = datalakeJobRepository;
-        this.datalakeLogService = datalakeLogService;
-        this.datasetRepository = datasetRepository;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────
@@ -721,153 +710,7 @@ public class AdminController {
         return m;
     }
 
-    // ── Datalake Admin ──────────────────────────────────────
-
-    @GetMapping("/datalake/stats")
-    public Map<String, Object> getDatalakeStats() {
-        List<DatalakeJobEntity> all = datalakeJobRepository.findAll();
-        Map<String, Long> byStatus = all.stream()
-                .collect(java.util.stream.Collectors.groupingBy(
-                        j -> j.getStatus().name(), java.util.stream.Collectors.counting()));
-        Map<String, Long> byType = all.stream()
-                .collect(java.util.stream.Collectors.groupingBy(
-                        j -> j.getType().name(), java.util.stream.Collectors.counting()));
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("job_count", all.size());
-        result.put("by_status", byStatus);
-        result.put("by_type", byType);
-        result.put("running_count", byStatus.getOrDefault("RUNNING", 0L) + byStatus.getOrDefault("STARTING", 0L));
-        result.put("failed_count", byStatus.getOrDefault("FAILED", 0L));
-        return result;
-    }
-
-    @GetMapping("/datalake/jobs")
-    public List<Map<String, Object>> listAllDatalakeJobs(
-            @RequestParam(required = false, name = "tenant_id") String tenantId,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String type) {
-        List<DatalakeJobEntity> jobs;
-        if (tenantId != null) {
-            jobs = datalakeJobRepository.findByTenantIdOrderByCreatedAtDesc(tenantId);
-        } else if (status != null) {
-            jobs = datalakeJobRepository.findByStatusOrderByCreatedAtDesc(
-                    DatalakeJobStatus.valueOf(status.toUpperCase()));
-        } else {
-            jobs = datalakeJobRepository.findAllByOrderByCreatedAtDesc();
-        }
-        if (type != null) {
-            DatalakeJobType t = DatalakeJobType.valueOf(type.toUpperCase());
-            jobs = jobs.stream().filter(j -> j.getType() == t).toList();
-        }
-        return jobs.stream().map(this::datalakeJobToMap).toList();
-    }
-
-    @GetMapping("/datalake/jobs/{id}")
-    public Map<String, Object> getDatalakeJobAdmin(@PathVariable String id) {
-        DatalakeJobEntity job = datalakeJobRepository.findById(id)
-                .orElseThrow(() -> new com.lakeon.service.exception.NotFoundException("Job not found: " + id));
-        Map<String, Object> result = datalakeJobToMap(job);
-        result.put("spec", job.getSpec());
-        return result;
-    }
-
-    @DeleteMapping("/datalake/jobs/{id}")
-    public Map<String, Object> cancelDatalakeJobAdmin(@PathVariable String id) {
-        DatalakeJobEntity job = datalakeJobRepository.findById(id)
-                .orElseThrow(() -> new com.lakeon.service.exception.NotFoundException("Job not found: " + id));
-        if (job.getStatus() == DatalakeJobStatus.SUCCEEDED
-                || job.getStatus() == DatalakeJobStatus.FAILED
-                || job.getStatus() == DatalakeJobStatus.CANCELLED) {
-            return Map.of("id", id, "status", job.getStatus().name(), "message", "Job already in terminal state");
-        }
-        job.setStatus(DatalakeJobStatus.CANCELLED);
-        job.setFinishedAt(java.time.Instant.now());
-        datalakeJobRepository.save(job);
-        return Map.of("id", id, "status", "CANCELLED");
-    }
-
-    @GetMapping(value = "/datalake/jobs/{id}/logs", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
-    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter streamDatalakeJobLogsAdmin(@PathVariable String id) {
-        DatalakeJobEntity job = datalakeJobRepository.findById(id)
-                .orElseThrow(() -> new com.lakeon.service.exception.NotFoundException("Job not found: " + id));
-        return datalakeLogService.streamLogs(job.getTenantId(), id);
-    }
-
-    // ── Dataset Admin ──────────────────────────────────────
-
-    @GetMapping("/datalake/datasets")
-    public List<Map<String, Object>> listAllDatasets(
-            @RequestParam(required = false, name = "tenant_id") String tenantId,
-            @RequestParam(required = false) String status) {
-        List<DatasetEntity> datasets;
-        if (tenantId != null) {
-            datasets = datasetRepository.findAllByTenantIdOrderByCreatedAtDesc(tenantId);
-        } else if (status != null) {
-            datasets = datasetRepository.findByStatusOrderByCreatedAtDesc(
-                    DatasetStatus.valueOf(status.toUpperCase()));
-        } else {
-            datasets = datasetRepository.findAllByOrderByCreatedAtDesc();
-        }
-        return datasets.stream().map(this::datasetToMap).toList();
-    }
-
-    @GetMapping("/datalake/datasets/{id}")
-    public Map<String, Object> getDatasetAdmin(@PathVariable String id) {
-        DatasetEntity ds = datasetRepository.findById(id)
-                .orElseThrow(() -> new com.lakeon.service.exception.NotFoundException("Dataset not found: " + id));
-        Map<String, Object> result = datasetToMap(ds);
-        result.put("schema_json", ds.getSchemaJson());
-        return result;
-    }
-
-    @DeleteMapping("/datalake/datasets/{id}")
-    public Map<String, Object> deleteDatasetAdmin(@PathVariable String id) {
-        DatasetEntity ds = datasetRepository.findById(id)
-                .orElseThrow(() -> new com.lakeon.service.exception.NotFoundException("Dataset not found: " + id));
-        datasetRepository.delete(ds);
-        return Map.of("deleted", id);
-    }
-
     // ── Helpers ────────────────────────────────────────────────────
-
-    private Map<String, Object> datalakeJobToMap(DatalakeJobEntity j) {
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("id", j.getId());
-        m.put("tenant_id", j.getTenantId());
-        m.put("name", j.getName());
-        m.put("type", j.getType().name());
-        m.put("status", j.getStatus().name());
-        m.put("base_image", j.getBaseImage());
-        m.put("cci_namespace", j.getCciNamespace());
-        m.put("k8s_job_name", j.getK8sJobName());
-        m.put("ray_job_name", j.getRayJobName());
-        m.put("log_obs_path", j.getLogObsPath());
-        m.put("core_hours", j.getCoreHours());
-        m.put("gpu_hours", j.getGpuHours());
-        m.put("error_message", j.getErrorMessage());
-        m.put("started_at", j.getStartedAt() != null ? j.getStartedAt().toString() : null);
-        m.put("finished_at", j.getFinishedAt() != null ? j.getFinishedAt().toString() : null);
-        m.put("created_at", j.getCreatedAt() != null ? j.getCreatedAt().toString() : null);
-        return m;
-    }
-
-    private Map<String, Object> datasetToMap(DatasetEntity ds) {
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("id", ds.getId());
-        m.put("tenant_id", ds.getTenantId());
-        m.put("name", ds.getName());
-        m.put("description", ds.getDescription());
-        m.put("source_type", ds.getSourceType() != null ? ds.getSourceType().name() : null);
-        m.put("database_id", ds.getDatabaseId());
-        m.put("obs_path", ds.getObsPath());
-        m.put("row_count", ds.getRowCount());
-        m.put("file_size", ds.getFileSize());
-        m.put("status", ds.getStatus() != null ? ds.getStatus().name() : null);
-        m.put("job_id", ds.getJobId());
-        m.put("error", ds.getError());
-        m.put("created_at", ds.getCreatedAt() != null ? ds.getCreatedAt().toString() : null);
-        return m;
-    }
 
     private Map<String, Object> dbToMap(DatabaseEntity db) {
         Map<String, Object> m = new LinkedHashMap<>();
