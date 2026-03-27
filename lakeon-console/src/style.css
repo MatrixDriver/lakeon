@@ -18,6 +18,10 @@
   --pub-shadow: rgba(0,0,0,0.08);
   --pub-hero-start: #f0f5ff;
   --pub-hero-end: #fff;
+  --pub-primary: #0073e6;
+  --pub-primary-dark: #005bb5;
+  --pub-primary-light: #e3f2fd;
+  --pub-bg-alt: #f8f9fb;
 }
 
 [data-theme="dark"] {
@@ -39,6 +43,10 @@
   --pub-shadow: rgba(0,0,0,0.4);
   --pub-hero-start: #0d0d18;
   --pub-hero-end: #0a0a0a;
+  --pub-primary: #4da6ff;
+  --pub-primary-dark: #0073e6;
+  --pub-primary-light: #1a2a3a;
+  --pub-bg-alt: #0f0f0f;
 }
 /* ── end theme variables ── */
 
