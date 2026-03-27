@@ -17,7 +17,7 @@ public class NotebookWebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(handler, "/api/v1/datalake/notebook/ws")
+        registry.addHandler(handler, "/ws/notebook")
                 .setAllowedOrigins("*");
     }
 }

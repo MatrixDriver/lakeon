@@ -38,7 +38,7 @@ export class NotebookSocket {
     onStatus: (status: 'connecting' | 'connected' | 'disconnected') => void,
   ) {
     const apiKey = localStorage.getItem('lakeon_api_key') || ''
-    this.url = `wss://api.dbay.cloud:8443/api/v1/datalake/notebook/ws?token=${apiKey}`
+    this.url = `wss://api.dbay.cloud:8443/ws/notebook?token=${apiKey}`
     this.onMessage = onMessage
     this.onStatus = onStatus
   }
