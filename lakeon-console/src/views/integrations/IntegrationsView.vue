@@ -57,7 +57,7 @@ function copyText(text: string) {
 }
 
 const quickstartSnippet = `# 1. Install & login
-pip install dbay-mcp
+pip install dbay-cli
 dbay login
 
 # 2. Register MCP server (Claude Code)

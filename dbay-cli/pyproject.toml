@@ -1,6 +1,6 @@
 [project]
 name = "dbay-cli"
-version = "0.1.0"
+version = "0.1.1"
 description = "DBay Serverless PostgreSQL CLI"
 requires-python = ">=3.11"
 dependencies = [
@@ -8,6 +8,7 @@ dependencies = [
     "httpx>=0.27.0",
     "rich>=13.0.0",
     "pyyaml>=6.0",
+    "dbay-mcp>=0.3.0",
 ]
 
 [project.optional-dependencies]

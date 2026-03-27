@@ -128,10 +128,9 @@
           <div class="section-card" style="padding: 24px; margin-top: 16px;">
             <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 16px; color: #333;">CLI</h3>
             <div style="position: relative;">
-              <pre class="code-block">pip install dbay-mcp
-dbay login
-dbay status</pre>
-              <button class="copy-btn" @click="copyCode('pip install dbay-mcp\ndbay login\ndbay status')">{{ copied === 'pip install dbay-mcp\ndbay login\ndbay status' ? '已复制 ✓' : '复制' }}</button>
+              <pre class="code-block">pip install dbay-cli
+dbay login</pre>
+              <button class="copy-btn" @click="copyCode('pip install dbay-cli\ndbay login')">{{ copied === 'pip install dbay-cli\ndbay login' ? '已复制 ✓' : '复制' }}</button>
             </div>
           </div>
         </div>
@@ -193,7 +192,7 @@ function uvxMcpJson() {
 }`
 }
 
-const loginStep = { title: '安装并登录（只需一次）', desc: '凭据保存在 ~/.dbay/config.json，不进入任何配置文件或代码仓库。', code: 'pip install dbay-mcp\ndbay login' }
+const loginStep = { title: '安装并登录（只需一次）', desc: '安装 dbay-cli（自动包含 MCP server），凭据保存在 ~/.dbay/config.json。', code: 'pip install dbay-cli\ndbay login' }
 
 const clients = computed(() => {
   return [

@@ -153,7 +153,8 @@ function copy(text: string) {
   setTimeout(() => { copyLabel.value = 'Copy' }, 1500)
 }
 
-const loginSnippet = 'pip install dbay-mcp\ndbay login'
+const loginSnippet = 'pip install dbay-cli\ndbay login'
+// dbay-cli auto-installs dbay-mcp as dependency
 
 const memoryHint = 'When the user says "记住/remember", call dbay MCP `memory_ingest` to store it in the user\'s long-term memory (persists across projects and sessions). When the user asks about past decisions or context, call `memory_recall` first.'
 
