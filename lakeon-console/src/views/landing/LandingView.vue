@@ -162,7 +162,7 @@ async function startTrial() {
   trialLoading.value = true
   try {
     localStorage.removeItem('lakeon_api_key')
-    const { data } = await client.post('/trial')
+    const { data } = await client.post('/trial', null, { timeout: 10000 })
     authStore.setTenant(data.tenant_id, data.username || 'trial')
     authStore.setTrialState(true, data.expires_at)
     router.push('/dashboard')
