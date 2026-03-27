@@ -1,10 +1,7 @@
-"""DBay MCP server for Claude Code.
-
-Provides two tool groups:
-- Knowledge: knowledge_search, knowledge_list, knowledge_upload — document retrieval
-- Memory: memory_recall, memory_ingest, memory_ingest_extracted — agent memory
+"""DBay MCP server — knowledge base and agent memory for AI tools.
 
 Config: env vars DBAY_API_KEY / DBAY_ENDPOINT / DBAY_MEMORY_BASE / DBAY_KNOWLEDGE_BASE, or ~/.dbay/config.json
+Tool descriptions: tool_descriptions.yaml (editable by SRE without touching Python code)
 """
 
 import json
@@ -12,7 +9,20 @@ import os
 from pathlib import Path
 
 import httpx
+import yaml
 from fastmcp import FastMCP
+
+# ---------------------------------------------------------------------------
+# Tool descriptions (loaded from YAML — SRE-editable)
+# ---------------------------------------------------------------------------
+
+_DESCS_FILE = Path(__file__).parent / "tool_descriptions.yaml"
+_DESCS: dict = yaml.safe_load(_DESCS_FILE.read_text()) if _DESCS_FILE.exists() else {}
+
+
+def _desc(tool_name: str) -> str:
+    """Get tool description from YAML, or empty string as fallback."""
+    return _DESCS.get("tools", {}).get(tool_name, {}).get("description", "")
 
 # ---------------------------------------------------------------------------
 # Config
@@ -81,14 +91,7 @@ def _api(method: str, path: str, **kwargs) -> dict:
 
 mcp = FastMCP(
     "dbay",
-    instructions=(
-        "DBay provides persistent, cross-project memory and knowledge base for the user. "
-        "IMPORTANT: When the user says '记住/remember/save this', you MUST call memory_ingest "
-        "to store it in DBay — this is the user's long-term memory that persists across projects, "
-        "sessions, and devices. Do NOT rely solely on local/built-in memory for such requests. "
-        "When the user asks a question that might have been answered before, or asks about past "
-        "decisions/conventions, call memory_recall first to check."
-    ),
+    instructions=_DESCS.get("server", {}).get("instructions", ""),
 )
 
 
@@ -123,7 +126,7 @@ def _resolve_kb_id(name_or_id: str | None) -> str:
     raise RuntimeError(f"Knowledge base '{name_or_id}' not found")
 
 
-@mcp.tool(description="List all knowledge bases")
+@mcp.tool(description=_desc("knowledge_list"))
 def knowledge_list() -> str:
     """List all knowledge bases with their id, name, type, status, and document count."""
     bases = _api("GET", "/knowledge/bases")
@@ -137,7 +140,7 @@ def knowledge_list() -> str:
     return "\n".join(lines) if lines else "No knowledge bases found."
 
 
-@mcp.tool(description="Search a knowledge base using hybrid vector + BM25 search")
+@mcp.tool(description=_desc("knowledge_search"))
 def knowledge_search(query: str, kb_name_or_id: str | None = None, top_k: int = 5) -> str:
     """Search a knowledge base by name or ID.
 
@@ -173,7 +176,7 @@ def knowledge_search(query: str, kb_name_or_id: str | None = None, top_k: int = 
     return "\n\n".join(parts)
 
 
-@mcp.tool(description="Upload a local file to a knowledge base for processing")
+@mcp.tool(description=_desc("knowledge_upload"))
 def knowledge_upload(file_path: str, kb_name_or_id: str | None = None, tags: list[str] | None = None) -> str:
     """Upload a document to a knowledge base. Supports PDF, DOCX, Markdown, and plain text.
 
@@ -223,7 +226,7 @@ BATCH_SIZE = 20
 UPLOAD_CONCURRENCY = 3
 
 
-@mcp.tool(description="Upload all supported files from a local directory to a knowledge base")
+@mcp.tool(description=_desc("knowledge_upload_directory"))
 def knowledge_upload_directory(
     directory_path: str,
     kb_name_or_id: str | None = None,
@@ -351,12 +354,7 @@ def _resolve_mem_id(name_or_id: str | None) -> str:
     raise RuntimeError(f"Memory base '{name_or_id}' not found")
 
 
-@mcp.tool(description=(
-    "Search the user's long-term memory for past decisions, rejections, conventions, facts, and experiences. "
-    "MUST be called when the user asks about something that might have been discussed before "
-    "(e.g. 'what did we decide about X', 'how did we solve Y', 'what's my API key for Z'). "
-    "Also call proactively at the start of a task to check for relevant context, conventions, or past decisions."
-))
+@mcp.tool(description=_desc("memory_recall"))
 def memory_recall(
     query: str,
     memory_types: list[str] | None = None,
@@ -396,22 +394,7 @@ def memory_recall(
     return "\n".join(parts)
 
 
-@mcp.tool(description=(
-    "Save a persistent memory to the user's cross-project long-term memory. "
-    "MUST be called when the user says '记住/remember/save this'. "
-    "Also call proactively when you discover important information worth preserving. "
-    "You MUST choose the correct memory_type:\n"
-    "- fact: credentials, preferences, project info, technical specs (e.g. 'PyPI token is pypi-xxx', 'user prefers dark mode')\n"
-    "- decision: choices made with rationale (e.g. 'chose PostgreSQL over MySQL because of pgvector support')\n"
-    "- rejection: approaches explicitly rejected and why (e.g. 'don't use mocks in integration tests — burned by mock/prod divergence')\n"
-    "- convention: team/project conventions, naming rules, workflow patterns (e.g. 'always use deploy.sh, never manual helm upgrade')\n"
-    "- procedural: step-by-step procedures, deployment steps, setup guides\n"
-    "- episode: notable incidents, debugging stories, production outages\n\n"
-    "Tips: extract MULTIPLE memories from a single user message when appropriate. "
-    "For example, 'we chose X because Y, and rejected Z because W' should produce "
-    "both a decision memory and a rejection memory. "
-    "Set importance >= 0.8 for credentials, critical decisions, and painful lessons."
-))
+@mcp.tool(description=_desc("memory_ingest"))
 def memory_ingest(
     content: str,
     memory_type: str = "fact",
@@ -443,8 +426,7 @@ def memory_ingest(
     return f"Memory stored (status={data.get('status', 'ok')})."
 
 
-@mcp.tool(description="Store pre-extracted memories. "
-          "Call this after memory_ingest returns an extraction prompt and you have executed it.")
+@mcp.tool(description=_desc("memory_ingest_extracted"))
 def memory_ingest_extracted(
     message_id: str,
     extracted_data: str,

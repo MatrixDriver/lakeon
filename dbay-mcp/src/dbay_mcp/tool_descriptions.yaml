@@ -1,0 +1,108 @@
+# DBay MCP Tool Descriptions
+# ===========================
+# SRE/运维可直接编辑此文件来调整 AI agent 的行为。
+# 修改后重启 MCP server 即可生效（或重新发布 pip 包）。
+#
+# 结构说明：
+#   server.instructions — 全局指引，所有 MCP 客户端启动时加载
+#   tools.<tool_name>.description — 单个工具的描述，告诉 agent 何时、如何调用
+#   tools.<tool_name>.args.<arg_name> — 参数描述
+
+server:
+  instructions: |
+    DBay provides persistent, cross-project memory and knowledge base for the user.
+    IMPORTANT: When the user says '记住/remember/save this', you MUST call memory_ingest
+    to store it in DBay — this is the user's long-term memory that persists across projects,
+    sessions, and devices. Do NOT rely solely on local/built-in memory for such requests.
+    When the user asks a question that might have been answered before, or asks about past
+    decisions/conventions, call memory_recall first to check.
+
+tools:
+  # ---------------------------------------------------------------------------
+  # Knowledge Base
+  # ---------------------------------------------------------------------------
+  knowledge_list:
+    description: List all knowledge bases
+
+  knowledge_search:
+    description: Search a knowledge base using hybrid vector + BM25 search
+    args:
+      query: Search query in natural language
+      kb_name_or_id: Knowledge base name or ID (optional, uses default from ~/.dbay/config.json)
+      top_k: Number of results to return (default 5, max 50)
+
+  knowledge_upload:
+    description: Upload a local file to a knowledge base for processing
+    args:
+      file_path: Absolute path to the file to upload
+      kb_name_or_id: Knowledge base name or ID (optional, uses default from ~/.dbay/config.json)
+      tags: Optional list of tags for the document
+
+  knowledge_upload_directory:
+    description: Upload all supported files from a local directory to a knowledge base
+    args:
+      directory_path: Absolute path to the directory
+      kb_name_or_id: Knowledge base name or ID (optional, uses default from ~/.dbay/config.json)
+      recursive: Whether to scan subdirectories (default True)
+      tags: Optional tags to apply to all uploaded documents
+
+  # ---------------------------------------------------------------------------
+  # Memory
+  # ---------------------------------------------------------------------------
+  memory_recall:
+    description: |
+      Search the user's long-term memory for past decisions, rejections, conventions, facts, and experiences.
+      MUST be called when the user asks about something that might have been discussed before
+      (e.g. 'what did we decide about X', 'how did we solve Y', 'what's my API key for Z').
+      Also call proactively at the start of a task to check for relevant context, conventions, or past decisions.
+    args:
+      query: Natural language query (e.g. "why did we choose asyncpg", "naming conventions")
+      memory_types: "Optional filter \u2014 any of: fact, episode, procedural, decision, rejection, convention"
+      top_k: Number of results (default 10)
+      memory_base: Memory base name or ID (optional, auto-detected if only one exists)
+
+  memory_ingest:
+    description: |
+      Save a persistent memory to the user's cross-project long-term memory.
+      MUST be called when the user says '记住/remember/save this'.
+      Also call proactively when you discover important information worth preserving.
+      You MUST choose the correct memory_type:
+      - fact: credentials, preferences, project info, technical specs (e.g. 'PyPI token is pypi-xxx', 'user prefers dark mode')
+      - decision: choices made with rationale (e.g. 'chose PostgreSQL over MySQL because of pgvector support')
+      - rejection: approaches explicitly rejected and why (e.g. 'don't use mocks in integration tests — burned by mock/prod divergence')
+      - convention: team/project conventions, naming rules, workflow patterns (e.g. 'always use deploy.sh, never manual helm upgrade')
+      - procedural: step-by-step procedures, deployment steps, setup guides
+      - episode: notable incidents, debugging stories, production outages
+
+      Tips: extract MULTIPLE memories from a single user message when appropriate.
+      For example, 'we chose X because Y, and rejected Z because W' should produce
+      both a decision memory and a rejection memory.
+      Set importance >= 0.8 for credentials, critical decisions, and painful lessons.
+    args:
+      content: "The memory content \u2014 concise, structured, self-contained"
+      memory_type: "REQUIRED. One of: fact, decision, rejection, convention, procedural, episode"
+      importance: 0.0-1.0. Use 0.8+ for credentials, critical decisions, painful lessons
+      source: Client identifier (default "claude-code")
+      memory_base: Memory base name or ID (optional, auto-detected)
+
+  memory_ingest_extracted:
+    description: |
+      Store pre-extracted memories.
+      Call this after memory_ingest returns an extraction prompt and you have executed it.
+    args:
+      message_id: The message_id returned by memory_ingest
+      extracted_data: "JSON string with extracted memories, e.g.: {\"facts\": [...], \"decisions\": [{\"content\": \"...\", \"rationale\": \"...\"}]}"
+      memory_base: Memory base name or ID (optional)
+
+  memory_list:
+    description: Browse memories in a memory base, optionally filtered by type
+    args:
+      memory_base: Memory base name or ID (optional, auto-detected)
+      memory_type: "Optional filter \u2014 one of: fact, episode, procedural, decision, rejection, convention"
+      limit: Max number of memories to return (default 20)
+
+  memory_delete:
+    description: Delete a specific memory by ID
+    args:
+      memory_id: The ID of the memory to delete
+      memory_base: Memory base name or ID (optional, auto-detected)
