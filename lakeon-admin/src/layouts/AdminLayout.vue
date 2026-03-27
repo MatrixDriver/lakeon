@@ -73,20 +73,30 @@
             <router-link to="/dashboard" class="nav-item" active-class="active" @click="sidebarOpen = false">仪表盘</router-link>
           </div>
           <div class="nav-group">
-            <div class="nav-group-title">运维管理</div>
+            <div class="nav-group-title">租户</div>
             <router-link to="/tenants" class="nav-item" active-class="active" @click="sidebarOpen = false">租户管理</router-link>
-            <router-link to="/databases" class="nav-item" active-class="active" @click="sidebarOpen = false">数据库实例</router-link>
-            <router-link to="/operations" class="nav-item" active-class="active" @click="sidebarOpen = false">操作日志</router-link>
+          </div>
+          <div class="nav-group">
+            <div class="nav-group-title">数据服务</div>
+            <router-link to="/databases" class="nav-item" active-class="active" @click="sidebarOpen = false">数据库</router-link>
             <router-link to="/knowledge" class="nav-item" active-class="active" @click="sidebarOpen = false">知识库</router-link>
             <router-link to="/memory" class="nav-item" active-class="active" @click="sidebarOpen = false">记忆库</router-link>
+            <router-link to="/datalake" class="nav-item" active-class="active" @click="sidebarOpen = false">数据湖</router-link>
+          </div>
+          <div class="nav-group">
+            <div class="nav-group-title">日志审计</div>
+            <router-link to="/operations" class="nav-item" active-class="active" @click="sidebarOpen = false">操作日志</router-link>
             <router-link to="/audit" class="nav-item" active-class="active" @click="sidebarOpen = false">审计日志</router-link>
           </div>
           <div class="nav-group">
-            <div class="nav-group-title">系统</div>
+            <div class="nav-group-title">运行时监控</div>
             <router-link to="/system" class="nav-item" active-class="active" @click="sidebarOpen = false">组件健康</router-link>
             <router-link to="/metrics" class="nav-item" active-class="active" @click="sidebarOpen = false">应用指标</router-link>
             <router-link to="/logs" class="nav-item" active-class="active" @click="sidebarOpen = false">日志查看</router-link>
             <router-link to="/alerts" class="nav-item" active-class="active" @click="sidebarOpen = false">告警管理</router-link>
+          </div>
+          <div class="nav-group">
+            <div class="nav-group-title">基础设施</div>
             <router-link to="/infra" class="nav-item" active-class="active" @click="sidebarOpen = false">基础设施</router-link>
             <router-link to="/cost" class="nav-item" active-class="active" @click="sidebarOpen = false">成本监控</router-link>
           </div>
