@@ -6,9 +6,9 @@
 
     <!-- Tabs -->
     <div class="infra-tabs">
+      <button class="infra-tab" :class="{ active: activeTab === 'control' }" @click="activeTab = 'control'">管控面</button>
       <button class="infra-tab" :class="{ active: activeTab === 'pods' }" @click="activeTab = 'pods'">计算 Pod</button>
       <button class="infra-tab" :class="{ active: activeTab === 'pool' }" @click="activeTab = 'pool'">弹性节点池</button>
-      <button class="infra-tab" :class="{ active: activeTab === 'control' }" @click="activeTab = 'control'">管控面</button>
       <button class="infra-tab" :class="{ active: activeTab === 'events' }" @click="activeTab = 'events'">事件日志</button>
       <button class="infra-tab" :class="{ active: activeTab === 'cloud' }" @click="activeTab = 'cloud'; loadCloudResources()">云资源</button>
     </div>
@@ -207,6 +207,30 @@
 
     <!-- Tab 2: 管控面 -->
     <div v-if="activeTab === 'control'">
+      <!-- API Pressure Overview -->
+      <div class="stats-row" v-if="metrics" style="margin-bottom: 16px;">
+        <div class="stat-card">
+          <div class="stat-value">{{ metrics.api?.request_rate_1m ?? '-' }}<span class="stat-unit">/min</span></div>
+          <div class="stat-label">API 请求速率</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" :style="{ color: metrics.api?.p95_ms > 500 ? '#e53e3e' : '#333' }">{{ metrics.api?.p95_ms ?? '-' }}<span class="stat-unit">ms</span></div>
+          <div class="stat-label">API P95 响应</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" :style="{ color: heapPercent > 80 ? '#e53e3e' : heapPercent > 60 ? '#faad14' : '#52c41a' }">{{ heapPercent }}<span class="stat-unit">%</span></div>
+          <div class="stat-label">JVM 堆使用率</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ metrics.jvm?.threads ?? '-' }}</div>
+          <div class="stat-label">线程数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ metrics.jvm?.gc_pause_ms?.toFixed(1) ?? '-' }}<span class="stat-unit">ms</span></div>
+          <div class="stat-label">GC 停顿</div>
+        </div>
+      </div>
+
       <!-- Fixed Nodes (control plane) -->
       <div class="section-card">
         <div class="section-header"><h3>固定节点</h3></div>
@@ -572,7 +596,7 @@ interface AutoscaleSummary {
   last_scale_down: string | null
 }
 
-const activeTab = ref('pods')
+const activeTab = ref('control')
 const nodes = ref<NodeInfo[]>([])
 const pods = ref<PodInfo[]>([])
 const events = ref<PodEvent[]>([])
@@ -586,6 +610,11 @@ const poolLoading = ref(true)
 const autoscaleLoading = ref(true)
 const computeLoading = ref(true)
 const cleanupLoading = ref(false)
+const metrics = ref<any>(null)
+const heapPercent = computed(() => {
+  if (!metrics.value?.jvm) return 0
+  return Math.round(metrics.value.jvm.heap_used_mb / metrics.value.jvm.heap_max_mb * 100)
+})
 
 // ── Time-series history (accumulated in-browser) ──
 const MAX_HISTORY = 60 // keep last 60 data points (~30 min at 30s interval)
@@ -788,8 +817,15 @@ async function loadData() {
   autoscaleLoading.value = false
 }
 
+async function loadMetrics() {
+  try {
+    const res = await adminApi.metricsSummary()
+    metrics.value = res.data
+  } catch (e) { console.error('Failed to load metrics', e) }
+}
+
 onMounted(async () => {
-  await Promise.allSettled([loadData(), loadComputeSummary()])
+  await Promise.allSettled([loadData(), loadComputeSummary(), loadMetrics()])
   recordSnapshot()
   pollTimer = setInterval(pollData, 30000)
 })
@@ -1244,4 +1280,15 @@ onUnmounted(() => {
   .node-card { padding: 16px; }
   .pool-node-grid { grid-template-columns: 1fr; }
 }
+
+.stats-row {
+  display: flex; gap: 16px; flex-wrap: wrap;
+}
+.stat-card {
+  background: #fff; border: 1px solid #e5e5e5; border-radius: 6px;
+  padding: 16px 24px; min-width: 110px; text-align: center;
+}
+.stat-value { font-size: 28px; font-weight: 600; color: #333; }
+.stat-unit { font-size: 14px; font-weight: 400; color: #999; }
+.stat-label { font-size: 13px; color: #999; margin-top: 4px; }
 </style>
