@@ -168,6 +168,7 @@ async function startTrial() {
     router.push('/dashboard')
   } catch {
     trialLoading.value = false
+    router.push('/login')
   }
 }
 </script>
