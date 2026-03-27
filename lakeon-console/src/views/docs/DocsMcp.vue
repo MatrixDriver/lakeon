@@ -5,16 +5,16 @@
 
     <section class="section">
       <h2>{{ t('第 1 步：配置凭据', 'Step 1: Configure Credentials') }}</h2>
-      <p>{{ t('在主目录创建', 'Create') }} <code>~/.dbay/config.json</code>{{ t('，所有 MCP 客户端共用同一份配置：', ', shared by all MCP clients:') }}</p>
-      <pre class="code-block"><code>mkdir -p ~/.dbay
-cat > ~/.dbay/config.json &lt;&lt; 'EOF'
-{
-  "endpoint": "https://api.dbay.cloud:8443",
-  "api_key": "{{ apiKey }}",
-  "knowledge_base": "{{ firstKbId }}",
-  "memory_base": "{{ firstBaseId }}"
-}
-EOF</code></pre>
+      <p>{{ t('安装后执行登录命令，自动写入', 'Install and login to auto-configure') }} <code>~/.dbay/config.json</code>{{ t('：', ':') }}</p>
+      <div class="code-wrapper">
+        <pre class="code-block"><code>{{ loginSnippet }}</code></pre>
+        <button class="copy-btn" @click="copy(loginSnippet)">{{ copyLabel }}</button>
+      </div>
+      <p class="tip">{{ t('也可以手动创建配置文件：', 'Or create the config file manually:') }}</p>
+      <div class="code-wrapper">
+        <pre class="code-block"><code>{{ configSnippet }}</code></pre>
+        <button class="copy-btn" @click="copy(configSnippet)">{{ copyLabel }}</button>
+      </div>
       <p class="tip">{{ t('API Key 和资源 ID 只存放在本地 ~/.dbay/ 目录，不会进入 AI 工具的配置文件或代码仓库。', 'API Key and resource IDs live in ~/.dbay/ only — never enter AI tool configs or your repo.') }}</p>
     </section>
 
@@ -23,20 +23,18 @@ EOF</code></pre>
 
       <h3>Claude Code {{ t('（推荐）', '(Recommended)') }}</h3>
       <p>{{ t('终端执行：', 'Run in terminal:') }}</p>
-      <pre class="code-block"><code>claude mcp add --scope user dbay -- \
-  uv run --directory /path/to/dbay-mcp python server.py</code></pre>
+      <div class="code-wrapper">
+        <pre class="code-block"><code>{{ claudeCodeSnippet }}</code></pre>
+        <button class="copy-btn" @click="copy(claudeCodeSnippet)">{{ copyLabel }}</button>
+      </div>
       <p class="tip">{{ t('--scope user 全局生效。配置中只有启动命令，不含任何密钥。', '--scope user makes it global. Config only contains the launch command, no secrets.') }}</p>
 
       <h3>Cursor / Windsurf / {{ t('其他 MCP 客户端', 'Other MCP Clients') }}</h3>
       <p>{{ t('在项目根目录创建', 'Create') }} <code>.mcp.json</code>{{ t('：', ':') }}</p>
-      <pre class="code-block"><code>{
-  "mcpServers": {
-    "dbay": {
-      "command": "uv",
-      "args": ["run", "--directory", "/path/to/dbay-mcp", "python", "server.py"]
-    }
-  }
-}</code></pre>
+      <div class="code-wrapper">
+        <pre class="code-block"><code>{{ cursorSnippet }}</code></pre>
+        <button class="copy-btn" @click="copy(cursorSnippet)">{{ copyLabel }}</button>
+      </div>
       <p class="tip">{{ t('MCP 配置中不含 API Key，可安全提交到 git 仓库。', 'No API Key in MCP config — safe to commit to git.') }}</p>
     </section>
 
@@ -133,6 +131,37 @@ const firstKbId = computed(() => knowledgeBases.value[0]?.id ?? 'kb_your_kb_id')
 
 const apiKey = computed(() => localStorage.getItem('lakeon_api_key') || 'lk_your_api_key')
 
+const copyLabel = ref('Copy')
+function copy(text: string) {
+  navigator.clipboard.writeText(text)
+  copyLabel.value = 'Copied!'
+  setTimeout(() => { copyLabel.value = 'Copy' }, 1500)
+}
+
+const loginSnippet = 'pip install dbay-mcp\ndbay login'
+
+const configSnippet = computed(() =>
+`mkdir -p ~/.dbay
+cat > ~/.dbay/config.json << 'EOF'
+{
+  "endpoint": "https://api.dbay.cloud:8443",
+  "api_key": "${apiKey.value}",
+  "knowledge_base": "${firstKbId.value}",
+  "memory_base": "${firstBaseId.value}"
+}
+EOF`)
+
+const claudeCodeSnippet = 'claude mcp add --scope user dbay -- uvx dbay-mcp'
+
+const cursorSnippet = `{
+  "mcpServers": {
+    "dbay": {
+      "command": "uvx",
+      "args": ["dbay-mcp"]
+    }
+  }
+}`
+
 const knowledgeTools = computed(() => [
   {
     name: 'knowledge_list_bases',
@@ -222,6 +251,15 @@ const examples = computed(() => [
 .section p { font-size: 14px; color: var(--pub-text-2); line-height: 1.6; margin-bottom: 8px; }
 .section code { background: var(--pub-code-bg); padding: 1px 6px; border-radius: 3px; color: var(--pub-code); font-family: monospace; font-size: 12px; }
 .tip { font-size: 12px; color: var(--pub-text-4); margin-top: 8px; }
+.code-wrapper { position: relative; margin-bottom: 12px; }
+.code-wrapper .code-block { margin-bottom: 0; }
+.copy-btn {
+  position: absolute; top: 8px; right: 8px;
+  background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 4px;
+  padding: 2px 8px; font-size: 11px; color: var(--pub-text-4); cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.copy-btn:hover { color: var(--pub-code); border-color: var(--pub-code); }
 .code-block {
   background: var(--pub-code-bg); border: 1px solid var(--pub-border); border-radius: 6px;
   padding: 12px 14px; font-size: 12px; color: var(--pub-code);

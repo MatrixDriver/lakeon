@@ -9,20 +9,10 @@
       <!-- MCP 快速接入 -->
       <div class="mcp-quickstart">
         <h3>{{ t('5 分钟接入', '5-minute Setup') }}</h3>
-        <pre class="code-block"><code># 1. {{ t('配置凭据（只需一次）', 'Configure credentials (one-time)') }}
-mkdir -p ~/.dbay
-cat > ~/.dbay/config.json &lt;&lt; 'EOF'
-{
-  "endpoint": "https://api.dbay.cloud:8443",
-  "api_key": "{{ apiKey }}",
-  "knowledge_base": "{{ firstKbId }}",
-  "memory_base": "{{ firstMemId }}"
-}
-EOF
-
-# 2. {{ t('注册 MCP 服务', 'Register MCP server') }}
-claude mcp add --scope user dbay -- \
-  uv run --directory /path/to/dbay-mcp python server.py</code></pre>
+        <div class="code-wrapper">
+          <pre class="code-block"><code>{{ quickstartSnippet }}</code></pre>
+          <button class="copy-btn" @click="copyText(quickstartSnippet)">{{ copyLabel }}</button>
+        </div>
         <p class="tip">{{ t('API Key 存放在 ~/.dbay/config.json，不进入 Claude 配置文件或代码仓库。', 'API Key lives in ~/.dbay/config.json — never enters Claude config or your repo.') }}</p>
       </div>
 
@@ -54,27 +44,24 @@ claude mcp add --scope user dbay -- \
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import { useLocale } from '../../stores/locale'
-import { listKnowledgeBases, type KnowledgeBase } from '../../api/knowledge'
-import { listMemoryBases, type MemoryBase } from '../../api/memory'
 
 const { locale, t } = useLocale()
 
-const knowledgeBases = ref<KnowledgeBase[]>([])
-const memoryBases = ref<MemoryBase[]>([])
+const copyLabel = ref('Copy')
+function copyText(text: string) {
+  navigator.clipboard.writeText(text)
+  copyLabel.value = 'Copied!'
+  setTimeout(() => { copyLabel.value = 'Copy' }, 1500)
+}
 
-onMounted(async () => {
-  try {
-    const [kbRes, memRes] = await Promise.all([listKnowledgeBases(), listMemoryBases()])
-    knowledgeBases.value = kbRes.data
-    memoryBases.value = memRes.data.filter(b => b.status === 'READY')
-  } catch { /* ignore */ }
-})
+const quickstartSnippet = `# 1. Install & login
+pip install dbay-mcp
+dbay login
 
-const apiKey = computed(() => localStorage.getItem('lakeon_api_key') || 'lk_your_api_key')
-const firstKbId = computed(() => knowledgeBases.value[0]?.id ?? 'kb_your_kb_id')
-const firstMemId = computed(() => memoryBases.value[0]?.id ?? 'mem_your_base_id')
+# 2. Register MCP server (Claude Code)
+claude mcp add --scope user dbay -- uvx dbay-mcp`
 
 const integrations = [
   {
@@ -126,6 +113,15 @@ h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
   border-radius: 10px; padding: 20px; margin-bottom: 40px;
 }
 .mcp-quickstart h3 { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
+.code-wrapper { position: relative; }
+.copy-btn {
+  position: absolute; top: 8px; right: 8px;
+  background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 4px;
+  padding: 2px 8px; font-size: 11px; color: var(--pub-text-4); cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.copy-btn:hover { color: var(--pub-code); border-color: var(--pub-code); }
+.tip { font-size: 12px; color: var(--pub-text-4); margin-top: 8px; }
 .code-block {
   background: var(--pub-code-bg); border: 1px solid var(--pub-border); border-radius: 6px;
   padding: 14px; font-size: 12px; color: var(--pub-code);
