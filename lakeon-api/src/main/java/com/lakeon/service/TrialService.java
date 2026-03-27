@@ -1,11 +1,14 @@
 package com.lakeon.service;
 
+import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.TenantRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,15 +22,51 @@ public class TrialService {
     private static final Logger log = LoggerFactory.getLogger(TrialService.class);
     private static final int TRIAL_HOURS = 24;
 
+    private final LakeonProperties props;
     private final DatabaseService databaseService;
     private final TenantRepository tenantRepository;
     private final DatabaseRepository databaseRepository;
 
-    public TrialService(DatabaseService databaseService,
+    public TrialService(LakeonProperties props, DatabaseService databaseService,
                         TenantRepository tenantRepository, DatabaseRepository databaseRepository) {
+        this.props = props;
         this.databaseService = databaseService;
         this.tenantRepository = tenantRepository;
         this.databaseRepository = databaseRepository;
+    }
+
+    /**
+     * Ensure the demo tenant exists on startup if LAKEON_DEMO_TENANT_ID is configured.
+     * The demo tenant is shared by all trial users (read-only).
+     * SRE can manage it via Admin API; it is protected from batch deletion.
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    @Transactional
+    public void ensureDemoTenant() {
+        String demoTenantId = props.getDemo().getTenantId();
+        if (demoTenantId == null || demoTenantId.isBlank()) {
+            return;
+        }
+
+        Optional<TenantEntity> existing = tenantRepository.findById(demoTenantId);
+        if (existing.isPresent()) {
+            log.info("Demo tenant {} already exists (name={})", demoTenantId, existing.get().getName());
+            return;
+        }
+
+        // Create the demo tenant
+        TenantEntity demo = new TenantEntity();
+        demo.setId(demoTenantId);
+        demo.setName("demo");
+        demo.setUsername("demo");
+        demo.setPasswordHash("");
+        demo.setTrial(false);  // not a trial tenant — it's permanent
+        demo.setMaxDatabases(10);
+        demo.setMaxStorageGb(10);
+        demo.setMaxComputeCu(2);
+        tenantRepository.save(demo);
+
+        log.info("Created demo tenant: {} (api_key={})", demo.getId(), demo.getApiKey());
     }
 
     /**

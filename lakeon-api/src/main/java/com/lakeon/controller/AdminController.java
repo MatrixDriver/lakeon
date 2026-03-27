@@ -23,6 +23,7 @@ import com.lakeon.memory.MemoryBaseRepository;
 import com.lakeon.memory.MemoryService;
 import com.lakeon.datalake.*;
 import com.lakeon.dataset.*;
+import com.lakeon.config.LakeonProperties;
 import com.lakeon.service.CbcBillingService;
 import com.lakeon.service.DatabaseService;
 import com.lakeon.service.TenantService;
@@ -64,6 +65,7 @@ public class AdminController {
     private final DatalakeService datalakeService;
     private final DatasetRepository datasetRepository;
     private final DatasetService datasetService;
+    private final LakeonProperties props;
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AdminController.class);
 
@@ -88,7 +90,8 @@ public class AdminController {
                            DatalakeLogService datalakeLogService,
                            DatalakeService datalakeService,
                            DatasetRepository datasetRepository,
-                           DatasetService datasetService) {
+                           DatasetService datasetService,
+                           LakeonProperties props) {
         this.tenantService = tenantService;
         this.adminService = adminService;
         this.databaseService = databaseService;
@@ -111,6 +114,7 @@ public class AdminController {
         this.datalakeService = datalakeService;
         this.datasetRepository = datasetRepository;
         this.datasetService = datasetService;
+        this.props = props;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────
@@ -152,8 +156,17 @@ public class AdminController {
         List<String> ids = body.getOrDefault("ids", List.of());
         List<String> deleted = new ArrayList<>();
         List<Map<String, String>> errors = new ArrayList<>();
+
+        // Protect demo tenant from deletion
+        String demoTenantId = props.getDemo().getTenantId();
+
         for (String id : ids) {
             try {
+                if (demoTenantId != null && !demoTenantId.isBlank() && demoTenantId.equals(id)) {
+                    errors.add(Map.of("id", id, "error", "Cannot delete demo tenant — it is protected"));
+                    continue;
+                }
+
                 TenantEntity tenant = tenantRepository.findById(id).orElse(null);
                 if (tenant == null) {
                     errors.add(Map.of("id", id, "error", "Tenant not found"));
