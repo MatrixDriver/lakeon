@@ -351,9 +351,12 @@ def _resolve_mem_id(name_or_id: str | None) -> str:
     raise RuntimeError(f"Memory base '{name_or_id}' not found")
 
 
-@mcp.tool(description="Search memory for past decisions, rejections, conventions, facts, and experiences. "
-          "Use this when you need to recall what was decided before, what approaches were rejected, "
-          "or what project conventions exist.")
+@mcp.tool(description=(
+    "Search the user's long-term memory for past decisions, rejections, conventions, facts, and experiences. "
+    "MUST be called when the user asks about something that might have been discussed before "
+    "(e.g. 'what did we decide about X', 'how did we solve Y', 'what's my API key for Z'). "
+    "Also call proactively at the start of a task to check for relevant context, conventions, or past decisions."
+))
 def memory_recall(
     query: str,
     memory_types: list[str] | None = None,
@@ -393,8 +396,22 @@ def memory_recall(
     return "\n".join(parts)
 
 
-@mcp.tool(description="Save a persistent memory. Use when the user says 'remember', "
-          "or when you discover important information worth preserving.")
+@mcp.tool(description=(
+    "Save a persistent memory to the user's cross-project long-term memory. "
+    "MUST be called when the user says '记住/remember/save this'. "
+    "Also call proactively when you discover important information worth preserving. "
+    "You MUST choose the correct memory_type:\n"
+    "- fact: credentials, preferences, project info, technical specs (e.g. 'PyPI token is pypi-xxx', 'user prefers dark mode')\n"
+    "- decision: choices made with rationale (e.g. 'chose PostgreSQL over MySQL because of pgvector support')\n"
+    "- rejection: approaches explicitly rejected and why (e.g. 'don't use mocks in integration tests — burned by mock/prod divergence')\n"
+    "- convention: team/project conventions, naming rules, workflow patterns (e.g. 'always use deploy.sh, never manual helm upgrade')\n"
+    "- procedural: step-by-step procedures, deployment steps, setup guides\n"
+    "- episode: notable incidents, debugging stories, production outages\n\n"
+    "Tips: extract MULTIPLE memories from a single user message when appropriate. "
+    "For example, 'we chose X because Y, and rejected Z because W' should produce "
+    "both a decision memory and a rejection memory. "
+    "Set importance >= 0.8 for credentials, critical decisions, and painful lessons."
+))
 def memory_ingest(
     content: str,
     memory_type: str = "fact",
@@ -402,14 +419,14 @@ def memory_ingest(
     source: str = "claude-code",
     memory_base: str | None = None,
 ) -> str:
-    """Store a memory directly. The content should be a concise, structured fact or decision.
+    """Store a memory to the user's persistent cross-project memory.
 
     Args:
-        content: The memory content to store
-        memory_type: One of: fact, episode, procedural, decision, rejection, convention
-        importance: Importance score 0.0-1.0 (default 0.5)
+        content: The memory content — concise, structured, self-contained
+        memory_type: REQUIRED. One of: fact, decision, rejection, convention, procedural, episode
+        importance: 0.0-1.0. Use 0.8+ for credentials, critical decisions, painful lessons
         source: Client identifier (default "claude-code")
-        memory_base: Memory base name or ID (optional)
+        memory_base: Memory base name or ID (optional, auto-detected)
     """
     mem_id = _resolve_mem_id(memory_base)
     data = _api("POST", f"/memory/bases/{mem_id}/ingest", json={
