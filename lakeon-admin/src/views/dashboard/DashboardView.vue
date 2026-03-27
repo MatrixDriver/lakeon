@@ -36,14 +36,14 @@
       <div class="section-header"><h3>用户体验</h3><span class="section-arrow">&rsaquo;</span></div>
       <div class="ux-metrics">
         <div class="ux-item">
-          <span class="ux-label">Cold Wake</span>
+          <span class="ux-label">冷启动</span>
           <span class="ux-value" :class="wakeupColor(metrics.cold_wake_avg_ms)">
             {{ metrics.cold_wake_avg_ms || '-' }}<span class="ux-unit" v-if="metrics.cold_wake_avg_ms">ms</span>
           </span>
           <span class="ux-sub">{{ metrics.cold_wake_count }} 次</span>
         </div>
         <div class="ux-item">
-          <span class="ux-label">Warm Wake</span>
+          <span class="ux-label">热启动</span>
           <span class="ux-value text-warm">
             {{ metrics.warm_wake_avg_ms || '-' }}<span class="ux-unit" v-if="metrics.warm_wake_avg_ms">ms</span>
           </span>
@@ -54,7 +54,7 @@
           <span class="ux-value" :class="{ 'text-danger': metrics.wakeup_failures > 0 }">{{ metrics.wakeup_failures }}</span>
         </div>
         <div class="ux-item">
-          <span class="ux-label">API P95</span>
+          <span class="ux-label">API 响应 P95</span>
           <span class="ux-value" :class="{ 'text-warning': metrics.api_p95_ms > 500 }">{{ metrics.api_p95_ms }}<span class="ux-unit">ms</span></span>
         </div>
       </div>
