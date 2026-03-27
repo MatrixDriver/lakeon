@@ -79,7 +79,17 @@ def _api(method: str, path: str, **kwargs) -> dict:
 # MCP server
 # ---------------------------------------------------------------------------
 
-mcp = FastMCP("dbay")
+mcp = FastMCP(
+    "dbay",
+    instructions=(
+        "DBay provides persistent, cross-project memory and knowledge base for the user. "
+        "IMPORTANT: When the user says '记住/remember/save this', you MUST call memory_ingest "
+        "to store it in DBay — this is the user's long-term memory that persists across projects, "
+        "sessions, and devices. Do NOT rely solely on local/built-in memory for such requests. "
+        "When the user asks a question that might have been answered before, or asks about past "
+        "decisions/conventions, call memory_recall first to check."
+    ),
+)
 
 
 def _get_knowledge_base_id() -> str | None:
