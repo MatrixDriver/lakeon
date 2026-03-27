@@ -21,6 +21,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (tenant?.id) {
         setTenant(tenant.id, tenant.name || '')
       }
+      setTrialState(false)
       return { ok: true }
     } catch (e: any) {
       if (e.response?.status === 401) {
