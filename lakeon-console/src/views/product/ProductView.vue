@@ -1,153 +1,29 @@
 <template>
-  <main class="product-page">
-    <!-- 页面标题 -->
-    <section class="prod-hero">
-      <h1>{{ t('DBay 四大产品模块', 'DBay Four Product Modules') }}</h1>
+  <main class="product-overview">
+    <section class="page-hero">
+      <h1>{{ t('一个平台，四种数据能力', 'One Platform, Four Data Capabilities') }}</h1>
       <p>{{ t('以 Lakebase 为底座，覆盖知识库、记忆库、AI 数据湖全场景', 'Lakebase-powered platform covering Knowledge Base, Memory Store, and AI Data Lake') }}</p>
     </section>
 
-    <!-- 模块快速导航 -->
-    <section class="prod-nav-cards">
-      <a href="#memory" class="prod-nav-card prod-nav-memory">
-        <span class="prod-badge-new">New</span>
-        <div class="prod-card-icon">🧠</div>
-        <div class="prod-card-name">{{ t('记忆库', 'Memory Store') }}</div>
-      </a>
-      <a href="#lakebase" class="prod-nav-card prod-nav-lakebase">
-        <div class="prod-card-icon">🐘</div>
-        <div class="prod-card-name">Lakebase</div>
-      </a>
-      <a href="#knowledge" class="prod-nav-card prod-nav-kb">
-        <div class="prod-card-icon">📚</div>
-        <div class="prod-card-name">{{ t('知识库', 'Knowledge Base') }}</div>
-      </a>
-      <a href="#datalake" class="prod-nav-card prod-nav-lake">
-        <div class="prod-card-icon">🌊</div>
-        <div class="prod-card-name">{{ t('AI 数据湖', 'AI Data Lake') }}</div>
-      </a>
+    <section class="product-grid">
+      <router-link v-for="p in products" :key="p.path" :to="p.path" class="product-card">
+        <div class="card-accent" :style="{ background: p.gradient }"></div>
+        <div class="card-body">
+          <div class="card-icon">{{ p.icon }}</div>
+          <h3>{{ p.title }}</h3>
+          <p class="card-desc">{{ p.desc }}</p>
+          <div class="card-tags">
+            <span v-for="tag in p.tags" :key="tag" class="card-tag">{{ tag }}</span>
+          </div>
+          <span class="card-link">{{ t('了解更多 →', 'Learn more →') }}</span>
+        </div>
+      </router-link>
     </section>
 
-    <!-- ===== 记忆库专题 ===== -->
-    <section id="memory" class="prod-section prod-section-memory">
-      <div class="prod-section-inner">
-        <div class="prod-section-hd">
-          <h2>🧠 {{ t('记忆库', 'Memory Store') }} <span class="badge-new">New</span></h2>
-          <p>{{ t('为 AI Agent 提供结构化长期记忆，越用越懂你', 'Structured long-term memory for AI Agents — gets smarter with every interaction') }}</p>
-        </div>
-
-        <!-- 三个核心操作 -->
-        <h3>{{ t('三个核心操作', 'Three Core Operations') }}</h3>
-        <p class="sub">{{ t('三个 API 搞定一切——存储、搜索、理解', 'Three APIs for everything — store, search, understand') }}</p>
-        <div class="prod-api-grid">
-          <div class="prod-api-card" v-for="api in coreApis" :key="api.name">
-            <code class="api-name">{{ api.name }}</code>
-            <p>{{ api.desc }}</p>
-            <p class="api-detail">{{ api.detail }}</p>
-          </div>
-        </div>
-
-        <!-- 四种记忆类型 -->
-        <h3>{{ t('四种记忆类型', 'Four Memory Types') }}</h3>
-        <p class="sub">{{ t('四种记忆类型源自认知心理学，各有分工', 'Four memory types from cognitive psychology, each with a distinct role') }}</p>
-        <div class="prod-types-grid">
-          <div class="prod-type-card" v-for="mt in memoryTypes" :key="mt.icon">
-            <span class="type-icon">{{ mt.icon }}</span>
-            <div>
-              <h4>{{ mt.title }}</h4>
-              <p>{{ mt.desc }}</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- 特征生命周期 -->
-        <h3>{{ t('特征生命周期', 'Trait Lifecycle') }}</h3>
-        <p class="sub">{{ t('特征随证据积累经历 6 个阶段，置信度在被反驳时衰减，被验证时增强', 'Traits evolve through 6 stages as evidence accumulates — confidence decays when contradicted, grows when confirmed') }}</p>
-        <div class="trait-lifecycle">
-          <div v-for="(stage, i) in traitStages" :key="stage.key" class="trait-stage">
-            <div class="trait-dot" :class="{ first: i === 0, last: i === traitStages.length - 1 }"></div>
-            <span>{{ stage.label }}</span>
-            <div v-if="i < traitStages.length - 1" class="trait-line"></div>
-          </div>
-        </div>
-
-        <!-- LoCoMo 基准测试 -->
-        <h3>{{ t('LoCoMo 基准测试', 'LoCoMo Benchmark') }}</h3>
-        <p class="sub">{{ t('基于 LoCoMo 公开长对话记忆基准测试，涵盖单跳、多跳、时间和开放域推理', 'Evaluated on LoCoMo public long-conversation memory benchmark, covering single-hop, multi-hop, temporal, and open-domain reasoning') }}</p>
-        <div class="benchmark-score">
-          <div class="score-big">81.7<span>%</span></div>
-          <p>{{ t('LoCoMo 综合得分', 'LoCoMo Overall Score') }}</p>
-        </div>
-        <div class="sub-scores">
-          <div v-for="s in subScores" :key="s.key" class="sub-score">
-            <div class="sub-score-num">{{ s.score }}</div>
-            <div class="sub-score-label">{{ s.label }}</div>
-          </div>
-        </div>
-        <div class="benchmark-bars">
-          <div v-for="b in benchmarkBars" :key="b.label" class="bar-row">
-            <span class="bar-label" :class="{ highlight: b.highlight }">{{ b.label }}</span>
-            <div class="bar-track">
-              <div class="bar-fill" :class="{ highlight: b.highlight }" :style="{ width: b.score + '%' }"></div>
-            </div>
-            <span class="bar-score" :class="{ highlight: b.highlight }">{{ b.score }}%</span>
-          </div>
-        </div>
-        <p class="benchmark-note">{{ t('基于公开基准测试，与主流 AI 记忆框架对比', 'Compared with mainstream AI memory frameworks on public benchmarks') }}</p>
-      </div>
-    </section>
-
-    <!-- ===== Lakebase ===== -->
-    <section id="lakebase" class="prod-section">
-      <div class="prod-section-inner">
-        <div class="prod-section-hd">
-          <h2>🐘 Lakebase</h2>
-          <p>{{ t('Serverless PostgreSQL，存算分离，自动扩缩容', 'Serverless PostgreSQL with disaggregated storage and auto-scaling') }}</p>
-        </div>
-        <ul class="prod-feature-list">
-          <li>{{ t('3ms 热启动，3s 冷启动', '3ms hot start, 3s cold start') }}</li>
-          <li>{{ t('存算分离，自动扩缩容', 'Disaggregated storage, auto-scaling') }}</li>
-          <li>{{ t('数据库分支与时间旅行（像 Git 管理数据）', 'Database branching & time travel (Git for data)') }}</li>
-          <li>{{ t('多版本管理与回滚', 'Version management & rollback') }}</li>
-          <li>{{ t('多租户隔离', 'Multi-tenant isolation') }}</li>
-          <li>{{ t('AI SQL 助手（自然语言生成 SQL）', 'AI SQL Assistant (NL to SQL)') }}</li>
-        </ul>
-      </div>
-    </section>
-
-    <!-- ===== 知识库 ===== -->
-    <section id="knowledge" class="prod-section">
-      <div class="prod-section-inner">
-        <div class="prod-section-hd">
-          <h2>📚 {{ t('知识库', 'Knowledge Base') }}</h2>
-          <p>{{ t('文档 + 表 + 向量检索，内置 Embedding 与 Reranker', 'Documents + Tables + Vector Search, built-in Embedding & Reranker') }}</p>
-        </div>
-        <ul class="prod-feature-list">
-          <li>{{ t('文档自动解析（PDF / Word / Markdown）', 'Auto document parsing (PDF / Word / Markdown)') }}</li>
-          <li>{{ t('向量检索（pgvector）', 'Vector search (pgvector)') }}</li>
-          <li>{{ t('全文搜索（tsvector / RUM）', 'Full-text search (tsvector / RUM)') }}</li>
-          <li>{{ t('表知识库（结构化数据）', 'Table KB (structured data)') }}</li>
-          <li>{{ t('向量 + 全文混合检索', 'Hybrid vector + full-text retrieval') }}</li>
-          <li>{{ t('内置 Embedding 与 Reranker', 'Built-in embedding & reranker') }}</li>
-        </ul>
-      </div>
-    </section>
-
-    <!-- ===== AI 数据湖 ===== -->
-    <section id="datalake" class="prod-section">
-      <div class="prod-section-inner">
-        <div class="prod-section-hd">
-          <h2>🌊 {{ t('AI 数据湖', 'AI Data Lake') }}</h2>
-          <p>{{ t('数据处理 + 训练 + 飞轮', 'Data Processing + Training + Flywheel') }}</p>
-        </div>
-        <ul class="prod-feature-list">
-          <li>{{ t('Python / Ray 任务调度', 'Python / Ray task scheduling') }}</li>
-          <li>{{ t('Dataset 导出（Parquet）', 'Dataset export (Parquet)') }}</li>
-          <li>{{ t('模型微调支持', 'Model fine-tuning support') }}</li>
-          <li>{{ t('Kata VM 安全隔离', 'Kata VM security isolation') }}</li>
-          <li>{{ t('DB ↔ 数据湖 数据飞轮', 'DB ↔ Data Lake data flywheel') }}</li>
-          <li>{{ t('增量 CDC 调度', 'Incremental CDC scheduling') }}</li>
-        </ul>
-      </div>
+    <section class="page-bottom-cta">
+      <h2>{{ t('30 秒，免费获得一个 Serverless 数据库', 'Get a free Serverless database in 30 seconds') }}</h2>
+      <p>{{ t('无需信用卡 · 兼容所有 PG 客户端 · 立即体验', 'No credit card · Works with all PG clients · Try now') }}</p>
+      <router-link to="/" class="cta-primary">{{ t('立即试用 →', 'Try Now →') }}</router-link>
     </section>
   </main>
 </template>
@@ -158,162 +34,170 @@ import { useLocale } from '../../stores/locale'
 
 const { t } = useLocale()
 
-const coreApis = computed(() => [
+const products = computed(() => [
   {
-    name: 'ingest',
-    desc: t('将对话和事实存入长期记忆，自动提取实体、偏好和事件', 'Store conversations and facts into long-term memory. Auto-extracts entities, preferences, and events.'),
-    detail: t('接收原始对话、文档或结构化事实。通过 LLM 驱动的解析自动提取实体和事件片段，以向量嵌入存储用于语义搜索，同时建立 BM25 关键词索引。', 'Receives raw conversations, documents, or structured facts. LLM-driven parsing extracts entities and events, stored as vector embeddings for semantic search alongside BM25 keyword index.'),
+    path: '/product/lakebase',
+    icon: '🐘',
+    title: 'Lakebase',
+    desc: t('Serverless PostgreSQL，存算分离，自动扩缩容', 'Serverless PostgreSQL with disaggregated storage and auto-scaling'),
+    gradient: 'linear-gradient(180deg, #0073e6, #005bb5)',
+    tags: [t('秒级启动', 'Fast Start'), t('时间旅行', 'Time Travel'), 'pgvector'],
   },
   {
-    name: 'recall',
-    desc: t('混合检索记忆，结合向量、BM25 和知识图谱', 'Hybrid memory retrieval combining vector search, BM25, and knowledge graph traversal.'),
-    detail: t('结合稠密向量搜索、稀疏 BM25 评分和知识图谱遍历。结果经过融合与重排序以获得最佳相关性，支持时间过滤和可配置的 top-k。', 'Combines dense vector search, sparse BM25 scoring, and knowledge graph traversal. Results are fusion-ranked for optimal relevance, with time filtering and configurable top-k.'),
+    path: '/product/knowledge',
+    icon: '📚',
+    title: t('知识库', 'Knowledge Base'),
+    desc: t('文档 + 表 + 向量检索，内置 Embedding 与 Reranker', 'Documents + Tables + Vector Search, built-in Embedding & Reranker'),
+    gradient: 'linear-gradient(180deg, #4caf50, #2e7d32)',
+    tags: [t('文档解析', 'Doc Parsing'), t('混合检索', 'Hybrid Search'), 'RAG'],
   },
   {
-    name: 'digest',
-    desc: t('将记忆合成洞察，生成用户画像和行为模式', 'Synthesize memories into insights — user profiles and behavioral patterns.'),
-    detail: t('分析累积的记忆生成结构化洞察：行为模式、偏好摘要、情感画像和关系图谱。异步运行并缓存结果以便快速获取。', 'Analyzes accumulated memories to generate structured insights: behavioral patterns, preference summaries, emotional profiles, and relationship maps. Runs asynchronously with cached results.'),
+    path: '/product/memory',
+    icon: '🧠',
+    title: t('记忆库', 'Memory Store'),
+    desc: t('为 AI Agent 提供结构化长期记忆，越用越懂你', 'Structured long-term memory for AI Agents — gets smarter with every interaction'),
+    gradient: 'linear-gradient(180deg, #ff9800, #e65100)',
+    tags: [t('自动提取', 'Auto Extract'), t('混合召回', 'Hybrid Recall'), 'MCP'],
+  },
+  {
+    path: '/product/datalake',
+    icon: '🌊',
+    title: t('AI 数据湖', 'AI Data Lake'),
+    desc: t('数据处理 + 训练 + 飞轮', 'Data Processing + Training + Flywheel'),
+    gradient: 'linear-gradient(180deg, #7b1fa2, #4a148c)',
+    tags: ['Ray', 'Python', t('数据飞轮', 'Flywheel')],
   },
 ])
-
-const memoryTypes = computed(() => [
-  { icon: '📋', title: t('事实', 'Fact'), desc: t('从对话中提取的离散、客观、可验证的信息。以向量嵌入存储并关联知识图谱。', 'Discrete, objective, verifiable information extracted from conversations. Stored as vector embeddings linked to the knowledge graph.') },
-  { icon: '🕐', title: t('事件', 'Episode'), desc: t('带有情绪元数据（效价、唤醒度、情绪标签）和时间表达的时间绑定事件和体验。', 'Time-bound events and experiences with emotional metadata (valence, arousal, emotion tags) and temporal expressions.') },
-  { icon: '🧠', title: t('特征', 'Trait'), desc: t('通过多会话反思发现的行为模式。经历从趋势到核心的 6 阶段生命周期演化。', 'Behavioral patterns discovered through multi-session reflection. Evolves through a 6-stage lifecycle from trend to core.') },
-  { icon: '📄', title: t('文档', 'Document'), desc: t('上传的静态参考资料，用于 RAG 风格检索。支持 PDF 和文件的专项搜索。', 'Uploaded static reference materials for RAG-style retrieval. Supports targeted search over PDFs and files.') },
-])
-
-const traitStages = computed(() => [
-  { key: 'trend', label: t('趋势', 'Trend') },
-  { key: 'candidate', label: t('候选', 'Candidate') },
-  { key: 'emerging', label: t('萌发', 'Emerging') },
-  { key: 'established', label: t('确立', 'Established') },
-  { key: 'core', label: t('核心', 'Core') },
-  { key: 'dissolved', label: t('消解', 'Dissolved') },
-])
-
-const subScores = computed(() => [
-  { key: 'singleHop', score: '82.9%', label: t('单跳', 'Single-hop') },
-  { key: 'multiHop', score: '84.3%', label: t('多跳', 'Multi-hop') },
-  { key: 'openDomain', score: '81.1%', label: t('开放域', 'Open-domain') },
-  { key: 'temporal', score: '76.6%', label: t('时间推理', 'Temporal') },
-])
-
-const benchmarkBars = [
-  { label: 'DBay 记忆库', score: 81.7, highlight: true },
-  { label: 'Framework A', score: 75.8, highlight: false },
-  { label: 'Framework B', score: 75.1, highlight: false },
-  { label: 'Framework C', score: 68.4, highlight: false },
-  { label: 'Framework D', score: 66.9, highlight: false },
-]
 </script>
 
 <style scoped>
-.product-page { min-height: 100vh; background: var(--pub-bg); color: var(--pub-text); }
-.prod-hero { max-width: 800px; margin: 0 auto; padding: 48px 24px 32px; text-align: center; }
-.prod-hero h1 { font-size: 32px; font-weight: 700; margin-bottom: 12px; }
-.prod-hero p { color: var(--pub-text-2); font-size: 16px; }
-
-.prod-nav-cards {
-  max-width: 900px; margin: 0 auto 0; padding: 0 24px 32px;
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
-}
-.prod-nav-card {
-  border-radius: 10px; padding: 16px; text-decoration: none;
-  text-align: center; position: relative; transition: transform 0.15s;
-  border: 1px solid var(--pub-border); background: var(--pub-surface);
-}
-.prod-nav-card:hover { transform: translateY(-2px); }
-.prod-nav-memory { border-color: var(--pub-accent-border); background: var(--pub-accent-bg); }
-.prod-nav-lakebase { border-color: #bfdbfe; }
-.prod-nav-kb { border-color: #ddd6fe; }
-.prod-nav-lake { border-color: #a7f3d0; }
-.prod-card-icon { font-size: 24px; margin-bottom: 6px; }
-.prod-card-name { font-size: 13px; font-weight: 600; color: var(--pub-text); }
-.prod-badge-new {
-  position: absolute; top: 8px; right: 8px;
-  font-size: 9px; background: #7c3aed; color: #fff;
-  padding: 2px 5px; border-radius: 3px;
+.product-overview {
+  min-height: 100vh;
+  background: var(--pub-bg);
 }
 
-.prod-section { padding: 64px 24px; border: 1px solid var(--pub-border); }
-.prod-section-memory { background: var(--pub-accent-bg); }
-.prod-section-inner { max-width: 800px; margin: 0 auto; }
-.prod-section-hd { margin-bottom: 40px; }
-.prod-section-hd h2 { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
-.prod-section-hd p { color: var(--pub-text-2); font-size: 15px; }
-.badge-new {
-  font-size: 11px; background: #7c3aed; color: #fff;
-  padding: 2px 7px; border-radius: 4px; margin-left: 8px; vertical-align: middle;
+.page-hero {
+  padding: 48px 48px 32px;
+  text-align: center;
+  background: var(--pub-surface);
+}
+.page-hero h1 {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--pub-text);
+  margin: 0 0 8px;
+}
+.page-hero p {
+  font-size: 16px;
+  color: var(--pub-text-2);
+  margin: 0;
 }
 
-h3 { font-size: 18px; font-weight: 600; margin: 32px 0 6px; }
-.sub { color: var(--pub-text-2); font-size: 14px; margin-bottom: 16px; }
-
-.prod-api-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 8px; }
-.prod-api-card {
-  background: var(--pub-surface); border: 1px solid var(--pub-border);
-  border-radius: 8px; padding: 16px;
+.product-grid {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 24px 48px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
 }
-.api-name { font-family: monospace; font-size: 15px; color: #2563eb; display: block; margin-bottom: 8px; }
-.prod-api-card p { font-size: 13px; color: var(--pub-text-2); margin: 0 0 8px; }
-.api-detail { font-size: 11px; color: var(--pub-text-4); }
 
-.prod-types-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.prod-type-card {
-  display: flex; gap: 12px; align-items: flex-start;
-  background: var(--pub-surface); border: 1px solid var(--pub-border);
-  border-radius: 8px; padding: 14px;
+.product-card {
+  display: flex;
+  background: var(--pub-surface);
+  border: 1px solid var(--pub-border);
+  border-radius: 12px;
+  overflow: hidden;
+  text-decoration: none;
+  transition: box-shadow 0.2s, transform 0.2s;
 }
-.type-icon { font-size: 22px; flex-shrink: 0; }
-.prod-type-card h4 { font-size: 14px; font-weight: 600; margin: 0 0 4px; }
-.prod-type-card p { font-size: 12px; color: var(--pub-text-2); margin: 0; }
-
-.trait-lifecycle {
-  display: flex; align-items: center; justify-content: space-between;
-  max-width: 600px; margin: 16px 0;
+.product-card:hover {
+  box-shadow: 0 8px 24px var(--pub-shadow);
+  transform: translateY(-2px);
 }
-.trait-stage { display: flex; align-items: center; flex-direction: column; position: relative; }
-.trait-dot { width: 12px; height: 12px; border-radius: 50%; background: #7c3aed; }
-.trait-dot.first { background: #a78bfa; }
-.trait-dot.last { background: #ddd; border: 1px dashed #bbb; }
-.trait-stage span { font-size: 10px; color: var(--pub-text-3); margin-top: 6px; white-space: nowrap; }
-.trait-line { width: 40px; height: 1px; background: var(--pub-border); margin-bottom: 18px; }
 
-.benchmark-score { text-align: center; margin: 16px 0 8px; }
-.score-big { font-size: 64px; font-weight: 700; color: var(--pub-text); line-height: 1; }
-.score-big span { font-size: 36px; color: var(--pub-text-3); }
-.benchmark-score p { color: var(--pub-text-2); font-size: 14px; margin: 4px 0 0; }
-
-.sub-scores { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 16px 0; }
-.sub-score {
-  text-align: center; background: var(--pub-surface);
-  border: 1px solid var(--pub-border); border-radius: 8px; padding: 12px;
+.card-accent {
+  width: 6px;
+  flex-shrink: 0;
 }
-.sub-score-num { font-size: 20px; font-weight: 600; }
-.sub-score-label { font-size: 11px; color: var(--pub-text-3); margin-top: 2px; }
 
-.benchmark-bars { display: flex; flex-direction: column; gap: 8px; max-width: 500px; margin: 16px 0; }
-.bar-row { display: flex; align-items: center; gap: 10px; }
-.bar-label { font-size: 12px; width: 90px; text-align: right; color: var(--pub-text-3); }
-.bar-label.highlight { color: var(--pub-text); font-weight: 600; }
-.bar-track { flex: 1; background: #e8e8e8; border-radius: 4px; height: 16px; overflow: hidden; }
-.bar-fill { height: 100%; background: #ccc; border-radius: 4px; }
-.bar-fill.highlight { background: #7c3aed; }
-.bar-score { font-size: 12px; width: 36px; color: var(--pub-text-3); }
-.bar-score.highlight { color: var(--pub-text); font-weight: 600; }
-.benchmark-note { font-size: 11px; color: var(--pub-text-4); margin-top: 8px; }
-
-.prod-feature-list { list-style: none; padding: 0; margin: 16px 0 0; display: flex; flex-direction: column; gap: 10px; }
-.prod-feature-list li {
-  padding: 10px 14px; background: var(--pub-surface); border: 1px solid var(--pub-border);
-  border-radius: 6px; font-size: 14px; color: var(--pub-text-2);
+.card-body {
+  padding: 24px;
+  flex: 1;
 }
-.prod-feature-list li::before { content: '✓'; color: var(--pub-code); margin-right: 8px; }
+
+.card-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.card-body h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--pub-text);
+  margin: 0 0 6px;
+}
+
+.card-desc {
+  font-size: 13px;
+  color: var(--pub-text-2);
+  line-height: 1.5;
+  margin: 0 0 12px;
+}
+
+.card-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.card-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--pub-bg-alt, #f8f9fb);
+  color: var(--pub-text-3);
+}
+
+.card-link {
+  font-size: 13px;
+  color: var(--pub-primary);
+  font-weight: 600;
+}
+
+.page-bottom-cta {
+  background: linear-gradient(135deg, #0062cc, var(--pub-primary, #0073e6));
+  padding: 40px 48px;
+  text-align: center;
+}
+.page-bottom-cta h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 6px;
+}
+.page-bottom-cta p {
+  font-size: 14px;
+  color: rgba(255,255,255,0.7);
+  margin: 0 0 20px;
+}
+.cta-primary {
+  display: inline-block;
+  background: #fff;
+  color: var(--pub-primary, #0073e6);
+  padding: 12px 32px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.cta-primary:hover { opacity: 0.9; }
 
 @media (max-width: 768px) {
-  .prod-nav-cards { grid-template-columns: repeat(2, 1fr); }
-  .prod-api-grid { grid-template-columns: 1fr; }
-  .sub-scores { grid-template-columns: repeat(2, 1fr); }
+  .page-hero { padding: 32px 20px 24px; }
+  .page-hero h1 { font-size: 28px; }
+  .product-grid { grid-template-columns: 1fr; padding: 0 20px 32px; }
+  .page-bottom-cta { padding: 32px 20px; }
 }
 </style>
