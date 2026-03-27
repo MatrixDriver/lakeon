@@ -299,14 +299,20 @@ function scrollToBottom() {
 
 // Auto-start log streaming: always open by default
 async function autoLoadLogs() {
-  if (!job.value || logLines.value.length > 0 || streaming.value) return
-  // For terminal jobs: load persisted logs from OBS
-  // For running jobs: start live streaming immediately
-  if (TERMINAL.includes(job.value.status) && job.value.logObsPath) {
-    startStream()
-  } else if (!TERMINAL.includes(job.value.status)) {
-    startStream()
+  if (!job.value || streaming.value) return
+  if (TERMINAL.includes(job.value.status)) {
+    // Terminal job: load persisted logs (only once)
+    if (logLines.value.length === 0 && job.value.logObsPath) {
+      startStream()
+    }
+  } else if (job.value.status === 'RUNNING') {
+    // Running job: start live stream (retry if previous attempt failed)
+    if (logLines.value.length === 0 || logLines.value.every(l => l.startsWith('['))) {
+      logLines.value = []
+      startStream()
+    }
   }
+  // PENDING/STARTING: wait for next poll to retry
 }
 
 // Auto-refresh job status while not terminal
@@ -314,7 +320,7 @@ onMounted(() => {
   loadJob().then(() => autoLoadLogs())
   pollTimer = setInterval(() => {
     if (job.value && !TERMINAL.includes(job.value.status)) {
-      loadJob()
+      loadJob().then(() => autoLoadLogs())
     }
   }, 10000)
 })
