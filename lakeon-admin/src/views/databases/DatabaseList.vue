@@ -39,7 +39,7 @@
               <input type="checkbox" :checked="allSelected" @change="toggleAll" />
             </th>
             <th>名称</th>
-            <th>租户ID</th>
+            <th>租户</th>
             <th>状态</th>
             <th>状态信息</th>
             <th>规格</th>
@@ -55,7 +55,10 @@
               <input type="checkbox" :checked="selectedIds.has(db.id)" @change="toggleSelect(db.id)" />
             </td>
             <td><a class="db-link" @click="router.push(`/databases/${db.id}`)">{{ db.name }}</a></td>
-            <td style="font-family: monospace; font-size: 13px;">{{ db.tenant_id }}</td>
+            <td>
+              {{ tenantStore.name(db.tenant_id) }}
+              <br><span style="font-size: 11px; color: #999; font-family: monospace;">{{ db.tenant_id }}</span>
+            </td>
             <td>
               <span class="status-dot" :class="statusClass(db.status)"></span>
               {{ db.status }}
@@ -108,8 +111,10 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { adminApi } from '../../api/admin'
 import { formatDate } from '../../utils/format'
+import { useTenantStore } from '../../stores/tenants'
 
 const router = useRouter()
+const tenantStore = useTenantStore()
 
 interface Database {
   id: string
@@ -212,7 +217,7 @@ async function loadDatabases() {
   }
 }
 
-onMounted(loadDatabases)
+onMounted(() => { tenantStore.load(); loadDatabases() })
 </script>
 
 <style scoped>

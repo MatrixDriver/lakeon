@@ -60,7 +60,10 @@
             <td @click.stop><input type="checkbox" :value="base.id" v-model="selectedIds" /></td>
             <td style="font-family: monospace; font-size: 12px;">{{ base.id }}</td>
             <td>{{ base.name }}</td>
-            <td style="font-family: monospace; font-size: 12px;">{{ base.tenant_id }}</td>
+            <td>
+              {{ tenantStore.name(base.tenant_id) }}
+              <br><span style="font-size: 11px; color: #999; font-family: monospace;">{{ base.tenant_id }}</span>
+            </td>
             <td>
               <span class="status-dot" :class="statusColor(base.status)"></span>
               {{ base.status }}
@@ -115,6 +118,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { adminApi } from '../../api/admin'
+import { useTenantStore } from '../../stores/tenants'
+
+const tenantStore = useTenantStore()
 
 const stats = ref<Record<string, any>>({})
 const bases = ref<any[]>([])
@@ -129,6 +135,7 @@ const errorCount = computed(() => stats.value.by_status?.ERROR ?? 0)
 const allSelected = computed(() => bases.value.length > 0 && selectedIds.value.length === bases.value.length)
 
 onMounted(() => {
+  tenantStore.load()
   loadStats()
   loadBases()
 })

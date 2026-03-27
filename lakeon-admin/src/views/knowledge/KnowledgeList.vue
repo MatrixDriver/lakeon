@@ -58,7 +58,7 @@
             <tr>
               <th style="width: 30px;"></th>
               <th>名称</th>
-              <th>租户ID</th>
+              <th>租户</th>
               <th>类型</th>
               <th>状态</th>
               <th>文档数</th>
@@ -76,7 +76,10 @@
                   </button>
                 </td>
                 <td><strong>{{ kb.name }}</strong><br><span style="font-size: 11px; color: #999;">{{ kb.id }}</span></td>
-                <td style="font-family: monospace; font-size: 13px;">{{ kb.tenant_id }}</td>
+                <td>
+                  {{ tenantStore.name(kb.tenant_id) }}
+                  <br><span style="font-size: 11px; color: #999; font-family: monospace;">{{ kb.tenant_id }}</span>
+                </td>
                 <td>{{ kb.type }}</td>
                 <td>
                   <span class="status-dot" :class="kbStatusClass(kb.status)"></span>
@@ -192,6 +195,9 @@
 import { ref, reactive, onMounted } from 'vue'
 import { adminApi } from '../../api/admin'
 import { formatDate } from '../../utils/format'
+import { useTenantStore } from '../../stores/tenants'
+
+const tenantStore = useTenantStore()
 
 interface KnowledgeBase {
   id: string; tenant_id: string; name: string; description: string | null
@@ -320,6 +326,7 @@ function taskStatusClass(status: string) {
 }
 
 onMounted(() => {
+  tenantStore.load()
   loadStats()
   loadKbs()
 })
