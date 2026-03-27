@@ -95,63 +95,57 @@ public class NotebookWebSocketHandler extends TextWebSocketHandler {
 
     private ExecConnection createExecConnection(NotebookSessionEntity session, WebSocketSession wsSession) {
         try {
-            OutputForwarder forwarder = new OutputForwarder(wsSession);
             ExecWatch exec = k8sClient.pods()
                     .inNamespace(session.getNamespace())
                     .withName(session.getPodName())
                     .redirectingInput()
-                    .writingOutput(forwarder)
-                    .writingError(forwarder)
-                    .exec("python", "/app/repl_server.py");
+                    .redirectingOutput()
+                    .redirectingError()
+                    .exec("python", "-u", "/app/repl_server.py");
+
             OutputStream stdin = exec.getInput();
+            InputStream stdout = exec.getOutput();
+            InputStream stderr = exec.getError();
+
+            // Background thread: read stdout line by line, forward to WS
+            Thread readerThread = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(stdout, StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        if (!line.isBlank() && wsSession.isOpen()) {
+                            try {
+                                wsSession.sendMessage(new TextMessage(line));
+                            } catch (Exception e) {
+                                break;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    if (!e.getMessage().contains("closed")) {
+                        log.warn("Exec stdout reader error: {}", e.getMessage());
+                    }
+                }
+            }, "notebook-reader-" + session.getId());
+            readerThread.setDaemon(true);
+            readerThread.start();
+
+            // Background thread for stderr (forward as error messages)
+            Thread errThread = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(stderr, StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        log.debug("Notebook stderr: {}", line);
+                    }
+                } catch (Exception ignored) {}
+            }, "notebook-stderr-" + session.getId());
+            errThread.setDaemon(true);
+            errThread.start();
+
             log.info("Created exec connection to pod {}/{}", session.getNamespace(), session.getPodName());
             return new ExecConnection(exec, stdin);
         } catch (Exception e) {
-            log.error("Failed to exec into notebook pod {}: {}", session.getPodName(), e.getMessage());
+            log.error("Failed to exec into notebook pod {}: {}", session.getPodName(), e.getMessage(), e);
             return null;
-        }
-    }
-
-    // Forwards pod stdout/stderr to WebSocket as JSON lines
-    private static class OutputForwarder extends OutputStream {
-        private final WebSocketSession wsSession;
-        private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-
-        OutputForwarder(WebSocketSession wsSession) { this.wsSession = wsSession; }
-
-        @Override
-        public void write(int b) throws IOException {
-            if (b == '\n') {
-                flush();
-            } else {
-                buffer.write(b);
-            }
-        }
-
-        @Override
-        public void write(byte[] b, int off, int len) throws IOException {
-            for (int i = off; i < off + len; i++) {
-                if (b[i] == '\n') {
-                    flush();
-                } else {
-                    buffer.write(b[i]);
-                }
-            }
-        }
-
-        @Override
-        public void flush() {
-            if (buffer.size() == 0) return;
-            String line = buffer.toString(StandardCharsets.UTF_8).trim();
-            buffer.reset();
-            if (line.isEmpty()) return;
-            try {
-                if (wsSession.isOpen()) {
-                    wsSession.sendMessage(new TextMessage(line));
-                }
-            } catch (Exception e) {
-                // WS closed, ignore
-            }
         }
     }
 
