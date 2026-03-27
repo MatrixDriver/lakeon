@@ -88,4 +88,17 @@ export const adminApi = {
   batchDeleteMemoryBases: (ids: string[]) =>
     client.delete('/memory/bases/batch', { data: { ids } }),
   triggerDigest: (id: string) => client.post(`/memory/bases/${id}/digest`),
+
+  // Datalake Admin
+  datalakeStats: () => client.get('/datalake/stats'),
+  listDatalakeJobs: (params?: { tenant_id?: string; status?: string; type?: string }) =>
+    client.get('/datalake/jobs', { params }),
+  getDatalakeJob: (id: string) => client.get(`/datalake/jobs/${id}`),
+  cancelDatalakeJob: (id: string) => client.delete(`/datalake/jobs/${id}`),
+
+  // Dataset Admin
+  listDatasets: (params?: { tenant_id?: string; status?: string }) =>
+    client.get('/datalake/datasets', { params }),
+  getDataset: (id: string) => client.get(`/datalake/datasets/${id}`),
+  deleteDataset: (id: string) => client.delete(`/datalake/datasets/${id}`),
 }
