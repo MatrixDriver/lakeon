@@ -268,6 +268,8 @@ public class TenantService {
             .maxComputeCu(entity.getMaxComputeCu())
             .disabled(entity.getDisabled())
             .disabledAt(entity.getDisabledAt())
+            .trial(entity.getTrial())
+            .expiresAt(entity.getExpiresAt())
             .build();
     }
 
@@ -283,6 +285,8 @@ public class TenantService {
             .databaseCount(dbCount)
             .disabled(entity.getDisabled())
             .disabledAt(entity.getDisabledAt())
+            .trial(entity.getTrial())
+            .expiresAt(entity.getExpiresAt())
             .build();
     }
 }

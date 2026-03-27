@@ -29,12 +29,18 @@ public class TenantResponse {
     @JsonProperty("disabled_at")
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private Instant disabledAt;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Boolean trial;
+    @JsonProperty("expires_at")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Instant expiresAt;
 
     public TenantResponse() {}
 
     public TenantResponse(String id, String name, String apiKey, Instant createdAt,
                           Integer maxDatabases, Integer maxStorageGb, Integer maxComputeCu,
-                          Integer databaseCount, Boolean disabled, Instant disabledAt) {
+                          Integer databaseCount, Boolean disabled, Instant disabledAt,
+                          Boolean trial, Instant expiresAt) {
         this.id = id;
         this.name = name;
         this.apiKey = apiKey;
@@ -45,6 +51,8 @@ public class TenantResponse {
         this.databaseCount = databaseCount;
         this.disabled = disabled;
         this.disabledAt = disabledAt;
+        this.trial = trial;
+        this.expiresAt = expiresAt;
     }
 
     public static Builder builder() {
@@ -71,6 +79,10 @@ public class TenantResponse {
     public void setDisabled(Boolean disabled) { this.disabled = disabled; }
     public Instant getDisabledAt() { return disabledAt; }
     public void setDisabledAt(Instant disabledAt) { this.disabledAt = disabledAt; }
+    public Boolean getTrial() { return trial; }
+    public void setTrial(Boolean trial) { this.trial = trial; }
+    public Instant getExpiresAt() { return expiresAt; }
+    public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }
 
     public static class Builder {
         private String id;
@@ -83,6 +95,8 @@ public class TenantResponse {
         private Integer databaseCount;
         private Boolean disabled;
         private Instant disabledAt;
+        private Boolean trial;
+        private Instant expiresAt;
 
         public Builder id(String id) { this.id = id; return this; }
         public Builder name(String name) { this.name = name; return this; }
@@ -94,9 +108,11 @@ public class TenantResponse {
         public Builder databaseCount(Integer databaseCount) { this.databaseCount = databaseCount; return this; }
         public Builder disabled(Boolean disabled) { this.disabled = disabled; return this; }
         public Builder disabledAt(Instant disabledAt) { this.disabledAt = disabledAt; return this; }
+        public Builder trial(Boolean trial) { this.trial = trial; return this; }
+        public Builder expiresAt(Instant expiresAt) { this.expiresAt = expiresAt; return this; }
 
         public TenantResponse build() {
-            return new TenantResponse(id, name, apiKey, createdAt, maxDatabases, maxStorageGb, maxComputeCu, databaseCount, disabled, disabledAt);
+            return new TenantResponse(id, name, apiKey, createdAt, maxDatabases, maxStorageGb, maxComputeCu, databaseCount, disabled, disabledAt, trial, expiresAt);
         }
     }
 }
