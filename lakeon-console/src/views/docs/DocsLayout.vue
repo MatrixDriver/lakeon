@@ -3,15 +3,15 @@
     <aside class="docs-sidebar">
       <nav class="sidebar-nav">
         <div class="nav-group">
-          <span class="nav-label">{{ t('入门', 'Getting Started') }}</span>
-          <router-link to="/docs" exact-active-class="active" class="nav-link">{{ t('快速开始', 'Quick Start') }}</router-link>
-          <router-link to="/docs/deploy" active-class="active" class="nav-link">{{ t('部署指南', 'Deployment') }}</router-link>
+          <span class="nav-group-title">{{ t('入门', 'GETTING STARTED') }}</span>
+          <router-link to="/docs" class="nav-link" exact-active-class="router-link-exact-active">{{ t('快速开始', 'Quick Start') }}</router-link>
+          <router-link to="/docs/deploy" class="nav-link">{{ t('部署指南', 'Deploy Guide') }}</router-link>
         </div>
-        <div class="nav-group">
-          <span class="nav-label">{{ t('参考文档', 'Reference') }}</span>
-          <router-link to="/docs/rest-api" active-class="active" class="nav-link">REST API</router-link>
-          <router-link to="/docs/python-sdk" active-class="active" class="nav-link">Python SDK</router-link>
-          <router-link to="/docs/mcp" active-class="active" class="nav-link">MCP 工具</router-link>
+        <div class="nav-group nav-group--spaced">
+          <span class="nav-group-title">{{ t('参考文档', 'REFERENCE') }}</span>
+          <router-link to="/docs/rest-api" class="nav-link">REST API</router-link>
+          <router-link to="/docs/python-sdk" class="nav-link">Python SDK</router-link>
+          <router-link to="/docs/mcp" class="nav-link">{{ t('MCP 接入', 'MCP Integration') }}</router-link>
         </div>
       </nav>
     </aside>
@@ -30,52 +30,79 @@ const { t } = useLocale()
 .docs-shell {
   display: flex;
   min-height: 100vh;
-  background: var(--pub-bg);
   color: var(--pub-text);
 }
+
 .docs-sidebar {
-  width: 220px;
+  width: 240px;
   flex-shrink: 0;
-  border: 1px solid var(--pub-border);
   background: var(--pub-surface);
-  padding: 48px 0 80px;
+  border-right: 1px solid var(--pub-border);
   position: sticky;
-  top: 0;
-  height: 100vh;
+  top: 52px;
+  height: calc(100vh - 52px);
   overflow-y: auto;
+  padding: 24px 16px;
 }
-.sidebar-nav { padding: 0 16px; }
-.nav-group { margin-bottom: 24px; }
-.nav-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--pub-text-4);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-group--spaced {
+  margin-top: 20px;
+}
+
+.nav-group-title {
   display: block;
-  margin-bottom: 6px;
-  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--pub-text-3);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
 }
+
 .nav-link {
   display: block;
-  padding: 6px 8px;
-  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
   color: var(--pub-text-2);
   text-decoration: none;
-  border-radius: 5px;
   transition: color 0.15s, background 0.15s;
-  margin-bottom: 2px;
 }
-.nav-link:hover { color: var(--pub-text); background: var(--pub-hover); }
-.nav-link.active { color: var(--pub-code); background: var(--pub-accent-bg); }
+
+.nav-link:hover {
+  background: var(--pub-hover);
+}
+
+.nav-link.router-link-exact-active,
+.nav-link.router-link-active {
+  color: var(--pub-primary);
+  background: var(--pub-primary-light);
+  font-weight: 600;
+}
+
 .docs-content {
   flex: 1;
-  min-width: 0;
-  padding: 48px 48px 80px;
-  max-width: 800px;
+  background: var(--pub-surface);
+  padding: 32px 48px;
 }
+
 @media (max-width: 768px) {
-  .docs-sidebar { display: none; }
-  .docs-content { padding: 32px 20px 60px; }
+  .docs-sidebar {
+    display: none;
+  }
+
+  .docs-content {
+    padding: 20px;
+  }
 }
 </style>
