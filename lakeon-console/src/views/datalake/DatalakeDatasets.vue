@@ -3,7 +3,7 @@
     <div class="page-header">
       <h1 class="page-title">数据集</h1>
       <div class="page-header-actions">
-        <button class="btn btn-primary" @click="$router.push('/datalake/datasets/new')">新建数据集</button>
+        <button class="btn btn-primary" :disabled="authStore.isTrial" :title="authStore.isTrial ? '试用用户不可创建数据集' : ''" @click="$router.push('/datalake/datasets/new')">新建数据集</button>
       </div>
     </div>
 
@@ -84,6 +84,9 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import TableToolbar from '../../components/TableToolbar.vue'
 import client from '../../api/client'
+import { useAuthStore } from '../../stores/auth'
+
+const authStore = useAuthStore()
 
 interface Dataset {
   id: string

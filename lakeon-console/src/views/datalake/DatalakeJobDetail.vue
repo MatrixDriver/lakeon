@@ -297,10 +297,14 @@ function scrollToBottom() {
   }
 }
 
-// Auto-load logs for terminal jobs (persisted in OBS)
+// Auto-start log streaming: always open by default
 async function autoLoadLogs() {
   if (!job.value || logLines.value.length > 0 || streaming.value) return
+  // For terminal jobs: load persisted logs from OBS
+  // For running jobs: start live streaming immediately
   if (TERMINAL.includes(job.value.status) && job.value.logObsPath) {
+    startStream()
+  } else if (!TERMINAL.includes(job.value.status)) {
     startStream()
   }
 }

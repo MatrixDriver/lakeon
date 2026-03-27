@@ -83,7 +83,7 @@ import { python } from '@codemirror/lang-python'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { generateDatalakeScript } from '../../../api/datalake'
 
-const props = defineProps<{ script: string; requirements?: string }>()
+const props = defineProps<{ script: string; requirements?: string; jobType?: string }>()
 const emit = defineEmits<{
   'update:script': [value: string]
   'update:requirements': [value: string]
@@ -94,21 +94,102 @@ const tab = ref<'inline' | 'obs'>('inline')
 const editorContainer = ref<HTMLElement | null>(null)
 let view: EditorView | null = null
 
-const STARTER = `import os
-import pandas as pd
+const PYTHON_STARTER = `import pandas as pd
+import numpy as np
+import os
 
-# 通过环境变量读取输入数据集和输出路径
-input_path  = os.environ["DATASET_PATH"]
-output_path = os.environ["OUTPUT_PATH"]
+# === DBay 数据湖 Python 演示 ===
+# 生成一份销售数据并做统计分析
 
-df = pd.read_parquet(input_path)
+np.random.seed(42)
+dates = pd.date_range("2025-01-01", periods=200, freq="D")
+products = np.random.choice(["手机", "笔记本", "平板", "耳机"], 200)
+quantities = np.random.randint(1, 50, 200)
+prices = np.round(np.random.uniform(99, 9999, 200), 2)
 
-# 在此编写你的处理逻辑
-# df = df[df["score"] > 0.8]
+df = pd.DataFrame({
+    "日期": dates, "产品": products,
+    "数量": quantities, "单价": prices,
+})
+df["销售额"] = df["数量"] * df["单价"]
 
-df.to_parquet(output_path, index=False)
-print(f"输出 {len(df)} 行到 {output_path}")
+# 按产品汇总
+summary = df.groupby("产品").agg(
+    订单数=("数量", "count"),
+    总销量=("数量", "sum"),
+    总销售额=("销售额", "sum"),
+    平均单价=("单价", "mean"),
+).round(2).sort_values("总销售额", ascending=False)
+
+print("=" * 50)
+print("  DBay 数据湖 — 销售数据分析演示")
+print("=" * 50)
+print(f"\\n总记录: {len(df)} 行")
+print(f"日期范围: {df['日期'].min().date()} ~ {df['日期'].max().date()}")
+print(f"总销售额: ¥{df['销售额'].sum():,.2f}")
+print(f"\\n📊 按产品汇总:")
+print(summary.to_string())
+
+# 输出结果（如果设置了 OUTPUT_PATH）
+output = os.environ.get("OUTPUT_PATH")
+if output:
+    df.to_parquet(output, index=False)
+    print(f"\\n✅ 已输出 {len(df)} 行到 {output}")
+else:
+    print("\\n✅ 演示完成")
 `
+
+const RAY_STARTER = `import ray
+import time
+import random
+
+# === DBay 数据湖 Ray 分布式演示 ===
+# 蒙特卡罗方法并行估算 π
+
+ray.init()
+
+@ray.remote
+def estimate_pi(n_samples: int, task_id: int) -> dict:
+    """单个 worker 的蒙特卡罗采样"""
+    inside = 0
+    for _ in range(n_samples):
+        x, y = random.random(), random.random()
+        if x * x + y * y <= 1.0:
+            inside += 1
+    return {"task_id": task_id, "inside": inside, "total": n_samples}
+
+n_tasks = 10
+samples_per_task = 1_000_000
+total_samples = n_tasks * samples_per_task
+
+print("=" * 50)
+print("  DBay 数据湖 — Ray 分布式计算演示")
+print("=" * 50)
+print(f"\\n🚀 启动 {n_tasks} 个并行任务，每个采样 {samples_per_task:,} 次")
+print(f"   总采样: {total_samples:,} 次")
+print(f"   集群资源: {ray.cluster_resources()}")
+
+start = time.time()
+futures = [estimate_pi.remote(samples_per_task, i) for i in range(n_tasks)]
+results = ray.get(futures)
+elapsed = time.time() - start
+
+total_inside = sum(r["inside"] for r in results)
+pi_estimate = 4.0 * total_inside / total_samples
+error = abs(pi_estimate - 3.141592653589793)
+
+print(f"\\n📊 计算结果:")
+for r in results:
+    pi_local = 4.0 * r["inside"] / r["total"]
+    print(f"   Task {r['task_id']:2d}: π ≈ {pi_local:.6f}")
+
+print(f"\\n   合并估算: π ≈ {pi_estimate:.8f}")
+print(f"   实际误差: {error:.8f}")
+print(f"   计算耗时: {elapsed:.2f}s")
+print(f"\\n✅ 演示完成")
+`
+
+const STARTER = props.jobType === 'RAY' ? RAY_STARTER : PYTHON_STARTER
 
 onMounted(() => {
   if (!editorContainer.value) return

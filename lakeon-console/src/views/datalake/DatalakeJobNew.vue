@@ -53,6 +53,7 @@
           v-else-if="currentSection === 'code'"
           :script="form.inlineScript"
           :requirements="form.requirements"
+          :job-type="form.type"
           @update:script="form.inlineScript = $event"
           @update:requirements="form.requirements = $event"
           @update:usedDatasetIds="form.inputDatasetIds = $event"
