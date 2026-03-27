@@ -55,6 +55,18 @@
       </div>
     </header>
 
+    <!-- Trial Banner -->
+    <div v-if="authStore.isTrial" class="trial-banner">
+      <div class="trial-banner-content">
+        <span class="trial-banner-text">
+          体验模式 — 只读演示环境<template v-if="trialTimeLeft">，剩余 {{ trialTimeLeft }}</template>
+        </span>
+        <router-link to="/login" class="trial-banner-cta" @click="authStore.logout()">
+          注册账号，解锁全部功能
+        </router-link>
+      </div>
+    </div>
+
     <div class="console-body">
       <!-- Mobile sidebar overlay -->
       <div v-if="sidebarOpen" class="sidebar-overlay" @click="sidebarOpen = false"></div>
@@ -174,7 +186,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
@@ -229,6 +241,36 @@ function handleLogout() {
   authStore.logout()
   router.push('/login')
 }
+
+// Trial countdown
+const trialTimeLeft = ref('')
+let trialTimer: ReturnType<typeof setInterval> | null = null
+
+function updateTrialCountdown() {
+  if (!authStore.isTrial || !authStore.trialExpiresAt) {
+    trialTimeLeft.value = ''
+    return
+  }
+  const diff = new Date(authStore.trialExpiresAt).getTime() - Date.now()
+  if (diff <= 0) {
+    trialTimeLeft.value = '已过期'
+    return
+  }
+  const h = Math.floor(diff / 3600000)
+  const m = Math.floor((diff % 3600000) / 60000)
+  trialTimeLeft.value = `${h}h ${m}m`
+}
+
+onMounted(() => {
+  if (authStore.isTrial) {
+    updateTrialCountdown()
+    trialTimer = setInterval(updateTrialCountdown, 60000)
+  }
+})
+
+onUnmounted(() => {
+  if (trialTimer) clearInterval(trialTimer)
+})
 </script>
 
 <style scoped>
@@ -587,5 +629,30 @@ function handleLogout() {
   .console-main {
     padding: 12px;
   }
+}
+
+.trial-banner {
+  background: linear-gradient(90deg, #fff3cd, #ffeaa7);
+  border-bottom: 1px solid #f0d78e;
+  padding: 6px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: #856404;
+  z-index: 100;
+}
+.trial-banner-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+.trial-banner-cta {
+  color: #0073e6;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.trial-banner-cta:hover {
+  text-decoration: underline;
 }
 </style>
