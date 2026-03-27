@@ -98,6 +98,7 @@ public class TrialService {
         tenant.setMaxDatabases(0);
         tenant.setMaxStorageGb(0);
         tenant.setMaxComputeCu(0);
+        tenant.setMaxDatalakeJobs(3);
         tenant = tenantRepository.save(tenant);
 
         Map<String, Object> result = new LinkedHashMap<>();

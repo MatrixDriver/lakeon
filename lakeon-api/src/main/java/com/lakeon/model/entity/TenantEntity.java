@@ -40,6 +40,9 @@ public class TenantEntity {
     @Column(name = "max_compute_cu", nullable = false)
     private Integer maxComputeCu = 1;
 
+    @Column(name = "max_datalake_jobs")
+    private Integer maxDatalakeJobs;
+
     @Column(name = "disabled", nullable = false)
     private Boolean disabled = false;
 
@@ -133,6 +136,9 @@ public class TenantEntity {
 
     public Integer getMaxComputeCu() { return maxComputeCu; }
     public void setMaxComputeCu(Integer maxComputeCu) { this.maxComputeCu = maxComputeCu; }
+
+    public Integer getMaxDatalakeJobs() { return maxDatalakeJobs; }
+    public void setMaxDatalakeJobs(Integer maxDatalakeJobs) { this.maxDatalakeJobs = maxDatalakeJobs; }
 
     public Boolean getDisabled() { return disabled; }
     public void setDisabled(Boolean disabled) { this.disabled = disabled; }

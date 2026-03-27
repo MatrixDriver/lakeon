@@ -11,4 +11,5 @@ public interface DatalakeJobRepository extends JpaRepository<DatalakeJobEntity, 
     List<DatalakeJobEntity> findByStatusIn(List<DatalakeJobStatus> statuses);
     List<DatalakeJobEntity> findAllByOrderByCreatedAtDesc();
     List<DatalakeJobEntity> findByStatusOrderByCreatedAtDesc(DatalakeJobStatus status);
+    long countByTenantId(String tenantId);
 }

@@ -35,11 +35,17 @@ public class TrialDemoFilter implements Filter {
         "/recall"
     );
 
+    // Path prefixes where trial users can do writes (quota-enforced by the service layer)
+    private static final Set<String> TRIAL_WRITE_PATHS = Set.of(
+        "/api/v1/datalake/"
+    );
+
     // Paths that should always use the trial user's own tenant (not demo)
     private static final Set<String> OWN_TENANT_PATHS = Set.of(
         "/api/v1/tenants/me",
         "/api/v1/usage",
-        "/api/v1/auth/"
+        "/api/v1/auth/",
+        "/api/v1/datalake/"
     );
 
     public TrialDemoFilter(LakeonProperties props, TenantRepository tenantRepository) {
@@ -95,6 +101,13 @@ public class TrialDemoFilter implements Filter {
         }
 
         if (!isRead) {
+            // Allow writes to specific paths (quota-enforced by service layer)
+            for (String writePath : TRIAL_WRITE_PATHS) {
+                if (path.startsWith(writePath)) {
+                    chain.doFilter(req, res);
+                    return;
+                }
+            }
             response.setStatus(403);
             response.setContentType("application/json");
             response.getWriter().write(

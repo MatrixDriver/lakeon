@@ -6,6 +6,7 @@ import com.lakeon.config.LakeonProperties;
 import com.lakeon.dataset.DatasetEntity;
 import com.lakeon.dataset.DatasetRepository;
 import com.lakeon.dataset.DatasetStatus;
+import com.lakeon.repository.TenantRepository;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +44,9 @@ public class DatalakeService {
     @Autowired(required = false)
     private FinetuneJobRunner finetuneJobRunner;
 
+    @Autowired(required = false)
+    private TenantRepository tenantRepository;
+
     public DatalakeService(DatalakeJobRepository repository, ObjectMapper objectMapper, LakeonProperties properties) {
         this.repository = repository;
         this.objectMapper = objectMapper;
@@ -55,6 +59,20 @@ public class DatalakeService {
         }
         if (req.getType() == null) {
             throw new BadRequestException("type is required");
+        }
+
+        // Quota check: maxDatalakeJobs (null = unlimited)
+        if (tenantRepository != null) {
+            tenantRepository.findById(tenantId).ifPresent(tenant -> {
+                Integer max = tenant.getMaxDatalakeJobs();
+                if (max != null && max >= 0) {
+                    long current = repository.countByTenantId(tenantId);
+                    if (current >= max) {
+                        throw new BadRequestException(
+                            "数据湖作业数量已达上限 (" + max + ")，注册账号后可提升额度");
+                    }
+                }
+            });
         }
 
         String spec;
