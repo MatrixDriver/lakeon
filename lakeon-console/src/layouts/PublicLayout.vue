@@ -144,7 +144,10 @@ function toggleLocale() {
 async function handleNavTrial() {
   try {
     localStorage.removeItem('lakeon_api_key')
+    authStore.apiKey = ''
     const { data } = await client.post('/trial', null, { timeout: 10000 })
+    localStorage.setItem('lakeon_api_key', data.api_key)
+    authStore.apiKey = data.api_key
     authStore.setTenant(data.tenant_id, data.username || 'trial')
     authStore.setTrialState(true, data.expires_at)
     router.push('/dashboard')
