@@ -756,6 +756,16 @@ public class ChunkService {
         return sb.toString();
     }
 
+    // ── Public wrappers for SummaryService ──────────────────────────
+
+    public float[] getEmbeddingPublic(String text, String model) {
+        return getEmbedding(text, model);
+    }
+
+    public String floatArrayToVectorLiteralPublic(float[] vec) {
+        return floatArrayToVectorLiteral(vec);
+    }
+
     private Map<String, Object> rowToChunkMap(ResultSet rs) throws Exception {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", rs.getString("id"));
