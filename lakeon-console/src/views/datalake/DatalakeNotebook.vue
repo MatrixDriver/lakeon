@@ -2,8 +2,12 @@
   <div class="page-container">
     <div class="nb-toolbar">
       <div class="nb-toolbar-left">
-        <span class="nb-title">Notebook</span>
+        <a class="nb-back" @click="$router.push('/datalake/notebook')">←</a>
+        <span class="nb-title">{{ notebookName || 'Notebook' }}</span>
         <span class="nb-status" :class="kernelStatus">{{ statusLabel }}</span>
+        <span v-if="saveStatus === 'saving'" class="nb-save-status saving">Saving...</span>
+        <span v-else-if="saveStatus === 'saved'" class="nb-save-status saved">Saved ✓</span>
+        <span v-else-if="saveStatus === 'error'" class="nb-save-status error">Save failed</span>
       </div>
       <div class="nb-toolbar-right">
         <select v-model="imageKey" class="nb-select" :disabled="kernelStatus === 'running'">
@@ -52,7 +56,7 @@
           :code="cell.code" :is-active="activeIndex === i" :is-running="cell.running"
           :exec-count="cell.execCount" :duration-ms="cell.durationMs" :outputs="cell.outputs"
           :cell-type="cell.cellType"
-          @update:code="cell.code = $event; saveCells()"
+          @update:code="cell.code = $event; scheduleSave()"
           @run="runCell(i)" @delete="deleteCell(i)"
           @focus="activeIndex = i" @advance="advanceCell(i)"
           @toggle-type="toggleCellType(i)"
@@ -128,12 +132,15 @@ results = ray.get(
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import NotebookCell from './components/NotebookCell.vue'
 import { createSession, stopSession as apiStopSession, NotebookSocket, type NotebookMessage } from '../../api/notebook'
 import client from '../../api/client'
+import { notebooksApi } from '../../api/notebooks'
 
 const router = useRouter()
+const route = useRoute()
+const notebookId = computed(() => route.params.id as string)
 
 interface Cell {
   id: string; code: string; outputs: NotebookMessage[]
@@ -146,6 +153,9 @@ const activeIndex = ref(0)
 const showVars = ref(false)
 const showRef = ref(true)
 const variables = ref<Array<{ name: string; type: string; repr: string }>>([])
+const notebookName = ref('')
+const saveStatus = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
+let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 const imageKey = ref('python-data')
 const workerCount = ref(2)
@@ -164,12 +174,12 @@ function newCell(code = '', cellType: 'code' | 'markdown' = 'code'): Cell {
   return { id: 'cell_' + Math.random().toString(36).slice(2, 8), code, outputs: [], running: false, execCount: null, durationMs: null, cellType }
 }
 
-function addCell(code = '') { cells.value.push(newCell(code)); activeIndex.value = cells.value.length - 1; saveCells() }
+function addCell(code = '') { cells.value.push(newCell(code)); activeIndex.value = cells.value.length - 1; scheduleSave() }
 function deleteCell(i: number) {
   if (cells.value.length <= 1) return
   cells.value.splice(i, 1)
   if (activeIndex.value >= cells.value.length) activeIndex.value = cells.value.length - 1
-  saveCells()
+  scheduleSave()
 }
 function advanceCell(i: number) { if (i + 1 >= cells.value.length) addCell(); else activeIndex.value = i + 1 }
 
@@ -187,7 +197,7 @@ function toggleCellType(i: number) {
   const cell = cells.value[i]
   if (cell) {
     cell.cellType = cell.cellType === 'code' ? 'markdown' : 'code'
-    saveCells()
+    scheduleSave()
   }
 }
 
@@ -213,7 +223,7 @@ function handleMessage(msg: NotebookMessage) {
     cell.running = false
     cell.durationMs = msg.duration_ms ?? null
     cell.execCount = msg.exec_count ?? null
-    saveCells()
+    scheduleSave()
   } else {
     cell.outputs.push(msg)
   }
@@ -251,13 +261,60 @@ function submitAsJob() {
   router.push('/datalake/jobs/new')
 }
 
-function saveCells() {
-  localStorage.setItem('notebook_cells', JSON.stringify(cells.value.map(c => ({ id: c.id, code: c.code, cellType: c.cellType }))))
+function scheduleSave() {
+  if (saveTimer) clearTimeout(saveTimer)
+  saveStatus.value = 'idle'
+  saveTimer = setTimeout(() => doSave(false), 3000)
 }
-function loadCells() {
+
+function buildNotebookJson(): string {
+  return JSON.stringify({
+    cells: cells.value.map(c => ({
+      id: c.id, code: c.code, cellType: c.cellType,
+      outputs: c.outputs, execCount: c.execCount, durationMs: c.durationMs,
+    })),
+    image: imageKey.value,
+    datasetIds: selectedDatasetId.value ? [selectedDatasetId.value] : [],
+  })
+}
+
+async function doSave(version: boolean) {
+  if (!notebookId.value) return
+  saveStatus.value = 'saving'
   try {
-    const raw = localStorage.getItem('notebook_cells')
-    if (raw) { const data = JSON.parse(raw); cells.value = data.map((d: any) => newCell(d.code, d.cellType || 'code')) }
+    await notebooksApi.save(notebookId.value, buildNotebookJson(), version)
+    saveStatus.value = 'saved'
+    setTimeout(() => { if (saveStatus.value === 'saved') saveStatus.value = 'idle' }, 2000)
+  } catch {
+    saveStatus.value = 'error'
+  }
+}
+
+function loadNotebookContent(content: any) {
+  if (content.cells) {
+    cells.value = content.cells.map((c: any) => ({
+      id: c.id || 'cell_' + Math.random().toString(36).slice(2, 8),
+      code: c.code || '',
+      cellType: c.cellType || 'code',
+      outputs: c.outputs || [],
+      running: false,
+      execCount: c.execCount || null,
+      durationMs: c.durationMs || null,
+    }))
+  }
+  if (content.image) imageKey.value = content.image
+  if (content.datasetIds?.length) selectedDatasetId.value = content.datasetIds[0]
+}
+
+async function loadNotebook() {
+  if (!notebookId.value) { addCell(); return }
+  try {
+    const { data } = await notebooksApi.get(notebookId.value)
+    notebookName.value = data.name || ''
+    if (data.content) {
+      const content = typeof data.content === 'string' ? JSON.parse(data.content) : data.content
+      loadNotebookContent(content)
+    }
   } catch {}
   if (cells.value.length === 0) addCell()
 }
@@ -266,8 +323,15 @@ async function loadDatasets() {
   try { const { data } = await client.get('/datalake/datasets', { params: { status: 'READY' } }); datasets.value = data.map((d: any) => ({ id: d.id, name: d.name })) } catch {}
 }
 
-onMounted(() => { loadCells(); loadDatasets() })
-onUnmounted(() => { socket?.disconnect() })
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault()
+    doSave(true)
+  }
+}
+
+onMounted(() => { loadNotebook(); loadDatasets(); window.addEventListener('keydown', handleKeydown) })
+onUnmounted(() => { socket?.disconnect(); window.removeEventListener('keydown', handleKeydown) })
 </script>
 
 <style scoped>
@@ -314,4 +378,14 @@ onUnmounted(() => { socket?.disconnect() })
 .nb-ref-row kbd { background: #1e293b; color: #fff; padding: 1px 5px; border-radius: 3px; font-size: 10px; font-family: monospace; white-space: nowrap; flex-shrink: 0; }
 .nb-ref-code { background: #1e1e2e; color: #cdd6f4; padding: 8px 10px; border-radius: 6px; font-size: 11px; font-family: monospace; line-height: 1.5; overflow-x: auto; margin: 6px 0 0; white-space: pre; }
 @media (max-width: 1100px) { .nb-ref { display: none; } }
+
+/* Save status */
+.nb-save-status { font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+.nb-save-status.saving { color: #a16207; background: #fef9c3; }
+.nb-save-status.saved { color: #16a34a; background: #dcfce7; }
+.nb-save-status.error { color: #dc2626; background: #fee2e2; }
+
+/* Back link */
+.nb-back { cursor: pointer; color: #6b7280; font-size: 18px; text-decoration: none; margin-right: 4px; }
+.nb-back:hover { color: #2563eb; }
 </style>
