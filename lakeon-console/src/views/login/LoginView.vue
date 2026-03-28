@@ -2,11 +2,11 @@
   <div class="login-page">
     <div class="login-card">
       <div class="login-header">
-        <router-link to="/landing" class="login-logo-link">
+        <router-link to="/" class="login-logo-link">
           <h1 class="login-logo">DBay</h1>
           <p class="login-tagline">数据港湾</p>
         </router-link>
-        <p class="login-subtitle">Serverless 云数据库，按需启停，零运维</p>
+        <p class="login-subtitle">Agent 时代的数据基础设施</p>
       </div>
 
       <!-- Tab Switch -->
@@ -29,7 +29,7 @@
           <label class="form-label">用户名</label>
           <input
             v-model="loginUsername"
-            class="form-input form-input-full"
+            class="form-input"
             placeholder="请输入用户名"
             @keyup.enter="focusPassword"
           />
@@ -70,7 +70,7 @@
           <label class="form-label">用户名 <span class="required">*</span></label>
           <input
             v-model="registerUsername"
-            class="form-input form-input-full"
+            class="form-input"
             :class="{ 'input-error': usernameTaken }"
             placeholder="请输入用户名"
             @blur="checkUsername"
@@ -84,7 +84,7 @@
           <input
             v-model="registerPassword"
             type="password"
-            class="form-input form-input-full"
+            class="form-input"
             placeholder="设置登录密码（至少 6 位）"
           />
         </div>
@@ -93,7 +93,7 @@
           <input
             v-model="registerConfirm"
             type="password"
-            class="form-input form-input-full"
+            class="form-input"
             placeholder="再次输入密码"
             @keyup.enter="handleRegister"
           />
@@ -261,14 +261,14 @@ function goToLogin() {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: #f5f5f5;
+  background: var(--pub-bg);
 }
 
 .login-card {
   width: 420px;
-  background: #fff;
-  border-radius: 4px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  background: var(--pub-surface);
+  border-radius: 16px;
+  border: 1px solid var(--pub-border);
   padding: 48px 40px 36px;
 }
 
@@ -284,27 +284,27 @@ function goToLogin() {
 
 .login-logo {
   font-size: 36px;
-  font-weight: 700;
-  color: #0073e6;
-  margin-bottom: 4px;
-  letter-spacing: 2px;
+  font-weight: 800;
+  color: var(--pub-primary);
+  margin-bottom: 2px;
+  letter-spacing: 1px;
 }
 
 .login-tagline {
-  font-size: 16px;
-  color: #333;
+  font-size: 15px;
+  color: var(--pub-text);
   font-weight: 500;
   margin-bottom: 6px;
 }
 
 .login-subtitle {
   font-size: 13px;
-  color: #999;
+  color: var(--pub-text-3);
 }
 
 .login-tabs {
   display: flex;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 1px solid var(--pub-border);
   margin-bottom: 24px;
 }
 
@@ -314,20 +314,20 @@ function goToLogin() {
   border: none;
   padding: 10px 0;
   font-size: 15px;
-  color: #575d6c;
+  color: var(--pub-text-2);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: all 0.2s;
 }
 
 .login-tab.active {
-  color: #0073e6;
-  border-bottom-color: #0073e6;
+  color: var(--pub-primary);
+  border-bottom-color: var(--pub-primary);
   font-weight: 600;
 }
 
 .login-tab:hover:not(.active) {
-  color: #191919;
+  color: var(--pub-text);
 }
 
 .form-group {
@@ -337,7 +337,7 @@ function goToLogin() {
 .form-label {
   display: block;
   font-size: 14px;
-  color: #333;
+  color: var(--pub-text);
   margin-bottom: 6px;
   font-weight: 500;
 }
@@ -349,64 +349,62 @@ function goToLogin() {
 .input-wrapper {
   display: flex;
   align-items: center;
-  border: 1px solid #d9d9d9;
-  border-radius: 2px;
+  border: 1px solid var(--pub-border);
+  border-radius: 8px;
   overflow: hidden;
   transition: border-color 0.2s;
+  background: var(--pub-surface);
 }
 
 .input-wrapper:focus-within {
-  border-color: #0073e6;
+  border-color: var(--pub-primary);
   box-shadow: 0 0 0 2px rgba(0, 115, 230, 0.1);
 }
 
 .form-input {
-  flex: 1;
-  border: none;
-  outline: none;
+  width: 100%;
+  border: 1px solid var(--pub-border);
+  border-radius: 8px;
   padding: 10px 12px;
   font-size: 14px;
-  color: #333;
-  background: transparent;
-}
-
-.form-input-full {
-  width: 100%;
-  border: 1px solid #d9d9d9;
-  border-radius: 2px;
+  color: var(--pub-text);
+  background: var(--pub-surface);
+  outline: none;
   transition: border-color 0.2s;
 }
 
-.form-input-full:focus {
-  border-color: #0073e6;
+.form-input:focus {
+  border-color: var(--pub-primary);
   box-shadow: 0 0 0 2px rgba(0, 115, 230, 0.1);
 }
 
+.input-wrapper .form-input {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 .form-input::placeholder {
-  color: #bfbfbf;
+  color: var(--pub-text-4, #aaa);
 }
 
 .toggle-btn {
   background: none;
   border: none;
-  border-left: 1px solid #d9d9d9;
+  border-left: 1px solid var(--pub-border);
   padding: 10px 12px;
   font-size: 13px;
-  color: #0073e6;
+  color: var(--pub-primary);
   cursor: pointer;
   white-space: nowrap;
 }
 
 .toggle-btn:hover {
-  background-color: #f5f7fa;
+  background: var(--pub-hover);
 }
 
 .input-error {
   border-color: #ff4d4f !important;
-}
-
-.input-error:focus {
-  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.1) !important;
 }
 
 .field-error {
@@ -426,39 +424,35 @@ function goToLogin() {
   font-size: 13px;
   margin-bottom: 16px;
   padding: 8px 12px;
-  background: #fff2f0;
-  border: 1px solid #ffccc7;
-  border-radius: 2px;
+  background: rgba(255, 77, 79, 0.06);
+  border: 1px solid rgba(255, 77, 79, 0.2);
+  border-radius: 8px;
 }
 
 .login-btn {
   width: 100%;
-  height: 40px;
-  background-color: #e6393d;
+  height: 42px;
+  background: var(--pub-primary);
   color: #fff;
   border: none;
-  border-radius: 2px;
+  border-radius: 8px;
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: background-color 0.2s;
+  transition: opacity 0.15s;
 }
 
 .login-btn:hover:not(:disabled) {
-  background-color: #cc2f33;
+  opacity: 0.9;
 }
 
 .login-btn:disabled {
-  background-color: #f5a3a5;
+  opacity: 0.5;
   cursor: not-allowed;
-}
-
-.login-btn.loading {
-  background-color: #d43438;
 }
 
 .spinner {
@@ -479,9 +473,9 @@ function goToLogin() {
 }
 
 .success-alert {
-  background: #f6ffed;
-  border: 1px solid #b7eb8f;
-  border-radius: 2px;
+  background: rgba(82, 196, 26, 0.06);
+  border: 1px solid rgba(82, 196, 26, 0.2);
+  border-radius: 8px;
   padding: 10px 16px;
   font-size: 14px;
   color: #389e0d;
@@ -491,12 +485,12 @@ function goToLogin() {
   text-align: center;
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid #e8e8e8;
+  border-top: 1px solid var(--pub-border);
 }
 
 .login-footer p {
   font-size: 13px;
-  color: #999;
+  color: var(--pub-text-3);
 }
 
 @media (max-width: 480px) {
@@ -504,7 +498,7 @@ function goToLogin() {
     width: 100%;
     min-height: 100vh;
     border-radius: 0;
-    box-shadow: none;
+    border: none;
     padding: 40px 24px 32px;
   }
 
@@ -517,16 +511,12 @@ function goToLogin() {
   }
 
   .login-btn {
-    height: 44px;
+    height: 46px;
     font-size: 16px;
   }
 
   .form-input {
     padding: 12px;
-    font-size: 16px;
-  }
-
-  .form-input-full {
     font-size: 16px;
   }
 
