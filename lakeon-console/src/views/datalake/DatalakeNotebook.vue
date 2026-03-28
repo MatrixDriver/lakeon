@@ -141,7 +141,7 @@ interface Cell {
 const cells = ref<Cell[]>([])
 const activeIndex = ref(0)
 const showVars = ref(false)
-const showRef = ref(false)
+const showRef = ref(true)
 const variables = ref<Array<{ name: string; type: string; repr: string }>>([])
 
 const imageKey = ref('python-data')
