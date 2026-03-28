@@ -15,6 +15,7 @@ export interface KnowledgeBase {
   source_database_id: string | null
   table_names: string[]
   embedding_model: string | null
+  summary?: string
 }
 
 export interface TableSearchResult {

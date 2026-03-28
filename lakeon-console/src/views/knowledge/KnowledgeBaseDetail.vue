@@ -47,6 +47,10 @@
           <span v-else>-</span>
         </div>
       </div>
+      <div v-if="kb?.summary" class="section-card" style="max-width: 600px; margin-top: 16px;">
+        <div class="section-header">知识库概览</div>
+        <div style="padding: 16px; font-size: 14px; line-height: 1.8; color: #333; white-space: pre-wrap;">{{ kb.summary }}</div>
+      </div>
     </div>
 
     <!-- Documents Tab -->
