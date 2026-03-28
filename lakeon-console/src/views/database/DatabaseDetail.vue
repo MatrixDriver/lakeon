@@ -39,7 +39,7 @@
             class="btn btn-primary"
             :disabled="actionLoading"
             @click="handleResume"
-          >恢复</button>
+          >唤醒</button>
         </div>
       </div>
 

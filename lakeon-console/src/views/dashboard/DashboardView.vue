@@ -195,7 +195,7 @@
                       class="btn btn-small btn-text"
                       :disabled="actionLoading[db.id]"
                       @click="handleResume(db)"
-                    >恢复</button>
+                    >唤醒</button>
                     <button
                       class="btn btn-small btn-text btn-danger-text"
                       :disabled="actionLoading[db.id]"
@@ -509,11 +509,11 @@ async function handleResume(db: Database) {
   actionLoading[db.id] = true
   try {
     await databaseApi.resume(db.id)
-    toast.success(`数据库 "${db.name}" 正在恢复`)
+    toast.success(`数据库 "${db.name}" 正在唤醒`)
     await fetchData()
     pollUntilReady(db.id)
   } catch (e) {
-    toast.error(`恢复 "${db.name}" 失败`)
+    toast.error(`唤醒 "${db.name}" 失败`)
     console.error('Failed to resume', e)
   } finally {
     actionLoading[db.id] = false

@@ -89,7 +89,7 @@
                     class="btn btn-small btn-text"
                     :disabled="actionLoading[db.id]"
                     @click="handleResume(db)"
-                  >恢复</button>
+                  >唤醒</button>
                   <button
                     class="btn btn-small btn-text btn-danger-text"
                     :disabled="actionLoading[db.id]"

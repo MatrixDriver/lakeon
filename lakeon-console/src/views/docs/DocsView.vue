@@ -501,7 +501,7 @@
             <p class="doc-text"><router-link to="/logs">日志管理</router-link>集中查看所有数据库的运维日志，分为三个类别：</p>
 
             <h4 class="doc-subtitle">操作日志</h4>
-            <p class="doc-text">记录所有数据库的生命周期操作，包括创建、启动、挂起、恢复、删除等。可按数据库筛选，支持搜索操作类型和错误信息。</p>
+            <p class="doc-text">记录所有数据库的生命周期操作，包括创建、启动、挂起、唤醒、删除等。可按数据库筛选，支持搜索操作类型和错误信息。</p>
 
             <h4 class="doc-subtitle">SQL 审计日志</h4>
             <p class="doc-text">选择具体数据库后查看其 SQL 审计记录。需要先在数据库详情页的「审计」标签页中开启审计功能。支持按操作类型（DDL/DML/SELECT）筛选。</p>
@@ -565,7 +565,7 @@
             </div>
             <div class="faq-item">
               <div class="faq-q">Q: 数据库挂起后数据会丢失吗？</div>
-              <div class="faq-a">不会。数据持久化在对象存储中，挂起只是停止计算节点。恢复后数据完整可用。</div>
+              <div class="faq-a">不会。数据持久化在对象存储中，挂起只是停止计算节点。唤醒后数据完整可用。</div>
             </div>
             <div class="faq-item">
               <div class="faq-q">Q: 如何修改数据库密码？</div>
