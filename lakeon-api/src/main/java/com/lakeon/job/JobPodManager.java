@@ -119,6 +119,7 @@ public class JobPodManager {
                 .addNewContainer()
                     .withName("job")
                     .withImage(image)
+                    .withImagePullPolicy("IfNotPresent")
                     .withNewResources()
                         .withRequests(Map.of(
                             "cpu", new Quantity(cpu),
