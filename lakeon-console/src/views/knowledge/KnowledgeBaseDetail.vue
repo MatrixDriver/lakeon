@@ -475,7 +475,7 @@ async function loadDocuments() {
   }
 }
 
-const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.md', '.markdown', '.txt', '.epub']
+const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.xlsx', '.xls', '.xlsm', '.pptx', '.epub', '.html', '.htm', '.md', '.markdown', '.txt']
 
 function filterSupportedFiles(files: File[]): File[] {
   return files.filter(f => SUPPORTED_EXTENSIONS.some(ext => f.name.toLowerCase().endsWith(ext)))
@@ -486,7 +486,7 @@ async function handleUpload(e: Event) {
   if (!input.files?.length) return
   const files = filterSupportedFiles(Array.from(input.files))
   if (!files.length) {
-    alert('没有支持的文件格式（支持 PDF、DOCX、EPUB、Markdown、TXT）')
+    alert('没有支持的文件格式（支持 PDF、DOCX、DOC、XLSX、XLS、PPTX、EPUB、HTML、Markdown、TXT）')
     input.value = ''
     return
   }
