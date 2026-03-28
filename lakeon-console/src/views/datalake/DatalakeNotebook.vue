@@ -28,6 +28,7 @@
           <option v-for="ds in datasets" :key="ds.id" :value="ds.id">{{ ds.name }}</option>
         </select>
         <button class="nb-btn" @click="requestVars" :disabled="kernelStatus !== 'running'">Variables</button>
+        <button class="nb-btn" @click="toggleHistory" :disabled="!notebookId">History</button>
         <button v-if="!showRef" class="nb-btn" @click="showRef = true" title="Show reference">?</button>
         <button class="nb-btn nb-btn-primary" @click="submitAsJob" :disabled="cells.length === 0">Submit as Job</button>
         <button v-if="kernelStatus !== 'stopped'" class="nb-btn nb-btn-danger" @click="stopKernel">Stop Kernel</button>
@@ -63,6 +64,20 @@
         />
         <button class="nb-add-btn" @click="addCell()">+ Add Cell</button>
       </div>
+
+      <!-- History Panel -->
+      <aside v-if="showHistory" class="nb-history-panel">
+        <div class="nb-ref-header">
+          <h3>Version History</h3>
+          <button class="nb-ref-close" @click="showHistory = false">&times;</button>
+        </div>
+        <p style="font-size:11px;color:#9ca3af;margin:0 0 8px;">Press Ctrl+S to save a version</p>
+        <div v-if="versions.length === 0" style="color:#9ca3af;font-size:12px;padding:8px;">No versions yet</div>
+        <div v-for="v in versions" :key="v" class="nb-version-item">
+          <span class="nb-version-time">{{ formatVersionTime(v) }}</span>
+          <button class="nb-cell-btn" @click="restoreVersion(v)">Restore</button>
+        </div>
+      </aside>
 
       <!-- Reference Panel -->
       <aside v-if="showRef" class="nb-ref">
@@ -323,6 +338,38 @@ async function loadDatasets() {
   try { const { data } = await client.get('/datalake/datasets', { params: { status: 'READY' } }); datasets.value = data.map((d: any) => ({ id: d.id, name: d.name })) } catch {}
 }
 
+const showHistory = ref(false)
+const versions = ref<string[]>([])
+
+async function toggleHistory() {
+  showHistory.value = !showHistory.value
+  if (showHistory.value && notebookId.value) {
+    try {
+      const { data } = await notebooksApi.listVersions(notebookId.value)
+      versions.value = data
+    } catch { versions.value = [] }
+  }
+}
+
+function formatVersionTime(ts: string): string {
+  // ts is like "2026-03-28T12-00-00Z" — convert dashes in time part back to colons
+  const iso = ts.replace(/(\d{2})-(\d{2})-(\d{2})Z$/, '$1:$2:$3Z')
+  return new Date(iso).toLocaleString('zh-CN')
+}
+
+async function restoreVersion(ts: string) {
+  if (!confirm('Restore this version? Current content will be replaced.')) return
+  if (!notebookId.value) return
+  try {
+    const { data } = await notebooksApi.restore(notebookId.value, ts)
+    const content = typeof data === 'string' ? JSON.parse(data) : data
+    loadNotebookContent(content)
+    showHistory.value = false
+  } catch (e: any) {
+    alert('Restore failed: ' + (e.message || 'Unknown error'))
+  }
+}
+
 function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 's') {
     e.preventDefault()
@@ -388,4 +435,12 @@ onUnmounted(() => { socket?.disconnect(); window.removeEventListener('keydown', 
 /* Back link */
 .nb-back { cursor: pointer; color: #6b7280; font-size: 18px; text-decoration: none; margin-right: 4px; }
 .nb-back:hover { color: #2563eb; }
+
+/* History panel */
+.nb-history-panel { width: 240px; position: sticky; top: 16px; flex-shrink: 0; padding: 14px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 12px; max-height: 80vh; overflow-y: auto; }
+.nb-version-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f1f5f9; }
+.nb-version-item:hover { background: #f1f5f9; border-radius: 4px; }
+.nb-version-time { color: #374151; font-size: 12px; }
+.nb-cell-btn { font-size: 11px; padding: 2px 8px; border: 1px solid #e5e7eb; border-radius: 4px; background: white; color: #374151; cursor: pointer; }
+.nb-cell-btn:hover { background: #f1f5f9; }
 </style>
