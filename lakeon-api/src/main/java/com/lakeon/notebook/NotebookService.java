@@ -33,19 +33,22 @@ public class NotebookService {
     private final LakeonProperties props;
     private final DatalakeNamespaceManager nsManager;
     private final ObsStsService obsStsService;
+    private final WarmPoolManager warmPoolManager;
 
     public NotebookService(NotebookSessionRepository sessionRepo,
                            DatasetRepository datasetRepo,
                            KubernetesClient k8sClient,
                            LakeonProperties props,
                            DatalakeNamespaceManager nsManager,
-                           ObsStsService obsStsService) {
+                           ObsStsService obsStsService,
+                           WarmPoolManager warmPoolManager) {
         this.sessionRepo = sessionRepo;
         this.datasetRepo = datasetRepo;
         this.k8sClient = k8sClient;
         this.props = props;
         this.nsManager = nsManager;
         this.obsStsService = obsStsService;
+        this.warmPoolManager = warmPoolManager;
     }
 
     /**
@@ -94,7 +97,19 @@ public class NotebookService {
         try {
             boolean isRay = "ray".equals(resolvedImageKey) && workerCount != null && workerCount > 0;
             if (isRay) {
-                createRayNotebookCluster(session, tenantId, datasetIds, image, podName, ns, workerCount, workerSize);
+                // Try warm pool first
+                Optional<WarmPoolManager.ClaimedHead> claimed = warmPoolManager.claimHead(tenantId, session.getId());
+                if (claimed.isPresent()) {
+                    WarmPoolManager.ClaimedHead head = claimed.get();
+                    session.setPodName(head.podName());
+                    session.setNamespace(head.namespace());
+                    session = sessionRepo.save(session);
+                    createWorkersForWarmHead(session, tenantId, datasetIds, image,
+                            head.podName(), head.namespace(), head.podIp(), workerCount, workerSize);
+                } else {
+                    log.warn("Warm pool exhausted, falling back to cold start for tenant {}", tenantId);
+                    createRayNotebookCluster(session, tenantId, datasetIds, image, podName, ns, workerCount, workerSize);
+                }
             } else {
                 createNotebookPod(session, tenantId, datasetIds, image, podName, ns);
             }
@@ -340,6 +355,72 @@ public class NotebookService {
         }
     }
 
+    private void createWorkersForWarmHead(NotebookSessionEntity session,
+                                           String tenantId,
+                                           List<String> datasetIds,
+                                           String image,
+                                           String headPodName,
+                                           String ns,
+                                           String headPodIp,
+                                           int workerCount,
+                                           String workerSize) {
+        // Same worker size resolution as createRayNotebookCluster
+        String wCpu, wMemReq, wCpuLimit, wMemLimit;
+        switch (workerSize != null ? workerSize : "small") {
+            case "medium" -> { wCpu = "2"; wMemReq = "4Gi"; wCpuLimit = "2"; wMemLimit = "4Gi"; }
+            case "large"  -> { wCpu = "4"; wMemReq = "8Gi"; wCpuLimit = "4"; wMemLimit = "8Gi"; }
+            default       -> { wCpu = "1"; wMemReq = "2Gi"; wCpuLimit = "2"; wMemLimit = "4Gi"; }
+        }
+        LakeonProperties.DatalakeConfig dl = props.getDatalake();
+
+        // Create ConfigMap with repl_server.py in pool namespace
+        String replScript = loadReplServerScript();
+        String cmName = headPodName + "-repl";
+        ConfigMap cm = new ConfigMapBuilder()
+                .withNewMetadata().withName(cmName).withNamespace(ns).endMetadata()
+                .addToData("repl_server.py", replScript)
+                .build();
+        k8sClient.configMaps().inNamespace(ns).resource(cm).createOrReplace();
+
+        List<EnvVar> envVars = buildEnvVars(tenantId, datasetIds);
+        envVars.add(new EnvVarBuilder().withName("RAY_ADDRESS").withValue("auto").build());
+
+        Toleration vkToleration = new TolerationBuilder()
+                .withKey("virtual-kubelet.io/provider").withOperator("Exists").withEffect("NoSchedule").build();
+
+        List<LocalObjectReference> pullSecrets = props.getK8s().getImagePullSecrets().stream()
+                .filter(name -> name != null && !name.isBlank())
+                .map(name -> new LocalObjectReferenceBuilder().withName(name).build())
+                .toList();
+
+        for (int i = 0; i < workerCount; i++) {
+            String workerName = headPodName + "-worker-" + i;
+            Container workerContainer = new ContainerBuilder()
+                    .withName("ray-worker").withImage(image)
+                    .withCommand("bash", "-c", "ray start --address=" + headPodIp + ":6379 --num-cpus=" + wCpu + " --block")
+                    .withEnv(envVars)
+                    .withNewResources()
+                        .withRequests(Map.of("cpu", new Quantity(wCpu), "memory", new Quantity(wMemReq)))
+                        .withLimits(Map.of("cpu", new Quantity(wCpuLimit), "memory", new Quantity(wMemLimit)))
+                    .endResources().build();
+
+            Pod workerPod = new PodBuilder()
+                    .withNewMetadata().withName(workerName).withNamespace(ns)
+                        .withLabels(Map.of("app", "notebook-worker",
+                                "lakeon.io/tenant-id", tenantId,
+                                "lakeon.io/session-id", session.getId()))
+                    .endMetadata()
+                    .withNewSpec()
+                        .withRestartPolicy("Never").withImagePullSecrets(pullSecrets)
+                        .withNodeSelector(Map.of(dl.getVkNodeSelectorKey(), dl.getVkNodeSelectorValue()))
+                        .withTolerations(vkToleration).withContainers(workerContainer)
+                    .endSpec().build();
+
+            k8sClient.pods().inNamespace(ns).resource(workerPod).create();
+            log.info("Created warm pool worker: {}/{}", ns, workerName);
+        }
+    }
+
     private List<EnvVar> buildEnvVars(String tenantId, List<String> datasetIds) {
         List<EnvVar> envVars = new ArrayList<>();
 
@@ -484,33 +565,34 @@ public class NotebookService {
     private void deletePodAndConfigMap(NotebookSessionEntity session) {
         String ns = session.getNamespace();
         String podName = session.getPodName();
-
         if (ns == null || podName == null) return;
 
-        // Delete head pod (or single pod for non-Ray sessions)
+        // If warm-pool session, use pool manager for cleanup
+        if (ns.equals(props.getDatalake().getWarmPoolNamespace())) {
+            warmPoolManager.releaseHead(podName, session.getId());
+            try {
+                k8sClient.configMaps().inNamespace(ns).withName(podName + "-repl").delete();
+            } catch (Exception e) {
+                log.warn("Failed to delete ConfigMap for warm pool session {}: {}", podName, e.getMessage());
+            }
+            return;
+        }
+
+        // Original cold-start cleanup
         try {
             k8sClient.pods().inNamespace(ns).withName(podName).delete();
-            log.info("Deleted notebook pod: {}/{}", ns, podName);
         } catch (Exception e) {
             log.warn("Failed to delete notebook pod {}/{}: {}", ns, podName, e.getMessage());
         }
-
-        // Delete worker pods by session label (no-op for non-Ray sessions)
         try {
-            k8sClient.pods().inNamespace(ns)
-                    .withLabel("lakeon.io/session-id", session.getId())
-                    .delete();
-            log.info("Deleted worker pods for session: {}", session.getId());
+            k8sClient.pods().inNamespace(ns).withLabel("lakeon.io/session-id", session.getId()).delete();
         } catch (Exception e) {
             log.warn("Failed to delete worker pods for session {}: {}", session.getId(), e.getMessage());
         }
-
         try {
-            String cmName = podName + "-repl";
-            k8sClient.configMaps().inNamespace(ns).withName(cmName).delete();
-            log.info("Deleted notebook ConfigMap: {}/{}", ns, cmName);
+            k8sClient.configMaps().inNamespace(ns).withName(podName + "-repl").delete();
         } catch (Exception e) {
-            log.warn("Failed to delete notebook ConfigMap for {}: {}", podName, e.getMessage());
+            log.warn("Failed to delete ConfigMap for {}: {}", podName, e.getMessage());
         }
     }
 
