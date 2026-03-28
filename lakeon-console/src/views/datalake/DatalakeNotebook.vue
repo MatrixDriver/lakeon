@@ -10,8 +10,15 @@
           <option value="python-data">python-data</option>
           <option value="ray">ray</option>
         </select>
-        <input v-if="imageKey === 'ray'" type="number" v-model.number="workerCount" min="1" max="5"
-               class="nb-select" style="width: 60px;" title="Workers" :disabled="kernelStatus === 'running'" />
+        <template v-if="imageKey === 'ray'">
+          <input type="number" v-model.number="workerCount" min="1" max="5"
+                 class="nb-select" style="width: 50px;" title="Worker count" :disabled="kernelStatus === 'running'" />
+          <select v-model="workerSize" class="nb-select" :disabled="kernelStatus === 'running'" title="Worker size">
+            <option value="small">Small 1C2G</option>
+            <option value="medium">Medium 2C4G</option>
+            <option value="large">Large 4C8G</option>
+          </select>
+        </template>
         <select v-model="selectedDatasetId" class="nb-select">
           <option value="">-- 选择数据集 --</option>
           <option v-for="ds in datasets" :key="ds.id" :value="ds.id">{{ ds.name }}</option>
@@ -139,6 +146,7 @@ const variables = ref<Array<{ name: string; type: string; repr: string }>>([])
 
 const imageKey = ref('python-data')
 const workerCount = ref(2)
+const workerSize = ref('small')
 const selectedDatasetId = ref('')
 const datasets = ref<Array<{ id: string; name: string }>>([])
 const sessionId = ref<string | null>(null)
@@ -209,7 +217,8 @@ async function startKernel() {
   kernelStatus.value = 'starting'
   try {
     const dsIds = selectedDatasetId.value ? [selectedDatasetId.value] : undefined
-    const { data } = await createSession(imageKey.value, dsIds, imageKey.value === 'ray' ? workerCount.value : 0)
+    const isRay = imageKey.value === 'ray'
+    const { data } = await createSession(imageKey.value, dsIds, isRay ? workerCount.value : 0, isRay ? workerSize.value : undefined)
     sessionId.value = data.id
     socket = new NotebookSocket(handleMessage, (s) => {
       if (s === 'connected') kernelStatus.value = 'running'

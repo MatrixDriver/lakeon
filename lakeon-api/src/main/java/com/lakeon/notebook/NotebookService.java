@@ -53,7 +53,7 @@ public class NotebookService {
      * Max 1 active session per tenant.
      */
     public NotebookSessionEntity getOrCreateSession(String tenantId, String imageKey, List<String> datasetIds,
-                                                     Integer workerCount) {
+                                                     Integer workerCount, String workerSize) {
         // Check for existing active session (RUNNING or STARTING)
         Optional<NotebookSessionEntity> running = sessionRepo.findByTenantIdAndStatus(tenantId, NotebookSessionStatus.RUNNING);
         if (running.isPresent()) {
@@ -94,7 +94,7 @@ public class NotebookService {
         try {
             boolean isRay = "ray".equals(resolvedImageKey) && workerCount != null && workerCount > 0;
             if (isRay) {
-                createRayNotebookCluster(session, tenantId, datasetIds, image, podName, ns, workerCount);
+                createRayNotebookCluster(session, tenantId, datasetIds, image, podName, ns, workerCount, workerSize);
             } else {
                 createNotebookPod(session, tenantId, datasetIds, image, podName, ns);
             }
@@ -183,7 +183,15 @@ public class NotebookService {
                                            String image,
                                            String podName,
                                            String ns,
-                                           int workerCount) throws InterruptedException {
+                                           int workerCount,
+                                           String workerSize) throws InterruptedException {
+        // Resolve worker resources from size preset
+        String wCpu, wMemReq, wCpuLimit, wMemLimit;
+        switch (workerSize != null ? workerSize : "small") {
+            case "medium" -> { wCpu = "2"; wMemReq = "4Gi"; wCpuLimit = "2"; wMemLimit = "4Gi"; }
+            case "large"  -> { wCpu = "4"; wMemReq = "8Gi"; wCpuLimit = "4"; wMemLimit = "8Gi"; }
+            default       -> { wCpu = "1"; wMemReq = "2Gi"; wCpuLimit = "2"; wMemLimit = "4Gi"; }
+        }
         LakeonProperties.DatalakeConfig dl = props.getDatalake();
 
         // Load repl_server.py from classpath
@@ -295,15 +303,15 @@ public class NotebookService {
                     .withName("ray-worker")
                     .withImage(image)
                     .withCommand("bash", "-c",
-                            "ray start --address=" + headPodIp + ":6379 --num-cpus=1 --block")
+                            "ray start --address=" + headPodIp + ":6379 --num-cpus=" + wCpu + " --block")
                     .withEnv(envVars)
                     .withNewResources()
                         .withRequests(Map.of(
-                                "cpu", new Quantity("1"),
-                                "memory", new Quantity("2Gi")))
+                                "cpu", new Quantity(wCpu),
+                                "memory", new Quantity(wMemReq)))
                         .withLimits(Map.of(
-                                "cpu", new Quantity("2"),
-                                "memory", new Quantity("4Gi")))
+                                "cpu", new Quantity(wCpuLimit),
+                                "memory", new Quantity(wMemLimit)))
                     .endResources()
                     .build();
 

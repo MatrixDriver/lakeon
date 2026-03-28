@@ -1,7 +1,7 @@
 import client from './client'
 
-export function createSession(image?: string, datasetIds?: string[], workerCount?: number) {
-  return client.post('/datalake/notebook/sessions', { image, dataset_ids: datasetIds, worker_count: workerCount })
+export function createSession(image?: string, datasetIds?: string[], workerCount?: number, workerSize?: string) {
+  return client.post('/datalake/notebook/sessions', { image, dataset_ids: datasetIds, worker_count: workerCount, worker_size: workerSize })
 }
 
 export function getCurrentSession() {

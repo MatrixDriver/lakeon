@@ -40,8 +40,9 @@ public class NotebookController {
 
         Integer workerCount = body.get("worker_count") != null
                 ? ((Number) body.get("worker_count")).intValue() : 0;
+        String workerSize = body.get("worker_size") != null ? (String) body.get("worker_size") : "small";
 
-        NotebookSessionEntity session = notebookService.getOrCreateSession(tenant.getId(), image, datasetIds, workerCount);
+        NotebookSessionEntity session = notebookService.getOrCreateSession(tenant.getId(), image, datasetIds, workerCount, workerSize);
         return sessionToMap(session);
     }
 
