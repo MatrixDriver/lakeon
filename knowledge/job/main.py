@@ -226,7 +226,7 @@ def main():
                           aws_session_token=os.environ.get("OBS_SESSION_TOKEN"),
                           region_name="cn-north-4",
                           config=BotoConfig(
-                              s3={"addressing_style": "virtual"},
+                              s3={"addressing_style": "virtual", "payload_signing_enabled": False},
                               signature_version="s3v4",
                           ))
 

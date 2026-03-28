@@ -111,32 +111,35 @@ function findSearchText(): string | null {
 
   const content = props.chunkContent
   const overlap = props.overlapPrev ?? 0
+  const strippedChunk = stripMarkdown(content).trim()
 
   // Strategy 1: Use char_offset to extract from fulltext, then strip markdown
-  if (props.chunkOffsetStart != null && props.chunkOffsetEnd != null) {
+  // Validate that the extracted text actually overlaps with chunk content
+  // (offsets can be wrong when fulltext comes from chunk concatenation instead of OBS)
+  if (props.chunkOffsetStart != null && props.chunkOffsetEnd != null
+      && props.chunkOffsetEnd <= props.fulltext.length) {
     const raw = props.fulltext.substring(props.chunkOffsetStart, props.chunkOffsetEnd)
     const plain = stripMarkdown(raw).trim()
-    // Use a 60-char snippet from the middle (more unique than start)
-    const mid = Math.max(0, Math.floor(plain.length / 2) - 30)
-    const snippet = plain.substring(mid, mid + 60).trim()
-    if (snippet.length >= 10) {
-      // Build fullText from DOM to search in
-      return snippet
+    // Verify: first 30 chars of extracted text should appear in chunk content
+    const verify = plain.substring(0, 30)
+    if (verify.length >= 10 && strippedChunk.includes(verify)) {
+      const mid = Math.max(0, Math.floor(plain.length / 2) - 30)
+      const snippet = plain.substring(mid, mid + 60).trim()
+      if (snippet.length >= 10) return snippet
     }
   }
 
-  // Strategy 2: Strip markdown from chunk content, match in DOM
-  const stripped = stripMarkdown(content)
-  const uniqueStart = Math.min(overlap, stripped.length)
-  const uniquePart = stripped.substring(uniqueStart).trim()
+  // Strategy 2: Use chunk content directly — skip overlap prefix for uniqueness
+  const uniqueStart = Math.min(overlap, strippedChunk.length)
+  const uniquePart = strippedChunk.substring(uniqueStart).trim()
 
   if (uniquePart.length >= 20) {
-    const snippet = uniquePart.substring(0, Math.min(200, uniquePart.length))
-    return snippet
+    // Use a snippet from the beginning (most likely to be unique in fulltext)
+    return uniquePart.substring(0, Math.min(120, uniquePart.length))
   }
 
   // Strategy 3: Fallback with raw content start
-  const snippet = stripped.substring(0, Math.min(200, stripped.length)).trim()
+  const snippet = strippedChunk.substring(0, Math.min(120, strippedChunk.length)).trim()
   return snippet.length >= 10 ? snippet : null
 }
 
