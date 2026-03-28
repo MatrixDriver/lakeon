@@ -23,6 +23,8 @@ import com.lakeon.memory.MemoryBaseRepository;
 import com.lakeon.memory.MemoryService;
 import com.lakeon.datalake.*;
 import com.lakeon.dataset.*;
+import com.lakeon.notebook.NotebookSessionEntity;
+import com.lakeon.notebook.NotebookSessionRepository;
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.SystemConfigEntity;
 import com.lakeon.repository.SystemConfigRepository;
@@ -74,6 +76,7 @@ public class AdminController {
     private final DatalakeService datalakeService;
     private final DatasetRepository datasetRepository;
     private final DatasetService datasetService;
+    private final NotebookSessionRepository notebookSessionRepository;
     private final LakeonProperties props;
     private final SystemConfigRepository systemConfigRepository;
     private final ObjectMapper objectMapper;
@@ -103,6 +106,7 @@ public class AdminController {
                            DatalakeService datalakeService,
                            DatasetRepository datasetRepository,
                            DatasetService datasetService,
+                           NotebookSessionRepository notebookSessionRepository,
                            LakeonProperties props,
                            SystemConfigRepository systemConfigRepository,
                            ObjectMapper objectMapper) {
@@ -129,6 +133,7 @@ public class AdminController {
         this.datalakeService = datalakeService;
         this.datasetRepository = datasetRepository;
         this.datasetService = datasetService;
+        this.notebookSessionRepository = notebookSessionRepository;
         this.props = props;
         this.systemConfigRepository = systemConfigRepository;
         this.objectMapper = objectMapper;
@@ -1235,6 +1240,74 @@ public class AdminController {
                 .orElseThrow(() -> new com.lakeon.service.exception.NotFoundException("Dataset not found: " + id));
         datasetRepository.delete(ds);
         return Map.of("deleted", id);
+    }
+
+    // ── Datalake Images ─────────────────────────────────────
+
+    @GetMapping("/datalake/images")
+    public Map<String, Object> getDatalakeImages() {
+        LakeonProperties.DatalakeConfig dl = props.getDatalake();
+        Map<String, String> presetImages = dl.getPresetImages();
+
+        // Get all sessions to compute startup stats per image
+        List<NotebookSessionEntity> allSessions = notebookSessionRepository.findAll();
+
+        // Build per-image stats: avg startup time, session count
+        // Startup time ≈ updatedAt - createdAt for sessions that reached RUNNING
+        Map<String, List<Long>> startupTimesPerImage = new LinkedHashMap<>();
+        for (NotebookSessionEntity s : allSessions) {
+            if (s.getImage() == null || s.getCreatedAt() == null || s.getUpdatedAt() == null) continue;
+            long startupMs = Duration.between(s.getCreatedAt(), s.getUpdatedAt()).toMillis();
+            if (startupMs <= 0 || startupMs > 300_000) continue; // skip invalid (>5min)
+            startupTimesPerImage.computeIfAbsent(s.getImage(), k -> new ArrayList<>()).add(startupMs);
+        }
+
+        // Node pool info
+        String nodePool = dl.getVkNodeSelectorKey() + "=" + dl.getVkNodeSelectorValue();
+
+        // Get image sizes from K8s node status.images
+        Map<String, Long> imageSizes = adminService.getNodeImageSizes();
+
+        // Build response
+        List<Map<String, Object>> images = new ArrayList<>();
+        for (var entry : presetImages.entrySet()) {
+            String key = entry.getKey();
+            String fullImage = entry.getValue();
+            Map<String, Object> img = new LinkedHashMap<>();
+            img.put("key", key);
+            img.put("image", fullImage);
+            img.put("node_pool", nodePool);
+            img.put("size_bytes", imageSizes.get(fullImage));
+
+            // Startup stats
+            List<Long> times = startupTimesPerImage.getOrDefault(fullImage, List.of());
+            img.put("session_count", times.size());
+            if (!times.isEmpty()) {
+                long avg = times.stream().mapToLong(Long::longValue).sum() / times.size();
+                long min = times.stream().mapToLong(Long::longValue).min().orElse(0);
+                long max = times.stream().mapToLong(Long::longValue).max().orElse(0);
+                img.put("avg_startup_ms", avg);
+                img.put("min_startup_ms", min);
+                img.put("max_startup_ms", max);
+            } else {
+                img.put("avg_startup_ms", null);
+                img.put("min_startup_ms", null);
+                img.put("max_startup_ms", null);
+            }
+            images.add(img);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("images", images);
+        result.put("node_selector", Map.of("key", dl.getVkNodeSelectorKey(), "value", dl.getVkNodeSelectorValue()));
+        return result;
+    }
+
+    // ── Warm Pool ────────────────────────────────────────────────
+
+    @GetMapping("/datalake/warm-pool")
+    public Map<String, Object> getWarmPoolStatus() {
+        return adminService.getWarmPoolStatus();
     }
 
     // ── Helpers ────────────────────────────────────────────────────

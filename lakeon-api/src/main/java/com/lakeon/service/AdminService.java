@@ -881,6 +881,84 @@ public class AdminService {
         return nodes;
     }
 
+    /**
+     * Returns image name → size in bytes from K8s node status.images.
+     */
+    public Map<String, Long> getNodeImageSizes() {
+        Map<String, Long> sizes = new LinkedHashMap<>();
+        try {
+            var nodeList = k8sClient.nodes().list().getItems();
+            for (var node : nodeList) {
+                if (node.getStatus() == null || node.getStatus().getImages() == null) continue;
+                for (var img : node.getStatus().getImages()) {
+                    if (img.getNames() == null || img.getSizeBytes() == null) continue;
+                    for (String name : img.getNames()) {
+                        // Keep the largest size seen (dedup across nodes)
+                        sizes.merge(name, img.getSizeBytes(), Math::max);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get node image sizes: {}", e.getMessage());
+        }
+        return sizes;
+    }
+
+    public Map<String, Object> getWarmPoolStatus() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        LakeonProperties.DatalakeConfig dl = props.getDatalake();
+
+        result.put("enabled", dl.isWarmPoolEnabled());
+        result.put("target_size", dl.getWarmPoolSize());
+        result.put("namespace", dl.getWarmPoolNamespace());
+        result.put("image", dl.getWarmPoolImage());
+        result.put("idle_timeout_minutes", dl.getWarmPoolIdleTimeoutMinutes());
+
+        if (!dl.isWarmPoolEnabled()) {
+            return result;
+        }
+
+        String ns = dl.getWarmPoolNamespace();
+        try {
+            var allPoolPods = k8sClient.pods().inNamespace(ns)
+                    .withLabel("lakeon.io/pool", "warm")
+                    .list().getItems();
+
+            int idle = 0, claimed = 0, pending = 0;
+            List<Map<String, Object>> pods = new ArrayList<>();
+
+            for (var pod : allPoolPods) {
+                String status = pod.getMetadata().getLabels().getOrDefault("lakeon.io/status", "unknown");
+                String phase = pod.getStatus() != null ? pod.getStatus().getPhase() : "Unknown";
+
+                switch (status) {
+                    case "idle" -> { if ("Running".equals(phase)) idle++; else pending++; }
+                    case "claimed" -> claimed++;
+                    default -> pending++;
+                }
+
+                Map<String, Object> p = new LinkedHashMap<>();
+                p.put("name", pod.getMetadata().getName());
+                p.put("phase", phase);
+                p.put("pool_status", status);
+                p.put("ip", pod.getStatus() != null ? pod.getStatus().getPodIP() : null);
+                p.put("created_at", pod.getMetadata().getCreationTimestamp());
+                p.put("tenant_id", pod.getMetadata().getLabels().get("lakeon.io/tenant-id"));
+                p.put("session_id", pod.getMetadata().getLabels().get("lakeon.io/session-id"));
+                pods.add(p);
+            }
+
+            result.put("idle", idle);
+            result.put("claimed", claimed);
+            result.put("pending", pending);
+            result.put("total", allPoolPods.size());
+            result.put("pods", pods);
+        } catch (Exception e) {
+            result.put("error", e.getMessage());
+        }
+        return result;
+    }
+
     public List<Map<String, Object>> getInfraPods() {
         List<Map<String, Object>> pods = new ArrayList<>();
         try {
