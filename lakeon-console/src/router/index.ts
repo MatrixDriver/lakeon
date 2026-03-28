@@ -70,7 +70,8 @@ const routes = [
       { path: 'datalake/datasets', name: 'DatalakeDatasets', component: () => import('../views/datalake/DatalakeDatasets.vue') },
       { path: 'datalake/datasets/new', name: 'DatalakeDatasetNew', component: () => import('../views/datalake/DatalakeDatasetNew.vue') },
       { path: 'datalake/datasets/:id', name: 'DatalakeDatasetDetail', component: () => import('../views/datalake/DatalakeDatasetDetail.vue') },
-      { path: 'datalake/notebook', name: 'DatalakeNotebook', component: () => import('../views/datalake/DatalakeNotebook.vue') },
+      { path: 'datalake/notebook', name: 'DatalakeNotebookList', component: () => import('../views/datalake/DatalakeNotebookList.vue') },
+      { path: 'datalake/notebook/:id', name: 'DatalakeNotebookEditor', component: () => import('../views/datalake/DatalakeNotebook.vue') },
       // Knowledge
       { path: 'knowledge', name: 'KnowledgeBases', component: () => import('../views/knowledge/KnowledgeBases.vue') },
       { path: 'knowledge/:kbId', name: 'KnowledgeBaseDetail', component: () => import('../views/knowledge/KnowledgeBaseDetail.vue') },
