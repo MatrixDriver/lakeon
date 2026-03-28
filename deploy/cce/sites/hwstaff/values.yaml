@@ -35,7 +35,7 @@ neon:
     pullPolicy: IfNotPresent
   computeImage:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/compute-node-v17
-    tag: pgsearch-ctl  # pg_search v0.15.26 + setrlimit shim
+    tag: zhparser-ctl-v2  # zhparser (Chinese FTS) + SCWS dict + setrlimit shim
 
 api:
   replicas: 2
@@ -71,7 +71,7 @@ api:
   kbWriteCpu: "500m"   # 降低以便和compute pod共存于同一个弹性节点(4C)
   kbWriteMemory: "1Gi"
 
-knowledgeJobImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-knowledge-job:0.2.11"
+knowledgeJobImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-knowledge-job:0.2.12"
 
 # ── Neon 组件（单副本开发模式，最小资源请求）─────────────────────
 pageserver:

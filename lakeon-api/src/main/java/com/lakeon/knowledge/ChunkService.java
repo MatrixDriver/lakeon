@@ -68,8 +68,8 @@ public class ChunkService {
                         DatabaseRepository databaseRepository,
                         BranchService branchService,
                         BranchRepository branchRepository,
-                        JobService jobService,
-                        KbWriteQueue kbWriteQueue) {
+                        @org.springframework.context.annotation.Lazy JobService jobService,
+                        @org.springframework.context.annotation.Lazy KbWriteQueue kbWriteQueue) {
         this.dbHelper = dbHelper;
         this.props = props;
         this.objectMapper = objectMapper;
