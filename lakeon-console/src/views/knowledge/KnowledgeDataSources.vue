@@ -61,7 +61,7 @@
             <code style="display: block; background: #fff; padding: 8px 12px; border-radius: 4px; margin-bottom: 12px; word-break: break-all;">
               obs://{{ dsCredentials.creds.bucket }}/{{ dsCredentials.creds.prefix }}
             </code>
-            <div style="margin-bottom: 8px; font-weight: 500;">支持格式：PDF、DOCX、DOC、XLSX、XLS、PPTX、EPUB、HTML、Markdown、TXT（支持子目录）</div>
+            <div style="margin-bottom: 8px; font-weight: 500;">支持格式：PDF、EPUB、DOCX、Markdown、TXT（支持子目录）</div>
             <div style="margin-bottom: 8px; font-weight: 500;">方式一：hcloud CLI</div>
             <pre style="background: #fff; padding: 8px 12px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin-bottom: 12px; white-space: pre-wrap; word-break: break-all;">{{ dsCredentials.creds.upload_commands.hcloud }}</pre>
             <div style="margin-bottom: 8px; font-weight: 500;">方式二：obsutil</div>
