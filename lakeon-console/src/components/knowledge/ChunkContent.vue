@@ -99,7 +99,7 @@ const emit = defineEmits<{
 
 const tabs = [
   { key: 'content', label: '切片内容' },
-  { key: 'fulltext', label: '原文定位' },
+  { key: 'fulltext', label: '全文上下文' },
   { key: 'context', label: '相邻切片' },
 ]
 
