@@ -1,6 +1,6 @@
 # Knowledge Pipeline & 数据飞轮路线图
 
-> 2026-03-18 创建，2026-03-26 更新
+> 2026-03-18 创建，2026-03-28 更新
 
 ## Phase 1 进度
 
@@ -73,11 +73,41 @@
 - EPUB 上传失败：Job pod 在 CCI 终止但无 callback。增强 `getTerminationReason()` 捕获 exit code、OOM、pod logs。
 - Console 错误信息截断：改为可点击展开完整错误。
 
+### 1e. 层次摘要（Per-Document Summary）✅ 完成（2026-03-28）
+
+为知识库新增文档级摘要层（level=1）和 KB 全局摘要层（level=2），解决"跨文档总结性问题回答不了"的痛点。
+
+**三层架构：**
+
+| level | 内容 | 参与搜索 | 生成方式 |
+|-------|------|---------|---------|
+| 0 | 原始 chunks（已有） | 是 | 文档解析时 |
+| 1 | 文档摘要（每文档 1 条） | 是 | 解析完成后异步 LLM 生成 |
+| 2 | KB 全局摘要（每 KB 1 条） | 否（展示用） | 所有 L1 就绪后生成 |
+
+**实现要点：**
+- SummaryService: 读 OBS fulltext.md → DeepSeek-V3.2 摘要 → BGE-M3 embedding → 写入 compute pod
+- 复用 KbWriteQueue 轻量任务机制，DOCUMENT_SUMMARIZE + KB_SUMMARIZE 两种任务类型
+- 三层看护：指数退避重试 × 3、5 分钟卡死检测、超限放弃
+- 搜索增强：`WHERE level IN (0, 1)` + RRF，L1 命中标记"文档摘要"
+- 增量更新：文档删除/重解析自动清理 L1 并重新生成 L2
+- Console: 搜索结果"文档摘要"标签、KB 概览卡片、文档详情摘要 tab
+- Admin: 摘要状态列、任务类型筛选、重新摘要按钮、覆盖率统计
+- MCP: knowledge_list 显示 KB 摘要、knowledge_search 标记 L1
+- 启动时自动同步 kb_write_tasks CHECK 约束（SchemaMigration）
+
+**部署修复（0.9.152）：**
+- SummaryService 改用 KbWriteQueue 传入的 Connection（而非自行解析 connstr）
+- CHECK 约束自动同步支持新 task type
+
+**设计文档：** `docs/superpowers/specs/2026-03-28-knowledge-hierarchical-summary-design.md`
+
 ## Phase 2：高级 RAG + 数据飞轮
 
 | 技术 | 作用 | 依赖 | 状态 |
 |------|------|------|------|
-| RAPTOR 层次摘要 | L0/L1/L2 分层检索 | LLM | 待启动 |
+| ~~RAPTOR 层次摘要~~ | ~~L0/L1/L2 分层检索~~ | ~~LLM~~ | ✅ 已完成（1e，按文档摘要方案） |
+| RAPTOR 语义聚类 | 跨文档主题发现（方案 B） | scikit-learn + LLM | 待启动（可叠加在 L1 之上） |
 | v_inferred chunk 增强 | 补全代词/引用 | LLM | 待启动 |
 | Reranker 重排序 | 精排 top-K | 硅基流动 API | ✅ 已集成 |
 | LightRAG 知识图谱 | 跨文档实体关联 | 实体抽取 | 待启动 |
@@ -110,3 +140,7 @@ Console UI: 作业管理（分步创建向导 + 代码编辑器 + SSE 日志流 
 | Embedding 用硅基流动 API | 省去自托管 GPU，降本 | 03-20 |
 | chunks 存用户 PG | 天然租户隔离, 避免 RDS 膨胀 | 03-18 |
 | Phase 1 只做 pgvector + tsvector + RRF | 不需要 LLM 的技术先做 | 03-18 |
+| 层次摘要用 per-document（非 RAPTOR 聚类） | 实现简单、可叠加、跨文档聚类留 Phase 2 | 03-28 |
+| 摘要 LLM 用 DeepSeek-V3.2 | 长文档理解强、SiliconFlow 成本低、与 SRE AI 统一 | 03-28 |
+| 摘要异步生成不阻塞文档状态 | 用户看到 READY 时 L0 已可用，L1 后台补齐 | 03-28 |
+| SummaryService 复用 KbWriteQueue 的 Connection | compute pod 通过 proxy 连接，自行解析 connstr 不可靠 | 03-28 |
