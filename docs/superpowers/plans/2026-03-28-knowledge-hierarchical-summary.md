@@ -950,7 +950,215 @@ git commit -m "feat(kb): expose KB summary in list/detail API and MCP tools"
 
 ---
 
-### Task 9: E2E test — upload document and verify L1/L2 generation
+### Task 9: Console — search results show L1 "文档摘要" tag
+
+**Files:**
+- Modify: `lakeon-console/src/api/knowledge.ts:44-54`
+- Modify: `lakeon-console/src/views/knowledge/KnowledgeBaseDetail.vue:226-232`
+- Modify: `lakeon-console/src/views/knowledge/KnowledgeSearch.vue:35-44`
+
+- [ ] **Step 1: Add `level` to SearchResult interface**
+
+In `lakeon-console/src/api/knowledge.ts`, add `level` to the SearchResult interface:
+
+```typescript
+export interface SearchResult {
+  content: string
+  score: number
+  level?: number
+  metadata: {
+    filename?: string
+    section?: string
+    document_id?: string
+    kb_id?: string
+    kb_name?: string
+  }
+}
+```
+
+- [ ] **Step 2: Show "文档摘要" tag in KnowledgeBaseDetail search results**
+
+In `KnowledgeBaseDetail.vue`, in the chat-style search result card (around line 228), add a level tag before the existing metadata:
+
+```html
+                <div style="margin-top: 8px; font-size: 12px; color: #999; display: flex; gap: 12px; flex-wrap: wrap;">
+                  <span v-if="r.level === 1" style="background: #eff6ff; color: #2563eb; padding: 1px 8px; border-radius: 3px; font-weight: 500;">文档摘要</span>
+                  <span>来源: {{ r.metadata?.filename }}</span>
+                  <span v-if="r.metadata?.section">章节: {{ r.metadata.section }}</span>
+                  <span>得分: {{ r.score?.toFixed(3) }}</span>
+                </div>
+```
+
+- [ ] **Step 3: Show "文档摘要" tag in KnowledgeSearch page results**
+
+In `KnowledgeSearch.vue`, in the result card (around line 38), add the same level tag:
+
+```html
+        <div style="margin-top: 10px; font-size: 12px; color: #999; display: flex; gap: 16px; flex-wrap: wrap;">
+          <span v-if="r.level === 1" style="background: #eff6ff; color: #2563eb; padding: 1px 8px; border-radius: 3px; font-weight: 500;">文档摘要</span>
+          <span v-if="r.metadata?.kb_name" style="color: #1890ff;">{{ r.metadata.kb_name }}</span>
+          <span>来源: {{ r.metadata?.filename }}</span>
+          <span v-if="r.metadata?.section">章节: {{ r.metadata.section }}</span>
+          <span>得分: {{ r.score?.toFixed(3) }}</span>
+        </div>
+```
+
+- [ ] **Step 4: Verify TypeScript**
+
+Run: `cd lakeon-console && npx vue-tsc -b --noEmit`
+Expected: No errors
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add lakeon-console/src/api/knowledge.ts \
+        lakeon-console/src/views/knowledge/KnowledgeBaseDetail.vue \
+        lakeon-console/src/views/knowledge/KnowledgeSearch.vue
+git commit -m "feat(console): show document summary tag in search results"
+```
+
+---
+
+### Task 10: Console — KB detail overview shows L2 global summary
+
+**Files:**
+- Modify: `lakeon-console/src/views/knowledge/KnowledgeBaseDetail.vue:31-49`
+
+The KB detail API will now return a `summary` field. Display it in the overview tab.
+
+- [ ] **Step 1: Add summary card to overview tab**
+
+In `KnowledgeBaseDetail.vue`, after the existing overview section-card (around line 49, after the `</div>` that closes the overview grid), add:
+
+```html
+      <!-- KB Summary (L2) -->
+      <div v-if="kb?.summary" class="section-card" style="max-width: 600px; margin-top: 16px;">
+        <div class="section-header">知识库概览</div>
+        <div style="padding: 16px; font-size: 14px; line-height: 1.8; color: #333; white-space: pre-wrap;">{{ kb.summary }}</div>
+      </div>
+```
+
+- [ ] **Step 2: Add `summary` to KB type if needed**
+
+Check if the `KnowledgeBase` interface in `api/knowledge.ts` needs updating. Add `summary?` field:
+
+```typescript
+export interface KnowledgeBase {
+  id: string
+  name: string
+  description?: string
+  type?: string
+  status?: string
+  document_count?: number
+  embedding_model?: string
+  database_id?: string
+  created_at?: string
+  summary?: string
+}
+```
+
+- [ ] **Step 3: Verify TypeScript**
+
+Run: `cd lakeon-console && npx vue-tsc -b --noEmit`
+Expected: No errors
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add lakeon-console/src/views/knowledge/KnowledgeBaseDetail.vue \
+        lakeon-console/src/api/knowledge.ts
+git commit -m "feat(console): show KB global summary in overview tab"
+```
+
+---
+
+### Task 11: Console — document detail shows L1 summary in dedicated tab
+
+**Files:**
+- Modify: `lakeon-console/src/views/knowledge/DocumentDetail.vue`
+- Modify: `lakeon-console/src/api/knowledge.ts`
+
+Add a "摘要" tab to the document detail page that displays the L1 summary for this document.
+
+- [ ] **Step 1: Add API function to get document summary**
+
+In `lakeon-console/src/api/knowledge.ts`, add:
+
+```typescript
+export function getDocumentSummary(kbId: string, docId: string) {
+  return api.get<{ content: string | null }>(`/knowledge/${kbId}/documents/${docId}/summary`)
+}
+```
+
+- [ ] **Step 2: Add summary endpoint in API (backend)**
+
+In `lakeon-api/src/main/java/com/lakeon/knowledge/KnowledgeController.java`, add:
+
+```java
+    @GetMapping("/{kbId}/documents/{docId}/summary")
+    public ResponseEntity<?> getDocumentSummary(@PathVariable String kbId, @PathVariable String docId) {
+        Tenant tenant = authService.getCurrentTenant();
+        KnowledgeBaseEntity kb = knowledgeService.getKnowledgeBase(tenant.getId(), kbId);
+        String connstr = knowledgeService.getComputeConnstr(tenant.getId(), kb);
+        String summary = knowledgeService.getDocumentSummary(connstr, docId);
+        return ResponseEntity.ok(Map.of("content", summary != null ? summary : ""));
+    }
+```
+
+Add `getDocumentSummary` to `KnowledgeService`:
+
+```java
+    public String getDocumentSummary(String connstr, String docId) {
+        String jdbcUrl = dbHelper.connstrToJdbc(connstr);
+        String pgUser = dbHelper.extractUser(connstr);
+        String pgPass = dbHelper.extractPassword(connstr);
+        String sql = "SELECT content FROM knowledge_chunks " +
+                "WHERE document_id = ? AND level = 1 LIMIT 1";
+        try (Connection conn = DriverManager.getConnection(jdbcUrl, pgUser, pgPass);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, docId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getString("content");
+            return null;
+        } catch (Exception e) {
+            log.warn("Failed to get document summary for doc {}: {}", docId, e.getMessage());
+            return null;
+        }
+    }
+```
+
+- [ ] **Step 3: Add "摘要" tab to DocumentDetail.vue**
+
+Read `DocumentDetail.vue` to find the tab structure, then add a "摘要" tab that loads and displays the L1 summary. The tab should show:
+- Summary text if available
+- "摘要生成中..." if not yet generated
+- A "重新生成" button that calls the resummarize admin API
+
+The exact code depends on DocumentDetail.vue's tab structure — read the file and follow the existing pattern.
+
+- [ ] **Step 4: Verify TypeScript**
+
+Run: `cd lakeon-console && npx vue-tsc -b --noEmit`
+Expected: No errors
+
+- [ ] **Step 5: Verify Java compilation**
+
+Run: `cd lakeon-api && ./mvnw compile -q`
+Expected: BUILD SUCCESS
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lakeon-console/src/views/knowledge/DocumentDetail.vue \
+        lakeon-console/src/api/knowledge.ts \
+        lakeon-api/src/main/java/com/lakeon/knowledge/KnowledgeController.java \
+        lakeon-api/src/main/java/com/lakeon/knowledge/KnowledgeService.java
+git commit -m "feat(kb): add document summary tab in document detail page"
+```
+
+---
+
+### Task 12: E2E test — upload document and verify L1/L2 generation
 
 **Files:**
 - Create: `tests/test_kb_summary_e2e.py`
@@ -1086,7 +1294,7 @@ git commit -m "test(kb): add E2E test for document summary generation and search
 
 ---
 
-### Task 10: Final integration test and cleanup
+### Task 13: Final integration test and cleanup
 
 - [ ] **Step 1: Run full compilation**
 
