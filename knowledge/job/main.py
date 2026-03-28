@@ -253,6 +253,8 @@ def main():
             for idx, doc_params in enumerate(doc_specs):
                 doc_params_full = dict(doc_params)
                 doc_params_full["tenant_id"] = doc_params_full.get("tenant_id") or params.get("tenant_id")
+                if params.get("connstr_refresh_url"):
+                    doc_params_full.setdefault("connstr_refresh_url", params["connstr_refresh_url"])
                 progress = 0.05 + 0.9 * idx / total
                 report_progress(f"Processing {doc_params_full.get('filename', doc_params_full['document_id'])} ({idx+1}/{total})", progress, tracker=tracker)
                 doc_tracker = StageTracker()
