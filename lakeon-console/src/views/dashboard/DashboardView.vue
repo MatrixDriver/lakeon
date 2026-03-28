@@ -494,7 +494,7 @@ async function handleSuspend(db: Database) {
   actionLoading[db.id] = true
   try {
     await databaseApi.suspend(db.id)
-    toast.success(`数据库 "${db.name}" 正在挂起`)
+    toast.success(`数据库 "${db.name}" 成功挂起`)
     await fetchData()
     pollUntilReady(db.id)
   } catch (e) {
@@ -509,7 +509,7 @@ async function handleResume(db: Database) {
   actionLoading[db.id] = true
   try {
     await databaseApi.resume(db.id)
-    toast.success(`数据库 "${db.name}" 正在唤醒`)
+    toast.success(`数据库 "${db.name}" 成功唤醒`)
     await fetchData()
     pollUntilReady(db.id)
   } catch (e) {
