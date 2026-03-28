@@ -92,6 +92,16 @@ public class SwrSecretRefreshService {
                 }
             }
 
+            // Refresh in lakeon-jobs namespace (for KB pipeline job pods)
+            String jobNs = "lakeon-jobs";
+            try {
+                updateK8sSecret(jobNs, dockerConfigJson);
+                patchServiceAccountImagePullSecrets(jobNs);
+                log.info("SwrSecretRefreshService: refreshed SWR secret in namespace '{}'", jobNs);
+            } catch (Exception e) {
+                log.warn("SwrSecretRefreshService: failed to refresh in '{}': {}", jobNs, e.getMessage());
+            }
+
             // Refresh in all datalake-* namespaces (per-tenant namespaces for datalake jobs)
             try {
                 k8sClient.namespaces().list().getItems().stream()

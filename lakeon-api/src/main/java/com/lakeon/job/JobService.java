@@ -57,6 +57,17 @@ public class JobService {
      */
     @Transactional
     public JobEntity submitJob(TenantEntity tenant, JobType type, Map<String, Object> params) {
+        JobEntity job = createJob(tenant, type, params);
+        scheduleJobLaunch(job.getId());
+        return job;
+    }
+
+    /**
+     * Create a job in PENDING state without launching the pod.
+     * Caller can modify params (e.g. add connstr_refresh_url) and then call scheduleJobLaunch.
+     */
+    @Transactional
+    public JobEntity createJob(TenantEntity tenant, JobType type, Map<String, Object> params) {
         JobEntity job = new JobEntity();
         job.setTenantId(tenant.getId());
         job.setType(type);
@@ -69,17 +80,25 @@ public class JobService {
         }
 
         jobRepository.save(job);
-        log.info("Submitted job {} of type {} for tenant {}", job.getId(), type, tenant.getId());
-
-        String jobId = job.getId();
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                executor.submit(() -> launchPod(jobId));
-            }
-        });
-
+        log.info("Created job {} of type {} for tenant {}", job.getId(), type, tenant.getId());
         return job;
+    }
+
+    /**
+     * Schedule pod launch for a PENDING job.
+     * If inside a transaction, defers to afterCommit; otherwise launches immediately (async).
+     */
+    public void scheduleJobLaunch(String jobId) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    executor.submit(() -> launchPod(jobId));
+                }
+            });
+        } else {
+            executor.submit(() -> launchPod(jobId));
+        }
     }
 
     /**

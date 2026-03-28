@@ -54,11 +54,11 @@ public class KbWriteTaskEntity {
     @Column(name = "completed_at")
     private Instant completedAt;
 
-    @Column(name = "retry_count")
-    private int retryCount = 0;
+    @Column(name = "retry_count", columnDefinition = "int default 0")
+    private Integer retryCount = 0;
 
-    @Column(name = "max_retries")
-    private int maxRetries = 3;
+    @Column(name = "max_retries", columnDefinition = "int default 3")
+    private Integer maxRetries = 3;
 
     @Column(name = "error_category")
     private String errorCategory;
@@ -103,10 +103,10 @@ public class KbWriteTaskEntity {
     public void setStartedAt(Instant startedAt) { this.startedAt = startedAt; }
     public Instant getCompletedAt() { return completedAt; }
     public void setCompletedAt(Instant completedAt) { this.completedAt = completedAt; }
-    public int getRetryCount() { return retryCount; }
-    public void setRetryCount(int retryCount) { this.retryCount = retryCount; }
-    public int getMaxRetries() { return maxRetries; }
-    public void setMaxRetries(int maxRetries) { this.maxRetries = maxRetries; }
+    public int getRetryCount() { return retryCount != null ? retryCount : 0; }
+    public void setRetryCount(Integer retryCount) { this.retryCount = retryCount; }
+    public int getMaxRetries() { return maxRetries != null ? maxRetries : 3; }
+    public void setMaxRetries(Integer maxRetries) { this.maxRetries = maxRetries; }
     public String getErrorCategory() { return errorCategory; }
     public void setErrorCategory(String errorCategory) { this.errorCategory = errorCategory; }
     public Instant getNextRetryAt() { return nextRetryAt; }

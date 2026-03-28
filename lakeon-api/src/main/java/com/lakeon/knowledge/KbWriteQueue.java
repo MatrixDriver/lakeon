@@ -555,16 +555,16 @@ public class KbWriteQueue {
         TenantEntity tenant = new TenantEntity();
         tenant.setId(task.getTenantId());
 
-        JobEntity job = jobService.submitJob(tenant, JobType.DOCUMENT_PARSE, params);
+        // Create job without launching pod — we need the job ID/token to build refresh URL first
+        JobEntity job = jobService.createJob(tenant, JobType.DOCUMENT_PARSE, params);
         task.setJobId(job.getId());
         taskRepository.save(task);
 
-        // Build connstr_refresh_url using callback base URL + job token
+        // Build connstr_refresh_url so job pod can wake compute and get fresh connstr when ready to write
         if (callbackBaseUrl != null && !callbackBaseUrl.isBlank()) {
             String refreshUrl = callbackBaseUrl + "/api/v1/jobs/" + job.getId()
                     + "/connstr?token=" + job.getCallbackToken();
             params.put("connstr_refresh_url", refreshUrl);
-            // Re-save params with the refresh URL
             try {
                 job.setParams(objectMapper.writeValueAsString(params));
                 jobService.saveJob(job);
@@ -572,6 +572,9 @@ public class KbWriteQueue {
                 log.warn("Failed to save connstr_refresh_url to job params: {}", e.getMessage());
             }
         }
+
+        // Now schedule the pod launch — params are complete with connstr_refresh_url
+        jobService.scheduleJobLaunch(job.getId());
 
         log.info("kb-write task {} submitted job {} for db {}", task.getId(), job.getId(), task.getDatabaseId());
     }
