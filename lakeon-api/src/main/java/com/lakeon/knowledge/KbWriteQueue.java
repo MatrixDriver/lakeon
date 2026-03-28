@@ -46,6 +46,7 @@ public class KbWriteQueue {
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final DocumentRepository documentRepository;
     private final JobService jobService;
+    private final SummaryService summaryService;
     private final LakeonProperties props;
     private final ObjectMapper objectMapper;
     @org.springframework.beans.factory.annotation.Value("${lakeon.job.callback-base-url:}")
@@ -59,7 +60,9 @@ public class KbWriteQueue {
         KbWriteTaskType.DELETE_CHUNK,
         KbWriteTaskType.CREATE_CHUNK,
         KbWriteTaskType.RECHUNK_ROLLBACK,
-        KbWriteTaskType.DELETE_DOCUMENT_CHUNKS
+        KbWriteTaskType.DELETE_DOCUMENT_CHUNKS,
+        KbWriteTaskType.DOCUMENT_SUMMARIZE,
+        KbWriteTaskType.KB_SUMMARIZE
     );
 
     public KbWriteQueue(KbWriteTaskRepository taskRepository,
@@ -69,6 +72,7 @@ public class KbWriteQueue {
                          KnowledgeBaseRepository knowledgeBaseRepository,
                          DocumentRepository documentRepository,
                          @Lazy JobService jobService,
+                         SummaryService summaryService,
                          LakeonProperties props,
                          ObjectMapper objectMapper) {
         this.taskRepository = taskRepository;
@@ -78,6 +82,7 @@ public class KbWriteQueue {
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.documentRepository = documentRepository;
         this.jobService = jobService;
+        this.summaryService = summaryService;
         this.props = props;
         this.objectMapper = objectMapper;
     }
@@ -223,8 +228,10 @@ public class KbWriteQueue {
                 // Sync document status on success
                 if (task.getType() == KbWriteTaskType.DOCUMENT_PARSE) {
                     syncDocumentFromTask(task, true, result, null);
+                    enqueueSummarizeAfterParse(task);
                 } else if (task.getType() == KbWriteTaskType.BATCH_DOCUMENT_PARSE) {
                     syncBatchDocumentsFromTask(task, true, result, null);
+                    enqueueSummarizeAfterBatchParse(task);
                 }
             } else {
                 // Failure path: classify error and decide whether to retry
@@ -529,6 +536,8 @@ public class KbWriteQueue {
                 case CREATE_CHUNK -> executeCreateChunk(conn, params);
                 case RECHUNK_ROLLBACK -> executeRechunkRollback(conn, params, task);
                 case DELETE_DOCUMENT_CHUNKS -> executeDeleteDocumentChunks(conn, params);
+                case DOCUMENT_SUMMARIZE -> executeDocumentSummarize(conn, params);
+                case KB_SUMMARIZE -> executeKbSummarize(conn, params);
                 default -> throw new IllegalStateException("Unknown lightweight type: " + task.getType());
             }
         }
@@ -758,6 +767,108 @@ public class KbWriteQueue {
             int deleted = ps.executeUpdate();
             log.info("Deleted {} chunks for document {}", deleted, docId);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void executeDocumentSummarize(Connection conn, Map<String, Object> params) {
+        String tenantId = (String) params.get("tenant_id");
+        String kbId = (String) params.get("kb_id");
+        String documentId = (String) params.get("document_id");
+        String connstr = (String) params.get("connstr");
+        summaryService.summarizeDocument(tenantId, kbId, documentId, connstr);
+
+        // Check if all documents now have L1 → enqueue KB_SUMMARIZE
+        List<String> docIds = (List<String>) params.get("all_document_ids");
+        if (docIds != null && summaryService.allDocumentsHaveSummary(connstr, docIds)) {
+            Map<String, Object> kbParams = new LinkedHashMap<>();
+            kbParams.put("tenant_id", tenantId);
+            kbParams.put("kb_id", kbId);
+            kbParams.put("connstr", connstr);
+            kbParams.put("database_id", params.get("database_id"));
+            enqueueTask((String) params.get("database_id"), KbWriteTaskType.KB_SUMMARIZE, kbParams);
+            log.info("All documents have L1 summaries, enqueued KB_SUMMARIZE for KB {}", kbId);
+        }
+    }
+
+    private void executeKbSummarize(Connection conn, Map<String, Object> params) {
+        String tenantId = (String) params.get("tenant_id");
+        String kbId = (String) params.get("kb_id");
+        String connstr = (String) params.get("connstr");
+        summaryService.summarizeKb(tenantId, kbId, connstr);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void enqueueSummarizeAfterParse(KbWriteTaskEntity task) {
+        try {
+            Map<String, Object> params = objectMapper.readValue(task.getParams(), Map.class);
+            String tenantId = (String) params.get("tenant_id");
+            String kbId = (String) params.get("kb_id");
+            String documentId = (String) params.get("document_id");
+            String connstr = (String) params.get("connstr");
+            List<String> allDocIds = getAllDocumentIds(tenantId, kbId);
+
+            Map<String, Object> sumParams = new LinkedHashMap<>();
+            sumParams.put("tenant_id", tenantId);
+            sumParams.put("kb_id", kbId);
+            sumParams.put("document_id", documentId);
+            sumParams.put("connstr", connstr);
+            sumParams.put("database_id", task.getDatabaseId());
+            sumParams.put("all_document_ids", allDocIds);
+            enqueueTask(task.getDatabaseId(), KbWriteTaskType.DOCUMENT_SUMMARIZE, sumParams);
+            log.info("Enqueued DOCUMENT_SUMMARIZE for doc {} in KB {}", documentId, kbId);
+        } catch (Exception e) {
+            log.warn("Failed to enqueue DOCUMENT_SUMMARIZE after parse: {}", e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void enqueueSummarizeAfterBatchParse(KbWriteTaskEntity task) {
+        try {
+            Map<String, Object> params = objectMapper.readValue(task.getParams(), Map.class);
+            String tenantId = (String) params.get("tenant_id");
+            String kbId = (String) params.get("kb_id");
+            String connstr = (String) params.get("connstr");
+            List<Map<String, Object>> docs = (List<Map<String, Object>>) params.get("documents");
+            List<String> allDocIds = getAllDocumentIds(tenantId, kbId);
+
+            for (Map<String, Object> doc : docs) {
+                String docId = (String) doc.get("document_id");
+                Map<String, Object> sumParams = new LinkedHashMap<>();
+                sumParams.put("tenant_id", tenantId);
+                sumParams.put("kb_id", kbId);
+                sumParams.put("document_id", docId);
+                sumParams.put("connstr", connstr);
+                sumParams.put("database_id", task.getDatabaseId());
+                sumParams.put("all_document_ids", allDocIds);
+                enqueueTask(task.getDatabaseId(), KbWriteTaskType.DOCUMENT_SUMMARIZE, sumParams);
+            }
+            log.info("Enqueued {} DOCUMENT_SUMMARIZE tasks for batch in KB {}", docs.size(), kbId);
+        } catch (Exception e) {
+            log.warn("Failed to enqueue DOCUMENT_SUMMARIZE after batch parse: {}", e.getMessage());
+        }
+    }
+
+    private List<String> getAllDocumentIds(String tenantId, String kbId) {
+        return documentRepository.findAllByKbId(kbId)
+                .stream()
+                .filter(d -> d.getStatus() == DocumentStatus.READY)
+                .map(DocumentEntity::getId)
+                .toList();
+    }
+
+    public void enqueueTask(String databaseId, KbWriteTaskType type, Map<String, Object> params) {
+        KbWriteTaskEntity task = new KbWriteTaskEntity();
+        task.setDatabaseId(databaseId);
+        task.setType(type);
+        task.setStatus(KbWriteTaskStatus.QUEUED);
+        task.setMaxRetries(3);
+        try {
+            task.setParams(objectMapper.writeValueAsString(params));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to serialize task params", e);
+        }
+        taskRepository.save(task);
+        executor.submit(() -> drain(databaseId));
     }
 
     @jakarta.annotation.PreDestroy
