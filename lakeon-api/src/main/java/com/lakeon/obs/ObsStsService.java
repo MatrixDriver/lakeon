@@ -40,7 +40,7 @@ public class ObsStsService {
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newHttpClient();
         this.cache = Caffeine.newBuilder()
-                .expireAfterWrite(23, TimeUnit.HOURS)
+                .expireAfterWrite(100, TimeUnit.MINUTES)
                 .maximumSize(1000)
                 .build();
     }
@@ -58,30 +58,38 @@ public class ObsStsService {
      */
     Map<String, Object> buildPolicy(String tenantId) {
         String bucket = props.getObs().getBucket();
-        List<String> resources = List.of(
-                "obs:*:*:object:" + bucket + "/datasets/" + tenantId + "/*",
-                "obs:*:*:object:" + bucket + "/knowledge/" + tenantId + "/*",
-                "obs:*:*:object:" + bucket + "/tenant-" + tenantId + "/*",
-                "obs:*:*:object:" + bucket + "/datalake-logs/" + tenantId + "/*",
-                "obs:*:*:object:" + bucket + "/datasources/" + tenantId + "/*"
+        List<String> tenantPrefixes = List.of(
+                "datasets/" + tenantId + "/",
+                "knowledge/" + tenantId + "/",
+                "tenant-" + tenantId + "/",
+                "datalake-logs/" + tenantId + "/",
+                "datasources/" + tenantId + "/"
         );
+        List<String> resources = tenantPrefixes.stream()
+                .map(p -> "obs:*:*:object:" + bucket + "/" + p + "*")
+                .toList();
 
         Map<String, Object> objectStatement = Map.of(
                 "Effect", "Allow",
                 "Action", List.of(
                         "obs:object:GetObject",
                         "obs:object:PutObject",
-                        "obs:object:DeleteObject",
                         "obs:object:AbortMultipartUpload",
                         "obs:object:ListMultipartUploadParts"
                 ),
                 "Resource", resources
         );
 
+        // ListBucket restricted to tenant prefixes only via Condition
         Map<String, Object> listStatement = Map.of(
                 "Effect", "Allow",
                 "Action", List.of("obs:bucket:ListBucket"),
-                "Resource", List.of("obs:*:*:bucket:" + bucket)
+                "Resource", List.of("obs:*:*:bucket:" + bucket),
+                "Condition", Map.of(
+                        "StringLike", Map.of(
+                                "obs:prefix", tenantPrefixes
+                        )
+                )
         );
 
         return Map.of(
@@ -141,7 +149,7 @@ public class ObsStsService {
                             "identity", Map.of(
                                     "methods", List.of("token"),
                                     "policy", policy,
-                                    "token", Map.of("duration_seconds", 86400)
+                                    "token", Map.of("duration_seconds", 7200)
                             )
                     )
             );
