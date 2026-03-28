@@ -11,7 +11,7 @@ import requests
 
 from parser import parse_document
 from chunker import chunk_document, assign_pages, detect_duplicates
-from callback import report_success, report_success_batch, report_failure, report_progress
+from callback import StageTracker, report_success, report_success_batch, report_failure, report_progress
 from writer import write_chunks
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -19,6 +19,13 @@ logger = logging.getLogger("knowledge-job")
 
 ANOMALY_SHORT_THRESHOLD = 80
 ANOMALY_LONG_THRESHOLD = 800
+
+
+def _parse_iso(iso_str):
+    """Parse ISO timestamp to epoch seconds."""
+    from datetime import datetime, timezone
+    dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+    return dt.timestamp()
 
 
 def _ensure_compute_ready(connstr, retries=5, wait=15):
@@ -94,11 +101,12 @@ def embed_texts(texts, embedding_api_url, embedding_api_key, embedding_model, ba
 
 def process_single_document(s3, obs_bucket, doc_params, database_connstr,
                              embedding_api_url, embedding_api_key, embedding_model,
-                             doc_index=None, total_docs=None):
+                             doc_index=None, total_docs=None, tracker=None):
     """Process a single document: download → parse → chunk → embed → write.
 
     Returns {"document_id": ..., "chunks_count": N}.
     doc_index/total_docs used for batch progress reporting.
+    tracker: optional StageTracker for per-stage timing/memory.
     """
     document_id = doc_params["document_id"]
     obs_key = doc_params["obs_key"]
@@ -116,14 +124,26 @@ def process_single_document(s3, obs_bucket, doc_params, database_connstr,
 
     tmp_path = None
     try:
+        # ── DOWNLOAD ──
+        if tracker:
+            tracker.begin("DOWNLOAD")
         suffix = f".{fmt.lower()}" if fmt else ""
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             tmp_path = tmp.name
             s3.download_file(obs_bucket, obs_key, tmp_path)
             logger.info(f"{prefix}Downloaded {obs_key}")
+        if tracker:
+            tracker.set_metric("file_size_bytes", os.path.getsize(tmp_path))
+            tracker.end("DOWNLOAD")
 
+        # ── PARSE ──
+        if tracker:
+            tracker.begin("PARSE")
         markdown, page_metadata = parse_document(tmp_path, fmt)
         logger.info(f"{prefix}Parsed: {len(markdown)} chars, {len(page_metadata)} pages")
+        if tracker:
+            tracker.set_metric("parsed_markdown_chars", len(markdown))
+            tracker.end("PARSE")
 
         # Upload fulltext to OBS (best-effort)
         if tenant_id and kb_id:
@@ -133,6 +153,9 @@ def process_single_document(s3, obs_bucket, doc_params, database_connstr,
             except Exception as e:
                 logger.error(f"{prefix}Failed to upload fulltext (non-fatal): {e}")
 
+        # ── CHUNK ──
+        if tracker:
+            tracker.begin("CHUNK")
         chunk_kwargs = {}
         if max_tokens is not None:
             chunk_kwargs["max_tokens"] = int(max_tokens)
@@ -141,18 +164,33 @@ def process_single_document(s3, obs_bucket, doc_params, database_connstr,
         chunks = chunk_document(markdown, filename, fmt, **chunk_kwargs)
         assign_pages(chunks, page_metadata)
         logger.info(f"{prefix}Created {len(chunks)} chunks")
+        if tracker:
+            tracker.set_metric("chunks_count", len(chunks))
+            tracker.end("CHUNK")
 
         if not chunks:
             return {"document_id": document_id, "chunks_count": 0}
 
+        # ── EMBED ──
+        if tracker:
+            tracker.begin("EMBED")
         texts = [c["content"] for c in chunks]
         all_embeddings = embed_texts(texts, embedding_api_url, embedding_api_key, embedding_model)
+        if tracker:
+            tracker.set_metric("embeddings_count", len(all_embeddings))
+            tracker.end("EMBED")
 
         detect_duplicates(chunks, all_embeddings)
 
+        # ── WRITE ──
+        if tracker:
+            tracker.begin("WRITE")
         connstr_refresh_url = doc_params.get("connstr_refresh_url")
         write_chunks(database_connstr, document_id, chunks, all_embeddings,
                      connstr_refresh_url=connstr_refresh_url)
+        # TODO: pass tracker=tracker to write_chunks after Task 4
+        if tracker:
+            tracker.end("WRITE")
 
         logger.info(f"{prefix}Done: {len(chunks)} chunks written for {document_id}")
         return {"document_id": document_id, "chunks_count": len(chunks)}
@@ -172,6 +210,7 @@ def main():
         export_main()
         return
 
+    tracker = None
     try:
         with open("/etc/job/params.json") as f:
             params = json.load(f)
@@ -196,28 +235,40 @@ def main():
                               signature_version="s3v4",
                           ))
 
+        tracker = StageTracker()
+
+        # Record JOB_POD stage from submitted timestamp
+        job_submitted_at = params.get("job_submitted_at")
+        if job_submitted_at:
+            tracker.stages["JOB_POD"] = {
+                "started_at": job_submitted_at,
+                "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "duration_ms": int((time.time() - _parse_iso(job_submitted_at)) * 1000),
+            }
+
         # ── Batch mode: document_ids list ─────────────────────────────
         document_ids = params.get("document_ids")
         if document_ids:
             doc_specs = params.get("documents", [])
             total = len(doc_specs)
             logger.info(f"Batch mode: processing {total} documents")
-            report_progress(f"Starting batch processing of {total} documents", 0.05)
+            report_progress(f"Starting batch processing of {total} documents", 0.05, tracker=tracker)
 
             results = []
             for idx, doc_params in enumerate(doc_specs):
                 doc_params_full = dict(doc_params)
                 doc_params_full["tenant_id"] = doc_params_full.get("tenant_id") or params.get("tenant_id")
                 progress = 0.05 + 0.9 * idx / total
-                report_progress(f"Processing {doc_params_full.get('filename', doc_params_full['document_id'])} ({idx+1}/{total})", progress)
+                report_progress(f"Processing {doc_params_full.get('filename', doc_params_full['document_id'])} ({idx+1}/{total})", progress, tracker=tracker)
+                doc_tracker = StageTracker()
                 result = process_single_document(
                     s3, obs_bucket, doc_params_full, database_connstr,
                     embedding_api_url, embedding_api_key, embedding_model,
-                    doc_index=idx, total_docs=total
+                    doc_index=idx, total_docs=total, tracker=doc_tracker
                 )
                 results.append(result)
 
-            report_success_batch(results)
+            report_success_batch(results, tracker=tracker)
             logger.info(f"Batch done: {total} documents processed")
             return
 
@@ -232,7 +283,10 @@ def main():
         overlap_ratio = params.get("overlap_ratio")
 
         logger.info(f"Processing document {document_id}: {filename} ({fmt})")
-        report_progress("Downloading document", 0.1)
+
+        # ── DOWNLOAD ──
+        tracker.begin("DOWNLOAD")
+        report_progress("Downloading document", 0.1, tracker=tracker)
 
         tmp_path = None
         try:
@@ -241,10 +295,16 @@ def main():
                 tmp_path = tmp.name
                 s3.download_file(obs_bucket, obs_key, tmp_path)
                 logger.info(f"Downloaded {obs_key} to {tmp_path}")
+            tracker.set_metric("file_size_bytes", os.path.getsize(tmp_path))
+            tracker.end("DOWNLOAD")
 
-            report_progress("Parsing document", 0.2)
+            # ── PARSE ──
+            tracker.begin("PARSE")
+            report_progress("Parsing document", 0.2, tracker=tracker)
             markdown, page_metadata = parse_document(tmp_path, fmt)
             logger.info(f"Parsed document: {len(markdown)} chars, {len(page_metadata)} pages")
+            tracker.set_metric("parsed_markdown_chars", len(markdown))
+            tracker.end("PARSE")
 
             if tenant_id and kb_id:
                 fulltext_key = f"knowledge/{tenant_id}/{kb_id}/{document_id}/fulltext.md"
@@ -254,7 +314,9 @@ def main():
                 except Exception as e:
                     logger.error(f"Failed to upload fulltext to OBS (non-fatal): {e}")
 
-            report_progress("Chunking document", 0.4)
+            # ── CHUNK ──
+            tracker.begin("CHUNK")
+            report_progress("Chunking document", 0.4, tracker=tracker)
             chunk_kwargs = {}
             if max_tokens is not None:
                 chunk_kwargs["max_tokens"] = int(max_tokens)
@@ -263,23 +325,33 @@ def main():
             chunks = chunk_document(markdown, filename, fmt, **chunk_kwargs)
             assign_pages(chunks, page_metadata)
             logger.info(f"Created {len(chunks)} chunks")
+            tracker.set_metric("chunks_count", len(chunks))
+            tracker.end("CHUNK")
 
             if not chunks:
-                report_success(0)
+                report_success(0, tracker=tracker)
                 return
 
-            report_progress(f"Generating embeddings for {len(chunks)} chunks", 0.5)
+            # ── EMBED ──
+            tracker.begin("EMBED")
+            report_progress(f"Generating embeddings for {len(chunks)} chunks", 0.5, tracker=tracker)
             texts = [c["content"] for c in chunks]
             all_embeddings = embed_texts(texts, embedding_api_url, embedding_api_key, embedding_model)
             logger.info(f"Generated {len(all_embeddings)} embeddings")
+            tracker.set_metric("embeddings_count", len(all_embeddings))
+            tracker.end("EMBED")
 
-            report_progress("Detecting duplicates", 0.85)
+            report_progress("Detecting duplicates", 0.85, tracker=tracker)
             detect_duplicates(chunks, all_embeddings)
 
-            report_progress("Writing to database", 0.9)
+            # ── WRITE ──
+            tracker.begin("WRITE")
+            report_progress("Writing to database", 0.9, tracker=tracker)
             connstr_refresh_url = params.get("connstr_refresh_url")
             write_chunks(database_connstr, document_id, chunks, all_embeddings,
                          connstr_refresh_url=connstr_refresh_url)
+            # TODO: pass tracker=tracker to write_chunks after Task 4
+            tracker.end("WRITE")
 
             quality_stats = {
                 "anomaly_count": sum(1 for c in chunks if len(c["content"]) < ANOMALY_SHORT_THRESHOLD or len(c["content"]) > ANOMALY_LONG_THRESHOLD),
@@ -287,7 +359,7 @@ def main():
                 "avg_char_count": sum(len(c["content"]) for c in chunks) // len(chunks) if chunks else 0,
             }
 
-            report_success(len(chunks), quality_stats)
+            report_success(len(chunks), quality_stats, tracker=tracker)
             logger.info(f"Done: {len(chunks)} chunks written, quality_stats={quality_stats}")
 
         finally:
@@ -298,11 +370,37 @@ def main():
                     pass
 
     except Exception as e:
-        logger.exception(f"Job failed: {e}")
-        try:
-            report_failure(str(e))
-        except Exception:
-            logger.exception("Failed to report failure")
+        error_msg = str(e)
+        error_category = "PERMANENT"
+        failed_stage = tracker._current_stage if tracker else None
+
+        if failed_stage == "DOWNLOAD":
+            if "404" in error_msg or "NoSuchKey" in error_msg:
+                error_category = "PERMANENT"
+            else:
+                error_category = "TRANSIENT"
+        elif failed_stage == "PARSE":
+            error_category = "PERMANENT"
+        elif failed_stage == "CHUNK":
+            error_category = "PERMANENT"
+        elif failed_stage == "EMBED":
+            if "429" in error_msg or "413" in error_msg or "rate" in error_msg.lower():
+                error_category = "RATE_LIMIT"
+            elif "401" in error_msg or "403" in error_msg:
+                error_category = "PERMANENT"
+            else:
+                error_category = "TRANSIENT"
+        elif failed_stage == "WRITE":
+            if "OperationalError" in error_msg or "connection" in error_msg.lower():
+                error_category = "TRANSIENT"
+            else:
+                error_category = "PERMANENT"
+
+        if tracker and tracker._current_stage:
+            tracker.end()
+
+        logger.error(f"Job failed at stage {failed_stage}: {error_msg}", exc_info=True)
+        report_failure(error_msg, error_category=error_category, failed_stage=failed_stage, tracker=tracker)
         sys.exit(1)
 
 if __name__ == "__main__":
