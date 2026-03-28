@@ -83,6 +83,35 @@ def _connect_with_retry(connstr, max_retries=20, delay=5, connstr_refresh_url=No
             else:
                 raise
 
+def _ensure_schema(conn):
+    """Run DDL (CREATE TABLE/INDEX, migrations) under an advisory lock to prevent
+    deadlocks when multiple job pods write to the same database concurrently.
+    Skips DDL entirely if the table already exists (fast path for concurrent jobs)."""
+    with conn.cursor() as cur:
+        # Fast path: if table already exists, skip DDL entirely
+        cur.execute("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_name = 'knowledge_chunks'
+            )
+        """)
+        if cur.fetchone()[0]:
+            conn.commit()
+            return
+
+    # Table doesn't exist — acquire advisory lock and create schema
+    LOCK_ID = 73910001  # arbitrary unique ID for KB schema setup
+    with conn.cursor() as cur:
+        cur.execute("SELECT pg_advisory_lock(%s)", (LOCK_ID,))
+        try:
+            cur.execute(SETUP_SQL)
+            cur.execute(MIGRATE_SQL)
+            conn.commit()
+        finally:
+            cur.execute("SELECT pg_advisory_unlock(%s)", (LOCK_ID,))
+            conn.commit()
+
+
 def write_chunks(connstr, document_id, chunks, embeddings, connstr_refresh_url=None, tracker=None):
     # Delayed wake: if connstr is empty, fetch it via connstr_refresh_url
     if (not connstr or connstr.strip() == "") and connstr_refresh_url:
@@ -113,10 +142,11 @@ def write_chunks(connstr, document_id, chunks, embeddings, connstr_refresh_url=N
 
     conn = _connect_with_retry(connstr, connstr_refresh_url=connstr_refresh_url)
     try:
+        # Schema setup with advisory lock (prevents DDL deadlock across concurrent jobs)
+        _ensure_schema(conn)
+
         conn.autocommit = False
         with conn.cursor() as cur:
-            cur.execute(SETUP_SQL)
-            cur.execute(MIGRATE_SQL)
             cur.execute("DELETE FROM knowledge_chunks WHERE document_id = %s", (document_id,))
             values = []
             for chunk, embedding in zip(chunks, embeddings):
