@@ -113,25 +113,59 @@ public class KbWriteQueue {
             Instant cutoff = Instant.now().minusSeconds(STUCK_TASK_TIMEOUT_MINUTES * 60);
             List<KbWriteTaskEntity> stuck = taskRepository.findStuckRunningBefore(cutoff);
             for (KbWriteTaskEntity task : stuck) {
-                log.warn("Marking stuck task {} as FAILED (RUNNING since {})", task.getId(), task.getStartedAt());
-                task.setStatus(KbWriteTaskStatus.FAILED);
-                task.setError("Job pod lost or timed out (>" + STUCK_TASK_TIMEOUT_MINUTES + "m)");
-                task.setCompletedAt(Instant.now());
-                taskRepository.save(task);
-                // Sync document status
-                if (task.getType() == KbWriteTaskType.DOCUMENT_PARSE) {
-                    syncDocumentFromTask(task, false, null, task.getError());
-                } else if (task.getType() == KbWriteTaskType.BATCH_DOCUMENT_PARSE) {
-                    syncBatchDocumentsFromTask(task, false, null, task.getError());
+                String stuckError = "Job pod lost or timed out (>" + STUCK_TASK_TIMEOUT_MINUTES + "m)";
+                String errorCategory = "TRANSIENT";
+                task.setErrorCategory(errorCategory);
+                task.setError(stuckError);
+
+                if (shouldRetry(task, errorCategory)) {
+                    task.setRetryCount(task.getRetryCount() + 1);
+                    task.setStatus(KbWriteTaskStatus.QUEUED);
+                    task.setStartedAt(null);
+                    task.setJobId(null);
+                    task.setNextRetryAt(null); // immediate retry
+                    taskRepository.save(task);
+                    log.warn("Stuck task {} re-queued for retry ({}/{}) (RUNNING since {})",
+                             task.getId(), task.getRetryCount(), task.getMaxRetries(), task.getStartedAt());
+                } else {
+                    task.setStatus(KbWriteTaskStatus.FAILED);
+                    task.setCompletedAt(Instant.now());
+                    taskRepository.save(task);
+                    log.warn("Stuck task {} failed permanently after {} retries (RUNNING since {})",
+                             task.getId(), task.getRetryCount(), task.getStartedAt());
+                    // Sync document status to FAILED
+                    if (task.getType() == KbWriteTaskType.DOCUMENT_PARSE) {
+                        syncDocumentFromTask(task, false, null, stuckError);
+                    } else if (task.getType() == KbWriteTaskType.BATCH_DOCUMENT_PARSE) {
+                        syncBatchDocumentsFromTask(task, false, null, stuckError);
+                    }
                 }
                 // Re-trigger drain for this database
                 executor.submit(() -> drain(task.getDatabaseId()));
             }
             if (!stuck.isEmpty()) {
-                log.info("Detected and failed {} stuck tasks", stuck.size());
+                log.info("Detected {} stuck tasks, processed with retry logic", stuck.size());
             }
         } catch (Exception e) {
             log.warn("Error detecting stuck tasks: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Every 60 seconds, check for delayed retry tasks whose nextRetryAt has passed.
+     * Triggers drain so they get picked up.
+     */
+    @Scheduled(fixedDelay = 60_000, initialDelay = 30_000)
+    public void processDelayedRetries() {
+        try {
+            var readyTasks = taskRepository.findDelayedRetryReady(Instant.now());
+            for (var task : readyTasks) {
+                log.info("Delayed retry task {} now ready, triggering drain for db {}",
+                         task.getId(), task.getDatabaseId());
+                executor.submit(() -> drain(task.getDatabaseId()));
+            }
+        } catch (Exception e) {
+            log.warn("Error processing delayed retries: {}", e.getMessage());
         }
     }
 
@@ -173,28 +207,86 @@ public class KbWriteQueue {
     /**
      * Called when a job pod completes (from JobService.handleCallback).
      * Marks the associated task as SUCCEEDED/FAILED and triggers drain for next task.
+     * On failure, applies smart retry logic: PERMANENT errors fail immediately,
+     * TRANSIENT errors retry immediately, RATE_LIMIT errors retry after a delay.
      */
     @SuppressWarnings("unchecked")
     public void onJobCompleted(String jobId, boolean success, String result, String error) {
         taskRepository.findByJobId(jobId).ifPresent(task -> {
-            task.setStatus(success ? KbWriteTaskStatus.SUCCEEDED : KbWriteTaskStatus.FAILED);
-            task.setResult(result);
-            task.setError(error);
-            task.setCompletedAt(Instant.now());
-            taskRepository.save(task);
-            log.info("kb-write task {} completed via job {}: {}", task.getId(), jobId,
-                     success ? "SUCCEEDED" : "FAILED");
+            if (success) {
+                task.setStatus(KbWriteTaskStatus.SUCCEEDED);
+                task.setResult(result);
+                task.setCompletedAt(Instant.now());
+                taskRepository.save(task);
+                log.info("kb-write task {} completed via job {}: SUCCEEDED", task.getId(), jobId);
 
-            // Sync document status for DOCUMENT_PARSE / BATCH_DOCUMENT_PARSE tasks
-            if (task.getType() == KbWriteTaskType.DOCUMENT_PARSE) {
-                syncDocumentFromTask(task, success, result, error);
-            } else if (task.getType() == KbWriteTaskType.BATCH_DOCUMENT_PARSE) {
-                syncBatchDocumentsFromTask(task, success, result, error);
+                // Sync document status on success
+                if (task.getType() == KbWriteTaskType.DOCUMENT_PARSE) {
+                    syncDocumentFromTask(task, true, result, null);
+                } else if (task.getType() == KbWriteTaskType.BATCH_DOCUMENT_PARSE) {
+                    syncBatchDocumentsFromTask(task, true, result, null);
+                }
+            } else {
+                // Failure path: classify error and decide whether to retry
+                String errorCategory = parseErrorCategory(error, result);
+                task.setErrorCategory(errorCategory);
+                task.setError(error);
+                task.setResult(result);
+
+                if (shouldRetry(task, errorCategory)) {
+                    task.setRetryCount(task.getRetryCount() + 1);
+                    task.setStatus(KbWriteTaskStatus.QUEUED);
+                    task.setStartedAt(null);
+                    task.setJobId(null);
+                    if ("RATE_LIMIT".equals(errorCategory)) {
+                        task.setNextRetryAt(Instant.now().plusSeconds(300)); // 5 minutes
+                    } else {
+                        task.setNextRetryAt(null); // immediate retry
+                    }
+                    taskRepository.save(task);
+                    log.info("kb-write task {} will retry ({}/{}) errorCategory={} via job {}",
+                             task.getId(), task.getRetryCount(), task.getMaxRetries(),
+                             errorCategory, jobId);
+                    // Document stays in PROCESSING — do NOT sync
+                } else {
+                    // Final failure — no more retries
+                    task.setStatus(KbWriteTaskStatus.FAILED);
+                    task.setCompletedAt(Instant.now());
+                    taskRepository.save(task);
+                    log.info("kb-write task {} failed permanently (errorCategory={}) via job {}",
+                             task.getId(), errorCategory, jobId);
+
+                    // Sync document status to FAILED
+                    if (task.getType() == KbWriteTaskType.DOCUMENT_PARSE) {
+                        syncDocumentFromTask(task, false, result, error);
+                    } else if (task.getType() == KbWriteTaskType.BATCH_DOCUMENT_PARSE) {
+                        syncBatchDocumentsFromTask(task, false, result, error);
+                    }
+                }
             }
 
             // Trigger drain for next task
             executor.submit(() -> drain(task.getDatabaseId()));
         });
+    }
+
+    private String parseErrorCategory(String error, String resultJson) {
+        // Try to extract error_category from the callback result JSON
+        if (resultJson != null) {
+            try {
+                var node = objectMapper.readTree(resultJson);
+                if (node.has("error_category")) {
+                    return node.get("error_category").asText();
+                }
+            } catch (Exception ignored) {}
+        }
+        // Fallback: if no category provided, treat as TRANSIENT
+        return "TRANSIENT";
+    }
+
+    private boolean shouldRetry(KbWriteTaskEntity task, String errorCategory) {
+        if ("PERMANENT".equals(errorCategory)) return false;
+        return task.getRetryCount() < task.getMaxRetries();
     }
 
     @SuppressWarnings("unchecked")

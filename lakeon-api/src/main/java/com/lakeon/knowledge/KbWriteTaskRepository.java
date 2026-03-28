@@ -14,8 +14,8 @@ public interface KbWriteTaskRepository extends JpaRepository<KbWriteTaskEntity, 
 
     Optional<KbWriteTaskEntity> findByIdAndTenantId(String id, String tenantId);
 
-    @Query("SELECT t FROM KbWriteTaskEntity t WHERE t.databaseId = ?1 AND t.status = 'QUEUED' ORDER BY t.createdAt ASC")
-    List<KbWriteTaskEntity> findQueuedByDatabaseId(String databaseId);
+    @Query("SELECT t FROM KbWriteTaskEntity t WHERE t.databaseId = :dbId AND t.status = 'QUEUED' AND (t.nextRetryAt IS NULL OR t.nextRetryAt <= CURRENT_TIMESTAMP) ORDER BY t.createdAt ASC")
+    List<KbWriteTaskEntity> findQueuedByDatabaseId(@Param("dbId") String databaseId);
 
     @Query("SELECT t FROM KbWriteTaskEntity t WHERE t.databaseId = ?1 AND t.status IN ('QUEUED', 'RUNNING')")
     List<KbWriteTaskEntity> findActiveByDatabaseId(String databaseId);
