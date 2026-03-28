@@ -41,29 +41,29 @@
     <text x="220" y="136" text-anchor="middle" font-size="18" font-weight="800" fill="#fff">🐘 Lakebase</text>
     <text x="220" y="156" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.8)">Serverless PostgreSQL</text>
 
-    <rect x="60" y="190" width="80" height="30" rx="8" fill="var(--pub-surface, #fff)" filter="url(#sh2)" />
-    <text x="100" y="205" text-anchor="middle" font-size="8" fill="var(--pub-primary, #0073e6)" font-weight="600">⚡ {{ t('按需弹性', 'Auto Scale') }}</text>
-    <text x="100" y="215" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('自动伸缩', 'Elastic') }}</text>
+    <rect x="80" y="190" width="80" height="30" rx="8" fill="var(--pub-surface, #fff)" filter="url(#sh2)" />
+    <text x="120" y="205" text-anchor="middle" font-size="8" fill="var(--pub-primary, #0073e6)" font-weight="600">⚡ {{ t('按需弹性', 'Auto Scale') }}</text>
+    <text x="120" y="215" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('自动伸缩', 'Elastic') }}</text>
 
-    <rect x="155" y="190" width="80" height="30" rx="8" fill="var(--pub-surface, #fff)" filter="url(#sh2)" />
-    <text x="195" y="205" text-anchor="middle" font-size="8" fill="var(--pub-primary, #0073e6)" font-weight="600">⏱ {{ t('时间旅行', 'Time Travel') }}</text>
-    <text x="195" y="215" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('版本管理', 'Versioning') }}</text>
+    <rect x="175" y="190" width="90" height="30" rx="8" fill="var(--pub-surface, #fff)" filter="url(#sh2)" />
+    <text x="220" y="205" text-anchor="middle" font-size="8" fill="var(--pub-primary, #0073e6)" font-weight="600">⏱ {{ t('时间旅行', 'Time Travel') }}</text>
+    <text x="220" y="215" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('版本管理', 'Versioning') }}</text>
 
-    <rect x="250" y="190" width="80" height="30" rx="8" fill="var(--pub-surface, #fff)" filter="url(#sh2)" />
-    <text x="290" y="205" text-anchor="middle" font-size="8" fill="var(--pub-primary, #0073e6)" font-weight="600">🔍 pgvector</text>
-    <text x="290" y="215" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('向量搜索', 'Vector') }}</text>
+    <rect x="280" y="190" width="80" height="30" rx="8" fill="var(--pub-surface, #fff)" filter="url(#sh2)" />
+    <text x="320" y="205" text-anchor="middle" font-size="8" fill="var(--pub-primary, #0073e6)" font-weight="600">🔍 {{ t('混合检索', 'Hybrid Search') }}</text>
+    <text x="320" y="215" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('向量+全文+图+结构化', 'Vec+FTS+Graph+SQL') }}</text>
 
-    <rect x="60" y="235" width="80" height="30" rx="8" fill="var(--pub-surface, #fff)" filter="url(#sh2)" />
-    <text x="100" y="250" text-anchor="middle" font-size="8" fill="var(--pub-primary, #0073e6)" font-weight="600">🔀 {{ t('分支', 'Branch') }}</text>
-    <text x="100" y="260" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('类 Git 管理', 'Git-like') }}</text>
+    <rect x="80" y="235" width="80" height="30" rx="8" fill="var(--pub-surface, #fff)" filter="url(#sh2)" />
+    <text x="120" y="250" text-anchor="middle" font-size="8" fill="var(--pub-primary, #0073e6)" font-weight="600">🔀 {{ t('分支', 'Branch') }}</text>
+    <text x="120" y="260" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('类 Git 管理', 'Git-like') }}</text>
 
-    <rect x="155" y="235" width="80" height="30" rx="8" fill="var(--pub-surface, #fff)" filter="url(#sh2)" />
-    <text x="195" y="250" text-anchor="middle" font-size="8" fill="var(--pub-primary, #0073e6)" font-weight="600">💤 {{ t('自动休眠', 'Auto Sleep') }}</text>
-    <text x="195" y="260" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('秒级唤醒', 'Fast Wake') }}</text>
+    <rect x="175" y="235" width="90" height="30" rx="8" fill="var(--pub-surface, #fff)" filter="url(#sh2)" />
+    <text x="220" y="250" text-anchor="middle" font-size="8" fill="var(--pub-primary, #0073e6)" font-weight="600">💤 {{ t('自动休眠', 'Auto Sleep') }}</text>
+    <text x="220" y="260" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('秒级唤醒', 'Fast Wake') }}</text>
 
-    <rect x="250" y="235" width="80" height="30" rx="8" fill="var(--pub-surface, #fff)" filter="url(#sh2)" />
-    <text x="290" y="250" text-anchor="middle" font-size="8" fill="var(--pub-primary, #0073e6)" font-weight="600">🔒 {{ t('零运维', 'Zero Ops') }}</text>
-    <text x="290" y="260" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('全托管', 'Managed') }}</text>
+    <rect x="280" y="235" width="80" height="30" rx="8" fill="var(--pub-surface, #fff)" filter="url(#sh2)" />
+    <text x="320" y="250" text-anchor="middle" font-size="8" fill="var(--pub-primary, #0073e6)" font-weight="600">🔒 {{ t('零运维', 'Zero Ops') }}</text>
+    <text x="320" y="260" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('全托管', 'Managed') }}</text>
   </svg>
 </template>
 
