@@ -50,8 +50,11 @@ function highlightChunkInDom() {
   const idx = fullText.indexOf(searchText)
   if (idx < 0) return
 
+  // Highlight the full chunk content length, not just the search snippet
+  const chunkPlain = stripMarkdown(props.chunkContent || '').trim()
+  const highlightLen = Math.max(searchText.length, chunkPlain.length)
   const highlightStart = idx
-  const highlightEnd = idx + searchText.length
+  const highlightEnd = Math.min(fullText.length, idx + highlightLen)
 
   // Wrap matching text nodes with <mark>
   for (const entry of nodeMap) {
@@ -123,8 +126,9 @@ function findSearchText(): string | null {
     // Verify: first 30 chars of extracted text should appear in chunk content
     const verify = plain.substring(0, 30)
     if (verify.length >= 10 && strippedChunk.includes(verify)) {
-      const mid = Math.max(0, Math.floor(plain.length / 2) - 30)
-      const snippet = plain.substring(mid, mid + 60).trim()
+      // Use the START of the extracted text — this anchors to the correct position
+      // in the DOM, avoiding mid-chunk matches that could land on similar content
+      const snippet = plain.substring(0, Math.min(80, plain.length)).trim()
       if (snippet.length >= 10) return snippet
     }
   }
@@ -134,12 +138,11 @@ function findSearchText(): string | null {
   const uniquePart = strippedChunk.substring(uniqueStart).trim()
 
   if (uniquePart.length >= 20) {
-    // Use a snippet from the beginning (most likely to be unique in fulltext)
-    return uniquePart.substring(0, Math.min(120, uniquePart.length))
+    return uniquePart.substring(0, Math.min(80, uniquePart.length))
   }
 
   // Strategy 3: Fallback with raw content start
-  const snippet = strippedChunk.substring(0, Math.min(120, strippedChunk.length)).trim()
+  const snippet = strippedChunk.substring(0, Math.min(80, strippedChunk.length)).trim()
   return snippet.length >= 10 ? snippet : null
 }
 
