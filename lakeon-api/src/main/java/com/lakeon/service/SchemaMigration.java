@@ -3,6 +3,7 @@ package com.lakeon.service;
 import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.enums.ComputeStatus;
+import com.lakeon.knowledge.KbWriteTaskType;
 import com.lakeon.model.enums.OperationType;
 import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
@@ -53,6 +54,23 @@ public class SchemaMigration {
             log.info("Synced operation_logs CHECK constraint with OperationType enum: {}", values);
         } catch (Exception e) {
             log.warn("Failed to sync operation_type CHECK constraint: {}", e.getMessage());
+        }
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void syncKbWriteTaskTypeConstraint() {
+        String values = Arrays.stream(KbWriteTaskType.values())
+                .map(e -> "'" + e.name() + "'")
+                .collect(Collectors.joining(","));
+
+        try (Connection conn = dataSource.getConnection();
+             Statement st = conn.createStatement()) {
+            st.execute("ALTER TABLE kb_write_tasks DROP CONSTRAINT IF EXISTS kb_write_tasks_type_check");
+            st.execute("ALTER TABLE kb_write_tasks ADD CONSTRAINT kb_write_tasks_type_check " +
+                    "CHECK (type::text = ANY(ARRAY[" + values + "]))");
+            log.info("Synced kb_write_tasks CHECK constraint with KbWriteTaskType enum: {}", values);
+        } catch (Exception e) {
+            log.warn("Failed to sync kb_write_tasks type CHECK constraint: {}", e.getMessage());
         }
     }
 
