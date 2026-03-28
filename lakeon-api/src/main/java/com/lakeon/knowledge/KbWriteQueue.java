@@ -440,10 +440,10 @@ public class KbWriteQueue {
         DatabaseEntity db = databaseRepository.findById(task.getDatabaseId())
             .orElseThrow(() -> new NotFoundException("Database not found: " + task.getDatabaseId()));
 
-        // Don't wake compute pod here — job pod will wake it via connstr_refresh_url
-        // when it's ready to write (after parsing + embedding completes).
-        // Use a placeholder connstr that will fail on first connect, triggering refresh.
-        String connstr = "postgresql://cloud_admin:cloud-admin-internal@placeholder:55433/" + db.getName()
+        // Wake compute and get internal pod address for initial connstr.
+        // Job pod can also refresh connstr via connstr_refresh_url if compute suspends mid-job.
+        String address = wakeAndGetPodAddress(db);
+        String connstr = "postgresql://cloud_admin:cloud-admin-internal@" + address + "/" + db.getName()
                 + "?sslmode=disable";
 
         Map<String, Object> params = objectMapper.readValue(task.getParams(), Map.class);
