@@ -61,13 +61,13 @@
       <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
         <label class="btn btn-primary" style="cursor: pointer;" :class="{ disabled: uploading }">
           上传文件
-          <input type="file" accept=".pdf,.docx,.md,.markdown,.txt,.epub" multiple style="display: none;" :disabled="uploading" @change="handleUpload" />
+          <input type="file" accept=".pdf,.docx,.doc,.xlsx,.xls,.xlsm,.pptx,.epub,.html,.htm,.md,.markdown,.txt" multiple style="display: none;" :disabled="uploading" @change="handleUpload" />
         </label>
         <label class="btn btn-secondary" style="cursor: pointer;" :class="{ disabled: uploading }">
           上传目录
           <input type="file" style="display: none;" :disabled="uploading" webkitdirectory @change="handleDirectoryUpload" />
         </label>
-        <span style="color: #999; font-size: 13px;">支持 PDF、DOCX、EPUB、Markdown、TXT，最多 20 个/批</span>
+        <span style="color: #999; font-size: 13px;">支持 PDF、DOCX、DOC、XLSX、XLS、PPTX、EPUB、HTML、Markdown、TXT，最多 20 个/批</span>
       </div>
 
       <!-- Upload progress list -->

@@ -328,7 +328,7 @@ public class KnowledgeService {
         // Detect format from extension
         String format = detectFormat(filename);
         if (format == null) {
-            throw new BadRequestException("Unsupported file format. Supported: .pdf, .docx, .md, .txt, .epub");
+            throw new BadRequestException("Unsupported file format. Supported: .pdf, .docx, .doc, .xlsx, .xls, .pptx, .epub, .html, .md, .txt");
         }
 
         // Create DocumentEntity in PENDING status
@@ -1126,9 +1126,15 @@ public class KnowledgeService {
         String lower = filename.toLowerCase();
         if (lower.endsWith(".pdf")) return "PDF";
         if (lower.endsWith(".docx")) return "DOCX";
-        if (lower.endsWith(".md")) return "MARKDOWN";
+        if (lower.endsWith(".doc")) return "DOC";
+        if (lower.endsWith(".xlsx")) return "XLSX";
+        if (lower.endsWith(".xls")) return "XLS";
+        if (lower.endsWith(".xlsm")) return "XLSM";
+        if (lower.endsWith(".pptx")) return "PPTX";
+        if (lower.endsWith(".md") || lower.endsWith(".markdown")) return "MARKDOWN";
         if (lower.endsWith(".txt")) return "TEXT";
         if (lower.endsWith(".epub")) return "EPUB";
+        if (lower.endsWith(".html") || lower.endsWith(".htm")) return "HTML";
         return null;
     }
 
