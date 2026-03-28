@@ -214,8 +214,24 @@ public class RayJobRunner {
         workerContainer.put("image", image);
         workerContainer.put("resources", workerResources);
 
+        // Security: prevent user code from accessing K8s API or running as root
+        Map<String, Object> podSecurityContext = Map.of(
+            "runAsNonRoot", true,
+            "runAsUser", 1000,
+            "runAsGroup", 1000
+        );
+        Map<String, Object> containerSecurityContext = Map.of(
+            "allowPrivilegeEscalation", false,
+            "readOnlyRootFilesystem", false,  // Ray needs writable /tmp
+            "capabilities", Map.of("drop", List.of("ALL"))
+        );
+        headContainer.put("securityContext", containerSecurityContext);
+        workerContainer.put("securityContext", containerSecurityContext);
+
         // Head pod spec
         Map<String, Object> headPodSpec = new LinkedHashMap<>();
+        headPodSpec.put("automountServiceAccountToken", false);
+        headPodSpec.put("securityContext", podSecurityContext);
         headPodSpec.put("nodeSelector", nodeSelector);
         headPodSpec.put("tolerations", tolerations);
         headPodSpec.put("imagePullSecrets", imagePullSecrets);
@@ -233,6 +249,8 @@ public class RayJobRunner {
         // because ray health-check gRPC times out in CCI despite TCP connectivity.
         // Ray worker's own startup handles GCS connection retry, so no init container needed.
         Map<String, Object> workerPodSpec = new LinkedHashMap<>();
+        workerPodSpec.put("automountServiceAccountToken", false);
+        workerPodSpec.put("securityContext", podSecurityContext);
         workerPodSpec.put("nodeSelector", nodeSelector);
         workerPodSpec.put("tolerations", tolerations);
         workerPodSpec.put("imagePullSecrets", imagePullSecrets);
@@ -276,7 +294,10 @@ public class RayJobRunner {
             "requests", Map.of("cpu", "250m", "memory", "512Mi"),
             "limits", Map.of("cpu", "250m", "memory", "512Mi")
         ));
+        submitterContainer.put("securityContext", containerSecurityContext);
         Map<String, Object> submitterPodSpec = new LinkedHashMap<>();
+        submitterPodSpec.put("automountServiceAccountToken", false);
+        submitterPodSpec.put("securityContext", podSecurityContext);
         submitterPodSpec.put("restartPolicy", "Never");
         submitterPodSpec.put("imagePullSecrets", imagePullSecrets);
         submitterPodSpec.put("nodeSelector", nodeSelector);

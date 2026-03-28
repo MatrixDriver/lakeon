@@ -140,11 +140,15 @@ public class PythonJobRunner {
                 .withOperator("Exists")
                 .build();
 
-        // 7. Build container
+        // 7. Build container (security-hardened: user code runs in datalake jobs)
         var containerBuilder = new io.fabric8.kubernetes.api.model.ContainerBuilder()
                 .withName("python-job")
                 .withImage(image)
                 .withEnv(envVars)
+                .withNewSecurityContext()
+                    .withAllowPrivilegeEscalation(false)
+                    .withNewCapabilities().withDrop(List.of("ALL")).endCapabilities()
+                .endSecurityContext()
                 .withNewResources()
                     .withRequests(Map.of(
                             "cpu", new Quantity(cpu),
@@ -167,8 +171,14 @@ public class PythonJobRunner {
                     .build());
         }
 
-        // 8. Build pod spec
+        // 8. Build pod spec (security-hardened: no SA token, non-root)
         var podSpecBuilder = new PodSpecBuilder()
+                .withAutomountServiceAccountToken(false)
+                .withNewSecurityContext()
+                    .withRunAsNonRoot(true)
+                    .withRunAsUser(1000L)
+                    .withRunAsGroup(1000L)
+                .endSecurityContext()
                 .withRestartPolicy("Never")
                 .withImagePullSecrets(
                     props.getK8s().getImagePullSecrets().stream()

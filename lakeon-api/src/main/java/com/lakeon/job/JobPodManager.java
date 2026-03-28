@@ -116,10 +116,14 @@ public class JobPodManager {
                     .withKey("virtual-kubelet.io/provider")
                     .withOperator("Exists")
                     .build())
+                .withAutomountServiceAccountToken(false)
                 .addNewContainer()
                     .withName("job")
                     .withImage(image)
                     .withImagePullPolicy("IfNotPresent")
+                    .withNewSecurityContext()
+                        .withAllowPrivilegeEscalation(false)
+                    .endSecurityContext()
                     .withNewResources()
                         .withRequests(Map.of(
                             "cpu", new Quantity(cpu),
