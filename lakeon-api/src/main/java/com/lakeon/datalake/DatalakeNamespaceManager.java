@@ -3,6 +3,7 @@ package com.lakeon.datalake;
 import com.lakeon.config.LakeonProperties;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.networking.v1.*;
+import io.fabric8.kubernetes.api.model.rbac.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,7 +96,26 @@ public class DatalakeNamespaceManager {
                             .withPodSelector(new LabelSelectorBuilder().build())
                             .build())
                         .build())
-                    .withEgress(new NetworkPolicyEgressRuleBuilder().build())
+                    .withEgress(
+                        // Allow DNS (UDP+TCP port 53)
+                        new NetworkPolicyEgressRuleBuilder()
+                            .withPorts(
+                                new NetworkPolicyPortBuilder().withPort(new IntOrString(53)).withProtocol("UDP").build(),
+                                new NetworkPolicyPortBuilder().withPort(new IntOrString(53)).withProtocol("TCP").build())
+                            .build(),
+                        // Allow pod-to-pod within same namespace (Ray head ↔ worker)
+                        new NetworkPolicyEgressRuleBuilder()
+                            .withTo(new NetworkPolicyPeerBuilder()
+                                .withPodSelector(new LabelSelectorBuilder().build())
+                                .build())
+                            .build(),
+                        // Allow HTTPS to OBS and API callback (port 443 + 8443)
+                        new NetworkPolicyEgressRuleBuilder()
+                            .withPorts(
+                                new NetworkPolicyPortBuilder().withPort(new IntOrString(443)).withProtocol("TCP").build(),
+                                new NetworkPolicyPortBuilder().withPort(new IntOrString(8443)).withProtocol("TCP").build())
+                            .build()
+                    )
                 .endSpec()
                 .build();
             k8sClient.network().networkPolicies().inNamespace(ns).resource(networkPolicy).create();
@@ -125,6 +145,58 @@ public class DatalakeNamespaceManager {
             log.info("Created ResourceQuota tenant-quota in namespace: {}", ns);
         } catch (Exception e) {
             log.warn("Failed to create ResourceQuota in {}: {}", ns, e.getMessage());
+        }
+
+        // 5. Create ray-head ServiceAccount + minimal RBAC for Ray Autoscaler
+        // Ray head needs to manage pods in its own namespace for autoscaling.
+        // Worker and submitter pods use automountServiceAccountToken=false.
+        try {
+            ServiceAccount sa = new ServiceAccountBuilder()
+                .withNewMetadata()
+                    .withName("ray-head")
+                    .withNamespace(ns)
+                .endMetadata()
+                .withImagePullSecrets(
+                    new LocalObjectReferenceBuilder().withName("swr-secret").build())
+                .build();
+            k8sClient.serviceAccounts().inNamespace(ns).resource(sa).createOrReplace();
+
+            Role role = new RoleBuilder()
+                .withNewMetadata()
+                    .withName("ray-head")
+                    .withNamespace(ns)
+                .endMetadata()
+                .withRules(
+                    new PolicyRuleBuilder()
+                        .withApiGroups("")
+                        .withResources("pods", "pods/status")
+                        .withVerbs("get", "list", "watch", "create", "delete", "patch")
+                        .build()
+                )
+                .build();
+            k8sClient.rbac().roles().inNamespace(ns).resource(role).createOrReplace();
+
+            RoleBinding binding = new RoleBindingBuilder()
+                .withNewMetadata()
+                    .withName("ray-head")
+                    .withNamespace(ns)
+                .endMetadata()
+                .withSubjects(new SubjectBuilder()
+                    .withKind("ServiceAccount")
+                    .withName("ray-head")
+                    .withNamespace(ns)
+                    .build())
+                .withNewRoleRef()
+                    .withApiGroup("rbac.authorization.k8s.io")
+                    .withKind("Role")
+                    .withName("ray-head")
+                .endRoleRef()
+                .build();
+            k8sClient.rbac().roleBindings().inNamespace(ns).resource(binding).createOrReplace();
+
+            log.info("Created ray-head ServiceAccount + RBAC in namespace: {}", ns);
+        } catch (Exception e) {
+            log.warn("Failed to create ray-head SA/RBAC in {}: {}", ns, e.getMessage());
         }
 
         return ns;

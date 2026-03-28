@@ -228,9 +228,9 @@ public class RayJobRunner {
         headContainer.put("securityContext", containerSecurityContext);
         workerContainer.put("securityContext", containerSecurityContext);
 
-        // Head pod spec
+        // Head pod spec — uses ray-head SA for autoscaler K8s API access
         Map<String, Object> headPodSpec = new LinkedHashMap<>();
-        headPodSpec.put("automountServiceAccountToken", false);
+        headPodSpec.put("serviceAccountName", "ray-head");
         headPodSpec.put("securityContext", podSecurityContext);
         headPodSpec.put("nodeSelector", nodeSelector);
         headPodSpec.put("tolerations", tolerations);
