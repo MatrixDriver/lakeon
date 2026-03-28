@@ -115,35 +115,75 @@
 
     <!-- Cold Start Analysis Tab -->
     <template v-if="activeTab === 'coldstart'">
-      <!-- Summary Cards -->
-      <div class="stats-row" v-if="csData">
-        <div class="stat-card">
-          <div class="stat-value" :style="{ color: csColor(csData.cold?.avg_ms) }">{{ csFormatMs(csData.cold?.avg_ms) }}</div>
-          <div class="stat-label">冷启动均值</div>
+      <!-- Summary: Cold vs Warm side by side -->
+      <div v-if="csData" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+        <!-- Cold Start Summary -->
+        <div class="section-card">
+          <div class="section-header"><h3>冷启动概览</h3><span style="font-size: 12px; color: #999;">共 {{ csData.cold?.count || 0 }} 次</span></div>
+          <div style="padding: 16px;">
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+              <div class="cs-metric">
+                <div class="cs-metric-value" :style="{ color: csColor(csData.cold?.avg_ms) }">{{ csFormatMs(csData.cold?.avg_ms) }}</div>
+                <div class="cs-metric-label">均值</div>
+              </div>
+              <div class="cs-metric">
+                <div class="cs-metric-value" :style="{ color: csColor(csData.cold?.p50_ms) }">{{ csFormatMs(csData.cold?.p50_ms) }}</div>
+                <div class="cs-metric-label">P50</div>
+              </div>
+              <div class="cs-metric">
+                <div class="cs-metric-value" :style="{ color: csColor(csData.cold?.p90_ms) }">{{ csFormatMs(csData.cold?.p90_ms) }}</div>
+                <div class="cs-metric-label">P90</div>
+              </div>
+              <div class="cs-metric">
+                <div class="cs-metric-value" :style="{ color: csColor(csData.cold?.p99_ms) }">{{ csFormatMs(csData.cold?.p99_ms) }}</div>
+                <div class="cs-metric-label">P99</div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-value" :style="{ color: csColor(csData.cold?.p50_ms) }">{{ csFormatMs(csData.cold?.p50_ms) }}</div>
-          <div class="stat-label">P50</div>
+        <!-- Warm Start Summary -->
+        <div class="section-card">
+          <div class="section-header"><h3>热启动概览</h3><span style="font-size: 12px; color: #999;">共 {{ csData.warm?.count || 0 }} 次</span></div>
+          <div style="padding: 16px;">
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+              <div class="cs-metric">
+                <div class="cs-metric-value" style="color: #52c41a;">{{ csFormatMs(csData.warm?.avg_ms) }}</div>
+                <div class="cs-metric-label">均值</div>
+              </div>
+              <div class="cs-metric">
+                <div class="cs-metric-value" style="color: #52c41a;">{{ csFormatMs(csData.warm?.p50_ms) }}</div>
+                <div class="cs-metric-label">P50</div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-value" :style="{ color: csColor(csData.cold?.p90_ms) }">{{ csFormatMs(csData.cold?.p90_ms) }}</div>
-          <div class="stat-label">P90</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" :style="{ color: csColor(csData.cold?.p99_ms) }">{{ csFormatMs(csData.cold?.p99_ms) }}</div>
-          <div class="stat-label">P99</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">{{ csData.cold?.count || 0 }}</div>
-          <div class="stat-label">冷启动次数</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" style="color: #52c41a;">{{ csFormatMs(csData.warm?.avg_ms) }}</div>
-          <div class="stat-label">热启动均值</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" style="color: #52c41a;">{{ csData.warm?.count || 0 }}</div>
-          <div class="stat-label">热启动次数</div>
+      </div>
+
+      <!-- Trend Analysis: improvement/degradation -->
+      <div class="section-card" v-if="csTrendAnalysis" style="margin-bottom: 16px;">
+        <div class="section-header"><h3>趋势分析</h3></div>
+        <div style="padding: 16px; display: flex; gap: 24px; flex-wrap: wrap;">
+          <div v-if="csTrendAnalysis.recentAvg != null" style="flex: 1; min-width: 200px;">
+            <div style="font-size: 13px; color: #666; margin-bottom: 4px;">近期均值 vs 早期均值</div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px; font-weight: 600;" :style="{ color: csColor(csTrendAnalysis.recentAvg) }">{{ csFormatMs(csTrendAnalysis.recentAvg) }}</span>
+              <span style="font-size: 13px; color: #999;">vs</span>
+              <span style="font-size: 18px; font-weight: 600;" :style="{ color: csColor(csTrendAnalysis.earlyAvg) }">{{ csFormatMs(csTrendAnalysis.earlyAvg) }}</span>
+              <span v-if="csTrendAnalysis.changePercent != null"
+                :style="{ color: csTrendAnalysis.changePercent <= 0 ? '#52c41a' : '#e53e3e', fontWeight: 600, fontSize: '14px' }">
+                {{ csTrendAnalysis.changePercent > 0 ? '+' : '' }}{{ csTrendAnalysis.changePercent }}%
+                {{ csTrendAnalysis.changePercent <= 0 ? ' 改善' : ' 恶化' }}
+              </span>
+            </div>
+          </div>
+          <div v-if="csTrendAnalysis.bestDay" style="min-width: 160px;">
+            <div style="font-size: 13px; color: #666; margin-bottom: 4px;">最佳日</div>
+            <div style="font-size: 16px; font-weight: 600; color: #52c41a;">{{ csTrendAnalysis.bestDay.date.substring(5) }} — {{ csFormatMs(csTrendAnalysis.bestDay.avg_ms) }}</div>
+          </div>
+          <div v-if="csTrendAnalysis.worstDay" style="min-width: 160px;">
+            <div style="font-size: 13px; color: #666; margin-bottom: 4px;">最差日</div>
+            <div style="font-size: 16px; font-weight: 600; color: #e53e3e;">{{ csTrendAnalysis.worstDay.date.substring(5) }} — {{ csFormatMs(csTrendAnalysis.worstDay.avg_ms) }}</div>
+          </div>
         </div>
       </div>
 
@@ -151,14 +191,19 @@
       <div class="section-card" v-if="csData?.trend?.length">
         <div class="section-header"><h3>每日趋势</h3></div>
         <div style="padding: 16px; display: flex; gap: 8px; align-items: flex-end; min-height: 160px; overflow-x: auto;">
-          <div v-for="d in csData.trend" :key="d.date" style="display: flex; flex-direction: column; align-items: center; min-width: 48px;">
+          <div v-for="(d, idx) in csData.trend" :key="d.date" style="display: flex; flex-direction: column; align-items: center; min-width: 56px;">
             <div style="height: 120px; display: flex; align-items: flex-end;">
-              <div :style="{ width: '32px', borderRadius: '4px 4px 0 0', minHeight: '4px', background: csColor(d.avg_ms), height: csBarHeight(d.avg_ms) + 'px' }"
+              <div :style="{ width: '36px', borderRadius: '4px 4px 0 0', minHeight: '4px', background: csColor(d.avg_ms), height: csBarHeight(d.avg_ms) + 'px' }"
                 :title="`${d.date}: 均值 ${csFormatMs(d.avg_ms)}, ${d.count} 次`"></div>
             </div>
             <div style="font-size: 11px; color: #999; margin-top: 4px;">{{ d.date.substring(5) }}</div>
-            <div style="font-size: 11px; font-weight: 600;">{{ csFormatMs(d.avg_ms) }}</div>
+            <div style="font-size: 12px; font-weight: 600;">{{ csFormatMs(d.avg_ms) }}</div>
             <div style="font-size: 10px; color: #bbb;">{{ d.count }}次</div>
+            <div v-if="idx > 0 && csData.trend[idx - 1]" style="font-size: 10px; margin-top: 2px;"
+              :style="{ color: d.avg_ms <= csData.trend[idx - 1].avg_ms ? '#52c41a' : '#e53e3e' }">
+              {{ d.avg_ms <= csData.trend[idx - 1].avg_ms ? '&#9660;' : '&#9650;' }}
+              {{ Math.abs(Math.round((d.avg_ms - csData.trend[idx - 1].avg_ms) / csData.trend[idx - 1].avg_ms * 100)) }}%
+            </div>
           </div>
         </div>
       </div>
@@ -280,9 +325,28 @@ async function loadColdStart() {
 
 function csFormatMs(ms: number | null | undefined): string {
   if (ms == null || ms === 0) return '-'
-  if (ms < 1000) return ms + 'ms'
+  if (ms < 1000) return Math.round(ms) + 'ms'
   return (ms / 1000).toFixed(1) + 's'
 }
+
+const csTrendAnalysis = computed(() => {
+  const trend = csData.value?.trend
+  if (!trend || trend.length < 2) return null
+  const mid = Math.ceil(trend.length / 2)
+  const earlyDays = trend.slice(0, mid)
+  const recentDays = trend.slice(mid)
+  const avgOf = (days: any[]) => {
+    let total = 0, count = 0
+    for (const d of days) { total += d.avg_ms * d.count; count += d.count }
+    return count > 0 ? total / count : 0
+  }
+  const earlyAvg = avgOf(earlyDays)
+  const recentAvg = avgOf(recentDays)
+  const changePercent = earlyAvg > 0 ? Math.round((recentAvg - earlyAvg) / earlyAvg * 100) : null
+  const bestDay = [...trend].sort((a: any, b: any) => a.avg_ms - b.avg_ms)[0]
+  const worstDay = [...trend].sort((a: any, b: any) => b.avg_ms - a.avg_ms)[0]
+  return { earlyAvg, recentAvg, changePercent, bestDay, worstDay }
+})
 
 function csColor(ms: number | null | undefined): string {
   if (ms == null) return '#333'
@@ -393,6 +457,9 @@ onMounted(() => { tenantStore.load(); loadDatabases() })
 }
 .stat-value { font-size: 28px; font-weight: 600; color: #333; }
 .stat-label { font-size: 13px; color: #999; margin-top: 4px; }
+.cs-metric { text-align: center; padding: 12px 8px; background: #fafafa; border-radius: 6px; }
+.cs-metric-value { font-size: 24px; font-weight: 600; }
+.cs-metric-label { font-size: 12px; color: #999; margin-top: 2px; }
 
 .tab-bar { display: flex; border-bottom: 1px solid #e5e5e5; margin-bottom: 16px; }
 .tab-item {
