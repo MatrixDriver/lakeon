@@ -225,12 +225,12 @@ public class NotebookService {
                 .map(name -> new LocalObjectReferenceBuilder().withName(name).build())
                 .toList();
 
-        // Head container: ray start --head --num-cpus=0 then launch repl_server.py
+        // Head container: start ray head, then sleep (exec starts repl_server.py)
         Container headContainer = new ContainerBuilder()
                 .withName("repl")
                 .withImage(image)
                 .withCommand("bash", "-c",
-                        "ray start --head --port=6379 --dashboard-host=0.0.0.0 --num-cpus=0 && python -u /app/repl_server.py")
+                        "ray start --head --port=6379 --dashboard-host=0.0.0.0 --num-cpus=0 && sleep infinity")
                 .withStdin(true)
                 .withStdinOnce(false)
                 .withTty(false)
@@ -424,7 +424,7 @@ public class NotebookService {
         Container container = new ContainerBuilder()
                 .withName("repl")
                 .withImage(image)
-                .withCommand("python", "/app/repl_server.py")
+                .withCommand("sleep", "infinity")
                 .withStdin(true)
                 .withStdinOnce(false)
                 .withTty(false)
