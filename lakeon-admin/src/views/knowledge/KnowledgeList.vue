@@ -8,7 +8,7 @@
     <div class="tab-bar">
       <div class="tab-item" :class="{ active: activeTab === 'bases' }" @click="activeTab = 'bases'">知识库列表</div>
       <div class="tab-item" :class="{ active: activeTab === 'tasks' }" @click="activeTab = 'tasks'; loadTasks()">写入任务队列</div>
-      <div class="tab-item" :class="{ active: activeTab === 'pipeline' }" @click="activeTab = 'pipeline'; loadPipeline()">Pipeline Monitor</div>
+      <div class="tab-item" :class="{ active: activeTab === 'pipeline' }" @click="activeTab = 'pipeline'; loadPipeline()">流水线监控</div>
     </div>
 
     <!-- KB List Tab -->
@@ -191,26 +191,43 @@
 
     <!-- Pipeline Monitor Tab -->
     <template v-if="activeTab === 'pipeline'">
-      <!-- Pipeline Stats Cards -->
-      <div class="stats-row" v-if="plStats">
-        <div class="stat-card">
-          <div class="stat-value">{{ plStats.total ?? 0 }}</div>
-          <div class="stat-label">总任务数</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" style="color: #52c41a;">{{ plStats.success_rate != null ? (plStats.success_rate * 100).toFixed(1) + '%' : '-' }}</div>
-          <div class="stat-label">成功率</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" style="color: #faad14;">{{ plStats.retry_rate != null ? (plStats.retry_rate * 100).toFixed(1) + '%' : '-' }}</div>
-          <div class="stat-label">重试率</div>
-        </div>
-        <template v-if="plStats.avg_stage_durations_ms">
-          <div class="stat-card" v-for="(ms, stage) in plStats.avg_stage_durations_ms" :key="stage">
-            <div class="stat-value" style="font-size: 20px;">{{ formatDuration(ms) }}</div>
-            <div class="stat-label">{{ stageLabels[stage as string] || stage }}</div>
+      <!-- Pipeline Summary -->
+      <div v-if="plStats" style="margin-bottom: 16px;">
+        <div class="stats-row" style="margin-bottom: 12px;">
+          <div class="stat-card">
+            <div class="stat-value">{{ plStats.total ?? 0 }}</div>
+            <div class="stat-label">总任务数</div>
           </div>
-        </template>
+          <div class="stat-card">
+            <div class="stat-value" style="color: #52c41a;">{{ plStats.success_rate != null ? (plStats.success_rate * 100).toFixed(1) + '%' : '-' }}</div>
+            <div class="stat-label">成功率</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" style="color: #faad14;">{{ plStats.retry_rate != null ? (plStats.retry_rate * 100).toFixed(1) + '%' : '-' }}</div>
+            <div class="stat-label">重试率</div>
+          </div>
+        </div>
+        <!-- Stage Duration Breakdown Bar -->
+        <div v-if="plStats.avg_stage_durations_ms && plStageTotalMs > 0" class="section-card">
+          <div class="section-header"><h3>平均耗时分解</h3><span style="font-size: 12px; color: #999;">总计 {{ formatDuration(plStageTotalMs) }}</span></div>
+          <div style="padding: 16px;">
+            <div class="pl-stage-bar">
+              <div v-for="(ms, stage) in plStats.avg_stage_durations_ms" :key="stage"
+                class="pl-stage-segment"
+                :style="{ width: (Number(ms) / plStageTotalMs * 100) + '%', background: stageColors[stage as string] || '#94a3b8' }"
+                :title="`${stageLabels[stage as string] || stage}: ${formatDuration(Number(ms))}`">
+              </div>
+            </div>
+            <div class="pl-stage-legend">
+              <div v-for="(ms, stage) in plStats.avg_stage_durations_ms" :key="stage" class="pl-stage-legend-item">
+                <span class="pl-stage-dot" :style="{ background: stageColors[stage as string] || '#94a3b8' }"></span>
+                <span class="pl-stage-legend-label">{{ stageLabels[stage as string] || stage }}</span>
+                <span class="pl-stage-legend-value">{{ formatDuration(Number(ms)) }}</span>
+                <span class="pl-stage-legend-pct">{{ (Number(ms) / plStageTotalMs * 100).toFixed(0) }}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Filters -->
@@ -321,7 +338,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { adminApi } from '../../api/admin'
 import { formatDate } from '../../utils/format'
 import { useTenantStore } from '../../stores/tenants'
@@ -381,6 +398,12 @@ const stageLabels: Record<string, string> = {
   COMPUTE_WAKE: 'Compute唤醒',
   WRITE: '写入DB',
 }
+
+const plStageTotalMs = computed(() => {
+  const durations = plStats.value?.avg_stage_durations_ms
+  if (!durations) return 0
+  return Object.values(durations).reduce((sum: number, ms) => sum + Number(ms), 0)
+})
 
 const stageColors: Record<string, string> = {
   JOB_POD: '#94a3b8', DOWNLOAD: '#3b82f6', PARSE: '#10b981',
@@ -654,4 +677,26 @@ onMounted(() => {
   display: flex; align-items: center; justify-content: center;
   margin-top: 16px; padding: 8px 0;
 }
+
+/* Stage duration bar */
+.pl-stage-bar {
+  display: flex; height: 32px; border-radius: 6px; overflow: hidden; background: #f0f0f0;
+}
+.pl-stage-segment {
+  height: 100%; min-width: 2px; transition: width 0.3s;
+}
+.pl-stage-segment:first-child { border-radius: 6px 0 0 6px; }
+.pl-stage-segment:last-child { border-radius: 0 6px 6px 0; }
+.pl-stage-legend {
+  display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 12px;
+}
+.pl-stage-legend-item {
+  display: flex; align-items: center; gap: 6px; font-size: 13px;
+}
+.pl-stage-dot {
+  width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
+}
+.pl-stage-legend-label { color: #666; }
+.pl-stage-legend-value { font-weight: 600; color: #333; }
+.pl-stage-legend-pct { color: #999; font-size: 12px; }
 </style>
