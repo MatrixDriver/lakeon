@@ -54,10 +54,18 @@ public class NotebookWebSocketHandler extends TextWebSocketHandler {
         // Create exec connection eagerly so client receives "ready" message
         Thread initThread = new Thread(() -> {
             try {
+                long t0 = System.currentTimeMillis();
+
                 // Wait for pod to be running (poll up to 30s)
                 NotebookSessionEntity session = null;
+                boolean sentStarting = false;
                 for (int i = 0; i < 30; i++) {
                     session = notebookService.getSession(tenant.getId()).orElse(null);
+                    if (session != null && !sentStarting) {
+                        boolean isRay = session.getWorkerCount() != null && session.getWorkerCount() > 0;
+                        sendProgress(wsSession, isRay ? "正在连接 Ray 集群..." : "正在启动 Kernel...", t0);
+                        sentStarting = true;
+                    }
                     if (session != null && session.getStatus() == NotebookSessionStatus.RUNNING) break;
                     Thread.sleep(1000);
                 }
@@ -65,6 +73,25 @@ public class NotebookWebSocketHandler extends TextWebSocketHandler {
                     wsSession.sendMessage(new TextMessage("{\"type\":\"error\",\"traceback\":\"Kernel pod not ready after 30s.\"}"));
                     return;
                 }
+
+                boolean isRay = session.getWorkerCount() != null && session.getWorkerCount() > 0;
+
+                // For Ray sessions, report worker join progress (non-blocking, up to 10s)
+                if (isRay) {
+                    int totalWorkers = session.getWorkerCount();
+                    sendProgress(wsSession, "Ray Head 就绪，等待 Worker 加入...", t0);
+                    for (int i = 0; i < 10; i++) {
+                        long runningWorkers = countRunningWorkers(session);
+                        if (runningWorkers >= totalWorkers) {
+                            sendProgress(wsSession, "Worker 全部就绪 (" + totalWorkers + "/" + totalWorkers + ")", t0);
+                            break;
+                        }
+                        sendProgress(wsSession, "Worker 加入中 (" + runningWorkers + "/" + totalWorkers + ")...", t0);
+                        Thread.sleep(1000);
+                    }
+                }
+
+                sendProgress(wsSession, isRay ? "正在连接 Kernel..." : "Pod 就绪，正在连接 Kernel...", t0);
                 ExecConnection conn = createExecConnection(session, wsSession);
                 if (conn != null) {
                     execConnections.put(wsSession.getId(), conn);
@@ -108,6 +135,36 @@ public class NotebookWebSocketHandler extends TextWebSocketHandler {
         ExecConnection conn = execConnections.remove(wsSession.getId());
         if (conn != null) conn.close();
         log.info("Notebook WS disconnected: wsSession={}", wsSession.getId());
+    }
+
+    private void sendProgress(WebSocketSession wsSession, String text, long startMs) {
+        try {
+            if (wsSession.isOpen()) {
+                long elapsed = System.currentTimeMillis() - startMs;
+                String elapsedStr = String.format("%.1fs", elapsed / 1000.0);
+                wsSession.sendMessage(new TextMessage(
+                    "{\"type\":\"progress\",\"text\":\"" + text + "\",\"elapsed\":\"" + elapsedStr + "\"}"));
+            }
+        } catch (Exception e) {
+            log.debug("Failed to send progress message: {}", e.getMessage());
+        }
+    }
+
+    private long countRunningWorkers(NotebookSessionEntity session) {
+        try {
+            return k8sClient.pods()
+                    .inNamespace(session.getNamespace())
+                    .withLabel("lakeon.io/session-id", session.getId())
+                    .withLabel("app", "notebook-worker")
+                    .list()
+                    .getItems()
+                    .stream()
+                    .filter(p -> p.getStatus() != null && "Running".equals(p.getStatus().getPhase()))
+                    .count();
+        } catch (Exception e) {
+            log.debug("Failed to count running workers: {}", e.getMessage());
+            return 0;
+        }
     }
 
     private ExecConnection createExecConnection(NotebookSessionEntity session, WebSocketSession wsSession) {

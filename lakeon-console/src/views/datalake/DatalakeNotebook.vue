@@ -227,7 +227,8 @@ function requestVars() {
 
 function handleMessage(msg: NotebookMessage) {
   if (msg.type === 'progress') {
-    progressText.value = msg.text || ''
+    const elapsed = (msg as any).elapsed
+    progressText.value = elapsed ? `${msg.text || ''} (${elapsed})` : (msg.text || '')
     return
   }
   if (msg.type === 'ready') {
