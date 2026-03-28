@@ -16,27 +16,21 @@ async def init_memory(x_database_connstr: str = Header(...)):
 
 @app.post("/ingest")
 async def ingest(req: IngestRequest, x_database_connstr: str = Header(...),
-                 x_one_llm_mode: str = Header("false"),
                  x_scene: str = Header("CHAT_ASSISTANT")):
-    # Agent-extract mode: when memory_type is provided, content is already extracted — store directly
-    if req.memory_type:
+    if req.signal == "memory":
+        # Structured memory from AI agent — store directly
+        if not req.memory_type:
+            raise HTTPException(400, "memory_type is required when signal='memory'")
         metadata = {"source": req.source} if req.source else {}
         mem = await engine.ingest(x_database_connstr, req.content, req.role,
                                   req.memory_type, req.importance, metadata)
         return {"memory_id": mem.id, "memory_type": mem.memory_type, "status": "stored"}
 
-    one_llm = x_one_llm_mode.lower() == "true"
-    auto_extract = req.auto_extract if req.auto_extract is not None else (not one_llm)
-
-    message_id = await engine.store_raw_message(x_database_connstr, req.content, req.role, req.source)
-
-    if auto_extract:
+    elif req.signal == "conversation":
+        # Raw conversation — server extracts memories automatically
+        message_id = await engine.store_raw_message(x_database_connstr, req.content, req.role, req.source)
         asyncio.create_task(engine.background_extract(x_database_connstr, message_id, req.content, x_scene))
-        return {"message_id": message_id, "extraction_required": False, "status": "extracting"}
-    else:
-        from extraction_prompt import build_extraction_prompt
-        prompt = build_extraction_prompt(req.content, scene=x_scene)
-        return {"message_id": message_id, "extraction_required": True, "extraction_prompt": prompt}
+        return {"message_id": message_id, "status": "extracting"}
 
 
 @app.post("/ingest_extracted")
@@ -95,36 +89,22 @@ async def get_graph(x_database_connstr: str = Header(...)):
 
 
 @app.post("/digest")
-async def digest(x_database_connstr: str = Header(...),
-                 x_one_llm_mode: str = Header("false")):
-    one_llm = x_one_llm_mode.lower() == "true"
+async def digest(x_database_connstr: str = Header(...)):
     memories, total = await engine.get_unreflected_memories(x_database_connstr)
 
     if total == 0:
-        return {"one_llm_mode": one_llm, "unreflected_count": 0, "traits_generated": 0}
+        return {"unreflected_count": 0, "traits_generated": 0}
 
-    if one_llm:
-        from digest_prompt import build_digest_prompt, format_memories_for_digest
-        existing = await engine.get_existing_traits(x_database_connstr)
-        prompt = build_digest_prompt(memories, existing)
-        return {
-            "one_llm_mode": True,
-            "unreflected_count": total,
-            "memories": memories,
-            "existing_traits": existing,
-            "reflection_prompt": prompt,
-        }
-    else:
-        from digest_prompt import build_digest_prompt, format_memories_for_digest
-        from llm_client import chat_extract
-        existing = await engine.get_existing_traits(x_database_connstr)
-        prompt = build_digest_prompt(memories, existing)
-        formatted = format_memories_for_digest(memories)
-        full_prompt = f"{formatted}\n\n{prompt}"
-        result = await chat_extract(full_prompt)
-        traits = result.get("traits", [])
-        stored = await engine.store_digest_traits(x_database_connstr, traits)
-        return {"one_llm_mode": False, "traits_generated": stored}
+    from digest_prompt import build_digest_prompt, format_memories_for_digest
+    from llm_client import chat_extract
+    existing = await engine.get_existing_traits(x_database_connstr)
+    prompt = build_digest_prompt(memories, existing)
+    formatted = format_memories_for_digest(memories)
+    full_prompt = f"{formatted}\n\n{prompt}"
+    result = await chat_extract(full_prompt)
+    traits = result.get("traits", [])
+    stored = await engine.store_digest_traits(x_database_connstr, traits)
+    return {"traits_generated": stored}
 
 
 @app.post("/digest_extracted")

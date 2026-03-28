@@ -63,13 +63,14 @@ class MemoryStats(BaseModel):
 
 # New IngestRequest for refactored /ingest endpoint
 class IngestRequest(BaseModel):
-    """New ingest: raw content, mode-aware extraction.
-    When memory_type is provided, content is treated as pre-extracted — stored directly, no LLM extraction.
+    """Ingest endpoint — behavior determined by `signal`:
+    - "memory": content is a structured memory, memory_type required → store directly
+    - "conversation": content is raw conversation → server extracts memories automatically
     """
     content: str
-    role: str = "user"
+    signal: Literal['memory', 'conversation'] = "memory"
+    role: str = "user"  # kept for backward compat (conversation participant role)
     source: Optional[str] = None  # e.g. "openclaw", "claude-code", "api"
-    auto_extract: Optional[bool] = None  # None = use X-One-Llm-Mode header default
     memory_type: Optional[Literal['fact', 'episode', 'procedural', 'decision', 'rejection', 'convention']] = None
     importance: float = 0.5
 

@@ -433,7 +433,7 @@ def memory_ingest(
     mem_id = _resolve_mem_id(memory_base)
     data = _api("POST", f"/memory/bases/{mem_id}/ingest", json={
         "content": content,
-        "role": "user",
+        "signal": "memory",
         "source": source,
         "memory_type": memory_type,
         "importance": importance,

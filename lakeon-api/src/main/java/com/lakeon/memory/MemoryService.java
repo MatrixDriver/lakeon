@@ -124,7 +124,6 @@ public class MemoryService {
         String url = props.getMemory().getServiceUrl() + path;
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-Database-Connstr", connstr);
-        headers.set("X-One-Llm-Mode", String.valueOf(Boolean.TRUE.equals(mem.getOneLlmMode())));
         headers.set("X-Scene", mem.getScene() != null ? mem.getScene() : "CHAT_ASSISTANT");
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<?> entity = new HttpEntity<>(body, headers);
