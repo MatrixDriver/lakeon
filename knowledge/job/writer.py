@@ -67,7 +67,7 @@ def _connect_with_retry(connstr, max_retries=20, delay=5, connstr_refresh_url=No
             if attempt < max_retries - 1:
                 logger.warning(f"DB connect attempt {attempt+1}/{max_retries} failed: {e}")
                 # Try refreshing connstr (wake compute, get new IP)
-                if connstr_refresh_url and attempt >= 1:
+                if connstr_refresh_url and attempt >= 0:
                     try:
                         import requests
                         resp = requests.get(connstr_refresh_url, timeout=120, verify=False)
