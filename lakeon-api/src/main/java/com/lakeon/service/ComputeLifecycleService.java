@@ -97,6 +97,15 @@ public class ComputeLifecycleService {
             }
         }
 
+        // Mark as STARTING before creating pod — prevents cleanup scheduler from
+        // deleting the pod while it's still initializing (race with doCleanupExpiredPods)
+        txTemplate.executeWithoutResult(status -> {
+            DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
+            e.setStatus(DatabaseStatus.RUNNING);
+            e.setSuspendedAt(null);
+            databaseRepository.save(e);
+        });
+
         // Create new Pod (outside transaction, may block 120s)
         String address = computePodManager.createComputePod(entity);
         String podName = entity.getComputePodName();
