@@ -241,7 +241,7 @@ watch(() => route.path, (path) => {
 
 function handleLogout() {
   authStore.logout()
-  router.push('/login')
+  router.push('/')
 }
 
 // Trial countdown
