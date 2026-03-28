@@ -32,6 +32,7 @@
     <div class="tab-bar">
       <div class="tab-item" :class="{ active: activeTab === 'bases' }" @click="activeTab = 'bases'">知识库列表</div>
       <div class="tab-item" :class="{ active: activeTab === 'tasks' }" @click="activeTab = 'tasks'; loadTasks()">写入任务队列</div>
+      <div class="tab-item" :class="{ active: activeTab === 'pipeline' }" @click="activeTab = 'pipeline'; loadPipeline()">Pipeline Monitor</div>
     </div>
 
     <!-- KB List Tab -->
@@ -188,6 +189,135 @@
         </table>
       </div>
     </template>
+
+    <!-- Pipeline Monitor Tab -->
+    <template v-if="activeTab === 'pipeline'">
+      <!-- Pipeline Stats Cards -->
+      <div class="stats-row" v-if="plStats">
+        <div class="stat-card">
+          <div class="stat-value">{{ plStats.total ?? 0 }}</div>
+          <div class="stat-label">总任务数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: #52c41a;">{{ plStats.success_rate != null ? (plStats.success_rate * 100).toFixed(1) + '%' : '-' }}</div>
+          <div class="stat-label">成功率</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: #faad14;">{{ plStats.retry_rate != null ? (plStats.retry_rate * 100).toFixed(1) + '%' : '-' }}</div>
+          <div class="stat-label">重试率</div>
+        </div>
+        <template v-if="plStats.avg_stage_durations_ms">
+          <div class="stat-card" v-for="(ms, stage) in plStats.avg_stage_durations_ms" :key="stage">
+            <div class="stat-value" style="font-size: 20px;">{{ formatDuration(ms) }}</div>
+            <div class="stat-label">{{ stageLabels[stage as string] || stage }}</div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Filters -->
+      <div class="action-toolbar">
+        <select class="form-select" v-model="plFilter.status" style="width: 130px;" @change="loadPipelineTasks">
+          <option value="">全部状态</option>
+          <option value="QUEUED">排队中</option>
+          <option value="RUNNING">运行中</option>
+          <option value="SUCCEEDED">成功</option>
+          <option value="FAILED">失败</option>
+        </select>
+        <input type="date" class="form-select" v-model="plFilter.dateFrom" style="width: 150px;" @change="loadPipeline" />
+        <input type="date" class="form-select" v-model="plFilter.dateTo" style="width: 150px;" @change="loadPipeline" />
+        <button class="btn btn-default btn-small" @click="loadPipeline">刷新</button>
+      </div>
+
+      <!-- Pipeline Task Table -->
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 30px;"></th>
+              <th>文档</th>
+              <th>状态</th>
+              <th>文件大小</th>
+              <th>峰值内存</th>
+              <th>总耗时</th>
+              <th>重试</th>
+              <th>创建时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="t in plTasks" :key="t.id">
+              <tr style="cursor: pointer;" @click="togglePipelineExpand(t.id)">
+                <td>
+                  <button class="btn-icon-small">{{ expandedPl === t.id ? '▼' : '▶' }}</button>
+                </td>
+                <td>
+                  <strong>{{ getDocName(t) }}</strong>
+                  <br><span style="font-size: 11px; color: #999; font-family: monospace;">{{ t.id }}</span>
+                </td>
+                <td>
+                  <span class="status-dot" :class="plStatusDotClass(t.status)"></span>
+                  <span :class="'pl-status-' + t.status.toLowerCase()">
+                    <template v-if="t.status === 'RUNNING' && t.retryCount > 0">重试中 ({{ t.retryCount }}/{{ t.maxRetries }})</template>
+                    <template v-else>{{ plStatusLabels[t.status] || t.status }}</template>
+                  </span>
+                </td>
+                <td>{{ formatBytes(getMetric(t, 'file_size_bytes')) }}</td>
+                <td>{{ getMetric(t, 'peak_memory_mb') != null ? getMetric(t, 'peak_memory_mb') + ' MB' : '-' }}</td>
+                <td>{{ formatDuration(getTotalDuration(t)) }}</td>
+                <td>{{ t.retryCount || 0 }}</td>
+                <td>{{ formatDate(t.createdAt || t.created_at) }}</td>
+              </tr>
+              <!-- Expanded detail -->
+              <tr v-if="expandedPl === t.id" class="expanded-row">
+                <td colspan="8" style="padding: 0;">
+                  <div style="background: #f9fafb; padding: 16px 20px 16px 44px;">
+                    <!-- Gantt Chart -->
+                    <div v-if="getStages(t)" class="pipeline-gantt">
+                      <div class="gantt-title">Stage Durations</div>
+                      <div class="gantt-row" v-for="(stage, sKey) in getStages(t)" :key="sKey">
+                        <div class="gantt-label">{{ stageLabels[sKey as string] || sKey }}</div>
+                        <div class="gantt-bar-track">
+                          <div class="gantt-bar" :style="{ width: ganttWidth(t, stage.duration_ms) + '%', background: stageColors[sKey as string] || '#94a3b8' }"></div>
+                        </div>
+                        <div class="gantt-duration">{{ formatDuration(stage.duration_ms) }}</div>
+                      </div>
+                    </div>
+
+                    <!-- Memory per stage -->
+                    <div v-if="getStageMemory(t)" class="pipeline-gantt" style="margin-top: 14px;">
+                      <div class="gantt-title">Memory per Stage</div>
+                      <div class="gantt-row" v-for="(memMb, sKey) in getStageMemory(t)" :key="sKey">
+                        <div class="gantt-label">{{ stageLabels[sKey as string] || sKey }}</div>
+                        <div class="gantt-bar-track">
+                          <div class="gantt-bar" :style="{ width: memBarWidth(t, memMb as number) + '%', background: '#8b5cf6' }"></div>
+                        </div>
+                        <div class="gantt-duration">{{ memMb }} MB</div>
+                      </div>
+                    </div>
+
+                    <!-- Error info for failed tasks -->
+                    <div v-if="t.status === 'FAILED'" class="pipeline-error-box">
+                      <span v-if="t.errorCategory" class="error-category-badge">{{ t.errorCategory || t.error_category }}</span>
+                      <span v-if="getFailedStage(t)" style="margin-left: 8px; font-weight: 600;">Failed at: {{ stageLabels[getFailedStage(t)] || getFailedStage(t) }}</span>
+                      <div style="margin-top: 6px; font-size: 13px;">{{ t.error || '-' }}</div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </template>
+            <tr v-if="plTasks.length === 0">
+              <td colspan="8" class="empty-state">暂无Pipeline任务</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pipeline-pagination" v-if="plTotal > 20">
+        <button class="btn btn-default btn-small" :disabled="plPage === 0" @click="plPage--; loadPipelineTasks()">上一页</button>
+        <span style="margin: 0 12px; font-size: 13px; color: #666;">第 {{ plPage + 1 }} / {{ Math.ceil(plTotal / 20) }} 页</span>
+        <button class="btn btn-default btn-small" :disabled="(plPage + 1) * 20 >= plTotal" @click="plPage++; loadPipelineTasks()">下一页</button>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -234,6 +364,130 @@ const statusFilter = ref('')
 const typeFilter = ref('')
 const tenantFilter = ref('')
 const taskStatusFilter = ref('')
+
+// Pipeline Monitor state
+const plStats = ref<any>(null)
+const plTasks = ref<any[]>([])
+const plTotal = ref(0)
+const plPage = ref(0)
+const expandedPl = ref<string | null>(null)
+const plFilter = ref({ status: '', dateFrom: '', dateTo: '' })
+
+const stageLabels: Record<string, string> = {
+  JOB_POD: 'Job Pod启动',
+  DOWNLOAD: '文件下载',
+  PARSE: '文档解析',
+  CHUNK: '切片',
+  EMBED: '嵌入',
+  COMPUTE_WAKE: 'Compute唤醒',
+  WRITE: '写入DB',
+}
+
+const stageColors: Record<string, string> = {
+  JOB_POD: '#94a3b8', DOWNLOAD: '#3b82f6', PARSE: '#10b981',
+  CHUNK: '#f59e0b', EMBED: '#8b5cf6', COMPUTE_WAKE: '#ec4899', WRITE: '#ef4444',
+}
+
+const plStatusLabels: Record<string, string> = {
+  QUEUED: '排队中', RUNNING: '运行中', SUCCEEDED: '成功', FAILED: '失败',
+}
+
+async function loadPipeline() {
+  await Promise.all([loadPipelineStats(), loadPipelineTasks()])
+}
+
+async function loadPipelineStats() {
+  try {
+    const params: Record<string, string> = {}
+    if (plFilter.value.dateFrom) params.from = plFilter.value.dateFrom
+    if (plFilter.value.dateTo) params.to = plFilter.value.dateTo
+    const resp = await adminApi.pipelineStats(params)
+    plStats.value = resp.data
+  } catch { /* ignore */ }
+}
+
+async function loadPipelineTasks() {
+  try {
+    const params: Record<string, string | number> = { page: plPage.value, size: 20 }
+    if (plFilter.value.status) params.status = plFilter.value.status
+    if (plFilter.value.dateFrom) params.from = plFilter.value.dateFrom
+    if (plFilter.value.dateTo) params.to = plFilter.value.dateTo
+    const resp = await adminApi.pipelineTasks(params)
+    plTasks.value = resp.data.tasks || []
+    plTotal.value = resp.data.total || 0
+  } catch { /* ignore */ }
+}
+
+function togglePipelineExpand(id: string) {
+  expandedPl.value = expandedPl.value === id ? null : id
+}
+
+function parseField(val: any) {
+  if (val == null) return null
+  if (typeof val === 'string') { try { return JSON.parse(val) } catch { return null } }
+  return val
+}
+
+function getStages(task: any) {
+  const result = parseField(task.result)
+  return result?.stages || null
+}
+
+function getStageMemory(task: any) {
+  const result = parseField(task.result)
+  return result?.metrics?.stage_memory || null
+}
+
+function getMetric(task: any, key: string) {
+  const result = parseField(task.result)
+  return result?.metrics?.[key] ?? null
+}
+
+function getDocName(task: any) {
+  const params = parseField(task.params)
+  return params?.filename || params?.file_name || params?.document_name || task.id?.substring(0, 8) || '-'
+}
+
+function getFailedStage(task: any): string {
+  const result = parseField(task.result)
+  return result?.failed_stage || ''
+}
+
+function getTotalDuration(task: any): number {
+  const stages = getStages(task)
+  if (!stages) return 0
+  return Object.values(stages).reduce((sum: number, s: any) => sum + (s.duration_ms || 0), 0)
+}
+
+function ganttWidth(task: any, durationMs: number): number {
+  const stages = getStages(task)
+  if (!stages) return 0
+  const max = Math.max(...Object.values(stages).map((s: any) => s.duration_ms || 0))
+  return max > 0 ? (durationMs / max) * 100 : 0
+}
+
+function memBarWidth(task: any, memMb: number): number {
+  const peakMem = getMetric(task, 'peak_memory_mb')
+  return peakMem > 0 ? (memMb / peakMem) * 100 : 0
+}
+
+function formatDuration(ms: number | null | undefined): string {
+  if (ms == null || ms === 0) return '-'
+  if (ms < 1000) return ms + 'ms'
+  if (ms < 60000) return (ms / 1000).toFixed(1) + 's'
+  return (ms / 60000).toFixed(1) + 'min'
+}
+
+function formatBytes(bytes: number | null | undefined): string {
+  if (bytes == null) return '-'
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / 1048576).toFixed(1) + ' MB'
+}
+
+function plStatusDotClass(status: string) {
+  return { 'status-green': status === 'SUCCEEDED', 'status-blue': status === 'RUNNING', 'status-red': status === 'FAILED', 'status-grey': status === 'QUEUED' }
+}
 
 async function loadStats() {
   try {
@@ -369,5 +623,36 @@ onMounted(() => {
 .error-cell {
   font-size: 12px; color: #e53e3e; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Pipeline Monitor */
+.pl-status-queued { color: #6b7280; }
+.pl-status-running { color: #0073e6; }
+.pl-status-succeeded { color: #52c41a; }
+.pl-status-failed { color: #e6393d; }
+
+.pipeline-gantt { margin-top: 4px; }
+.gantt-title { font-size: 12px; font-weight: 600; color: #666; margin-bottom: 6px; }
+.gantt-row { display: flex; align-items: center; margin-bottom: 4px; }
+.gantt-label { width: 110px; font-size: 12px; color: #555; flex-shrink: 0; }
+.gantt-bar-track {
+  flex: 1; height: 18px; background: #eee; border-radius: 3px;
+  overflow: hidden; margin: 0 10px;
+}
+.gantt-bar { height: 100%; border-radius: 3px; min-width: 2px; transition: width 0.3s; }
+.gantt-duration { width: 70px; font-size: 12px; color: #666; text-align: right; flex-shrink: 0; }
+
+.pipeline-error-box {
+  margin-top: 12px; padding: 10px 14px; background: #fff1f0; border: 1px solid #ffa39e;
+  border-radius: 4px; font-size: 13px; color: #cf1322;
+}
+.error-category-badge {
+  display: inline-block; background: #e6393d; color: #fff; font-size: 11px;
+  padding: 1px 8px; border-radius: 10px; font-weight: 500;
+}
+
+.pipeline-pagination {
+  display: flex; align-items: center; justify-content: center;
+  margin-top: 16px; padding: 8px 0;
 }
 </style>

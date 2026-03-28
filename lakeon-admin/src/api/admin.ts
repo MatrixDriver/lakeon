@@ -79,6 +79,10 @@ export const adminApi = {
   reprocessDocument: (id: string) => client.post(`/knowledge/documents/${id}/reprocess`),
   listWriteTasks: (params?: { status?: string; limit?: number }) =>
     client.get('/knowledge/write-tasks', { params }),
+  pipelineTasks: (params?: { status?: string; kbId?: string; from?: string; to?: string; page?: number; size?: number }) =>
+    client.get('/knowledge/pipeline/tasks', { params }),
+  pipelineStats: (params?: { from?: string; to?: string }) =>
+    client.get('/knowledge/pipeline/stats', { params }),
 
   // Memory Admin
   memoryStats: () => client.get('/memory/stats'),
