@@ -12,7 +12,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.time.Duration;
@@ -67,10 +66,10 @@ public class SummaryService {
 
     /**
      * Generate and store a document summary (level=1 chunk).
-     * Called by KbWriteQueue for DOCUMENT_SUMMARIZE tasks.
+     * Uses the provided Connection to the compute pod DB.
      */
-    public void summarizeDocument(String tenantId, String kbId, String documentId,
-                                  String connstr) {
+    public void summarizeDocument(Connection conn, String tenantId, String kbId,
+                                  String documentId) {
         String fulltext = chunkService.getFulltext(tenantId, kbId, documentId);
         if (fulltext == null || fulltext.isBlank()) {
             log.warn("No fulltext found for doc {}, skipping summarization", documentId);
@@ -90,9 +89,9 @@ public class SummaryService {
         float[] embedding = chunkService.getEmbeddingPublic(summary, embModel);
         String vectorStr = chunkService.floatArrayToVectorLiteralPublic(embedding);
 
-        int[] sourceChunkIds = getSourceChunkIds(connstr, documentId);
+        int[] sourceChunkIds = getSourceChunkIds(conn, documentId);
 
-        writeSummaryChunk(connstr, documentId, 1, summary, vectorStr,
+        writeSummaryChunk(conn, documentId, 1, summary, vectorStr,
                 sourceChunkIds, Map.of("type", "document_summary"));
 
         log.info("Document summary generated for doc {} ({} chars)", documentId, summary.length());
@@ -100,10 +99,10 @@ public class SummaryService {
 
     /**
      * Generate and store a KB-level summary (level=2 chunk).
-     * Called by KbWriteQueue for KB_SUMMARIZE tasks.
+     * Uses the provided Connection to the compute pod DB.
      */
-    public void summarizeKb(String tenantId, String kbId, String connstr) {
-        List<Map<String, Object>> l1Chunks = readChunksByLevel(connstr, 1);
+    public void summarizeKb(Connection conn, String tenantId, String kbId) {
+        List<Map<String, Object>> l1Chunks = readChunksByLevel(conn, 1);
         if (l1Chunks.isEmpty()) {
             log.warn("No L1 summaries found for KB {}, skipping KB summarization", kbId);
             return;
@@ -131,7 +130,7 @@ public class SummaryService {
         String vectorStr = chunkService.floatArrayToVectorLiteralPublic(embedding);
 
         int[] sourceArr = sourceIds.stream().mapToInt(Integer::intValue).toArray();
-        writeSummaryChunk(connstr, "__kb_summary__", 2, summary, vectorStr,
+        writeSummaryChunk(conn, "__kb_summary__", 2, summary, vectorStr,
                 sourceArr, Map.of("type", "kb_summary"));
 
         log.info("KB summary generated for KB {} from {} document summaries", kbId, l1Chunks.size());
@@ -140,15 +139,12 @@ public class SummaryService {
     /**
      * Check if all documents in a KB have L1 summaries.
      */
-    public boolean allDocumentsHaveSummary(String connstr, List<String> documentIds) {
+    public boolean allDocumentsHaveSummary(Connection conn, List<String> documentIds) {
         if (documentIds.isEmpty()) return false;
-        String jdbcUrl = buildJdbcUrl(connstr);
-        String[] creds = extractCreds(connstr);
         String placeholders = String.join(",", Collections.nCopies(documentIds.size(), "?"));
         String sql = "SELECT COUNT(DISTINCT document_id) FROM knowledge_chunks " +
                 "WHERE level = 1 AND document_id IN (" + placeholders + ")";
-        try (Connection conn = DriverManager.getConnection(jdbcUrl, creds[0], creds[1]);
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             for (int i = 0; i < documentIds.size(); i++) {
                 ps.setString(i + 1, documentIds.get(i));
             }
@@ -210,18 +206,17 @@ public class SummaryService {
         }
     }
 
-    private void writeSummaryChunk(String connstr, String documentId, int level,
+    private void writeSummaryChunk(Connection conn, String documentId, int level,
                                    String content, String vectorStr, int[] sourceChunkIds,
                                    Map<String, String> metadata) {
-        String jdbcUrl = buildJdbcUrl(connstr);
-        String[] creds = extractCreds(connstr);
         String metaJson;
         try {
             metaJson = objectMapper.writeValueAsString(metadata);
         } catch (Exception e) {
             metaJson = "{}";
         }
-        try (Connection conn = DriverManager.getConnection(jdbcUrl, creds[0], creds[1])) {
+        try {
+            boolean wasAutoCommit = conn.getAutoCommit();
             conn.setAutoCommit(false);
             try (PreparedStatement del = conn.prepareStatement(
                     "DELETE FROM knowledge_chunks WHERE document_id = ? AND level = ?")) {
@@ -249,17 +244,15 @@ public class SummaryService {
                 ins.executeUpdate();
             }
             conn.commit();
+            conn.setAutoCommit(wasAutoCommit);
         } catch (Exception e) {
             throw new RuntimeException("Failed to write summary chunk: " + e.getMessage(), e);
         }
     }
 
-    private int[] getSourceChunkIds(String connstr, String documentId) {
-        String jdbcUrl = buildJdbcUrl(connstr);
-        String[] creds = extractCreds(connstr);
+    private int[] getSourceChunkIds(Connection conn, String documentId) {
         String sql = "SELECT id FROM knowledge_chunks WHERE document_id = ? AND level = 0 ORDER BY chunk_index";
-        try (Connection conn = DriverManager.getConnection(jdbcUrl, creds[0], creds[1]);
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, documentId);
             ResultSet rs = ps.executeQuery();
             List<Integer> ids = new ArrayList<>();
@@ -271,12 +264,9 @@ public class SummaryService {
         }
     }
 
-    private List<Map<String, Object>> readChunksByLevel(String connstr, int level) {
-        String jdbcUrl = buildJdbcUrl(connstr);
-        String[] creds = extractCreds(connstr);
+    private List<Map<String, Object>> readChunksByLevel(Connection conn, int level) {
         String sql = "SELECT id, document_id, content FROM knowledge_chunks WHERE level = ? ORDER BY document_id";
-        try (Connection conn = DriverManager.getConnection(jdbcUrl, creds[0], creds[1]);
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, level);
             ResultSet rs = ps.executeQuery();
             List<Map<String, Object>> chunks = new ArrayList<>();
@@ -291,16 +281,5 @@ public class SummaryService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to read level-" + level + " chunks: " + e.getMessage(), e);
         }
-    }
-
-    private String buildJdbcUrl(String connstr) {
-        return connstr.replace("postgresql://", "jdbc:postgresql://");
-    }
-
-    private String[] extractCreds(String connstr) {
-        String afterProto = connstr.substring("postgresql://".length());
-        String userPass = afterProto.substring(0, afterProto.indexOf('@'));
-        String[] parts = userPass.split(":", 2);
-        return new String[]{parts[0], parts.length > 1 ? parts[1] : ""};
     }
 }

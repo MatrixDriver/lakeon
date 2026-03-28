@@ -817,16 +817,15 @@ public class KbWriteQueue {
         String tenantId = (String) params.get("tenant_id");
         String kbId = (String) params.get("kb_id");
         String documentId = (String) params.get("document_id");
-        String connstr = (String) params.get("connstr");
-        summaryService.summarizeDocument(tenantId, kbId, documentId, connstr);
+        summaryService.summarizeDocument(conn, tenantId, kbId, documentId);
 
         // Check if all documents now have L1 → enqueue KB_SUMMARIZE
         List<String> docIds = (List<String>) params.get("all_document_ids");
-        if (docIds != null && summaryService.allDocumentsHaveSummary(connstr, docIds)) {
+        if (docIds != null && summaryService.allDocumentsHaveSummary(conn, docIds)) {
             Map<String, Object> kbParams = new LinkedHashMap<>();
             kbParams.put("tenant_id", tenantId);
             kbParams.put("kb_id", kbId);
-            kbParams.put("connstr", connstr);
+            kbParams.put("connstr", params.get("connstr"));
             kbParams.put("database_id", params.get("database_id"));
             enqueueTask((String) params.get("database_id"), KbWriteTaskType.KB_SUMMARIZE, kbParams);
             log.info("All documents have L1 summaries, enqueued KB_SUMMARIZE for KB {}", kbId);
@@ -836,8 +835,7 @@ public class KbWriteQueue {
     private void executeKbSummarize(Connection conn, Map<String, Object> params) {
         String tenantId = (String) params.get("tenant_id");
         String kbId = (String) params.get("kb_id");
-        String connstr = (String) params.get("connstr");
-        summaryService.summarizeKb(tenantId, kbId, connstr);
+        summaryService.summarizeKb(conn, tenantId, kbId);
     }
 
     @SuppressWarnings("unchecked")
