@@ -149,7 +149,7 @@ results = ray.get(
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import NotebookCell from './components/NotebookCell.vue'
-import { createSession, stopSession as apiStopSession, NotebookSocket, type NotebookMessage } from '../../api/notebook'
+import { createSession, getCurrentSession, stopSession as apiStopSession, NotebookSocket, type NotebookMessage } from '../../api/notebook'
 import client from '../../api/client'
 import { notebooksApi } from '../../api/notebooks'
 
@@ -179,11 +179,13 @@ const selectedDatasetId = ref('')
 const datasets = ref<Array<{ id: string; name: string }>>([])
 const sessionId = ref<string | null>(null)
 const kernelStatus = ref<'stopped' | 'starting' | 'running' | 'disconnected'>('stopped')
+const progressText = ref('')
 let socket: NotebookSocket | null = null
 
-const statusLabel = computed(() => ({
-  stopped: 'Stopped', starting: 'Starting kernel...', running: 'Running', disconnected: 'Reconnecting...'
-}[kernelStatus.value] || kernelStatus.value))
+const statusLabel = computed(() => {
+  if (kernelStatus.value === 'starting' && progressText.value) return progressText.value
+  return { stopped: 'Stopped', starting: 'Starting kernel...', running: 'Running', disconnected: 'Reconnecting...' }[kernelStatus.value] || kernelStatus.value
+})
 
 function newCell(code = '', cellType: 'code' | 'markdown' = 'code'): Cell {
   return { id: 'cell_' + Math.random().toString(36).slice(2, 8), code, outputs: [], running: false, execCount: null, durationMs: null, cellType }
@@ -201,7 +203,7 @@ function advanceCell(i: number) { if (i + 1 >= cells.value.length) addCell(); el
 function runCell(i: number) {
   const cell = cells.value[i]
   if (cell == null || !cell.code.trim() || cell.running) return
-  if (kernelStatus.value !== 'running') { startKernel().then(() => runCell(i)); return }
+  if (kernelStatus.value !== 'running') { startKernel(); return }
   cell.outputs = []
   cell.running = true
   cell.durationMs = null
@@ -224,8 +226,13 @@ function requestVars() {
 }
 
 function handleMessage(msg: NotebookMessage) {
+  if (msg.type === 'progress') {
+    progressText.value = msg.text || ''
+    return
+  }
   if (msg.type === 'ready') {
     kernelStatus.value = 'running'
+    progressText.value = ''
     return
   }
   if (msg.type === 'vars') {
@@ -245,6 +252,7 @@ function handleMessage(msg: NotebookMessage) {
 }
 
 async function startKernel() {
+  if (kernelStatus.value === 'starting') return  // prevent double-start
   kernelStatus.value = 'starting'
   try {
     const dsIds = selectedDatasetId.value ? [selectedDatasetId.value] : undefined
@@ -265,7 +273,7 @@ async function startKernel() {
 
 async function stopKernel() {
   if (sessionId.value) try { await apiStopSession(sessionId.value) } catch {}
-  socket?.disconnect(); socket = null; sessionId.value = null; kernelStatus.value = 'stopped'
+  socket?.disconnect(); socket = null; sessionId.value = null; kernelStatus.value = 'stopped'; progressText.value = ''
 }
 
 function submitAsJob() {
@@ -377,7 +385,24 @@ function handleKeydown(e: KeyboardEvent) {
   }
 }
 
-onMounted(() => { loadNotebook(); loadDatasets(); window.addEventListener('keydown', handleKeydown) })
+async function checkExistingSession() {
+  try {
+    const { data } = await getCurrentSession()
+    if (data.id && data.status === 'RUNNING') {
+      sessionId.value = data.id
+      if (data.image?.includes('ray')) imageKey.value = 'ray'
+      if (data.worker_count) workerCount.value = data.worker_count
+      kernelStatus.value = 'starting'
+      socket = new NotebookSocket(handleMessage, (s) => {
+        if (s === 'connected' && kernelStatus.value === 'disconnected') kernelStatus.value = 'starting'
+        else if (s === 'disconnected' && kernelStatus.value === 'running') kernelStatus.value = 'disconnected'
+      })
+      socket.connect()
+    }
+  } catch {}
+}
+
+onMounted(() => { loadNotebook(); loadDatasets(); checkExistingSession(); window.addEventListener('keydown', handleKeydown) })
 onUnmounted(() => { socket?.disconnect(); window.removeEventListener('keydown', handleKeydown) })
 </script>
 
