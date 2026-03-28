@@ -382,6 +382,11 @@ public class LakeonProperties {
         private String vkNodeSelectorKey = "type";
         private String vkNodeSelectorValue = "virtual-kubelet";
         private long pollIntervalMs = 10000;
+        private boolean warmPoolEnabled = true;
+        private int warmPoolSize = 2;
+        private String warmPoolNamespace = "datalake-pool";
+        private String warmPoolImage = "swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data";
+        private int warmPoolIdleTimeoutMinutes = 30;
         private Map<String, String> presetImages = new HashMap<>(Map.of(
             "python-slim", "swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-slim",
             "python-data",  "swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-data",
@@ -399,5 +404,15 @@ public class LakeonProperties {
         public void setPollIntervalMs(long pollIntervalMs) { this.pollIntervalMs = pollIntervalMs; }
         public Map<String, String> getPresetImages() { return presetImages; }
         public void setPresetImages(Map<String, String> presetImages) { this.presetImages = presetImages; }
+        public boolean isWarmPoolEnabled() { return warmPoolEnabled; }
+        public void setWarmPoolEnabled(boolean warmPoolEnabled) { this.warmPoolEnabled = warmPoolEnabled; }
+        public int getWarmPoolSize() { return warmPoolSize; }
+        public void setWarmPoolSize(int warmPoolSize) { this.warmPoolSize = warmPoolSize; }
+        public String getWarmPoolNamespace() { return warmPoolNamespace; }
+        public void setWarmPoolNamespace(String warmPoolNamespace) { this.warmPoolNamespace = warmPoolNamespace; }
+        public String getWarmPoolImage() { return warmPoolImage; }
+        public void setWarmPoolImage(String warmPoolImage) { this.warmPoolImage = warmPoolImage; }
+        public int getWarmPoolIdleTimeoutMinutes() { return warmPoolIdleTimeoutMinutes; }
+        public void setWarmPoolIdleTimeoutMinutes(int warmPoolIdleTimeoutMinutes) { this.warmPoolIdleTimeoutMinutes = warmPoolIdleTimeoutMinutes; }
     }
 }

@@ -131,6 +131,11 @@ lakeon:
       python-data: "${LAKEON_DATALAKE_IMAGE_PYTHON_DATA:swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-data}"
       ray: "${LAKEON_DATALAKE_IMAGE_RAY:swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311}"
       ray-gpu: "${LAKEON_DATALAKE_IMAGE_RAY_GPU:swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311-gpu}"
+  warm-pool-enabled: "${LAKEON_DATALAKE_WARM_POOL_ENABLED:true}"
+  warm-pool-size: "${LAKEON_DATALAKE_WARM_POOL_SIZE:2}"
+  warm-pool-namespace: "${LAKEON_DATALAKE_WARM_POOL_NS:datalake-pool}"
+  warm-pool-image: "${LAKEON_DATALAKE_WARM_POOL_IMAGE:swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data}"
+  warm-pool-idle-timeout-minutes: "${LAKEON_DATALAKE_WARM_POOL_IDLE_TIMEOUT:30}"
 
 management:
   endpoints:
