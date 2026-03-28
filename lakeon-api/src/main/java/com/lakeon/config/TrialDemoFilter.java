@@ -28,11 +28,13 @@ public class TrialDemoFilter implements Filter {
 
     private static final Set<String> READ_METHODS = Set.of("GET", "HEAD", "OPTIONS");
 
-    // POST endpoints that are read-like (search, query, recall)
+    // POST endpoints that are read-like or operational (search, query, recall, resume/suspend)
     private static final Set<String> READ_POST_PATHS = Set.of(
         "/query",
         "/search",
-        "/recall"
+        "/recall",
+        "/resume",
+        "/suspend"
     );
 
     // Path prefixes where trial users can do writes (quota-enforced by the service layer)
