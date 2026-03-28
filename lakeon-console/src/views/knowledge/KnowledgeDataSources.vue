@@ -161,6 +161,7 @@ import {
   type KnowledgeBase, type Document, type DataSource, type DataSourceCredentials
 } from '../../api/knowledge'
 import TableToolbar from '../../components/TableToolbar.vue'
+import { formatSize } from '../../utils/format'
 
 const knowledgeBases = ref<KnowledgeBase[]>([])
 const selectedKbId = ref('')
@@ -198,11 +199,6 @@ function statusText(s: string) {
   return map[s] || s
 }
 
-function formatSize(bytes: number) {
-  if (!bytes) return '-'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / 1024 / 1024).toFixed(1) + ' MB'
-}
 
 function formatTime(t: string) {
   return t ? new Date(t).toLocaleString('zh-CN') : '-'

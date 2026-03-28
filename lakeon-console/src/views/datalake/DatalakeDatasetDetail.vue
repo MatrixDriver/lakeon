@@ -156,6 +156,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import client from '../../api/client'
+import { formatSize } from '../../utils/format'
 
 interface CodeSnippets {
   pandas: string
@@ -234,12 +235,6 @@ function sourceLabel(sourceType: string) {
   return sourceType || '-'
 }
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
-}
 
 function formatTime(t: string | null) {
   if (!t) return '-'

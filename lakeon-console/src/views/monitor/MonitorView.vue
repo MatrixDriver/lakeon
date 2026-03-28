@@ -311,7 +311,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { databaseApi, type Database } from '../../api/database'
 import { branchApi } from '../../api/branch'
 import { operationApi, type OperationLog } from '../../api/operation'
-import { formatDuration, formatDate } from '../../utils/format'
+import { formatDuration, formatDate, formatSize } from '../../utils/format'
 import PerformanceMonitor from '../../components/PerformanceMonitor.vue'
 
 const activeTab = ref('overview')
@@ -503,13 +503,6 @@ function latencyColorClass(ms: number | null): string {
   return 'latency-bad'
 }
 
-function formatSize(bytes: number | null): string {
-  if (!bytes || bytes === 0) return '0 B'
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
-}
 
 async function fetchAll() {
   loading.value = true

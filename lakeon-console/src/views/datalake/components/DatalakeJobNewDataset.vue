@@ -37,6 +37,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import api from '../../../api/client'
+import { formatSize } from '../../../utils/format'
 
 const props = defineProps<{ inputDatasetIds: string[]; outputPath: string }>()
 const emit = defineEmits<{
@@ -61,11 +62,6 @@ onMounted(async () => {
   }
 })
 
-function formatSize(bytes?: number): string {
-  if (!bytes) return '?'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-}
 
 function isSelected(id: string) { return props.inputDatasetIds.includes(id) }
 function toggleDataset(id: string) {

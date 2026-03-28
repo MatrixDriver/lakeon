@@ -403,7 +403,7 @@ async function checkExistingSession() {
   } catch {}
 }
 
-onMounted(() => { loadNotebook(); loadDatasets(); checkExistingSession(); window.addEventListener('keydown', handleKeydown) })
+onMounted(() => { Promise.all([loadNotebook(), loadDatasets(), checkExistingSession()]); window.addEventListener('keydown', handleKeydown) })
 onUnmounted(() => { socket?.disconnect(); window.removeEventListener('keydown', handleKeydown) })
 </script>
 

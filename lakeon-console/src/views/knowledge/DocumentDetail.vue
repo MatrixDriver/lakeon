@@ -125,6 +125,7 @@ import {
 import ChunkList from '../../components/knowledge/ChunkList.vue'
 import ChunkContent from '../../components/knowledge/ChunkContent.vue'
 import RechunkDialog from '../../components/knowledge/RechunkDialog.vue'
+import { formatSize } from '../../utils/format'
 
 const route = useRoute()
 const kbId = route.params.kbId as string
@@ -160,12 +161,6 @@ function docStatusText(s: string) {
   return map[s] || s
 }
 
-function formatSize(bytes: number) {
-  if (!bytes) return '-'
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / 1024 / 1024).toFixed(1) + ' MB'
-}
 
 async function loadChunks() {
   const resp = await listChunks(kbId, docId, 0, 0, 500)

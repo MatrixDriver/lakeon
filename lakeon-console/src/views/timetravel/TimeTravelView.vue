@@ -263,7 +263,7 @@ import { versionApi, type Version } from '../../api/version'
 import CreateBranchDialog from '../database/CreateBranchDialog.vue'
 import CreateVersionDialog from '../database/CreateVersionDialog.vue'
 // SchemaDiffView temporarily removed
-import { formatDate } from '../../utils/format'
+import { formatDate, formatSize } from '../../utils/format'
 import { useToast } from '../../composables/useToast'
 
 const route = useRoute()
@@ -316,13 +316,6 @@ const pagedBranches = computed(() => {
   return filteredBranches.value.slice(start, start + branchPageSize.value)
 })
 
-function formatSize(bytes: number | null): string {
-  if (bytes == null) return '-'
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
-}
 
 function timeAgo(dateStr: string): string {
   const now = Date.now()

@@ -329,6 +329,7 @@ import { getKnowledgeBase, listDocuments, deleteDocument, searchKnowledge, setDo
 import ChunkStats from '../../components/knowledge/ChunkStats.vue'
 import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
 import TableToolbar from '../../components/TableToolbar.vue'
+import { formatSize } from '../../utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -416,12 +417,6 @@ function docStatusText(s: string) {
   return map[s] || s
 }
 
-function formatSize(bytes: number) {
-  if (!bytes) return '-'
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / 1024 / 1024).toFixed(1) + ' MB'
-}
 
 function openTagDialog(doc: Document) {
   tagDialog.value = {
@@ -707,7 +702,7 @@ function startPollingIfNeeded() {
           stopPolling()
         }
       } catch { /* ignore */ }
-    }, 3000)
+    }, 8000)
   } else if (!hasProcessing && pollTimer) {
     stopPolling()
   }
@@ -720,7 +715,8 @@ function stopPolling() {
   }
 }
 
-watch(documents, startPollingIfNeeded, { deep: true })
+const hasProcessingDocs = computed(() => documents.value.some(d => d.status === 'PROCESSING'))
+watch(hasProcessingDocs, startPollingIfNeeded)
 onUnmounted(stopPolling)
 
 onMounted(async () => {

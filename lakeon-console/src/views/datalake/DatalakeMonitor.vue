@@ -50,16 +50,16 @@
             <td style="text-align:right" class="mono">{{ img.session_count }}</td>
             <td style="text-align:right">
               <span v-if="img.avg_startup_ms" class="mono" :class="startupClass(img.avg_startup_ms)">
-                {{ formatMs(img.avg_startup_ms) }}
+                {{ formatDuration(img.avg_startup_ms) }}
               </span>
               <span v-else class="text-muted">—</span>
             </td>
             <td style="text-align:right">
-              <span v-if="img.min_startup_ms" class="mono">{{ formatMs(img.min_startup_ms) }}</span>
+              <span v-if="img.min_startup_ms" class="mono">{{ formatDuration(img.min_startup_ms) }}</span>
               <span v-else class="text-muted">—</span>
             </td>
             <td style="text-align:right">
-              <span v-if="img.max_startup_ms" class="mono">{{ formatMs(img.max_startup_ms) }}</span>
+              <span v-if="img.max_startup_ms" class="mono">{{ formatDuration(img.max_startup_ms) }}</span>
               <span v-else class="text-muted">—</span>
             </td>
             <td>
@@ -79,7 +79,7 @@
               <div class="bar-fill" :class="startupClass(img.avg_startup_ms)"
                    :style="{ width: barWidth(img.avg_startup_ms) + '%' }">
               </div>
-              <span class="bar-value">{{ formatMs(img.avg_startup_ms) }}</span>
+              <span class="bar-value">{{ formatDuration(img.avg_startup_ms) }}</span>
             </div>
           </div>
         </div>
@@ -91,6 +91,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import client from '../../api/client'
+import { formatDuration, formatSize } from '../../utils/format'
 
 interface ImageInfo {
   key: string
@@ -112,17 +113,6 @@ const totalSessions = computed(() => images.value.reduce((sum, img) => sum + img
 const imagesWithStats = computed(() => images.value.filter(img => img.avg_startup_ms != null))
 const maxStartup = computed(() => Math.max(...imagesWithStats.value.map(img => img.avg_startup_ms!), 1))
 
-function formatSize(bytes: number): string {
-  if (bytes >= 1024 * 1024 * 1024) return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB'
-  if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(0) + ' MB'
-  return (bytes / 1024).toFixed(0) + ' KB'
-}
-
-function formatMs(ms: number | null): string {
-  if (!ms) return '-'
-  if (ms >= 60000) return (ms / 60000).toFixed(1) + ' min'
-  return (ms / 1000).toFixed(1) + 's'
-}
 
 function startupClass(ms: number | null): string {
   if (!ms) return 'speed-slow'

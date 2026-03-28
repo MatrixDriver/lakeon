@@ -197,6 +197,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { backupApi, type Backup } from '../../api/backup'
 import { databaseApi } from '../../api/database'
+import { formatSize } from '../../utils/format'
 
 const router = useRouter()
 
@@ -266,13 +267,6 @@ function statusClass(s: string): string {
   return 'tag-blue'
 }
 
-function formatSize(bytes: number | null): string {
-  if (bytes == null || bytes === 0) return '-'
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
-}
 
 function formatDate(iso: string): string {
   if (!iso) return ''
