@@ -77,7 +77,9 @@ export const adminApi = {
     client.get('/knowledge/documents', { params }),
   deleteKnowledgeDocument: (id: string) => client.delete(`/knowledge/documents/${id}`),
   reprocessDocument: (id: string) => client.post(`/knowledge/documents/${id}/reprocess`),
-  listWriteTasks: (params?: { status?: string; limit?: number }) =>
+  resummarizeDocument: (kbId: string, docId: string) =>
+    client.post(`/knowledge/admin/bases/${kbId}/documents/${docId}/resummarize`),
+  listWriteTasks: (params?: { status?: string; type?: string; limit?: number }) =>
     client.get('/knowledge/write-tasks', { params }),
   pipelineTasks: (params?: { status?: string; kbId?: string; from?: string; to?: string; page?: number; size?: number }) =>
     client.get('/knowledge/pipeline/tasks', { params }),
