@@ -24,6 +24,7 @@
           <option v-for="ds in datasets" :key="ds.id" :value="ds.id">{{ ds.name }}</option>
         </select>
         <button class="nb-btn" @click="requestVars" :disabled="kernelStatus !== 'running'">Variables</button>
+        <button v-if="!showRef" class="nb-btn" @click="showRef = true" title="Show reference">?</button>
         <button class="nb-btn nb-btn-primary" @click="submitAsJob" :disabled="cells.length === 0">Submit as Job</button>
         <button v-if="kernelStatus !== 'stopped'" class="nb-btn nb-btn-danger" @click="stopKernel">Stop Kernel</button>
         <button v-else class="nb-btn" @click="startKernel">Start Kernel</button>
@@ -60,10 +61,12 @@
       </div>
 
       <!-- Reference Panel -->
-      <aside class="nb-ref" :class="{ collapsed: !showRef }">
-        <button class="nb-ref-toggle" @click="showRef = !showRef" :title="showRef ? 'Hide reference' : 'Show reference'">?</button>
-        <div v-if="showRef" class="nb-ref-content">
-          <h3>Quick Reference</h3>
+      <aside v-if="showRef" class="nb-ref">
+        <div class="nb-ref-content">
+          <div class="nb-ref-header">
+            <h3>Quick Reference</h3>
+            <button class="nb-ref-close" @click="showRef = false" title="Close">&times;</button>
+          </div>
 
           <div class="nb-ref-section">
             <h4>Keyboard</h4>
@@ -291,18 +294,14 @@ onUnmounted(() => { socket?.disconnect() })
 
 /* Reference Panel */
 .nb-ref { position: sticky; top: 16px; flex-shrink: 0; }
-.nb-ref.collapsed { width: auto; }
-.nb-ref-toggle {
-  width: 28px; height: 28px; border-radius: 50%; border: 1px solid #d1d5db;
-  background: #fff; color: #6b7280; font-size: 14px; font-weight: 700;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-}
-.nb-ref-toggle:hover { background: #f3f4f6; color: #2563eb; border-color: #2563eb; }
 .nb-ref-content {
   width: 260px; margin-top: 8px; padding: 14px; background: #f9fafb;
   border: 1px solid #e5e7eb; border-radius: 8px; font-size: 12px; color: #374151;
 }
-.nb-ref-content h3 { font-size: 14px; font-weight: 700; color: #1e293b; margin: 0 0 12px; }
+.nb-ref-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.nb-ref-header h3 { font-size: 14px; font-weight: 700; color: #1e293b; margin: 0; }
+.nb-ref-close { background: none; border: none; font-size: 20px; color: #9ca3af; cursor: pointer; padding: 0 2px; line-height: 1; }
+.nb-ref-close:hover { color: #374151; }
 .nb-ref-section { margin-bottom: 14px; }
 .nb-ref-section:last-child { margin-bottom: 0; }
 .nb-ref-section h4 { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 6px; }
