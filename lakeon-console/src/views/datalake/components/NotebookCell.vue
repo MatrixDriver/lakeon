@@ -14,6 +14,9 @@
       </div>
     </div>
     <div ref="editorEl" class="nb-cell-editor"></div>
+    <div v-if="isRunning && outputs.length === 0" class="nb-cell-running-hint">
+      <span class="nb-spinner"></span> Running...
+    </div>
     <div v-if="outputs.length > 0" class="nb-cell-output">
       <template v-for="(out, i) in outputs" :key="i">
         <pre v-if="out.type === 'stdout' || out.type === 'stderr'" class="nb-out-text" :class="{ stderr: out.type === 'stderr' }">{{ out.text }}</pre>
@@ -124,6 +127,9 @@ function mountPlotly(el: HTMLElement | null, data: any) {
 .nb-out-html :deep(th) { background: #f1f5f9; font-weight: 600; }
 .nb-out-plotly { min-height: 300px; }
 .nb-out-image { max-width: 100%; border-radius: 4px; }
+.nb-cell-running-hint { padding: 8px 14px; font-size: 12px; color: #a16207; background: #fffbeb; border-top: 1px solid #fde68a; display: flex; align-items: center; gap: 6px; }
+.nb-spinner { width: 12px; height: 12px; border: 2px solid #fbbf24; border-top-color: transparent; border-radius: 50%; animation: nb-spin 0.6s linear infinite; display: inline-block; }
+@keyframes nb-spin { to { transform: rotate(360deg); } }
 .nb-out-markdown { padding: 8px 14px; line-height: 1.6; font-size: 14px; }
 .nb-out-markdown :deep(h1) { font-size: 20px; margin: 12px 0 8px; }
 .nb-out-markdown :deep(h2) { font-size: 17px; margin: 10px 0 6px; }

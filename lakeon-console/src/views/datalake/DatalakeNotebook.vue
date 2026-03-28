@@ -157,7 +157,7 @@ const kernelStatus = ref<'stopped' | 'starting' | 'running' | 'disconnected'>('s
 let socket: NotebookSocket | null = null
 
 const statusLabel = computed(() => ({
-  stopped: 'Stopped', starting: 'Starting...', running: 'Running', disconnected: 'Disconnected'
+  stopped: 'Stopped', starting: 'Starting kernel...', running: 'Running', disconnected: 'Reconnecting...'
 }[kernelStatus.value] || kernelStatus.value))
 
 function newCell(code = '', cellType: 'code' | 'markdown' = 'code'): Cell {
@@ -199,7 +199,10 @@ function requestVars() {
 }
 
 function handleMessage(msg: NotebookMessage) {
-  if (msg.type === 'ready') return
+  if (msg.type === 'ready') {
+    kernelStatus.value = 'running'
+    return
+  }
   if (msg.type === 'vars') {
     variables.value = msg.variables || []
     return
@@ -224,8 +227,9 @@ async function startKernel() {
     const { data } = await createSession(imageKey.value, dsIds, isRay ? workerCount.value : 0, isRay ? workerSize.value : undefined)
     sessionId.value = data.id
     socket = new NotebookSocket(handleMessage, (s) => {
-      if (s === 'connected') kernelStatus.value = 'running'
-      else if (s === 'disconnected') kernelStatus.value = 'disconnected'
+      // Keep 'starting' until we get 'ready' message from repl_server
+      if (s === 'connected' && kernelStatus.value === 'disconnected') kernelStatus.value = 'starting'
+      else if (s === 'disconnected' && kernelStatus.value === 'running') kernelStatus.value = 'disconnected'
     })
     socket.connect()
   } catch (e: any) {
