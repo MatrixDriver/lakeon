@@ -114,6 +114,10 @@ export function getDocument(documentId: string) {
   return api.get<Document>(`/knowledge/documents/${documentId}`)
 }
 
+export function getDocumentSummary(kbId: string, docId: string) {
+  return api.get<{ content: string }>(`/knowledge/${kbId}/documents/${docId}/summary`)
+}
+
 export function deleteDocument(documentId: string) {
   return api.delete(`/knowledge/documents/${documentId}`)
 }

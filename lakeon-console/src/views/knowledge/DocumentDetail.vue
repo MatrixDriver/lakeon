@@ -36,6 +36,21 @@
       <span style="color: #e6393d;">&#9888; 疑似重复 &gt; 92% 相似度</span>
     </div>
 
+    <!-- Document summary -->
+    <div v-if="!loading" style="margin-bottom: 16px;">
+      <div class="section-card" style="max-width: 100%;">
+        <div class="section-header" style="cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between;" @click="summaryExpanded = !summaryExpanded">
+          <span>摘要</span>
+          <span style="font-size: 12px; color: #999;">{{ summaryExpanded ? '收起' : '展开' }}</span>
+        </div>
+        <div v-if="summaryExpanded" style="padding: 16px; font-size: 14px; line-height: 1.8; color: #333; white-space: pre-wrap;">
+          <span v-if="summaryLoading" style="color: #999;">加载中...</span>
+          <span v-else-if="summary">{{ summary }}</span>
+          <span v-else style="color: #999;">摘要尚未生成</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Main layout -->
     <div v-if="loading" class="empty-state">加载中...</div>
     <div v-else-if="chunks.length === 0" class="empty-state">暂无切片数据</div>
@@ -116,6 +131,7 @@ import {
   getChunkContext,
   getChunkStats,
   createChunk,
+  getDocumentSummary,
   type KnowledgeBase as KBType,
   type Document,
   type Chunk,
@@ -148,6 +164,23 @@ const showAddChunk = ref(false)
 const newChunkContent = ref('')
 const newChunkAfterIndex = ref(0)
 const addingChunk = ref(false)
+
+// Summary
+const summary = ref<string | null>(null)
+const summaryLoading = ref(false)
+const summaryExpanded = ref(true)
+
+async function loadSummary() {
+  summaryLoading.value = true
+  try {
+    const resp = await getDocumentSummary(kbId, docId)
+    summary.value = resp.data.content || null
+  } catch {
+    summary.value = null
+  } finally {
+    summaryLoading.value = false
+  }
+}
 
 function docStatusColor(s: string) {
   if (s === 'READY') return '#52c41a'
@@ -261,8 +294,8 @@ onMounted(async () => {
     kb.value = kbResp.data
     doc.value = docResp.data
 
-    // Load chunks and stats in parallel
-    await Promise.all([loadChunks(), loadStats()])
+    // Load chunks, stats, and summary in parallel
+    await Promise.all([loadChunks(), loadStats(), loadSummary()])
 
     // Auto-select first chunk
     if (chunks.value.length > 0) {
