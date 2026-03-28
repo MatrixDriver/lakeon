@@ -38,7 +38,10 @@ public class NotebookController {
         @SuppressWarnings("unchecked")
         List<String> datasetIds = (List<String>) body.get("dataset_ids");
 
-        NotebookSessionEntity session = notebookService.getOrCreateSession(tenant.getId(), image, datasetIds);
+        Integer workerCount = body.get("worker_count") != null
+                ? ((Number) body.get("worker_count")).intValue() : 0;
+
+        NotebookSessionEntity session = notebookService.getOrCreateSession(tenant.getId(), image, datasetIds, workerCount);
         return sessionToMap(session);
     }
 
@@ -80,6 +83,7 @@ public class NotebookController {
         map.put("pod_name", s.getPodName());
         map.put("image", s.getImage());
         map.put("dataset_ids", s.getDatasetIds());
+        map.put("worker_count", s.getWorkerCount());
         map.put("last_active_at", s.getLastActiveAt() != null ? s.getLastActiveAt().toString() : null);
         map.put("created_at", s.getCreatedAt() != null ? s.getCreatedAt().toString() : null);
         return map;

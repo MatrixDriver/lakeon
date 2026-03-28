@@ -52,7 +52,8 @@ public class NotebookService {
      * Returns an existing RUNNING or STARTING session for the tenant, or creates a new one.
      * Max 1 active session per tenant.
      */
-    public NotebookSessionEntity getOrCreateSession(String tenantId, String imageKey, List<String> datasetIds) {
+    public NotebookSessionEntity getOrCreateSession(String tenantId, String imageKey, List<String> datasetIds,
+                                                     Integer workerCount) {
         // Check for existing active session (RUNNING or STARTING)
         Optional<NotebookSessionEntity> running = sessionRepo.findByTenantIdAndStatus(tenantId, NotebookSessionStatus.RUNNING);
         if (running.isPresent()) {
@@ -70,6 +71,7 @@ public class NotebookService {
         if (datasetIds != null && !datasetIds.isEmpty()) {
             session.setDatasetIds(String.join(",", datasetIds));
         }
+        session.setWorkerCount(workerCount != null ? workerCount : 0);
 
         // Resolve image
         LakeonProperties.DatalakeConfig dl = props.getDatalake();
@@ -88,9 +90,14 @@ public class NotebookService {
         session.setNamespace(ns);
         session = sessionRepo.save(session);
 
-        // Create the pod
+        // Create the pod (or Ray cluster)
         try {
-            createNotebookPod(session, tenantId, datasetIds, image, podName, ns);
+            boolean isRay = "ray".equals(resolvedImageKey) && workerCount != null && workerCount > 0;
+            if (isRay) {
+                createRayNotebookCluster(session, tenantId, datasetIds, image, podName, ns, workerCount);
+            } else {
+                createNotebookPod(session, tenantId, datasetIds, image, podName, ns);
+            }
             session.setStatus(NotebookSessionStatus.RUNNING);
             session = sessionRepo.save(session);
         } catch (Exception e) {
@@ -170,18 +177,19 @@ public class NotebookService {
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    private void createNotebookPod(NotebookSessionEntity session,
-                                   String tenantId,
-                                   List<String> datasetIds,
-                                   String image,
-                                   String podName,
-                                   String ns) {
+    private void createRayNotebookCluster(NotebookSessionEntity session,
+                                           String tenantId,
+                                           List<String> datasetIds,
+                                           String image,
+                                           String podName,
+                                           String ns,
+                                           int workerCount) throws InterruptedException {
         LakeonProperties.DatalakeConfig dl = props.getDatalake();
 
         // Load repl_server.py from classpath
         String replScript = loadReplServerScript();
 
-        // Create ConfigMap with repl_server.py
+        // Create ConfigMap with repl_server.py (head pod only)
         String cmName = podName + "-repl";
         ConfigMap cm = new ConfigMapBuilder()
                 .withNewMetadata()
@@ -191,15 +199,144 @@ public class NotebookService {
                 .addToData("repl_server.py", replScript)
                 .build();
         k8sClient.configMaps().inNamespace(ns).resource(cm).createOrReplace();
-        log.info("Created repl ConfigMap: {}/{}", ns, cmName);
+        log.info("Created repl ConfigMap for Ray head: {}/{}", ns, cmName);
 
-        // Build env vars
+        // Build env vars (OBS + datasets)
+        List<EnvVar> envVars = buildEnvVars(tenantId, datasetIds);
+
+        // Toleration for VK
+        Toleration vkToleration = new TolerationBuilder()
+                .withKey("virtual-kubelet.io/provider")
+                .withOperator("Exists")
+                .withEffect("NoSchedule")
+                .build();
+
+        List<LocalObjectReference> pullSecrets = props.getK8s().getImagePullSecrets().stream()
+                .filter(name -> name != null && !name.isBlank())
+                .map(name -> new LocalObjectReferenceBuilder().withName(name).build())
+                .toList();
+
+        // Head container: ray start --head --num-cpus=0 then launch repl_server.py
+        Container headContainer = new ContainerBuilder()
+                .withName("repl")
+                .withImage(image)
+                .withCommand("bash", "-c",
+                        "ray start --head --port=6379 --dashboard-host=0.0.0.0 --num-cpus=0 && python -u /app/repl_server.py")
+                .withStdin(true)
+                .withStdinOnce(false)
+                .withTty(false)
+                .withEnv(envVars)
+                .withNewResources()
+                    .withRequests(Map.of(
+                            "cpu", new Quantity("500m"),
+                            "memory", new Quantity("2Gi")))
+                    .withLimits(Map.of(
+                            "cpu", new Quantity("2"),
+                            "memory", new Quantity("4Gi")))
+                .endResources()
+                .withVolumeMounts(new VolumeMountBuilder()
+                        .withName("repl-vol")
+                        .withMountPath("/app/repl_server.py")
+                        .withSubPath("repl_server.py")
+                        .withReadOnly(true)
+                        .build())
+                .build();
+
+        PodSpec headPodSpec = new PodSpecBuilder()
+                .withRestartPolicy("Never")
+                .withImagePullSecrets(pullSecrets)
+                .withNodeSelector(Map.of(dl.getVkNodeSelectorKey(), dl.getVkNodeSelectorValue()))
+                .withTolerations(vkToleration)
+                .withContainers(headContainer)
+                .withVolumes(new VolumeBuilder()
+                        .withName("repl-vol")
+                        .withNewConfigMap()
+                            .withName(cmName)
+                        .endConfigMap()
+                        .build())
+                .build();
+
+        Pod headPod = new PodBuilder()
+                .withNewMetadata()
+                    .withName(podName)
+                    .withNamespace(ns)
+                    .withLabels(Map.of(
+                            "app", "notebook",
+                            "lakeon.io/tenant-id", tenantId,
+                            "lakeon.io/session-id", session.getId()))
+                .endMetadata()
+                .withSpec(headPodSpec)
+                .build();
+
+        k8sClient.pods().inNamespace(ns).resource(headPod).create();
+        log.info("Created Ray head pod: {}/{}", ns, podName);
+
+        // Wait for head pod IP (up to 30s)
+        String headPodIp = null;
+        for (int i = 0; i < 30; i++) {
+            Pod hp = k8sClient.pods().inNamespace(ns).withName(podName).get();
+            if (hp != null && hp.getStatus() != null && hp.getStatus().getPodIP() != null
+                    && "Running".equals(hp.getStatus().getPhase())) {
+                headPodIp = hp.getStatus().getPodIP();
+                break;
+            }
+            Thread.sleep(1000);
+        }
+        if (headPodIp == null) {
+            throw new RuntimeException("Ray head pod did not become Running with IP within 30s");
+        }
+        log.info("Ray head pod IP: {}", headPodIp);
+
+        // Create N worker pods
+        for (int i = 0; i < workerCount; i++) {
+            String workerName = podName + "-worker-" + i;
+            Container workerContainer = new ContainerBuilder()
+                    .withName("ray-worker")
+                    .withImage(image)
+                    .withCommand("bash", "-c",
+                            "ray start --address=" + headPodIp + ":6379 --num-cpus=1 --block")
+                    .withEnv(envVars)
+                    .withNewResources()
+                        .withRequests(Map.of(
+                                "cpu", new Quantity("1"),
+                                "memory", new Quantity("2Gi")))
+                        .withLimits(Map.of(
+                                "cpu", new Quantity("2"),
+                                "memory", new Quantity("4Gi")))
+                    .endResources()
+                    .build();
+
+            PodSpec workerPodSpec = new PodSpecBuilder()
+                    .withRestartPolicy("Never")
+                    .withImagePullSecrets(pullSecrets)
+                    .withNodeSelector(Map.of(dl.getVkNodeSelectorKey(), dl.getVkNodeSelectorValue()))
+                    .withTolerations(vkToleration)
+                    .withContainers(workerContainer)
+                    .build();
+
+            Pod workerPod = new PodBuilder()
+                    .withNewMetadata()
+                        .withName(workerName)
+                        .withNamespace(ns)
+                        .withLabels(Map.of(
+                                "app", "notebook-worker",
+                                "lakeon.io/tenant-id", tenantId,
+                                "lakeon.io/session-id", session.getId()))
+                    .endMetadata()
+                    .withSpec(workerPodSpec)
+                    .build();
+
+            k8sClient.pods().inNamespace(ns).resource(workerPod).create();
+            log.info("Created Ray worker pod: {}/{}", ns, workerName);
+        }
+    }
+
+    private List<EnvVar> buildEnvVars(String tenantId, List<String> datasetIds) {
         List<EnvVar> envVars = new ArrayList<>();
 
         // OBS STS credentials
-        ObsStsService.StsCredentials stsCreds;
         try {
-            stsCreds = obsStsService.getCredentials(tenantId);
+            ObsStsService.StsCredentials stsCreds = obsStsService.getCredentials(tenantId);
             envVars.add(new EnvVarBuilder().withName("OBS_ACCESS_KEY_ID").withValue(stsCreds.accessKey()).build());
             envVars.add(new EnvVarBuilder().withName("OBS_SECRET_ACCESS_KEY").withValue(stsCreds.secretKey()).build());
             envVars.add(new EnvVarBuilder().withName("OBS_SECURITY_TOKEN").withValue(stsCreds.sessionToken()).build());
@@ -237,6 +374,35 @@ public class NotebookService {
                 }
             }
         }
+
+        return envVars;
+    }
+
+    private void createNotebookPod(NotebookSessionEntity session,
+                                   String tenantId,
+                                   List<String> datasetIds,
+                                   String image,
+                                   String podName,
+                                   String ns) {
+        LakeonProperties.DatalakeConfig dl = props.getDatalake();
+
+        // Load repl_server.py from classpath
+        String replScript = loadReplServerScript();
+
+        // Create ConfigMap with repl_server.py
+        String cmName = podName + "-repl";
+        ConfigMap cm = new ConfigMapBuilder()
+                .withNewMetadata()
+                    .withName(cmName)
+                    .withNamespace(ns)
+                .endMetadata()
+                .addToData("repl_server.py", replScript)
+                .build();
+        k8sClient.configMaps().inNamespace(ns).resource(cm).createOrReplace();
+        log.info("Created repl ConfigMap: {}/{}", ns, cmName);
+
+        // Build env vars
+        List<EnvVar> envVars = buildEnvVars(tenantId, datasetIds);
 
         // Toleration for VK
         Toleration vkToleration = new TolerationBuilder()
@@ -312,11 +478,22 @@ public class NotebookService {
 
         if (ns == null || podName == null) return;
 
+        // Delete head pod (or single pod for non-Ray sessions)
         try {
             k8sClient.pods().inNamespace(ns).withName(podName).delete();
             log.info("Deleted notebook pod: {}/{}", ns, podName);
         } catch (Exception e) {
             log.warn("Failed to delete notebook pod {}/{}: {}", ns, podName, e.getMessage());
+        }
+
+        // Delete worker pods by session label (no-op for non-Ray sessions)
+        try {
+            k8sClient.pods().inNamespace(ns)
+                    .withLabel("lakeon.io/session-id", session.getId())
+                    .delete();
+            log.info("Deleted worker pods for session: {}", session.getId());
+        } catch (Exception e) {
+            log.warn("Failed to delete worker pods for session {}: {}", session.getId(), e.getMessage());
         }
 
         try {

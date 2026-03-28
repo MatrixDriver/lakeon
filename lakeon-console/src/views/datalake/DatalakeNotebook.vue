@@ -10,6 +10,8 @@
           <option value="python-data">python-data</option>
           <option value="ray">ray</option>
         </select>
+        <input v-if="imageKey === 'ray'" type="number" v-model.number="workerCount" min="1" max="5"
+               class="nb-select" style="width: 60px;" title="Workers" :disabled="kernelStatus === 'running'" />
         <select v-model="selectedDatasetId" class="nb-select">
           <option value="">-- 选择数据集 --</option>
           <option v-for="ds in datasets" :key="ds.id" :value="ds.id">{{ ds.name }}</option>
@@ -72,6 +74,7 @@ const showVars = ref(false)
 const variables = ref<Array<{ name: string; type: string; repr: string }>>([])
 
 const imageKey = ref('python-data')
+const workerCount = ref(2)
 const selectedDatasetId = ref('')
 const datasets = ref<Array<{ id: string; name: string }>>([])
 const sessionId = ref<string | null>(null)
@@ -142,7 +145,7 @@ async function startKernel() {
   kernelStatus.value = 'starting'
   try {
     const dsIds = selectedDatasetId.value ? [selectedDatasetId.value] : undefined
-    const { data } = await createSession(imageKey.value, dsIds)
+    const { data } = await createSession(imageKey.value, dsIds, imageKey.value === 'ray' ? workerCount.value : 0)
     sessionId.value = data.id
     socket = new NotebookSocket(handleMessage, (s) => {
       if (s === 'connected') kernelStatus.value = 'running'

@@ -31,6 +31,9 @@ public class NotebookSessionEntity {
     @Column(name = "dataset_ids", columnDefinition = "text")
     private String datasetIds;
 
+    @Column(name = "worker_count")
+    private Integer workerCount;
+
     @Column(name = "last_active_at")
     private Instant lastActiveAt;
 
@@ -66,6 +69,8 @@ public class NotebookSessionEntity {
     public void setImage(String image) { this.image = image; }
     public String getDatasetIds() { return datasetIds; }
     public void setDatasetIds(String datasetIds) { this.datasetIds = datasetIds; }
+    public Integer getWorkerCount() { return workerCount; }
+    public void setWorkerCount(Integer workerCount) { this.workerCount = workerCount; }
     public Instant getLastActiveAt() { return lastActiveAt; }
     public void setLastActiveAt(Instant lastActiveAt) { this.lastActiveAt = lastActiveAt; }
     public Instant getCreatedAt() { return createdAt; }
