@@ -12,6 +12,7 @@ import io
 import contextlib
 import signal
 import ast
+import os
 
 _globals = {"__builtins__": __builtins__}
 _exec_counter = 0
@@ -113,6 +114,87 @@ def _execute(req_id, code):
     elapsed_ms = int((time.time() - start) * 1000)
     _emit({"id": req_id, "type": "done", "duration_ms": elapsed_ms, "exec_count": _exec_counter})
 
+def _handle_pip(req_id, args):
+    """Handle %pip install <packages>"""
+    import subprocess
+    cmd = ["pip"] + args.split()
+    start = time.time()
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        if result.stdout:
+            _emit({"id": req_id, "type": "stdout", "text": result.stdout})
+        if result.stderr:
+            _emit({"id": req_id, "type": "stderr", "text": result.stderr})
+        if result.returncode != 0:
+            _emit({"id": req_id, "type": "error", "traceback": f"pip exited with code {result.returncode}"})
+    except subprocess.TimeoutExpired:
+        _emit({"id": req_id, "type": "error", "traceback": "pip install timed out (120s)"})
+    elapsed_ms = int((time.time() - start) * 1000)
+    _emit({"id": req_id, "type": "done", "duration_ms": elapsed_ms, "exec_count": _exec_counter})
+
+def _handle_sh(req_id, cmd):
+    """Handle %sh <command>"""
+    import subprocess
+    start = time.time()
+    try:
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
+        if result.stdout:
+            _emit({"id": req_id, "type": "stdout", "text": result.stdout})
+        if result.stderr:
+            _emit({"id": req_id, "type": "stderr", "text": result.stderr})
+        if result.returncode != 0:
+            _emit({"id": req_id, "type": "error", "traceback": f"Command exited with code {result.returncode}"})
+    except subprocess.TimeoutExpired:
+        _emit({"id": req_id, "type": "error", "traceback": "Shell command timed out (60s)"})
+    elapsed_ms = int((time.time() - start) * 1000)
+    _emit({"id": req_id, "type": "done", "duration_ms": elapsed_ms, "exec_count": _exec_counter})
+
+def _handle_sql(req_id, sql):
+    """Handle %sql <query> — connects to LAKEON_DB_CONNSTR if set"""
+    start = time.time()
+    try:
+        connstr = os.environ.get("LAKEON_DB_CONNSTR")
+        if not connstr:
+            _emit({"id": req_id, "type": "error", "traceback": "No database connected. Set LAKEON_DB_CONNSTR or select a database in the toolbar."})
+            _emit({"id": req_id, "type": "done", "duration_ms": 0, "exec_count": _exec_counter})
+            return
+        import psycopg2
+        import pandas as pd
+        conn = psycopg2.connect(connstr)
+        try:
+            df = pd.read_sql(sql, conn)
+            _emit({"id": req_id, "type": "result", "text": df.to_string(max_rows=20), "html": df.to_html(max_rows=50)})
+            _emit({"id": req_id, "type": "stdout", "text": f"{len(df)} rows returned\n"})
+            _globals["_df"] = df
+        finally:
+            conn.close()
+    except Exception:
+        _emit({"id": req_id, "type": "error", "traceback": traceback.format_exc()})
+    elapsed_ms = int((time.time() - start) * 1000)
+    _emit({"id": req_id, "type": "done", "duration_ms": elapsed_ms, "exec_count": _exec_counter})
+
+def _handle_md(req_id, text):
+    """Handle %md — return markdown for frontend rendering"""
+    _emit({"id": req_id, "type": "markdown", "text": text})
+    _emit({"id": req_id, "type": "done", "duration_ms": 0, "exec_count": _exec_counter})
+
+def _handle_vars(req_id):
+    """Return current variables (name, type, short repr)"""
+    skip = {"__builtins__", "_"}
+    variables = []
+    for name, val in sorted(_globals.items()):
+        if name.startswith("_") or name in skip:
+            continue
+        try:
+            r = repr(val)
+            if len(r) > 80:
+                r = r[:77] + "..."
+            variables.append({"name": name, "type": type(val).__name__, "repr": r})
+        except Exception:
+            variables.append({"name": name, "type": type(val).__name__, "repr": "<error>"})
+    _emit({"id": req_id, "type": "vars", "variables": variables})
+    _emit({"id": req_id, "type": "done", "duration_ms": 0, "exec_count": _exec_counter})
+
 def _handle_timeout(signum, frame):
     raise TimeoutError("Cell execution timed out (60s)")
 
@@ -132,16 +214,30 @@ def main():
         if req_type == "execute":
             code = req.get("code", "")
             timeout = req.get("timeout", 60)
-            signal.alarm(timeout)
-            try:
-                _execute(req_id, code)
-            except TimeoutError:
-                _emit({"id": req_id, "type": "error", "traceback": "TimeoutError: Cell execution timed out (60s)"})
-                _emit({"id": req_id, "type": "done", "duration_ms": timeout * 1000, "exec_count": _exec_counter})
-            finally:
-                signal.alarm(0)
+            stripped = code.strip()
+            if stripped.startswith("%pip "):
+                _handle_pip(req_id, stripped[5:])
+            elif stripped.startswith("%sh "):
+                _handle_sh(req_id, stripped[4:])
+            elif stripped.startswith("%sql "):
+                _handle_sql(req_id, stripped[5:])
+            elif stripped.startswith("%sql\n"):
+                _handle_sql(req_id, stripped[4:].strip())
+            elif stripped.startswith("%md"):
+                _handle_md(req_id, stripped[3:].strip())
+            else:
+                signal.alarm(timeout)
+                try:
+                    _execute(req_id, code)
+                except TimeoutError:
+                    _emit({"id": req_id, "type": "error", "traceback": "TimeoutError: Cell execution timed out (60s)"})
+                    _emit({"id": req_id, "type": "done", "duration_ms": timeout * 1000, "exec_count": _exec_counter})
+                finally:
+                    signal.alarm(0)
         elif req_type == "status":
             _emit({"id": req_id, "type": "status", "exec_count": _exec_counter})
+        elif req_type == "vars":
+            _handle_vars(req_id)
         elif req_type == "reset":
             _globals.clear()
             _globals["__builtins__"] = __builtins__
