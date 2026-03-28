@@ -37,18 +37,79 @@
       </table>
     </div>
 
-    <div class="nb-cells">
-      <NotebookCell
-        v-for="(cell, i) in cells" :key="cell.id"
-        :code="cell.code" :is-active="activeIndex === i" :is-running="cell.running"
-        :exec-count="cell.execCount" :duration-ms="cell.durationMs" :outputs="cell.outputs"
-        :cell-type="cell.cellType"
-        @update:code="cell.code = $event; saveCells()"
-        @run="runCell(i)" @delete="deleteCell(i)"
-        @focus="activeIndex = i" @advance="advanceCell(i)"
-        @toggle-type="toggleCellType(i)"
-      />
-      <button class="nb-add-btn" @click="addCell()">+ Add Cell</button>
+    <div class="nb-body">
+      <div class="nb-cells">
+        <NotebookCell
+          v-for="(cell, i) in cells" :key="cell.id"
+          :code="cell.code" :is-active="activeIndex === i" :is-running="cell.running"
+          :exec-count="cell.execCount" :duration-ms="cell.durationMs" :outputs="cell.outputs"
+          :cell-type="cell.cellType"
+          @update:code="cell.code = $event; saveCells()"
+          @run="runCell(i)" @delete="deleteCell(i)"
+          @focus="activeIndex = i" @advance="advanceCell(i)"
+          @toggle-type="toggleCellType(i)"
+        />
+        <button class="nb-add-btn" @click="addCell()">+ Add Cell</button>
+      </div>
+
+      <!-- Reference Panel -->
+      <aside class="nb-ref" :class="{ collapsed: !showRef }">
+        <button class="nb-ref-toggle" @click="showRef = !showRef" :title="showRef ? 'Hide reference' : 'Show reference'">?</button>
+        <div v-if="showRef" class="nb-ref-content">
+          <h3>Quick Reference</h3>
+
+          <div class="nb-ref-section">
+            <h4>Keyboard</h4>
+            <div class="nb-ref-row"><kbd>Shift+Enter</kbd> Run & advance</div>
+            <div class="nb-ref-row"><kbd>Ctrl+Enter</kbd> Run in place</div>
+          </div>
+
+          <div class="nb-ref-section">
+            <h4>Magic Commands</h4>
+            <div class="nb-ref-row"><code>%pip install pkg</code> Install packages</div>
+            <div class="nb-ref-row"><code>%sh command</code> Run shell command</div>
+            <div class="nb-ref-row"><code>%sql SELECT ...</code> Query database</div>
+            <div class="nb-ref-row"><code>%md # Title</code> Markdown cell</div>
+          </div>
+
+          <div class="nb-ref-section">
+            <h4>Environment Variables</h4>
+            <div class="nb-ref-row"><code>DATASET_PATH</code> Selected dataset path</div>
+            <div class="nb-ref-row"><code>OUTPUT_PATH</code> Job output path</div>
+            <div class="nb-ref-row"><code>OBS_ENDPOINT</code> OBS endpoint URL</div>
+            <div class="nb-ref-row"><code>OBS_BUCKET</code> OBS bucket name</div>
+          </div>
+
+          <div class="nb-ref-section">
+            <h4>Common Patterns</h4>
+            <pre class="nb-ref-code">import pandas as pd
+import os
+
+# Read dataset
+path = os.environ["DATASET_PATH"]
+df = pd.read_parquet(path)
+df.head()</pre>
+            <pre class="nb-ref-code"># Plotly chart
+import plotly.express as px
+fig = px.bar(df, x="col", y="val")
+fig.show()</pre>
+          </div>
+
+          <div v-if="imageKey === 'ray'" class="nb-ref-section">
+            <h4>Ray Distributed</h4>
+            <pre class="nb-ref-code">import ray
+ray.init()
+
+@ray.remote
+def task(x):
+    return x * 2
+
+results = ray.get(
+  [task.remote(i) for i in range(10)]
+)</pre>
+          </div>
+        </div>
+      </aside>
     </div>
   </div>
 </template>
@@ -71,6 +132,7 @@ interface Cell {
 const cells = ref<Cell[]>([])
 const activeIndex = ref(0)
 const showVars = ref(false)
+const showRef = ref(false)
 const variables = ref<Array<{ name: string; type: string; repr: string }>>([])
 
 const imageKey = ref('python-data')
@@ -207,11 +269,35 @@ onUnmounted(() => { socket?.disconnect() })
 .nb-btn-primary:disabled { background: #93c5fd; cursor: default; }
 .nb-btn-danger { color: #ef4444; border-color: #fecaca; }
 .nb-btn-danger:hover { background: #fef2f2; }
-.nb-cells { max-width: 960px; }
+.nb-body { display: flex; gap: 16px; align-items: flex-start; }
+.nb-cells { flex: 1; min-width: 0; max-width: 960px; }
 .nb-add-btn { display: block; width: 100%; padding: 10px; margin-top: 4px; background: none; border: 2px dashed #e5e7eb; border-radius: 8px; color: #9ca3af; font-size: 13px; cursor: pointer; text-align: center; }
 .nb-add-btn:hover { border-color: #2563eb; color: #2563eb; }
 .nb-vars-panel { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; margin-bottom: 16px; background: #f9fafb; max-height: 200px; overflow-y: auto; }
 .nb-vars-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .nb-vars-table th { text-align: left; padding: 4px 10px; color: #6b7280; border-bottom: 1px solid #e5e7eb; font-weight: 600; }
 .nb-vars-table td { padding: 3px 10px; border-bottom: 1px solid #f1f5f9; }
+
+/* Reference Panel */
+.nb-ref { position: sticky; top: 16px; flex-shrink: 0; }
+.nb-ref.collapsed { width: auto; }
+.nb-ref-toggle {
+  width: 28px; height: 28px; border-radius: 50%; border: 1px solid #d1d5db;
+  background: #fff; color: #6b7280; font-size: 14px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.nb-ref-toggle:hover { background: #f3f4f6; color: #2563eb; border-color: #2563eb; }
+.nb-ref-content {
+  width: 260px; margin-top: 8px; padding: 14px; background: #f9fafb;
+  border: 1px solid #e5e7eb; border-radius: 8px; font-size: 12px; color: #374151;
+}
+.nb-ref-content h3 { font-size: 14px; font-weight: 700; color: #1e293b; margin: 0 0 12px; }
+.nb-ref-section { margin-bottom: 14px; }
+.nb-ref-section:last-child { margin-bottom: 0; }
+.nb-ref-section h4 { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 6px; }
+.nb-ref-row { display: flex; gap: 8px; align-items: baseline; margin-bottom: 3px; line-height: 1.5; }
+.nb-ref-row code { background: #e5e7eb; padding: 1px 5px; border-radius: 3px; font-size: 11px; font-family: monospace; white-space: nowrap; flex-shrink: 0; }
+.nb-ref-row kbd { background: #1e293b; color: #fff; padding: 1px 5px; border-radius: 3px; font-size: 10px; font-family: monospace; white-space: nowrap; flex-shrink: 0; }
+.nb-ref-code { background: #1e1e2e; color: #cdd6f4; padding: 8px 10px; border-radius: 6px; font-size: 11px; font-family: monospace; line-height: 1.5; overflow-x: auto; margin: 6px 0 0; white-space: pre; }
+@media (max-width: 1100px) { .nb-ref { display: none; } }
 </style>
