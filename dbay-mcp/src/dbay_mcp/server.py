@@ -151,11 +151,15 @@ def knowledge_list() -> str:
     bases = _api("GET", "/knowledge/bases")
     lines = []
     for kb in bases:
-        lines.append(
+        line = (
             f"- {kb['name']} (id={kb['id']}, type={kb.get('type','DOCUMENT')}, "
             f"model={kb.get('embedding_model','?')}, "
             f"status={kb.get('status','?')}, docs={kb.get('document_count',0)})"
         )
+        summary = kb.get('summary')
+        if summary:
+            line += f"\n  Summary: {summary[:200]}"
+        lines.append(line)
     return "\n".join(lines) if lines else "No knowledge bases found."
 
 
@@ -190,7 +194,9 @@ def knowledge_search(query: str, kb_name_or_id: str | None = None, top_k: int = 
         doc_id = meta.get("document_id", "?")
         score = r.get("score", 0)
         content = r.get("content", "").strip()
-        parts.append(f"### Result {i} (score={score:.3f}, doc={doc_id})\n{content}")
+        level = r.get("level", 0)
+        level_tag = " [document summary]" if level == 1 else ""
+        parts.append(f"### Result {i} (score={score:.3f}, doc={doc_id}{level_tag})\n{content}")
 
     return "\n\n".join(parts)
 
