@@ -178,28 +178,60 @@ public class KnowledgeController {
         String kbId = (String) body.get("kb_id");
         String query = (String) body.get("query");
 
-        if (kbId == null || kbId.isBlank()) {
-            throw new com.lakeon.service.exception.BadRequestException("kb_id is required");
-        }
         if (query == null || query.isBlank()) {
             throw new com.lakeon.service.exception.BadRequestException("query is required");
         }
 
-        // Check KB type and route accordingly
+        int topK = body.containsKey("top_k") ? ((Number) body.get("top_k")).intValue() : 5;
+        boolean rerank = body.containsKey("rerank") ? (Boolean) body.get("rerank") : false;
+        List<String> tags = (List<String>) body.get("tags");
+        List<Map<String, String>> conversationHistory = body.containsKey("conversation_history")
+                ? (List<Map<String, String>>) body.get("conversation_history") : null;
+
+        // Cross-KB search: when kb_id is null or empty, search all DOCUMENT KBs
+        if (kbId == null || kbId.isBlank()) {
+            List<KnowledgeBaseEntity> allKbs = knowledgeService.listKnowledgeBases(tenant.getId());
+            List<Map<String, Object>> allResults = new java.util.ArrayList<>();
+
+            for (KnowledgeBaseEntity kb : allKbs) {
+                if (kb.getType() != KnowledgeBaseType.DOCUMENT || !"READY".equals(kb.getStatus())) continue;
+                try {
+                    Map<String, Object> sr = knowledgeService.search(
+                            tenant.getId(), kb.getId(), query, topK, null, tags, rerank, conversationHistory);
+                    List<Map<String, Object>> results = (List<Map<String, Object>>) sr.get("results");
+                    // Tag each result with kb info
+                    for (Map<String, Object> r : results) {
+                        Map<String, Object> meta = (Map<String, Object>) r.getOrDefault("metadata", new LinkedHashMap<>());
+                        meta.put("kb_id", kb.getId());
+                        meta.put("kb_name", kb.getName());
+                        r.put("metadata", meta);
+                    }
+                    allResults.addAll(results);
+                } catch (Exception e) {
+                    // Skip KBs that fail (e.g. DB suspended)
+                }
+            }
+
+            // Sort by score descending, limit to topK
+            allResults.sort((a, b) -> Double.compare(
+                    ((Number) b.getOrDefault("score", 0)).doubleValue(),
+                    ((Number) a.getOrDefault("score", 0)).doubleValue()));
+            if (allResults.size() > topK) allResults = allResults.subList(0, topK);
+
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("results", allResults);
+            response.put("count", allResults.size());
+            return response;
+        }
+
+        // Single KB search
         KnowledgeBaseEntity kb = knowledgeService.getKnowledgeBase(tenant.getId(), kbId);
         if (kb.getType() == KnowledgeBaseType.TABLE) {
             String modelId = (String) body.getOrDefault("model", null);
             return knowledgeService.searchTable(tenant.getId(), kbId, query, modelId);
         }
 
-        // DOCUMENT type: existing search flow
-        int topK = body.containsKey("top_k") ? ((Number) body.get("top_k")).intValue() : 5;
         List<String> documentIds = (List<String>) body.get("document_ids");
-        List<String> tags = (List<String>) body.get("tags");
-        List<Map<String, String>> conversationHistory = body.containsKey("conversation_history")
-                ? (List<Map<String, String>>) body.get("conversation_history") : null;
-
-        boolean rerank = body.containsKey("rerank") ? (Boolean) body.get("rerank") : false;
 
         Map<String, Object> searchResult = knowledgeService.search(
                 tenant.getId(), kbId, query, topK, documentIds, tags, rerank, conversationHistory);

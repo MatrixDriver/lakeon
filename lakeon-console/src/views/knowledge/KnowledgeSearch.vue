@@ -9,7 +9,7 @@
       <div class="form-group" style="max-width: 360px;">
         <label class="form-label">选择知识库</label>
         <select v-model="selectedKbId" class="form-select">
-          <option value="">请选择知识库</option>
+          <option value="">全部知识库</option>
           <option v-for="kb in knowledgeBases" :key="kb.id" :value="kb.id">{{ kb.name }}</option>
         </select>
       </div>
@@ -22,10 +22,9 @@
           class="form-input"
           placeholder="输入搜索内容..."
           style="flex: 1;"
-          :disabled="!selectedKbId"
           @keyup.enter="search"
         />
-        <button class="btn btn-primary" @click="search" :disabled="!selectedKbId || !query.trim()">搜索</button>
+        <button class="btn btn-primary" @click="search" :disabled="!query.trim() || searching">{{ searching ? '搜索中...' : '搜索' }}</button>
       </div>
       <p style="color: #999; font-size: 12px; margin-top: 6px;">语义搜索 + 关键词搜索（pgvector + BM25 + RRF 融合）</p>
     </div>
@@ -37,6 +36,7 @@
            style="border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; margin-bottom: 12px; background: #fafbfc;">
         <div style="font-size: 14px; line-height: 1.7; color: #333; white-space: pre-wrap;">{{ r.content }}</div>
         <div style="margin-top: 10px; font-size: 12px; color: #999; display: flex; gap: 16px; flex-wrap: wrap;">
+          <span v-if="r.metadata?.kb_name" style="color: #1890ff;">{{ r.metadata.kb_name }}</span>
           <span>来源: {{ r.metadata?.filename }}</span>
           <span v-if="r.metadata?.section">章节: {{ r.metadata.section }}</span>
           <span>得分: {{ r.score?.toFixed(3) }}</span>
@@ -59,12 +59,18 @@ const selectedKbId = ref('')
 const query = ref('')
 const results = ref<SearchResult[]>([])
 const searched = ref(false)
+const searching = ref(false)
 
 async function search() {
-  if (!selectedKbId.value || !query.value.trim()) return
+  if (!query.value.trim()) return
   searched.value = true
-  const resp = await searchKnowledge(selectedKbId.value, query.value, 5)
-  results.value = resp.data.results
+  searching.value = true
+  try {
+    const resp = await searchKnowledge(selectedKbId.value || '', query.value, 10)
+    results.value = resp.data.results
+  } finally {
+    searching.value = false
+  }
 }
 
 onMounted(async () => {

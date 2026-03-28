@@ -48,6 +48,8 @@ export interface SearchResult {
     filename?: string
     section?: string
     document_id?: string
+    kb_id?: string
+    kb_name?: string
   }
 }
 
@@ -126,7 +128,7 @@ export function searchKnowledge(kbId: string, query: string, topK: number = 5, o
   conversation_history?: { role: string; content: string }[]
 }) {
   return api.post<{ results: SearchResult[]; rewritten_query?: string }>('/knowledge/search', {
-    kb_id: kbId,
+    ...(kbId ? { kb_id: kbId } : {}),
     query,
     top_k: topK,
     ...options,
