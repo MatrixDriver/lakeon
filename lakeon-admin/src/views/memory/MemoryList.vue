@@ -4,6 +4,15 @@
       <h1 class="page-title">记忆库管理</h1>
     </div>
 
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <div class="tab-item" :class="{ active: activeTab === 'bases' }" @click="activeTab = 'bases'">记忆库列表</div>
+      <div class="tab-item" :class="{ active: activeTab === 'mcp' }" @click="activeTab = 'mcp'">MCP 工具描述</div>
+    </div>
+
+    <!-- Tab: 记忆库列表 -->
+    <div v-if="activeTab === 'bases'">
+
     <!-- Stats cards -->
     <div class="stats-row">
       <div class="stat-card">
@@ -23,15 +32,6 @@
         <div class="stat-label">异常</div>
       </div>
     </div>
-
-    <!-- Tabs -->
-    <div class="tab-bar">
-      <div class="tab-item" :class="{ active: activeTab === 'bases' }" @click="activeTab = 'bases'">记忆库列表</div>
-      <div class="tab-item" :class="{ active: activeTab === 'mcp' }" @click="activeTab = 'mcp'">MCP 工具描述</div>
-    </div>
-
-    <!-- Tab: 记忆库列表 -->
-    <div v-if="activeTab === 'bases'">
 
     <!-- Filters -->
     <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: center;">

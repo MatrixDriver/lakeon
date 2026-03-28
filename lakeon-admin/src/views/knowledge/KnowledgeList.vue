@@ -4,30 +4,6 @@
       <h1 class="page-title">知识库管理</h1>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="stats-row" v-if="stats">
-      <div class="stat-card">
-        <div class="stat-value">{{ stats.kb_count }}</div>
-        <div class="stat-label">知识库</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">{{ stats.document_count }}</div>
-        <div class="stat-label">文档总数</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" style="color: #1890ff;">{{ stats.processing_count }}</div>
-        <div class="stat-label">处理中</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" style="color: #52c41a;">{{ stats.ready_count }}</div>
-        <div class="stat-label">已就绪</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" style="color: #e53e3e;">{{ stats.failed_count }}</div>
-        <div class="stat-label">失败</div>
-      </div>
-    </div>
-
     <!-- Tabs -->
     <div class="tab-bar">
       <div class="tab-item" :class="{ active: activeTab === 'bases' }" @click="activeTab = 'bases'">知识库列表</div>
@@ -37,6 +13,29 @@
 
     <!-- KB List Tab -->
     <template v-if="activeTab === 'bases'">
+      <!-- Stats Cards -->
+      <div class="stats-row" v-if="stats">
+        <div class="stat-card">
+          <div class="stat-value">{{ stats.kb_count }}</div>
+          <div class="stat-label">知识库</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ stats.document_count }}</div>
+          <div class="stat-label">文档总数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: #1890ff;">{{ stats.processing_count }}</div>
+          <div class="stat-label">处理中</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: #52c41a;">{{ stats.ready_count }}</div>
+          <div class="stat-label">已就绪</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: #e53e3e;">{{ stats.failed_count }}</div>
+          <div class="stat-label">失败</div>
+        </div>
+      </div>
       <div class="action-toolbar">
         <select class="form-select" v-model="statusFilter" style="width: 140px;" @change="loadKbs">
           <option value="">全部状态</option>

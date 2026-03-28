@@ -4,26 +4,6 @@
       <h1 class="page-title">数据湖</h1>
     </div>
 
-    <!-- Stats -->
-    <div class="stats-row" v-if="stats">
-      <div class="stat-card">
-        <div class="stat-value">{{ stats.job_count }}</div>
-        <div class="stat-label">作业总数</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" style="color: #1890ff;">{{ stats.running_count }}</div>
-        <div class="stat-label">运行中</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" style="color: #e53e3e;">{{ stats.failed_count }}</div>
-        <div class="stat-label">失败</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" style="color: #52c41a;">{{ datasetCount }}</div>
-        <div class="stat-label">数据集</div>
-      </div>
-    </div>
-
     <!-- Tabs -->
     <div class="tab-bar">
       <div class="tab-item" :class="{ active: activeTab === 'jobs' }" @click="activeTab = 'jobs'">作业列表</div>
@@ -33,6 +13,25 @@
 
     <!-- Jobs Tab -->
     <template v-if="activeTab === 'jobs'">
+      <!-- Stats -->
+      <div class="stats-row" v-if="stats">
+        <div class="stat-card">
+          <div class="stat-value">{{ stats.job_count }}</div>
+          <div class="stat-label">作业总数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: #1890ff;">{{ stats.running_count }}</div>
+          <div class="stat-label">运行中</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: #e53e3e;">{{ stats.failed_count }}</div>
+          <div class="stat-label">失败</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: #52c41a;">{{ datasetCount }}</div>
+          <div class="stat-label">数据集</div>
+        </div>
+      </div>
       <div class="action-toolbar">
         <input type="text" class="search-input" placeholder="按租户 ID 筛选..." v-model="tenantFilter" style="width: 220px;" @keyup.enter="loadJobs" />
         <select class="form-select" v-model="typeFilter" style="width: 140px;">
