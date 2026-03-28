@@ -201,8 +201,9 @@ public class NotebookService {
         k8sClient.configMaps().inNamespace(ns).resource(cm).createOrReplace();
         log.info("Created repl ConfigMap for Ray head: {}/{}", ns, cmName);
 
-        // Build env vars (OBS + datasets)
+        // Build env vars (OBS + datasets + RAY_ADDRESS for auto-connect)
         List<EnvVar> envVars = buildEnvVars(tenantId, datasetIds);
+        envVars.add(new EnvVarBuilder().withName("RAY_ADDRESS").withValue("auto").build());
 
         // Toleration for VK
         Toleration vkToleration = new TolerationBuilder()

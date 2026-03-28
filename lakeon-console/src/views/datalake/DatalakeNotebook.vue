@@ -97,8 +97,10 @@ fig.show()</pre>
 
           <div v-if="imageKey === 'ray'" class="nb-ref-section">
             <h4>Ray Distributed</h4>
+            <p style="color:#6b7280;margin:0 0 4px;">ray.init() auto-connects to the cluster — no address needed.</p>
             <pre class="nb-ref-code">import ray
-ray.init()
+ray.init()  # auto-connects
+print(ray.cluster_resources())
 
 @ray.remote
 def task(x):
