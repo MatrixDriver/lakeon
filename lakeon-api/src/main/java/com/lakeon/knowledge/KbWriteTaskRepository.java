@@ -34,4 +34,6 @@ public interface KbWriteTaskRepository extends JpaRepository<KbWriteTaskEntity, 
     @Modifying @Transactional
     @Query("UPDATE KbWriteTaskEntity t SET t.status = 'FAILED', t.error = 'Cancelled: KB deleted', t.completedAt = CURRENT_TIMESTAMP WHERE t.kbId = ?1 AND t.status IN ('QUEUED', 'RUNNING')")
     int cancelByKbId(String kbId);
+
+    List<KbWriteTaskEntity> findByCreatedAtBetween(Instant from, Instant to);
 }

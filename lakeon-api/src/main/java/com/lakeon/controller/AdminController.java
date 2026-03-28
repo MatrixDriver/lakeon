@@ -34,6 +34,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
@@ -41,6 +42,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.format.annotation.DateTimeFormat;
 
 @RestController
 @RequestMapping("/api/v1/admin")
@@ -777,6 +781,95 @@ public class AdminController {
         return taskToMap(task);
     }
 
+    // ── Pipeline Monitor ──────────────────────────────────────
+
+    @GetMapping("/knowledge/pipeline/tasks")
+    public Map<String, Object> getPipelineTasks(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String kbId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        var allTasks = kbWriteTaskRepository.findAll();
+        var filtered = allTasks.stream()
+                .filter(t -> status == null || t.getStatus().name().equalsIgnoreCase(status))
+                .filter(t -> kbId == null || kbId.equals(t.getKbId()))
+                .filter(t -> from == null || (t.getCreatedAt() != null && !t.getCreatedAt().isBefore(from)))
+                .filter(t -> to == null || (t.getCreatedAt() != null && !t.getCreatedAt().isAfter(to)))
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                .toList();
+        int total = filtered.size();
+        int fromIdx = Math.min(page * size, total);
+        int toIdx = Math.min(fromIdx + size, total);
+        var paged = filtered.subList(fromIdx, toIdx).stream()
+                .map(this::pipelineTaskToMap)
+                .toList();
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("tasks", paged);
+        result.put("total", total);
+        result.put("page", page);
+        result.put("size", size);
+        return result;
+    }
+
+    @GetMapping("/knowledge/pipeline/stats")
+    public Map<String, Object> getPipelineStats(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
+        Instant start = from != null ? from : Instant.now().minus(Duration.ofDays(7));
+        Instant end = to != null ? to : Instant.now();
+        var tasks = kbWriteTaskRepository.findByCreatedAtBetween(start, end);
+        long total = tasks.size();
+        long succeeded = tasks.stream().filter(t -> t.getStatus() == KbWriteTaskStatus.SUCCEEDED).count();
+        long failed = tasks.stream().filter(t -> t.getStatus() == KbWriteTaskStatus.FAILED).count();
+        long retried = tasks.stream().filter(t -> t.getRetryCount() > 0).count();
+        double successRate = total > 0 ? (double) succeeded / total : 0.0;
+        double retryRate = total > 0 ? (double) retried / total : 0.0;
+
+        // Parse stage durations from result JSON of succeeded tasks
+        Map<String, List<Long>> stageDurations = new LinkedHashMap<>();
+        var mapper = new ObjectMapper();
+        for (var task : tasks) {
+            if (task.getStatus() != KbWriteTaskStatus.SUCCEEDED || task.getResult() == null) continue;
+            try {
+                @SuppressWarnings("unchecked")
+                var resultMap = mapper.readValue(task.getResult(), Map.class);
+                Object stagesObj = resultMap.get("stages");
+                if (stagesObj instanceof List<?> stages) {
+                    for (Object stageObj : stages) {
+                        if (stageObj instanceof Map<?, ?> stage) {
+                            String name = String.valueOf(stage.get("name"));
+                            Object durationMs = stage.get("duration_ms");
+                            if (durationMs instanceof Number num) {
+                                stageDurations.computeIfAbsent(name, k -> new ArrayList<>()).add(num.longValue());
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("Failed to parse result JSON for task {}: {}", task.getId(), e.getMessage());
+            }
+        }
+        Map<String, Long> avgStageDurations = new LinkedHashMap<>();
+        stageDurations.forEach((name, durations) -> {
+            long avg = durations.stream().mapToLong(Long::longValue).sum() / durations.size();
+            avgStageDurations.put(name, avg);
+        });
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("total", total);
+        result.put("succeeded", succeeded);
+        result.put("failed", failed);
+        result.put("retried", retried);
+        result.put("success_rate", Math.round(successRate * 10000.0) / 10000.0);
+        result.put("retry_rate", Math.round(retryRate * 10000.0) / 10000.0);
+        result.put("avg_stage_durations_ms", avgStageDurations);
+        result.put("period_start", start.toString());
+        result.put("period_end", end.toString());
+        return result;
+    }
+
     // ── Memory Admin ──────────────────────────────────────
 
     @GetMapping("/memory/stats")
@@ -1003,6 +1096,32 @@ public class AdminController {
         m.put("created_at", t.getCreatedAt() != null ? t.getCreatedAt().toString() : null);
         m.put("started_at", t.getStartedAt() != null ? t.getStartedAt().toString() : null);
         m.put("completed_at", t.getCompletedAt() != null ? t.getCompletedAt().toString() : null);
+        return m;
+    }
+
+    private Map<String, Object> pipelineTaskToMap(KbWriteTaskEntity t) {
+        Map<String, Object> m = taskToMap(t);
+        m.put("retry_count", t.getRetryCount());
+        m.put("max_retries", t.getMaxRetries());
+        m.put("error_category", t.getErrorCategory());
+        m.put("next_retry_at", t.getNextRetryAt() != null ? t.getNextRetryAt().toString() : null);
+        // Include result JSON (stages/metrics) as parsed object if possible
+        if (t.getResult() != null) {
+            try {
+                var mapper = new ObjectMapper();
+                m.put("result", mapper.readValue(t.getResult(), Map.class));
+            } catch (Exception e) {
+                m.put("result", t.getResult());
+            }
+        }
+        if (t.getParams() != null) {
+            try {
+                var mapper = new ObjectMapper();
+                m.put("params", mapper.readValue(t.getParams(), Map.class));
+            } catch (Exception e) {
+                m.put("params", t.getParams());
+            }
+        }
         return m;
     }
 
