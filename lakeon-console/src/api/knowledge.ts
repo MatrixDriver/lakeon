@@ -44,6 +44,7 @@ export interface Document {
 export interface SearchResult {
   content: string
   score: number
+  level?: number
   metadata: {
     filename?: string
     section?: string
