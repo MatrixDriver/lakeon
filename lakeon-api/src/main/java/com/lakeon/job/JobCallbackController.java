@@ -93,18 +93,39 @@ public class JobCallbackController {
         String token = (String) body.get("token");
         String status = (String) body.get("status");
         String error = (String) body.get("error");
+        String errorCategory = (String) body.get("error_category");
+        String failedStage = body.get("failed_stage") != null ? body.get("failed_stage").toString() : null;
 
-        // Serialize result to JSON if it's a Map
+        // Serialize result to JSON, injecting error_category and failed_stage so
+        // KbWriteQueue.parseErrorCategory() can find them inside resultJson.
         String resultJson = null;
         Object resultObj = body.get("result");
         if (resultObj instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> resultMap = (Map<String, Object>) resultObj;
+            if (errorCategory != null) {
+                resultMap.put("error_category", errorCategory);
+            }
+            if (failedStage != null) {
+                resultMap.put("failed_stage", failedStage);
+            }
             try {
-                resultJson = objectMapper.writeValueAsString(resultObj);
+                resultJson = objectMapper.writeValueAsString(resultMap);
             } catch (Exception e) {
                 resultJson = resultObj.toString();
             }
         } else if (resultObj instanceof String) {
             resultJson = (String) resultObj;
+        } else if (errorCategory != null || failedStage != null) {
+            // No result map but has error metadata — create minimal result JSON
+            Map<String, Object> metaMap = new java.util.LinkedHashMap<>();
+            if (errorCategory != null) metaMap.put("error_category", errorCategory);
+            if (failedStage != null) metaMap.put("failed_stage", failedStage);
+            try {
+                resultJson = objectMapper.writeValueAsString(metaMap);
+            } catch (Exception e) {
+                resultJson = metaMap.toString();
+            }
         }
 
         boolean ok = jobService.handleCallback(id, token, status, resultJson, error);
