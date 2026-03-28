@@ -28,7 +28,7 @@
     <div class="tab-bar">
       <div class="tab-item" :class="{ active: activeTab === 'jobs' }" @click="activeTab = 'jobs'">作业列表</div>
       <div class="tab-item" :class="{ active: activeTab === 'datasets' }" @click="activeTab = 'datasets'; loadDatasets()">数据集管理</div>
-      <div class="tab-item" :class="{ active: activeTab === 'warmpool' }" @click="activeTab = 'warmpool'; loadWarmPool()">热池</div>
+      <div class="tab-item" :class="{ active: activeTab === 'warmpool' }" @click="activeTab = 'warmpool'; loadWarmPool()">Ray Head 热池</div>
     </div>
 
     <!-- Jobs Tab -->

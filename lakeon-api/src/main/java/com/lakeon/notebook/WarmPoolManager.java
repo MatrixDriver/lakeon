@@ -10,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.Map;
@@ -98,6 +100,12 @@ public class WarmPoolManager {
             log.info("Deleted worker pods for session: {}", sessionId);
         } catch (Exception e) {
             log.warn("Failed to delete worker pods for session {}: {}", sessionId, e.getMessage());
+        }
+        // Delete the ConfigMap created with the pod
+        try {
+            k8sClient.configMaps().inNamespace(ns).withName(podName + "-repl").delete();
+        } catch (Exception e) {
+            log.warn("Failed to delete ConfigMap for {}: {}", podName, e.getMessage());
         }
     }
 
@@ -192,6 +200,19 @@ public class WarmPoolManager {
     private void createIdleHeadPod(String ns, LakeonProperties.DatalakeConfig dl) {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
         String podName = "warm-ray-head-" + suffix;
+        String cmName = podName + "-repl";
+
+        // Create ConfigMap with repl_server.py so head pod has it from the start
+        String replScript = loadReplServerScript();
+        ConfigMap cm = new ConfigMapBuilder()
+                .withNewMetadata().withName(cmName).withNamespace(ns).endMetadata()
+                .addToData("repl_server.py", replScript)
+                .build();
+        try {
+            k8sClient.configMaps().inNamespace(ns).resource(cm).createOrReplace();
+        } catch (Exception e) {
+            log.warn("Failed to create ConfigMap for warm pool pod {}: {}", podName, e.getMessage());
+        }
 
         Toleration vkToleration = new TolerationBuilder()
                 .withKey("virtual-kubelet.io/provider")
@@ -215,6 +236,12 @@ public class WarmPoolManager {
                             "cpu", new Quantity("2"),
                             "memory", new Quantity("4Gi")))
                 .endResources()
+                .withVolumeMounts(new VolumeMountBuilder()
+                        .withName("repl-vol")
+                        .withMountPath("/app/repl_server.py")
+                        .withSubPath("repl_server.py")
+                        .withReadOnly(true)
+                        .build())
                 .build();
 
         Pod pod = new PodBuilder()
@@ -232,6 +259,10 @@ public class WarmPoolManager {
                             dl.getVkNodeSelectorKey(), dl.getVkNodeSelectorValue()))
                     .withTolerations(vkToleration)
                     .withContainers(container)
+                    .withVolumes(new VolumeBuilder()
+                            .withName("repl-vol")
+                            .withNewConfigMap().withName(cmName).endConfigMap()
+                            .build())
                 .endSpec()
                 .build();
 
@@ -240,6 +271,16 @@ public class WarmPoolManager {
             log.info("Created warm pool pod: {}/{}", ns, podName);
         } catch (Exception e) {
             log.warn("Failed to create warm pool pod {}: {}", podName, e.getMessage());
+        }
+    }
+
+    private String loadReplServerScript() {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream("repl_server.py")) {
+            if (is == null) return "# repl_server.py not found\n";
+            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            log.error("Failed to load repl_server.py", e);
+            return "# Failed to load repl_server.py\n";
         }
     }
 
