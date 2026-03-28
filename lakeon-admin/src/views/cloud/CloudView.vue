@@ -73,7 +73,7 @@ const topoGroups = computed(() => {
   const groups: Record<string, { type: string; nodes: any[] }> = {}
   const order = ['railway', 'network', 'compute', 'storage']
   for (const node of topology.value.nodes) {
-    const t = node.group || 'other'
+    const t = node.type || 'other'
     if (!groups[t]) groups[t] = { type: t, nodes: [] }
     groups[t].nodes.push(node)
   }
