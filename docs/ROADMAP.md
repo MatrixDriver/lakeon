@@ -34,6 +34,8 @@
 | Stage 16 | DBay 数据湖 | 03-20 → | 🔨 进行中 | — |
 | Stage 16b | BM25 → tsvector 全文搜索 | 03-22 | ✅ 完成 | — |
 | Stage 17 | Notebook 交互式开发 | 03-27 → | 🔨 进行中 | — |
+| Stage 17b | Ray Notebook + 热池 | 03-28 | ✅ 完成 | — |
+| Stage 15d | KB Pipeline 增强 | 03-25 → 03-28 | ✅ 完成 | — |
 
 ---
 
@@ -448,6 +450,21 @@
   - KB 级切片 Tab — 统计、直方图、可过滤切片表
   - 重切片对话框 — 参数输入、进度、对比视图
 
+## ✅ Stage 15d: KB Pipeline 增强
+
+> 2026-03-25 → 03-28
+
+- **多格式支持**: DOC/XLSX/XLS/PPTX/HTML 文档解析 (+ DOCX parser 升级)
+- **智能重试**: 错误分类 (transient/rate-limit/permanent) + 分级重试策略
+- **Pipeline 可观测性**:
+  - StageTracker — 每阶段耗时、内存指标、错误分类
+  - SRE Pipeline Monitor Tab — Gantt 图、内存指标、重试状态、筛选器
+  - Admin API — 任务列表 + 聚合统计 (JPA Specification 过滤)
+- **并发优化**: 并行文档处理，重量级任务不再阻塞队列
+- **延迟 Compute 唤醒**: 从 drain 预唤醒改为写入阶段按需唤醒
+- **DDL 死锁修复**: 并发文档写入时防止 schema 创建死锁
+- **全文高亮修复**: char_offset 越界校验 + 文本匹配回退
+
 ## 🔨 Stage 16: DBay 数据湖
 
 > 详细架构: [`AI-DataLake.md`](AI-DataLake.md)
@@ -528,13 +545,19 @@
 - **Variable explorer**: 侧边栏显示当前变量名/类型/值 (repl_server 加 `type: vars` 命令)
 - **执行状态 minimap**: 右侧显示每个 cell 状态 (queued/running/success/error)
 
-### Phase 4 — 分布式 Ray Notebook (📋 计划中)
-- Notebook pod 升级为 Ray head node
-- 自动创建 worker pods (可配置数量/资源)
+### Phase 4 — 分布式 Ray Notebook + 热池 (2026-03-28, ✅ 完成)
+- Ray head + N worker pods，用户可选 worker 数量和规格 (small/medium/large)
 - `ray.init(address="auto")` 直连 Ray 集群
-- 分布式 DataFrame / 并行任务 在 notebook 中实时执行
-- Ray Dashboard 集成 (iframe 或链接)
-- Session 销毁时清理整个 Ray 集群
+- **Ray Head 热池 (Warm Pool)**:
+  - WarmPoolManager 维护 2 个预创建 idle Ray head pods (CCI)
+  - Session 创建时从池中领取 (~0.5s)，池空时冷启动降级 (~18s)
+  - 用完即销毁不回收 (安全)，reconcile 自动补充
+  - CCI 实测: 冷启 23s → 热启 0.5s (session创建) + 7-11s (worker加入)
+- **RBAC**: ClusterRole 增加 pods/patch + configmaps/update/patch
+- **SRE 监控**: Admin API `/admin/datalake/warm-pool` + SRE 控制台热池 Tab
+- **资源清理**: reconcile 清理 Failed pods、超时 idle pods、孤儿 workers
+- **E2E 测试**: Python CLI 测试 (session → WebSocket → 代码执行 → 验证输出)
+- Session 销毁时清理整个 Ray 集群 (head + workers + ConfigMap)
 
 ### Phase 5 — 协作与版本控制 (📋 远期)
 - 版本历史 (每次保存记录快照, 可 diff/回滚)
@@ -558,10 +581,10 @@
 
 | 组件 | 版本 | 部署位置 |
 |------|------|----------|
-| lakeon-api | 0.9.21 | CCE (hostNetwork, HTTPS) |
+| lakeon-api | 0.9.141 | CCE (hostNetwork, HTTPS) |
 | lakeon-console | — | Railway |
 | lakeon-admin | — | Railway |
-| lakeon-knowledge-job | 0.2.3 | CCE (Job Pod) |
+| lakeon-knowledge-job | 0.2.7 | CCE (Job Pod) |
 | lakeon-import | 0.2.0 | CCE (Job Pod) |
 | dbay-cli | 0.1.0 | pip install |
 | dbay-mcp | 0.1.0 | MCP Server |
