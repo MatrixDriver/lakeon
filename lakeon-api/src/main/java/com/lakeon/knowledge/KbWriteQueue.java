@@ -88,6 +88,7 @@ public class KbWriteQueue {
     }
 
     private static final long STUCK_TASK_TIMEOUT_MINUTES = 30;
+    private static final long STUCK_SUMMARIZE_TIMEOUT_MINUTES = 5;
 
     /**
      * On startup, recover any databases that have QUEUED tasks sitting in the DB.
@@ -150,6 +151,37 @@ public class KbWriteQueue {
             }
             if (!stuck.isEmpty()) {
                 log.info("Detected {} stuck tasks, processed with retry logic", stuck.size());
+            }
+
+            // Detect stuck summarize tasks with a shorter 5-minute timeout
+            Instant summarizeCutoff = Instant.now().minusSeconds(STUCK_SUMMARIZE_TIMEOUT_MINUTES * 60);
+            List<KbWriteTaskEntity> stuckSummarize = taskRepository.findStuckSummarizeRunningBefore(summarizeCutoff);
+            for (KbWriteTaskEntity task : stuckSummarize) {
+                String stuckError = "Summarize task timed out (>" + STUCK_SUMMARIZE_TIMEOUT_MINUTES + "m)";
+                String errorCategory = "TRANSIENT";
+                task.setErrorCategory(errorCategory);
+                task.setError(stuckError);
+
+                if (shouldRetry(task, errorCategory)) {
+                    task.setRetryCount(task.getRetryCount() + 1);
+                    task.setStatus(KbWriteTaskStatus.QUEUED);
+                    task.setStartedAt(null);
+                    task.setJobId(null);
+                    task.setNextRetryAt(null);
+                    taskRepository.save(task);
+                    log.warn("Stuck summarize task {} re-queued for retry ({}/{}) (RUNNING since {})",
+                             task.getId(), task.getRetryCount(), task.getMaxRetries(), task.getStartedAt());
+                } else {
+                    task.setStatus(KbWriteTaskStatus.FAILED);
+                    task.setCompletedAt(Instant.now());
+                    taskRepository.save(task);
+                    log.warn("Stuck summarize task {} failed permanently after {} retries (RUNNING since {})",
+                             task.getId(), task.getRetryCount(), task.getStartedAt());
+                }
+                executor.submit(() -> drain(task.getDatabaseId()));
+            }
+            if (!stuckSummarize.isEmpty()) {
+                log.info("Detected {} stuck summarize tasks, processed with retry logic", stuckSummarize.size());
             }
         } catch (Exception e) {
             log.warn("Error detecting stuck tasks: {}", e.getMessage());
