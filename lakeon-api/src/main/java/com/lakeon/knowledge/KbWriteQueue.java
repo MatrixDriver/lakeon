@@ -797,7 +797,18 @@ public class KbWriteQueue {
                 "DELETE FROM knowledge_chunks WHERE document_id = ?")) {
             ps.setString(1, docId);
             int deleted = ps.executeUpdate();
-            log.info("Deleted {} chunks for document {}", deleted, docId);
+            log.info("Deleted {} chunks (all levels) for document {}", deleted, docId);
+        }
+
+        // Re-generate L2 global summary now that a document's chunks are gone
+        if (params.containsKey("tenant_id") && params.containsKey("kb_id")) {
+            Map<String, Object> kbParams = new LinkedHashMap<>();
+            kbParams.put("tenant_id", params.get("tenant_id"));
+            kbParams.put("kb_id", params.get("kb_id"));
+            kbParams.put("connstr", params.get("connstr"));
+            kbParams.put("database_id", params.get("database_id"));
+            enqueueTask((String) params.get("database_id"), KbWriteTaskType.KB_SUMMARIZE, kbParams);
+            log.info("Enqueued KB_SUMMARIZE after document delete for KB {}", params.get("kb_id"));
         }
     }
 
