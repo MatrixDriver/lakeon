@@ -59,6 +59,7 @@ public class AdminController {
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final DocumentRepository documentRepository;
     private final KbWriteTaskRepository kbWriteTaskRepository;
+    private final KbWriteQueue kbWriteQueue;
     private final KnowledgeService knowledgeService;
     private final MemoryBaseRepository memoryBaseRepository;
     private final MemoryService memoryService;
@@ -86,6 +87,7 @@ public class AdminController {
                            KnowledgeBaseRepository knowledgeBaseRepository,
                            DocumentRepository documentRepository,
                            KbWriteTaskRepository kbWriteTaskRepository,
+                           KbWriteQueue kbWriteQueue,
                            KnowledgeService knowledgeService,
                            MemoryBaseRepository memoryBaseRepository,
                            MemoryService memoryService,
@@ -110,6 +112,7 @@ public class AdminController {
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.documentRepository = documentRepository;
         this.kbWriteTaskRepository = kbWriteTaskRepository;
+        this.kbWriteQueue = kbWriteQueue;
         this.knowledgeService = knowledgeService;
         this.memoryBaseRepository = memoryBaseRepository;
         this.memoryService = memoryService;
@@ -759,6 +762,19 @@ public class AdminController {
                 .limit(limit)
                 .map(this::taskToMap)
                 .toList();
+    }
+
+    @PostMapping("/knowledge/write-tasks/{id}/fail")
+    public Map<String, Object> failWriteTask(@PathVariable String id) {
+        KbWriteTaskEntity task = kbWriteTaskRepository.findById(id)
+                .orElseThrow(() -> new com.lakeon.service.exception.NotFoundException("Task not found: " + id));
+        task.setStatus(KbWriteTaskStatus.FAILED);
+        task.setError("Manually failed by admin");
+        task.setCompletedAt(java.time.Instant.now());
+        kbWriteTaskRepository.save(task);
+        // Trigger drain for next task
+        kbWriteQueue.onJobCompleted(task.getJobId() != null ? task.getJobId() : "manual-" + id, false, null, "Admin cancelled");
+        return taskToMap(task);
     }
 
     // ── Memory Admin ──────────────────────────────────────

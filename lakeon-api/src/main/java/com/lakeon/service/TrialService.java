@@ -26,6 +26,7 @@ public class TrialService {
     private final DatabaseService databaseService;
     private final TenantRepository tenantRepository;
     private final DatabaseRepository databaseRepository;
+    private final org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder passwordEncoder = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
 
     public TrialService(LakeonProperties props, DatabaseService databaseService,
                         TenantRepository tenantRepository, DatabaseRepository databaseRepository) {
@@ -56,6 +57,12 @@ public class TrialService {
                 t.prePersist();
                 tenantRepository.save(t);
                 log.info("Demo tenant {} — generated missing api_key", demoTenantId);
+            }
+            // Fix empty password hash
+            if (t.getPasswordHash() == null || t.getPasswordHash().isBlank()) {
+                t.setPasswordHash(passwordEncoder.encode("demo2026"));
+                tenantRepository.save(t);
+                log.info("Demo tenant {} — set default password", demoTenantId);
             }
             log.info("Demo tenant {} already exists (name={}, api_key={}...)",
                     demoTenantId, t.getName(),
