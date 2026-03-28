@@ -28,6 +28,7 @@
     <div class="tab-bar">
       <div class="tab-item" :class="{ active: activeTab === 'jobs' }" @click="activeTab = 'jobs'">作业列表</div>
       <div class="tab-item" :class="{ active: activeTab === 'datasets' }" @click="activeTab = 'datasets'; loadDatasets()">数据集管理</div>
+      <div class="tab-item" :class="{ active: activeTab === 'warmpool' }" @click="activeTab = 'warmpool'; loadWarmPool()">热池</div>
     </div>
 
     <!-- Jobs Tab -->
@@ -198,6 +199,81 @@
       </div>
     </template>
 
+    <!-- Warm Pool Tab -->
+    <template v-if="activeTab === 'warmpool'">
+      <div v-if="!warmPool">
+        <div class="empty-state">加载中...</div>
+      </div>
+      <div v-else-if="!warmPool.enabled">
+        <div class="empty-state">热池未启用</div>
+      </div>
+      <template v-else>
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-value" :style="{ color: warmPool.idle >= warmPool.target_size ? '#52c41a' : '#faad14' }">{{ warmPool.idle }}</div>
+            <div class="stat-label">空闲</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" style="color: #1890ff;">{{ warmPool.claimed }}</div>
+            <div class="stat-label">已分配</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">{{ warmPool.pending }}</div>
+            <div class="stat-label">启动中</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">{{ warmPool.target_size }}</div>
+            <div class="stat-label">目标池大小</div>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Pod 名称</th>
+                <th>池状态</th>
+                <th>Phase</th>
+                <th>IP</th>
+                <th>租户</th>
+                <th>会话</th>
+                <th>创建时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="pod in warmPool.pods" :key="pod.name">
+                <td><span style="font-family: monospace; font-size: 12px;">{{ pod.name }}</span></td>
+                <td>
+                  <span class="pool-status-tag" :class="'ps-' + pod.pool_status">{{ pod.pool_status }}</span>
+                </td>
+                <td><span style="font-family: monospace;">{{ pod.phase }}</span></td>
+                <td><span style="font-family: monospace;">{{ pod.ip || '—' }}</span></td>
+                <td>
+                  <template v-if="pod.tenant_id">
+                    {{ tenantStore.name(pod.tenant_id) }}
+                    <br><span style="font-size: 11px; color: #999; font-family: monospace;">{{ pod.tenant_id }}</span>
+                  </template>
+                  <span v-else style="color: #ccc;">—</span>
+                </td>
+                <td><span style="font-family: monospace; font-size: 11px;">{{ pod.session_id || '—' }}</span></td>
+                <td>{{ formatDate(pod.created_at) }}</td>
+              </tr>
+              <tr v-if="warmPool.pods.length === 0">
+                <td colspan="7" class="empty-state">暂无热池 Pod</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="warmpool-config">
+          <span>镜像: <code>{{ warmPool.image?.split('/').pop() }}</code></span>
+          <span>Namespace: <code>{{ warmPool.namespace }}</code></span>
+          <span>空闲超时: {{ warmPool.idle_timeout_minutes }} 分钟</span>
+          <button class="btn btn-default btn-small" @click="loadWarmPool" style="margin-left: auto;">刷新</button>
+        </div>
+      </template>
+    </template>
+
     <!-- Log Viewer Dialog -->
     <div v-if="logDialogVisible" class="dialog-overlay" @click.self="closeLogDialog">
       <div class="dialog-box" style="width: 80vw; max-width: 900px; max-height: 80vh;">
@@ -244,9 +320,20 @@ const STATUS_LABELS: Record<string, string> = {
 const SOURCE_LABELS: Record<string, string> = { DB_EXPORT: '数据库导出', JOB_OUTPUT: '作业输出' }
 const TERMINAL = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED'])
 
+interface WarmPoolPod {
+  name: string; phase: string; pool_status: string; ip: string | null
+  created_at: string | null; tenant_id: string | null; session_id: string | null
+}
+interface WarmPoolState {
+  enabled: boolean; target_size: number; namespace: string; image: string
+  idle_timeout_minutes: number; idle: number; claimed: number; pending: number
+  total: number; pods: WarmPoolPod[]
+}
+
 const activeTab = ref('jobs')
 const stats = ref<any>(null)
 const datasetCount = ref(0)
+const warmPool = ref<WarmPoolState | null>(null)
 
 // Jobs
 const jobs = ref<DatalakeJob[]>([])
@@ -409,6 +496,13 @@ function closeLogDialog() {
   }
 }
 
+async function loadWarmPool() {
+  try {
+    const { data } = await adminApi.getWarmPoolStatus()
+    warmPool.value = data
+  } catch { /* ignore */ }
+}
+
 async function deleteDataset(ds: Dataset) {
   if (!confirm(`确认删除数据集 "${ds.name}" (${ds.id})？`)) return
   try {
@@ -495,4 +589,19 @@ onMounted(() => {
   background: none; border: none; font-size: 24px; cursor: pointer; color: #999;
 }
 .dialog-body { padding: 16px 20px; overflow-y: auto; }
+
+.pool-status-tag {
+  display: inline-block; padding: 1px 8px; border-radius: 3px; font-size: 12px; font-weight: 500;
+}
+.ps-idle { background: #f6ffed; color: #389e0d; }
+.ps-claimed { background: #e6f7ff; color: #0073e6; }
+.ps-unknown { background: #f0f0f0; color: #999; }
+
+.warmpool-config {
+  display: flex; align-items: center; gap: 20px; font-size: 13px; color: #666;
+  margin-top: 16px; padding: 12px 0; border-top: 1px solid #f0f0f0;
+}
+.warmpool-config code {
+  background: #f5f5f5; padding: 1px 6px; border-radius: 3px; font-size: 12px;
+}
 </style>

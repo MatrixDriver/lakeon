@@ -165,10 +165,6 @@
               <router-link to="/datalake/jobs" class="nav-item" active-class="active" @click="sidebarOpen = false">作业管理</router-link>
               <router-link to="/datalake/notebook" class="nav-item" active-class="active" @click="sidebarOpen = false">Notebook</router-link>
             </div>
-            <div class="nav-group">
-              <div class="nav-group-title">监控</div>
-              <router-link to="/datalake/monitor" class="nav-item" active-class="active" @click="sidebarOpen = false">数据湖监控</router-link>
-            </div>
           </template>
           <!-- 设置菜单 -->
           <template v-if="activeRail === 'settings'">

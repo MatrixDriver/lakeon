@@ -106,6 +106,9 @@ export const adminApi = {
   getDatalakeJob: (id: string) => client.get(`/datalake/jobs/${id}`),
   cancelDatalakeJob: (id: string) => client.delete(`/datalake/jobs/${id}`),
 
+  // Warm Pool
+  getWarmPoolStatus: () => client.get('/datalake/warm-pool'),
+
   // Dataset Admin
   listDatasets: (params?: { tenant_id?: string; status?: string }) =>
     client.get('/datalake/datasets', { params }),
