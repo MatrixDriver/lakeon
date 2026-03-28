@@ -130,21 +130,23 @@ public class WarmPoolManager {
         int pending = 0;
 
         for (Pod pod : allPoolPods) {
+            String podName = pod.getMetadata().getName();
             String status = pod.getMetadata().getLabels().getOrDefault("lakeon.io/status", "");
             String phase = pod.getStatus() != null ? pod.getStatus().getPhase() : "";
+
+            // Clean up Failed/Error pods and their ConfigMaps
+            if ("Failed".equals(phase) || "Error".equals(phase)) {
+                deletePodAndConfigMap(ns, podName);
+                log.info("Cleaned up failed pool pod: {}", podName);
+                continue;
+            }
 
             if ("idle".equals(status)) {
                 // Check if past timeout
                 Instant created = parseCreationTimestamp(pod);
                 if (created != null && created.isBefore(cutoff)) {
-                    try {
-                        k8sClient.pods().inNamespace(ns)
-                                .withName(pod.getMetadata().getName()).delete();
-                        log.info("Deleted stale idle pod: {}", pod.getMetadata().getName());
-                    } catch (Exception e) {
-                        log.warn("Failed to delete stale pod {}: {}",
-                                pod.getMetadata().getName(), e.getMessage());
-                    }
+                    deletePodAndConfigMap(ns, podName);
+                    log.info("Deleted stale idle pod: {}", podName);
                     continue;
                 }
 
@@ -154,6 +156,30 @@ public class WarmPoolManager {
                     pending++;
                 }
             }
+        }
+
+        // Clean up orphan worker pods (workers whose head pod no longer exists)
+        try {
+            var workerPods = k8sClient.pods().inNamespace(ns)
+                    .withLabel("app", "notebook-worker").list().getItems();
+            for (Pod w : workerPods) {
+                String wName = w.getMetadata().getName();
+                // Extract head name: warm-ray-head-XXXX-worker-N -> warm-ray-head-XXXX
+                int workerIdx = wName.lastIndexOf("-worker-");
+                if (workerIdx < 0) continue;
+                String headName = wName.substring(0, workerIdx);
+                Pod head = k8sClient.pods().inNamespace(ns).withName(headName).get();
+                if (head == null) {
+                    try {
+                        k8sClient.pods().inNamespace(ns).withName(wName).delete();
+                        log.info("Deleted orphan worker: {}", wName);
+                    } catch (Exception e) {
+                        log.debug("Failed to delete orphan worker {}: {}", wName, e.getMessage());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Failed to scan orphan workers: {}", e.getMessage());
         }
 
         int available = idleRunning + pending;
@@ -271,6 +297,19 @@ public class WarmPoolManager {
             log.info("Created warm pool pod: {}/{}", ns, podName);
         } catch (Exception e) {
             log.warn("Failed to create warm pool pod {}: {}", podName, e.getMessage());
+        }
+    }
+
+    private void deletePodAndConfigMap(String ns, String podName) {
+        try {
+            k8sClient.pods().inNamespace(ns).withName(podName).delete();
+        } catch (Exception e) {
+            log.debug("Failed to delete pod {}: {}", podName, e.getMessage());
+        }
+        try {
+            k8sClient.configMaps().inNamespace(ns).withName(podName + "-repl").delete();
+        } catch (Exception e) {
+            log.debug("Failed to delete ConfigMap {}-repl: {}", podName, e.getMessage());
         }
     }
 
