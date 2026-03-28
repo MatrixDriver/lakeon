@@ -1,6 +1,6 @@
 # Lakeon (DBay) 产品路线图
 
-> 最后更新: 2026-03-23
+> 最后更新: 2026-03-28
 
 ## 阶段总览
 
@@ -33,6 +33,7 @@
 | Stage 15c | 切片管理 | 03-18 | ✅ 完成 | — |
 | Stage 16 | DBay 数据湖 | 03-20 → | 🔨 进行中 | — |
 | Stage 16b | BM25 → tsvector 全文搜索 | 03-22 | ✅ 完成 | — |
+| Stage 17 | Notebook 交互式开发 | 03-27 → | 🔨 进行中 | — |
 
 ---
 
@@ -498,6 +499,48 @@
   - DatabaseService: 从 DEFAULT_EXTENSIONS 移除 `pg_search`
   - KnowledgeService: hybrid search SQL 从 `paradedb.score()` + `content @@@ ?` 改为 `ts_rank_cd()` + `plainto_tsquery()` (RRF 融合不变)
 - **影响**: 搜索质量略低于 BM25（tsvector 是简单词频匹配），但 Neon 兼容性保证稳定运行
+
+---
+
+## 🔨 Stage 17: Notebook 交互式开发环境
+
+### Phase 1 — 基础 Notebook (2026-03-27, ✅ 完成)
+- repl_server.py (exec 上下文持久化, JSON lines 协议)
+- K8s pod per session (python-data 镜像, OBS STS 凭据注入)
+- WebSocket exec bridge (Spring @EnableWebSocket + Fabric8 K8s exec)
+- Session 管理 (max 1/tenant, 30min 空闲回收, REST CRUD)
+- 前端 Notebook 页面 (CodeMirror cells, Shift+Enter 执行)
+- 输出渲染: 文本, DataFrame 表格, Plotly 图表, matplotlib PNG, error traceback
+- 一键 "Submit as Job" (合并 cells → 预填作业创建页)
+
+### Phase 2 — Notebook 持久化 + 管理 (📋 计划中)
+- Notebook 保存到 OBS (`notebooks/{tenantId}/{notebookId}/notebook.json`)
+- 自动保存 (debounce 3s, cell 修改后自动上传)
+- Notebook 列表页 (名称、最后修改时间、打开/复制/删除)
+- 新建/重命名 Notebook
+- 从 localStorage 迁移到 OBS 持久化
+
+### Phase 3 — 开发体验增强 (📋 计划中)
+- **Magic commands**: `%pip install`, `%sh`, `%sql` (连用户数据库), `%md` (Markdown cell)
+- **Markdown cell**: Code/Markdown 类型切换, 编辑→渲染切换
+- **代码自动补全**: CodeMirror autocomplete 扩展 + Python 关键字/标准库补全
+- **AI 内联辅助**: 复用现有 AI Script API, cell 内 Ctrl+Space 触发补全
+- **Variable explorer**: 侧边栏显示当前变量名/类型/值 (repl_server 加 `type: vars` 命令)
+- **执行状态 minimap**: 右侧显示每个 cell 状态 (queued/running/success/error)
+
+### Phase 4 — 分布式 Ray Notebook (📋 计划中)
+- Notebook pod 升级为 Ray head node
+- 自动创建 worker pods (可配置数量/资源)
+- `ray.init(address="auto")` 直连 Ray 集群
+- 分布式 DataFrame / 并行任务 在 notebook 中实时执行
+- Ray Dashboard 集成 (iframe 或链接)
+- Session 销毁时清理整个 Ray 集群
+
+### Phase 5 — 协作与版本控制 (📋 远期)
+- 版本历史 (每次保存记录快照, 可 diff/回滚)
+- GitHub 联动 (OAuth + commit/push notebook 到 repo)
+- Cell 评论/注释 (团队讨论)
+- 实时协作 (多人同时编辑, 需 OT/CRDT)
 
 ---
 
