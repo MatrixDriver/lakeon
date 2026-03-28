@@ -862,6 +862,8 @@ public class KbWriteQueue {
         task.setType(type);
         task.setStatus(KbWriteTaskStatus.QUEUED);
         task.setMaxRetries(3);
+        if (params.containsKey("tenant_id")) task.setTenantId((String) params.get("tenant_id"));
+        if (params.containsKey("kb_id")) task.setKbId((String) params.get("kb_id"));
         try {
             task.setParams(objectMapper.writeValueAsString(params));
         } catch (Exception e) {
