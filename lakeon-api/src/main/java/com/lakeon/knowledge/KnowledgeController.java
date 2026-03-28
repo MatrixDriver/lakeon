@@ -2,6 +2,8 @@ package com.lakeon.knowledge;
 
 import com.lakeon.model.entity.TenantEntity;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +16,7 @@ import java.util.Map;
 @RequestMapping("/api/v1/knowledge")
 public class KnowledgeController {
 
+    private static final Logger log = LoggerFactory.getLogger(KnowledgeController.class);
     private final KnowledgeService knowledgeService;
     private final DocumentRepository documentRepository;
 
@@ -194,7 +197,7 @@ public class KnowledgeController {
             List<Map<String, Object>> allResults = new java.util.ArrayList<>();
 
             for (KnowledgeBaseEntity kb : allKbs) {
-                if (kb.getType() != KnowledgeBaseType.DOCUMENT || !"READY".equals(kb.getStatus())) continue;
+                if (kb.getType() != KnowledgeBaseType.DOCUMENT || kb.getStatus() != KnowledgeBaseStatus.READY) continue;
                 try {
                     Map<String, Object> sr = knowledgeService.search(
                             tenant.getId(), kb.getId(), query, topK, null, tags, rerank, conversationHistory);
@@ -208,7 +211,7 @@ public class KnowledgeController {
                     }
                     allResults.addAll(results);
                 } catch (Exception e) {
-                    // Skip KBs that fail (e.g. DB suspended)
+                    log.warn("Cross-KB search failed for kb {} ({}): {}", kb.getId(), kb.getName(), e.getMessage());
                 }
             }
 
