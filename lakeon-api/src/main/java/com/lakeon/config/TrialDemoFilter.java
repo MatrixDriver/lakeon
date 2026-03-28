@@ -44,8 +44,7 @@ public class TrialDemoFilter implements Filter {
     private static final Set<String> OWN_TENANT_PATHS = Set.of(
         "/api/v1/tenants/me",
         "/api/v1/usage",
-        "/api/v1/auth/",
-        "/api/v1/datalake/"
+        "/api/v1/auth/"
     );
 
     public TrialDemoFilter(LakeonProperties props, TenantRepository tenantRepository) {
