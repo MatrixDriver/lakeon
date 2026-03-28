@@ -14,10 +14,25 @@
           <option value="">-- 选择数据集 --</option>
           <option v-for="ds in datasets" :key="ds.id" :value="ds.id">{{ ds.name }}</option>
         </select>
+        <button class="nb-btn" @click="requestVars" :disabled="kernelStatus !== 'running'">Variables</button>
         <button class="nb-btn nb-btn-primary" @click="submitAsJob" :disabled="cells.length === 0">Submit as Job</button>
         <button v-if="kernelStatus !== 'stopped'" class="nb-btn nb-btn-danger" @click="stopKernel">Stop Kernel</button>
         <button v-else class="nb-btn" @click="startKernel">Start Kernel</button>
       </div>
+    </div>
+
+    <div v-if="showVars" class="nb-vars-panel">
+      <div v-if="variables.length === 0" style="color: #9ca3af; font-size: 12px; padding: 8px;">No variables defined</div>
+      <table v-else class="nb-vars-table">
+        <thead><tr><th>Name</th><th>Type</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr v-for="v in variables" :key="v.name">
+            <td style="font-family: monospace; font-weight: 500;">{{ v.name }}</td>
+            <td style="font-family: monospace; color: #6b7280;">{{ v.type }}</td>
+            <td style="font-family: monospace; color: #334155; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ v.repr }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <div class="nb-cells">
@@ -25,9 +40,11 @@
         v-for="(cell, i) in cells" :key="cell.id"
         :code="cell.code" :is-active="activeIndex === i" :is-running="cell.running"
         :exec-count="cell.execCount" :duration-ms="cell.durationMs" :outputs="cell.outputs"
+        :cell-type="cell.cellType"
         @update:code="cell.code = $event; saveCells()"
         @run="runCell(i)" @delete="deleteCell(i)"
         @focus="activeIndex = i" @advance="advanceCell(i)"
+        @toggle-type="toggleCellType(i)"
       />
       <button class="nb-add-btn" @click="addCell()">+ Add Cell</button>
     </div>
@@ -46,10 +63,14 @@ const router = useRouter()
 interface Cell {
   id: string; code: string; outputs: NotebookMessage[]
   running: boolean; execCount: number | null; durationMs: number | null
+  cellType: 'code' | 'markdown'
 }
 
 const cells = ref<Cell[]>([])
 const activeIndex = ref(0)
+const showVars = ref(false)
+const variables = ref<Array<{ name: string; type: string; repr: string }>>([])
+
 const imageKey = ref('python-data')
 const selectedDatasetId = ref('')
 const datasets = ref<Array<{ id: string; name: string }>>([])
@@ -61,8 +82,8 @@ const statusLabel = computed(() => ({
   stopped: 'Stopped', starting: 'Starting...', running: 'Running', disconnected: 'Disconnected'
 }[kernelStatus.value] || kernelStatus.value))
 
-function newCell(code = ''): Cell {
-  return { id: 'cell_' + Math.random().toString(36).slice(2, 8), code, outputs: [], running: false, execCount: null, durationMs: null }
+function newCell(code = '', cellType: 'code' | 'markdown' = 'code'): Cell {
+  return { id: 'cell_' + Math.random().toString(36).slice(2, 8), code, outputs: [], running: false, execCount: null, durationMs: null, cellType }
 }
 
 function addCell(code = '') { cells.value.push(newCell(code)); activeIndex.value = cells.value.length - 1; saveCells() }
@@ -84,8 +105,27 @@ function runCell(i: number) {
   socket?.execute(cell.id, cell.code)
 }
 
+function toggleCellType(i: number) {
+  const cell = cells.value[i]
+  if (cell) {
+    cell.cellType = cell.cellType === 'code' ? 'markdown' : 'code'
+    saveCells()
+  }
+}
+
+function requestVars() {
+  showVars.value = !showVars.value
+  if (showVars.value) {
+    socket?.send({ type: 'vars', id: 'vars' })
+  }
+}
+
 function handleMessage(msg: NotebookMessage) {
   if (msg.type === 'ready') return
+  if (msg.type === 'vars') {
+    variables.value = msg.variables || []
+    return
+  }
   const cell = cells.value.find(c => c.id === msg.id)
   if (cell == null) return
   if (msg.type === 'done') {
@@ -129,12 +169,12 @@ function submitAsJob() {
 }
 
 function saveCells() {
-  localStorage.setItem('notebook_cells', JSON.stringify(cells.value.map(c => ({ id: c.id, code: c.code }))))
+  localStorage.setItem('notebook_cells', JSON.stringify(cells.value.map(c => ({ id: c.id, code: c.code, cellType: c.cellType }))))
 }
 function loadCells() {
   try {
     const raw = localStorage.getItem('notebook_cells')
-    if (raw) { const data = JSON.parse(raw); cells.value = data.map((d: any) => newCell(d.code)) }
+    if (raw) { const data = JSON.parse(raw); cells.value = data.map((d: any) => newCell(d.code, d.cellType || 'code')) }
   } catch {}
   if (cells.value.length === 0) addCell()
 }
@@ -167,4 +207,8 @@ onUnmounted(() => { socket?.disconnect() })
 .nb-cells { max-width: 960px; }
 .nb-add-btn { display: block; width: 100%; padding: 10px; margin-top: 4px; background: none; border: 2px dashed #e5e7eb; border-radius: 8px; color: #9ca3af; font-size: 13px; cursor: pointer; text-align: center; }
 .nb-add-btn:hover { border-color: #2563eb; color: #2563eb; }
+.nb-vars-panel { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; margin-bottom: 16px; background: #f9fafb; max-height: 200px; overflow-y: auto; }
+.nb-vars-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.nb-vars-table th { text-align: left; padding: 4px 10px; color: #6b7280; border-bottom: 1px solid #e5e7eb; font-weight: 600; }
+.nb-vars-table td { padding: 3px 10px; border-bottom: 1px solid #f1f5f9; }
 </style>

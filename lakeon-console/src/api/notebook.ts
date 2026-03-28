@@ -1,7 +1,7 @@
 import client from './client'
 
-export function createSession(image?: string, datasetIds?: string[]) {
-  return client.post('/datalake/notebook/sessions', { image, dataset_ids: datasetIds })
+export function createSession(image?: string, datasetIds?: string[], workerCount?: number) {
+  return client.post('/datalake/notebook/sessions', { image, dataset_ids: datasetIds, worker_count: workerCount })
 }
 
 export function getCurrentSession() {
@@ -23,6 +23,7 @@ export interface NotebookMessage {
   duration_ms?: number
   exec_count?: number
   mime?: string
+  variables?: Array<{ name: string; type: string; repr: string }>
 }
 
 export class NotebookSocket {

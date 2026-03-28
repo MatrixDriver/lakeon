@@ -7,6 +7,9 @@
         <button class="nb-cell-btn" @click="$emit('run')" :disabled="isRunning" title="Run (Shift+Enter)">
           {{ isRunning ? '...' : '▶' }}
         </button>
+        <button class="nb-cell-btn" @click="$emit('toggleType')" :title="cellType === 'code' ? 'Switch to Markdown' : 'Switch to Code'">
+          {{ cellType === 'code' ? 'Py' : 'Md' }}
+        </button>
         <button class="nb-cell-btn" @click="$emit('delete')" title="Delete cell">✕</button>
       </div>
     </div>
@@ -19,6 +22,7 @@
         <pre v-else-if="out.type === 'result'" class="nb-out-text">{{ out.text }}</pre>
         <div v-else-if="out.type === 'plotly'" :ref="el => mountPlotly(el as HTMLElement, out.data)" class="nb-out-plotly"></div>
         <img v-else-if="out.type === 'image'" class="nb-out-image" :src="'data:' + out.mime + ';base64,' + out.data" />
+        <div v-else-if="out.type === 'markdown'" class="nb-out-markdown" v-html="renderMarkdown(out.text || '')"></div>
       </template>
     </div>
   </div>
@@ -26,6 +30,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { marked } from 'marked'
 import { EditorState } from '@codemirror/state'
 import { EditorView, lineNumbers, highlightActiveLine, keymap } from '@codemirror/view'
 import { python } from '@codemirror/lang-python'
@@ -39,6 +44,7 @@ const props = defineProps<{
   execCount: number | null
   durationMs: number | null
   outputs: NotebookMessage[]
+  cellType: string
 }>()
 
 const emit = defineEmits<{
@@ -47,6 +53,7 @@ const emit = defineEmits<{
   'delete': []
   'focus': []
   'advance': []
+  'toggleType': []
 }>()
 
 const editorEl = ref<HTMLElement | null>(null)
@@ -73,6 +80,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => view?.destroy())
+
+function renderMarkdown(text: string): string {
+  return marked.parse(text) as string
+}
 
 function mountPlotly(el: HTMLElement | null, data: any) {
   if (!el || !data) return
@@ -113,4 +124,13 @@ function mountPlotly(el: HTMLElement | null, data: any) {
 .nb-out-html :deep(th) { background: #f1f5f9; font-weight: 600; }
 .nb-out-plotly { min-height: 300px; }
 .nb-out-image { max-width: 100%; border-radius: 4px; }
+.nb-out-markdown { padding: 8px 14px; line-height: 1.6; font-size: 14px; }
+.nb-out-markdown :deep(h1) { font-size: 20px; margin: 12px 0 8px; }
+.nb-out-markdown :deep(h2) { font-size: 17px; margin: 10px 0 6px; }
+.nb-out-markdown :deep(h3) { font-size: 15px; margin: 8px 0 4px; }
+.nb-out-markdown :deep(code) { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+.nb-out-markdown :deep(pre) { background: #f1f5f9; padding: 10px; border-radius: 6px; overflow-x: auto; }
+.nb-out-markdown :deep(ul), .nb-out-markdown :deep(ol) { padding-left: 20px; }
+.nb-out-markdown :deep(table) { border-collapse: collapse; }
+.nb-out-markdown :deep(th), .nb-out-markdown :deep(td) { border: 1px solid #e5e7eb; padding: 4px 10px; }
 </style>
