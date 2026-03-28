@@ -3,7 +3,7 @@
     <div class="page-header">
       <h1 class="page-title">Notebook</h1>
       <div class="page-header-actions">
-        <button class="btn btn-primary" @click="showCreateDialog = true">New Notebook</button>
+        <button class="btn btn-primary" @click="showCreateDialog = true">新建 Notebook</button>
       </div>
     </div>
 
@@ -12,10 +12,10 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Image</th>
-            <th>Last Modified</th>
-            <th>Actions</th>
+            <th>名称</th>
+            <th>镜像</th>
+            <th>最后修改</th>
+            <th>操作</th>
           </tr>
         </thead>
         <tbody>
@@ -26,33 +26,33 @@
             <td><span class="nb-image-tag">{{ nb.image }}</span></td>
             <td>{{ formatDate(nb.updated_at) }}</td>
             <td>
-              <button class="btn btn-text btn-small" @click="renameNotebook(nb)">Rename</button>
-              <button class="btn btn-text btn-small" style="color:#e53e3e;" @click="deleteNotebook(nb)">Delete</button>
+              <button class="btn btn-text btn-small" @click="renameNotebook(nb)">重命名</button>
+              <button class="btn btn-text btn-small" style="color:#e53e3e;" @click="deleteNotebook(nb)">删除</button>
             </td>
           </tr>
           <tr v-if="notebooks.length === 0 && !loading">
-            <td colspan="4" class="empty-state-cell">No notebooks yet</td>
+            <td colspan="4" class="empty-state-cell">暂无 Notebook</td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <div v-if="loading" style="text-align:center;padding:40px;color:#999;">Loading...</div>
+    <div v-if="loading" style="text-align:center;padding:40px;color:#999;">加载中...</div>
 
     <!-- Create Dialog -->
     <div v-if="showCreateDialog" class="dialog-overlay" @click.self="showCreateDialog = false">
       <div class="dialog-box" style="width:400px;">
         <div class="dialog-header">
-          <h3>New Notebook</h3>
+          <h3>新建 Notebook</h3>
           <button class="dialog-close" @click="showCreateDialog = false">&times;</button>
         </div>
         <div class="dialog-body">
           <div style="margin-bottom:12px;">
-            <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Name</label>
-            <input v-model="newName" class="form-input" style="width:100%;" placeholder="My Notebook" @keyup.enter="createNotebook" />
+            <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">名称</label>
+            <input v-model="newName" class="form-input" style="width:100%;" placeholder="我的 Notebook" @keyup.enter="createNotebook" />
           </div>
           <div>
-            <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Image</label>
+            <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">镜像</label>
             <select v-model="newImage" class="form-select" style="width:100%;">
               <option value="python-data">python-data</option>
               <option value="ray">ray</option>
@@ -60,9 +60,9 @@
           </div>
         </div>
         <div class="dialog-footer">
-          <button class="btn" @click="showCreateDialog = false">Cancel</button>
+          <button class="btn" @click="showCreateDialog = false">取消</button>
           <button class="btn btn-primary" @click="createNotebook" :disabled="!newName.trim() || creating">
-            {{ creating ? 'Creating...' : 'Create' }}
+            {{ creating ? '创建中...' : '创建' }}
           </button>
         </div>
       </div>
@@ -125,7 +125,7 @@ async function createNotebook() {
 }
 
 async function renameNotebook(nb: Notebook) {
-  const name = prompt('New name:', nb.name)
+  const name = prompt('新名称:', nb.name)
   if (!name || !name.trim() || name.trim() === nb.name) return
   try {
     await notebooksApi.rename(nb.id, name.trim())
@@ -136,7 +136,7 @@ async function renameNotebook(nb: Notebook) {
 }
 
 async function deleteNotebook(nb: Notebook) {
-  if (!confirm(`Delete notebook "${nb.name}"? This cannot be undone.`)) return
+  if (!confirm(`确认删除 "${nb.name}"？此操作不可恢复。`)) return
   try {
     await notebooksApi.remove(nb.id)
     await fetchNotebooks()
