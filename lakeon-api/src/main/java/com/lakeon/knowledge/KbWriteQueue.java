@@ -30,10 +30,10 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Core scheduler for KB write operations.
- * Ensures per-database serial execution: only one write task runs at a time per database.
- * All writes go through the user's compute pod (Neon only supports one writer per timeline).
- * Lightweight tasks (chunk CRUD) execute SQL directly via the compute pod.
- * Heavyweight tasks (document parse, rechunk) submit a job pod that connects to the compute pod.
+ * Lightweight tasks (chunk CRUD) execute serially per database via direct JDBC.
+ * Heavyweight tasks (document parse) submit job pods that run concurrently — multiple
+ * documents can be parsed/embedded in parallel, then write to the same compute pod
+ * (PostgreSQL handles concurrent inserts to different document rows).
  */
 @Service
 public class KbWriteQueue {
@@ -400,8 +400,15 @@ public class KbWriteQueue {
     }
 
     /**
-     * Per-database serial drain: take the next QUEUED task and execute it.
-     * Only one drain runs per database at a time (ReentrantLock).
+     * Per-database drain: process QUEUED tasks.
+     *
+     * Lightweight tasks (chunk CRUD) execute serially — they use direct JDBC and may
+     * have ordering dependencies. A running lightweight task blocks the next task.
+     *
+     * Heavyweight tasks (document parse) submit job pods that run independently.
+     * Multiple heavyweight tasks can run concurrently for the same database — each
+     * job pod does download/parse/chunk/embed in parallel, then writes to the shared
+     * compute pod (PostgreSQL handles concurrent writes to different document rows).
      */
     private void drain(String databaseId) {
         ReentrantLock lock = dbLocks.computeIfAbsent(databaseId, k -> new ReentrantLock());
@@ -411,12 +418,13 @@ public class KbWriteQueue {
         }
         try {
             while (true) {
-                // Check if there's already a RUNNING task (heavyweight waiting for job callback)
+                // Check if there's a RUNNING lightweight task — must wait for it to finish
                 List<KbWriteTaskEntity> active = taskRepository.findActiveByDatabaseId(databaseId);
-                boolean hasRunning = active.stream()
-                    .anyMatch(t -> t.getStatus() == KbWriteTaskStatus.RUNNING);
-                if (hasRunning) {
-                    log.debug("db {} has a RUNNING task, waiting for callback", databaseId);
+                boolean hasRunningLightweight = active.stream()
+                    .anyMatch(t -> t.getStatus() == KbWriteTaskStatus.RUNNING
+                                && LIGHTWEIGHT_TYPES.contains(t.getType()));
+                if (hasRunningLightweight) {
+                    log.debug("db {} has a running lightweight task, waiting", databaseId);
                     return;
                 }
 
@@ -441,8 +449,10 @@ public class KbWriteQueue {
                         // Continue draining next task
                     } else {
                         executeHeavyweight(task);
-                        // Heavyweight tasks wait for job callback — exit drain loop
-                        return;
+                        // Heavyweight task submitted — continue to submit next queued task
+                        // (job pods run independently and call back when done)
+                        log.info("Heavyweight task {} submitted for db {}, continuing drain",
+                                task.getId(), databaseId);
                     }
                 } catch (Exception e) {
                     log.error("kb-write task {} failed: {}", task.getId(), e.getMessage(), e);
