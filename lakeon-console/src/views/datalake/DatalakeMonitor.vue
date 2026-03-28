@@ -1,12 +1,70 @@
 <template>
   <div class="page-container">
-    <h2 class="page-title">镜像监控</h2>
-    <p class="page-desc">查看数据湖预置镜像的大小、节点池和启动速度统计</p>
+    <h2 class="page-title">数据湖监控</h2>
+    <p class="page-desc">热池状态、预置镜像大小、节点池和启动速度统计</p>
 
     <div v-if="loading" class="loading-text">加载中...</div>
     <div v-else-if="error" class="error-text">{{ error }}</div>
 
     <template v-else>
+      <!-- Warm Pool Section -->
+      <div v-if="warmPool.enabled" class="warm-pool-section">
+        <h3 class="section-title">Ray Head 热池</h3>
+        <div class="summary-cards">
+          <div class="summary-card">
+            <div class="summary-value" :class="warmPool.idle >= warmPool.target_size ? 'text-green' : 'text-amber'">
+              {{ warmPool.idle }}
+            </div>
+            <div class="summary-label">空闲</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-value">{{ warmPool.claimed }}</div>
+            <div class="summary-label">已分配</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-value">{{ warmPool.pending }}</div>
+            <div class="summary-label">启动中</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-value mono" style="font-size:14px">{{ warmPool.target_size }}</div>
+            <div class="summary-label">目标池大小</div>
+          </div>
+        </div>
+
+        <table v-if="warmPool.pods.length" class="image-table">
+          <thead>
+            <tr>
+              <th>Pod 名称</th>
+              <th>状态</th>
+              <th>Phase</th>
+              <th>IP</th>
+              <th>租户</th>
+              <th>创建时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="pod in warmPool.pods" :key="pod.name">
+              <td><span class="mono" style="font-size:12px">{{ pod.name }}</span></td>
+              <td>
+                <span class="pool-status-badge" :class="'ps-' + pod.pool_status">{{ pod.pool_status }}</span>
+              </td>
+              <td><span class="mono">{{ pod.phase }}</span></td>
+              <td><span class="mono">{{ pod.ip || '—' }}</span></td>
+              <td><span class="mono" style="font-size:11px">{{ pod.tenant_id || '—' }}</span></td>
+              <td><span class="text-muted" style="font-size:12px">{{ formatTime(pod.created_at) }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="warm-pool-config">
+          <span>镜像: <code>{{ shortImage(warmPool.image) }}</code></span>
+          <span>Namespace: <code>{{ warmPool.namespace }}</code></span>
+          <span>空闲超时: {{ warmPool.idle_timeout_minutes }}min</span>
+        </div>
+      </div>
+
+      <h3 class="section-title" style="margin-top:32px">预置镜像</h3>
+
       <!-- Summary cards -->
       <div class="summary-cards">
         <div class="summary-card">
@@ -103,10 +161,37 @@ interface ImageInfo {
   max_startup_ms: number | null
 }
 
+interface WarmPoolPod {
+  name: string
+  phase: string
+  pool_status: string
+  ip: string | null
+  created_at: string | null
+  tenant_id: string | null
+  session_id: string | null
+}
+
+interface WarmPoolState {
+  enabled: boolean
+  target_size: number
+  namespace: string
+  image: string
+  idle_timeout_minutes: number
+  idle: number
+  claimed: number
+  pending: number
+  total: number
+  pods: WarmPoolPod[]
+}
+
 const images = ref<ImageInfo[]>([])
 const nodeSelector = ref('')
 const loading = ref(true)
 const error = ref('')
+const warmPool = ref<WarmPoolState>({
+  enabled: false, target_size: 0, namespace: '', image: '', idle_timeout_minutes: 0,
+  idle: 0, claimed: 0, pending: 0, total: 0, pods: []
+})
 
 const totalSessions = computed(() => images.value.reduce((sum, img) => sum + img.session_count, 0))
 const imagesWithStats = computed(() => images.value.filter(img => img.avg_startup_ms != null))
@@ -136,14 +221,31 @@ function barWidth(ms: number | null): number {
   return Math.max(5, (ms / maxStartup.value) * 100)
 }
 
+function formatTime(ts: string | null): string {
+  if (!ts) return '—'
+  const d = new Date(ts)
+  return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+function shortImage(img: string): string {
+  const parts = img.split('/')
+  return parts[parts.length - 1] || img
+}
+
 async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    const { data } = await client.get('/admin/datalake/images')
-    images.value = data.images || []
-    if (data.node_selector) {
-      nodeSelector.value = data.node_selector.key + '=' + data.node_selector.value
+    const [imagesRes, poolRes] = await Promise.all([
+      client.get('/admin/datalake/images'),
+      client.get('/admin/datalake/warm-pool').catch(() => ({ data: { enabled: false } }))
+    ])
+    images.value = imagesRes.data.images || []
+    if (imagesRes.data.node_selector) {
+      nodeSelector.value = imagesRes.data.node_selector.key + '=' + imagesRes.data.node_selector.value
+    }
+    if (poolRes.data.enabled) {
+      warmPool.value = { ...warmPool.value, ...poolRes.data }
     }
   } catch (e: any) {
     error.value = '加载失败: ' + (e.response?.data?.message || e.message)
@@ -193,6 +295,18 @@ onMounted(loadData)
 .bar-fill.speed-medium { background: #fde68a; }
 .bar-fill.speed-slow { background: #fecaca; }
 .bar-value { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 600; color: #374151; font-family: monospace; }
+
+.warm-pool-section { margin-bottom: 8px; }
+.warm-pool-config { display: flex; gap: 20px; font-size: 12px; color: #6b7280; margin-top: 12px; }
+.warm-pool-config code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+
+.pool-status-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.ps-idle { background: #dcfce7; color: #16a34a; }
+.ps-claimed { background: #dbeafe; color: #2563eb; }
+.ps-unknown { background: #f1f5f9; color: #6b7280; }
+
+.text-green { color: #16a34a; }
+.text-amber { color: #d97706; }
 
 .loading-text { color: #6b7280; font-size: 14px; padding: 40px 0; text-align: center; }
 .error-text { color: #dc2626; font-size: 14px; padding: 40px 0; text-align: center; }
