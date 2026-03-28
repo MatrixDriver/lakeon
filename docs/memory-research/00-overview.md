@@ -25,6 +25,8 @@
 | [15-post-compact-hook.md](./15-post-compact-hook.md) | Post-compact hook 技术方案 |
 | [16-dbay-knowledge-offering.md](./16-dbay-knowledge-offering.md) | DBay 知识库 Offering：知识管线下沉到 dbay.cloud 的产品策略分析 |
 | [17-knowledge-base-research.md](./17-knowledge-base-research.md) | 知识库/RAG 技术全景研究：文档解析、分块策略、GraphRAG、高级检索、多模态、评估基准、生产系统实践、DBay 实施建议 |
+| [18-jeff-dean-probabilistic-agent-infra.md](./18-jeff-dean-probabilistic-agent-infra.md) | Jeff Dean 概率性 Agent 基础设施观点 |
+| [19-clowder-ai-data-layer-analysis.md](./19-clowder-ai-data-layer-analysis.md) | **Clowder AI（猫猫咖啡馆）数据层全景分析**：用七层模型审视猫猫的数据能力现状、gap 识别、DBay 集成增强方案 |
 
 ## 核心结论速览
 
@@ -120,3 +122,16 @@ Jeff Dean 的关键信号：
 - **批量处理**：Ray Data（Notion 已从 Spark 迁移到 Ray，验证方向正确）
 
 详见 [17-knowledge-base-research.md](./17-knowledge-base-research.md)。
+
+### 12. Clowder AI（猫猫咖啡馆）数据层分析
+
+用七层模型审视猫猫咖啡馆（多 Agent 协作平台，9 只猫组队工作）的数据能力：
+
+- **核心优势**：③对话历史（████）和 ④上下文组装（████）——完善的消息持久化、session chain、摘要压缩、token budget 管理
+- **最大 gap**：②记忆（▓▓）——当前是"项目文档索引"而非"Agent 记忆"，缺少 trait 反思、Q-value、自动提取、时间衰减
+- **存储瓶颈**：SQLite + sqlite-vec（768 维）已成为多猫协作的瓶颈（无并发、无共享）
+- **DBay 集成价值**：P0 是记忆层（Memory Base 补齐记忆智能）+ 知识层（Knowledge Base 补齐 RAG pipeline），P1 是轨迹层（Q-value 飞轮基础数据）
+
+猫猫作为多 Agent 协作平台，是 DBay 记忆库的理想客户——多猫共享知识、跨 session 记忆持久化、团队级 trait 发现，这些需求在多 Agent 协作中极为关键。
+
+详见 [19-clowder-ai-data-layer-analysis.md](./19-clowder-ai-data-layer-analysis.md)。
