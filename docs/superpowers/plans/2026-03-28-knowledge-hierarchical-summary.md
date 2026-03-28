@@ -1158,7 +1158,152 @@ git commit -m "feat(kb): add document summary tab in document detail page"
 
 ---
 
-### Task 12: E2E test — upload document and verify L1/L2 generation
+### Task 12: Admin console — summary status and management
+
+**Files:**
+- Modify: `lakeon-admin/src/views/knowledge/KnowledgeList.vue`
+- Modify: `lakeon-admin/src/api/admin.ts`
+
+The existing "写入任务队列" tab already displays all KbWriteTask entries, so DOCUMENT_SUMMARIZE and KB_SUMMARIZE tasks will appear automatically. What's needed: summary status in document list, type filter, and resummarize action.
+
+- [ ] **Step 1: Add "摘要" column to document table in expanded KB row**
+
+In `KnowledgeList.vue`, in the expanded document table header (around line 103), add a column:
+
+```html
+                        <tr>
+                          <th>文件名</th>
+                          <th>格式</th>
+                          <th>Chunks</th>
+                          <th>摘要</th>
+                          <th>状态</th>
+                          <th>错误</th>
+                          <th>操作</th>
+                        </tr>
+```
+
+And in the table body (around line 116), add the cell:
+
+```html
+                          <td>
+                            <span v-if="doc.has_summary" class="status-dot status-green"></span>
+                            <span v-else class="status-dot status-grey"></span>
+                            {{ doc.has_summary ? '已生成' : '未生成' }}
+                          </td>
+```
+
+- [ ] **Step 2: Add task type filter to "写入任务队列" tab**
+
+In the task filter toolbar (around line 143), add a type filter:
+
+```html
+      <div class="action-toolbar">
+        <select class="form-select" v-model="taskStatusFilter" style="width: 140px;" @change="loadTasks">
+          <option value="">全部状态</option>
+          <option value="QUEUED">QUEUED</option>
+          <option value="RUNNING">RUNNING</option>
+          <option value="SUCCEEDED">SUCCEEDED</option>
+          <option value="FAILED">FAILED</option>
+        </select>
+        <select class="form-select" v-model="taskTypeFilter" style="width: 180px;" @change="loadTasks">
+          <option value="">全部类型</option>
+          <option value="DOCUMENT_PARSE">DOCUMENT_PARSE</option>
+          <option value="BATCH_DOCUMENT_PARSE">BATCH_DOCUMENT_PARSE</option>
+          <option value="DOCUMENT_SUMMARIZE">DOCUMENT_SUMMARIZE</option>
+          <option value="KB_SUMMARIZE">KB_SUMMARIZE</option>
+          <option value="EDIT_CHUNK">EDIT_CHUNK</option>
+          <option value="RECHUNK">RECHUNK</option>
+        </select>
+        <button class="btn btn-default btn-small" @click="loadTasks">刷新</button>
+      </div>
+```
+
+Add the ref and pass it to the API:
+
+```typescript
+const taskTypeFilter = ref('')
+
+async function loadTasks() {
+  try {
+    const params: Record<string, string | number> = { limit: 50 }
+    if (taskStatusFilter.value) params.status = taskStatusFilter.value
+    if (taskTypeFilter.value) params.type = taskTypeFilter.value
+    const resp = await adminApi.listWriteTasks(params)
+    tasks.value = resp.data
+  } catch { /* ignore */ }
+}
+```
+
+- [ ] **Step 3: Add "重新摘要" button to document actions**
+
+In the document action column (around line 122), add:
+
+```html
+                          <td>
+                            <button v-if="doc.status === 'FAILED'" class="btn btn-text btn-small" style="color: #1890ff;" @click="reprocessDoc(doc)">重处理</button>
+                            <button v-if="doc.status === 'READY'" class="btn btn-text btn-small" style="color: #1890ff;" @click="resummarizeDoc(doc, kb.id)">重新摘要</button>
+                            <button class="btn btn-text btn-small" style="color: #e53e3e;" @click="confirmDeleteDoc(doc, kb.id)">删除</button>
+                          </td>
+```
+
+Add the function:
+
+```typescript
+async function resummarizeDoc(doc: Doc, kbId: string) {
+  try {
+    await adminApi.resummarizeDocument(kbId, doc.id)
+    alert('摘要任务已入队')
+  } catch (e: any) {
+    alert(`操作失败: ${e.response?.data?.message || e.message}`)
+  }
+}
+```
+
+- [ ] **Step 4: Add API function in admin.ts**
+
+```typescript
+  resummarizeDocument: (kbId: string, docId: string) =>
+    api.post(`/admin/knowledge/${kbId}/documents/${docId}/resummarize`),
+```
+
+- [ ] **Step 5: Add summary stats to stats cards**
+
+In the stats cards section (around line 17), add a summary coverage card. The backend admin stats API needs to return `summary_count` (documents with L1 summaries). Add:
+
+```html
+        <div class="stat-card">
+          <div class="stat-value" style="color: #8b5cf6;">{{ stats.summary_count ?? 0 }} / {{ stats.ready_count ?? 0 }}</div>
+          <div class="stat-label">摘要覆盖</div>
+        </div>
+```
+
+- [ ] **Step 6: Backend — add `has_summary` to admin document list and `summary_count` to stats**
+
+In `AdminService.java` (or wherever the admin KB detail/stats endpoints live), add a query to check for L1 chunks per document:
+
+For document list: execute `SELECT DISTINCT document_id FROM knowledge_chunks WHERE level = 1` on the compute pod, and set `has_summary = true` for matching documents.
+
+For stats: add `summary_count` field counting documents that have L1 summaries across all KBs.
+
+- [ ] **Step 7: Verify TypeScript and Java compilation**
+
+Run: `cd lakeon-console && npx vue-tsc -b --noEmit`
+Run: `cd lakeon-admin && npx vue-tsc -b --noEmit`
+Run: `cd lakeon-api && ./mvnw compile -q`
+Expected: All pass
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add lakeon-admin/src/views/knowledge/KnowledgeList.vue \
+        lakeon-admin/src/api/admin.ts \
+        lakeon-api/src/main/java/com/lakeon/service/AdminService.java
+git commit -m "feat(admin): add summary status, type filter, and resummarize to KB management"
+```
+
+---
+
+### Task 13: E2E test — upload document and verify L1/L2 generation
 
 **Files:**
 - Create: `tests/test_kb_summary_e2e.py`
@@ -1294,7 +1439,7 @@ git commit -m "test(kb): add E2E test for document summary generation and search
 
 ---
 
-### Task 13: Final integration test and cleanup
+### Task 14: Final integration test and cleanup
 
 - [ ] **Step 1: Run full compilation**
 
