@@ -4,6 +4,7 @@ import logging
 from typing import List, Dict, Any
 import psycopg2
 from psycopg2.extras import execute_values
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,34 @@ def _connect_with_retry(connstr, max_retries=20, delay=5, connstr_refresh_url=No
             else:
                 raise
 
-def write_chunks(connstr, document_id, chunks, embeddings, connstr_refresh_url=None):
+def write_chunks(connstr, document_id, chunks, embeddings, connstr_refresh_url=None, tracker=None):
+    # Delayed wake: if connstr is empty, fetch it via connstr_refresh_url
+    if (not connstr or connstr.strip() == "") and connstr_refresh_url:
+        if tracker:
+            # End previous stage (EMBED) if still open
+            if tracker._current_stage:
+                tracker.end()
+            tracker.begin("COMPUTE_WAKE")
+        logger.info("No initial connstr, calling connstr_refresh_url to wake compute pod")
+        try:
+            resp = requests.get(connstr_refresh_url, timeout=180)
+            resp.raise_for_status()
+            connstr = resp.json().get("connstr", "")
+            if not connstr:
+                raise RuntimeError("connstr_refresh_url returned empty connstr")
+        except Exception as e:
+            if tracker and tracker._current_stage == "COMPUTE_WAKE":
+                tracker.end("COMPUTE_WAKE")
+            raise RuntimeError(f"Failed to obtain connstr via refresh: {e}")
+        if tracker:
+            tracker.end("COMPUTE_WAKE")
+            tracker.begin("WRITE")
+    elif tracker:
+        if tracker._current_stage and tracker._current_stage != "WRITE":
+            tracker.end()
+        if "WRITE" not in tracker.stages:
+            tracker.begin("WRITE")
+
     conn = _connect_with_retry(connstr, connstr_refresh_url=connstr_refresh_url)
     try:
         conn.autocommit = False
@@ -120,7 +148,11 @@ def write_chunks(connstr, document_id, chunks, embeddings, connstr_refresh_url=N
             )
             conn.commit()
             logger.info(f"Wrote {len(values)} chunks for document {document_id}")
+            if tracker and tracker._current_stage == "WRITE":
+                tracker.end("WRITE")
     except Exception:
+        if tracker and tracker._current_stage == "WRITE":
+            tracker.end("WRITE")
         conn.rollback()
         raise
     finally:

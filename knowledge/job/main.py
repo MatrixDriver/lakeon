@@ -183,14 +183,9 @@ def process_single_document(s3, obs_bucket, doc_params, database_connstr,
         detect_duplicates(chunks, all_embeddings)
 
         # ── WRITE ──
-        if tracker:
-            tracker.begin("WRITE")
         connstr_refresh_url = doc_params.get("connstr_refresh_url")
-        write_chunks(database_connstr, document_id, chunks, all_embeddings,
-                     connstr_refresh_url=connstr_refresh_url)
-        # TODO: pass tracker=tracker to write_chunks after Task 4
-        if tracker:
-            tracker.end("WRITE")
+        write_chunks(database_connstr, doc_params["document_id"], chunks, all_embeddings,
+                     connstr_refresh_url=connstr_refresh_url, tracker=tracker)
 
         logger.info(f"{prefix}Done: {len(chunks)} chunks written for {document_id}")
         return {"document_id": document_id, "chunks_count": len(chunks)}
@@ -345,13 +340,10 @@ def main():
             detect_duplicates(chunks, all_embeddings)
 
             # ── WRITE ──
-            tracker.begin("WRITE")
             report_progress("Writing to database", 0.9, tracker=tracker)
             connstr_refresh_url = params.get("connstr_refresh_url")
             write_chunks(database_connstr, document_id, chunks, all_embeddings,
-                         connstr_refresh_url=connstr_refresh_url)
-            # TODO: pass tracker=tracker to write_chunks after Task 4
-            tracker.end("WRITE")
+                         connstr_refresh_url=connstr_refresh_url, tracker=tracker)
 
             quality_stats = {
                 "anomaly_count": sum(1 for c in chunks if len(c["content"]) < ANOMALY_SHORT_THRESHOLD or len(c["content"]) > ANOMALY_LONG_THRESHOLD),
