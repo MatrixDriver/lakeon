@@ -15,6 +15,7 @@ export interface KnowledgeBase {
   source_database_id: string | null
   table_names: string[]
   embedding_model: string | null
+  summary?: string
 }
 
 export interface TableSearchResult {
@@ -44,6 +45,7 @@ export interface Document {
 export interface SearchResult {
   content: string
   score: number
+  level?: number
   metadata: {
     filename?: string
     section?: string
@@ -110,6 +112,10 @@ export function batchProcessDocuments(documentIds: string[]) {
 
 export function getDocument(documentId: string) {
   return api.get<Document>(`/knowledge/documents/${documentId}`)
+}
+
+export function getDocumentSummary(kbId: string, docId: string) {
+  return api.get<{ content: string }>(`/knowledge/${kbId}/documents/${docId}/summary`)
 }
 
 export function deleteDocument(documentId: string) {

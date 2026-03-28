@@ -26,8 +26,11 @@ public interface KbWriteTaskRepository extends JpaRepository<KbWriteTaskEntity, 
     @Query("SELECT DISTINCT t.databaseId FROM KbWriteTaskEntity t WHERE t.status IN ('QUEUED', 'RUNNING')")
     List<String> findDatabaseIdsWithActiveTasks();
 
-    @Query("SELECT t FROM KbWriteTaskEntity t WHERE t.status = 'RUNNING' AND t.startedAt < ?1")
+    @Query("SELECT t FROM KbWriteTaskEntity t WHERE t.status = 'RUNNING' AND t.startedAt < ?1 AND t.type NOT IN ('DOCUMENT_SUMMARIZE', 'KB_SUMMARIZE')")
     List<KbWriteTaskEntity> findStuckRunningBefore(Instant cutoff);
+
+    @Query("SELECT t FROM KbWriteTaskEntity t WHERE t.status = 'RUNNING' AND t.startedAt < ?1 AND t.type IN ('DOCUMENT_SUMMARIZE', 'KB_SUMMARIZE')")
+    List<KbWriteTaskEntity> findStuckSummarizeRunningBefore(Instant cutoff);
 
     @Query("SELECT t FROM KbWriteTaskEntity t WHERE t.status = 'QUEUED' AND t.nextRetryAt IS NOT NULL AND t.nextRetryAt <= :now")
     List<KbWriteTaskEntity> findDelayedRetryReady(@Param("now") Instant now);

@@ -19,10 +19,17 @@ public class KnowledgeController {
     private static final Logger log = LoggerFactory.getLogger(KnowledgeController.class);
     private final KnowledgeService knowledgeService;
     private final DocumentRepository documentRepository;
+    private final KbWriteQueue kbWriteQueue;
+    private final KnowledgeBaseRepository knowledgeBaseRepository;
 
-    public KnowledgeController(KnowledgeService knowledgeService, DocumentRepository documentRepository) {
+    public KnowledgeController(KnowledgeService knowledgeService,
+                               DocumentRepository documentRepository,
+                               KbWriteQueue kbWriteQueue,
+                               KnowledgeBaseRepository knowledgeBaseRepository) {
         this.knowledgeService = knowledgeService;
         this.documentRepository = documentRepository;
+        this.kbWriteQueue = kbWriteQueue;
+        this.knowledgeBaseRepository = knowledgeBaseRepository;
     }
 
     // ── Knowledge Base endpoints ─────────────────────────────────────
@@ -71,7 +78,18 @@ public class KnowledgeController {
     public Map<String, Object> getKnowledgeBase(HttpServletRequest req, @PathVariable String id) {
         TenantEntity tenant = getTenant(req);
         KnowledgeBaseEntity kb = knowledgeService.getKnowledgeBase(tenant.getId(), id);
-        return toKbResponse(kb);
+        Map<String, Object> response = toKbResponse(kb);
+        // Include KB-level summary if available
+        if (kb.getStatus() == KnowledgeBaseStatus.READY && kb.getType() == KnowledgeBaseType.DOCUMENT) {
+            try {
+                String connstr = knowledgeService.getComputeConnstr(tenant.getId(), id);
+                String summary = knowledgeService.getKbSummary(connstr);
+                response.put("summary", summary);
+            } catch (Exception e) {
+                log.debug("Could not fetch KB summary for {}: {}", id, e.getMessage());
+            }
+        }
+        return response;
     }
 
     @DeleteMapping("/bases/{id}")
@@ -248,6 +266,51 @@ public class KnowledgeController {
             response.put("rewritten_query", searchResult.get("rewritten_query"));
         }
         return response;
+    }
+
+    // ── Summary endpoints ────────────────────────────────────────────
+
+    @GetMapping("/{kbId}/documents/{docId}/summary")
+    public ResponseEntity<?> getDocumentSummary(HttpServletRequest req,
+                                                @PathVariable String kbId,
+                                                @PathVariable String docId) {
+        TenantEntity tenant = getTenant(req);
+        knowledgeService.getKnowledgeBase(tenant.getId(), kbId); // validate access
+        String connstr = knowledgeService.getComputeConnstr(tenant.getId(), kbId);
+        String summary = knowledgeService.getDocumentSummary(connstr, docId);
+        return ResponseEntity.ok(Map.of("content", summary != null ? summary : ""));
+    }
+
+    // ── Admin endpoints ──────────────────────────────────────────────
+
+    @PostMapping("/admin/bases/{kbId}/documents/{docId}/resummarize")
+    public ResponseEntity<?> adminResumarize(HttpServletRequest req,
+                                             @PathVariable String kbId,
+                                             @PathVariable String docId) {
+        TenantEntity tenant = getTenant(req);
+        KnowledgeBaseEntity kb = knowledgeService.getKnowledgeBase(tenant.getId(), kbId);
+        DocumentEntity doc = documentRepository.findByIdAndTenantId(docId, tenant.getId())
+                .orElseThrow(() -> new com.lakeon.service.exception.NotFoundException("Document not found: " + docId));
+
+        String databaseId = kb.getDatabaseId();
+        if (databaseId == null) {
+            throw new com.lakeon.service.exception.BadRequestException("Knowledge base has no backing database");
+        }
+
+        List<String> allDocumentIds = knowledgeService.getAllReadyDocumentIds(tenant.getId(), kbId);
+        String connstr = knowledgeService.getComputeConnstr(tenant.getId(), kbId);
+
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("tenant_id", tenant.getId());
+        params.put("kb_id", kbId);
+        params.put("document_id", docId);
+        params.put("database_id", databaseId);
+        params.put("connstr", connstr);
+        params.put("all_document_ids", allDocumentIds);
+
+        kbWriteQueue.enqueueTask(databaseId, KbWriteTaskType.DOCUMENT_SUMMARIZE, params);
+
+        return ResponseEntity.ok(Map.of("status", "enqueued", "document_id", docId));
     }
 
     // ── TABLE KB endpoints ─────────────────────────────────────────

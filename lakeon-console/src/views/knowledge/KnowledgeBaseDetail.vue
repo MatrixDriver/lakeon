@@ -47,6 +47,10 @@
           <span v-else>-</span>
         </div>
       </div>
+      <div v-if="kb?.summary" class="section-card" style="max-width: 600px; margin-top: 16px;">
+        <div class="section-header">知识库概览</div>
+        <div style="padding: 16px; font-size: 14px; line-height: 1.8; color: #333; white-space: pre-wrap;">{{ kb.summary }}</div>
+      </div>
     </div>
 
     <!-- Documents Tab -->
@@ -225,7 +229,8 @@
             <div v-if="msg.results && msg.results.length > 0">
               <div v-for="(r, ri) in msg.results" :key="ri" class="result-card">
                 <div style="font-size: 13px; line-height: 1.6; color: #333; white-space: pre-wrap;">{{ r.content }}</div>
-                <div style="margin-top: 8px; font-size: 12px; color: #999; display: flex; gap: 12px; flex-wrap: wrap;">
+                <div style="margin-top: 8px; font-size: 12px; color: #999; display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                  <span v-if="r.level === 1" style="background: #eff6ff; color: #2563eb; padding: 1px 8px; border-radius: 3px; font-weight: 500;">文档摘要</span>
                   <span>来源: {{ r.metadata?.filename }}</span>
                   <span v-if="r.metadata?.section">章节: {{ r.metadata.section }}</span>
                   <span>得分: {{ r.score?.toFixed(3) }}</span>

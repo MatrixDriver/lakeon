@@ -671,7 +671,7 @@ public class KnowledgeService {
     }
 
     /**
-     * Hybrid search: vector + full-text (tsvector) with Reciprocal Rank Fusion.
+     * Hybrid search: vector + BM25 (pg_search) with Reciprocal Rank Fusion.
      * Accepts kbId; resolves the underlying databaseId from the KB.
      */
     @SuppressWarnings("unchecked")
@@ -737,24 +737,25 @@ public class KnowledgeService {
         }
 
         String sql = "WITH semantic AS (" +
-                "  SELECT id, content, metadata," +
+                "  SELECT id, content, metadata, level," +
                 "         1 - (embedding <=> ?::vector) AS score," +
                 "         ROW_NUMBER() OVER (ORDER BY embedding <=> ?::vector) AS rank" +
                 "  FROM knowledge_chunks" +
-                "  WHERE 1=1" + docFilter +
+                "  WHERE 1=1 AND level IN (0, 1)" + docFilter +
                 "  ORDER BY embedding <=> ?::vector" +
                 "  LIMIT 20" +
                 "), fts AS (" +
-                "  SELECT id, content, metadata," +
-                "         ts_rank_cd(to_tsvector('simple', content), plainto_tsquery('simple', ?)) AS score," +
-                "         ROW_NUMBER() OVER (ORDER BY ts_rank_cd(to_tsvector('simple', content), plainto_tsquery('simple', ?)) DESC) AS rank" +
+                "  SELECT id, content, metadata, level," +
+                "         pdb.score(id) AS score," +
+                "         ROW_NUMBER() OVER (ORDER BY pdb.score(id) DESC) AS rank" +
                 "  FROM knowledge_chunks" +
-                "  WHERE to_tsvector('simple', content) @@ plainto_tsquery('simple', ?)" + docFilter +
+                "  WHERE content ||| ? AND level IN (0, 1)" + docFilter +
                 "  LIMIT 20" +
                 ") " +
                 "SELECT COALESCE(s.id, f.id) AS id," +
                 "       COALESCE(s.content, f.content) AS content," +
                 "       COALESCE(s.metadata, f.metadata)::text AS metadata," +
+                "       COALESCE(s.level, f.level) AS level," +
                 "       COALESCE(1.0/(60+s.rank), 0) + COALESCE(1.0/(60+f.rank), 0) AS rrf_score" +
                 " FROM semantic s FULL OUTER JOIN fts f ON s.id = f.id" +
                 " ORDER BY rrf_score DESC" +
@@ -777,10 +778,8 @@ public class KnowledgeService {
                 ps.setArray(idx++, docArray);
             }
             ps.setString(idx++, vectorStr); // embedding <=> ?::vector (limit order)
-            // fts CTE params
-            ps.setString(idx++, searchQuery); // ts_rank_cd score
-            ps.setString(idx++, searchQuery); // ts_rank_cd in ROW_NUMBER
-            ps.setString(idx++, searchQuery); // WHERE plainto_tsquery
+            // fts CTE params (pg_search BM25)
+            ps.setString(idx++, searchQuery); // content ||| ?
             if (filteredDocIds != null && !filteredDocIds.isEmpty()) {
                 java.sql.Array docArray = conn.createArrayOf("varchar", filteredDocIds.toArray());
                 ps.setArray(idx++, docArray);
@@ -794,6 +793,7 @@ public class KnowledgeService {
                     row.put("id", rs.getString("id"));
                     row.put("content", rs.getString("content"));
                     row.put("score", rs.getDouble("rrf_score"));
+                    row.put("level", rs.getInt("level"));
                     String metaStr = rs.getString("metadata");
                     if (metaStr != null) {
                         try {
@@ -806,8 +806,14 @@ public class KnowledgeService {
                 }
             }
         } catch (Exception e) {
-            log.error("Search failed for kb {}: {}", kbId, e.getMessage(), e);
-            throw new RuntimeException("Search failed: " + e.getMessage(), e);
+            // Fallback: if BM25 index not yet created, retry with vector-only search
+            if (e.getMessage() != null && (e.getMessage().contains("|||") || e.getMessage().contains("pdb"))) {
+                log.warn("BM25 index not available for kb {}, falling back to vector-only search", kbId);
+                results = vectorOnlySearch(jdbcUrl, pgUser, pgPass, vectorStr, filteredDocIds, topK);
+            } else {
+                log.error("Search failed for kb {}: {}", kbId, e.getMessage(), e);
+                throw new RuntimeException("Search failed: " + e.getMessage(), e);
+            }
         }
 
         if (rerank && props.getKnowledge().getRerank().isEnabled() && !results.isEmpty()) {
@@ -973,6 +979,53 @@ public class KnowledgeService {
             throw new RuntimeException("Failed to fetch table schemas: " + e.getMessage(), e);
         }
         return result;
+    }
+
+    /** Vector-only fallback when BM25 index is not yet available. */
+    private List<Map<String, Object>> vectorOnlySearch(String jdbcUrl, String pgUser,
+            String pgPass, String vectorStr, List<String> filteredDocIds, int topK) {
+        String docFilter = "";
+        if (filteredDocIds != null && !filteredDocIds.isEmpty()) {
+            docFilter = " AND document_id = ANY(?)";
+        }
+        String sql = "SELECT id, content, metadata::text, level," +
+                "       1 - (embedding <=> ?::vector) AS rrf_score" +
+                " FROM knowledge_chunks" +
+                " WHERE level IN (0, 1)" + docFilter +
+                " ORDER BY embedding <=> ?::vector" +
+                " LIMIT ?";
+        List<Map<String, Object>> results = new ArrayList<>();
+        try (Connection conn = DriverManager.getConnection(jdbcUrl, pgUser, pgPass);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            int idx = 1;
+            ps.setString(idx++, vectorStr);
+            if (filteredDocIds != null && !filteredDocIds.isEmpty()) {
+                java.sql.Array docArray = conn.createArrayOf("varchar", filteredDocIds.toArray());
+                ps.setArray(idx++, docArray);
+            }
+            ps.setString(idx++, vectorStr);
+            ps.setInt(idx++, topK);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("id", rs.getString("id"));
+                    row.put("content", rs.getString("content"));
+                    row.put("score", rs.getDouble("rrf_score"));
+                    row.put("level", rs.getInt("level"));
+                    String metaStr = rs.getString("metadata");
+                    if (metaStr != null) {
+                        try {
+                            row.put("metadata", objectMapper.readValue(metaStr, Map.class));
+                        } catch (Exception e) { row.put("metadata", metaStr); }
+                    }
+                    results.add(row);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Vector-only search also failed: {}", e.getMessage(), e);
+            throw new RuntimeException("Search failed: " + e.getMessage(), e);
+        }
+        return results;
     }
 
     // ── Internal helpers ────────────────────────────────────────────
@@ -1149,5 +1202,63 @@ public class KnowledgeService {
             }
         }
         documentRepository.delete(doc);
+    }
+
+    /**
+     * Get all READY document IDs for a KB.
+     */
+    public List<String> getAllReadyDocumentIds(String tenantId, String kbId) {
+        return documentRepository.findAllByKbId(kbId)
+                .stream()
+                .filter(d -> d.getStatus() == DocumentStatus.READY)
+                .map(DocumentEntity::getId)
+                .toList();
+    }
+
+    /**
+     * Get the compute connection string for a KB's backing database.
+     */
+    public String getComputeConnstr(String tenantId, String kbId) {
+        return dbHelper.resolveConnstr(tenantId, kbId);
+    }
+
+    /**
+     * Fetch the KB-level summary (level=2, document_id='__kb_summary__') from knowledge_chunks.
+     */
+    public String getKbSummary(String connstr) {
+        String jdbcUrl = dbHelper.connstrToJdbc(connstr);
+        String pgUser = dbHelper.extractUser(connstr);
+        String pgPass = dbHelper.extractPassword(connstr);
+        String sql = "SELECT content FROM knowledge_chunks " +
+                "WHERE document_id = '__kb_summary__' AND level = 2 LIMIT 1";
+        try (Connection conn = DriverManager.getConnection(jdbcUrl, pgUser, pgPass);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getString("content");
+            return null;
+        } catch (Exception e) {
+            log.warn("Failed to get KB summary: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Fetch the document-level summary (level=1) for a given document from knowledge_chunks.
+     */
+    public String getDocumentSummary(String connstr, String docId) {
+        String jdbcUrl = dbHelper.connstrToJdbc(connstr);
+        String pgUser = dbHelper.extractUser(connstr);
+        String pgPass = dbHelper.extractPassword(connstr);
+        String sql = "SELECT content FROM knowledge_chunks WHERE document_id = ? AND level = 1 LIMIT 1";
+        try (Connection conn = DriverManager.getConnection(jdbcUrl, pgUser, pgPass);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, docId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getString("content");
+            return null;
+        } catch (Exception e) {
+            log.warn("Failed to get document summary for doc {}: {}", docId, e.getMessage());
+            return null;
+        }
     }
 }

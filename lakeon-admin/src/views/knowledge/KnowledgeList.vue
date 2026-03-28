@@ -35,6 +35,10 @@
           <div class="stat-value" style="color: #e53e3e;">{{ stats.failed_count }}</div>
           <div class="stat-label">失败</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: #722ed1;">{{ stats.summary_count ?? '-' }}</div>
+          <div class="stat-label">摘要覆盖</div>
+        </div>
       </div>
       <div class="action-toolbar">
         <select class="form-select" v-model="statusFilter" style="width: 140px;" @change="loadKbs">
@@ -105,6 +109,7 @@
                           <th>格式</th>
                           <th>Chunks</th>
                           <th>状态</th>
+                          <th>摘要</th>
                           <th>错误</th>
                           <th>操作</th>
                         </tr>
@@ -118,9 +123,14 @@
                             <span class="status-dot" :class="docStatusClass(doc.status)"></span>
                             {{ doc.status }}
                           </td>
+                          <td>
+                            <span class="status-dot" :class="doc.has_summary ? 'status-green' : 'status-grey'"></span>
+                            {{ doc.has_summary ? '已生成' : '未生成' }}
+                          </td>
                           <td class="error-cell" style="max-width: 200px;">{{ doc.error || '-' }}</td>
                           <td>
                             <button v-if="doc.status === 'FAILED'" class="btn btn-text btn-small" style="color: #1890ff;" @click="reprocessDoc(doc)">重处理</button>
+                            <button v-if="doc.status === 'READY'" class="btn btn-text btn-small" style="color: #722ed1;" @click="resummarizeDoc(doc, kb.id)">重新摘要</button>
                             <button class="btn btn-text btn-small" style="color: #e53e3e;" @click="confirmDeleteDoc(doc, kb.id)">删除</button>
                           </td>
                         </tr>
@@ -147,6 +157,15 @@
           <option value="RUNNING">RUNNING</option>
           <option value="SUCCEEDED">SUCCEEDED</option>
           <option value="FAILED">FAILED</option>
+        </select>
+        <select class="form-select" v-model="taskTypeFilter" style="width: 200px;" @change="loadTasks">
+          <option value="">全部类型</option>
+          <option value="DOCUMENT_PARSE">DOCUMENT_PARSE</option>
+          <option value="BATCH_DOCUMENT_PARSE">BATCH_DOCUMENT_PARSE</option>
+          <option value="DOCUMENT_SUMMARIZE">DOCUMENT_SUMMARIZE</option>
+          <option value="KB_SUMMARIZE">KB_SUMMARIZE</option>
+          <option value="EDIT_CHUNK">EDIT_CHUNK</option>
+          <option value="RECHUNK">RECHUNK</option>
         </select>
         <button class="btn btn-default btn-small" @click="loadTasks">刷新</button>
       </div>
@@ -356,6 +375,7 @@ interface Doc {
   id: string; tenant_id: string; kb_id: string; filename: string
   format: string; status: string; size_bytes: number | null
   chunks_count: number | null; error: string | null; created_at: string
+  has_summary?: boolean
 }
 
 interface WriteTask {
@@ -366,7 +386,7 @@ interface WriteTask {
 
 interface Stats {
   kb_count: number; document_count: number; processing_count: number
-  failed_count: number; ready_count: number
+  failed_count: number; ready_count: number; summary_count?: number
 }
 
 const activeTab = ref('bases')
@@ -380,6 +400,7 @@ const statusFilter = ref('')
 const typeFilter = ref('')
 const tenantFilter = ref('')
 const taskStatusFilter = ref('')
+const taskTypeFilter = ref('')
 
 // Pipeline Monitor state
 const plStats = ref<any>(null)
@@ -533,6 +554,7 @@ async function loadTasks() {
   try {
     const params: Record<string, string | number> = { limit: 50 }
     if (taskStatusFilter.value) params.status = taskStatusFilter.value
+    if (taskTypeFilter.value) params.type = taskTypeFilter.value
     const resp = await adminApi.listWriteTasks(params)
     tasks.value = resp.data
   } catch { /* ignore */ }
@@ -586,6 +608,15 @@ async function reprocessDoc(doc: Doc) {
     doc.error = null
   } catch (e: any) {
     alert(`重处理失败: ${e.response?.data?.message || e.message}`)
+  }
+}
+
+async function resummarizeDoc(doc: Doc, kbId: string) {
+  try {
+    await adminApi.resummarizeDocument(kbId, doc.id)
+    doc.has_summary = false
+  } catch (e: any) {
+    alert(`重新摘要失败: ${e.response?.data?.message || e.message}`)
   }
 }
 
