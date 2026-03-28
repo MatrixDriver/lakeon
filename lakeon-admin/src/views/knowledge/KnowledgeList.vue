@@ -399,8 +399,8 @@ async function loadPipeline() {
 async function loadPipelineStats() {
   try {
     const params: Record<string, string> = {}
-    if (plFilter.value.dateFrom) params.from = plFilter.value.dateFrom
-    if (plFilter.value.dateTo) params.to = plFilter.value.dateTo
+    if (plFilter.value.dateFrom) params.from = new Date(plFilter.value.dateFrom).toISOString()
+    if (plFilter.value.dateTo) params.to = new Date(plFilter.value.dateTo).toISOString()
     const resp = await adminApi.pipelineStats(params)
     plStats.value = resp.data
   } catch { /* ignore */ }
@@ -408,10 +408,10 @@ async function loadPipelineStats() {
 
 async function loadPipelineTasks() {
   try {
-    const params: Record<string, string | number> = { page: plPage.value, size: 20 }
+    const params: Record<string, string | number> = { page: plPage.value, size: 50 }
     if (plFilter.value.status) params.status = plFilter.value.status
-    if (plFilter.value.dateFrom) params.from = plFilter.value.dateFrom
-    if (plFilter.value.dateTo) params.to = plFilter.value.dateTo
+    if (plFilter.value.dateFrom) params.from = new Date(plFilter.value.dateFrom).toISOString()
+    if (plFilter.value.dateTo) params.to = new Date(plFilter.value.dateTo).toISOString()
     const resp = await adminApi.pipelineTasks(params)
     plTasks.value = resp.data.tasks || []
     plTotal.value = resp.data.total || 0

@@ -44,6 +44,8 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.format.annotation.DateTimeFormat;
 
 @RestController
@@ -74,6 +76,7 @@ public class AdminController {
     private final DatasetService datasetService;
     private final LakeonProperties props;
     private final SystemConfigRepository systemConfigRepository;
+    private final ObjectMapper objectMapper;
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AdminController.class);
 
@@ -101,7 +104,8 @@ public class AdminController {
                            DatasetRepository datasetRepository,
                            DatasetService datasetService,
                            LakeonProperties props,
-                           SystemConfigRepository systemConfigRepository) {
+                           SystemConfigRepository systemConfigRepository,
+                           ObjectMapper objectMapper) {
         this.tenantService = tenantService;
         this.adminService = adminService;
         this.databaseService = databaseService;
@@ -127,6 +131,7 @@ public class AdminController {
         this.datasetService = datasetService;
         this.props = props;
         this.systemConfigRepository = systemConfigRepository;
+        this.objectMapper = objectMapper;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────
@@ -791,23 +796,27 @@ public class AdminController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        var allTasks = kbWriteTaskRepository.findAll();
-        var filtered = allTasks.stream()
-                .filter(t -> status == null || t.getStatus().name().equalsIgnoreCase(status))
-                .filter(t -> kbId == null || kbId.equals(t.getKbId()))
-                .filter(t -> from == null || (t.getCreatedAt() != null && !t.getCreatedAt().isBefore(from)))
-                .filter(t -> to == null || (t.getCreatedAt() != null && !t.getCreatedAt().isAfter(to)))
-                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-                .toList();
-        int total = filtered.size();
-        int fromIdx = Math.min(page * size, total);
-        int toIdx = Math.min(fromIdx + size, total);
-        var paged = filtered.subList(fromIdx, toIdx).stream()
+        Specification<KbWriteTaskEntity> spec = Specification.where(null);
+        if (status != null) {
+            spec = spec.and((root, q, cb) -> cb.equal(root.get("status"), KbWriteTaskStatus.valueOf(status)));
+        }
+        if (kbId != null) {
+            spec = spec.and((root, q, cb) -> cb.equal(root.get("kbId"), kbId));
+        }
+        if (from != null) {
+            spec = spec.and((root, q, cb) -> cb.greaterThanOrEqualTo(root.get("createdAt"), from));
+        }
+        if (to != null) {
+            spec = spec.and((root, q, cb) -> cb.lessThanOrEqualTo(root.get("createdAt"), to));
+        }
+        var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        var taskPage = kbWriteTaskRepository.findAll(spec, pageable);
+        var paged = taskPage.getContent().stream()
                 .map(this::pipelineTaskToMap)
                 .toList();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("tasks", paged);
-        result.put("total", total);
+        result.put("total", taskPage.getTotalElements());
         result.put("page", page);
         result.put("size", size);
         return result;
@@ -829,23 +838,21 @@ public class AdminController {
 
         // Parse stage durations from result JSON of succeeded tasks
         Map<String, List<Long>> stageDurations = new LinkedHashMap<>();
-        var mapper = new ObjectMapper();
         for (var task : tasks) {
             if (task.getStatus() != KbWriteTaskStatus.SUCCEEDED || task.getResult() == null) continue;
             try {
                 @SuppressWarnings("unchecked")
-                var resultMap = mapper.readValue(task.getResult(), Map.class);
+                var resultMap = objectMapper.readValue(task.getResult(), Map.class);
                 Object stagesObj = resultMap.get("stages");
-                if (stagesObj instanceof List<?> stages) {
-                    for (Object stageObj : stages) {
-                        if (stageObj instanceof Map<?, ?> stage) {
-                            String name = String.valueOf(stage.get("name"));
+                if (stagesObj instanceof Map<?, ?> stagesMap) {
+                    stagesMap.forEach((key, val) -> {
+                        if (val instanceof Map<?, ?> stage) {
                             Object durationMs = stage.get("duration_ms");
                             if (durationMs instanceof Number num) {
-                                stageDurations.computeIfAbsent(name, k -> new ArrayList<>()).add(num.longValue());
+                                stageDurations.computeIfAbsent(String.valueOf(key), k -> new ArrayList<>()).add(num.longValue());
                             }
                         }
-                    }
+                    });
                 }
             } catch (Exception e) {
                 log.debug("Failed to parse result JSON for task {}: {}", task.getId(), e.getMessage());
@@ -1108,16 +1115,14 @@ public class AdminController {
         // Include result JSON (stages/metrics) as parsed object if possible
         if (t.getResult() != null) {
             try {
-                var mapper = new ObjectMapper();
-                m.put("result", mapper.readValue(t.getResult(), Map.class));
+                m.put("result", objectMapper.readValue(t.getResult(), Map.class));
             } catch (Exception e) {
                 m.put("result", t.getResult());
             }
         }
         if (t.getParams() != null) {
             try {
-                var mapper = new ObjectMapper();
-                m.put("params", mapper.readValue(t.getParams(), Map.class));
+                m.put("params", objectMapper.readValue(t.getParams(), Map.class));
             } catch (Exception e) {
                 m.put("params", t.getParams());
             }
