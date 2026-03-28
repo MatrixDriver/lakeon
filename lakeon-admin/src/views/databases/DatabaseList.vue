@@ -199,10 +199,10 @@
             <div style="font-size: 11px; color: #999; margin-top: 4px;">{{ d.date.substring(5) }}</div>
             <div style="font-size: 12px; font-weight: 600;">{{ csFormatMs(d.avg_ms) }}</div>
             <div style="font-size: 10px; color: #bbb;">{{ d.count }}次</div>
-            <div v-if="idx > 0 && csData.trend[idx - 1]" style="font-size: 10px; margin-top: 2px;"
-              :style="{ color: csDayChange(d, csData.trend[idx - 1]) <= 0 ? '#52c41a' : '#e53e3e' }">
-              {{ csDayChange(d, csData.trend[idx - 1]) <= 0 ? '&#9660;' : '&#9650;' }}
-              {{ Math.abs(csDayChange(d, csData.trend[idx - 1])) }}%
+            <div v-if="csTrendDelta(Number(idx)) != null" style="font-size: 10px; margin-top: 2px;"
+              :style="{ color: (csTrendDelta(Number(idx)) ?? 0) <= 0 ? '#52c41a' : '#e53e3e' }">
+              {{ (csTrendDelta(Number(idx)) ?? 0) <= 0 ? '&#9660;' : '&#9650;' }}
+              {{ Math.abs(csTrendDelta(Number(idx)) ?? 0) }}%
             </div>
           </div>
         </div>
@@ -348,9 +348,13 @@ const csTrendAnalysis = computed(() => {
   return { earlyAvg, recentAvg, changePercent, bestDay, worstDay }
 })
 
-function csDayChange(curr: { avg_ms: number }, prev: { avg_ms: number }): number {
-  if (!prev.avg_ms) return 0
-  return Math.round((curr.avg_ms - prev.avg_ms) / prev.avg_ms * 100)
+function csTrendDelta(idx: number): number | null {
+  const trend = csData.value?.trend
+  if (!trend || idx <= 0) return null
+  const curr = Number(trend[idx]?.avg_ms)
+  const prev = Number(trend[idx - 1]?.avg_ms)
+  if (!prev) return null
+  return Math.round((curr - prev) / prev * 100)
 }
 
 function csColor(ms: number | null | undefined): string {
