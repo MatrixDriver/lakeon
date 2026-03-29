@@ -35,6 +35,10 @@
                 </div>
               </router-link>
             </div>
+            <div class="nav-divider"></div>
+            <router-link to="/product" class="nav-item">
+              <span class="nav-item-title" style="color: var(--pub-accent, #92400e)">{{ t('产品架构总览', 'Architecture Overview') }}</span>
+            </router-link>
           </NavDropdown>
 
           <!-- 集成 dropdown -->
