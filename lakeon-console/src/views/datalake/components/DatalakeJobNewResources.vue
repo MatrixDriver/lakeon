@@ -84,7 +84,6 @@
 
     <template v-else>
       <div class="coming-soon">
-        <div class="coming-soon-icon">🚧</div>
         <div>GPU 资源配置即将推出</div>
       </div>
     </template>
@@ -116,7 +115,6 @@ defineEmits<{
 .field-label { font-size: 12px; font-weight: 600; color: #374151; }
 .field-select { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; font-size: 13px; color: #1e293b; min-width: 120px; outline: none; }
 .coming-soon { background: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 8px; padding: 32px; text-align: center; font-size: 13px; color: #64748b; }
-.coming-soon-icon { font-size: 28px; margin-bottom: 8px; }
 .subsection { margin-bottom: 16px; }
 .subsection-title { font-size: 13px; font-weight: 600; color: #1e293b; margin-bottom: 8px; }
 </style>

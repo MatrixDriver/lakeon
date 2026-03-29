@@ -1,8 +1,9 @@
 <template>
-  <main class="product-detail">
+  <main class="product-page">
     <div class="hero">
       <div class="hero-inner">
-        <h1 class="hero-title">{{ t('📚 知识库', '📚 Knowledge Base') }}</h1>
+        <div class="hero-marker"></div>
+        <h1 class="hero-title">{{ t('知识库', 'Knowledge Base') }}</h1>
         <p class="hero-subtitle">
           {{ t('文档 + 表 + 向量检索，内置 Embedding 与 Reranker', 'Documents + Tables + Vector Search, built-in Embedding & Reranker') }}
         </p>
@@ -11,8 +12,7 @@
 
     <div class="content">
       <ul class="feature-list">
-        <li class="feature-item" v-for="feature in features" :key="feature.icon">
-          <span class="feature-icon">{{ feature.icon }}</span>
+        <li v-for="feature in features" :key="feature.en" class="feature-item">
           <div class="feature-body">
             <div class="feature-title">{{ t(feature.zh, feature.en) }}</div>
             <div class="feature-desc">{{ t(feature.descZh, feature.descEn) }}</div>
@@ -21,8 +21,8 @@
       </ul>
 
       <div class="cta-section">
-        <a href="/console" class="cta-button">{{ t('立即试用 →', 'Get Started →') }}</a>
-        <router-link to="/product" class="back-link">{{ t('← 返回产品总览', '← Back to Products') }}</router-link>
+        <a href="/console" class="btn-cta">{{ t('立即试用', 'Get Started') }}</a>
+        <router-link to="/product" class="btn-back">{{ t('返回产品总览', 'Back to Products') }}</router-link>
       </div>
     </div>
   </main>
@@ -35,42 +35,36 @@ const { t } = useLocale()
 
 const features = [
   {
-    icon: '📄',
     zh: '文档自动解析',
     en: 'Doc Parsing',
     descZh: 'PDF / Word / Markdown 自动解析',
     descEn: 'Auto parsing for PDF, Word, Markdown',
   },
   {
-    icon: '🔍',
     zh: '向量检索',
     en: 'Vector Search',
     descZh: '基于 pgvector 的语义搜索',
     descEn: 'Semantic search powered by pgvector',
   },
   {
-    icon: '📝',
     zh: '全文搜索',
     en: 'Full-text Search',
     descZh: 'tsvector / RUM 索引',
     descEn: 'tsvector / RUM index',
   },
   {
-    icon: '📊',
     zh: '表知识库',
     en: 'Table KB',
     descZh: '结构化数据知识库',
     descEn: 'Structured data knowledge base',
   },
   {
-    icon: '🔗',
     zh: '混合检索',
     en: 'Hybrid Search',
     descZh: '向量 + 全文混合检索',
     descEn: 'Vector + full-text hybrid retrieval',
   },
   {
-    icon: '🧩',
     zh: '内置模型',
     en: 'Built-in Models',
     descZh: '内置 Embedding 与 Reranker',
@@ -80,17 +74,17 @@ const features = [
 </script>
 
 <style scoped>
-.product-detail {
+.product-page {
   min-height: 100vh;
   background: var(--pub-bg);
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
 }
 
 .hero {
-  border-top: 4px solid transparent;
-  border-image: linear-gradient(90deg, #4caf50, #2e7d32) 1;
+  border-top: 3px solid #4a8b8c;
   background: var(--pub-surface);
   border-bottom: 1px solid var(--pub-border);
-  padding: 56px 24px 48px;
+  padding: clamp(40px, 6vw, 64px) 24px clamp(32px, 5vw, 48px);
 }
 
 .hero-inner {
@@ -98,15 +92,25 @@ const features = [
   margin: 0 auto;
 }
 
+.hero-marker {
+  width: 32px;
+  height: 3px;
+  background: #4a8b8c;
+  margin-bottom: 20px;
+}
+
 .hero-title {
-  font-size: 2rem;
+  font-family: var(--pub-serif, 'Noto Serif SC', Georgia, serif);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
   font-weight: 700;
   color: var(--pub-text);
   margin: 0 0 12px;
+  line-height: 1.2;
 }
 
 .hero-subtitle {
-  font-size: 1.05rem;
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.95rem, 1.5vw, 1.1rem);
   color: var(--pub-text-2);
   margin: 0;
   line-height: 1.6;
@@ -124,30 +128,18 @@ const features = [
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .feature-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
   padding: 20px 24px;
+  border-left: 3px solid #4a8b8c;
   background: var(--pub-surface);
-  border: 1px solid var(--pub-border);
-  border-radius: 10px;
-  transition: border-color 0.2s, background 0.2s;
+  transition: background 0.15s ease;
 }
 
 .feature-item:hover {
-  border-color: #4caf50;
   background: var(--pub-hover);
-}
-
-.feature-icon {
-  font-size: 1.5rem;
-  line-height: 1;
-  flex-shrink: 0;
-  margin-top: 2px;
 }
 
 .feature-body {
@@ -157,15 +149,17 @@ const features = [
 }
 
 .feature-title {
-  font-size: 1rem;
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.9rem, 1.2vw, 1rem);
   font-weight: 600;
   color: var(--pub-text);
 }
 
 .feature-desc {
-  font-size: 0.9rem;
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.8rem, 1.1vw, 0.9rem);
   color: var(--pub-text-2);
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .cta-section {
@@ -175,38 +169,36 @@ const features = [
   flex-wrap: wrap;
 }
 
-.cta-button {
+.btn-cta {
   display: inline-block;
-  padding: 12px 28px;
-  background: #4caf50;
+  padding: 10px 24px;
+  background: var(--pub-btn-bg, #1e2d3d);
   color: #fff;
-  font-size: 0.95rem;
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.85rem, 1.1vw, 0.95rem);
   font-weight: 600;
-  border-radius: 8px;
   text-decoration: none;
-  transition: background 0.2s;
+  border-radius: 6px;
+  transition: opacity 0.15s ease;
 }
 
-.cta-button:hover {
-  background: #2e7d32;
+.btn-cta:hover {
+  opacity: 0.85;
 }
 
-.back-link {
-  font-size: 0.9rem;
+.btn-back {
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.8rem, 1vw, 0.9rem);
   color: var(--pub-text-3);
   text-decoration: none;
-  transition: color 0.2s;
+  transition: color 0.15s ease;
 }
 
-.back-link:hover {
-  color: var(--pub-text);
+.btn-back:hover {
+  color: var(--pub-accent, #c67d3a);
 }
 
 @media (max-width: 600px) {
-  .hero-title {
-    font-size: 1.5rem;
-  }
-
   .feature-item {
     padding: 16px;
   }

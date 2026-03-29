@@ -1,57 +1,68 @@
 /* ── Public site theme variables ── */
+/* Harbor palette: deep navy + warm amber + cream */
 :root {
-  --pub-bg: #f7f9fc;
-  --pub-surface: #fff;
-  --pub-text: #1a1a1a;
-  --pub-text-2: #666;
-  --pub-text-3: #888;
-  --pub-text-4: #999;
-  --pub-border: #e5e5e5;
-  --pub-hover: #f5f5f5;
-  --pub-code-bg: #f4f4f6;
-  --pub-code: #7c3aed;
-  --pub-accent-bg: #f5f3ff;
-  --pub-accent-border: #7c3aed33;
-  --pub-btn-bg: #1a1a1a;
-  --pub-btn-text: #fff;
-  --pub-btn-hover: #333;
-  --pub-shadow: rgba(0,0,0,0.08);
-  --pub-hero-start: #f0f5ff;
-  --pub-hero-end: #fff;
-  --pub-primary: #0073e6;
-  --pub-primary-dark: #005bb5;
-  --pub-primary-light: #e3f2fd;
-  --pub-bg-alt: #f8f9fb;
+  --pub-bg: #faf7f2;
+  --pub-surface: #fffdf9;
+  --pub-text: #1e2d3d;
+  --pub-text-2: #4a5568;
+  --pub-text-3: #7a8599;
+  --pub-text-4: #9ca3af;
+  --pub-border: #e8e0d4;
+  --pub-hover: #f3ede4;
+  --pub-code-bg: #f5f0e8;
+  --pub-code: #8b5e3c;
+  --pub-accent-bg: #fef8f0;
+  --pub-accent-border: #c67d3a33;
+  --pub-btn-bg: #1e2d3d;
+  --pub-btn-text: #faf7f2;
+  --pub-btn-hover: #2a3f54;
+  --pub-shadow: rgba(30,45,61,0.08);
+  --pub-hero-start: #faf7f2;
+  --pub-hero-end: #fffdf9;
+  --pub-primary: #1e2d3d;
+  --pub-primary-dark: #152231;
+  --pub-primary-light: #e8eef4;
+  --pub-bg-alt: #f5f0e8;
+  --pub-accent: #c67d3a;
+  --pub-accent-dark: #a5652e;
+  --pub-teal: #4a8b8c;
+  --pub-teal-light: #e6f2f2;
+  --pub-serif: 'Noto Serif SC', Georgia, 'Times New Roman', serif;
+  --pub-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 [data-theme="dark"] {
-  --pub-bg: #0a0a0a;
-  --pub-surface: #111;
-  --pub-text: #e5e5e5;
-  --pub-text-2: #888;
-  --pub-text-3: #666;
-  --pub-text-4: #555;
-  --pub-border: #222;
-  --pub-hover: #1a1a1a;
-  --pub-code-bg: #1a1a1a;
-  --pub-code: #a78bfa;
-  --pub-accent-bg: #1a1a2e;
-  --pub-accent-border: #7c3aed44;
-  --pub-btn-bg: #fff;
-  --pub-btn-text: #000;
-  --pub-btn-hover: #e5e5e5;
-  --pub-shadow: rgba(0,0,0,0.4);
-  --pub-hero-start: #0d0d18;
-  --pub-hero-end: #0a0a0a;
-  --pub-primary: #4da6ff;
-  --pub-primary-dark: #0073e6;
-  --pub-primary-light: #1a2a3a;
-  --pub-bg-alt: #0f0f0f;
+  --pub-bg: #111a24;
+  --pub-surface: #172030;
+  --pub-text: #e8e0d4;
+  --pub-text-2: #9ca3af;
+  --pub-text-3: #6b7280;
+  --pub-text-4: #4b5563;
+  --pub-border: #243040;
+  --pub-hover: #1e2a3a;
+  --pub-code-bg: #1e2a3a;
+  --pub-code: #d4a06a;
+  --pub-accent-bg: #1e2a38;
+  --pub-accent-border: #c67d3a44;
+  --pub-btn-bg: #e8e0d4;
+  --pub-btn-text: #111a24;
+  --pub-btn-hover: #d4ccc0;
+  --pub-shadow: rgba(0,0,0,0.3);
+  --pub-hero-start: #111a24;
+  --pub-hero-end: #172030;
+  --pub-primary: #d4a06a;
+  --pub-primary-dark: #c67d3a;
+  --pub-primary-light: #2a3040;
+  --pub-bg-alt: #1a2434;
+  --pub-accent: #d4a06a;
+  --pub-accent-dark: #c67d3a;
+  --pub-teal: #6bb3b4;
+  --pub-teal-light: #1a2e30;
 }
 /* ── end theme variables ── */
 
 :root {
-  font-family: 'HuaweiSans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'DM Sans', 'HuaweiSans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color: #333;

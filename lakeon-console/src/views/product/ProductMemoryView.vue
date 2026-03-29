@@ -1,9 +1,10 @@
 <template>
-  <main class="product-detail">
+  <main class="product-page">
     <!-- Hero -->
     <div class="hero">
       <div class="hero-inner">
-        <h1 class="hero-title">{{ t('🧠 记忆库', '🧠 Memory Store') }}</h1>
+        <div class="hero-marker"></div>
+        <h1 class="hero-title">{{ t('记忆库', 'Memory Store') }}</h1>
         <p class="hero-subtitle">
           {{ t('为 AI Agent 提供结构化长期记忆，越用越懂你', 'Structured long-term memory for AI Agents — gets smarter with every interaction') }}
         </p>
@@ -15,11 +16,13 @@
       <!-- Section 1: Three Core Operations -->
       <section class="section">
         <h2 class="section-title">{{ t('三个核心操作', 'Three Core Operations') }}</h2>
-        <div class="api-grid">
-          <div class="api-card" v-for="op in coreOps" :key="op.name">
-            <div class="api-name">{{ op.name }}</div>
-            <div class="api-desc">{{ t(op.descZh, op.descEn) }}</div>
-            <div class="api-detail">{{ t(op.detailZh, op.detailEn) }}</div>
+        <div class="ops-list">
+          <div class="ops-item" v-for="op in coreOps" :key="op.name">
+            <div class="ops-header">
+              <span class="ops-name">{{ op.name }}</span>
+              <span class="ops-summary">{{ t(op.descZh, op.descEn) }}</span>
+            </div>
+            <div class="ops-detail">{{ t(op.detailZh, op.detailEn) }}</div>
           </div>
         </div>
       </section>
@@ -27,9 +30,9 @@
       <!-- Section 2: Four Memory Types -->
       <section class="section">
         <h2 class="section-title">{{ t('四种记忆类型', 'Four Memory Types') }}</h2>
-        <div class="types-grid">
-          <div class="type-card" v-for="mt in memoryTypes" :key="mt.icon">
-            <div class="type-icon">{{ mt.icon }}</div>
+        <div class="types-list">
+          <div class="type-item" v-for="mt in memoryTypes" :key="mt.badge">
+            <div class="type-badge">{{ mt.badge }}</div>
             <div class="type-body">
               <div class="type-title">{{ t(mt.zh, mt.en) }}</div>
               <div class="type-desc">{{ t(mt.descZh, mt.descEn) }}</div>
@@ -46,9 +49,8 @@
             v-for="(step, i) in lifecycleSteps"
             :key="step.zh"
             class="lifecycle-step"
-            :class="{ 'step-first': i === 0, 'step-last': i === lifecycleSteps.length - 1 }"
           >
-            <div class="step-dot" :class="{ 'dot-first': i === 0, 'dot-last': i === lifecycleSteps.length - 1 }"></div>
+            <div class="step-dot" :class="{ 'dot-hollow': i === lifecycleSteps.length - 1 }"></div>
             <div class="step-label">{{ t(step.zh, step.en) }}</div>
             <div v-if="i < lifecycleSteps.length - 1" class="step-line"></div>
           </div>
@@ -58,13 +60,13 @@
       <!-- Section 4: LoCoMo Benchmark -->
       <section class="section">
         <h2 class="section-title">{{ t('LoCoMo 基准测试', 'LoCoMo Benchmark') }}</h2>
-        <div class="benchmark-card">
+        <div class="benchmark">
           <div class="benchmark-score-block">
             <div class="benchmark-main-score">81.7%</div>
             <div class="benchmark-score-label">{{ t('综合得分', 'Overall Score') }}</div>
           </div>
           <div class="benchmark-sub-scores">
-            <div class="sub-score" v-for="sub in subScores" :key="sub.labelZh">
+            <div class="sub-score" v-for="sub in subScores" :key="sub.labelEn">
               <div class="sub-score-value">{{ sub.value }}</div>
               <div class="sub-score-label">{{ t(sub.labelZh, sub.labelEn) }}</div>
             </div>
@@ -91,8 +93,8 @@
 
       <!-- CTA -->
       <div class="cta-section">
-        <a href="/console" class="cta-button">{{ t('立即试用 →', 'Get Started →') }}</a>
-        <router-link to="/product" class="back-link">{{ t('← 返回产品总览', '← Back to Products') }}</router-link>
+        <a href="/console" class="btn-cta">{{ t('立即试用', 'Get Started') }}</a>
+        <router-link to="/product" class="btn-back">{{ t('返回产品总览', 'Back to Products') }}</router-link>
       </div>
 
     </div>
@@ -130,28 +132,28 @@ const coreOps = [
 
 const memoryTypes = [
   {
-    icon: '📋',
+    badge: 'FACT',
     zh: '事实 / Fact',
     en: 'Fact',
     descZh: '从对话中提取的离散、客观、可验证的信息。以向量嵌入存储并关联知识图谱。',
     descEn: 'Discrete, objective, verifiable information extracted from conversations. Stored as vector embeddings linked to the knowledge graph.',
   },
   {
-    icon: '🕐',
+    badge: 'EVENT',
     zh: '事件 / Episode',
     en: 'Episode',
     descZh: '带有情绪元数据（效价、唤醒度、情绪标签）和时间表达的时间绑定事件和体验。',
     descEn: 'Time-bound events and experiences with emotional metadata (valence, arousal, emotion tags) and temporal expressions.',
   },
   {
-    icon: '🧠',
+    badge: 'TRAIT',
     zh: '特征 / Trait',
     en: 'Trait',
     descZh: '通过多会话反思发现的行为模式。经历从趋势到核心的 6 阶段生命周期演化。',
     descEn: 'Behavioral patterns discovered through multi-session reflection. Evolves through a 6-stage lifecycle from trend to core.',
   },
   {
-    icon: '📄',
+    badge: 'DOC',
     zh: '文档 / Document',
     en: 'Document',
     descZh: '上传的静态参考资料，用于 RAG 风格检索。支持 PDF 和文件的专项搜索。',
@@ -185,18 +187,18 @@ const comparisonBars = [
 </script>
 
 <style scoped>
-.product-detail {
+.product-page {
   min-height: 100vh;
   background: var(--pub-bg);
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
 }
 
 /* Hero */
 .hero {
-  border-top: 4px solid transparent;
-  border-image: linear-gradient(90deg, #ff9800, #e65100) 1;
+  border-top: 3px solid #c67d3a;
   background: var(--pub-surface);
   border-bottom: 1px solid var(--pub-border);
-  padding: 56px 24px 48px;
+  padding: clamp(40px, 6vw, 64px) 24px clamp(32px, 5vw, 48px);
 }
 
 .hero-inner {
@@ -204,15 +206,25 @@ const comparisonBars = [
   margin: 0 auto;
 }
 
+.hero-marker {
+  width: 32px;
+  height: 3px;
+  background: #c67d3a;
+  margin-bottom: 20px;
+}
+
 .hero-title {
-  font-size: 2rem;
+  font-family: var(--pub-serif, 'Noto Serif SC', Georgia, serif);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
   font-weight: 700;
   color: var(--pub-text);
   margin: 0 0 12px;
+  line-height: 1.2;
 }
 
 .hero-subtitle {
-  font-size: 1.05rem;
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.95rem, 1.5vw, 1.1rem);
   color: var(--pub-text-2);
   margin: 0;
   line-height: 1.6;
@@ -225,7 +237,7 @@ const comparisonBars = [
   padding: 40px 24px 64px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 40px;
 }
 
 /* Section */
@@ -236,79 +248,96 @@ const comparisonBars = [
 }
 
 .section-title {
-  font-size: 1.25rem;
+  font-family: var(--pub-serif, 'Noto Serif SC', Georgia, serif);
+  font-size: clamp(1.1rem, 2vw, 1.3rem);
   font-weight: 700;
   color: var(--pub-text);
   margin: 0;
 }
 
-/* Section 1: API cards */
-.api-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+/* Section 1: Core Operations */
+.ops-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.api-card {
+.ops-item {
+  padding: 20px 24px;
+  border-left: 3px solid #c67d3a;
   background: var(--pub-surface);
-  border: 1px solid var(--pub-border);
-  border-radius: 10px;
-  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  transition: border-color 0.2s;
+  transition: background 0.15s ease;
 }
 
-.api-card:hover {
-  border-color: #ff9800;
+.ops-item:hover {
+  background: var(--pub-hover);
 }
 
-.api-name {
+.ops-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ops-name {
   font-family: var(--pub-code, 'JetBrains Mono', 'Fira Code', monospace);
-  font-size: 1.05rem;
+  font-size: clamp(0.9rem, 1.2vw, 1rem);
   font-weight: 700;
-  color: #2563eb;
+  color: #c67d3a;
 }
 
-.api-desc {
-  font-size: 0.9rem;
+.ops-summary {
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.8rem, 1.1vw, 0.9rem);
   font-weight: 600;
   color: var(--pub-text);
   line-height: 1.5;
 }
 
-.api-detail {
-  font-size: 0.85rem;
+.ops-detail {
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.78rem, 1vw, 0.85rem);
   color: var(--pub-text-2);
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 /* Section 2: Memory types */
-.types-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-}
-
-.type-card {
-  background: var(--pub-surface);
-  border: 1px solid var(--pub-border);
-  border-radius: 10px;
-  padding: 20px;
+.types-list {
   display: flex;
-  gap: 14px;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.type-item {
+  padding: 20px 24px;
+  border-left: 3px solid #c67d3a;
+  background: var(--pub-surface);
+  display: flex;
+  gap: 16px;
   align-items: flex-start;
-  transition: border-color 0.2s;
+  transition: background 0.15s ease;
 }
 
-.type-card:hover {
-  border-color: #ff9800;
+.type-item:hover {
+  background: var(--pub-hover);
 }
 
-.type-icon {
-  font-size: 1.5rem;
-  line-height: 1;
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 10px;
+  background: #c67d3a;
+  color: #fff;
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.65rem, 0.9vw, 0.72rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  border-radius: 3px;
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -316,17 +345,19 @@ const comparisonBars = [
 .type-body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .type-title {
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.9rem, 1.2vw, 1rem);
+  font-weight: 600;
   color: var(--pub-text);
 }
 
 .type-desc {
-  font-size: 0.85rem;
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.8rem, 1.1vw, 0.88rem);
   color: var(--pub-text-2);
   line-height: 1.6;
 }
@@ -351,40 +382,36 @@ const comparisonBars = [
 }
 
 .step-dot {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: #7c3aed;
-  border: 2px solid #7c3aed;
+  background: #c67d3a;
+  border: 2px solid #c67d3a;
   flex-shrink: 0;
   position: relative;
   z-index: 1;
 }
 
-.dot-first {
-  background: #a78bfa;
-  border-color: #a78bfa;
-}
-
-.dot-last {
+.dot-hollow {
   background: transparent;
-  border: 2px dashed #7c3aed;
+  border-style: dashed;
 }
 
 .step-line {
   position: absolute;
-  top: 7px;
-  left: calc(50% + 8px);
-  right: calc(-50% + 8px);
+  top: 6px;
+  left: calc(50% + 7px);
+  right: calc(-50% + 7px);
   height: 2px;
-  background: #7c3aed;
-  opacity: 0.4;
+  background: #c67d3a;
+  opacity: 0.35;
   z-index: 0;
 }
 
 .step-label {
   margin-top: 10px;
-  font-size: 0.8rem;
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.7rem, 0.9vw, 0.8rem);
   font-weight: 600;
   color: var(--pub-text-2);
   text-align: center;
@@ -392,10 +419,10 @@ const comparisonBars = [
 }
 
 /* Section 4: Benchmark */
-.benchmark-card {
+.benchmark {
   background: var(--pub-surface);
   border: 1px solid var(--pub-border);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 28px 24px;
   display: flex;
   flex-direction: column;
@@ -410,14 +437,16 @@ const comparisonBars = [
 }
 
 .benchmark-main-score {
-  font-size: 64px;
+  font-family: var(--pub-serif, 'Noto Serif SC', Georgia, serif);
+  font-size: clamp(2.5rem, 6vw, 3.5rem);
   font-weight: 800;
-  color: #7c3aed;
+  color: #c67d3a;
   line-height: 1;
 }
 
 .benchmark-score-label {
-  font-size: 0.85rem;
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.75rem, 1vw, 0.85rem);
   color: var(--pub-text-3);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -433,20 +462,22 @@ const comparisonBars = [
 .sub-score {
   background: var(--pub-bg-alt);
   border: 1px solid var(--pub-border);
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 10px 16px;
   text-align: center;
   min-width: 100px;
 }
 
 .sub-score-value {
-  font-size: 1.2rem;
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(1rem, 1.5vw, 1.2rem);
   font-weight: 700;
   color: var(--pub-text);
 }
 
 .sub-score-label {
-  font-size: 0.78rem;
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.7rem, 0.9vw, 0.78rem);
   color: var(--pub-text-3);
   margin-top: 2px;
 }
@@ -464,7 +495,8 @@ const comparisonBars = [
 }
 
 .bar-label {
-  font-size: 0.85rem;
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.78rem, 1vw, 0.85rem);
   color: var(--pub-text-2);
   width: 110px;
   flex-shrink: 0;
@@ -491,11 +523,12 @@ const comparisonBars = [
 }
 
 .bar-highlighted .bar-fill {
-  background: #7c3aed;
+  background: #c67d3a;
 }
 
 .bar-value {
-  font-size: 0.85rem;
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.78rem, 1vw, 0.85rem);
   font-weight: 600;
   color: var(--pub-text-2);
   width: 48px;
@@ -504,12 +537,13 @@ const comparisonBars = [
 }
 
 .bar-highlighted .bar-value {
-  color: #7c3aed;
+  color: #c67d3a;
   font-weight: 700;
 }
 
 .benchmark-note {
-  font-size: 0.8rem;
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.72rem, 0.9vw, 0.8rem);
   color: var(--pub-text-4);
   text-align: center;
   line-height: 1.5;
@@ -521,52 +555,45 @@ const comparisonBars = [
   align-items: center;
   gap: 24px;
   flex-wrap: wrap;
-  padding-top: 8px;
 }
 
-.cta-button {
+.btn-cta {
   display: inline-block;
-  padding: 12px 28px;
-  background: #ff9800;
+  padding: 10px 24px;
+  background: var(--pub-btn-bg, #1e2d3d);
   color: #fff;
-  font-size: 0.95rem;
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.85rem, 1.1vw, 0.95rem);
   font-weight: 600;
-  border-radius: 8px;
   text-decoration: none;
-  transition: background 0.2s;
+  border-radius: 6px;
+  transition: opacity 0.15s ease;
 }
 
-.cta-button:hover {
-  background: #e65100;
+.btn-cta:hover {
+  opacity: 0.85;
 }
 
-.back-link {
-  font-size: 0.9rem;
+.btn-back {
+  font-family: var(--pub-sans, 'DM Sans', sans-serif);
+  font-size: clamp(0.8rem, 1vw, 0.9rem);
   color: var(--pub-text-3);
   text-decoration: none;
-  transition: color 0.2s;
+  transition: color 0.15s ease;
 }
 
-.back-link:hover {
-  color: var(--pub-text);
+.btn-back:hover {
+  color: var(--pub-accent, #c67d3a);
 }
 
 /* Responsive */
 @media (max-width: 700px) {
-  .hero-title {
-    font-size: 1.5rem;
+  .ops-item {
+    padding: 16px;
   }
 
-  .api-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .types-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .lifecycle {
-    gap: 0;
+  .type-item {
+    padding: 16px;
   }
 
   .lifecycle-step {
@@ -575,10 +602,6 @@ const comparisonBars = [
 
   .step-label {
     font-size: 0.7rem;
-  }
-
-  .benchmark-main-score {
-    font-size: 48px;
   }
 
   .cta-section {

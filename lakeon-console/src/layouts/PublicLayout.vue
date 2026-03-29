@@ -4,7 +4,7 @@
       <div class="pub-nav-inner">
         <!-- Brand -->
         <router-link to="/" class="pub-brand">
-          DBay <span class="pub-tagline">{{ t('数据港湾', 'Data Harbor') }}</span>
+          <span class="pub-brand-mark">&#9875;</span>DBay
         </router-link>
 
         <!-- Desktop nav -->
@@ -12,59 +12,58 @@
           <!-- 产品 dropdown -->
           <NavDropdown :label="t('产品', 'Products')">
             <div class="nav-product-grid">
-              <router-link to="/product#lakebase" class="nav-item nav-item-grid">
-                <span class="nav-item-icon">🐘</span>
+              <router-link to="/product/lakebase" class="nav-item nav-item-grid">
+                <span class="nav-item-dot" style="background: #1e2d3d"></span>
                 <div>
                   <div class="nav-item-title">Lakebase</div>
                   <div class="nav-item-desc">Serverless PostgreSQL</div>
                 </div>
               </router-link>
-              <router-link to="/product#knowledge" class="nav-item nav-item-grid">
-                <span class="nav-item-icon">📚</span>
+              <router-link to="/product/knowledge" class="nav-item nav-item-grid">
+                <span class="nav-item-dot" style="background: #4a8b8c"></span>
                 <div>
                   <div class="nav-item-title">{{ t('知识库', 'Knowledge Base') }}</div>
                   <div class="nav-item-desc">{{ t('文档 + 向量搜索', 'Docs + Vector Search') }}</div>
                 </div>
               </router-link>
-              <router-link to="/product#memory" class="nav-item nav-item-grid">
-                <span class="nav-item-icon">🧠</span>
+              <router-link to="/product/memory" class="nav-item nav-item-grid">
+                <span class="nav-item-dot" style="background: #c67d3a"></span>
                 <div>
                   <div class="nav-item-title">{{ t('记忆库', 'Memory Store') }}</div>
                   <div class="nav-item-desc">{{ t('Agent 长期记忆', 'Agent Long-term Memory') }}</div>
                 </div>
               </router-link>
-              <router-link to="/product#datalake" class="nav-item nav-item-grid">
-                <span class="nav-item-icon">🌊</span>
+              <router-link to="/product/datalake" class="nav-item nav-item-grid">
+                <span class="nav-item-dot" style="background: #7a5195"></span>
                 <div>
                   <div class="nav-item-title">{{ t('数据湖', 'Data Lake') }}</div>
                   <div class="nav-item-desc">{{ t('数据处理 + 训练', 'Processing + Training') }}</div>
                 </div>
               </router-link>
             </div>
+            <div class="nav-divider"></div>
+            <router-link to="/product" class="nav-item">
+              <span class="nav-item-title" style="color: var(--pub-accent, #c67d3a)">{{ t('产品架构总览', 'Architecture Overview') }}</span>
+            </router-link>
           </NavDropdown>
 
           <!-- 集成 dropdown -->
           <NavDropdown :label="t('集成', 'Integrations')">
             <router-link to="/integrations#mcp" class="nav-item">
-              <span class="nav-item-icon">🤖</span>
               <span class="nav-item-title">{{ t('MCP 集成', 'MCP Integration') }}</span>
             </router-link>
             <router-link to="/integrations#skill" class="nav-item">
-              <span class="nav-item-icon">🔧</span>
               <span class="nav-item-title">{{ t('Skill 集成', 'Skill Integration') }}</span>
             </router-link>
             <router-link to="/integrations#pg" class="nav-item">
-              <span class="nav-item-icon">🐘</span>
               <span class="nav-item-title">{{ t('PostgreSQL 协议', 'PostgreSQL Protocol') }}</span>
             </router-link>
             <router-link to="/integrations#rest" class="nav-item">
-              <span class="nav-item-icon">🔌</span>
               <span class="nav-item-title">REST API</span>
             </router-link>
             <div class="nav-divider"></div>
             <router-link to="/docs/rest-api" class="nav-item">
-              <span class="nav-item-icon">📖</span>
-              <span class="nav-item-title" style="color: var(--pub-primary)">{{ t('API 文档', 'API Docs') }}</span>
+              <span class="nav-item-title" style="color: var(--pub-accent, var(--pub-primary))">{{ t('API 文档', 'API Docs') }}</span>
             </router-link>
           </NavDropdown>
 
@@ -100,8 +99,8 @@
         <div class="pub-nav-right">
           <!-- Theme toggle -->
           <button class="theme-btn" @click="toggleTheme" :aria-label="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">
-            <span v-if="theme === 'dark'">☀️</span>
-            <span v-else>🌙</span>
+            <span v-if="theme === 'dark'" style="font-size: 14px">&#9788;</span>
+            <span v-else style="font-size: 14px">&#9790;</span>
           </button>
           <button class="lang-btn" @click="toggleLocale">{{ locale === 'zh' ? 'EN' : '中' }}</button>
           <router-link to="/login" class="btn-signin">{{ t('登录', 'Sign In') }}</router-link>
@@ -175,18 +174,20 @@ async function handleNavTrial() {
   gap: 24px;
 }
 .pub-brand {
+  font-family: var(--pub-sans, inherit);
   font-weight: 700;
   font-size: 17px;
   color: var(--pub-text);
   text-decoration: none;
   white-space: nowrap;
   margin-right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
-.pub-tagline {
-  font-weight: 400;
-  font-size: 12px;
-  color: var(--pub-text-4);
-  margin-left: 4px;
+.pub-brand-mark {
+  font-size: 20px;
+  color: var(--pub-accent, #c67d3a);
 }
 .pub-nav-links {
   display: flex;
@@ -312,14 +313,20 @@ async function handleNavTrial() {
   font-size: 18px;
   flex-shrink: 0;
 }
+.nav-item-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
 .nav-divider {
   height: 1px;
   background: var(--pub-border);
   margin: 4px 0;
 }
 .btn-trial {
-  background: var(--pub-primary, #0073e6);
-  color: #fff !important;
+  background: var(--pub-btn-bg, #1e2d3d);
+  color: var(--pub-btn-text, #fff) !important;
   padding: 6px 16px;
   border-radius: 6px;
   font-size: 13px;

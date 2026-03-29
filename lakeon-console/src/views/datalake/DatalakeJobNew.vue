@@ -202,7 +202,7 @@ const canSubmit = computed(() => {
 })
 
 const typeLabel = (t: DatalakeJobType) =>
-  ({ PYTHON: '🐍 Python', RAY: '⚡ Ray', FINETUNE: '🧠 微调' })[t] ?? t
+  ({ PYTHON: 'Python', RAY: 'Ray', FINETUNE: '微调' })[t] ?? t
 
 async function handleSubmit() {
   if (!canSubmit.value) return
