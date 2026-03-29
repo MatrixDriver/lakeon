@@ -330,13 +330,13 @@ const values = computed(() => [
 ])
 
 const roles = computed(() => [
-  { key: 'family', icon: '🏠', title: t('家庭管家', 'Family Manager'), desc: t('家人口味、孩子学业、作息规律、采购清单、健康提醒', 'Family preferences, children\'s studies, daily schedules, shopping lists, health reminders') },
-  { key: 'work', icon: '💼', title: t('工作助理', 'Work Assistant'), desc: t('同事关系、项目状态、会议决策、截止日期、沟通风格', 'Colleague relationships, project status, meeting decisions, deadlines, communication style') },
-  { key: 'coding', icon: '💻', title: t('编程伙伴', 'Coding Partner'), desc: t('技术栈、架构决策、代码规范、调试经验、部署配置', 'Tech stack, architecture decisions, code standards, debugging experience, deployment config') },
-  { key: 'content', icon: '✍️', title: t('内容创作', 'Content Creator'), desc: t('写作风格、发布频率、受众画像、过往内容、热点偏好', 'Writing style, publishing frequency, audience profile, past content, trending preferences') },
-  { key: 'trading', icon: '📊', title: t('交易助手', 'Trading Assistant'), desc: t('预算范围、品牌偏好、价格敏感度、历史交易、比价策略', 'Budget range, brand preferences, price sensitivity, transaction history, comparison strategies') },
-  { key: 'coach', icon: '🧘', title: t('生活教练', 'Life Coach'), desc: t('情绪模式、压力因素、运动习惯、睡眠规律、个人目标', 'Emotion patterns, stress factors, exercise habits, sleep patterns, personal goals') },
-  { key: 'custom', icon: '⚙️', title: t('自定义角色', 'Custom Role'), desc: t('从空白开始，完全自定义记忆策略', 'Start from blank, fully customize memory strategy') },
+  { key: 'family', icon: 'Family', title: t('家庭管家', 'Family Manager'), desc: t('家人口味、孩子学业、作息规律、采购清单、健康提醒', 'Family preferences, children\'s studies, daily schedules, shopping lists, health reminders') },
+  { key: 'work', icon: 'Work', title: t('工作助理', 'Work Assistant'), desc: t('同事关系、项目状态、会议决策、截止日期、沟通风格', 'Colleague relationships, project status, meeting decisions, deadlines, communication style') },
+  { key: 'coding', icon: 'Code', title: t('编程伙伴', 'Coding Partner'), desc: t('技术栈、架构决策、代码规范、调试经验、部署配置', 'Tech stack, architecture decisions, code standards, debugging experience, deployment config') },
+  { key: 'content', icon: 'Write', title: t('内容创作', 'Content Creator'), desc: t('写作风格、发布频率、受众画像、过往内容、热点偏好', 'Writing style, publishing frequency, audience profile, past content, trending preferences') },
+  { key: 'trading', icon: 'Trade', title: t('交易助手', 'Trading Assistant'), desc: t('预算范围、品牌偏好、价格敏感度、历史交易、比价策略', 'Budget range, brand preferences, price sensitivity, transaction history, comparison strategies') },
+  { key: 'coach', icon: 'Coach', title: t('生活教练', 'Life Coach'), desc: t('情绪模式、压力因素、运动习惯、睡眠规律、个人目标', 'Emotion patterns, stress factors, exercise habits, sleep patterns, personal goals') },
+  { key: 'custom', icon: 'Custom', title: t('自定义角色', 'Custom Role'), desc: t('从空白开始，完全自定义记忆策略', 'Start from blank, fully customize memory strategy') },
 ])
 
 const archLayers = computed(() => [

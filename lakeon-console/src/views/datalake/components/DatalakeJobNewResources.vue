@@ -84,7 +84,7 @@
 
     <template v-else>
       <div class="coming-soon">
-        <div class="coming-soon-icon">🚧</div>
+        <div class="coming-soon-icon" style="font-size:14px;font-weight:700;color:#94a3b8;">Coming Soon</div>
         <div>GPU 资源配置即将推出</div>
       </div>
     </template>

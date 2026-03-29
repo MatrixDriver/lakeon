@@ -2,10 +2,10 @@
   <div class="landing">
     <!-- Hero -->
     <section class="hero">
-      <p class="hero-eyebrow">{{ t('数据库 · 知识库 · 记忆库 · 数据湖', 'Database · Knowledge · Memory · Data Lake') }}</p>
+      <span class="hero-badge">Agent {{ t('时代的数据基础设施', 'Era Data Infrastructure') }}</span>
       <h1 class="hero-title">
-        {{ t('Agent 时代的', 'Data Infrastructure') }}<br>
-        <span class="hero-accent">{{ t('数据基础设施', 'for the Agent Era') }}</span>
+        {{ t('让你的 Agent', 'Give Your Agent') }}<br>
+        {{ t('拥有完整的数据能力', 'Complete Data Power') }}
       </h1>
       <p class="hero-subtitle">
         {{ t(
@@ -15,101 +15,100 @@
       </p>
       <div class="hero-ctas">
         <button class="cta-primary" @click="startTrial" :disabled="trialLoading">
-          {{ trialLoading ? t('创建中...', 'Creating...') : t('立即试用 →', 'Try Now →') }}
+          {{ trialLoading ? t('创建中...', 'Creating...') : t('立即试用', 'Try Now') }}
         </button>
         <router-link to="/docs" class="cta-secondary">{{ t('查看文档', 'Read Docs') }}</router-link>
       </div>
       <p class="hero-hint">{{ t('无需注册，30 秒获得一个数据库', 'No signup needed, get a database in 30 seconds') }}</p>
     </section>
 
-    <!-- Stats bar -->
-    <section class="stats">
-      <div class="stat" v-for="s in stats" :key="s.value">
-        <div class="stat-value">{{ s.value }}</div>
-        <div class="stat-label">{{ s.label }}</div>
+    <!-- Products -->
+    <section class="products">
+      <h2 class="section-heading">{{ t('从数据库到数据平台，按需解锁', 'From Database to Data Platform') }}</h2>
+      <div class="product-grid">
+        <router-link to="/product#lakebase" class="product-card">
+          <div class="product-header">
+            <span class="product-dot" style="background: #1a2e25"></span>
+            <h3 class="product-name">Lakebase</h3>
+          </div>
+          <p class="product-desc">{{ t('Serverless PostgreSQL，按需弹性伸缩，空闲自动休眠。内置 pgvector 向量搜索、时间旅行。', 'Serverless PostgreSQL with elastic scaling, auto-sleep, built-in pgvector and time travel.') }}</p>
+          <div class="product-tags">
+            <span class="pill">PostgreSQL</span>
+            <span class="pill">Serverless</span>
+            <span class="pill">pgvector</span>
+          </div>
+        </router-link>
+
+        <router-link to="/product#knowledge" class="product-card">
+          <div class="product-header">
+            <span class="product-dot" style="background: #2a7a5f"></span>
+            <h3 class="product-name">{{ t('知识库', 'Knowledge Base') }}</h3>
+          </div>
+          <p class="product-desc">{{ t('上传文档自动分块向量化，支持语义搜索和全文检索，Agent 直接通过 MCP 对接。', 'Auto-chunk and vectorize documents. Semantic + full-text search. Direct MCP integration for agents.') }}</p>
+          <div class="product-tags">
+            <span class="pill">RAG</span>
+            <span class="pill">{{ t('向量搜索', 'Vector Search') }}</span>
+            <span class="pill">MCP</span>
+          </div>
+        </router-link>
+
+        <router-link to="/product#memory" class="product-card">
+          <div class="product-header">
+            <span class="product-dot" style="background: #b45309"></span>
+            <h3 class="product-name">{{ t('记忆库', 'Memory Store') }}</h3>
+          </div>
+          <p class="product-desc">{{ t('Agent 长期记忆自动提取与检索，跨会话持久化，支持记忆合并与遗忘策略。', 'Auto-extract and recall agent long-term memory. Cross-session persistence with merge and decay policies.') }}</p>
+          <div class="product-tags">
+            <span class="pill">{{ t('长期记忆', 'Long-term') }}</span>
+            <span class="pill">{{ t('自动提取', 'Auto Extract') }}</span>
+            <span class="pill">MCP</span>
+          </div>
+        </router-link>
+
+        <router-link to="/product#datalake" class="product-card">
+          <div class="product-header">
+            <span class="product-dot" style="background: #6d28d9"></span>
+            <h3 class="product-name">{{ t('数据湖', 'Data Lake') }}</h3>
+          </div>
+          <p class="product-desc">{{ t('数据库、知识库、记忆库与数据湖双向联动，运行 Ray / Python 作业实现数据飞轮。', 'Bidirectional sync with all stores. Run Ray/Python jobs for processing, forming a data flywheel.') }}</p>
+          <div class="product-tags">
+            <span class="pill">Ray</span>
+            <span class="pill">Python</span>
+            <span class="pill">{{ t('数据飞轮', 'Flywheel') }}</span>
+          </div>
+        </router-link>
       </div>
     </section>
 
-    <!-- Three layers intro -->
-    <section class="layers-intro">
-      <h2 class="section-title">{{ t('从数据库到数据平台，按需解锁', 'From database to data platform, unlock on demand') }}</h2>
-      <p class="section-subtitle">{{ t('不用一次全买，从第一层开始，按需向上扩展', 'Start with layer one, scale up as you need') }}</p>
-    </section>
-
-    <!-- Layer 1: Left text, Right SVG -->
-    <section class="layer layer-alt">
-      <div class="layer-text">
-        <span class="layer-badge layer-badge-primary">{{ t('第一层 · 基础', 'Layer 1 · Foundation') }}</span>
-        <h3 class="layer-title">Lakebase — Serverless PostgreSQL</h3>
-        <p class="layer-desc">
-          {{ t(
-            '用你现有的 PG 客户端直接连接，按需弹性伸缩，空闲自动休眠。内置 pgvector 向量搜索、时间旅行数据版本管理。',
-            'Connect with any PG client. Elastic scaling, auto-sleep on idle. Built-in pgvector and time travel versioning.'
-          ) }}
-        </p>
-        <div class="layer-hint">
-          💡 <strong>{{ t('已在用 mem0、Hindsight？', 'Already using mem0 or Hindsight?') }}</strong><br>
-          {{ t(
-            '直接把数据库换成 Lakebase — 零改造，立刻获得 Serverless 弹性和高性价比。',
-            'Swap your database to Lakebase — zero changes, instant Serverless elasticity.'
-          ) }}
+    <!-- Connect -->
+    <section class="connect">
+      <div class="connect-text">
+        <h2 class="connect-title">{{ t('多种方式接入', 'Connect Your Way') }}</h2>
+        <p class="connect-desc">{{ t('通过你熟悉的协议和工具直接接入 DBay，无需学习新技术栈。', 'Connect through familiar protocols and tools. No new tech stack to learn.') }}</p>
+        <div class="connect-methods">
+          <span class="method-pill">MCP</span>
+          <span class="method-pill">PostgreSQL</span>
+          <span class="method-pill">REST API</span>
+          <span class="method-pill">Python SDK</span>
+          <span class="method-pill">Skill</span>
         </div>
-        <router-link to="/product#lakebase" class="layer-link">{{ t('了解 Lakebase →', 'Learn about Lakebase →') }}</router-link>
       </div>
-      <div class="layer-visual">
-        <LayerLakebase />
-      </div>
-    </section>
+      <div class="connect-code">
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-dot" style="background: #ff5f57"></span>
+            <span class="code-dot" style="background: #febc2e"></span>
+            <span class="code-dot" style="background: #28c840"></span>
+          </div>
+          <pre class="code-content"><code><span class="code-comment"># {{ t('连接你的 Lakebase', 'Connect to your Lakebase') }}</span>
+<span class="code-kw">import</span> psycopg2
 
-    <!-- Layer 2: Left SVG, Right text -->
-    <section class="layer">
-      <div class="layer-visual">
-        <LayerServices />
-      </div>
-      <div class="layer-text">
-        <span class="layer-badge layer-badge-secondary">{{ t('第二层 · 进阶', 'Layer 2 · Advanced') }}</span>
-        <h3 class="layer-title">{{ t('原生记忆服务 + 知识服务', 'Native Memory + Knowledge Services') }}</h3>
-        <p class="layer-desc">
-          {{ t(
-            '不想自己搭记忆和知识组件？DBay 提供完全发挥 Lakebase 能力的原生服务 — Agent 通过 MCP / Skill 直接对接，多库合一，减少第三方依赖。',
-            'Don\'t want to build your own memory stack? DBay provides native services that fully leverage Lakebase — connect via MCP/Skill, all-in-one, fewer dependencies.'
-          ) }}
-        </p>
-        <div class="layer-tags">
-          <span class="tag">✓ {{ t('MCP 一键接入', 'MCP one-click') }}</span>
-          <span class="tag">✓ {{ t('记忆自动提取', 'Auto memory extraction') }}</span>
-          <span class="tag">✓ {{ t('文档向量化', 'Doc vectorization') }}</span>
-          <span class="tag">✓ {{ t('Console 管理', 'Console management') }}</span>
+conn = psycopg2.connect(
+    <span class="code-str">"postgresql://user:pass@your.dbay.host/db"</span>
+)
+cur = conn.cursor()
+cur.execute(<span class="code-str">"SELECT * FROM memories"</span>)</code></pre>
         </div>
-        <router-link to="/product#memory" class="layer-link">{{ t('了解记忆与知识服务 →', 'Learn about Memory & Knowledge →') }}</router-link>
-      </div>
-    </section>
-
-    <!-- Layer 3: Left text, Right SVG -->
-    <section class="layer layer-alt">
-      <div class="layer-text">
-        <span class="layer-badge layer-badge-tertiary">{{ t('第三层 · 数据闭环', 'Layer 3 · Data Loop') }}</span>
-        <h3 class="layer-title">{{ t('AI 多模态数据湖', 'AI Multimodal Data Lake') }}</h3>
-        <p class="layer-desc">
-          {{ t(
-            '数据库、知识库、记忆库与数据湖双向联动 — 导入导出自如。在数据湖上运行 Ray、Python 作业，实现数据加工和分析，形成',
-            'Database, knowledge, and memory bidirectionally sync with the data lake. Run Ray/Python jobs for processing and analysis, forming a'
-          ) }}
-          <strong style="color: #7b1fa2">{{ t('数据飞轮', 'data flywheel') }}</strong>{{ t(
-            '：Agent 使用积累数据 → 数据湖分析产生洞察 → 优化 Agent 表现 → 积累更多高质量数据。',
-            ': Agent usage generates data → Lake analyzes for insights → Optimize agent → More quality data.'
-          ) }}
-        </p>
-        <div class="layer-tags">
-          <span class="tag tag-purple">📊 {{ t('分析 Agent 用户习惯', 'Analyze agent user behavior') }}</span>
-          <span class="tag tag-blue">🔄 {{ t('记忆数据导出微调', 'Export memory for fine-tuning') }}</span>
-          <span class="tag tag-orange">📈 {{ t('知识库质量评估', 'Knowledge quality assessment') }}</span>
-          <span class="tag tag-green">🧹 {{ t('过期记忆清洗归档', 'Clean & archive stale memory') }}</span>
-        </div>
-        <router-link to="/product#datalake" class="layer-link">{{ t('了解数据湖 →', 'Learn about Data Lake →') }}</router-link>
-      </div>
-      <div class="layer-visual">
-        <LayerDatalake />
       </div>
     </section>
 
@@ -118,45 +117,54 @@
       <h2 class="bottom-cta-title">{{ t('30 秒，免费获得一个 Serverless 数据库', 'Get a free Serverless database in 30 seconds') }}</h2>
       <p class="bottom-cta-subtitle">{{ t('无需信用卡 · 兼容所有 PG 客户端 · 立即体验', 'No credit card · Works with all PG clients · Try now') }}</p>
       <div class="bottom-cta-buttons">
-        <button class="cta-white" @click="startTrial" :disabled="trialLoading">
-          {{ trialLoading ? t('创建中...', 'Creating...') : t('立即试用 →', 'Try Now →') }}
+        <button class="cta-primary" @click="startTrial" :disabled="trialLoading">
+          {{ trialLoading ? t('创建中...', 'Creating...') : t('立即试用', 'Try Now') }}
         </button>
-        <router-link to="/dashboard" class="cta-outline">{{ t('进入 Console', 'Open Console') }}</router-link>
+        <router-link to="/dashboard" class="cta-ghost">{{ t('进入 Console', 'Open Console') }}</router-link>
       </div>
     </section>
 
     <!-- Footer -->
     <footer class="landing-footer">
-      <span>© 2026 DBay · {{ t('数据港湾', 'Data Harbor') }}</span>
-      <div class="footer-links">
-        <router-link to="/docs">{{ t('文档', 'Docs') }}</router-link>
-        <router-link to="/docs/rest-api">API</router-link>
+      <div class="footer-inner">
+        <div class="footer-group">
+          <div class="footer-label">{{ t('产品', 'Products') }}</div>
+          <router-link to="/product#lakebase">Lakebase</router-link>
+          <router-link to="/product#knowledge">{{ t('知识库', 'Knowledge') }}</router-link>
+          <router-link to="/product#memory">{{ t('记忆库', 'Memory') }}</router-link>
+          <router-link to="/product#datalake">{{ t('数据湖', 'Data Lake') }}</router-link>
+        </div>
+        <div class="footer-group">
+          <div class="footer-label">{{ t('开发者', 'Developers') }}</div>
+          <router-link to="/docs">{{ t('文档', 'Docs') }}</router-link>
+          <router-link to="/docs/rest-api">REST API</router-link>
+          <router-link to="/docs/python-sdk">Python SDK</router-link>
+          <router-link to="/docs/mcp">MCP</router-link>
+        </div>
+        <div class="footer-group">
+          <div class="footer-label">{{ t('更多', 'More') }}</div>
+          <router-link to="/blog">{{ t('博客', 'Blog') }}</router-link>
+          <router-link to="/login">{{ t('登录', 'Sign In') }}</router-link>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>&copy; 2026 DBay &middot; {{ t('数据港湾', 'Data Harbor') }}</span>
       </div>
     </footer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLocale } from '../../stores/locale'
 import { useAuthStore } from '../../stores/auth'
 import client from '../../api/client'
-import LayerLakebase from './LayerLakebase.vue'
-import LayerServices from './LayerServices.vue'
-import LayerDatalake from './LayerDatalake.vue'
 
 const { t } = useLocale()
 const router = useRouter()
 const authStore = useAuthStore()
 const trialLoading = ref(false)
-
-const stats = computed(() => [
-  { value: t('秒级', 'Sub-sec'), label: t('冷启动', 'Cold Start') },
-  { value: t('自动', 'Auto'), label: t('弹性伸缩', 'Elastic Scale') },
-  { value: t('时间旅行', 'Time Travel'), label: t('数据版本管理', 'Data Versioning') },
-  { value: '0', label: t('运维负担', 'Ops Burden') },
-])
 
 async function startTrial() {
   trialLoading.value = true
@@ -179,258 +187,313 @@ async function startTrial() {
 
 <style scoped>
 /* Layout */
-.landing { max-width: 100%; overflow-x: hidden; }
+.landing {
+  max-width: 100%;
+  overflow-x: hidden;
+  background: var(--pub-bg);
+}
 
-/* Hero */
+/* ── Hero ── */
 .hero {
-  padding: 52px 48px 0;
+  padding: 80px 24px 60px;
   text-align: center;
   background: var(--pub-surface);
 }
-.hero-eyebrow {
-  font-size: 14px;
+.hero-badge {
+  display: inline-block;
+  padding: 6px 18px;
+  border-radius: 100px;
+  background: var(--pub-accent-bg);
+  color: var(--pub-accent);
+  font-size: 13px;
   font-weight: 500;
-  color: var(--pub-primary);
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  margin: 0 0 12px;
+  margin-bottom: 24px;
+  border: 1px solid var(--pub-accent-border);
 }
 .hero-title {
-  font-size: 56px;
-  font-weight: 800;
+  font-size: 48px;
+  font-weight: 700;
   color: var(--pub-text);
-  line-height: 1.12;
-  letter-spacing: -1px;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
   margin: 0;
 }
-.hero-accent { color: var(--pub-primary); }
 .hero-subtitle {
   font-size: 17px;
+  font-weight: 400;
   color: var(--pub-text-2);
-  margin: 14px 0 0;
+  margin: 16px auto 0;
   line-height: 1.6;
+  max-width: 520px;
 }
 .hero-ctas {
   display: flex;
   gap: 12px;
   justify-content: center;
-  margin-top: 24px;
+  margin-top: 32px;
 }
 .cta-primary {
   background: var(--pub-primary);
   color: #fff;
   padding: 12px 32px;
-  border-radius: 8px;
-  font-size: 16px;
+  border-radius: 100px;
+  font-size: 15px;
   font-weight: 600;
   border: none;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: background 0.25s ease;
+  font-family: var(--pub-sans);
 }
-.cta-primary:hover { opacity: 0.9; }
-.cta-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.cta-primary:hover { background: var(--pub-primary-dark); }
+.cta-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .cta-secondary {
-  background: var(--pub-hover);
+  background: transparent;
   color: var(--pub-text);
   padding: 12px 32px;
-  border-radius: 8px;
-  font-size: 16px;
+  border-radius: 100px;
+  font-size: 15px;
+  font-weight: 500;
   text-decoration: none;
-  transition: background 0.15s;
+  border: 1px solid var(--pub-border);
+  transition: all 0.25s ease;
 }
-.cta-secondary:hover { background: var(--pub-border); }
+.cta-secondary:hover {
+  border-color: var(--pub-text-3);
+  background: var(--pub-hover);
+}
 .hero-hint {
   font-size: 13px;
   color: var(--pub-text-3);
-  margin-top: 12px;
+  margin-top: 16px;
 }
 
-/* Stats */
-.stats {
-  background: var(--pub-surface);
-  padding: 28px 48px;
-  display: flex;
-  justify-content: center;
-  gap: 64px;
+/* ── Products ── */
+.products {
+  padding: 72px 24px;
+  max-width: 1080px;
+  margin: 0 auto;
 }
-.stat { text-align: center; }
-.stat-value {
-  font-size: 32px;
-  font-weight: 800;
-  color: var(--pub-primary);
-}
-.stat-label {
-  font-size: 13px;
-  color: var(--pub-text-3);
-}
-
-/* Layers intro */
-.layers-intro {
-  background: var(--pub-bg-alt, #f8f9fb);
-  padding: 36px 48px 0;
-  border-top: 1px solid var(--pub-border);
+.section-heading {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--pub-text);
   text-align: center;
+  margin: 0 0 40px;
 }
-.section-title {
-  font-size: 26px;
-  font-weight: 700;
+.product-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.product-card {
+  background: var(--pub-surface);
+  border: 1px solid var(--pub-border);
+  border-radius: 16px;
+  padding: 28px;
+  text-decoration: none;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.product-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--pub-shadow);
+}
+.product-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.product-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.product-name {
+  font-size: 17px;
+  font-weight: 600;
   color: var(--pub-text);
   margin: 0;
 }
-.section-subtitle {
-  font-size: 14px;
-  color: var(--pub-text-3);
-  margin-top: 4px;
-}
-
-/* Layer sections */
-.layer {
-  padding: 36px 48px;
-  display: flex;
-  gap: 40px;
-  align-items: center;
-  border-top: 1px solid var(--pub-border);
-  background: var(--pub-surface);
-}
-.layer-alt { background: var(--pub-bg-alt, #f8f9fb); }
-.layer-text { flex: 1; }
-.layer-visual { flex: 1; }
-
-.layer-badge {
-  padding: 3px 12px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 700;
-  display: inline-block;
-  margin-bottom: 12px;
-  color: #fff;
-}
-.layer-badge-primary { background: var(--pub-primary); }
-.layer-badge-secondary { background: #555; }
-.layer-badge-tertiary { background: #888; }
-
-.layer-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--pub-text);
-  margin: 0 0 10px;
-}
-.layer-desc {
+.product-desc {
   font-size: 14px;
   color: var(--pub-text-2);
-  line-height: 1.7;
+  line-height: 1.65;
   margin: 0 0 16px;
 }
-.layer-hint {
-  padding: 14px;
-  background: #f0fdf4;
-  border-radius: 10px;
-  font-size: 13px;
-  color: #2e7d32;
-  line-height: 1.6;
-  border: 1px solid #c8e6c9;
-  margin-bottom: 14px;
+.product-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
 }
-.layer-tags {
+.pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--pub-text-3);
+  background: var(--pub-hover);
+  border: 1px solid var(--pub-border);
+}
+
+/* ── Connect ── */
+.connect {
+  padding: 72px 24px;
+  max-width: 1080px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+}
+.connect-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--pub-text);
+  margin: 0 0 12px;
+}
+.connect-desc {
+  font-size: 15px;
+  color: var(--pub-text-2);
+  line-height: 1.6;
+  margin: 0 0 24px;
+}
+.connect-methods {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 14px;
 }
-.tag {
-  background: var(--pub-bg-alt, #f8f9fb);
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 12px;
+.method-pill {
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--pub-text-2);
+  border: 1px solid var(--pub-border);
+  background: transparent;
 }
-.tag-purple { background: #f3e5f5; color: #7b1fa2; }
-.tag-blue { background: #e3f2fd; color: #1565c0; }
-.tag-orange { background: #fff3e0; color: #e65100; }
-.tag-green { background: #e8f5e9; color: #2e7d32; }
-
-.layer-link {
-  font-size: 14px;
-  color: var(--pub-primary);
-  font-weight: 600;
-  text-decoration: none;
+.code-block {
+  background: var(--pub-code-bg);
+  border: 1px solid var(--pub-border);
+  border-radius: 12px;
+  overflow: hidden;
 }
-.layer-link:hover { text-decoration: underline; }
+.code-header {
+  display: flex;
+  gap: 6px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--pub-border);
+}
+.code-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.code-content {
+  padding: 16px 20px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--pub-text);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  overflow-x: auto;
+  margin: 0;
+}
+.code-comment { color: var(--pub-text-3); }
+.code-kw { color: var(--pub-accent); font-weight: 600; }
+.code-str { color: var(--pub-code); }
 
-/* Bottom CTA */
+/* ── Bottom CTA ── */
 .bottom-cta {
-  background: linear-gradient(135deg, #0062cc, var(--pub-primary));
-  padding: 40px 48px;
+  background: var(--pub-primary-light);
+  padding: 72px 24px;
   text-align: center;
 }
 .bottom-cta-title {
-  font-size: 26px;
-  font-weight: 700;
-  color: #fff;
-  margin: 0 0 6px;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--pub-text);
+  margin: 0 0 8px;
 }
 .bottom-cta-subtitle {
-  font-size: 14px;
-  color: rgba(255,255,255,0.7);
-  margin: 0 0 20px;
+  font-size: 15px;
+  color: var(--pub-text-2);
+  margin: 0 0 28px;
 }
 .bottom-cta-buttons {
   display: flex;
   gap: 12px;
   justify-content: center;
-}
-.cta-white {
-  background: #fff;
-  color: var(--pub-primary);
-  padding: 12px 32px;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-}
-.cta-white:hover { opacity: 0.9; }
-.cta-white:disabled { opacity: 0.6; cursor: not-allowed; }
-.cta-outline {
-  border: 1.5px solid rgba(255,255,255,0.5);
-  color: #fff;
-  padding: 12px 32px;
-  border-radius: 8px;
-  font-size: 16px;
-  text-decoration: none;
-}
-.cta-outline:hover { border-color: #fff; }
-
-/* Footer */
-.landing-footer {
-  background: #111;
-  padding: 14px 48px;
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  font-size: 11px;
-  color: #666;
 }
-.footer-links {
-  display: flex;
-  gap: 16px;
-}
-.footer-links a {
-  color: #666;
+.cta-ghost {
+  color: var(--pub-text-2);
+  font-size: 15px;
+  font-weight: 500;
   text-decoration: none;
+  padding: 12px 24px;
+  transition: color 0.25s ease;
 }
-.footer-links a:hover { color: #999; }
+.cta-ghost:hover {
+  color: var(--pub-text);
+}
 
-/* Responsive */
+/* ── Footer ── */
+.landing-footer {
+  background: var(--pub-surface);
+  border-top: 1px solid var(--pub-border);
+  padding: 48px 24px 24px;
+}
+.footer-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+  gap: 80px;
+  margin-bottom: 40px;
+}
+.footer-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.footer-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pub-text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.footer-group a {
+  font-size: 13px;
+  color: var(--pub-text-2);
+  text-decoration: none;
+  transition: color 0.25s ease;
+}
+.footer-group a:hover {
+  color: var(--pub-text);
+}
+.footer-bottom {
+  text-align: center;
+  font-size: 12px;
+  color: var(--pub-text-3);
+  border-top: 1px solid var(--pub-border);
+  padding-top: 20px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+/* ── Responsive ── */
 @media (max-width: 768px) {
-  .hero { padding: 32px 20px 0; }
-  .hero-title { font-size: 36px; }
+  .hero { padding: 48px 20px 40px; }
+  .hero-title { font-size: 32px; }
   .hero-subtitle { font-size: 15px; }
-  .stats { gap: 24px; padding: 20px; flex-wrap: wrap; }
-  .stat-value { font-size: 24px; }
-  .layer { flex-direction: column; padding: 24px 20px; gap: 24px; }
-  .layers-intro { padding: 24px 20px 0; }
-  .bottom-cta { padding: 32px 20px; }
-  .landing-footer { padding: 14px 20px; }
+  .products { padding: 48px 20px; }
+  .product-grid { grid-template-columns: 1fr; }
+  .connect { grid-template-columns: 1fr; padding: 48px 20px; gap: 32px; }
+  .bottom-cta { padding: 48px 20px; }
+  .footer-inner { flex-direction: column; gap: 32px; align-items: center; text-align: center; }
+  .hero-ctas { flex-direction: column; align-items: center; }
 }
 </style>

@@ -1,25 +1,27 @@
 <template>
-  <main class="product-detail">
+  <main class="product-page">
     <!-- Hero -->
-    <div class="hero">
+    <section class="hero">
+      <div class="hero-accent"></div>
       <div class="hero-inner">
-        <h1 class="hero-title">{{ t('🧠 记忆库', '🧠 Memory Store') }}</h1>
-        <p class="hero-subtitle">
-          {{ t('为 AI Agent 提供结构化长期记忆，越用越懂你', 'Structured long-term memory for AI Agents — gets smarter with every interaction') }}
-        </p>
+        <h1 class="hero-title">{{ t('记忆库', 'Memory Store') }}</h1>
+        <p class="hero-subtitle">{{ t(
+          '为 AI Agent 提供结构化长期记忆，越用越懂你',
+          'Structured long-term memory for AI Agents -- gets smarter with every interaction'
+        ) }}</p>
       </div>
-    </div>
+    </section>
 
     <div class="content">
 
       <!-- Section 1: Three Core Operations -->
       <section class="section">
         <h2 class="section-title">{{ t('三个核心操作', 'Three Core Operations') }}</h2>
-        <div class="api-grid">
-          <div class="api-card" v-for="op in coreOps" :key="op.name">
-            <div class="api-name">{{ op.name }}</div>
-            <div class="api-desc">{{ t(op.descZh, op.descEn) }}</div>
-            <div class="api-detail">{{ t(op.detailZh, op.detailEn) }}</div>
+        <div class="ops-grid">
+          <div class="op-card" v-for="op in coreOps" :key="op.name">
+            <div class="op-name">{{ op.name }}</div>
+            <div class="op-desc">{{ t(op.descZh, op.descEn) }}</div>
+            <div class="op-detail">{{ t(op.detailZh, op.detailEn) }}</div>
           </div>
         </div>
       </section>
@@ -28,10 +30,10 @@
       <section class="section">
         <h2 class="section-title">{{ t('四种记忆类型', 'Four Memory Types') }}</h2>
         <div class="types-grid">
-          <div class="type-card" v-for="mt in memoryTypes" :key="mt.icon">
-            <div class="type-icon">{{ mt.icon }}</div>
+          <div class="type-card" v-for="mt in memoryTypes" :key="mt.badge">
+            <span class="type-badge">{{ mt.badge }}</span>
             <div class="type-body">
-              <div class="type-title">{{ t(mt.zh, mt.en) }}</div>
+              <div class="type-label">{{ t(mt.zh, mt.en) }}</div>
               <div class="type-desc">{{ t(mt.descZh, mt.descEn) }}</div>
             </div>
           </div>
@@ -44,13 +46,12 @@
         <div class="lifecycle">
           <div
             v-for="(step, i) in lifecycleSteps"
-            :key="step.zh"
+            :key="step.en"
             class="lifecycle-step"
-            :class="{ 'step-first': i === 0, 'step-last': i === lifecycleSteps.length - 1 }"
           >
-            <div class="step-dot" :class="{ 'dot-first': i === 0, 'dot-last': i === lifecycleSteps.length - 1 }"></div>
-            <div class="step-label">{{ t(step.zh, step.en) }}</div>
-            <div v-if="i < lifecycleSteps.length - 1" class="step-line"></div>
+            <div class="lc-dot" :class="{ 'lc-dot-last': i === lifecycleSteps.length - 1 }"></div>
+            <div class="lc-label">{{ t(step.zh, step.en) }}</div>
+            <div v-if="i < lifecycleSteps.length - 1" class="lc-line"></div>
           </div>
         </div>
       </section>
@@ -58,41 +59,42 @@
       <!-- Section 4: LoCoMo Benchmark -->
       <section class="section">
         <h2 class="section-title">{{ t('LoCoMo 基准测试', 'LoCoMo Benchmark') }}</h2>
-        <div class="benchmark-card">
-          <div class="benchmark-score-block">
-            <div class="benchmark-main-score">81.7%</div>
-            <div class="benchmark-score-label">{{ t('综合得分', 'Overall Score') }}</div>
+        <div class="benchmark">
+          <div class="benchmark-hero-score">
+            <div class="score-value">81.7%</div>
+            <div class="score-label">{{ t('综合得分', 'Overall Score') }}</div>
           </div>
-          <div class="benchmark-sub-scores">
-            <div class="sub-score" v-for="sub in subScores" :key="sub.labelZh">
-              <div class="sub-score-value">{{ sub.value }}</div>
-              <div class="sub-score-label">{{ t(sub.labelZh, sub.labelEn) }}</div>
+          <div class="sub-scores">
+            <div class="sub-score" v-for="sub in subScores" :key="sub.labelEn">
+              <div class="sub-value">{{ sub.value }}</div>
+              <div class="sub-label">{{ t(sub.labelZh, sub.labelEn) }}</div>
             </div>
           </div>
-          <div class="benchmark-bars">
+          <div class="bars">
             <div
               class="bar-row"
               v-for="bar in comparisonBars"
               :key="bar.name"
-              :class="{ 'bar-highlighted': bar.highlighted }"
+              :class="{ 'bar-highlight': bar.highlighted }"
             >
-              <div class="bar-label">{{ bar.name }}</div>
+              <div class="bar-name">{{ bar.name }}</div>
               <div class="bar-track">
                 <div class="bar-fill" :style="{ width: bar.pct }"></div>
               </div>
-              <div class="bar-value">{{ bar.value }}</div>
+              <div class="bar-val">{{ bar.value }}</div>
             </div>
           </div>
-          <div class="benchmark-note">
-            {{ t('基于公开基准测试，与主流 AI 记忆框架对比', 'Compared with mainstream AI memory frameworks on public benchmarks') }}
-          </div>
+          <div class="benchmark-note">{{ t(
+            '基于公开基准测试，与主流 AI 记忆框架对比',
+            'Compared with mainstream AI memory frameworks on public benchmarks'
+          ) }}</div>
         </div>
       </section>
 
       <!-- CTA -->
       <div class="cta-section">
-        <a href="/console" class="cta-button">{{ t('立即试用 →', 'Get Started →') }}</a>
-        <router-link to="/product" class="back-link">{{ t('← 返回产品总览', '← Back to Products') }}</router-link>
+        <a href="/console" class="cta-button">{{ t('立即试用', 'Get Started') }}</a>
+        <router-link to="/product" class="back-link">{{ t('返回产品总览', 'Back to Products') }}</router-link>
       </div>
 
     </div>
@@ -122,7 +124,7 @@ const coreOps = [
   {
     name: 'digest',
     descZh: '将记忆合成洞察，生成用户画像和行为模式',
-    descEn: 'Synthesize memories into insights — user profiles and behavioral patterns.',
+    descEn: 'Synthesize memories into insights -- user profiles and behavioral patterns.',
     detailZh: '分析累积的记忆生成结构化洞察：行为模式、偏好摘要、情感画像和关系图谱。异步运行并缓存结果以便快速获取。',
     detailEn: 'Analyzes accumulated memories to generate structured insights: behavioral patterns, preference summaries, emotional profiles, and relationship maps. Runs asynchronously with cached results.',
   },
@@ -130,29 +132,29 @@ const coreOps = [
 
 const memoryTypes = [
   {
-    icon: '📋',
-    zh: '事实 / Fact',
+    badge: 'FACT',
+    zh: '事实',
     en: 'Fact',
     descZh: '从对话中提取的离散、客观、可验证的信息。以向量嵌入存储并关联知识图谱。',
     descEn: 'Discrete, objective, verifiable information extracted from conversations. Stored as vector embeddings linked to the knowledge graph.',
   },
   {
-    icon: '🕐',
-    zh: '事件 / Episode',
+    badge: 'EVENT',
+    zh: '事件',
     en: 'Episode',
     descZh: '带有情绪元数据（效价、唤醒度、情绪标签）和时间表达的时间绑定事件和体验。',
     descEn: 'Time-bound events and experiences with emotional metadata (valence, arousal, emotion tags) and temporal expressions.',
   },
   {
-    icon: '🧠',
-    zh: '特征 / Trait',
+    badge: 'TRAIT',
+    zh: '特征',
     en: 'Trait',
     descZh: '通过多会话反思发现的行为模式。经历从趋势到核心的 6 阶段生命周期演化。',
     descEn: 'Behavioral patterns discovered through multi-session reflection. Evolves through a 6-stage lifecycle from trend to core.',
   },
   {
-    icon: '📄',
-    zh: '文档 / Document',
+    badge: 'DOC',
+    zh: '文档',
     en: 'Document',
     descZh: '上传的静态参考资料，用于 RAG 风格检索。支持 PDF 和文件的专项搜索。',
     descEn: 'Uploaded static reference materials for RAG-style retrieval. Supports targeted search over PDFs and files.',
@@ -185,18 +187,26 @@ const comparisonBars = [
 </script>
 
 <style scoped>
-.product-detail {
+.product-page {
   min-height: 100vh;
   background: var(--pub-bg);
 }
 
 /* Hero */
 .hero {
-  border-top: 4px solid transparent;
-  border-image: linear-gradient(90deg, #ff9800, #e65100) 1;
-  background: var(--pub-surface);
-  border-bottom: 1px solid var(--pub-border);
+  background: var(--pub-bg-alt);
   padding: 56px 24px 48px;
+  position: relative;
+}
+
+.hero-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #b45309;
+  border-radius: 0 0 4px 4px;
 }
 
 .hero-inner {
@@ -205,27 +215,31 @@ const comparisonBars = [
 }
 
 .hero-title {
-  font-size: 2rem;
+  font-family: var(--pub-sans);
+  font-size: 36px;
   font-weight: 700;
   color: var(--pub-text);
-  margin: 0 0 12px;
+  margin: 0 0 10px;
+  letter-spacing: -0.02em;
 }
 
 .hero-subtitle {
-  font-size: 1.05rem;
+  font-family: var(--pub-sans);
+  font-size: 16px;
+  font-weight: 400;
   color: var(--pub-text-2);
   margin: 0;
   line-height: 1.6;
 }
 
-/* Content wrapper */
+/* Content */
 .content {
   max-width: 800px;
   margin: 0 auto;
-  padding: 40px 24px 64px;
+  padding: 48px 24px 72px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 48px;
 }
 
 /* Section */
@@ -236,55 +250,58 @@ const comparisonBars = [
 }
 
 .section-title {
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-family: var(--pub-sans);
+  font-size: 22px;
+  font-weight: 600;
   color: var(--pub-text);
   margin: 0;
 }
 
-/* Section 1: API cards */
-.api-grid {
+/* Core ops */
+.ops-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 
-.api-card {
+.op-card {
   background: var(--pub-surface);
   border: 1px solid var(--pub-border);
-  border-radius: 10px;
-  padding: 20px;
+  border-radius: 12px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   transition: border-color 0.2s;
 }
 
-.api-card:hover {
-  border-color: #ff9800;
+.op-card:hover {
+  border-color: #b45309;
 }
 
-.api-name {
+.op-name {
   font-family: var(--pub-code, 'JetBrains Mono', 'Fira Code', monospace);
-  font-size: 1.05rem;
+  font-size: 16px;
   font-weight: 700;
-  color: #2563eb;
+  color: #b45309;
 }
 
-.api-desc {
-  font-size: 0.9rem;
+.op-desc {
+  font-family: var(--pub-sans);
+  font-size: 14px;
   font-weight: 600;
   color: var(--pub-text);
   line-height: 1.5;
 }
 
-.api-detail {
-  font-size: 0.85rem;
+.op-detail {
+  font-family: var(--pub-sans);
+  font-size: 13px;
   color: var(--pub-text-2);
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
-/* Section 2: Memory types */
+/* Memory types */
 .types-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -294,8 +311,8 @@ const comparisonBars = [
 .type-card {
   background: var(--pub-surface);
   border: 1px solid var(--pub-border);
-  border-radius: 10px;
-  padding: 20px;
+  border-radius: 12px;
+  padding: 24px;
   display: flex;
   gap: 14px;
   align-items: flex-start;
@@ -303,12 +320,19 @@ const comparisonBars = [
 }
 
 .type-card:hover {
-  border-color: #ff9800;
+  border-color: #b45309;
 }
 
-.type-icon {
-  font-size: 1.5rem;
-  line-height: 1;
+.type-badge {
+  display: inline-block;
+  font-family: var(--pub-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #fff;
+  background: #b45309;
+  padding: 3px 8px;
+  border-radius: 100px;
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -319,26 +343,27 @@ const comparisonBars = [
   gap: 6px;
 }
 
-.type-title {
-  font-size: 0.95rem;
-  font-weight: 700;
+.type-label {
+  font-family: var(--pub-sans);
+  font-size: 15px;
+  font-weight: 600;
   color: var(--pub-text);
 }
 
 .type-desc {
-  font-size: 0.85rem;
+  font-family: var(--pub-sans);
+  font-size: 13px;
   color: var(--pub-text-2);
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
-/* Section 3: Trait lifecycle */
+/* Lifecycle */
 .lifecycle {
   display: flex;
   align-items: flex-start;
   flex-wrap: nowrap;
   overflow-x: auto;
   padding-bottom: 8px;
-  gap: 0;
 }
 
 .lifecycle-step {
@@ -350,80 +375,80 @@ const comparisonBars = [
   min-width: 80px;
 }
 
-.step-dot {
-  width: 16px;
-  height: 16px;
+.lc-dot {
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: #7c3aed;
-  border: 2px solid #7c3aed;
+  background: #b45309;
   flex-shrink: 0;
   position: relative;
   z-index: 1;
 }
 
-.dot-first {
-  background: #a78bfa;
-  border-color: #a78bfa;
-}
-
-.dot-last {
+.lc-dot-last {
   background: transparent;
-  border: 2px dashed #7c3aed;
+  border: 2px dashed #b45309;
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
 }
 
-.step-line {
+.lc-line {
   position: absolute;
-  top: 7px;
-  left: calc(50% + 8px);
-  right: calc(-50% + 8px);
+  top: 6px;
+  left: calc(50% + 7px);
+  right: calc(-50% + 7px);
   height: 2px;
-  background: #7c3aed;
-  opacity: 0.4;
+  background: #b45309;
+  opacity: 0.35;
   z-index: 0;
 }
 
-.step-label {
+.lc-label {
   margin-top: 10px;
-  font-size: 0.8rem;
+  font-family: var(--pub-sans);
+  font-size: 12px;
   font-weight: 600;
   color: var(--pub-text-2);
   text-align: center;
   white-space: nowrap;
 }
 
-/* Section 4: Benchmark */
-.benchmark-card {
+/* Benchmark */
+.benchmark {
   background: var(--pub-surface);
   border: 1px solid var(--pub-border);
   border-radius: 12px;
-  padding: 28px 24px;
+  padding: 32px 28px;
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
 
-.benchmark-score-block {
+.benchmark-hero-score {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
 }
 
-.benchmark-main-score {
-  font-size: 64px;
+.score-value {
+  font-family: var(--pub-sans);
+  font-size: 48px;
   font-weight: 800;
-  color: #7c3aed;
+  color: #b45309;
   line-height: 1;
 }
 
-.benchmark-score-label {
-  font-size: 0.85rem;
+.score-label {
+  font-family: var(--pub-sans);
+  font-size: 12px;
   color: var(--pub-text-3);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
-.benchmark-sub-scores {
+.sub-scores {
   display: flex;
   gap: 12px;
   justify-content: center;
@@ -439,19 +464,21 @@ const comparisonBars = [
   min-width: 100px;
 }
 
-.sub-score-value {
-  font-size: 1.2rem;
+.sub-value {
+  font-family: var(--pub-sans);
+  font-size: 18px;
   font-weight: 700;
   color: var(--pub-text);
 }
 
-.sub-score-label {
-  font-size: 0.78rem;
+.sub-label {
+  font-family: var(--pub-sans);
+  font-size: 12px;
   color: var(--pub-text-3);
   margin-top: 2px;
 }
 
-.benchmark-bars {
+.bars {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -463,14 +490,15 @@ const comparisonBars = [
   gap: 12px;
 }
 
-.bar-label {
-  font-size: 0.85rem;
+.bar-name {
+  font-family: var(--pub-sans);
+  font-size: 13px;
   color: var(--pub-text-2);
   width: 110px;
   flex-shrink: 0;
 }
 
-.bar-highlighted .bar-label {
+.bar-highlight .bar-name {
   font-weight: 700;
   color: var(--pub-text);
 }
@@ -490,12 +518,13 @@ const comparisonBars = [
   transition: width 0.4s ease;
 }
 
-.bar-highlighted .bar-fill {
-  background: #7c3aed;
+.bar-highlight .bar-fill {
+  background: #b45309;
 }
 
-.bar-value {
-  font-size: 0.85rem;
+.bar-val {
+  font-family: var(--pub-sans);
+  font-size: 13px;
   font-weight: 600;
   color: var(--pub-text-2);
   width: 48px;
@@ -503,14 +532,15 @@ const comparisonBars = [
   flex-shrink: 0;
 }
 
-.bar-highlighted .bar-value {
-  color: #7c3aed;
+.bar-highlight .bar-val {
+  color: #b45309;
   font-weight: 700;
 }
 
 .benchmark-note {
-  font-size: 0.8rem;
-  color: var(--pub-text-4);
+  font-family: var(--pub-sans);
+  font-size: 12px;
+  color: var(--pub-text-4, var(--pub-text-3));
   text-align: center;
   line-height: 1.5;
 }
@@ -521,30 +551,31 @@ const comparisonBars = [
   align-items: center;
   gap: 24px;
   flex-wrap: wrap;
-  padding-top: 8px;
 }
 
 .cta-button {
   display: inline-block;
-  padding: 12px 28px;
-  background: #ff9800;
+  padding: 12px 32px;
+  background: #b45309;
   color: #fff;
-  font-size: 0.95rem;
+  font-family: var(--pub-sans);
+  font-size: 15px;
   font-weight: 600;
-  border-radius: 8px;
   text-decoration: none;
-  transition: background 0.2s;
+  border-radius: 100px;
+  transition: background 0.15s;
 }
 
 .cta-button:hover {
-  background: #e65100;
+  background: #92400e;
 }
 
 .back-link {
-  font-size: 0.9rem;
+  font-family: var(--pub-sans);
+  font-size: 14px;
   color: var(--pub-text-3);
   text-decoration: none;
-  transition: color 0.2s;
+  transition: color 0.15s;
 }
 
 .back-link:hover {
@@ -554,10 +585,10 @@ const comparisonBars = [
 /* Responsive */
 @media (max-width: 700px) {
   .hero-title {
-    font-size: 1.5rem;
+    font-size: 28px;
   }
 
-  .api-grid {
+  .ops-grid {
     grid-template-columns: 1fr;
   }
 
@@ -565,20 +596,16 @@ const comparisonBars = [
     grid-template-columns: 1fr;
   }
 
-  .lifecycle {
-    gap: 0;
-  }
-
   .lifecycle-step {
     min-width: 60px;
   }
 
-  .step-label {
-    font-size: 0.7rem;
+  .lc-label {
+    font-size: 11px;
   }
 
-  .benchmark-main-score {
-    font-size: 48px;
+  .score-value {
+    font-size: 40px;
   }
 
   .cta-section {

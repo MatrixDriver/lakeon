@@ -1,32 +1,34 @@
 <template>
-  <main class="product-detail">
-    <div class="hero">
+  <main class="product-page">
+    <section class="hero">
+      <div class="hero-accent"></div>
       <div class="hero-inner">
-        <h1 class="hero-title">🌊 {{ t('AI 数据湖', 'AI Data Lake') }}</h1>
-        <p class="hero-subtitle">{{ t('数据处理 + 训练 + 飞轮', 'Data Processing + Training + Flywheel') }}</p>
+        <h1 class="hero-title">{{ t('AI 数据湖', 'AI Data Lake') }}</h1>
+        <p class="hero-subtitle">{{ t(
+          '数据处理 + 训练 + 飞轮',
+          'Data Processing + Training + Flywheel'
+        ) }}</p>
       </div>
-    </div>
+    </section>
 
-    <div class="content">
-      <div class="features">
-        <div v-for="feature in features" :key="feature.icon" class="feature-card">
-          <div class="feature-icon">{{ feature.icon }}</div>
-          <div class="feature-body">
+    <section class="content">
+      <div class="features-grid">
+        <div v-for="feature in features" :key="feature.titleEn" class="feature-card">
+          <div class="feature-header">
+            <span class="feature-dot"></span>
             <h3 class="feature-title">{{ t(feature.titleZh, feature.titleEn) }}</h3>
-            <p class="feature-desc">{{ t(feature.descZh, feature.descEn) }}</p>
           </div>
+          <p class="feature-desc">{{ t(feature.descZh, feature.descEn) }}</p>
         </div>
       </div>
 
       <div class="cta-section">
-        <router-link to="/app/datalake" class="btn-cta">
-          {{ t('立即试用', 'Get Started') }} →
+        <router-link to="/app/datalake" class="cta-button">
+          {{ t('立即试用', 'Get Started') }}
         </router-link>
-        <router-link to="/product" class="btn-back">
-          ← {{ t('返回产品总览', 'Back to Products') }}
-        </router-link>
+        <router-link to="/product" class="back-link">{{ t('返回产品总览', 'Back to Products') }}</router-link>
       </div>
-    </div>
+    </section>
   </main>
 </template>
 
@@ -37,42 +39,36 @@ const { t } = useLocale()
 
 const features = [
   {
-    icon: '⚙️',
     titleZh: 'Python / Ray 任务调度',
     titleEn: 'Task Scheduling',
     descZh: '提交 Python 和 Ray 分布式作业',
     descEn: 'Submit Python and Ray distributed jobs',
   },
   {
-    icon: '📦',
     titleZh: 'Dataset 导出',
     titleEn: 'Dataset Export',
     descZh: '导出为 Parquet 格式',
     descEn: 'Export to Parquet format',
   },
   {
-    icon: '🧬',
     titleZh: '模型微调',
     titleEn: 'Fine-tuning',
     descZh: '支持模型微调工作流',
     descEn: 'Model fine-tuning workflow support',
   },
   {
-    icon: '🔒',
     titleZh: 'Kata VM 隔离',
     titleEn: 'Kata Isolation',
     descZh: '作业级安全隔离',
     descEn: 'Job-level security isolation',
   },
   {
-    icon: '🔄',
     titleZh: '数据飞轮',
     titleEn: 'Data Flywheel',
-    descZh: 'DB ↔ 数据湖双向数据流转',
+    descZh: 'DB 与数据湖双向数据流转',
     descEn: 'Bidirectional data flow between DB and Data Lake',
   },
   {
-    icon: '📡',
     titleZh: '增量 CDC',
     titleEn: 'Incremental CDC',
     descZh: '增量变更捕获与调度',
@@ -82,16 +78,26 @@ const features = [
 </script>
 
 <style scoped>
-.product-detail {
+.product-page {
   min-height: 100vh;
-  background: var(--pub-surface, #fff);
+  background: var(--pub-bg);
 }
 
+/* Hero */
 .hero {
-  border-top: 4px solid transparent;
-  border-image: linear-gradient(90deg, #7b1fa2, #4a148c) 1;
-  background: var(--pub-surface, #fff);
+  background: var(--pub-bg-alt);
   padding: 56px 24px 48px;
+  position: relative;
+}
+
+.hero-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #6d28d9;
+  border-radius: 0 0 4px 4px;
 }
 
 .hero-inner {
@@ -100,27 +106,32 @@ const features = [
 }
 
 .hero-title {
-  font-size: 2.4rem;
+  font-family: var(--pub-sans);
+  font-size: 36px;
   font-weight: 700;
-  color: var(--pub-text, #0f172a);
-  margin: 0 0 12px;
-  line-height: 1.2;
+  color: var(--pub-text);
+  margin: 0 0 10px;
+  letter-spacing: -0.02em;
 }
 
 .hero-subtitle {
-  font-size: 1.1rem;
-  color: var(--pub-text-2, #475569);
+  font-family: var(--pub-sans);
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--pub-text-2);
   margin: 0;
   line-height: 1.6;
 }
 
+/* Content */
 .content {
   max-width: 800px;
   margin: 0 auto;
-  padding: 40px 24px 64px;
+  padding: 48px 24px 72px;
 }
 
-.features {
+/* Features grid */
+.features-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
@@ -128,46 +139,50 @@ const features = [
 }
 
 .feature-card {
-  background: var(--pub-bg-alt, #f8fafc);
+  background: var(--pub-surface);
+  border: 1px solid var(--pub-border);
   border-radius: 12px;
   padding: 24px;
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  border: 1px solid var(--pub-border, #e2e8f0);
-  transition: box-shadow 0.15s ease;
+  transition: border-color 0.2s;
 }
 
 .feature-card:hover {
-  box-shadow: 0 4px 16px rgba(123, 31, 162, 0.08);
+  border-color: #6d28d9;
 }
 
-.feature-icon {
-  font-size: 1.6rem;
-  line-height: 1;
+.feature-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.feature-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #6d28d9;
   flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.feature-body {
-  flex: 1;
-  min-width: 0;
 }
 
 .feature-title {
-  font-size: 1rem;
+  font-family: var(--pub-sans);
+  font-size: 15px;
   font-weight: 600;
-  color: var(--pub-text, #0f172a);
-  margin: 0 0 6px;
+  color: var(--pub-text);
+  margin: 0;
 }
 
 .feature-desc {
-  font-size: 0.875rem;
-  color: var(--pub-text-2, #475569);
-  margin: 0;
+  font-family: var(--pub-sans);
+  font-size: 14px;
+  color: var(--pub-text-2);
   line-height: 1.6;
+  margin: 0;
+  padding-left: 16px;
 }
 
+/* CTA */
 .cta-section {
   display: flex;
   align-items: center;
@@ -175,40 +190,42 @@ const features = [
   flex-wrap: wrap;
 }
 
-.btn-cta {
+.cta-button {
   display: inline-block;
-  padding: 12px 28px;
-  background: linear-gradient(135deg, #7b1fa2, #4a148c);
+  padding: 12px 32px;
+  background: #6d28d9;
   color: #fff;
-  font-size: 1rem;
+  font-family: var(--pub-sans);
+  font-size: 15px;
   font-weight: 600;
   text-decoration: none;
-  border-radius: 8px;
-  transition: opacity 0.15s ease, box-shadow 0.15s ease;
+  border-radius: 100px;
+  transition: background 0.15s;
 }
 
-.btn-cta:hover {
-  opacity: 0.9;
-  box-shadow: 0 4px 16px rgba(123, 31, 162, 0.35);
+.cta-button:hover {
+  background: #5b21b6;
 }
 
-.btn-back {
-  font-size: 0.9rem;
-  color: var(--pub-text-2, #475569);
+.back-link {
+  font-family: var(--pub-sans);
+  font-size: 14px;
+  color: var(--pub-text-3);
   text-decoration: none;
-  transition: color 0.15s ease;
+  transition: color 0.15s;
 }
 
-.btn-back:hover {
-  color: #7b1fa2;
+.back-link:hover {
+  color: var(--pub-text);
 }
 
+/* Responsive */
 @media (max-width: 600px) {
   .hero-title {
-    font-size: 1.8rem;
+    font-size: 28px;
   }
 
-  .features {
+  .features-grid {
     grid-template-columns: 1fr;
   }
 

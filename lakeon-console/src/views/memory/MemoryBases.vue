@@ -21,7 +21,6 @@
               <div class="scene-card" :class="{ selected: createForm.scene === 'DEVELOPER_TOOL' }"
                    @click="createForm.scene = 'DEVELOPER_TOOL'; createStep = 2">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                  <span style="font-size: 20px;">🛠</span>
                   <span style="font-weight: 600; font-size: 15px;">开发者工具</span>
                 </div>
                 <div style="font-size: 13px; color: #666; line-height: 1.6;">
@@ -31,7 +30,6 @@
               <div class="scene-card" :class="{ selected: createForm.scene === 'CHAT_ASSISTANT' }"
                    @click="createForm.scene = 'CHAT_ASSISTANT'; createStep = 2">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                  <span style="font-size: 20px;">💬</span>
                   <span style="font-weight: 600; font-size: 15px;">对话助理</span>
                 </div>
                 <div style="font-size: 13px; color: #666; line-height: 1.6;">
@@ -45,7 +43,7 @@
           <template v-else>
             <!-- Scene summary (clickable to go back) -->
             <div class="scene-summary" @click="createStep = 1">
-              <span>{{ createForm.scene === 'DEVELOPER_TOOL' ? '🛠 开发者工具' : '💬 对话助理' }}</span>
+              <span>{{ createForm.scene === 'DEVELOPER_TOOL' ? '开发者工具' : '对话助理' }}</span>
               <span style="color: #0073e6; font-size: 12px;">更改</span>
             </div>
 
