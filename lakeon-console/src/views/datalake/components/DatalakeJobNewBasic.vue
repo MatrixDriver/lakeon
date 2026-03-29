@@ -42,9 +42,9 @@ defineEmits<{
 }>()
 
 const types: { value: DatalakeJobType; label: string }[] = [
-  { value: 'PYTHON', label: '🐍 Python' },
-  { value: 'RAY',    label: '⚡ Ray' },
-  { value: 'FINETUNE', label: '🧠 微调' },
+  { value: 'PYTHON', label: 'Python' },
+  { value: 'RAY',    label: 'Ray' },
+  { value: 'FINETUNE', label: 'Finetune' },
 ]
 
 const typeHints: Record<DatalakeJobType, string> = {

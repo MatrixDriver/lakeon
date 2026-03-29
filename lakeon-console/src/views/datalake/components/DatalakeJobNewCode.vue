@@ -8,8 +8,8 @@
     </div>
 
     <div class="source-tabs">
-      <button class="source-tab" :class="{ active: tab === 'inline' }" @click="tab = 'inline'">✏️ 内联编辑器</button>
-      <button class="source-tab" :class="{ active: tab === 'obs' }" @click="tab = 'obs'">📦 OBS 路径</button>
+      <button class="source-tab" :class="{ active: tab === 'inline' }" @click="tab = 'inline'">Inline Editor</button>
+      <button class="source-tab" :class="{ active: tab === 'obs' }" @click="tab = 'obs'">OBS Path</button>
     </div>
 
     <div v-if="tab === 'inline'" class="editor-wrap">
@@ -20,7 +20,7 @@
     </div>
 
     <div v-else class="obs-stub">
-      <div class="obs-stub-icon">🚧</div>
+      <div class="obs-stub-icon" style="font-size:14px;font-weight:700;color:#94a3b8;">COMING SOON</div>
       <div class="obs-stub-title">OBS 路径模式即将推出</div>
       <div class="obs-stub-desc">将代码包上传到 OBS，填写路径后自动下载到容器执行。</div>
     </div>
@@ -39,7 +39,7 @@
     <!-- AI Panel -->
     <div class="ai-panel" :class="{ expanded: aiOpen }">
       <div class="ai-toggle" @click="aiOpen = !aiOpen">
-        ✨ <strong>AI 辅助</strong>：描述你想做什么，AI 帮你生成脚本
+        <strong>AI 辅助</strong>：描述你想做什么，AI 帮你生成脚本
         <span class="ai-toggle-arrow">{{ aiOpen ? '▼' : '▶' }}</span>
       </div>
       <div v-if="aiOpen" class="ai-body">

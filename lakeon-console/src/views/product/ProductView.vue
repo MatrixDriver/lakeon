@@ -1,203 +1,347 @@
 <template>
   <main class="product-overview">
-    <section class="page-hero">
-      <h1>{{ t('一个平台，四种数据能力', 'One Platform, Four Data Capabilities') }}</h1>
-      <p>{{ t('以 Lakebase 为底座，覆盖知识库、记忆库、AI 数据湖全场景', 'Lakebase-powered platform covering Knowledge Base, Memory Store, and AI Data Lake') }}</p>
+
+    <!-- Hero -->
+    <section class="hero">
+      <h1 class="hero-title">{{ t('从数据库到数据平台', 'From Database to Data Platform') }}</h1>
+      <p class="hero-subtitle">{{ t('以 Lakebase 为底座，按需解锁知识库、记忆库、AI 数据湖', 'Lakebase-powered platform — unlock Knowledge, Memory, and Data Lake on demand') }}</p>
     </section>
 
-    <section class="product-grid">
-      <router-link v-for="p in products" :key="p.path" :to="p.path" class="product-card">
-        <div class="card-accent" :style="{ background: p.gradient }"></div>
-        <div class="card-body">
-          <div class="card-icon">{{ p.icon }}</div>
-          <h3>{{ p.title }}</h3>
-          <p class="card-desc">{{ p.desc }}</p>
-          <div class="card-tags">
-            <span v-for="tag in p.tags" :key="tag" class="card-tag">{{ tag }}</span>
+    <!-- Layer 1 -->
+    <section class="layer">
+      <div class="layer-content">
+        <div class="layer-text">
+          <div class="layer-header">
+            <span class="layer-number">01</span>
+            <span class="layer-label">{{ t('基础层', 'Foundation') }}</span>
           </div>
-          <span class="card-link">{{ t('了解更多 →', 'Learn more →') }}</span>
+          <h2 class="layer-title">Lakebase</h2>
+          <p class="layer-subtitle">Serverless PostgreSQL</p>
+          <p class="layer-desc">
+            {{ t(
+              '用你现有的 PG 客户端直接连接，按需弹性伸缩，空闲自动休眠。内置 pgvector 向量搜索、时间旅行数据版本管理。',
+              'Connect with any PG client. Elastic scaling, auto-sleep on idle. Built-in pgvector and time travel versioning.'
+            ) }}
+          </p>
+          <div class="layer-features-grid">
+            <div class="layer-feature">
+              <div class="layer-feature-name">{{ t('秒级启动', 'Fast Start') }}</div>
+              <div class="layer-feature-desc">{{ t('3ms 热启动，3s 冷启动', '3ms hot, 3s cold start') }}</div>
+            </div>
+            <div class="layer-feature">
+              <div class="layer-feature-name">{{ t('存算分离', 'Disaggregated') }}</div>
+              <div class="layer-feature-desc">{{ t('存储与计算独立扩展', 'Independent storage and compute') }}</div>
+            </div>
+            <div class="layer-feature">
+              <div class="layer-feature-name">{{ t('数据库分支', 'Branching') }}</div>
+              <div class="layer-feature-desc">{{ t('像 Git 一样管理数据', 'Git-like data versioning') }}</div>
+            </div>
+            <div class="layer-feature">
+              <div class="layer-feature-name">{{ t('时间旅行', 'Time Travel') }}</div>
+              <div class="layer-feature-desc">{{ t('回滚到任意时间点', 'Rollback to any point') }}</div>
+            </div>
+          </div>
+          <p class="layer-tags">{{ t('秒级启动', 'Fast Start') }} · {{ t('时间旅行', 'Time Travel') }} · pgvector</p>
+          <router-link to="/product/lakebase" class="layer-link">{{ t('了解 Lakebase', 'Learn about Lakebase') }} &rarr;</router-link>
         </div>
-      </router-link>
+        <div class="layer-visual">
+          <LayerLakebase />
+        </div>
+      </div>
     </section>
 
-    <section class="page-bottom-cta">
-      <h2>{{ t('30 秒，免费获得一个 Serverless 数据库', 'Get a free Serverless database in 30 seconds') }}</h2>
-      <p>{{ t('无需信用卡 · 兼容所有 PG 客户端 · 立即体验', 'No credit card · Works with all PG clients · Try now') }}</p>
-      <router-link to="/" class="cta-primary">{{ t('立即试用 →', 'Try Now →') }}</router-link>
+    <hr class="divider">
+
+    <!-- Layer 2 -->
+    <section class="layer">
+      <div class="layer-content layer-content--reverse">
+        <div class="layer-visual">
+          <LayerServices />
+        </div>
+        <div class="layer-text">
+          <div class="layer-header">
+            <span class="layer-number">02</span>
+            <span class="layer-label">{{ t('服务层', 'Services') }}</span>
+          </div>
+          <h2 class="layer-title">{{ t('知识库 + 记忆库', 'Knowledge + Memory') }}</h2>
+          <p class="layer-subtitle">{{ t('原生 AI 数据服务', 'Native AI Data Services') }}</p>
+          <p class="layer-desc">
+            {{ t(
+              'DBay 提供完全发挥 Lakebase 能力的原生服务 — Agent 通过 MCP / Skill 直接对接，多库合一，减少第三方依赖。',
+              'Native services that fully leverage Lakebase — connect via MCP/Skill, all-in-one, fewer dependencies.'
+            ) }}
+          </p>
+          <p class="layer-tags">{{ t('MCP 一键接入', 'MCP one-click') }} · {{ t('记忆自动提取', 'Auto extraction') }} · {{ t('文档向量化', 'Doc vectorization') }} · {{ t('Console 管理', 'Console management') }}</p>
+          <router-link to="/product/memory" class="layer-link">{{ t('了解记忆与知识服务', 'Learn about Memory & Knowledge') }} &rarr;</router-link>
+        </div>
+      </div>
     </section>
+
+    <hr class="divider">
+
+    <!-- Layer 3 -->
+    <section class="layer">
+      <div class="layer-content">
+        <div class="layer-text">
+          <div class="layer-header">
+            <span class="layer-number">03</span>
+            <span class="layer-label">{{ t('数据闭环', 'Data Loop') }}</span>
+          </div>
+          <h2 class="layer-title">{{ t('AI 数据湖', 'AI Data Lake') }}</h2>
+          <p class="layer-subtitle">{{ t('多模态数据处理与飞轮', 'Multimodal Processing & Flywheel') }}</p>
+          <p class="layer-desc">
+            {{ t(
+              '数据库、知识库、记忆库与数据湖双向联动 — 导入导出自如。在数据湖上运行 Ray、Python 作业，实现数据加工和分析，形成数据飞轮。',
+              'Bidirectional sync between database, knowledge, memory, and data lake. Run Ray/Python jobs for processing and analysis, forming a data flywheel.'
+            ) }}
+          </p>
+          <p class="layer-tags">{{ t('分析用户习惯', 'Analyze behavior') }} · {{ t('导出微调', 'Export for fine-tuning') }} · {{ t('质量评估', 'Quality assessment') }} · {{ t('清洗归档', 'Clean & archive') }}</p>
+          <router-link to="/product/datalake" class="layer-link">{{ t('了解数据湖', 'Learn about Data Lake') }} &rarr;</router-link>
+        </div>
+        <div class="layer-visual">
+          <LayerDatalake />
+        </div>
+      </div>
+    </section>
+
+    <!-- Bottom CTA -->
+    <section class="bottom-cta">
+      <p class="bottom-cta-text">{{ t('无需信用卡 · 兼容所有 PG 客户端 · 立即体验', 'No credit card · Works with all PG clients · Try now') }}</p>
+      <router-link to="/" class="btn-primary">{{ t('立即试用', 'Try Now') }} &rarr;</router-link>
+    </section>
+
   </main>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useLocale } from '../../stores/locale'
+import LayerLakebase from '../landing/LayerLakebase.vue'
+import LayerServices from '../landing/LayerServices.vue'
+import LayerDatalake from '../landing/LayerDatalake.vue'
 
 const { t } = useLocale()
-
-const products = computed(() => [
-  {
-    path: '/product/lakebase',
-    icon: '🐘',
-    title: 'Lakebase',
-    desc: t('Serverless PostgreSQL，存算分离，自动扩缩容', 'Serverless PostgreSQL with disaggregated storage and auto-scaling'),
-    gradient: 'linear-gradient(180deg, #0073e6, #005bb5)',
-    tags: [t('秒级启动', 'Fast Start'), t('时间旅行', 'Time Travel'), 'pgvector'],
-  },
-  {
-    path: '/product/knowledge',
-    icon: '📚',
-    title: t('知识库', 'Knowledge Base'),
-    desc: t('文档 + 表 + 向量检索，内置 Embedding 与 Reranker', 'Documents + Tables + Vector Search, built-in Embedding & Reranker'),
-    gradient: 'linear-gradient(180deg, #4caf50, #2e7d32)',
-    tags: [t('文档解析', 'Doc Parsing'), t('混合检索', 'Hybrid Search'), 'RAG'],
-  },
-  {
-    path: '/product/memory',
-    icon: '🧠',
-    title: t('记忆库', 'Memory Store'),
-    desc: t('为 AI Agent 提供结构化长期记忆，越用越懂你', 'Structured long-term memory for AI Agents — gets smarter with every interaction'),
-    gradient: 'linear-gradient(180deg, #ff9800, #e65100)',
-    tags: [t('自动提取', 'Auto Extract'), t('混合召回', 'Hybrid Recall'), 'MCP'],
-  },
-  {
-    path: '/product/datalake',
-    icon: '🌊',
-    title: t('AI 数据湖', 'AI Data Lake'),
-    desc: t('数据处理 + 训练 + 飞轮', 'Data Processing + Training + Flywheel'),
-    gradient: 'linear-gradient(180deg, #7b1fa2, #4a148c)',
-    tags: ['Ray', 'Python', t('数据飞轮', 'Flywheel')],
-  },
-])
 </script>
 
 <style scoped>
 .product-overview {
   min-height: 100vh;
-  background: var(--pub-bg);
+  background: var(--pub-bg, #fafaf7);
+  color: var(--pub-text, #18181b);
 }
 
-.page-hero {
-  padding: 48px 48px 32px;
-  text-align: center;
-  background: var(--pub-surface);
+/* Hero */
+.hero {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 96px 32px 80px;
 }
-.page-hero h1 {
-  font-size: 36px;
-  font-weight: 700;
-  color: var(--pub-text);
-  margin: 0 0 8px;
+
+.hero-title {
+  font-family: var(--pub-serif, 'Cormorant Garamond', Georgia, serif);
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 1.15;
+  margin: 0 0 16px;
+  color: var(--pub-text, #18181b);
 }
-.page-hero p {
-  font-size: 16px;
-  color: var(--pub-text-2);
+
+.hero-subtitle {
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--pub-text-2, #52525b);
   margin: 0;
 }
 
-.product-grid {
-  max-width: 900px;
+/* Layers */
+.layer {
+  max-width: 960px;
   margin: 0 auto;
-  padding: 0 24px 48px;
+  padding: 80px 32px;
+}
+
+.layer-content {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 64px;
+  align-items: start;
 }
 
-.product-card {
+.layer-content--reverse {
+  direction: rtl;
+}
+
+.layer-content--reverse > * {
+  direction: ltr;
+}
+
+.layer-header {
   display: flex;
-  background: var(--pub-surface);
-  border: 1px solid var(--pub-border);
-  border-radius: 12px;
-  overflow: hidden;
-  text-decoration: none;
-  transition: box-shadow 0.2s, transform 0.2s;
-}
-.product-card:hover {
-  box-shadow: 0 8px 24px var(--pub-shadow);
-  transform: translateY(-2px);
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
-.card-accent {
-  width: 6px;
-  flex-shrink: 0;
+.layer-number {
+  font-family: var(--pub-serif, 'Cormorant Garamond', Georgia, serif);
+  font-size: 42px;
+  font-weight: 300;
+  line-height: 1;
+  color: var(--pub-text-3, #a1a1aa);
 }
 
-.card-body {
-  padding: 24px;
-  flex: 1;
-}
-
-.card-icon {
-  font-size: 28px;
-  margin-bottom: 8px;
-}
-
-.card-body h3 {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--pub-text);
-  margin: 0 0 6px;
-}
-
-.card-desc {
-  font-size: 13px;
-  color: var(--pub-text-2);
-  line-height: 1.5;
-  margin: 0 0 12px;
-}
-
-.card-tags {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-}
-
-.card-tag {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: var(--pub-bg-alt, #f8f9fb);
-  color: var(--pub-text-3);
-}
-
-.card-link {
-  font-size: 13px;
-  color: var(--pub-primary);
+.layer-label {
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 12px;
   font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pub-text-3, #a1a1aa);
 }
 
-.page-bottom-cta {
-  background: linear-gradient(135deg, #0062cc, var(--pub-primary, #0073e6));
-  padding: 40px 48px;
-  text-align: center;
-}
-.page-bottom-cta h2 {
+.layer-title {
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
   font-size: 24px;
   font-weight: 700;
-  color: #fff;
   margin: 0 0 6px;
+  color: var(--pub-text, #18181b);
 }
-.page-bottom-cta p {
+
+.layer-subtitle {
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
   font-size: 14px;
-  color: rgba(255,255,255,0.7);
+  color: var(--pub-text-3, #a1a1aa);
   margin: 0 0 20px;
 }
-.cta-primary {
+
+.layer-desc {
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--pub-text-2, #52525b);
+  margin: 0 0 24px;
+}
+
+.layer-features-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 32px;
+  margin-bottom: 24px;
+}
+
+.layer-feature-name {
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pub-text, #18181b);
+  margin-bottom: 4px;
+}
+
+.layer-feature-desc {
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 13px;
+  color: var(--pub-text-3, #a1a1aa);
+  line-height: 1.5;
+}
+
+.layer-tags {
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 13px;
+  color: var(--pub-text-3, #a1a1aa);
+  margin: 0 0 20px;
+  line-height: 1.6;
+}
+
+.layer-link {
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+
+.layer-link:hover {
+  opacity: 0.7;
+}
+
+.layer-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Divider */
+.divider {
+  max-width: 960px;
+  margin: 0 auto;
+  border: none;
+  border-top: 1px solid var(--pub-border, #e4e4e7);
+}
+
+/* Bottom CTA */
+.bottom-cta {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 80px 32px 96px;
+  text-align: left;
+}
+
+.bottom-cta-text {
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 14px;
+  color: var(--pub-text-3, #a1a1aa);
+  margin: 0 0 24px;
+}
+
+.btn-primary {
   display: inline-block;
-  background: #fff;
-  color: var(--pub-primary, #0073e6);
-  padding: 12px 32px;
-  border-radius: 8px;
-  font-size: 16px;
+  padding: 14px 36px;
+  background: var(--pub-btn-bg, #18181b);
+  color: #fff;
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 15px;
   font-weight: 600;
   text-decoration: none;
+  border-radius: 6px;
+  transition: opacity 0.15s;
 }
-.cta-primary:hover { opacity: 0.9; }
 
+.btn-primary:hover {
+  opacity: 0.85;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-  .page-hero { padding: 32px 20px 24px; }
-  .page-hero h1 { font-size: 28px; }
-  .product-grid { grid-template-columns: 1fr; padding: 0 20px 32px; }
-  .page-bottom-cta { padding: 32px 20px; }
+  .hero {
+    padding: 64px 24px 56px;
+  }
+
+  .hero-title {
+    font-size: 36px;
+  }
+
+  .layer {
+    padding: 56px 24px;
+  }
+
+  .layer-content,
+  .layer-content--reverse {
+    grid-template-columns: 1fr;
+    direction: ltr;
+    gap: 40px;
+  }
+
+  .layer-features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .layer-visual {
+    order: -1;
+  }
+
+  .bottom-cta {
+    padding: 56px 24px 72px;
+  }
 }
 </style>

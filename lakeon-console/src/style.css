@@ -1,57 +1,63 @@
 /* ── Public site theme variables ── */
 :root {
-  --pub-bg: #f7f9fc;
-  --pub-surface: #fff;
-  --pub-text: #1a1a1a;
-  --pub-text-2: #666;
-  --pub-text-3: #888;
-  --pub-text-4: #999;
-  --pub-border: #e5e5e5;
-  --pub-hover: #f5f5f5;
-  --pub-code-bg: #f4f4f6;
-  --pub-code: #7c3aed;
-  --pub-accent-bg: #f5f3ff;
-  --pub-accent-border: #7c3aed33;
-  --pub-btn-bg: #1a1a1a;
-  --pub-btn-text: #fff;
-  --pub-btn-hover: #333;
-  --pub-shadow: rgba(0,0,0,0.08);
-  --pub-hero-start: #f0f5ff;
-  --pub-hero-end: #fff;
-  --pub-primary: #0073e6;
-  --pub-primary-dark: #005bb5;
-  --pub-primary-light: #e3f2fd;
-  --pub-bg-alt: #f8f9fb;
+  --pub-bg: #fafaf7;
+  --pub-surface: #ffffff;
+  --pub-text: #18181b;
+  --pub-text-2: #52525b;
+  --pub-text-3: #a1a1aa;
+  --pub-text-4: #d4d4d8;
+  --pub-border: #e4e4e7;
+  --pub-hover: #f4f4f5;
+  --pub-accent: #92400e;
+  --pub-accent-light: #fef3c7;
+  --pub-code-bg: #fafaf9;
+  --pub-code: #92400e;
+  --pub-accent-bg: #fef3c7;
+  --pub-accent-border: rgba(146,64,14,0.15);
+  --pub-btn-bg: #18181b;
+  --pub-btn-text: #fafaf7;
+  --pub-btn-hover: #27272a;
+  --pub-shadow: rgba(0,0,0,0.04);
+  --pub-hero-start: #fafaf7;
+  --pub-hero-end: #ffffff;
+  --pub-primary: #18181b;
+  --pub-primary-dark: #09090b;
+  --pub-primary-light: #f4f4f5;
+  --pub-bg-alt: #fafaf7;
+  --pub-serif: 'Cormorant Garamond', 'Noto Serif SC', Georgia, serif;
+  --pub-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 [data-theme="dark"] {
-  --pub-bg: #0a0a0a;
-  --pub-surface: #111;
-  --pub-text: #e5e5e5;
-  --pub-text-2: #888;
-  --pub-text-3: #666;
-  --pub-text-4: #555;
-  --pub-border: #222;
-  --pub-hover: #1a1a1a;
-  --pub-code-bg: #1a1a1a;
-  --pub-code: #a78bfa;
-  --pub-accent-bg: #1a1a2e;
-  --pub-accent-border: #7c3aed44;
-  --pub-btn-bg: #fff;
-  --pub-btn-text: #000;
-  --pub-btn-hover: #e5e5e5;
-  --pub-shadow: rgba(0,0,0,0.4);
-  --pub-hero-start: #0d0d18;
-  --pub-hero-end: #0a0a0a;
-  --pub-primary: #4da6ff;
-  --pub-primary-dark: #0073e6;
-  --pub-primary-light: #1a2a3a;
-  --pub-bg-alt: #0f0f0f;
+  --pub-bg: #09090b;
+  --pub-surface: #18181b;
+  --pub-text: #fafaf7;
+  --pub-text-2: #a1a1aa;
+  --pub-text-3: #71717a;
+  --pub-text-4: #52525b;
+  --pub-border: #27272a;
+  --pub-hover: #1c1c1e;
+  --pub-accent: #d97706;
+  --pub-accent-light: #451a03;
+  --pub-code-bg: #18181b;
+  --pub-code: #d97706;
+  --pub-accent-bg: #451a03;
+  --pub-accent-border: rgba(217,119,6,0.2);
+  --pub-btn-bg: #fafaf7;
+  --pub-btn-text: #18181b;
+  --pub-btn-hover: #e4e4e7;
+  --pub-shadow: rgba(0,0,0,0.3);
+  --pub-hero-start: #09090b;
+  --pub-hero-end: #18181b;
+  --pub-primary: #fafaf7;
+  --pub-primary-dark: #e4e4e7;
+  --pub-primary-light: #27272a;
+  --pub-bg-alt: #0f0f12;
 }
 /* ── end theme variables ── */
 
 :root {
-  font-family: 'HuaweiSans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color: #333;

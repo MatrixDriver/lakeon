@@ -3,9 +3,7 @@
     <nav class="pub-nav">
       <div class="pub-nav-inner">
         <!-- Brand -->
-        <router-link to="/" class="pub-brand">
-          DBay <span class="pub-tagline">{{ t('数据港湾', 'Data Harbor') }}</span>
-        </router-link>
+        <router-link to="/" class="pub-brand">DBay</router-link>
 
         <!-- Desktop nav -->
         <div class="pub-nav-links">
@@ -13,28 +11,24 @@
           <NavDropdown :label="t('产品', 'Products')">
             <div class="nav-product-grid">
               <router-link to="/product#lakebase" class="nav-item nav-item-grid">
-                <span class="nav-item-icon">🐘</span>
                 <div>
                   <div class="nav-item-title">Lakebase</div>
                   <div class="nav-item-desc">Serverless PostgreSQL</div>
                 </div>
               </router-link>
               <router-link to="/product#knowledge" class="nav-item nav-item-grid">
-                <span class="nav-item-icon">📚</span>
                 <div>
                   <div class="nav-item-title">{{ t('知识库', 'Knowledge Base') }}</div>
                   <div class="nav-item-desc">{{ t('文档 + 向量搜索', 'Docs + Vector Search') }}</div>
                 </div>
               </router-link>
               <router-link to="/product#memory" class="nav-item nav-item-grid">
-                <span class="nav-item-icon">🧠</span>
                 <div>
                   <div class="nav-item-title">{{ t('记忆库', 'Memory Store') }}</div>
                   <div class="nav-item-desc">{{ t('Agent 长期记忆', 'Agent Long-term Memory') }}</div>
                 </div>
               </router-link>
               <router-link to="/product#datalake" class="nav-item nav-item-grid">
-                <span class="nav-item-icon">🌊</span>
                 <div>
                   <div class="nav-item-title">{{ t('数据湖', 'Data Lake') }}</div>
                   <div class="nav-item-desc">{{ t('数据处理 + 训练', 'Processing + Training') }}</div>
@@ -46,25 +40,20 @@
           <!-- 集成 dropdown -->
           <NavDropdown :label="t('集成', 'Integrations')">
             <router-link to="/integrations#mcp" class="nav-item">
-              <span class="nav-item-icon">🤖</span>
               <span class="nav-item-title">{{ t('MCP 集成', 'MCP Integration') }}</span>
             </router-link>
             <router-link to="/integrations#skill" class="nav-item">
-              <span class="nav-item-icon">🔧</span>
               <span class="nav-item-title">{{ t('Skill 集成', 'Skill Integration') }}</span>
             </router-link>
             <router-link to="/integrations#pg" class="nav-item">
-              <span class="nav-item-icon">🐘</span>
               <span class="nav-item-title">{{ t('PostgreSQL 协议', 'PostgreSQL Protocol') }}</span>
             </router-link>
             <router-link to="/integrations#rest" class="nav-item">
-              <span class="nav-item-icon">🔌</span>
               <span class="nav-item-title">REST API</span>
             </router-link>
             <div class="nav-divider"></div>
             <router-link to="/docs/rest-api" class="nav-item">
-              <span class="nav-item-icon">📖</span>
-              <span class="nav-item-title" style="color: var(--pub-primary)">{{ t('API 文档', 'API Docs') }}</span>
+              <span class="nav-item-title" style="color: var(--pub-accent)">{{ t('API 文档', 'API Docs') }}</span>
             </router-link>
           </NavDropdown>
 
@@ -100,8 +89,8 @@
         <div class="pub-nav-right">
           <!-- Theme toggle -->
           <button class="theme-btn" @click="toggleTheme" :aria-label="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">
-            <span v-if="theme === 'dark'">☀️</span>
-            <span v-else>🌙</span>
+            <span v-if="theme === 'dark'">Light</span>
+            <span v-else>Dark</span>
           </button>
           <button class="lang-btn" @click="toggleLocale">{{ locale === 'zh' ? 'EN' : '中' }}</button>
           <router-link to="/login" class="btn-signin">{{ t('登录', 'Sign In') }}</router-link>
@@ -166,85 +155,101 @@ async function handleNavTrial() {
   border-bottom: 1px solid var(--pub-border);
 }
 .pub-nav-inner {
-  max-width: 1200px;
+  max-width: 1000px;
   margin: 0 auto;
-  padding: 0 24px;
-  height: 52px;
+  padding: 0 32px;
+  height: 56px;
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 32px;
 }
 .pub-brand {
-  font-weight: 700;
-  font-size: 17px;
+  font-family: var(--pub-serif);
+  font-weight: 600;
+  font-size: 22px;
   color: var(--pub-text);
   text-decoration: none;
   white-space: nowrap;
-  margin-right: 8px;
-}
-.pub-tagline {
-  font-weight: 400;
-  font-size: 12px;
-  color: var(--pub-text-4);
-  margin-left: 4px;
+  margin-right: 12px;
+  letter-spacing: 0.5px;
 }
 .pub-nav-links {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   flex: 1;
 }
 .pub-nav-link {
+  font-family: var(--pub-sans);
   font-size: 13px;
+  font-weight: 400;
   color: var(--pub-text-2);
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 6px 14px;
+  border-radius: 4px;
   text-decoration: none;
-  transition: color 0.15s, background 0.15s;
+  letter-spacing: 0.2px;
+  transition: color 0.15s;
 }
 .pub-nav-link:hover {
   color: var(--pub-text);
-  background: var(--pub-hover);
 }
 .pub-nav-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin-left: auto;
 }
 .theme-btn {
+  font-family: var(--pub-sans);
   background: none;
   border: none;
-  cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 6px;
-  font-size: 16px;
-  line-height: 1;
-  transition: background 0.15s;
-}
-.theme-btn:hover { background: var(--pub-hover); }
-.lang-btn {
-  background: none;
-  border: none;
-  color: var(--pub-text-2);
-  font-size: 13px;
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 4px;
-  transition: color 0.15s, background 0.15s;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--pub-text-3);
+  letter-spacing: 0.3px;
+  transition: color 0.15s;
 }
-.lang-btn:hover { color: var(--pub-text); background: var(--pub-hover); }
+.theme-btn:hover { color: var(--pub-text); }
+.lang-btn {
+  font-family: var(--pub-sans);
+  background: none;
+  border: none;
+  color: var(--pub-text-3);
+  font-size: 12px;
+  font-weight: 400;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+  transition: color 0.15s;
+}
+.lang-btn:hover { color: var(--pub-text); }
 .btn-signin {
-  background: var(--pub-btn-bg);
-  color: var(--pub-btn-text);
+  font-family: var(--pub-sans);
+  color: var(--pub-text-2);
+  font-size: 13px;
+  font-weight: 400;
+  padding: 6px 12px;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.btn-signin:hover { color: var(--pub-text); }
+.btn-trial {
+  font-family: var(--pub-sans);
+  color: var(--pub-accent);
   font-size: 13px;
   font-weight: 500;
-  padding: 6px 16px;
-  border-radius: 6px;
+  padding: 6px 0;
   text-decoration: none;
-  transition: background 0.15s;
+  border-bottom: 1px solid var(--pub-accent);
+  transition: opacity 0.15s;
 }
-.btn-signin:hover { background: var(--pub-btn-hover); }
+.btn-trial:hover {
+  opacity: 0.7;
+}
 .hamburger {
   display: none;
   flex-direction: column;
@@ -256,44 +261,28 @@ async function handleNavTrial() {
 }
 .hamburger span {
   display: block;
-  width: 20px;
-  height: 2px;
+  width: 18px;
+  height: 1.5px;
   background: var(--pub-text-2);
   border-radius: 1px;
-}
-.badge-new {
-  font-size: 10px;
-  background: #7c3aed;
-  color: #fff;
-  padding: 1px 5px;
-  border-radius: 3px;
-  margin-left: 5px;
-  vertical-align: middle;
-}
-.badge-featured {
-  font-size: 10px;
-  background: #7c3aed15;
-  color: #7c3aed;
-  padding: 1px 5px;
-  border-radius: 3px;
-  margin-left: 5px;
-  vertical-align: middle;
 }
 .nav-item {
   display: flex;
   flex-direction: column;
-  padding: 8px 10px;
-  border-radius: 6px;
+  padding: 8px 12px;
+  border-radius: 4px;
   text-decoration: none;
   transition: background 0.15s;
 }
 .nav-item:hover { background: var(--pub-hover); }
 .nav-item-title {
+  font-family: var(--pub-sans);
   font-size: 13px;
   font-weight: 500;
   color: var(--pub-text);
 }
 .nav-item-desc {
+  font-family: var(--pub-sans);
   font-size: 11px;
   color: var(--pub-text-3);
   margin-top: 1px;
@@ -301,37 +290,21 @@ async function handleNavTrial() {
 .nav-product-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px;
+  gap: 2px;
 }
 .nav-item-grid {
   flex-direction: row;
   align-items: center;
   gap: 8px;
 }
-.nav-item-icon {
-  font-size: 18px;
-  flex-shrink: 0;
-}
 .nav-divider {
   height: 1px;
   background: var(--pub-border);
   margin: 4px 0;
 }
-.btn-trial {
-  background: var(--pub-primary, #0073e6);
-  color: #fff !important;
-  padding: 6px 16px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-  transition: opacity 0.15s;
-}
-.btn-trial:hover {
-  opacity: 0.9;
-}
 @media (max-width: 768px) {
   .pub-nav-links { display: none; }
   .hamburger { display: flex; }
+  .btn-signin { display: none; }
 }
 </style>

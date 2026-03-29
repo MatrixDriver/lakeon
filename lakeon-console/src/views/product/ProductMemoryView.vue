@@ -1,100 +1,101 @@
 <template>
-  <main class="product-detail">
-    <!-- Hero -->
-    <div class="hero">
-      <div class="hero-inner">
-        <h1 class="hero-title">{{ t('🧠 记忆库', '🧠 Memory Store') }}</h1>
-        <p class="hero-subtitle">
-          {{ t('为 AI Agent 提供结构化长期记忆，越用越懂你', 'Structured long-term memory for AI Agents — gets smarter with every interaction') }}
-        </p>
-      </div>
-    </div>
+  <main class="product-page">
+    <div class="accent-line"></div>
 
     <div class="content">
+      <!-- Hero -->
+      <section class="hero">
+        <h1 class="page-title">{{ t('记忆库', 'Memory Store') }}</h1>
+        <p class="page-subtitle">{{ t('为 AI Agent 提供结构化长期记忆，越用越懂你', 'Structured long-term memory for AI Agents — gets smarter with every interaction') }}</p>
+      </section>
 
-      <!-- Section 1: Three Core Operations -->
+      <!-- Section 1: Core Operations -->
       <section class="section">
         <h2 class="section-title">{{ t('三个核心操作', 'Three Core Operations') }}</h2>
-        <div class="api-grid">
-          <div class="api-card" v-for="op in coreOps" :key="op.name">
-            <div class="api-name">{{ op.name }}</div>
-            <div class="api-desc">{{ t(op.descZh, op.descEn) }}</div>
-            <div class="api-detail">{{ t(op.detailZh, op.detailEn) }}</div>
+        <div class="ops-list">
+          <div v-for="op in coreOps" :key="op.name" class="op-item">
+            <div class="op-header">
+              <span class="op-name">{{ op.name }}</span>
+              <span class="op-summary">{{ t(op.descZh, op.descEn) }}</span>
+            </div>
+            <p class="op-detail">{{ t(op.detailZh, op.detailEn) }}</p>
           </div>
         </div>
       </section>
 
-      <!-- Section 2: Four Memory Types -->
+      <hr class="divider">
+
+      <!-- Section 2: Memory Types -->
       <section class="section">
         <h2 class="section-title">{{ t('四种记忆类型', 'Four Memory Types') }}</h2>
-        <div class="types-grid">
-          <div class="type-card" v-for="mt in memoryTypes" :key="mt.icon">
-            <div class="type-icon">{{ mt.icon }}</div>
+        <div class="types-list">
+          <div v-for="mt in memoryTypes" :key="mt.label" class="type-item">
+            <span class="type-badge">{{ mt.label }}</span>
             <div class="type-body">
-              <div class="type-title">{{ t(mt.zh, mt.en) }}</div>
-              <div class="type-desc">{{ t(mt.descZh, mt.descEn) }}</div>
+              <div class="type-name">{{ t(mt.zh, mt.en) }}</div>
+              <p class="type-desc">{{ t(mt.descZh, mt.descEn) }}</p>
             </div>
           </div>
         </div>
       </section>
+
+      <hr class="divider">
 
       <!-- Section 3: Trait Lifecycle -->
       <section class="section">
         <h2 class="section-title">{{ t('特征生命周期', 'Trait Lifecycle') }}</h2>
         <div class="lifecycle">
-          <div
-            v-for="(step, i) in lifecycleSteps"
-            :key="step.zh"
-            class="lifecycle-step"
-            :class="{ 'step-first': i === 0, 'step-last': i === lifecycleSteps.length - 1 }"
-          >
-            <div class="step-dot" :class="{ 'dot-first': i === 0, 'dot-last': i === lifecycleSteps.length - 1 }"></div>
-            <div class="step-label">{{ t(step.zh, step.en) }}</div>
-            <div v-if="i < lifecycleSteps.length - 1" class="step-line"></div>
-          </div>
+          <template v-for="(step, i) in lifecycleSteps" :key="step.en">
+            <div class="lifecycle-node">
+              <div class="lifecycle-dot" :class="{ 'dot-hollow': i === lifecycleSteps.length - 1 }"></div>
+              <div class="lifecycle-label">{{ t(step.zh, step.en) }}</div>
+            </div>
+            <div v-if="i < lifecycleSteps.length - 1" class="lifecycle-line"></div>
+          </template>
         </div>
       </section>
 
-      <!-- Section 4: LoCoMo Benchmark -->
+      <hr class="divider">
+
+      <!-- Section 4: Benchmark -->
       <section class="section">
         <h2 class="section-title">{{ t('LoCoMo 基准测试', 'LoCoMo Benchmark') }}</h2>
-        <div class="benchmark-card">
-          <div class="benchmark-score-block">
-            <div class="benchmark-main-score">81.7%</div>
-            <div class="benchmark-score-label">{{ t('综合得分', 'Overall Score') }}</div>
-          </div>
-          <div class="benchmark-sub-scores">
-            <div class="sub-score" v-for="sub in subScores" :key="sub.labelZh">
-              <div class="sub-score-value">{{ sub.value }}</div>
-              <div class="sub-score-label">{{ t(sub.labelZh, sub.labelEn) }}</div>
-            </div>
-          </div>
-          <div class="benchmark-bars">
-            <div
-              class="bar-row"
-              v-for="bar in comparisonBars"
-              :key="bar.name"
-              :class="{ 'bar-highlighted': bar.highlighted }"
-            >
-              <div class="bar-label">{{ bar.name }}</div>
-              <div class="bar-track">
-                <div class="bar-fill" :style="{ width: bar.pct }"></div>
-              </div>
-              <div class="bar-value">{{ bar.value }}</div>
-            </div>
-          </div>
-          <div class="benchmark-note">
-            {{ t('基于公开基准测试，与主流 AI 记忆框架对比', 'Compared with mainstream AI memory frameworks on public benchmarks') }}
+
+        <div class="benchmark-hero">
+          <div class="benchmark-score">81.7%</div>
+          <div class="benchmark-score-label">{{ t('综合得分', 'Overall Score') }}</div>
+        </div>
+
+        <div class="benchmark-subs">
+          <div v-for="sub in subScores" :key="sub.labelEn" class="benchmark-sub">
+            <span class="sub-value">{{ sub.value }}</span>
+            <span class="sub-label">{{ t(sub.labelZh, sub.labelEn) }}</span>
           </div>
         </div>
+
+        <div class="benchmark-bars">
+          <div
+            v-for="bar in comparisonBars"
+            :key="bar.name"
+            class="bar-row"
+            :class="{ 'bar-highlighted': bar.highlighted }"
+          >
+            <span class="bar-name">{{ bar.name }}</span>
+            <div class="bar-track">
+              <div class="bar-fill" :style="{ width: bar.pct }"></div>
+            </div>
+            <span class="bar-value">{{ bar.value }}</span>
+          </div>
+        </div>
+
+        <p class="benchmark-note">{{ t('基于公开基准测试，与主流 AI 记忆框架对比', 'Compared with mainstream AI memory frameworks on public benchmarks') }}</p>
       </section>
 
       <!-- CTA -->
-      <div class="cta-section">
-        <a href="/console" class="cta-button">{{ t('立即试用 →', 'Get Started →') }}</a>
-        <router-link to="/product" class="back-link">{{ t('← 返回产品总览', '← Back to Products') }}</router-link>
-      </div>
-
+      <section class="cta">
+        <a href="/console" class="btn-primary">{{ t('立即试用', 'Get Started') }} &rarr;</a>
+        <router-link to="/product" class="back-link">{{ t('返回产品总览', 'Back to Products') }}</router-link>
+      </section>
     </div>
   </main>
 </template>
@@ -130,29 +131,29 @@ const coreOps = [
 
 const memoryTypes = [
   {
-    icon: '📋',
-    zh: '事实 / Fact',
+    label: 'FACT',
+    zh: '事实',
     en: 'Fact',
     descZh: '从对话中提取的离散、客观、可验证的信息。以向量嵌入存储并关联知识图谱。',
     descEn: 'Discrete, objective, verifiable information extracted from conversations. Stored as vector embeddings linked to the knowledge graph.',
   },
   {
-    icon: '🕐',
-    zh: '事件 / Episode',
+    label: 'EVENT',
+    zh: '事件',
     en: 'Episode',
     descZh: '带有情绪元数据（效价、唤醒度、情绪标签）和时间表达的时间绑定事件和体验。',
     descEn: 'Time-bound events and experiences with emotional metadata (valence, arousal, emotion tags) and temporal expressions.',
   },
   {
-    icon: '🧠',
-    zh: '特征 / Trait',
+    label: 'TRAIT',
+    zh: '特征',
     en: 'Trait',
     descZh: '通过多会话反思发现的行为模式。经历从趋势到核心的 6 阶段生命周期演化。',
     descEn: 'Behavioral patterns discovered through multi-session reflection. Evolves through a 6-stage lifecycle from trend to core.',
   },
   {
-    icon: '📄',
-    zh: '文档 / Document',
+    label: 'DOC',
+    zh: '文档',
     en: 'Document',
     descZh: '上传的静态参考资料，用于 RAG 风格检索。支持 PDF 和文件的专项搜索。',
     descEn: 'Uploaded static reference materials for RAG-style retrieval. Supports targeted search over PDFs and files.',
@@ -185,276 +186,255 @@ const comparisonBars = [
 </script>
 
 <style scoped>
-.product-detail {
+.product-page {
   min-height: 100vh;
-  background: var(--pub-bg);
+  background: var(--pub-bg, #fafaf7);
+  color: var(--pub-text, #18181b);
+}
+
+.accent-line {
+  height: 2px;
+  background: #92400e;
+}
+
+.content {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 32px;
 }
 
 /* Hero */
 .hero {
-  border-top: 4px solid transparent;
-  border-image: linear-gradient(90deg, #ff9800, #e65100) 1;
-  background: var(--pub-surface);
-  border-bottom: 1px solid var(--pub-border);
-  padding: 56px 24px 48px;
+  padding: 80px 0 64px;
 }
 
-.hero-inner {
-  max-width: 800px;
-  margin: 0 auto;
+.page-title {
+  font-family: var(--pub-serif, 'Cormorant Garamond', Georgia, serif);
+  font-size: 44px;
+  font-weight: 600;
+  line-height: 1.1;
+  margin: 0 0 14px;
+  color: var(--pub-text, #18181b);
 }
 
-.hero-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--pub-text);
-  margin: 0 0 12px;
-}
-
-.hero-subtitle {
-  font-size: 1.05rem;
-  color: var(--pub-text-2);
+.page-subtitle {
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--pub-text-2, #52525b);
   margin: 0;
-  line-height: 1.6;
 }
 
-/* Content wrapper */
-.content {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 40px 24px 64px;
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-}
-
-/* Section */
+/* Sections */
 .section {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  padding: 48px 0;
 }
 
 .section-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--pub-text);
+  font-family: var(--pub-serif, 'Cormorant Garamond', Georgia, serif);
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0 0 32px;
+  color: var(--pub-text, #18181b);
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--pub-border, #e4e4e7);
   margin: 0;
 }
 
-/* Section 1: API cards */
-.api-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-
-.api-card {
-  background: var(--pub-surface);
-  border: 1px solid var(--pub-border);
-  border-radius: 10px;
-  padding: 20px;
+/* Core Operations */
+.ops-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  transition: border-color 0.2s;
+  gap: 28px;
 }
 
-.api-card:hover {
-  border-color: #ff9800;
+.op-item {
+  padding-left: 20px;
+  border-left: 2px solid #92400e;
 }
 
-.api-name {
-  font-family: var(--pub-code, 'JetBrains Mono', 'Fira Code', monospace);
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #2563eb;
-}
-
-.api-desc {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--pub-text);
-  line-height: 1.5;
-}
-
-.api-detail {
-  font-size: 0.85rem;
-  color: var(--pub-text-2);
-  line-height: 1.6;
-}
-
-/* Section 2: Memory types */
-.types-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-}
-
-.type-card {
-  background: var(--pub-surface);
-  border: 1px solid var(--pub-border);
-  border-radius: 10px;
-  padding: 20px;
+.op-header {
   display: flex;
+  align-items: baseline;
   gap: 14px;
-  align-items: flex-start;
-  transition: border-color 0.2s;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 
-.type-card:hover {
-  border-color: #ff9800;
-}
-
-.type-icon {
-  font-size: 1.5rem;
-  line-height: 1;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.type-body {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.type-title {
-  font-size: 0.95rem;
+.op-name {
+  font-family: var(--pub-code, 'JetBrains Mono', 'Fira Code', monospace);
+  font-size: 16px;
   font-weight: 700;
-  color: var(--pub-text);
+  color: #92400e;
 }
 
-.type-desc {
-  font-size: 0.85rem;
-  color: var(--pub-text-2);
-  line-height: 1.6;
-}
-
-/* Section 3: Trait lifecycle */
-.lifecycle {
-  display: flex;
-  align-items: flex-start;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  padding-bottom: 8px;
-  gap: 0;
-}
-
-.lifecycle-step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-  flex: 1;
-  min-width: 80px;
-}
-
-.step-dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #7c3aed;
-  border: 2px solid #7c3aed;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 1;
-}
-
-.dot-first {
-  background: #a78bfa;
-  border-color: #a78bfa;
-}
-
-.dot-last {
-  background: transparent;
-  border: 2px dashed #7c3aed;
-}
-
-.step-line {
-  position: absolute;
-  top: 7px;
-  left: calc(50% + 8px);
-  right: calc(-50% + 8px);
-  height: 2px;
-  background: #7c3aed;
-  opacity: 0.4;
-  z-index: 0;
-}
-
-.step-label {
-  margin-top: 10px;
-  font-size: 0.8rem;
+.op-summary {
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 14px;
   font-weight: 600;
-  color: var(--pub-text-2);
-  text-align: center;
-  white-space: nowrap;
+  color: var(--pub-text, #18181b);
 }
 
-/* Section 4: Benchmark */
-.benchmark-card {
-  background: var(--pub-surface);
-  border: 1px solid var(--pub-border);
-  border-radius: 12px;
-  padding: 28px 24px;
+.op-detail {
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--pub-text-2, #52525b);
+  margin: 0;
+}
+
+/* Memory Types */
+.types-list {
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
 
-.benchmark-score-block {
+.type-item {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.type-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  background: #92400e;
+  color: #fff;
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  border-radius: 3px;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.type-body {
+  flex: 1;
+}
+
+.type-name {
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--pub-text, #18181b);
+  margin-bottom: 4px;
+}
+
+.type-desc {
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--pub-text-2, #52525b);
+  margin: 0;
+}
+
+/* Lifecycle */
+.lifecycle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.lifecycle-node {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  flex-shrink: 0;
 }
 
-.benchmark-main-score {
+.lifecycle-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #92400e;
+  border: 2px solid #92400e;
+}
+
+.dot-hollow {
+  background: transparent;
+  border-style: dashed;
+}
+
+.lifecycle-label {
+  margin-top: 10px;
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pub-text-2, #52525b);
+  white-space: nowrap;
+}
+
+.lifecycle-line {
+  flex: 1;
+  min-width: 32px;
+  height: 2px;
+  background: #92400e;
+  opacity: 0.35;
+  margin-top: 6px;
+  align-self: flex-start;
+}
+
+/* Benchmark */
+.benchmark-hero {
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.benchmark-score {
+  font-family: var(--pub-serif, 'Cormorant Garamond', Georgia, serif);
   font-size: 64px;
-  font-weight: 800;
-  color: #7c3aed;
+  font-weight: 700;
   line-height: 1;
+  color: #92400e;
 }
 
 .benchmark-score-label {
-  font-size: 0.85rem;
-  color: var(--pub-text-3);
-  letter-spacing: 0.04em;
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 13px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  color: var(--pub-text-3, #a1a1aa);
+  margin-top: 4px;
 }
 
-.benchmark-sub-scores {
+.benchmark-subs {
   display: flex;
-  gap: 12px;
-  justify-content: center;
+  gap: 24px;
   flex-wrap: wrap;
+  margin-bottom: 32px;
 }
 
-.sub-score {
-  background: var(--pub-bg-alt);
-  border: 1px solid var(--pub-border);
-  border-radius: 8px;
-  padding: 10px 16px;
-  text-align: center;
-  min-width: 100px;
+.benchmark-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.sub-score-value {
-  font-size: 1.2rem;
+.sub-value {
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 18px;
   font-weight: 700;
-  color: var(--pub-text);
+  color: var(--pub-text, #18181b);
 }
 
-.sub-score-label {
-  font-size: 0.78rem;
-  color: var(--pub-text-3);
-  margin-top: 2px;
+.sub-label {
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 12px;
+  color: var(--pub-text-3, #a1a1aa);
 }
 
 .benchmark-bars {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
 .bar-row {
@@ -463,127 +443,127 @@ const comparisonBars = [
   gap: 12px;
 }
 
-.bar-label {
-  font-size: 0.85rem;
-  color: var(--pub-text-2);
+.bar-name {
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 14px;
+  color: var(--pub-text-2, #52525b);
   width: 110px;
   flex-shrink: 0;
 }
 
-.bar-highlighted .bar-label {
+.bar-highlighted .bar-name {
   font-weight: 700;
-  color: var(--pub-text);
+  color: var(--pub-text, #18181b);
 }
 
 .bar-track {
   flex: 1;
-  height: 10px;
-  background: var(--pub-bg-alt);
-  border-radius: 5px;
+  height: 8px;
+  background: var(--pub-border, #e4e4e7);
+  border-radius: 4px;
   overflow: hidden;
 }
 
 .bar-fill {
   height: 100%;
-  background: var(--pub-text-3);
-  border-radius: 5px;
+  background: var(--pub-text-3, #a1a1aa);
+  border-radius: 4px;
   transition: width 0.4s ease;
 }
 
 .bar-highlighted .bar-fill {
-  background: #7c3aed;
+  background: #92400e;
 }
 
 .bar-value {
-  font-size: 0.85rem;
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 14px;
   font-weight: 600;
-  color: var(--pub-text-2);
+  color: var(--pub-text-2, #52525b);
   width: 48px;
   text-align: right;
   flex-shrink: 0;
 }
 
 .bar-highlighted .bar-value {
-  color: #7c3aed;
+  color: #92400e;
   font-weight: 700;
 }
 
 .benchmark-note {
-  font-size: 0.8rem;
-  color: var(--pub-text-4);
-  text-align: center;
-  line-height: 1.5;
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 13px;
+  color: var(--pub-text-3, #a1a1aa);
+  line-height: 1.6;
 }
 
 /* CTA */
-.cta-section {
+.cta {
   display: flex;
   align-items: center;
-  gap: 24px;
-  flex-wrap: wrap;
-  padding-top: 8px;
+  gap: 28px;
+  padding: 16px 0 96px;
 }
 
-.cta-button {
+.btn-primary {
   display: inline-block;
-  padding: 12px 28px;
-  background: #ff9800;
+  padding: 14px 36px;
+  background: var(--pub-btn-bg, #18181b);
   color: #fff;
-  font-size: 0.95rem;
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 15px;
   font-weight: 600;
-  border-radius: 8px;
   text-decoration: none;
-  transition: background 0.2s;
+  border-radius: 6px;
+  transition: opacity 0.15s;
 }
 
-.cta-button:hover {
-  background: #e65100;
+.btn-primary:hover {
+  opacity: 0.85;
 }
 
 .back-link {
-  font-size: 0.9rem;
-  color: var(--pub-text-3);
+  font-family: var(--pub-sans, 'Plus Jakarta Sans', sans-serif);
+  font-size: 14px;
+  color: var(--pub-text-3, #a1a1aa);
   text-decoration: none;
-  transition: color 0.2s;
+  transition: color 0.15s;
 }
 
 .back-link:hover {
-  color: var(--pub-text);
+  color: var(--pub-text, #18181b);
 }
 
 /* Responsive */
-@media (max-width: 700px) {
-  .hero-title {
-    font-size: 1.5rem;
+@media (max-width: 600px) {
+  .content {
+    padding: 0 24px;
   }
 
-  .api-grid {
-    grid-template-columns: 1fr;
+  .hero {
+    padding: 56px 0 48px;
   }
 
-  .types-grid {
-    grid-template-columns: 1fr;
+  .page-title {
+    font-size: 34px;
   }
 
-  .lifecycle {
-    gap: 0;
-  }
-
-  .lifecycle-step {
-    min-width: 60px;
-  }
-
-  .step-label {
-    font-size: 0.7rem;
-  }
-
-  .benchmark-main-score {
+  .benchmark-score {
     font-size: 48px;
   }
 
-  .cta-section {
+  .benchmark-subs {
+    gap: 16px;
+  }
+
+  .lifecycle-line {
+    min-width: 20px;
+  }
+
+  .cta {
     flex-direction: column;
     align-items: flex-start;
+    gap: 16px;
   }
 }
 </style>
