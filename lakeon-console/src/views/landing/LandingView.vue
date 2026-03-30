@@ -165,7 +165,7 @@ const authStore = useAuthStore()
 const trialLoading = ref(false)
 
 const stats = computed(() => [
-  { value: '3ms', label: t('热启动', 'Hot Start') },
+  { value: '3s', label: t('自动唤醒', 'Auto Wake') },
   { value: '4 in 1', label: t('多库合一', 'All-in-One') },
   { value: t('时间旅行', 'Time Travel'), label: t('数据版本管理', 'Data Versioning') },
   { value: '0', label: t('运维负担', 'Ops Burden') },
