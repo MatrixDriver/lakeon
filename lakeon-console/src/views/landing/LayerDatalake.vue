@@ -1,5 +1,5 @@
 <template>
-  <svg viewBox="0 0 440 280" class="layer-svg">
+  <svg viewBox="0 0 440 260" class="layer-svg">
     <defs>
       <linearGradient id="gl3-bg" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stop-color="#f3e5f5" />
@@ -29,70 +29,70 @@
       <filter id="gd2"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="rgba(0,0,0,0.08)" /></filter>
     </defs>
 
-    <ellipse cx="220" cy="140" rx="215" ry="130" fill="url(#gl3-bg)" opacity="0.2" />
+    <ellipse cx="220" cy="130" rx="215" ry="120" fill="url(#gl3-bg)" opacity="0.2" />
 
-    <!-- ══ Left column: Lakebase side ══ -->
+    <!-- ══ Left arc: Memory, Knowledge, State → Lakebase ══ -->
 
-    <!-- Top-left: Memory + Knowledge + State (stacked vertically) -->
-    <rect x="15" y="10" width="90" height="36" rx="10" fill="url(#gl3-mem)" filter="url(#gd1)" />
-    <text x="60" y="27" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">🧠 {{ t('记忆库', 'Memory') }}</text>
-    <text x="60" y="40" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.85)">{{ t('持久化 · 反思', 'Persist') }}</text>
+    <!-- Arc positions: top-left, top-center-left, left -->
+    <rect x="8" y="8" width="82" height="36" rx="10" fill="url(#gl3-mem)" filter="url(#gd1)" />
+    <text x="49" y="25" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">🧠 {{ t('记忆库', 'Memory') }}</text>
+    <text x="49" y="38" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.85)">{{ t('持久化 · 反思', 'Persist') }}</text>
 
-    <rect x="113" y="10" width="90" height="36" rx="10" fill="url(#gl3-know)" filter="url(#gd1)" />
-    <text x="158" y="27" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">📚 {{ t('知识库', 'Knowledge') }}</text>
-    <text x="158" y="40" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.85)">{{ t('文档向量化', 'Vectorize') }}</text>
+    <rect x="100" y="8" width="82" height="36" rx="10" fill="url(#gl3-know)" filter="url(#gd1)" />
+    <text x="141" y="25" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">📚 {{ t('知识库', 'Knowledge') }}</text>
+    <text x="141" y="38" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.85)">{{ t('文档向量化', 'Vectorize') }}</text>
 
-    <rect x="15" y="54" width="90" height="36" rx="10" fill="url(#gl3-state)" filter="url(#gd1)" />
-    <text x="60" y="71" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">📋 {{ t('状态库', 'State') }}</text>
-    <text x="60" y="84" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.85)">{{ t('会话 · 上下文', 'Session') }}</text>
+    <rect x="55" y="52" width="82" height="36" rx="10" fill="url(#gl3-state)" filter="url(#gd1)" />
+    <text x="96" y="69" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">📋 {{ t('状态库', 'State') }}</text>
+    <text x="96" y="82" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.85)">{{ t('会话 · 上下文', 'Session') }}</text>
 
     <!-- Arrows: services → Lakebase -->
-    <line x1="60" y1="46" x2="110" y2="115" stroke="var(--pub-primary, #0073e6)" stroke-width="1.5" opacity="0.4" />
-    <line x1="158" y1="46" x2="110" y2="115" stroke="var(--pub-primary, #0073e6)" stroke-width="1.5" opacity="0.4" />
-    <line x1="60" y1="90" x2="110" y2="115" stroke="var(--pub-primary, #0073e6)" stroke-width="1.5" opacity="0.4" />
+    <line x1="49" y1="44" x2="80" y2="110" stroke="var(--pub-primary, #0073e6)" stroke-width="1.2" opacity="0.4" />
+    <line x1="141" y1="44" x2="110" y2="110" stroke="var(--pub-primary, #0073e6)" stroke-width="1.2" opacity="0.4" />
+    <line x1="96" y1="88" x2="100" y2="110" stroke="var(--pub-primary, #0073e6)" stroke-width="1.2" opacity="0.4" />
 
     <!-- Lakebase -->
-    <rect x="15" y="115" width="195" height="52" rx="14" fill="url(#gl3-base)" filter="url(#gd1)" />
-    <text x="112" y="140" text-anchor="middle" font-size="15" font-weight="800" fill="#fff">🐘 Lakebase</text>
-    <text x="112" y="157" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.8)">{{ t('统一存储 · 多分支', 'Unified · Branching') }}</text>
+    <rect x="15" y="110" width="195" height="52" rx="14" fill="url(#gl3-base)" filter="url(#gd1)" />
+    <text x="112" y="135" text-anchor="middle" font-size="15" font-weight="800" fill="#fff">🐘 Lakebase</text>
+    <text x="112" y="152" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.8)">{{ t('统一存储 · 多分支', 'Unified · Branching') }}</text>
 
-    <!-- ══ Right column: AI DataLake side ══ -->
+    <!-- ══ Right arc: capabilities → AI DataLake ══ -->
 
-    <!-- DataLake capability cards (above DataLake) -->
-    <rect x="230" y="10" width="95" height="36" rx="8" fill="var(--pub-surface, #fff)" filter="url(#gd2)" />
-    <text x="277" y="26" text-anchor="middle" font-size="8" font-weight="600" fill="#7b1fa2">📊 {{ t('用户行为分析', 'Analytics') }}</text>
-    <text x="277" y="38" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('Agent 使用习惯', 'Agent Patterns') }}</text>
+    <!-- Arc positions: top-right, top-center-right, right -->
+    <rect x="258" y="8" width="82" height="36" rx="8" fill="var(--pub-surface, #fff)" filter="url(#gd2)" />
+    <text x="299" y="24" text-anchor="middle" font-size="8" font-weight="600" fill="#7b1fa2">📊 {{ t('行为分析', 'Analytics') }}</text>
+    <text x="299" y="36" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('Agent 习惯', 'Patterns') }}</text>
 
-    <rect x="333" y="10" width="95" height="36" rx="8" fill="var(--pub-surface, #fff)" filter="url(#gd2)" />
-    <text x="380" y="26" text-anchor="middle" font-size="8" font-weight="600" fill="#7b1fa2">🔄 {{ t('记忆策略评估', 'Strategy Eval') }}</text>
-    <text x="380" y="38" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('反思 · 优化', 'Reflect') }}</text>
+    <rect x="350" y="8" width="82" height="36" rx="8" fill="var(--pub-surface, #fff)" filter="url(#gd2)" />
+    <text x="391" y="24" text-anchor="middle" font-size="8" font-weight="600" fill="#7b1fa2">🔄 {{ t('策略评估', 'Strategy') }}</text>
+    <text x="391" y="36" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('反思 · 优化', 'Reflect') }}</text>
 
-    <rect x="280" y="54" width="95" height="36" rx="8" fill="var(--pub-surface, #fff)" filter="url(#gd2)" />
-    <text x="327" y="70" text-anchor="middle" font-size="8" font-weight="600" fill="#7b1fa2">📦 {{ t('多模态知识加工', 'Multimodal') }}</text>
-    <text x="327" y="82" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('图文 · 音视频', 'Image · AV') }}</text>
+    <rect x="300" y="52" width="82" height="36" rx="8" fill="var(--pub-surface, #fff)" filter="url(#gd2)" />
+    <text x="341" y="68" text-anchor="middle" font-size="8" font-weight="600" fill="#7b1fa2">📦 {{ t('知识加工', 'Process') }}</text>
+    <text x="341" y="80" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('图文 · 音视频', 'Multimodal') }}</text>
 
-    <!-- Arrows: capability cards → DataLake -->
-    <line x1="277" y1="46" x2="310" y2="115" stroke="#7b1fa2" stroke-width="1.2" opacity="0.4" />
-    <line x1="380" y1="46" x2="330" y2="115" stroke="#7b1fa2" stroke-width="1.2" opacity="0.4" />
-    <line x1="327" y1="90" x2="320" y2="115" stroke="#7b1fa2" stroke-width="1.2" opacity="0.4" />
+    <!-- Arrows: capabilities → DataLake -->
+    <line x1="299" y1="44" x2="320" y2="110" stroke="#7b1fa2" stroke-width="1.2" opacity="0.4" />
+    <line x1="391" y1="44" x2="345" y2="110" stroke="#7b1fa2" stroke-width="1.2" opacity="0.4" />
+    <line x1="341" y1="88" x2="335" y2="110" stroke="#7b1fa2" stroke-width="1.2" opacity="0.4" />
 
     <!-- AI DataLake -->
-    <rect x="225" y="115" width="200" height="52" rx="14" fill="url(#gl3-lake)" filter="url(#gd1)" />
-    <text x="325" y="140" text-anchor="middle" font-size="15" font-weight="800" fill="#fff">🌊 AI DataLake</text>
-    <text x="325" y="157" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.8)">Parquet · Lance · {{ t('多模态', 'Multimodal') }}</text>
+    <rect x="230" y="110" width="195" height="52" rx="14" fill="url(#gl3-lake)" filter="url(#gd1)" />
+    <text x="327" y="135" text-anchor="middle" font-size="15" font-weight="800" fill="#fff">🌊 AI DataLake</text>
+    <text x="327" y="152" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.8)">Parquet · Lance · {{ t('多模态', 'Multimodal') }}</text>
 
     <!-- ══ Center: Lakebase → DataLake arrow ══ -->
-    <line x1="210" y1="141" x2="225" y2="141" stroke="#7b1fa2" stroke-width="3" />
-    <polygon points="226,141 218,136 218,146" fill="#7b1fa2" />
+    <line x1="210" y1="136" x2="230" y2="136" stroke="#7b1fa2" stroke-width="3" />
+    <polygon points="231,136 223,131 223,141" fill="#7b1fa2" />
 
-    <!-- ══ Feedback: DataLake → Memory (smooth curve) ══ -->
-    <path d="M 225,155 C 195,195 30,195 30,90 L 30,46" fill="none" stroke="#e65100" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5" />
-    <polygon points="30,46 26,54 34,54" fill="#e65100" opacity="0.5" />
-    <text x="90" y="200" text-anchor="middle" font-size="8" fill="#e65100" font-weight="600">{{ t('更新记忆策略', 'Update Strategy') }}</text>
+    <!-- ══ Feedback: DataLake → Memory ══ -->
+    <path d="M 230,152 C 180,190 20,170 20,90 L 20,44" fill="none" stroke="#e65100" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5" />
+    <polygon points="20,44 16,52 24,52" fill="#e65100" opacity="0.5" />
+    <text x="90" y="192" text-anchor="middle" font-size="8" fill="#e65100" font-weight="600">{{ t('更新记忆策略', 'Update Strategy') }}</text>
 
-    <!-- ══ Bottom: data flywheel label ══ -->
-    <rect x="130" y="220" width="180" height="26" rx="13" fill="var(--pub-surface, #fff)" stroke="#7b1fa2" stroke-width="1" filter="url(#gd2)" />
-    <text x="220" y="237" text-anchor="middle" font-size="10" font-weight="600" fill="#7b1fa2">{{ t('数据飞轮 · 持续进化', 'Data Flywheel · Evolve') }}</text>
+    <!-- ══ Bottom: data flywheel ══ -->
+    <rect x="130" y="210" width="180" height="26" rx="13" fill="var(--pub-surface, #fff)" stroke="#7b1fa2" stroke-width="1" filter="url(#gd2)" />
+    <text x="220" y="227" text-anchor="middle" font-size="10" font-weight="600" fill="#7b1fa2">{{ t('数据飞轮 · 持续进化', 'Data Flywheel · Evolve') }}</text>
   </svg>
 </template>
 
