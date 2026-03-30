@@ -62,10 +62,10 @@
     <text x="322" y="103" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">🌊 AI DataLake</text>
     <text x="322" y="119" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.8)">Parquet · Lance · {{ t('多模态', 'Multimodal') }}</text>
 
-    <!-- Arrow: Lakebase → AI DataLake (horizontal) -->
-    <text x="220" y="75" text-anchor="middle" font-size="7" fill="#7b1fa2" font-weight="600">{{ t('数据流转', 'Data Flow') }}</text>
-    <line x1="215" y1="104" x2="225" y2="104" stroke="#fff" stroke-width="2" opacity="0.8" />
-    <polygon points="225,104 219,100 219,108" fill="#fff" opacity="0.8" />
+    <!-- Arrow: Lakebase → AI DataLake (bold, colored) -->
+    <line x1="215" y1="104" x2="225" y2="104" stroke="#7b1fa2" stroke-width="3" />
+    <polygon points="226,104 218,99 218,109" fill="#7b1fa2" />
+    <text x="220" y="96" text-anchor="middle" font-size="7" fill="#7b1fa2" font-weight="600">{{ t('数据流转', 'Data Flow') }}</text>
 
     <!-- Arrows: Lakebase + DataLake → Ray -->
     <line x1="150" y1="128" x2="220" y2="153" stroke="#e65100" stroke-width="1.5" opacity="0.5" />
@@ -76,10 +76,10 @@
     <text x="220" y="177" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">⚙️ Ray / Python {{ t('作业引擎', 'Job Engine') }}</text>
     <text x="220" y="191" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.85)">{{ t('数据加工 · 分析 · 微调 · RL', 'Process · Analyze · Finetune · RL') }}</text>
 
-    <!-- Feedback arrow: Ray → back to top (single arrow on right side) -->
-    <path d="M 360,170 Q 425,170 425,104 Q 425,40 400,30 L 420,30" fill="none" stroke="#e65100" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5" />
-    <polygon points="420,30 414,26 414,34" fill="#e65100" opacity="0.5" />
-    <text x="435" y="105" font-size="7" fill="#e65100" font-weight="600" transform="rotate(90,435,105)">{{ t('反馈更新', 'Feedback') }}</text>
+    <!-- Feedback arrow: Ray → Memory (left side, "更新记忆策略") -->
+    <path d="M 80,170 Q 15,170 15,104 Q 15,40 50,30 L 20,30" fill="none" stroke="#e65100" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5" />
+    <polygon points="20,30 26,26 26,34" fill="#e65100" opacity="0.5" />
+    <text x="5" y="105" font-size="7" fill="#e65100" font-weight="600" transform="rotate(-90,5,105)">{{ t('更新记忆策略', 'Update Strategy') }}</text>
 
     <!-- Row 4: Output capabilities -->
     <line x1="140" y1="199" x2="95" y2="218" stroke="#e65100" stroke-width="1.2" opacity="0.4" />
@@ -91,12 +91,12 @@
     <text x="95" y="247" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('Agent 使用习惯', 'Agent Patterns') }}</text>
 
     <rect x="165" y="220" width="110" height="34" rx="8" fill="var(--pub-surface, #fff)" filter="url(#gd2)" />
-    <text x="220" y="235" text-anchor="middle" font-size="8" font-weight="600" fill="#7b1fa2">🔄 {{ t('数据导出训练', 'Export Training') }}</text>
-    <text x="220" y="247" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('记忆 → 微调数据', 'Memory → Finetune') }}</text>
+    <text x="220" y="235" text-anchor="middle" font-size="8" font-weight="600" fill="#7b1fa2">🔄 {{ t('记忆策略评估', 'Strategy Eval') }}</text>
+    <text x="220" y="247" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('反思 · 优化', 'Reflect · Optimize') }}</text>
 
     <rect x="290" y="220" width="110" height="34" rx="8" fill="var(--pub-surface, #fff)" filter="url(#gd2)" />
-    <text x="345" y="235" text-anchor="middle" font-size="8" font-weight="600" fill="#7b1fa2">🧹 {{ t('数据治理', 'Governance') }}</text>
-    <text x="345" y="247" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('清洗 · 归档', 'Clean · Archive') }}</text>
+    <text x="345" y="235" text-anchor="middle" font-size="8" font-weight="600" fill="#7b1fa2">📦 {{ t('多模态知识加工', 'Multimodal Process') }}</text>
+    <text x="345" y="247" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('图文 · 音视频', 'Image · Audio · Video') }}</text>
 
     <!-- Bottom: data flywheel label -->
     <rect x="130" y="268" width="180" height="26" rx="13" fill="var(--pub-surface, #fff)" stroke="#7b1fa2" stroke-width="1" filter="url(#gd2)" />
