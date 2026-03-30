@@ -95,6 +95,10 @@ export function listTraits(memId: string) {
   return api.get<Trait[]>(`/memory/bases/${memId}/traits`)
 }
 
+export function triggerDigest(memId: string) {
+  return api.post(`/memory/bases/${memId}/digest`)
+}
+
 export interface GraphData {
   nodes: { node_type: string; node_id: string; properties: Record<string, any> }[]
   edges: { source_type: string; source_id: string; target_type: string; target_id: string; edge_type: string }[]

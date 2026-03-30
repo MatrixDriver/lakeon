@@ -4,12 +4,21 @@
       <h1 class="page-title">反思洞察</h1>
     </div>
 
-    <MemoryBaseSelector @change="onBaseChange" />
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <MemoryBaseSelector @change="onBaseChange" />
+      <button v-if="baseId"
+              :disabled="digesting"
+              @click="runDigest"
+              style="height: 32px; padding: 0 16px; background: #1890ff; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; white-space: nowrap;"
+              :style="digesting ? 'opacity: 0.6; cursor: not-allowed;' : ''">
+        {{ digesting ? '反思中...' : '执行反思' }}
+      </button>
+    </div>
 
     <div v-if="baseId" style="margin-top: 20px;">
       <p v-if="loading" style="text-align: center; color: #999; padding: 40px 0;">加载中...</p>
       <p v-else-if="traits.length === 0" style="text-align: center; color: #999; padding: 40px 0;">
-        暂无洞察。请先执行记忆反思（digest）。
+        暂无洞察。请点击"执行反思"按钮生成洞察。
       </p>
 
       <template v-else>
@@ -102,7 +111,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import MemoryBaseSelector from '@/components/MemoryBaseSelector.vue'
-import { listTraits, type Trait } from '@/api/memory'
+import { listTraits, triggerDigest, type Trait } from '@/api/memory'
 import { TRAIT_STAGE_ORDER, TRAIT_EARLIER_STAGES, TRAIT_STAGE_COLORS, TRAIT_STAGE_LABELS } from '@/constants/memory'
 
 const lifecycleStages = ['trend', 'candidate', 'emerging', 'established', 'core']
@@ -111,11 +120,25 @@ const stageIndex = (s: string) => lifecycleStages.indexOf(s)
 const baseId = ref('')
 const traits = ref<Trait[]>([])
 const loading = ref(false)
+const digesting = ref(false)
 const showEarlier = ref(false)
 
 function onBaseChange(id: string) {
   baseId.value = id
   loadTraits()
+}
+
+async function runDigest() {
+  if (!baseId.value || digesting.value) return
+  digesting.value = true
+  try {
+    await triggerDigest(baseId.value)
+    await loadTraits()
+  } catch (e) {
+    console.error('Digest failed', e)
+  } finally {
+    digesting.value = false
+  }
 }
 
 async function loadTraits() {
