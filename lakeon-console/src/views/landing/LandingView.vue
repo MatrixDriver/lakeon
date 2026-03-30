@@ -68,20 +68,21 @@
       </div>
       <div class="layer-text">
         <span class="layer-badge layer-badge-secondary">{{ t('第二层 · 进阶', 'Layer 2 · Advanced') }}</span>
-        <h3 class="layer-title">{{ t('原生记忆服务 + 知识服务', 'Native Memory + Knowledge Services') }}</h3>
+        <h3 class="layer-title">{{ t('记忆 + 知识 + 状态服务', 'Memory + Knowledge + State Services') }}</h3>
         <p class="layer-desc">
           {{ t(
-            '不想自己搭记忆和知识组件？DBay 提供完全发挥 Lakebase 能力的原生服务 — Agent 通过 MCP / Skill 直接对接，多库合一，减少第三方依赖。',
-            'Don\'t want to build your own memory stack? DBay provides native services that fully leverage Lakebase — connect via MCP/Skill, all-in-one, fewer dependencies.'
+            'DBay 提供完全发挥 Lakebase 能力的原生服务 — 记忆持久化、知识 RAG、Agent 状态管理。Lakebase 的多分支能力让 Agent 可以并行探索不同方案，通过 MCP / Skill 直接对接。',
+            'DBay provides native services that fully leverage Lakebase — memory persistence, knowledge RAG, and agent state management. Lakebase branching enables parallel exploration of different strategies, connected via MCP/Skill.'
           ) }}
         </p>
         <div class="layer-tags">
           <span class="tag">✓ {{ t('MCP 一键接入', 'MCP one-click') }}</span>
           <span class="tag">✓ {{ t('记忆自动提取', 'Auto memory extraction') }}</span>
           <span class="tag">✓ {{ t('文档向量化', 'Doc vectorization') }}</span>
+          <span class="tag">✓ {{ t('分支并行探索', 'Branch parallel explore') }}</span>
           <span class="tag">✓ {{ t('Console 管理', 'Console management') }}</span>
         </div>
-        <router-link to="/product#memory" class="layer-link">{{ t('了解记忆与知识服务 →', 'Learn about Memory & Knowledge →') }}</router-link>
+        <router-link to="/product#memory" class="layer-link">{{ t('了解记忆、知识与状态服务 →', 'Learn about Memory, Knowledge & State →') }}</router-link>
       </div>
     </section>
 
