@@ -41,8 +41,8 @@
     <text x="220" y="44" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.85)">{{ t('文档向量化', 'Vectorize') }}</text>
 
     <rect x="295" y="10" width="125" height="42" rx="12" fill="var(--pub-surface, #fff)" stroke="var(--pub-primary, #0073e6)" stroke-width="1.5" filter="url(#gd2)" />
-    <text x="357" y="30" text-anchor="middle" font-size="12" font-weight="700" fill="var(--pub-primary, #0073e6)">🐘 {{ t('数据库', 'Database') }}</text>
-    <text x="357" y="44" text-anchor="middle" font-size="8" fill="var(--pub-text-3, #888)">{{ t('状态 · 配置', 'State · Config') }}</text>
+    <text x="357" y="30" text-anchor="middle" font-size="12" font-weight="700" fill="var(--pub-primary, #0073e6)">📋 {{ t('状态库', 'State Store') }}</text>
+    <text x="357" y="44" text-anchor="middle" font-size="8" fill="var(--pub-text-3, #888)">{{ t('会话 · 上下文', 'Session · Context') }}</text>
 
     <!-- Arrows: top services → Lakebase -->
     <line x1="82" y1="52" x2="150" y2="80" stroke="var(--pub-primary, #0073e6)" stroke-width="1.5" opacity="0.5" />
