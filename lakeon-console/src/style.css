@@ -37,45 +37,6 @@
   --tag-green-bg: #e8f5e9;
   --tag-green-text: #2e7d32;
 }
-
-[data-theme="dark"] {
-  --pub-bg: #0a0a0a;
-  --pub-surface: #111;
-  --pub-text: #e5e5e5;
-  --pub-text-2: #888;
-  --pub-text-3: #666;
-  --pub-text-4: #555;
-  --pub-border: #222;
-  --pub-hover: #1a1a1a;
-  --pub-code-bg: #1a1a1a;
-  --pub-code: #a78bfa;
-  --pub-accent-bg: #1a1a2e;
-  --pub-accent-border: #7c3aed44;
-  --pub-btn-bg: #fff;
-  --pub-btn-text: #000;
-  --pub-btn-hover: #e5e5e5;
-  --pub-shadow: rgba(0,0,0,0.4);
-  --pub-hero-start: #0d0d18;
-  --pub-hero-end: #0a0a0a;
-  --pub-primary: #4da6ff;
-  --pub-primary-dark: #0073e6;
-  --pub-primary-light: #1a2a3a;
-  --pub-bg-alt: #0f0f0f;
-  --pub-hint-bg: #0d1f0d;
-  --pub-hint-text: #81c784;
-  --pub-hint-border: #1b5e20;
-  --pub-footer-bg: #0a0a0a;
-  --pub-footer-text: #555;
-  --pub-footer-link-hover: #888;
-  --tag-purple-bg: #1a0a2e;
-  --tag-purple-text: #ce93d8;
-  --tag-blue-bg: #0a1a2e;
-  --tag-blue-text: #64b5f6;
-  --tag-orange-bg: #2e1a0a;
-  --tag-orange-text: #ffb74d;
-  --tag-green-bg: #0d1f0d;
-  --tag-green-text: #81c784;
-}
 /* ── end theme variables ── */
 
 :root {

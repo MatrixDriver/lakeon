@@ -9,34 +9,21 @@
       <h2 class="brand-headline">Agent 时代的<br>数据基础设施</h2>
       <div class="brand-features">
         <div class="brand-feature">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
-              <ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/>
-            </svg>
-          </div>
+          <span class="feature-dot" style="background: #4da6ff;"></span>
           <div>
             <div class="feature-title">Serverless PostgreSQL</div>
             <div class="feature-desc">按需弹性，空闲自动休眠，内置 pgvector</div>
           </div>
         </div>
         <div class="brand-feature">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/>
-              <line x1="10" y1="21" x2="14" y2="21"/>
-            </svg>
-          </div>
+          <span class="feature-dot" style="background: #a78bfa;"></span>
           <div>
             <div class="feature-title">记忆库 + 知识库</div>
             <div class="feature-desc">MCP 一键接入，AI Agent 即刻获得长期记忆</div>
           </div>
         </div>
         <div class="brand-feature">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M3 10c2.5-2 5-2 7.5 0s5 2 7.5 0"/><path d="M3 14c2.5-2 5-2 7.5 0s5 2 7.5 0"/><path d="M3 14a9 9 0 0 0 18 0" stroke-linecap="round"/>
-            </svg>
-          </div>
+          <span class="feature-dot" style="background: #34d399;"></span>
           <div>
             <div class="feature-title">数据湖</div>
             <div class="feature-desc">Python / Ray / 微调，Serverless 算力</div>
@@ -261,7 +248,7 @@ function goToLogin() {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 60px 48px;
+  padding: 64px 52px;
   position: relative;
   overflow: hidden;
 }
@@ -291,7 +278,7 @@ function goToLogin() {
 .brand-logo-link {
   text-decoration: none;
   display: block;
-  margin-bottom: 40px;
+  margin-bottom: 44px;
 }
 
 .brand-logo {
@@ -312,15 +299,15 @@ function goToLogin() {
 .brand-headline {
   font-size: 32px;
   font-weight: 700;
-  line-height: 1.3;
-  margin: 0 0 40px;
+  line-height: 1.35;
+  margin: 0 0 48px;
   color: rgba(255, 255, 255, 0.95);
 }
 
 .brand-features {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 28px;
 }
 
 .brand-feature {
@@ -329,37 +316,33 @@ function goToLogin() {
   align-items: flex-start;
 }
 
-.feature-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: rgba(77, 166, 255, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.feature-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
   flex-shrink: 0;
-  color: #4da6ff;
+  margin-top: 5px;
 }
 
 .feature-title {
   font-size: 14px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.9);
-  margin-bottom: 2px;
+  margin-bottom: 3px;
 }
 
 .feature-desc {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.45);
-  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.5;
 }
 
 .brand-footer {
   margin-top: auto;
-  padding-top: 48px;
+  padding-top: 56px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.25);
-  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.2);
+  letter-spacing: 1.5px;
 }
 
 /* ── Right: Form panel ── */
@@ -374,30 +357,36 @@ function goToLogin() {
 
 .form-card {
   width: 100%;
-  max-width: 380px;
+  max-width: 400px;
 }
 
 .login-tabs {
   display: flex;
-  border-bottom: 1px solid var(--pub-border);
-  margin-bottom: 28px;
+  gap: 6px;
+  background: var(--pub-surface);
+  border: 1px solid var(--pub-border);
+  border-radius: 24px;
+  padding: 4px;
+  margin-bottom: 32px;
 }
 
 .login-tab {
   flex: 1;
   background: none;
   border: none;
-  padding: 12px 0;
-  font-size: 16px;
+  padding: 10px 0;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--pub-text-2);
   cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s;
+  border-radius: 20px;
+  transition: all 0.25s ease;
 }
 
 .login-tab.active {
   color: var(--pub-primary);
-  border-bottom-color: var(--pub-primary);
+  background: var(--pub-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   font-weight: 600;
 }
 
@@ -407,7 +396,7 @@ function goToLogin() {
 
 .form-group { margin-bottom: 20px; }
 .form-label { display: block; font-size: 14px; color: var(--pub-text); margin-bottom: 6px; font-weight: 500; }
-.required { color: #e6393d; }
+.required { color: #ef4444; }
 
 .input-wrapper {
   display: flex;
@@ -415,7 +404,7 @@ function goToLogin() {
   border: 1px solid var(--pub-border);
   border-radius: 8px;
   overflow: hidden;
-  transition: border-color 0.2s;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
   background: var(--pub-surface);
 }
 
@@ -428,12 +417,13 @@ function goToLogin() {
   width: 100%;
   border: 1px solid var(--pub-border);
   border-radius: 8px;
-  padding: 11px 14px;
+  padding: 0 14px;
+  height: 40px;
   font-size: 14px;
   color: var(--pub-text);
   background: var(--pub-surface);
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .form-input:focus {
@@ -448,36 +438,41 @@ function goToLogin() {
   background: none;
   border: none;
   border-left: 1px solid var(--pub-border);
-  padding: 11px 14px;
-  font-size: 13px;
-  color: var(--pub-primary);
+  padding: 0 14px;
+  height: 40px;
+  font-size: 12px;
+  color: var(--pub-text-3);
   cursor: pointer;
   white-space: nowrap;
+  transition: color 0.25s ease, background 0.25s ease;
 }
 
-.toggle-btn:hover { background: var(--pub-hover); }
+.toggle-btn:hover {
+  color: var(--pub-primary);
+  background: var(--pub-hover);
+}
 
-.input-error { border-color: #ff4d4f !important; }
-.field-error { color: #ff4d4f; font-size: 12px; margin-top: 4px; }
-.field-ok { color: #52c41a; font-size: 12px; margin-top: 4px; }
+.input-error { border-color: #ef4444 !important; }
+.field-error { color: #ef4444; font-size: 12px; margin-top: 4px; }
+.field-ok { color: #22c55e; font-size: 12px; margin-top: 4px; }
 
 .error-msg {
-  color: #ff4d4f;
+  color: #dc2626;
   font-size: 13px;
   margin-bottom: 16px;
   padding: 10px 14px;
-  background: rgba(255, 77, 79, 0.06);
-  border: 1px solid rgba(255, 77, 79, 0.15);
-  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.12);
+  border-radius: 10px;
 }
 
 .login-btn {
   width: 100%;
-  height: 44px;
+  height: 46px;
   background: var(--pub-primary);
   color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: 100px;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
@@ -485,11 +480,17 @@ function goToLogin() {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: opacity 0.15s;
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
-.login-btn:hover:not(:disabled) { opacity: 0.9; }
-.login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.login-btn:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+.login-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+.login-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .spinner {
   width: 16px;
@@ -505,18 +506,18 @@ function goToLogin() {
 .register-success { margin-top: 16px; }
 
 .success-alert {
-  background: rgba(82, 196, 26, 0.06);
-  border: 1px solid rgba(82, 196, 26, 0.15);
-  border-radius: 8px;
+  background: rgba(34, 197, 94, 0.06);
+  border: 1px solid rgba(34, 197, 94, 0.15);
+  border-radius: 10px;
   padding: 10px 16px;
   font-size: 14px;
-  color: #389e0d;
+  color: #16a34a;
 }
 
 .login-footer {
   text-align: center;
-  margin-top: 28px;
-  padding-top: 20px;
+  margin-top: 32px;
+  padding-top: 24px;
   border-top: 1px solid var(--pub-border);
 }
 
@@ -537,8 +538,8 @@ function goToLogin() {
 
   .form-panel { padding: 32px 24px; }
   .form-card { max-width: 100%; }
-  .login-btn { height: 46px; font-size: 16px; }
-  .form-input { padding: 12px; font-size: 16px; }
-  .toggle-btn { padding: 12px; }
+  .login-btn { height: 48px; font-size: 16px; }
+  .form-input { height: 44px; padding: 0 12px; font-size: 16px; }
+  .toggle-btn { padding: 0 12px; height: 44px; }
 }
 </style>

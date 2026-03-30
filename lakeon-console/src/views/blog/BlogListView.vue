@@ -20,7 +20,7 @@
         <p class="featured-summary">{{ locale === 'zh' ? featured.summaryZh : featured.summary }}</p>
         <div class="featured-footer">
           <span class="post-date">{{ featured.date }}</span>
-          <span class="read-link">{{ t('阅读', 'Read') }} →</span>
+          <span class="read-link">{{ t('阅读', 'Read') }} <svg class="read-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </div>
       </router-link>
 
@@ -37,7 +37,7 @@
           <p class="post-summary">{{ locale === 'zh' ? post.summaryZh : post.summary }}</p>
           <div class="post-footer">
             <span class="post-date">{{ post.date }}</span>
-            <span class="read-link">{{ t('阅读', 'Read') }} →</span>
+            <span class="read-link">{{ t('阅读', 'Read') }} <svg class="read-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           </div>
         </router-link>
       </div>
@@ -71,7 +71,7 @@ const others = computed(() => sortedPosts.value.slice(1))
 .blog-hero {
   background: var(--pub-surface);
   border-bottom: 1px solid var(--pub-border);
-  padding: 56px 24px 48px;
+  padding: 72px 24px 64px;
   text-align: center;
 }
 .blog-hero-inner {
@@ -79,9 +79,10 @@ const others = computed(() => sortedPosts.value.slice(1))
   margin: 0 auto;
 }
 .blog-hero h1 {
-  font-size: 32px;
+  font-size: 40px;
   font-weight: 700;
-  margin: 0 0 10px;
+  letter-spacing: -0.02em;
+  margin: 0 0 12px;
   color: var(--pub-text);
 }
 .blog-hero-subtitle {
@@ -94,7 +95,7 @@ const others = computed(() => sortedPosts.value.slice(1))
 .blog-body {
   max-width: 960px;
   margin: 0 auto;
-  padding: 40px 24px 80px;
+  padding: 48px 24px 80px;
 }
 
 /* Category tag */
@@ -104,24 +105,25 @@ const others = computed(() => sortedPosts.value.slice(1))
   font-weight: 500;
   color: var(--pub-primary);
   background: var(--pub-primary-light, #ede9fe);
-  border-radius: 4px;
-  padding: 2px 8px;
+  border-radius: 20px;
+  padding: 3px 12px;
   margin-bottom: 12px;
 }
 
 /* Featured card */
 .featured-card {
   display: block;
-  background: #fff;
+  background: var(--pub-surface);
   border: 1px solid var(--pub-border);
-  border-radius: 12px;
-  padding: 32px;
+  border-radius: 14px;
+  padding: 36px;
   text-decoration: none;
   margin-bottom: 32px;
-  transition: box-shadow 0.2s;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 .featured-card:hover {
-  box-shadow: 0 4px 20px var(--pub-shadow, rgba(0,0,0,0.08));
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px var(--pub-shadow, rgba(0,0,0,0.10));
 }
 .featured-title {
   font-size: 24px;
@@ -152,15 +154,16 @@ const others = computed(() => sortedPosts.value.slice(1))
 /* Post card */
 .post-card {
   display: block;
-  background: #fff;
+  background: var(--pub-surface);
   border: 1px solid var(--pub-border);
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 14px;
+  padding: 24px;
   text-decoration: none;
-  transition: box-shadow 0.2s;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 .post-card:hover {
-  box-shadow: 0 6px 24px var(--pub-shadow, rgba(0,0,0,0.10));
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px var(--pub-shadow, rgba(0,0,0,0.10));
 }
 .post-title {
   font-size: 18px;
@@ -187,9 +190,18 @@ const others = computed(() => sortedPosts.value.slice(1))
   color: var(--pub-text-3);
 }
 .read-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 13px;
   color: var(--pub-primary);
-  font-weight: 500;
+  font-weight: 600;
+}
+.read-chevron {
+  transition: transform 0.25s ease;
+}
+.read-link:hover .read-chevron {
+  transform: translateX(2px);
 }
 
 @media (max-width: 640px) {

@@ -368,7 +368,6 @@ onUnmounted(() => observer?.disconnect())
   margin: 0 0 18px;
 }
 .flywheel-accent { color: #7b1fa2; }
-[data-theme="dark"] .flywheel-accent { color: #ce93d8; }
 
 .layer-hint {
   padding: 14px 16px;

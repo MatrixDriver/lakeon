@@ -3,7 +3,7 @@
     <!-- Hero -->
     <div class="hero">
       <div class="hero-inner">
-        <h1 class="hero-title">{{ t('🧠 记忆库', '🧠 Memory Store') }}</h1>
+        <h1 class="hero-title">{{ t('记忆库', 'Memory Store') }}</h1>
         <p class="hero-subtitle">
           {{ t('为 AI Agent 提供结构化长期记忆，越用越懂你', 'Structured long-term memory for AI Agents — gets smarter with every interaction') }}
         </p>
@@ -28,8 +28,7 @@
       <section class="section">
         <h2 class="section-title">{{ t('四种记忆类型', 'Four Memory Types') }}</h2>
         <div class="types-grid">
-          <div class="type-card" v-for="mt in memoryTypes" :key="mt.icon">
-            <div class="type-icon">{{ mt.icon }}</div>
+          <div class="type-card" v-for="mt in memoryTypes" :key="mt.en">
             <div class="type-body">
               <div class="type-title">{{ t(mt.zh, mt.en) }}</div>
               <div class="type-desc">{{ t(mt.descZh, mt.descEn) }}</div>
@@ -91,8 +90,11 @@
 
       <!-- CTA -->
       <div class="cta-section">
-        <a href="/console" class="cta-button">{{ t('立即试用 →', 'Get Started →') }}</a>
-        <router-link to="/product" class="back-link">{{ t('← 返回产品总览', '← Back to Products') }}</router-link>
+        <a href="/console" class="cta-button">{{ t('立即试用', 'Get Started') }}</a>
+        <router-link to="/product" class="back-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          {{ t('返回产品总览', 'Back to Products') }}
+        </router-link>
       </div>
 
     </div>
@@ -130,28 +132,24 @@ const coreOps = [
 
 const memoryTypes = [
   {
-    icon: '📋',
     zh: '事实 / Fact',
     en: 'Fact',
     descZh: '从对话中提取的离散、客观、可验证的信息。以向量嵌入存储并关联知识图谱。',
     descEn: 'Discrete, objective, verifiable information extracted from conversations. Stored as vector embeddings linked to the knowledge graph.',
   },
   {
-    icon: '🕐',
     zh: '事件 / Episode',
     en: 'Episode',
     descZh: '带有情绪元数据（效价、唤醒度、情绪标签）和时间表达的时间绑定事件和体验。',
     descEn: 'Time-bound events and experiences with emotional metadata (valence, arousal, emotion tags) and temporal expressions.',
   },
   {
-    icon: '🧠',
     zh: '特征 / Trait',
     en: 'Trait',
     descZh: '通过多会话反思发现的行为模式。经历从趋势到核心的 6 阶段生命周期演化。',
     descEn: 'Behavioral patterns discovered through multi-session reflection. Evolves through a 6-stage lifecycle from trend to core.',
   },
   {
-    icon: '📄',
     zh: '文档 / Document',
     en: 'Document',
     descZh: '上传的静态参考资料，用于 RAG 风格检索。支持 PDF 和文件的专项搜索。',
@@ -192,27 +190,26 @@ const comparisonBars = [
 
 /* Hero */
 .hero {
-  border-top: 4px solid transparent;
-  border-image: linear-gradient(90deg, #ff9800, #e65100) 1;
   background: var(--pub-surface);
-  border-bottom: 1px solid var(--pub-border);
-  padding: 56px 24px 48px;
+  padding: 72px 24px 64px;
 }
 
 .hero-inner {
-  max-width: 800px;
+  max-width: 960px;
   margin: 0 auto;
 }
 
 .hero-title {
-  font-size: 2rem;
+  font-size: 48px;
   font-weight: 700;
   color: var(--pub-text);
   margin: 0 0 12px;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
 }
 
 .hero-subtitle {
-  font-size: 1.05rem;
+  font-size: 15px;
   color: var(--pub-text-2);
   margin: 0;
   line-height: 1.6;
@@ -220,12 +217,12 @@ const comparisonBars = [
 
 /* Content wrapper */
 .content {
-  max-width: 800px;
+  max-width: 960px;
   margin: 0 auto;
-  padding: 40px 24px 64px;
+  padding: 48px 24px 64px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 48px;
 }
 
 /* Section */
@@ -236,10 +233,12 @@ const comparisonBars = [
 }
 
 .section-title {
-  font-size: 1.25rem;
+  font-size: 1.3rem;
   font-weight: 700;
   color: var(--pub-text);
   margin: 0;
+  padding-left: 14px;
+  border-left: 3px solid #ff9800;
 }
 
 /* Section 1: API cards */
@@ -253,33 +252,33 @@ const comparisonBars = [
   background: var(--pub-surface);
   border: 1px solid var(--pub-border);
   border-radius: 10px;
-  padding: 20px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  transition: border-color 0.2s;
+  transition: box-shadow 0.2s ease;
 }
 
 .api-card:hover {
-  border-color: #ff9800;
+  box-shadow: 0 4px 16px rgba(255, 152, 0, 0.08);
 }
 
 .api-name {
   font-family: var(--pub-code, 'JetBrains Mono', 'Fira Code', monospace);
   font-size: 1.05rem;
   font-weight: 700;
-  color: #2563eb;
+  color: #ff9800;
 }
 
 .api-desc {
-  font-size: 0.9rem;
+  font-size: 14px;
   font-weight: 600;
   color: var(--pub-text);
   line-height: 1.5;
 }
 
 .api-detail {
-  font-size: 0.85rem;
+  font-size: 13px;
   color: var(--pub-text-2);
   line-height: 1.6;
 }
@@ -294,23 +293,14 @@ const comparisonBars = [
 .type-card {
   background: var(--pub-surface);
   border: 1px solid var(--pub-border);
+  border-left: 4px solid #ff9800;
   border-radius: 10px;
-  padding: 20px;
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  transition: border-color 0.2s;
+  padding: 24px 24px 24px 28px;
+  transition: box-shadow 0.2s ease;
 }
 
 .type-card:hover {
-  border-color: #ff9800;
-}
-
-.type-icon {
-  font-size: 1.5rem;
-  line-height: 1;
-  flex-shrink: 0;
-  margin-top: 2px;
+  box-shadow: 0 4px 16px rgba(255, 152, 0, 0.08);
 }
 
 .type-body {
@@ -320,13 +310,13 @@ const comparisonBars = [
 }
 
 .type-title {
-  font-size: 0.95rem;
+  font-size: 15px;
   font-weight: 700;
   color: var(--pub-text);
 }
 
 .type-desc {
-  font-size: 0.85rem;
+  font-size: 13px;
   color: var(--pub-text-2);
   line-height: 1.6;
 }
@@ -351,40 +341,40 @@ const comparisonBars = [
 }
 
 .step-dot {
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: #7c3aed;
-  border: 2px solid #7c3aed;
+  background: #ff9800;
+  border: 2px solid #ff9800;
   flex-shrink: 0;
   position: relative;
   z-index: 1;
 }
 
 .dot-first {
-  background: #a78bfa;
-  border-color: #a78bfa;
+  background: #ffcc80;
+  border-color: #ffcc80;
 }
 
 .dot-last {
   background: transparent;
-  border: 2px dashed #7c3aed;
+  border: 2px dashed #ff9800;
 }
 
 .step-line {
   position: absolute;
-  top: 7px;
-  left: calc(50% + 8px);
-  right: calc(-50% + 8px);
+  top: 5px;
+  left: calc(50% + 6px);
+  right: calc(-50% + 6px);
   height: 2px;
-  background: #7c3aed;
-  opacity: 0.4;
+  background: #ff9800;
+  opacity: 0.3;
   z-index: 0;
 }
 
 .step-label {
   margin-top: 10px;
-  font-size: 0.8rem;
+  font-size: 13px;
   font-weight: 600;
   color: var(--pub-text-2);
   text-align: center;
@@ -396,7 +386,7 @@ const comparisonBars = [
   background: var(--pub-surface);
   border: 1px solid var(--pub-border);
   border-radius: 12px;
-  padding: 28px 24px;
+  padding: 32px 28px;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -412,12 +402,12 @@ const comparisonBars = [
 .benchmark-main-score {
   font-size: 64px;
   font-weight: 800;
-  color: #7c3aed;
+  color: var(--pub-primary, #0073e6);
   line-height: 1;
 }
 
 .benchmark-score-label {
-  font-size: 0.85rem;
+  font-size: 13px;
   color: var(--pub-text-3);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -446,7 +436,7 @@ const comparisonBars = [
 }
 
 .sub-score-label {
-  font-size: 0.78rem;
+  font-size: 12px;
   color: var(--pub-text-3);
   margin-top: 2px;
 }
@@ -464,7 +454,7 @@ const comparisonBars = [
 }
 
 .bar-label {
-  font-size: 0.85rem;
+  font-size: 13px;
   color: var(--pub-text-2);
   width: 110px;
   flex-shrink: 0;
@@ -491,11 +481,11 @@ const comparisonBars = [
 }
 
 .bar-highlighted .bar-fill {
-  background: #7c3aed;
+  background: var(--pub-primary, #0073e6);
 }
 
 .bar-value {
-  font-size: 0.85rem;
+  font-size: 13px;
   font-weight: 600;
   color: var(--pub-text-2);
   width: 48px;
@@ -504,12 +494,12 @@ const comparisonBars = [
 }
 
 .bar-highlighted .bar-value {
-  color: #7c3aed;
+  color: var(--pub-primary, #0073e6);
   font-weight: 700;
 }
 
 .benchmark-note {
-  font-size: 0.8rem;
+  font-size: 12px;
   color: var(--pub-text-4);
   text-align: center;
   line-height: 1.5;
@@ -521,69 +511,47 @@ const comparisonBars = [
   align-items: center;
   gap: 24px;
   flex-wrap: wrap;
-  padding-top: 8px;
 }
 
 .cta-button {
   display: inline-block;
-  padding: 12px 28px;
+  padding: 12px 32px;
   background: #ff9800;
   color: #fff;
-  font-size: 0.95rem;
+  font-size: 15px;
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: 100px;
   text-decoration: none;
-  transition: background 0.2s;
+  transition: opacity 0.2s;
 }
 
 .cta-button:hover {
-  background: #e65100;
+  opacity: 0.85;
 }
 
 .back-link {
-  font-size: 0.9rem;
-  color: var(--pub-text-3);
+  font-size: 14px;
+  color: var(--pub-text-2);
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   transition: color 0.2s;
 }
 
 .back-link:hover {
-  color: var(--pub-text);
+  color: #ff9800;
 }
 
 /* Responsive */
 @media (max-width: 700px) {
-  .hero-title {
-    font-size: 1.5rem;
-  }
-
-  .api-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .types-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .lifecycle {
-    gap: 0;
-  }
-
-  .lifecycle-step {
-    min-width: 60px;
-  }
-
-  .step-label {
-    font-size: 0.7rem;
-  }
-
-  .benchmark-main-score {
-    font-size: 48px;
-  }
-
-  .cta-section {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+  .hero { padding: 48px 20px 40px; }
+  .hero-title { font-size: 32px; }
+  .api-grid { grid-template-columns: 1fr; }
+  .types-grid { grid-template-columns: 1fr; }
+  .lifecycle-step { min-width: 60px; }
+  .step-label { font-size: 11px; }
+  .benchmark-main-score { font-size: 48px; }
+  .cta-section { flex-direction: column; align-items: flex-start; }
 }
 </style>

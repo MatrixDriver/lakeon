@@ -77,7 +77,7 @@ const renderedContent = computed(() => {
 .post-article {
   max-width: 720px;
   margin: 0 auto;
-  padding: 48px 24px 80px;
+  padding: 56px 24px 80px;
 }
 
 /* Header */
@@ -96,15 +96,15 @@ const renderedContent = computed(() => {
   font-weight: 500;
   color: var(--pub-primary);
   background: var(--pub-primary-light, #ede9fe);
-  border-radius: 4px;
-  padding: 2px 8px;
+  border-radius: 20px;
+  padding: 3px 12px;
 }
 .post-date {
   font-size: 12px;
   color: var(--pub-text-3);
 }
 .post-title {
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 700;
   color: var(--pub-text);
   margin: 0 0 16px;
@@ -128,6 +128,8 @@ const renderedContent = computed(() => {
   color: var(--pub-primary);
   text-decoration: none;
   font-size: 14px;
+  font-weight: 500;
+  transition: color 0.25s ease;
 }
 .back-link:hover {
   text-decoration: underline;
@@ -176,7 +178,7 @@ const renderedContent = computed(() => {
 }
 .post-content :deep(pre) {
   background: #1e293b;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 14px 16px;
   overflow-x: auto;
   margin: 0 0 16px;
