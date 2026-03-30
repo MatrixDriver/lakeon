@@ -76,5 +76,6 @@ onUnmounted(() => {
   border-radius: 10px;
   padding: 6px;
   box-shadow: 0 8px 32px var(--pub-shadow);
+  z-index: 200;
 }
 </style>
