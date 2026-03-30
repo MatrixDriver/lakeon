@@ -36,8 +36,8 @@
 
     <!-- Three layers intro -->
     <section class="layers-intro fade-in">
-      <h2 class="section-title">{{ t('从数据库到数据平台，按需解锁', 'From database to data platform, unlock on demand') }}</h2>
-      <p class="section-subtitle">{{ t('不用一次全买，从第一层开始，按需向上扩展', 'Start with layer one, scale up as you need') }}</p>
+      <h2 class="section-title">{{ t('一个底座，三层能力', 'One Foundation, Three Layers') }}</h2>
+      <p class="section-subtitle">{{ t('从数据库开始，按需开启知识库、记忆库、数据湖', 'Start with the database, enable Knowledge, Memory, and Data Lake as you need') }}</p>
     </section>
 
     <!-- Layer 1: Left text, Right SVG -->
