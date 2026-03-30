@@ -65,7 +65,6 @@
     <!-- Arrow: Lakebase → AI DataLake (bold, colored) -->
     <line x1="215" y1="104" x2="225" y2="104" stroke="#7b1fa2" stroke-width="3" />
     <polygon points="226,104 218,99 218,109" fill="#7b1fa2" />
-    <text x="220" y="96" text-anchor="middle" font-size="7" fill="#7b1fa2" font-weight="600">{{ t('数据流转', 'Data Flow') }}</text>
 
     <!-- Arrows: Lakebase + DataLake → Ray -->
     <line x1="150" y1="128" x2="220" y2="153" stroke="#e65100" stroke-width="1.5" opacity="0.5" />
