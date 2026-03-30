@@ -75,10 +75,10 @@
     <text x="220" y="177" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">⚙️ Ray / Python {{ t('作业引擎', 'Job Engine') }}</text>
     <text x="220" y="191" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.85)">{{ t('数据加工 · 分析 · 微调 · RL', 'Process · Analyze · Finetune · RL') }}</text>
 
-    <!-- Feedback arrow: Ray → Memory (left side, "更新记忆策略") -->
-    <path d="M 80,170 Q 15,170 15,104 Q 15,40 50,30 L 20,30" fill="none" stroke="#e65100" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5" />
-    <polygon points="20,30 26,26 26,34" fill="#e65100" opacity="0.5" />
-    <text x="5" y="105" font-size="7" fill="#e65100" font-weight="600" transform="rotate(-90,5,105)">{{ t('更新记忆策略', 'Update Strategy') }}</text>
+    <!-- Feedback arrow: Ray → Memory (smooth curve on left side) -->
+    <path d="M 80,177 C -10,177 -10,31 20,31" fill="none" stroke="#e65100" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5" />
+    <polygon points="20,31 26,27 26,35" fill="#e65100" opacity="0.5" />
+    <text x="-2" y="108" font-size="7" fill="#e65100" font-weight="600" transform="rotate(-90,-2,108)">{{ t('更新记忆策略', 'Update Strategy') }}</text>
 
     <!-- Row 4: Output capabilities -->
     <line x1="140" y1="199" x2="95" y2="218" stroke="#e65100" stroke-width="1.2" opacity="0.4" />
