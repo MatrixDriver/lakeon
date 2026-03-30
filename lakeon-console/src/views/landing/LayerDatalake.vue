@@ -31,50 +31,54 @@
 
     <ellipse cx="220" cy="130" rx="215" ry="120" fill="url(#gl3-bg)" opacity="0.2" />
 
-    <!-- ══ Left arc: Memory, Knowledge, State → Lakebase ══ -->
+    <!-- ══ Left triangle (apex top): State → Knowledge + Memory ══ -->
 
-    <!-- Arc positions: top-left, top-center-left, left -->
-    <rect x="8" y="8" width="82" height="36" rx="10" fill="url(#gl3-mem)" filter="url(#gd1)" />
-    <text x="49" y="25" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">🧠 {{ t('记忆库', 'Memory') }}</text>
-    <text x="49" y="38" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.85)">{{ t('持久化 · 反思', 'Persist') }}</text>
+    <!-- Apex: State (top center-left) -->
+    <rect x="55" y="8" width="82" height="36" rx="10" fill="url(#gl3-state)" filter="url(#gd1)" />
+    <text x="96" y="25" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">📋 {{ t('状态库', 'State') }}</text>
+    <text x="96" y="38" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.85)">{{ t('会话 · 上下文', 'Session') }}</text>
 
-    <rect x="100" y="8" width="82" height="36" rx="10" fill="url(#gl3-know)" filter="url(#gd1)" />
-    <text x="141" y="25" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">📚 {{ t('知识库', 'Knowledge') }}</text>
-    <text x="141" y="38" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.85)">{{ t('文档向量化', 'Vectorize') }}</text>
+    <!-- Bottom-left: Knowledge -->
+    <rect x="8" y="55" width="82" height="36" rx="10" fill="url(#gl3-know)" filter="url(#gd1)" />
+    <text x="49" y="72" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">📚 {{ t('知识库', 'Knowledge') }}</text>
+    <text x="49" y="85" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.85)">{{ t('文档向量化', 'Vectorize') }}</text>
 
-    <rect x="55" y="52" width="82" height="36" rx="10" fill="url(#gl3-state)" filter="url(#gd1)" />
-    <text x="96" y="69" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">📋 {{ t('状态库', 'State') }}</text>
-    <text x="96" y="82" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.85)">{{ t('会话 · 上下文', 'Session') }}</text>
+    <!-- Bottom-right: Memory (feedback arrow target) -->
+    <rect x="100" y="55" width="82" height="36" rx="10" fill="url(#gl3-mem)" filter="url(#gd1)" />
+    <text x="141" y="72" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">🧠 {{ t('记忆库', 'Memory') }}</text>
+    <text x="141" y="85" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.85)">{{ t('持久化 · 反思', 'Persist') }}</text>
 
     <!-- Arrows: services → Lakebase -->
-    <line x1="49" y1="44" x2="80" y2="110" stroke="var(--pub-primary, #0073e6)" stroke-width="1.2" opacity="0.4" />
-    <line x1="141" y1="44" x2="110" y2="110" stroke="var(--pub-primary, #0073e6)" stroke-width="1.2" opacity="0.4" />
-    <line x1="96" y1="88" x2="100" y2="110" stroke="var(--pub-primary, #0073e6)" stroke-width="1.2" opacity="0.4" />
+    <line x1="96" y1="44" x2="100" y2="110" stroke="var(--pub-primary, #0073e6)" stroke-width="1.2" opacity="0.4" />
+    <line x1="49" y1="91" x2="80" y2="110" stroke="var(--pub-primary, #0073e6)" stroke-width="1.2" opacity="0.4" />
+    <line x1="141" y1="91" x2="115" y2="110" stroke="var(--pub-primary, #0073e6)" stroke-width="1.2" opacity="0.4" />
 
     <!-- Lakebase -->
     <rect x="15" y="110" width="195" height="52" rx="14" fill="url(#gl3-base)" filter="url(#gd1)" />
     <text x="112" y="135" text-anchor="middle" font-size="15" font-weight="800" fill="#fff">🐘 Lakebase</text>
     <text x="112" y="152" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.8)">{{ t('统一存储 · 多分支', 'Unified · Branching') }}</text>
 
-    <!-- ══ Right arc: capabilities → AI DataLake ══ -->
+    <!-- ══ Right triangle (apex top): Multimodal → Analytics + Strategy ══ -->
 
-    <!-- Arc positions: top-right, top-center-right, right -->
-    <rect x="258" y="8" width="82" height="36" rx="8" fill="var(--pub-surface, #fff)" filter="url(#gd2)" />
-    <text x="299" y="24" text-anchor="middle" font-size="8" font-weight="600" fill="#7b1fa2">📊 {{ t('行为分析', 'Analytics') }}</text>
-    <text x="299" y="36" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('Agent 习惯', 'Patterns') }}</text>
+    <!-- Apex: Multimodal (top center-right) -->
+    <rect x="300" y="8" width="82" height="36" rx="8" fill="var(--pub-surface, #fff)" filter="url(#gd2)" />
+    <text x="341" y="24" text-anchor="middle" font-size="8" font-weight="600" fill="#7b1fa2">📦 {{ t('知识加工', 'Process') }}</text>
+    <text x="341" y="36" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('图文 · 音视频', 'Multimodal') }}</text>
 
-    <rect x="350" y="8" width="82" height="36" rx="8" fill="var(--pub-surface, #fff)" filter="url(#gd2)" />
-    <text x="391" y="24" text-anchor="middle" font-size="8" font-weight="600" fill="#7b1fa2">🔄 {{ t('策略评估', 'Strategy') }}</text>
-    <text x="391" y="36" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('反思 · 优化', 'Reflect') }}</text>
+    <!-- Bottom-left: Analytics -->
+    <rect x="255" y="55" width="82" height="36" rx="8" fill="var(--pub-surface, #fff)" filter="url(#gd2)" />
+    <text x="296" y="71" text-anchor="middle" font-size="8" font-weight="600" fill="#7b1fa2">📊 {{ t('行为分析', 'Analytics') }}</text>
+    <text x="296" y="83" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('Agent 习惯', 'Patterns') }}</text>
 
-    <rect x="300" y="52" width="82" height="36" rx="8" fill="var(--pub-surface, #fff)" filter="url(#gd2)" />
-    <text x="341" y="68" text-anchor="middle" font-size="8" font-weight="600" fill="#7b1fa2">📦 {{ t('知识加工', 'Process') }}</text>
-    <text x="341" y="80" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('图文 · 音视频', 'Multimodal') }}</text>
+    <!-- Bottom-right: Strategy -->
+    <rect x="347" y="55" width="82" height="36" rx="8" fill="var(--pub-surface, #fff)" filter="url(#gd2)" />
+    <text x="388" y="71" text-anchor="middle" font-size="8" font-weight="600" fill="#7b1fa2">🔄 {{ t('策略评估', 'Strategy') }}</text>
+    <text x="388" y="83" text-anchor="middle" font-size="7" fill="var(--pub-text-3, #888)">{{ t('反思 · 优化', 'Reflect') }}</text>
 
     <!-- Arrows: capabilities → DataLake -->
-    <line x1="299" y1="44" x2="320" y2="110" stroke="#7b1fa2" stroke-width="1.2" opacity="0.4" />
-    <line x1="391" y1="44" x2="345" y2="110" stroke="#7b1fa2" stroke-width="1.2" opacity="0.4" />
-    <line x1="341" y1="88" x2="335" y2="110" stroke="#7b1fa2" stroke-width="1.2" opacity="0.4" />
+    <line x1="341" y1="44" x2="335" y2="110" stroke="#7b1fa2" stroke-width="1.2" opacity="0.4" />
+    <line x1="296" y1="91" x2="315" y2="110" stroke="#7b1fa2" stroke-width="1.2" opacity="0.4" />
+    <line x1="388" y1="91" x2="350" y2="110" stroke="#7b1fa2" stroke-width="1.2" opacity="0.4" />
 
     <!-- AI DataLake -->
     <rect x="230" y="110" width="195" height="52" rx="14" fill="url(#gl3-lake)" filter="url(#gd1)" />
@@ -85,10 +89,10 @@
     <line x1="210" y1="136" x2="230" y2="136" stroke="#7b1fa2" stroke-width="3" />
     <polygon points="231,136 223,131 223,141" fill="#7b1fa2" />
 
-    <!-- ══ Feedback: DataLake → Memory ══ -->
-    <path d="M 230,152 C 180,190 20,170 20,90 L 20,44" fill="none" stroke="#e65100" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5" />
-    <polygon points="20,44 16,52 24,52" fill="#e65100" opacity="0.5" />
-    <text x="90" y="192" text-anchor="middle" font-size="8" fill="#e65100" font-weight="600">{{ t('更新记忆策略', 'Update Strategy') }}</text>
+    <!-- ══ Feedback: DataLake → Memory (horizontal, above the two big boxes) ══ -->
+    <path d="M 230,120 C 210,100 190,95 182,82" fill="none" stroke="#e65100" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.6" />
+    <polygon points="182,82 178,90 186,90" fill="#e65100" opacity="0.6" />
+    <text x="210" y="98" text-anchor="middle" font-size="7" fill="#e65100" font-weight="600">{{ t('更新记忆策略', 'Update Strategy') }}</text>
 
     <!-- ══ Bottom: data flywheel ══ -->
     <rect x="130" y="210" width="180" height="26" rx="13" fill="var(--pub-surface, #fff)" stroke="#7b1fa2" stroke-width="1" filter="url(#gd2)" />
