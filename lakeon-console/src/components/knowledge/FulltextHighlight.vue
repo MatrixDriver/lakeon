@@ -115,7 +115,7 @@ function stripMarkdown(text: string): string {
  * must stay within one paragraph to match via indexOf.
  */
 function singleLineSnippet(text: string, maxLen = 80): string | null {
-  const line = text.split(/\n/)[0].trim()
+  const line = (text.split(/\n/)[0] ?? '').trim()
   const snippet = line.substring(0, maxLen).trim()
   return snippet.length >= 10 ? snippet : null
 }
