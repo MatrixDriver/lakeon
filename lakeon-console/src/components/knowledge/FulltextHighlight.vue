@@ -48,7 +48,13 @@ function highlightChunkInDom() {
   }
 
   const idx = fullText.indexOf(searchText)
-  if (idx < 0) return
+  console.log('[FulltextHighlight] DOM searchText:', JSON.stringify(searchText))
+  console.log('[FulltextHighlight] DOM fullText length:', fullText.length)
+  console.log('[FulltextHighlight] DOM indexOf result:', idx)
+  if (idx < 0) {
+    console.log('[FulltextHighlight] === HIGHLIGHT FAILED: searchText not found in DOM text ===')
+    return
+  }
 
   // Highlight the full chunk content length, not just the search snippet
   const chunkPlain = stripMarkdown(props.chunkContent || '').trim()
@@ -116,33 +122,48 @@ function findSearchText(): string | null {
   const overlap = props.overlapPrev ?? 0
   const strippedChunk = stripMarkdown(content).trim()
 
+  console.log('[FulltextHighlight] === DEBUG START ===')
+  console.log('[FulltextHighlight] chunkContent (first 100):', content.substring(0, 100))
+  console.log('[FulltextHighlight] strippedChunk (first 100):', strippedChunk.substring(0, 100))
+  console.log('[FulltextHighlight] overlapPrev:', overlap)
+  console.log('[FulltextHighlight] offsetStart:', props.chunkOffsetStart, 'offsetEnd:', props.chunkOffsetEnd, 'fulltextLen:', props.fulltext.length)
+
   // Strategy 1: Use char_offset to extract from fulltext, then strip markdown
-  // Validate that the extracted text actually overlaps with chunk content
-  // (offsets can be wrong when fulltext comes from chunk concatenation instead of OBS)
   if (props.chunkOffsetStart != null && props.chunkOffsetEnd != null
       && props.chunkOffsetEnd <= props.fulltext.length) {
     const raw = props.fulltext.substring(props.chunkOffsetStart, props.chunkOffsetEnd)
     const plain = stripMarkdown(raw).trim()
-    // Verify: first 30 chars of extracted text should appear in chunk content
     const verify = plain.substring(0, 30)
+    console.log('[FulltextHighlight] Strategy1: raw (first 80):', raw.substring(0, 80))
+    console.log('[FulltextHighlight] Strategy1: plain (first 80):', plain.substring(0, 80))
+    console.log('[FulltextHighlight] Strategy1: verify:', JSON.stringify(verify))
+    console.log('[FulltextHighlight] Strategy1: verify.length >= 10:', verify.length >= 10, 'includes:', strippedChunk.includes(verify))
     if (verify.length >= 10 && strippedChunk.includes(verify)) {
-      // Use the START of the extracted text — this anchors to the correct position
-      // in the DOM, avoiding mid-chunk matches that could land on similar content
       const snippet = plain.substring(0, Math.min(80, plain.length)).trim()
+      console.log('[FulltextHighlight] Strategy1 SUCCESS, snippet:', JSON.stringify(snippet))
       if (snippet.length >= 10) return snippet
     }
+    console.log('[FulltextHighlight] Strategy1 FAILED')
+  } else {
+    console.log('[FulltextHighlight] Strategy1 SKIPPED (offset null or out of range)')
   }
 
   // Strategy 2: Use chunk content directly — skip overlap prefix for uniqueness
   const uniqueStart = Math.min(overlap, strippedChunk.length)
   const uniquePart = strippedChunk.substring(uniqueStart).trim()
+  console.log('[FulltextHighlight] Strategy2: uniqueStart:', uniqueStart, 'uniquePart (first 80):', uniquePart.substring(0, 80))
+  console.log('[FulltextHighlight] Strategy2: uniquePart.length >= 20:', uniquePart.length >= 20)
 
   if (uniquePart.length >= 20) {
-    return uniquePart.substring(0, Math.min(80, uniquePart.length))
+    const result = uniquePart.substring(0, Math.min(80, uniquePart.length))
+    console.log('[FulltextHighlight] Strategy2 SUCCESS, result:', JSON.stringify(result))
+    return result
   }
+  console.log('[FulltextHighlight] Strategy2 FAILED')
 
   // Strategy 3: Fallback with raw content start
   const snippet = strippedChunk.substring(0, Math.min(80, strippedChunk.length)).trim()
+  console.log('[FulltextHighlight] Strategy3: snippet:', JSON.stringify(snippet), 'len:', snippet.length)
   return snippet.length >= 10 ? snippet : null
 }
 
