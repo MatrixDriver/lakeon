@@ -131,13 +131,13 @@ function highlightChunkInDom() {
     }
   }
 
-  // Scroll: find the nearest scrollable ancestor and use scrollIntoView
+  // Scroll: instant jump to highlighted chunk
   setTimeout(() => {
     const mark = contentRef.value?.querySelector('.chunk-highlight')
     if (mark) {
-      (mark as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' })
+      (mark as HTMLElement).scrollIntoView({ behavior: 'instant', block: 'center' })
     }
-  }, 200)
+  }, 50)
 }
 
 /**
