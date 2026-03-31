@@ -8,7 +8,7 @@
             <path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/>
           </svg>
         </button>
-        <router-link to="/dashboard" class="logo-brand">DBay<span class="logo-tagline">SRE</span></router-link>
+        <router-link to="/databases" class="logo-brand">DBay<span class="logo-tagline">SRE</span></router-link>
       </div>
       <div class="header-right">
         <button class="cmd-k-btn" @click="cmdOpen = true">
@@ -37,13 +37,6 @@
           </svg>
         </div>
         <nav class="sidebar-nav">
-          <div class="nav-group">
-            <div class="nav-group-title">总览</div>
-            <router-link to="/dashboard" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-              <span>仪表盘</span>
-            </router-link>
-          </div>
           <div class="nav-group">
             <div class="nav-group-title">租户</div>
             <router-link to="/tenants" class="nav-item" active-class="active" @click="sidebarOpen = false">

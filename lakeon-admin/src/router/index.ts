@@ -11,8 +11,8 @@ const routes = [
     path: '/',
     component: () => import('../layouts/AdminLayout.vue'),
     children: [
-      { path: '', redirect: '/dashboard' },
-      { path: 'dashboard', name: 'Dashboard', component: () => import('../views/dashboard/DashboardView.vue') },
+      { path: '', redirect: '/databases' },
+      { path: 'dashboard', redirect: '/databases' },
       { path: 'tenants', name: 'TenantList', component: () => import('../views/tenants/TenantList.vue') },
       { path: 'databases', name: 'DatabaseList', component: () => import('../views/databases/DatabaseList.vue') },
       { path: 'databases/:id', name: 'DatabaseDetail', component: () => import('../views/databases/DatabaseDetail.vue') },
