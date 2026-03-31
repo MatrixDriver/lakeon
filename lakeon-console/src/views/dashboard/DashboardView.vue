@@ -145,7 +145,7 @@
 
       <!-- Database Instances (full list with CRUD) -->
       <div class="section-card" style="margin-top: 16px;">
-        <TableToolbar v-model="dbSearch" placeholder="搜索实例名称" :loading="loading" @refresh="fetchData" />
+        <TableToolbar v-model="dbSearch" placeholder="搜索实例名称" :loading="loading" @refresh="fetchData" style="max-width: 400px;" />
 
         <!-- Card view -->
         <div v-if="viewMode === 'card'" class="card-grid">
@@ -702,9 +702,9 @@ onUnmounted(() => {
 /* ── Card Grid ── */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-top: 16px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 12px;
   padding: 0 16px 16px;
 }
 .card-create {
@@ -726,5 +726,8 @@ onUnmounted(() => {
   .welcome-actions { flex-direction: column; align-items: center; }
   .storage-bar { display: none; }
   .card-grid { grid-template-columns: 1fr; }
+}
+@media (min-width: 769px) and (max-width: 1200px) {
+  .card-grid { grid-template-columns: repeat(2, 1fr) !important; }
 }
 </style>

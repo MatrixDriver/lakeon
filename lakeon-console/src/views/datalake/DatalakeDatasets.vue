@@ -23,7 +23,7 @@
     </div>
 
     <!-- Dataset list -->
-    <TableToolbar v-model="dsSearch" placeholder="搜索数据集名称" :loading="loading" @refresh="fetchDatasets" style="margin-top: 16px;" />
+    <TableToolbar v-model="dsSearch" placeholder="搜索数据集名称" :loading="loading" @refresh="fetchDatasets" style="margin-top: 16px; max-width: 400px;" />
 
     <!-- Card view -->
     <div v-if="viewMode === 'card' && searchedDatasets.length > 0" class="card-grid">
@@ -297,7 +297,7 @@ onUnmounted(() => {
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin-top: 16px;
 }

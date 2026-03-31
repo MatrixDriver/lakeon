@@ -93,7 +93,7 @@
     </div>
 
     <!-- Knowledge base list -->
-    <TableToolbar v-model="kbSearch" placeholder="搜索知识库" :loading="loading" @refresh="loadKBs" style="margin-top: 20px;" />
+    <TableToolbar v-model="kbSearch" placeholder="搜索知识库" :loading="loading" @refresh="loadKBs" style="margin-top: 20px; max-width: 400px;" />
 
     <!-- Card view -->
     <div v-if="viewMode === 'card' && filteredKBs.length > 0" class="card-grid">
@@ -388,7 +388,7 @@ onMounted(loadKBs)
 }
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin-top: 16px;
 }

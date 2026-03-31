@@ -23,7 +23,7 @@
     </div>
 
     <!-- Job list -->
-    <TableToolbar v-model="jobSearch" placeholder="搜索作业名称" :loading="loading" @refresh="loadJobs" style="margin-top: 16px;" />
+    <TableToolbar v-model="jobSearch" placeholder="搜索作业名称" :loading="loading" @refresh="loadJobs" style="margin-top: 16px; max-width: 400px;" />
 
     <!-- Card view -->
     <div v-if="viewMode === 'card' && searchedJobs.length > 0" class="card-grid">
@@ -398,7 +398,7 @@ onUnmounted(() => {
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin-top: 16px;
 }
