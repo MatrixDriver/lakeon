@@ -127,7 +127,7 @@
             </td>
             <td style="color: #999;">{{ formatTime(item.created_at) }}</td>
             <td @click.stop>
-              <button class="btn btn-text btn-small" style="color: #e6393d;" @click="handleDelete(item)">删除</button>
+              <button class="btn btn-text btn-small btn-danger-text" @click="handleDelete(item)">删除</button>
             </td>
           </tr>
         </tbody>
@@ -143,6 +143,18 @@
       </svg>
       <p style="color: #666; margin-top: 12px;">还没有记忆库</p>
       <p style="color: #999; font-size: 13px;">创建记忆库后，AI 将自动管理用户记忆与特征</p>
+    </div>
+
+    <!-- Quick tips -->
+    <div v-if="!loading && memoryBases.length > 0 && memoryBases.length < 3" class="page-tips">
+      <div class="page-tips-title">快速上手</div>
+      <div class="page-tips-items">
+        <span>通过 MCP 接入 Claude Code，自动积累开发记忆</span>
+        <span class="tips-sep">·</span>
+        <span>在"反思洞察"中查看 AI 提炼的用户特征</span>
+        <span class="tips-sep">·</span>
+        <router-link to="/docs#memory" class="tips-link">查看文档</router-link>
+      </div>
     </div>
   </div>
 </template>
@@ -291,5 +303,34 @@ onMounted(loadMemoryBases)
 }
 .scene-summary:hover {
   border-color: #c67d3a;
+}
+.page-tips {
+  margin-top: 48px;
+  padding: 16px 20px;
+  background: #faf8f5;
+  border-radius: 6px;
+  border-left: 3px solid #c67d3a;
+}
+.page-tips-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 6px;
+}
+.page-tips-items {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.6;
+}
+.tips-sep {
+  margin: 0 8px;
+  color: #d5d0ca;
+}
+.tips-link {
+  color: #9a5b25;
+  text-decoration: none;
+}
+.tips-link:hover {
+  text-decoration: underline;
 }
 </style>

@@ -539,7 +539,8 @@ onMounted(loadData)
 .btn-text { border: none; background: none; color: #9a5b25; padding: 4px 8px; }
 .btn-text:hover { text-decoration: underline; }
 .btn-text:disabled { color: #ccc; text-decoration: none; }
-.btn-danger-text { color: #e6393d; }
+.btn-danger-text { color: #94a3b8; }
+.btn-danger-text:hover { color: #e6393d; }
 
 @media (max-width: 768px) {
   .summary-row { flex-wrap: wrap; gap: 12px; }

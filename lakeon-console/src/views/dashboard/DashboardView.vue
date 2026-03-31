@@ -192,7 +192,7 @@
                     >挂起</button>
                     <button
                       v-if="db.status === 'SUSPENDED'"
-                      class="btn btn-small btn-text"
+                      class="btn btn-small btn-text btn-accent-text"
                       :disabled="actionLoading[db.id]"
                       @click="handleResume(db)"
                     >唤醒</button>
@@ -645,7 +645,7 @@ onUnmounted(() => {
   border-radius: 4px; overflow: hidden; flex-shrink: 0;
 }
 
-.storage-fill { height: 100%; background-color: #9a5b25; border-radius: 4px; transition: width 0.3s; }
+.storage-fill { height: 100%; background-color: #9a5b25; border-radius: 4px; transition: width 0.3s; min-width: 4px; }
 .storage-text { font-size: 12px; color: #8a8e99; white-space: nowrap; }
 
 .text-muted { color: #ccc; }

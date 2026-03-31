@@ -426,7 +426,7 @@
           <div v-else>
             <div v-for="(ip, i) in allowedIps" :key="i" class="ip-row">
               <code>{{ ip }}</code>
-              <button class="btn btn-small btn-text" style="color: #e6393d;" @click="removeIp(i)">删除</button>
+              <button class="btn btn-small btn-text btn-danger-text" @click="removeIp(i)">删除</button>
             </div>
             <div style="margin-top: 16px;">
               <button class="btn btn-small btn-default" @click="clearIps">清空白名单（允许所有）</button>

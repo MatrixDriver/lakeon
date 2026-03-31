@@ -54,8 +54,7 @@
             <td style="color: #999;">{{ formatTime(ds.createdAt) }}</td>
             <td>
               <button
-                class="btn btn-text btn-small"
-                style="color: #e6393d;"
+                class="btn btn-text btn-small btn-danger-text"
                 @click="handleDelete(ds.id, ds.name)"
               >删除</button>
             </td>

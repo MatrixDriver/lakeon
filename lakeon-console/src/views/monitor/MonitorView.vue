@@ -570,11 +570,17 @@ onMounted(() => fetchAll())
 
 .metric-card {
   background: #fff;
-  border: 1px solid #ebebeb;
-  border-radius: 4px;
-  padding: 20px;
+  border: 1px solid #e8e4df;
+  border-radius: 8px;
+  padding: 20px 24px;
   text-align: center;
+  border-top: 3px solid #e8e4df;
 }
+
+.metric-card:nth-child(1) { border-top-color: #1e2d3d; }
+.metric-card:nth-child(2) { border-top-color: #c67d3a; }
+.metric-card:nth-child(3) { border-top-color: #2d6a4f; }
+.metric-card:nth-child(4) { border-top-color: #64748b; }
 
 .metric-value {
   font-size: 28px;
@@ -582,6 +588,7 @@ onMounted(() => fetchAll())
   color: #2c3e50;
   margin-bottom: 4px;
 }
+
 
 .metric-unit {
   font-size: 14px;

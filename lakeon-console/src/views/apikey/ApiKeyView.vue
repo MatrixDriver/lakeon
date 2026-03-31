@@ -281,10 +281,11 @@ onMounted(fetchKeys)
 }
 
 .action-danger {
-  color: #e6393d;
+  color: #94a3b8;
 }
 
 .action-danger:hover {
+  color: #e6393d;
   text-decoration: underline;
 }
 

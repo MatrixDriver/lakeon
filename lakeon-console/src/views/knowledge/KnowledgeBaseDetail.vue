@@ -163,7 +163,7 @@
               </td>
               <td style="color: #999;">{{ doc.created_at ? new Date(doc.created_at).toLocaleString('zh-CN') : '-' }}</td>
               <td>
-                <button class="btn btn-text btn-small" style="color: #e6393d;" @click.stop="handleDeleteDoc(doc)">删除</button>
+                <button class="btn btn-text btn-small btn-danger-text" @click.stop="handleDeleteDoc(doc)">删除</button>
               </td>
             </tr>
           </tbody>

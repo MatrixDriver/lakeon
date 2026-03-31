@@ -8,35 +8,16 @@
             <path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/>
           </svg>
         </button>
-        <div class="header-grid-icon">
-          <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
-            <rect x="1" y="1" width="4" height="4" rx="0.5" />
-            <rect x="6" y="1" width="4" height="4" rx="0.5" />
-            <rect x="11" y="1" width="4" height="4" rx="0.5" />
-            <rect x="1" y="6" width="4" height="4" rx="0.5" />
-            <rect x="6" y="6" width="4" height="4" rx="0.5" />
-            <rect x="11" y="6" width="4" height="4" rx="0.5" />
-            <rect x="1" y="11" width="4" height="4" rx="0.5" />
-            <rect x="6" y="11" width="4" height="4" rx="0.5" />
-            <rect x="11" y="11" width="4" height="4" rx="0.5" />
-          </svg>
-        </div>
-        <router-link to="/" class="logo-brand">DBay</router-link>
-        <span class="header-divider"></span>
-        <span class="header-console-text">控制台</span>
-        <span class="header-region">
-          <svg class="region-icon" viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
-            <path d="M8 1a5.5 5.5 0 0 0-5.5 5.5c0 3.038 5.5 8.5 5.5 8.5s5.5-5.462 5.5-8.5A5.5 5.5 0 0 0 8 1zm0 7.5a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
-          </svg>
-          华北-北京四
-          <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" style="opacity:0.5">
-            <path d="M4 6l4 4 4-4"/>
-          </svg>
-        </span>
+        <router-link to="/" class="logo-brand">DBay<span class="logo-tagline">数据港湾</span></router-link>
       </div>
       <div class="header-right">
-        <span class="header-nav-item header-username">{{ authStore.tenantName || 'Tenant' }}</span>
-        <button class="header-nav-item header-nav-btn" @click="handleLogout">退出</button>
+        <router-link to="/docs" class="header-nav-link">文档</router-link>
+        <span class="header-divider-small"></span>
+        <div class="header-user">
+          <span class="user-avatar">{{ (authStore.tenantName || 'U').charAt(0).toUpperCase() }}</span>
+          <span class="header-username">{{ authStore.tenantName || 'Tenant' }}</span>
+        </div>
+        <button class="header-nav-btn" @click="handleLogout">退出</button>
       </div>
     </header>
 
@@ -293,26 +274,15 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 20px;
   flex-shrink: 0;
   z-index: 100;
+  border-bottom: 2px solid #c67d3a;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-}
-
-.header-grid-icon {
-  color: rgba(255, 255, 255, 0.6);
-  margin-right: 12px;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-}
-
-.header-grid-icon:hover {
-  color: #fff;
 }
 
 .logo-brand {
@@ -321,50 +291,32 @@ onUnmounted(() => {
   font-size: 18px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  margin-right: 20px;
-}
-
-.header-divider {
-  width: 1px;
-  height: 16px;
-  background-color: rgba(255, 255, 255, 0.2);
-  margin-right: 20px;
-}
-
-.header-console-text {
-  color: #fff;
-  font-size: 15px;
-  font-weight: 500;
-  margin-right: 24px;
-}
-
-.header-region {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 14px;
-  cursor: pointer;
+  align-items: baseline;
+  gap: 8px;
 }
 
-.region-icon {
-  opacity: 0.85;
+.logo-tagline {
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 1px;
 }
-
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 16px;
 }
 
-.header-nav-item {
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 14px;
-  cursor: pointer;
+.header-nav-link {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  text-decoration: none;
+  transition: color 0.15s;
 }
 
-.header-nav-item:hover {
+.header-nav-link:hover {
   color: #fff;
 }
 
@@ -374,15 +326,43 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.15);
 }
 
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.user-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #c67d3a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .header-username {
   color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
 }
 
 .header-nav-btn {
   background: transparent;
   border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  cursor: pointer;
   padding: 0;
-  transition: color 0.2s;
+  transition: color 0.15s;
+}
+
+.header-nav-btn:hover {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .console-body {
@@ -546,12 +526,8 @@ onUnmounted(() => {
     display: inline-flex;
   }
 
-  .header-grid-icon,
-  .header-divider,
-  .header-console-text,
-  .header-region,
-  .header-center,
-  .header-nav-desktop {
+  .header-nav-link,
+  .header-divider-small:not(.header-user + .header-divider-small) {
     display: none !important;
   }
 

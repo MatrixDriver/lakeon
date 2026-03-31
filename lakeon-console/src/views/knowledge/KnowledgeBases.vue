@@ -126,7 +126,7 @@
             </td>
             <td style="color: #999;">{{ formatTime(kb.created_at) }}</td>
             <td>
-              <button class="btn btn-text btn-small" style="color: #e6393d;" @click="handleDelete(kb)">删除</button>
+              <button class="btn btn-text btn-small btn-danger-text" @click="handleDelete(kb)">删除</button>
             </td>
           </tr>
         </tbody>
@@ -141,6 +141,18 @@
       </svg>
       <p style="color: #666; margin-top: 12px;">还没有知识库</p>
       <p style="color: #999; font-size: 13px;">创建知识库后，上传文档即可自动建立检索索引</p>
+    </div>
+
+    <!-- Quick tips -->
+    <div v-if="!loading && knowledgeBases.length > 0 && knowledgeBases.length < 3" class="page-tips">
+      <div class="page-tips-title">快速上手</div>
+      <div class="page-tips-items">
+        <span>上传文档到知识库，支持 PDF、Markdown、TXT 等格式</span>
+        <span class="tips-sep">·</span>
+        <span>通过 MCP 集成让 AI Agent 直接检索知识库</span>
+        <span class="tips-sep">·</span>
+        <router-link to="/docs#knowledge" class="tips-link">查看文档</router-link>
+      </div>
     </div>
   </div>
 </template>
@@ -322,5 +334,34 @@ onMounted(loadKBs)
   background: #f0fff4;
   color: #389e0d;
   border: 1px solid #b7eb8f;
+}
+.page-tips {
+  margin-top: 48px;
+  padding: 16px 20px;
+  background: #faf8f5;
+  border-radius: 6px;
+  border-left: 3px solid #c67d3a;
+}
+.page-tips-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 6px;
+}
+.page-tips-items {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.6;
+}
+.tips-sep {
+  margin: 0 8px;
+  color: #d5d0ca;
+}
+.tips-link {
+  color: #9a5b25;
+  text-decoration: none;
+}
+.tips-link:hover {
+  text-decoration: underline;
 }
 </style>

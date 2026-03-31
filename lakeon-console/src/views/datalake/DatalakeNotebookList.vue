@@ -27,7 +27,7 @@
             <td>{{ formatDate(nb.updated_at) }}</td>
             <td>
               <button class="btn btn-text btn-small" @click="renameNotebook(nb)">重命名</button>
-              <button class="btn btn-text btn-small" style="color:#e53e3e;" @click="deleteNotebook(nb)">删除</button>
+              <button class="btn btn-text btn-small btn-danger-text" @click="deleteNotebook(nb)">删除</button>
             </td>
           </tr>
           <tr v-if="notebooks.length === 0 && !loading">
@@ -35,6 +35,18 @@
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Quick tips -->
+    <div v-if="!loading && notebooks.length > 0 && notebooks.length < 3" class="page-tips">
+      <div class="page-tips-title">快速上手</div>
+      <div class="page-tips-items">
+        <span>Notebook 支持 Python 和 Ray 分布式计算</span>
+        <span class="tips-sep">·</span>
+        <span>可直接访问 DBay 数据库和 OBS 数据</span>
+        <span class="tips-sep">·</span>
+        <router-link to="/docs#datalake" class="tips-link">查看文档</router-link>
+      </div>
     </div>
 
     <div v-if="loading" style="text-align:center;padding:40px;color:#999;">加载中...</div>
@@ -234,5 +246,34 @@ onMounted(fetchNotebooks)
   font-size: 11px;
   color: #94a3b8;
   line-height: 1.3;
+}
+.page-tips {
+  margin-top: 48px;
+  padding: 16px 20px;
+  background: #faf8f5;
+  border-radius: 6px;
+  border-left: 3px solid #c67d3a;
+}
+.page-tips-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 6px;
+}
+.page-tips-items {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.6;
+}
+.tips-sep {
+  margin: 0 8px;
+  color: #d5d0ca;
+}
+.tips-link {
+  color: #9a5b25;
+  text-decoration: none;
+}
+.tips-link:hover {
+  text-decoration: underline;
 }
 </style>

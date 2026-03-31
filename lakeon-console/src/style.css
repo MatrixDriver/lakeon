@@ -301,11 +301,19 @@ body {
 }
 
 .btn-danger-text {
-  color: #e6393d;
+  color: #94a3b8;
 }
 
 .btn-danger-text:hover:not(:disabled) {
-  color: #cc2f33;
+  color: #e6393d;
+}
+
+.btn-accent-text {
+  color: #9a5b25;
+}
+
+.btn-accent-text:hover:not(:disabled) {
+  color: #8b5222;
 }
 
 .action-btns {

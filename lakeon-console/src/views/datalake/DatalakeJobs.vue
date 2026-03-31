@@ -55,19 +55,16 @@
             <td>
               <button
                 v-if="canCancel(job)"
-                class="btn btn-text btn-small"
-                style="color: #e6393d;"
+                class="btn btn-text btn-small btn-danger-text"
                 @click="handleCancel(job)"
               >取消</button>
               <router-link
                 :to="`/datalake/jobs/${job.id}`"
-                class="btn btn-text btn-small"
-                style="color: #9a5b25;"
+                class="btn btn-text btn-small btn-accent-text"
               >详情</router-link>
               <button
                 v-if="job.status === 'FAILED' || job.status === 'CANCELLED' || job.status === 'SUCCEEDED'"
-                class="btn btn-text btn-small"
-                style="color: #9a5b25;"
+                class="btn btn-text btn-small btn-accent-text"
                 @click="handleResubmit(job)"
               >重跑</button>
             </td>
