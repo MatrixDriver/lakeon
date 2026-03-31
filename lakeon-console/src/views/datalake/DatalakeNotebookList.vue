@@ -52,11 +52,20 @@
             <input v-model="newName" class="form-input" style="width:100%;" placeholder="我的 Notebook" @keyup.enter="createNotebook" />
           </div>
           <div>
-            <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">镜像</label>
-            <select v-model="newImage" class="form-select" style="width:100%;">
-              <option value="python-data">python-data</option>
-              <option value="ray">ray</option>
-            </select>
+            <label style="font-size:13px;font-weight:600;display:block;margin-bottom:8px;">镜像</label>
+            <div class="image-cards">
+              <button
+                v-for="img in imageOptions"
+                :key="img.value"
+                type="button"
+                class="image-card"
+                :class="{ 'image-card-selected': newImage === img.value }"
+                @click="newImage = img.value"
+              >
+                <span class="image-card-name">{{ img.label }}</span>
+                <span class="image-card-desc">{{ img.desc }}</span>
+              </button>
+            </div>
           </div>
         </div>
         <div class="dialog-footer">
@@ -90,6 +99,11 @@ const showCreateDialog = ref(false)
 const newName = ref('')
 const newImage = ref('python-data')
 const creating = ref(false)
+
+const imageOptions = [
+  { value: 'python-data', label: 'Python Data', desc: 'pandas / numpy / matplotlib' },
+  { value: 'ray', label: 'Ray', desc: 'Ray 分布式计算框架' },
+]
 
 function formatDate(ts: string): string {
   if (!ts) return '-'
@@ -186,14 +200,39 @@ onMounted(fetchNotebooks)
   border-color: #2563eb;
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
 }
-.form-select {
-  padding: 8px 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+.image-cards {
+  display: flex;
+  gap: 10px;
+}
+.image-card {
+  flex: 1;
+  padding: 14px 16px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.image-card:hover {
+  border-color: #93c5fd;
+}
+.image-card-selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+  background: #f0f5ff;
+}
+.image-card-name {
   font-size: 14px;
-  color: #374151;
-  outline: none;
-  box-sizing: border-box;
-  background: white;
+  font-weight: 600;
+  color: #1e293b;
+}
+.image-card-desc {
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.3;
 }
 </style>
