@@ -101,7 +101,11 @@
         :statusLabel="statusText(item.status)"
         :meta="[item.scene === 'DEVELOPER_TOOL' ? '开发者工具' : item.scene === 'CHAT_ASSISTANT' ? '对话助理' : '-', typeText(item.type), `${item.memory_count ?? 0} 记忆`]"
         @click="handleRowClick(item)"
-      />
+      >
+        <template #actions>
+          <CardMenu @delete="handleDelete(item)" />
+        </template>
+      </ResourceCard>
       <div class="card-create" @click="showCreate = true; createStep = 1; resetCreateForm()">
         + 创建记忆库
       </div>
@@ -183,6 +187,7 @@ import { useRouter } from 'vue-router'
 import { listMemoryBases, createMemoryBase, deleteMemoryBase, type MemoryBase } from '../../api/memory'
 import ViewToggle from '../../components/ViewToggle.vue'
 import ResourceCard from '../../components/ResourceCard.vue'
+import CardMenu from '../../components/CardMenu.vue'
 
 const router = useRouter()
 const viewMode = ref<'card' | 'table'>('card')

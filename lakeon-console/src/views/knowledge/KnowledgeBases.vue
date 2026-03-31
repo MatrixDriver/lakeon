@@ -104,7 +104,11 @@
         :statusLabel="statusText(kb.status)"
         :meta="[kb.type === 'TABLE' ? '数据表' : '文档', kb.embedding_model || '-', kb.type === 'TABLE' ? '-' : `${kb.document_count ?? 0} 文档`]"
         @click="$router.push(`/knowledge/${kb.id}`)"
-      />
+      >
+        <template #actions>
+          <CardMenu @delete="handleDelete(kb)" />
+        </template>
+      </ResourceCard>
       <div class="card-create" @click="showCreate = true">
         + 创建知识库
       </div>
@@ -181,6 +185,7 @@ import { listKnowledgeBases, createKnowledgeBase, deleteKnowledgeBase, type Know
 import { databaseApi, type Database } from '../../api/database'
 import ViewToggle from '../../components/ViewToggle.vue'
 import ResourceCard from '../../components/ResourceCard.vue'
+import CardMenu from '../../components/CardMenu.vue'
 
 const viewMode = ref<'card' | 'table'>('card')
 const knowledgeBases = ref<KnowledgeBase[]>([])

@@ -34,7 +34,11 @@
         :statusLabel="statusText(ds.status)"
         :meta="[sourceLabel(ds.sourceType), ds.rowCount != null ? ds.rowCount.toLocaleString() + ' 行' : '-', ds.sizeBytes != null ? formatSize(ds.sizeBytes) : '-']"
         @click="$router.push(`/datalake/datasets/${ds.id}`)"
-      />
+      >
+        <template #actions>
+          <CardMenu @delete="handleDelete(ds.id, ds.name)" />
+        </template>
+      </ResourceCard>
       <div class="card-create" @click="$router.push('/datalake/datasets/new')">
         + 新建数据集
       </div>
@@ -101,6 +105,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import ViewToggle from '../../components/ViewToggle.vue'
 import ResourceCard from '../../components/ResourceCard.vue'
+import CardMenu from '../../components/CardMenu.vue'
 import client from '../../api/client'
 import { formatSize } from '../../utils/format'
 interface Dataset {

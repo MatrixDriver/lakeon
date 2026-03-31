@@ -18,7 +18,11 @@
         statusLabel="活跃"
         :meta="[nb.image, formatDate(nb.updated_at)]"
         @click="$router.push(`/datalake/notebook/${nb.id}`)"
-      />
+      >
+        <template #actions>
+          <CardMenu @delete="deleteNotebook(nb)" />
+        </template>
+      </ResourceCard>
       <div class="card-create" @click="showCreateDialog = true">
         + 新建 Notebook
       </div>
@@ -117,6 +121,7 @@ import { useRouter } from 'vue-router'
 import { notebooksApi } from '../../api/notebooks'
 import ViewToggle from '../../components/ViewToggle.vue'
 import ResourceCard from '../../components/ResourceCard.vue'
+import CardMenu from '../../components/CardMenu.vue'
 
 const router = useRouter()
 
