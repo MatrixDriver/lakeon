@@ -8,12 +8,8 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-SETUP_SQL = """
+SETUP_SQL_CORE = """
 CREATE EXTENSION IF NOT EXISTS vector;
-CREATE EXTENSION IF NOT EXISTS zhparser;
-
-CREATE TEXT SEARCH CONFIGURATION IF NOT EXISTS chinese (PARSER = zhparser);
-ALTER TEXT SEARCH CONFIGURATION chinese ADD MAPPING FOR n,v,a,i,e,l WITH simple;
 
 CREATE TABLE IF NOT EXISTS knowledge_chunks (
     id SERIAL PRIMARY KEY,
@@ -39,7 +35,12 @@ CREATE TABLE IF NOT EXISTS knowledge_chunks (
 CREATE INDEX IF NOT EXISTS idx_chunks_doc_id ON knowledge_chunks(document_id);
 CREATE INDEX IF NOT EXISTS idx_chunks_embedding ON knowledge_chunks
     USING hnsw (embedding vector_cosine_ops);
+"""
 
+SETUP_SQL_ZHPARSER = """
+CREATE EXTENSION IF NOT EXISTS zhparser;
+CREATE TEXT SEARCH CONFIGURATION IF NOT EXISTS chinese (PARSER = zhparser);
+ALTER TEXT SEARCH CONFIGURATION chinese ADD MAPPING FOR n,v,a,i,e,l WITH simple;
 CREATE INDEX IF NOT EXISTS idx_chunks_content_fts ON knowledge_chunks
     USING gin (to_tsvector('chinese', content));
 """
@@ -107,9 +108,16 @@ def _ensure_schema(conn):
     with conn.cursor() as cur:
         cur.execute("SELECT pg_advisory_lock(%s)", (LOCK_ID,))
         try:
-            cur.execute(SETUP_SQL)
+            cur.execute(SETUP_SQL_CORE)
             cur.execute(MIGRATE_SQL)
             conn.commit()
+            # zhparser is optional — if extension not installed, skip FTS index
+            try:
+                cur.execute(SETUP_SQL_ZHPARSER)
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                logger.warning(f"zhparser setup skipped (FTS will be unavailable): {e}")
         finally:
             cur.execute("SELECT pg_advisory_unlock(%s)", (LOCK_ID,))
             conn.commit()
