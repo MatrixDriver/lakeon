@@ -140,7 +140,10 @@
                 </td>
               </tr>
             </template>
-            <tr v-if="kbs.length === 0">
+            <tr v-if="kbLoading">
+              <td colspan="9" style="text-align:center;padding:32px;color:#94a3b8">加载中...</td>
+            </tr>
+            <tr v-else-if="kbs.length === 0">
               <td colspan="9" class="empty-state">暂无数据</td>
             </tr>
           </tbody>
@@ -396,6 +399,7 @@ const tasks = ref<WriteTask[]>([])
 const expandedKbs = ref<Set<string>>(new Set())
 const kbDocs = reactive<Record<string, Doc[]>>({})
 
+const kbLoading = ref(true)
 const statusFilter = ref('')
 const typeFilter = ref('')
 const tenantFilter = ref('')
@@ -540,6 +544,7 @@ async function loadStats() {
 }
 
 async function loadKbs() {
+  kbLoading.value = true
   try {
     const params: Record<string, string> = {}
     if (statusFilter.value) params.status = statusFilter.value
@@ -548,6 +553,7 @@ async function loadKbs() {
     const resp = await adminApi.listKnowledgeBases(params)
     kbs.value = resp.data
   } catch { /* ignore */ }
+  kbLoading.value = false
 }
 
 async function loadTasks() {

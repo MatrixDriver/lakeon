@@ -127,7 +127,10 @@
                 </td>
               </tr>
             </template>
-            <tr v-if="jobs.length === 0">
+            <tr v-if="jobsLoading">
+              <td colspan="9" style="text-align:center;padding:32px;color:#94a3b8">加载中...</td>
+            </tr>
+            <tr v-else-if="jobs.length === 0">
               <td colspan="9" class="empty-state">暂无数据</td>
             </tr>
           </tbody>
@@ -336,6 +339,7 @@ const warmPool = ref<WarmPoolState | null>(null)
 
 // Jobs
 const jobs = ref<DatalakeJob[]>([])
+const jobsLoading = ref(true)
 const tenantFilter = ref('')
 const typeFilter = ref('')
 const statusFilter = ref('')
@@ -407,6 +411,7 @@ async function loadStats() {
 }
 
 async function loadJobs() {
+  jobsLoading.value = true
   try {
     const params: Record<string, string> = {}
     if (tenantFilter.value.trim()) params.tenant_id = tenantFilter.value.trim()
@@ -415,6 +420,7 @@ async function loadJobs() {
     const { data } = await adminApi.listDatalakeJobs(params)
     jobs.value = data
   } catch { /* ignore */ }
+  jobsLoading.value = false
 }
 
 async function loadDatasets() {
