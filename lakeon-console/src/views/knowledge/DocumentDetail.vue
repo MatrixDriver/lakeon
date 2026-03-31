@@ -40,8 +40,12 @@
     <div v-if="!loading" style="margin-bottom: 16px;">
       <div class="section-card" style="max-width: 100%;">
         <div class="section-header" style="cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between;" @click="summaryExpanded = !summaryExpanded">
-          <span>摘要</span>
-          <span style="font-size: 12px; color: #999;">{{ summaryExpanded ? '收起' : '展开' }}</span>
+          <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+            <span>摘要</span>
+            <span v-if="!summaryExpanded && summary" style="font-size: 13px; color: #999; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ summary.split('\n')[0] }}</span>
+            <span v-if="!summaryExpanded && !summary && !summaryLoading" style="font-size: 13px; color: #ccc; font-weight: 400;">摘要尚未生成</span>
+          </div>
+          <span style="font-size: 12px; color: #999; flex-shrink: 0;">{{ summaryExpanded ? '收起' : '展开' }}</span>
         </div>
         <div v-if="summaryExpanded" style="padding: 16px; font-size: 14px; line-height: 1.8; color: #333; white-space: pre-wrap;">
           <span v-if="summaryLoading" style="color: #999;">加载中...</span>
@@ -168,7 +172,7 @@ const addingChunk = ref(false)
 // Summary
 const summary = ref<string | null>(null)
 const summaryLoading = ref(false)
-const summaryExpanded = ref(true)
+const summaryExpanded = ref(false)
 
 async function loadSummary() {
   summaryLoading.value = true
