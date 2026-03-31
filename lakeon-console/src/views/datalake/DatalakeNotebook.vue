@@ -128,7 +128,7 @@ fig.show()</pre>
             <h4>Ray Distributed</h4>
             <p style="color:#6b7280;margin:0 0 4px;">ray.init() auto-connects to the cluster — no address needed.</p>
             <pre class="nb-ref-code">import ray
-ray.init()  # auto-connects
+ray.init(ignore_reinit_error=True)  # auto-connects
 print(ray.cluster_resources())
 
 @ray.remote
@@ -137,7 +137,8 @@ def task(x):
 
 results = ray.get(
   [task.remote(i) for i in range(10)]
-)</pre>
+)
+print(results)</pre>
           </div>
         </div>
       </aside>
