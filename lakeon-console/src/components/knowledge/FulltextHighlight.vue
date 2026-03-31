@@ -21,6 +21,19 @@ const contentRef = ref<HTMLElement | null>(null)
 
 const baseHtml = computed(() => md.render(props.fulltext || ''))
 
+/** Map a normalized-text length back to original-text length (accounting for collapsed whitespace) */
+function findOrigLength(orig: string, startIdx: number, normLen: number): number {
+  let normCount = 0, i = startIdx
+  while (normCount < normLen && i < orig.length) {
+    if (/\s/.test(orig.charAt(i))) {
+      while (i + 1 < orig.length && /\s/.test(orig.charAt(i + 1))) i++
+    }
+    i++
+    normCount++
+  }
+  return i - startIdx
+}
+
 function highlightChunkInDom() {
   if (!contentRef.value) return
 
@@ -50,7 +63,34 @@ function highlightChunkInDom() {
     nodeMap.push({ node: tn, start, end: fullText.length })
   }
 
-  const idx = fullText.indexOf(searchText)
+  // Normalize whitespace for matching: collapse all whitespace to single space
+  const norm = (s: string) => s.replace(/\s+/g, ' ')
+  const fullTextNorm = norm(fullText)
+  const searchNorm = norm(searchText)
+
+  let idx = fullText.indexOf(searchText)
+  let usedNorm = false
+  if (idx < 0) {
+    // Try normalized match
+    const normIdx = fullTextNorm.indexOf(searchNorm)
+    if (normIdx >= 0) {
+      // Map normalized index back to original fullText index
+      // Walk original fullText, counting non-collapsed chars
+      let origIdx = 0, normCount = 0
+      while (normCount < normIdx && origIdx < fullText.length) {
+        if (/\s/.test(fullText.charAt(origIdx))) {
+          // skip extra whitespace chars that were collapsed
+          while (origIdx + 1 < fullText.length && /\s/.test(fullText.charAt(origIdx + 1))) origIdx++
+        }
+        origIdx++
+        normCount++
+      }
+      idx = origIdx
+      usedNorm = true
+      console.log('[FulltextHighlight] Normalized match at normIdx', normIdx, '→ origIdx', idx)
+    }
+  }
+
   if (idx < 0) {
     console.warn('[FulltextHighlight] searchText not found in DOM text', {
       searchText,
@@ -59,11 +99,13 @@ function highlightChunkInDom() {
     })
     return
   }
-  console.log('[FulltextHighlight] Found match at index', idx)
+  if (!usedNorm) console.log('[FulltextHighlight] Direct match at index', idx)
 
   // Highlight the full chunk content length, not just the search snippet
   const chunkPlain = stripMarkdown(props.chunkContent || '').trim()
-  const highlightLen = Math.max(searchText.length, chunkPlain.length)
+  // For normalized matches, calculate highlight length in original text
+  const searchLenInOrig = usedNorm ? findOrigLength(fullText, idx, searchNorm.length) : searchText.length
+  const highlightLen = Math.max(searchLenInOrig, chunkPlain.length)
   const highlightStart = idx
   const highlightEnd = Math.min(fullText.length, idx + highlightLen)
 
