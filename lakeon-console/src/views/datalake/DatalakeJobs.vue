@@ -3,6 +3,7 @@
     <div class="page-header">
       <h1 class="page-title">作业管理</h1>
       <div class="page-header-actions">
+        <ViewToggle v-model="viewMode" />
         <button class="btn btn-primary" @click="router.push('/datalake/jobs/new')">提交作业</button>
       </div>
     </div>
@@ -21,9 +22,27 @@
       </button>
     </div>
 
-    <!-- Job list table -->
+    <!-- Job list -->
     <TableToolbar v-model="jobSearch" placeholder="搜索作业名称" :loading="loading" @refresh="loadJobs" style="margin-top: 16px;" />
-    <div v-if="searchedJobs.length > 0" class="table-wrapper">
+
+    <!-- Card view -->
+    <div v-if="viewMode === 'card' && searchedJobs.length > 0" class="card-grid">
+      <ResourceCard
+        v-for="job in searchedJobs"
+        :key="job.id"
+        :name="job.name"
+        :status="job.status"
+        :statusLabel="statusText(job.status)"
+        :meta="[typeLabel(job.type), duration(job), formatTime(job.createdAt)]"
+        @click="router.push(`/datalake/jobs/${job.id}`)"
+      />
+      <div class="card-create" @click="router.push('/datalake/jobs/new')">
+        + 提交作业
+      </div>
+    </div>
+
+    <!-- Table view -->
+    <div v-if="viewMode === 'table' && searchedJobs.length > 0" class="table-wrapper">
       <table class="data-table">
         <thead>
           <tr>
@@ -74,7 +93,7 @@
     </div>
 
     <!-- Empty state -->
-    <div v-else-if="!loading" class="empty-state" style="margin-top: 64px; text-align: center;">
+    <div v-if="searchedJobs.length === 0 && !loading" class="empty-state" style="margin-top: 64px; text-align: center;">
       <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#ccc" stroke-width="1.5">
         <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
         <line x1="8" y1="21" x2="16" y2="21"/>
@@ -103,9 +122,12 @@ import {
   type DatalakeJobType,
 } from '../../api/datalake'
 import TableToolbar from '../../components/TableToolbar.vue'
+import ViewToggle from '../../components/ViewToggle.vue'
+import ResourceCard from '../../components/ResourceCard.vue'
 
 const router = useRouter()
 
+const viewMode = ref<'card' | 'table'>('card')
 const jobs = ref<DatalakeJob[]>([])
 const loading = ref(false)
 const jobSearch = ref('')
@@ -372,5 +394,28 @@ onUnmounted(() => {
 .form-row {
   display: flex;
   gap: 12px;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+.card-create {
+  border: 1px dashed #d5d0ca;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.card-create:hover { border-color: #94a3b8; }
+@media (max-width: 768px) {
+  .card-grid { grid-template-columns: 1fr; }
 }
 </style>

@@ -3,12 +3,32 @@
     <div class="page-header">
       <h1 class="page-title">Notebook</h1>
       <div class="page-header-actions">
+        <ViewToggle v-model="viewMode" />
         <button class="btn btn-primary" @click="showCreateDialog = true">新建 Notebook</button>
       </div>
     </div>
 
-    <!-- Table -->
-    <div class="table-wrapper">
+    <!-- Card view -->
+    <div v-if="viewMode === 'card'" class="card-grid">
+      <ResourceCard
+        v-for="nb in notebooks"
+        :key="nb.id"
+        :name="nb.name"
+        status="active"
+        statusLabel="活跃"
+        :meta="[nb.image, formatDate(nb.updated_at)]"
+        @click="$router.push(`/datalake/notebook/${nb.id}`)"
+      />
+      <div class="card-create" @click="showCreateDialog = true">
+        + 新建 Notebook
+      </div>
+      <div v-if="notebooks.length === 0 && !loading" class="empty-state" style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+        <p>暂无 Notebook</p>
+      </div>
+    </div>
+
+    <!-- Table view -->
+    <div v-if="viewMode === 'table'" class="table-wrapper">
       <table class="data-table">
         <thead>
           <tr>
@@ -95,6 +115,8 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { notebooksApi } from '../../api/notebooks'
+import ViewToggle from '../../components/ViewToggle.vue'
+import ResourceCard from '../../components/ResourceCard.vue'
 
 const router = useRouter()
 
@@ -105,6 +127,7 @@ interface Notebook {
   updated_at: string
 }
 
+const viewMode = ref<'card' | 'table'>('card')
 const notebooks = ref<Notebook[]>([])
 const loading = ref(false)
 const showCreateDialog = ref(false)
@@ -275,5 +298,27 @@ onMounted(fetchNotebooks)
 }
 .tips-link:hover {
   text-decoration: underline;
+}
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+.card-create {
+  border: 1px dashed #d5d0ca;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.card-create:hover { border-color: #94a3b8; }
+@media (max-width: 768px) {
+  .card-grid { grid-template-columns: 1fr; }
 }
 </style>
