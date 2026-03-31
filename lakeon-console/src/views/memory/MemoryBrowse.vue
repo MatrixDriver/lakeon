@@ -7,6 +7,18 @@
     <MemoryBaseSelector @change="onBaseChange" />
 
     <div v-if="baseId" style="margin-top: 20px;">
+      <!-- Traits section -->
+      <div v-if="traits.length > 0" class="traits-section">
+        <div class="traits-header" @click="traitsExpanded = !traitsExpanded">
+          <span class="traits-title">反思洞察</span>
+          <span class="traits-count">{{ traits.length }}</span>
+          <span class="traits-toggle">{{ traitsExpanded ? '收起' : '展开' }}</span>
+        </div>
+        <div v-if="traitsExpanded" class="traits-grid">
+          <TraitCard v-for="t in traits" :key="t.id" :trait="t" />
+        </div>
+      </div>
+
       <!-- Type filters -->
       <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
         <button
@@ -96,12 +108,15 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import MemoryBaseSelector from '@/components/MemoryBaseSelector.vue'
-import { listMemories, recallMemories, deleteMemory, type MemoryItem } from '@/api/memory'
+import TraitCard from '@/components/memory/TraitCard.vue'
+import { listMemories, recallMemories, deleteMemory, listTraits, type MemoryItem, type Trait } from '@/api/memory'
 import { MEMORY_TYPES, MEMORY_TYPE_COLORS, MEMORY_TYPE_LABELS } from '@/constants/memory'
 
 const PAGE_SIZE = 20
 
 const baseId = ref('')
+const traits = ref<Trait[]>([])
+const traitsExpanded = ref(true)
 const typeFilter = ref('')
 const searchQuery = ref('')
 const memories = ref<MemoryItem[]>([])
@@ -114,6 +129,17 @@ function onBaseChange(id: string) {
   baseId.value = id
   currentPage.value = 1
   load()
+  loadTraits()
+}
+
+async function loadTraits() {
+  if (!baseId.value) return
+  try {
+    const { data } = await listTraits(baseId.value)
+    traits.value = data
+  } catch {
+    traits.value = []
+  }
 }
 
 async function load() {
@@ -154,3 +180,24 @@ async function handleDelete(memoryId: number) {
   }
 }
 </script>
+
+<style scoped>
+.traits-section {
+  margin-bottom: 20px;
+  border: 1px solid #e8e4df;
+  border-left: 3px solid #c67d3a;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.traits-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; cursor: pointer; user-select: none;
+}
+.traits-title { font-size: 13px; font-weight: 600; color: #2c3e50; }
+.traits-count { font-size: 11px; color: #94a3b8; }
+.traits-toggle { margin-left: auto; font-size: 12px; color: #9a5b25; }
+.traits-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px; padding: 0 14px 14px;
+}
+</style>
