@@ -93,7 +93,6 @@
     </div>
 
     <!-- Knowledge base list -->
-    <TableToolbar v-model="kbSearch" placeholder="搜索知识库" :loading="loading" @refresh="loadKBs" style="margin-top: 20px; max-width: 400px;" />
 
     <!-- Card view -->
     <div v-if="viewMode === 'card' && filteredKBs.length > 0" class="card-grid">
@@ -180,7 +179,6 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { listKnowledgeBases, createKnowledgeBase, deleteKnowledgeBase, type KnowledgeBase } from '../../api/knowledge'
 import { databaseApi, type Database } from '../../api/database'
-import TableToolbar from '../../components/TableToolbar.vue'
 import ViewToggle from '../../components/ViewToggle.vue'
 import ResourceCard from '../../components/ResourceCard.vue'
 

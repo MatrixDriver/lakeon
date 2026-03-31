@@ -23,7 +23,6 @@
     </div>
 
     <!-- Dataset list -->
-    <TableToolbar v-model="dsSearch" placeholder="搜索数据集名称" :loading="loading" @refresh="fetchDatasets" style="margin-top: 16px; max-width: 400px;" />
 
     <!-- Card view -->
     <div v-if="viewMode === 'card' && searchedDatasets.length > 0" class="card-grid">
@@ -100,7 +99,6 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import TableToolbar from '../../components/TableToolbar.vue'
 import ViewToggle from '../../components/ViewToggle.vue'
 import ResourceCard from '../../components/ResourceCard.vue'
 import client from '../../api/client'

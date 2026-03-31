@@ -145,7 +145,6 @@
 
       <!-- Database Instances (full list with CRUD) -->
       <div class="section-card" style="margin-top: 16px;">
-        <TableToolbar v-model="dbSearch" placeholder="搜索实例名称" :loading="loading" @refresh="fetchData" style="max-width: 400px;" />
 
         <!-- Card view -->
         <div v-if="viewMode === 'card'" class="card-grid">
@@ -368,7 +367,6 @@ import { databaseApi, type Database } from '../../api/database'
 import { operationApi, type OperationLog } from '../../api/operation'
 import { formatDuration, formatDate } from '../../utils/format'
 import { useToast } from '../../composables/useToast'
-import TableToolbar from '../../components/TableToolbar.vue'
 import TableFooter from '../../components/TableFooter.vue'
 import ViewToggle from '../../components/ViewToggle.vue'
 import ResourceCard from '../../components/ResourceCard.vue'

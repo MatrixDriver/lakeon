@@ -23,7 +23,6 @@
     </div>
 
     <!-- Job list -->
-    <TableToolbar v-model="jobSearch" placeholder="搜索作业名称" :loading="loading" @refresh="loadJobs" style="margin-top: 16px; max-width: 400px;" />
 
     <!-- Card view -->
     <div v-if="viewMode === 'card' && searchedJobs.length > 0" class="card-grid">
@@ -121,7 +120,6 @@ import {
   type DatalakeJobStatus,
   type DatalakeJobType,
 } from '../../api/datalake'
-import TableToolbar from '../../components/TableToolbar.vue'
 import ViewToggle from '../../components/ViewToggle.vue'
 import ResourceCard from '../../components/ResourceCard.vue'
 
