@@ -85,23 +85,15 @@
         <span style="color: #999; font-size: 13px;">支持 PDF、DOCX、DOC、XLSX、XLS、PPTX、EPUB、HTML、Markdown、TXT，最多 20 个/批</span>
       </div>
 
-      <!-- Upload progress list -->
-      <div v-if="uploadProgress.length > 0" style="margin-bottom: 16px; border: 1px solid #e5e5e5; border-radius: 6px; overflow: hidden;">
-        <div style="padding: 8px 12px; background: #f8f8f8; font-size: 12px; color: #666; border-bottom: 1px solid #e5e5e5;">
-          上传进度 ({{ uploadProgress.filter(f => f.status === 'done').length }}/{{ uploadProgress.length }})
-          <button v-if="!uploading" style="float: right; background: none; border: none; cursor: pointer; color: #999; font-size: 12px;" @click="uploadProgress = []">清除</button>
+      <!-- Upload progress bar -->
+      <div v-if="uploadProgress.length > 0 && (uploading || uploadJustFinished)" style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px; font-size: 12px; color: #666;">
+        <div style="flex: 1; height: 4px; background: #f0f0f0; border-radius: 2px; overflow: hidden;">
+          <div :style="{ width: Math.round(uploadProgress.filter(f => f.status === 'done' || f.status === 'error').length / uploadProgress.length * 100) + '%', height: '100%', background: uploadProgress.some(f => f.status === 'error') ? '#e6393d' : '#52c41a', borderRadius: '2px', transition: 'width 0.3s' }"></div>
         </div>
-        <div style="max-height: 180px; overflow-y: auto;">
-          <div v-for="f in uploadProgress" :key="f.filename"
-               style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 13px; border-bottom: 1px solid #f0f0f0;">
-            <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ f.filename }}</span>
-            <span v-if="f.status === 'pending'" style="color: #999; font-size: 12px; flex-shrink: 0;">等待中</span>
-            <span v-else-if="f.status === 'uploading'" style="color: #1890ff; font-size: 12px; flex-shrink: 0;">上传中...</span>
-            <span v-else-if="f.status === 'processing'" style="color: #1890ff; font-size: 12px; flex-shrink: 0;">处理中...</span>
-            <span v-else-if="f.status === 'done'" style="color: #52c41a; font-size: 12px; flex-shrink: 0;">✓ 完成</span>
-            <span v-else-if="f.status === 'error'" style="color: #e6393d; font-size: 12px; flex-shrink: 0;" :title="f.error">✗ 失败</span>
-          </div>
-        </div>
+        <span>{{ uploadProgress.filter(f => f.status === 'done').length }}/{{ uploadProgress.length }}</span>
+        <span v-if="uploadProgress.some(f => f.status === 'error')" style="color: #e6393d;">{{ uploadProgress.filter(f => f.status === 'error').length }} 失败</span>
+        <span v-if="uploading" style="color: #1890ff;">上传中...</span>
+        <span v-else style="color: #52c41a;">完成</span>
       </div>
 
       <TableToolbar v-model="docSearch" placeholder="搜索文件名" :loading="docLoading" @refresh="loadDocuments">
@@ -436,6 +428,7 @@ const searchResults = ref<SearchResult[] | null>(null)
 const searchRewrittenQuery = ref<string | null>(null)
 const isSearching = ref(false)
 const uploading = ref(false)
+const uploadJustFinished = ref(false)
 const docLoading = ref(false)
 
 interface UploadFileState {
@@ -708,6 +701,8 @@ async function runBatchUpload(files: File[]) {
     alert(`上传失败: ${err.message || err}`)
   } finally {
     uploading.value = false
+    uploadJustFinished.value = true
+    setTimeout(() => { uploadJustFinished.value = false }, 5000)
     await loadDocuments()
   }
 }
