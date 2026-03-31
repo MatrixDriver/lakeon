@@ -69,7 +69,7 @@ const allGroups: CmdGroup[] = [
   {
     label: '页面',
     items: [
-      { label: '我的数据库', icon: '◈', route: '/dashboard' },
+      { label: '数据库', icon: '◈', route: '/dashboard' },
       { label: '时间旅行', icon: '◷', route: '/timetravel' },
       { label: 'SQL 编辑器', icon: '⟩', route: '/sql' },
       { label: '知识库', icon: '◇', route: '/knowledge' },

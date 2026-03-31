@@ -54,7 +54,7 @@
             <div class="nav-group-title">数据库</div>
             <router-link to="/dashboard" class="nav-item" active-class="active" @click="sidebarOpen = false">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>
-              我的数据库
+              数据库
             </router-link>
             <router-link to="/timetravel" class="nav-item" active-class="active" @click="sidebarOpen = false">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>

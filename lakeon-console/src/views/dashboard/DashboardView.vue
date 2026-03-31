@@ -1,7 +1,7 @@
 <template>
   <div class="page-dashboard">
     <div class="page-header">
-      <h1 class="page-title">我的数据库</h1>
+      <h1 class="page-title">数据库</h1>
       <div class="page-header-actions" v-if="stats.total > 0">
         <ViewToggle v-model="viewMode" />
         <router-link to="/docs" class="page-header-link">使用指南</router-link>
