@@ -781,11 +781,16 @@ async function handleBatchDelete() {
 async function handleClearAll() {
   const total = documents.value.length
   if (!confirm(`确认清空全部 ${total} 个文档？此操作不可恢复。`)) return
-  for (const doc of documents.value) {
-    try { await deleteDocument(doc.id) } catch (e) { console.error('Failed to delete', doc.id, e) }
+  // Loop until all documents are deleted (handles cases where list wasn't fully loaded)
+  let remaining = [...documents.value]
+  while (remaining.length > 0) {
+    for (const doc of remaining) {
+      try { await deleteDocument(doc.id) } catch (e) { console.error('Failed to delete', doc.id, e) }
+    }
+    await loadDocuments()
+    remaining = [...documents.value]
   }
   selectedDocIds.value = new Set()
-  await loadDocuments()
 }
 
 async function handleDeleteKb() {
