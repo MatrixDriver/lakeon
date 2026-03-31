@@ -200,8 +200,17 @@ function docStatusText(s: string) {
 
 
 async function loadChunks() {
-  const resp = await listChunks(kbId, docId, 0, 0, 500)
-  chunks.value = resp.data.chunks
+  // Load all chunks via pagination (API limits to 200 per page)
+  const PAGE = 200
+  let offset = 0
+  const all: Chunk[] = []
+  while (true) {
+    const resp = await listChunks(kbId, docId, 0, offset, PAGE)
+    all.push(...resp.data.chunks)
+    if (resp.data.chunks.length < PAGE) break
+    offset += PAGE
+  }
+  chunks.value = all
 }
 
 async function loadStats() {
