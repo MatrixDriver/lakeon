@@ -1,5 +1,5 @@
 <template>
-  <div class="console-layout">
+  <div class="console-layout" @keydown.meta.k.prevent="cmdOpen = true" @keydown.ctrl.k.prevent="cmdOpen = true">
     <!-- Top Navigation Bar -->
     <header class="console-header">
       <div class="header-left">
@@ -8,50 +8,19 @@
             <path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/>
           </svg>
         </button>
-        <div class="header-grid-icon">
-          <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
-            <rect x="1" y="1" width="4" height="4" rx="0.5" />
-            <rect x="6" y="1" width="4" height="4" rx="0.5" />
-            <rect x="11" y="1" width="4" height="4" rx="0.5" />
-            <rect x="1" y="6" width="4" height="4" rx="0.5" />
-            <rect x="6" y="6" width="4" height="4" rx="0.5" />
-            <rect x="11" y="6" width="4" height="4" rx="0.5" />
-            <rect x="1" y="11" width="4" height="4" rx="0.5" />
-            <rect x="6" y="11" width="4" height="4" rx="0.5" />
-            <rect x="11" y="11" width="4" height="4" rx="0.5" />
-          </svg>
-        </div>
-        <span class="logo-brand">DBay</span>
-        <span class="header-divider"></span>
-        <span class="header-console-text">运维控制台</span>
-        <span class="header-region">
-          <svg class="region-icon" viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
-            <path d="M8 1a5.5 5.5 0 0 0-5.5 5.5c0 3.038 5.5 8.5 5.5 8.5s5.5-5.462 5.5-8.5A5.5 5.5 0 0 0 8 1zm0 7.5a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
-          </svg>
-          华北-北京四
-          <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" style="opacity:0.5">
-            <path d="M4 6l4 4 4-4"/>
-          </svg>
-        </span>
-      </div>
-      <div class="header-center">
-        <div class="header-search">
-          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" class="search-icon">
-            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
-          </svg>
-          <span class="search-placeholder">搜索云服务...</span>
-        </div>
+        <router-link to="/dashboard" class="logo-brand">DBay<span class="logo-tagline">SRE</span></router-link>
       </div>
       <div class="header-right">
-        <span class="header-nav-item header-nav-desktop">备案</span>
-        <span class="header-nav-item header-nav-desktop">资源</span>
-        <span class="header-nav-item header-nav-desktop">费用</span>
-        <span class="header-nav-item header-nav-desktop">企业</span>
-        <span class="header-nav-item header-nav-desktop">工具</span>
-        <span class="header-nav-item header-nav-desktop">工单</span>
-        <span class="header-divider-small header-nav-desktop"></span>
-        <span class="header-nav-item header-username">Admin</span>
-        <button class="header-nav-item header-nav-btn" @click="handleLogout">退出</button>
+        <button class="cmd-k-btn" @click="cmdOpen = true">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="cmd-k-text">&#8984;K</span>
+        </button>
+        <span class="header-divider-small"></span>
+        <div class="header-user">
+          <span class="user-avatar">A</span>
+          <span class="header-username">Admin</span>
+        </div>
+        <button class="header-nav-btn" @click="handleLogout">退出</button>
       </div>
     </header>
 
@@ -70,36 +39,81 @@
         <nav class="sidebar-nav">
           <div class="nav-group">
             <div class="nav-group-title">总览</div>
-            <router-link to="/dashboard" class="nav-item" active-class="active" @click="sidebarOpen = false">仪表盘</router-link>
+            <router-link to="/dashboard" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              <span>仪表盘</span>
+            </router-link>
           </div>
           <div class="nav-group">
             <div class="nav-group-title">租户</div>
-            <router-link to="/tenants" class="nav-item" active-class="active" @click="sidebarOpen = false">租户管理</router-link>
+            <router-link to="/tenants" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <span>租户管理</span>
+            </router-link>
           </div>
           <div class="nav-group">
             <div class="nav-group-title">数据服务</div>
-            <router-link to="/databases" class="nav-item" active-class="active" @click="sidebarOpen = false">数据库</router-link>
-            <router-link to="/knowledge" class="nav-item" active-class="active" @click="sidebarOpen = false">知识库</router-link>
-            <router-link to="/memory" class="nav-item" active-class="active" @click="sidebarOpen = false">记忆库</router-link>
-            <router-link to="/datalake" class="nav-item" active-class="active" @click="sidebarOpen = false">数据湖</router-link>
+            <router-link to="/databases" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+              <span>数据库</span>
+            </router-link>
+            <router-link to="/knowledge" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              <span>知识库</span>
+            </router-link>
+            <router-link to="/memory" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/><line x1="9" y1="21" x2="15" y2="21"/></svg>
+              <span>记忆库</span>
+            </router-link>
+            <router-link to="/datalake" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              <span>数据湖</span>
+            </router-link>
           </div>
           <div class="nav-group">
             <div class="nav-group-title">基础设施</div>
-            <router-link to="/infra" class="nav-item" active-class="active" @click="sidebarOpen = false">基础设施</router-link>
-            <router-link to="/cloud" class="nav-item" active-class="active" @click="sidebarOpen = false">华为云控制台</router-link>
-            <router-link to="/cost" class="nav-item" active-class="active" @click="sidebarOpen = false">成本监控</router-link>
+            <router-link to="/infra" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+              <span>基础设施</span>
+            </router-link>
+            <router-link to="/cloud" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+              <span>华为云控制台</span>
+            </router-link>
+            <router-link to="/cost" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              <span>成本监控</span>
+            </router-link>
           </div>
           <div class="nav-group">
             <div class="nav-group-title">日志审计</div>
-            <router-link to="/operations" class="nav-item" active-class="active" @click="sidebarOpen = false">操作日志</router-link>
-            <router-link to="/audit" class="nav-item" active-class="active" @click="sidebarOpen = false">审计日志</router-link>
+            <router-link to="/operations" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              <span>操作日志</span>
+            </router-link>
+            <router-link to="/audit" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <span>审计日志</span>
+            </router-link>
           </div>
           <div class="nav-group">
             <div class="nav-group-title">运行时监控</div>
-            <router-link to="/system" class="nav-item" active-class="active" @click="sidebarOpen = false">组件健康</router-link>
-            <router-link to="/metrics" class="nav-item" active-class="active" @click="sidebarOpen = false">应用指标</router-link>
-            <router-link to="/logs" class="nav-item" active-class="active" @click="sidebarOpen = false">日志查看</router-link>
-            <router-link to="/alerts" class="nav-item" active-class="active" @click="sidebarOpen = false">告警管理</router-link>
+            <router-link to="/system" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              <span>组件健康</span>
+            </router-link>
+            <router-link to="/metrics" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              <span>应用指标</span>
+            </router-link>
+            <router-link to="/logs" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              <span>日志查看</span>
+            </router-link>
+            <router-link to="/alerts" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <span>告警管理</span>
+            </router-link>
           </div>
         </nav>
         <div class="sidebar-collapse">
@@ -117,6 +131,9 @@
       <!-- AI Chat Panel -->
       <AiChatPanel ref="aiChatRef" />
     </div>
+
+    <!-- Command Palette -->
+    <CommandPalette v-if="cmdOpen" @close="cmdOpen = false" />
   </div>
 </template>
 
@@ -125,10 +142,12 @@ import { ref, provide } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAdminAuthStore } from '../stores/auth'
 import AiChatPanel from '../components/AiChatPanel.vue'
+import CommandPalette from '../components/CommandPalette.vue'
 
 const router = useRouter()
 const authStore = useAdminAuthStore()
 const sidebarOpen = ref(false)
+const cmdOpen = ref(false)
 const aiChatRef = ref<InstanceType<typeof AiChatPanel>>()
 
 function handleLogout() {
@@ -153,7 +172,7 @@ provide('openAiDiagnose', openAiDiagnose)
 
 .console-header {
   height: 48px;
-  background-color: #000;
+  background-color: #2a4d6a;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -167,95 +186,52 @@ provide('openAiDiagnose', openAiDiagnose)
   align-items: center;
 }
 
-.header-grid-icon {
-  color: rgba(255, 255, 255, 0.6);
-  margin-right: 12px;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-}
-
-.header-grid-icon:hover {
-  color: #fff;
-}
-
 .logo-brand {
-  color: #e6393d;
+  color: #c67d3a;
   font-size: 18px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  margin-right: 20px;
-}
-
-.header-divider {
-  width: 1px;
-  height: 16px;
-  background-color: rgba(255, 255, 255, 0.2);
-  margin-right: 20px;
-}
-
-.header-console-text {
-  color: #fff;
-  font-size: 15px;
-  font-weight: 500;
-  margin-right: 24px;
-}
-
-.header-region {
+  text-decoration: none;
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 4px;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 14px;
-  cursor: pointer;
 }
 
-.region-icon {
-  opacity: 0.85;
-}
-
-.header-center {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  max-width: 360px;
-  margin: 0 auto;
-}
-
-.header-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  padding: 6px 14px;
-  width: 240px;
-  cursor: pointer;
-}
-
-.header-search .search-icon {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.search-placeholder {
+.logo-tagline {
   color: rgba(255, 255, 255, 0.4);
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
 }
 
-.header-nav-item {
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 14px;
+.cmd-k-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.5);
+  padding: 4px 10px;
+  font-size: 12px;
   cursor: pointer;
+  transition: all 0.15s;
+  height: 28px;
 }
 
-.header-nav-item:hover {
-  color: #fff;
+.cmd-k-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.cmd-k-text {
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 .header-divider-small {
@@ -264,15 +240,42 @@ provide('openAiDiagnose', openAiDiagnose)
   background: rgba(255, 255, 255, 0.15);
 }
 
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #c67d3a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .header-username {
   color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
 }
 
 .header-nav-btn {
   background: transparent;
   border: none;
   padding: 0;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 14px;
+  cursor: pointer;
   transition: color 0.2s;
+}
+
+.header-nav-btn:hover {
+  color: #fff;
 }
 
 .console-body {
@@ -284,7 +287,7 @@ provide('openAiDiagnose', openAiDiagnose)
 .console-sidebar {
   width: 220px;
   background-color: #fff;
-  border-right: 1px solid #e5e5e5;
+  border-right: 1px solid #e8e4df;
   flex-shrink: 0;
   overflow-y: auto;
   display: flex;
@@ -296,10 +299,10 @@ provide('openAiDiagnose', openAiDiagnose)
   align-items: center;
   justify-content: space-between;
   padding: 24px 20px 20px;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid #e8e4df;
   font-size: 18px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
   line-height: 1.3;
 }
 
@@ -310,7 +313,7 @@ provide('openAiDiagnose', openAiDiagnose)
 }
 
 .sidebar-search-icon:hover {
-  color: #191919;
+  color: #2c3e50;
 }
 
 .sidebar-nav {
@@ -320,7 +323,7 @@ provide('openAiDiagnose', openAiDiagnose)
 
 .nav-group {
   padding: 8px 0;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid #e8e4df;
 }
 
 .nav-group:last-child {
@@ -329,34 +332,50 @@ provide('openAiDiagnose', openAiDiagnose)
 
 .nav-group-title {
   padding: 16px 24px 8px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #191919;
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
   line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
 }
 
 .nav-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 0 24px;
-  height: 44px;
-  line-height: 44px;
+  height: 32px;
   color: #333;
   text-decoration: none;
   font-size: 14px;
-  border-left: 3px solid transparent;
+  border-right: 2px solid transparent;
   transition: all 0.15s;
 }
 
+.nav-item svg {
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
 .nav-item:hover {
-  color: #0073e6;
-  background-color: #f5f7fa;
+  color: #9a5b25;
+  background-color: #f8f5f1;
+}
+
+.nav-item:hover svg {
+  opacity: 0.8;
 }
 
 .nav-item.active {
-  color: #0073e6;
+  color: #2a4d6a;
   font-weight: 600;
-  border-left-color: #0073e6;
-  background-color: transparent;
+  border-right-color: #2a4d6a;
+  background-color: #f0f4f8;
+}
+
+.nav-item.active svg {
+  opacity: 1;
 }
 
 .sidebar-collapse {
@@ -369,7 +388,7 @@ provide('openAiDiagnose', openAiDiagnose)
 }
 
 .sidebar-collapse:hover {
-  color: #0073e6;
+  color: #9a5b25;
 }
 
 .console-main {
@@ -409,13 +428,8 @@ provide('openAiDiagnose', openAiDiagnose)
     display: inline-flex;
   }
 
-  .header-grid-icon,
-  .header-divider,
-  .header-console-text,
-  .header-region,
-  .header-center,
-  .header-nav-desktop {
-    display: none !important;
+  .cmd-k-btn {
+    display: none;
   }
 
   .header-right {
