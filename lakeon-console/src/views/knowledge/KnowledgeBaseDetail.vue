@@ -51,6 +51,17 @@
         <div class="section-header">知识库概览</div>
         <div style="padding: 16px; font-size: 14px; line-height: 1.8; color: #333; white-space: pre-wrap;">{{ kb.summary }}</div>
       </div>
+      <!-- Danger zone -->
+      <div class="section-card" style="max-width: 600px; margin-top: 32px; border-color: #f0d0d0;">
+        <div class="section-header" style="color: #e6393d;">危险操作</div>
+        <div style="padding: 16px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-size: 14px; font-weight: 500;">删除知识库</div>
+            <div style="font-size: 12px; color: #999; margin-top: 2px;">删除后所有文档、切片和索引数据将被永久清除，不可恢复。</div>
+          </div>
+          <button class="btn btn-danger" style="flex-shrink: 0;" @click="handleDeleteKb">删除知识库</button>
+        </div>
+      </div>
     </div>
 
     <!-- Documents Tab -->
@@ -417,7 +428,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getKnowledgeBase, listDocuments, deleteDocument, searchKnowledge, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, type KnowledgeBase as KBType, type Document, type SearchResult, type DataSource, type DataSourceCredentials } from '../../api/knowledge'
+import { getKnowledgeBase, deleteKnowledgeBase, listDocuments, deleteDocument, searchKnowledge, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, type KnowledgeBase as KBType, type Document, type SearchResult, type DataSource, type DataSourceCredentials } from '../../api/knowledge'
 import ChunkStats from '../../components/knowledge/ChunkStats.vue'
 import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
 import TableToolbar from '../../components/TableToolbar.vue'
@@ -775,6 +786,17 @@ async function handleClearAll() {
   }
   selectedDocIds.value = new Set()
   await loadDocuments()
+}
+
+async function handleDeleteKb() {
+  const name = kb.value?.name || ''
+  if (!confirm(`确认删除知识库"${name}"？所有文档和索引数据将被永久删除。`)) return
+  try {
+    await deleteKnowledgeBase(route.params.kbId as string)
+    router.push('/knowledge')
+  } catch (e: any) {
+    alert('删除失败: ' + (e.response?.data?.error?.message || e.message))
+  }
 }
 
 function buildConversationHistory(): { role: string; content: string }[] {
