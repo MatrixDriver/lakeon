@@ -158,7 +158,7 @@
             @click="$router.push(`/databases/${db.id}`)"
           >
             <template #actions v-if="db.status === 'SUSPENDED'">
-              <button class="card-action-btn" @click.stop="handleResume(db)">唤醒</button>
+              <button class="card-action-btn" :disabled="actionLoading[db.id]" @click.stop="handleResume(db)">{{ actionLoading[db.id] ? '唤醒中...' : '唤醒' }}</button>
             </template>
           </ResourceCard>
           <div class="card-create" @click="showCreateDialog = true" v-if="!authStore.isTrial">
