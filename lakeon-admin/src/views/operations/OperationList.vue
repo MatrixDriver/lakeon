@@ -246,7 +246,7 @@ onMounted(loadOperations)
 }
 
 .rt-cold {
-  background: #e6f7ff;
-  color: #0073e6;
+  background: #fdf5ed;
+  color: #9a5b25;
 }
 </style>

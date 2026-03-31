@@ -680,7 +680,7 @@ onMounted(() => {
 
 /* Pipeline Monitor */
 .pl-status-queued { color: #6b7280; }
-.pl-status-running { color: #0073e6; }
+.pl-status-running { color: #9a5b25; }
 .pl-status-succeeded { color: #52c41a; }
 .pl-status-failed { color: #e6393d; }
 
@@ -725,7 +725,7 @@ onMounted(() => {
   display: flex; align-items: center; gap: 6px; font-size: 13px;
 }
 .pl-stage-dot {
-  width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
+  width: 10px; height: 10px; border-radius: 4px; flex-shrink: 0;
 }
 .pl-stage-legend-label { color: #666; }
 .pl-stage-legend-value { font-weight: 600; color: #333; }

@@ -225,7 +225,7 @@ onMounted(loadData)
 .page-header h2 {
   font-size: 20px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
   margin: 0;
 }
 
@@ -240,8 +240,8 @@ onMounted(loadData)
 }
 
 .refresh-btn:hover:not(:disabled) {
-  border-color: #0073e6;
-  color: #0073e6;
+  border-color: #c67d3a;
+  color: #9a5b25;
 }
 
 .refresh-btn:disabled {
@@ -256,7 +256,7 @@ onMounted(loadData)
 .section-title {
   font-size: 16px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
   margin: 0 0 16px;
   padding-bottom: 8px;
   border-bottom: 1px solid #e5e5e5;
@@ -356,7 +356,7 @@ onMounted(loadData)
 .arch-box-value {
   font-size: 14px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .arch-box-ports {
@@ -479,7 +479,7 @@ onMounted(loadData)
 }
 
 .detail-link {
-  color: #0073e6;
+  color: #9a5b25;
   text-decoration: none;
   font-size: 13px;
 }

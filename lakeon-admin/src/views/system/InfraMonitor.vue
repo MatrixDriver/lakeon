@@ -873,7 +873,7 @@ onUnmounted(() => {
 .infra-tab {
   padding: 10px 24px;
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
@@ -881,11 +881,11 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.15s;
 }
-.infra-tab:hover { color: #0073e6; }
+.infra-tab:hover { color: #9a5b25; }
 .infra-tab.active {
-  color: #191919;
+  color: #2c3e50;
   font-weight: 600;
-  border-bottom-color: #191919;
+  border-bottom-color: #2c3e50;
 }
 
 /* Pool Summary */
@@ -893,7 +893,7 @@ onUnmounted(() => {
   margin-bottom: 20px;
 }
 .pool-name-tag {
-  background: #e6f7ff;
+  background: #fdf5ed;
   color: #096dd9;
   padding: 2px 10px;
   border-radius: 3px;
@@ -905,7 +905,7 @@ onUnmounted(() => {
 }
 .gauge-label {
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   margin-bottom: 6px;
 }
 .gauge-bar {
@@ -924,12 +924,12 @@ onUnmounted(() => {
 .seg-empty { background: #e5e5e5; }
 .gauge-text {
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
 }
 .gauge-current {
   font-size: 24px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
 }
 .gauge-range {
   font-size: 16px;
@@ -992,7 +992,7 @@ onUnmounted(() => {
 }
 .pool-node-stats {
   font-size: 12px;
-  color: #575d6c;
+  color: #64748b;
   margin-bottom: 10px;
 }
 .pool-node-pods {
@@ -1011,7 +1011,7 @@ onUnmounted(() => {
   border-radius: 3px;
 }
 .as-up { background: #f6ffed; color: #389e0d; }
-.as-down { background: #e6f7ff; color: #096dd9; }
+.as-down { background: #fdf5ed; color: #096dd9; }
 
 .timeline {
   position: relative;
@@ -1060,14 +1060,14 @@ onUnmounted(() => {
   border-radius: 3px;
 }
 .reason-up { background: #f6ffed; color: #389e0d; }
-.reason-down { background: #e6f7ff; color: #096dd9; }
+.reason-down { background: #fdf5ed; color: #096dd9; }
 .timeline-time {
   font-size: 12px;
   color: #999;
 }
 .timeline-message {
   font-size: 12px;
-  color: #575d6c;
+  color: #64748b;
   line-height: 1.5;
 }
 
@@ -1092,7 +1092,7 @@ onUnmounted(() => {
 .node-name {
   font-size: 14px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
 }
 .status-badge {
   padding: 2px 10px;
@@ -1114,12 +1114,12 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
 }
-.resource-cap { font-weight: 500; color: #191919; }
+.resource-cap { font-weight: 500; color: #2c3e50; }
 .resource-label {
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   width: 36px;
   flex-shrink: 0;
 }
@@ -1141,7 +1141,7 @@ onUnmounted(() => {
 .resource-value {
   font-size: 13px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
   width: 44px;
   text-align: right;
   flex-shrink: 0;
@@ -1174,9 +1174,9 @@ onUnmounted(() => {
 }
 .phase-running  { background: #f6ffed; color: #389e0d; }
 .phase-starting { background: #fffbe6; color: #d48806; }
-.phase-pending  { background: #e6f7ff; color: #096dd9; }
+.phase-pending  { background: #fdf5ed; color: #096dd9; }
 .phase-failed   { background: #fff1f0; color: #e6393d; }
-.phase-unknown  { background: #f0f2f5; color: #575d6c; }
+.phase-unknown  { background: #f0f2f5; color: #64748b; }
 .restarts-warn  { color: #e37318; font-weight: 600; }
 
 .empty-text { color: #999; font-size: 14px; padding: 20px 0; }
@@ -1191,10 +1191,10 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 .badge-warning { background: #fff1f0; color: #e6393d; }
-.badge-normal  { background: #f0f2f5; color: #575d6c; }
+.badge-normal  { background: #f0f2f5; color: #64748b; }
 .event-object  { font-family: monospace; font-size: 12px; max-width: 200px; word-break: break-all; }
 .event-reason  { font-size: 13px; white-space: nowrap; }
-.event-message { font-size: 12px; color: #575d6c; max-width: 320px; cursor: default; }
+.event-message { font-size: 12px; color: #64748b; max-width: 320px; cursor: default; }
 .event-time    { font-size: 12px; color: #999; white-space: nowrap; }
 
 /* Compute Pod Stats */
@@ -1211,7 +1211,7 @@ onUnmounted(() => {
   display: block;
   font-size: 24px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
 }
 .stat-label {
   display: block;
@@ -1221,7 +1221,7 @@ onUnmounted(() => {
 }
 .stat-green .stat-value { color: #389e0d; }
 .stat-gray .stat-value { color: #8a8e99; }
-.stat-blue .stat-value { color: #0073e6; }
+.stat-blue .stat-value { color: #9a5b25; }
 .stat-red .stat-value { color: #e53e3e; }
 .stat-orange .stat-value { color: #d48806; }
 .row-warn { background: #fffbe6; }
@@ -1266,7 +1266,7 @@ onUnmounted(() => {
 .arch-box-network { background: #fff7ed; border-color: #f97316; }
 .arch-box-railway { background: #faf5ff; border-color: #a855f7; }
 .arch-box-label { font-size: 11px; font-weight: 600; color: #6b7280; }
-.arch-box-value { font-size: 14px; font-weight: 600; color: #191919; }
+.arch-box-value { font-size: 14px; font-weight: 600; color: #2c3e50; }
 .arch-box-desc { font-size: 10px; color: #6b7280; margin-top: 4px; }
 
 /* Service tags */
@@ -1285,7 +1285,7 @@ onUnmounted(() => {
 .resource-id-text {
   font-family: monospace;
   font-size: 12px;
-  color: #575d6c;
+  color: #64748b;
   max-width: 180px;
   display: inline-block;
   overflow: hidden;
@@ -1295,7 +1295,7 @@ onUnmounted(() => {
   cursor: default;
 }
 .console-link {
-  color: #0073e6;
+  color: #9a5b25;
   text-decoration: none;
   font-size: 13px;
   white-space: nowrap;
@@ -1328,5 +1328,5 @@ onUnmounted(() => {
   font-size: 13px; color: #666; border-right: 1px solid #e5e5e5;
 }
 .sub-tab:last-child { border-right: none; }
-.sub-tab.active { background: #0073e6; color: #fff; }
+.sub-tab.active { background: #c67d3a; color: #fff; }
 </style>

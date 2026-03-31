@@ -155,7 +155,7 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
 }
 .control-label {
   font-size: 12px;
-  color: #575d6c;
+  color: #64748b;
   font-weight: 500;
 }
 .control-select { width: 140px; height: 32px; }
@@ -172,7 +172,7 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   cursor: pointer;
   white-space: nowrap;
 }

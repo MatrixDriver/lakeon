@@ -25,7 +25,7 @@
           <div class="health-card-status">
             {{ comp.healthy ? '正常运行' : '异常' }}
           </div>
-          <button v-if="!comp.healthy" class="btn btn-text btn-small" style="color: #0073e6; margin-top: 4px;"
+          <button v-if="!comp.healthy" class="btn btn-text btn-small" style="color: #9a5b25; margin-top: 4px;"
             @click.stop="diagnose(comp)">AI 诊断</button>
           <div class="health-card-detail" v-if="expandedCard === comp.name && comp.detailList.length > 0">
             <div class="detail-row" v-for="(d, i) in comp.detailList" :key="i">
@@ -142,12 +142,12 @@ onMounted(loadHealth)
 }
 
 .health-card:hover {
-  border-color: #0073e6;
-  box-shadow: 0 2px 8px rgba(0, 115, 230, 0.08);
+  border-color: #c67d3a;
+  box-shadow: 0 2px 8px rgba(198, 125, 58, 0.08);
 }
 
 .health-card-expanded {
-  border-color: #0073e6;
+  border-color: #c67d3a;
 }
 
 .health-card-error {
@@ -171,12 +171,12 @@ onMounted(loadHealth)
 .health-card-name {
   font-size: 16px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .health-card-status {
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
   margin-bottom: 8px;
 }
 
@@ -206,7 +206,7 @@ onMounted(loadHealth)
 
 .health-summary {
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   font-weight: 400;
 }
 
@@ -218,12 +218,12 @@ onMounted(loadHealth)
   border-radius: 4px;
   padding: 4px 14px;
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   cursor: pointer;
 }
 .refresh-btn:hover:not(:disabled) {
-  border-color: #0073e6;
-  color: #0073e6;
+  border-color: #c67d3a;
+  color: #9a5b25;
 }
 .refresh-btn:disabled {
   opacity: 0.5;

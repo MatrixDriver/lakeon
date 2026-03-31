@@ -110,7 +110,7 @@ onMounted(async () => {
 .arch-box-value { font-size: 12px; color: #666; margin-top: 2px; }
 .arch-box-desc { font-size: 11px; color: #999; margin-top: 2px; }
 .arch-box-railway { border-color: #722ed1; background: #f9f0ff; }
-.arch-box-network { border-color: #1890ff; background: #e6f7ff; }
+.arch-box-network { border-color: #1890ff; background: #fdf5ed; }
 .arch-box-compute { border-color: #52c41a; background: #f6ffed; }
 .arch-box-storage { border-color: #faad14; background: #fffbe6; }
 </style>

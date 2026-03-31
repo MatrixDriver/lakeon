@@ -100,7 +100,7 @@
             <td style="font-family: monospace; font-size: 13px;">{{ db.compute_pod_name || '-' }}</td>
             <td>{{ formatDate(db.created_at) }}</td>
             <td>
-              <button v-if="db.status === 'FAILED'" class="btn btn-text btn-small" style="color: #0073e6;" @click="diagnose(db)">AI 诊断</button>
+              <button v-if="db.status === 'FAILED'" class="btn btn-text btn-small" style="color: #9a5b25;" @click="diagnose(db)">AI 诊断</button>
               <button class="btn btn-text btn-small" style="color: #e53e3e;" @click="confirmDeleteOne(db)">删除</button>
             </td>
           </tr>
@@ -505,7 +505,7 @@ onMounted(() => { tenantStore.load(); loadDatabases() })
   cursor: not-allowed;
 }
 .db-link {
-  color: #0052d9;
+  color: #9a5b25;
   cursor: pointer;
   text-decoration: none;
 }

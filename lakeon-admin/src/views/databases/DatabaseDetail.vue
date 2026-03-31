@@ -111,7 +111,7 @@ onMounted(async () => {
 
 <style scoped>
 .back-link {
-  color: #0052d9;
+  color: #9a5b25;
   text-decoration: none;
   font-size: 16px;
 }
@@ -141,7 +141,7 @@ onMounted(async () => {
 
 .detail-value {
   font-size: 14px;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .mono {
