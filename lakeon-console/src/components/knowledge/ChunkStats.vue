@@ -278,7 +278,7 @@ onMounted(async () => {
   line-height: 1;
 }
 
-.stat-value.blue   { color: #0073e6; }
+.stat-value.blue   { color: #9a5b25; }
 .stat-value.green  { color: #52c41a; }
 .stat-value.orange { color: #fa8c16; }
 .stat-value.red    { color: #e6393d; }
@@ -314,7 +314,7 @@ onMounted(async () => {
 .histogram-bar {
   width: 100%;
   min-width: 12px;
-  background: #0073e6;
+  background: #9a5b25;
   border-radius: 3px 3px 0 0;
   opacity: 0.75;
   transition: opacity 0.15s;
@@ -352,7 +352,7 @@ onMounted(async () => {
 }
 
 .form-select:focus {
-  border-color: #0073e6;
+  border-color: #c67d3a;
 }
 
 .pagination-bar {

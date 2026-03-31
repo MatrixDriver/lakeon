@@ -102,7 +102,7 @@
             <tbody>
               <tr v-for="doc in filteredDocs" :key="doc.id" @click="$router.push(`/knowledge/${selectedKbId}/documents/${doc.id}`)" style="cursor: pointer;">
                 <td style="font-weight: 500; color: #1890ff;">{{ doc.filename }}</td>
-                <td><span style="background: #e8f4ff; color: #0073e6; font-size: 11px; padding: 1px 6px; border-radius: 3px;">{{ doc.format }}</span></td>
+                <td><span style="background: #e8f4ff; color: #9a5b25; font-size: 11px; padding: 1px 6px; border-radius: 3px;">{{ doc.format }}</span></td>
                 <td style="color: #666;">{{ formatSize(doc.size_bytes) }}</td>
                 <td>{{ doc.chunks_count ?? '-' }}</td>
                 <td>

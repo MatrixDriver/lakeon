@@ -2,7 +2,7 @@
   <div class="page-container">
     <!-- Breadcrumb -->
     <div class="breadcrumb" style="margin-bottom: 16px;">
-      <router-link to="/memory" style="color: #0073e6; text-decoration: none;">记忆库</router-link>
+      <router-link to="/memory" style="color: #9a5b25; text-decoration: none;">记忆库</router-link>
       <span style="margin: 0 8px; color: #ccc;">/</span>
       <span style="color: #333;">{{ base?.name || '...' }}</span>
     </div>
@@ -307,9 +307,9 @@ onMounted(async () => {
   color: #333;
 }
 .tab-item.active {
-  color: #0073e6;
+  color: #9a5b25;
   font-weight: 600;
-  border-bottom-color: #0073e6;
+  border-bottom-color: #c67d3a;
 }
 .client-card {
   padding: 14px 16px;
@@ -323,7 +323,7 @@ onMounted(async () => {
   background: #f0f7ff;
 }
 .client-card.active {
-  border-color: #0073e6;
+  border-color: #c67d3a;
   background: #e6f0ff;
 }
 .code-block {

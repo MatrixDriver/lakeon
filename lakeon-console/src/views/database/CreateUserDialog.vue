@@ -153,10 +153,10 @@ function handleDone() {
 .readonly-value {
   display: block;
   font-size: 14px;
-  color: #191919;
+  color: #2c3e50;
   background: #f2f3f5;
   padding: 6px 10px;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 .password-display {
@@ -172,7 +172,7 @@ function handleDone() {
   color: #d4380d;
   background: #f2f3f5;
   padding: 6px 10px;
-  border-radius: 2px;
+  border-radius: 4px;
   word-break: break-all;
 }
 
@@ -181,7 +181,7 @@ function handleDone() {
   padding: 8px 12px;
   background: #fff7e6;
   border: 1px solid #ffd591;
-  border-radius: 2px;
+  border-radius: 4px;
   color: #d46b08;
   font-size: 13px;
 }

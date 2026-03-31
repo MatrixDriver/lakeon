@@ -304,7 +304,7 @@ onUnmounted(() => {
 }
 
 .back-link:hover {
-  color: #0073e6;
+  color: #9a5b25;
 }
 
 .detail-header {
@@ -335,7 +335,7 @@ onUnmounted(() => {
 }
 
 .badge-gray { background: #f0f0f0; color: #888; }
-.badge-blue { background: #e8f3ff; color: #0073e6; }
+.badge-blue { background: #e8f3ff; color: #9a5b25; }
 .badge-green { background: #f6ffed; color: #389e0d; }
 .badge-red { background: #fff2f0; color: #cf1322; }
 
@@ -372,7 +372,7 @@ onUnmounted(() => {
 .section-title {
   font-size: 16px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
   margin: 0;
 }
 
@@ -384,7 +384,7 @@ onUnmounted(() => {
   background: #e8f3ff;
   border: 1px solid #b3d4f7;
   border-radius: 6px;
-  color: #0073e6;
+  color: #9a5b25;
   font-size: 14px;
 }
 
@@ -437,8 +437,8 @@ onUnmounted(() => {
 }
 
 .snippet-tab.active {
-  color: #0073e6;
-  border-bottom-color: #0073e6;
+  color: #9a5b25;
+  border-bottom-color: #c67d3a;
   font-weight: 500;
 }
 
@@ -529,10 +529,10 @@ onUnmounted(() => {
 }
 .schema-col-name {
   font-weight: 500;
-  color: #191919;
+  color: #2c3e50;
 }
 .schema-col-type {
-  color: #0073e6;
+  color: #9a5b25;
   font-family: monospace;
   font-size: 12px;
 }

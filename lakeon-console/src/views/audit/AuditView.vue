@@ -159,11 +159,11 @@ onMounted(() => fetchOps())
 }
 
 .filter-select:hover {
-  border-color: #0073e6;
+  border-color: #c67d3a;
 }
 
 .db-name-link {
-  color: #0073e6;
+  color: #9a5b25;
   text-decoration: none;
 }
 
@@ -185,10 +185,10 @@ onMounted(() => fetchOps())
   border-radius: 3px;
   font-size: 12px;
   background: #f5f5f5;
-  color: #575d6c;
+  color: #64748b;
 }
 
-.op-create { background: #e6f7ff; color: #0073e6; }
+.op-create { background: #fdf5ed; color: #9a5b25; }
 .op-resume { background: #f6ffed; color: #389e0d; }
 .op-suspend { background: #f5f5f5; color: #8a8e99; }
 .op-delete { background: #fff1f0; color: #cf1322; }
@@ -214,7 +214,7 @@ onMounted(() => fetchOps())
 }
 
 .rt-cold {
-  background: #e6f7ff;
-  color: #0073e6;
+  background: #fdf5ed;
+  color: #9a5b25;
 }
 </style>

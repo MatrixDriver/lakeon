@@ -355,7 +355,7 @@ onUnmounted(() => {
 }
 
 .back-link:hover {
-  color: #0073e6;
+  color: #9a5b25;
 }
 
 .detail-header {
@@ -436,7 +436,7 @@ onUnmounted(() => {
 .section-title {
   font-size: 16px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
   margin: 0;
 }
 
@@ -534,7 +534,7 @@ onUnmounted(() => {
 
 .type-tag-ray {
   background: #f0f7ff;
-  color: #0073e6;
+  color: #9a5b25;
   border: 1px solid #b3d4f7;
 }
 

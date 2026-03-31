@@ -17,12 +17,12 @@
       <div class="welcome-card">
         <div class="welcome-icon">
           <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-            <rect x="4" y="8" width="40" height="12" rx="3" fill="#0073e6" opacity="0.15"/>
-            <rect x="4" y="24" width="40" height="12" rx="3" fill="#0073e6" opacity="0.10"/>
-            <circle cx="12" cy="14" r="2" fill="#0073e6"/>
-            <circle cx="12" cy="30" r="2" fill="#0073e6"/>
-            <rect x="18" y="13" width="18" height="2" rx="1" fill="#0073e6" opacity="0.5"/>
-            <rect x="18" y="29" width="14" height="2" rx="1" fill="#0073e6" opacity="0.5"/>
+            <rect x="4" y="8" width="40" height="12" rx="3" fill="#c67d3a" opacity="0.15"/>
+            <rect x="4" y="24" width="40" height="12" rx="3" fill="#c67d3a" opacity="0.10"/>
+            <circle cx="12" cy="14" r="2" fill="#c67d3a"/>
+            <circle cx="12" cy="30" r="2" fill="#c67d3a"/>
+            <rect x="18" y="13" width="18" height="2" rx="1" fill="#c67d3a" opacity="0.5"/>
+            <rect x="18" y="29" width="14" height="2" rx="1" fill="#c67d3a" opacity="0.5"/>
           </svg>
         </div>
         <h2 class="welcome-title">欢迎来到 DBay 数据港湾</h2>
@@ -559,8 +559,8 @@ onUnmounted(() => {
 }
 
 .welcome-icon { margin-bottom: 16px; }
-.welcome-title { font-size: 24px; font-weight: 700; color: #191919; margin: 0 0 8px; }
-.welcome-desc { font-size: 15px; color: #575d6c; margin: 0 0 28px; }
+.welcome-title { font-size: 24px; font-weight: 700; color: #2c3e50; margin: 0 0 8px; }
+.welcome-desc { font-size: 15px; color: #64748b; margin: 0 0 28px; }
 .welcome-actions { display: flex; gap: 12px; justify-content: center; }
 .btn-lg { padding: 10px 28px; font-size: 15px; }
 
@@ -575,7 +575,7 @@ onUnmounted(() => {
   align-items: center;
 }
 
-.btn-outline:hover { border-color: #0073e6; color: #0073e6; }
+.btn-outline:hover { border-color: #c67d3a; color: #9a5b25; }
 
 /* ── Quick Start ── */
 .quickstart-steps { padding: 8px 16px 16px; }
@@ -592,13 +592,13 @@ onUnmounted(() => {
 
 .qs-num {
   width: 28px; height: 28px; border-radius: 50%;
-  background: #0073e6; color: #fff;
+  background: #9a5b25; color: #fff;
   font-size: 14px; font-weight: 600;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
 
-.qs-title { font-size: 15px; font-weight: 600; color: #191919; margin-bottom: 2px; }
+.qs-title { font-size: 15px; font-weight: 600; color: #2c3e50; margin-bottom: 2px; }
 .qs-desc { font-size: 13px; color: #8a8e99; }
 
 .qs-optional {
@@ -622,19 +622,19 @@ onUnmounted(() => {
 }
 
 .feature-icon-serverless { background: #fff7e6; color: #e37318; }
-.feature-icon-import { background: #e6f7ff; color: #0073e6; }
+.feature-icon-import { background: #fdf5ed; color: #9a5b25; }
 .feature-icon-branch { background: #f0f5ff; color: #2f54eb; }
 .feature-icon-secure { background: #f6ffed; color: #389e0d; }
 .feature-icon-compat { background: #f9f0ff; color: #722ed1; }
 .feature-icon-backup { background: #fff0f6; color: #c41d7f; }
 
-.feature-title { font-size: 15px; font-weight: 600; color: #191919; margin-bottom: 6px; }
+.feature-title { font-size: 15px; font-weight: 600; color: #2c3e50; margin-bottom: 6px; }
 .feature-desc { font-size: 13px; color: #8a8e99; line-height: 1.5; }
 
 /* ── Database Table ── */
 .db-name-cell { line-height: 1.4; }
 
-.db-name-link { color: #0073e6; text-decoration: none; font-size: 14px; }
+.db-name-link { color: #9a5b25; text-decoration: none; font-size: 14px; }
 .db-name-link:hover { text-decoration: underline; }
 .db-id-text { font-size: 12px; color: #8a8e99; margin-top: 2px; }
 
@@ -642,15 +642,15 @@ onUnmounted(() => {
 
 .storage-bar {
   width: 60px; height: 4px; background-color: #e8e8e8;
-  border-radius: 2px; overflow: hidden; flex-shrink: 0;
+  border-radius: 4px; overflow: hidden; flex-shrink: 0;
 }
 
-.storage-fill { height: 100%; background-color: #0073e6; border-radius: 2px; transition: width 0.3s; }
+.storage-fill { height: 100%; background-color: #9a5b25; border-radius: 4px; transition: width 0.3s; }
 .storage-text { font-size: 12px; color: #8a8e99; white-space: nowrap; }
 
 .text-muted { color: #ccc; }
 
-.section-link { font-size: 13px; color: #0073e6; text-decoration: none; }
+.section-link { font-size: 13px; color: #9a5b25; text-decoration: none; }
 .section-link:hover { text-decoration: underline; }
 
 .confirm-text { font-size: 14px; color: #333; line-height: 1.6; }
@@ -672,7 +672,7 @@ onUnmounted(() => {
 }
 
 .rt-warm { background: #f6ffed; color: #389e0d; }
-.rt-cold { background: #e6f7ff; color: #0073e6; }
+.rt-cold { background: #fdf5ed; color: #9a5b25; }
 
 @media (max-width: 768px) {
   .feature-grid { grid-template-columns: repeat(2, 1fr); }

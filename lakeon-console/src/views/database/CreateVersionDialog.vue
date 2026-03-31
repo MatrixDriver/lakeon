@@ -92,7 +92,7 @@ async function handleCreate() {
 .form-label {
   display: block;
   font-size: 14px;
-  color: #191919;
+  color: #2c3e50;
   margin-bottom: 6px;
   font-weight: 500;
 }
@@ -113,7 +113,7 @@ async function handleCreate() {
   padding: 0 8px;
   font-size: 14px;
   border: 1px solid #c2c6cc;
-  border-radius: 2px;
+  border-radius: 4px;
   box-sizing: border-box;
 }
 
@@ -125,7 +125,7 @@ async function handleCreate() {
 }
 
 .form-input:focus {
-  border-color: #0073e6;
+  border-color: #c67d3a;
   outline: none;
 }
 

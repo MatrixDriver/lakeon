@@ -31,7 +31,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   width: 160,
   height: 40,
-  color: '#0073e6',
+  color: '#9a5b25',
   max: null,
 })
 

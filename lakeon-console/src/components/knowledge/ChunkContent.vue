@@ -62,8 +62,8 @@
         <div class="context-divider"></div>
 
         <div class="context-current">
-          <div class="context-label" style="color: #0073e6;">当前切片 #{{ chunk.chunk_index }}</div>
-          <div class="context-text" style="background: #e6f7ff;">{{ chunk.content }}</div>
+          <div class="context-label" style="color: #9a5b25;">当前切片 #{{ chunk.chunk_index }}</div>
+          <div class="context-text" style="background: #fdf5ed;">{{ chunk.content }}</div>
         </div>
 
         <div class="context-divider"></div>
@@ -208,9 +208,9 @@ async function handleDelete() {
 }
 
 .tab-item.active {
-  color: #0073e6;
+  color: #9a5b25;
   font-weight: 600;
-  border-bottom-color: #0073e6;
+  border-bottom-color: #c67d3a;
 }
 
 .tab-panel {
@@ -223,7 +223,7 @@ async function handleDelete() {
   display: flex;
   gap: 12px;
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   margin-bottom: 16px;
   flex-wrap: wrap;
 }
@@ -265,7 +265,7 @@ async function handleDelete() {
 }
 
 .edit-textarea:focus {
-  border-color: #0073e6;
+  border-color: #c67d3a;
   box-shadow: 0 0 0 2px rgba(0, 115, 230, 0.1);
 }
 
@@ -293,7 +293,7 @@ async function handleDelete() {
 .context-label {
   font-size: 12px;
   font-weight: 600;
-  color: #575d6c;
+  color: #64748b;
   margin-bottom: 8px;
 }
 

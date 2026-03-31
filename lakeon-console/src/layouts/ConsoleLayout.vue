@@ -34,22 +34,7 @@
           </svg>
         </span>
       </div>
-      <div class="header-center">
-        <div class="header-search">
-          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" class="search-icon">
-            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
-          </svg>
-          <span class="search-placeholder">搜索云服务...</span>
-        </div>
-      </div>
       <div class="header-right">
-        <span class="header-nav-item header-nav-desktop">备案</span>
-        <span class="header-nav-item header-nav-desktop">资源</span>
-        <span class="header-nav-item header-nav-desktop">费用</span>
-        <span class="header-nav-item header-nav-desktop">企业</span>
-        <span class="header-nav-item header-nav-desktop">工具</span>
-        <span class="header-nav-item header-nav-desktop">工单</span>
-        <span class="header-divider-small header-nav-desktop"></span>
         <span class="header-nav-item header-username">{{ authStore.tenantName || 'Tenant' }}</span>
         <button class="header-nav-item header-nav-btn" @click="handleLogout">退出</button>
       </div>
@@ -304,7 +289,7 @@ onUnmounted(() => {
 
 .console-header {
   height: 48px;
-  background-color: #000;
+  background-color: #1e2d3d;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -331,7 +316,7 @@ onUnmounted(() => {
 }
 
 .logo-brand {
-  color: #0073e6;
+  color: #c67d3a;
   text-decoration: none;
   font-size: 18px;
   font-weight: 700;
@@ -366,33 +351,6 @@ onUnmounted(() => {
   opacity: 0.85;
 }
 
-.header-center {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  max-width: 360px;
-  margin: 0 auto;
-}
-
-.header-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  padding: 6px 14px;
-  width: 240px;
-  cursor: pointer;
-}
-
-.header-search .search-icon {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.search-placeholder {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 13px;
-}
 
 .header-right {
   display: flex;
@@ -436,8 +394,8 @@ onUnmounted(() => {
 /* Icon Rail */
 .icon-rail {
   width: 52px;
-  background-color: #f5f6f8;
-  border-right: 1px solid #e5e5e5;
+  background-color: #f5f3f0;
+  border-right: 1px solid #e8e4df;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -453,7 +411,7 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.15s;
   gap: 2px;
@@ -466,26 +424,26 @@ onUnmounted(() => {
 }
 
 .rail-icon.active {
-  background-color: #0073e6;
+  background-color: #1e2d3d;
   color: #fff;
 }
 
 .rail-label {
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1;
 }
 
 .rail-separator {
   width: 28px;
   height: 1px;
-  background-color: #d5d8dc;
+  background-color: #d5d0ca;
   margin: 6px 0;
 }
 
 .console-sidebar {
   width: 180px;
   background-color: #fff;
-  border-right: 1px solid #e5e5e5;
+  border-right: 1px solid #e8e4df;
   flex-shrink: 0;
   overflow-y: auto;
   display: flex;
@@ -497,10 +455,10 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 24px 20px 20px;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid #e8e4df;
   font-size: 18px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
   line-height: 1.3;
 }
 
@@ -511,7 +469,7 @@ onUnmounted(() => {
 
 .nav-group {
   padding: 8px 0;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid #e8e4df;
 }
 
 .nav-group:last-child {
@@ -522,7 +480,7 @@ onUnmounted(() => {
   padding: 16px 24px 8px;
   font-size: 14px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
   line-height: 1.4;
 }
 
@@ -539,14 +497,14 @@ onUnmounted(() => {
 }
 
 .nav-item:hover {
-  color: #0073e6;
-  background-color: #f5f7fa;
+  color: #9a5b25;
+  background-color: #f8f5f1;
 }
 
 .nav-item.active {
-  color: #0073e6;
+  color: #9a5b25;
   font-weight: 600;
-  border-left-color: #0073e6;
+  border-left-color: #c67d3a;
   background-color: transparent;
 }
 
@@ -653,12 +611,12 @@ onUnmounted(() => {
 }
 
 .trial-banner {
-  background: linear-gradient(90deg, #fff3cd, #ffeaa7);
-  border-bottom: 1px solid #f0d78e;
+  background: linear-gradient(90deg, #fdf5ed, #faecd8);
+  border-bottom: 1px solid #e8d5b8;
   padding: 6px 16px;
   text-align: center;
   font-size: 13px;
-  color: #856404;
+  color: #8b5e2f;
   z-index: 100;
 }
 .trial-banner-content {
@@ -668,7 +626,7 @@ onUnmounted(() => {
   gap: 16px;
 }
 .trial-banner-cta {
-  color: #0073e6;
+  color: #9a5b25;
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;

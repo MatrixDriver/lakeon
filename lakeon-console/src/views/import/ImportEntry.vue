@@ -323,7 +323,7 @@ onMounted(async () => {
 <style scoped>
 .select-prompt {
   font-size: 15px;
-  color: #575d6c;
+  color: #64748b;
   margin-bottom: 16px;
 }
 
@@ -342,12 +342,12 @@ onMounted(async () => {
 }
 
 .db-card:hover {
-  border-color: #0073e6;
+  border-color: #c67d3a;
   box-shadow: 0 2px 8px rgba(0, 115, 230, 0.08);
 }
 
 .db-card-selected {
-  border-color: #0073e6;
+  border-color: #c67d3a;
   background: #f0f7ff;
 }
 
@@ -371,7 +371,7 @@ onMounted(async () => {
 .db-card-name {
   font-size: 16px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .db-card-meta {
@@ -398,7 +398,7 @@ onMounted(async () => {
 }
 
 .task-status-chip.tag-green { background: #e6f9ed; color: #1a9e3f; }
-.task-status-chip.tag-blue { background: #e6f7ff; color: #0073e6; }
+.task-status-chip.tag-blue { background: #fdf5ed; color: #9a5b25; }
 .task-status-chip.tag-red { background: #fff0f0; color: #e63e3e; }
 .task-status-chip.tag-orange { background: #fff7e6; color: #d48806; }
 .task-status-chip.tag-gray { background: #f5f5f5; color: #8a8e99; }
@@ -427,7 +427,7 @@ onMounted(async () => {
 
 .progress-fill {
   height: 100%;
-  background: #0073e6;
+  background: #9a5b25;
   border-radius: 3px;
   transition: width 0.3s;
 }
@@ -438,14 +438,14 @@ onMounted(async () => {
 }
 
 /* Status tags */
-.tag-blue { background: #e6f7ff; color: #0073e6; }
+.tag-blue { background: #fdf5ed; color: #9a5b25; }
 .tag-orange { background: #fff7e6; color: #d48806; }
 .tag-gray { background: #f5f5f5; color: #8a8e99; }
 .tag-cyan { background: #e6fffb; color: #13c2c2; }
-.sync-lag { font-size: 13px; color: #575d6c; }
+.sync-lag { font-size: 13px; color: #64748b; }
 
 .task-row:hover {
-  background: #f5f7fa;
+  background: #f8f5f1;
 }
 
 .clickable-cell {
@@ -462,7 +462,7 @@ onMounted(async () => {
 .action-link {
   background: none;
   border: none;
-  color: #0073e6;
+  color: #9a5b25;
   cursor: pointer;
   font-size: 13px;
   padding: 2px 4px;
@@ -492,7 +492,7 @@ onMounted(async () => {
 .empty-hero {
   text-align: center;
   padding: 60px 0;
-  color: #575d6c;
+  color: #64748b;
 }
 
 .empty-hero p {

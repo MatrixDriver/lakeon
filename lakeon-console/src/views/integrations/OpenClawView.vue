@@ -62,7 +62,7 @@
         <div class="roles-grid">
           <div v-for="r in roles" :key="r.key" class="role-card">
             <div class="role-hd">
-              <span>{{ r.icon }}</span>
+              <span class="role-icon-dot" :style="{ background: roleColors[r.key] || '#c67d3a' }"></span>
               <h3>{{ r.title }}</h3>
             </div>
             <p>{{ r.desc }}</p>
@@ -329,14 +329,19 @@ const values = computed(() => [
   },
 ])
 
+const roleColors: Record<string, string> = {
+  family: '#c67d3a', work: '#1e2d3d', coding: '#2d6a4f',
+  content: '#7c3aed', trading: '#0369a1', coach: '#9a5b25', custom: '#64748b',
+}
+
 const roles = computed(() => [
-  { key: 'family', icon: '🏠', title: t('家庭管家', 'Family Manager'), desc: t('家人口味、孩子学业、作息规律、采购清单、健康提醒', 'Family preferences, children\'s studies, daily schedules, shopping lists, health reminders') },
-  { key: 'work', icon: '💼', title: t('工作助理', 'Work Assistant'), desc: t('同事关系、项目状态、会议决策、截止日期、沟通风格', 'Colleague relationships, project status, meeting decisions, deadlines, communication style') },
-  { key: 'coding', icon: '💻', title: t('编程伙伴', 'Coding Partner'), desc: t('技术栈、架构决策、代码规范、调试经验、部署配置', 'Tech stack, architecture decisions, code standards, debugging experience, deployment config') },
-  { key: 'content', icon: '✍️', title: t('内容创作', 'Content Creator'), desc: t('写作风格、发布频率、受众画像、过往内容、热点偏好', 'Writing style, publishing frequency, audience profile, past content, trending preferences') },
-  { key: 'trading', icon: '📊', title: t('交易助手', 'Trading Assistant'), desc: t('预算范围、品牌偏好、价格敏感度、历史交易、比价策略', 'Budget range, brand preferences, price sensitivity, transaction history, comparison strategies') },
-  { key: 'coach', icon: '🧘', title: t('生活教练', 'Life Coach'), desc: t('情绪模式、压力因素、运动习惯、睡眠规律、个人目标', 'Emotion patterns, stress factors, exercise habits, sleep patterns, personal goals') },
-  { key: 'custom', icon: '⚙️', title: t('自定义角色', 'Custom Role'), desc: t('从空白开始，完全自定义记忆策略', 'Start from blank, fully customize memory strategy') },
+  { key: 'family', icon: 'family', title: t('家庭管家', 'Family Manager'), desc: t('家人口味、孩子学业、作息规律、采购清单、健康提醒', 'Family preferences, children\'s studies, daily schedules, shopping lists, health reminders') },
+  { key: 'work', icon: 'work', title: t('工作助理', 'Work Assistant'), desc: t('同事关系、项目状态、会议决策、截止日期、沟通风格', 'Colleague relationships, project status, meeting decisions, deadlines, communication style') },
+  { key: 'coding', icon: 'coding', title: t('编程伙伴', 'Coding Partner'), desc: t('技术栈、架构决策、代码规范、调试经验、部署配置', 'Tech stack, architecture decisions, code standards, debugging experience, deployment config') },
+  { key: 'content', icon: 'content', title: t('内容创作', 'Content Creator'), desc: t('写作风格、发布频率、受众画像、过往内容、热点偏好', 'Writing style, publishing frequency, audience profile, past content, trending preferences') },
+  { key: 'trading', icon: 'trading', title: t('交易助手', 'Trading Assistant'), desc: t('预算范围、品牌偏好、价格敏感度、历史交易、比价策略', 'Budget range, brand preferences, price sensitivity, transaction history, comparison strategies') },
+  { key: 'coach', icon: 'coach', title: t('生活教练', 'Life Coach'), desc: t('情绪模式、压力因素、运动习惯、睡眠规律、个人目标', 'Emotion patterns, stress factors, exercise habits, sleep patterns, personal goals') },
+  { key: 'custom', icon: 'custom', title: t('自定义角色', 'Custom Role'), desc: t('从空白开始，完全自定义记忆策略', 'Start from blank, fully customize memory strategy') },
 ])
 
 const archLayers = computed(() => [
@@ -398,14 +403,14 @@ const capabilities = computed(() => [
 <style scoped>
 .oc-page { min-height: 100vh; background: var(--pub-bg); color: var(--pub-text); }
 .oc-inner { max-width: 820px; margin: 0 auto; padding: 48px 24px 80px; }
-.back-link { font-size: 13px; color: var(--pub-primary, #0073e6); text-decoration: none; display: inline-block; margin-bottom: 32px; }
+.back-link { font-size: 13px; color: var(--pub-primary, #9a5b25); text-decoration: none; display: inline-block; margin-bottom: 32px; }
 
 /* Hero */
 .oc-hero { margin-bottom: 40px; }
 .oc-hero h1 { font-size: 32px; font-weight: 700; margin-bottom: 12px; }
 .oc-hero-sub { font-size: 16px; color: var(--pub-text-2); line-height: 1.6; margin-bottom: 20px; max-width: 600px; }
 .oc-hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.btn-primary-sm { background: var(--pub-primary, #0073e6); color: #fff; border: none; border-radius: 8px; padding: 8px 20px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; transition: opacity 0.15s; }
+.btn-primary-sm { background: var(--pub-primary, #9a5b25); color: #fff; border: none; border-radius: 8px; padding: 8px 20px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; transition: opacity 0.15s; }
 .btn-primary-sm:hover { opacity: 0.9; }
 .btn-outline-sm { background: transparent; color: var(--pub-text-2); border: 1px solid var(--pub-border); border-radius: 8px; padding: 8px 20px; font-size: 14px; cursor: pointer; text-decoration: none; }
 
@@ -442,7 +447,7 @@ const capabilities = computed(() => [
 .roles-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .role-card { background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 8px; padding: 14px; }
 .role-hd { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.role-hd span { font-size: 18px; }
+.role-icon-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .role-hd h3 { font-size: 13px; font-weight: 600; margin: 0; }
 .role-card p { font-size: 12px; color: var(--pub-text-3); margin: 0; line-height: 1.5; }
 
@@ -517,7 +522,7 @@ const capabilities = computed(() => [
 .oc-cta { text-align: center; padding: 48px 0 0; border-top: 1px solid var(--pub-border); }
 .oc-cta h2 { font-size: 24px; font-weight: 600; margin-bottom: 10px; }
 .oc-cta p { font-size: 14px; color: var(--pub-text-2); margin-bottom: 20px; }
-.btn-primary-lg { background: var(--pub-primary, #0073e6); color: #fff; border: none; border-radius: 8px; padding: 12px 32px; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; transition: opacity 0.15s; }
+.btn-primary-lg { background: var(--pub-primary, #9a5b25); color: #fff; border: none; border-radius: 8px; padding: 12px 32px; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; transition: opacity 0.15s; }
 .btn-primary-lg:hover { opacity: 0.9; }
 
 /* Common */

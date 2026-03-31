@@ -47,7 +47,7 @@ defineEmits<{
   align-items: center;
   gap: 8px;
   border: 1px solid #d9d9d9;
-  border-radius: 2px;
+  border-radius: 4px;
   padding: 0 10px;
   height: 36px;
   background: #fff;
@@ -70,7 +70,7 @@ defineEmits<{
   border: none;
   outline: none;
   font-size: 14px;
-  color: #191919;
+  color: #2c3e50;
   background: transparent;
   height: 100%;
 }
@@ -104,15 +104,15 @@ defineEmits<{
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 2px;
+  border-radius: 4px;
   background: none;
-  color: #575d6c;
+  color: #64748b;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .toolbar-icon-btn:hover:not(:disabled) {
-  color: #0073e6;
+  color: #9a5b25;
   background: #f0f5ff;
 }
 

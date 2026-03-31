@@ -57,7 +57,7 @@ const { toasts, remove } = useToast()
 .toast-success { background: #52c41a; }
 .toast-error { background: #cf1322; }
 .toast-warning { background: #d48806; }
-.toast-info { background: #0073e6; }
+.toast-info { background: #9a5b25; }
 
 .toast-icon {
   width: 20px;

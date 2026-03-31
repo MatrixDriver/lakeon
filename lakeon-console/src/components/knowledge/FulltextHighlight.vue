@@ -183,7 +183,7 @@ watch(
 
 .fulltext-rendered :deep(.chunk-highlight) {
   background: rgba(0, 115, 230, 0.12);
-  border-left: 3px solid #0073e6;
+  border-left: 3px solid #c67d3a;
   padding: 2px 0;
 }
 </style>

@@ -48,7 +48,7 @@
         <div v-for="tbl in tableInfoList" :key="tbl.table_name" class="table-card">
           <div class="table-card-header" @click="toggleTable(tbl.table_name)">
             <div style="display: flex; align-items: center; gap: 8px;">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0073e6" stroke-width="2">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#c67d3a" stroke-width="2">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                 <line x1="3" y1="9" x2="21" y2="9"/>
                 <line x1="3" y1="15" x2="21" y2="15"/>
@@ -316,9 +316,9 @@ onMounted(() => {
   color: #333;
 }
 .tab-item.active {
-  color: #0073e6;
+  color: #9a5b25;
   font-weight: 600;
-  border-bottom-color: #0073e6;
+  border-bottom-color: #c67d3a;
 }
 
 .table-name-badge {
@@ -327,7 +327,7 @@ onMounted(() => {
   border-radius: 4px;
   font-size: 12px;
   background: #f0f7ff;
-  color: #0073e6;
+  color: #9a5b25;
   border: 1px solid #b3d4f7;
   margin-right: 6px;
   font-family: monospace;
@@ -415,7 +415,7 @@ onMounted(() => {
   line-height: 1.5;
 }
 .user-bubble {
-  background: #0073e6;
+  background: #9a5b25;
   color: #fff;
   border-bottom-right-radius: 3px;
 }

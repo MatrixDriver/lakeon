@@ -65,8 +65,8 @@
                       <span>置信度</span>
                       <span>{{ Math.round(trait.confidence * 100) }}%</span>
                     </div>
-                    <div style="height: 4px; background: #f0f0f0; border-radius: 2px; overflow: hidden;">
-                      <div style="height: 100%; border-radius: 2px; transition: width 0.3s;"
+                    <div style="height: 4px; background: #f0f0f0; border-radius: 4px; overflow: hidden;">
+                      <div style="height: 100%; border-radius: 4px; transition: width 0.3s;"
                            :style="`width: ${Math.round(trait.confidence * 100)}%; background: ${confidenceColor(trait.confidence)};`" />
                     </div>
                   </div>

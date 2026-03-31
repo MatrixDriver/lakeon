@@ -286,7 +286,7 @@ const protocols = [
   border-left: 3px solid transparent;
 }
 .tool-card--native {
-  border-left-color: var(--pub-primary, #0073e6);
+  border-left-color: var(--pub-primary, #9a5b25);
 }
 .tool-card--mcp {
   border-left-color: #10b981;
@@ -311,8 +311,8 @@ const protocols = [
 }
 .badge-featured {
   font-size: 10px;
-  background: color-mix(in srgb, var(--pub-primary, #0073e6) 12%, transparent);
-  color: var(--pub-primary, #0073e6);
+  background: color-mix(in srgb, var(--pub-primary, #9a5b25) 12%, transparent);
+  color: var(--pub-primary, #9a5b25);
   padding: 2px 8px;
   border-radius: 10px;
   font-weight: 600;
@@ -327,7 +327,7 @@ const protocols = [
 }
 .tool-link {
   font-size: 13px;
-  color: var(--pub-primary, #0073e6);
+  color: var(--pub-primary, #9a5b25);
   font-weight: 500;
   margin-top: auto;
   transition: opacity 0.25s ease;
@@ -402,7 +402,7 @@ const protocols = [
 }
 .cta-primary {
   display: inline-block;
-  background: var(--pub-primary, #0073e6);
+  background: var(--pub-primary, #9a5b25);
   color: #fff;
   padding: 12px 40px;
   border-radius: 100px;

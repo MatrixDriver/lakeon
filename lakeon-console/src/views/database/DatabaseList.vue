@@ -376,7 +376,7 @@ onUnmounted(() => {
 }
 
 .db-name-link {
-  color: #0073e6;
+  color: #9a5b25;
   text-decoration: none;
   font-size: 14px;
 }
@@ -402,15 +402,15 @@ onUnmounted(() => {
   width: 80px;
   height: 4px;
   background-color: #e8e8e8;
-  border-radius: 2px;
+  border-radius: 4px;
   overflow: hidden;
   flex-shrink: 0;
 }
 
 .storage-fill {
   height: 100%;
-  background-color: #0073e6;
-  border-radius: 2px;
+  background-color: #9a5b25;
+  border-radius: 4px;
   transition: width 0.3s;
 }
 

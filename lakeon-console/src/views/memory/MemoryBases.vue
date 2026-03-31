@@ -21,7 +21,7 @@
               <div class="scene-card" :class="{ selected: createForm.scene === 'DEVELOPER_TOOL' }"
                    @click="createForm.scene = 'DEVELOPER_TOOL'; createStep = 2">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                  <span style="font-size: 20px;">🛠</span>
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#64748b" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                   <span style="font-weight: 600; font-size: 15px;">开发者工具</span>
                 </div>
                 <div style="font-size: 13px; color: #666; line-height: 1.6;">
@@ -31,7 +31,7 @@
               <div class="scene-card" :class="{ selected: createForm.scene === 'CHAT_ASSISTANT' }"
                    @click="createForm.scene = 'CHAT_ASSISTANT'; createStep = 2">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                  <span style="font-size: 20px;">💬</span>
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#64748b" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                   <span style="font-weight: 600; font-size: 15px;">对话助理</span>
                 </div>
                 <div style="font-size: 13px; color: #666; line-height: 1.6;">
@@ -45,8 +45,8 @@
           <template v-else>
             <!-- Scene summary (clickable to go back) -->
             <div class="scene-summary" @click="createStep = 1">
-              <span>{{ createForm.scene === 'DEVELOPER_TOOL' ? '🛠 开发者工具' : '💬 对话助理' }}</span>
-              <span style="color: #0073e6; font-size: 12px;">更改</span>
+              <span>{{ createForm.scene === 'DEVELOPER_TOOL' ? '开发者工具' : '对话助理' }}</span>
+              <span style="color: #9a5b25; font-size: 12px;">更改</span>
             </div>
 
             <div class="form-group">
@@ -105,16 +105,16 @@
         </thead>
         <tbody>
           <tr v-for="item in memoryBases" :key="item.id" style="cursor: pointer;" @click="handleRowClick(item)">
-            <td style="font-weight: 500; color: #0073e6;">
+            <td style="font-weight: 500; color: #9a5b25;">
               {{ item.name }}
               <span v-if="item.scene" style="font-size: 11px; padding: 1px 6px; border-radius: 3px; margin-left: 8px;"
-                    :style="item.scene === 'DEVELOPER_TOOL' ? 'background:#e8f5e9;color:#2e7d32' : 'background:#e3f2fd;color:#1565c0'">
+                    :style="item.scene === 'DEVELOPER_TOOL' ? 'background:#e8f5e9;color:#2e7d32' : 'background:#fdf5ed;color:#1565c0'">
                 {{ item.scene === 'DEVELOPER_TOOL' ? '开发者工具' : '对话助理' }}
               </span>
             </td>
             <td>
               <span v-if="item.type === 'BUILTIN'" style="display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;background:#fef2f0;color:#e6393d;">自研</span>
-              <span v-else-if="item.type === 'MEM0'" style="display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;background:#e6f7ff;color:#1890ff;">mem0</span>
+              <span v-else-if="item.type === 'MEM0'" style="display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;background:#fdf5ed;color:#1890ff;">mem0</span>
               <span v-else-if="item.type === 'HINDSIGHT'" style="display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;background:#f0fff4;color:#389e0d;">hindsight</span>
               <span v-else style="display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;background:#f5f5f5;color:#666;">自定义</span>
             </td>
@@ -252,13 +252,13 @@ onMounted(loadMemoryBases)
   user-select: none;
 }
 .type-radio:hover {
-  border-color: #0073e6;
-  color: #0073e6;
+  border-color: #c67d3a;
+  color: #9a5b25;
 }
 .type-radio.selected {
-  border-color: #0073e6;
-  background: #e8f3ff;
-  color: #0073e6;
+  border-color: #c67d3a;
+  background: #fdf5ed;
+  color: #9a5b25;
   font-weight: 500;
 }
 .scene-card {
@@ -269,12 +269,12 @@ onMounted(loadMemoryBases)
   transition: all 0.15s;
 }
 .scene-card:hover {
-  border-color: #0073e6;
+  border-color: #c67d3a;
 }
 .scene-card.selected {
-  border-color: #0073e6;
-  background: #f0f7ff;
-  box-shadow: 0 0 0 1px #0073e6;
+  border-color: #c67d3a;
+  background: #fdf5ed;
+  box-shadow: 0 0 0 1px #c67d3a;
 }
 .scene-summary {
   display: flex;
@@ -290,6 +290,6 @@ onMounted(loadMemoryBases)
   font-weight: 500;
 }
 .scene-summary:hover {
-  border-color: #0073e6;
+  border-color: #c67d3a;
 }
 </style>

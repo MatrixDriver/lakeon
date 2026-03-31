@@ -310,7 +310,7 @@ function createEditor() {
         '.cm-activeLineGutter': { backgroundColor: '#e8f0fe' },
         '.cm-activeLine': { backgroundColor: '#f5f8ff' },
         '.cm-tooltip.cm-tooltip-autocomplete': { border: '1px solid #d9d9d9', borderRadius: '4px' },
-        '.cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]': { background: '#0073e6', color: '#fff' },
+        '.cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]': { background: '#9a5b25', color: '#fff' },
       }),
       EditorView.updateListener.of(() => {}),
     ],
@@ -446,8 +446,8 @@ defineExpose({ executeQuery })
 }
 
 .toolbar-btn:hover:not(:disabled) {
-  border-color: #0073e6;
-  color: #0073e6;
+  border-color: #c67d3a;
+  color: #9a5b25;
 }
 
 .toolbar-btn:disabled {
@@ -456,14 +456,14 @@ defineExpose({ executeQuery })
 }
 
 .run-btn {
-  background: #0073e6;
+  background: #9a5b25;
   color: #fff;
-  border-color: #0073e6;
+  border-color: #c67d3a;
   font-weight: 500;
 }
 
 .run-btn:hover:not(:disabled) {
-  background: #005bb5;
+  background: #8b5222;
   color: #fff;
 }
 
@@ -521,7 +521,7 @@ defineExpose({ executeQuery })
 .result-table th {
   position: sticky;
   top: 0;
-  background: #f5f7fa;
+  background: #f8f5f1;
   padding: 6px 10px;
   text-align: left;
   font-weight: 600;
@@ -567,8 +567,8 @@ defineExpose({ executeQuery })
 /* History */
 .toolbar-btn.active {
   background: #e6f0ff;
-  border-color: #0073e6;
-  color: #0073e6;
+  border-color: #c67d3a;
+  color: #9a5b25;
 }
 
 .history-count {
@@ -578,7 +578,7 @@ defineExpose({ executeQuery })
   min-width: 18px;
   height: 18px;
   border-radius: 9px;
-  background: #0073e6;
+  background: #9a5b25;
   color: #fff;
   font-size: 11px;
   font-weight: 600;
@@ -605,7 +605,7 @@ defineExpose({ executeQuery })
 .history-title {
   font-size: 13px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
 }
 
 /* AI Assistant - Right Sidebar */
@@ -781,7 +781,7 @@ defineExpose({ executeQuery })
 }
 
 .history-search:focus {
-  border-color: #0073e6;
+  border-color: #c67d3a;
 }
 
 .history-empty {
@@ -795,7 +795,7 @@ defineExpose({ executeQuery })
   padding: 8px 12px;
   text-align: center;
   font-size: 12px;
-  color: #0073e6;
+  color: #9a5b25;
   cursor: pointer;
 }
 

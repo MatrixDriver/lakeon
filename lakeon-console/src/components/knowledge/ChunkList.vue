@@ -78,7 +78,7 @@ function isDuplicate(chunk: Chunk) {
   display: flex;
   gap: 12px;
   font-size: 12px;
-  color: #575d6c;
+  color: #64748b;
   padding: 0 4px 12px;
   border-bottom: 1px solid #ebebeb;
   margin-bottom: 12px;
@@ -95,13 +95,13 @@ function isDuplicate(chunk: Chunk) {
 }
 
 .chunk-card:hover {
-  border-color: #0073e6;
-  background: #f5f7fa;
+  border-color: #c67d3a;
+  background: #f8f5f1;
 }
 
 .chunk-card.selected {
-  border-color: #0073e6;
-  background: #e6f7ff;
+  border-color: #c67d3a;
+  background: #fdf5ed;
 }
 
 .chunk-card.anomaly-short,
@@ -123,7 +123,7 @@ function isDuplicate(chunk: Chunk) {
 .chunk-index {
   font-size: 12px;
   font-weight: 600;
-  color: #0073e6;
+  color: #9a5b25;
 }
 
 .chunk-chars {
@@ -139,7 +139,7 @@ function isDuplicate(chunk: Chunk) {
 
 .chunk-section {
   font-size: 11px;
-  color: #575d6c;
+  color: #64748b;
   margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;

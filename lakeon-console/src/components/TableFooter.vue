@@ -84,7 +84,7 @@ const visiblePages = computed(() => {
   padding: 10px 16px;
   border-top: 1px solid #ebebeb;
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   background: #fff;
 }
 
@@ -101,7 +101,7 @@ const visiblePages = computed(() => {
 .page-size-select {
   padding: 3px 8px;
   border: 1px solid #d9d9d9;
-  border-radius: 2px;
+  border-radius: 4px;
   font-size: 13px;
   color: #333;
   background: #fff;
@@ -111,7 +111,7 @@ const visiblePages = computed(() => {
 }
 
 .page-size-select:focus {
-  border-color: #0073e6;
+  border-color: #c67d3a;
 }
 
 .page-btn {
@@ -121,7 +121,7 @@ const visiblePages = computed(() => {
   align-items: center;
   justify-content: center;
   border: 1px solid #d9d9d9;
-  border-radius: 2px;
+  border-radius: 4px;
   background: #fff;
   cursor: pointer;
   font-size: 13px;
@@ -130,8 +130,8 @@ const visiblePages = computed(() => {
 }
 
 .page-btn:hover:not(:disabled) {
-  border-color: #0073e6;
-  color: #0073e6;
+  border-color: #c67d3a;
+  color: #9a5b25;
 }
 
 .page-btn:disabled {
@@ -146,7 +146,7 @@ const visiblePages = computed(() => {
   min-width: 28px;
   height: 28px;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: 4px;
   background: #fff;
   color: #333;
   font-size: 13px;
@@ -155,13 +155,13 @@ const visiblePages = computed(() => {
 }
 
 .page-num:hover:not(.active) {
-  border-color: #0073e6;
-  color: #0073e6;
+  border-color: #c67d3a;
+  color: #9a5b25;
 }
 
 .page-num.active {
-  border-color: #0073e6;
-  color: #0073e6;
+  border-color: #c67d3a;
+  color: #9a5b25;
   font-weight: 500;
 }
 

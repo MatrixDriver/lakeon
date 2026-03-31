@@ -2,7 +2,7 @@
   <div class="page-container">
     <!-- Breadcrumb -->
     <div class="breadcrumb" style="margin-bottom: 16px;">
-      <router-link to="/knowledge" style="color: #0073e6; text-decoration: none;">知识库</router-link>
+      <router-link to="/knowledge" style="color: #9a5b25; text-decoration: none;">知识库</router-link>
       <span style="margin: 0 8px; color: #ccc;">/</span>
       <span style="color: #333;">{{ kb?.name || '...' }}</span>
     </div>
@@ -144,7 +144,7 @@
                   </div>
                   <!-- Progress bar for PROCESSING -->
                   <div v-if="doc.status === 'PROCESSING' && doc.progress != null" style="display: flex; align-items: center; gap: 8px;">
-                    <div style="flex: 1; height: 4px; background: #e5e5e5; border-radius: 2px; max-width: 120px;">
+                    <div style="flex: 1; height: 4px; background: #e5e5e5; border-radius: 4px; max-width: 120px;">
                       <div :style="{ width: Math.round(doc.progress * 100) + '%', height: '100%', background: '#1890ff', borderRadius: '2px', transition: 'width 0.3s' }"></div>
                     </div>
                     <span style="color: #1890ff; font-size: 12px; white-space: nowrap;">{{ Math.round(doc.progress * 100) }}%</span>
@@ -224,7 +224,7 @@
           <div v-if="msg.role === 'assistant'" class="chat-bubble assistant-bubble">
             <div v-if="msg.rewritten_query && msg.rewritten_query !== msg.original_query"
                  style="font-size: 12px; color: #888; margin-bottom: 10px; font-style: italic;">
-              搜索改写为: <span style="color: #0073e6;">{{ msg.rewritten_query }}</span>
+              搜索改写为: <span style="color: #9a5b25;">{{ msg.rewritten_query }}</span>
             </div>
             <div v-if="msg.results && msg.results.length > 0">
               <div v-for="(r, ri) in msg.results" :key="ri" class="result-card">
@@ -752,9 +752,9 @@ onMounted(async () => {
   color: #333;
 }
 .tab-item.active {
-  color: #0073e6;
+  color: #9a5b25;
   font-weight: 600;
-  border-bottom-color: #0073e6;
+  border-bottom-color: #c67d3a;
 }
 .clickable-row {
   cursor: pointer;
@@ -765,7 +765,7 @@ onMounted(async () => {
   border-radius: 10px;
   font-size: 11px;
   background: #e8f3ff;
-  color: #0073e6;
+  color: #9a5b25;
   border: 1px solid #b3d4f7;
   white-space: nowrap;
 }
@@ -795,9 +795,9 @@ onMounted(async () => {
   background: #cfe4fc;
 }
 .tag-filter-active {
-  background: #0073e6;
+  background: #9a5b25;
   color: #fff;
-  border-color: #0073e6;
+  border-color: #c67d3a;
 }
 
 /* Chat */
@@ -838,7 +838,7 @@ onMounted(async () => {
   line-height: 1.5;
 }
 .user-bubble {
-  background: #0073e6;
+  background: #9a5b25;
   color: #fff;
   border-bottom-right-radius: 3px;
 }

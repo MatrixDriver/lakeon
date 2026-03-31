@@ -221,7 +221,7 @@
               <div class="form-group">
                 <label class="form-label">新密码</label>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <code class="password-value" style="flex: 1; padding: 6px 10px; background: #f2f3f5; border-radius: 2px;">{{ resetUserPasswordResult }}</code>
+                  <code class="password-value" style="flex: 1; padding: 6px 10px; background: #f2f3f5; border-radius: 4px;">{{ resetUserPasswordResult }}</code>
                   <button
                     class="copy-btn"
                     :class="{ 'copy-btn-ok': copiedField === 'user-reset-pw' }"
@@ -906,13 +906,13 @@ onUnmounted(() => {
   align-items: center;
   gap: 4px;
   font-size: 14px;
-  color: #0073e6;
+  color: #9a5b25;
   text-decoration: none;
   transition: color 0.15s;
 }
 
 .quick-link:hover {
-  color: #005bb5;
+  color: #8b5222;
   text-decoration: underline;
 }
 
@@ -930,7 +930,7 @@ onUnmounted(() => {
 /* Summary Card */
 .summary-card {
   background: #fff;
-  border-radius: 2px;
+  border-radius: 4px;
   border: 1px solid #dfe1e6;
   padding: 24px;
   margin-bottom: 20px;
@@ -948,7 +948,7 @@ onUnmounted(() => {
 }
 
 .tip-link {
-  color: #0073e6;
+  color: #9a5b25;
   text-decoration: none;
   margin-left: 4px;
 }
@@ -967,7 +967,7 @@ onUnmounted(() => {
 .db-title {
   font-size: 18px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
   margin: 0 0 8px;
 }
 
@@ -979,7 +979,7 @@ onUnmounted(() => {
 
 .meta-item {
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
 }
 
 .summary-actions {
@@ -1011,7 +1011,7 @@ onUnmounted(() => {
 
 .field-value {
   font-size: 14px;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .field-value-row {
@@ -1024,10 +1024,10 @@ onUnmounted(() => {
 
 .uri-text {
   font-size: 13px;
-  color: #191919;
+  color: #2c3e50;
   background: #f2f3f5;
   padding: 4px 8px;
-  border-radius: 2px;
+  border-radius: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1038,7 +1038,7 @@ onUnmounted(() => {
 /* Tabs */
 .tabs-wrapper {
   background: #fff;
-  border-radius: 2px;
+  border-radius: 4px;
   border: 1px solid #ebebeb;
   overflow: hidden;
 }
@@ -1054,7 +1054,7 @@ onUnmounted(() => {
   border: none;
   padding: 14px 20px;
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: all 0.2s;
@@ -1062,12 +1062,12 @@ onUnmounted(() => {
 }
 
 .tab-btn:hover {
-  color: #0073e6;
+  color: #9a5b25;
 }
 
 .tab-btn.active {
-  color: #191919;
-  border-bottom-color: #0073e6;
+  color: #2c3e50;
+  border-bottom-color: #c67d3a;
   font-weight: 600;
 }
 
@@ -1099,7 +1099,7 @@ onUnmounted(() => {
 .tab-empty-redirect {
   text-align: center;
   padding: 48px 20px;
-  color: #575d6c;
+  color: #64748b;
   font-size: 14px;
   line-height: 1.8;
 }
@@ -1116,14 +1116,14 @@ onUnmounted(() => {
 /* Info card */
 .info-card {
   border: 1px solid #dfe1e6;
-  border-radius: 2px;
+  border-radius: 4px;
   padding: 20px;
 }
 
 .info-title {
   font-size: 14px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
   margin: 0 0 16px;
 }
 
@@ -1156,10 +1156,10 @@ onUnmounted(() => {
 
 .info-value-row code {
   font-size: 13px;
-  color: #191919;
+  color: #2c3e50;
   background: #f2f3f5;
   padding: 4px 8px;
-  border-radius: 2px;
+  border-radius: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1201,7 +1201,7 @@ onUnmounted(() => {
   padding: 8px 12px;
   background: #fff7e6;
   border: 1px solid #ffd591;
-  border-radius: 2px;
+  border-radius: 4px;
   color: #d46b08;
   font-size: 13px;
 }
@@ -1209,17 +1209,17 @@ onUnmounted(() => {
 .default-tag {
   display: inline-block;
   padding: 1px 8px;
-  border-radius: 2px;
+  border-radius: 4px;
   font-size: 12px;
-  background-color: #e6f7ff;
-  color: #0073e6;
+  background-color: #fdf5ed;
+  color: #9a5b25;
   margin-left: 6px;
 }
 
 .active-tag {
   display: inline-block;
   padding: 1px 8px;
-  border-radius: 2px;
+  border-radius: 4px;
   font-size: 12px;
   background-color: #f6ffed;
   color: #52c41a;
@@ -1244,7 +1244,7 @@ onUnmounted(() => {
 /* Import tab */
 .clickable-row { cursor: pointer; }
 .clickable-row:hover { background: #f5f5f5; }
-.tag-blue { background-color: #e6f7ff; color: #0073e6; }
+.tag-blue { background-color: #fdf5ed; color: #9a5b25; }
 .tag-orange { background-color: #fff7e6; color: #d46b08; }
 .tag-gray { background-color: #f0f0f0; color: #8a8e99; }
 
@@ -1263,7 +1263,7 @@ onUnmounted(() => {
 
 .audit-label {
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
   min-width: 80px;
 }
 
@@ -1305,7 +1305,7 @@ onUnmounted(() => {
 }
 
 .toggle-switch input:checked + .toggle-slider {
-  background-color: #0073e6;
+  background-color: #9a5b25;
 }
 
 .toggle-switch input:checked + .toggle-slider::before {
@@ -1333,7 +1333,7 @@ onUnmounted(() => {
   height: 32px;
   font-size: 14px;
   border: 1px solid #c2c6cc;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 /* Operations refresh bar */
@@ -1352,15 +1352,15 @@ onUnmounted(() => {
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 2px;
+  border-radius: 4px;
   background: none;
-  color: #575d6c;
+  color: #64748b;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .toolbar-icon-btn:hover:not(:disabled) {
-  color: #0073e6;
+  color: #9a5b25;
   background: #f0f5ff;
 }
 
@@ -1379,7 +1379,7 @@ onUnmounted(() => {
 
 .section-card {
   border: 1px solid #ebebeb;
-  border-radius: 2px;
+  border-radius: 4px;
   overflow: hidden;
   background: #fff;
 }
@@ -1451,7 +1451,7 @@ onUnmounted(() => {
 .action-link {
   background: none;
   border: none;
-  color: #0073e6;
+  color: #9a5b25;
   font-size: 13px;
   cursor: pointer;
   padding: 2px 8px;
@@ -1496,7 +1496,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -1530,7 +1530,7 @@ onUnmounted(() => {
 .ext-name {
   font-size: 14px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .ext-version {
@@ -1554,7 +1554,7 @@ onUnmounted(() => {
 
 .ext-category-badge {
   font-size: 11px;
-  color: #575d6c;
+  color: #64748b;
   background: #f0f0f0;
   padding: 2px 8px;
   border-radius: 10px;
@@ -1578,7 +1578,7 @@ onUnmounted(() => {
   padding: 4px 8px;
   font-size: 13px;
   border: 1px solid #d9d9d9;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 @media (max-width: 768px) {
@@ -1606,7 +1606,7 @@ onUnmounted(() => {
 .conn-stat-value {
   font-size: 24px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .conn-stat-label {
@@ -1660,7 +1660,7 @@ onUnmounted(() => {
   display: flex;
   gap: 0;
   border: 1px solid #ebebeb;
-  border-radius: 2px;
+  border-radius: 4px;
   background: #fff;
   min-height: 400px;
   margin-bottom: 16px;
@@ -1685,7 +1685,7 @@ onUnmounted(() => {
 .branch-list-title {
   font-size: 14px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .branch-list-loading {
@@ -1708,12 +1708,12 @@ onUnmounted(() => {
 }
 
 .branch-list-item:hover {
-  background: #f5f7fa;
+  background: #f8f5f1;
 }
 
 .branch-list-item-selected {
   background: #e6f0ff;
-  border-left: 3px solid #0073e6;
+  border-left: 3px solid #c67d3a;
   padding-left: 13px;
 }
 
@@ -1734,7 +1734,7 @@ onUnmounted(() => {
 .branch-item-name {
   font-size: 13px;
   font-weight: 500;
-  color: #191919;
+  color: #2c3e50;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1779,7 +1779,7 @@ onUnmounted(() => {
 .version-timeline-title {
   font-size: 14px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .version-timeline-loading,
@@ -1827,8 +1827,8 @@ onUnmounted(() => {
 }
 
 .version-dot-latest {
-  background: #0073e6;
-  box-shadow: 0 0 0 1px #0073e6;
+  background: #9a5b25;
+  box-shadow: 0 0 0 1px #c67d3a;
 }
 
 .version-line {
@@ -1863,7 +1863,7 @@ onUnmounted(() => {
 .version-name {
   font-size: 14px;
   font-weight: 500;
-  color: #191919;
+  color: #2c3e50;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1885,10 +1885,10 @@ onUnmounted(() => {
 .version-lsn {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 12px;
-  color: #575d6c;
+  color: #64748b;
   background: #f2f3f5;
   padding: 1px 6px;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 .version-author {
@@ -1926,13 +1926,13 @@ onUnmounted(() => {
 .branch-table-summary {
   cursor: pointer;
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   padding: 8px 0;
   user-select: none;
 }
 
 .branch-table-summary:hover {
-  color: #0073e6;
+  color: #9a5b25;
 }
 
 @media (max-width: 768px) {
@@ -1981,7 +1981,7 @@ onUnmounted(() => {
 }
 
 .version-item-squash-endpoint .version-content {
-  background: #e6f7ff;
+  background: #fdf5ed;
   border-radius: 4px;
   margin: -4px -8px;
   padding: 4px 8px 24px;
@@ -2029,7 +2029,7 @@ onUnmounted(() => {
 .diff-overlay-title {
   font-size: 14px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .diff-overlay-loading {

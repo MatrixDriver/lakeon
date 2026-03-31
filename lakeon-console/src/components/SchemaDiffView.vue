@@ -131,7 +131,7 @@ const isEmpty = computed(() =>
 .badge-added { background: #f0fff4; color: #52c41a; border: 1px solid #b7eb8f; }
 .badge-modified { background: #fffbe6; color: #d48806; border: 1px solid #ffe58f; }
 .badge-removed { background: #fff1f0; color: #e6393d; border: 1px solid #ffa39e; }
-.badge-index { background: #e6f7ff; color: #0073e6; border: 1px solid #91d5ff; }
+.badge-index { background: #fdf5ed; color: #9a5b25; border: 1px solid #91d5ff; }
 .badge-index-removed { background: #fff1f0; color: #e6393d; border: 1px solid #ffa39e; }
 .badge-empty { background: #f5f5f5; color: #8a8e99; border: 1px solid #d9d9d9; }
 
@@ -160,7 +160,7 @@ const isEmpty = computed(() =>
   font-weight: 600;
   font-size: 14px;
   margin-bottom: 8px;
-  color: #191919;
+  color: #2c3e50;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
@@ -180,11 +180,11 @@ const isEmpty = computed(() =>
 
 .diff-col code {
   font-weight: 500;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .col-type {
-  color: #575d6c;
+  color: #64748b;
 }
 
 .col-constraint {
@@ -216,7 +216,7 @@ const isEmpty = computed(() =>
   color: #d46b08;
   background: #fff7e6;
   padding: 0 4px;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 .idx-def {

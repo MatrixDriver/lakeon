@@ -126,7 +126,7 @@
           <div v-if="form.mode !== 'SYNC' && form.conflictStrategy === 'REPLACE'" class="warning-box">
             覆盖模式将删除目标表后重新创建，已有数据将丢失。
           </div>
-          <div v-if="form.mode === 'SYNC'" class="warning-box" style="border-color: #91d5ff; background: #e6f7ff; color: #096dd9;">
+          <div v-if="form.mode === 'SYNC'" class="warning-box" style="border-color: #91d5ff; background: #fdf5ed; color: #096dd9;">
             持续同步将通过 PostgreSQL 逻辑复制实时同步数据变更。初始数据将自动复制，之后增量同步。
           </div>
           <div class="confirm-summary">
@@ -336,7 +336,7 @@ async function handleCreate() {
   color: #8a8e99;
   font-size: 13px;
 }
-.wizard-step.active { color: #0073e6; font-weight: 600; }
+.wizard-step.active { color: #9a5b25; font-weight: 600; }
 .wizard-step.done { color: #52c41a; }
 .step-num {
   width: 22px; height: 22px;
@@ -346,7 +346,7 @@ async function handleCreate() {
   border: 1px solid #c2c6cc;
   flex-shrink: 0;
 }
-.wizard-step.active .step-num { border-color: #0073e6; background: #0073e6; color: #fff; }
+.wizard-step.active .step-num { border-color: #c67d3a; background: #9a5b25; color: #fff; }
 .wizard-step.done .step-num { border-color: #52c41a; background: #52c41a; color: #fff; }
 .dialog-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
 .dialog-footer {
@@ -360,10 +360,10 @@ async function handleCreate() {
 .form-row { display: flex; gap: 12px; }
 .form-half { flex: 1; }
 .form-group { margin-bottom: 14px; }
-.form-label { display: block; font-size: 13px; color: #575d6c; margin-bottom: 4px; }
+.form-label { display: block; font-size: 13px; color: #64748b; margin-bottom: 4px; }
 .form-input {
   width: 100%; padding: 6px 10px; font-size: 14px;
-  border: 1px solid #c2c6cc; border-radius: 2px; box-sizing: border-box;
+  border: 1px solid #c2c6cc; border-radius: 4px; box-sizing: border-box;
 }
 .required { color: #d4380d; }
 .test-conn-row { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
@@ -371,8 +371,8 @@ async function handleCreate() {
 .text-error { color: #d4380d; font-size: 13px; }
 .conn-version { color: #8a8e99; font-size: 12px; }
 .radio-group { display: flex; gap: 20px; margin-top: 4px; }
-.radio-item { font-size: 14px; color: #191919; cursor: pointer; display: flex; align-items: center; gap: 4px; }
-.table-select-list { border: 1px solid #dfe1e6; border-radius: 2px; max-height: 260px; overflow-y: auto; }
+.radio-item { font-size: 14px; color: #2c3e50; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+.table-select-list { border: 1px solid #dfe1e6; border-radius: 4px; max-height: 260px; overflow-y: auto; }
 .select-all-row { padding: 8px 12px; border-bottom: 1px solid #ebebeb; background: #f9f9f9; }
 .table-checkbox-list { padding: 4px 0; }
 .checkbox-item { display: flex; align-items: center; gap: 6px; padding: 4px 12px; font-size: 13px; cursor: pointer; }
@@ -383,9 +383,9 @@ async function handleCreate() {
 .radio-item.disabled { color: #c2c6cc; cursor: not-allowed; }
 .warning-box {
   padding: 8px 12px; background: #fff7e6; border: 1px solid #ffd591;
-  border-radius: 2px; color: #d46b08; font-size: 13px; margin-bottom: 14px;
+  border-radius: 4px; color: #d46b08; font-size: 13px; margin-bottom: 14px;
 }
-.confirm-summary { border: 1px solid #dfe1e6; border-radius: 2px; padding: 16px; }
-.summary-row { font-size: 14px; color: #191919; padding: 4px 0; }
+.confirm-summary { border: 1px solid #dfe1e6; border-radius: 4px; padding: 16px; }
+.summary-row { font-size: 14px; color: #2c3e50; padding: 4px 0; }
 .summary-label { color: #8a8e99; display: inline-block; min-width: 80px; }
 </style>

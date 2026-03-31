@@ -26,7 +26,7 @@
           rx="6"
           ry="6"
           :fill="node.id === selectedId ? '#e6f0ff' : '#fff'"
-          :stroke="node.id === activeBranchId ? '#0073e6' : '#e5e5e5'"
+          :stroke="node.id === activeBranchId ? '#9a5b25' : '#e5e5e5'"
           :stroke-width="node.id === activeBranchId ? 2.5 : 1.5"
         />
         <!-- Branch name -->
@@ -51,8 +51,8 @@
           width="28"
           height="16"
           rx="3"
-          fill="#e6f7ff"
-          stroke="#0073e6"
+          fill="#fdf5ed"
+          stroke="#c67d3a"
           stroke-width="0.5"
         />
         <text
@@ -70,7 +70,7 @@
             class="action-btn"
             @click.stop="emit('activate', node.id)"
           >
-            <rect :x="nodeW / 2 + 4" :y="-20" width="40" height="20" rx="3" fill="#0073e6" />
+            <rect :x="nodeW / 2 + 4" :y="-20" width="40" height="20" rx="3" fill="#c67d3a" />
             <text :x="nodeW / 2 + 24" :y="-6" text-anchor="middle" class="action-text">切换</text>
           </g>
           <!-- Create child branch button -->
@@ -78,7 +78,7 @@
             class="action-btn"
             @click.stop="emit('create', node.id)"
           >
-            <rect :x="nodeW / 2 + 4" :y="4" width="40" height="20" rx="3" fill="#f0f5ff" stroke="#0073e6" stroke-width="0.5" />
+            <rect :x="nodeW / 2 + 4" :y="4" width="40" height="20" rx="3" fill="#f0f5ff" stroke="#c67d3a" stroke-width="0.5" />
             <text :x="nodeW / 2 + 24" :y="18" text-anchor="middle" class="action-text-outline">分支</text>
           </g>
           <!-- Delete button (non-default only) -->
@@ -255,13 +255,13 @@ function truncate(s: string, max: number): string {
 }
 
 .tree-node:hover rect:first-child {
-  stroke: #0073e6;
+  stroke: #9a5b25;
 }
 
 .node-name {
   font-size: 13px;
   font-weight: 600;
-  fill: #191919;
+  fill: #2c3e50;
   pointer-events: none;
 }
 
@@ -273,7 +273,7 @@ function truncate(s: string, max: number): string {
 
 .node-badge {
   font-size: 9px;
-  fill: #0073e6;
+  fill: #9a5b25;
   font-weight: 600;
   pointer-events: none;
 }
@@ -295,7 +295,7 @@ function truncate(s: string, max: number): string {
 
 .action-text-outline {
   font-size: 11px;
-  fill: #0073e6;
+  fill: #9a5b25;
   font-weight: 500;
   pointer-events: none;
 }

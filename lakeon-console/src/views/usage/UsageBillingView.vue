@@ -175,7 +175,7 @@ onMounted(fetchUsage)
 .cycle-select {
   padding: 6px 12px;
   border: 1px solid #d9d9d9;
-  border-radius: 2px;
+  border-radius: 4px;
   font-size: 14px;
   color: #333;
   background: #fff;
@@ -184,12 +184,12 @@ onMounted(fetchUsage)
 }
 
 .cycle-select:focus {
-  border-color: #0073e6;
+  border-color: #c67d3a;
 }
 
 .page-desc {
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
   margin-bottom: 24px;
   line-height: 1.6;
 }
@@ -210,13 +210,13 @@ onMounted(fetchUsage)
 .summary-value {
   font-size: 28px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
   margin-bottom: 4px;
 }
 
 .summary-label {
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
   margin-bottom: 4px;
 }
 
@@ -234,7 +234,7 @@ onMounted(fetchUsage)
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .td-name {
@@ -252,7 +252,7 @@ onMounted(fetchUsage)
 .note-title {
   font-size: 14px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
   margin-bottom: 8px;
 }
 
@@ -263,7 +263,7 @@ onMounted(fetchUsage)
 
 .pricing-note li {
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   line-height: 1.8;
 }
 

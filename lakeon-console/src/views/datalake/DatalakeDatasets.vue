@@ -44,9 +44,9 @@
               </router-link>
               <div class="dataset-id-hint">{{ ds.id }}</div>
             </td>
-            <td style="color: #575d6c;">{{ sourceLabel(ds.sourceType) }}</td>
-            <td style="color: #575d6c;">{{ ds.rowCount != null ? ds.rowCount.toLocaleString() : '-' }}</td>
-            <td style="color: #575d6c;">{{ ds.sizeBytes != null ? formatSize(ds.sizeBytes) : '-' }}</td>
+            <td style="color: #64748b;">{{ sourceLabel(ds.sourceType) }}</td>
+            <td style="color: #64748b;">{{ ds.rowCount != null ? ds.rowCount.toLocaleString() : '-' }}</td>
+            <td style="color: #64748b;">{{ ds.sizeBytes != null ? formatSize(ds.sizeBytes) : '-' }}</td>
             <td>
               <span class="status-dot" :class="'dot-' + statusColor(ds.status)"></span>
               {{ statusText(ds.status) }}
@@ -220,8 +220,8 @@ onUnmounted(() => {
 }
 
 .status-tab.active {
-  color: #0073e6;
-  border-bottom-color: #0073e6;
+  color: #9a5b25;
+  border-bottom-color: #c67d3a;
   font-weight: 500;
 }
 
@@ -240,11 +240,11 @@ onUnmounted(() => {
 
 .status-tab.active .tab-count {
   background: #e8f3ff;
-  color: #0073e6;
+  color: #9a5b25;
 }
 
 .dataset-name-link {
-  color: #0073e6;
+  color: #9a5b25;
   text-decoration: none;
   font-weight: 500;
 }

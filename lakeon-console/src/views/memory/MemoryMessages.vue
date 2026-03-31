@@ -26,7 +26,7 @@
               <td style="color: #999; font-size: 13px;">{{ new Date(msg.created_at).toLocaleString('zh-CN') }}</td>
               <td>
                 <span style="display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px;"
-                      :style="msg.role === 'user' ? 'background:#e3f2fd;color:#1565c0' : 'background:#f3e5f5;color:#7b1fa2'">
+                      :style="msg.role === 'user' ? 'background:#fdf5ed;color:#1565c0' : 'background:#f3e5f5;color:#7b1fa2'">
                   {{ msg.role }}
                 </span>
               </td>
@@ -40,7 +40,7 @@
                 {{ msg.content_preview || msg.content }}
               </td>
               <td>
-                <button class="btn btn-text btn-small" style="color: #0073e6;" @click.stop="openDetail(msg.id)">详情</button>
+                <button class="btn btn-text btn-small" style="color: #9a5b25;" @click.stop="openDetail(msg.id)">详情</button>
               </td>
             </tr>
           </tbody>

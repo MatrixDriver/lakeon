@@ -177,7 +177,7 @@ onMounted(fetchProfile)
 <style scoped>
 .page-desc {
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
   margin-bottom: 24px;
   line-height: 1.6;
 }
@@ -191,7 +191,7 @@ onMounted(fetchProfile)
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .section-body {
@@ -212,13 +212,13 @@ onMounted(fetchProfile)
 .info-label {
   width: 120px;
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
   flex-shrink: 0;
 }
 
 .info-value {
   font-size: 14px;
-  color: #191919;
+  color: #2c3e50;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -227,7 +227,7 @@ onMounted(fetchProfile)
 .info-value.mono {
   font-family: 'SFMono-Regular', Consolas, monospace;
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
 }
 
 .inline-input {
@@ -239,7 +239,7 @@ onMounted(fetchProfile)
 .action-link {
   background: none;
   border: none;
-  color: #0073e6;
+  color: #9a5b25;
   font-size: 13px;
   cursor: pointer;
   padding: 0;
@@ -266,14 +266,14 @@ onMounted(fetchProfile)
   width: 100%;
   padding: 8px 12px;
   border: 1px solid #d9d9d9;
-  border-radius: 2px;
+  border-radius: 4px;
   font-size: 14px;
   outline: none;
   box-sizing: border-box;
 }
 
 .form-input:focus {
-  border-color: #0073e6;
+  border-color: #c67d3a;
   box-shadow: 0 0 0 2px rgba(0, 115, 230, 0.1);
 }
 

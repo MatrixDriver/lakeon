@@ -393,7 +393,7 @@ onMounted(() => {
 .log-tab {
   padding: 10px 24px;
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
@@ -402,12 +402,12 @@ onMounted(() => {
   transition: all 0.15s;
 }
 
-.log-tab:hover { color: #0073e6; }
+.log-tab:hover { color: #9a5b25; }
 
 .log-tab.active {
-  color: #191919;
+  color: #2c3e50;
   font-weight: 600;
-  border-bottom-color: #191919;
+  border-bottom-color: #2c3e50;
 }
 
 /* Toolbar */
@@ -441,7 +441,7 @@ onMounted(() => {
   cursor: pointer;
 }
 
-.filter-select:hover { border-color: #0073e6; }
+.filter-select:hover { border-color: #c67d3a; }
 
 .refresh-btn {
   background: none;
@@ -449,16 +449,16 @@ onMounted(() => {
   border-radius: 4px;
   padding: 4px 14px;
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   cursor: pointer;
 }
 
-.refresh-btn:hover:not(:disabled) { border-color: #0073e6; color: #0073e6; }
+.refresh-btn:hover:not(:disabled) { border-color: #c67d3a; color: #9a5b25; }
 .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Links */
 .db-link {
-  color: #0073e6;
+  color: #9a5b25;
   text-decoration: none;
 }
 .db-link:hover { text-decoration: underline; }
@@ -472,10 +472,10 @@ onMounted(() => {
   border-radius: 3px;
   font-size: 12px;
   background: #f5f5f5;
-  color: #575d6c;
+  color: #64748b;
 }
 
-.op-create { background: #e6f7ff; color: #0073e6; }
+.op-create { background: #fdf5ed; color: #9a5b25; }
 .op-resume { background: #f6ffed; color: #389e0d; }
 .op-suspend { background: #f5f5f5; color: #8a8e99; }
 .op-delete { background: #fff1f0; color: #cf1322; }
@@ -493,7 +493,7 @@ onMounted(() => {
   font-size: 11px;
 }
 .rt-warm { background: #f6ffed; color: #389e0d; }
-.rt-cold { background: #e6f7ff; color: #0073e6; }
+.rt-cold { background: #fdf5ed; color: #9a5b25; }
 
 /* SQL Audit */
 .stmt-type {
@@ -506,11 +506,11 @@ onMounted(() => {
 
 .stmt-ddl { background: #f6ffed; color: #389e0d; }
 .stmt-dml { background: #fff7e6; color: #d48806; }
-.stmt-select { background: #e6f7ff; color: #0073e6; }
+.stmt-select { background: #fdf5ed; color: #9a5b25; }
 
 .sql-text {
   font-size: 12px;
-  color: #575d6c;
+  color: #64748b;
   word-break: break-all;
   max-width: 400px;
   display: inline-block;
@@ -538,13 +538,13 @@ onMounted(() => {
 
 .level-error { color: #cf1322; background: #fff1f0; }
 .level-warning { color: #d48806; background: #fff7e6; }
-.level-log { color: #575d6c; background: #f5f5f5; }
-.level-statement { color: #0073e6; background: #e6f7ff; text-decoration: underline; }
-.level-info { color: #575d6c; background: #f5f5f5; }
+.level-log { color: #64748b; background: #f5f5f5; }
+.level-statement { color: #9a5b25; background: #fdf5ed; text-decoration: underline; }
+.level-info { color: #64748b; background: #f5f5f5; }
 
 .log-message {
   font-size: 12px;
-  color: #575d6c;
+  color: #64748b;
   word-break: break-all;
 }
 

@@ -62,12 +62,12 @@
               <router-link
                 :to="`/datalake/jobs/${job.id}`"
                 class="btn btn-text btn-small"
-                style="color: #0073e6;"
+                style="color: #9a5b25;"
               >详情</router-link>
               <button
                 v-if="job.status === 'FAILED' || job.status === 'CANCELLED' || job.status === 'SUCCEEDED'"
                 class="btn btn-text btn-small"
-                style="color: #0073e6;"
+                style="color: #9a5b25;"
                 @click="handleResubmit(job)"
               >重跑</button>
             </td>
@@ -264,8 +264,8 @@ onUnmounted(() => {
 }
 
 .status-tab.active {
-  color: #0073e6;
-  border-bottom-color: #0073e6;
+  color: #9a5b25;
+  border-bottom-color: #c67d3a;
   font-weight: 500;
 }
 
@@ -284,11 +284,11 @@ onUnmounted(() => {
 
 .status-tab.active .tab-count {
   background: #e8f3ff;
-  color: #0073e6;
+  color: #9a5b25;
 }
 
 .job-name-link {
-  color: #0073e6;
+  color: #9a5b25;
   text-decoration: none;
   font-weight: 500;
 }
@@ -334,7 +334,7 @@ onUnmounted(() => {
 
 .type-tag-ray {
   background: #f0f7ff;
-  color: #0073e6;
+  color: #9a5b25;
   border: 1px solid #b3d4f7;
 }
 
@@ -361,14 +361,14 @@ onUnmounted(() => {
 }
 
 .type-radio:hover {
-  border-color: #0073e6;
-  color: #0073e6;
+  border-color: #c67d3a;
+  color: #9a5b25;
 }
 
 .type-radio.selected {
-  border-color: #0073e6;
+  border-color: #c67d3a;
   background: #e8f3ff;
-  color: #0073e6;
+  color: #9a5b25;
   font-weight: 500;
 }
 

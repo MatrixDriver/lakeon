@@ -545,7 +545,7 @@ onMounted(() => fetchAll())
 .monitor-tab {
   padding: 10px 24px;
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
@@ -553,12 +553,12 @@ onMounted(() => fetchAll())
   transition: all 0.15s;
 }
 
-.monitor-tab:hover { color: #0073e6; }
+.monitor-tab:hover { color: #9a5b25; }
 
 .monitor-tab.active {
-  color: #0073e6;
+  color: #9a5b25;
   font-weight: 600;
-  border-bottom-color: #0073e6;
+  border-bottom-color: #c67d3a;
 }
 
 /* Summary cards */
@@ -579,7 +579,7 @@ onMounted(() => fetchAll())
 .metric-value {
   font-size: 28px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
   margin-bottom: 4px;
 }
 
@@ -591,7 +591,7 @@ onMounted(() => fetchAll())
 
 .metric-label {
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
 }
 
 .metric-sub {
@@ -605,7 +605,7 @@ onMounted(() => fetchAll())
 
 /* Database table */
 .db-name-link {
-  color: #0073e6;
+  color: #9a5b25;
   text-decoration: none;
 }
 
@@ -631,7 +631,7 @@ onMounted(() => fetchAll())
 
 .storage-fill {
   height: 100%;
-  background-color: #0073e6;
+  background-color: #9a5b25;
   border-radius: 3px;
   transition: width 0.3s;
 }
@@ -678,7 +678,7 @@ onMounted(() => fetchAll())
 .latency-bar-label {
   width: 60px;
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   text-align: right;
   flex-shrink: 0;
 }
@@ -695,7 +695,7 @@ onMounted(() => fetchAll())
   height: 100%;
   border-radius: 4px;
   transition: width 0.3s;
-  background-color: #0073e6;
+  background-color: #9a5b25;
 }
 
 .latency-bar-fill.fill-green { background-color: #52c41a; }
@@ -705,7 +705,7 @@ onMounted(() => fetchAll())
 .latency-bar-count {
   width: 32px;
   font-size: 13px;
-  color: #191919;
+  color: #2c3e50;
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -720,7 +720,7 @@ onMounted(() => fetchAll())
 
 .perf-selector-label {
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
   white-space: nowrap;
 }
 
@@ -729,7 +729,7 @@ onMounted(() => fetchAll())
   font-size: 14px;
   border: 1px solid #d9d9d9;
   border-radius: 4px;
-  color: #191919;
+  color: #2c3e50;
   background: #fff;
   min-width: 200px;
   cursor: pointer;
@@ -737,7 +737,7 @@ onMounted(() => fetchAll())
 
 .perf-select:focus {
   outline: none;
-  border-color: #0073e6;
+  border-color: #c67d3a;
 }
 
 /* Usage tab */
@@ -755,7 +755,7 @@ onMounted(() => fetchAll())
 }
 
 .rank-badge.rank-top {
-  background: #0073e6;
+  background: #9a5b25;
   color: #fff;
 }
 
@@ -791,7 +791,7 @@ onMounted(() => fetchAll())
 .branch-db-name {
   font-size: 14px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
   flex: 1;
 }
 
@@ -802,7 +802,7 @@ onMounted(() => fetchAll())
 
 .branch-db-size {
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   font-weight: 600;
   min-width: 80px;
   text-align: right;
@@ -818,7 +818,7 @@ onMounted(() => fetchAll())
   justify-content: space-between;
   padding: 6px 0;
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   border-bottom: 1px solid #fafafa;
 }
 
@@ -839,8 +839,8 @@ onMounted(() => fetchAll())
   padding: 1px 6px;
   border-radius: 3px;
   font-size: 11px;
-  background: #e6f7ff;
-  color: #0073e6;
+  background: #fdf5ed;
+  color: #9a5b25;
 }
 
 .idle-tag {
@@ -869,7 +869,7 @@ onMounted(() => fetchAll())
 .wakeup-freq-name {
   width: 120px;
   font-size: 13px;
-  color: #191919;
+  color: #2c3e50;
   font-weight: 500;
   flex-shrink: 0;
   white-space: nowrap;
@@ -894,14 +894,14 @@ onMounted(() => fetchAll())
 
 .wakeup-freq-fill {
   height: 100%;
-  background: #0073e6;
+  background: #9a5b25;
   border-radius: 4px;
   transition: width 0.3s;
 }
 
 .wakeup-freq-count {
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   min-width: 48px;
   white-space: nowrap;
 }
@@ -919,13 +919,13 @@ onMounted(() => fetchAll())
   border-radius: 4px;
   padding: 4px 14px;
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   cursor: pointer;
 }
 
 .refresh-btn:hover:not(:disabled) {
-  border-color: #0073e6;
-  color: #0073e6;
+  border-color: #c67d3a;
+  color: #9a5b25;
 }
 
 .refresh-btn:disabled {

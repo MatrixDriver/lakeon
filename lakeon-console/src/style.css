@@ -39,8 +39,28 @@
 }
 /* ── end theme variables ── */
 
+/* ── Console theme (harbor warm tone) ── */
 :root {
-  font-family: 'HuaweiSans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --c-primary: #1e2d3d;
+  --c-primary-hover: #16222d;
+  --c-accent: #c67d3a;
+  --c-accent-hover: #b06a2e;
+  --c-accent-text: #9a5b25;
+  --c-accent-light: #fdf5ed;
+  --c-danger: #e6393d;
+  --c-danger-hover: #cc2f33;
+  --c-success: #52c41a;
+  --c-text: #2c3e50;
+  --c-text-2: #64748b;
+  --c-text-3: #94a3b8;
+  --c-border: #e8e4df;
+  --c-border-light: #f0ece7;
+  --c-bg-alt: #faf8f5;
+  --c-hover: #f8f5f1;
+}
+
+:root {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color: #333;
@@ -81,7 +101,7 @@ body {
 .page-title {
   font-size: 20px;
   font-weight: 700;
-  color: #191919;
+  color: var(--c-text);
   margin: 0;
 }
 
@@ -102,7 +122,7 @@ body {
 }
 
 .page-header-link:hover {
-  color: #0073e6;
+  color: var(--c-accent-text);
 }
 
 /* ============================
@@ -125,13 +145,13 @@ body {
 }
 
 .status-bar-label {
-  color: #575d6c;
+  color: var(--c-text-2);
   font-size: 14px;
 }
 
 .status-bar-count {
   font-weight: 700;
-  color: #191919;
+  color: var(--c-text);
   font-size: 14px;
 }
 
@@ -159,13 +179,13 @@ body {
 
 .section-header {
   padding: 14px 16px;
-  border-bottom: 1px solid #ebebeb;
+  border-bottom: 1px solid var(--c-border-light);
 }
 
 .section-header h3 {
   font-size: 14px;
   font-weight: 600;
-  color: #191919;
+  color: var(--c-text);
   margin: 0;
 }
 
@@ -187,9 +207,9 @@ body {
   font-size: 12px;
   font-weight: 400;
   color: #575d6c;
-  background: #fafafa;
-  border-top: 1px solid #ebebeb;
-  border-bottom: 1px solid #ebebeb;
+  background: var(--c-bg-alt);
+  border-top: 1px solid var(--c-border-light);
+  border-bottom: 1px solid var(--c-border-light);
   white-space: nowrap;
   line-height: 20px;
 }
@@ -197,13 +217,13 @@ body {
 .data-table td {
   padding: 16px 16px;
   font-size: 14px;
-  color: #191919;
-  border-bottom: 1px solid #f0f0f0;
+  color: var(--c-text);
+  border-bottom: 1px solid var(--c-border-light);
   line-height: 22px;
 }
 
 .data-table tbody tr:hover {
-  background-color: #f5f7fa;
+  background-color: var(--c-hover);
 }
 
 /* ============================
@@ -216,7 +236,7 @@ body {
   height: 32px;
   padding: 0 16px;
   font-size: 14px;
-  border-radius: 2px;
+  border-radius: 4px;
   border: 1px solid transparent;
   cursor: pointer;
   transition: all 0.2s;
@@ -229,15 +249,15 @@ body {
 }
 
 .btn-primary {
-  background-color: #e6393d;
+  background-color: var(--c-primary);
   color: #fff;
-  border-color: #e6393d;
-  border-radius: 2px;
+  border-color: var(--c-primary);
+  border-radius: 4px;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #cc2f33;
-  border-color: #cc2f33;
+  background-color: var(--c-primary-hover);
+  border-color: var(--c-primary-hover);
 }
 
 .btn-default {
@@ -247,18 +267,18 @@ body {
 }
 
 .btn-default:hover:not(:disabled) {
-  border-color: #0073e6;
-  color: #0073e6;
+  border-color: var(--c-accent-text);
+  color: var(--c-accent-text);
 }
 
 .btn-danger {
-  background-color: #e6393d;
+  background-color: var(--c-danger);
   color: #fff;
-  border-color: #e6393d;
+  border-color: var(--c-danger);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background-color: #cc2f33;
+  background-color: var(--c-danger-hover);
 }
 
 .btn-small {
@@ -270,14 +290,14 @@ body {
 .btn-text {
   background: none;
   border: none;
-  color: #0073e6;
+  color: var(--c-accent-text);
   padding: 0 6px;
   height: auto;
   font-size: 14px;
 }
 
 .btn-text:hover:not(:disabled) {
-  color: #005bb5;
+  color: var(--c-accent-hover);
 }
 
 .btn-danger-text {
@@ -317,7 +337,7 @@ body {
 .status-tag {
   display: inline-block;
   padding: 1px 8px;
-  border-radius: 2px;
+  border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
 }
@@ -333,7 +353,7 @@ body {
 }
 
 .tag-blue {
-  color: #0073e6;
+  color: #1565c0;
   background-color: #e6f7ff;
 }
 
@@ -362,7 +382,7 @@ body {
 
 .dialog-box {
   background: #fff;
-  border-radius: 4px;
+  border-radius: 8px;
   width: 480px;
   max-width: 90vw;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
@@ -382,7 +402,7 @@ body {
 .dialog-header h3 {
   font-size: 16px;
   font-weight: 600;
-  color: #191919;
+  color: var(--c-text);
   margin: 0;
 }
 
@@ -432,7 +452,7 @@ body {
 .form-label {
   display: block;
   font-size: 14px;
-  color: #575d6c;
+  color: var(--c-text-2);
   margin-bottom: 8px;
   font-weight: 400;
 }
@@ -446,10 +466,10 @@ body {
   width: 100%;
   height: 32px;
   border: 1px solid #c2c6cc;
-  border-radius: 2px;
+  border-radius: 4px;
   padding: 0 12px;
   font-size: 14px;
-  color: #191919;
+  color: var(--c-text);
   outline: none;
   transition: border-color 0.2s;
   background: #fff;
@@ -457,8 +477,8 @@ body {
 
 .form-input:focus,
 .form-select:focus {
-  border-color: #0073e6;
-  box-shadow: 0 0 0 2px rgba(0, 115, 230, 0.1);
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 2px rgba(198, 125, 58, 0.1);
 }
 
 .form-input::placeholder {
@@ -471,16 +491,16 @@ body {
 .search-input {
   height: 32px;
   border: 1px solid #c2c6cc;
-  border-radius: 2px;
+  border-radius: 4px;
   padding: 0 12px;
   font-size: 14px;
-  color: #191919;
+  color: var(--c-text);
   outline: none;
   transition: border-color 0.2s;
 }
 
 .search-input:focus {
-  border-color: #0073e6;
+  border-color: var(--c-accent);
 }
 
 .search-input::placeholder {
@@ -493,18 +513,18 @@ body {
 .copy-btn {
   background: none;
   border: 1px solid #c2c6cc;
-  border-radius: 2px;
+  border-radius: 4px;
   padding: 2px 10px;
   font-size: 12px;
-  color: #0073e6;
+  color: var(--c-accent-text);
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.2s;
 }
 
 .copy-btn:hover {
-  border-color: #0073e6;
-  background-color: #f2f6fc;
+  border-color: var(--c-accent);
+  background-color: var(--c-accent-light);
 }
 
 /* ============================
@@ -521,7 +541,7 @@ body {
 .page-btn {
   background: #fff;
   border: 1px solid #c2c6cc;
-  border-radius: 2px;
+  border-radius: 4px;
   padding: 4px 10px;
   font-size: 12px;
   color: #575d6c;
@@ -535,8 +555,8 @@ body {
 }
 
 .page-btn:hover:not(:disabled) {
-  border-color: #0073e6;
-  color: #0073e6;
+  border-color: var(--c-accent-text);
+  color: var(--c-accent-text);
 }
 
 .page-btn:disabled {
@@ -559,7 +579,7 @@ body {
 }
 
 .breadcrumb-link {
-  color: #0073e6;
+  color: var(--c-accent-text);
   text-decoration: none;
 }
 

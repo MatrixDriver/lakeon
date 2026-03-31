@@ -200,7 +200,7 @@ onMounted(fetchKeys)
 <style scoped>
 .page-desc {
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
   margin-bottom: 20px;
   line-height: 1.6;
 }
@@ -228,10 +228,10 @@ onMounted(fetchKeys)
 
 .key-value {
   font-size: 13px;
-  color: #191919;
+  color: #2c3e50;
   background: #f2f3f5;
   padding: 6px 12px;
-  border-radius: 2px;
+  border-radius: 4px;
   font-family: 'SFMono-Regular', Consolas, monospace;
   letter-spacing: 0.3px;
 }
@@ -304,14 +304,14 @@ onMounted(fetchKeys)
   width: 100%;
   padding: 8px 12px;
   border: 1px solid #d9d9d9;
-  border-radius: 2px;
+  border-radius: 4px;
   font-size: 14px;
   outline: none;
   box-sizing: border-box;
 }
 
 .form-input:focus {
-  border-color: #0073e6;
+  border-color: #c67d3a;
   box-shadow: 0 0 0 2px rgba(0, 115, 230, 0.1);
 }
 

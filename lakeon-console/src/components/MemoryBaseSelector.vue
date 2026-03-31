@@ -8,7 +8,7 @@
       </option>
     </select>
     <p v-if="bases.length === 0" style="font-size: 12px; color: #999; margin-top: 4px;">
-      请先 <router-link to="/memory" style="color: #0073e6;">创建记忆库</router-link>
+      请先 <router-link to="/memory" style="color: #9a5b25;">创建记忆库</router-link>
     </p>
   </div>
 </template>

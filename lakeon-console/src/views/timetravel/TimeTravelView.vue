@@ -574,7 +574,7 @@ onMounted(() => {
 .page-title {
   font-size: 18px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
   margin: 0 0 8px;
 }
 
@@ -599,7 +599,7 @@ onMounted(() => {
 
 .db-selector-label {
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
   font-weight: 500;
   flex-shrink: 0;
 }
@@ -610,11 +610,11 @@ onMounted(() => {
   padding: 0 8px;
   font-size: 14px;
   border: 1px solid #c2c6cc;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 .db-select:focus {
-  border-color: #0073e6;
+  border-color: #c67d3a;
   outline: none;
 }
 
@@ -625,7 +625,7 @@ onMounted(() => {
   color: #8a8e99;
   font-size: 14px;
   border: 1px solid #ebebeb;
-  border-radius: 2px;
+  border-radius: 4px;
   background: #fafbfc;
 }
 
@@ -638,7 +638,7 @@ onMounted(() => {
   display: flex;
   gap: 0;
   border: 1px solid #ebebeb;
-  border-radius: 2px;
+  border-radius: 4px;
   background: #fff;
   min-height: 400px;
   margin-bottom: 16px;
@@ -663,7 +663,7 @@ onMounted(() => {
 .branch-list-title {
   font-size: 14px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .branch-list-loading {
@@ -686,12 +686,12 @@ onMounted(() => {
 }
 
 .branch-list-item:hover {
-  background: #f5f7fa;
+  background: #f8f5f1;
 }
 
 .branch-list-item-selected {
   background: #e6f0ff;
-  border-left: 3px solid #0073e6;
+  border-left: 3px solid #c67d3a;
   padding-left: 13px;
 }
 
@@ -712,13 +712,13 @@ onMounted(() => {
 .dot-green { background: #52c41a; }
 .dot-yellow { background: #faad14; }
 .dot-gray { background: #c2c6cc; }
-.dot-blue { background: #0073e6; }
+.dot-blue { background: #9a5b25; }
 .dot-red { background: #e6393d; }
 
 .compute-status-label {
   font-size: 11px;
   padding: 1px 6px;
-  border-radius: 2px;
+  border-radius: 4px;
   flex-shrink: 0;
 }
 
@@ -748,7 +748,7 @@ onMounted(() => {
 .branch-uri-text {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 10px;
-  color: #575d6c;
+  color: #64748b;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -767,13 +767,13 @@ onMounted(() => {
 }
 
 .btn-copy-uri:hover {
-  color: #0073e6;
+  color: #9a5b25;
 }
 
 .branch-item-name {
   font-size: 13px;
   font-weight: 500;
-  color: #191919;
+  color: #2c3e50;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -802,17 +802,17 @@ onMounted(() => {
 .default-tag {
   display: inline-block;
   padding: 1px 8px;
-  border-radius: 2px;
+  border-radius: 4px;
   font-size: 12px;
-  background-color: #e6f7ff;
-  color: #0073e6;
+  background-color: #fdf5ed;
+  color: #9a5b25;
   margin-left: 6px;
 }
 
 .active-tag {
   display: inline-block;
   padding: 1px 8px;
-  border-radius: 2px;
+  border-radius: 4px;
   font-size: 12px;
   background-color: #f6ffed;
   color: #52c41a;
@@ -836,7 +836,7 @@ onMounted(() => {
 
 .branch-uri-bar-label {
   font-size: 12px;
-  color: #575d6c;
+  color: #64748b;
   flex-shrink: 0;
   font-weight: 500;
 }
@@ -844,7 +844,7 @@ onMounted(() => {
 .branch-uri-bar-value {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 12px;
-  color: #191919;
+  color: #2c3e50;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -856,7 +856,7 @@ onMounted(() => {
 .branch-status-tag {
   display: inline-block;
   padding: 1px 8px;
-  border-radius: 2px;
+  border-radius: 4px;
   font-size: 12px;
 }
 
@@ -866,7 +866,7 @@ onMounted(() => {
 }
 
 .branch-status-creating {
-  background: #e6f7ff;
+  background: #fdf5ed;
   color: #1890ff;
 }
 
@@ -894,7 +894,7 @@ onMounted(() => {
 .version-timeline-title {
   font-size: 14px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .version-header-actions {
@@ -948,8 +948,8 @@ onMounted(() => {
 }
 
 .version-dot-latest {
-  background: #0073e6;
-  box-shadow: 0 0 0 1px #0073e6;
+  background: #9a5b25;
+  box-shadow: 0 0 0 1px #c67d3a;
 }
 
 .version-line {
@@ -984,7 +984,7 @@ onMounted(() => {
 .version-name {
   font-size: 14px;
   font-weight: 500;
-  color: #191919;
+  color: #2c3e50;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1006,10 +1006,10 @@ onMounted(() => {
 .version-lsn {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 12px;
-  color: #575d6c;
+  color: #64748b;
   background: #f2f3f5;
   padding: 1px 6px;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 .version-author {
@@ -1072,7 +1072,7 @@ onMounted(() => {
 }
 
 .version-item-squash-endpoint .version-content {
-  background: #e6f7ff;
+  background: #fdf5ed;
   border-radius: 4px;
   margin: -4px -8px;
   padding: 4px 8px 24px;
@@ -1120,13 +1120,13 @@ onMounted(() => {
 .diff-overlay-title {
   font-size: 14px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .diff-overlay-loading {
   text-align: center;
   padding: 40px 24px;
-  color: #575d6c;
+  color: #64748b;
   font-size: 15px;
 }
 
@@ -1144,13 +1144,13 @@ onMounted(() => {
 .branch-table-summary {
   cursor: pointer;
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   padding: 8px 0;
   user-select: none;
 }
 
 .branch-table-summary:hover {
-  color: #0073e6;
+  color: #9a5b25;
 }
 
 .table-toolbar-row {
@@ -1167,17 +1167,17 @@ onMounted(() => {
   padding: 0 8px;
   font-size: 13px;
   border: 1px solid #c2c6cc;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 .search-input:focus {
-  border-color: #0073e6;
+  border-color: #c67d3a;
   outline: none;
 }
 
 .section-card {
   border: 1px solid #ebebeb;
-  border-radius: 2px;
+  border-radius: 4px;
   overflow: hidden;
   background: #fff;
 }

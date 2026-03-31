@@ -110,7 +110,7 @@
         <tbody>
           <tr v-for="kb in filteredKBs" :key="kb.id">
             <td>
-              <router-link :to="`/knowledge/${kb.id}`" style="color: #0073e6; text-decoration: none; font-weight: 500;">
+              <router-link :to="`/knowledge/${kb.id}`" style="color: #9a5b25; text-decoration: none; font-weight: 500;">
                 {{ kb.name }}
               </router-link>
             </td>
@@ -297,13 +297,13 @@ onMounted(loadKBs)
   user-select: none;
 }
 .type-radio:hover {
-  border-color: #0073e6;
-  color: #0073e6;
+  border-color: #c67d3a;
+  color: #9a5b25;
 }
 .type-radio.selected {
-  border-color: #0073e6;
+  border-color: #c67d3a;
   background: #e8f3ff;
-  color: #0073e6;
+  color: #9a5b25;
   font-weight: 500;
 }
 .type-tag {
@@ -315,7 +315,7 @@ onMounted(loadKBs)
 }
 .type-tag-doc {
   background: #f0f7ff;
-  color: #0073e6;
+  color: #9a5b25;
   border: 1px solid #b3d4f7;
 }
 .type-tag-table {

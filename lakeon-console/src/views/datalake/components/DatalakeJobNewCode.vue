@@ -8,8 +8,8 @@
     </div>
 
     <div class="source-tabs">
-      <button class="source-tab" :class="{ active: tab === 'inline' }" @click="tab = 'inline'">✏️ 内联编辑器</button>
-      <button class="source-tab" :class="{ active: tab === 'obs' }" @click="tab = 'obs'">📦 OBS 路径</button>
+      <button class="source-tab" :class="{ active: tab === 'inline' }" @click="tab = 'inline'">内联编辑器</button>
+      <button class="source-tab" :class="{ active: tab === 'obs' }" @click="tab = 'obs'">OBS 路径</button>
     </div>
 
     <div v-if="tab === 'inline'" class="editor-wrap">
@@ -39,7 +39,7 @@
     <!-- AI Panel -->
     <div class="ai-panel" :class="{ expanded: aiOpen }">
       <div class="ai-toggle" @click="aiOpen = !aiOpen">
-        ✨ <strong>AI 辅助</strong>：描述你想做什么，AI 帮你生成脚本
+        <strong>AI 辅助</strong>：描述你想做什么，AI 帮你生成脚本
         <span class="ai-toggle-arrow">{{ aiOpen ? '▼' : '▶' }}</span>
       </div>
       <div v-if="aiOpen" class="ai-body">
@@ -127,7 +127,7 @@ print("=" * 50)
 print(f"\\n总记录: {len(df)} 行")
 print(f"日期范围: {df['日期'].min().date()} ~ {df['日期'].max().date()}")
 print(f"总销售额: ¥{df['销售额'].sum():,.2f}")
-print(f"\\n📊 按产品汇总:")
+print(f"\\n按产品汇总:")
 print(summary.to_string())
 
 # 输出结果（如果设置了 OUTPUT_PATH）
@@ -178,7 +178,7 @@ total_inside = sum(r["inside"] for r in results)
 pi_estimate = 4.0 * total_inside / total_samples
 error = abs(pi_estimate - 3.141592653589793)
 
-print(f"\\n📊 计算结果:")
+print(f"\\n计算结果:")
 for r in results:
     pi_local = 4.0 * r["inside"] / r["total"]
     print(f"   Task {r['task_id']:2d}: π ≈ {pi_local:.6f}")

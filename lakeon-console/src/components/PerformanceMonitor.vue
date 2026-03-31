@@ -41,7 +41,7 @@
             <div class="perf-card-sub">当前使用量/总量</div>
           </div>
           <div class="perf-card-chart">
-            <SparkLine :data="cpuHistory" :width="180" :height="48" :max="100" color="#0073e6" />
+            <SparkLine :data="cpuHistory" :width="180" :height="48" :max="100" color="#9a5b25" />
           </div>
         </div>
       </div>
@@ -60,7 +60,7 @@
             <div class="perf-card-sub">当前使用量/总量</div>
           </div>
           <div class="perf-card-chart">
-            <SparkLine :data="memHistory" :width="180" :height="48" :max="100" color="#0073e6" />
+            <SparkLine :data="memHistory" :width="180" :height="48" :max="100" color="#9a5b25" />
           </div>
         </div>
       </div>
@@ -106,7 +106,7 @@
             <div class="perf-card-sub">当前值</div>
           </div>
           <div class="perf-card-chart">
-            <SparkLine :data="connHistory" :width="180" :height="48" color="#0073e6" />
+            <SparkLine :data="connHistory" :width="180" :height="48" color="#9a5b25" />
           </div>
         </div>
       </div>
@@ -301,7 +301,7 @@ onUnmounted(() => stopPolling())
 .perf-header h3 {
   font-size: 16px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
   margin: 0;
 }
 
@@ -319,8 +319,8 @@ onUnmounted(() => stopPolling())
 }
 
 .perf-label.active {
-  color: #0073e6;
-  border-bottom: 2px solid #0073e6;
+  color: #9a5b25;
+  border-bottom: 2px solid #c67d3a;
 }
 
 .perf-label:hover:not(.active) {
@@ -376,7 +376,7 @@ onUnmounted(() => stopPolling())
 .perf-card-title {
   font-size: 15px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
   margin-bottom: 4px;
 }
 
@@ -387,14 +387,14 @@ onUnmounted(() => stopPolling())
 }
 
 .perf-card-meta b {
-  color: #191919;
+  color: #2c3e50;
   font-weight: 600;
 }
 
 .perf-card-value {
   font-size: 24px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
   line-height: 1.2;
 }
 
@@ -451,13 +451,13 @@ onUnmounted(() => stopPolling())
 .diag-title {
   font-size: 14px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
   margin-bottom: 2px;
 }
 
 .diag-desc {
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   line-height: 1.5;
 }
 

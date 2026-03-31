@@ -124,7 +124,7 @@ onMounted(async () => {
 }
 
 .breadcrumb-link {
-  color: #0073e6;
+  color: #9a5b25;
   text-decoration: none;
 }
 
@@ -137,14 +137,14 @@ onMounted(async () => {
 }
 
 .breadcrumb-item.active {
-  color: #191919;
+  color: #2c3e50;
 }
 
 .manager-layout {
   flex: 1;
   display: flex;
   border: 1px solid #dfe1e6;
-  border-radius: 2px;
+  border-radius: 4px;
   background: #fff;
   overflow: hidden;
   min-height: 0;

@@ -161,7 +161,7 @@ watch(() => [props.schema, props.table], () => {
 .struct-header {
   font-size: 15px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
   margin-bottom: 16px;
   padding-bottom: 10px;
   border-bottom: 1px solid #ebebeb;
@@ -173,7 +173,7 @@ watch(() => [props.schema, props.table], () => {
 }
 
 .struct-table-name {
-  color: #191919;
+  color: #2c3e50;
 }
 
 .struct-section {
@@ -186,7 +186,7 @@ watch(() => [props.schema, props.table], () => {
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
   margin: 0 0 10px;
 }
 
@@ -196,15 +196,15 @@ watch(() => [props.schema, props.table], () => {
   border-radius: 4px;
   font-size: 14px;
   cursor: pointer;
-  color: #575d6c;
+  color: #64748b;
   padding: 1px 6px;
   line-height: 1;
   transition: all 0.15s;
 }
 
 .refresh-btn:hover:not(:disabled) {
-  border-color: #0073e6;
-  color: #0073e6;
+  border-color: #c67d3a;
+  color: #9a5b25;
 }
 
 .refresh-btn:disabled {
@@ -234,7 +234,7 @@ watch(() => [props.schema, props.table], () => {
 .data-table th {
   background: #f7f8fa;
   font-weight: 600;
-  color: #575d6c;
+  color: #64748b;
 }
 
 .data-table tbody tr:hover {
@@ -248,17 +248,17 @@ watch(() => [props.schema, props.table], () => {
 
 .col-name {
   font-weight: 500;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .col-type {
-  color: #0073e6;
+  color: #9a5b25;
   font-family: monospace;
   font-size: 12px;
 }
 
 .col-default {
-  color: #575d6c;
+  color: #64748b;
   font-family: monospace;
   font-size: 12px;
 }
@@ -300,7 +300,7 @@ watch(() => [props.schema, props.table], () => {
   max-height: 400px;
   overflow-y: auto;
   border: 1px solid #ebebeb;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 .preview-table {
@@ -316,7 +316,7 @@ watch(() => [props.schema, props.table], () => {
 .preview-table td {
   font-family: monospace;
   font-size: 12px;
-  color: #191919;
+  color: #2c3e50;
   max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;

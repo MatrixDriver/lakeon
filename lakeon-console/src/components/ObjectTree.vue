@@ -164,7 +164,7 @@ onMounted(loadSchemas)
 
 .tree-title {
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
   font-size: 13px;
 }
 
@@ -173,14 +173,14 @@ onMounted(loadSchemas)
   border: none;
   font-size: 16px;
   cursor: pointer;
-  color: #575d6c;
+  color: #64748b;
   padding: 2px 6px;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 .tree-refresh:hover {
   background: #f2f3f5;
-  color: #0073e6;
+  color: #9a5b25;
 }
 
 .tree-body {
@@ -221,7 +221,7 @@ onMounted(loadSchemas)
 
 .tree-item.selected {
   background: #e6f4ff;
-  color: #0073e6;
+  color: #9a5b25;
 }
 
 .tree-arrow {
@@ -270,7 +270,7 @@ onMounted(loadSchemas)
   display: none;
   margin-left: auto;
   font-size: 11px;
-  color: #0073e6;
+  color: #9a5b25;
   text-decoration: none;
   padding: 0 4px;
 }
@@ -284,12 +284,12 @@ onMounted(loadSchemas)
   justify-content: center;
   width: 16px;
   height: 16px;
-  border-radius: 2px;
+  border-radius: 4px;
   font-size: 10px;
   font-weight: 700;
   flex-shrink: 0;
 }
 
-.type-table { background: #e6f4ff; color: #0073e6; }
+.type-table { background: #e6f4ff; color: #9a5b25; }
 .type-view { background: #f6ffed; color: #52c41a; }
 </style>

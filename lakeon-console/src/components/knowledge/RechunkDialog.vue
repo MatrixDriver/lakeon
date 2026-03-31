@@ -303,13 +303,13 @@ function handleKeep() {
 }
 
 .form-input:focus {
-  border-color: #0073e6;
+  border-color: #c67d3a;
 }
 
 .form-range {
   width: 100%;
   margin: 6px 0 2px;
-  accent-color: #0073e6;
+  accent-color: #9a5b25;
   cursor: pointer;
 }
 
@@ -340,7 +340,7 @@ function handleKeep() {
   width: 36px;
   height: 36px;
   border: 3px solid #e5e5e5;
-  border-top-color: #0073e6;
+  border-top-color: #9a5b25;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -397,7 +397,7 @@ function handleKeep() {
   align-items: center;
   padding: 0 16px;
   font-size: 24px;
-  color: #0073e6;
+  color: #9a5b25;
 }
 
 .stat-row {
@@ -423,7 +423,7 @@ function handleKeep() {
   line-height: 1;
 }
 
-.stat-value.blue   { color: #0073e6; }
+.stat-value.blue   { color: #9a5b25; }
 .stat-value.green  { color: #52c41a; }
 .stat-value.orange { color: #fa8c16; }
 .stat-value.red    { color: #e6393d; }

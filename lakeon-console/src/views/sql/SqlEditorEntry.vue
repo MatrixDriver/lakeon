@@ -95,7 +95,7 @@ onMounted(async () => {
 <style scoped>
 .select-prompt {
   font-size: 15px;
-  color: #575d6c;
+  color: #64748b;
   margin-bottom: 16px;
 }
 
@@ -114,7 +114,7 @@ onMounted(async () => {
 }
 
 .db-card:hover {
-  border-color: #0073e6;
+  border-color: #c67d3a;
   box-shadow: 0 2px 8px rgba(0, 115, 230, 0.08);
 }
 
@@ -138,7 +138,7 @@ onMounted(async () => {
 .db-card-name {
   font-size: 16px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .db-card-meta {
@@ -156,13 +156,13 @@ onMounted(async () => {
 
 .open-link {
   font-size: 13px;
-  color: #0073e6;
+  color: #9a5b25;
 }
 
 .empty-hero {
   text-align: center;
   padding: 60px 0;
-  color: #575d6c;
+  color: #64748b;
 }
 
 .empty-hero p {

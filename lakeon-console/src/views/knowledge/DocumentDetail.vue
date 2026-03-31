@@ -314,7 +314,7 @@ onMounted(async () => {
   display: flex;
   gap: 16px;
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   margin-top: 6px;
 }
 

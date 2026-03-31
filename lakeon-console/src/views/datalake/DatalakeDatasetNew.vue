@@ -329,7 +329,7 @@ onMounted(async () => {
 }
 
 .back-link:hover {
-  color: #0073e6;
+  color: #9a5b25;
 }
 
 .form-card {
@@ -349,7 +349,7 @@ onMounted(async () => {
 .mode-toggle {
   display: inline-flex;
   border: 1px solid #c2c6cc;
-  border-radius: 2px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
@@ -360,7 +360,7 @@ onMounted(async () => {
   border: none;
   border-right: 1px solid #c2c6cc;
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -370,13 +370,13 @@ onMounted(async () => {
 }
 
 .mode-btn:hover {
-  background: #f5f7fa;
+  background: #f8f5f1;
   color: #333;
 }
 
 .mode-btn.active {
   background: #e8f3ff;
-  color: #0073e6;
+  color: #9a5b25;
   font-weight: 500;
 }
 
@@ -387,7 +387,7 @@ onMounted(async () => {
   max-height: 240px;
   overflow-y: auto;
   border: 1px solid #e8e8e8;
-  border-radius: 2px;
+  border-radius: 4px;
   padding: 8px;
   max-width: 480px;
   background: #fafafa;
@@ -397,7 +397,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   padding: 6px 10px;
-  border-radius: 2px;
+  border-radius: 4px;
   font-size: 14px;
   color: #333;
   cursor: pointer;
@@ -410,17 +410,17 @@ onMounted(async () => {
 
 .table-item.selected {
   background: #e8f3ff;
-  color: #0073e6;
+  color: #9a5b25;
 }
 
 .form-textarea {
   width: 100%;
   max-width: 640px;
   border: 1px solid #c2c6cc;
-  border-radius: 2px;
+  border-radius: 4px;
   padding: 8px 12px;
   font-size: 14px;
-  color: #191919;
+  color: #2c3e50;
   outline: none;
   resize: vertical;
   font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
@@ -430,7 +430,7 @@ onMounted(async () => {
 }
 
 .form-textarea:focus {
-  border-color: #0073e6;
+  border-color: #c67d3a;
   box-shadow: 0 0 0 2px rgba(0, 115, 230, 0.1);
 }
 
@@ -472,7 +472,7 @@ onMounted(async () => {
 .section-title-text {
   font-size: 15px;
   font-weight: 600;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .preview-meta {
@@ -485,7 +485,7 @@ onMounted(async () => {
   color: #666;
   background: #fafafa;
   border: 1px solid #e8e8e8;
-  border-radius: 2px;
+  border-radius: 4px;
   padding: 8px 12px;
   margin-bottom: 4px;
   word-break: break-all;

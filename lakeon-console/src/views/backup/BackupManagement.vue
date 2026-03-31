@@ -360,14 +360,14 @@ onMounted(loadData)
 }
 .page-tip {
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
   margin-bottom: 20px;
   background: #fffbe6;
   border: 1px solid #ffe58f;
   border-radius: 4px;
   padding: 10px 16px;
 }
-.tip-link { color: #0073e6; text-decoration: none; }
+.tip-link { color: #9a5b25; text-decoration: none; }
 .tip-link:hover { text-decoration: underline; }
 
 .summary-row {
@@ -388,7 +388,7 @@ onMounted(loadData)
 .summary-value {
   font-size: 24px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
 }
 .summary-label {
   font-size: 12px;
@@ -437,16 +437,16 @@ onMounted(loadData)
   border-radius: 4px;
   background: #fff;
   cursor: pointer;
-  color: #575d6c;
+  color: #64748b;
 }
-.btn-icon:hover { border-color: #0073e6; color: #0073e6; }
+.btn-icon:hover { border-color: #c67d3a; color: #9a5b25; }
 
 .backup-name { font-weight: 500; }
-.db-link { color: #0073e6; text-decoration: none; font-size: 13px; }
+.db-link { color: #9a5b25; text-decoration: none; font-size: 13px; }
 .db-link:hover { text-decoration: underline; }
 .db-id-text { font-size: 12px; color: #999; font-family: monospace; }
-.lsn-text { font-size: 12px; color: #575d6c; }
-.time-text { font-size: 13px; color: #575d6c; white-space: nowrap; }
+.lsn-text { font-size: 12px; color: #64748b; }
+.time-text { font-size: 13px; color: #64748b; white-space: nowrap; }
 
 .status-tag {
   display: inline-block;
@@ -457,7 +457,7 @@ onMounted(loadData)
 }
 .tag-green { background: #f6ffed; color: #389e0d; }
 .tag-red { background: #fff1f0; color: #e6393d; }
-.tag-blue { background: #e6f7ff; color: #096dd9; }
+.tag-blue { background: #fdf5ed; color: #096dd9; }
 
 .table-footer {
   display: flex;
@@ -466,7 +466,7 @@ onMounted(loadData)
   padding: 12px 16px;
   border-top: 1px solid #ebebeb;
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
 }
 .footer-pages {
   display: flex;
@@ -516,7 +516,7 @@ onMounted(loadData)
   gap: 8px;
   padding: 0 24px 20px;
 }
-.restore-hint { font-size: 14px; color: #575d6c; margin-bottom: 16px; }
+.restore-hint { font-size: 14px; color: #64748b; margin-bottom: 16px; }
 .form-group { margin-bottom: 16px; }
 .form-label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; }
 .required { color: #e6393d; }
@@ -532,11 +532,11 @@ onMounted(loadData)
 
 /* Shared btn styles (should exist from global, but fallback) */
 .btn { cursor: pointer; border-radius: 4px; font-size: 13px; padding: 6px 16px; border: 1px solid #d9d9d9; background: #fff; }
-.btn-primary { background: #0073e6; color: #fff; border-color: #0073e6; }
+.btn-primary { background: #9a5b25; color: #fff; border-color: #c67d3a; }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-default { background: #fff; color: #333; }
 .btn-small { padding: 4px 10px; font-size: 12px; }
-.btn-text { border: none; background: none; color: #0073e6; padding: 4px 8px; }
+.btn-text { border: none; background: none; color: #9a5b25; padding: 4px 8px; }
 .btn-text:hover { text-decoration: underline; }
 .btn-text:disabled { color: #ccc; text-decoration: none; }
 .btn-danger-text { color: #e6393d; }
