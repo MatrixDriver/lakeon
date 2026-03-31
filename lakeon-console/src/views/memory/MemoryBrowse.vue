@@ -7,18 +7,24 @@
     <MemoryBaseSelector @change="onBaseChange" />
 
     <div v-if="baseId" style="margin-top: 20px;">
-      <!-- Traits section -->
-      <div v-if="traits.length > 0" class="traits-section">
-        <div class="traits-header" @click="traitsExpanded = !traitsExpanded">
-          <span class="traits-title">反思洞察</span>
-          <span class="traits-count">{{ traits.length }}</span>
-          <span class="traits-toggle">{{ traitsExpanded ? '收起' : '展开' }}</span>
-        </div>
-        <div v-if="traitsExpanded" class="traits-grid">
+      <!-- Tabs -->
+      <div class="browse-tabs">
+        <button class="browse-tab" :class="{ active: activeTab === 'memories' }" @click="activeTab = 'memories'">记忆浏览</button>
+        <button class="browse-tab" :class="{ active: activeTab === 'traits' }" @click="activeTab = 'traits'">
+          反思洞察<span v-if="traits.length > 0" class="tab-count">{{ traits.length }}</span>
+        </button>
+      </div>
+
+      <!-- Traits tab -->
+      <div v-if="activeTab === 'traits'" style="margin-top: 16px;">
+        <div v-if="traits.length === 0" style="text-align: center; color: #94a3b8; padding: 40px 0;">暂无洞察</div>
+        <div v-else class="traits-grid">
           <TraitCard v-for="t in traits" :key="t.id" :trait="t" />
         </div>
       </div>
 
+      <!-- Memories tab -->
+      <template v-if="activeTab === 'memories'">
       <!-- Type filters -->
       <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
         <button
@@ -101,6 +107,7 @@
         </span>
         <button class="btn btn-sm" :disabled="currentPage * PAGE_SIZE >= total" @click="currentPage++; load()">下一页</button>
       </div>
+      </template>
     </div>
   </div>
 </template>
@@ -116,7 +123,7 @@ const PAGE_SIZE = 20
 
 const baseId = ref('')
 const traits = ref<Trait[]>([])
-const traitsExpanded = ref(true)
+const activeTab = ref<'memories' | 'traits'>('memories')
 const typeFilter = ref('')
 const searchQuery = ref('')
 const memories = ref<MemoryItem[]>([])
@@ -182,22 +189,22 @@ async function handleDelete(memoryId: number) {
 </script>
 
 <style scoped>
-.traits-section {
-  margin-bottom: 20px;
-  border: 1px solid #e8e4df;
-  border-left: 3px solid #c67d3a;
-  border-radius: 6px;
-  overflow: hidden;
+.browse-tabs {
+  display: flex; gap: 0; border-bottom: 1px solid #e8e4df;
 }
-.traits-header {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 14px; cursor: pointer; user-select: none;
+.browse-tab {
+  padding: 8px 16px; font-size: 14px; color: #64748b; background: none;
+  border: none; border-bottom: 2px solid transparent; cursor: pointer;
+  transition: all 0.15s;
 }
-.traits-title { font-size: 13px; font-weight: 600; color: #2c3e50; }
-.traits-count { font-size: 11px; color: #94a3b8; }
-.traits-toggle { margin-left: auto; font-size: 12px; color: #9a5b25; }
+.browse-tab:hover { color: #2c3e50; }
+.browse-tab.active { color: #2a4d6a; border-bottom-color: #2a4d6a; font-weight: 600; }
+.tab-count {
+  display: inline-block; margin-left: 4px; padding: 0 5px;
+  font-size: 11px; background: #f0ece7; color: #64748b; border-radius: 8px;
+}
 .traits-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 8px; padding: 0 14px 14px;
+  gap: 8px;
 }
 </style>
