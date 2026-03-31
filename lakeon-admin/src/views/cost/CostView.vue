@@ -251,12 +251,12 @@ function renderTrendChart() {
     ctx.stroke()
   }
 
-  drawLine(fixedCosts, '#0052d9')
+  drawLine(fixedCosts, '#9a5b25')
   drawLine(computeCosts, '#e37318')
 
   // Legend
   const legendY = 12
-  ctx.fillStyle = '#0052d9'
+  ctx.fillStyle = '#9a5b25'
   ctx.fillRect(padding.left, legendY - 8, 12, 3)
   ctx.fillStyle = '#333'
   ctx.fillText('固定成本', padding.left + 16, legendY)
@@ -303,20 +303,20 @@ function renderTrendChart() {
 
 .total-cost-label {
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
   margin-bottom: 8px;
 }
 
 .total-cost-value {
   font-size: 28px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .total-cost-unit {
   font-size: 14px;
   font-weight: 400;
-  color: #575d6c;
+  color: #64748b;
 }
 
 @media (max-width: 768px) {

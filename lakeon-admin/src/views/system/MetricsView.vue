@@ -258,7 +258,7 @@ function renderChart() {
   const maxHeap = Math.max(...heapHistory, 1)
   const n = heapHistory.length
 
-  ctx.strokeStyle = '#0073e6'
+  ctx.strokeStyle = '#c67d3a'
   ctx.lineWidth = 2
   ctx.beginPath()
   for (let i = 0; i < n; i++) {
@@ -283,7 +283,7 @@ function renderChart() {
     ctx.fillText(timeLabels[i] ?? '', x, h - 6)
   }
 
-  ctx.fillStyle = '#0073e6'
+  ctx.fillStyle = '#c67d3a'
   ctx.fillRect(w - pad.right + 8, pad.top, 12, 3)
   ctx.fillStyle = '#333'
   ctx.textAlign = 'left'
@@ -327,7 +327,7 @@ onUnmounted(() => {
 .metric-value {
   font-size: 28px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
 }
 .metric-unit {
   font-size: 14px;
@@ -337,7 +337,7 @@ onUnmounted(() => {
 }
 .metric-label {
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
   margin-top: 4px;
 }
 .metric-sub {
@@ -360,12 +360,12 @@ onUnmounted(() => {
   border-radius: 4px;
   padding: 2px 12px;
   font-size: 12px;
-  color: #575d6c;
+  color: #64748b;
   cursor: pointer;
 }
 .toggle-btn:hover {
-  border-color: #0073e6;
-  color: #0073e6;
+  border-color: #c67d3a;
+  color: #9a5b25;
 }
 canvas {
   width: 100%;

@@ -229,7 +229,7 @@ defineExpose({ openWithContext })
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: #0073e6;
+  background: #9a5b25;
   color: #fff;
   border: none;
   cursor: pointer;
@@ -289,7 +289,7 @@ defineExpose({ openWithContext })
 .ai-empty li { margin: 4px 0; }
 
 .ai-msg-user .ai-msg-content {
-  background: #0073e6;
+  background: #9a5b25;
   color: #fff;
   padding: 8px 12px;
   border-radius: 12px 12px 2px 12px;
@@ -315,7 +315,7 @@ defineExpose({ openWithContext })
 }
 .ai-step { font-size: 12px; color: #64748b; }
 .ai-step-thinking { font-style: italic; }
-.ai-step-tool { color: #0073e6; }
+.ai-step-tool { color: #9a5b25; }
 .ai-step-result { color: #059669; font-size: 11px; }
 
 .ai-answer { line-height: 1.6; }
@@ -342,7 +342,7 @@ defineExpose({ openWithContext })
 .ai-typing {
   display: inline-block;
   animation: blink 1s infinite;
-  color: #0073e6;
+  color: #9a5b25;
 }
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
@@ -363,13 +363,13 @@ defineExpose({ openWithContext })
   outline: none;
   font-family: inherit;
 }
-.ai-input-area textarea:focus { border-color: #0073e6; }
+.ai-input-area textarea:focus { border-color: #c67d3a; }
 
 .ai-send-btn {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: #0073e6;
+  background: #9a5b25;
   color: #fff;
   border: none;
   cursor: pointer;

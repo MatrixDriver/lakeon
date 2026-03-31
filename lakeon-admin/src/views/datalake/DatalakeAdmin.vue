@@ -539,7 +539,7 @@ onMounted(() => {
 .type-tag {
   display: inline-block; padding: 1px 8px; border-radius: 3px; font-size: 12px;
 }
-.type-python { background: #e6f7ff; color: #0073e6; }
+.type-python { background: #fdf5ed; color: #9a5b25; }
 .type-ray { background: #f6ffed; color: #389e0d; }
 .type-finetune { background: #fff7e6; color: #d48806; }
 
@@ -593,7 +593,7 @@ onMounted(() => {
   display: inline-block; padding: 1px 8px; border-radius: 3px; font-size: 12px; font-weight: 500;
 }
 .ps-idle { background: #f6ffed; color: #389e0d; }
-.ps-claimed { background: #e6f7ff; color: #0073e6; }
+.ps-claimed { background: #fdf5ed; color: #9a5b25; }
 .ps-unknown { background: #f0f0f0; color: #999; }
 
 .warmpool-config {

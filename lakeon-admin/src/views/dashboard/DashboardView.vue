@@ -260,8 +260,8 @@ onMounted(async () => {
 }
 
 .metric-card.clickable:hover {
-  border-color: #0073e6;
-  box-shadow: 0 2px 8px rgba(0, 115, 230, 0.1);
+  border-color: #c67d3a;
+  box-shadow: 0 2px 8px rgba(198, 125, 58, 0.1);
 }
 
 .clickable-section {
@@ -270,7 +270,7 @@ onMounted(async () => {
 }
 
 .clickable-section:hover {
-  border-color: #0073e6;
+  border-color: #c67d3a;
 }
 
 .section-header {
@@ -286,19 +286,19 @@ onMounted(async () => {
 }
 
 .clickable-section:hover .section-arrow {
-  color: #0073e6;
+  color: #c67d3a;
 }
 
 .metric-value {
   font-size: 28px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
   margin-bottom: 4px;
 }
 
 .metric-label {
   font-size: 14px;
-  color: #575d6c;
+  color: #64748b;
 }
 
 .metric-sub {
@@ -323,13 +323,13 @@ onMounted(async () => {
 
 .ux-label {
   font-size: 13px;
-  color: #575d6c;
+  color: #64748b;
 }
 
 .ux-value {
   font-size: 24px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .ux-unit {
@@ -355,7 +355,7 @@ onMounted(async () => {
   align-items: center;
   gap: 6px;
   font-size: 14px;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .health-name {
@@ -376,18 +376,18 @@ onMounted(async () => {
 }
 
 .op-type {
-  color: #575d6c;
+  color: #64748b;
 }
 
 .op-count {
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .cost-total {
   font-size: 16px;
   font-weight: 700;
-  color: #191919;
+  color: #2c3e50;
 }
 
 .offline-banner {
