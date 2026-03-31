@@ -156,7 +156,11 @@
             :statusLabel="statusText(db.status)"
             :meta="[db.compute_size, `${db.active_connections || 0} 连接`, `${db.storage_used_gb.toFixed(1)} GB`]"
             @click="$router.push(`/databases/${db.id}`)"
-          />
+          >
+            <template #actions v-if="db.status === 'SUSPENDED'">
+              <button class="card-action-btn" @click.stop="handleResume(db)">唤醒</button>
+            </template>
+          </ResourceCard>
           <div class="card-create" @click="showCreateDialog = true" v-if="!authStore.isTrial">
             + 创建数据库
           </div>
@@ -700,11 +704,16 @@ onUnmounted(() => {
 /* ── Card Grid ── */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 10px;
   margin-top: 12px;
   padding: 0 16px 16px;
 }
+.card-action-btn {
+  background: none; border: none; color: #9a5b25; font-size: 12px;
+  cursor: pointer; padding: 2px 8px; border-radius: 4px; transition: all 0.12s;
+}
+.card-action-btn:hover { background: #fdf5ed; }
 .card-create {
   border: 1px dashed #d5d0ca;
   border-radius: 8px;
@@ -724,8 +733,5 @@ onUnmounted(() => {
   .welcome-actions { flex-direction: column; align-items: center; }
   .storage-bar { display: none; }
   .card-grid { grid-template-columns: 1fr; }
-}
-@media (min-width: 769px) and (max-width: 1200px) {
-  .card-grid { grid-template-columns: repeat(2, 1fr) !important; }
 }
 </style>

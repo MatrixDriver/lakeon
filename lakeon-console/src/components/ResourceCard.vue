@@ -4,10 +4,15 @@
       <span class="rc-name">{{ name }}</span>
       <span class="rc-status" :class="statusClass">{{ statusLabel }}</span>
     </div>
-    <div class="rc-meta">
-      <slot name="meta">
-        <span v-for="(item, i) in meta" :key="i">{{ item }}</span>
-      </slot>
+    <div class="rc-bottom">
+      <div class="rc-meta">
+        <slot name="meta">
+          <span v-for="(item, i) in meta" :key="i">{{ item }}</span>
+        </slot>
+      </div>
+      <div class="rc-actions" v-if="$slots.actions">
+        <slot name="actions" />
+      </div>
     </div>
   </div>
 </template>
@@ -44,5 +49,8 @@ const statusClass = computed(() => {
 .status-on { background: #ecfdf5; color: #16a34a; }
 .status-off { background: #f5f3f0; color: #94a3b8; }
 .status-error { background: #fef2f2; color: #e6393d; }
+.rc-bottom { display: flex; justify-content: space-between; align-items: center; }
 .rc-meta { font-size: 11px; color: #94a3b8; display: flex; gap: 12px; }
+.rc-actions { opacity: 0; transition: opacity 0.15s; }
+.resource-card:hover .rc-actions { opacity: 1; }
 </style>
