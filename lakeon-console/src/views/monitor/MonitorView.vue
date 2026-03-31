@@ -577,7 +577,7 @@ onMounted(() => fetchAll())
   border-top: 3px solid #e8e4df;
 }
 
-.metric-card:nth-child(1) { border-top-color: #1e2d3d; }
+.metric-card:nth-child(1) { border-top-color: #2a4d6a; }
 .metric-card:nth-child(2) { border-top-color: #c67d3a; }
 .metric-card:nth-child(3) { border-top-color: #2d6a4f; }
 .metric-card:nth-child(4) { border-top-color: #64748b; }

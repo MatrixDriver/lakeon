@@ -330,7 +330,7 @@ const values = computed(() => [
 ])
 
 const roleColors: Record<string, string> = {
-  family: '#c67d3a', work: '#1e2d3d', coding: '#2d6a4f',
+  family: '#c67d3a', work: '#2a4d6a', coding: '#2d6a4f',
   content: '#7c3aed', trading: '#0369a1', coach: '#9a5b25', custom: '#64748b',
 }
 

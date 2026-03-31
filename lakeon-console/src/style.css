@@ -41,8 +41,8 @@
 
 /* ── Console theme (harbor warm tone) ── */
 :root {
-  --c-primary: #1e2d3d;
-  --c-primary-hover: #16222d;
+  --c-primary: #2a4d6a;
+  --c-primary-hover: #1e3a52;
   --c-accent: #c67d3a;
   --c-accent-hover: #b06a2e;
   --c-accent-text: #9a5b25;

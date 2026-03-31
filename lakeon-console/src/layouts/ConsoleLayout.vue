@@ -270,7 +270,7 @@ onUnmounted(() => {
 
 .console-header {
   height: 48px;
-  background-color: #1e2d3d;
+  background-color: #2a4d6a;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -404,7 +404,7 @@ onUnmounted(() => {
 }
 
 .rail-icon.active {
-  background-color: #1e2d3d;
+  background-color: #2a4d6a;
   color: #fff;
 }
 
