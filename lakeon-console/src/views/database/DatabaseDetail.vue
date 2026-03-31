@@ -434,6 +434,65 @@
           </div>
         </div>
       </div>
+
+      <!-- Tab: Backups -->
+      <div v-if="activeTab === 'backups'" class="tab-content">
+        <p class="tab-tip">从备份恢复时将创建一个新的数据库实例，不会覆盖当前数据。</p>
+        <div style="margin-bottom: 16px;">
+          <button class="btn btn-primary" @click="showBackupCreate = true">创建备份</button>
+        </div>
+        <div v-if="backupsLoading" style="text-align:center;padding:24px;color:#94a3b8">加载中...</div>
+        <div v-else-if="backups.length === 0" class="empty-state" style="padding: 24px;">
+          <p>暂无备份</p>
+        </div>
+        <div v-else class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>备份名称</th>
+                <th>类型</th>
+                <th>状态</th>
+                <th>大小</th>
+                <th>创建时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="b in backups" :key="b.id">
+                <td style="font-weight:500">{{ b.name || b.id }}</td>
+                <td>{{ b.type === 'MANUAL' ? '手动' : '定时' }}</td>
+                <td>
+                  <span class="status-dot" :class="b.status === 'COMPLETED' ? 'dot-green' : b.status === 'FAILED' ? 'dot-red' : 'dot-blue'"></span>
+                  {{ b.status === 'COMPLETED' ? '已完成' : b.status === 'FAILED' ? '失败' : '进行中' }}
+                </td>
+                <td>{{ b.size_bytes ? (b.size_bytes / 1048576).toFixed(1) + ' MB' : '-' }}</td>
+                <td style="color:#94a3b8">{{ formatDate(b.created_at) }}</td>
+                <td>
+                  <button v-if="b.status === 'COMPLETED'" class="btn btn-text btn-small btn-accent-text" @click="handleRestore(b)">恢复</button>
+                  <button class="btn btn-text btn-small btn-danger-text" @click="handleDeleteBackup(b)">删除</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Create backup dialog -->
+        <div v-if="showBackupCreate" class="dialog-overlay" @click.self="showBackupCreate = false">
+          <div class="dialog-box dialog-confirm">
+            <div class="dialog-header"><h3>创建备份</h3><button class="dialog-close" @click="showBackupCreate = false">&times;</button></div>
+            <div class="dialog-body">
+              <div class="form-group">
+                <label class="form-label">备份名称（可选）</label>
+                <input v-model="backupName" class="form-input" placeholder="留空则自动生成" />
+              </div>
+            </div>
+            <div class="dialog-footer">
+              <button class="btn btn-default" @click="showBackupCreate = false">取消</button>
+              <button class="btn btn-primary" @click="createBackup">创建</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -452,6 +511,7 @@ import { dbuserApi, type DatabaseUser } from '../../api/dbuser'
 import CreateUserDialog from './CreateUserDialog.vue'
 // TableToolbar, TableFooter removed (backups tab moved)
 import { extensionApi, type ExtensionInfo, type ParameterInfo } from '../../api/extension'
+import { backupApi, type Backup } from '../../api/backup'
 import { copyToClipboard } from '../../utils/clipboard'
 import { formatDate } from '../../utils/format'
 import { useToast } from '../../composables/useToast'
@@ -475,7 +535,64 @@ const tabs = [
   { key: 'users', label: '用户权限' },
   { key: 'connections', label: '活跃会话' },
   { key: 'security', label: '访问控制' },
+  { key: 'backups', label: '备份' },
 ]
+
+// Backups
+const backups = ref<Backup[]>([])
+const backupsLoading = ref(false)
+const showBackupCreate = ref(false)
+const backupName = ref('')
+
+async function loadBackups() {
+  if (!database.value) return
+  backupsLoading.value = true
+  try {
+    const { data } = await backupApi.list(database.value.id)
+    backups.value = data
+  } catch (e) {
+    console.error('Failed to load backups', e)
+  }
+  backupsLoading.value = false
+}
+
+async function createBackup() {
+  if (!database.value) return
+  try {
+    await backupApi.create(database.value.id, { name: backupName.value.trim() || undefined })
+    toast.success('备份创建成功')
+    showBackupCreate.value = false
+    backupName.value = ''
+    await loadBackups()
+  } catch (e) {
+    toast.error('创建备份失败')
+    console.error(e)
+  }
+}
+
+async function handleRestore(b: Backup) {
+  const name = window.prompt('恢复到新数据库，请输入名称:', `${b.name || 'backup'}-restored`)
+  if (!name) return
+  try {
+    await backupApi.restore(database.value!.id, b.id, { name })
+    toast.success(`备份已恢复为新数据库 "${name}"`)
+  } catch (e) {
+    toast.error('恢复失败')
+    console.error(e)
+  }
+}
+
+async function handleDeleteBackup(b: Backup) {
+  if (!window.confirm(`确定删除备份 "${b.name || b.id}"？`)) return
+  try {
+    await backupApi.delete(database.value!.id, b.id)
+    toast.success('备份已删除')
+    await loadBackups()
+  } catch (e) {
+    toast.error('删除失败')
+    console.error(e)
+  }
+}
 
 // Connections
 const connectionsLoading = ref(false)
@@ -876,6 +993,7 @@ watch(activeTab, (tab) => {
   if (tab === 'parameters' && parameters.value.length === 0) fetchParameters()
   if (tab === 'connections') loadConnections()
   if (tab === 'security') loadAllowedIps()
+  if (tab === 'backups' && backups.value.length === 0) loadBackups()
 })
 
 onMounted(() => {
