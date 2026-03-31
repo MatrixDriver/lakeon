@@ -28,7 +28,10 @@ function highlightChunkInDom() {
   contentRef.value.innerHTML = baseHtml.value
 
   const searchText = findSearchText()
-  if (!searchText || searchText.length < 10) return
+  if (!searchText || searchText.length < 10) {
+    console.warn('[FulltextHighlight] No valid searchText, skipping highlight')
+    return
+  }
 
   // Walk text nodes
   const textNodes: Text[] = []
@@ -48,7 +51,15 @@ function highlightChunkInDom() {
   }
 
   const idx = fullText.indexOf(searchText)
-  if (idx < 0) return
+  if (idx < 0) {
+    console.warn('[FulltextHighlight] searchText not found in DOM text', {
+      searchText,
+      domTextLen: fullText.length,
+      domTextFirst200: fullText.substring(0, 200),
+    })
+    return
+  }
+  console.log('[FulltextHighlight] Found match at index', idx)
 
   // Highlight the full chunk content length, not just the search snippet
   const chunkPlain = stripMarkdown(props.chunkContent || '').trim()
@@ -102,7 +113,7 @@ function stripMarkdown(text: string): string {
     .replace(/`([^`]+)`/g, '$1')           // inline code
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links
     .replace(/^\s*[-*+]\s+/gm, '')         // list markers
-    .replace(/^\s*\d+\.\s+/gm, '')         // ordered list
+    .replace(/^\s*\d+\.\s{2,}/gm, '')     // ordered list (only if 2+ spaces after dot, avoid stripping "22. text")
     .replace(/^\s*>\s?/gm, '')             // blockquote
     .replace(/\|/g, '')                    // table pipes
     .replace(/[-:]{3,}/g, '')              // table separators
@@ -127,19 +138,30 @@ function findSearchText(): string | null {
   const overlap = props.overlapPrev ?? 0
   const strippedChunk = stripMarkdown(content).trim()
 
+  console.log('[FulltextHighlight] findSearchText start', {
+    chunkContentLen: content.length,
+    strippedChunkLen: strippedChunk.length,
+    offsetStart: props.chunkOffsetStart,
+    offsetEnd: props.chunkOffsetEnd,
+    fulltextLen: props.fulltext.length,
+    overlap,
+    strippedFirst80: strippedChunk.substring(0, 80),
+  })
+
   // Strategy 1: Use char_offset to extract from fulltext, then strip markdown
-  // Validate that the extracted text actually overlaps with chunk content
-  // (offsets can be wrong when fulltext comes from chunk concatenation instead of OBS)
   if (props.chunkOffsetStart != null && props.chunkOffsetEnd != null
       && props.chunkOffsetEnd <= props.fulltext.length) {
     const raw = props.fulltext.substring(props.chunkOffsetStart, props.chunkOffsetEnd)
     const plain = stripMarkdown(raw).trim()
-    // Verify: first 30 chars of extracted text should appear in chunk content
     const verify = plain.substring(0, 30)
     if (verify.length >= 10 && strippedChunk.includes(verify)) {
       const snippet = singleLineSnippet(plain)
-      if (snippet) return snippet
+      if (snippet) {
+        console.log('[FulltextHighlight] Strategy 1 (offset) matched:', snippet)
+        return snippet
+      }
     }
+    console.log('[FulltextHighlight] Strategy 1 failed, verify:', verify)
   }
 
   // Strategy 2: Use chunk content directly — skip overlap prefix for uniqueness
@@ -148,11 +170,29 @@ function findSearchText(): string | null {
 
   if (uniquePart.length >= 20) {
     const snippet = singleLineSnippet(uniquePart)
-    if (snippet) return snippet
+    if (snippet) {
+      console.log('[FulltextHighlight] Strategy 2 (unique part) matched:', snippet)
+      return snippet
+    }
   }
 
   // Strategy 3: Fallback with raw content start
-  return singleLineSnippet(strippedChunk)
+  const snippet3 = singleLineSnippet(strippedChunk)
+  if (snippet3) {
+    console.log('[FulltextHighlight] Strategy 3 (raw start) matched:', snippet3)
+    return snippet3
+  }
+
+  // Strategy 4: Try matching raw chunk content (without stripping markdown) against DOM text
+  // This handles cases where stripMarkdown over-strips (e.g., "22. " treated as list marker)
+  const rawFirst = content.replace(/\n/g, ' ').trim().substring(0, 80).trim()
+  if (rawFirst.length >= 10) {
+    console.log('[FulltextHighlight] Strategy 4 (raw no-strip) trying:', rawFirst)
+    return rawFirst
+  }
+
+  console.warn('[FulltextHighlight] All strategies failed, no searchText found')
+  return null
 }
 
 // Highlight after mount (DOM is ready) and on chunk change
