@@ -736,8 +736,23 @@ public class KnowledgeService {
             docFilter = " AND document_id = ANY(?)";
         }
 
+        // Extract user:pass from connstr via dbHelper
+        String pgUser = dbHelper.extractUser(connstr);
+        String pgPass = dbHelper.extractPassword(connstr);
+
         // Use 'chinese' text search config (zhparser) if available, fallback to 'simple'
-        String tsCfg = "chinese";
+        String tsCfg = "simple";
+        try (Connection probeConn = DriverManager.getConnection(jdbcUrl, pgUser, pgPass);
+             PreparedStatement probePs = probeConn.prepareStatement(
+                     "SELECT 1 FROM pg_ts_config WHERE cfgname = 'chinese'")) {
+            try (ResultSet probeRs = probePs.executeQuery()) {
+                if (probeRs.next()) {
+                    tsCfg = "chinese";
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to probe text search config, using 'simple': {}", e.getMessage());
+        }
         String sql = "WITH semantic AS (" +
                 "  SELECT id, content, metadata, level," +
                 "         1 - (embedding <=> ?::vector) AS score," +
@@ -762,10 +777,6 @@ public class KnowledgeService {
                 " FROM semantic s FULL OUTER JOIN fts f ON s.id = f.id" +
                 " ORDER BY rrf_score DESC" +
                 " LIMIT ?";
-
-        // Extract user:pass from connstr via dbHelper
-        String pgUser = dbHelper.extractUser(connstr);
-        String pgPass = dbHelper.extractPassword(connstr);
 
         List<Map<String, Object>> results = new ArrayList<>();
         try (Connection conn = DriverManager.getConnection(jdbcUrl, pgUser, pgPass);
