@@ -157,8 +157,11 @@
             :meta="[db.compute_size, `${db.active_connections || 0} 连接`, `${db.storage_used_gb.toFixed(1)} GB`]"
             @click="$router.push(`/databases/${db.id}`)"
           >
-            <template #actions v-if="db.status === 'SUSPENDED'">
-              <button class="card-action-btn" :disabled="actionLoading[db.id]" @click.stop="handleResume(db)">{{ actionLoading[db.id] ? '唤醒中...' : '唤醒' }}</button>
+            <template #actions>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <button v-if="db.status === 'SUSPENDED'" class="card-action-btn" :disabled="actionLoading[db.id]" @click.stop="handleResume(db)">{{ actionLoading[db.id] ? '唤醒中...' : '唤醒' }}</button>
+                <CardMenu @delete="confirmDelete(db)" />
+              </div>
             </template>
           </ResourceCard>
           <div class="card-create" @click="showCreateDialog = true" v-if="!authStore.isTrial">
@@ -374,6 +377,7 @@ import { useToast } from '../../composables/useToast'
 import TableFooter from '../../components/TableFooter.vue'
 import ViewToggle from '../../components/ViewToggle.vue'
 import ResourceCard from '../../components/ResourceCard.vue'
+import CardMenu from '../../components/CardMenu.vue'
 import { useAuthStore } from '../../stores/auth'
 
 const toast = useToast()
