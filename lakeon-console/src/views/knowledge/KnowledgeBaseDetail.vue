@@ -98,6 +98,9 @@
           <button v-if="selectedDocIds.size > 0" style="background: #e6393d; color: #fff; border: none; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12px; white-space: nowrap;" @click="handleBatchDelete">
             删除选中 ({{ selectedDocIds.size }})
           </button>
+          <button v-if="documents.length > 0" style="background: #fff; color: #e6393d; border: 1px solid #e6393d; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12px; white-space: nowrap;" @click="handleClearAll">
+            清空文档
+          </button>
         </template>
       </TableToolbar>
       <div v-if="filteredDocs.length > 0" class="table-wrapper">
@@ -759,6 +762,16 @@ async function handleBatchDelete() {
   const ids = [...selectedDocIds.value]
   for (const id of ids) {
     try { await deleteDocument(id) } catch (e) { console.error('Failed to delete', id, e) }
+  }
+  selectedDocIds.value = new Set()
+  await loadDocuments()
+}
+
+async function handleClearAll() {
+  const total = documents.value.length
+  if (!confirm(`确认清空全部 ${total} 个文档？此操作不可恢复。`)) return
+  for (const doc of documents.value) {
+    try { await deleteDocument(doc.id) } catch (e) { console.error('Failed to delete', doc.id, e) }
   }
   selectedDocIds.value = new Set()
   await loadDocuments()
