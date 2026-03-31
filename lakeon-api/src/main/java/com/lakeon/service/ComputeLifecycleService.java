@@ -77,6 +77,8 @@ public class ComputeLifecycleService {
         // Warm path: Pod was retained after suspend, check if it's still alive
         if (entity.getComputePodName() != null && computePodManager.isPodReady(entity.getComputePodName())) {
             log.info("Warm wake for database {} — Pod {} still running", dbId, entity.getComputePodName());
+            OperationLogEntity warmOp = operationLogService.startOperation(
+                    entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME, "WARM");
             txTemplate.executeWithoutResult(status -> {
                 DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
                 e.setStatus(DatabaseStatus.RUNNING);
@@ -84,10 +86,14 @@ public class ComputeLifecycleService {
                 e.setLastActiveAt(Instant.now());
                 databaseRepository.save(e);
             });
+            operationLogService.completeOperation(warmOp, null);
             return entity.getComputeHost() + ":" + entity.getComputePort();
         }
 
         // Cold path: ensure pageserver has tenant attached before creating Pod
+        OperationLogEntity coldOp = operationLogService.startOperation(
+                entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME, "COLD");
+
         if (entity.getNeonTenantId() != null) {
             try {
                 log.info("Ensuring tenant {} is active on pageserver before cold start", entity.getNeonTenantId());
@@ -134,6 +140,7 @@ public class ComputeLifecycleService {
                 e.setLastActiveAt(Instant.now());
                 databaseRepository.save(e);
             });
+            operationLogService.completeOperation(coldOp, null);
             return address;
         } else {
             txTemplate.executeWithoutResult(status -> {
@@ -141,6 +148,7 @@ public class ComputeLifecycleService {
                 e.setStatus(DatabaseStatus.ERROR);
                 databaseRepository.save(e);
             });
+            operationLogService.completeOperation(coldOp, "Compute wake timeout");
             throw new WakeComputeTimeoutException("Compute wake timeout for database: " + dbId);
         }
     }
