@@ -1,14 +1,14 @@
 export const MEMORY_TYPES = ['fact', 'episode', 'procedural', 'decision', 'rejection', 'convention'] as const
 export type MemoryType = typeof MEMORY_TYPES[number]
 
-// Colors from existing MemoryBaseDetail.vue — DO NOT change to preserve visual consistency
+// Warm-tone palette that matches the console's harbor theme
 export const MEMORY_TYPE_COLORS: Record<string, { bg: string; text: string }> = {
-  fact:       { bg: '#e6f7ff', text: '#1890ff' },
-  episode:    { bg: '#f9f0ff', text: '#722ed1' },
-  procedural: { bg: '#fff7e6', text: '#d48806' },
-  decision:   { bg: '#e6fffb', text: '#13c2c2' },
-  rejection:  { bg: '#fff1f0', text: '#f5222d' },
-  convention: { bg: '#f6ffed', text: '#52c41a' },
+  fact:       { bg: '#f0f0ea', text: '#6b7064' },
+  episode:    { bg: '#f5f0eb', text: '#8b6f52' },
+  procedural: { bg: '#faf5ed', text: '#9a7b4f' },
+  decision:   { bg: '#eef2ed', text: '#5a7a5a' },
+  rejection:  { bg: '#f5efee', text: '#9a6b6b' },
+  convention: { bg: '#eff0f5', text: '#6b6e82' },
 }
 
 export const MEMORY_TYPE_LABELS: Record<string, string> = {

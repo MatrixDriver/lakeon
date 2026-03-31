@@ -26,14 +26,14 @@
       <!-- Memories tab -->
       <template v-if="activeTab === 'memories'">
       <!-- Type filters -->
-      <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+      <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 16px; margin-bottom: 16px;">
         <button
           v-for="t in ['all', ...MEMORY_TYPES]" :key="t"
           @click="typeFilter = t === 'all' ? '' : t; currentPage = 1; load()"
-          class="btn btn-sm"
           :style="typeFilter === (t === 'all' ? '' : t)
-            ? `background: ${t === 'all' ? '#1890ff' : MEMORY_TYPE_COLORS[t]?.text}; color: #fff;`
-            : `background: ${t === 'all' ? '#f5f5f5' : MEMORY_TYPE_COLORS[t]?.bg}; color: ${t === 'all' ? '#333' : MEMORY_TYPE_COLORS[t]?.text};`"
+            ? `background: ${t === 'all' ? '#9a5b25' : MEMORY_TYPE_COLORS[t]?.text}; color: #fff; border: 1px solid transparent;`
+            : `background: ${t === 'all' ? '#f5f3f0' : MEMORY_TYPE_COLORS[t]?.bg}; color: ${t === 'all' ? '#666' : MEMORY_TYPE_COLORS[t]?.text}; border: 1px solid #e8e4df;`"
+          style="padding: 4px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; transition: all 0.15s;"
         >
           {{ t === 'all' ? '全部' : MEMORY_TYPE_LABELS[t] || t }}
         </button>
