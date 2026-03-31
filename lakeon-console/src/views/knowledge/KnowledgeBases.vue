@@ -3,6 +3,7 @@
     <div class="page-header">
       <h1 class="page-title">知识库</h1>
       <div class="page-header-actions">
+        <ViewToggle v-model="viewMode" />
         <button class="btn btn-primary" @click="showCreate = true">创建知识库</button>
       </div>
     </div>
@@ -93,7 +94,25 @@
 
     <!-- Knowledge base list -->
     <TableToolbar v-model="kbSearch" placeholder="搜索知识库" :loading="loading" @refresh="loadKBs" style="margin-top: 20px;" />
-    <div v-if="filteredKBs.length > 0" class="table-wrapper">
+
+    <!-- Card view -->
+    <div v-if="viewMode === 'card' && filteredKBs.length > 0" class="card-grid">
+      <ResourceCard
+        v-for="kb in filteredKBs"
+        :key="kb.id"
+        :name="kb.name"
+        :status="kb.status"
+        :statusLabel="statusText(kb.status)"
+        :meta="[kb.type === 'TABLE' ? '数据表' : '文档', kb.embedding_model || '-', kb.type === 'TABLE' ? '-' : `${kb.document_count ?? 0} 文档`]"
+        @click="$router.push(`/knowledge/${kb.id}`)"
+      />
+      <div class="card-create" @click="showCreate = true">
+        + 创建知识库
+      </div>
+    </div>
+
+    <!-- Table view -->
+    <div v-if="viewMode === 'table' && filteredKBs.length > 0" class="table-wrapper">
       <table class="data-table">
         <thead>
           <tr>
@@ -134,7 +153,7 @@
     </div>
 
     <!-- Empty state -->
-    <div v-else-if="!loading" class="empty-state" style="margin-top: 64px; text-align: center;">
+    <div v-if="filteredKBs.length === 0 && !loading" class="empty-state" style="margin-top: 64px; text-align: center;">
       <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#ccc" stroke-width="1.5">
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
         <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
@@ -162,7 +181,10 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { listKnowledgeBases, createKnowledgeBase, deleteKnowledgeBase, type KnowledgeBase } from '../../api/knowledge'
 import { databaseApi, type Database } from '../../api/database'
 import TableToolbar from '../../components/TableToolbar.vue'
+import ViewToggle from '../../components/ViewToggle.vue'
+import ResourceCard from '../../components/ResourceCard.vue'
 
+const viewMode = ref<'card' | 'table'>('card')
 const knowledgeBases = ref<KnowledgeBase[]>([])
 const showCreate = ref(false)
 const createForm = ref({
@@ -363,5 +385,27 @@ onMounted(loadKBs)
 }
 .tips-link:hover {
   text-decoration: underline;
+}
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+.card-create {
+  border: 1px dashed #d5d0ca;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.card-create:hover { border-color: #94a3b8; }
+@media (max-width: 768px) {
+  .card-grid { grid-template-columns: 1fr; }
 }
 </style>

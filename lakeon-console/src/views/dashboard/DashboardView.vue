@@ -3,6 +3,7 @@
     <div class="page-header">
       <h1 class="page-title">我的数据库</h1>
       <div class="page-header-actions" v-if="stats.total > 0">
+        <ViewToggle v-model="viewMode" />
         <router-link to="/docs" class="page-header-link">使用指南</router-link>
         <button class="btn btn-primary" @click="showCreateDialog = true" :disabled="authStore.isTrial" :title="authStore.isTrial ? '注册后可用' : ''">创建数据库</button>
       </div>
@@ -145,7 +146,28 @@
       <!-- Database Instances (full list with CRUD) -->
       <div class="section-card" style="margin-top: 16px;">
         <TableToolbar v-model="dbSearch" placeholder="搜索实例名称" :loading="loading" @refresh="fetchData" />
-        <div class="table-wrapper">
+
+        <!-- Card view -->
+        <div v-if="viewMode === 'card'" class="card-grid">
+          <ResourceCard
+            v-for="db in pagedDatabases"
+            :key="db.id"
+            :name="db.name"
+            :status="db.status"
+            :statusLabel="statusText(db.status)"
+            :meta="[db.compute_size, `${db.active_connections || 0} 连接`, `${db.storage_used_gb.toFixed(1)} GB`]"
+            @click="$router.push(`/databases/${db.id}`)"
+          />
+          <div class="card-create" @click="showCreateDialog = true" v-if="!authStore.isTrial">
+            + 创建数据库
+          </div>
+          <div v-if="filteredDatabases.length === 0" class="empty-state" style="grid-column: 1 / -1;">
+            <p>{{ dbSearch ? '无匹配结果' : '暂无数据库实例' }}</p>
+          </div>
+        </div>
+
+        <!-- Table view -->
+        <div v-if="viewMode === 'table'" class="table-wrapper">
           <table class="data-table" v-if="filteredDatabases.length > 0">
             <thead>
               <tr>
@@ -348,6 +370,8 @@ import { formatDuration, formatDate } from '../../utils/format'
 import { useToast } from '../../composables/useToast'
 import TableToolbar from '../../components/TableToolbar.vue'
 import TableFooter from '../../components/TableFooter.vue'
+import ViewToggle from '../../components/ViewToggle.vue'
+import ResourceCard from '../../components/ResourceCard.vue'
 import { useAuthStore } from '../../stores/auth'
 
 const toast = useToast()
@@ -363,6 +387,7 @@ const OP_LABELS: Record<string, string> = {
   RESET_PASSWORD: '重置密码',
 }
 
+const viewMode = ref<'card' | 'table'>('card')
 const stats = reactive({ total: 0, running: 0, suspended: 0, error: 0, storageUsed: 0, storageTotal: 0 })
 const databases = ref<Database[]>([])
 const recentOps = ref<OperationLog[]>([])
@@ -674,9 +699,32 @@ onUnmounted(() => {
 .rt-warm { background: #f6ffed; color: #389e0d; }
 .rt-cold { background: #fdf5ed; color: #9a5b25; }
 
+/* ── Card Grid ── */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+  padding: 0 16px 16px;
+}
+.card-create {
+  border: 1px dashed #d5d0ca;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.card-create:hover { border-color: #94a3b8; }
+
 @media (max-width: 768px) {
   .feature-grid { grid-template-columns: repeat(2, 1fr); }
   .welcome-actions { flex-direction: column; align-items: center; }
   .storage-bar { display: none; }
+  .card-grid { grid-template-columns: 1fr; }
 }
 </style>

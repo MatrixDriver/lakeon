@@ -69,6 +69,137 @@
         </div>
       </div>
 
+      <!-- Messages tab -->
+      <div v-if="activeTab === 'messages'" style="margin-top: 24px;">
+        <p v-if="msgLoading" style="text-align: center; color: #999; padding: 40px 0;">加载中...</p>
+        <p v-else-if="messages.length === 0" style="text-align: center; color: #999; padding: 40px 0;">暂无消息</p>
+
+        <div v-else class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 160px;">时间</th>
+                <th style="width: 80px;">角色</th>
+                <th style="width: 80px;">来源</th>
+                <th>内容</th>
+                <th style="width: 60px;">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="msg in messages" :key="msg.id" style="cursor: pointer;" @click="openMsgDetail(msg.id)">
+                <td style="color: #999; font-size: 13px;">{{ new Date(msg.created_at).toLocaleString('zh-CN') }}</td>
+                <td>
+                  <span style="display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px;"
+                        :style="msg.role === 'user' ? 'background:#fdf5ed;color:#1565c0' : 'background:#f3e5f5;color:#7b1fa2'">
+                    {{ msg.role }}
+                  </span>
+                </td>
+                <td>
+                  <span v-if="msg.source" style="display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; background:#f0f5ff; color:#1890ff;">
+                    {{ msg.source }}
+                  </span>
+                  <span v-else style="color: #ccc;">-</span>
+                </td>
+                <td style="font-size: 13px; color: #333; max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  {{ msg.content_preview || msg.content }}
+                </td>
+                <td>
+                  <button class="btn btn-text btn-small" style="color: #9a5b25;" @click.stop="openMsgDetail(msg.id)">详情</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div v-if="msgTotal > MSG_PAGE_SIZE" style="display: flex; justify-content: center; gap: 8px; margin-top: 16px;">
+          <button class="btn btn-sm" :disabled="msgPage <= 1" @click="msgPage--; loadMessages()">上一页</button>
+          <span style="line-height: 32px; font-size: 13px; color: #666;">
+            {{ (msgPage - 1) * MSG_PAGE_SIZE + 1 }}-{{ Math.min(msgPage * MSG_PAGE_SIZE, msgTotal) }} / {{ msgTotal }}
+          </span>
+          <button class="btn btn-sm" :disabled="msgPage * MSG_PAGE_SIZE >= msgTotal" @click="msgPage++; loadMessages()">下一页</button>
+        </div>
+
+        <!-- Detail side panel -->
+        <div v-if="msgDetailVisible" class="panel-overlay" @click="msgDetailVisible = false"></div>
+        <transition name="slide">
+          <div v-if="msgDetailVisible" class="detail-panel">
+            <div class="detail-header">
+              <span style="font-size: 16px; font-weight: 600;">消息详情</span>
+              <button class="detail-close" @click="msgDetailVisible = false">&times;</button>
+            </div>
+
+            <div v-if="msgDetailLoading" style="padding: 40px; text-align: center; color: #999;">加载中...</div>
+            <div v-else-if="msgDetail" class="detail-body">
+              <div class="detail-section">
+                <div class="detail-row"><span class="detail-label">时间</span><span>{{ new Date(msgDetail.message.created_at).toLocaleString('zh-CN') }}</span></div>
+                <div class="detail-row"><span class="detail-label">角色</span><span>{{ msgDetail.message.role }}</span></div>
+                <div class="detail-row"><span class="detail-label">来源</span><span>{{ msgDetail.message.source || '-' }}</span></div>
+                <div class="detail-row"><span class="detail-label">ID</span><span style="font-family: monospace; font-size: 12px;">{{ msgDetail.message.id }}</span></div>
+              </div>
+              <div class="detail-section">
+                <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">消息内容</div>
+                <pre class="detail-code">{{ msgDetail.message.content }}</pre>
+              </div>
+              <div class="detail-section">
+                <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">
+                  提取的记忆 ({{ msgDetail.extracted_memories.length }})
+                </div>
+                <div v-if="msgDetail.extracted_memories.length === 0" style="color: #999; font-size: 13px;">
+                  暂无（可能正在提取中）
+                </div>
+                <div v-for="mem in msgDetail.extracted_memories" :key="mem.id"
+                     style="padding: 10px 12px; background: #fafafa; border-radius: 6px; margin-bottom: 8px; font-size: 13px;">
+                  <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                    <span style="padding: 1px 6px; border-radius: 3px; font-size: 11px; background: #e8f5e9; color: #2e7d32;">
+                      {{ mem.memory_type }}
+                    </span>
+                    <span style="color: #999; font-size: 11px;">重要性 {{ Math.round(mem.importance * 100) }}%</span>
+                  </div>
+                  <div style="color: #333; line-height: 1.5;">{{ mem.content }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </transition>
+      </div>
+
+      <!-- Usage Stats tab -->
+      <div v-if="activeTab === 'usage'" style="margin-top: 24px;">
+        <p v-if="usageLoading" style="text-align: center; color: #999; padding: 40px 0;">加载中...</p>
+
+        <template v-else-if="usageStats">
+          <div style="display: flex; gap: 16px; margin-bottom: 32px;">
+            <div class="section-card" style="flex: 1; padding: 20px; text-align: center;">
+              <div style="font-size: 32px; font-weight: 600; color: #1890ff;">{{ usageStats.total }}</div>
+              <div style="font-size: 13px; color: #999; margin-top: 4px;">总记忆数</div>
+            </div>
+            <div class="section-card" style="flex: 1; padding: 20px; text-align: center;">
+              <div style="font-size: 32px; font-weight: 600; color: #722ed1;">{{ usageStats.trait_count }}</div>
+              <div style="font-size: 13px; color: #999; margin-top: 4px;">Trait 数</div>
+            </div>
+          </div>
+
+          <div class="section-card" style="padding: 20px;">
+            <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 16px;">类型分布</h3>
+            <div v-if="sortedTypes.length === 0" style="text-align: center; color: #999; padding: 20px;">暂无数据</div>
+            <div v-else style="display: flex; flex-direction: column; gap: 10px;">
+              <div v-for="item in sortedTypes" :key="item.type" style="display: flex; align-items: center; gap: 12px;">
+                <span style="width: 56px; font-size: 12px; text-align: right;"
+                      :style="`color: ${MEMORY_TYPE_COLORS[item.type]?.text || '#666'};`">
+                  {{ MEMORY_TYPE_LABELS[item.type] || item.type }}
+                </span>
+                <div style="flex: 1; height: 20px; background: #f5f5f5; border-radius: 4px; overflow: hidden;">
+                  <div style="height: 100%; border-radius: 4px; transition: width 0.5s;"
+                       :style="`width: ${maxCount ? (item.count / maxCount * 100) : 0}%; background: ${MEMORY_TYPE_COLORS[item.type]?.text || '#999'};`" />
+                </div>
+                <span style="width: 32px; font-size: 13px; color: #333; font-weight: 500;">{{ item.count }}</span>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
       <!-- Settings tab -->
       <div v-if="activeTab === 'settings'" style="margin-top: 24px;">
 
@@ -160,7 +291,8 @@ dbay login</pre>
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getMemoryBase, type MemoryBase, type MemoryStats, getMemoryStats } from '../../api/memory'
+import { getMemoryBase, type MemoryBase, type MemoryStats, getMemoryStats, listRawMessages, getRawMessage, type RawMessage, type RawMessageDetail } from '../../api/memory'
+import { MEMORY_TYPE_COLORS, MEMORY_TYPE_LABELS } from '../../constants/memory'
 
 const route = useRoute()
 const base = ref<MemoryBase | null>(null)
@@ -169,8 +301,85 @@ const stats = ref<MemoryStats | null>(null)
 
 const tabs = [
   { key: 'overview', label: '概览' },
+  { key: 'messages', label: '消息日志' },
+  { key: 'usage', label: '用量统计' },
   { key: 'settings', label: '接入' },
 ]
+
+// ── Messages tab state ──
+const MSG_PAGE_SIZE = 20
+const messages = ref<RawMessage[]>([])
+const msgTotal = ref(0)
+const msgPage = ref(1)
+const msgLoading = ref(false)
+
+const msgDetailVisible = ref(false)
+const msgDetailLoading = ref(false)
+const msgDetail = ref<RawMessageDetail | null>(null)
+
+async function loadMessages() {
+  const memId = route.params.memId as string
+  msgLoading.value = true
+  try {
+    const { data } = await listRawMessages(memId, {
+      offset: (msgPage.value - 1) * MSG_PAGE_SIZE,
+      limit: MSG_PAGE_SIZE,
+    })
+    messages.value = data.messages
+    msgTotal.value = data.total
+  } catch (e) {
+    console.error('Failed to load messages', e)
+    messages.value = []
+    msgTotal.value = 0
+  } finally {
+    msgLoading.value = false
+  }
+}
+
+async function openMsgDetail(messageId: string) {
+  const memId = route.params.memId as string
+  msgDetailVisible.value = true
+  msgDetailLoading.value = true
+  msgDetail.value = null
+  try {
+    const { data } = await getRawMessage(memId, messageId)
+    msgDetail.value = data
+  } catch (e) {
+    console.error('Failed to load message detail', e)
+  } finally {
+    msgDetailLoading.value = false
+  }
+}
+
+// ── Usage stats tab state ──
+const usageStats = ref<MemoryStats | null>(null)
+const usageLoading = ref(false)
+
+async function loadUsageStats() {
+  const memId = route.params.memId as string
+  usageLoading.value = true
+  try {
+    const { data } = await getMemoryStats(memId)
+    usageStats.value = data
+  } catch (e) {
+    console.error('Failed to load usage stats', e)
+    usageStats.value = null
+  } finally {
+    usageLoading.value = false
+  }
+}
+
+const sortedTypes = computed(() => {
+  if (!usageStats.value?.by_type) return []
+  return Object.entries(usageStats.value.by_type)
+    .map(([type, count]) => ({ type, count }))
+    .sort((a, b) => b.count - a.count)
+})
+
+const maxCount = computed(() => {
+  if (sortedTypes.value.length === 0) return 0
+  return sortedTypes.value[0]!.count
+})
 
 const expandedClient = ref<string | null>(null)
 const copied = ref<string | null>(null)
@@ -275,6 +484,8 @@ onMounted(async () => {
   await loadBase()
   if (base.value?.status === 'READY') {
     loadStats()
+    loadMessages()
+    loadUsageStats()
   } else if (base.value?.status === 'PROVISIONING' || base.value?.status === 'CREATING') {
     // Poll until ready
     pollTimer = setInterval(async () => {
@@ -283,6 +494,8 @@ onMounted(async () => {
         if (pollTimer) clearInterval(pollTimer)
         pollTimer = null
         loadStats()
+        loadMessages()
+        loadUsageStats()
       }
     }, 3000)
   }
@@ -354,5 +567,91 @@ onMounted(async () => {
 .copy-btn:hover {
   background: #555;
   color: #fff;
+}
+/* Message detail panel */
+.panel-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.15);
+  z-index: 999;
+}
+.detail-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 480px;
+  background: #fff;
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.detail-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: #999;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.detail-close:hover {
+  color: #333;
+}
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+}
+.detail-section {
+  margin-bottom: 20px;
+}
+.detail-row {
+  display: flex;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f5f5f5;
+  font-size: 13px;
+}
+.detail-label {
+  color: #999;
+  min-width: 60px;
+  flex-shrink: 0;
+}
+.detail-code {
+  background: #f7f8fa;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 0;
+  color: #333;
+  line-height: 1.6;
+}
+.slide-enter-active,
+.slide-leave-active {
+  transition: transform 0.2s ease;
+}
+.slide-enter-from,
+.slide-leave-to {
+  transform: translateX(100%);
+}
+@media (max-width: 768px) {
+  .detail-panel {
+    width: 100%;
+  }
 }
 </style>

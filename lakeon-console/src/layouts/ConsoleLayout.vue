@@ -1,5 +1,7 @@
 <template>
-  <div class="console-layout">
+  <div class="console-layout" @keydown.meta.k.prevent="cmdOpen = true" @keydown.ctrl.k.prevent="cmdOpen = true">
+    <CommandPalette v-if="cmdOpen" @close="cmdOpen = false" />
+
     <!-- Top Navigation Bar -->
     <header class="console-header">
       <div class="header-left">
@@ -11,6 +13,13 @@
         <router-link to="/" class="logo-brand">DBay<span class="logo-tagline">数据港湾</span></router-link>
       </div>
       <div class="header-right">
+        <button class="cmd-k-btn" @click="cmdOpen = true">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <span class="cmd-k-text">&#8984;K</span>
+        </button>
         <router-link to="/docs" class="header-nav-link">文档</router-link>
         <span class="header-divider-small"></span>
         <div class="header-user">
@@ -37,113 +46,83 @@
       <!-- Mobile sidebar overlay -->
       <div v-if="sidebarOpen" class="sidebar-overlay" @click="sidebarOpen = false"></div>
 
-      <!-- Icon Rail (方案 C) -->
-      <div class="icon-rail">
-        <div class="rail-icon" :class="{ active: activeRail === 'db' }" @click="switchRail('db')" title="数据库">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <ellipse cx="12" cy="6" rx="8" ry="3"/>
-            <path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/>
-            <path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/>
-          </svg>
-          <span class="rail-label">数据库</span>
-        </div>
-        <div class="rail-icon" :class="{ active: activeRail === 'kb' }" @click="switchRail('kb')" title="知识库">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-            <line x1="9" y1="7" x2="17" y2="7"/>
-            <line x1="9" y1="11" x2="15" y2="11"/>
-          </svg>
-          <span class="rail-label">知识库</span>
-        </div>
-        <div class="rail-icon" :class="{ active: activeRail === 'memory' }" @click="switchRail('memory')" title="记忆库">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/>
-            <line x1="10" y1="21" x2="14" y2="21"/>
-            <line x1="9" y1="17" x2="15" y2="17"/>
-          </svg>
-          <span class="rail-label">记忆库</span>
-        </div>
-        <div class="rail-icon" :class="{ active: activeRail === 'datalake' }" @click="switchRail('datalake')" title="数据湖">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 10c2.5-2 5-2 7.5 0s5 2 7.5 0"/>
-            <path d="M3 14c2.5-2 5-2 7.5 0s5 2 7.5 0"/>
-            <path d="M3 14a9 9 0 0 0 18 0" stroke-linecap="round"/>
-          </svg>
-          <span class="rail-label">数据湖</span>
-        </div>
-        <div class="rail-separator"></div>
-        <div class="rail-icon" :class="{ active: activeRail === 'settings' }" @click="switchRail('settings')" title="设置">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-          <span class="rail-label">设置</span>
-        </div>
-      </div>
-
-      <!-- Left Sidebar -->
-      <aside class="console-sidebar" :class="{ open: sidebarOpen }">
-        <div class="sidebar-title">
-          <span>{{ railTitles[activeRail] }}</span>
-        </div>
+      <!-- Single Sidebar -->
+      <aside class="sidebar" :class="{ open: sidebarOpen }">
         <nav class="sidebar-nav">
-          <!-- 数据库菜单 -->
-          <template v-if="activeRail === 'db'">
-            <div class="nav-group">
-              <router-link to="/dashboard" class="nav-item" active-class="active" @click="sidebarOpen = false">我的数据库</router-link>
-              <router-link to="/timetravel" class="nav-item" active-class="active" @click="sidebarOpen = false">时间旅行</router-link>
-              <router-link to="/sql" class="nav-item" active-class="active" @click="sidebarOpen = false">SQL 编辑器</router-link>
-              <router-link to="/import" class="nav-item" active-class="active" @click="sidebarOpen = false">数据迁移</router-link>
-            </div>
-            <div class="nav-group">
-              <div class="nav-group-title">监控运维</div>
-              <router-link to="/monitor" class="nav-item" active-class="active" @click="sidebarOpen = false">监控面板</router-link>
-              <router-link to="/logs" class="nav-item" active-class="active" @click="sidebarOpen = false">日志管理</router-link>
-              <router-link to="/backups" class="nav-item" active-class="active" @click="sidebarOpen = false">备份管理</router-link>
-            </div>
-          </template>
-          <!-- 知识库菜单 -->
-          <template v-if="activeRail === 'kb'">
-            <div class="nav-group">
-              <router-link to="/knowledge" class="nav-item" active-class="active" @click="sidebarOpen = false">知识库</router-link>
-              <router-link to="/knowledge/datasources" class="nav-item" active-class="active" @click="sidebarOpen = false">数据源</router-link>
-              <router-link to="/knowledge/search" class="nav-item" active-class="active" @click="sidebarOpen = false">知识搜索</router-link>
-            </div>
-          </template>
-          <!-- 记忆库菜单 -->
-          <template v-if="activeRail === 'memory'">
-            <div class="nav-group">
-              <router-link to="/memory" class="nav-item" active-class="active" @click="sidebarOpen = false">记忆库</router-link>
-              <router-link to="/memory/browse" class="nav-item" active-class="active" @click="sidebarOpen = false">记忆浏览</router-link>
-              <router-link to="/memory/traits" class="nav-item" active-class="active" @click="sidebarOpen = false">反思洞察</router-link>
-            </div>
-            <div class="nav-group">
-              <div class="nav-group-title">监控</div>
-              <router-link to="/memory/messages" class="nav-item" active-class="active" @click="sidebarOpen = false">消息日志</router-link>
-              <router-link to="/memory/stats" class="nav-item" active-class="active" @click="sidebarOpen = false">用量统计</router-link>
-            </div>
-          </template>
-          <!-- 数据湖菜单 -->
-          <template v-if="activeRail === 'datalake'">
-            <div class="nav-group">
-              <router-link to="/datalake/datasets" class="nav-item" active-class="active" @click="sidebarOpen = false">数据集</router-link>
-              <router-link to="/datalake/jobs" class="nav-item" active-class="active" @click="sidebarOpen = false">作业管理</router-link>
-              <router-link to="/datalake/notebook" class="nav-item" active-class="active" @click="sidebarOpen = false">Notebook</router-link>
-            </div>
-          </template>
-          <!-- 设置菜单 -->
-          <template v-if="activeRail === 'settings'">
-            <div class="nav-group">
-              <router-link to="/apikey" class="nav-item" active-class="active" @click="sidebarOpen = false">API Key</router-link>
-              <router-link to="/usage" class="nav-item" active-class="active" @click="sidebarOpen = false">资源用量</router-link>
-              <router-link to="/account" class="nav-item" active-class="active" @click="sidebarOpen = false">账户设置</router-link>
-            </div>
-            <div class="nav-group">
-              <div class="nav-group-title">帮助</div>
-              <router-link to="/help" class="nav-item" active-class="active" @click="sidebarOpen = false">使用指南</router-link>
-            </div>
-          </template>
+          <!-- 数据库 -->
+          <div class="nav-group">
+            <div class="nav-group-title">数据库</div>
+            <router-link to="/dashboard" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>
+              我的数据库
+            </router-link>
+            <router-link to="/timetravel" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              时间旅行
+            </router-link>
+            <router-link to="/sql" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              SQL 编辑器
+            </router-link>
+          </div>
+
+          <!-- 知识库 -->
+          <div class="nav-group">
+            <div class="nav-group-title">知识库</div>
+            <router-link to="/knowledge" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              知识库
+            </router-link>
+            <router-link to="/knowledge/search" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              知识搜索
+            </router-link>
+          </div>
+
+          <!-- 记忆库 -->
+          <div class="nav-group">
+            <div class="nav-group-title">记忆库</div>
+            <router-link to="/memory" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/><line x1="10" y1="21" x2="14" y2="21"/></svg>
+              记忆库
+            </router-link>
+            <router-link to="/memory/browse" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              记忆浏览
+            </router-link>
+          </div>
+
+          <!-- 数据湖 -->
+          <div class="nav-group">
+            <div class="nav-group-title">数据湖</div>
+            <router-link to="/datalake/datasets" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              数据集
+            </router-link>
+            <router-link to="/datalake/jobs" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              作业管理
+            </router-link>
+            <router-link to="/datalake/notebook" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              Notebook
+            </router-link>
+          </div>
+
+          <!-- Separator -->
+          <div class="nav-separator"></div>
+
+          <!-- Settings -->
+          <div class="nav-group nav-group-bottom">
+            <router-link to="/apikey" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+              API Key
+            </router-link>
+            <router-link to="/account" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              账户
+            </router-link>
+          </div>
         </nav>
       </aside>
 
@@ -156,57 +135,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { tenantApi } from '../api/tenant'
+import CommandPalette from '../components/CommandPalette.vue'
 
 const router = useRouter()
-const route = useRoute()
 const authStore = useAuthStore()
 const sidebarOpen = ref(false)
-
-type RailKey = 'db' | 'kb' | 'memory' | 'datalake' | 'settings'
-const activeRail = ref<RailKey>('db')
-
-const railTitles: Record<RailKey, string> = {
-  db: '数据库',
-  kb: '知识库',
-  memory: '记忆库',
-  datalake: '数据湖',
-  settings: '设置',
-}
-
-const railDefaultRoutes: Record<RailKey, string> = {
-  db: '/dashboard',
-  kb: '/knowledge',
-  memory: '/memory',
-  datalake: '/datalake',
-  settings: '/apikey',
-}
-
-function switchRail(rail: RailKey) {
-  if (activeRail.value !== rail) {
-    activeRail.value = rail
-    router.push(railDefaultRoutes[rail])
-  }
-  sidebarOpen.value = false
-}
-
-// Sync rail selection based on current route
-watch(() => route.path, (path) => {
-  if (path.startsWith('/knowledge')) {
-    activeRail.value = 'kb'
-  } else if (path.startsWith('/memory')) {
-    activeRail.value = 'memory'
-  } else if (path.startsWith('/datalake')) {
-    activeRail.value = 'datalake'
-  } else if (['/apikey', '/usage', '/account', '/help'].some(p => path.startsWith(p))) {
-    activeRail.value = 'settings'
-  } else {
-    activeRail.value = 'db'
-  }
-}, { immediate: true })
+const cmdOpen = ref(false)
 
 function handleLogout() {
   authStore.logout()
@@ -277,7 +215,6 @@ onUnmounted(() => {
   padding: 0 20px;
   flex-shrink: 0;
   z-index: 100;
-  border-bottom: 2px solid #c67d3a;
 }
 
 .header-left {
@@ -299,7 +236,7 @@ onUnmounted(() => {
 .logo-tagline {
   font-size: 13px;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.4);
   letter-spacing: 1px;
 }
 
@@ -307,6 +244,31 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+/* Command Palette button */
+.cmd-k-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.6);
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+
+.cmd-k-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.cmd-k-text {
+  font-size: 11px;
+  font-family: inherit;
 }
 
 .header-nav-link {
@@ -371,57 +333,9 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-/* Icon Rail */
-.icon-rail {
-  width: 52px;
-  background-color: #f5f3f0;
-  border-right: 1px solid #e8e4df;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 12px 0;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.rail-icon {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.15s;
-  gap: 2px;
-  color: #666;
-}
-
-.rail-icon:hover {
-  background-color: #e8eaed;
-  color: #333;
-}
-
-.rail-icon.active {
-  background-color: #2a4d6a;
-  color: #fff;
-}
-
-.rail-label {
-  font-size: 10px;
-  line-height: 1;
-}
-
-.rail-separator {
-  width: 28px;
-  height: 1px;
-  background-color: #d5d0ca;
-  margin: 6px 0;
-}
-
-.console-sidebar {
-  width: 180px;
+/* Single Sidebar */
+.sidebar {
+  width: 200px;
   background-color: #fff;
   border-right: 1px solid #e8e4df;
   flex-shrink: 0;
@@ -430,64 +344,71 @@ onUnmounted(() => {
   flex-direction: column;
 }
 
-.sidebar-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 24px 20px 20px;
-  border-bottom: 1px solid #e8e4df;
-  font-size: 18px;
-  font-weight: 700;
-  color: #2c3e50;
-  line-height: 1.3;
-}
-
 .sidebar-nav {
   flex: 1;
-  padding: 0;
+  padding: 8px 0;
 }
 
 .nav-group {
-  padding: 8px 0;
-  border-bottom: 1px solid #e8e4df;
-}
-
-.nav-group:last-child {
-  border-bottom: none;
+  padding: 4px 0;
 }
 
 .nav-group-title {
-  padding: 16px 24px 8px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #2c3e50;
-  line-height: 1.4;
+  padding: 12px 16px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #94a3b8;
+  letter-spacing: 0.8px;
 }
 
 .nav-item {
-  display: block;
-  padding: 0 24px;
-  height: 44px;
-  line-height: 44px;
-  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 16px;
+  color: #64748b;
   text-decoration: none;
-  font-size: 14px;
-  border-left: 3px solid transparent;
+  font-size: 13px;
+  border-right: 2px solid transparent;
   transition: all 0.15s;
 }
 
+.nav-item svg {
+  flex-shrink: 0;
+  color: #94a3b8;
+  transition: color 0.15s;
+}
+
 .nav-item:hover {
-  color: #9a5b25;
   background-color: #f8f5f1;
 }
 
-.nav-item.active {
-  color: #9a5b25;
-  font-weight: 600;
-  border-left-color: #c67d3a;
-  background-color: transparent;
+.nav-item:hover svg {
+  color: #64748b;
 }
 
+.nav-item.active {
+  color: #2a4d6a;
+  font-weight: 600;
+  background-color: #f0f4f8;
+  border-right-color: #2a4d6a;
+}
+
+.nav-item.active svg {
+  color: #2a4d6a;
+}
+
+.nav-separator {
+  height: 1px;
+  background-color: #e8e4df;
+  margin: 8px 16px;
+}
+
+.nav-group-bottom {
+  padding-bottom: 8px;
+}
 
 .console-main {
   flex: 1;
@@ -527,8 +448,12 @@ onUnmounted(() => {
   }
 
   .header-nav-link,
-  .header-divider-small:not(.header-user + .header-divider-small) {
+  .cmd-k-btn {
     display: none !important;
+  }
+
+  .header-divider-small {
+    display: none;
   }
 
   .header-right {
@@ -539,7 +464,7 @@ onUnmounted(() => {
     margin-right: 0;
   }
 
-  .console-sidebar {
+  .sidebar {
     position: fixed;
     top: 48px;
     left: 0;
@@ -550,7 +475,7 @@ onUnmounted(() => {
     box-shadow: none;
   }
 
-  .console-sidebar.open {
+  .sidebar.open {
     transform: translateX(0);
     box-shadow: 4px 0 16px rgba(0, 0, 0, 0.15);
   }
@@ -561,10 +486,6 @@ onUnmounted(() => {
     inset: 48px 0 0 0;
     background: rgba(0, 0, 0, 0.3);
     z-index: 199;
-  }
-
-  .sidebar-collapse {
-    display: none;
   }
 
   .console-main {

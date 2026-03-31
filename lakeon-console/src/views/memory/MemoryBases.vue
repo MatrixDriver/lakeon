@@ -3,6 +3,7 @@
     <div class="page-header">
       <h1 class="page-title">记忆库</h1>
       <div class="page-header-actions">
+        <ViewToggle v-model="viewMode" />
         <button class="btn btn-primary" @click="showCreate = true; createStep = 1; resetCreateForm()">创建记忆库</button>
       </div>
     </div>
@@ -90,7 +91,24 @@
     </div>
 
     <!-- Memory base list -->
-    <div v-if="memoryBases.length > 0" style="margin-top: 20px;">
+    <!-- Card view -->
+    <div v-if="viewMode === 'card' && memoryBases.length > 0" class="card-grid" style="margin-top: 20px;">
+      <ResourceCard
+        v-for="item in memoryBases"
+        :key="item.id"
+        :name="item.name"
+        :status="item.status"
+        :statusLabel="statusText(item.status)"
+        :meta="[item.scene === 'DEVELOPER_TOOL' ? '开发者工具' : item.scene === 'CHAT_ASSISTANT' ? '对话助理' : '-', typeText(item.type), `${item.memory_count ?? 0} 记忆`]"
+        @click="handleRowClick(item)"
+      />
+      <div class="card-create" @click="showCreate = true; createStep = 1; resetCreateForm()">
+        + 创建记忆库
+      </div>
+    </div>
+
+    <!-- Table view -->
+    <div v-if="viewMode === 'table' && memoryBases.length > 0" style="margin-top: 20px;">
       <table class="data-table">
         <thead>
           <tr>
@@ -135,7 +153,7 @@
     </div>
 
     <!-- Empty state -->
-    <div v-else-if="!loading" class="empty-state" style="margin-top: 64px; text-align: center;">
+    <div v-if="memoryBases.length === 0 && !loading" class="empty-state" style="margin-top: 64px; text-align: center;">
       <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#ccc" stroke-width="1.5">
         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
         <circle cx="12" cy="12" r="10"/>
@@ -163,8 +181,11 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { listMemoryBases, createMemoryBase, deleteMemoryBase, type MemoryBase } from '../../api/memory'
+import ViewToggle from '../../components/ViewToggle.vue'
+import ResourceCard from '../../components/ResourceCard.vue'
 
 const router = useRouter()
+const viewMode = ref<'card' | 'table'>('card')
 const memoryBases = ref<MemoryBase[]>([])
 const showCreate = ref(false)
 const createStep = ref(1)
@@ -182,6 +203,11 @@ const createForm = ref({
 function statusText(status: string) {
   const map: Record<string, string> = { READY: '就绪', CREATING: '创建中', FAILED: '失败' }
   return map[status] || status
+}
+
+function typeText(type: string) {
+  const map: Record<string, string> = { BUILTIN: '自研', MEM0: 'mem0', HINDSIGHT: 'hindsight' }
+  return map[type] || '自定义'
 }
 
 function formatTime(t: string) {
@@ -332,5 +358,27 @@ onMounted(loadMemoryBases)
 }
 .tips-link:hover {
   text-decoration: underline;
+}
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+.card-create {
+  border: 1px dashed #d5d0ca;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.card-create:hover { border-color: #94a3b8; }
+@media (max-width: 768px) {
+  .card-grid { grid-template-columns: 1fr; }
 }
 </style>

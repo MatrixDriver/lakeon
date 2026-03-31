@@ -3,6 +3,7 @@
     <div class="page-header">
       <h1 class="page-title">数据集</h1>
       <div class="page-header-actions">
+        <ViewToggle v-model="viewMode" />
         <button class="btn btn-primary" @click="$router.push('/datalake/datasets/new')">新建数据集</button>
       </div>
     </div>
@@ -21,9 +22,27 @@
       </button>
     </div>
 
-    <!-- Dataset list table -->
+    <!-- Dataset list -->
     <TableToolbar v-model="dsSearch" placeholder="搜索数据集名称" :loading="loading" @refresh="fetchDatasets" style="margin-top: 16px;" />
-    <div v-if="searchedDatasets.length > 0" class="table-wrapper">
+
+    <!-- Card view -->
+    <div v-if="viewMode === 'card' && searchedDatasets.length > 0" class="card-grid">
+      <ResourceCard
+        v-for="ds in searchedDatasets"
+        :key="ds.id"
+        :name="ds.name"
+        :status="ds.status"
+        :statusLabel="statusText(ds.status)"
+        :meta="[sourceLabel(ds.sourceType), ds.rowCount != null ? ds.rowCount.toLocaleString() + ' 行' : '-', ds.sizeBytes != null ? formatSize(ds.sizeBytes) : '-']"
+        @click="$router.push(`/datalake/datasets/${ds.id}`)"
+      />
+      <div class="card-create" @click="$router.push('/datalake/datasets/new')">
+        + 新建数据集
+      </div>
+    </div>
+
+    <!-- Table view -->
+    <div v-if="viewMode === 'table' && searchedDatasets.length > 0" class="table-wrapper">
       <table class="data-table">
         <thead>
           <tr>
@@ -64,7 +83,7 @@
     </div>
 
     <!-- Empty state -->
-    <div v-else-if="!loading" class="empty-state" style="margin-top: 64px;">
+    <div v-if="searchedDatasets.length === 0 && !loading" class="empty-state" style="margin-top: 64px;">
       <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#ccc" stroke-width="1.5">
         <path d="M3 3h18v4H3zM3 10h18v4H3zM3 17h18v4H3z"/>
       </svg>
@@ -82,6 +101,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import TableToolbar from '../../components/TableToolbar.vue'
+import ViewToggle from '../../components/ViewToggle.vue'
+import ResourceCard from '../../components/ResourceCard.vue'
 import client from '../../api/client'
 import { formatSize } from '../../utils/format'
 interface Dataset {
@@ -94,6 +115,7 @@ interface Dataset {
   createdAt: string
 }
 
+const viewMode = ref<'card' | 'table'>('card')
 const datasets = ref<Dataset[]>([])
 const loading = ref(false)
 const dsSearch = ref('')
@@ -272,4 +294,27 @@ onUnmounted(() => {
 .dot-blue { background-color: #1890ff; }
 .dot-red { background-color: #e6393d; }
 .dot-gray { background-color: #d9d9d9; }
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+.card-create {
+  border: 1px dashed #d5d0ca;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.card-create:hover { border-color: #94a3b8; }
+@media (max-width: 768px) {
+  .card-grid { grid-template-columns: 1fr; }
+}
 </style>
