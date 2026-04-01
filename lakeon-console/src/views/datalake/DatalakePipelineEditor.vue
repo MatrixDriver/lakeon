@@ -47,7 +47,7 @@
       />
 
       <!-- 中央：DAG 画布 or YAML 编辑器 -->
-      <div class="editor-canvas" ref="canvasRef">
+      <div class="editor-canvas" ref="canvasRef" @drop="onDrop" @dragover.prevent>
         <VueFlow
           v-if="viewMode === 'dag'"
           v-model:nodes="nodes"
@@ -60,8 +60,6 @@
           fit-view-on-init
           @node-click="onNodeClick"
           @pane-click="selectedNode = null"
-          @drop="onDrop"
-          @dragover.prevent
           @connect="onConnect"
         >
           <Background />
@@ -118,7 +116,7 @@ import {
   dagToFlow, flowToDag, autoLayout, parseDagYaml, serializeDagYaml,
   type DagStep, type DagDefinition,
 } from './components/pipeline/dagUtils'
-import type { Node, Edge, Connection, NodeMouseEvent } from '@vue-flow/core'
+import { useVueFlow, type Node, type Edge, type Connection, type NodeMouseEvent } from '@vue-flow/core'
 
 const route = useRoute()
 const router = useRouter()
@@ -139,6 +137,7 @@ const edges = shallowRef<Edge[]>([])
 const selectedNode = ref<Node | null>(null)
 const yamlText = ref('')
 const canvasRef = ref<HTMLElement | null>(null)
+const { project } = useVueFlow()
 
 // 撤销/重做 (use any[] to avoid Vue Flow's deep type recursion)
 interface FlowSnapshot { nodes: any[]; edges: any[] }
@@ -302,10 +301,10 @@ function onDrop(event: DragEvent) {
   pushUndo()
 
   const bounds = canvasRef.value.getBoundingClientRect()
-  const position = {
-    x: event.clientX - bounds.left - 90,
-    y: event.clientY - bounds.top - 36,
-  }
+  const position = project({
+    x: event.clientX - bounds.left,
+    y: event.clientY - bounds.top,
+  })
 
   const compVersion = componentVersions.value.get(dragComponent.id)
   const step: DagStep = {
