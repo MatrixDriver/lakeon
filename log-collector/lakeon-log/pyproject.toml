@@ -1,0 +1,13 @@
+[project]
+name = "lakeon-log"
+version = "0.1.0"
+description = "Structured logging for Lakeon CCI components"
+requires-python = ">=3.10"
+dependencies = ["requests>=2.28"]
+
+[project.optional-dependencies]
+test = ["pytest>=7.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
