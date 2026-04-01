@@ -140,7 +140,6 @@ function updateParam(key: string, value: any) {
 }
 
 function toggleCheckpoint(checked: boolean) {
-  const step = { ...props.node.data.step, checkpoint: checked }
   emit('update:params', props.node.id, { ...currentParams.value, __checkpoint: checked })
 }
 </script>

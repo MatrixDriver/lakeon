@@ -81,7 +81,7 @@ const nodes = ref<Node[]>([])
 const edges = ref<Edge[]>([])
 const selectedStepRun = ref<PipelineStepRun | null>(null)
 
-const nodeTypes = {
+const nodeTypes: Record<string, any> = {
   pipelineNode: markRaw(PipelineNodeBase),
   fanOutNode: markRaw(PipelineNodeFanOut),
   mergeNode: markRaw(PipelineNodeMerge),
