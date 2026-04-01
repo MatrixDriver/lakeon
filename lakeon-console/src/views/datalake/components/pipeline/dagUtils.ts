@@ -2,7 +2,6 @@
 
 import type { Node, Edge } from '@vue-flow/core'
 import yaml from 'js-yaml'
-import { NODE_WIDTH, NODE_HEIGHT } from './nodeStyles'
 
 /** DAG YAML 中的步骤定义 */
 export interface DagStep {
@@ -113,12 +112,12 @@ export function dagToFlow(steps: DagStep[]): { nodes: Node[]; edges: Edge[] } {
   const GAP_Y = 120
 
   for (let layerIdx = 0; layerIdx < layers.length; layerIdx++) {
-    const layer = layers[layerIdx]
+    const layer = layers[layerIdx]!
     const totalWidth = layer.length * GAP_X
     const startX = -(totalWidth - GAP_X) / 2
 
     for (let colIdx = 0; colIdx < layer.length; colIdx++) {
-      const stepId = layer[colIdx]
+      const stepId = layer[colIdx]!
       const step = stepMap.get(stepId)!
 
       // 确定节点类型
