@@ -42,6 +42,21 @@ export interface Document {
   created_at: string
 }
 
+export interface DocumentListResponse {
+  documents: Document[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface DocumentStats {
+  total: number
+  processing: number
+  ready: number
+  failed: number
+  pending: number
+}
+
 export interface SearchResult {
   content: string
   score: number
@@ -84,8 +99,22 @@ export function deleteKnowledgeBase(id: string) {
 }
 
 // Documents
-export function listDocuments(kbId: string) {
-  return api.get<Document[]>('/knowledge/documents', { params: { kb_id: kbId } })
+export function listDocuments(kbId: string, params?: {
+  page?: number
+  page_size?: number
+  status?: string
+  sort_by?: string
+  sort_order?: string
+}) {
+  return api.get<DocumentListResponse>('/knowledge/documents', {
+    params: { kb_id: kbId, ...params },
+  })
+}
+
+export function getDocumentStats(kbId: string) {
+  return api.get<DocumentStats>('/knowledge/documents/stats', {
+    params: { kb_id: kbId },
+  })
 }
 
 export function getUploadUrl(kbId: string, filename: string) {
