@@ -134,6 +134,23 @@ metadataDb:
   user: "lakeon"
   password: ""      # --set metadataDb.password=$RDS_PASSWORD
 
+# ── Pipeline Orchestrator ──────────────────────────────────────
+orchestrator:
+  enabled: true
+  image:
+    repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-orchestrator
+    tag: "0.1.0"
+  replicas: 1
+  rayAddress: "auto"
+  rayNamespace: "lakeon-pipeline"
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "1000m"
+      memory: "512Mi"
+
 # ── SRE 运维控制台（已部署到 Railway）───────────────────────────
 admin:
   enabled: false

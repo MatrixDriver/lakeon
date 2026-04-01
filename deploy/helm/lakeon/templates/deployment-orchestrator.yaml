@@ -1,0 +1,98 @@
+{{- if .Values.orchestrator.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pipeline-orchestrator
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pipeline-orchestrator
+spec:
+  replicas: {{ .Values.orchestrator.replicas | default 1 }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pipeline-orchestrator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pipeline-orchestrator
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: orchestrator
+          image: "{{ .Values.orchestrator.image.repository }}:{{ .Values.orchestrator.image.tag }}"
+          ports:
+            - containerPort: 8090
+              name: http
+          env:
+            - name: LAKEON_ORCH_DATABASE_URL
+              value: "postgresql+asyncpg://{{ .Values.metadataDb.user | default "lakeon" }}:$(RDS_PASSWORD)@$(RDS_HOST):{{ .Values.metadataDb.port | default 5432 }}/{{ .Values.metadataDb.name | default "lakeon" }}"
+            - name: RDS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lakeon-api-secret
+                  key: rds-password
+            - name: RDS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: metadata-db-config
+                  key: host
+            - name: LAKEON_ORCH_OBS_ENDPOINT
+              value: {{ .Values.obs.endpoint | default "https://obs.cn-north-4.myhuaweicloud.com" | quote }}
+            - name: LAKEON_ORCH_OBS_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lakeon-obs-secret
+                  key: access-key
+            - name: LAKEON_ORCH_OBS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lakeon-obs-secret
+                  key: secret-key
+            - name: LAKEON_ORCH_OBS_BUCKET
+              value: {{ .Values.obs.bucket | default "lakeon-data" | quote }}
+            - name: LAKEON_ORCH_RAY_ADDRESS
+              value: {{ .Values.orchestrator.rayAddress | default "auto" | quote }}
+            - name: LAKEON_ORCH_RAY_NAMESPACE
+              value: {{ .Values.orchestrator.rayNamespace | default "lakeon-pipeline" | quote }}
+          resources:
+            requests:
+              cpu: {{ .Values.orchestrator.resources.requests.cpu | default "100m" | quote }}
+              memory: {{ .Values.orchestrator.resources.requests.memory | default "256Mi" | quote }}
+            limits:
+              cpu: {{ .Values.orchestrator.resources.limits.cpu | default "1000m" | quote }}
+              memory: {{ .Values.orchestrator.resources.limits.memory | default "512Mi" | quote }}
+          livenessProbe:
+            httpGet:
+              path: /docs
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /docs
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pipeline-orchestrator
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pipeline-orchestrator
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: pipeline-orchestrator
+  ports:
+    - port: 8090
+      targetPort: http
+      protocol: TCP
+      name: http
+{{- end }}

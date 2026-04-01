@@ -99,6 +99,14 @@
           <!-- 数据湖 -->
           <div class="nav-group">
             <div class="nav-group-title">数据湖</div>
+            <router-link to="/datalake/pipelines" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="1.5" fill="currentColor"/><circle cx="14" cy="12" r="1.5" fill="currentColor"/><circle cx="10" cy="18" r="1.5" fill="currentColor"/></svg>
+              生产线
+            </router-link>
+            <router-link to="/datalake/components" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              组件库
+            </router-link>
             <router-link to="/datalake/datasets" class="nav-item" active-class="active" @click="sidebarOpen = false">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               数据集
