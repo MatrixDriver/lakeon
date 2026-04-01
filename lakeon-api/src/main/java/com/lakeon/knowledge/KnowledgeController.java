@@ -163,6 +163,26 @@ public class KnowledgeController {
         return response;
     }
 
+    @GetMapping("/documents/stats")
+    public Map<String, Object> documentStats(HttpServletRequest req,
+                                             @RequestParam("kb_id") String kbId) {
+        TenantEntity tenant = getTenant(req);
+        List<Object[]> rows = documentRepository.countByStatusGrouped(tenant.getId(), kbId);
+        long total = 0, processing = 0, ready = 0, failed = 0, pending = 0;
+        for (Object[] row : rows) {
+            String s = (String) row[0];
+            long count = ((Number) row[1]).longValue();
+            total += count;
+            switch (s) {
+                case "PROCESSING" -> processing = count;
+                case "READY" -> ready = count;
+                case "FAILED" -> failed = count;
+                case "PENDING" -> pending = count;
+            }
+        }
+        return Map.of("total", total, "processing", processing, "ready", ready, "failed", failed, "pending", pending);
+    }
+
     @GetMapping("/documents/{id}")
     public Map<String, Object> getDocument(HttpServletRequest req, @PathVariable String id) {
         TenantEntity tenant = getTenant(req);

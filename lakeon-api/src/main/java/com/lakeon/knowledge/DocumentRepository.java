@@ -69,4 +69,12 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, String
         @Param("kbId") String kbId,
         @Param("status") String status);
 
+    @Query(value = """
+        SELECT status, COUNT(*) as cnt FROM documents
+        WHERE tenant_id = :tenantId AND kb_id = :kbId
+        GROUP BY status
+        """, nativeQuery = true)
+    List<Object[]> countByStatusGrouped(
+        @Param("tenantId") String tenantId,
+        @Param("kbId") String kbId);
 }
