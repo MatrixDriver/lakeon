@@ -186,3 +186,19 @@ memory:
   image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.1.0
   cpu: 500m
   memorySize: 512Mi
+
+fluentbit:
+  enabled: true
+  image: "cr.fluentbit.io/fluent/fluent-bit:3.2"
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "128Mi"
+
+logCollector:
+  image:
+    repository: swr.cn-north-4.myhuaweicloud.com/flex/log-collector
+    tag: "0.1.0"

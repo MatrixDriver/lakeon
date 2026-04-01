@@ -1,0 +1,50 @@
+{{- if .Values.fluentbit.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentbit-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+    app.kubernetes.io/component: fluentbit
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush         2
+        Log_Level     info
+        Parsers_File  parsers.conf
+
+    [INPUT]
+        Name              tail
+        Path              /var/log/containers/*_lakeon_*.log
+        Parser            docker
+        Tag               lakeon.*
+        Refresh_Interval  5
+        Mem_Buf_Limit     5MB
+        Skip_Long_Lines   On
+
+    [INPUT]
+        Name              tail
+        Path              /var/log/containers/*_lakeon-compute_*.log
+        Parser            docker
+        Tag               lakeon-compute.*
+        Refresh_Interval  5
+        Mem_Buf_Limit     5MB
+        Skip_Long_Lines   On
+
+    [OUTPUT]
+        Name    http
+        Match   *
+        Host    log-collector.{{ .Values.global.namespace }}.svc.cluster.local
+        Port    9880
+        URI     /logs
+        Format  json
+
+  parsers.conf: |
+    [PARSER]
+        Name        docker
+        Format      json
+        Time_Key    time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L
+        Time_Keep   On
+{{- end }}
