@@ -136,6 +136,8 @@ lakeon:
   warm-pool-namespace: "${LAKEON_DATALAKE_WARM_POOL_NS:datalake-pool}"
   warm-pool-image: "${LAKEON_DATALAKE_WARM_POOL_IMAGE:swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data}"
   warm-pool-idle-timeout-minutes: "${LAKEON_DATALAKE_WARM_POOL_IDLE_TIMEOUT:30}"
+  log:
+    db-dsn: "${LOG_DB_DSN:}"
 
 management:
   endpoints:

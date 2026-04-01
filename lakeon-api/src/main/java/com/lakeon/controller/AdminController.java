@@ -15,6 +15,7 @@ import com.lakeon.repository.TenantRepository;
 import com.lakeon.service.AdminService;
 import com.lakeon.service.AlertService;
 import com.lakeon.service.AuditService;
+import com.lakeon.service.LogQueryService;
 import com.lakeon.model.entity.InviteCodeEntity;
 import com.lakeon.repository.InviteCodeRepository;
 import com.lakeon.knowledge.*;
@@ -80,6 +81,7 @@ public class AdminController {
     private final LakeonProperties props;
     private final SystemConfigRepository systemConfigRepository;
     private final ObjectMapper objectMapper;
+    private final LogQueryService logQueryService;
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AdminController.class);
 
@@ -109,7 +111,8 @@ public class AdminController {
                            NotebookSessionRepository notebookSessionRepository,
                            LakeonProperties props,
                            SystemConfigRepository systemConfigRepository,
-                           ObjectMapper objectMapper) {
+                           ObjectMapper objectMapper,
+                           LogQueryService logQueryService) {
         this.tenantService = tenantService;
         this.adminService = adminService;
         this.databaseService = databaseService;
@@ -137,6 +140,7 @@ public class AdminController {
         this.props = props;
         this.systemConfigRepository = systemConfigRepository;
         this.objectMapper = objectMapper;
+        this.logQueryService = logQueryService;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────
@@ -1405,5 +1409,35 @@ public class AdminController {
         m.put("expires_at", e.getExpiresAt());
         m.put("created_at", e.getCreatedAt());
         return m;
+    }
+
+    // ── Structured Logs ───────────────────────────────────────────────
+
+    @GetMapping("/structured-logs/search")
+    public org.springframework.http.ResponseEntity<?> logSearch(
+            @RequestParam(required = false) String component,
+            @RequestParam(required = false) String level,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String tenant_id,
+            @RequestParam(defaultValue = "1h") String since,
+            @RequestParam(defaultValue = "100") int limit) {
+        return org.springframework.http.ResponseEntity.ok(logQueryService.search(component, level, keyword, tenant_id, since, limit));
+    }
+
+    @GetMapping("/structured-logs/trace/{requestId}")
+    public org.springframework.http.ResponseEntity<?> logTrace(@PathVariable String requestId) {
+        return org.springframework.http.ResponseEntity.ok(logQueryService.trace(requestId));
+    }
+
+    @GetMapping("/structured-logs/errors")
+    public org.springframework.http.ResponseEntity<?> logErrors(
+            @RequestParam(defaultValue = "1h") String since,
+            @RequestParam(required = false) String component) {
+        return org.springframework.http.ResponseEntity.ok(logQueryService.errors(since, component));
+    }
+
+    @GetMapping("/structured-logs/stats")
+    public org.springframework.http.ResponseEntity<?> logStats(@RequestParam(defaultValue = "24h") String since) {
+        return org.springframework.http.ResponseEntity.ok(logQueryService.stats(since));
     }
 }
