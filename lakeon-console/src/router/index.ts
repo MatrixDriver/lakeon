@@ -73,6 +73,15 @@ const routes = [
       { path: 'datalake/notebook', name: 'DatalakeNotebookList', component: () => import('../views/datalake/DatalakeNotebookList.vue') },
       { path: 'datalake/notebook/:id', name: 'DatalakeNotebookEditor', component: () => import('../views/datalake/DatalakeNotebook.vue') },
       { path: 'datalake/monitor', name: 'DatalakeMonitor', component: () => import('../views/datalake/DatalakeMonitor.vue') },
+      // Datalake — Pipeline
+      { path: 'datalake/pipelines', name: 'DatalakePipelines', component: () => import('../views/datalake/DatalakePipelines.vue') },
+      { path: 'datalake/pipelines/new', name: 'DatalakePipelineNew', component: () => import('../views/datalake/DatalakePipelineEditor.vue') },
+      { path: 'datalake/pipelines/:id', name: 'DatalakePipelineDetail', component: () => import('../views/datalake/DatalakePipelineDetail.vue') },
+      { path: 'datalake/pipelines/:id/edit', name: 'DatalakePipelineEdit', component: () => import('../views/datalake/DatalakePipelineEditor.vue') },
+      { path: 'datalake/pipelines/:id/runs/:runId', name: 'DatalakePipelineRun', component: () => import('../views/datalake/DatalakePipelineRun.vue') },
+      // Datalake — Components
+      { path: 'datalake/components', name: 'DatalakeComponents', component: () => import('../views/datalake/DatalakeComponents.vue') },
+      { path: 'datalake/components/register', name: 'DatalakeComponentRegister', component: () => import('../views/datalake/DatalakeComponentRegister.vue') },
       // Knowledge
       { path: 'knowledge', name: 'KnowledgeBases', component: () => import('../views/knowledge/KnowledgeBases.vue') },
       { path: 'knowledge/:kbId', name: 'KnowledgeBaseDetail', component: () => import('../views/knowledge/KnowledgeBaseDetail.vue') },
