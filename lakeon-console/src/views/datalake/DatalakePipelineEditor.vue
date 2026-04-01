@@ -61,6 +61,8 @@
           @node-click="onNodeClick"
           @pane-click="selectedNode = null"
           @connect="onConnect"
+          @drop="onDrop"
+          @dragover.prevent
         >
           <Background />
           <Controls />
@@ -297,7 +299,11 @@ function onComponentDragStart(component: PipelineComponent) {
 }
 
 function onDrop(event: DragEvent) {
-  if (!dragComponent || !canvasRef.value) return
+  event.preventDefault()
+  // 从 dataTransfer 读取组件 ID（比依赖 emit 链更可靠）
+  const compId = event.dataTransfer?.getData('application/pipeline-component')
+  const comp = compId ? components.value.find(c => c.id === compId) : dragComponent
+  if (!comp || !canvasRef.value) return
   pushUndo()
 
   const bounds = canvasRef.value.getBoundingClientRect()
@@ -306,10 +312,10 @@ function onDrop(event: DragEvent) {
     y: event.clientY - bounds.top,
   })
 
-  const compVersion = componentVersions.value.get(dragComponent.id)
+  const compVersion = componentVersions.value.get(comp.id)
   const step: DagStep = {
-    id: dragComponent.name + '_' + Date.now().toString(36),
-    component: dragComponent.name,
+    id: comp.name + '_' + Date.now().toString(36),
+    component: comp.name,
     component_version: compVersion?.version || 1,
     params: {},
     inputs: {},
@@ -320,17 +326,19 @@ function onDrop(event: DragEvent) {
   let nodeType = 'pipelineNode'
   if (compVersion?.executionMode === 'HUMAN_REVIEW') nodeType = 'humanReviewNode'
 
-  nodes.value.push({
+  const newNode: Node = {
     id: step.id,
     type: nodeType,
     position,
     data: {
       step,
-      label: dragComponent.displayName,
-      category: dragComponent.category,
+      label: comp.displayName,
+      category: comp.category,
     },
-  })
+  }
 
+  // shallowRef 需要赋值新数组才能触发响应式更新
+  nodes.value = [...nodes.value, newNode]
   dragComponent = null
 }
 
