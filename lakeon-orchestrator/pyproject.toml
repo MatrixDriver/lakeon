@@ -27,7 +27,18 @@ dev = [
     "httpx>=0.28.0",
     "aiosqlite>=0.20.0",
 ]
+components = [
+    "scenedetect[opencv]>=0.6",
+    "datasketch>=1.6",
+    "jieba>=0.42",
+    "tiktoken>=0.5",
+    "pylance>=0.9",
+    "pyarrow>=14.0",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "e2e: End-to-end tests (may require external dependencies like ffmpeg)",
+]
