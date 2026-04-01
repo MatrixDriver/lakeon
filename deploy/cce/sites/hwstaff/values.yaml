@@ -35,7 +35,7 @@ neon:
     pullPolicy: IfNotPresent
   computeImage:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/compute-node-v17
-    tag: pgsearch-neon-v1  # pg_search v0.21.15 (Neon GenericXLog WAL) + zhparser + setrlimit shim
+    tag: pgsearch-neon-v2  # pg_search v0.21.15 (Neon GenericXLog WAL) + setrlimit shim
 
 api:
   replicas: 2
@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.9.171"
+    tag: "0.9.174"
   jobCallbackBaseUrl: "https://api.dbay.cloud:8443"
   jobNamespace: "lakeon-jobs"
   resources:
