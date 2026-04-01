@@ -35,20 +35,6 @@
       </div>
     </div>
 
-    <!-- Status filter tabs -->
-    <div class="status-tabs">
-      <button
-        v-for="tab in statusTabs"
-        :key="tab.value"
-        class="status-tab"
-        :class="{ active: statusFilter === tab.value }"
-        @click="statusFilter = tab.value"
-      >
-        {{ tab.label }}
-        <span v-if="tab.count" class="tab-count">{{ tab.count }}</span>
-      </button>
-    </div>
-
     <!-- Card view -->
     <div v-if="viewMode === 'card' && filteredPipelines.length > 0" class="card-grid">
       <ResourceCard
@@ -104,9 +90,9 @@
         <line x1="12" y1="10" x2="12" y2="16"/><line x1="9" y1="13" x2="15" y2="13"/>
       </svg>
       <div style="margin-top: 12px; color: #999;">
-        {{ statusFilter ? '当前筛选无结果' : '尚未创建数据生产线' }}
+        尚未创建数据生产线
       </div>
-      <button v-if="!statusFilter" class="btn btn-primary" style="margin-top: 16px;" @click="router.push('/datalake/pipelines/new')">
+      <button class="btn btn-primary" style="margin-top: 16px;" @click="router.push('/datalake/pipelines/new')">
         创建第一条生产线
       </button>
     </div>
@@ -125,20 +111,14 @@ const loading = ref(true)
 const pipelines = ref<Pipeline[]>([])
 const templates = ref<Pipeline[]>([])
 const viewMode = ref<'card' | 'table'>('card')
-const statusFilter = ref('')
 const showCreateMenu = ref(false)
 
 // latestRunStatus 需要缓存每个 pipeline 的最近运行状态
 // 实际实现需要额外 API，这里预留
 const runStatusMap = ref<Record<string, string>>({})
 
-const statusTabs = computed(() => [
-  { label: '全部', value: '', count: pipelines.value.length },
-])
-
 const filteredPipelines = computed(() => {
-  if (!statusFilter.value) return pipelines.value
-  return pipelines.value.filter(p => runStatusMap.value[p.id] === statusFilter.value)
+  return pipelines.value
 })
 
 function latestRunStatus(pipelineId: string): string {
