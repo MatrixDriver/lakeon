@@ -88,6 +88,43 @@
         </div>
       </section>
 
+      <!-- Section 5: Claude Code Integration -->
+      <section class="section">
+        <h2 class="section-title">{{ t('Claude Code 集成', 'Claude Code Integration') }}</h2>
+        <p class="section-desc">
+          {{ t(
+            '记忆库可以作为 Claude Code 的长期记忆，跨项目、跨会话、跨设备持久化你的开发惯例、技术决策和工作流程。支持两种使用方式：',
+            'Memory Store serves as long-term memory for Claude Code, persisting your development conventions, technical decisions, and workflows across projects, sessions, and devices. Two integration modes:'
+          ) }}
+        </p>
+        <div class="integration-grid">
+          <div class="integration-card">
+            <div class="integration-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            </div>
+            <div class="integration-title">{{ t('MCP Tool 交互', 'MCP Tool Interaction') }}</div>
+            <div class="integration-desc">
+              {{ t(
+                '通过 dbay-mcp 的 memory_ingest / memory_recall 工具，Claude Code 可以在对话中随时存储和召回记忆。说"记住"即可存储，问"之前怎么决定的"即可召回。',
+                'Via dbay-mcp memory_ingest / memory_recall tools, Claude Code can store and recall memories anytime during conversation. Say "remember this" to store, ask "what did we decide" to recall.'
+              ) }}
+            </div>
+          </div>
+          <div class="integration-card">
+            <div class="integration-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div class="integration-title">{{ t('SessionStart 自动召回', 'SessionStart Auto-Recall') }}</div>
+            <div class="integration-desc">
+              {{ t(
+                '通过 Claude Code Hook 机制，每次新会话启动时自动召回你的开发惯例、技术决策和偏好设置，无需手动提醒。Claude 从第一句话就知道你的做事规矩。',
+                'Via Claude Code Hook mechanism, automatically recalls your development conventions, technical decisions, and preferences at every session start. Claude knows your rules from the first message.'
+              ) }}
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- CTA -->
       <div class="cta-section">
         <a href="/console" class="cta-button">{{ t('立即试用', 'Get Started') }}</a>
@@ -553,5 +590,46 @@ const comparisonBars = [
   .step-label { font-size: 11px; }
   .benchmark-main-score { font-size: 48px; }
   .cta-section { flex-direction: column; align-items: flex-start; }
+  .integration-grid { grid-template-columns: 1fr; }
+}
+
+/* Integration Section */
+.section-desc {
+  color: var(--pub-muted);
+  font-size: 15px;
+  line-height: 1.7;
+  margin-bottom: 24px;
+  max-width: 680px;
+}
+
+.integration-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.integration-card {
+  background: var(--pub-card-bg, #fff);
+  border: 1px solid var(--pub-border, #e8e0d8);
+  border-radius: 12px;
+  padding: 28px;
+}
+
+.integration-icon {
+  color: var(--pub-accent, #c67d3a);
+  margin-bottom: 16px;
+}
+
+.integration-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--pub-heading, #2a3d4e);
+  margin-bottom: 10px;
+}
+
+.integration-desc {
+  font-size: 14px;
+  color: var(--pub-muted, #6b7b8d);
+  line-height: 1.7;
 }
 </style>
