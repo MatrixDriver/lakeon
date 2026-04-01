@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.9.168"
+    tag: "0.9.169"
   jobCallbackBaseUrl: "https://api.dbay.cloud:8443"
   jobNamespace: "lakeon-jobs"
   resources:
@@ -233,7 +233,7 @@ minio:
 # ── 日志可观测性 ─────────────────────────────────────────────────
 fluentbit:
   enabled: true
-  image: "cr.fluentbit.io/fluent/fluent-bit:3.2"
+  image: "swr.cn-north-4.myhuaweicloud.com/flex/fluent-bit:3.2"
   resources:
     requests:
       cpu: "50m"

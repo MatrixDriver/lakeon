@@ -1,0 +1,122 @@
+# Neon compute + zhparser (Chinese text search) + setrlimit shim
+#
+# zhparser: Chinese full-text search parser for PostgreSQL based on SCWS.
+# Uses standard GIN index (WAL-compatible), safe on Neon SMGR.
+#
+# Build context: ~/code/neon (with vendor/postgres-v17 submodule initialized)
+#
+# Usage:
+#   cd ~/code/neon
+#   docker build -f ../lakeon/deploy/docker/Dockerfile.compute-zhparser \
+#     -t swr.cn-north-4.myhuaweicloud.com/flex/compute-node-v17:zhparser-ctl .
+
+# Stage 1: Build zhparser from source
+FROM ghcr.io/neondatabase/compute-node-v17:latest AS builder
+
+USER root
+
+RUN find /etc/apt -name '*.sources' -o -name '*.list' | xargs -r sed -i 's|deb.debian.org|mirrors.aliyun.com|g'
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl ca-certificates pkg-config git \
+    bison flex libreadline-dev zlib1g-dev libicu-dev libxml2-dev libxslt1-dev \
+    liblz4-dev libzstd-dev libossp-uuid-dev libssl-dev \
+    automake autoconf libtool \
+    && rm -rf /var/lib/apt/lists/*
+
+# Compile PG from Neon source (for pg_config and server headers)
+COPY vendor/postgres-v17 /build/postgres
+COPY compute/patches/ /build/patches/
+WORKDIR /build/postgres
+RUN patch -p1 < /build/patches/pg_stat_statements_pg17.patch && \
+    patch -p1 < /build/patches/postgres_fdw.patch && \
+    ./configure CFLAGS='-O2' --prefix=/usr/local \
+      --with-openssl --with-uuid=ossp --with-icu \
+      --with-libxml --with-libxslt --with-lz4 --with-zstd && \
+    make -j $(nproc) -s install
+
+# Build SCWS (Simple Chinese Word Segmentation) — use release tarball with pre-generated configure
+WORKDIR /build
+RUN curl -L http://www.xunsearch.com/scws/down/scws-1.2.3.tar.bz2 -o scws.tar.bz2 && \
+    tar xjf scws.tar.bz2 && mv scws-1.2.3 scws
+WORKDIR /build/scws
+RUN ./configure --prefix=/usr/local && \
+    make -j $(nproc) && make install && \
+    curl -L http://www.xunsearch.com/scws/down/scws-dict-chs-utf8.tar.bz2 -o dict.tar.bz2 && \
+    tar xjf dict.tar.bz2 && \
+    mkdir -p /usr/local/share/tsearch_data && \
+    cp dict.utf8.xdb /usr/local/etc/ && \
+    cp dict.utf8.xdb /usr/local/share/tsearch_data/
+
+# Build zhparser
+WORKDIR /build
+RUN curl -L https://github.com/amutu/zhparser/archive/refs/heads/master.tar.gz -o zhparser.tar.gz && \
+    mkdir zhparser && tar xzf zhparser.tar.gz --strip-components=1 -C zhparser
+WORKDIR /build/zhparser
+RUN make PG_CONFIG=/usr/local/bin/pg_config && \
+    make PG_CONFIG=/usr/local/bin/pg_config install
+
+# Stage 2: Assemble final image
+FROM ghcr.io/neondatabase/compute-node-v17:latest
+
+USER root
+
+RUN find /etc/apt -name '*.sources' -o -name '*.list' | xargs -r sed -i 's|deb.debian.org|mirrors.aliyun.com|g'
+
+# ── zhparser extension + SCWS library ──
+COPY --from=builder /usr/local/lib/libscws.* /usr/local/lib/
+COPY --from=builder /usr/local/lib/postgresql/zhparser.so /usr/local/lib/zhparser.so
+COPY --from=builder /usr/local/share/postgresql/extension/zhparser.control /usr/local/share/extension/
+COPY --from=builder /usr/local/share/postgresql/extension/zhparser--*.sql /usr/local/share/extension/
+# SCWS dict files for zhparser
+COPY --from=builder /usr/local/etc/ /usr/local/etc/
+COPY --from=builder /usr/local/share/tsearch_data/ /usr/local/share/tsearch_data/
+
+# Mark as trusted so non-superuser can CREATE EXTENSION
+RUN echo 'trusted = true' >> /usr/local/share/extension/zhparser.control && \
+    ldconfig
+
+# ── setrlimit shim (inline) ──
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN cat > /tmp/setrlimit_shim.c <<'SHIM' && \
+    gcc -shared -fPIC -o /usr/local/lib/setrlimit_shim.so /tmp/setrlimit_shim.c -ldl && \
+    rm /tmp/setrlimit_shim.c
+#define _GNU_SOURCE
+#include <sys/resource.h>
+#include <dlfcn.h>
+#include <stdio.h>
+typedef int (*orig_setrlimit_t)(__rlimit_resource_t resource, const struct rlimit *rlim);
+int setrlimit(__rlimit_resource_t resource, const struct rlimit *rlim) {
+    orig_setrlimit_t orig = (orig_setrlimit_t)dlsym(RTLD_NEXT, "setrlimit");
+    int ret = orig(resource, rlim);
+    if (ret != 0 && resource == RLIMIT_CORE) {
+        fprintf(stderr, "WARN: setrlimit(CORE) failed, continuing without core dumps\n");
+        return 0;
+    }
+    return ret;
+}
+typedef int (*orig_setrlimit64_t)(__rlimit_resource_t resource, const struct rlimit64 *rlim);
+int setrlimit64(__rlimit_resource_t resource, const struct rlimit64 *rlim) {
+    orig_setrlimit64_t orig = (orig_setrlimit64_t)dlsym(RTLD_NEXT, "setrlimit64");
+    int ret = orig(resource, rlim);
+    if (ret != 0 && resource == RLIMIT_CORE) {
+        fprintf(stderr, "WARN: setrlimit64(CORE) failed, continuing without core dumps\n");
+        return 0;
+    }
+    return ret;
+}
+SHIM
+
+RUN apt-get purge -y gcc libc6-dev && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+
+# Wrap compute_ctl with LD_PRELOAD
+RUN mv /usr/local/bin/compute_ctl /usr/local/bin/compute_ctl.orig && \
+    printf '#!/bin/sh\nexec env LD_PRELOAD=/usr/local/lib/setrlimit_shim.so /usr/local/bin/compute_ctl.orig "$@"\n' > /usr/local/bin/compute_ctl && \
+    chmod +x /usr/local/bin/compute_ctl
+
+# Verify
+RUN ls -la /usr/local/lib/zhparser.so /usr/local/share/extension/zhparser.control /usr/local/lib/setrlimit_shim.so
+
+USER postgres

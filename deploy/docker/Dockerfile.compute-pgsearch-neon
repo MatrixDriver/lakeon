@@ -1,0 +1,123 @@
+# Neon compute + pg_search v0.21.15 (Neon-patched GenericXLog WAL) + setrlimit shim
+#
+# pg_search v0.21.15 uses PostgreSQL block storage (8KB pages via buffer manager).
+# The Neon patch adds:
+#   - unlogged-build hooks for CREATE INDEX (prevents "zero LSN" PANIC)
+#   - GenericXLog diff WAL for all runtime buffer writes (INSERT/UPDATE/DELETE/MERGE)
+#
+# Build context: ~/code/neon (with vendor/postgres-v17 submodule initialized)
+#
+# Usage:
+#   cd ~/code/neon
+#   docker build -f ../lakeon/deploy/docker/Dockerfile.compute-pgsearch-neon \
+#     -t swr.cn-north-4.myhuaweicloud.com/flex/compute-node-v17:pgsearch-neon-v1 .
+
+# ============================================================
+# Stage 1: Build pg_search v0.21.15
+# ============================================================
+FROM ghcr.io/neondatabase/compute-node-v17:latest AS builder
+
+USER root
+
+RUN find /etc/apt -name '*.sources' -o -name '*.list' | xargs -r sed -i 's|deb.debian.org|mirrors.aliyun.com|g'
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl ca-certificates pkg-config libssl-dev libclang-dev git \
+    bison flex libreadline-dev zlib1g-dev libicu-dev libxml2-dev libxslt1-dev \
+    liblz4-dev libzstd-dev libossp-uuid-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Compile PG from Neon source (for server headers + pg_config) ──
+COPY vendor/postgres-v17 /build/postgres
+COPY compute/patches/ /build/patches/
+WORKDIR /build/postgres
+RUN patch -p1 < /build/patches/pg_stat_statements_pg17.patch && \
+    patch -p1 < /build/patches/postgres_fdw.patch && \
+    ./configure CFLAGS='-O2' --prefix=/usr/local \
+      --with-openssl --with-uuid=ossp --with-icu \
+      --with-libxml --with-libxslt --with-lz4 --with-zstd && \
+    make -j $(nproc) -s install
+
+# ── Install Rust ──
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# ── Build pg_search v0.21.15 with Neon patch ──
+RUN cargo install --locked --version 0.16.1 cargo-pgrx && \
+    cargo pgrx init --pg17=/usr/local/bin/pg_config
+
+WORKDIR /build
+RUN curl -L https://github.com/paradedb/paradedb/archive/refs/tags/v0.21.15.tar.gz -o pg_search.tar.gz && \
+    mkdir paradedb && tar xzf pg_search.tar.gz --strip-components=1 -C paradedb
+
+# Apply Neon compatibility patch (unlogged build hooks + GenericXLog WAL)
+RUN patch -p1 -d paradedb < /build/patches/pg_search.patch
+
+WORKDIR /build/paradedb/pg_search
+RUN sed -i 's/pgrx = "=0.16.1"/pgrx = { version = "=0.16.1", features = ["unsafe-postgres"] }/g' Cargo.toml && \
+    sed -i 's/pgrx.workspace = true/pgrx = { version = "=0.16.1", features = ["unsafe-postgres"] }/g' Cargo.toml && \
+    sed -i 's/pgrx-tests.workspace = true/pgrx-tests = "=0.16.1"/g' Cargo.toml && \
+    cargo pgrx install --release --features neon
+
+# ============================================================
+# Stage 2: Assemble final image
+# ============================================================
+FROM ghcr.io/neondatabase/compute-node-v17:latest
+
+USER root
+
+RUN find /etc/apt -name '*.sources' -o -name '*.list' | xargs -r sed -i 's|deb.debian.org|mirrors.aliyun.com|g'
+
+# ── pg_search extension ──
+COPY --from=builder /usr/local/lib/postgresql/pg_search.so /usr/local/lib/pg_search.so
+COPY --from=builder /usr/local/share/postgresql/extension/pg_search.control /usr/local/share/extension/
+COPY --from=builder /usr/local/share/postgresql/extension/pg_search--*.sql /usr/local/share/extension/
+
+RUN echo 'trusted = true' >> /usr/local/share/extension/pg_search.control
+
+# ── setrlimit shim (for CCE containerd core ulimit) ──
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN cat > /tmp/setrlimit_shim.c <<'SHIM' && \
+    gcc -shared -fPIC -o /usr/local/lib/setrlimit_shim.so /tmp/setrlimit_shim.c -ldl && \
+    rm /tmp/setrlimit_shim.c
+#define _GNU_SOURCE
+#include <sys/resource.h>
+#include <dlfcn.h>
+#include <stdio.h>
+typedef int (*orig_setrlimit_t)(__rlimit_resource_t resource, const struct rlimit *rlim);
+int setrlimit(__rlimit_resource_t resource, const struct rlimit *rlim) {
+    orig_setrlimit_t orig = (orig_setrlimit_t)dlsym(RTLD_NEXT, "setrlimit");
+    int ret = orig(resource, rlim);
+    if (ret != 0 && resource == RLIMIT_CORE) {
+        fprintf(stderr, "WARN: setrlimit(CORE) failed, continuing without core dumps\n");
+        return 0;
+    }
+    return ret;
+}
+typedef int (*orig_setrlimit64_t)(__rlimit_resource_t resource, const struct rlimit64 *rlim);
+int setrlimit64(__rlimit_resource_t resource, const struct rlimit64 *rlim) {
+    orig_setrlimit64_t orig = (orig_setrlimit64_t)dlsym(RTLD_NEXT, "setrlimit64");
+    int ret = orig(resource, rlim);
+    if (ret != 0 && resource == RLIMIT_CORE) {
+        fprintf(stderr, "WARN: setrlimit64(CORE) failed, continuing without core dumps\n");
+        return 0;
+    }
+    return ret;
+}
+SHIM
+
+RUN apt-get purge -y gcc libc6-dev && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+
+# Wrap compute_ctl with LD_PRELOAD
+RUN mv /usr/local/bin/compute_ctl /usr/local/bin/compute_ctl.orig && \
+    printf '#!/bin/sh\nexec env LD_PRELOAD=/usr/local/lib/setrlimit_shim.so /usr/local/bin/compute_ctl.orig "$@"\n' > /usr/local/bin/compute_ctl && \
+    chmod +x /usr/local/bin/compute_ctl
+
+# Verify
+RUN ls -la /usr/local/lib/pg_search.so \
+          /usr/local/share/extension/pg_search.control \
+          /usr/local/lib/setrlimit_shim.so
+
+USER postgres
