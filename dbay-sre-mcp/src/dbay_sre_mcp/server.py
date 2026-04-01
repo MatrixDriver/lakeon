@@ -1,0 +1,297 @@
+"""DBay SRE MCP server — log search, trace, errors, stats.
+
+Config: env var LOG_DB_DSN, or ~/.dbay/sre-config.json with key "dsn".
+
+Logs table schema:
+    logs(id, ts, level, component, request_id, tenant_id, db_id, logger, msg, duration_ms, extra, thread)
+"""
+
+import json
+import os
+from pathlib import Path
+from typing import Optional
+
+import psycopg2
+import psycopg2.extras
+from fastmcp import FastMCP
+
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+
+SRE_CONFIG_FILE = Path.home() / ".dbay" / "sre-config.json"
+
+
+def _get_dsn() -> str:
+    """Return the Postgres DSN for the logs database."""
+    dsn = os.environ.get("LOG_DB_DSN")
+    if dsn:
+        return dsn
+    if SRE_CONFIG_FILE.exists():
+        cfg = json.loads(SRE_CONFIG_FILE.read_text())
+        if cfg.get("dsn"):
+            return cfg["dsn"]
+    raise RuntimeError(
+        "No log DB DSN configured. Set LOG_DB_DSN env var or add 'dsn' to ~/.dbay/sre-config.json"
+    )
+
+
+# ---------------------------------------------------------------------------
+# SQL helper functions (pure — testable without DB)
+# ---------------------------------------------------------------------------
+
+_INTERVAL_UNITS = {"m": "minutes", "h": "hours", "d": "days", "w": "weeks"}
+
+
+def _parse_interval(since: str) -> str:
+    """Convert shorthand like '1h', '30m', '2d' to a PG interval string.
+
+    Examples:
+        '1h'  -> '1 hours'
+        '30m' -> '30 minutes'
+        '2d'  -> '2 days'
+        '1w'  -> '1 weeks'
+    """
+    since = since.strip()
+    if not since:
+        raise ValueError("since must not be empty")
+    unit = since[-1].lower()
+    if unit not in _INTERVAL_UNITS:
+        raise ValueError(f"Unknown interval unit '{unit}'. Use m/h/d/w.")
+    try:
+        amount = int(since[:-1])
+    except ValueError:
+        raise ValueError(f"Invalid interval value '{since}'. Expected e.g. '1h', '30m', '2d'.")
+    return f"{amount} {_INTERVAL_UNITS[unit]}"
+
+
+def _build_search_query(
+    component: str = "",
+    level: str = "",
+    keyword: str = "",
+    tenant_id: str = "",
+    db_id: str = "",
+    since: str = "1h",
+    limit: int = 100,
+) -> tuple[str, list]:
+    """Build a parameterized SQL query for flexible log search.
+
+    Returns (sql, params) tuple suitable for psycopg2 execution.
+    """
+    interval = _parse_interval(since)
+    conditions = ["ts >= NOW() - INTERVAL %s"]
+    params: list = [interval]
+
+    if component:
+        conditions.append("component = %s")
+        params.append(component)
+    if level:
+        conditions.append("level = %s")
+        params.append(level.upper())
+    if keyword:
+        conditions.append("to_tsvector('simple', msg) @@ plainto_tsquery('simple', %s)")
+        params.append(keyword)
+    if tenant_id:
+        conditions.append("tenant_id = %s")
+        params.append(tenant_id)
+    if db_id:
+        conditions.append("db_id = %s")
+        params.append(db_id)
+
+    where = " AND ".join(conditions)
+    sql = (
+        f"SELECT id, ts, level, component, request_id, tenant_id, db_id, "
+        f"logger, msg, duration_ms, extra, thread "
+        f"FROM logs "
+        f"WHERE {where} "
+        f"ORDER BY ts DESC "
+        f"LIMIT %s"
+    )
+    params.append(limit)
+    return sql, params
+
+
+def _build_trace_query(request_id: str) -> tuple[str, list]:
+    """Build a parameterized SQL query to fetch the full call chain for one request_id.
+
+    Returns (sql, params) tuple, ordered by ts ascending.
+    """
+    sql = (
+        "SELECT id, ts, level, component, request_id, tenant_id, db_id, "
+        "logger, msg, duration_ms, extra, thread "
+        "FROM logs "
+        "WHERE request_id = %s "
+        "ORDER BY ts"
+    )
+    return sql, [request_id]
+
+
+def _build_errors_query(since: str = "1h", component: str = "") -> tuple[str, list]:
+    """Build a parameterized SQL query for recent ERROR/WARN log entries.
+
+    Returns (sql, params) tuple limited to 200 rows.
+    """
+    interval = _parse_interval(since)
+    conditions = [
+        "ts >= NOW() - INTERVAL %s",
+        "level IN ('ERROR', 'WARN')",
+    ]
+    params: list = [interval]
+
+    if component:
+        conditions.append("component = %s")
+        params.append(component)
+
+    where = " AND ".join(conditions)
+    sql = (
+        "SELECT id, ts, level, component, request_id, tenant_id, db_id, "
+        "logger, msg, duration_ms, extra, thread "
+        "FROM logs "
+        f"WHERE {where} "
+        "ORDER BY ts DESC "
+        "LIMIT 200"
+    )
+    return sql, params
+
+
+def _build_stats_query(since: str = "24h") -> tuple[str, list]:
+    """Build a parameterized SQL query for log stats:
+    - Count grouped by component, level
+    - Slow operations top 10 by duration_ms
+
+    Returns (sql, params) tuple for the counts query; the slow-ops query is appended.
+    This returns a combined SQL with two SELECT statements separated by ';'.
+    """
+    interval = _parse_interval(since)
+    sql = (
+        "SELECT component, level, COUNT(*) AS count "
+        "FROM logs "
+        "WHERE ts >= NOW() - INTERVAL %s "
+        "GROUP BY component, level "
+        "ORDER BY component, level"
+        ";"
+        "SELECT id, ts, component, msg, duration_ms "
+        "FROM logs "
+        "WHERE ts >= NOW() - INTERVAL %s "
+        "AND duration_ms IS NOT NULL "
+        "ORDER BY duration_ms DESC "
+        "LIMIT 10"
+    )
+    return sql, [interval, interval]
+
+
+# ---------------------------------------------------------------------------
+# DB helper
+# ---------------------------------------------------------------------------
+
+def _query(sql: str, params: list) -> list[dict]:
+    """Execute a SQL query against the logs DB and return rows as list of dicts."""
+    dsn = _get_dsn()
+    with psycopg2.connect(dsn) as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(sql, params)
+            return [dict(row) for row in cur.fetchall()]
+
+
+# ---------------------------------------------------------------------------
+# MCP server
+# ---------------------------------------------------------------------------
+
+mcp = FastMCP(
+    "dbay-sre",
+    instructions=(
+        "SRE diagnostic tools for DBay log analysis. "
+        "Use log_search for flexible filtering, log_trace to follow a request chain, "
+        "log_errors for recent failures, and log_stats for an overview of activity."
+    ),
+)
+
+
+@mcp.tool(
+    description=(
+        "Search logs with flexible filters: component, log level, full-text keyword, "
+        "tenant_id, db_id, time window (since e.g. '1h','30m','2d'), and row limit."
+    )
+)
+def log_search(
+    component: str = "",
+    level: str = "",
+    keyword: str = "",
+    tenant_id: str = "",
+    db_id: str = "",
+    since: str = "1h",
+    limit: int = 100,
+) -> str:
+    """Flexible log search with optional filters."""
+    sql, params = _build_search_query(
+        component=component,
+        level=level,
+        keyword=keyword,
+        tenant_id=tenant_id,
+        db_id=db_id,
+        since=since,
+        limit=limit,
+    )
+    rows = _query(sql, params)
+    return json.dumps(rows, default=str)
+
+
+@mcp.tool(
+    description=(
+        "Fetch the full call chain for a single request_id, ordered by timestamp ascending. "
+        "Useful for tracing request flows across components."
+    )
+)
+def log_trace(request_id: str) -> str:
+    """Retrieve all log entries for a given request_id, ordered by ts."""
+    sql, params = _build_trace_query(request_id)
+    rows = _query(sql, params)
+    return json.dumps(rows, default=str)
+
+
+@mcp.tool(
+    description=(
+        "List recent ERROR and WARN log entries. "
+        "Filter by component and time window (since e.g. '1h','2d'). Returns up to 200 rows."
+    )
+)
+def log_errors(since: str = "1h", component: str = "") -> str:
+    """Recent ERROR/WARN entries, newest first."""
+    sql, params = _build_errors_query(since=since, component=component)
+    rows = _query(sql, params)
+    return json.dumps(rows, default=str)
+
+
+@mcp.tool(
+    description=(
+        "Get log statistics for a time window (since e.g. '24h'): "
+        "counts grouped by component+level, plus slow operations Top 10 by duration_ms."
+    )
+)
+def log_stats(since: str = "24h") -> str:
+    """Log volume stats by component/level + slowest operations."""
+    interval = _parse_interval(since)
+
+    # Counts query
+    counts_sql = (
+        "SELECT component, level, COUNT(*) AS count "
+        "FROM logs "
+        "WHERE ts >= NOW() - INTERVAL %s "
+        "GROUP BY component, level "
+        "ORDER BY component, level"
+    )
+    counts = _query(counts_sql, [interval])
+
+    # Slow ops query
+    slow_sql = (
+        "SELECT id, ts, component, msg, duration_ms "
+        "FROM logs "
+        "WHERE ts >= NOW() - INTERVAL %s "
+        "AND duration_ms IS NOT NULL "
+        "ORDER BY duration_ms DESC "
+        "LIMIT 10"
+    )
+    slow_ops = _query(slow_sql, [interval])
+
+    result = {"counts_by_component_level": counts, "slow_ops_top10": slow_ops}
+    return json.dumps(result, default=str)
