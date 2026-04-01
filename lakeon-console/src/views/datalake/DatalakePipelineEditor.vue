@@ -279,14 +279,15 @@ function onNodeClick(event: NodeMouseEvent) {
 
 function onConnect(connection: Connection) {
   pushUndo()
-  edges.value.push({
+  const newEdge: Edge = {
     id: `e-${connection.source}-${connection.target}`,
     source: connection.source,
     target: connection.target,
     sourceHandle: connection.sourceHandle || undefined,
     targetHandle: connection.targetHandle || undefined,
     type: 'pipelineEdge',
-  })
+  }
+  edges.value = [...edges.value, newEdge]
 }
 
 // 拖拽添加节点
