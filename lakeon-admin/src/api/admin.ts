@@ -45,6 +45,16 @@ export const adminApi = {
   componentLogs: (component: string, tail = 200) =>
     client.get(`/logs/${component}`, { params: { tail }, transformResponse: [(d: string) => d] }),
 
+  // Structured Logs
+  logSearch: (params: { component?: string; level?: string; keyword?: string; tenant_id?: string; since?: string; limit?: number }) =>
+    client.get('/structured-logs/search', { params }),
+  logTrace: (requestId: string) =>
+    client.get(`/structured-logs/trace/${requestId}`),
+  logErrors: (params?: { since?: string; component?: string }) =>
+    client.get('/structured-logs/errors', { params }),
+  logStats: (params?: { since?: string }) =>
+    client.get('/structured-logs/stats', { params }),
+
   // Metrics
   metricsSummary: () => client.get('/metrics/summary'),
   pageserverMetrics: () => client.get('/pageserver/metrics'),
