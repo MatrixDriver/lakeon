@@ -581,20 +581,20 @@ public class AdminService {
         topoNodes.add(Map.of("id", "eip", "label", "EIP 弹性公网IP", "sublabel", "api.dbay.cloud:8443", "desc", "HTTPS 入口", "type", "network"));
         topoNodes.add(Map.of("id", "elb", "label", "ELB 负载均衡", "sublabel", "TCP:8443 透传", "desc", "共享型 ELB", "type", "network"));
         topoNodes.add(Map.of("id", "external-api", "label", "外部 API", "sublabel", "SiliconFlow", "desc", "Embedding (BGE-M3) · LLM (DeepSeek)", "type", "railway"));
-        topoNodes.add(Map.of("id", "cce", "label", "CCE 集群", "sublabel", "lakeon-k8s-cluster", "desc", "API · Proxy · Pageserver · Safekeeper · Memory · KubeRay Operator", "type", "compute"));
-        topoNodes.add(Map.of("id", "compute-pool", "label", "弹性节点池", "sublabel", "dbay-compute-pool", "desc", "Compute Pod · KB Job Pod", "type", "compute"));
-        topoNodes.add(Map.of("id", "cci", "label", "CCI (Serverless)", "sublabel", "数据湖任务", "desc", "Python · RayCluster · 微调 (安全容器)", "type", "compute"));
+        topoNodes.add(Map.of("id", "cce", "label", "CCE 集群", "sublabel", "lakeon-k8s-cluster", "desc", "API · Proxy · Pageserver · Safekeeper · Memory · KubeRay · FluentBit", "type", "compute"));
+        topoNodes.add(Map.of("id", "compute-pool", "label", "弹性节点池", "sublabel", "dbay-compute-pool", "desc", "数据库 Compute Pod (按需扩缩)", "type", "compute"));
+        topoNodes.add(Map.of("id", "cci", "label", "CCI (Serverless)", "sublabel", "virtual-kubelet 调度", "desc", "KB Job · Notebook (Ray) · 数据湖 (Python/Ray/微调) · 热池", "type", "compute"));
         topoNodes.add(Map.of("id", "rds", "label", "RDS PostgreSQL", "sublabel", "元数据库", "desc", "存储租户/数据库/操作日志", "type", "storage"));
         topoNodes.add(Map.of("id", "obs", "label", "OBS 对象存储", "sublabel", props.getObs().getBucket(), "desc", "Neon 远程存储 · 文档 · 数据集", "type", "storage"));
-        topoNodes.add(Map.of("id", "swr", "label", "SWR 镜像仓库", "sublabel", "flex", "desc", "API · Console · KB Job · Memory", "type", "storage"));
+        topoNodes.add(Map.of("id", "swr", "label", "SWR 镜像仓库", "sublabel", "flex", "desc", "API · Console · KB Job · Memory · Ray · Python", "type", "storage"));
         topology.put("nodes", topoNodes);
 
         List<Map<String, String>> topoEdges = new java.util.ArrayList<>();
         topoEdges.add(Map.of("from", "railway", "to", "eip", "label", "浏览器直连 API"));
         topoEdges.add(Map.of("from", "eip", "to", "elb", "label", ""));
         topoEdges.add(Map.of("from", "elb", "to", "cce", "label", "TCP 透传"));
-        topoEdges.add(Map.of("from", "cce", "to", "compute-pool", "label", "创建 Compute Pod"));
-        topoEdges.add(Map.of("from", "cce", "to", "cci", "label", "数据湖任务调度"));
+        topoEdges.add(Map.of("from", "cce", "to", "compute-pool", "label", "创建数据库 Compute Pod"));
+        topoEdges.add(Map.of("from", "cce", "to", "cci", "label", "KB Job · Notebook · 数据湖"));
         topoEdges.add(Map.of("from", "cce", "to", "external-api", "label", "Embedding/LLM 调用"));
         topoEdges.add(Map.of("from", "cce", "to", "rds", "label", "JDBC"));
         topoEdges.add(Map.of("from", "cce", "to", "obs", "label", "S3 协议"));
