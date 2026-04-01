@@ -51,9 +51,9 @@
               <div class="arch-box-label">CCE 集群</div>
               <div class="arch-box-value">{{ topology.cce.name }}</div>
               <div class="arch-box-pods">
-                lakeon-api &middot; pageserver &middot; safekeeper<br>
-                storage-broker &middot; proxy &middot; memory-service<br>
-                compute pods &middot; KB job pods
+                lakeon-api &middot; proxy &middot; memory-service<br>
+                pageserver &middot; safekeeper &middot; storage-broker<br>
+                kuberay-operator &middot; log-collector &middot; fluentbit
               </div>
             </a>
             <div class="arch-nodes">
@@ -67,12 +67,26 @@
               </a>
             </div>
           </div>
+          <!-- Dynamic workloads (separate namespaces) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <div class="arch-box arch-box-compute" style="border-style: dashed;">
+              <div class="arch-box-label">动态负载 (CCE)</div>
+              <div class="arch-box-pods">
+                <b>lakeon-compute</b>: 数据库 compute pods<br>
+                <b>lakeon-jobs</b>: KB 文档解析 job pods
+              </div>
+            </div>
+          </div>
           <!-- CCI -->
           <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
             <div class="arch-box arch-box-cci">
               <div class="arch-box-label">CCI (Serverless)</div>
-              <div class="arch-box-value">数据湖任务</div>
-              <div class="arch-box-pods">Python &middot; Ray &middot; 微调</div>
+              <div class="arch-box-value">datalake-* 命名空间</div>
+              <div class="arch-box-pods">
+                <b>Notebook</b>: Ray head + worker pods<br>
+                <b>数据湖</b>: Python &middot; Ray &middot; 微调<br>
+                <b>热池</b>: warm-ray-head (预热)
+              </div>
             </div>
           </div>
         </div>
@@ -98,7 +112,7 @@
           <div class="arch-box arch-box-storage">
             <div class="arch-box-label">SWR 镜像仓库</div>
             <div class="arch-box-value">flex</div>
-            <div class="arch-box-pods">API &middot; Console &middot; KB Job &middot; Memory</div>
+            <div class="arch-box-pods">API &middot; Console &middot; KB Job &middot; Memory &middot; Ray &middot; Python</div>
           </div>
         </div>
       </div>
