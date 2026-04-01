@@ -67,13 +67,13 @@
               </a>
             </div>
           </div>
-          <!-- Dynamic workloads (separate namespaces) -->
+          <!-- Elastic node pool (compute pods) -->
           <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
             <div class="arch-box arch-box-compute" style="border-style: dashed;">
-              <div class="arch-box-label">动态负载 (CCE)</div>
+              <div class="arch-box-label">弹性节点池 (CCE)</div>
+              <div class="arch-box-value">lakeon-compute 命名空间</div>
               <div class="arch-box-pods">
-                <b>lakeon-compute</b>: 数据库 compute pods<br>
-                <b>lakeon-jobs</b>: KB 文档解析 job pods
+                数据库 compute pods (按需扩缩)
               </div>
             </div>
           </div>
@@ -81,8 +81,9 @@
           <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
             <div class="arch-box arch-box-cci">
               <div class="arch-box-label">CCI (Serverless)</div>
-              <div class="arch-box-value">datalake-* 命名空间</div>
+              <div class="arch-box-value">virtual-kubelet 调度</div>
               <div class="arch-box-pods">
+                <b>KB Job</b>: 文档解析 job pods (lakeon-jobs)<br>
                 <b>Notebook</b>: Ray head + worker pods<br>
                 <b>数据湖</b>: Python &middot; Ray &middot; 微调<br>
                 <b>热池</b>: warm-ray-head (预热)
