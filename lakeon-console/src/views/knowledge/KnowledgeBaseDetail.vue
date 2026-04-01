@@ -66,11 +66,27 @@
 
     <!-- Documents Tab -->
     <div v-if="activeTab === 'documents'" style="margin-top: 24px;">
-      <!-- Status summary bar -->
-      <div v-if="documents.length > 0" style="display: flex; gap: 16px; margin-bottom: 16px; font-size: 13px; color: #666;">
-        <span v-if="statusCounts.processing > 0" style="color: #1890ff;">{{ statusCounts.processing }} 个处理中</span>
-        <span v-if="statusCounts.ready > 0" style="color: #52c41a;">{{ statusCounts.ready }} 个已就绪</span>
-        <span v-if="statusCounts.failed > 0" style="color: #e6393d;">{{ statusCounts.failed }} 个失败</span>
+      <!-- Status filter tabs -->
+      <div v-if="docStats.total > 0" style="display: flex; gap: 0; margin-bottom: 14px; border-bottom: 1px solid #e8e8e8;">
+        <div v-for="tab in [
+          { key: undefined, label: '全部', count: docStats.total },
+          { key: 'PROCESSING', label: '处理中', count: docStats.processing },
+          { key: 'READY', label: '已就绪', count: docStats.ready },
+          { key: 'FAILED', label: '失败', count: docStats.failed },
+        ]" :key="tab.label"
+          style="padding: 8px 16px; font-size: 13px; cursor: pointer; transition: color 0.2s;"
+          :style="{
+            color: docStatusFilter === tab.key ? '#1890ff' : '#666',
+            borderBottom: docStatusFilter === tab.key ? '2px solid #1890ff' : '2px solid transparent',
+            fontWeight: docStatusFilter === tab.key ? 500 : 400,
+          }"
+          @click="setStatusFilter(tab.key)">
+          {{ tab.label }} ({{ tab.count }})
+        </div>
+        <div style="flex: 1;"></div>
+        <div style="padding: 8px 0; font-size: 12px; color: #999; align-self: center;">
+          共 {{ docTotal }} 条
+        </div>
       </div>
 
       <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -85,15 +101,36 @@
         <span style="color: #999; font-size: 13px;">支持 PDF、DOCX、DOC、XLSX、XLS、PPTX、EPUB、HTML、Markdown、TXT，最多 20 个/批</span>
       </div>
 
-      <!-- Upload progress bar -->
-      <div v-if="uploadProgress.length > 0 && (uploading || uploadJustFinished)" style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px; font-size: 12px; color: #666;">
-        <div style="flex: 1; height: 4px; background: #f0f0f0; border-radius: 2px; overflow: hidden;">
-          <div :style="{ width: Math.round(uploadProgress.filter(f => f.status === 'done' || f.status === 'error').length / uploadProgress.length * 100) + '%', height: '100%', background: uploadProgress.some(f => f.status === 'error') ? '#e6393d' : '#52c41a', borderRadius: '2px', transition: 'width 0.3s' }"></div>
+      <!-- Combined progress card -->
+      <div v-if="uploading || uploadJustFinished || docStats.processing > 0 || docStats.pending > 0" style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px;">
+        <div v-if="uploading || uploadJustFinished" style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+          <span style="font-size: 12px; color: #666; width: 56px; flex-shrink: 0;">上传</span>
+          <div style="flex: 1; height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
+            <div :style="{ width: (uploadProgress.length > 0 ? Math.round(uploadProgress.filter(f => f.status === 'done' || f.status === 'error').length / uploadProgress.length * 100) : 0) + '%', height: '100%', background: '#1890ff', borderRadius: '3px', transition: 'width 0.3s' }"></div>
+          </div>
+          <span style="font-size: 13px; color: #333; min-width: 75px; text-align: right;">
+            {{ uploadProgress.filter(f => f.status === 'done').length }}/{{ uploadProgress.length }}
+          </span>
+          <span v-if="uploading && uploadStats.speed > 0" style="font-size: 11px; color: #999; min-width: 160px;">
+            {{ formatSpeed(uploadStats.speed) }} &middot; 预计还需 {{ formatEta(uploadStats.eta) }}
+          </span>
+          <span v-else-if="!uploading" style="font-size: 11px; color: #52c41a;">上传完成</span>
         </div>
-        <span>{{ uploadProgress.filter(f => f.status === 'done').length }}/{{ uploadProgress.length }}</span>
-        <span v-if="uploadProgress.some(f => f.status === 'error')" style="color: #e6393d;">{{ uploadProgress.filter(f => f.status === 'error').length }} 失败</span>
-        <span v-if="uploading" style="color: #1890ff;">上传中...</span>
-        <span v-else style="color: #52c41a;">完成</span>
+        <div v-if="docStats.processing > 0 || docStats.pending > 0" style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 12px; color: #666; width: 56px; flex-shrink: 0;">处理</span>
+          <div style="flex: 1; height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
+            <div :style="{ width: (docStats.total > 0 ? Math.round((docStats.ready + docStats.failed) / docStats.total * 100) : 0) + '%', height: '100%', background: '#52c41a', borderRadius: '3px', transition: 'width 0.3s' }"></div>
+          </div>
+          <span style="font-size: 13px; color: #333; min-width: 75px; text-align: right;">
+            {{ docStats.ready + docStats.failed }}/{{ docStats.total }} ({{ docStats.total > 0 ? Math.round((docStats.ready + docStats.failed) / docStats.total * 100) : 0 }}%)
+          </span>
+          <span style="font-size: 11px; color: #999; min-width: 160px;">
+            <span v-if="docStats.failed > 0" style="color: #e6393d;">{{ docStats.failed }} 失败</span>
+          </span>
+        </div>
+        <div v-if="docStats.processing > 0 || docStats.pending > 0" style="font-size: 11px; color: #999; margin-top: 6px; padding-left: 66px;">
+          排队 {{ docStats.pending }} &middot; 解析中 {{ docStats.processing }} &middot; 已完成 {{ docStats.ready }} &middot; 失败 {{ docStats.failed }}
+        </div>
       </div>
 
       <TableToolbar v-model="docSearch" placeholder="搜索文件名" :loading="docLoading" @refresh="loadDocuments">
@@ -115,10 +152,10 @@
               </th>
               <th>文件名</th>
               <th>格式</th>
-              <th>大小</th>
-              <th>Chunks</th>
-              <th>状态</th>
-              <th>上传时间</th>
+              <th style="cursor: pointer; user-select: none;" @click="setSort('size')">大小 {{ sortIcon('size') }}</th>
+              <th style="cursor: pointer; user-select: none;" @click="setSort('chunks')">Chunks {{ sortIcon('chunks') }}</th>
+              <th style="cursor: pointer; user-select: none;" @click="setSort('status')">状态 {{ sortIcon('status') }}</th>
+              <th style="cursor: pointer; user-select: none;" @click="setSort('upload_time')">上传时间 {{ sortIcon('upload_time') }}</th>
               <th>操作</th>
             </tr>
           </thead>
@@ -176,7 +213,20 @@
         </table>
       </div>
 
-      <div v-else class="empty-state" style="margin-top: 48px; text-align: center;">
+      <!-- Pagination -->
+      <div v-if="docTotal > docPageSize" style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 12px; color: #999;">
+        <div>每页 {{ docPageSize }} 条</div>
+        <div style="display: flex; gap: 4px; align-items: center;">
+          <button class="page-btn" :disabled="docPage <= 1" @click="setPage(docPage - 1)">&lsaquo;</button>
+          <template v-for="p in paginationPages" :key="p">
+            <span v-if="p === '...'" style="padding: 3px 6px; color: #999;">...</span>
+            <button v-else class="page-btn" :class="{ active: p === docPage }" @click="setPage(p as number)">{{ p }}</button>
+          </template>
+          <button class="page-btn" :disabled="docPage >= totalPages" @click="setPage(docPage + 1)">&rsaquo;</button>
+        </div>
+      </div>
+
+      <div v-if="filteredDocs.length === 0 && !docLoading" class="empty-state" style="margin-top: 48px; text-align: center;">
         <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#ccc" stroke-width="1.5">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
           <polyline points="14 2 14 8 20 8"/>
@@ -406,9 +456,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getKnowledgeBase, deleteKnowledgeBase, listDocuments, deleteDocument, searchKnowledge, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, type KnowledgeBase as KBType, type Document, type SearchResult, type DataSource, type DataSourceCredentials } from '../../api/knowledge'
+import { getKnowledgeBase, deleteKnowledgeBase, listDocuments, getDocumentStats, deleteDocument, searchKnowledge, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, type KnowledgeBase as KBType, type Document, type DocumentStats, type SearchResult, type DataSource, type DataSourceCredentials } from '../../api/knowledge'
 import ChunkStats from '../../components/knowledge/ChunkStats.vue'
 import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
 import TableToolbar from '../../components/TableToolbar.vue'
@@ -438,6 +488,14 @@ interface UploadFileState {
 }
 const uploadProgress = ref<UploadFileState[]>([])
 const docSearch = ref('')
+
+const docPage = ref(1)
+const docPageSize = ref(50)
+const docTotal = ref(0)
+const docStatusFilter = ref<string | undefined>(undefined)
+const docSortBy = ref('upload_time')
+const docSortOrder = ref<'asc' | 'desc'>('desc')
+const docStats = ref<DocumentStats>({ total: 0, processing: 0, ready: 0, failed: 0, pending: 0 })
 const chatInput = ref<HTMLInputElement | null>(null)
 
 const errorDetail = ref<{ open: boolean; filename: string; error: string }>({
@@ -517,16 +575,6 @@ async function handleGetCredentials(dsId: string) {
   dsCredentials.value = { dsId, creds: res.data }
 }
 
-const statusCounts = computed(() => {
-  const counts = { processing: 0, ready: 0, failed: 0 }
-  for (const d of documents.value) {
-    if (d.status === 'PROCESSING') counts.processing++
-    else if (d.status === 'READY') counts.ready++
-    else if (d.status === 'FAILED') counts.failed++
-  }
-  return counts
-})
-
 const allTags = computed(() => {
   const tagSet = new Set<string>()
   for (const d of documents.value) {
@@ -595,11 +643,95 @@ async function loadDocuments() {
   const kbId = route.params.kbId as string
   docLoading.value = true
   try {
-    const resp = await listDocuments(kbId)
-    documents.value = resp.data
+    const resp = await listDocuments(kbId, {
+      page: docPage.value,
+      page_size: docPageSize.value,
+      status: docStatusFilter.value,
+      sort_by: docSortBy.value,
+      sort_order: docSortOrder.value,
+    })
+    documents.value = resp.data.documents
+    docTotal.value = resp.data.total
   } finally {
     docLoading.value = false
   }
+}
+
+async function loadStats() {
+  const kbId = route.params.kbId as string
+  try {
+    const resp = await getDocumentStats(kbId)
+    docStats.value = resp.data
+  } catch { /* ignore */ }
+}
+
+function setStatusFilter(status: string | undefined) {
+  docStatusFilter.value = status
+  docPage.value = 1
+  loadDocuments()
+  loadStats()
+}
+
+function setSort(field: string) {
+  if (docSortBy.value === field) {
+    if (docSortOrder.value === 'desc') {
+      docSortOrder.value = 'asc'
+    } else {
+      docSortBy.value = 'upload_time'
+      docSortOrder.value = 'desc'
+    }
+  } else {
+    docSortBy.value = field
+    docSortOrder.value = 'desc'
+  }
+  docPage.value = 1
+  loadDocuments()
+}
+
+function sortIcon(field: string): string {
+  if (docSortBy.value !== field) return '\u21D5'
+  return docSortOrder.value === 'asc' ? '\u2191' : '\u2193'
+}
+
+function setPage(p: number) {
+  docPage.value = p
+  loadDocuments()
+}
+
+const totalPages = computed(() => Math.ceil(docTotal.value / docPageSize.value))
+
+const paginationPages = computed(() => {
+  const total = totalPages.value
+  const current = docPage.value
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  const pages: (number | string)[] = [1]
+  if (current > 3) pages.push('...')
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
+    pages.push(i)
+  }
+  if (current < total - 2) pages.push('...')
+  pages.push(total)
+  return pages
+})
+
+const uploadStats = reactive({
+  totalBytes: 0,
+  uploadedBytes: 0,
+  startTime: 0,
+  speed: 0,
+  eta: 0,
+})
+
+function formatSpeed(bytesPerSec: number): string {
+  if (bytesPerSec < 1024) return `${Math.round(bytesPerSec)} B/s`
+  if (bytesPerSec < 1024 * 1024) return `${(bytesPerSec / 1024).toFixed(1)} KB/s`
+  return `${(bytesPerSec / 1024 / 1024).toFixed(1)} MB/s`
+}
+
+function formatEta(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)} 秒`
+  if (seconds < 3600) return `${Math.round(seconds / 60)} 分钟`
+  return `${(seconds / 3600).toFixed(1)} 小时`
 }
 
 const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.xlsx', '.xls', '.xlsm', '.pptx', '.epub', '.html', '.htm', '.md', '.markdown', '.txt']
@@ -639,6 +771,21 @@ async function runBatchUpload(files: File[]) {
   uploading.value = true
   uploadProgress.value = files.map(f => ({ filename: f.name, status: 'pending' as const }))
 
+  // Init upload speed tracking
+  uploadStats.totalBytes = files.reduce((sum, f) => sum + f.size, 0)
+  uploadStats.uploadedBytes = 0
+  uploadStats.startTime = Date.now()
+  uploadStats.speed = 0
+  uploadStats.eta = 0
+  const speedInterval = setInterval(() => {
+    const elapsed = (Date.now() - uploadStats.startTime) / 1000
+    if (elapsed > 0 && uploadStats.uploadedBytes > 0) {
+      uploadStats.speed = uploadStats.uploadedBytes / elapsed
+      const remaining = uploadStats.totalBytes - uploadStats.uploadedBytes
+      uploadStats.eta = remaining / uploadStats.speed
+    }
+  }, 500)
+
   try {
     // Split into chunks of 20
     const BATCH_SIZE = 20
@@ -662,6 +809,7 @@ async function runBatchUpload(files: File[]) {
           uploadProgress.value[idx] = { filename: item.filename, status: 'error', error: `HTTP ${uploadResp.status}` }
           return null
         }
+        uploadStats.uploadedBytes += batchFiles[i]!.size
         documentIds[i] = item.document_id
         return item.document_id
       })
@@ -700,10 +848,11 @@ async function runBatchUpload(files: File[]) {
   } catch (err: any) {
     alert(`上传失败: ${err.message || err}`)
   } finally {
+    clearInterval(speedInterval)
     uploading.value = false
     uploadJustFinished.value = true
     setTimeout(() => { uploadJustFinished.value = false }, 5000)
-    await loadDocuments()
+    await Promise.all([loadDocuments(), loadStats()])
   }
 }
 
@@ -711,7 +860,7 @@ async function handleDeleteDoc(doc: Document) {
   if (!confirm(`确认删除文档"${doc.filename}"？`)) return
   await deleteDocument(doc.id)
   selectedDocIds.value.delete(doc.id)
-  await loadDocuments()
+  await Promise.all([loadDocuments(), loadStats()])
 }
 
 // ── Batch selection ──
@@ -751,7 +900,7 @@ async function handleBatchDelete() {
     try { await deleteDocument(id) } catch (e) { console.error('Failed to delete', id, e) }
   }
   selectedDocIds.value = new Set()
-  await loadDocuments()
+  await Promise.all([loadDocuments(), loadStats()])
 }
 
 async function handleClearAll() {
@@ -808,15 +957,12 @@ async function handleSearch() {
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
 function startPollingIfNeeded() {
-  const hasProcessing = documents.value.some(d => d.status === 'PROCESSING')
+  const hasProcessing = docStats.value.processing > 0
   if (hasProcessing && !pollTimer) {
     pollTimer = setInterval(async () => {
-      const kbId = route.params.kbId as string
       try {
-        const resp = await listDocuments(kbId)
-        documents.value = resp.data
-        // Stop polling when no more PROCESSING docs
-        if (!resp.data.some(d => d.status === 'PROCESSING')) {
+        await Promise.all([loadDocuments(), loadStats()])
+        if (docStats.value.processing === 0) {
           stopPolling()
         }
       } catch { /* ignore */ }
@@ -833,19 +979,22 @@ function stopPolling() {
   }
 }
 
-const hasProcessingDocs = computed(() => documents.value.some(d => d.status === 'PROCESSING'))
-watch(hasProcessingDocs, startPollingIfNeeded)
+watch(() => docStats.value.processing, (val) => {
+  if (val > 0) startPollingIfNeeded()
+  else stopPolling()
+})
 onUnmounted(stopPolling)
 
 onMounted(async () => {
   const kbId = route.params.kbId as string
-  const [kbResp, docsResp] = await Promise.all([
+  const [kbResp] = await Promise.all([
     getKnowledgeBase(kbId),
-    listDocuments(kbId),
+    loadDocuments(),
+    loadStats(),
   ])
   kb.value = kbResp.data
-  documents.value = docsResp.data
   loadDataSources()
+  startPollingIfNeeded()
 })
 </script>
 
@@ -1106,5 +1255,27 @@ onMounted(async () => {
 }
 .error-msg:hover {
   opacity: 0.8;
+}
+.page-btn {
+  padding: 3px 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  color: #333;
+}
+.page-btn:hover:not(:disabled) {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+.page-btn.active {
+  background: #1890ff;
+  color: #fff;
+  border-color: #1890ff;
+}
+.page-btn:disabled {
+  color: #d9d9d9;
+  cursor: not-allowed;
 }
 </style>
