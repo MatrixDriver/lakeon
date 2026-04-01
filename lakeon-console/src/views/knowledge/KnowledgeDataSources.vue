@@ -217,8 +217,8 @@ async function loadDocuments() {
   if (!selectedKbId.value) return
   docLoading.value = true
   try {
-    const resp = await listDocuments(selectedKbId.value)
-    documents.value = resp.data
+    const resp = await listDocuments(selectedKbId.value, { page_size: 200 })
+    documents.value = resp.data.documents
   } finally {
     docLoading.value = false
   }

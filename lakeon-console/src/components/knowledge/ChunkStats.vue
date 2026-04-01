@@ -242,8 +242,8 @@ function goToChunk(chunk: Chunk) {
 onMounted(async () => {
   loading.value = true
   try {
-    const resp = await listDocuments(props.kbId)
-    documents.value = resp.data
+    const resp = await listDocuments(props.kbId, { page_size: 200 })
+    documents.value = resp.data.documents
     await Promise.all([loadStats(), loadChunks()])
   } finally {
     loading.value = false
