@@ -31,6 +31,7 @@ public class SreAiService {
     private final AlertService alertService;
     private final DatabaseRepository databaseRepository;
     private final OperationLogRepository operationLogRepository;
+    private final LogQueryService logQueryService;
 
     private static final String SYSTEM_PROMPT = """
         你是 DBay 平台的 SRE 智能助手。帮助运维工程师快速定位和诊断系统问题。
@@ -40,6 +41,16 @@ public class SreAiService {
         2. 调用工具收集相关系统信息
         3. 分析数据，判断根因
         4. 给出具体的修复建议和操作步骤
+
+        你有两类数据源：
+        - 实时数据：系统健康、Pod 日志、K8s 事件、告警、数据库状态
+        - 结构化日志：存储在 dbay-logs 数据库中的历史日志，支持按组件/级别/租户/关键词搜索，支持 requestId 调用链追踪
+
+        排查问题时的优先策略：
+        - 先用 log_errors 看最近有没有错误
+        - 如果有错误，用 log_trace 追踪该请求的完整调用链
+        - 用 log_search 搜索相关关键词深入分析
+        - 用 log_stats 了解全局错误率和慢操作
 
         规则：
         - 用中文回答，简洁直接
@@ -83,7 +94,33 @@ public class SreAiService {
         tool("get_alerts", "获取当前活跃的告警列表",
             Map.of("type", "object", "properties", Map.of())),
         tool("get_compute_stats", "获取计算资源统计（运行/暂停的 Pod 数量、资源用量）",
-            Map.of("type", "object", "properties", Map.of()))
+            Map.of("type", "object", "properties", Map.of())),
+        tool("log_search", "搜索结构化日志（按组件、级别、租户、关键词筛选）",
+            Map.of("type", "object",
+                "properties", Map.of(
+                    "component", Map.of("type", "string", "description", "组件名称：lakeon-api, knowledge-pipeline, pageserver 等"),
+                    "level", Map.of("type", "string", "enum", List.of("ERROR", "WARN", "INFO", "DEBUG"), "description", "日志级别"),
+                    "keyword", Map.of("type", "string", "description", "关键词（全文搜索）"),
+                    "tenant_id", Map.of("type", "string", "description", "租户ID"),
+                    "since", Map.of("type", "string", "description", "时间范围，如 1h, 6h, 24h, 7d"),
+                    "limit", Map.of("type", "integer", "description", "返回条数，默认50")),
+                "required", List.of())),
+        tool("log_trace", "按 requestId 追踪请求调用链（跨组件全链路日志）",
+            Map.of("type", "object",
+                "properties", Map.of(
+                    "request_id", Map.of("type", "string", "description", "请求ID (req_xxxxxxxx)")),
+                "required", List.of("request_id"))),
+        tool("log_errors", "查看最近的错误和警告日志",
+            Map.of("type", "object",
+                "properties", Map.of(
+                    "since", Map.of("type", "string", "description", "时间范围，默认 1h"),
+                    "component", Map.of("type", "string", "description", "按组件筛选")),
+                "required", List.of())),
+        tool("log_stats", "日志统计概览（各组件日志量、错误数、慢操作 Top10）",
+            Map.of("type", "object",
+                "properties", Map.of(
+                    "since", Map.of("type", "string", "description", "时间范围，默认 24h")),
+                "required", List.of()))
     );
 
     private static Map<String, Object> tool(String name, String description, Map<String, Object> parameters) {
@@ -94,13 +131,15 @@ public class SreAiService {
     public SreAiService(LakeonProperties props, ObjectMapper objectMapper,
                         AdminService adminService, AlertService alertService,
                         DatabaseRepository databaseRepository,
-                        OperationLogRepository operationLogRepository) {
+                        OperationLogRepository operationLogRepository,
+                        LogQueryService logQueryService) {
         this.props = props;
         this.objectMapper = objectMapper;
         this.adminService = adminService;
         this.alertService = alertService;
         this.databaseRepository = databaseRepository;
         this.operationLogRepository = operationLogRepository;
+        this.logQueryService = logQueryService;
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
@@ -184,6 +223,20 @@ public class SreAiService {
                 }
                 case "get_alerts" -> objectMapper.writeValueAsString(alertService.getAlerts());
                 case "get_compute_stats" -> objectMapper.writeValueAsString(adminService.getComputeStats());
+                case "log_search" -> objectMapper.writeValueAsString(logQueryService.search(
+                    args.path("component").asText(null),
+                    args.path("level").asText(null),
+                    args.path("keyword").asText(null),
+                    args.path("tenant_id").asText(null),
+                    args.path("since").asText("1h"),
+                    args.path("limit").asInt(50)));
+                case "log_trace" -> objectMapper.writeValueAsString(logQueryService.trace(
+                    args.path("request_id").asText()));
+                case "log_errors" -> objectMapper.writeValueAsString(logQueryService.errors(
+                    args.path("since").asText("1h"),
+                    args.path("component").asText(null)));
+                case "log_stats" -> objectMapper.writeValueAsString(logQueryService.stats(
+                    args.path("since").asText("24h")));
                 default -> "未知工具: " + name;
             };
         } catch (Exception e) {
