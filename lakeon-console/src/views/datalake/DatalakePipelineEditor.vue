@@ -86,7 +86,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, shallowRef, computed, onMounted, markRaw, watch } from 'vue'
+import { ref, shallowRef, computed, onMounted, onBeforeUnmount, markRaw, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { VueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
@@ -138,6 +138,35 @@ const selectedNode = ref<Node | null>(null)
 const yamlText = ref('')
 const canvasRef = ref<HTMLElement | null>(null)
 const { project } = useVueFlow()
+
+// ── localStorage 草稿自动保存 ──
+const DRAFT_KEY = 'lakeon_pipeline_draft'
+
+function saveDraft() {
+  if (!isNew.value) return
+  syncDagToYaml()
+  localStorage.setItem(DRAFT_KEY, JSON.stringify({
+    name: pipelineName.value,
+    dataType: dataType.value,
+    yaml: yamlText.value,
+  }))
+}
+
+function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY)
+}
+
+// 节点/边变化时自动暂存（防抖）
+let draftTimer: ReturnType<typeof setTimeout> | null = null
+watch([nodes, edges, pipelineName, dataType], () => {
+  if (!isNew.value) return
+  if (draftTimer) clearTimeout(draftTimer)
+  draftTimer = setTimeout(saveDraft, 500)
+}, { deep: false })
+
+onBeforeUnmount(() => {
+  if (draftTimer) clearTimeout(draftTimer)
+})
 
 // 撤销/重做 (use any[] to avoid Vue Flow's deep type recursion)
 interface FlowSnapshot { nodes: any[]; edges: any[] }
@@ -206,6 +235,25 @@ onMounted(async () => {
       yamlText.value = vRes.data.dagYaml
     } catch (err) {
       console.error('Failed to load template', err)
+    }
+  }
+
+  // 新建模式：从 localStorage 恢复草稿（无模板时）
+  if (isNew.value && !templateId) {
+    const saved = localStorage.getItem(DRAFT_KEY)
+    if (saved) {
+      try {
+        const draft = JSON.parse(saved)
+        pipelineName.value = draft.name || ''
+        dataType.value = draft.dataType || ''
+        if (draft.yaml) {
+          yamlText.value = draft.yaml
+          const dag = parseDagYaml(draft.yaml)
+          const flow = dagToFlow(dag.steps)
+          nodes.value = flow.nodes
+          edges.value = flow.edges
+        }
+      } catch { /* 草稿损坏，忽略 */ }
     }
   }
 })
@@ -377,6 +425,7 @@ async function handleSaveDraft() {
         data_type: dataType.value || undefined,
         dag_yaml: yamlText.value,
       })
+      clearDraft()
       router.replace(`/datalake/pipelines/${res.data.id}/edit`)
     } else if (pipelineId.value) {
       await publishPipelineVersion(pipelineId.value, {
@@ -410,6 +459,7 @@ async function handlePublish() {
         dag_yaml: yamlText.value,
         changelog: '发布版本',
       })
+      clearDraft()
       router.push(`/datalake/pipelines/${pid}`)
     }
   } catch (err) {
