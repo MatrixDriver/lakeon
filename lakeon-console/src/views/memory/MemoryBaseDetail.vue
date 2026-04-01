@@ -411,7 +411,36 @@ const clients = computed(() => {
         loginStep,
         { title: '注册 MCP Server', desc: '在终端执行以下命令，全局生效：', code: 'claude mcp add --scope user dbay -- uvx dbay-mcp' },
         { title: '安装记忆 Skill（推荐）', desc: '在 Claude Code 中执行以下命令，安装后说"记住"时会自动调用 DBay 记忆库：', code: '/plugin marketplace add jackylk/dbay-plugins\n/plugin install memory' },
-        { title: '验证', desc: '重启 Claude Code，输入 /mcp 查看 dbay server 是否已连接。', code: '' },
+        { title: '配置自动召回（推荐）', desc: '每次新会话启动时自动加载你的惯例和决策，Claude 从第一句话就知道你的做事规矩。\n\n第1步：创建 Hook 脚本：', code: `cat > ~/.claude/hooks/session-recall.sh << 'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+CONFIG="$HOME/.dbay/config.json"
+[ -f "$CONFIG" ] || exit 0
+MB=$(python3 -c "import json; print(json.load(open('$CONFIG')).get('memory_base',''))" 2>/dev/null) || exit 0
+[ -n "$MB" ] || exit 0
+M=$(dbay mem recall "$MB" "conventions decisions preferences feedback procedures" --limit 20 2>/dev/null) || exit 0
+[ -n "$M" ] || exit 0
+python3 -c "
+import json, sys
+m = sys.stdin.read().strip()
+if not m: sys.exit(0)
+print(json.dumps({'hookSpecificOutput':{'hookEventName':'SessionStart','additionalContext':'## DBay Memory (auto)\\\\n'+m}}))
+" <<< "$M"
+SCRIPT
+chmod +x ~/.claude/hooks/session-recall.sh` },
+        { title: '', desc: '第2步：在 ~/.claude/settings.json 中添加 Hook（合并到已有配置中）：', code: `// 在 settings.json 中添加 hooks 字段：
+{
+  "hooks": {
+    "SessionStart": [{
+      "hooks": [{
+        "type": "command",
+        "command": "bash ~/.claude/hooks/session-recall.sh",
+        "timeout": 10
+      }]
+    }]
+  }
+}` },
+        { title: '验证', desc: '重启 Claude Code，输入 /mcp 查看 dbay server 是否已连接。如果配置了自动召回，新会话启动时会显示 "Recalling dbay memories..."。', code: '' },
       ],
     },
     {
