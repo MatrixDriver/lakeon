@@ -616,6 +616,31 @@ public class KnowledgeService {
         return documentRepository.findAllByTenantIdOrderByCreatedAtDesc(tenantId);
     }
 
+    public record DocumentPage(List<DocumentEntity> documents, long total, int page, int pageSize) {}
+
+    public DocumentPage listDocumentsPaged(String tenantId, String kbId,
+                                           String status, String sortBy, String sortOrder,
+                                           int page, int pageSize) {
+        if (sortBy == null || !List.of("upload_time", "size_bytes", "chunks_count", "status").contains(sortBy)) {
+            sortBy = "upload_time";
+        }
+        if (sortOrder == null || !List.of("asc", "desc").contains(sortOrder)) {
+            sortOrder = "desc";
+        }
+        if (pageSize < 1) pageSize = 50;
+        if (pageSize > 200) pageSize = 200;
+        if (page < 1) page = 1;
+
+        int offset = (page - 1) * pageSize;
+        String statusParam = (status != null && !status.isBlank()) ? status : null;
+        String kbParam = (kbId != null && !kbId.isBlank()) ? kbId : null;
+
+        List<DocumentEntity> docs = documentRepository.findPagedDocuments(
+            tenantId, kbParam, statusParam, sortBy, sortOrder, pageSize, offset);
+        long total = documentRepository.countDocuments(tenantId, kbParam, statusParam);
+        return new DocumentPage(docs, total, page, pageSize);
+    }
+
     /**
      * Delete a document: remove OBS file, cancel job, delete chunks, delete entity.
      */

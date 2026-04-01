@@ -144,13 +144,23 @@ public class KnowledgeController {
     }
 
     @GetMapping("/documents")
-    public List<Map<String, Object>> listDocuments(HttpServletRequest req,
-                                                   @RequestParam(value = "kb_id", required = false) String kbId,
-                                                   @RequestParam(value = "database_id", required = false) String databaseId) {
+    public Map<String, Object> listDocuments(HttpServletRequest req,
+                                             @RequestParam(value = "kb_id", required = false) String kbId,
+                                             @RequestParam(value = "database_id", required = false) String databaseId,
+                                             @RequestParam(value = "page", defaultValue = "1") int page,
+                                             @RequestParam(value = "page_size", defaultValue = "50") int pageSize,
+                                             @RequestParam(value = "status", required = false) String status,
+                                             @RequestParam(value = "sort_by", defaultValue = "upload_time") String sortBy,
+                                             @RequestParam(value = "sort_order", defaultValue = "desc") String sortOrder) {
         TenantEntity tenant = getTenant(req);
-        return knowledgeService.listDocuments(tenant.getId(), kbId, databaseId).stream()
-                .map(this::toDocumentResponse)
-                .toList();
+        KnowledgeService.DocumentPage result = knowledgeService.listDocumentsPaged(
+            tenant.getId(), kbId, status, sortBy, sortOrder, page, pageSize);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("documents", result.documents().stream().map(this::toDocumentResponse).toList());
+        response.put("total", result.total());
+        response.put("page", result.page());
+        response.put("page_size", result.pageSize());
+        return response;
     }
 
     @GetMapping("/documents/{id}")
