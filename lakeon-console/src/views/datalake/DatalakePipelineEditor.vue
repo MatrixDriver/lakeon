@@ -61,8 +61,6 @@
           @node-click="onNodeClick"
           @pane-click="selectedNode = null"
           @connect="onConnect"
-          @drop="onDrop"
-          @dragover.prevent
         >
           <Background />
           <Controls />
