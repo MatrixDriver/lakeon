@@ -61,7 +61,7 @@ api:
     limits:
       cpu: "2"
       memory: "4Gi"
-  logDbDsn: "postgres://user_5fe3e8fa:AQiI3ej52ktIh6101j4F3Uww@pg.dbay.cloud:4432/dbay-logs?options=endpoint%3Ddbay-logs&sslmode=require"
+  logDbDsn: "postgres://user_a62546dc:jiLOMbuLfYVXFp7OdD37JMZw@pg.dbay.cloud:4432/dbay-logs?options=endpoint%3Ddbay-logs&sslmode=require"
   inviteRequired: true  # 注册需要邀请码
   aiApiKey: ""          # --set api.aiApiKey=$AI_API_KEY (硅基流动)
   suspendPodRetainMinutes: 5  # 挂起后 Pod 保留时间（热启动窗口），默认30分钟太长
