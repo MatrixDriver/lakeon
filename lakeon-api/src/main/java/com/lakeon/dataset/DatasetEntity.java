@@ -28,6 +28,9 @@ public class DatasetEntity {
     @Column(name = "source_type", nullable = false, length = 16)
     private DatasetSourceType sourceType;
 
+    @Column(name = "latest_version")
+    private Integer latestVersion = 1;
+
     @Column(name = "database_id", length = 64)
     private String databaseId;
 
@@ -214,5 +217,13 @@ public class DatasetEntity {
 
     public void setSchemaJson(String schemaJson) {
         this.schemaJson = schemaJson;
+    }
+
+    public Integer getLatestVersion() {
+        return latestVersion;
+    }
+
+    public void setLatestVersion(Integer latestVersion) {
+        this.latestVersion = latestVersion;
     }
 }
