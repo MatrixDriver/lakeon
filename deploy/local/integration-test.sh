@@ -1004,6 +1004,349 @@ test_branch_version() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  TEST SUITE 4: pg_search BM25 Full-Text Search
+# ═══════════════════════════════════════════════════════════════════════════════
+
+test_pg_search() {
+    echo ""
+    echo "═══════════════════════════════════════════════════════════════"
+    echo "  TEST SUITE 4: pg_search BM25 Full-Text Search"
+    echo "═══════════════════════════════════════════════════════════════"
+    echo ""
+
+    local tenant_resp api_key tenant_id
+    local db_resp db_id db_name password compute_pod
+
+    # ── Setup: Create tenant + database ──────────────────────────────────
+    log "Setting up pg_search test tenant and database..."
+    tenant_resp=$(create_tenant "tenant-bm25-${RUN_ID}")
+    api_key=$(echo "$tenant_resp" | jq -r '.api_key')
+    tenant_id=$(echo "$tenant_resp" | jq -r '.id')
+    TENANT_IDS+=("$tenant_id")
+
+    db_name="bm25test${RUN_ID}"
+    db_resp=$(create_database "$api_key" "$db_name")
+    db_id=$(echo "$db_resp" | jq -r '.id')
+    password=$(echo "$db_resp" | jq -r '.password')
+    DB_IDS+=("$db_id")
+    API_KEYS+=("$api_key")
+
+    compute_pod="compute-${db_id//_/-}"
+    log "  Waiting for compute pod ${compute_pod}..."
+    if ! wait_compute_ready "$compute_pod" > /dev/null; then
+        fail "IT-E2E-040: Compute pod not ready, skipping pg_search tests"
+        return 1
+    fi
+
+    # ── IT-E2E-040: Create pg_search extension ───────────────────────────
+    log "IT-E2E-040: Create pg_search extension"
+    local ext_ver
+    ext_ver=$(run_sql "$compute_pod" "CREATE EXTENSION IF NOT EXISTS pg_search; SELECT extversion FROM pg_extension WHERE extname = 'pg_search';")
+    if [[ "$ext_ver" == *"0.21"* ]]; then
+        pass "IT-E2E-040: pg_search extension created (v${ext_ver})"
+    else
+        fail "IT-E2E-040: pg_search extension creation failed (got: ${ext_ver})"
+        return 1
+    fi
+
+    # ── IT-E2E-041: Create test table + data ─────────────────────────────
+    log "IT-E2E-041: Create table and insert test data"
+    run_sql "$compute_pod" "
+        CREATE TABLE docs (id SERIAL PRIMARY KEY, content TEXT NOT NULL);
+        INSERT INTO docs (content) VALUES
+            ('Neon storage architecture separates compute from storage'),
+            ('BM25 full-text search ranks documents by term frequency'),
+            ('GenericXLog records page-level diffs for WAL'),
+            ('Vector search uses approximate nearest neighbor algorithms'),
+            ('Hybrid search combines BM25 and vector scores via RRF');
+    "
+    local cnt
+    cnt=$(run_sql "$compute_pod" "SELECT count(*) FROM docs;")
+    if [[ "$cnt" == "5" ]]; then
+        pass "IT-E2E-041: Test data inserted (${cnt} rows)"
+    else
+        fail "IT-E2E-041: Expected 5 rows, got ${cnt}"
+    fi
+
+    # ── IT-E2E-042: Create BM25 index ────────────────────────────────────
+    log "IT-E2E-042: Create BM25 index (tests Neon unlogged-build hooks)"
+    local idx_result
+    idx_result=$(run_sql "$compute_pod" "CREATE INDEX idx_docs_bm25 ON docs USING bm25 (id, content) WITH (key_field='id'); SELECT 1;")
+    if [[ "$idx_result" == "1" ]]; then
+        pass "IT-E2E-042: BM25 index created successfully (no PANIC)"
+    else
+        fail "IT-E2E-042: BM25 index creation failed"
+        return 1
+    fi
+
+    # ── IT-E2E-043: BM25 search returns correct results ──────────────────
+    log "IT-E2E-043: BM25 search query"
+    local search_cnt
+    search_cnt=$(run_sql "$compute_pod" "SELECT count(*) FROM docs WHERE content @@@ 'search';")
+    if [[ "$search_cnt" == "3" ]]; then
+        pass "IT-E2E-043: BM25 search returned ${search_cnt} results for 'search'"
+    else
+        fail "IT-E2E-043: Expected 3 results, got ${search_cnt}"
+    fi
+
+    # ── IT-E2E-044: BM25 scores are ordered ──────────────────────────────
+    log "IT-E2E-044: BM25 score ordering"
+    local scores
+    scores=$(run_sql "$compute_pod" "
+        SELECT string_agg(paradedb.score(id)::text, ',' ORDER BY paradedb.score(id) DESC)
+        FROM docs WHERE content @@@ 'search';
+    ")
+    if [[ -n "$scores" && "$scores" == *","* ]]; then
+        pass "IT-E2E-044: BM25 scores returned and ordered (${scores})"
+    else
+        fail "IT-E2E-044: BM25 score ordering failed (got: ${scores})"
+    fi
+
+    # ── IT-E2E-045: INSERT + immediate search (GenericXLog WAL) ──────────
+    log "IT-E2E-045: Runtime INSERT + immediate BM25 search (GenericXLog WAL)"
+    run_sql "$compute_pod" "INSERT INTO docs (content) VALUES ('Kubernetes orchestrates containerized workloads');"
+    local new_cnt
+    new_cnt=$(run_sql "$compute_pod" "SELECT count(*) FROM docs WHERE content @@@ 'Kubernetes';")
+    if [[ "$new_cnt" == "1" ]]; then
+        pass "IT-E2E-045: Inserted row immediately searchable via BM25"
+    else
+        fail "IT-E2E-045: Inserted row not found (got: ${new_cnt})"
+    fi
+
+    # ── IT-E2E-046: DELETE + search consistency ──────────────────────────
+    log "IT-E2E-046: DELETE removes row from BM25 results"
+    run_sql "$compute_pod" "DELETE FROM docs WHERE content LIKE '%Kubernetes%';"
+    local del_cnt
+    del_cnt=$(run_sql "$compute_pod" "SELECT count(*) FROM docs WHERE content @@@ 'Kubernetes';")
+    if [[ "$del_cnt" == "0" ]]; then
+        pass "IT-E2E-046: Deleted row removed from BM25 results"
+    else
+        fail "IT-E2E-046: Deleted row still in results (got: ${del_cnt})"
+    fi
+
+    # ── IT-E2E-047: Bulk INSERT ──────────────────────────────────────────
+    log "IT-E2E-047: Bulk INSERT 20 rows"
+    run_sql "$compute_pod" "INSERT INTO docs (content) SELECT 'bulk row ' || i || ': database performance benchmark' FROM generate_series(1,20) AS i;"
+    local bulk_cnt
+    bulk_cnt=$(run_sql "$compute_pod" "SELECT count(*) FROM docs WHERE content @@@ 'benchmark';")
+    if [[ "$bulk_cnt" == "20" ]]; then
+        pass "IT-E2E-047: Bulk insert — all 20 rows searchable"
+    else
+        fail "IT-E2E-047: Expected 20 bulk rows, got ${bulk_cnt}"
+    fi
+
+    # ── IT-E2E-048: pgvector + pg_search coexistence ─────────────────────
+    log "IT-E2E-048: pgvector and pg_search coexistence"
+    local ext_cnt
+    ext_cnt=$(run_sql "$compute_pod" "CREATE EXTENSION IF NOT EXISTS vector; SELECT count(*) FROM pg_extension WHERE extname IN ('vector', 'pg_search');")
+    if [[ "$ext_cnt" == "2" ]]; then
+        pass "IT-E2E-048: Both pgvector and pg_search loaded"
+    else
+        fail "IT-E2E-048: Extension coexistence failed (got: ${ext_cnt})"
+    fi
+
+    # ── IT-E2E-049: Compute restart preserves BM25 index ─────────────────
+    log "IT-E2E-049: BM25 index survives compute restart (Neon WAL persistence)"
+    # Force suspend
+    suspend_database "$api_key" "$db_id" > /dev/null 2>&1
+    sleep 5
+    # Resume — new compute pod with fresh image
+    resume_database "$api_key" "$db_id" > /dev/null 2>&1
+    local new_pod="compute-${db_id//_/-}"
+    if wait_compute_ready "$new_pod" > /dev/null; then
+        local idx_after
+        idx_after=$(run_sql "$new_pod" "SELECT count(*) FROM pg_indexes WHERE indexname = 'idx_docs_bm25';")
+        local search_after
+        search_after=$(run_sql "$new_pod" "SELECT count(*) FROM docs WHERE content @@@ 'benchmark';")
+        if [[ "$idx_after" == "1" && "$search_after" == "20" ]]; then
+            pass "IT-E2E-049: BM25 index + data persisted after compute restart"
+        else
+            fail "IT-E2E-049: After restart — index: ${idx_after}, search: ${search_after}"
+        fi
+    else
+        fail "IT-E2E-049: Compute pod not ready after resume"
+    fi
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  TEST SUITE 5: pg_search + Branch & Version (Time Travel)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+test_pg_search_branch_version() {
+    echo ""
+    echo "═══════════════════════════════════════════════════════════════"
+    echo "  TEST SUITE 5: pg_search + Branch & Version"
+    echo "═══════════════════════════════════════════════════════════════"
+    echo ""
+
+    local tenant_resp api_key tenant_id
+    local db_resp db_id db_name password compute_pod
+
+    # ── Setup: tenant + database + BM25 data on main ─────────────────────
+    log "Setting up branch-version test..."
+    tenant_resp=$(create_tenant "tenant-brver-${RUN_ID}")
+    api_key=$(echo "$tenant_resp" | jq -r '.api_key')
+    tenant_id=$(echo "$tenant_resp" | jq -r '.id')
+    TENANT_IDS+=("$tenant_id")
+
+    db_name="brverdb${RUN_ID}"
+    db_resp=$(create_database "$api_key" "$db_name")
+    db_id=$(echo "$db_resp" | jq -r '.id')
+    password=$(echo "$db_resp" | jq -r '.password')
+    DB_IDS+=("$db_id")
+    API_KEYS+=("$api_key")
+
+    compute_pod="compute-${db_id//_/-}"
+    log "  Waiting for compute pod ${compute_pod}..."
+    if ! wait_compute_ready "$compute_pod" > /dev/null; then
+        fail "IT-E2E-050: Compute pod not ready, skipping branch-version tests"
+        return 1
+    fi
+
+    # Create table + BM25 index on main
+    run_sql "$compute_pod" "CREATE EXTENSION IF NOT EXISTS pg_search;"
+    run_sql "$compute_pod" "CREATE TABLE branch_docs (id SERIAL PRIMARY KEY, content TEXT NOT NULL);"
+    run_sql "$compute_pod" "INSERT INTO branch_docs (content) VALUES ('main document about Neon storage'),('main document about BM25 search'),('main document about vector embeddings');"
+    run_sql "$compute_pod" "CREATE INDEX idx_br_bm25 ON branch_docs USING bm25 (id, content) WITH (key_field='id');"
+
+    local main_cnt
+    main_cnt=$(run_sql "$compute_pod" "SELECT count(*) FROM branch_docs WHERE content @@@ 'main';")
+    log "  Main branch: ${main_cnt} docs with 'main'"
+
+    # ── IT-E2E-050: Create branch ────────────────────────────────────────
+    log "IT-E2E-050: Create branch from main"
+    local br_resp br_id
+    br_resp=$(curl -s -X POST "${API_URL}/api/v1/databases/${db_id}/branches" \
+        -H "Authorization: Bearer ${api_key}" \
+        -H "Content-Type: application/json" \
+        -d "{\"name\":\"bm25-branch\",\"parent_branch\":\"main\"}")
+    br_id=$(echo "$br_resp" | jq -r '.id')
+
+    if [[ -n "$br_id" && "$br_id" != "null" ]]; then
+        pass "IT-E2E-050: Branch created (${br_id})"
+    else
+        fail "IT-E2E-050: Branch creation failed"
+        return 1
+    fi
+
+    local br_pod="compute-${br_id//_/-}"
+    log "  Waiting for branch pod ${br_pod}..."
+    if ! wait_compute_ready "$br_pod" > /dev/null; then
+        fail "IT-E2E-050: Branch pod not ready"
+        return 1
+    fi
+
+    # ── IT-E2E-051: BM25 index inherited on branch ──────────────────────
+    log "IT-E2E-051: BM25 index inherited on branch"
+    local br_idx
+    br_idx=$(run_sql "$br_pod" "SELECT count(*) FROM pg_indexes WHERE indexname = 'idx_br_bm25';")
+    if [[ "$br_idx" == "1" ]]; then
+        pass "IT-E2E-051: BM25 index inherited on branch"
+    else
+        fail "IT-E2E-051: BM25 index not found on branch (got: ${br_idx})"
+    fi
+
+    # ── IT-E2E-052: Data inherited + BM25 search on branch ──────────────
+    log "IT-E2E-052: BM25 search on branch returns inherited data"
+    local br_cnt
+    br_cnt=$(run_sql "$br_pod" "SELECT count(*) FROM branch_docs WHERE content @@@ 'main';")
+    if [[ "$br_cnt" == "3" ]]; then
+        pass "IT-E2E-052: Branch inherited 3 docs from main"
+    else
+        fail "IT-E2E-052: Expected 3, got ${br_cnt}"
+    fi
+
+    # ── IT-E2E-053: Branch write isolation ───────────────────────────────
+    log "IT-E2E-053: Branch write isolation"
+    run_sql "$br_pod" "INSERT INTO branch_docs (content) VALUES ('branch-only document about Kubernetes');"
+    local br_k8s main_k8s
+    br_k8s=$(run_sql "$br_pod" "SELECT count(*) FROM branch_docs WHERE content @@@ 'Kubernetes';")
+    main_k8s=$(run_sql "$compute_pod" "SELECT count(*) FROM branch_docs WHERE content @@@ 'Kubernetes';")
+    if [[ "$br_k8s" == "1" && "$main_k8s" == "0" ]]; then
+        pass "IT-E2E-053: Branch write isolated (branch=${br_k8s}, main=${main_k8s})"
+    else
+        fail "IT-E2E-053: Isolation failed (branch=${br_k8s}, main=${main_k8s})"
+    fi
+
+    # ── IT-E2E-054: Main write isolation ─────────────────────────────────
+    log "IT-E2E-054: Main write isolation"
+    run_sql "$compute_pod" "INSERT INTO branch_docs (content) VALUES ('main-only document about PostgreSQL');"
+    local main_pg br_pg
+    main_pg=$(run_sql "$compute_pod" "SELECT count(*) FROM branch_docs WHERE content @@@ 'PostgreSQL';")
+    br_pg=$(run_sql "$br_pod" "SELECT count(*) FROM branch_docs WHERE content @@@ 'PostgreSQL';")
+    if [[ "$main_pg" == "1" && "$br_pg" == "0" ]]; then
+        pass "IT-E2E-054: Main write isolated (main=${main_pg}, branch=${br_pg})"
+    else
+        fail "IT-E2E-054: Isolation failed (main=${main_pg}, branch=${br_pg})"
+    fi
+
+    # ── IT-E2E-055: Version time travel with BM25 ────────────────────────
+    log "IT-E2E-055: Version time travel preserves BM25 data"
+
+    # Get main branch ID
+    local main_br_id
+    main_br_id=$(curl -s "${API_URL}/api/v1/databases/${db_id}" \
+        -H "Authorization: Bearer ${api_key}" | jq -r '.branches[] | select(.name == "main") | .id')
+
+    # Create version snapshot
+    local ver_resp ver_id
+    ver_resp=$(curl -s -X POST "${API_URL}/api/v1/databases/${db_id}/branches/${main_br_id}/versions" \
+        -H "Authorization: Bearer ${api_key}" \
+        -H "Content-Type: application/json" \
+        -d '{"name":"pre-delete"}')
+    ver_id=$(echo "$ver_resp" | jq -r '.id')
+
+    if [[ -n "$ver_id" && "$ver_id" != "null" ]]; then
+        pass "IT-E2E-055a: Version snapshot created (${ver_id})"
+    else
+        fail "IT-E2E-055a: Version creation failed"
+        return
+    fi
+
+    # Delete all docs
+    run_sql "$compute_pod" "DELETE FROM branch_docs;"
+    local del_cnt
+    del_cnt=$(run_sql "$compute_pod" "SELECT count(*) FROM branch_docs WHERE content @@@ 'main';")
+    if [[ "$del_cnt" == "0" ]]; then
+        pass "IT-E2E-055b: All docs deleted, BM25 returns 0"
+    else
+        fail "IT-E2E-055b: Expected 0 after delete, got ${del_cnt}"
+    fi
+
+    # Restore version
+    log "  Restoring version ${ver_id}..."
+    curl -s -X POST "${API_URL}/api/v1/databases/${db_id}/branches/${main_br_id}/restore" \
+        -H "Authorization: Bearer ${api_key}" \
+        -H "Content-Type: application/json" \
+        -d "{\"target_version_id\":\"${ver_id}\"}" > /dev/null
+    sleep 10
+
+    # After restore, pod name may change — find it by label or try common patterns
+    local restored_pod=""
+    for candidate in "$compute_pod" "compute-${db_id//_/-}" "compute-${main_br_id//_/-}"; do
+        if kubectl get pod -n "$COMPUTE_NS" "$candidate" &>/dev/null 2>&1; then
+            if wait_compute_ready "$candidate" > /dev/null 2>&1; then
+                restored_pod="$candidate"
+                break
+            fi
+        fi
+    done
+
+    if [[ -n "$restored_pod" ]]; then
+        local idx_after search_after
+        idx_after=$(run_sql "$restored_pod" "SELECT count(*) FROM pg_indexes WHERE indexname = 'idx_br_bm25';")
+        search_after=$(run_sql "$restored_pod" "SELECT count(*) FROM branch_docs WHERE content @@@ 'main';")
+        if [[ "$idx_after" == "1" && "$search_after" -ge 3 ]] 2>/dev/null; then
+            pass "IT-E2E-055c: BM25 index + data restored via time travel (idx=${idx_after}, docs=${search_after})"
+        else
+            fail "IT-E2E-055c: After restore — idx: ${idx_after}, search: ${search_after}"
+        fi
+    else
+        fail "IT-E2E-055c: No compute pod ready after restore"
+    fi
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  Main
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1026,6 +1369,8 @@ main() {
     test_single_tenant
     test_multi_tenant
     test_branch_version
+    test_pg_search
+    test_pg_search_branch_version
 
     echo ""
     echo "═══════════════════════════════════════════════════════════════"
