@@ -168,6 +168,7 @@ public class ApiKeyFilter implements Filter {
         }
 
         request.setAttribute("tenant", tenant);
+        org.slf4j.MDC.put("tenantId", tenant.getId());
         chain.doFilter(req, res);
     }
 }

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <fieldNames>
+                <timestamp>ts</timestamp>
+                <message>msg</message>
+                <levelValue>[ignore]</levelValue>
+                <logger>logger</logger>
+                <thread>thread</thread>
+                <version>[ignore]</version>
+            </fieldNames>
+            <customFields>{"component":"lakeon-api"}</customFields>
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <includeMdcKeyName>tenantId</includeMdcKeyName>
+            <includeMdcKeyName>dbId</includeMdcKeyName>
+            <shortenedLoggerNameLength>36</shortenedLoggerNameLength>
+            <timestampPattern>yyyy-MM-dd'T'HH:mm:ss.SSS'Z'</timestampPattern>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+    <logger name="org.apache.catalina" level="WARN"/>
+    <logger name="org.springframework.web" level="WARN"/>
+    <logger name="io.fabric8.kubernetes" level="WARN"/>
+</configuration>
