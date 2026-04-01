@@ -29,10 +29,7 @@ spec:
               name: http
           env:
             - name: LOG_DB_DSN
-              valueFrom:
-                secretKeyRef:
-                  name: log-collector-secret
-                  key: dsn
+              value: {{ .Values.api.logDbDsn | quote }}
           resources:
             requests:
               cpu: "50m"

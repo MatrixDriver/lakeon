@@ -35,7 +35,7 @@ neon:
     pullPolicy: IfNotPresent
   computeImage:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/compute-node-v17
-    tag: zhparser-ctl-v2  # zhparser (Chinese FTS) + SCWS dict + setrlimit shim
+    tag: pgsearch-neon-v1  # pg_search v0.21.15 (Neon GenericXLog WAL) + zhparser + setrlimit shim
 
 api:
   replicas: 2
@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.9.167"
+    tag: "0.9.168"
   jobCallbackBaseUrl: "https://api.dbay.cloud:8443"
   jobNamespace: "lakeon-jobs"
   resources:
@@ -61,6 +61,7 @@ api:
     limits:
       cpu: "2"
       memory: "4Gi"
+  logDbDsn: "postgres://user_5fe3e8fa:AQiI3ej52ktIh6101j4F3Uww@pg.dbay.cloud:4432/dbay-logs?options=endpoint%3Ddbay-logs&sslmode=require"
   inviteRequired: true  # 注册需要邀请码
   aiApiKey: ""          # --set api.aiApiKey=$AI_API_KEY (硅基流动)
   suspendPodRetainMinutes: 5  # 挂起后 Pod 保留时间（热启动窗口），默认30分钟太长
@@ -228,6 +229,23 @@ memory:
 
 minio:
   enabled: false
+
+# ── 日志可观测性 ─────────────────────────────────────────────────
+fluentbit:
+  enabled: true
+  image: "cr.fluentbit.io/fluent/fluent-bit:3.2"
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "128Mi"
+
+logCollector:
+  image:
+    repository: swr.cn-north-4.myhuaweicloud.com/flex/log-collector
+    tag: "0.1.0"
 
 # ── 数据湖任务配置 ─────────────────────────────────────────────
 datalake:
