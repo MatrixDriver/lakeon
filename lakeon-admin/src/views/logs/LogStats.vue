@@ -1,9 +1,5 @@
 <template>
   <div>
-    <div class="page-header">
-      <h1 class="page-title">日志统计</h1>
-    </div>
-
     <!-- Filter -->
     <div class="filter-bar">
       <select class="form-select" v-model="since" @change="load">

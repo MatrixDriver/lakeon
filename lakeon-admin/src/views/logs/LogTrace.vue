@@ -1,9 +1,5 @@
 <template>
   <div>
-    <div class="page-header">
-      <h1 class="page-title">调用链追踪</h1>
-    </div>
-
     <!-- Input Bar -->
     <div class="trace-input-bar">
       <input

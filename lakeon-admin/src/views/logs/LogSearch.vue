@@ -1,9 +1,5 @@
 <template>
   <div>
-    <div class="page-header">
-      <h1 class="page-title">日志搜索</h1>
-    </div>
-
     <!-- Filter Bar -->
     <div class="filter-bar">
       <select class="form-select" v-model="filters.component">

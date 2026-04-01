@@ -1,7 +1,6 @@
 <template>
   <div>
-    <div class="page-header">
-      <h1 class="page-title">错误概览</h1>
+    <div class="page-header" style="margin-bottom:12px">
       <div class="header-actions">
         <label class="auto-refresh-toggle">
           <input type="checkbox" v-model="autoRefresh" />
