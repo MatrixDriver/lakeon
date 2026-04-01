@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.9.170"
+    tag: "0.9.171"
   jobCallbackBaseUrl: "https://api.dbay.cloud:8443"
   jobNamespace: "lakeon-jobs"
   resources:
@@ -160,7 +160,7 @@ console:
   enabled: false
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-console
-    tag: "0.3.12"
+    tag: "0.3.13"
   replicas: 1
   port: 80
   serviceType: LoadBalancer
@@ -245,7 +245,7 @@ fluentbit:
 logCollector:
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/log-collector
-    tag: "0.1.0"
+    tag: "0.1.1"
 
 # ── 数据湖任务配置 ─────────────────────────────────────────────
 datalake:

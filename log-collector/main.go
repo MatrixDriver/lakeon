@@ -68,6 +68,47 @@ func handleHealthz(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("ok"))
 }
 
+// fluentBitRecord is the format Fluent Bit sends via HTTP output (Format json).
+// The "log" field contains the actual container stdout line (may be nested JSON).
+type fluentBitRecord struct {
+	Date   float64 `json:"date"`
+	Log    string  `json:"log"`
+	Stream string  `json:"stream"`
+}
+
+// parseJSON tries to parse a single JSON blob into a LogEntry.
+// It handles both direct LogEntry format and Fluent Bit container log format.
+func parseJSON(raw []byte) (LogEntry, bool) {
+	// Check if this is a Fluent Bit record (has "log" field)
+	var fb fluentBitRecord
+	if err := json.Unmarshal(raw, &fb); err == nil && fb.Log != "" {
+		// The "log" field contains the actual log line — try parsing as LogEntry
+		logLine := strings.TrimSpace(fb.Log)
+		var e LogEntry
+		if err2 := json.Unmarshal([]byte(logLine), &e); err2 == nil && e.Msg != "" {
+			// Successfully parsed structured JSON log (e.g. lakeon-api output)
+			if e.Ts.IsZero() && fb.Date > 0 {
+				e.Ts = time.Unix(int64(fb.Date), int64((fb.Date-float64(int64(fb.Date)))*1e9))
+			}
+			return e, true
+		}
+		// log field is plain text — wrap it
+		entry := parseRawLog(logLine, "unknown")
+		if fb.Date > 0 {
+			entry.Ts = time.Unix(int64(fb.Date), int64((fb.Date-float64(int64(fb.Date)))*1e9))
+		}
+		return entry, true
+	}
+
+	// Try direct LogEntry format (e.g. from lakeon-log HTTP push)
+	var e LogEntry
+	if err := json.Unmarshal(raw, &e); err == nil && e.Msg != "" {
+		return e, true
+	}
+
+	return LogEntry{}, false
+}
+
 // parseBody accepts JSON array, single JSON object, or raw text lines.
 func parseBody(body []byte) []LogEntry {
 	var entries []LogEntry
@@ -77,11 +118,8 @@ func parseBody(body []byte) []LogEntry {
 		var arr []json.RawMessage
 		if err := json.Unmarshal(body, &arr); err == nil {
 			for _, raw := range arr {
-				var e LogEntry
-				if err2 := json.Unmarshal(raw, &e); err2 == nil {
+				if e, ok := parseJSON(raw); ok {
 					entries = append(entries, e)
-				} else {
-					entries = append(entries, parseRawLog(string(raw), "unknown"))
 				}
 			}
 			return entries
@@ -90,8 +128,7 @@ func parseBody(body []byte) []LogEntry {
 
 	// Try single JSON object.
 	if bytes.HasPrefix(body, []byte("{")) {
-		var e LogEntry
-		if err := json.Unmarshal(body, &e); err == nil {
+		if e, ok := parseJSON(body); ok {
 			return []LogEntry{e}
 		}
 	}
@@ -103,10 +140,8 @@ func parseBody(body []byte) []LogEntry {
 		if line == "" {
 			continue
 		}
-		// Each line might still be JSON.
 		if strings.HasPrefix(line, "{") {
-			var e LogEntry
-			if err := json.Unmarshal([]byte(line), &e); err == nil {
+			if e, ok := parseJSON([]byte(line)); ok {
 				entries = append(entries, e)
 				continue
 			}

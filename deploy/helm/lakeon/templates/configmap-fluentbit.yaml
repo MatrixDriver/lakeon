@@ -17,7 +17,7 @@ data:
     [INPUT]
         Name              tail
         Path              /var/log/containers/*_lakeon_*.log
-        Parser            docker
+        Parser            cri
         Tag               lakeon.*
         Refresh_Interval  5
         Mem_Buf_Limit     5MB
@@ -26,7 +26,7 @@ data:
     [INPUT]
         Name              tail
         Path              /var/log/containers/*_lakeon-compute_*.log
-        Parser            docker
+        Parser            cri
         Tag               lakeon-compute.*
         Refresh_Interval  5
         Mem_Buf_Limit     5MB
@@ -42,9 +42,10 @@ data:
 
   parsers.conf: |
     [PARSER]
-        Name        docker
-        Format      json
+        Name        cri
+        Format      regex
+        Regex       ^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]*) (?<log>.*)$
         Time_Key    time
-        Time_Format %Y-%m-%dT%H:%M:%S.%L
+        Time_Format %Y-%m-%dT%H:%M:%S.%L%z
         Time_Keep   On
 {{- end }}

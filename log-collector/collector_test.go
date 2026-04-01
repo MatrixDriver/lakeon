@@ -116,6 +116,45 @@ func TestBatchFlush(t *testing.T) {
 	}
 }
 
+// TestParseFluentBitRecord verifies parsing of Fluent Bit HTTP output format.
+func TestParseFluentBitRecord(t *testing.T) {
+	// Fluent Bit wraps container stdout in {"date":..., "log":"...", "stream":"stdout"}
+	fbJSON := `[{"date":1743487200.123,"log":"{\"ts\":\"2026-04-01T10:00:00.123Z\",\"level\":\"INFO\",\"component\":\"lakeon-api\",\"requestId\":\"req_abc123\",\"msg\":\"test message\"}","stream":"stdout"}]`
+	entries := parseBody([]byte(fbJSON))
+	if len(entries) != 1 {
+		t.Fatalf("want 1 entry, got %d", len(entries))
+	}
+	e := entries[0]
+	if e.Component != "lakeon-api" {
+		t.Errorf("Component: want lakeon-api, got %q", e.Component)
+	}
+	if e.RequestID != "req_abc123" {
+		t.Errorf("RequestID: want req_abc123, got %q", e.RequestID)
+	}
+	if e.Level != "INFO" {
+		t.Errorf("Level: want INFO, got %q", e.Level)
+	}
+	if e.Msg != "test message" {
+		t.Errorf("Msg: want 'test message', got %q", e.Msg)
+	}
+}
+
+// TestParseFluentBitPlainText verifies Fluent Bit record with plain text log.
+func TestParseFluentBitPlainText(t *testing.T) {
+	fbJSON := `[{"date":1743487200.0,"log":"2026-04-01 some plain pageserver log","stream":"stderr"}]`
+	entries := parseBody([]byte(fbJSON))
+	if len(entries) != 1 {
+		t.Fatalf("want 1 entry, got %d", len(entries))
+	}
+	e := entries[0]
+	if e.Msg != "2026-04-01 some plain pageserver log" {
+		t.Errorf("Msg: want plain log, got %q", e.Msg)
+	}
+	if e.Component != "unknown" {
+		t.Errorf("Component: want unknown, got %q", e.Component)
+	}
+}
+
 // TestBatchAutoFlush verifies add() returns true and drains the buffer when full.
 func TestBatchAutoFlush(t *testing.T) {
 	b := newBatcher(2, time.Minute)
