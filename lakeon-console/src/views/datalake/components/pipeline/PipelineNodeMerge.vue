@@ -24,4 +24,8 @@ defineProps<{ data: any; selected?: boolean }>()
 .node-header { display: flex; align-items: center; gap: 6px; font-weight: 600; color: #0369a1; }
 .node-icon { font-size: 16px; }
 .node-sub { font-size: 10px; color: #0284c7; opacity: 0.7; margin-top: 2px; }
+.merge-node :deep(.vue-flow__handle) { width: 12px; height: 12px; background: #b0bec5; border: 2px solid #fff; border-radius: 50%; transition: all 0.15s; }
+.merge-node :deep(.vue-flow__handle:hover) { width: 16px; height: 16px; background: #0ea5e9; box-shadow: 0 0 0 4px rgba(14,165,233,0.2); cursor: crosshair; }
+.merge-node :deep(.vue-flow__handle-top) { top: -6px; }
+.merge-node :deep(.vue-flow__handle-bottom) { bottom: -6px; }
 </style>

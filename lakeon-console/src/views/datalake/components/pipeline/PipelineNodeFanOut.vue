@@ -35,4 +35,8 @@ const metricsText = computed(() => {
 .node-icon { font-size: 16px; }
 .node-sub { font-size: 10px; color: #c2410c; opacity: 0.7; margin-top: 2px; }
 .node-metrics { margin-top: 4px; font-size: 10px; padding: 2px 6px; background: rgba(0,0,0,0.05); border-radius: 3px; }
+.fanout-node :deep(.vue-flow__handle) { width: 12px; height: 12px; background: #b0bec5; border: 2px solid #fff; border-radius: 50%; transition: all 0.15s; }
+.fanout-node :deep(.vue-flow__handle:hover) { width: 16px; height: 16px; background: #f97316; box-shadow: 0 0 0 4px rgba(249,115,22,0.2); cursor: crosshair; }
+.fanout-node :deep(.vue-flow__handle-top) { top: -6px; }
+.fanout-node :deep(.vue-flow__handle-bottom) { bottom: -6px; }
 </style>

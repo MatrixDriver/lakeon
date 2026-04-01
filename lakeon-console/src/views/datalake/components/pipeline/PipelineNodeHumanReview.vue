@@ -39,4 +39,8 @@ const isPaused = computed(() => props.data.runStatus === 'PAUSED')
   background: #eab308; color: #fff; font-size: 9px; font-weight: 700;
   padding: 2px 6px; border-radius: 4px;
 }
+.review-node :deep(.vue-flow__handle) { width: 12px; height: 12px; background: #b0bec5; border: 2px solid #fff; border-radius: 50%; transition: all 0.15s; }
+.review-node :deep(.vue-flow__handle:hover) { width: 16px; height: 16px; background: #a855f7; box-shadow: 0 0 0 4px rgba(168,85,247,0.2); cursor: crosshair; }
+.review-node :deep(.vue-flow__handle-top) { top: -6px; }
+.review-node :deep(.vue-flow__handle-bottom) { bottom: -6px; }
 </style>

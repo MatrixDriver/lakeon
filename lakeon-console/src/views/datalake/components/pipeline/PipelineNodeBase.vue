@@ -93,4 +93,28 @@ const nodeStyle = computed(() => ({
   background: #2a4d6a; color: #fff; font-size: 8px; font-weight: 700;
   padding: 1px 4px; border-radius: 3px;
 }
+
+/* 连接点样式 — 增大尺寸，hover 高亮 */
+.pipeline-node :deep(.vue-flow__handle) {
+  width: 12px; height: 12px;
+  background: #b0bec5;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+}
+.pipeline-node :deep(.vue-flow__handle:hover) {
+  width: 16px; height: 16px;
+  background: #2a4d6a;
+  box-shadow: 0 0 0 4px rgba(42, 77, 106, 0.2);
+  cursor: crosshair;
+}
+.pipeline-node :deep(.vue-flow__handle.connecting) {
+  background: #e67e22;
+}
+.pipeline-node :deep(.vue-flow__handle-top) {
+  top: -6px;
+}
+.pipeline-node :deep(.vue-flow__handle-bottom) {
+  bottom: -6px;
+}
 </style>
