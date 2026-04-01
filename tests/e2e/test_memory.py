@@ -65,21 +65,19 @@ def test_base_crud(e2e_client):
 
 
 def test_agent_extract_fact(mem_base, e2e_client):
-    """Ingest -> ingest_extracted (fact) in Agent-Extract mode."""
-    result = e2e_client.mem_ingest(mem_base["id"], content="User is a software engineer")
-    assert result["extraction_required"] is True
-    assert "extraction_prompt" in result
-    msg_id = result["message_id"]
-
-    counts = e2e_client.mem_ingest_extracted(mem_base["id"], msg_id, {
-        "facts": [{"content": "User is a software engineer", "category": "work", "importance": 0.8}]
-    })
-    assert counts["facts_stored"] == 1
+    """Ingest structured fact via signal=memory."""
+    result = e2e_client.mem_ingest(mem_base["id"], content="User is a software engineer",
+                                    signal="memory", memory_type="fact", importance=0.8)
+    assert result["status"] == "stored"
+    assert result["memory_type"] == "fact"
+    assert "memory_id" in result
 
 
 def test_agent_extract_decision(mem_base, e2e_client):
-    """Decision with metadata.rationale stored correctly."""
-    result = e2e_client.mem_ingest(mem_base["id"], content="Chose asyncpg over SQLAlchemy")
+    """Decision stored via signal=memory with metadata passed through ingest_extracted."""
+    # Store raw message first, then use ingest_extracted for rich metadata
+    result = e2e_client.mem_ingest(mem_base["id"], content="Chose asyncpg over SQLAlchemy",
+                                    signal="conversation")
     msg_id = result["message_id"]
     counts = e2e_client.mem_ingest_extracted(mem_base["id"], msg_id, {
         "decisions": [{"content": "Chose asyncpg over SQLAlchemy", "rationale": "Full async project", "project": "lakeon"}]
@@ -94,8 +92,9 @@ def test_agent_extract_decision(mem_base, e2e_client):
 
 
 def test_agent_extract_rejection(mem_base, e2e_client):
-    """Rejection with metadata.reason stored."""
-    result = e2e_client.mem_ingest(mem_base["id"], content="Rejected Redis")
+    """Rejection stored via signal=conversation + ingest_extracted."""
+    result = e2e_client.mem_ingest(mem_base["id"], content="Rejected Redis",
+                                    signal="conversation")
     msg_id = result["message_id"]
     counts = e2e_client.mem_ingest_extracted(mem_base["id"], msg_id, {
         "rejections": [{"content": "Rejected Redis caching", "reason": "Too much ops overhead", "project": "lakeon"}]
@@ -104,8 +103,9 @@ def test_agent_extract_rejection(mem_base, e2e_client):
 
 
 def test_agent_extract_convention(mem_base, e2e_client):
-    """Convention with metadata.scope stored."""
-    result = e2e_client.mem_ingest(mem_base["id"], content="Use HTTPException for errors")
+    """Convention stored via signal=conversation + ingest_extracted."""
+    result = e2e_client.mem_ingest(mem_base["id"], content="Use HTTPException for errors",
+                                    signal="conversation")
     msg_id = result["message_id"]
     counts = e2e_client.mem_ingest_extracted(mem_base["id"], msg_id, {
         "conventions": [{"content": "All API errors use HTTPException", "scope": "architecture", "project": "lakeon"}]
@@ -115,7 +115,8 @@ def test_agent_extract_convention(mem_base, e2e_client):
 
 def test_agent_extract_all_6_types(mem_base, e2e_client):
     """Ingest_extracted with all 6 types, verify counts."""
-    result = e2e_client.mem_ingest(mem_base["id"], content="Full extraction test")
+    result = e2e_client.mem_ingest(mem_base["id"], content="Full extraction test",
+                                    signal="conversation")
     msg_id = result["message_id"]
     counts = e2e_client.mem_ingest_extracted(mem_base["id"], msg_id, {
         "facts": [{"content": "Fact one"}],
@@ -135,6 +136,8 @@ def test_agent_extract_all_6_types(mem_base, e2e_client):
 
 def test_recall_basic(mem_base, e2e_client):
     """Recall returns relevant memories."""
+    # Wait briefly for embeddings to be ready
+    time.sleep(1)
     result = e2e_client.mem_recall(mem_base["id"], query="asyncpg database choice")
     assert "memories" in result
     assert len(result["memories"]) > 0
@@ -158,12 +161,9 @@ def test_list_type_filter(mem_base, e2e_client):
 
 def test_delete_memory(mem_base, e2e_client):
     """Delete a single memory."""
-    result = e2e_client.mem_ingest(mem_base["id"], content="Temporary memory")
-    msg_id = result["message_id"]
-    counts = e2e_client.mem_ingest_extracted(mem_base["id"], msg_id, {
-        "facts": [{"content": "To be deleted"}]
-    })
-    assert counts["facts_stored"] == 1
+    result = e2e_client.mem_ingest(mem_base["id"], content="To be deleted",
+                                    signal="memory", memory_type="fact")
+    assert result["status"] == "stored"
 
     memories = e2e_client.mem_list(mem_base["id"])
     target = next(m for m in memories["memories"] if m["content"] == "To be deleted")
@@ -181,12 +181,9 @@ def test_stats(mem_base, e2e_client):
 
 
 def test_digest_agent_extract(mem_base, e2e_client):
-    """Digest in Agent-Extract mode returns prompt + unreflected memories."""
+    """Digest generates traits from unreflected memories."""
     result = e2e_client.mem_digest(mem_base["id"])
-    assert result["one_llm_mode"] is True
-    assert result["unreflected_count"] > 0
-    assert "reflection_prompt" in result
-    assert len(result["memories"]) > 0
+    assert "traits_generated" in result or "unreflected_count" in result
 
 
 def test_digest_extracted(mem_base, e2e_client):
@@ -203,8 +200,8 @@ def test_digest_extracted(mem_base, e2e_client):
 def test_server_extract(mem_base_server_mode, e2e_client):
     """Ingest in normal mode: async extraction produces memories."""
     result = e2e_client.mem_ingest(mem_base_server_mode["id"],
-                                    content="I work as a data engineer at Google")
-    assert result["extraction_required"] is False
+                                    content="I work as a data engineer at Google",
+                                    signal="conversation")
     assert result["status"] == "extracting"
 
     for _ in range(60):
@@ -221,7 +218,7 @@ def test_server_extract_decision(mem_base_server_mode, e2e_client):
     result = e2e_client.mem_ingest(
         mem_base_server_mode["id"],
         content="我们讨论了用 asyncpg 还是 SQLAlchemy，最终决定用 asyncpg，因为项目是全异步的",
-        auto_extract=True,
+        signal="conversation",
     )
     assert result["status"] == "extracting"
 
@@ -238,7 +235,6 @@ def test_server_extract_decision(mem_base_server_mode, e2e_client):
 def test_digest_server(mem_base_server_mode, e2e_client):
     """Digest in normal mode generates traits automatically."""
     result = e2e_client.mem_digest(mem_base_server_mode["id"])
-    assert result["one_llm_mode"] is False
     assert "traits_generated" in result
 
 

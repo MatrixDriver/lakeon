@@ -109,7 +109,7 @@ class DbayClient:
     def create_branch(self, db_id: str, name: str, parent_branch_id: str | None = None) -> dict:
         body: dict[str, Any] = {"name": name}
         if parent_branch_id:
-            body["parentBranchId"] = parent_branch_id
+            body["parent_branch_id"] = parent_branch_id
         return self._request("POST", f"/databases/{db_id}/branches", json=body)
 
     def delete_branch(self, db_id: str, branch_id: str) -> dict:
@@ -544,10 +544,15 @@ class DbayClient:
 
     # ── Memory Operations ─────────────────────────────────────────
     def mem_ingest(self, mem_id: str, content: str, role: str = "user",
-                   auto_extract: bool = None) -> dict:
-        body: dict = {"content": content, "role": role}
-        if auto_extract is not None:
-            body["auto_extract"] = auto_extract
+                   signal: str = "memory", memory_type: str = None,
+                   importance: float = None, source: str = None) -> dict:
+        body: dict = {"content": content, "role": role, "signal": signal}
+        if memory_type is not None:
+            body["memory_type"] = memory_type
+        if importance is not None:
+            body["importance"] = importance
+        if source is not None:
+            body["source"] = source
         return self._request("POST", f"/memory/bases/{mem_id}/ingest", json=body)
 
     def mem_ingest_extracted(self, mem_id: str, message_id: str, data: dict) -> dict:
