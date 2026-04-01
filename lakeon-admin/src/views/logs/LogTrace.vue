@@ -35,8 +35,8 @@
             <span class="ts-text">{{ formatTs(entry.ts) }}</span>
             <span class="component-badge" :style="{ color: componentColor(entry.component) }">{{ entry.component }}</span>
             <span class="level-badge" :class="'level-' + (entry.level || '').toLowerCase()">{{ entry.level }}</span>
-            <span v-if="idx > 0 && deltaMs(entries[idx - 1].ts, entry.ts) !== null" class="delta-badge">
-              +{{ deltaMs(entries[idx - 1].ts, entry.ts) }}ms
+            <span v-if="idx > 0 && entries[idx - 1] && deltaMs(entries[idx - 1]!.ts, entry.ts) !== null" class="delta-badge">
+              +{{ deltaMs(entries[idx - 1]!.ts, entry.ts) }}ms
             </span>
           </div>
           <div v-if="entry.logger" class="logger-line">{{ entry.logger }}</div>
