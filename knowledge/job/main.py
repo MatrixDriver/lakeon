@@ -14,8 +14,12 @@ from chunker import chunk_document, assign_pages, detect_duplicates
 from callback import StageTracker, report_success, report_success_batch, report_failure, report_progress
 from writer import write_chunks
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
-logger = logging.getLogger("knowledge-job")
+try:
+    from lakeon_log import setup_logging
+    logger = setup_logging(component="knowledge-pipeline")
+except ImportError:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    logger = logging.getLogger("knowledge-pipeline")
 
 ANOMALY_SHORT_THRESHOLD = 80
 ANOMALY_LONG_THRESHOLD = 800
