@@ -27,6 +27,9 @@ spec:
             - name: varlog
               mountPath: /var/log
               readOnly: true
+            - name: varlogpods
+              mountPath: /var/log/pods
+              readOnly: true
             - name: fluentbit-config
               mountPath: /fluent-bit/etc
           resources:
@@ -35,6 +38,9 @@ spec:
         - name: varlog
           hostPath:
             path: /var/log
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods
         - name: fluentbit-config
           configMap:
             name: fluentbit-config
