@@ -135,6 +135,9 @@
 
       <TableToolbar v-model="docSearch" placeholder="搜索文件名" :loading="docLoading" @refresh="loadDocuments">
         <template #extra>
+          <button v-if="docStats.failed > 0" style="background: #fff; color: #1890ff; border: 1px solid #1890ff; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12px; white-space: nowrap;" :disabled="retryingFailed" @click="handleRetryAllFailed">
+            {{ retryingFailed ? '重试中...' : `重试全部失败 (${docStats.failed})` }}
+          </button>
           <button v-if="selectedDocIds.size > 0" style="background: #e6393d; color: #fff; border: none; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12px; white-space: nowrap;" @click="handleBatchDelete">
             删除选中 ({{ selectedDocIds.size }})
           </button>
@@ -205,8 +208,9 @@
                 </div>
               </td>
               <td style="color: #999;">{{ doc.created_at ? new Date(doc.created_at).toLocaleString('zh-CN') : '-' }}</td>
-              <td>
-                <button class="btn btn-text btn-small btn-danger-text" @click.stop="handleDeleteDoc(doc)">删除</button>
+              <td @click.stop>
+                <button v-if="doc.status === 'FAILED'" class="btn btn-text btn-small" style="color: #1890ff;" @click="handleRetryDoc(doc)">重试</button>
+                <button class="btn btn-text btn-small btn-danger-text" @click="handleDeleteDoc(doc)">删除</button>
               </td>
             </tr>
           </tbody>
@@ -853,6 +857,39 @@ async function runBatchUpload(files: File[]) {
     uploadJustFinished.value = true
     setTimeout(() => { uploadJustFinished.value = false }, 5000)
     await Promise.all([loadDocuments(), loadStats()])
+  }
+}
+
+// ── Retry failed documents ──
+const retryingFailed = ref(false)
+
+async function handleRetryDoc(doc: Document) {
+  await batchProcessDocuments([doc.id])
+  await Promise.all([loadDocuments(), loadStats()])
+  startPollingIfNeeded()
+}
+
+async function handleRetryAllFailed() {
+  if (!confirm(`确认重试全部 ${docStats.value.failed} 个失败文档？`)) return
+  retryingFailed.value = true
+  try {
+    // Fetch all failed doc IDs (paginate through all)
+    const failedIds: string[] = []
+    let page = 1
+    while (true) {
+      const resp = await listDocuments(route.params.kbId as string, { status: 'FAILED', page, page_size: 200 })
+      failedIds.push(...resp.data.documents.map(d => d.id))
+      if (failedIds.length >= resp.data.total) break
+      page++
+    }
+    // Submit in batches of 20
+    for (let i = 0; i < failedIds.length; i += 20) {
+      await batchProcessDocuments(failedIds.slice(i, i + 20))
+    }
+    await Promise.all([loadDocuments(), loadStats()])
+    startPollingIfNeeded()
+  } finally {
+    retryingFailed.value = false
   }
 }
 
