@@ -61,13 +61,13 @@
       >
         <div class="comp-card-header">
           <span class="comp-card-icon">{{ catIcon(comp.category) }}</span>
-          <span class="comp-card-name">{{ comp.displayName }}</span>
-          <span v-if="!comp.tenantId" class="builtin-badge">内置</span>
+          <span class="comp-card-name">{{ comp.display_name }}</span>
+          <span v-if="!comp.tenant_id" class="builtin-badge">内置</span>
         </div>
         <div class="comp-card-desc">{{ comp.description || comp.name }}</div>
         <div class="comp-card-meta">
-          <span class="data-type-tag" :class="'dt-' + comp.dataType.toLowerCase()">{{ dataTypeLabel(comp.dataType) }}</span>
-          <span class="meta-tag">v{{ comp.latestVersion }}</span>
+          <span class="data-type-tag" :class="'dt-' + comp.data_type.toLowerCase()">{{ dataTypeLabel(comp.data_type) }}</span>
+          <span class="meta-tag">v{{ comp.latest_version }}</span>
           <span class="meta-tag cat-tag" :style="{ background: categoryColors[comp.category]?.bg, color: categoryColors[comp.category]?.text }">
             {{ categoryLabels[comp.category] || comp.category }}
           </span>
@@ -87,9 +87,9 @@
             <div class="panel-header">
               <div class="panel-title-row">
                 <span class="panel-icon">{{ catIcon(selected.category) }}</span>
-                <h2 class="panel-title">{{ selected.displayName }}</h2>
-                <span class="data-type-tag" :class="'dt-' + selected.dataType.toLowerCase()">{{ dataTypeLabel(selected.dataType) }}</span>
-                <span v-if="!selected.tenantId" class="builtin-badge">内置</span>
+                <h2 class="panel-title">{{ selected.display_name }}</h2>
+                <span class="data-type-tag" :class="'dt-' + selected.data_type.toLowerCase()">{{ dataTypeLabel(selected.data_type) }}</span>
+                <span v-if="!selected.tenant_id" class="builtin-badge">内置</span>
               </div>
               <button class="panel-close" @click="closeDetail">&times;</button>
             </div>
@@ -98,12 +98,12 @@
             <section class="panel-section">
               <h3 class="section-title">基本信息</h3>
               <div class="info-grid">
-                <div class="info-item"><span class="info-label">显示名称</span><span class="info-value">{{ selected.displayName }}</span></div>
+                <div class="info-item"><span class="info-label">显示名称</span><span class="info-value">{{ selected.display_name }}</span></div>
                 <div class="info-item"><span class="info-label">技术名称</span><span class="info-value mono">{{ selected.name }}</span></div>
                 <div class="info-item"><span class="info-label">类别</span><span class="info-value"><span class="meta-tag cat-tag" :style="{ background: categoryColors[selected.category]?.bg, color: categoryColors[selected.category]?.text }">{{ categoryLabels[selected.category] }}</span></span></div>
-                <div class="info-item"><span class="info-label">数据类型</span><span class="info-value"><span class="data-type-tag" :class="'dt-' + selected.dataType.toLowerCase()">{{ dataTypeLabel(selected.dataType) }}</span></span></div>
-                <div class="info-item"><span class="info-label">最新版本</span><span class="info-value">v{{ selected.latestVersion }}</span></div>
-                <div class="info-item"><span class="info-label">来源</span><span class="info-value">{{ selected.tenantId ? '自定义' : '平台内置' }}</span></div>
+                <div class="info-item"><span class="info-label">数据类型</span><span class="info-value"><span class="data-type-tag" :class="'dt-' + selected.data_type.toLowerCase()">{{ dataTypeLabel(selected.data_type) }}</span></span></div>
+                <div class="info-item"><span class="info-label">最新版本</span><span class="info-value">v{{ selected.latest_version }}</span></div>
+                <div class="info-item"><span class="info-label">来源</span><span class="info-value">{{ selected.tenant_id ? '自定义' : '平台内置' }}</span></div>
               </div>
               <div v-if="selected.description" class="desc-block">
                 <span class="info-label">描述</span>
@@ -136,22 +136,22 @@
                   <div class="info-item">
                     <span class="info-label">GPU</span>
                     <span class="info-value">
-                      <span class="tech-badge" :class="selectedVersion.requiresGpu ? 'gpu-yes' : 'gpu-no'">
-                        {{ selectedVersion.requiresGpu ? '需要 GPU' : '不需要 GPU' }}
+                      <span class="tech-badge" :class="selectedVersion.requires_gpu ? 'gpu-yes' : 'gpu-no'">
+                        {{ selectedVersion.requires_gpu ? '需要 GPU' : '不需要 GPU' }}
                       </span>
                     </span>
                   </div>
                   <div class="info-item">
                     <span class="info-label">执行模式</span>
                     <span class="info-value">
-                      <span class="tech-badge" :class="selectedVersion.executionMode === 'HUMAN_REVIEW' ? 'human' : 'auto'">
-                        {{ selectedVersion.executionMode === 'HUMAN_REVIEW' ? '人工审核' : '自动执行' }}
+                      <span class="tech-badge" :class="selectedVersion.execution_mode === 'HUMAN_REVIEW' ? 'human' : 'auto'">
+                        {{ selectedVersion.execution_mode === 'HUMAN_REVIEW' ? '人工审核' : '自动执行' }}
                       </span>
                     </span>
                   </div>
-                  <div v-if="selectedVersion.requiresModel" class="info-item">
+                  <div v-if="selectedVersion.requires_model" class="info-item">
                     <span class="info-label">依赖模型</span>
-                    <span class="info-value mono">{{ selectedVersion.requiresModel }}</span>
+                    <span class="info-value mono">{{ selectedVersion.requires_model }}</span>
                   </div>
                 </div>
                 <div v-if="extractedTechs.length > 0" class="tech-libs">
@@ -294,17 +294,17 @@ const extractedTechs = computed(() => {
 
 const parsedParams = computed<ParsedSchema>(() => {
   if (!selectedVersion.value) return {}
-  return parseJsonSchema(selectedVersion.value.paramsSchema) as ParsedSchema
+  return parseJsonSchema(selectedVersion.value.params_schema) as ParsedSchema
 })
 
 const parsedInput = computed(() => {
   if (!selectedVersion.value) return {}
-  return parseJsonSchema(selectedVersion.value.inputSchema)
+  return parseJsonSchema(selectedVersion.value.input_schema)
 })
 
 const parsedOutput = computed(() => {
   if (!selectedVersion.value) return {}
-  return parseJsonSchema(selectedVersion.value.outputSchema)
+  return parseJsonSchema(selectedVersion.value.output_schema)
 })
 
 const hasInputOutput = computed(() => {
@@ -314,17 +314,17 @@ const hasInputOutput = computed(() => {
 
 const outputBranches = computed(() => {
   if (!selectedVersion.value) return []
-  return parseOutputBranches(selectedVersion.value.outputBranches)
+  return parseOutputBranches(selectedVersion.value.output_branches)
 })
 
 const filtered = computed(() => {
   let list = components.value
   if (categoryFilter.value) list = list.filter(c => c.category === categoryFilter.value)
-  if (dataTypeFilter.value) list = list.filter(c => c.dataType === dataTypeFilter.value)
+  if (dataTypeFilter.value) list = list.filter(c => c.data_type === dataTypeFilter.value)
   if (search.value.trim()) {
     const q = search.value.trim().toLowerCase()
     list = list.filter(c =>
-      c.displayName.toLowerCase().includes(q) ||
+      c.display_name.toLowerCase().includes(q) ||
       c.name.toLowerCase().includes(q) ||
       (c.description || '').toLowerCase().includes(q)
     )

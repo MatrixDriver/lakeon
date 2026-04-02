@@ -12,25 +12,25 @@ export type ComponentExecutionMode = 'FUNCTION' | 'HUMAN_REVIEW'
 
 export interface Pipeline {
   id: string
-  tenantId: string
+  tenant_id: string
   name: string
   description: string | null
-  dataType: string | null
-  isTemplate: boolean
-  sourceTemplateId: string | null
-  latestVersion: number
-  createdAt: string
-  updatedAt: string
+  data_type: string | null
+  is_template: boolean
+  source_template_id: string | null
+  latest_version: number
+  created_at: string
+  updated_at: string
 }
 
 export interface PipelineVersion {
   id: string
-  pipelineId: string
+  pipeline_id: string
   version: number
-  dagYaml: string
+  dag_yaml: string
   status: string
   changelog: string | null
-  createdAt: string
+  created_at: string
 }
 
 export interface CreatePipelineRequest {
@@ -56,32 +56,32 @@ export interface PublishVersionRequest {
 
 export interface PipelineComponent {
   id: string
-  tenantId: string | null
+  tenant_id: string | null
   name: string
-  displayName: string
+  display_name: string
   category: ComponentCategory
-  dataType: ComponentDataType
+  data_type: ComponentDataType
   description: string | null
-  latestVersion: number
-  createdAt: string
-  updatedAt: string
+  latest_version: number
+  created_at: string
+  updated_at: string
 }
 
 export interface PipelineComponentVersion {
   id: string
-  componentId: string
+  component_id: string
   version: number
   entrypoint: string
-  paramsSchema: string | null
-  inputSchema: string | null
-  outputSchema: string | null
-  outputBranches: string | null
-  requiresGpu: boolean
-  requiresModel: string | null
-  executionMode: ComponentExecutionMode
+  params_schema: string | null
+  input_schema: string | null
+  output_schema: string | null
+  output_branches: string | null
+  requires_gpu: boolean
+  requires_model: string | null
+  execution_mode: ComponentExecutionMode
   status: string
   changelog: string | null
-  createdAt: string
+  created_at: string
 }
 
 export interface RegisterComponentRequest {
@@ -104,33 +104,33 @@ export interface RegisterComponentRequest {
 
 export interface PipelineRun {
   id: string
-  pipelineId: string
-  pipelineVersion: number
-  tenantId: string
-  inputDatasetId: string | null
-  inputDatasetVersion: number | null
-  outputDatasetVersionId: string | null
+  pipeline_id: string
+  pipeline_version: number
+  tenant_id: string
+  input_dataset_id: string | null
+  input_dataset_version: number | null
+  output_dataset_version_id: string | null
   status: PipelineRunStatus
-  startedAt: string | null
-  finishedAt: string | null
-  createdAt: string
+  started_at: string | null
+  finished_at: string | null
+  created_at: string
 }
 
 export interface PipelineStepRun {
   id: string
-  runId: string
-  stepId: string
-  componentId: string | null
-  componentVersion: number | null
+  run_id: string
+  step_id: string
+  component_id: string | null
+  component_version: number | null
   status: StepRunStatus
-  inputRef: string | null
-  outputRef: string | null
-  checkpointPath: string | null
+  input_ref: string | null
+  output_ref: string | null
+  checkpoint_path: string | null
   metrics: string | null
   error: string | null
-  startedAt: string | null
-  finishedAt: string | null
-  createdAt: string
+  started_at: string | null
+  finished_at: string | null
+  created_at: string
 }
 
 export interface TriggerRunRequest {

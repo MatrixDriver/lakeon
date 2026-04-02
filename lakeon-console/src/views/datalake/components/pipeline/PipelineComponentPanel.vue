@@ -28,9 +28,9 @@
             draggable="true"
             @dragstart="onDragStart($event, comp)"
           >
-            <div class="comp-name">{{ comp.displayName }}</div>
+            <div class="comp-name">{{ comp.display_name }}</div>
             <div class="comp-desc">{{ comp.description || comp.name }}</div>
-            <div v-if="!comp.tenantId" class="comp-badge">内置</div>
+            <div v-if="!comp.tenant_id" class="comp-badge">内置</div>
           </div>
         </div>
       </div>
@@ -81,7 +81,7 @@ const filteredGroups = computed<CompGroup[]>(() => {
     .map(g => ({
       ...g,
       items: g.items.filter(c =>
-        c.displayName.toLowerCase().includes(q) ||
+        c.display_name.toLowerCase().includes(q) ||
         c.name.toLowerCase().includes(q) ||
         (c.description || '').toLowerCase().includes(q)
       ),

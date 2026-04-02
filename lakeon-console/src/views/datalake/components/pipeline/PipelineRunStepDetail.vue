@@ -1,7 +1,7 @@
 <template>
   <div class="step-detail-panel">
     <div class="panel-header">
-      <span class="panel-title">{{ stepRun.stepId }}</span>
+      <span class="panel-title">{{ stepRun.step_id }}</span>
       <span class="step-status" :class="'status-' + stepRun.status.toLowerCase()">{{ statusLabel }}</span>
     </div>
 
@@ -21,11 +21,11 @@
       <div class="section-title">时间</div>
       <div class="time-row">
         <span class="time-label">开始</span>
-        <span>{{ formatTime(stepRun.startedAt) }}</span>
+        <span>{{ formatTime(stepRun.started_at) }}</span>
       </div>
       <div class="time-row">
         <span class="time-label">结束</span>
-        <span>{{ formatTime(stepRun.finishedAt) }}</span>
+        <span>{{ formatTime(stepRun.finished_at) }}</span>
       </div>
       <div class="time-row">
         <span class="time-label">耗时</span>
@@ -40,9 +40,9 @@
     </div>
 
     <!-- Checkpoint 预览 -->
-    <div class="panel-section" v-if="stepRun.checkpointPath">
+    <div class="panel-section" v-if="stepRun.checkpoint_path">
       <div class="section-title">Checkpoint</div>
-      <div class="checkpoint-path">{{ stepRun.checkpointPath }}</div>
+      <div class="checkpoint-path">{{ stepRun.checkpoint_path }}</div>
       <button class="btn btn-secondary btn-small" style="margin-top: 6px;">预览数据</button>
     </div>
 
@@ -63,8 +63,8 @@
       <div class="section-title">人工审核</div>
       <PipelineRunHumanReview
         :step-run="stepRun"
-        @approve="$emit('resume', stepRun.stepId, 'approve')"
-        @reject="$emit('resume', stepRun.stepId, 'reject')"
+        @approve="$emit('resume', stepRun.step_id, 'approve')"
+        @reject="$emit('resume', stepRun.step_id, 'reject')"
       />
     </div>
   </div>
@@ -99,9 +99,9 @@ const statusLabel = computed(() => {
 })
 
 const duration = computed(() => {
-  if (!props.stepRun.startedAt) return '—'
-  const start = new Date(props.stepRun.startedAt).getTime()
-  const end = props.stepRun.finishedAt ? new Date(props.stepRun.finishedAt).getTime() : Date.now()
+  if (!props.stepRun.started_at) return '—'
+  const start = new Date(props.stepRun.started_at).getTime()
+  const end = props.stepRun.finished_at ? new Date(props.stepRun.finished_at).getTime() : Date.now()
   const sec = Math.round((end - start) / 1000)
   if (sec < 60) return `${sec}s`
   return `${Math.floor(sec / 60)}m ${sec % 60}s`
@@ -115,7 +115,7 @@ function formatTime(iso: string | null): string {
 async function loadLogs() {
   logsLoading.value = true
   try {
-    const res = await getStepRunLogs(props.runId, props.stepRun.stepId)
+    const res = await getStepRunLogs(props.runId, props.stepRun.step_id)
     logs.value = res.data.logs
   } catch {
     logs.value = '加载日志失败'

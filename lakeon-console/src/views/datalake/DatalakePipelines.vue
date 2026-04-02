@@ -32,10 +32,10 @@
             class="create-menu-item"
             @click="createFromTemplate(tpl)"
           >
-            <span class="create-icon tpl-icon">{{ dataTypeIcon(tpl.dataType) }}</span>
+            <span class="create-icon tpl-icon">{{ dataTypeIcon(tpl.data_type) }}</span>
             <div>
               <div class="create-label">{{ tpl.name }}</div>
-              <div class="create-desc">{{ tpl.description || tpl.dataType }}</div>
+              <div class="create-desc">{{ tpl.description || tpl.data_type }}</div>
             </div>
           </div>
         </div>
@@ -50,7 +50,7 @@
         :name="p.name"
         :status="latestRunStatus(p.id)"
         :statusLabel="latestRunStatusLabel(p.id)"
-        :meta="[p.dataType || '通用', `v${p.latestVersion}`, formatTime(p.updatedAt)]"
+        :meta="[p.data_type || '通用', `v${p.latest_version}`, formatTime(p.updated_at)]"
         @click="router.push(`/datalake/pipelines/${p.id}`)"
       />
     </div>
@@ -74,13 +74,13 @@
               <router-link :to="`/datalake/pipelines/${p.id}`" class="name-link">{{ p.name }}</router-link>
               <div class="id-hint">{{ p.id }}</div>
             </td>
-            <td><span class="type-tag">{{ p.dataType || '通用' }}</span></td>
-            <td>v{{ p.latestVersion }}</td>
+            <td><span class="type-tag">{{ p.data_type || '通用' }}</span></td>
+            <td>v{{ p.latest_version }}</td>
             <td>
               <span class="status-dot" :class="'dot-' + statusDotClass(latestRunStatus(p.id))"></span>
               {{ latestRunStatusLabel(p.id) || '—' }}
             </td>
-            <td style="color: #999;">{{ formatTime(p.updatedAt) }}</td>
+            <td style="color: #999;">{{ formatTime(p.updated_at) }}</td>
             <td>
               <router-link :to="`/datalake/pipelines/${p.id}/edit`" class="btn btn-text btn-small btn-accent-text">编辑</router-link>
               <button class="btn btn-text btn-small btn-danger-text" @click="handleDelete(p)">删除</button>
@@ -164,7 +164,7 @@ async function loadData() {
       listPipelines(),
       listPipelines({ is_template: true }),
     ])
-    pipelines.value = allRes.data.filter(p => !p.isTemplate)
+    pipelines.value = allRes.data.filter(p => !p.is_template)
     templates.value = tplRes.data
   } catch (err) {
     console.error('Failed to load pipelines', err)
@@ -180,7 +180,7 @@ function createNew(dt: string) {
 
 function createFromTemplate(tpl: Pipeline) {
   showCreateMenu.value = false
-  router.push({ path: '/datalake/pipelines/new', query: { template: tpl.id, dataType: tpl.dataType || '' } })
+  router.push({ path: '/datalake/pipelines/new', query: { template: tpl.id, dataType: tpl.data_type || '' } })
 }
 
 async function handleDelete(p: Pipeline) {

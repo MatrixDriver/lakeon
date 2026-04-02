@@ -115,8 +115,8 @@ async function loadData() {
     run.value = rRes.data
 
     // 加载 DAG 定义
-    const vRes = await getPipelineVersion(pipelineId.value, rRes.data.pipelineVersion)
-    const dag = parseDagYaml(vRes.data.dagYaml)
+    const vRes = await getPipelineVersion(pipelineId.value, rRes.data.pipeline_version)
+    const dag = parseDagYaml(vRes.data.dag_yaml)
     const flow = dagToFlow(dag.steps)
     nodes.value = flow.nodes
     edges.value = flow.edges
@@ -138,7 +138,7 @@ async function refreshRunState() {
     stepRuns.value = sRes.data
 
     // 更新节点视觉状态
-    const stepMap = new Map(sRes.data.map(s => [s.stepId, s]))
+    const stepMap = new Map(sRes.data.map(s => [s.step_id, s]))
     nodes.value = nodes.value.map(n => {
       const sr = stepMap.get(n.id)
       if (!sr) return n
@@ -161,7 +161,7 @@ async function refreshRunState() {
     })
 
     // 更新 edge 动画（RUNNING 步骤的入边）
-    const runningSteps = new Set(sRes.data.filter(s => s.status === 'RUNNING').map(s => s.stepId))
+    const runningSteps = new Set(sRes.data.filter(s => s.status === 'RUNNING').map(s => s.step_id))
     edges.value = edges.value.map(e => ({
       ...e,
       animated: runningSteps.has(e.target),
@@ -172,7 +172,7 @@ async function refreshRunState() {
 }
 
 function onNodeClick(event: NodeMouseEvent) {
-  const sr = stepRuns.value.find(s => s.stepId === event.node.id)
+  const sr = stepRuns.value.find(s => s.step_id === event.node.id)
   selectedStepRun.value = sr || null
 }
 

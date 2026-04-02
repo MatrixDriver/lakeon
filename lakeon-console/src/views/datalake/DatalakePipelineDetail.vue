@@ -8,7 +8,7 @@
           <span>{{ pipeline?.name || '...' }}</span>
         </div>
         <div class="detail-meta" v-if="pipeline">
-          <span class="meta-tag">{{ pipeline.dataType || '通用' }}</span>
+          <span class="meta-tag">{{ pipeline.data_type || '通用' }}</span>
           <span class="meta-id">{{ pipeline.id }}</span>
         </div>
       </div>
@@ -47,7 +47,7 @@
               <span class="version-status" :class="v.status.toLowerCase()">{{ versionStatusLabel(v.status) }}</span>
             </td>
             <td style="color: #666;">{{ v.changelog || '—' }}</td>
-            <td style="color: #999;">{{ formatTime(v.createdAt) }}</td>
+            <td style="color: #999;">{{ formatTime(v.created_at) }}</td>
           </tr>
         </tbody>
       </table>
@@ -75,12 +75,12 @@
                 class="name-link"
               >{{ run.id }}</router-link>
             </td>
-            <td>v{{ run.pipelineVersion }}</td>
+            <td>v{{ run.pipeline_version }}</td>
             <td>
               <span class="status-dot" :class="'dot-' + runDotClass(run.status)"></span>
               {{ runStatusLabel(run.status) }}
             </td>
-            <td style="color: #999;">{{ formatTime(run.startedAt || run.createdAt) }}</td>
+            <td style="color: #999;">{{ formatTime(run.started_at || run.created_at) }}</td>
             <td style="color: #666;">{{ runDuration(run) }}</td>
             <td>
               <router-link
@@ -106,7 +106,7 @@
         <div class="dialog-field">
           <label>Pipeline 版本</label>
           <select v-model="triggerForm.version">
-            <option :value="undefined">最新版本 (v{{ pipeline?.latestVersion }})</option>
+            <option :value="undefined">最新版本 (v{{ pipeline?.latest_version }})</option>
             <option v-for="v in versions" :key="v.version" :value="v.version">v{{ v.version }}</option>
           </select>
         </div>
@@ -174,9 +174,9 @@ function runDotClass(s: string): string {
 }
 
 function runDuration(run: PipelineRun): string {
-  if (!run.startedAt) return '—'
-  const start = new Date(run.startedAt).getTime()
-  const end = run.finishedAt ? new Date(run.finishedAt).getTime() : Date.now()
+  if (!run.started_at) return '—'
+  const start = new Date(run.started_at).getTime()
+  const end = run.finished_at ? new Date(run.finished_at).getTime() : Date.now()
   const sec = Math.round((end - start) / 1000)
   if (sec < 60) return `${sec}s`
   if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`

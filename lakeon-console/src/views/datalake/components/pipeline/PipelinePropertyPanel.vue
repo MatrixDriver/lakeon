@@ -118,7 +118,7 @@ const currentParams = computed(() => props.node.data.step?.params || {})
 
 // 从 node.data 中解析 params_schema
 const schemaFields = computed<SchemaField[]>(() => {
-  const raw = props.node.data.step?.params_schema || props.node.data.paramsSchema
+  const raw = props.node.data.step?.params_schema || props.node.data.params_schema
   const schema = typeof raw === 'string' ? parseJsonSchema(raw) : (raw || {})
   return Object.entries(schema).map(([name, def]: [string, any]) => ({
     name,

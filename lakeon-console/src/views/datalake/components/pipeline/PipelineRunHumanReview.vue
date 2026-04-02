@@ -100,9 +100,9 @@ onMounted(() => {
   // 尝试从 checkpoint 数据中加载预览
   // 实际实现需要从 OBS checkpoint 路径加载
   // Phase 1 使用 outputRef 中的简单列表
-  if (props.stepRun.outputRef) {
+  if (props.stepRun.output_ref) {
     try {
-      const refs = JSON.parse(props.stepRun.outputRef)
+      const refs = JSON.parse(props.stepRun.output_ref)
       if (Array.isArray(refs)) {
         previewItems.value = refs.map((r: any, i: number) => ({
           name: r.name || `Item ${i + 1}`,

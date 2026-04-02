@@ -38,9 +38,9 @@ const statusLabel = computed(() => {
 })
 
 const totalDuration = computed(() => {
-  if (!props.run.startedAt) return '—'
-  const start = new Date(props.run.startedAt).getTime()
-  const end = props.run.finishedAt ? new Date(props.run.finishedAt).getTime() : Date.now()
+  if (!props.run.started_at) return '—'
+  const start = new Date(props.run.started_at).getTime()
+  const end = props.run.finished_at ? new Date(props.run.finished_at).getTime() : Date.now()
   const sec = Math.round((end - start) / 1000)
   if (sec < 60) return `${sec}s`
   if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`

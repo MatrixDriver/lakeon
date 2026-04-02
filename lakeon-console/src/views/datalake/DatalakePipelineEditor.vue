@@ -141,7 +141,7 @@ const dataTypeLabel = computed(() => {
 const filteredComponents = computed(() => {
   if (!dataType.value) return components.value
   return components.value.filter(c =>
-    c.dataType === dataType.value || c.dataType === 'UNIVERSAL'
+    c.data_type === dataType.value || c.data_type === 'UNIVERSAL'
   )
 })
 
@@ -214,13 +214,13 @@ onMounted(async () => {
       const pRes = await getPipeline(pipelineId.value)
       pipeline.value = pRes.data
       pipelineName.value = pRes.data.name
-      dataType.value = pRes.data.dataType || ''
-      const vRes = await getPipelineVersion(pipelineId.value, pRes.data.latestVersion)
-      const dag = parseDagYaml(vRes.data.dagYaml)
+      dataType.value = pRes.data.data_type || ''
+      const vRes = await getPipelineVersion(pipelineId.value, pRes.data.latest_version)
+      const dag = parseDagYaml(vRes.data.dag_yaml)
       const flow = dagToFlow(dag.steps)
       nodes.value = flow.nodes
       edges.value = flow.edges
-      yamlText.value = vRes.data.dagYaml
+      yamlText.value = vRes.data.dag_yaml
     } catch (err) {
       console.error('Failed to load pipeline', err)
     }
@@ -232,13 +232,13 @@ onMounted(async () => {
     try {
       const tRes = await getPipeline(templateId)
       pipelineName.value = tRes.data.name + ' (副本)'
-      dataType.value = tRes.data.dataType || ''
-      const vRes = await getPipelineVersion(templateId, tRes.data.latestVersion)
-      const dag = parseDagYaml(vRes.data.dagYaml)
+      dataType.value = tRes.data.data_type || ''
+      const vRes = await getPipelineVersion(templateId, tRes.data.latest_version)
+      const dag = parseDagYaml(vRes.data.dag_yaml)
       const flow = dagToFlow(dag.steps)
       nodes.value = flow.nodes
       edges.value = flow.edges
-      yamlText.value = vRes.data.dagYaml
+      yamlText.value = vRes.data.dag_yaml
     } catch (err) {
       console.error('Failed to load template', err)
     }
@@ -377,7 +377,7 @@ function onDrop(event: DragEvent) {
 
   // 确定节点类型
   let nodeType = 'pipelineNode'
-  if (compVersion?.executionMode === 'HUMAN_REVIEW') nodeType = 'humanReviewNode'
+  if (compVersion?.execution_mode === 'HUMAN_REVIEW') nodeType = 'humanReviewNode'
 
   const newNode: Node = {
     id: step.id,
@@ -385,7 +385,7 @@ function onDrop(event: DragEvent) {
     position,
     data: {
       step,
-      label: comp.displayName,
+      label: comp.display_name,
       category: comp.category,
     },
   }
