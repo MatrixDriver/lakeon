@@ -64,6 +64,10 @@ spec:
                 secretKeyRef:
                   name: api-credentials
                   key: ai-api-key
+            {{- if .Values.embedding.apiUrl }}
+            - name: LAKEON_EMBEDDING_API_URL
+              value: {{ .Values.embedding.apiUrl | quote }}
+            {{- end }}
             {{- if .Values.obs.accessKey }}
             - name: LAKEON_OBS_ACCESS_KEY
               valueFrom:

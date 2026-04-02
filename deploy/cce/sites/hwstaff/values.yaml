@@ -234,13 +234,26 @@ networkPolicy:
   enabled: true
 
 embedding:
-  enabled: false
+  enabled: true
+  image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-embedding:0.3.0
+  cpu: "2"
+  memory: "6Gi"
+  apiUrl: "http://embedding-svc:8000/v1/embeddings"
+  model: "BAAI/bge-m3"
+
+llm:
+  enabled: true
+  image: vllm/vllm-openai:latest
+  model: "Qwen/Qwen3.5-9B"
+  maxModelLen: 8192
+  gpuMemoryUtilization: 0.6
+  hfMirror: "https://hf-mirror.com"
 
 memory:
   enabled: true
   image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.2.4
-  chatApiUrl: ""
-  chatModel: ""
+  chatApiUrl: "http://llm-svc:8080/v1"
+  chatModel: "Qwen/Qwen3.5-9B"
 
 minio:
   enabled: false
