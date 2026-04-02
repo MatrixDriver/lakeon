@@ -7,22 +7,47 @@
       </div>
     </div>
 
-    <!-- 筛选 -->
-    <div class="filter-row">
-      <select v-model="categoryFilter" class="filter-select">
-        <option value="">全部类别</option>
-        <option v-for="cat in categories" :key="cat" :value="cat">{{ categoryLabel(cat) }}</option>
-      </select>
-      <select v-model="dataTypeFilter" class="filter-select">
-        <option value="">全部数据类型</option>
-        <option value="TEXT">文本</option>
-        <option value="VIDEO">视频</option>
-        <option value="IMAGE">图片</option>
-        <option value="AUDIO">音频</option>
-        <option value="DOCUMENT">文档</option>
-        <option value="UNIVERSAL">通用</option>
-      </select>
-      <input v-model="search" class="filter-search" placeholder="搜索组件..." />
+    <!-- 数据类型筛选 -->
+    <div class="filter-section">
+      <span class="filter-label">数据类型</span>
+      <div class="filter-pills">
+        <button
+          v-for="dt in dataTypeOptions"
+          :key="dt.value"
+          class="pill"
+          :class="{ active: dataTypeFilter === dt.value }"
+          @click="dataTypeFilter = dt.value"
+        >
+          {{ dt.label }}
+        </button>
+      </div>
+    </div>
+
+    <!-- 处理阶段筛选 -->
+    <div class="filter-section">
+      <span class="filter-label">处理阶段</span>
+      <div class="filter-pills">
+        <button
+          class="pill"
+          :class="{ active: categoryFilter === '' }"
+          @click="categoryFilter = ''"
+        >全部</button>
+        <button
+          v-for="cat in categories"
+          :key="cat"
+          class="pill"
+          :class="{ active: categoryFilter === cat }"
+          :style="categoryFilter === cat ? { background: categoryColors[cat].border, color: '#fff', borderColor: categoryColors[cat].border } : {}"
+          @click="categoryFilter = cat"
+        >
+          {{ categoryLabels[cat] }}
+        </button>
+      </div>
+    </div>
+
+    <!-- 搜索 -->
+    <div class="search-row">
+      <input v-model="search" class="filter-search" placeholder="搜索组件名称或描述..." />
     </div>
 
     <!-- 组件网格 -->
@@ -32,7 +57,7 @@
         :key="comp.id"
         class="comp-card"
         :style="{ borderLeftColor: catColor(comp.category) }"
-        @click="selectComponent(comp)"
+        @click="openDetail(comp)"
       >
         <div class="comp-card-header">
           <span class="comp-card-icon">{{ catIcon(comp.category) }}</span>
@@ -41,9 +66,11 @@
         </div>
         <div class="comp-card-desc">{{ comp.description || comp.name }}</div>
         <div class="comp-card-meta">
-          <span class="meta-tag">{{ comp.dataType }}</span>
+          <span class="data-type-tag" :class="'dt-' + comp.dataType.toLowerCase()">{{ dataTypeLabel(comp.dataType) }}</span>
           <span class="meta-tag">v{{ comp.latestVersion }}</span>
-          <span class="meta-tag">{{ categoryLabel(comp.category) }}</span>
+          <span class="meta-tag cat-tag" :style="{ background: categoryColors[comp.category]?.bg, color: categoryColors[comp.category]?.text }">
+            {{ categoryLabels[comp.category] || comp.category }}
+          </span>
         </div>
       </div>
     </div>
@@ -52,45 +79,243 @@
       暂无匹配的组件
     </div>
 
-    <!-- 组件详情弹窗 -->
-    <div v-if="selected" class="dialog-overlay" @click.self="selected = null">
-      <div class="dialog comp-detail-dialog">
-        <h3>{{ selected.displayName }}</h3>
-        <div class="comp-detail-row"><label>名称</label><span>{{ selected.name }}</span></div>
-        <div class="comp-detail-row"><label>类别</label><span>{{ categoryLabel(selected.category) }}</span></div>
-        <div class="comp-detail-row"><label>数据类型</label><span>{{ selected.dataType }}</span></div>
-        <div class="comp-detail-row"><label>版本</label><span>v{{ selected.latestVersion }}</span></div>
-        <div class="comp-detail-row"><label>来源</label><span>{{ selected.tenantId ? '自定义' : '平台内置' }}</span></div>
-        <div class="comp-detail-row" v-if="selected.description">
-          <label>描述</label><span>{{ selected.description }}</span>
+    <!-- 侧面板详情 -->
+    <Teleport to="body">
+      <Transition name="panel">
+        <div v-if="selected" class="panel-overlay" @click.self="closeDetail">
+          <div class="detail-panel">
+            <div class="panel-header">
+              <div class="panel-title-row">
+                <span class="panel-icon">{{ catIcon(selected.category) }}</span>
+                <h2 class="panel-title">{{ selected.displayName }}</h2>
+                <span class="data-type-tag" :class="'dt-' + selected.dataType.toLowerCase()">{{ dataTypeLabel(selected.dataType) }}</span>
+                <span v-if="!selected.tenantId" class="builtin-badge">内置</span>
+              </div>
+              <button class="panel-close" @click="closeDetail">&times;</button>
+            </div>
+
+            <!-- 基本信息 -->
+            <section class="panel-section">
+              <h3 class="section-title">基本信息</h3>
+              <div class="info-grid">
+                <div class="info-item"><span class="info-label">显示名称</span><span class="info-value">{{ selected.displayName }}</span></div>
+                <div class="info-item"><span class="info-label">技术名称</span><span class="info-value mono">{{ selected.name }}</span></div>
+                <div class="info-item"><span class="info-label">类别</span><span class="info-value"><span class="meta-tag cat-tag" :style="{ background: categoryColors[selected.category]?.bg, color: categoryColors[selected.category]?.text }">{{ categoryLabels[selected.category] }}</span></span></div>
+                <div class="info-item"><span class="info-label">数据类型</span><span class="info-value"><span class="data-type-tag" :class="'dt-' + selected.dataType.toLowerCase()">{{ dataTypeLabel(selected.dataType) }}</span></span></div>
+                <div class="info-item"><span class="info-label">最新版本</span><span class="info-value">v{{ selected.latestVersion }}</span></div>
+                <div class="info-item"><span class="info-label">来源</span><span class="info-value">{{ selected.tenantId ? '自定义' : '平台内置' }}</span></div>
+              </div>
+              <div v-if="selected.description" class="desc-block">
+                <span class="info-label">描述</span>
+                <p class="desc-text">{{ selected.description }}</p>
+              </div>
+            </section>
+
+            <!-- 版本加载中 -->
+            <div v-if="versionLoading" class="version-loading">
+              <span class="spinner"></span> 加载版本详情...
+            </div>
+
+            <template v-if="selectedVersion">
+              <!-- 技术详情 -->
+              <section class="panel-section">
+                <h3 class="section-title">技术详情</h3>
+                <div class="info-grid">
+                  <div class="info-item">
+                    <span class="info-label">入口点</span>
+                    <span class="info-value mono">{{ selectedVersion.entrypoint }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">执行框架</span>
+                    <span class="info-value">
+                      <span class="tech-badge" :class="isRayEntrypoint(selectedVersion.entrypoint) ? 'ray' : 'python'">
+                        {{ isRayEntrypoint(selectedVersion.entrypoint) ? 'Ray 分布式' : 'Python 单机' }}
+                      </span>
+                    </span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">GPU</span>
+                    <span class="info-value">
+                      <span class="tech-badge" :class="selectedVersion.requiresGpu ? 'gpu-yes' : 'gpu-no'">
+                        {{ selectedVersion.requiresGpu ? '需要 GPU' : '不需要 GPU' }}
+                      </span>
+                    </span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">执行模式</span>
+                    <span class="info-value">
+                      <span class="tech-badge" :class="selectedVersion.executionMode === 'HUMAN_REVIEW' ? 'human' : 'auto'">
+                        {{ selectedVersion.executionMode === 'HUMAN_REVIEW' ? '人工审核' : '自动执行' }}
+                      </span>
+                    </span>
+                  </div>
+                  <div v-if="selectedVersion.requiresModel" class="info-item">
+                    <span class="info-label">依赖模型</span>
+                    <span class="info-value mono">{{ selectedVersion.requiresModel }}</span>
+                  </div>
+                </div>
+                <div v-if="extractedTechs.length > 0" class="tech-libs">
+                  <span class="info-label">使用的库/算法</span>
+                  <div class="tech-lib-tags">
+                    <span v-for="t in extractedTechs" :key="t" class="tech-lib-tag">{{ t }}</span>
+                  </div>
+                </div>
+              </section>
+
+              <!-- 参数配置 -->
+              <section v-if="parsedParams && Object.keys(parsedParams.properties || {}).length > 0" class="panel-section">
+                <h3 class="section-title">参数配置</h3>
+                <div class="params-table">
+                  <div class="params-header">
+                    <span>参数</span><span>类型</span><span>默认值</span><span>描述</span>
+                  </div>
+                  <div
+                    v-for="(prop, pname) in (parsedParams.properties as Record<string, SchemaProperty>)"
+                    :key="String(pname)"
+                    class="params-row"
+                  >
+                    <span class="param-name mono">{{ pname }}
+                      <span v-if="(parsedParams.required || []).includes(String(pname))" class="required-mark">*</span>
+                    </span>
+                    <span class="param-type">{{ prop.type || '--' }}</span>
+                    <span class="param-default mono">{{ prop.default !== undefined ? JSON.stringify(prop.default) : '--' }}</span>
+                    <span class="param-desc">{{ prop.description || '--' }}</span>
+                  </div>
+                </div>
+              </section>
+
+              <!-- 输入/输出 -->
+              <section v-if="hasInputOutput" class="panel-section">
+                <h3 class="section-title">输入/输出</h3>
+                <div class="io-grid">
+                  <div v-if="parsedInput && Object.keys(parsedInput).length > 0" class="io-block">
+                    <h4 class="io-title">输入 (Input)</h4>
+                    <pre class="io-schema">{{ JSON.stringify(parsedInput, null, 2) }}</pre>
+                  </div>
+                  <div v-if="parsedOutput && Object.keys(parsedOutput).length > 0" class="io-block">
+                    <h4 class="io-title">输出 (Output)</h4>
+                    <pre class="io-schema">{{ JSON.stringify(parsedOutput, null, 2) }}</pre>
+                  </div>
+                </div>
+              </section>
+
+              <!-- 输出分支 -->
+              <section v-if="outputBranches.length > 0" class="panel-section">
+                <h3 class="section-title">输出分支</h3>
+                <div class="branch-list">
+                  <span v-for="b in outputBranches" :key="b" class="branch-tag">{{ b }}</span>
+                </div>
+              </section>
+            </template>
+
+            <div class="panel-footer">
+              <button class="btn btn-secondary" @click="closeDetail">关闭</button>
+            </div>
+          </div>
         </div>
-        <div class="dialog-actions">
-          <button class="btn btn-secondary" @click="selected = null">关闭</button>
-        </div>
-      </div>
-    </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { listComponents, type PipelineComponent, type ComponentCategory } from '@/api/pipeline'
+import {
+  listComponents,
+  getComponentLatestVersion,
+  parseJsonSchema,
+  parseOutputBranches,
+  type PipelineComponent,
+  type PipelineComponentVersion,
+  type ComponentCategory,
+  type ComponentDataType,
+} from '@/api/pipeline'
 import { categoryColors, categoryLabels } from './components/pipeline/nodeStyles'
+
+interface SchemaProperty {
+  type?: string
+  default?: unknown
+  description?: string
+  [key: string]: unknown
+}
+
+interface ParsedSchema {
+  properties?: Record<string, SchemaProperty>
+  required?: string[]
+  [key: string]: unknown
+}
 
 const router = useRouter()
 const loading = ref(true)
 const components = ref<PipelineComponent[]>([])
-const categoryFilter = ref('')
-const dataTypeFilter = ref('')
+const categoryFilter = ref<ComponentCategory | ''>('')
+const dataTypeFilter = ref<ComponentDataType | ''>('')
 const search = ref('')
 const selected = ref<PipelineComponent | null>(null)
+const selectedVersion = ref<PipelineComponentVersion | null>(null)
+const versionLoading = ref(false)
 
 const categories: ComponentCategory[] = ['DATA_PREP', 'EXTRACT', 'CLEAN', 'FILTER', 'QC', 'LABEL', 'PUBLISH']
 
-function categoryLabel(cat: string): string { return categoryLabels[cat as ComponentCategory] || cat }
+const dataTypeOptions: { value: ComponentDataType | '', label: string }[] = [
+  { value: '', label: '全部' },
+  { value: 'VIDEO', label: '视频' },
+  { value: 'TEXT', label: '文本' },
+  { value: 'UNIVERSAL', label: '通用' },
+]
+
+function dataTypeLabel(dt: string): string {
+  const map: Record<string, string> = { VIDEO: '视频', TEXT: '文本', UNIVERSAL: '通用', IMAGE: '图片', AUDIO: '音频', DOCUMENT: '文档' }
+  return map[dt] || dt
+}
+
 function catColor(cat: string): string { return categoryColors[cat as ComponentCategory]?.border || '#ccc' }
 function catIcon(cat: string): string { return categoryColors[cat as ComponentCategory]?.icon || '?' }
+
+function isRayEntrypoint(ep: string): boolean {
+  return ep.includes('ray') || ep.includes('Ray') || ep.includes('distributed')
+}
+
+/** Extract known tech/lib names from description and entrypoint */
+const knownTechs = ['PySceneDetect', 'pyscenedetect', 'ffmpeg', 'FFmpeg', 'MinHash', 'LSH', 'simhash', 'OpenCV', 'opencv', 'whisper', 'Whisper', 'spaCy', 'spacy', 'jieba', 'NLTK', 'nltk', 'langdetect', 'fasttext', 'tesseract', 'Tesseract', 'YOLO', 'yolo', 'pillow', 'Pillow', 'transformers', 'sentence-transformers', 'torch', 'pytorch', 'PyTorch', 'numpy', 'pandas', 'sklearn', 'scikit-learn']
+
+const extractedTechs = computed(() => {
+  if (!selected.value || !selectedVersion.value) return []
+  const text = [selected.value.description || '', selectedVersion.value.entrypoint].join(' ')
+  const found = new Set<string>()
+  for (const t of knownTechs) {
+    if (text.toLowerCase().includes(t.toLowerCase())) {
+      found.add(t)
+    }
+  }
+  return Array.from(found)
+})
+
+const parsedParams = computed<ParsedSchema>(() => {
+  if (!selectedVersion.value) return {}
+  return parseJsonSchema(selectedVersion.value.paramsSchema) as ParsedSchema
+})
+
+const parsedInput = computed(() => {
+  if (!selectedVersion.value) return {}
+  return parseJsonSchema(selectedVersion.value.inputSchema)
+})
+
+const parsedOutput = computed(() => {
+  if (!selectedVersion.value) return {}
+  return parseJsonSchema(selectedVersion.value.outputSchema)
+})
+
+const hasInputOutput = computed(() => {
+  return (parsedInput.value && Object.keys(parsedInput.value).length > 0) ||
+         (parsedOutput.value && Object.keys(parsedOutput.value).length > 0)
+})
+
+const outputBranches = computed(() => {
+  if (!selectedVersion.value) return []
+  return parseOutputBranches(selectedVersion.value.outputBranches)
+})
 
 const filtered = computed(() => {
   let list = components.value
@@ -107,8 +332,23 @@ const filtered = computed(() => {
   return list
 })
 
-function selectComponent(comp: PipelineComponent) {
+async function openDetail(comp: PipelineComponent) {
   selected.value = comp
+  selectedVersion.value = null
+  versionLoading.value = true
+  try {
+    const res = await getComponentLatestVersion(comp.id)
+    selectedVersion.value = res.data
+  } catch (err) {
+    console.error('Failed to load component version', err)
+  } finally {
+    versionLoading.value = false
+  }
+}
+
+function closeDetail() {
+  selected.value = null
+  selectedVersion.value = null
 }
 
 onMounted(async () => {
@@ -122,44 +362,389 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
 </script>
 
 <style scoped>
-.filter-row { display: flex; gap: 8px; margin-bottom: 16px; }
-.filter-select {
-  padding: 5px 10px; border: 1px solid #e8e4df; border-radius: 4px;
-  font-size: 12px; background: #fff; color: #666; cursor: pointer;
+/* ── 筛选区 ── */
+.filter-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.filter-label {
+  font-size: 12px;
+  color: var(--c-text-2, #64748b);
+  white-space: nowrap;
+  min-width: 56px;
+}
+.filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pill {
+  padding: 4px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--c-border, #e8e4df);
+  background: #fff;
+  color: var(--c-text-2, #64748b);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.pill:hover {
+  border-color: var(--c-primary, #2a4d6a);
+  color: var(--c-primary, #2a4d6a);
+}
+.pill.active {
+  background: var(--c-primary, #2a4d6a);
+  color: #fff;
+  border-color: var(--c-primary, #2a4d6a);
+}
+
+.search-row {
+  margin-bottom: 16px;
 }
 .filter-search {
-  flex: 1; padding: 5px 10px; border: 1px solid #e8e4df; border-radius: 4px;
-  font-size: 12px; outline: none;
+  width: 100%;
+  max-width: 400px;
+  padding: 6px 12px;
+  border: 1px solid var(--c-border, #e8e4df);
+  border-radius: 6px;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s;
 }
-.filter-search:focus { border-color: #2a4d6a; }
+.filter-search:focus {
+  border-color: var(--c-primary, #2a4d6a);
+}
 
-.comp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+/* ── 组件网格 ── */
+.comp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 12px;
+}
 .comp-card {
-  border: 1px solid #e8e4df; border-left: 3px solid; border-radius: 8px;
-  padding: 14px; cursor: pointer; background: #fff; transition: box-shadow 0.15s;
+  border: 1px solid var(--c-border, #e8e4df);
+  border-left: 3px solid;
+  border-radius: 8px;
+  padding: 14px;
+  cursor: pointer;
+  background: #fff;
+  transition: box-shadow 0.15s, transform 0.15s;
 }
-.comp-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-.comp-card-header { display: flex; align-items: center; gap: 6px; }
+.comp-card:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  transform: translateY(-1px);
+}
+.comp-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .comp-card-icon { font-size: 16px; }
-.comp-card-name { font-size: 13px; font-weight: 600; color: #2c3e50; flex: 1; }
-.builtin-badge { font-size: 9px; padding: 1px 6px; border-radius: 3px; background: #eef6fe; color: #1a5276; }
-.comp-card-desc { font-size: 12px; color: #999; margin-top: 4px; }
-.comp-card-meta { display: flex; gap: 6px; margin-top: 8px; }
-.meta-tag { font-size: 10px; padding: 1px 6px; border-radius: 3px; background: #f5f3f0; color: #666; }
-
-/* 详情弹窗 */
-.dialog-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.3); display: flex;
-  align-items: center; justify-content: center; z-index: 100;
+.comp-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-text, #2c3e50);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.comp-detail-dialog { width: 480px; }
-.dialog { background: #fff; border-radius: 10px; padding: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); }
-.dialog h3 { margin: 0 0 16px; font-size: 16px; color: #2c3e50; }
-.comp-detail-row { display: flex; padding: 4px 0; font-size: 13px; }
-.comp-detail-row label { width: 80px; color: #999; flex-shrink: 0; }
-.comp-detail-row span { color: #2c3e50; }
-.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.builtin-badge {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: #eef6fe;
+  color: #1a5276;
+  white-space: nowrap;
+}
+.comp-card-desc {
+  font-size: 12px;
+  color: var(--c-text-3, #94a3b8);
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.comp-card-meta {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.meta-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--c-bg-alt, #faf8f5);
+  color: var(--c-text-2, #64748b);
+}
+.cat-tag {
+  border: none;
+}
+
+/* ── 数据类型标签 ── */
+.data-type-tag {
+  font-size: 10px;
+  padding: 1px 8px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+.dt-video { background: #fff3e0; color: #e65100; }
+.dt-text { background: #e3f2fd; color: #1565c0; }
+.dt-universal { background: #f3e5f5; color: #7b1fa2; }
+.dt-image { background: #e8f5e9; color: #2e7d32; }
+.dt-audio { background: #fce4ec; color: #c62828; }
+.dt-document { background: #fff8e1; color: #f57f17; }
+
+/* ── 侧面板 ── */
+.panel-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.25);
+  z-index: 100;
+  display: flex;
+  justify-content: flex-end;
+}
+.detail-panel {
+  width: 560px;
+  max-width: 90vw;
+  height: 100vh;
+  background: #fff;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.1);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+}
+.panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--c-border, #e8e4df);
+}
+.panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+.panel-icon { font-size: 20px; }
+.panel-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--c-text, #2c3e50);
+  margin: 0;
+}
+.panel-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--c-text-3, #94a3b8);
+  padding: 0 4px;
+  line-height: 1;
+}
+.panel-close:hover { color: var(--c-text, #2c3e50); }
+
+/* ── 面板 section ── */
+.panel-section {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--c-border-light, #f0ece7);
+}
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-text, #2c3e50);
+  margin: 0 0 10px;
+}
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.info-label {
+  font-size: 11px;
+  color: var(--c-text-3, #94a3b8);
+}
+.info-value {
+  font-size: 13px;
+  color: var(--c-text, #2c3e50);
+}
+.mono {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+.desc-block {
+  margin-top: 10px;
+}
+.desc-text {
+  font-size: 13px;
+  color: var(--c-text-2, #64748b);
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
+/* ── 技术标签 ── */
+.tech-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+.tech-badge.ray { background: #e3f2fd; color: #1565c0; }
+.tech-badge.python { background: #fff8e1; color: #f57f17; }
+.tech-badge.gpu-yes { background: #fce4ec; color: #c62828; }
+.tech-badge.gpu-no { background: var(--c-bg-alt, #faf8f5); color: var(--c-text-3, #94a3b8); }
+.tech-badge.human { background: #f3e5f5; color: #7b1fa2; }
+.tech-badge.auto { background: #e8f5e9; color: #2e7d32; }
+
+.tech-libs { margin-top: 10px; }
+.tech-lib-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.tech-lib-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--c-accent-light, #fdf5ed);
+  color: var(--c-accent-text, #9a5b25);
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+/* ── 参数表格 ── */
+.params-table {
+  font-size: 12px;
+  border: 1px solid var(--c-border-light, #f0ece7);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.params-header {
+  display: grid;
+  grid-template-columns: 140px 70px 100px 1fr;
+  gap: 0;
+  padding: 6px 10px;
+  background: var(--c-bg-alt, #faf8f5);
+  font-weight: 600;
+  color: var(--c-text-2, #64748b);
+  font-size: 11px;
+}
+.params-row {
+  display: grid;
+  grid-template-columns: 140px 70px 100px 1fr;
+  gap: 0;
+  padding: 6px 10px;
+  border-top: 1px solid var(--c-border-light, #f0ece7);
+  align-items: baseline;
+}
+.params-row:hover { background: var(--c-hover, #f8f5f1); }
+.param-name {
+  font-weight: 500;
+  color: var(--c-text, #2c3e50);
+}
+.required-mark { color: var(--c-danger, #e6393d); }
+.param-type { color: var(--c-text-3, #94a3b8); }
+.param-default { color: var(--c-text-2, #64748b); font-size: 11px; }
+.param-desc { color: var(--c-text-2, #64748b); }
+
+/* ── 输入/输出 ── */
+.io-grid { display: flex; flex-direction: column; gap: 12px; }
+.io-block { }
+.io-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-text-2, #64748b);
+  margin: 0 0 6px;
+}
+.io-schema {
+  font-size: 11px;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  background: var(--c-bg-alt, #faf8f5);
+  border: 1px solid var(--c-border-light, #f0ece7);
+  border-radius: 6px;
+  padding: 10px;
+  overflow-x: auto;
+  max-height: 200px;
+  overflow-y: auto;
+  color: var(--c-text, #2c3e50);
+  margin: 0;
+  white-space: pre;
+}
+
+/* ── 输出分支 ── */
+.branch-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.branch-tag {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-weight: 500;
+}
+
+/* ── 版本加载 ── */
+.version-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 0;
+  color: var(--c-text-3, #94a3b8);
+  font-size: 13px;
+}
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--c-border, #e8e4df);
+  border-top-color: var(--c-primary, #2a4d6a);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── 面板底部 ── */
+.panel-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ── 面板动画 ── */
+.panel-enter-active, .panel-leave-active {
+  transition: opacity 0.2s ease;
+}
+.panel-enter-active .detail-panel, .panel-leave-active .detail-panel {
+  transition: transform 0.25s ease;
+}
+.panel-enter-from {
+  opacity: 0;
+}
+.panel-enter-from .detail-panel {
+  transform: translateX(100%);
+}
+.panel-leave-to {
+  opacity: 0;
+}
+.panel-leave-to .detail-panel {
+  transform: translateX(100%);
+}
+
+/* ── 空状态 ── */
+.empty-state {
+  font-size: 14px;
+}
 </style>
