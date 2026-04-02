@@ -85,7 +85,11 @@
           </div>
           <div class="form-group">
             <label class="form-label">确认密码 <span class="required">*</span></label>
-            <input v-model="registerConfirm" type="password" class="form-input" placeholder="再次输入密码"
+            <input v-model="registerConfirm" type="password" class="form-input" placeholder="再次输入密码" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">邀请码 <span class="required">*</span></label>
+            <input v-model="registerInviteCode" class="form-input" placeholder="请输入邀请码"
                    @keyup.enter="handleRegister" />
           </div>
 
@@ -130,6 +134,7 @@ const loginPwdInput = ref<HTMLInputElement | null>(null)
 const registerUsername = ref('')
 const registerPassword = ref('')
 const registerConfirm = ref('')
+const registerInviteCode = ref('')
 const isLoading = ref(false)
 const errorMsg = ref('')
 const registerSuccess = ref(false)
@@ -210,11 +215,13 @@ async function handleRegister() {
     await tenantApi.register({
       username: registerUsername.value.trim(),
       password: registerPassword.value,
+      inviteCode: registerInviteCode.value.trim() || undefined,
     })
     registerSuccess.value = true
     registerUsername.value = ''
     registerPassword.value = ''
     registerConfirm.value = ''
+    registerInviteCode.value = ''
   } catch (e: any) {
     if (e.response?.status === 409) {
       usernameTaken.value = true
