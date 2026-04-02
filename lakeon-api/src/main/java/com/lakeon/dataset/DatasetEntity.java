@@ -49,6 +49,9 @@ public class DatasetEntity {
     @Column(name = "file_size")
     private Long fileSize;
 
+    @Column(name = "file_count")
+    private Integer fileCount;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private DatasetStatus status;
@@ -169,6 +172,14 @@ public class DatasetEntity {
 
     public void setFileSize(Long fileSize) {
         this.fileSize = fileSize;
+    }
+
+    public Integer getFileCount() {
+        return fileCount;
+    }
+
+    public void setFileCount(Integer fileCount) {
+        this.fileCount = fileCount;
     }
 
     public DatasetStatus getStatus() {

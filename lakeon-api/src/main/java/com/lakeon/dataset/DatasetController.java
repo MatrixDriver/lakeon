@@ -74,6 +74,24 @@ public class DatasetController {
         return datasetService.listVersions(tenant.getId(), id);
     }
 
+    @PostMapping("/upload-urls")
+    @ResponseStatus(HttpStatus.CREATED)
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> uploadUrls(HttpServletRequest req, @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return datasetService.generateUploadUrls(tenant.getId(),
+            (String) body.get("name"),
+            (String) body.get("description"),
+            (List<String>) body.get("files"));
+    }
+
+    @PostMapping("/{id}/finalize")
+    public Map<String, Object> finalize(HttpServletRequest req, @PathVariable String id) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        DatasetEntity ds = datasetService.finalizeUpload(tenant.getId(), id);
+        return toResponse(ds);
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(HttpServletRequest req, @PathVariable String id) {
@@ -91,6 +109,7 @@ public class DatasetController {
         m.put("status", ds.getStatus().name());
         m.put("row_count", ds.getRowCount());
         m.put("file_size", ds.getFileSize());
+        m.put("file_count", ds.getFileCount());
         m.put("obs_path", ds.getObsPath());
         m.put("job_id", ds.getJobId());
         m.put("error", ds.getError());

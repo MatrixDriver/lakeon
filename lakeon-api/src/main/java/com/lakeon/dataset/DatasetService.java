@@ -23,8 +23,12 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -247,6 +251,7 @@ public class DatasetService {
         response.put("obs_path", dataset.getObsPath());
         response.put("row_count", dataset.getRowCount());
         response.put("file_size", dataset.getFileSize());
+        response.put("file_count", dataset.getFileCount());
         response.put("error", dataset.getError());
         response.put("created_at", dataset.getCreatedAt());
         response.put("updated_at", dataset.getUpdatedAt());
@@ -309,7 +314,132 @@ public class DatasetService {
         }).toList();
     }
 
+    /**
+     * Generate presigned upload URLs for a FILE_UPLOAD dataset.
+     */
+    @Transactional
+    public Map<String, Object> generateUploadUrls(String tenantId, String name, String description,
+                                                   List<String> files) {
+        if (name == null || name.isBlank()) {
+            throw new BadRequestException("Dataset name is required");
+        }
+        if (files == null || files.isEmpty()) {
+            throw new BadRequestException("At least one file path is required");
+        }
+        if (files.size() > 200) {
+            throw new BadRequestException("Maximum 200 files per upload");
+        }
+        for (String path : files) {
+            if (path.contains("..") || path.startsWith("/")) {
+                throw new BadRequestException("Invalid file path: " + path);
+            }
+        }
+
+        DatasetEntity entity = new DatasetEntity();
+        entity.setTenantId(tenantId);
+        entity.setName(name);
+        entity.setDescription(description);
+        entity.setSourceType(DatasetSourceType.FILE_UPLOAD);
+        entity.setStatus(DatasetStatus.DRAFT);
+        datasetRepository.save(entity);
+
+        String prefix = "datasets/" + tenantId + "/" + entity.getId() + "/";
+        entity.setObsPath(prefix);
+        datasetRepository.save(entity);
+
+        List<Map<String, Object>> uploads = new ArrayList<>();
+        try (S3Presigner presigner = buildPresigner()) {
+            for (String path : files) {
+                String obsKey = prefix + path;
+                PutObjectRequest putRequest = PutObjectRequest.builder()
+                        .bucket(props.getObs().getBucket())
+                        .key(obsKey)
+                        .build();
+                PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                        .signatureDuration(Duration.ofMinutes(60))
+                        .putObjectRequest(putRequest)
+                        .build();
+                String uploadUrl = presigner.presignPutObject(presignRequest).url().toString();
+
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("path", path);
+                entry.put("obs_key", obsKey);
+                entry.put("upload_url", uploadUrl);
+                entry.put("expires_in", 3600);
+                uploads.add(entry);
+            }
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("dataset_id", entity.getId());
+        result.put("uploads", uploads);
+        log.info("Generated {} upload URLs for dataset {} (tenant {})", files.size(), entity.getId(), tenantId);
+        return result;
+    }
+
+    /**
+     * Finalize a FILE_UPLOAD dataset after files have been uploaded to OBS.
+     */
+    @Transactional
+    public DatasetEntity finalizeUpload(String tenantId, String datasetId) {
+        DatasetEntity dataset = findDataset(tenantId, datasetId);
+        if (dataset.getSourceType() != DatasetSourceType.FILE_UPLOAD) {
+            throw new BadRequestException("Dataset is not a FILE_UPLOAD dataset");
+        }
+        if (dataset.getStatus() != DatasetStatus.DRAFT) {
+            throw new BadRequestException("Dataset must be in DRAFT status to finalize, current: " + dataset.getStatus());
+        }
+
+        String prefix = dataset.getObsPath();
+        int fileCount = 0;
+        long totalSize = 0;
+
+        try (S3Client s3 = buildS3Client()) {
+            ListObjectsV2Request listRequest = ListObjectsV2Request.builder()
+                    .bucket(props.getObs().getBucket())
+                    .prefix(prefix)
+                    .build();
+            var response = s3.listObjectsV2(listRequest);
+            for (S3Object obj : response.contents()) {
+                fileCount++;
+                totalSize += obj.size();
+            }
+        }
+
+        if (fileCount == 0) {
+            throw new BadRequestException("No files found under prefix: " + prefix);
+        }
+
+        dataset.setFileCount(fileCount);
+        dataset.setFileSize(totalSize);
+        dataset.setStatus(DatasetStatus.READY);
+        datasetRepository.save(dataset);
+
+        log.info("Finalized dataset {} with {} files, {} bytes", datasetId, fileCount, totalSize);
+        return dataset;
+    }
+
     // ─── Private helpers ────────────────────────────────────────────
+
+    private S3Presigner buildPresigner() {
+        return S3Presigner.builder()
+                .endpointOverride(URI.create(props.getObs().getEndpoint()))
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(props.getObs().getAccessKey(), props.getObs().getSecretKey())))
+                .region(Region.of(props.getObs().getRegion()))
+                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(false).build())
+                .build();
+    }
+
+    private S3Client buildS3Client() {
+        return S3Client.builder()
+                .endpointOverride(URI.create(props.getObs().getEndpoint()))
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(props.getObs().getAccessKey(), props.getObs().getSecretKey())))
+                .region(Region.of(props.getObs().getRegion()))
+                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(false).build())
+                .build();
+    }
 
     private String resolveSourceSql(String queryMode, List<Map<String, Object>> tables, String sql) {
         if ("TABLE_SELECT".equals(queryMode)) {
