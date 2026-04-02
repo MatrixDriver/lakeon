@@ -6,7 +6,9 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Entity
@@ -75,6 +77,13 @@ public class DocumentEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "tags", columnDefinition = "jsonb")
     private List<String> tags = new ArrayList<>();
+
+    @Column(name = "folder", length = 512)
+    private String folder = "";
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "metadata", columnDefinition = "jsonb")
+    private Map<String, String> metadata = new LinkedHashMap<>();
 
     @Column(name = "rechunk_started_at")
     private Instant rechunkStartedAt;
@@ -163,4 +172,10 @@ public class DocumentEntity {
 
     public Instant getObsLastModified() { return obsLastModified; }
     public void setObsLastModified(Instant obsLastModified) { this.obsLastModified = obsLastModified; }
+
+    public String getFolder() { return folder; }
+    public void setFolder(String folder) { this.folder = folder; }
+
+    public Map<String, String> getMetadata() { return metadata; }
+    public void setMetadata(Map<String, String> metadata) { this.metadata = metadata; }
 }

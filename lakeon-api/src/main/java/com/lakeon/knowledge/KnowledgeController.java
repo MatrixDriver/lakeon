@@ -395,6 +395,8 @@ public class KnowledgeController {
         map.put("chunks_count", doc.getChunksCount());
         map.put("job_id", doc.getJobId());
         map.put("tags", doc.getTags());
+        map.put("folder", doc.getFolder());
+        map.put("metadata", doc.getMetadata());
         map.put("error", doc.getError());
         map.put("created_at", doc.getCreatedAt() != null ? doc.getCreatedAt().toString() : null);
         map.put("updated_at", doc.getUpdatedAt() != null ? doc.getUpdatedAt().toString() : null);
