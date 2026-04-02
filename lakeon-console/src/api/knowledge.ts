@@ -39,6 +39,8 @@ export interface Document {
   progress_message?: string
   error: string | null
   tags: string[]
+  folder: string
+  metadata: Record<string, string>
   created_at: string
 }
 
@@ -55,6 +57,19 @@ export interface DocumentStats {
   ready: number
   failed: number
   pending: number
+}
+
+export interface Folder {
+  name: string
+  path: string
+  document_count: number
+  total_size: number
+}
+
+export function listFolders(kbId: string, parent: string = '') {
+  return api.get<Folder[]>('/knowledge/folders', {
+    params: { kb_id: kbId, parent }
+  })
 }
 
 export interface SearchResult {
@@ -105,6 +120,7 @@ export function listDocuments(kbId: string, params?: {
   status?: string
   sort_by?: string
   sort_order?: string
+  folder?: string
 }) {
   return api.get<DocumentListResponse>('/knowledge/documents', {
     params: { kb_id: kbId, ...params },

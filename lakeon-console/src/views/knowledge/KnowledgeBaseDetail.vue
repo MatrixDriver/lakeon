@@ -146,6 +146,36 @@
           </button>
         </template>
       </TableToolbar>
+      <!-- Breadcrumb navigation -->
+      <div v-if="currentFolder" style="margin-bottom: 12px; display: flex; align-items: center; gap: 4px; font-size: 14px;">
+        <span class="breadcrumb-link" @click="navigateToFolder('')">全部文档</span>
+        <template v-for="(segment, i) in folderPath" :key="i">
+          <span style="color: #999; margin: 0 2px;">/</span>
+          <span v-if="i < folderPath.length - 1" class="breadcrumb-link"
+                @click="navigateToFolder(folderPath.slice(0, i + 1).join('/'))">
+            {{ segment }}
+          </span>
+          <span v-else style="color: #333; font-weight: 500;">{{ segment }}</span>
+        </template>
+      </div>
+
+      <!-- Folder grid -->
+      <div v-if="folders.length > 0" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-bottom: 16px;">
+        <div v-for="folder in folders" :key="folder.path"
+             class="folder-card"
+             @click="navigateToFolder(folder.path)">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e6a23c" stroke-width="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span style="font-weight: 500; font-size: 14px;">{{ folder.name }}</span>
+          </div>
+          <div style="font-size: 12px; color: #999;">
+            {{ folder.document_count }} 个文档 · {{ formatSize(folder.total_size) }}
+          </div>
+        </div>
+      </div>
+
       <div v-if="filteredDocs.length > 0" class="table-wrapper">
         <table class="data-table">
           <thead>
@@ -462,7 +492,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getKnowledgeBase, deleteKnowledgeBase, listDocuments, getDocumentStats, deleteDocument, searchKnowledge, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, type KnowledgeBase as KBType, type Document, type DocumentStats, type SearchResult, type DataSource, type DataSourceCredentials } from '../../api/knowledge'
+import { getKnowledgeBase, deleteKnowledgeBase, listDocuments, listFolders, getDocumentStats, deleteDocument, searchKnowledge, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, type KnowledgeBase as KBType, type Document, type DocumentStats, type SearchResult, type DataSource, type DataSourceCredentials, type Folder } from '../../api/knowledge'
 import ChunkStats from '../../components/knowledge/ChunkStats.vue'
 import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
 import TableToolbar from '../../components/TableToolbar.vue'
@@ -501,6 +531,13 @@ const docSortBy = ref('upload_time')
 const docSortOrder = ref<'asc' | 'desc'>('desc')
 const docStats = ref<DocumentStats>({ total: 0, processing: 0, ready: 0, failed: 0, pending: 0 })
 const chatInput = ref<HTMLInputElement | null>(null)
+
+// Folder navigation
+const currentFolder = ref('')
+const folders = ref<Folder[]>([])
+const foldersLoading = ref(false)
+
+const folderPath = computed(() => currentFolder.value ? currentFolder.value.split('/') : [])
 
 const errorDetail = ref<{ open: boolean; filename: string; error: string }>({
   open: false, filename: '', error: ''
@@ -653,6 +690,7 @@ async function loadDocuments() {
       status: docStatusFilter.value,
       sort_by: docSortBy.value,
       sort_order: docSortOrder.value,
+      folder: currentFolder.value || undefined,
     })
     documents.value = resp.data.documents
     docTotal.value = resp.data.total
@@ -667,6 +705,24 @@ async function loadStats() {
     const resp = await getDocumentStats(kbId)
     docStats.value = resp.data
   } catch { /* ignore */ }
+}
+
+async function loadFolders() {
+  const kbId = route.params.kbId as string
+  foldersLoading.value = true
+  try {
+    const resp = await listFolders(kbId, currentFolder.value)
+    folders.value = resp.data
+  } finally {
+    foldersLoading.value = false
+  }
+}
+
+function navigateToFolder(path: string) {
+  currentFolder.value = path
+  docPage.value = 1
+  loadFolders()
+  loadDocuments()
 }
 
 function setStatusFilter(status: string | undefined) {
@@ -1034,6 +1090,7 @@ onMounted(async () => {
     getKnowledgeBase(kbId),
     loadDocuments(),
     loadStats(),
+    loadFolders(),
   ])
   kb.value = kbResp.data
   loadDataSources()
@@ -1320,5 +1377,24 @@ onMounted(async () => {
 .page-btn:disabled {
   color: #d9d9d9;
   cursor: not-allowed;
+}
+.folder-card {
+  padding: 12px 16px;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: #fafafa;
+}
+.folder-card:hover {
+  border-color: var(--color-primary, #e6a23c);
+  background: #fff7ed;
+}
+.breadcrumb-link {
+  cursor: pointer;
+  color: var(--color-primary, #e6a23c);
+}
+.breadcrumb-link:hover {
+  text-decoration: underline;
 }
 </style>
