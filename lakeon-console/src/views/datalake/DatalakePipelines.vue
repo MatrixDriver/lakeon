@@ -44,15 +44,32 @@
 
     <!-- Card view -->
     <div v-if="viewMode === 'card' && filteredPipelines.length > 0" class="card-grid">
-      <ResourceCard
+      <div
         v-for="p in filteredPipelines"
         :key="p.id"
-        :name="p.name"
-        :status="latestRunStatus(p.id)"
-        :statusLabel="latestRunStatusLabel(p.id)"
-        :meta="[p.data_type || '通用', `v${p.latest_version}`, formatTime(p.updated_at)]"
+        class="pipeline-card"
         @click="router.push(`/datalake/pipelines/${p.id}`)"
-      />
+      >
+        <div class="pipeline-card-body">
+          <div class="pipeline-card-name">{{ p.name }}</div>
+          <div class="pipeline-card-meta">
+            <span class="meta-tag">{{ p.data_type || '通用' }}</span>
+            <span class="meta-tag">v{{ p.latest_version }}</span>
+            <span class="meta-time">{{ formatTime(p.updated_at) }}</span>
+          </div>
+        </div>
+        <div class="pipeline-card-actions" @click.stop>
+          <button class="card-action-btn" title="编辑" @click="router.push(`/datalake/pipelines/${p.id}/edit`)">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11.5 1.5l3 3L5 14H2v-3z"/></svg>
+          </button>
+          <button class="card-action-btn run-btn" title="运行" @click="router.push(`/datalake/pipelines/${p.id}`)">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M4 2l10 6-10 6z"/></svg>
+          </button>
+          <button class="card-action-btn del-btn" title="删除" @click="handleDelete(p)">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M5 4V3h6v1M6 7v5M10 7v5M3 4l1 10h8l1-10"/></svg>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Table view -->
@@ -107,7 +124,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import ViewToggle from '@/components/ViewToggle.vue'
-import ResourceCard from '@/components/ResourceCard.vue'
 import { listPipelines, listTemplates, deletePipeline, type Pipeline } from '@/api/pipeline'
 
 const router = useRouter()
@@ -223,4 +239,27 @@ onMounted(loadData)
 .name-link:hover { text-decoration: underline; }
 .id-hint { font-size: 11px; color: #bbb; margin-top: 2px; }
 .type-tag { font-size: 11px; padding: 2px 8px; border-radius: 3px; background: #f5f3f0; color: #666; }
+
+/* Pipeline 卡片 */
+.pipeline-card {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #fff; border: 1px solid #e8e4df; border-radius: 8px;
+  padding: 14px 18px; cursor: pointer; transition: all 0.15s;
+}
+.pipeline-card:hover { border-color: #c5bfb5; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.pipeline-card-name { font-size: 14px; font-weight: 500; color: #2c3e50; }
+.pipeline-card-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.meta-tag { font-size: 11px; padding: 1px 7px; border-radius: 3px; background: #f5f3f0; color: #777; }
+.meta-time { font-size: 11px; color: #bbb; }
+
+.pipeline-card-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+.pipeline-card:hover .pipeline-card-actions { opacity: 1; }
+.card-action-btn {
+  width: 32px; height: 32px; border: 1px solid #e8e4df; border-radius: 6px;
+  background: #fff; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; color: #777; transition: all 0.12s;
+}
+.card-action-btn:hover { background: #f5f3f0; color: #2a4d6a; border-color: #c5bfb5; }
+.run-btn:hover { color: #16a34a; border-color: #86efac; background: #f0fdf4; }
+.del-btn:hover { color: #dc2626; border-color: #fca5a5; background: #fef2f2; }
 </style>
