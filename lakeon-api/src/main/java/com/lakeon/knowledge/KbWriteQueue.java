@@ -254,6 +254,7 @@ public class KbWriteQueue {
      * TRANSIENT errors retry immediately, RATE_LIMIT errors retry after a delay.
      */
     @SuppressWarnings("unchecked")
+    @org.springframework.transaction.annotation.Transactional
     public void onJobCompleted(String jobId, boolean success, String result, String error) {
         taskRepository.findByJobId(jobId).ifPresent(task -> {
             if (success) {
@@ -372,10 +373,7 @@ public class KbWriteQueue {
                     documentRepository.save(doc);
                     // Increment KB document count
                     if (doc.getKbId() != null) {
-                        knowledgeBaseRepository.findById(doc.getKbId()).ifPresent(kb -> {
-                            kb.setDocumentCount((kb.getDocumentCount() == null ? 0 : kb.getDocumentCount()) + 1);
-                            knowledgeBaseRepository.save(kb);
-                        });
+                        knowledgeBaseRepository.incrementDocumentCount(doc.getKbId(), 1);
                     }
                 } else {
                     doc.setStatus(DocumentStatus.FAILED);
@@ -436,10 +434,7 @@ public class KbWriteQueue {
                     if (chunks != null) doc.setChunksCount(chunks);
                     documentRepository.save(doc);
                     if (doc.getKbId() != null) {
-                        knowledgeBaseRepository.findById(doc.getKbId()).ifPresent(kb -> {
-                            kb.setDocumentCount((kb.getDocumentCount() == null ? 0 : kb.getDocumentCount()) + 1);
-                            knowledgeBaseRepository.save(kb);
-                        });
+                        knowledgeBaseRepository.incrementDocumentCount(doc.getKbId(), 1);
                     }
                 });
             }
