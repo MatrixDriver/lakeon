@@ -33,6 +33,10 @@ spec:
             limits:
               cpu: {{ .Values.embedding.cpu | default "2" | quote }}
               memory: {{ .Values.embedding.memory | default "4Gi" | quote }}
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /health
@@ -45,6 +49,10 @@ spec:
               port: 8000
             initialDelaySeconds: 120
             periodSeconds: 30
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
