@@ -104,7 +104,7 @@ import PipelineCustomEdge from './components/pipeline/PipelineCustomEdge.vue'
 
 import {
   getPipeline, getPipelineVersion, createPipeline, publishPipelineVersion,
-  listComponents, getComponentLatestVersion,
+  listComponents, getComponentVersions,
   type Pipeline, type PipelineComponent, type PipelineComponentVersion,
 } from '@/api/pipeline'
 import {
@@ -209,11 +209,14 @@ onMounted(async () => {
   try {
     const res = await listComponents()
     components.value = res.data
-    // 并行预加载所有组件的最新版本
+    // 并行预加载所有组件的最新版本（取版本列表的第一个，降序排列）
     await Promise.all(components.value.map(async (comp) => {
       try {
-        const vRes = await getComponentLatestVersion(comp.id)
-        componentVersions.value.set(comp.id, vRes.data)
+        const vRes = await getComponentVersions(comp.id)
+        const versions = vRes.data
+        if (versions && versions.length > 0) {
+          componentVersions.value.set(comp.id, versions[0]!)
+        }
       } catch { /* 忽略单个组件加载失败 */ }
     }))
   } catch (err) {

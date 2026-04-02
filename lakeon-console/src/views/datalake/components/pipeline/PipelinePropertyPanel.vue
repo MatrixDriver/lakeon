@@ -81,6 +81,19 @@
       </label>
     </div>
 
+    <!-- 输入/输出 -->
+    <div v-if="inputDesc || outputDesc" class="panel-section">
+      <div class="section-title">输入 / 输出</div>
+      <div v-if="inputDesc" class="io-block">
+        <span class="io-label io-in">输入</span>
+        <span class="io-text">{{ inputDesc }}</span>
+      </div>
+      <div v-if="outputDesc" class="io-block">
+        <span class="io-label io-out">输出</span>
+        <span class="io-text">{{ outputDesc }}</span>
+      </div>
+    </div>
+
     <!-- 输出分支 -->
     <div v-if="branches.length > 0" class="panel-section">
       <div class="section-title">输出分支</div>
@@ -144,6 +157,22 @@ const schemaFields = computed<SchemaField[]>(() => {
   }))
 })
 
+// 输入/输出描述
+function formatSchema(raw: string | null): string {
+  if (!raw) return ''
+  try {
+    const obj = JSON.parse(raw)
+    const parts: string[] = []
+    if (obj.type) parts.push(obj.type)
+    if (obj.format) parts.push(Array.isArray(obj.format) ? obj.format.join('/') : obj.format)
+    if (obj.description) parts.push(obj.description)
+    return parts.join(' — ') || raw
+  } catch { return raw }
+}
+
+const inputDesc = computed(() => formatSchema(matchedVersion.value?.input_schema ?? null))
+const outputDesc = computed(() => formatSchema(matchedVersion.value?.output_schema ?? null))
+
 // 输出分支也从版本读取
 const branches = computed(() => {
   const raw = matchedVersion.value?.output_branches ?? null
@@ -198,4 +227,10 @@ function toggleCheckpoint(checked: boolean) {
 .param-field { margin-bottom: 8px; }
 .branch-item { font-size: 12px; color: #666; padding: 2px 0; display: flex; align-items: center; gap: 6px; }
 .branch-dot { width: 6px; height: 6px; border-radius: 50%; background: #e8825a; }
+
+.io-block { padding: 6px 8px; background: #faf9f7; border-radius: 4px; margin-bottom: 6px; font-size: 12px; }
+.io-label { font-size: 10px; font-weight: 600; display: inline-block; margin-bottom: 2px; }
+.io-in { color: #1a6b3c; }
+.io-out { color: #1a5276; }
+.io-text { color: #555; display: block; }
 </style>
