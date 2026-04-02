@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html { background: #0F0F1A; }
+body {
+  width: 720pt; height: 405pt; margin: 0; padding: 0;
+  font-family: Arial, sans-serif; display: flex; flex-direction: column;
+  background-image: url('bg-path.png'); background-size: cover;
+}
+.header { margin: 30pt 40pt 0 40pt; }
+.header h1 { color: #FFFFFF; font-size: 22pt; margin: 0 0 4pt 0; }
+.header p { color: #4ECDC4; font-size: 11pt; margin: 0; }
+.body-content { margin: 18pt 40pt 0 40pt; flex: 1; display: flex; flex-direction: column; gap: 14pt; }
+.path-row { display: flex; gap: 14pt; }
+.phase {
+  flex: 1; background: #1E1E32; border-radius: 6pt; padding: 14pt 16pt;
+  border-top: 3pt solid #333350;
+}
+.phase-active { border-top-color: #4ECDC4; background: #152E2B; }
+.phase .num { color: #555570; font-size: 9pt; margin: 0 0 3pt 0; }
+.phase-active .num { color: #4ECDC4; }
+.phase h3 { color: #FFFFFF; font-size: 12pt; margin: 0 0 6pt 0; }
+.phase p { color: #AAAABC; font-size: 9pt; margin: 0 0 3pt 0; line-height: 1.4; }
+.phase .target { color: #4ECDC4; font-size: 8.5pt; margin: 4pt 0 0 0; }
+.bottom-section { display: flex; gap: 14pt; }
+.takeaway {
+  flex: 1.5; background: #152E2B; border: 1pt solid #2A5550;
+  border-radius: 6pt; padding: 14pt 18pt;
+}
+.takeaway h3 { color: #4ECDC4; font-size: 13pt; margin: 0 0 8pt 0; }
+.takeaway p { color: #CCDDDD; font-size: 10pt; margin: 0 0 5pt 0; line-height: 1.6; }
+.moat {
+  flex: 1; background: #1E1E32; border-radius: 6pt; padding: 14pt 16pt;
+}
+.moat h3 { color: #FF9F43; font-size: 12pt; margin: 0 0 8pt 0; }
+.moat p { color: #BBBBCC; font-size: 9pt; margin: 0 0 4pt 0; line-height: 1.4; }
+.footer { margin: 12pt 40pt 18pt 40pt; }
+.footer p { color: #555570; font-size: 9pt; margin: 0; text-align: center; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>价值路径：从个人切入，向企业扩展</h1>
+  <p>公有云优先，记忆即服务</p>
+</div>
+<div class="body-content">
+  <div class="path-row">
+    <div class="phase phase-active">
+      <p class="num">PHASE 1 — 切入点</p>
+      <h3>个人开发者记忆</h3>
+      <p>CC / OpenClaw 用户通过 MCP 接入</p>
+      <p>跨 Agent 记忆同步</p>
+      <p>替代本地 Markdown / SQLite</p>
+      <p class="target">目标：证明价值，获取用户</p>
+    </div>
+    <div class="phase">
+      <p class="num">PHASE 2 — 付费点</p>
+      <h3>团队共享记忆</h3>
+      <p>团队空间 + 权限管理</p>
+      <p>新人入职即获团队经验</p>
+      <p>知识传承，减少重复踩坑</p>
+      <p class="target">目标：团队订阅，持续付费</p>
+    </div>
+    <div class="phase">
+      <p class="num">PHASE 3 — 壁垒</p>
+      <h3>企业知识资产</h3>
+      <p>多类型 Agent 统一记忆池</p>
+      <p>安全合规（审计/擦除/加密）</p>
+      <p>私有部署 / VPC 内部署选项</p>
+      <p class="target">目标：企业级壁垒，不可替换</p>
+    </div>
+  </div>
+  <div class="bottom-section">
+    <div class="takeaway">
+      <h3>核心结论</h3>
+      <p>本地 Markdown 是 Agent 记忆的"单机时代"</p>
+      <p>企业需要的是"云时代"的记忆基础设施</p>
+      <p>非编程 Agent 的爆发将加速云记忆的需求</p>
+    </div>
+    <div class="moat">
+      <h3>为什么是公有云优先</h3>
+      <p>本地方案已有 CC / OpenClaw 免费提供</p>
+      <p>云端多 Agent 互通是本地不可能实现的</p>
+      <p>团队协作 + 安全合规 = 企业付费意愿</p>
+      <p>记忆数据积累越深，迁移成本越高</p>
+    </div>
+  </div>
+</div>
+<div class="footer">
+  <p>DBay · Memory as a Service for the Agent Era</p>
+</div>
+</body>
+</html>

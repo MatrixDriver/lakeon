@@ -1,0 +1,164 @@
+<h2>架构方案（基于视频 pipeline 用例修正）</h2>
+<p class="subtitle">核心挑战：fan-out（1→N 裂变）、条件分支、可暂停节点</p>
+
+<div class="section">
+  <h3 style="margin-bottom:8px;">验收用例的执行模型</h3>
+  <div style="background:#f5f5f5;border-radius:8px;padding:16px;font-family:monospace;font-size:13px;line-height:1.8;white-space:pre;">原始视频 (10min, 1个文件)
+  │
+  ▼ <span style="color:#1565c0;">【规整适配】</span> — 纯函数，内存传递
+  │
+  ▼ <span style="color:#1565c0;">【视频切片】</span> — <span style="color:#e65100;font-weight:bold;">fan-out: 1→42 clips</span>
+  │
+  ▼ ×42 并行 <span style="color:#1565c0;">【规则清洗】</span>
+  │   ├─ 通过 → 标记 PASS (4~5个)
+  │   ├─ 淘汰 → 标记 DROP
+  │   └─ 需裁剪 → <span style="color:#e65100;font-weight:bold;">条件分支</span>
+  │          ▼
+  │       <span style="color:#1565c0;">【裁剪处理】</span>
+  │          ├─ 裁剪后通过 → 标记 PASS
+  │          └─ 裁剪后淘汰 → 标记 DROP
+  │
+  ▼ <span style="color:#2e7d32;font-weight:bold;">fan-in: 合并所有 PASS clips</span>
+  │
+  ▼ 并行 <span style="color:#1565c0;">【模型清洗】</span> (VQA/水印/字幕/光流)
+  │
+  ▼ <span style="color:#1565c0;">【质检】</span> — <span style="color:#e65100;font-weight:bold;">可配置：模型自动 或 人工暂停</span>
+  │
+  ▼ <span style="color:#1565c0;">【内容标注】</span> (VICLIP/Caption/运镜)
+  │
+  ▼ <span style="color:#2e7d32;font-weight:bold;">发布 (3 clips, 留存 12.1%)</span></div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Ray DAG + 自研调度层</h3>
+      <p>lakeon-api 中实现轻量 DAG 调度器，负责 fan-out/条件分支/暂停恢复的编排逻辑；每个步骤的实际计算提交到 Ray 集群执行</p>
+
+      <table style="width:100%;font-size:13px;border-collapse:collapse;margin:8px 0;">
+        <tr style="border-bottom:1px solid #e0e0e0;">
+          <td style="padding:6px;font-weight:bold;width:120px;">调度器</td>
+          <td style="padding:6px;">lakeon-api（Java）管理 DAG 状态机，步骤间路由、fan-out/in、暂停</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e0e0e0;">
+          <td style="padding:6px;font-weight:bold;">计算执行</td>
+          <td style="padding:6px;">每个步骤是 Ray remote function，同一 Ray 集群内执行</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e0e0e0;">
+          <td style="padding:6px;font-weight:bold;">数据传递</td>
+          <td style="padding:6px;">步骤间 Ray object store（内存），checkpoint 节点写 OBS</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e0e0e0;">
+          <td style="padding:6px;font-weight:bold;">暂停恢复</td>
+          <td style="padding:6px;">调度器标记步骤为 WAITING_APPROVAL，Ray Job 结束释放资源；人工确认后启动新 Ray Job 从 checkpoint 恢复</td>
+        </tr>
+      </table>
+
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>优势</h4>
+          <ul>
+            <li>调度逻辑在 Java 侧，完全可控，fan-out/条件分支自由实现</li>
+            <li>暂停时释放 Ray 资源，不浪费算力</li>
+            <li>DAG 状态持久化在 RDS，天然可靠</li>
+            <li>实时 DAG 视图直接读 RDS 状态，无需适配 Ray Dashboard</li>
+            <li>复用现有 RayJobRunner</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>挑战</h4>
+          <ul>
+            <li>需要自研 DAG 状态机（中等工作量）</li>
+            <li>暂停恢复时需要从 OBS checkpoint 重建上下文</li>
+          </ul>
+        </div>
+      </div>
+      <p style="margin-top:12px;padding:8px 12px;background:#e8f5e9;border-radius:6px;font-size:14px;"><strong>推荐</strong> — 调度归 Java（可靠+可控），计算归 Ray（高性能），职责清晰</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>纯 Ray Workflow</h3>
+      <p>整条 pipeline 翻译为一个 Ray Workflow，所有编排逻辑（fan-out/条件/暂停）都在 Ray 内部处理</p>
+
+      <table style="width:100%;font-size:13px;border-collapse:collapse;margin:8px 0;">
+        <tr style="border-bottom:1px solid #e0e0e0;">
+          <td style="padding:6px;font-weight:bold;width:120px;">调度器</td>
+          <td style="padding:6px;">Ray Workflows（内置 DAG 编排）</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e0e0e0;">
+          <td style="padding:6px;font-weight:bold;">计算执行</td>
+          <td style="padding:6px;">Ray remote functions</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e0e0e0;">
+          <td style="padding:6px;font-weight:bold;">暂停恢复</td>
+          <td style="padding:6px;">Ray Workflow 原生支持，但 Ray 集群需保持运行</td>
+        </tr>
+      </table>
+
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>优势</h4>
+          <ul>
+            <li>内置断点续跑和重试</li>
+            <li>全程内存传递，无需手动管理 checkpoint</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>挑战</h4>
+          <ul>
+            <li>Ray Workflows API 仍为 alpha，生产风险高</li>
+            <li>暂停等待人工审核时 Ray 集群不能释放，浪费资源</li>
+            <li>fan-out 后的条件分支需要大量 Python 胶水代码</li>
+            <li>DAG 状态在 Ray 内部，前端实时视图需要额外适配</li>
+            <li>YAML → Ray Workflow 翻译复杂度高</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>每步独立 Ray Job</h3>
+      <p>每个 pipeline 步骤作为独立 Ray Job 提交，lakeon-api 管理步骤间的串联和数据流转</p>
+
+      <table style="width:100%;font-size:13px;border-collapse:collapse;margin:8px 0;">
+        <tr style="border-bottom:1px solid #e0e0e0;">
+          <td style="padding:6px;font-weight:bold;width:120px;">调度器</td>
+          <td style="padding:6px;">lakeon-api（Java）逐步提交</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e0e0e0;">
+          <td style="padding:6px;font-weight:bold;">计算执行</td>
+          <td style="padding:6px;">每步独立 Ray Job（独立集群生命周期）</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e0e0e0;">
+          <td style="padding:6px;font-weight:bold;">数据传递</td>
+          <td style="padding:6px;">步骤间必须走 OBS，无法内存传递</td>
+        </tr>
+      </table>
+
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>优势</h4>
+          <ul>
+            <li>最简单，完全复用现有 Job 基础设施</li>
+            <li>步骤间天然隔离，暂停恢复简单</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>挑战</h4>
+          <ul>
+            <li>每步启停 Ray 集群，开销大（与之前选 C 函数级的决策矛盾）</li>
+            <li>所有数据走 OBS，视频数据 IO 成为瓶颈</li>
+            <li>42 个 clips 并行 = 42 个 Ray Job？资源管理复杂</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

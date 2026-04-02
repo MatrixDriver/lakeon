@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; }
+  h2 { color: #fff; font-size: 22px; margin-bottom: 6px; }
+  .subtitle { color: #9e9eb8; font-size: 14px; margin-bottom: 24px; }
+  h3 { color: #fff; font-size: 16px; margin-bottom: 12px; }
+
+  .editor-frame {
+    background: #16213e;
+    border: 1px solid #2a2a4a;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .editor-titlebar {
+    background: #0f3460;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: #a8c8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .editor-body {
+    display: flex;
+    min-height: 520px;
+  }
+
+  /* 左栏 */
+  .comp-panel {
+    width: 200px;
+    background: #1a1a3e;
+    border-right: 1px solid #2a2a4a;
+    padding: 14px;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+  .comp-panel-title { font-weight: bold; font-size: 13px; color: #c0c0d8; margin-bottom: 10px; }
+  .comp-search {
+    width: 100%;
+    padding: 6px 8px;
+    background: #252550;
+    border: 1px solid #3a3a5a;
+    border-radius: 4px;
+    color: #ccc;
+    font-size: 12px;
+    margin-bottom: 12px;
+    outline: none;
+  }
+  .comp-group { color: #7878a0; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin: 10px 0 6px; }
+  .comp-item {
+    padding: 6px 8px;
+    border-radius: 5px;
+    margin-bottom: 3px;
+    font-size: 12px;
+    cursor: grab;
+    transition: background 0.15s;
+  }
+  .comp-item:hover { filter: brightness(1.2); }
+  .comp-prep { background: #1e3a5f; color: #90caf9; }
+  .comp-extract { background: #1b4332; color: #a5d6a7; }
+  .comp-filter { background: #4e342e; color: #ffcc80; }
+  .comp-qc { background: #3e2a5e; color: #ce93d8; }
+  .comp-label { background: #1a4040; color: #80cbc4; }
+  .comp-output { background: #3e2723; color: #bcaaa4; }
+  .comp-util { background: #252540; color: #9e9eb8; border: 1px dashed #4a4a6a; }
+
+  /* 中央画布 */
+  .canvas {
+    flex: 1;
+    position: relative;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(15,52,96,0.3) 0%, transparent 70%),
+      linear-gradient(rgba(42,42,74,0.3) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(42,42,74,0.3) 1px, transparent 1px);
+    background-size: 100% 100%, 20px 20px, 20px 20px;
+  }
+  .canvas-toolbar {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    justify-content: space-between;
+    z-index: 10;
+  }
+  .toolbar-btn {
+    padding: 4px 10px;
+    background: #252550;
+    border: 1px solid #3a3a5a;
+    border-radius: 4px;
+    color: #b0b0c8;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .toolbar-btn:hover { background: #303060; }
+
+  /* DAG 节点 */
+  .dag-node {
+    position: absolute;
+    padding: 10px 14px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    min-width: 120px;
+    transition: box-shadow 0.2s;
+  }
+  .dag-node:hover { box-shadow: 0 0 16px rgba(100,181,246,0.3); }
+  .dag-node .version { font-size: 10px; font-weight: normal; opacity: 0.7; margin-top: 2px; }
+
+  .node-prep { background: #1e3a5f; border: 2px solid #42a5f5; color: #bbdefb; }
+  .node-extract { background: #1b4332; border: 2px solid #66bb6a; color: #c8e6c9; }
+  .node-filter { background: #4e342e; border: 2px solid #ffa726; color: #ffe0b2; }
+  .node-branch-pass { background: #1b4332; border: 1px solid #81c784; color: #a5d6a7; font-size: 11px; min-width: 100px; }
+  .node-branch-crop { background: #4e342e; border: 1px solid #ffb74d; color: #ffcc80; font-size: 11px; min-width: 100px; }
+  .node-merge { background: #263238; border: 2px solid #78909c; color: #b0bec5; border-radius: 20px; min-width: 80px; }
+  .node-qc { background: #3e2a5e; border: 2px solid #ab47bc; color: #e1bee7; }
+  .node-label { background: #1a4040; border: 2px solid #26a69a; color: #b2dfdb; }
+  .node-output { background: #3e2723; border: 2px solid #8d6e63; color: #d7ccc8; }
+
+  /* 右栏 */
+  .prop-panel {
+    width: 250px;
+    background: #1a1a3e;
+    border-left: 1px solid #2a2a4a;
+    padding: 16px;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+  .prop-title { font-weight: bold; font-size: 14px; color: #fff; margin-bottom: 14px; }
+  .prop-section { color: #7878a0; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin: 14px 0 8px; }
+  .prop-field { margin-bottom: 10px; }
+  .prop-label { font-size: 11px; color: #9898b8; margin-bottom: 3px; }
+  .prop-input {
+    width: 100%;
+    padding: 6px 8px;
+    background: #252550;
+    border: 1px solid #3a3a5a;
+    border-radius: 4px;
+    color: #e0e0e0;
+    font-size: 12px;
+    outline: none;
+  }
+  .prop-select {
+    width: 100%;
+    padding: 6px 8px;
+    background: #252550;
+    border: 1px solid #3a3a5a;
+    border-radius: 4px;
+    color: #e0e0e0;
+    font-size: 12px;
+  }
+  .prop-branch { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-bottom: 4px; }
+  .branch-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .prop-checkbox { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-top: 8px; }
+  .prop-hint { font-size: 11px; color: #6868888; margin-top: 4px; }
+
+  /* 说明区 */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 24px;
+  }
+  .info-card {
+    background: #16213e;
+    border: 1px solid #2a2a4a;
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .info-card h4 { color: #a8c8f0; font-size: 13px; margin-bottom: 8px; }
+  .info-card ul { padding-left: 16px; font-size: 12px; line-height: 1.9; color: #b8b8d0; }
+</style>
+</head>
+<body>
+
+<h2>DAG 编辑器交互设计</h2>
+<p class="subtitle">Pipeline 创建/编辑的核心界面</p>
+
+<div class="editor-frame">
+  <div class="editor-titlebar">
+    <span>Pipeline 编辑器 — 视频数据清洗流水线 v1</span>
+    <div style="display:flex;gap:8px;">
+      <span class="toolbar-btn">保存草稿</span>
+      <span class="toolbar-btn" style="background:#1b5e20;border-color:#2e7d32;color:#a5d6a7;">发布版本</span>
+    </div>
+  </div>
+  <div class="editor-body">
+
+    <!-- 左栏 -->
+    <div class="comp-panel">
+      <div class="comp-panel-title">组件库</div>
+      <input class="comp-search" placeholder="搜索组件...">
+
+      <div class="comp-group">数据准备</div>
+      <div class="comp-item comp-prep">📥 规整适配</div>
+
+      <div class="comp-group">提取</div>
+      <div class="comp-item comp-extract">✂️ 视频镜头切分</div>
+
+      <div class="comp-group">清洗 / 过滤</div>
+      <div class="comp-item comp-filter">📏 规则清洗</div>
+      <div class="comp-item comp-filter">🤖 模型清洗</div>
+      <div class="comp-item comp-filter">✂️ 视频裁剪</div>
+
+      <div class="comp-group">质检</div>
+      <div class="comp-item comp-qc">👁️ 质量检查</div>
+
+      <div class="comp-group">标注</div>
+      <div class="comp-item comp-label">🏷️ 内容标注</div>
+
+      <div class="comp-group">输出</div>
+      <div class="comp-item comp-output">📦 数据集发布</div>
+
+      <div class="comp-group">通用</div>
+      <div class="comp-item comp-util">🔀 合并节点</div>
+
+      <div style="border-top:1px solid #2a2a4a;margin-top:14px;padding-top:12px;">
+        <div class="comp-group" style="margin-top:0;">租户自定义</div>
+        <div style="padding:8px;border:1px dashed #3a3a5a;border-radius:4px;font-size:11px;color:#5a5a7a;text-align:center;">
+          拖入 .py 文件注册
+        </div>
+      </div>
+    </div>
+
+    <!-- 中央画布 -->
+    <div class="canvas">
+      <div class="canvas-toolbar">
+        <div style="display:flex;gap:6px;">
+          <span class="toolbar-btn">↩ 撤销</span>
+          <span class="toolbar-btn">↪ 重做</span>
+          <span class="toolbar-btn">⊞ 适配</span>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <span class="toolbar-btn">{ } YAML</span>
+          <span class="toolbar-btn">📋 从模板</span>
+        </div>
+      </div>
+
+      <!-- 连线 SVG -->
+      <svg style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;">
+        <defs>
+          <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#546e7a"/></marker>
+          <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#66bb6a"/></marker>
+          <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#ffb74d"/></marker>
+        </defs>
+        <!-- normalize → scene_split -->
+        <line x1="310" y1="75" x2="310" y2="108" stroke="#546e7a" stroke-width="2" marker-end="url(#a1)"/>
+        <!-- scene_split → rule_filter -->
+        <line x1="310" y1="148" x2="310" y2="182" stroke="#546e7a" stroke-width="2" marker-end="url(#a1)"/>
+        <!-- rule_filter → passed -->
+        <path d="M270 222 Q200 250 215 278" stroke="#66bb6a" stroke-width="2" fill="none" marker-end="url(#a2)"/>
+        <!-- rule_filter → crop -->
+        <path d="M350 222 Q420 250 405 278" stroke="#ffb74d" stroke-width="2" fill="none" marker-end="url(#a3)"/>
+        <!-- passed → merge -->
+        <path d="M215 308 Q215 340 290 348" stroke="#546e7a" stroke-width="2" fill="none" marker-end="url(#a1)"/>
+        <!-- crop → merge -->
+        <path d="M405 308 Q405 340 330 348" stroke="#546e7a" stroke-width="2" fill="none" marker-end="url(#a1)"/>
+        <!-- merge → model_filter -->
+        <line x1="310" y1="378" x2="310" y2="408" stroke="#546e7a" stroke-width="2" marker-end="url(#a1)"/>
+        <!-- model_filter → qc -->
+        <line x1="310" y1="448" x2="310" y2="478" stroke="#546e7a" stroke-width="2" marker-end="url(#a1)"/>
+      </svg>
+
+      <!-- 节点 -->
+      <div class="dag-node node-prep" style="top:46px;left:250px;">
+        📥 规整适配
+        <div class="version">v1</div>
+      </div>
+      <div class="dag-node node-extract" style="top:115px;left:250px;">
+        ✂️ 镜头切分
+        <div class="version">fan-out · v1</div>
+      </div>
+      <div class="dag-node node-filter" style="top:188px;left:250px;box-shadow:0 0 12px rgba(255,167,38,0.4);">
+        📏 规则清洗
+        <div class="version">条件分支 · v1</div>
+      </div>
+      <div class="dag-node node-branch-pass" style="top:280px;left:165px;">
+        ✅ passed
+      </div>
+      <div class="dag-node node-branch-crop" style="top:280px;left:355px;">
+        ✂️ 裁剪处理
+      </div>
+      <div class="dag-node node-merge" style="top:350px;left:272px;">
+        🔀 合并
+      </div>
+      <div class="dag-node node-filter" style="top:414px;left:250px;border-color:#78909c;">
+        🤖 模型清洗
+        <div class="version">mock · v1</div>
+      </div>
+      <div class="dag-node node-qc" style="top:484px;left:250px;">
+        👁️ 质检
+        <div class="version">可暂停 · v1</div>
+      </div>
+    </div>
+
+    <!-- 右栏 -->
+    <div class="prop-panel">
+      <div class="prop-title">📏 规则清洗 · 属性</div>
+
+      <div class="prop-field">
+        <div class="prop-label">组件版本</div>
+        <select class="prop-select">
+          <option>v1 (最新)</option>
+        </select>
+      </div>
+
+      <div class="prop-section">过滤参数</div>
+
+      <div class="prop-field">
+        <div class="prop-label">最小时长 (秒)</div>
+        <input class="prop-input" value="3">
+      </div>
+      <div class="prop-field">
+        <div class="prop-label">最小分辨率 (P)</div>
+        <input class="prop-input" value="480">
+      </div>
+      <div class="prop-field">
+        <div class="prop-label">最大长宽比</div>
+        <input class="prop-input" value="2">
+      </div>
+      <div class="prop-field">
+        <div class="prop-label">最小帧率 (fps)</div>
+        <input class="prop-input" value="20">
+      </div>
+      <div class="prop-field">
+        <div class="prop-label">最小裁剪面积</div>
+        <input class="prop-input" value="5">
+      </div>
+
+      <div class="prop-section">输出分支</div>
+      <div class="prop-branch"><span class="branch-dot" style="background:#81c784;"></span> passed → 合并</div>
+      <div class="prop-branch"><span class="branch-dot" style="background:#ffb74d;"></span> needs_crop → 裁剪</div>
+      <div class="prop-branch"><span class="branch-dot" style="background:#e57373;"></span> dropped → 终止</div>
+
+      <div style="border-top:1px solid #2a2a4a;margin-top:16px;padding-top:12px;">
+        <div class="prop-checkbox">
+          <input type="checkbox" id="ckpt" style="accent-color:#ab47bc;">
+          <label for="ckpt">设为 Checkpoint</label>
+        </div>
+        <div class="prop-hint" style="color:#7878a0;">中间结果持久化到 OBS，支持数据预览</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<h3>交互说明</h3>
+<div class="info-grid">
+  <div class="info-card">
+    <h4>左栏 · 组件面板</h4>
+    <ul>
+      <li>按 category 分组展示</li>
+      <li>支持搜索过滤</li>
+      <li>拖拽到画布添加节点</li>
+      <li>区分平台内置 / 租户自定义</li>
+    </ul>
+  </div>
+  <div class="info-card">
+    <h4>中央 · DAG 画布</h4>
+    <ul>
+      <li>节点间拖拽连线</li>
+      <li>自动校验输入输出类型兼容性</li>
+      <li>fan-out / fan-in / 条件分支可视化</li>
+      <li>缩放、平移、自动布局</li>
+    </ul>
+  </div>
+  <div class="info-card">
+    <h4>右栏 · 属性面板</h4>
+    <ul>
+      <li>点击节点显示参数配置</li>
+      <li>根据 params_schema 自动渲染表单</li>
+      <li>输出分支连线管理</li>
+      <li>Checkpoint 开关</li>
+    </ul>
+  </div>
+  <div class="info-card">
+    <h4>工具栏</h4>
+    <ul>
+      <li>撤销 / 重做</li>
+      <li>切换 YAML 视图（双向同步）</li>
+      <li>从模板创建</li>
+      <li>保存草稿 / 发布版本</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>

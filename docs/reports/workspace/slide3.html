@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html { background: #ffffff; }
+body {
+  width: 720pt; height: 405pt; margin: 0; padding: 0;
+  font-family: Arial, sans-serif;
+  display: flex;
+  background: #ffffff;
+  color: #333333;
+}
+.main {
+  margin: 18pt 28pt 10pt 28pt;
+  display: flex;
+  flex-direction: column;
+  width: 664pt;
+}
+.accent-bar { height: 3pt; background: #2c5f8a; margin-bottom: 12pt; }
+.content-row { display: flex; gap: 16pt; flex: 1; }
+.col-left { width: 330pt; }
+.col-right { width: 318pt; }
+.rule-card {
+  background: #f8f8f8;
+  border-radius: 3pt;
+  padding: 6pt 9pt;
+  margin-bottom: 5pt;
+}
+</style>
+</head>
+<body>
+<div class="main">
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 5pt;">
+    <h1 style="font-size: 18pt; color: #1a1a1a; margin: 0;">后续建议</h1>
+    <p style="font-size: 8pt; color: #999999; margin: 0;">DBay 数据港湾 | 2026.03</p>
+  </div>
+  <div class="accent-bar"></div>
+
+  <div class="content-row">
+    <div class="col-left">
+      <h3 style="font-size: 9.5pt; color: #1a1a1a; margin: 0 0 6pt 0;">AI 开发规范 — 需补齐六项</h3>
+
+      <div class="rule-card">
+        <h4 style="font-size: 8pt; color: #2c5f8a; margin: 0 0 2pt 0;">1. AI 代码 Review 标准</h4>
+        <p style="font-size: 6.5pt; color: #555; margin: 0;">明确 AI 代码 review 流程差异，谁来 review、用什么标准</p>
+      </div>
+      <div class="rule-card">
+        <h4 style="font-size: 8pt; color: #2c5f8a; margin: 0 0 2pt 0;">2. 安全审计流程</h4>
+        <p style="font-size: 6.5pt; color: #555; margin: 0;">建立 AI 代码安全扫描和审计机制</p>
+      </div>
+      <div class="rule-card">
+        <h4 style="font-size: 8pt; color: #2c5f8a; margin: 0 0 2pt 0;">3. 可维护性评估</h4>
+        <p style="font-size: 6.5pt; color: #555; margin: 0;">AI 代码可读性、文档化要求和维护性标准</p>
+      </div>
+      <div class="rule-card">
+        <h4 style="font-size: 8pt; color: #2c5f8a; margin: 0 0 2pt 0;">4. 性能基准</h4>
+        <p style="font-size: 6.5pt; color: #555; margin: 0;">建立性能测试基准和回归机制</p>
+      </div>
+      <div class="rule-card">
+        <h4 style="font-size: 8pt; color: #2c5f8a; margin: 0 0 2pt 0;">5. 容灾测试</h4>
+        <p style="font-size: 6.5pt; color: #555; margin: 0;">故障转移、数据恢复需经过完整容灾演练</p>
+      </div>
+      <div class="rule-card">
+        <h4 style="font-size: 8pt; color: #2c5f8a; margin: 0 0 2pt 0;">6. CI/CD 集成</h4>
+        <p style="font-size: 6.5pt; color: #555; margin: 0;">将 AI 质量门禁纳入流水线</p>
+      </div>
+    </div>
+
+    <div class="col-right">
+      <h3 style="font-size: 9.5pt; color: #1a1a1a; margin: 0 0 6pt 0;">团队引入策略</h3>
+
+      <div style="margin-bottom: 6pt;">
+        <h4 style="font-size: 8pt; color: #2c5f8a; margin: 0 0 3pt 0;">预期收益 (效率倍数)</h4>
+        <div id="roi-chart" class="placeholder" style="width: 318pt; height: 68pt; background: #f8f8f8;"></div>
+      </div>
+
+      <div style="margin-bottom: 6pt;">
+        <h4 style="font-size: 8pt; color: #2c5f8a; margin: 0 0 3pt 0;">三步引入 ($200/人/月)</h4>
+        <ul style="margin: 0; padding-left: 11pt; font-size: 7pt; line-height: 1.6; color: #444;">
+          <li><b>Step 1:</b> 赋能资深工程师，沉淀 Skill 和规范</li>
+          <li><b>Step 2:</b> Skill 共享降低门槛，团队复用 AI 技能</li>
+          <li><b>Step 3:</b> 建立 AI 开发规范 (Review + 安全 + E2E + 部署)</li>
+        </ul>
+      </div>
+
+      <div style="margin-bottom: 6pt;">
+        <h4 style="font-size: 8pt; color: #2c5f8a; margin: 0 0 3pt 0;">AI-Native 团队 (3-5 人)</h4>
+        <ul style="margin: 0; padding-left: 11pt; font-size: 7pt; line-height: 1.6; color: #444;">
+          <li>产品架构师 x1 (PM + 架构 + AI 驾驭)</li>
+          <li>全栈工程师 x1-2 (前后端 + AI pair)</li>
+          <li>质量/安全工程师 x1 (审计 + 门禁)</li>
+          <li>平台工程师 x0-1 (基建 + SRE)</li>
+        </ul>
+      </div>
+
+      <div style="background: #f0f4f8; border-radius: 4pt; padding: 8pt 10pt;">
+        <p style="font-size: 7.5pt; color: #2c5f8a; margin: 0; text-align: center;"><b>AI 是能力放大器</b> | 架构师 + AI >> 初级工程师 + AI</p>
+        <p style="font-size: 6.5pt; color: #555; margin: 2pt 0 0 0; text-align: center;">投资 AI 工具的同时，要投资人的判断力</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

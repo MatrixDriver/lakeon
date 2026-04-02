@@ -1,0 +1,135 @@
+<h2>完整设计方案</h2>
+<p class="subtitle">知识库文档列表页改进 — 最终方案确认</p>
+
+<div class="section">
+  <h3>1. 进度卡片（单卡片双行）</h3>
+  <div class="mockup">
+    <div class="mockup-header">进度卡片 — 上传进行中</div>
+    <div class="mockup-body" style="padding: 16px; background: #fafafa;">
+      <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 14px 18px;">
+        <!-- Upload row -->
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+          <span style="font-size: 12px; color: #666; width: 56px; flex-shrink: 0;">上传</span>
+          <div style="flex: 1; height: 6px; background: #f0f0f0; border-radius: 3px;">
+            <div style="width: 32%; height: 100%; background: #1890ff; border-radius: 3px; transition: width 0.3s;"></div>
+          </div>
+          <span style="font-size: 13px; color: #333; min-width: 75px; text-align: right;">860/2673</span>
+          <span style="font-size: 11px; color: #999; min-width: 160px;">12.3 MB/s · 预计还需 4 分钟</span>
+        </div>
+        <!-- Process row -->
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 12px; color: #666; width: 56px; flex-shrink: 0;">处理</span>
+          <div style="flex: 1; height: 6px; background: #f0f0f0; border-radius: 3px;">
+            <div style="width: 19%; height: 100%; background: #52c41a; border-radius: 3px; transition: width 0.3s;"></div>
+          </div>
+          <span style="font-size: 13px; color: #333; min-width: 75px; text-align: right;">160/840 (19%)</span>
+          <span style="font-size: 11px; color: #999; min-width: 160px;">~3.2 文档/分 · <span style="color: #e6393d;">8 失败</span></span>
+        </div>
+        <!-- Expandable detail -->
+        <div style="font-size: 11px; color: #999; margin-top: 8px; padding-left: 66px; cursor: pointer;">
+          ▸ 排队 668 · 解析中 4 · 已完成 160 · 失败 8
+        </div>
+      </div>
+      <div style="font-size: 11px; color: #bbb; margin-top: 8px; text-align: center;">
+        上传完成且无处理中文档时，卡片自动隐藏
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>2. 状态筛选 Tab + 分页</h3>
+  <div class="mockup">
+    <div class="mockup-header">文件列表 — 带筛选和分页</div>
+    <div class="mockup-body" style="padding: 16px; background: #fafafa;">
+      <!-- Filter tabs -->
+      <div style="display: flex; gap: 0; margin-bottom: 14px; border-bottom: 1px solid #e8e8e8;">
+        <div style="padding: 8px 16px; font-size: 13px; color: #1890ff; border-bottom: 2px solid #1890ff; font-weight: 500;">全部 (840)</div>
+        <div style="padding: 8px 16px; font-size: 13px; color: #666;">处理中 (668)</div>
+        <div style="padding: 8px 16px; font-size: 13px; color: #666;">已就绪 (160)</div>
+        <div style="padding: 8px 16px; font-size: 13px; color: #666;">失败 (8)</div>
+        <div style="flex: 1;"></div>
+        <div style="padding: 8px 0; font-size: 12px; color: #999;">共 840 条</div>
+      </div>
+      <!-- Search + actions -->
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+        <div style="flex: 1; border: 1px solid #d9d9d9; border-radius: 4px; padding: 5px 10px; font-size: 12px; color: #bbb;">搜索文件名</div>
+        <div style="font-size: 11px; color: #e6393d; border: 1px solid #e6393d; padding: 4px 10px; border-radius: 4px;">清空文档</div>
+      </div>
+      <!-- Table header with sortable columns -->
+      <div style="display: flex; border-bottom: 1px solid #e8e8e8; padding: 6px 0; font-size: 12px; color: #999; font-weight: 500;">
+        <div style="width: 30px; text-align: center;">☐</div>
+        <div style="flex: 2;">文件名</div>
+        <div style="width: 60px;">格式</div>
+        <div style="width: 70px; cursor: pointer;">大小 ↕</div>
+        <div style="width: 70px; cursor: pointer;">Chunks ↕</div>
+        <div style="width: 80px; cursor: pointer;">状态 ↕</div>
+        <div style="width: 120px; cursor: pointer;">上传时间 ↓</div>
+        <div style="width: 50px;">操作</div>
+      </div>
+      <!-- Sample rows -->
+      <div style="display: flex; border-bottom: 1px solid #f5f5f5; padding: 8px 0; font-size: 12px; color: #333;">
+        <div style="width: 30px; text-align: center;">☐</div>
+        <div style="flex: 2;">069 莲香.html</div>
+        <div style="width: 60px;"><span style="background: #e6f4ff; color: #1890ff; padding: 1px 6px; border-radius: 3px; font-size: 11px;">HTML</span></div>
+        <div style="width: 70px; color: #999;">–</div>
+        <div style="width: 70px; color: #999;">–</div>
+        <div style="width: 80px;"><span style="color: #1890ff;">● 处理中</span></div>
+        <div style="width: 120px; color: #999;">2026/4/1 12:16</div>
+        <div style="width: 50px; color: #1890ff;">删除</div>
+      </div>
+      <div style="display: flex; border-bottom: 1px solid #f5f5f5; padding: 8px 0; font-size: 12px; color: #333;">
+        <div style="width: 30px; text-align: center;">☐</div>
+        <div style="flex: 2;">001 白花蛇舌草.html</div>
+        <div style="width: 60px;"><span style="background: #e6f4ff; color: #1890ff; padding: 1px 6px; border-radius: 3px; font-size: 11px;">HTML</span></div>
+        <div style="width: 70px; color: #999;">24 KB</div>
+        <div style="width: 70px;">12</div>
+        <div style="width: 80px;"><span style="color: #52c41a;">● 已就绪</span></div>
+        <div style="width: 120px; color: #999;">2026/4/1 12:10</div>
+        <div style="width: 50px; color: #1890ff;">删除</div>
+      </div>
+      <div style="display: flex; border-bottom: 1px solid #f5f5f5; padding: 8px 0; font-size: 12px; color: #333; background: #fff8f8;">
+        <div style="width: 30px; text-align: center;">☐</div>
+        <div style="flex: 2;">corrupted.pdf</div>
+        <div style="width: 60px;"><span style="background: #fff0f0; color: #e6393d; padding: 1px 6px; border-radius: 3px; font-size: 11px;">PDF</span></div>
+        <div style="width: 70px; color: #999;">1.2 MB</div>
+        <div style="width: 70px; color: #999;">–</div>
+        <div style="width: 80px;"><span style="color: #e6393d;">● 失败</span></div>
+        <div style="width: 120px; color: #999;">2026/4/1 12:08</div>
+        <div style="width: 50px; color: #1890ff;">删除</div>
+      </div>
+      <!-- Pagination -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 12px; color: #999;">
+        <div>每页 50 条</div>
+        <div style="display: flex; gap: 4px; align-items: center;">
+          <span style="padding: 3px 8px; border: 1px solid #d9d9d9; border-radius: 3px; color: #bbb;">‹</span>
+          <span style="padding: 3px 8px; background: #1890ff; color: #fff; border-radius: 3px;">1</span>
+          <span style="padding: 3px 8px; border: 1px solid #d9d9d9; border-radius: 3px;">2</span>
+          <span style="padding: 3px 8px; border: 1px solid #d9d9d9; border-radius: 3px;">3</span>
+          <span style="padding: 3px 8px; color: #999;">...</span>
+          <span style="padding: 3px 8px; border: 1px solid #d9d9d9; border-radius: 3px;">17</span>
+          <span style="padding: 3px 8px; border: 1px solid #d9d9d9; border-radius: 3px;">›</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>设计要点</h3>
+  <div style="font-size: 13px; color: #555; line-height: 1.8;">
+    <p><strong>前端改动：</strong></p>
+    <ul>
+      <li>进度卡片：追踪上传字节数计算速率，轮询后端获取处理阶段统计</li>
+      <li>状态Tab：切换时带 status 参数请求后端，仅加载对应状态的文档</li>
+      <li>分页：底部页码组件，每页50条，参数传给后端 API</li>
+      <li>排序：点击表头切换 sort_by + sort_order 参数</li>
+    </ul>
+    <p><strong>后端改动：</strong></p>
+    <ul>
+      <li>GET /knowledge/documents 增加 page, page_size, status, sort_by, sort_order 参数</li>
+      <li>返回增加 total_count 字段</li>
+      <li>新增 GET /knowledge/documents/stats 返回各状态计数 + 处理速率</li>
+    </ul>
+  </div>
+</div>

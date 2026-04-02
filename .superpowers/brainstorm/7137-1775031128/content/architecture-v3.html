@@ -1,0 +1,135 @@
+<h2>数据生产线架构方案对比</h2>
+<p class="subtitle">核心挑战：fan-out（1→N）、条件分支、可暂停节点</p>
+
+<div class="section">
+  <h3>视频 Pipeline 验收用例的执行流</h3>
+  <div style="background:#1a1a2e;color:#e0e0e0;border-radius:10px;padding:24px;font-family:'SF Mono',Menlo,monospace;font-size:14px;line-height:2.2;overflow-x:auto;">
+    <div>📹 原始视频 (10min, 1个文件)</div>
+    <div style="color:#64b5f6;">  ↓ 【规整适配】纯函数，内存传递</div>
+    <div style="color:#64b5f6;">  ↓ 【视频切片】<span style="color:#ff8a65;font-weight:bold;">fan-out: 1 → 42 clips</span></div>
+    <div style="color:#64b5f6;">  ↓ ×42 并行【规则清洗】</div>
+    <div style="padding-left:40px;">
+      <span style="color:#81c784;">✓ 通过 → PASS (4~5个)</span><br>
+      <span style="color:#e57373;">✗ 淘汰 → DROP</span><br>
+      <span style="color:#ffb74d;">⚡ 需裁剪 → 【裁剪】→ PASS 或 DROP</span>
+    </div>
+    <div style="color:#ce93d8;">  ↓ fan-in: 合并所有 PASS clips</div>
+    <div style="color:#64b5f6;">  ↓ 并行【模型清洗】VQA / 水印 / 字幕 / 光流</div>
+    <div style="color:#ffb74d;">  ↓ 【质检】可配置：模型自动 or 人工暂停</div>
+    <div style="color:#64b5f6;">  ↓ 【内容标注】VICLIP / Caption / 运镜</div>
+    <div style="color:#81c784;font-weight:bold;">  ↓ 发布 (3 clips, 留存 12.1%)</div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Ray DAG + 自研调度层 ✦ 推荐</h3>
+      <p style="font-size:15px;line-height:1.6;margin-bottom:16px;">
+        <strong>Java 管编排，Ray 管计算。</strong><br>
+        lakeon-api 中实现轻量 DAG 调度器，负责步骤路由、fan-out/in、条件分支、暂停恢复。<br>
+        每组连续的计算步骤打包为一个 Ray Job 提交执行。
+      </p>
+
+      <table style="width:100%;font-size:14px;border-collapse:separate;border-spacing:0;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;">
+        <tr style="background:#f8f9fa;">
+          <td style="padding:10px 14px;font-weight:bold;width:100px;border-bottom:1px solid #e0e0e0;">调度器</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e0e0e0;">lakeon-api (Java) — DAG 状态机，持久化在 RDS</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;font-weight:bold;border-bottom:1px solid #e0e0e0;">计算</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e0e0e0;">Ray remote functions，同一集群内存传递</td>
+        </tr>
+        <tr style="background:#f8f9fa;">
+          <td style="padding:10px 14px;font-weight:bold;border-bottom:1px solid #e0e0e0;">数据流</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #e0e0e0;">步骤间 Ray object store；checkpoint 写 OBS</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;font-weight:bold;">暂停</td>
+          <td style="padding:10px 14px;">标记 WAITING → 释放 Ray 资源 → 确认后新 Ray Job 从 OBS 恢复</td>
+        </tr>
+      </table>
+
+      <div style="display:flex;gap:16px;margin-top:16px;">
+        <div style="flex:1;background:#e8f5e9;border-radius:8px;padding:14px;">
+          <div style="font-weight:bold;color:#2e7d32;margin-bottom:8px;font-size:14px;">优势</div>
+          <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.8;">
+            <li>fan-out/条件分支在 Java 中自由实现</li>
+            <li>暂停时释放 Ray，不浪费算力</li>
+            <li>DAG 状态在 RDS，天然可靠</li>
+            <li>前端实时视图直接读 RDS</li>
+            <li>复用现有 RayJobRunner</li>
+          </ul>
+        </div>
+        <div style="flex:1;background:#fff3e0;border-radius:8px;padding:14px;">
+          <div style="font-weight:bold;color:#e65100;margin-bottom:8px;font-size:14px;">挑战</div>
+          <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.8;">
+            <li>需自研 DAG 状态机（中等工作量）</li>
+            <li>暂停恢复需从 OBS checkpoint 重建</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>纯 Ray Workflow</h3>
+      <p style="font-size:15px;line-height:1.6;margin-bottom:16px;">
+        整条 pipeline 翻译为一个 Ray Workflow，<br>
+        所有编排（fan-out/条件/暂停）都在 Ray 内部处理。
+      </p>
+
+      <div style="display:flex;gap:16px;">
+        <div style="flex:1;background:#e8f5e9;border-radius:8px;padding:14px;">
+          <div style="font-weight:bold;color:#2e7d32;margin-bottom:8px;font-size:14px;">优势</div>
+          <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.8;">
+            <li>内置断点续跑和重试</li>
+            <li>全程内存传递</li>
+          </ul>
+        </div>
+        <div style="flex:1;background:#ffebee;border-radius:8px;padding:14px;">
+          <div style="font-weight:bold;color:#c62828;margin-bottom:8px;font-size:14px;">风险</div>
+          <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.8;">
+            <li>Ray Workflows API 仍为 alpha</li>
+            <li><strong>暂停时集群不能释放</strong>，浪费算力</li>
+            <li>YAML → Ray Workflow 翻译复杂</li>
+            <li>前端状态需额外适配 Ray Dashboard</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>每步独立 Ray Job</h3>
+      <p style="font-size:15px;line-height:1.6;margin-bottom:16px;">
+        每个步骤独立提交为 Ray Job，<br>
+        lakeon-api 逐步串联，步骤间数据走 OBS。
+      </p>
+
+      <div style="display:flex;gap:16px;">
+        <div style="flex:1;background:#e8f5e9;border-radius:8px;padding:14px;">
+          <div style="font-weight:bold;color:#2e7d32;margin-bottom:8px;font-size:14px;">优势</div>
+          <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.8;">
+            <li>最简单，复用现有 Job 基础设施</li>
+            <li>步骤间天然隔离</li>
+          </ul>
+        </div>
+        <div style="flex:1;background:#ffebee;border-radius:8px;padding:14px;">
+          <div style="font-weight:bold;color:#c62828;margin-bottom:8px;font-size:14px;">风险</div>
+          <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.8;">
+            <li>每步启停集群，开销大</li>
+            <li><strong>所有数据走 OBS，视频 IO 瓶颈</strong></li>
+            <li>42 clips 并行 = 42 个 Job？</li>
+            <li>与"函数级组件"决策矛盾</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,103 @@
+<h2>进度区域布局方案</h2>
+<p class="subtitle">上传进度和处理进度如何在页面上组织？</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>顶部双卡片</h3>
+      <p>上传和处理各一个卡片，并排显示在文件列表上方。上传完成后上传卡片自动收起。</p>
+      <div style="margin-top: 12px; background: #f8f8f8; border-radius: 8px; padding: 16px;">
+        <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+          <!-- Upload card -->
+          <div style="flex: 1; background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 12px;">
+            <div style="font-size: 12px; color: #999; margin-bottom: 6px;">上传进度</div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="flex: 1; height: 6px; background: #f0f0f0; border-radius: 3px;">
+                <div style="width: 32%; height: 100%; background: #1890ff; border-radius: 3px;"></div>
+              </div>
+              <span style="font-size: 13px; color: #333; white-space: nowrap;">860/2673</span>
+            </div>
+            <div style="font-size: 11px; color: #999; margin-top: 4px;">12.3 MB/s · 预计还需 4 分钟</div>
+          </div>
+          <!-- Process card -->
+          <div style="flex: 1; background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 12px;">
+            <div style="font-size: 12px; color: #999; margin-bottom: 6px;">处理进度</div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="flex: 1; height: 6px; background: #f0f0f0; border-radius: 3px;">
+                <div style="width: 19%; height: 100%; background: #52c41a; border-radius: 3px;"></div>
+              </div>
+              <span style="font-size: 13px; color: #333; white-space: nowrap;">160/840 (19%)</span>
+            </div>
+            <div style="font-size: 11px; color: #999; margin-top: 4px;">~3.2 文档/分钟 · 排队 668 · 解析中 4 · 失败 8</div>
+          </div>
+        </div>
+        <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 4px; padding: 8px 12px; font-size: 12px; color: #999;">
+          [ 全部 | 处理中 | 就绪 | 失败 ]&nbsp;&nbsp;&nbsp;&nbsp;文件列表表格...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>折叠面板</h3>
+      <p>进度信息默认收在一行摘要中，点击展开看详情。节省纵向空间。</p>
+      <div style="margin-top: 12px; background: #f8f8f8; border-radius: 8px; padding: 16px;">
+        <!-- Collapsed state -->
+        <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px;">
+          <div style="display: flex; align-items: center; gap: 16px; font-size: 13px;">
+            <span style="color: #1890ff;">&#9654; 上传中 860/2673 (12.3 MB/s)</span>
+            <span style="color: #52c41a;">&#9654; 处理中 160/840 完成 (~3.2 文档/分)</span>
+            <span style="color: #e6393d;">8 失败</span>
+          </div>
+        </div>
+        <!-- Expanded hint -->
+        <div style="background: #fff; border: 1px dashed #d9d9d9; border-radius: 4px; padding: 8px 12px; font-size: 11px; color: #bbb; text-align: center;">
+          展开后显示双进度条 + 分阶段明细
+        </div>
+        <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 4px; padding: 8px 12px; font-size: 12px; color: #999; margin-top: 12px;">
+          [ 全部 | 处理中 | 就绪 | 失败 ]&nbsp;&nbsp;&nbsp;&nbsp;文件列表表格...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>顶部单卡片（上下两行）</h3>
+      <p>一个卡片内分两行：第一行上传进度，第二行处理进度。紧凑且信息完整。</p>
+      <div style="margin-top: 12px; background: #f8f8f8; border-radius: 8px; padding: 16px;">
+        <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px;">
+          <!-- Upload row -->
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+            <span style="font-size: 12px; color: #666; width: 56px;">上传</span>
+            <div style="flex: 1; height: 6px; background: #f0f0f0; border-radius: 3px;">
+              <div style="width: 32%; height: 100%; background: #1890ff; border-radius: 3px;"></div>
+            </div>
+            <span style="font-size: 12px; color: #333; min-width: 80px;">860/2673</span>
+            <span style="font-size: 11px; color: #999; min-width: 140px;">12.3 MB/s · 约 4 分钟</span>
+          </div>
+          <!-- Process row -->
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 12px; color: #666; width: 56px;">处理</span>
+            <div style="flex: 1; height: 6px; background: #f0f0f0; border-radius: 3px;">
+              <div style="width: 19%; height: 100%; background: #52c41a; border-radius: 3px;"></div>
+            </div>
+            <span style="font-size: 12px; color: #333; min-width: 80px;">160/840</span>
+            <span style="font-size: 11px; color: #999; min-width: 140px;">3.2 文档/分 · <span style="color:#e6393d">8 失败</span></span>
+          </div>
+          <!-- Expandable detail -->
+          <div style="font-size: 11px; color: #bbb; margin-top: 6px; padding-left: 66px;">
+            ▸ 展开详情：排队 668 · 解析中 4 · 已完成 160 · 失败 8
+          </div>
+        </div>
+        <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 4px; padding: 8px 12px; font-size: 12px; color: #999;">
+          [ 全部 | 处理中 | 就绪 | 失败 ]&nbsp;&nbsp;&nbsp;&nbsp;文件列表表格...
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

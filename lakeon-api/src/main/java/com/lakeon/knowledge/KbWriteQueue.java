@@ -222,6 +222,12 @@ public class KbWriteQueue {
      */
     public KbWriteTaskEntity submit(String tenantId, String kbId, String databaseId,
                                      KbWriteTaskType type, Map<String, Object> params) {
+        // Validate database exists before queuing
+        DatabaseEntity db = databaseRepository.findById(databaseId).orElse(null);
+        if (db == null) {
+            throw new NotFoundException("Database not found: " + databaseId
+                + ". The knowledge base may reference a deleted database.");
+        }
         KbWriteTaskEntity task = new KbWriteTaskEntity();
         task.setTenantId(tenantId);
         task.setKbId(kbId);

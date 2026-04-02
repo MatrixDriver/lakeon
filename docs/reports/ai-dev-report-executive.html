@@ -556,12 +556,21 @@
   html.light .arch-svg text[fill="#2ecc71"] { fill: #1a8a4a; }
   html.light .arch-svg text[fill="#e056fd"] { fill: #9b30ff; }
   html.light .arch-svg text[fill="#6c7a89"] { fill: #888; }
+  html.light .arch-svg text[fill="#f5a623"] { fill: #c07b10; }
+  html.light .arch-svg text[fill="#e8922d"] { fill: #b06a10; }
+  html.light .arch-svg text[fill="#e6c84d"] { fill: #b8960b; }
   html.light .arch-svg line[stroke="#e056fd"] { stroke: #9b30ff; }
   html.light .arch-svg line[stroke="#ffd700"] { stroke: #b8860b; }
+  html.light .arch-svg line[stroke="#f5a623"] { stroke: #c07b10; }
+  html.light .arch-svg line[stroke="#e8922d"] { stroke: #b06a10; }
+  html.light .arch-svg line[stroke="#e6c84d"] { stroke: #b8960b; }
   html.light .arch-svg path[stroke="#8ecae6"] { stroke: #4a6fa5; }
   html.light .arch-svg rect[stroke="#e056fd"] { stroke: #9b30ff; }
   html.light .arch-svg rect[stroke="#00d2ff"] { stroke: #0078c8; }
   html.light .arch-svg rect[stroke="#ffd700"] { stroke: #b8860b; }
+  html.light .arch-svg rect[stroke="#f5a623"] { stroke: #c07b10; }
+  html.light .arch-svg rect[stroke="#e8922d"] { stroke: #b06a10; }
+  html.light .arch-svg rect[stroke="#e6c84d"] { stroke: #b8960b; }
   html.light .arch-svg rect[stroke="#2ecc71"] { stroke: #1a8a4a; }
   html.light .arch-svg rect[stroke="#6c7a89"] { stroke: #aaa; }
   html.light .arch-svg polygon[fill="#8ecae6"] { fill: #4a6fa5; }
@@ -746,123 +755,169 @@
 
     <h3 style="margin-top:32px;">系统架构</h3>
     <div style="background:rgba(255,255,255,0.02);border-radius:12px;padding:20px;margin:20px 0;">
-      <svg class="arch-svg" style="width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+      <svg class="arch-svg" style="width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 775">
   <defs>
     <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" style="stop-color:#00d2ff;stop-opacity:0.2" />
       <stop offset="100%" style="stop-color:#00d2ff;stop-opacity:0.05" />
     </linearGradient>
-    <linearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%">
+    <linearGradient id="grad-kb" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" style="stop-color:#ffd700;stop-opacity:0.2" />
       <stop offset="100%" style="stop-color:#ffd700;stop-opacity:0.05" />
     </linearGradient>
-    <linearGradient id="grad3" x1="0%" y1="0%" x2="0%" y2="100%">
+    <linearGradient id="grad-mem" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f5a623;stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:#f5a623;stop-opacity:0.05" />
+    </linearGradient>
+    <linearGradient id="grad-hist" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#e8922d;stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:#e8922d;stop-opacity:0.05" />
+    </linearGradient>
+    <linearGradient id="grad-state" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffe066;stop-opacity:0.22" />
+      <stop offset="100%" style="stop-color:#ffe066;stop-opacity:0.05" />
+    </linearGradient>
+    <linearGradient id="grad-lake" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" style="stop-color:#2ecc71;stop-opacity:0.2" />
       <stop offset="100%" style="stop-color:#2ecc71;stop-opacity:0.05" />
     </linearGradient>
-    <linearGradient id="grad4" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#e056fd;stop-opacity:0.2" />
-      <stop offset="100%" style="stop-color:#e056fd;stop-opacity:0.05" />
-    </linearGradient>
-    <linearGradient id="grad-mcp" x1="0%" y1="0%" x2="100%" y2="0%">
+    <linearGradient id="grad-access" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" style="stop-color:#e056fd;stop-opacity:0.15" />
       <stop offset="100%" style="stop-color:#00d2ff;stop-opacity:0.15" />
+    </linearGradient>
+    <linearGradient id="grad-hist" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff7f50;stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:#ff7f50;stop-opacity:0.05" />
+    </linearGradient>
+    <linearGradient id="grad-state" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#8ecae6;stop-opacity:0.25" />
+      <stop offset="100%" style="stop-color:#8ecae6;stop-opacity:0.05" />
+    </linearGradient>
+    <linearGradient id="grad-sync" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00d2ff;stop-opacity:0.6" />
+      <stop offset="50%" style="stop-color:#ffd700;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#2ecc71;stop-opacity:0.6" />
     </linearGradient>
     <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
       <polygon points="0 0, 10 3, 0 6" fill="#8ecae6" />
     </marker>
+    <marker id="arrowhead-r" markerWidth="10" markerHeight="10" refX="1" refY="3" orient="auto">
+      <polygon points="10 0, 0 3, 10 6" fill="#8ecae6" />
+    </marker>
   </defs>
 
   <!-- Background -->
-  <rect width="1200" height="800" fill="#0d0d1a"/>
+  <rect width="1200" height="775" fill="#0d0d1a"/>
 
   <!-- Title -->
   <text x="600" y="35" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#00d2ff" text-anchor="middle">DBay 数据港湾 - 系统架构</text>
   <text x="600" y="60" font-family="Arial, sans-serif" font-size="14" fill="#8ecae6" text-anchor="middle">面向 Agent 的 Serverless 数据底座</text>
 
-  <!-- Top: MCP Agent Access Layer -->
-  <rect x="100" y="75" width="1000" height="80" rx="10" fill="url(#grad-mcp)" stroke="#e056fd" stroke-width="2"/>
-  <text x="600" y="98" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#e056fd" text-anchor="middle">MCP 协议接入层</text>
-  <text x="220" y="120" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">Knowledge MCP Server</text>
-  <text x="450" y="120" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">Memory MCP Server</text>
-  <text x="700" y="120" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">多 Agent 接入 (Claude / GPT / ...)</text>
-  <text x="950" y="120" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">标准化工具协议</text>
-  <text x="600" y="144" font-family="Arial, sans-serif" font-size="11" font-style="italic" fill="#e056fd" text-anchor="middle">核心技术：标准工具协议 · 多 Agent 编排</text>
+  <!-- ═══════════ Layer 4 (Top): Agent 接入层 ═══════════ -->
+  <rect x="60" y="80" width="1080" height="85" rx="10" fill="url(#grad-access)" stroke="#e056fd" stroke-width="2"/>
+  <text x="600" y="105" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#e056fd" text-anchor="middle">Agent 接入层</text>
+  <text x="200" y="130" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">MCP Server</text>
+  <text x="420" y="130" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">Skill</text>
+  <text x="600" y="130" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">Python SDK</text>
+  <text x="800" y="130" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">REST API</text>
+  <text x="1020" y="130" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">多 Agent 编排</text>
+  <text x="600" y="155" font-family="Arial, sans-serif" font-size="11" font-style="italic" fill="#e056fd" text-anchor="middle">支持 Claude / GPT / Gemini 等多种 Agent 接入 · 标准化工具协议</text>
 
-  <!-- Connection: MCP -> KB/Memory -->
-  <line x1="220" y1="155" x2="220" y2="185" stroke="#e056fd" stroke-width="2"/>
-  <line x1="480" y1="155" x2="480" y2="185" stroke="#e056fd" stroke-width="2"/>
+  <!-- Connection lines: Access -> Services -->
+  <line x1="180" y1="165" x2="180" y2="195" stroke="#e056fd" stroke-width="1.5"/>
+  <line x1="420" y1="165" x2="420" y2="195" stroke="#e056fd" stroke-width="1.5"/>
+  <line x1="700" y1="165" x2="700" y2="195" stroke="#e056fd" stroke-width="1.5"/>
+  <line x1="960" y1="165" x2="960" y2="195" stroke="#e056fd" stroke-width="1.5"/>
 
-  <!-- Middle Left: Knowledge Base -->
-  <rect x="100" y="185" width="240" height="230" rx="10" fill="url(#grad2)" stroke="#ffd700" stroke-width="2"/>
-  <text x="220" y="213" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#ffd700" text-anchor="middle">知识库</text>
-  <text x="220" y="238" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">&#x2022; 文档解析</text>
-  <text x="220" y="260" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">&#x2022; 向量检索 (pgvector)</text>
-  <text x="220" y="282" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">&#x2022; 全文搜索 (tsvector)</text>
-  <text x="220" y="304" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">&#x2022; 表知识库</text>
-  <text x="220" y="326" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">&#x2022; 切片管理 + 版本回滚</text>
-  <line x1="120" y1="340" x2="320" y2="340" stroke="rgba(255,215,0,0.3)" stroke-width="1"/>
-  <text x="220" y="358" font-family="Arial, sans-serif" font-size="10" font-style="italic" fill="#ffd700" text-anchor="middle">Serverless 弹性 · 多模型 Embedding · 智能解析</text>
-  <text x="220" y="375" font-family="Arial, sans-serif" font-size="10" font-style="italic" fill="#ffd700" text-anchor="middle">Neon 时间旅行版本管理</text>
+  <!-- ═══════════ Layer 3: 四大数据服务 (暖色系) ═══════════ -->
+  <!-- Outer grouping box -->
+  <rect x="60" y="195" width="1080" height="250" rx="12" fill="rgba(255,215,0,0.04)" stroke="#ffd700" stroke-width="2"/>
+  <text x="600" y="218" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#ffd700" text-anchor="middle">Agent 认知数据层</text>
 
-  <!-- Middle Right: Memory Store (Active) -->
-  <rect x="360" y="185" width="240" height="230" rx="10" fill="url(#grad4)" stroke="#e056fd" stroke-width="2"/>
-  <text x="480" y="213" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#e056fd" text-anchor="middle">记忆库</text>
-  <text x="480" y="238" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">&#x2022; Agent 长期记忆</text>
-  <text x="480" y="260" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">&#x2022; 多类型记忆管理</text>
-  <text x="480" y="282" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">&#x2022; 语义检索 + 时间衰减</text>
-  <text x="480" y="304" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">&#x2022; 记忆压缩与合并</text>
-  <text x="480" y="326" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">&#x2022; 对话轨迹存储</text>
-  <line x1="380" y1="340" x2="580" y2="340" stroke="rgba(224,86,253,0.3)" stroke-width="1"/>
-  <text x="480" y="358" font-family="Arial, sans-serif" font-size="10" font-style="italic" fill="#e056fd" text-anchor="middle">场景化记忆分类</text>
-  <text x="480" y="375" font-family="Arial, sans-serif" font-size="10" font-style="italic" fill="#e056fd" text-anchor="middle">按 Agent 类型定制记忆策略</text>
+  <!-- 知识库 (金色) -->
+  <rect x="80" y="228" width="235" height="120" rx="10" fill="url(#grad-kb)" stroke="#ffd700" stroke-width="1.5"/>
+  <text x="197" y="255" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#ffd700" text-anchor="middle">知识库</text>
+  <text x="197" y="278" font-family="Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">&#x2022; 文档解析与切片</text>
+  <text x="197" y="296" font-family="Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">&#x2022; 融合检索</text>
+  <text x="197" y="314" font-family="Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">&#x2022; 表知识库</text>
+  <text x="197" y="332" font-family="Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">&#x2022; 版本管理 + 回滚</text>
 
-  <!-- Connection: KB/Memory -> Lakebase -->
-  <line x1="220" y1="415" x2="220" y2="445" stroke="#ffd700" stroke-width="2"/>
-  <line x1="480" y1="415" x2="480" y2="445" stroke="#e056fd" stroke-width="2"/>
+  <!-- 记忆库 (琥珀色) -->
+  <rect x="335" y="228" width="235" height="120" rx="10" fill="url(#grad-mem)" stroke="#f5a623" stroke-width="1.5"/>
+  <text x="452" y="255" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#f5a623" text-anchor="middle">记忆库</text>
+  <text x="452" y="278" font-family="Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">&#x2022; Agent 长期记忆</text>
+  <text x="452" y="296" font-family="Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">&#x2022; 多类型记忆管理</text>
+  <text x="452" y="314" font-family="Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">&#x2022; 语义检索 + 时间衰减</text>
+  <text x="452" y="332" font-family="Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">&#x2022; 记忆压缩与合并</text>
 
-  <!-- Bottom: Lakebase (Neon Core) -->
-  <rect x="100" y="445" width="500" height="160" rx="12" fill="url(#grad1)" stroke="#00d2ff" stroke-width="3"/>
-  <text x="350" y="478" font-family="Arial, sans-serif" font-size="26" font-weight="bold" fill="#00d2ff" text-anchor="middle">Lakebase (Neon 内核)</text>
-  <text x="350" y="505" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">存算分离 · 多版本 · 时间旅行 · 分支管理</text>
-  <text x="350" y="528" font-family="Arial, sans-serif" font-size="13" fill="#e0e0e0" text-anchor="middle">按需启动 (3ms 热启动) · 自动扩缩容 · 多租户隔离</text>
-  <line x1="120" y1="545" x2="580" y2="545" stroke="rgba(0,210,255,0.3)" stroke-width="1"/>
-  <text x="350" y="565" font-family="Arial, sans-serif" font-size="11" font-style="italic" fill="#00d2ff" text-anchor="middle">核心技术：Copy-on-Write 分支隔离</text>
+  <!-- 对话历史库 (橙琥珀) -->
+  <rect x="590" y="228" width="235" height="120" rx="10" fill="url(#grad-hist)" stroke="#e8922d" stroke-width="1.5"/>
+  <text x="707" y="255" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#e8922d" text-anchor="middle">对话历史库</text>
+  <text x="707" y="278" font-family="Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">&#x2022; 多轮对话存储</text>
+  <text x="707" y="296" font-family="Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">&#x2022; 会话上下文管理</text>
+  <text x="707" y="314" font-family="Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">&#x2022; 轨迹回放与分析</text>
+  <text x="707" y="332" font-family="Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">&#x2022; 对话数据导出</text>
 
-  <!-- Right: AI Data Lake (Full Height) -->
-  <rect x="700" y="185" width="400" height="420" rx="12" fill="url(#grad3)" stroke="#2ecc71" stroke-width="3"/>
-  <text x="900" y="220" font-family="Arial, sans-serif" font-size="26" font-weight="bold" fill="#2ecc71" text-anchor="middle">AI 多模数据湖</text>
-  <text x="900" y="255" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">&#x2022; 多模态格式 (Lance + 自研)</text>
-  <text x="900" y="279" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">&#x2022; Python/Ray 任务调度</text>
-  <text x="900" y="303" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">&#x2022; Dataset 导出 (Parquet)</text>
-  <text x="900" y="327" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">&#x2022; 模型微调 (SFT)</text>
-  <text x="900" y="351" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">&#x2022; 强化学习 (RL) 训练</text>
-  <text x="900" y="375" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">&#x2022; Kata VM 隔离</text>
-  <text x="900" y="399" font-family="Arial, sans-serif" font-size="14" fill="#e0e0e0" text-anchor="middle">&#x2022; 增量 CDC 调度</text>
-  <line x1="720" y1="415" x2="1080" y2="415" stroke="rgba(46,204,113,0.3)" stroke-width="1"/>
-  <text x="900" y="433" font-family="Arial, sans-serif" font-size="10" font-style="italic" fill="#2ecc71" text-anchor="middle">Serverless 弹性 · 大规模多模态处理</text>
-  <text x="900" y="450" font-family="Arial, sans-serif" font-size="10" font-style="italic" fill="#2ecc71" text-anchor="middle">新一代多模数据格式 (联合车BU/高校研究)</text>
-  <text x="900" y="500" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#ffd700" text-anchor="middle">&#x1F504; 数据飞轮</text>
-  <text x="900" y="528" font-family="Arial, sans-serif" font-size="13" fill="#8ecae6" text-anchor="middle">Lakebase &#x2194; 数据湖双向流转</text>
+  <!-- 状态库 (浅金) -->
+  <rect x="845" y="228" width="235" height="120" rx="10" fill="url(#grad-state)" stroke="#e6c84d" stroke-width="1.5"/>
+  <text x="962" y="255" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#e6c84d" text-anchor="middle">状态库</text>
+  <text x="962" y="278" font-family="Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">&#x2022; Agent 运行状态</text>
+  <text x="962" y="296" font-family="Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">&#x2022; 任务进度追踪</text>
+  <text x="962" y="314" font-family="Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">&#x2022; 配置与偏好存储</text>
+  <text x="962" y="332" font-family="Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">&#x2022; 检查点与恢复</text>
 
-  <!-- Data Flywheel Arrows: Lakebase <-> Data Lake -->
-  <path d="M 600 480 L 690 360" stroke="#8ecae6" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
-  <path d="M 690 420 L 600 540" stroke="#8ecae6" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
-  <text x="635" y="410" font-family="Arial, sans-serif" font-size="12" fill="#ffd700" text-anchor="middle">导出 + 轨迹数据</text>
-  <text x="655" y="500" font-family="Arial, sans-serif" font-size="12" fill="#ffd700" text-anchor="middle">导入</text>
+  <!-- Common requirements banner -->
+  <rect x="80" y="360" width="1000" height="72" rx="8" fill="rgba(255,215,0,0.08)" stroke="rgba(255,215,0,0.4)" stroke-width="1.5"/>
+  <text x="590" y="381" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#ffd700" text-anchor="middle">共性需求</text>
+  <text x="590" y="400" font-family="Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">轻量化快速弹性 · 快速启动 · 多分支支持 Agent 并行试错和恢复</text>
+  <text x="590" y="418" font-family="Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">向量 + 全文检索 + 图 + 结构化融合检索 · 多模态数据沉淀、加工与分析</text>
 
-  <!-- Infrastructure Layer -->
-  <rect x="100" y="650" width="1000" height="110" rx="10" fill="rgba(255,255,255,0.02)" stroke="#6c7a89" stroke-width="1"/>
-  <text x="600" y="675" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#8ecae6" text-anchor="middle">基础设施层</text>
-  <text x="200" y="700" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">Kubernetes (CCE)</text>
-  <text x="380" y="700" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">对象存储 (OBS)</text>
-  <text x="540" y="700" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">元数据库 (RDS)</text>
-  <text x="700" y="700" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">弹性节点池</text>
-  <text x="880" y="700" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">VPC EP (网络型)</text>
-  <text x="1040" y="700" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">NPU/GPU 资源池</text>
-  <line x1="120" y1="715" x2="1080" y2="715" stroke="rgba(142,202,230,0.2)" stroke-width="1"/>
-  <text x="600" y="735" font-family="Arial, sans-serif" font-size="11" font-style="italic" fill="#8ecae6" text-anchor="middle">需求：快速弹性 MicroVM · CCI 多租 NPU/GPU 资源池 · 网络型 VPC EP</text>
-  <text x="600" y="752" font-family="Arial, sans-serif" font-size="10" fill="#6c7a89" text-anchor="middle">华为云 CCE · 存算分离 · 按需扩缩容</text>
+  <!-- Connection lines: Services -> Storage Layer -->
+  <line x1="197" y1="445" x2="197" y2="475" stroke="#ffd700" stroke-width="1.5"/>
+  <line x1="452" y1="445" x2="452" y2="475" stroke="#f5a623" stroke-width="1.5"/>
+  <line x1="707" y1="445" x2="707" y2="475" stroke="#e8922d" stroke-width="1.5"/>
+  <line x1="962" y1="445" x2="962" y2="475" stroke="#e6c84d" stroke-width="1.5"/>
+
+  <!-- ═══════════ Layer 2: Lakebase + AI DataLake (冷色系) ═══════════ -->
+  <!-- Lakebase (青蓝) -->
+  <rect x="60" y="475" width="530" height="115" rx="12" fill="url(#grad1)" stroke="#00d2ff" stroke-width="3"/>
+  <text x="325" y="502" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#00d2ff" text-anchor="middle">Lakebase (Neon 内核)</text>
+  <text x="325" y="525" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">存算分离 · 多版本 · 时间旅行 · 分支管理</text>
+  <text x="325" y="545" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">按需启动 (3ms 热启动) · 自动扩缩容 · 多租户隔离</text>
+  <text x="325" y="565" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">pgvector · zhparser · AGE Graph · PostGIS</text>
+
+  <!-- Bidirectional Sync Arrows -->
+  <path d="M 598 520 L 650 520" stroke="#8ecae6" stroke-width="2.5" fill="none" marker-end="url(#arrowhead)"/>
+  <path d="M 660 548 L 608 548" stroke="#8ecae6" stroke-width="2.5" fill="none" marker-end="url(#arrowhead)"/>
+  <text x="633" y="513" font-family="Arial, sans-serif" font-size="10" fill="#8ecae6" text-anchor="middle">数据</text>
+  <text x="633" y="566" font-family="Arial, sans-serif" font-size="10" fill="#8ecae6" text-anchor="middle">同步</text>
+
+  <!-- AI DataLake (翠绿) -->
+  <rect x="670" y="475" width="470" height="115" rx="12" fill="url(#grad-lake)" stroke="#2ecc71" stroke-width="3"/>
+  <text x="905" y="502" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#2ecc71" text-anchor="middle">AI 多模数据湖</text>
+  <text x="905" y="525" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">多模态格式 (Lance + 自研) · Dataset 导出 (Parquet)</text>
+  <text x="905" y="545" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">Python/Ray 任务调度 · 模型微调 (SFT) · RL 训练</text>
+  <text x="905" y="565" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">Kata VM 隔离 · 增量 CDC 调度</text>
+
+  <!-- Connection lines: Storage -> Infrastructure -->
+  <line x1="325" y1="590" x2="325" y2="615" stroke="#00d2ff" stroke-width="1.5"/>
+  <line x1="905" y1="590" x2="905" y2="615" stroke="#2ecc71" stroke-width="1.5"/>
+
+  <!-- ═══════════ Layer 1 (Bottom): 基础设施层 ═══════════ -->
+  <rect x="60" y="615" width="1080" height="145" rx="10" fill="rgba(255,255,255,0.02)" stroke="#6c7a89" stroke-width="1"/>
+  <text x="600" y="640" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#8ecae6" text-anchor="middle">基础设施层</text>
+  <text x="170" y="665" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">Kubernetes (CCE)</text>
+  <text x="340" y="665" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">对象存储 (OBS)</text>
+  <text x="500" y="665" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">元数据库 (RDS)</text>
+  <text x="660" y="665" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">弹性节点池</text>
+  <text x="840" y="665" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">VPC EP (网络型)</text>
+  <text x="1020" y="665" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">NPU/GPU 资源池</text>
+  <line x1="80" y1="682" x2="1120" y2="682" stroke="rgba(142,202,230,0.2)" stroke-width="1"/>
+  <text x="600" y="702" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#8ecae6" text-anchor="middle">关键基础设施需求</text>
+  <text x="370" y="722" font-family="Arial, sans-serif" font-size="12" fill="#ffd700" text-anchor="middle">认知数据层 →</text>
+  <text x="660" y="722" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">高性价比低时延 Token 服务 · 高质量多模态 Embedding 模型</text>
+  <text x="370" y="742" font-family="Arial, sans-serif" font-size="12" fill="#2ecc71" text-anchor="middle">AI 数据湖 →</text>
+  <text x="690" y="742" font-family="Arial, sans-serif" font-size="12" fill="#e0e0e0" text-anchor="middle">多租 Ray/Python 作业安全隔离 · CCI 支持 NPU Pod (关键依赖)</text>
 
 </svg>
     </div>

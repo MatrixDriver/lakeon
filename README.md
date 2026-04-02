@@ -10,8 +10,10 @@ Lakeon 将 Neon 的存算分离架构封装为一套可私有部署的 Kubernete
 
 - **Serverless 数据库**: 按需创建 PG 实例，自动挂起/唤醒，存算分离 (Neon)
 - **数据库分支**: 类 Git 的 copy-on-write 分支，版本管理和时间旅行
-- **AI 知识库**: 文档上传 → 解析 → 切片 → 向量化 → 混合检索 (pgvector + tsvector RRF)
+- **AI 知识库**: 文档上传 → 解析 → 切片 → 向量化 → 混合检索 (pgvector + tsvector RRF)，切片管理与全文高亮
+- **AI 记忆库**: 对话记忆存储/检索/摘要，支持类型筛选和特征分析
 - **Serverless 数据湖**: Python/Ray/微调任务，CCI Kata VM 隔离
+- **Notebook 交互式开发**: CodeMirror 代码编辑，Ray 分布式计算，热池秒级启动
 - **多租户隔离**: API Key 认证，租户间数据完全隔离
 - **弹性扩缩容**: Compute Pod 弹性节点池，min=1 max=5 自动扩缩
 
@@ -29,7 +31,9 @@ lakeon/
 │   │   ├── service/     # 核心服务 (Compute, Neon, Database)
 │   │   └── admin/       # SRE 管理 API
 │   └── src/test/        # 单元测试
-├── lakeon-console/      # Web 控制台 (Vue 3 + TinyVue)
+├── lakeon-console/      # Web 控制台 (Vue 3 + TinyVue, 港湾暖色调)
+├── lakeon-admin/        # SRE 运维控制台 (Vue 3, 港湾暖色调)
+├── memory/              # 记忆服务 (Python FastAPI + pgvector)
 ├── dbay-cli/            # DBay CLI (Python, E2E 测试客户端)
 │   └── dbay_cli/
 │       └── commands/    # db, branch, version, user, kb, datalake

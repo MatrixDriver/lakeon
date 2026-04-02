@@ -1,0 +1,88 @@
+<h2>数据生产线架构方案对比</h2>
+<p class="subtitle">选择 pipeline 执行引擎的核心架构</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Ray DAG Native — 纯 Ray 方案</h3>
+      <p>Pipeline 定义（YAML）→ lakeon-api 翻译为 Ray DAG → 提交为单个 Ray Job → Ray 内部调度所有步骤</p>
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>优势</h4>
+          <ul>
+            <li>零拷贝内存传递，性能最优</li>
+            <li>Ray 原生 DAG 调度，成熟稳定</li>
+            <li>完全复用现有 RayJobRunner 基础设施</li>
+            <li>组件就是 Python 函数，开发门槛低</li>
+            <li>checkpoint 用 Ray object store + OBS 混合</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>挑战</h4>
+          <ul>
+            <li>步骤粒度的资源分配不如独立 Pod 灵活</li>
+            <li>单个 Ray 集群故障影响整条 pipeline</li>
+            <li>需要自研 YAML → Ray DAG 的翻译层</li>
+          </ul>
+        </div>
+      </div>
+      <p style="margin-top:12px;padding:8px 12px;background:#e8f5e9;border-radius:6px;font-size:14px;"><strong>推荐</strong> — 最契合"函数级组件 + Ray 执行"的决策，架构最简洁</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Hybrid — Ray + 独立 Job 混合</h3>
+      <p>轻量步骤在 Ray DAG 内执行，重型步骤（如大模型推理、微调）单独启动 GPU Job Pod，pipeline 引擎在 lakeon-api 中编排</p>
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>优势</h4>
+          <ul>
+            <li>重型步骤可独立申请 GPU 资源</li>
+            <li>局部失败不影响整条 pipeline</li>
+            <li>可以混用 Python Job + Ray Job</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>挑战</h4>
+          <ul>
+            <li>两种执行模型，编排逻辑复杂</li>
+            <li>跨 Job 数据传递必须走 OBS，性能下降</li>
+            <li>lakeon-api 需要自研 DAG 调度器</li>
+            <li>与"函数级组件在同一 Ray Job 内执行"的决策不一致</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Ray Workflows — 基于 Ray Workflows API</h3>
+      <p>使用 Ray 内置的 Workflows 库（持久化 DAG），天然支持断点续跑、步骤级重试、容错恢复</p>
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>优势</h4>
+          <ul>
+            <li>内置持久化，步骤失败可从断点恢复</li>
+            <li>内置重试策略和超时</li>
+            <li>步骤级状态追踪（天然支持实时 DAG 视图）</li>
+            <li>仍然是单 Ray 集群，内存传递高效</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>挑战</h4>
+          <ul>
+            <li>Ray Workflows 仍标记为 alpha/beta，API 可能变化</li>
+            <li>持久化依赖 Ray 内部存储，需确保与 OBS 对齐</li>
+            <li>调试和监控需要额外适配 Ray Dashboard</li>
+            <li>YAML → Ray Workflow 翻译比方案 A 更复杂</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

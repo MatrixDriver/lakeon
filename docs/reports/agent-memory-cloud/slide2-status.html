@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html { background: #0F0F1A; }
+body {
+  width: 720pt; height: 405pt; margin: 0; padding: 0;
+  font-family: Arial, sans-serif; display: flex; flex-direction: column;
+  background-image: url('bg-dark2.png'); background-size: cover;
+}
+.header { margin: 30pt 40pt 0 40pt; }
+.header h1 { color: #FFFFFF; font-size: 22pt; margin: 0 0 4pt 0; }
+.header p { color: #4ECDC4; font-size: 11pt; margin: 0; }
+.content { display: flex; margin: 20pt 40pt 0 40pt; gap: 16pt; flex: 1; }
+.col {
+  flex: 1; border-radius: 8pt; padding: 18pt 16pt;
+  display: flex; flex-direction: column;
+}
+.col-cc { background: #1E1E32; border-top: 3pt solid #888899; }
+.col-oc { background: #1E1E32; border-top: 3pt solid #FF9F43; }
+.col-cloud { background: #152E2B; border-top: 3pt solid #4ECDC4; }
+.col h2 { font-size: 14pt; margin: 0 0 3pt 0; }
+.col-cc h2 { color: #888899; }
+.col-oc h2 { color: #FF9F43; }
+.col-cloud h2 { color: #4ECDC4; }
+.col .label { font-size: 9pt; margin: 0 0 12pt 0; color: #666680; }
+.col ul { margin: 0; padding: 0 0 0 14pt; }
+.col li { color: #CCCCDD; font-size: 9.5pt; margin-bottom: 7pt; line-height: 1.4; }
+.col .tag {
+  margin-top: auto; padding: 5pt 0 0 0;
+  border-top: 1pt solid #333350;
+}
+.col .tag p { font-size: 8.5pt; color: #666680; margin: 0; }
+.footer { margin: 12pt 40pt 20pt 40pt; }
+.footer p { color: #555570; font-size: 9pt; margin: 0; text-align: center; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>现状：Agent 记忆的三个阶段</h1>
+  <p>从纯文本到语义检索，再到云端服务</p>
+</div>
+<div class="content">
+  <div class="col col-cc">
+    <h2>Claude Code</h2>
+    <p class="label">纯 Markdown 文件</p>
+    <ul>
+      <li>MEMORY.md + 独立记忆文件</li>
+      <li>检索方式：grep / 文件名匹配</li>
+      <li>200行截断，需人工修剪</li>
+      <li>可 git 同步，但无语义理解</li>
+      <li>单人单项目，跨项目靠手动</li>
+    </ul>
+    <div class="tag">
+      <p>类比：记事本</p>
+    </div>
+  </div>
+  <div class="col col-oc">
+    <h2>OpenClaw</h2>
+    <p class="label">Markdown + SQLite 向量</p>
+    <ul>
+      <li>Markdown存储 + sqlite-vec 向量索引</li>
+      <li>混合检索：70%语义 + 30%BM25</li>
+      <li>本地 .sqlite 文件，不可网络共享</li>
+      <li>SQLite 单进程，无并发写入</li>
+      <li>索引是二进制，无法 git 同步</li>
+    </ul>
+    <div class="tag">
+      <p>类比：个人笔记软件</p>
+    </div>
+  </div>
+  <div class="col col-cloud">
+    <h2>Cloud Memory</h2>
+    <p class="label">云端记忆服务 (DBay)</p>
+    <ul>
+      <li>云端存储 + 向量 + 全文 + 结构化</li>
+      <li>API 接入，任何 Agent 可调用</li>
+      <li>多用户、多项目、多Agent共享</li>
+      <li>租户隔离 + 权限控制 + 审计日志</li>
+      <li>记忆属于用户，不属于 Agent</li>
+    </ul>
+    <div class="tag">
+      <p>类比：企业知识平台</p>
+    </div>
+  </div>
+</div>
+<div class="footer">
+  <p>CC 的 Markdown 能 git 同步但无语义 · OpenClaw 有语义但 SQLite 锁死单机 · 两者都困在本地范式</p>
+</div>
+</body>
+</html>

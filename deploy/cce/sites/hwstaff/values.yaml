@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.9.177"
+    tag: "0.9.178"
   jobCallbackBaseUrl: "https://api.dbay.cloud:8443"
   jobNamespace: "lakeon-jobs"
   resources:
@@ -189,6 +189,11 @@ console:
     limits:
       cpu: "200m"
       memory: "256Mi"
+
+# ── 华为云账号信息（用于 OBS 委托授权展示）─────────────────────
+hwcloud:
+  accountId: "a1881f3cbe6043f995a54445312c04c1"
+  accountName: "hwstaff_pub_CBUArch"
 
 # ── 成本参数（匹配实际 CCE 资源）──────────────────────────────
 cost:

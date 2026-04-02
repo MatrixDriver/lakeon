@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "dbay-sre-mcp": {
+      "type": "stdio",
+      "command": "dbay-sre-mcp",
+      "args": [],
+      "env": {}
+    }
+  }
+}

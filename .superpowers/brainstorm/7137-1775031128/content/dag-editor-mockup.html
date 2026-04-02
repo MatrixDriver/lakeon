@@ -1,0 +1,213 @@
+<h2>DAG 编辑器交互设计</h2>
+<p class="subtitle">Pipeline 创建/编辑的核心界面</p>
+
+<div class="mockup">
+  <div class="mockup-header">Pipeline 编辑器 — 视频数据清洗流水线 v1</div>
+  <div class="mockup-body" style="background:#f8f9fa;padding:0;min-height:500px;display:flex;">
+
+    <!-- 左侧：组件面板 -->
+    <div style="width:220px;background:#fff;border-right:1px solid #e0e0e0;padding:12px;font-size:13px;flex-shrink:0;">
+      <div style="font-weight:bold;margin-bottom:12px;color:#333;">组件库</div>
+
+      <input style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px;margin-bottom:12px;box-sizing:border-box;" placeholder="搜索组件...">
+
+      <div style="color:#888;font-size:11px;text-transform:uppercase;margin-bottom:6px;">数据准备</div>
+      <div style="padding:6px 8px;background:#e3f2fd;border-radius:4px;margin-bottom:4px;cursor:grab;font-size:12px;">📥 规整适配</div>
+
+      <div style="color:#888;font-size:11px;text-transform:uppercase;margin:8px 0 6px;">提取</div>
+      <div style="padding:6px 8px;background:#e8f5e9;border-radius:4px;margin-bottom:4px;cursor:grab;font-size:12px;">✂️ 视频镜头切分</div>
+
+      <div style="color:#888;font-size:11px;text-transform:uppercase;margin:8px 0 6px;">清洗 / 过滤</div>
+      <div style="padding:6px 8px;background:#fff3e0;border-radius:4px;margin-bottom:4px;cursor:grab;font-size:12px;">📏 规则清洗</div>
+      <div style="padding:6px 8px;background:#fff3e0;border-radius:4px;margin-bottom:4px;cursor:grab;font-size:12px;">🤖 模型清洗</div>
+      <div style="padding:6px 8px;background:#fff3e0;border-radius:4px;margin-bottom:4px;cursor:grab;font-size:12px;">✂️ 视频裁剪</div>
+
+      <div style="color:#888;font-size:11px;text-transform:uppercase;margin:8px 0 6px;">质检</div>
+      <div style="padding:6px 8px;background:#f3e5f5;border-radius:4px;margin-bottom:4px;cursor:grab;font-size:12px;">👁️ 质量检查</div>
+
+      <div style="color:#888;font-size:11px;text-transform:uppercase;margin:8px 0 6px;">标注</div>
+      <div style="padding:6px 8px;background:#e0f7fa;border-radius:4px;margin-bottom:4px;cursor:grab;font-size:12px;">🏷️ 内容标注</div>
+
+      <div style="color:#888;font-size:11px;text-transform:uppercase;margin:8px 0 6px;">输出</div>
+      <div style="padding:6px 8px;background:#efebe9;border-radius:4px;margin-bottom:4px;cursor:grab;font-size:12px;">📦 数据集发布</div>
+
+      <div style="color:#888;font-size:11px;text-transform:uppercase;margin:8px 0 6px;">通用</div>
+      <div style="padding:6px 8px;background:#fafafa;border:1px dashed #ccc;border-radius:4px;margin-bottom:4px;cursor:grab;font-size:12px;">🔀 合并节点</div>
+
+      <div style="border-top:1px solid #eee;margin-top:12px;padding-top:12px;">
+        <div style="color:#888;font-size:11px;margin-bottom:6px;">租户自定义</div>
+        <div style="padding:6px 8px;background:#fff;border:1px solid #ddd;border-radius:4px;font-size:12px;color:#999;">暂无自定义组件</div>
+      </div>
+    </div>
+
+    <!-- 中间：DAG 画布 -->
+    <div style="flex:1;position:relative;overflow:hidden;">
+      <!-- 工具栏 -->
+      <div style="position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;z-index:10;">
+        <div style="display:flex;gap:6px;">
+          <button style="padding:4px 10px;border:1px solid #ddd;border-radius:4px;background:#fff;font-size:12px;cursor:pointer;">↩ 撤销</button>
+          <button style="padding:4px 10px;border:1px solid #ddd;border-radius:4px;background:#fff;font-size:12px;cursor:pointer;">↪ 重做</button>
+          <button style="padding:4px 10px;border:1px solid #ddd;border-radius:4px;background:#fff;font-size:12px;cursor:pointer;">🔍 适配</button>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button style="padding:4px 10px;border:1px solid #ddd;border-radius:4px;background:#fff;font-size:12px;cursor:pointer;">📄 YAML</button>
+          <button style="padding:4px 10px;border:1px solid #ddd;border-radius:4px;background:#fff;font-size:12px;cursor:pointer;">从模板创建</button>
+        </div>
+      </div>
+
+      <!-- DAG 节点 -->
+      <svg style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;">
+        <!-- 连线 -->
+        <line x1="350" y1="95" x2="350" y2="135" stroke="#90a4ae" stroke-width="2" marker-end="url(#arrow)"/>
+        <line x1="350" y1="185" x2="350" y2="225" stroke="#90a4ae" stroke-width="2" marker-end="url(#arrow)"/>
+        <line x1="350" y1="275" x2="260" y2="315" stroke="#81c784" stroke-width="2" marker-end="url(#arrow)"/>
+        <line x1="350" y1="275" x2="440" y2="315" stroke="#ffb74d" stroke-width="2" marker-end="url(#arrow)"/>
+        <line x1="260" y1="355" x2="350" y2="395" stroke="#90a4ae" stroke-width="2" marker-end="url(#arrow)"/>
+        <line x1="440" y1="355" x2="350" y2="395" stroke="#90a4ae" stroke-width="2" marker-end="url(#arrow)"/>
+        <line x1="350" y1="425" x2="350" y2="455" stroke="#90a4ae" stroke-width="2" marker-end="url(#arrow)"/>
+        <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#90a4ae"/></marker></defs>
+      </svg>
+
+      <!-- 输入数据集 -->
+      <div style="position:absolute;top:60px;left:290px;width:120px;padding:8px;background:#e3f2fd;border:2px solid #42a5f5;border-radius:8px;text-align:center;font-size:12px;font-weight:bold;cursor:pointer;">
+        📥 规整适配
+        <div style="font-size:10px;color:#666;font-weight:normal;">v1</div>
+      </div>
+
+      <!-- 切片 -->
+      <div style="position:absolute;top:140px;left:290px;width:120px;padding:8px;background:#e8f5e9;border:2px solid #66bb6a;border-radius:8px;text-align:center;font-size:12px;font-weight:bold;cursor:pointer;">
+        ✂️ 镜头切分
+        <div style="font-size:10px;color:#666;font-weight:normal;">fan-out · v1</div>
+      </div>
+
+      <!-- 规则清洗 -->
+      <div style="position:absolute;top:230px;left:290px;width:120px;padding:8px;background:#fff3e0;border:2px solid #ffa726;border-radius:8px;text-align:center;font-size:12px;font-weight:bold;cursor:pointer;">
+        📏 规则清洗
+        <div style="font-size:10px;color:#666;font-weight:normal;">条件分支 · v1</div>
+      </div>
+
+      <!-- 分支: 通过 -->
+      <div style="position:absolute;top:320px;left:200px;width:110px;padding:6px;background:#c8e6c9;border:1px solid #81c784;border-radius:6px;text-align:center;font-size:11px;cursor:pointer;">
+        ✅ passed
+      </div>
+
+      <!-- 分支: 裁剪 -->
+      <div style="position:absolute;top:320px;left:390px;width:110px;padding:6px;background:#ffe0b2;border:1px solid #ffb74d;border-radius:6px;text-align:center;font-size:11px;cursor:pointer;">
+        ✂️ 裁剪处理
+      </div>
+
+      <!-- 合并 -->
+      <div style="position:absolute;top:400px;left:305px;width:90px;padding:6px;background:#eceff1;border:2px solid #90a4ae;border-radius:20px;text-align:center;font-size:11px;cursor:pointer;">
+        🔀 合并
+      </div>
+
+      <!-- 后续... -->
+      <div style="position:absolute;top:460px;left:310px;font-size:11px;color:#999;">
+        ↓ 模型清洗 → 质检 → 标注 → 发布
+      </div>
+    </div>
+
+    <!-- 右侧：属性面板 -->
+    <div style="width:260px;background:#fff;border-left:1px solid #e0e0e0;padding:16px;font-size:13px;flex-shrink:0;">
+      <div style="font-weight:bold;margin-bottom:12px;color:#333;">规则清洗 · 属性</div>
+
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;color:#888;margin-bottom:4px;">组件版本</div>
+        <select style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px;font-size:12px;">
+          <option>v1 (最新)</option>
+        </select>
+      </div>
+
+      <div style="font-size:11px;color:#888;margin-bottom:8px;text-transform:uppercase;">过滤参数</div>
+
+      <div style="margin-bottom:8px;">
+        <label style="font-size:12px;display:block;margin-bottom:2px;">最小时长 (秒)</label>
+        <input style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px;font-size:12px;box-sizing:border-box;" value="3">
+      </div>
+      <div style="margin-bottom:8px;">
+        <label style="font-size:12px;display:block;margin-bottom:2px;">最小分辨率 (P)</label>
+        <input style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px;font-size:12px;box-sizing:border-box;" value="480">
+      </div>
+      <div style="margin-bottom:8px;">
+        <label style="font-size:12px;display:block;margin-bottom:2px;">最大长宽比</label>
+        <input style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px;font-size:12px;box-sizing:border-box;" value="2">
+      </div>
+      <div style="margin-bottom:8px;">
+        <label style="font-size:12px;display:block;margin-bottom:2px;">最小帧率 (fps)</label>
+        <input style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px;font-size:12px;box-sizing:border-box;" value="20">
+      </div>
+      <div style="margin-bottom:8px;">
+        <label style="font-size:12px;display:block;margin-bottom:2px;">最小裁剪面积</label>
+        <input style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px;font-size:12px;box-sizing:border-box;" value="5">
+      </div>
+
+      <div style="border-top:1px solid #eee;margin-top:16px;padding-top:12px;">
+        <div style="font-size:11px;color:#888;margin-bottom:8px;text-transform:uppercase;">输出分支</div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="width:10px;height:10px;background:#81c784;border-radius:2px;display:inline-block;"></span>
+            <span style="font-size:12px;">passed → 合并</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="width:10px;height:10px;background:#ffb74d;border-radius:2px;display:inline-block;"></span>
+            <span style="font-size:12px;">needs_crop → 裁剪处理</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="width:10px;height:10px;background:#e57373;border-radius:2px;display:inline-block;"></span>
+            <span style="font-size:12px;">dropped → (终止)</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #eee;margin-top:16px;padding-top:12px;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+          <input type="checkbox" id="ckpt">
+          <label for="ckpt" style="font-size:12px;">设为 Checkpoint</label>
+        </div>
+        <div style="font-size:11px;color:#999;">中间结果持久化到 OBS，支持数据预览</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <h3>交互说明</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:13px;">
+    <div style="background:#f8f9fa;border-radius:8px;padding:14px;">
+      <div style="font-weight:bold;margin-bottom:6px;">左栏 · 组件面板</div>
+      <ul style="margin:0;padding-left:16px;line-height:1.8;">
+        <li>按 category 分组展示</li>
+        <li>支持搜索过滤</li>
+        <li>拖拽到画布添加节点</li>
+        <li>区分平台内置 / 租户自定义</li>
+      </ul>
+    </div>
+    <div style="background:#f8f9fa;border-radius:8px;padding:14px;">
+      <div style="font-weight:bold;margin-bottom:6px;">中央 · DAG 画布</div>
+      <ul style="margin:0;padding-left:16px;line-height:1.8;">
+        <li>节点间拖拽连线</li>
+        <li>自动校验类型兼容性</li>
+        <li>fan-out / fan-in / 条件分支可视化</li>
+        <li>缩放、平移、自动布局</li>
+      </ul>
+    </div>
+    <div style="background:#f8f9fa;border-radius:8px;padding:14px;">
+      <div style="font-weight:bold;margin-bottom:6px;">右栏 · 属性面板</div>
+      <ul style="margin:0;padding-left:16px;line-height:1.8;">
+        <li>点击节点显示参数配置</li>
+        <li>根据 params_schema 自动渲染表单</li>
+        <li>输出分支连线可视化</li>
+        <li>Checkpoint 开关</li>
+      </ul>
+    </div>
+    <div style="background:#f8f9fa;border-radius:8px;padding:14px;">
+      <div style="font-weight:bold;margin-bottom:6px;">工具栏</div>
+      <ul style="margin:0;padding-left:16px;line-height:1.8;">
+        <li>撤销 / 重做</li>
+        <li>切换 YAML 视图（双向同步）</li>
+        <li>从模板创建</li>
+        <li>保存版本</li>
+      </ul>
+    </div>
+  </div>
+</div>

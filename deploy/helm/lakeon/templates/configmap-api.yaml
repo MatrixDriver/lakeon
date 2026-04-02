@@ -139,3 +139,11 @@ data:
   {{- if .Values.api.logDbDsn }}
   LOG_DB_DSN: {{ .Values.api.logDbDsn | quote }}
   {{- end }}
+  {{- if .Values.hwcloud }}
+  {{- if .Values.hwcloud.accountId }}
+  LAKEON_HWCLOUD_ACCOUNT_ID: {{ .Values.hwcloud.accountId | quote }}
+  {{- end }}
+  {{- if .Values.hwcloud.accountName }}
+  LAKEON_HWCLOUD_ACCOUNT_NAME: {{ .Values.hwcloud.accountName | quote }}
+  {{- end }}
+  {{- end }}

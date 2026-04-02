@@ -1,0 +1,846 @@
+{
+  "slide-0": {
+    "shape-0": {
+      "left": 0.0,
+      "top": 0.1,
+      "width": 13.33,
+      "height": 0.4,
+      "paragraphs": [
+        {
+          "text": "DBay 数据港湾 - 系统架构",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 24.0,
+          "bold": true,
+          "color": "0070C0"
+        }
+      ]
+    },
+    "shape-1": {
+      "left": 0.0,
+      "top": 0.45,
+      "width": 13.33,
+      "height": 0.25,
+      "paragraphs": [
+        {
+          "text": "面向 Agent 的 Serverless 数据底座",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "5B9BD5"
+        }
+      ]
+    },
+    "shape-2": {
+      "left": 0.52,
+      "top": 0.91,
+      "width": 0.02,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "Agent 接入层",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 16.0,
+          "bold": true,
+          "color": "7B5EA7"
+        }
+      ]
+    },
+    "shape-3": {
+      "left": 0.52,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "MCP Server",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 11.0,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-4": {
+      "left": 0.52,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "Skill",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 11.0,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-5": {
+      "left": 0.52,
+      "top": 0.91,
+      "width": 0.02,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "支持 Claude / GPT / Gemini 等多种 Agent 接入 · 标准化工具协议",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 9.5,
+          "italic": true,
+          "color": "7B5EA7"
+        }
+      ]
+    },
+    "shape-6": {
+      "left": 0.52,
+      "top": 0.91,
+      "width": 0.02,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "Agent 认知数据层",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 13.0,
+          "bold": true,
+          "color": "C8A000"
+        }
+      ]
+    },
+    "shape-7": {
+      "left": 0.52,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "知识库",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 15.0,
+          "bold": true,
+          "color": "B8860B"
+        }
+      ]
+    },
+    "shape-8": {
+      "left": 0.52,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 文档解析与切片",
+          "font_name": "Arial",
+          "font_size": 9.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-9": {
+      "left": 0.52,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 融合检索",
+          "font_name": "Arial",
+          "font_size": 9.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-10": {
+      "left": 0.52,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 表知识库",
+          "font_name": "Arial",
+          "font_size": 9.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-11": {
+      "left": 0.52,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 版本管理 + 回滚",
+          "font_name": "Arial",
+          "font_size": 9.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-12": {
+      "left": 0.52,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "记忆库",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 15.0,
+          "bold": true,
+          "color": "C07B10"
+        }
+      ]
+    },
+    "shape-13": {
+      "left": 0.52,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• Agent 长期记忆",
+          "font_name": "Arial",
+          "font_size": 9.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-14": {
+      "left": 0.52,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 多类型记忆管理",
+          "font_name": "Arial",
+          "font_size": 9.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-15": {
+      "left": 0.52,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 语义检索 + 时间衰减",
+          "font_name": "Arial",
+          "font_size": 9.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-16": {
+      "left": 0.52,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 记忆压缩与合并",
+          "font_name": "Arial",
+          "font_size": 9.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-17": {
+      "left": 0.52,
+      "top": 0.92,
+      "width": 0.02,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "共性需求",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 11.0,
+          "bold": true,
+          "color": "C8A000"
+        }
+      ]
+    },
+    "shape-18": {
+      "left": 0.52,
+      "top": 0.92,
+      "width": 0.02,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "轻量化快速弹性 · 快速启动 · 多分支支持 Agent 并行试错和恢复",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.0,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-19": {
+      "left": 0.52,
+      "top": 0.92,
+      "width": 0.02,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "向量 + 全文检索 + 图 + 结构化融合检索 · 多模态数据沉淀、加工与分析",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.0,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-20": {
+      "left": 0.52,
+      "top": 0.92,
+      "width": 0.01,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "Lakebase (Neon 内核)",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 18.0,
+          "bold": true,
+          "color": "0078B8"
+        }
+      ]
+    },
+    "shape-21": {
+      "left": 0.52,
+      "top": 0.92,
+      "width": 0.01,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "存算分离 · 多版本 · 时间旅行 · 分支管理",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-22": {
+      "left": 0.52,
+      "top": 0.92,
+      "width": 0.01,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "按需启动 (3ms 热启动) · 自动扩缩容 · 多租户隔离",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-23": {
+      "left": 0.52,
+      "top": 0.92,
+      "width": 0.01,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "pgvector · zhparser · AGE Graph · PostGIS",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-24": {
+      "left": 0.52,
+      "top": 0.92,
+      "width": 0.02,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "基础设施层",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 15.0,
+          "bold": true,
+          "color": "607D8B"
+        }
+      ]
+    },
+    "shape-25": {
+      "left": 0.52,
+      "top": 0.92,
+      "width": 0.0,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "Kubernetes (CCE)",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.0,
+          "color": "666666"
+        }
+      ]
+    },
+    "shape-26": {
+      "left": 0.52,
+      "top": 0.92,
+      "width": 0.0,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "对象存储 (OBS)",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.0,
+          "color": "666666"
+        }
+      ]
+    },
+    "shape-27": {
+      "left": 0.52,
+      "top": 0.92,
+      "width": 0.02,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "关键基础设施需求",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "bold": true,
+          "color": "607D8B"
+        }
+      ]
+    },
+    "shape-28": {
+      "left": 0.52,
+      "top": 0.92,
+      "width": 0.02,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "认知数据层 → 高性价比低时延 Token 服务 · 高质量多模态 Embedding 模型",
+          "font_name": "Arial",
+          "font_size": 11.0,
+          "bold": true,
+          "color": "C8A000"
+        }
+      ]
+    },
+    "shape-29": {
+      "left": 0.52,
+      "top": 0.92,
+      "width": 0.02,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "AI 数据湖 → 多租 Ray/Python 作业安全隔离 · CCI 支持 NPU Pod (关键依赖)",
+          "font_name": "Arial",
+          "font_size": 11.0,
+          "bold": true,
+          "color": "1B8A4A"
+        }
+      ]
+    },
+    "shape-30": {
+      "left": 0.53,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "Python SDK",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 11.0,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-31": {
+      "left": 0.53,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "REST API",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 11.0,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-32": {
+      "left": 0.53,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "多 Agent 编排",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 11.0,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-33": {
+      "left": 0.53,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "对话历史库",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 15.0,
+          "bold": true,
+          "color": "A0612B"
+        }
+      ]
+    },
+    "shape-34": {
+      "left": 0.53,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 多轮对话存储",
+          "font_name": "Arial",
+          "font_size": 9.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-35": {
+      "left": 0.53,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 会话上下文管理",
+          "font_name": "Arial",
+          "font_size": 9.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-36": {
+      "left": 0.53,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 轨迹回放与分析",
+          "font_name": "Arial",
+          "font_size": 9.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-37": {
+      "left": 0.53,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 对话数据导出",
+          "font_name": "Arial",
+          "font_size": 9.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-38": {
+      "left": 0.53,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "状态库",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 15.0,
+          "bold": true,
+          "color": "A69020"
+        }
+      ]
+    },
+    "shape-39": {
+      "left": 0.53,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• Agent 运行状态",
+          "font_name": "Arial",
+          "font_size": 9.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-40": {
+      "left": 0.53,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 任务进度追踪",
+          "font_name": "Arial",
+          "font_size": 9.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-41": {
+      "left": 0.53,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 配置与偏好存储",
+          "font_name": "Arial",
+          "font_size": 9.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-42": {
+      "left": 0.53,
+      "top": 0.91,
+      "width": 0.0,
+      "height": 0.0,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 检查点与恢复",
+          "font_name": "Arial",
+          "font_size": 9.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-43": {
+      "left": 0.53,
+      "top": 0.92,
+      "width": 0.0,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "数据 →",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 9.0,
+          "bold": true,
+          "color": "4A90D9"
+        }
+      ]
+    },
+    "shape-44": {
+      "left": 0.53,
+      "top": 0.92,
+      "width": 0.0,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "← 同步",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 9.0,
+          "bold": true,
+          "color": "4A90D9"
+        }
+      ]
+    },
+    "shape-45": {
+      "left": 0.53,
+      "top": 0.92,
+      "width": 0.01,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "AI 多模数据湖",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 18.0,
+          "bold": true,
+          "color": "1B8A4A"
+        }
+      ]
+    },
+    "shape-46": {
+      "left": 0.53,
+      "top": 0.92,
+      "width": 0.01,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "多模态格式 (Lance + 自研) · Dataset 导出 (Parquet)",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-47": {
+      "left": 0.53,
+      "top": 0.92,
+      "width": 0.01,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "Python/Ray 任务调度 · 模型微调 (SFT) · RL 训练",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-48": {
+      "left": 0.53,
+      "top": 0.92,
+      "width": 0.01,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "Kata VM 隔离 · 增量 CDC 调度",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "333333"
+        }
+      ]
+    },
+    "shape-49": {
+      "left": 0.53,
+      "top": 0.92,
+      "width": 0.0,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "元数据库 (RDS)",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.0,
+          "color": "666666"
+        }
+      ]
+    },
+    "shape-50": {
+      "left": 0.53,
+      "top": 0.92,
+      "width": 0.0,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "弹性节点池",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.0,
+          "color": "666666"
+        }
+      ]
+    },
+    "shape-51": {
+      "left": 0.53,
+      "top": 0.92,
+      "width": 0.0,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "VPC EP (网络型)",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.0,
+          "color": "666666"
+        }
+      ]
+    },
+    "shape-52": {
+      "left": 0.54,
+      "top": 0.92,
+      "width": 0.0,
+      "height": 0.0,
+      "paragraphs": [
+        {
+          "text": "NPU/GPU 资源池",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.0,
+          "color": "666666"
+        }
+      ]
+    }
+  }
+}

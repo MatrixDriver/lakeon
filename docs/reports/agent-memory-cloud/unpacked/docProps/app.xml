@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="ascii"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+  <TotalTime>0</TotalTime>
+  <Words>5356</Words>
+  <Application>WPS &#25991;&#23383;</Application>
+  <PresentationFormat>On-screen Show (16:9)</PresentationFormat>
+  <Paragraphs>717</Paragraphs>
+  <Slides>4</Slides>
+  <Notes>1</Notes>
+  <HiddenSlides>0</HiddenSlides>
+  <MMClips>0</MMClips>
+  <ScaleCrop>false</ScaleCrop>
+  <HeadingPairs>
+    <vt:vector size="6" baseType="variant">
+      <vt:variant>
+        <vt:lpstr>&#24050;&#29992;&#30340;&#23383;&#20307;</vt:lpstr>
+      </vt:variant>
+      <vt:variant>
+        <vt:i4>15</vt:i4>
+      </vt:variant>
+      <vt:variant>
+        <vt:lpstr>&#20027;&#39064;</vt:lpstr>
+      </vt:variant>
+      <vt:variant>
+        <vt:i4>1</vt:i4>
+      </vt:variant>
+      <vt:variant>
+        <vt:lpstr>&#24187;&#28783;&#29255;&#26631;&#39064;</vt:lpstr>
+      </vt:variant>
+      <vt:variant>
+        <vt:i4>4</vt:i4>
+      </vt:variant>
+    </vt:vector>
+  </HeadingPairs>
+  <TitlesOfParts>
+    <vt:vector size="20" baseType="lpstr">
+      <vt:lpstr>Arial</vt:lpstr>
+      <vt:lpstr>&#23435;&#20307;</vt:lpstr>
+      <vt:lpstr>Wingdings</vt:lpstr>
+      <vt:lpstr>Arial</vt:lpstr>
+      <vt:lpstr>Arial</vt:lpstr>
+      <vt:lpstr>&#23435;&#20307;</vt:lpstr>
+      <vt:lpstr>&#27721;&#20202;&#20070;&#23435;&#20108;KW</vt:lpstr>
+      <vt:lpstr>Calibri</vt:lpstr>
+      <vt:lpstr>Helvetica Neue</vt:lpstr>
+      <vt:lpstr>Apple Color Emoji</vt:lpstr>
+      <vt:lpstr>&#24494;&#36719;&#38597;&#40657;</vt:lpstr>
+      <vt:lpstr>&#27721;&#20202;&#26071;&#40657;</vt:lpstr>
+      <vt:lpstr>Arial Unicode MS</vt:lpstr>
+      <vt:lpstr>&#31561;&#32447;</vt:lpstr>
+      <vt:lpstr>&#27721;&#20202;&#20013;&#31561;&#32447;KW</vt:lpstr>
+      <vt:lpstr>Office Theme</vt:lpstr>
+      <vt:lpstr>PowerPoint &#28436;&#31034;&#25991;&#31295;</vt:lpstr>
+      <vt:lpstr>PowerPoint &#28436;&#31034;&#25991;&#31295;</vt:lpstr>
+      <vt:lpstr>PowerPoint &#28436;&#31034;&#25991;&#31295;</vt:lpstr>
+      <vt:lpstr>PowerPoint &#28436;&#31034;&#25991;&#31295;</vt:lpstr>
+    </vt:vector>
+  </TitlesOfParts>
+  <Company>PptxGenJS</Company>
+  <LinksUpToDate>false</LinksUpToDate>
+  <SharedDoc>false</SharedDoc>
+  <HyperlinksChanged>false</HyperlinksChanged>
+  <AppVersion>14.0000</AppVersion>
+</Properties>

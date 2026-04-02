@@ -682,7 +682,7 @@ public class DatabaseService {
             .map(String::trim).filter(s -> !s.isEmpty()).toList();
     }
 
-    private static final List<String> DEFAULT_EXTENSIONS = List.of("vector");
+    private static final List<String> DEFAULT_EXTENSIONS = List.of("vector", "pg_search");
 
     void enableDefaultExtensions(DatabaseEntity entity) {
         // Connect directly to compute pod (not proxy) — no options=endpoint needed

@@ -526,6 +526,10 @@ public class KnowledgeService {
         KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(finalKbId, tenant.getId())
                 .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + finalKbId));
         databaseId = kb.getDatabaseId();
+        // Validate database exists before queuing tasks
+        if (databaseId == null) {
+            throw new BadRequestException("Knowledge base " + kbId + " has no database assigned");
+        }
 
         // Build per-document params list
         List<Map<String, Object>> docParams = new ArrayList<>();

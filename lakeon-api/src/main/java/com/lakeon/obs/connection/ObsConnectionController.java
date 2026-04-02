@@ -76,6 +76,7 @@ public class ObsConnectionController {
     public Map<String, Object> platformInfo() {
         Map<String, Object> info = new LinkedHashMap<>();
         info.put("hwcloud_account_id", props.getHwcloud().getAccountId());
+        info.put("hwcloud_account_name", props.getHwcloud().getAccountName());
         info.put("region", props.getObs().getRegion());
         return info;
     }

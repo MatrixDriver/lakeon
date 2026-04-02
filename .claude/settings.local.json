@@ -13,7 +13,16 @@
       "mcp__dbay__memory_ingest",
       "mcp__dbay__knowledge_search",
       "mcp__dbay__memory_recall",
-      "mcp__dbay__memory_list"
+      "mcp__dbay__memory_list",
+      "WebFetch(domain:mem0.ai)",
+      "WebFetch(domain:www.arsturn.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.volcengine.com)",
+      "WebFetch(domain:docs.paradedb.com)",
+      "WebFetch(domain:neon.com)",
+      "WebFetch(domain:www.paradedb.com)",
+      "WebFetch(domain:news.ycombinator.com)",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot"
     ]
   }
 }

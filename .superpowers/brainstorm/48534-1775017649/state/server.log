@@ -1,0 +1,6 @@
+{"type":"server-started","port":50126,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:50126","screen_dir":"/Users/jacky/code/lakeon/.superpowers/brainstorm/48534-1775017649/content","state_dir":"/Users/jacky/code/lakeon/.superpowers/brainstorm/48534-1775017649/state"}
+{"type":"screen-added","file":"/Users/jacky/code/lakeon/.superpowers/brainstorm/48534-1775017649/content/progress-layout.html"}
+{"source":"user-event","type":"click","text":"C\n    \n      顶部单卡片（上下两行）\n      一个卡片内分两行：第一行上传进度，第二行处理进度。紧凑且信息完整。\n      \n        \n          \n          \n            上传\n            \n              \n            \n            860/2673\n            12.3 MB/s · 约 4 分钟\n          \n          \n          \n            处理\n            \n              \n            \n            160/840\n            3.2 文档/分 · 8 失败\n          \n          \n          \n            ▸ 展开详情：排队 668 · 解析中 4 · 已完成 160 · 失败 8\n          \n        \n        \n          [ 全部 | 处理中 | 就绪 | 失败 ]    文件列表表格...","choice":"c","id":null,"timestamp":1775018215392}
+{"type":"screen-added","file":"/Users/jacky/code/lakeon/.superpowers/brainstorm/48534-1775017649/content/full-design.html"}
+{"type":"screen-added","file":"/Users/jacky/code/lakeon/.superpowers/brainstorm/48534-1775017649/content/waiting.html"}
+{"type":"server-stopped","reason":"idle timeout"}

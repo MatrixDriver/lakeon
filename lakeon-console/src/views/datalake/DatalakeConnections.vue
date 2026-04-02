@@ -94,9 +94,9 @@
           </p>
 
           <div class="info-card">
-            <div class="info-label">DBay 华为云账号 ID</div>
-            <div class="info-value copyable" @click="copyAccountId">
-              <code>{{ platformAccountId || '(未配置)' }}</code>
+            <div class="info-label">DBay 华为云账号名（被委托方）</div>
+            <div class="info-value copyable" @click="copyText(platformAccountName)">
+              <code>{{ platformAccountName || '(未配置)' }}</code>
               <span class="copy-hint">点击复制</span>
             </div>
           </div>
@@ -112,7 +112,7 @@
             </div>
             <div class="guide-step">
               <span class="guide-num">3</span>
-              委托账号填写上方的 DBay 账号 ID
+              被委托方选择"其他账号"，账号名填写上方的 DBay 账号名
             </div>
             <div class="guide-step">
               <span class="guide-num">4</span>
@@ -223,6 +223,7 @@ const createStep = ref(1)
 const creating = ref(false)
 const createError = ref('')
 const platformAccountId = ref('')
+const platformAccountName = ref('')
 
 const form = ref({
   name: '',
@@ -286,14 +287,15 @@ async function fetchPlatformInfo() {
     const resp = await client.get('/obs-connections/platform-info')
     const data = resp.data?.data ?? resp.data
     platformAccountId.value = data?.hwcloud_account_id || ''
+    platformAccountName.value = data?.hwcloud_account_name || ''
   } catch {
     // non-critical
   }
 }
 
-function copyAccountId() {
-  if (platformAccountId.value) {
-    navigator.clipboard.writeText(platformAccountId.value)
+function copyText(text: string) {
+  if (text) {
+    navigator.clipboard.writeText(text)
   }
 }
 

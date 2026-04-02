@@ -1,0 +1,2122 @@
+{
+  "slide-0": {
+    "shape-0": {
+      "left": 0.4,
+      "top": 0.05,
+      "width": 11.0,
+      "height": 0.28,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "不同 Agent 场景需要不同的记忆策略",
+          "font_name": "Arial",
+          "font_size": 19.0,
+          "bold": true,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-1": {
+      "left": 0.4,
+      "top": 0.3,
+      "width": 12.0,
+      "height": 0.2,
+      "paragraphs": [
+        {
+          "text": "5 类 Agent 场景 × 3 层记忆系统 = 场景化 Preset 配置",
+          "font_name": "Arial",
+          "font_size": 10.0,
+          "color": "B0C4DE"
+        }
+      ]
+    },
+    "shape-2": {
+      "left": 0.3,
+      "top": 0.68,
+      "width": 3.0,
+      "height": 0.26,
+      "paragraphs": [
+        {
+          "text": "5 类 Agent 场景",
+          "font_name": "Arial",
+          "font_size": 13.0,
+          "bold": true,
+          "color": "1A3A5C"
+        }
+      ]
+    },
+    "shape-3": {
+      "left": 0.53,
+      "top": 0.98,
+      "width": 2.28,
+      "height": 0.22,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.08
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "💻  编码助手",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 14.0,
+          "bold": true,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-4": {
+      "left": 0.53,
+      "top": 1.18,
+      "width": 2.28,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "Claude Code / Cursor",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.0,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-5": {
+      "left": 3.02,
+      "top": 0.98,
+      "width": 2.28,
+      "height": 0.22,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.08
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "🤖  个人助理",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 14.0,
+          "bold": true,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-6": {
+      "left": 3.02,
+      "top": 1.18,
+      "width": 2.28,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "OpenClaw",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.0,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-7": {
+      "left": 5.53,
+      "top": 0.98,
+      "width": 2.28,
+      "height": 0.22,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.08
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "🏢  业务垂直",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 14.0,
+          "bold": true,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-8": {
+      "left": 5.53,
+      "top": 1.18,
+      "width": 2.28,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "客服 / 销售 / 法律",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.0,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-9": {
+      "left": 8.03,
+      "top": 0.98,
+      "width": 2.28,
+      "height": 0.22,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.08
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "🔄  多Agent协作",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 14.0,
+          "bold": true,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-10": {
+      "left": 8.03,
+      "top": 1.18,
+      "width": 2.28,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "CrewAI / AutoGen",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.0,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-11": {
+      "left": 10.53,
+      "top": 0.98,
+      "width": 2.28,
+      "height": 0.22,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.08
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "💬  长期陪伴",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 14.0,
+          "bold": true,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-12": {
+      "left": 10.53,
+      "top": 1.18,
+      "width": 2.28,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "Character.AI",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.0,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-13": {
+      "left": 0.56,
+      "top": 1.42,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "记忆类型",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "1565C0"
+        }
+      ]
+    },
+    "shape-14": {
+      "left": 0.56,
+      "top": 1.58,
+      "width": 2.22,
+      "height": 0.28,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.1
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "Decision / Rejection / Pattern",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-15": {
+      "left": 0.56,
+      "top": 1.92,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "衰减策略",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "1565C0"
+        }
+      ]
+    },
+    "shape-16": {
+      "left": 3.06,
+      "top": 1.42,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "记忆类型",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "0D7C66"
+        }
+      ]
+    },
+    "shape-17": {
+      "left": 3.06,
+      "top": 1.58,
+      "width": 2.22,
+      "height": 0.28,
+      "paragraphs": [
+        {
+          "text": "Fact / Episode / Procedure",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-18": {
+      "left": 3.06,
+      "top": 1.92,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "衰减策略",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "0D7C66"
+        }
+      ]
+    },
+    "shape-19": {
+      "left": 5.55,
+      "top": 1.42,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "记忆类型",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "B45309"
+        }
+      ]
+    },
+    "shape-20": {
+      "left": 5.55,
+      "top": 1.58,
+      "width": 2.22,
+      "height": 0.28,
+      "paragraphs": [
+        {
+          "text": "Fact / Decision / Episode",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-21": {
+      "left": 5.55,
+      "top": 1.92,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "衰减策略",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "B45309"
+        }
+      ]
+    },
+    "shape-22": {
+      "left": 8.05,
+      "top": 1.42,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "记忆类型",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "6B3FA0"
+        }
+      ]
+    },
+    "shape-23": {
+      "left": 8.05,
+      "top": 1.58,
+      "width": 2.22,
+      "height": 0.28,
+      "paragraphs": [
+        {
+          "text": "Context / Result",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-24": {
+      "left": 8.05,
+      "top": 1.92,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "衰减策略",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "6B3FA0"
+        }
+      ]
+    },
+    "shape-25": {
+      "left": 10.55,
+      "top": 1.42,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "记忆类型",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "C0392B"
+        }
+      ]
+    },
+    "shape-26": {
+      "left": 10.55,
+      "top": 1.58,
+      "width": 2.22,
+      "height": 0.28,
+      "paragraphs": [
+        {
+          "text": "Trait / Episode + 情感标注",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-27": {
+      "left": 10.55,
+      "top": 1.92,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "衰减策略",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "C0392B"
+        }
+      ]
+    },
+    "shape-28": {
+      "left": 0.56,
+      "top": 2.08,
+      "width": 2.22,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "不衰减",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-29": {
+      "left": 0.56,
+      "top": 2.3,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "检索方式",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "1565C0"
+        }
+      ]
+    },
+    "shape-30": {
+      "left": 0.56,
+      "top": 2.46,
+      "width": 2.22,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "精确匹配优先",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-31": {
+      "left": 3.06,
+      "top": 2.08,
+      "width": 2.22,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "指数衰减 λ=0.95/周",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-32": {
+      "left": 3.06,
+      "top": 2.3,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "检索方式",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "0D7C66"
+        }
+      ]
+    },
+    "shape-33": {
+      "left": 3.06,
+      "top": 2.46,
+      "width": 2.22,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "语义+时间加权",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-34": {
+      "left": 5.55,
+      "top": 2.08,
+      "width": 2.22,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "不衰减(合规)",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-35": {
+      "left": 5.55,
+      "top": 2.3,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "检索方式",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "B45309"
+        }
+      ]
+    },
+    "shape-36": {
+      "left": 5.55,
+      "top": 2.46,
+      "width": 2.22,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "精确ID+语义",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-37": {
+      "left": 8.05,
+      "top": 2.08,
+      "width": 2.22,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "任务结束清除",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-38": {
+      "left": 8.05,
+      "top": 2.3,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "检索方式",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "6B3FA0"
+        }
+      ]
+    },
+    "shape-39": {
+      "left": 8.05,
+      "top": 2.46,
+      "width": 2.22,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "精确任务ID",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-40": {
+      "left": 10.55,
+      "top": 2.08,
+      "width": 2.22,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "强衰减 λ=0.92/天",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-41": {
+      "left": 10.55,
+      "top": 2.3,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "检索方式",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "C0392B"
+        }
+      ]
+    },
+    "shape-42": {
+      "left": 10.55,
+      "top": 2.46,
+      "width": 2.22,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "语义+情感+关系",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-43": {
+      "left": 0.56,
+      "top": 2.68,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "Token 预算",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "1565C0"
+        }
+      ]
+    },
+    "shape-44": {
+      "left": 0.56,
+      "top": 2.84,
+      "width": 2.22,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "<500",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-45": {
+      "left": 0.56,
+      "top": 3.08,
+      "width": 2.22,
+      "height": 0.22,
+      "paragraphs": [
+        {
+          "text": "⚡ 记住架构决策和排除项",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-46": {
+      "left": 3.06,
+      "top": 2.68,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "Token 预算",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "0D7C66"
+        }
+      ]
+    },
+    "shape-47": {
+      "left": 3.06,
+      "top": 2.84,
+      "width": 2.22,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "<800",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-48": {
+      "left": 3.06,
+      "top": 3.08,
+      "width": 2.22,
+      "height": 0.22,
+      "paragraphs": [
+        {
+          "text": "⚡ 持续学习用户偏好",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-49": {
+      "left": 5.55,
+      "top": 2.68,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "Token 预算",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "B45309"
+        }
+      ]
+    },
+    "shape-50": {
+      "left": 5.55,
+      "top": 2.84,
+      "width": 2.22,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "按需完整",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-51": {
+      "left": 5.55,
+      "top": 3.08,
+      "width": 2.22,
+      "height": 0.22,
+      "paragraphs": [
+        {
+          "text": "⚡ 审计轨迹 + 权限隔离",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-52": {
+      "left": 8.05,
+      "top": 2.68,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "Token 预算",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "6B3FA0"
+        }
+      ]
+    },
+    "shape-53": {
+      "left": 8.05,
+      "top": 2.84,
+      "width": 2.22,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "<200",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-54": {
+      "left": 8.05,
+      "top": 3.08,
+      "width": 2.22,
+      "height": 0.22,
+      "paragraphs": [
+        {
+          "text": "⚡ 跨Agent共享状态",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-55": {
+      "left": 10.55,
+      "top": 2.68,
+      "width": 1.0,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "Token 预算",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "C0392B"
+        }
+      ]
+    },
+    "shape-56": {
+      "left": 10.55,
+      "top": 2.84,
+      "width": 2.22,
+      "height": 0.16,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.09
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "<1500",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-57": {
+      "left": 10.55,
+      "top": 3.08,
+      "width": 2.22,
+      "height": 0.22,
+      "paragraphs": [
+        {
+          "text": "⚡ 人格一致性 + 情感记忆",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 10.5,
+          "bold": true,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-58": {
+      "left": 0.35,
+      "top": 3.76,
+      "width": 6.0,
+      "height": 0.26,
+      "paragraphs": [
+        {
+          "text": "统一三层记忆系统 — 同一引擎，场景化配置",
+          "font_name": "Arial",
+          "font_size": 13.0,
+          "bold": true,
+          "color": "1A3A5C"
+        }
+      ]
+    },
+    "shape-59": {
+      "left": 2.09,
+      "top": 4.08,
+      "width": 2.14,
+      "height": 0.24,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.06
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "💻 编码助手",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 14.0,
+          "bold": true,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-60": {
+      "left": 4.27,
+      "top": 4.08,
+      "width": 2.14,
+      "height": 0.24,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.06
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "🤖 个人助理",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 14.0,
+          "bold": true,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-61": {
+      "left": 6.45,
+      "top": 4.08,
+      "width": 2.14,
+      "height": 0.24,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.06
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "🏢 业务垂直",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 14.0,
+          "bold": true,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-62": {
+      "left": 8.64,
+      "top": 4.08,
+      "width": 2.14,
+      "height": 0.24,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.06
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "🔄 多Agent",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 14.0,
+          "bold": true,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-63": {
+      "left": 10.82,
+      "top": 4.08,
+      "width": 2.14,
+      "height": 0.24,
+      "overflow": {
+        "frame": {
+          "overflow_bottom": 0.06
+        }
+      },
+      "paragraphs": [
+        {
+          "text": "💬 长期陪伴",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 14.0,
+          "bold": true,
+          "color": "FFFFFF"
+        }
+      ]
+    },
+    "shape-64": {
+      "left": 0.45,
+      "top": 4.42,
+      "width": 1.4,
+      "height": 0.22,
+      "paragraphs": [
+        {
+          "text": "策略层",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "bold": true,
+          "color": "1565C0"
+        }
+      ]
+    },
+    "shape-65": {
+      "left": 0.45,
+      "top": 4.66,
+      "width": 1.4,
+      "height": 0.45,
+      "paragraphs": [
+        {
+          "text": "何时提取",
+          "font_name": "Arial",
+          "font_size": 9.0,
+          "color": "5D6D7E"
+        },
+        {
+          "text": "如何衰减",
+          "font_name": "Arial",
+          "font_size": 9.0,
+          "color": "5D6D7E"
+        },
+        {
+          "text": "如何排序",
+          "font_name": "Arial",
+          "font_size": 9.0,
+          "color": "5D6D7E"
+        }
+      ]
+    },
+    "shape-66": {
+      "left": 2.13,
+      "top": 4.44,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 显式提取",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-67": {
+      "left": 2.13,
+      "top": 4.66,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 不衰减",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-68": {
+      "left": 2.13,
+      "top": 4.88,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 精确匹配",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-69": {
+      "left": 4.31,
+      "top": 4.44,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 自动提取",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-70": {
+      "left": 4.31,
+      "top": 4.66,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 指数衰减",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-71": {
+      "left": 4.31,
+      "top": 4.88,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• Q-value 加权",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-72": {
+      "left": 6.49,
+      "top": 4.44,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 按规则提取",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-73": {
+      "left": 6.49,
+      "top": 4.66,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 不衰减",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-74": {
+      "left": 6.49,
+      "top": 4.88,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• ID 精确 + 语义",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-75": {
+      "left": 8.68,
+      "top": 4.44,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 任务结束提取",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-76": {
+      "left": 8.68,
+      "top": 4.66,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 整体清除",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-77": {
+      "left": 8.68,
+      "top": 4.88,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 任务ID精确",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-78": {
+      "left": 10.86,
+      "top": 4.44,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 异步提取",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-79": {
+      "left": 10.86,
+      "top": 4.66,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 强衰减",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-80": {
+      "left": 10.86,
+      "top": 4.88,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 情感 + 语义",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-81": {
+      "left": 0.45,
+      "top": 5.28,
+      "width": 1.4,
+      "height": 0.22,
+      "paragraphs": [
+        {
+          "text": "组织层",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "bold": true,
+          "color": "0D7C66"
+        }
+      ]
+    },
+    "shape-82": {
+      "left": 0.45,
+      "top": 5.52,
+      "width": 1.4,
+      "height": 0.45,
+      "paragraphs": [
+        {
+          "text": "记忆类型",
+          "font_name": "Arial",
+          "font_size": 9.0,
+          "color": "5D6D7E"
+        },
+        {
+          "text": "元数据标注",
+          "font_name": "Arial",
+          "font_size": 9.0,
+          "color": "5D6D7E"
+        },
+        {
+          "text": "图谱关系",
+          "font_name": "Arial",
+          "font_size": 9.0,
+          "color": "5D6D7E"
+        }
+      ]
+    },
+    "shape-83": {
+      "left": 2.13,
+      "top": 5.3,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• Decision/Pattern",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-84": {
+      "left": 2.13,
+      "top": 5.52,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 决策原因标注",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-85": {
+      "left": 2.13,
+      "top": 5.74,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 架构决策图谱",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-86": {
+      "left": 4.31,
+      "top": 5.3,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• Fact/Trait/Episode",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-87": {
+      "left": 4.31,
+      "top": 5.52,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 置信度+情绪",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-88": {
+      "left": 4.31,
+      "top": 5.74,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 人物关系图谱",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-89": {
+      "left": 6.49,
+      "top": 5.3,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• Fact/Decision",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-90": {
+      "left": 6.49,
+      "top": 5.52,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 审计日志+RBAC",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-91": {
+      "left": 6.49,
+      "top": 5.74,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 客户关系图谱",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-92": {
+      "left": 8.68,
+      "top": 5.3,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• Context/Result",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-93": {
+      "left": 8.68,
+      "top": 5.52,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 任务依赖标注",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-94": {
+      "left": 8.68,
+      "top": 5.74,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 工作流 DAG",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-95": {
+      "left": 10.86,
+      "top": 5.3,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• Trait/Episode",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-96": {
+      "left": 10.86,
+      "top": 5.52,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 情感+人格标注",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-97": {
+      "left": 10.86,
+      "top": 5.74,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 情感关系图谱",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-98": {
+      "left": 0.45,
+      "top": 6.14,
+      "width": 1.4,
+      "height": 0.22,
+      "paragraphs": [
+        {
+          "text": "存储层",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "bold": true,
+          "color": "B45309"
+        }
+      ]
+    },
+    "shape-99": {
+      "left": 0.45,
+      "top": 6.38,
+      "width": 1.4,
+      "height": 0.45,
+      "paragraphs": [
+        {
+          "text": "向量检索",
+          "font_name": "Arial",
+          "font_size": 9.0,
+          "color": "5D6D7E"
+        },
+        {
+          "text": "全文搜索",
+          "font_name": "Arial",
+          "font_size": 9.0,
+          "color": "5D6D7E"
+        },
+        {
+          "text": "图谱+时序",
+          "font_name": "Arial",
+          "font_size": 9.0,
+          "color": "5D6D7E"
+        }
+      ]
+    },
+    "shape-100": {
+      "left": 2.13,
+      "top": 6.16,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 本地 SQLite",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-101": {
+      "left": 2.13,
+      "top": 6.38,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• + 远程 pgvector",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-102": {
+      "left": 2.13,
+      "top": 6.6,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 零延迟优先",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-103": {
+      "left": 4.31,
+      "top": 6.16,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• pgvector + BM25",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-104": {
+      "left": 4.31,
+      "top": 6.38,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• + 时间衰减索引",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-105": {
+      "left": 4.31,
+      "top": 6.6,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• L0/L1/L2 分层",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-106": {
+      "left": 6.49,
+      "top": 6.16,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• PostgreSQL",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-107": {
+      "left": 6.49,
+      "top": 6.38,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• + RBAC + 审计日志",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-108": {
+      "left": 6.49,
+      "top": 6.6,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• Append-only",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-109": {
+      "left": 8.68,
+      "top": 6.16,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• Redis 共享状态",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-110": {
+      "left": 8.68,
+      "top": 6.38,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• + PG 持久化",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-111": {
+      "left": 8.68,
+      "top": 6.6,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 亚秒级延迟",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-112": {
+      "left": 10.86,
+      "top": 6.16,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• pgvector + 图谱",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-113": {
+      "left": 10.86,
+      "top": 6.38,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• + 时间线分区",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-114": {
+      "left": 10.86,
+      "top": 6.6,
+      "width": 2.06,
+      "height": 0.22,
+      "warnings": [
+        "manual_bullet_symbol: use proper bullet formatting"
+      ],
+      "paragraphs": [
+        {
+          "text": "• 情感元数据索引",
+          "font_name": "Arial",
+          "font_size": 12.0,
+          "color": "2C3E50"
+        }
+      ]
+    },
+    "shape-115": {
+      "left": 0.4,
+      "top": 7.04,
+      "width": 12.53,
+      "height": 0.44,
+      "paragraphs": [
+        {
+          "text": "统一引擎 + 场景 Preset = 一套代码服务所有 Agent 类型，通过配置实现差异化，通过数据飞轮自动演进每个场景的最优策略",
+          "alignment": "CENTER",
+          "font_name": "Arial",
+          "font_size": 11.0,
+          "bold": true,
+          "color": "FFFFFF"
+        }
+      ]
+    }
+  }
+}
