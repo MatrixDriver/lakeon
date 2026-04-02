@@ -121,7 +121,8 @@ public class KnowledgeController {
             throw new com.lakeon.service.exception.BadRequestException("kb_id is required");
         }
         List<Map<String, Object>> files = (List<Map<String, Object>>) body.get("files");
-        List<Map<String, Object>> documents = knowledgeService.batchGenerateUploadUrls(tenant, kbId, files);
+        Map<String, String> batchMetadata = (Map<String, String>) body.get("metadata");
+        List<Map<String, Object>> documents = knowledgeService.batchGenerateUploadUrls(tenant, kbId, files, batchMetadata);
         return Map.of("documents", documents);
     }
 

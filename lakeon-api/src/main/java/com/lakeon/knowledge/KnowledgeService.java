@@ -419,7 +419,7 @@ public class KnowledgeService {
      */
     @Transactional
     public List<Map<String, Object>> batchGenerateUploadUrls(TenantEntity tenant, String kbId,
-            List<Map<String, Object>> files) {
+            List<Map<String, Object>> files, Map<String, String> batchMetadata) {
         if (files == null || files.isEmpty()) {
             throw new BadRequestException("files is required");
         }
@@ -448,6 +448,9 @@ public class KnowledgeService {
                 }
                 @SuppressWarnings("unchecked")
                 List<String> tags = (List<String>) fileSpec.get("tags");
+                String folder = (String) fileSpec.get("folder");
+                @SuppressWarnings("unchecked")
+                Map<String, String> fileMetadata = (Map<String, String>) fileSpec.get("metadata");
 
                 String format = detectFormat(filename);
                 if (format == null) {
@@ -461,9 +464,42 @@ public class KnowledgeService {
                 doc.setFilename(filename);
                 doc.setFormat(format);
                 doc.setStatus(DocumentStatus.PENDING);
+
+                // Set folder (strip root directory from webkitRelativePath)
+                if (folder != null && !folder.isBlank()) {
+                    String cleanFolder = folder.replaceAll("^/+|/+$", "");
+                    // webkitRelativePath includes root dir: "mydir/sub/file.txt" → folder="mydir/sub"
+                    // Strip the root directory name (it's just the selected folder name)
+                    int firstSlash = cleanFolder.indexOf('/');
+                    if (firstSlash > 0) {
+                        cleanFolder = cleanFolder.substring(firstSlash + 1);
+                    } else {
+                        cleanFolder = "";
+                    }
+                    doc.setFolder(cleanFolder);
+
+                    // Auto-generate tags from folder path segments
+                    if (!cleanFolder.isEmpty()) {
+                        List<String> autoTags = new ArrayList<>(List.of(cleanFolder.split("/")));
+                        if (tags != null) {
+                            autoTags.addAll(tags);
+                        }
+                        tags = autoTags.stream().distinct().toList();
+                    }
+                }
+
                 if (tags != null && !tags.isEmpty()) {
                     doc.setTags(tags);
                 }
+
+                // Merge batch-level and per-file metadata
+                Map<String, String> mergedMetadata = new LinkedHashMap<>();
+                if (batchMetadata != null) mergedMetadata.putAll(batchMetadata);
+                if (fileMetadata != null) mergedMetadata.putAll(fileMetadata);
+                if (!mergedMetadata.isEmpty()) {
+                    doc.setMetadata(mergedMetadata);
+                }
+
                 documentRepository.save(doc);
 
                 String obsKey = "knowledge/" + tenant.getId() + "/" + kbId + "/" + doc.getId() + "/" + filename;
