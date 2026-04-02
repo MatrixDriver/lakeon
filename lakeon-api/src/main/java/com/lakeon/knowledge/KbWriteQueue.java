@@ -481,6 +481,18 @@ public class KbWriteQueue {
                     return;
                 }
 
+                // Check heavyweight task concurrency against tenant quota
+                long runningHeavy = active.stream()
+                    .filter(t -> t.getStatus() == KbWriteTaskStatus.RUNNING
+                              && !LIGHTWEIGHT_TYPES.contains(t.getType()))
+                    .count();
+                int quota = props.getKnowledge().getMaxConcurrentJobs();
+                if (runningHeavy >= quota) {
+                    log.debug("db {} at heavyweight quota ({}/{}), pausing drain",
+                              databaseId, runningHeavy, quota);
+                    return;
+                }
+
                 // Get next QUEUED task
                 List<KbWriteTaskEntity> queued = taskRepository.findQueuedByDatabaseId(databaseId);
                 if (queued.isEmpty()) {

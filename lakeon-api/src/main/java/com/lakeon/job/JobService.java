@@ -28,7 +28,7 @@ public class JobService {
     private final JobRepository jobRepository;
     private final JobPodManager jobPodManager;
     private final ObjectMapper objectMapper;
-    private final ExecutorService executor = Executors.newFixedThreadPool(2);
+    private final ExecutorService executor = Executors.newFixedThreadPool(8);
 
     // Lazy reference to avoid circular dependency (KbWriteQueue → JobService → KbWriteQueue)
     private com.lakeon.knowledge.KbWriteQueue kbWriteQueue;
