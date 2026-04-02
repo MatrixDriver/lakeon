@@ -6,10 +6,11 @@ COPY requirements.txt .
 RUN PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu \
     pip install --no-cache-dir -r requirements.txt
 
-# Pre-download model into image (avoids startup download, ~2.2GB)
-# Disable hf_xet for reliable HTTP download with progress
-ENV HF_HUB_ENABLE_HF_TRANSFER=0
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-m3')"
+# Copy pre-downloaded bge-m3 model into image
+COPY .model-cache/bge-m3 /models/bge-m3
+
+# Point to local model path (sentence-transformers accepts local dirs)
+ENV MODEL_NAME=/models/bge-m3
 
 # Disable reranker by default (saves ~1.5GB memory)
 ENV RERANK_ENABLED=false
