@@ -127,7 +127,7 @@ export function processDocument(documentId: string) {
   return api.post(`/knowledge/documents/${documentId}/process`)
 }
 
-export function batchGetUploadUrls(kbId: string, files: { filename: string; tags?: string[] }[]) {
+export function batchGetUploadUrls(kbId: string, files: { filename: string; tags?: string[]; folder?: string }[]) {
   return api.post<{ documents: { document_id: string; filename: string; upload_url: string; expires_in: number }[] }>(
     '/knowledge/batch-upload-urls', { kb_id: kbId, files }
   )
@@ -136,6 +136,14 @@ export function batchGetUploadUrls(kbId: string, files: { filename: string; tags
 export function batchProcessDocuments(documentIds: string[]) {
   return api.post<{ task_id: string; document_count: number }>(
     '/knowledge/batch-process', { document_ids: documentIds }
+  )
+}
+
+export function ingestDocuments(documentIds: string[], metadata?: Record<string, string>) {
+  const body: Record<string, unknown> = { document_ids: documentIds }
+  if (metadata) body.metadata = metadata
+  return api.post<{ task_ids: string[]; pod_count: number; documents_per_pod: number[]; total_documents: number }>(
+    '/knowledge/ingest', body
   )
 }
 

@@ -462,7 +462,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getKnowledgeBase, deleteKnowledgeBase, listDocuments, getDocumentStats, deleteDocument, searchKnowledge, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, type KnowledgeBase as KBType, type Document, type DocumentStats, type SearchResult, type DataSource, type DataSourceCredentials } from '../../api/knowledge'
+import { getKnowledgeBase, deleteKnowledgeBase, listDocuments, getDocumentStats, deleteDocument, searchKnowledge, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, type KnowledgeBase as KBType, type Document, type DocumentStats, type SearchResult, type DataSource, type DataSourceCredentials } from '../../api/knowledge'
 import ChunkStats from '../../components/knowledge/ChunkStats.vue'
 import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
 import TableToolbar from '../../components/TableToolbar.vue'
@@ -791,14 +791,25 @@ async function runBatchUpload(files: File[]) {
   }, 500)
 
   try {
-    // Split into chunks of 20
+    // Split into chunks of 20 for presigned URL batching
     const BATCH_SIZE = 20
+    const allDocumentIds: string[] = []
+
     for (let batchStart = 0; batchStart < files.length; batchStart += BATCH_SIZE) {
       const batchFiles = files.slice(batchStart, batchStart + BATCH_SIZE)
       const batchIndices = batchFiles.map((_, i) => batchStart + i)
 
-      // Get presigned URLs for this batch
-      const fileSpecs = batchFiles.map(f => ({ filename: f.name }))
+      // Get presigned URLs for this batch, including folder from webkitRelativePath
+      const fileSpecs = batchFiles.map(f => {
+        const spec: { filename: string; folder?: string } = { filename: f.name }
+        if ((f as any).webkitRelativePath) {
+          const parts = (f as any).webkitRelativePath.split('/')
+          if (parts.length > 1) {
+            spec.folder = parts.slice(0, -1).join('/')
+          }
+        }
+        return spec
+      })
       const urlResp = await batchGetUploadUrls(kbId, fileSpecs)
       const docItems = urlResp.data.documents
 
@@ -830,24 +841,19 @@ async function runBatchUpload(files: File[]) {
       const successIds = results.filter((id): id is string => id !== null)
       if (successIds.length === 0) continue
 
-      // Mark as processing
+      // Mark as processing (ingest will be called after all batches complete)
       batchIndices.forEach((idx, i) => {
         if (results[i] !== null) {
           uploadProgress.value[idx] = { filename: files[idx]!.name, status: 'processing' }
         }
       })
 
-      // Submit batch process
-      await batchProcessDocuments(successIds)
+      allDocumentIds.push(...successIds)
+    }
 
-      // Mark done
-      batchIndices.forEach((idx, i) => {
-        if (results[i] !== null) {
-          uploadProgress.value[idx] = { filename: files[idx]!.name, status: 'done' }
-        }
-      })
-
-      await loadDocuments()
+    // Call ingest once for all uploaded documents
+    if (allDocumentIds.length > 0) {
+      await ingestDocuments(allDocumentIds)
     }
   } catch (err: any) {
     alert(`上传失败: ${err.message || err}`)
