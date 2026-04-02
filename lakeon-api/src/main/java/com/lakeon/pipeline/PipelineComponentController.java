@@ -58,7 +58,7 @@ public class PipelineComponentController {
     }
 
     @GetMapping("/{id}/versions/{version}")
-    public Map<String, Object> getVersion(@PathVariable String id, @PathVariable int version) {
+    public Map<String, Object> getVersion(@PathVariable String id, @PathVariable String version) {
         return versionToResponse(componentService.getVersion(id, version));
     }
 

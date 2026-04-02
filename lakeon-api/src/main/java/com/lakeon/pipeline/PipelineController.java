@@ -60,7 +60,7 @@ public class PipelineController {
     @GetMapping("/{id}/versions/{version}")
     public Map<String, Object> getVersion(HttpServletRequest req,
                                            @PathVariable String id,
-                                           @PathVariable int version) {
+                                           @PathVariable String version) {
         TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
         return versionToResponse(pipelineService.getVersion(tenant.getId(), id, version));
     }

@@ -74,12 +74,25 @@ public class PipelineService {
         return pipelineVersionRepository.findByPipelineIdOrderByVersionDesc(pipelineId);
     }
 
-    public PipelineVersionEntity getVersion(String tenantId, String pipelineId, int version) {
-        // Verify pipeline exists and belongs to tenant
-        get(tenantId, pipelineId);
-        return pipelineVersionRepository.findByPipelineIdAndVersion(pipelineId, version)
+    public PipelineVersionEntity getVersion(String tenantId, String pipelineId, String version) {
+        PipelineEntity pipeline = get(tenantId, pipelineId);
+        int versionNum;
+        if ("latest".equalsIgnoreCase(version)) {
+            versionNum = pipeline.getLatestVersion();
+        } else {
+            try {
+                versionNum = Integer.parseInt(version);
+            } catch (NumberFormatException e) {
+                throw new BadRequestException("Invalid version: " + version + ". Use a number or 'latest'.");
+            }
+        }
+        return pipelineVersionRepository.findByPipelineIdAndVersion(pipelineId, versionNum)
                 .orElseThrow(() -> new NotFoundException(
-                        "Pipeline version not found: " + pipelineId + " v" + version));
+                        "Pipeline version not found: " + pipelineId + " v" + versionNum));
+    }
+
+    public PipelineVersionEntity getVersion(String tenantId, String pipelineId, int version) {
+        return getVersion(tenantId, pipelineId, String.valueOf(version));
     }
 
     @Transactional

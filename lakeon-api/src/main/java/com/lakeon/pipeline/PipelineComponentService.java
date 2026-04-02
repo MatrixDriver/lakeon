@@ -83,11 +83,25 @@ public class PipelineComponentService {
         return componentVersionRepository.findByComponentIdOrderByVersionDesc(componentId);
     }
 
-    public PipelineComponentVersionEntity getVersion(String componentId, int version) {
-        // Verify component exists
-        get(componentId);
-        return componentVersionRepository.findByComponentIdAndVersion(componentId, version)
+    public PipelineComponentVersionEntity getVersion(String componentId, String version) {
+        PipelineComponentEntity component = componentRepository.findById(componentId)
+                .orElseThrow(() -> new NotFoundException("Component not found: " + componentId));
+        int versionNum;
+        if ("latest".equalsIgnoreCase(version)) {
+            versionNum = component.getLatestVersion();
+        } else {
+            try {
+                versionNum = Integer.parseInt(version);
+            } catch (NumberFormatException e) {
+                throw new BadRequestException("Invalid version: " + version);
+            }
+        }
+        return componentVersionRepository.findByComponentIdAndVersion(componentId, versionNum)
                 .orElseThrow(() -> new NotFoundException(
-                        "Component version not found: " + componentId + " v" + version));
+                        "Component version not found: " + componentId + " v" + versionNum));
+    }
+
+    public PipelineComponentVersionEntity getVersion(String componentId, int version) {
+        return getVersion(componentId, String.valueOf(version));
     }
 }
