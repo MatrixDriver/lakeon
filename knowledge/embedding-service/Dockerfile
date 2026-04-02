@@ -6,13 +6,17 @@ COPY requirements.txt .
 RUN PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy pre-downloaded bge-m3 model into image
-COPY .model-cache/bge-m3 /models/bge-m3
+# Download model inside Docker (faster than COPY from macOS host via virtiofs)
+# Disable xet protocol for reliable HTTP download
+ENV HF_HUB_ENABLE_HF_TRANSFER=0
+ENV HF_HUB_DISABLE_XET=1
+RUN python -c "\
+from huggingface_hub import snapshot_download; \
+snapshot_download('BAAI/bge-m3', \
+  local_dir='/models/bge-m3', \
+  ignore_patterns=['onnx/*', 'imgs/*'])"
 
-# Point to local model path (sentence-transformers accepts local dirs)
 ENV MODEL_NAME=/models/bge-m3
-
-# Disable reranker by default (saves ~1.5GB memory)
 ENV RERANK_ENABLED=false
 
 COPY main.py .
