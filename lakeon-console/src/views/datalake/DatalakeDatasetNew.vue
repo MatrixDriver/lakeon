@@ -15,8 +15,22 @@
       <h1 class="page-title">新建数据集</h1>
     </div>
 
-    <!-- Form -->
-    <div class="form-card">
+    <!-- Create mode toggle -->
+    <div class="create-mode-toggle">
+      <button
+        class="create-mode-btn"
+        :class="{ active: createMode === 'db' }"
+        @click="createMode = 'db'"
+      >从数据库创建</button>
+      <button
+        class="create-mode-btn"
+        :class="{ active: createMode === 'upload' }"
+        @click="createMode = 'upload'"
+      >上传文件</button>
+    </div>
+
+    <!-- ===== DB mode (existing) ===== -->
+    <div v-if="createMode === 'db'" class="form-card">
       <!-- Dataset name -->
       <div class="form-group">
         <label class="form-label">数据集名称 <span class="required">*</span></label>
@@ -123,8 +137,99 @@
       </div>
     </div>
 
-    <!-- Preview result -->
-    <div v-if="previewResult" class="preview-section">
+    <!-- ===== Upload mode ===== -->
+    <div v-if="createMode === 'upload'" class="form-card">
+      <!-- Dataset name -->
+      <div class="form-group">
+        <label class="form-label">数据集名称 <span class="required">*</span></label>
+        <input
+          v-model="datasetName"
+          class="form-input"
+          style="max-width: 480px;"
+          placeholder="请输入数据集名称"
+          type="text"
+        />
+      </div>
+
+      <!-- Description -->
+      <div class="form-group">
+        <label class="form-label">描述</label>
+        <input
+          v-model="description"
+          class="form-input"
+          style="max-width: 480px;"
+          placeholder="可选，简要描述数据集内容"
+          type="text"
+        />
+      </div>
+
+      <!-- File picker -->
+      <div class="form-group">
+        <label class="form-label">选择文件</label>
+        <div
+          class="drop-zone"
+          :class="{ 'drop-zone-active': dragOver }"
+          @dragover.prevent="dragOver = true"
+          @dragleave.prevent="dragOver = false"
+          @drop.prevent="handleDrop"
+        >
+          <div class="drop-zone-inner">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#bbb" stroke-width="1.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <div class="drop-zone-text">拖拽文件或目录到此处</div>
+            <div class="drop-zone-actions">
+              <button class="btn btn-default btn-sm" @click="fileInputRef?.click()">选择文件</button>
+              <button class="btn btn-default btn-sm" @click="dirInputRef?.click()">选择目录</button>
+            </div>
+          </div>
+        </div>
+        <input ref="fileInputRef" type="file" multiple style="display: none;" @change="handleFileSelect" />
+        <input ref="dirInputRef" type="file" multiple webkitdirectory style="display: none;" @change="handleDirSelect" />
+      </div>
+
+      <!-- File list -->
+      <div v-if="uploadFiles.length > 0" class="form-group">
+        <label class="form-label">已选文件 ({{ uploadFiles.length }})</label>
+        <div class="file-list">
+          <div v-for="(f, idx) in uploadFiles" :key="idx" class="file-item">
+            <span class="file-path">{{ getFilePath(f) }}</span>
+            <span class="file-size">{{ formatFileSize(f.size) }}</span>
+            <button class="file-remove" @click="removeFile(idx)" :disabled="uploadProgress.uploading">&times;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upload progress -->
+      <div v-if="uploadProgress.uploading" class="form-group">
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" :style="{ width: progressPercent + '%' }"></div>
+        </div>
+        <div class="hint-text" style="margin-top: 6px;">
+          已上传 {{ uploadProgress.done }} / {{ uploadProgress.total }} 个文件
+        </div>
+      </div>
+
+      <!-- Error message -->
+      <div v-if="errorMessage" class="error-banner">{{ errorMessage }}</div>
+
+      <!-- Action buttons -->
+      <div class="action-row">
+        <button
+          class="btn btn-primary"
+          :disabled="!canUpload || uploadProgress.uploading"
+          @click="handleUpload"
+        >
+          <span v-if="uploadProgress.uploading">上传中...</span>
+          <span v-else>上传并创建</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Preview result (DB mode only) -->
+    <div v-if="createMode === 'db' && previewResult" class="preview-section">
       <div class="preview-header">
         <span class="section-title-text">预览结果</span>
         <span class="preview-meta">
@@ -160,6 +265,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import client from '../../api/client'
+import { getDatasetUploadUrls, finalizeDataset } from '../../api/datalake'
 
 const route = useRoute()
 const router = useRouter()
@@ -181,12 +287,23 @@ interface PreviewResult {
   preview_sql: string
 }
 
-// Form state
+// Create mode
+const createMode = ref<'db' | 'upload'>('db')
+
+// Form state (DB mode)
 const datasetName = ref('')
 const selectedDbId = ref('')
 const mode = ref<'TABLE_SELECT' | 'CUSTOM_SQL'>('TABLE_SELECT')
 const selectedTable = ref('')
 const customSql = ref('')
+
+// Form state (Upload mode)
+const description = ref('')
+const uploadFiles = ref<File[]>([])
+const uploadProgress = ref({ done: 0, total: 0, uploading: false })
+const dragOver = ref(false)
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const dirInputRef = ref<HTMLInputElement | null>(null)
 
 // Data
 const databases = ref<Database[]>([])
@@ -211,6 +328,114 @@ const canPreview = computed(() => {
 const canExport = computed(() => {
   return canPreview.value && !!datasetName.value.trim()
 })
+
+const canUpload = computed(() => {
+  return !!datasetName.value.trim() && uploadFiles.value.length > 0
+})
+
+const progressPercent = computed(() => {
+  if (uploadProgress.value.total === 0) return 0
+  return Math.round((uploadProgress.value.done / uploadProgress.value.total) * 100)
+})
+
+function getFilePath(file: File): string {
+  return (file as any).webkitRelativePath || file.name
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
+}
+
+function handleFileSelect(e: Event) {
+  const input = e.target as HTMLInputElement
+  if (input.files) {
+    const newFiles = Array.from(input.files)
+    uploadFiles.value = [...uploadFiles.value, ...newFiles]
+  }
+  input.value = ''
+}
+
+function handleDirSelect(e: Event) {
+  const input = e.target as HTMLInputElement
+  if (input.files) {
+    const newFiles = Array.from(input.files)
+    uploadFiles.value = [...uploadFiles.value, ...newFiles]
+  }
+  input.value = ''
+}
+
+function handleDrop(e: DragEvent) {
+  dragOver.value = false
+  if (e.dataTransfer?.files) {
+    const newFiles = Array.from(e.dataTransfer.files)
+    uploadFiles.value = [...uploadFiles.value, ...newFiles]
+  }
+}
+
+function removeFile(idx: number) {
+  uploadFiles.value.splice(idx, 1)
+}
+
+async function handleUpload() {
+  errorMessage.value = ''
+
+  const files = uploadFiles.value.map(f => ({
+    path: getFilePath(f),
+    size: f.size,
+  }))
+
+  uploadProgress.value = { done: 0, total: files.length, uploading: true }
+
+  try {
+    // 1. Get presigned URLs
+    const resp = await getDatasetUploadUrls(
+      datasetName.value.trim(),
+      files,
+      description.value.trim() || undefined,
+    )
+    const data = resp.data?.data ?? resp.data
+    const datasetId: string = data.dataset_id
+    const uploads: { path: string; obs_key: string; upload_url: string; expires_in: number }[] = data.uploads
+
+    // 2. Upload files concurrently (max 4 parallel)
+    const fileMap = new Map<string, File>()
+    for (const f of uploadFiles.value) {
+      fileMap.set(getFilePath(f), f)
+    }
+
+    const queue = [...uploads]
+    const concurrency = 4
+
+    async function uploadNext(): Promise<void> {
+      while (queue.length > 0) {
+        const item = queue.shift()!
+        const file = fileMap.get(item.path)
+        if (!file) continue
+
+        await fetch(item.upload_url, {
+          method: 'PUT',
+          body: file,
+        })
+        uploadProgress.value.done++
+      }
+    }
+
+    const workers = Array.from({ length: Math.min(concurrency, queue.length) }, () => uploadNext())
+    await Promise.all(workers)
+
+    // 3. Finalize
+    await finalizeDataset(datasetId)
+
+    // 4. Navigate to detail
+    router.push(`/datalake/datasets/${datasetId}`)
+  } catch (e: any) {
+    errorMessage.value = '上传失败: ' + (e.response?.data?.error?.message || e.message)
+    uploadProgress.value.uploading = false
+  }
+}
 
 async function loadDatabases() {
   dbLoading.value = true
@@ -330,6 +555,43 @@ onMounted(async () => {
 
 .back-link:hover {
   color: #9a5b25;
+}
+
+/* Create mode toggle */
+.create-mode-toggle {
+  display: inline-flex;
+  border: 1px solid #d9d3cb;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  background: #fff;
+}
+
+.create-mode-btn {
+  padding: 0 24px;
+  height: 36px;
+  background: #fff;
+  border: none;
+  border-right: 1px solid #d9d3cb;
+  font-size: 14px;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.create-mode-btn:last-child {
+  border-right: none;
+}
+
+.create-mode-btn:hover {
+  background: #f8f5f1;
+  color: #333;
+}
+
+.create-mode-btn.active {
+  background: #f0ebe4;
+  color: #9a5b25;
+  font-weight: 500;
 }
 
 .form-card {
@@ -454,6 +716,118 @@ onMounted(async () => {
   display: flex;
   gap: 12px;
   margin-top: 8px;
+}
+
+/* Drop zone */
+.drop-zone {
+  border: 2px dashed #d9d3cb;
+  border-radius: 8px;
+  padding: 32px 24px;
+  text-align: center;
+  transition: all 0.2s;
+  background: #fdfcfb;
+  max-width: 480px;
+  cursor: default;
+}
+
+.drop-zone:hover,
+.drop-zone-active {
+  border-color: #c67d3a;
+  background: #faf6f1;
+}
+
+.drop-zone-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.drop-zone-text {
+  font-size: 14px;
+  color: #999;
+}
+
+.drop-zone-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-sm {
+  padding: 0 14px !important;
+  height: 30px !important;
+  font-size: 13px !important;
+}
+
+/* File list */
+.file-list {
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+  max-width: 600px;
+  background: #fafafa;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+}
+
+.file-item:last-child {
+  border-bottom: none;
+}
+
+.file-path {
+  flex: 1;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.file-size {
+  color: #999;
+  font-size: 12px;
+  margin-left: 12px;
+  flex-shrink: 0;
+}
+
+.file-remove {
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 18px;
+  cursor: pointer;
+  margin-left: 8px;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.file-remove:hover {
+  color: #e6393d;
+}
+
+/* Progress bar */
+.progress-bar-wrap {
+  background: #f0ebe4;
+  border-radius: 4px;
+  height: 8px;
+  overflow: hidden;
+  max-width: 480px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: #c67d3a;
+  border-radius: 4px;
+  transition: width 0.3s ease;
 }
 
 /* Preview section */

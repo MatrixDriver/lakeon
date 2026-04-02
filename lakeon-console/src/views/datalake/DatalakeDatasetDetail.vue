@@ -53,6 +53,10 @@
           <div class="info-label">行数</div>
           <div class="info-value">{{ dataset.row_count != null ? dataset.row_count.toLocaleString() : '-' }}</div>
         </div>
+        <div class="info-card" v-if="dataset.source_type === 'FILE_UPLOAD' && dataset.file_count != null">
+          <div class="info-label">文件数</div>
+          <div class="info-value">{{ dataset.file_count.toLocaleString() }}</div>
+        </div>
         <div class="info-card">
           <div class="info-label">文件大小</div>
           <div class="info-value">{{ dataset.file_size != null ? formatSize(dataset.file_size) : '-' }}</div>
@@ -226,11 +230,12 @@ interface Dataset {
   id: string
   name: string
   description: string
-  source_type: 'DB_EXPORT' | 'JOB_OUTPUT'
+  source_type: 'DB_EXPORT' | 'JOB_OUTPUT' | 'FILE_UPLOAD'
   database_id: string
   database_name: string
   status: 'DRAFT' | 'EXPORTING' | 'READY' | 'FAILED'
   row_count: number | null
+  file_count: number | null
   file_size: number | null
   obs_path: string
   job_id: string | null
@@ -293,6 +298,7 @@ function statusText(status: string) {
 function sourceLabel(sourceType: string) {
   if (sourceType === 'DB_EXPORT') return '数据库导出'
   if (sourceType === 'JOB_OUTPUT') return '作业产出'
+  if (sourceType === 'FILE_UPLOAD') return '文件上传'
   return sourceType || '-'
 }
 

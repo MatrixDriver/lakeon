@@ -104,6 +104,14 @@ export function listDatasetVersions(datasetId: string) {
   return api.get<DatasetVersion[]>(`/datasets/${datasetId}/versions`)
 }
 
+export function getDatasetUploadUrls(name: string, files: { path: string; size: number }[], description?: string) {
+  return api.post('/datasets/upload-urls', { name, description, files })
+}
+
+export function finalizeDataset(datasetId: string) {
+  return api.post(`/datasets/${datasetId}/finalize`)
+}
+
 export function streamDatalakeLogsUrl(jobId: string): string {
   const apiKey = localStorage.getItem('lakeon_api_key') || ''
   return `https://api.dbay.cloud:8443/api/v1/datalake/jobs/${jobId}/logs?token=${encodeURIComponent(apiKey)}`
