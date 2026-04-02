@@ -249,6 +249,37 @@ public class KnowledgeController {
         return ResponseEntity.ok(Map.of("tags", tags));
     }
 
+    @SuppressWarnings("unchecked")
+    @PatchMapping("/documents/{id}/metadata")
+    public Map<String, Object> updateDocumentMetadata(HttpServletRequest req,
+                                                       @PathVariable String id,
+                                                       @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        Map<String, String> metadata = (Map<String, String>) body.get("metadata");
+        if (metadata == null || metadata.isEmpty()) {
+            throw new com.lakeon.service.exception.BadRequestException("metadata is required");
+        }
+        DocumentEntity doc = knowledgeService.updateDocumentMetadata(tenant.getId(), id, metadata);
+        return toDocumentResponse(doc);
+    }
+
+    @SuppressWarnings("unchecked")
+    @PostMapping("/documents/bulk-metadata")
+    public Map<String, Object> bulkUpdateMetadata(HttpServletRequest req,
+                                                   @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        List<String> documentIds = (List<String>) body.get("document_ids");
+        Map<String, String> metadata = (Map<String, String>) body.get("metadata");
+        if (documentIds == null || documentIds.isEmpty()) {
+            throw new com.lakeon.service.exception.BadRequestException("document_ids is required");
+        }
+        if (metadata == null || metadata.isEmpty()) {
+            throw new com.lakeon.service.exception.BadRequestException("metadata is required");
+        }
+        int count = knowledgeService.bulkUpdateDocumentMetadata(tenant.getId(), documentIds, metadata);
+        return Map.of("updated", count);
+    }
+
     @PostMapping("/search")
     @SuppressWarnings("unchecked")
     public Map<String, Object> search(HttpServletRequest req, @RequestBody Map<String, Object> body) {

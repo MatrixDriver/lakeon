@@ -861,6 +861,51 @@ public class KnowledgeService {
     }
 
     /**
+     * Update metadata for a single document. Merges with existing metadata.
+     * A null value in the input removes that key.
+     */
+    @Transactional
+    public DocumentEntity updateDocumentMetadata(String tenantId, String documentId,
+                                                  Map<String, String> metadata) {
+        DocumentEntity doc = documentRepository.findByIdAndTenantId(documentId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Document not found: " + documentId));
+        Map<String, String> current = doc.getMetadata() != null ? new LinkedHashMap<>(doc.getMetadata()) : new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : metadata.entrySet()) {
+            if (entry.getValue() == null) {
+                current.remove(entry.getKey());
+            } else {
+                current.put(entry.getKey(), entry.getValue());
+            }
+        }
+        doc.setMetadata(current);
+        documentRepository.save(doc);
+        return doc;
+    }
+
+    /**
+     * Update metadata for multiple documents. Merges with existing metadata per document.
+     */
+    @Transactional
+    public int bulkUpdateDocumentMetadata(String tenantId, List<String> documentIds,
+                                           Map<String, String> metadata) {
+        for (String docId : documentIds) {
+            documentRepository.findByIdAndTenantId(docId, tenantId).ifPresent(doc -> {
+                Map<String, String> current = doc.getMetadata() != null ? new LinkedHashMap<>(doc.getMetadata()) : new LinkedHashMap<>();
+                for (Map.Entry<String, String> entry : metadata.entrySet()) {
+                    if (entry.getValue() == null) {
+                        current.remove(entry.getKey());
+                    } else {
+                        current.put(entry.getKey(), entry.getValue());
+                    }
+                }
+                doc.setMetadata(current);
+                documentRepository.save(doc);
+            });
+        }
+        return documentIds.size();
+    }
+
+    /**
      * Hybrid search: vector + full-text (zhparser tsvector) with Reciprocal Rank Fusion.
      * Accepts kbId; resolves the underlying databaseId from the KB.
      */
