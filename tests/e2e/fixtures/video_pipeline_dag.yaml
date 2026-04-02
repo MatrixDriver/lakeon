@@ -1,0 +1,46 @@
+name: E2E Video Pipeline
+data_type: VIDEO
+description: E2E test video cleaning pipeline
+
+steps:
+  - id: normalize
+    component: video_normalize
+    component_version: 1
+    params: { target_resolution: "720p", target_format: "mp4" }
+    inputs: { video: "$input.dataset" }
+    outputs: { video: normalized }
+
+  - id: scene_split
+    component: video_scene_split
+    component_version: 1
+    depends_on: [normalize]
+    params: { threshold: 27, min_scene_length: 1.0 }
+    inputs: { video: normalize.video }
+    fan_out: true
+    checkpoint: true
+    outputs: { clips: split_clips }
+
+  - id: rule_filter
+    component: rule_filter
+    component_version: 1
+    depends_on: [scene_split]
+    params: { min_duration: 2, min_resolution: 360, max_aspect_ratio: 2.5 }
+    inputs: { clip: scene_split.clips }
+    output_branches: [passed, needs_crop, dropped]
+    outputs: { passed: passed_clip, needs_crop: crop_clip }
+
+  - id: model_filter
+    component: model_filter_mock
+    component_version: 1
+    depends_on: [rule_filter]
+    params: { checks: [vqa, watermark] }
+    inputs: { clips: rule_filter.passed_clip }
+    checkpoint: true
+    outputs: { clips: cleaned_clips }
+
+  - id: publish
+    component: dataset_publish
+    component_version: 1
+    depends_on: [model_filter]
+    inputs: { clips: model_filter.clips }
+    output_dataset: { name: "e2e-cleaned-video", format: LANCE }

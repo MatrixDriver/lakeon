@@ -585,3 +585,111 @@ class DbayClient:
     def mem_digest_extracted(self, mem_id: str, data: dict) -> dict:
         return self._request("POST", f"/memory/bases/{mem_id}/digest_extracted",
                              json={"data": data})
+
+    # ── Pipelines ─────────────────────────────────────────────────
+    def list_pipelines(self) -> list:
+        return self._request("GET", "/pipelines")
+
+    def get_pipeline(self, pipeline_id: str) -> dict:
+        return self._request("GET", f"/pipelines/{pipeline_id}")
+
+    def create_pipeline(self, name: str, data_type: str,
+                        description: str | None = None,
+                        source_template_id: str | None = None,
+                        dag_yaml: str | None = None) -> dict:
+        body: dict[str, Any] = {"name": name, "data_type": data_type}
+        if description:
+            body["description"] = description
+        if source_template_id:
+            body["source_template_id"] = source_template_id
+        if dag_yaml:
+            body["dag_yaml"] = dag_yaml
+        return self._request("POST", "/pipelines", json=body)
+
+    def delete_pipeline(self, pipeline_id: str) -> dict:
+        return self._request("DELETE", f"/pipelines/{pipeline_id}")
+
+    def list_pipeline_templates(self) -> list:
+        return self._request("GET", "/pipelines/templates")
+
+    # ── Pipeline Versions ─────────────────────────────────────────
+    def list_pipeline_versions(self, pipeline_id: str) -> list:
+        return self._request("GET", f"/pipelines/{pipeline_id}/versions")
+
+    def get_pipeline_version(self, pipeline_id: str, version: int) -> dict:
+        return self._request("GET", f"/pipelines/{pipeline_id}/versions/{version}")
+
+    def create_pipeline_version(self, pipeline_id: str, dag_yaml: str,
+                                changelog: str | None = None) -> dict:
+        body: dict[str, Any] = {"dag_yaml": dag_yaml}
+        if changelog:
+            body["changelog"] = changelog
+        return self._request("POST", f"/pipelines/{pipeline_id}/versions", json=body)
+
+    # ── Pipeline Components ───────────────────────────────────────
+    def list_pipeline_components(self) -> list:
+        return self._request("GET", "/pipeline-components")
+
+    def get_pipeline_component(self, component_id: str) -> dict:
+        return self._request("GET", f"/pipeline-components/{component_id}")
+
+    def list_component_versions(self, component_id: str) -> list:
+        return self._request("GET", f"/pipeline-components/{component_id}/versions")
+
+    def get_component_version(self, component_id: str, version: int) -> dict:
+        return self._request("GET", f"/pipeline-components/{component_id}/versions/{version}")
+
+    def register_pipeline_component(self, name: str, display_name: str,
+                                    category: str, data_type: str,
+                                    description: str | None = None,
+                                    entrypoint: str | None = None,
+                                    params_schema: str | None = None,
+                                    input_schema: str | None = None,
+                                    output_schema: str | None = None,
+                                    output_branches: str | None = None,
+                                    requires_gpu: bool = False,
+                                    requires_model: str | None = None,
+                                    execution_mode: str = "FUNCTION") -> dict:
+        body: dict[str, Any] = {
+            "name": name,
+            "display_name": display_name,
+            "category": category,
+            "data_type": data_type,
+            "requires_gpu": requires_gpu,
+            "execution_mode": execution_mode,
+        }
+        if description:
+            body["description"] = description
+        if entrypoint:
+            body["entrypoint"] = entrypoint
+        if params_schema:
+            body["params_schema"] = params_schema
+        if input_schema:
+            body["input_schema"] = input_schema
+        if output_schema:
+            body["output_schema"] = output_schema
+        if output_branches:
+            body["output_branches"] = output_branches
+        if requires_model:
+            body["requires_model"] = requires_model
+        return self._request("POST", "/pipeline-components", json=body)
+
+    # ── Pipeline Runs ─────────────────────────────────────────────
+    def trigger_pipeline_run(self, pipeline_id: str, version: int,
+                             input_dataset_id: str | None = None,
+                             input_dataset_version: int | None = None) -> dict:
+        body: dict[str, Any] = {"pipeline_id": pipeline_id, "version": version}
+        if input_dataset_id:
+            body["input_dataset_id"] = input_dataset_id
+        if input_dataset_version is not None:
+            body["input_dataset_version"] = input_dataset_version
+        return self._request("POST", "/pipeline-runs", json=body)
+
+    def get_pipeline_run(self, run_id: str) -> dict:
+        return self._request("GET", f"/pipeline-runs/{run_id}")
+
+    def list_step_runs(self, run_id: str) -> list:
+        return self._request("GET", f"/pipeline-runs/{run_id}/steps")
+
+    def cancel_pipeline_run(self, run_id: str) -> dict:
+        return self._request("POST", f"/pipeline-runs/{run_id}/cancel")

@@ -127,6 +127,15 @@ export const adminApi = {
   getDataset: (id: string) => client.get(`/datalake/datasets/${id}`),
   deleteDataset: (id: string) => client.delete(`/datalake/datasets/${id}`),
 
+  // Pipeline Admin
+  pipelineAdminStats: () => client.get('/pipelines/stats'),
+  listAllPipelines: (params?: { tenant_id?: string }) =>
+    client.get('/pipelines', { params }),
+  listAllPipelineRuns: (params?: { tenant_id?: string; status?: string; pipeline_id?: string }) =>
+    client.get('/pipelines/runs', { params }),
+  getPipelineRunAdmin: (id: string) => client.get(`/pipelines/runs/${id}`),
+  listAllPipelineComponents: () => client.get('/pipelines/components'),
+
   // AI Assistant
   aiChat: (messages: Array<{role: string; content: string}>, context?: {resource_type: string; resource_id: string}) => {
     const token = localStorage.getItem('lakeon_admin_token')

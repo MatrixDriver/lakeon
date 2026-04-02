@@ -7,6 +7,7 @@
     <!-- Tabs -->
     <div class="tab-bar">
       <div class="tab-item" :class="{ active: activeTab === 'jobs' }" @click="activeTab = 'jobs'">作业列表</div>
+      <div class="tab-item" :class="{ active: activeTab === 'pipelines' }" @click="activeTab = 'pipelines'; loadPipelines()">生产线</div>
       <div class="tab-item" :class="{ active: activeTab === 'datasets' }" @click="activeTab = 'datasets'; loadDatasets()">数据集管理</div>
       <div class="tab-item" :class="{ active: activeTab === 'warmpool' }" @click="activeTab = 'warmpool'; loadWarmPool()">Ray Head 热池</div>
     </div>
@@ -136,6 +137,243 @@
           </tbody>
         </table>
       </div>
+    </template>
+
+    <!-- Pipelines Tab -->
+    <template v-if="activeTab === 'pipelines'">
+      <!-- Pipeline Stats -->
+      <div class="stats-row" v-if="plStats">
+        <div class="stat-card">
+          <div class="stat-value">{{ plStats.pipeline_count }}</div>
+          <div class="stat-label">生产线</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: #1890ff;">{{ plStats.running_count }}</div>
+          <div class="stat-label">运行中</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: #52c41a;">{{ plStats.succeeded_count }}</div>
+          <div class="stat-label">成功</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: #e53e3e;">{{ plStats.failed_count }}</div>
+          <div class="stat-label">失败</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ plStats.component_count }}</div>
+          <div class="stat-label">组件</div>
+        </div>
+      </div>
+
+      <!-- Sub-tabs: Pipelines / Runs / Components -->
+      <div class="sub-tab-bar">
+        <div class="sub-tab" :class="{ active: plSubTab === 'runs' }" @click="plSubTab = 'runs'; loadPipelineRuns()">运行记录</div>
+        <div class="sub-tab" :class="{ active: plSubTab === 'list' }" @click="plSubTab = 'list'; loadPipelineList()">生产线列表</div>
+        <div class="sub-tab" :class="{ active: plSubTab === 'components' }" @click="plSubTab = 'components'; loadComponents()">组件库</div>
+      </div>
+
+      <!-- Pipeline Runs Sub-tab -->
+      <template v-if="plSubTab === 'runs'">
+        <div class="action-toolbar">
+          <input type="text" class="search-input" placeholder="按租户 ID 筛选..." v-model="plRunTenantFilter" style="width: 220px;" @keyup.enter="loadPipelineRuns" />
+          <select class="form-select" v-model="plRunStatusFilter" style="width: 140px;">
+            <option value="">全部状态</option>
+            <option value="PENDING">等待中</option>
+            <option value="RUNNING">运行中</option>
+            <option value="PAUSED">已暂停</option>
+            <option value="SUCCEEDED">成功</option>
+            <option value="FAILED">失败</option>
+            <option value="CANCELLED">已取消</option>
+          </select>
+          <button class="btn btn-default btn-small" @click="loadPipelineRuns">筛选</button>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 30px;"></th>
+                <th>运行 ID</th>
+                <th>生产线</th>
+                <th>租户</th>
+                <th>版本</th>
+                <th>状态</th>
+                <th>开始时间</th>
+                <th>耗时</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="run in plRuns" :key="run.id">
+                <tr>
+                  <td>
+                    <button class="btn-icon-small" @click="toggleRunExpand(run.id)">
+                      {{ plExpandedRunId === run.id ? '&#9660;' : '&#9654;' }}
+                    </button>
+                  </td>
+                  <td>
+                    <span style="font-family: monospace; font-size: 12px;">{{ run.id }}</span>
+                  </td>
+                  <td>
+                    {{ pipelineNameMap[run.pipeline_id] || run.pipeline_id }}
+                  </td>
+                  <td>
+                    {{ tenantStore.name(run.tenant_id) }}
+                    <br><span style="font-size: 11px; color: #999; font-family: monospace;">{{ run.tenant_id }}</span>
+                  </td>
+                  <td>v{{ run.pipeline_version }}</td>
+                  <td>
+                    <span class="status-dot" :class="plRunStatusClass(run.status)"></span>
+                    {{ PL_RUN_STATUS[run.status] || run.status }}
+                  </td>
+                  <td>{{ formatDate(run.started_at || run.created_at) }}</td>
+                  <td>{{ plRunDuration(run) }}</td>
+                </tr>
+                <!-- Expanded: step runs -->
+                <tr v-if="plExpandedRunId === run.id" class="expanded-row">
+                  <td colspan="8" style="padding: 0;">
+                    <div class="detail-panel">
+                      <div v-if="plRunDetailLoading" style="color: #999;">加载中...</div>
+                      <div v-else-if="plRunDetail">
+                        <div class="detail-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+                          <div><strong>输入数据集:</strong> {{ plRunDetail.input_dataset_id || '-' }}</div>
+                          <div><strong>输出数据集:</strong> {{ plRunDetail.output_dataset_version_id || '-' }}</div>
+                          <div><strong>创建时间:</strong> {{ formatDate(plRunDetail.created_at) }}</div>
+                        </div>
+                        <div v-if="plRunDetail.steps && plRunDetail.steps.length > 0" style="margin-top: 12px;">
+                          <strong style="font-size: 13px;">步骤执行:</strong>
+                          <table class="data-table" style="margin-top: 6px;">
+                            <thead>
+                              <tr>
+                                <th>步骤</th>
+                                <th>组件</th>
+                                <th>状态</th>
+                                <th>开始</th>
+                                <th>结束</th>
+                                <th>错误</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr v-for="step in plRunDetail.steps" :key="step.id">
+                                <td><span style="font-family: monospace;">{{ step.step_id }}</span></td>
+                                <td>{{ step.component_id || '-' }}</td>
+                                <td>
+                                  <span class="status-dot" :class="plRunStatusClass(step.status)"></span>
+                                  {{ step.status }}
+                                </td>
+                                <td>{{ formatDate(step.started_at) }}</td>
+                                <td>{{ formatDate(step.finished_at) }}</td>
+                                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #e53e3e;">
+                                  {{ step.error || '-' }}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                        <div v-else style="margin-top: 8px; color: #999; font-size: 13px;">暂无步骤执行记录</div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+              <tr v-if="plRunsLoading">
+                <td colspan="8" style="text-align:center;padding:32px;color:#94a3b8">加载中...</td>
+              </tr>
+              <tr v-else-if="plRuns.length === 0">
+                <td colspan="8" class="empty-state">暂无运行记录</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+
+      <!-- Pipeline List Sub-tab -->
+      <template v-if="plSubTab === 'list'">
+        <div class="action-toolbar">
+          <input type="text" class="search-input" placeholder="按租户 ID 筛选..." v-model="plTenantFilter" style="width: 220px;" @keyup.enter="loadPipelineList" />
+          <button class="btn btn-default btn-small" @click="loadPipelineList">筛选</button>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>名称</th>
+                <th>租户</th>
+                <th>数据类型</th>
+                <th>模板</th>
+                <th>最新版本</th>
+                <th>创建时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="pl in plList" :key="pl.id">
+                <td>
+                  <strong>{{ pl.name }}</strong>
+                  <br><span style="font-size: 11px; color: #999;">{{ pl.id }}</span>
+                </td>
+                <td>
+                  {{ tenantStore.name(pl.tenant_id) }}
+                  <br><span style="font-size: 11px; color: #999; font-family: monospace;">{{ pl.tenant_id }}</span>
+                </td>
+                <td>
+                  <span class="type-tag" :class="'type-' + (pl.data_type || '').toLowerCase()">{{ pl.data_type }}</span>
+                </td>
+                <td>{{ pl.is_template ? 'Yes' : '-' }}</td>
+                <td>v{{ pl.latest_version }}</td>
+                <td>{{ formatDate(pl.created_at) }}</td>
+              </tr>
+              <tr v-if="plList.length === 0">
+                <td colspan="6" class="empty-state">暂无生产线</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+
+      <!-- Components Sub-tab -->
+      <template v-if="plSubTab === 'components'">
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>名称</th>
+                <th>显示名</th>
+                <th>类别</th>
+                <th>数据类型</th>
+                <th>归属</th>
+                <th>描述</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="comp in plComponents" :key="comp.id">
+                <td>
+                  <span style="font-family: monospace;">{{ comp.name }}</span>
+                  <br><span style="font-size: 11px; color: #999;">{{ comp.id }}</span>
+                </td>
+                <td><strong>{{ comp.display_name }}</strong></td>
+                <td>
+                  <span class="category-tag" :class="'cat-' + (comp.category || '').toLowerCase()">
+                    {{ CATEGORY_LABELS[comp.category] || comp.category }}
+                  </span>
+                </td>
+                <td>
+                  <span class="type-tag" :class="'type-' + (comp.data_type || '').toLowerCase()">{{ comp.data_type }}</span>
+                </td>
+                <td>
+                  <span v-if="!comp.tenant_id" style="color: #999;">平台内置</span>
+                  <span v-else>{{ tenantStore.name(comp.tenant_id) }}</span>
+                </td>
+                <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  {{ comp.description || '-' }}
+                </td>
+              </tr>
+              <tr v-if="plComponents.length === 0">
+                <td colspan="6" class="empty-state">暂无组件</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
     </template>
 
     <!-- Datasets Tab -->
@@ -337,6 +575,29 @@ const stats = ref<any>(null)
 const datasetCount = ref(0)
 const warmPool = ref<WarmPoolState | null>(null)
 
+// Pipeline state
+const PL_RUN_STATUS: Record<string, string> = {
+  PENDING: '等待中', RUNNING: '运行中', PAUSED: '已暂停',
+  SUCCEEDED: '成功', FAILED: '失败', CANCELLED: '已取消',
+}
+const CATEGORY_LABELS: Record<string, string> = {
+  DATA_PREP: '数据准备', EXTRACT: '提取', CLEAN: '清洗',
+  FILTER: '过滤', QC: '质量检查', LABEL: '标注', PUBLISH: '发布',
+}
+const plStats = ref<any>(null)
+const plSubTab = ref('runs')
+const plList = ref<any[]>([])
+const plRuns = ref<any[]>([])
+const plRunsLoading = ref(false)
+const plComponents = ref<any[]>([])
+const plTenantFilter = ref('')
+const plRunTenantFilter = ref('')
+const plRunStatusFilter = ref('')
+const plExpandedRunId = ref<string | null>(null)
+const plRunDetail = ref<any>(null)
+const plRunDetailLoading = ref(false)
+const pipelineNameMap = ref<Record<string, string>>({})
+
 // Jobs
 const jobs = ref<DatalakeJob[]>([])
 const jobsLoading = ref(true)
@@ -518,6 +779,88 @@ async function deleteDataset(ds: Dataset) {
   }
 }
 
+// Pipeline methods
+function plRunStatusClass(status: string) {
+  switch (status) {
+    case 'SUCCEEDED': return 'dot-green'
+    case 'FAILED': return 'dot-red'
+    case 'RUNNING': return 'dot-blue'
+    case 'PENDING': return 'dot-gray'
+    case 'PAUSED': return 'dot-yellow'
+    case 'CANCELLED': return 'dot-gray'
+    default: return 'dot-gray'
+  }
+}
+
+function plRunDuration(run: any): string {
+  if (!run.started_at) return '-'
+  const start = new Date(run.started_at).getTime()
+  const end = run.finished_at ? new Date(run.finished_at).getTime() : Date.now()
+  const sec = Math.round((end - start) / 1000)
+  if (sec < 60) return `${sec}s`
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`
+  return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`
+}
+
+async function loadPipelines() {
+  try {
+    const { data: statsData } = await adminApi.pipelineAdminStats()
+    plStats.value = statsData
+  } catch { /* ignore */ }
+  // Pre-load pipeline names and runs
+  await loadPipelineList()
+  await loadPipelineRuns()
+}
+
+async function loadPipelineList() {
+  try {
+    const params: Record<string, string> = {}
+    if (plTenantFilter.value.trim()) params.tenant_id = plTenantFilter.value.trim()
+    const { data } = await adminApi.listAllPipelines(params)
+    plList.value = data
+    // Build name map for run display
+    const nameMap: Record<string, string> = {}
+    for (const p of data) {
+      nameMap[p.id] = p.name
+    }
+    pipelineNameMap.value = { ...pipelineNameMap.value, ...nameMap }
+  } catch { /* ignore */ }
+}
+
+async function loadPipelineRuns() {
+  plRunsLoading.value = true
+  try {
+    const params: Record<string, string> = {}
+    if (plRunTenantFilter.value.trim()) params.tenant_id = plRunTenantFilter.value.trim()
+    if (plRunStatusFilter.value) params.status = plRunStatusFilter.value
+    const { data } = await adminApi.listAllPipelineRuns(params)
+    plRuns.value = data
+  } catch { /* ignore */ }
+  plRunsLoading.value = false
+}
+
+async function loadComponents() {
+  try {
+    const { data } = await adminApi.listAllPipelineComponents()
+    plComponents.value = data
+  } catch { /* ignore */ }
+}
+
+async function toggleRunExpand(runId: string) {
+  if (plExpandedRunId.value === runId) {
+    plExpandedRunId.value = null
+    return
+  }
+  plExpandedRunId.value = runId
+  plRunDetail.value = null
+  plRunDetailLoading.value = true
+  try {
+    const { data } = await adminApi.getPipelineRunAdmin(runId)
+    plRunDetail.value = data
+  } catch { /* ignore */ }
+  plRunDetailLoading.value = false
+}
+
 onMounted(() => {
   loadStats()
   loadJobs()
@@ -609,4 +952,31 @@ onMounted(() => {
 .warmpool-config code {
   background: #f5f5f5; padding: 1px 6px; border-radius: 3px; font-size: 12px;
 }
+
+.sub-tab-bar {
+  display: flex; gap: 4px; margin-bottom: 16px;
+}
+.sub-tab {
+  padding: 5px 14px; cursor: pointer; font-size: 13px; color: #666;
+  border: 1px solid #e5e5e5; border-radius: 4px; background: #fafafa;
+}
+.sub-tab.active { color: #1890ff; border-color: #1890ff; background: #f0f7ff; }
+
+.category-tag {
+  display: inline-block; padding: 1px 8px; border-radius: 3px; font-size: 12px;
+}
+.cat-data_prep { background: #f0f5ff; color: #2f54eb; }
+.cat-extract { background: #f6ffed; color: #389e0d; }
+.cat-clean { background: #fff7e6; color: #d48806; }
+.cat-filter { background: #fff1f0; color: #cf1322; }
+.cat-qc { background: #f9f0ff; color: #722ed1; }
+.cat-label { background: #e6fffb; color: #13c2c2; }
+.cat-publish { background: #fdf5ed; color: #9a5b25; }
+
+.type-text { background: #f0f5ff; color: #2f54eb; }
+.type-video { background: #fff1f0; color: #cf1322; }
+.type-image { background: #f9f0ff; color: #722ed1; }
+.type-audio { background: #e6fffb; color: #13c2c2; }
+.type-document { background: #fff7e6; color: #d48806; }
+.type-universal { background: #f0f0f0; color: #666; }
 </style>

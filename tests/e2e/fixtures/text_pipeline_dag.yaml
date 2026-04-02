@@ -1,0 +1,44 @@
+name: E2E Text Pipeline
+data_type: TEXT
+description: E2E test text cleaning pipeline
+
+steps:
+  - id: dedup
+    component: text_dedup
+    component_version: 1
+    params: { method: "minhash", similarity_threshold: 0.85 }
+    inputs: { text: "$input.dataset" }
+    checkpoint: true
+    outputs: { text: deduped }
+
+  - id: clean
+    component: text_clean
+    component_version: 1
+    depends_on: [dedup]
+    params: { remove_html: true, normalize_whitespace: true, remove_urls: true, min_length: 50, max_length: 100000 }
+    inputs: { text: dedup.text }
+    outputs: { text: cleaned }
+
+  - id: tokenize_stats
+    component: text_tokenize
+    component_version: 1
+    depends_on: [clean]
+    params: { tokenizer: "tiktoken", compute_stats: true }
+    inputs: { text: clean.text }
+    outputs: { text: tokenized }
+
+  - id: quality_score
+    component: text_quality_score
+    component_version: 1
+    depends_on: [tokenize_stats]
+    params: { scorer: "rule", min_score: 0.6 }
+    inputs: { text: tokenize_stats.text }
+    output_branches: [passed, low_quality]
+    outputs: { passed: good_text }
+
+  - id: publish
+    component: dataset_publish
+    component_version: 1
+    depends_on: [quality_score]
+    inputs: { text: quality_score.good_text }
+    output_dataset: { name: "e2e-cleaned-text", format: PARQUET }

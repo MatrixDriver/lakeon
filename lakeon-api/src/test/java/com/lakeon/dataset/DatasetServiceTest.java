@@ -34,6 +34,7 @@ import static org.mockito.Mockito.*;
 class DatasetServiceTest {
 
     @Mock private DatasetRepository datasetRepository;
+    @Mock private DatasetVersionRepository datasetVersionRepository;
     @Mock private ComputeLifecycleService computeLifecycleService;
     @Mock private DatabaseRepository databaseRepository;
     @Mock private DatabaseQueryService databaseQueryService;
@@ -56,9 +57,9 @@ class DatasetServiceTest {
         props.getK8s().setNamespace("lakeon-compute");
 
         datasetService = new DatasetService(
-                datasetRepository, computeLifecycleService, databaseRepository,
-                databaseQueryService, jobService, props, tenantRepository,
-                new com.fasterxml.jackson.databind.ObjectMapper());
+                datasetRepository, datasetVersionRepository, computeLifecycleService,
+                databaseRepository, databaseQueryService, jobService, props,
+                tenantRepository, new com.fasterxml.jackson.databind.ObjectMapper());
     }
 
     // ─── create ─────────────────────────────────────────────────────

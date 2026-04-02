@@ -24,6 +24,7 @@ import com.lakeon.memory.MemoryBaseRepository;
 import com.lakeon.memory.MemoryService;
 import com.lakeon.datalake.*;
 import com.lakeon.dataset.*;
+import com.lakeon.pipeline.*;
 import com.lakeon.notebook.NotebookSessionEntity;
 import com.lakeon.notebook.NotebookSessionRepository;
 import com.lakeon.config.LakeonProperties;
@@ -82,6 +83,10 @@ public class AdminController {
     private final SystemConfigRepository systemConfigRepository;
     private final ObjectMapper objectMapper;
     private final LogQueryService logQueryService;
+    private final PipelineRepository pipelineRepository;
+    private final PipelineRunRepository pipelineRunRepository;
+    private final PipelineStepRunRepository pipelineStepRunRepository;
+    private final PipelineComponentRepository pipelineComponentRepository;
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AdminController.class);
 
@@ -112,7 +117,11 @@ public class AdminController {
                            LakeonProperties props,
                            SystemConfigRepository systemConfigRepository,
                            ObjectMapper objectMapper,
-                           LogQueryService logQueryService) {
+                           LogQueryService logQueryService,
+                           PipelineRepository pipelineRepository,
+                           PipelineRunRepository pipelineRunRepository,
+                           PipelineStepRunRepository pipelineStepRunRepository,
+                           PipelineComponentRepository pipelineComponentRepository) {
         this.tenantService = tenantService;
         this.adminService = adminService;
         this.databaseService = databaseService;
@@ -141,6 +150,10 @@ public class AdminController {
         this.systemConfigRepository = systemConfigRepository;
         this.objectMapper = objectMapper;
         this.logQueryService = logQueryService;
+        this.pipelineRepository = pipelineRepository;
+        this.pipelineRunRepository = pipelineRunRepository;
+        this.pipelineStepRunRepository = pipelineStepRunRepository;
+        this.pipelineComponentRepository = pipelineComponentRepository;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────
@@ -1439,5 +1452,141 @@ public class AdminController {
     @GetMapping("/structured-logs/stats")
     public org.springframework.http.ResponseEntity<?> logStats(@RequestParam(defaultValue = "24h") String since) {
         return org.springframework.http.ResponseEntity.ok(logQueryService.stats(since));
+    }
+
+    // ── Pipeline Admin ──────────────────────────────────────
+
+    @GetMapping("/pipelines/stats")
+    public Map<String, Object> getPipelineAdminStats() {
+        List<PipelineEntity> allPipelines = pipelineRepository.findAll();
+        List<PipelineRunEntity> allRuns = pipelineRunRepository.findAll();
+        List<PipelineComponentEntity> allComponents = pipelineComponentRepository.findAll();
+
+        long pipelineCount = allPipelines.stream().filter(p -> !Boolean.TRUE.equals(p.getIsTemplate())).count();
+        long templateCount = allPipelines.stream().filter(p -> Boolean.TRUE.equals(p.getIsTemplate())).count();
+        long componentCount = allComponents.size();
+
+        Map<String, Long> runsByStatus = allRuns.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        r -> r.getStatus().name(), java.util.stream.Collectors.counting()));
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("pipeline_count", pipelineCount);
+        result.put("template_count", templateCount);
+        result.put("component_count", componentCount);
+        result.put("run_count", allRuns.size());
+        result.put("running_count", runsByStatus.getOrDefault("RUNNING", 0L) + runsByStatus.getOrDefault("PENDING", 0L));
+        result.put("succeeded_count", runsByStatus.getOrDefault("SUCCEEDED", 0L));
+        result.put("failed_count", runsByStatus.getOrDefault("FAILED", 0L));
+        result.put("cancelled_count", runsByStatus.getOrDefault("CANCELLED", 0L));
+        return result;
+    }
+
+    @GetMapping("/pipelines")
+    public List<Map<String, Object>> listAllPipelines(
+            @RequestParam(required = false, name = "tenant_id") String tenantId) {
+        List<PipelineEntity> pipelines;
+        if (tenantId != null) {
+            pipelines = pipelineRepository.findByTenantIdAndIsTemplateFalseOrderByCreatedAtDesc(tenantId);
+        } else {
+            pipelines = pipelineRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
+        }
+        return pipelines.stream().map(this::pipelineToMap).toList();
+    }
+
+    @GetMapping("/pipelines/runs")
+    public List<Map<String, Object>> listAllPipelineRuns(
+            @RequestParam(required = false, name = "tenant_id") String tenantId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false, name = "pipeline_id") String pipelineId) {
+        List<PipelineRunEntity> runs;
+        if (tenantId != null) {
+            runs = pipelineRunRepository.findByTenantIdOrderByCreatedAtDesc(tenantId);
+        } else if (status != null) {
+            runs = pipelineRunRepository.findByStatus(PipelineRunStatus.valueOf(status));
+        } else if (pipelineId != null) {
+            runs = pipelineRunRepository.findByPipelineIdOrderByCreatedAtDesc(pipelineId);
+        } else {
+            runs = pipelineRunRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
+        }
+        return runs.stream().map(this::pipelineRunToMap).toList();
+    }
+
+    @GetMapping("/pipelines/runs/{id}")
+    public Map<String, Object> getPipelineRunAdmin(@PathVariable String id) {
+        PipelineRunEntity run = pipelineRunRepository.findById(id)
+                .orElseThrow(() -> new com.lakeon.service.exception.NotFoundException("Pipeline run not found: " + id));
+        Map<String, Object> result = pipelineRunToMap(run);
+        // Include step runs
+        List<PipelineStepRunEntity> steps = pipelineStepRunRepository.findByRunIdOrderByCreatedAtAsc(id);
+        result.put("steps", steps.stream().map(this::stepRunToMap).toList());
+        return result;
+    }
+
+    @GetMapping("/pipelines/components")
+    public List<Map<String, Object>> listAllPipelineComponents() {
+        return pipelineComponentRepository.findAll().stream().map(this::componentToMap).toList();
+    }
+
+    private Map<String, Object> pipelineToMap(PipelineEntity p) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", p.getId());
+        m.put("tenant_id", p.getTenantId());
+        m.put("name", p.getName());
+        m.put("description", p.getDescription());
+        m.put("data_type", p.getDataType());
+        m.put("is_template", p.getIsTemplate());
+        m.put("latest_version", p.getLatestVersion());
+        m.put("created_at", p.getCreatedAt() != null ? p.getCreatedAt().toString() : null);
+        m.put("updated_at", p.getUpdatedAt() != null ? p.getUpdatedAt().toString() : null);
+        return m;
+    }
+
+    private Map<String, Object> pipelineRunToMap(PipelineRunEntity r) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", r.getId());
+        m.put("pipeline_id", r.getPipelineId());
+        m.put("pipeline_version", r.getPipelineVersion());
+        m.put("tenant_id", r.getTenantId());
+        m.put("input_dataset_id", r.getInputDatasetId());
+        m.put("input_dataset_version", r.getInputDatasetVersion());
+        m.put("output_dataset_version_id", r.getOutputDatasetVersionId());
+        m.put("status", r.getStatus() != null ? r.getStatus().name() : null);
+        m.put("started_at", r.getStartedAt() != null ? r.getStartedAt().toString() : null);
+        m.put("finished_at", r.getFinishedAt() != null ? r.getFinishedAt().toString() : null);
+        m.put("created_at", r.getCreatedAt() != null ? r.getCreatedAt().toString() : null);
+        return m;
+    }
+
+    private Map<String, Object> stepRunToMap(PipelineStepRunEntity s) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", s.getId());
+        m.put("run_id", s.getRunId());
+        m.put("step_id", s.getStepId());
+        m.put("component_id", s.getComponentId());
+        m.put("component_version", s.getComponentVersion());
+        m.put("status", s.getStatus() != null ? s.getStatus().name() : null);
+        m.put("input_ref", s.getInputRef());
+        m.put("output_ref", s.getOutputRef());
+        m.put("metrics", s.getMetrics());
+        m.put("error", s.getError());
+        m.put("started_at", s.getStartedAt() != null ? s.getStartedAt().toString() : null);
+        m.put("finished_at", s.getFinishedAt() != null ? s.getFinishedAt().toString() : null);
+        m.put("created_at", s.getCreatedAt() != null ? s.getCreatedAt().toString() : null);
+        return m;
+    }
+
+    private Map<String, Object> componentToMap(PipelineComponentEntity c) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", c.getId());
+        m.put("tenant_id", c.getTenantId());
+        m.put("name", c.getName());
+        m.put("display_name", c.getDisplayName());
+        m.put("category", c.getCategory());
+        m.put("data_type", c.getDataType());
+        m.put("description", c.getDescription());
+        m.put("latest_version", c.getLatestVersion());
+        m.put("created_at", c.getCreatedAt() != null ? c.getCreatedAt().toString() : null);
+        return m;
     }
 }
