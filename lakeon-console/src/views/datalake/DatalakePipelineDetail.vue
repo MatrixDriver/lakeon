@@ -14,7 +14,7 @@
       </div>
       <div class="page-header-actions">
         <button class="btn btn-secondary" @click="router.push(`/datalake/pipelines/${pipelineId}/edit`)">编辑</button>
-        <button class="btn btn-primary" @click="showTriggerDialog = true">触发运行</button>
+        <button class="btn btn-primary" @click="openTriggerDialog">触发运行</button>
       </div>
     </div>
 
@@ -100,26 +100,45 @@
     </div>
 
     <!-- 触发运行弹窗 -->
-    <div v-if="showTriggerDialog" class="dialog-overlay" @click.self="showTriggerDialog = false">
-      <div class="dialog">
-        <h3>触发运行</h3>
-        <div class="dialog-field">
-          <label>Pipeline 版本</label>
-          <select v-model="triggerForm.version">
-            <option :value="undefined">最新版本 (v{{ pipeline?.latest_version }})</option>
-            <option v-for="v in versions" :key="v.version" :value="v.version">v{{ v.version }}</option>
-          </select>
-        </div>
-        <div class="dialog-field">
-          <label>输入数据集 ID（可选）</label>
-          <input v-model="triggerForm.inputDatasetId" placeholder="ds_xxx" />
-        </div>
-        <div class="dialog-actions">
-          <button class="btn btn-secondary" @click="showTriggerDialog = false">取消</button>
-          <button class="btn btn-primary" @click="handleTrigger" :disabled="triggering">
-            {{ triggering ? '提交中...' : '确认运行' }}
-          </button>
-        </div>
+    <div v-if="showTriggerDialog" class="dialog-overlay" @click.self="closeTriggerDialog">
+      <div class="dialog" :class="{ 'dialog-wide': triggerStep === 'preview' }">
+        <!-- Step 1: 选择版本和数据集 -->
+        <template v-if="triggerStep === 'form'">
+          <h3>触发运行</h3>
+          <div class="dialog-field">
+            <label>Pipeline 版本</label>
+            <select v-model="triggerForm.version">
+              <option :value="undefined">最新版本 (v{{ pipeline?.latest_version }})</option>
+              <option v-for="v in versions" :key="v.version" :value="v.version">v{{ v.version }}</option>
+            </select>
+          </div>
+          <div class="dialog-field">
+            <label>输入数据集 ID（可选）</label>
+            <input v-model="triggerForm.inputDatasetId" placeholder="ds_xxx" />
+          </div>
+          <div class="dialog-actions">
+            <button class="btn btn-secondary" @click="closeTriggerDialog">取消</button>
+            <button class="btn btn-primary" @click="handlePreview" :disabled="previewLoading">
+              {{ previewLoading ? '加载中...' : '下一步' }}
+            </button>
+          </div>
+        </template>
+
+        <!-- Step 2: 运行预览 -->
+        <template v-if="triggerStep === 'preview'">
+          <PipelineRunPreview
+            :dag-yaml="previewDagYaml"
+            :components="allComponents"
+            :component-versions="componentVersionMap"
+            :dataset-name="triggerForm.inputDatasetId || undefined"
+          />
+          <div class="dialog-actions">
+            <button class="btn btn-secondary" @click="triggerStep = 'form'">上一步</button>
+            <button class="btn btn-primary" @click="handleTrigger" :disabled="triggering">
+              {{ triggering ? '提交中...' : '确认运行' }}
+            </button>
+          </div>
+        </template>
       </div>
     </div>
   </div>
@@ -131,8 +150,11 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   getPipeline, listPipelineVersions, listPipelineRuns,
   triggerPipelineRun, cancelPipelineRun,
+  listComponents, getComponentLatestVersion,
   type Pipeline, type PipelineVersion, type PipelineRun,
+  type PipelineComponent, type PipelineComponentVersion,
 } from '@/api/pipeline'
+import PipelineRunPreview from './components/pipeline/PipelineRunPreview.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -146,6 +168,11 @@ const activeTab = ref('runs')
 const showTriggerDialog = ref(false)
 const triggering = ref(false)
 const triggerForm = ref<{ version?: number; inputDatasetId?: string }>({})
+const triggerStep = ref<'form' | 'preview'>('form')
+const previewLoading = ref(false)
+const previewDagYaml = ref('')
+const allComponents = ref<PipelineComponent[]>([])
+const componentVersionMap = ref<Map<string, PipelineComponentVersion>>(new Map())
 
 const tabs = [
   { key: 'runs', label: '运行历史' },
@@ -209,6 +236,75 @@ async function loadData() {
   }
 }
 
+function openTriggerDialog() {
+  triggerForm.value = {}
+  triggerStep.value = 'form'
+  showTriggerDialog.value = true
+}
+
+function closeTriggerDialog() {
+  showTriggerDialog.value = false
+  triggerStep.value = 'form'
+}
+
+async function handlePreview() {
+  previewLoading.value = true
+  try {
+    // Determine the version to preview
+    const ver = triggerForm.value.version ?? pipeline.value?.latest_version
+    if (!ver) {
+      alert('未找到可用版本')
+      return
+    }
+
+    // Load the DAG YAML for the selected version
+    const versionObj = versions.value.find(v => v.version === ver)
+    if (versionObj) {
+      previewDagYaml.value = versionObj.dag_yaml
+    } else {
+      // Fetch from API
+      const { getPipelineVersion } = await import('@/api/pipeline')
+      const res = await getPipelineVersion(pipelineId.value, ver)
+      previewDagYaml.value = res.data.dag_yaml
+    }
+
+    // Load components and their versions for display
+    if (allComponents.value.length === 0) {
+      const compRes = await listComponents()
+      allComponents.value = compRes.data
+    }
+
+    // Parse DAG to find which components are used, then load their versions
+    const { parseDagYaml } = await import('./components/pipeline/dagUtils')
+    const dag = parseDagYaml(previewDagYaml.value)
+    const newMap = new Map(componentVersionMap.value)
+    const fetchPromises: Promise<void>[] = []
+    for (const step of dag.steps) {
+      if (step.component && !newMap.has(step.component)) {
+        const comp = allComponents.value.find(c => c.name === step.component)
+        if (comp) {
+          fetchPromises.push(
+            getComponentLatestVersion(comp.id).then(res => {
+              newMap.set(step.component!, res.data)
+            }).catch(() => { /* ignore */ })
+          )
+        }
+      }
+    }
+    if (fetchPromises.length > 0) {
+      await Promise.allSettled(fetchPromises)
+      componentVersionMap.value = newMap
+    }
+
+    triggerStep.value = 'preview'
+  } catch (err) {
+    console.error('Failed to load preview', err)
+    alert('加载预览失败')
+  } finally {
+    previewLoading.value = false
+  }
+}
+
 async function handleTrigger() {
   triggering.value = true
   try {
@@ -216,7 +312,7 @@ async function handleTrigger() {
       pipeline_version: triggerForm.value.version,
       input_dataset_id: triggerForm.value.inputDatasetId || undefined,
     })
-    showTriggerDialog.value = false
+    closeTriggerDialog()
     router.push(`/datalake/pipelines/${pipelineId.value}/runs/${res.data.id}`)
   } catch (err) {
     console.error('Failed to trigger run', err)
@@ -274,6 +370,10 @@ onMounted(loadData)
 .dialog {
   background: #fff; border-radius: 10px; padding: 24px; width: 400px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  transition: width 0.2s ease;
+}
+.dialog.dialog-wide {
+  width: 520px;
 }
 .dialog h3 { margin: 0 0 16px; font-size: 16px; color: #2c3e50; }
 .dialog-field { margin-bottom: 12px; }
