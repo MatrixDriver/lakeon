@@ -290,12 +290,21 @@ def knowledge_upload_directory(
     uploaded = 0
     failed = 0
     processed_batches = 0
+    all_doc_ids: list[str] = []
     errors: list[str] = []
 
     # Process in batches of BATCH_SIZE
     for batch_start in range(0, total, BATCH_SIZE):
         batch_files = files[batch_start:batch_start + BATCH_SIZE]
-        file_specs = [{"filename": f.name, **({"tags": tags} if tags else {})} for f in batch_files]
+        file_specs = []
+        for f in batch_files:
+            spec: dict = {"filename": f.name}
+            rel = f.relative_to(dir_path)
+            if len(rel.parts) > 1:
+                spec["folder"] = "/".join(rel.parts[:-1])
+            if tags:
+                spec["tags"] = tags
+            file_specs.append(spec)
 
         try:
             # 1. Get presigned URLs
@@ -324,19 +333,23 @@ def knowledge_upload_directory(
                         failed += 1
                         errors.append(f"{fp.name}: upload HTTP {put_resp.status_code}")
 
-            # 3. Trigger batch processing
+            # 3. Collect doc_ids for single ingest call after all batches
             if doc_ids:
-                _api("POST", "/knowledge/batch-process", json={"document_ids": doc_ids})
-                processed_batches += 1
+                all_doc_ids.extend(doc_ids)
 
         except Exception as e:
             failed += len(batch_files)
             errors.append(f"Batch starting at {batch_files[0].name}: {e}")
 
+    # Trigger ingest once for all uploaded documents
+    if all_doc_ids:
+        _api("POST", "/knowledge/ingest", json={"document_ids": all_doc_ids})
+        processed_batches = 1
+
     # Summary
     parts = [f"Directory: {dir_path}", f"Total files found: {total}", f"Uploaded: {uploaded}", f"Failed: {failed}"]
-    if processed_batches:
-        parts.append(f"Batch jobs submitted: {processed_batches} (processing runs in background)")
+    if all_doc_ids:
+        parts.append(f"Ingestion submitted: {len(all_doc_ids)} documents (processing in background)")
     if errors:
         parts.append(f"Errors:\n" + "\n".join(f"  - {e}" for e in errors[:10]))
     return "\n".join(parts)
