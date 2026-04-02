@@ -4,9 +4,12 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Model downloaded at startup (cached via PVC or node local storage)
-# To bake model into image, uncomment:
-# RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-m3')"
+# Pre-download model into image (avoids startup download, ~2.2GB)
+ENV HF_ENDPOINT=https://hf-mirror.com
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-m3')"
+
+# Disable reranker by default (saves ~1.5GB memory)
+ENV RERANK_ENABLED=false
 
 COPY main.py .
 
