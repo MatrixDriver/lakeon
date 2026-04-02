@@ -262,15 +262,18 @@ public class ComputeLifecycleService {
             log.info("Cleaning up expired Pod for database {} (suspended since {}, retain={}min)",
                 entity.getId(), entity.getSuspendedAt(), retainMinutes);
             try {
+                String podName = entity.getComputePodName();
                 // Flush WAL before deleting to prevent data loss
-                if (computePodManager.isPodReady(entity.getComputePodName())) {
-                    computePodManager.executeCheckpoint(entity.getComputePodName());
+                if (computePodManager.isPodReady(podName)) {
+                    computePodManager.executeCheckpoint(podName);
                 }
-                computePodManager.deleteComputePod(entity.getComputePodName());
+                // Clear pod reference BEFORE deleting — prevents other threads from
+                // issuing CHECKPOINT on a pod that's being deleted
                 entity.setComputePodName(null);
                 entity.setComputeHost(null);
                 entity.setComputePort(null);
                 databaseRepository.save(entity);
+                computePodManager.deleteComputePod(podName);
             } catch (Exception e) {
                 log.error("Failed to cleanup Pod for database {}: {}", entity.getId(), e.getMessage());
             }
@@ -297,15 +300,16 @@ public class ComputeLifecycleService {
 
                 log.info("Cleaning up expired branch Pod: {}", branch.getComputePodName());
                 try {
-                    // Flush WAL before deleting to prevent data loss
-                    if (computePodManager.isPodReady(branch.getComputePodName())) {
-                        computePodManager.executeCheckpoint(branch.getComputePodName());
+                    String podName = branch.getComputePodName();
+                    if (computePodManager.isPodReady(podName)) {
+                        computePodManager.executeCheckpoint(podName);
                     }
-                    computePodManager.deleteComputePod(branch.getComputePodName());
+                    // Clear pod reference BEFORE deleting
                     branch.setComputePodName(null);
                     branch.setComputeHost(null);
                     branch.setComputePort(null);
                     branchRepository.save(branch);
+                    computePodManager.deleteComputePod(podName);
                 } catch (Exception e) {
                     log.error("Failed to cleanup Pod for branch {}: {}", branch.getId(), e.getMessage());
                 }
