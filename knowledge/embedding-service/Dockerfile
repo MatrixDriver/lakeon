@@ -2,7 +2,8 @@ FROM python:3.12-slim
 
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 
 # Pre-download model into image (avoids startup download, ~2.2GB)
 ENV HF_ENDPOINT=https://hf-mirror.com
