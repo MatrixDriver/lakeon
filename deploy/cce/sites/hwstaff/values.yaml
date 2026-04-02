@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.9.178"
+    tag: "0.9.185"
   jobCallbackBaseUrl: "https://api.dbay.cloud:8443"
   jobNamespace: "lakeon-jobs"
   resources:
@@ -139,7 +139,7 @@ orchestrator:
   enabled: true
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-orchestrator
-    tag: "0.1.1"
+    tag: "0.1.4"
   replicas: 1
   resources:
     requests:
