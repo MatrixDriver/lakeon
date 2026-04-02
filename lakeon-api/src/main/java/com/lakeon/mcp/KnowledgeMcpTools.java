@@ -57,7 +57,7 @@ public class KnowledgeMcpTools {
                     String kbId = args.get("kb_id").asText();
                     String query = args.get("query").asText();
                     int topK = args.has("top_k") ? args.get("top_k").asInt() : 5;
-                    return knowledgeService.search(tenant.getId(), kbId, query, topK, null, null, true, null);
+                    return knowledgeService.search(tenant.getId(), kbId, query, topK, null, null, null, null, true, null);
                 });
 
         registry.register("knowledge_list_documents",

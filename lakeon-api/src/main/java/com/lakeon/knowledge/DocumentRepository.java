@@ -23,6 +23,20 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, String
         @Param("tenantId") String tenantId,
         @Param("tags") String[] tags);
 
+    @Query(value = "SELECT id FROM documents WHERE kb_id = :kbId AND tenant_id = :tenantId AND metadata @> CAST(:metadataJson AS jsonb)",
+           nativeQuery = true)
+    List<String> findIdsByKbIdAndTenantIdAndMetadataContaining(
+        @Param("kbId") String kbId,
+        @Param("tenantId") String tenantId,
+        @Param("metadataJson") String metadataJson);
+
+    @Query(value = "SELECT id FROM documents WHERE kb_id = :kbId AND tenant_id = :tenantId AND folder = :folder",
+           nativeQuery = true)
+    List<String> findIdsByKbIdAndTenantIdAndFolder(
+        @Param("kbId") String kbId,
+        @Param("tenantId") String tenantId,
+        @Param("folder") String folder);
+
     /**
      * CAS lock for rechunk: only transitions from IDLE to IN_PROGRESS.
      * Returns number of rows updated (0 means lock not acquired).

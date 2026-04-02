@@ -912,6 +912,7 @@ public class KnowledgeService {
     @SuppressWarnings("unchecked")
     public Map<String, Object> search(String tenantId, String kbId, String query,
                                       int topK, List<String> documentIds, List<String> tags,
+                                      Map<String, String> metadataFilter, String folder,
                                       boolean rerank, List<Map<String, String>> conversationHistory) {
         if (query == null || query.isBlank()) {
             throw new BadRequestException("Query must not be empty");
@@ -946,6 +947,43 @@ public class KnowledgeService {
                 if (rewrittenQuery != null) {
                     emptyResult.put("rewritten_query", rewrittenQuery);
                 }
+                return emptyResult;
+            }
+        }
+
+        // Metadata filtering: resolve matching document IDs
+        if (metadataFilter != null && !metadataFilter.isEmpty()) {
+            try {
+                String metadataJson = objectMapper.writeValueAsString(metadataFilter);
+                List<String> metaFilteredIds = documentRepository
+                    .findIdsByKbIdAndTenantIdAndMetadataContaining(kbId, tenantId, metadataJson);
+                if (filteredDocIds != null) {
+                    metaFilteredIds.retainAll(new HashSet<>(filteredDocIds));
+                }
+                filteredDocIds = metaFilteredIds;
+                if (filteredDocIds.isEmpty()) {
+                    Map<String, Object> emptyResult = new LinkedHashMap<>();
+                    emptyResult.put("results", Collections.emptyList());
+                    if (rewrittenQuery != null) emptyResult.put("rewritten_query", rewrittenQuery);
+                    return emptyResult;
+                }
+            } catch (Exception e) {
+                log.warn("Failed to serialize metadata filter: {}", e.getMessage());
+            }
+        }
+
+        // Folder filtering: resolve matching document IDs
+        if (folder != null && !folder.isBlank()) {
+            List<String> folderFilteredIds = documentRepository
+                .findIdsByKbIdAndTenantIdAndFolder(kbId, tenantId, folder);
+            if (filteredDocIds != null) {
+                folderFilteredIds.retainAll(new HashSet<>(filteredDocIds));
+            }
+            filteredDocIds = folderFilteredIds;
+            if (filteredDocIds.isEmpty()) {
+                Map<String, Object> emptyResult = new LinkedHashMap<>();
+                emptyResult.put("results", Collections.emptyList());
+                if (rewrittenQuery != null) emptyResult.put("rewritten_query", rewrittenQuery);
                 return emptyResult;
             }
         }

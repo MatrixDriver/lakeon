@@ -296,6 +296,8 @@ public class KnowledgeController {
         List<String> tags = (List<String>) body.get("tags");
         List<Map<String, String>> conversationHistory = body.containsKey("conversation_history")
                 ? (List<Map<String, String>>) body.get("conversation_history") : null;
+        Map<String, String> metadataFilter = (Map<String, String>) body.get("metadata");
+        String folder = (String) body.get("folder");
 
         // Cross-KB search: when kb_id is null or empty, search all DOCUMENT KBs
         if (kbId == null || kbId.isBlank()) {
@@ -306,7 +308,7 @@ public class KnowledgeController {
                 if (kb.getType() != KnowledgeBaseType.DOCUMENT || kb.getStatus() != KnowledgeBaseStatus.READY) continue;
                 try {
                     Map<String, Object> sr = knowledgeService.search(
-                            tenant.getId(), kb.getId(), query, topK, null, tags, rerank, conversationHistory);
+                            tenant.getId(), kb.getId(), query, topK, null, tags, metadataFilter, folder, rerank, conversationHistory);
                     List<Map<String, Object>> results = (List<Map<String, Object>>) sr.get("results");
                     // Tag each result with kb info
                     for (Map<String, Object> r : results) {
@@ -343,7 +345,7 @@ public class KnowledgeController {
         List<String> documentIds = (List<String>) body.get("document_ids");
 
         Map<String, Object> searchResult = knowledgeService.search(
-                tenant.getId(), kbId, query, topK, documentIds, tags, rerank, conversationHistory);
+                tenant.getId(), kbId, query, topK, documentIds, tags, metadataFilter, folder, rerank, conversationHistory);
 
         List<Map<String, Object>> results = (List<Map<String, Object>>) searchResult.get("results");
 
