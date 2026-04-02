@@ -113,6 +113,13 @@
             </select>
           </div>
           <div class="dialog-field">
+            <label>执行引擎</label>
+            <select v-model="triggerForm.engine">
+              <option value="python">Python 单机</option>
+              <option value="ray">Ray 分布式</option>
+            </select>
+          </div>
+          <div class="dialog-field">
             <label>输入数据集 ID（可选）</label>
             <input v-model="triggerForm.inputDatasetId" placeholder="ds_xxx" />
           </div>
@@ -124,19 +131,34 @@
           </div>
         </template>
 
-        <!-- Step 2: 运行预览 -->
+        <!-- Step 2: 代码预览 -->
         <template v-if="triggerStep === 'preview'">
-          <PipelineRunPreview
-            :dag-yaml="previewDagYaml"
-            :components="allComponents"
-            :component-versions="componentVersionMap"
-            :dataset-name="triggerForm.inputDatasetId || undefined"
-          />
-          <div class="dialog-actions">
+          <div class="code-preview-header">
+            <h3 class="code-preview-title">{{ pipeline?.name || 'Pipeline' }}</h3>
+            <span class="engine-tag" :class="triggerForm.engine">
+              {{ triggerForm.engine === 'ray' ? 'Ray 分布式' : 'Python 单机' }}
+            </span>
+          </div>
+          <div class="code-preview-editor">
+            <div class="code-toolbar">
+              <span class="code-filename">pipeline.py</span>
+              <span class="code-steps">{{ previewStepCount }} 步骤</span>
+            </div>
+            <div ref="codeEditorContainer" class="code-editor-container"></div>
+          </div>
+          <div class="dialog-actions dialog-actions-spread">
             <button class="btn btn-secondary" @click="triggerStep = 'form'">上一步</button>
-            <button class="btn btn-primary" @click="handleTrigger" :disabled="triggering">
-              {{ triggering ? '提交中...' : '确认运行' }}
-            </button>
+            <div class="dialog-actions-right">
+              <button class="btn btn-ghost" @click="handleCopyCode">
+                {{ copyLabel }}
+              </button>
+              <button class="btn btn-secondary" @click="handleOpenInNotebook" :disabled="openingNotebook">
+                {{ openingNotebook ? '创建中...' : '在 Notebook 中打开' }}
+              </button>
+              <button class="btn btn-primary" @click="handleTrigger" :disabled="triggering">
+                {{ triggering ? '提交中...' : '直接运行' }}
+              </button>
+            </div>
           </div>
         </template>
       </div>
@@ -145,7 +167,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getPipeline, listPipelineVersions, listPipelineRuns,
@@ -154,7 +176,13 @@ import {
   type Pipeline, type PipelineVersion, type PipelineRun,
   type PipelineComponent, type PipelineComponentVersion,
 } from '@/api/pipeline'
-import PipelineRunPreview from './components/pipeline/PipelineRunPreview.vue'
+import { EditorState } from '@codemirror/state'
+import { EditorView, lineNumbers } from '@codemirror/view'
+import { python } from '@codemirror/lang-python'
+import { oneDark } from '@codemirror/theme-one-dark'
+import { parseDagYaml } from './components/pipeline/dagUtils'
+import { generatePythonScript } from './components/pipeline/dagCodegen'
+import { notebooksApi } from '@/api/notebooks'
 
 const route = useRoute()
 const router = useRouter()
@@ -167,12 +195,18 @@ const runs = ref<PipelineRun[]>([])
 const activeTab = ref('runs')
 const showTriggerDialog = ref(false)
 const triggering = ref(false)
-const triggerForm = ref<{ version?: number; inputDatasetId?: string }>({})
+const triggerForm = ref<{ version?: number; engine: 'python' | 'ray'; inputDatasetId?: string }>({ engine: 'python' })
 const triggerStep = ref<'form' | 'preview'>('form')
 const previewLoading = ref(false)
 const previewDagYaml = ref('')
+const generatedCode = ref('')
+const previewStepCount = ref(0)
 const allComponents = ref<PipelineComponent[]>([])
 const componentVersionMap = ref<Map<string, PipelineComponentVersion>>(new Map())
+const codeEditorContainer = ref<HTMLElement | null>(null)
+let codeEditorView: EditorView | null = null
+const copyLabel = ref('复制代码')
+const openingNotebook = ref(false)
 
 const tabs = [
   { key: 'runs', label: '运行历史' },
@@ -237,7 +271,7 @@ async function loadData() {
 }
 
 function openTriggerDialog() {
-  triggerForm.value = {}
+  triggerForm.value = { engine: 'python' }
   triggerStep.value = 'form'
   showTriggerDialog.value = true
 }
@@ -245,6 +279,7 @@ function openTriggerDialog() {
 function closeTriggerDialog() {
   showTriggerDialog.value = false
   triggerStep.value = 'form'
+  destroyCodeEditor()
 }
 
 async function handlePreview() {
@@ -275,7 +310,6 @@ async function handlePreview() {
     }
 
     // Parse DAG to find which components are used, then load their versions
-    const { parseDagYaml } = await import('./components/pipeline/dagUtils')
     const dag = parseDagYaml(previewDagYaml.value)
     const newMap = new Map(componentVersionMap.value)
     const fetchPromises: Promise<void>[] = []
@@ -296,12 +330,111 @@ async function handlePreview() {
       componentVersionMap.value = newMap
     }
 
+    // Build component map (name -> PipelineComponent)
+    const compMap = new Map<string, PipelineComponent>()
+    for (const c of allComponents.value) compMap.set(c.name, c)
+
+    // Generate Python code
+    previewStepCount.value = dag.steps.length
+    generatedCode.value = generatePythonScript(dag, {
+      pipelineName: pipeline.value?.name || dag.name || 'Pipeline',
+      dataType: pipeline.value?.data_type || dag.data_type || 'TEXT',
+      steps: dag.steps,
+      componentMap: compMap,
+      componentVersionMap: componentVersionMap.value,
+      executionEngine: triggerForm.value.engine,
+      inputPath: triggerForm.value.inputDatasetId
+        ? `dataset://${triggerForm.value.inputDatasetId}`
+        : undefined,
+    })
+
     triggerStep.value = 'preview'
+
+    // Mount code editor after DOM update
+    await nextTick()
+    mountCodeEditor()
   } catch (err) {
     console.error('Failed to load preview', err)
     alert('加载预览失败')
   } finally {
     previewLoading.value = false
+  }
+}
+
+function mountCodeEditor() {
+  destroyCodeEditor()
+  if (!codeEditorContainer.value) return
+
+  const state = EditorState.create({
+    doc: generatedCode.value,
+    extensions: [
+      lineNumbers(),
+      python(),
+      oneDark,
+      EditorState.readOnly.of(true),
+      EditorView.theme({
+        '&': { height: '420px', fontSize: '12px' },
+        '.cm-scroller': { overflow: 'auto' },
+        '.cm-gutters': { minWidth: '36px' },
+      }),
+    ],
+  })
+  codeEditorView = new EditorView({ state, parent: codeEditorContainer.value })
+}
+
+function destroyCodeEditor() {
+  codeEditorView?.destroy()
+  codeEditorView = null
+}
+
+async function handleCopyCode() {
+  try {
+    await navigator.clipboard.writeText(generatedCode.value)
+    copyLabel.value = '已复制'
+    setTimeout(() => { copyLabel.value = '复制代码' }, 2000)
+  } catch {
+    // fallback
+    const ta = document.createElement('textarea')
+    ta.value = generatedCode.value
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+    copyLabel.value = '已复制'
+    setTimeout(() => { copyLabel.value = '复制代码' }, 2000)
+  }
+}
+
+async function handleOpenInNotebook() {
+  openingNotebook.value = true
+  try {
+    const nbName = `${pipeline.value?.name || 'Pipeline'} - 生成脚本`
+    const image = triggerForm.value.engine === 'ray' ? 'ray' : 'python-data'
+    const res = await notebooksApi.create(nbName, image)
+    const nbId = res.data.id
+
+    // Save generated code as the first cell
+    const content = JSON.stringify({
+      cells: [{
+        id: 'cell_' + Math.random().toString(36).slice(2, 8),
+        code: generatedCode.value,
+        cellType: 'code',
+        outputs: [],
+        execCount: null,
+        durationMs: null,
+      }],
+      image,
+      datasetIds: triggerForm.value.inputDatasetId ? [triggerForm.value.inputDatasetId] : [],
+    })
+    await notebooksApi.save(nbId, content, false)
+
+    closeTriggerDialog()
+    router.push(`/datalake/notebook/${nbId}`)
+  } catch (err) {
+    console.error('Failed to create notebook', err)
+    alert('创建 Notebook 失败')
+  } finally {
+    openingNotebook.value = false
   }
 }
 
@@ -333,6 +466,7 @@ async function handleCancel(runId: string) {
 }
 
 onMounted(loadData)
+onBeforeUnmount(destroyCodeEditor)
 </script>
 
 <style scoped>
@@ -373,7 +507,7 @@ onMounted(loadData)
   transition: width 0.2s ease;
 }
 .dialog.dialog-wide {
-  width: 520px;
+  width: 800px;
 }
 .dialog h3 { margin: 0 0 16px; font-size: 16px; color: #2c3e50; }
 .dialog-field { margin-bottom: 12px; }
@@ -384,4 +518,35 @@ onMounted(loadData)
 }
 .dialog-field input:focus, .dialog-field select:focus { border-color: #2a4d6a; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.dialog-actions-spread { justify-content: space-between; }
+.dialog-actions-right { display: flex; gap: 8px; }
+
+/* Code preview */
+.code-preview-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+}
+.code-preview-title {
+  margin: 0; font-size: 15px; font-weight: 600; color: #2c3e50;
+}
+.engine-tag {
+  font-size: 11px; padding: 2px 8px; border-radius: 3px; font-weight: 500;
+}
+.engine-tag.python { background: #eefbf4; color: #1a6b3c; }
+.engine-tag.ray { background: #eef6fe; color: #1a5276; }
+.code-preview-editor {
+  border: 1px solid #334155; border-radius: 8px; overflow: hidden;
+}
+.code-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #334155; padding: 6px 12px;
+}
+.code-filename { font-size: 11px; color: #94a3b8; font-family: monospace; }
+.code-steps { font-size: 11px; color: #64748b; }
+.code-editor-container { min-height: 420px; }
+
+.btn-ghost {
+  background: none; border: 1px solid #d1ccc4; color: #555; border-radius: 6px;
+  padding: 6px 12px; font-size: 12px; cursor: pointer; transition: all 0.15s;
+}
+.btn-ghost:hover { border-color: #999; color: #333; }
 </style>
