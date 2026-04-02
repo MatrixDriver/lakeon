@@ -18,10 +18,13 @@ def _get_client() -> httpx.AsyncClient:
 
 async def get_embedding(text: str) -> list[float]:
     client = _get_client()
+    headers = {}
+    if EMBEDDING_API_KEY:
+        headers["Authorization"] = f"Bearer {EMBEDDING_API_KEY}"
     resp = await client.post(
         EMBEDDING_API_URL,
         json={"model": EMBEDDING_MODEL, "input": text},
-        headers={"Authorization": f"Bearer {EMBEDDING_API_KEY}"},
+        headers=headers,
     )
     resp.raise_for_status()
     return resp.json()["data"][0]["embedding"]
