@@ -50,6 +50,29 @@ def embed(req: EmbedRequest):
     embeddings = model.encode(req.texts, batch_size=BATCH_SIZE, normalize_embeddings=True)
     return EmbedResponse(embeddings=embeddings.tolist())
 
+# ── OpenAI-compatible endpoint (drop-in for SiliconFlow / vLLM) ─────
+
+class OpenAIEmbedRequest(BaseModel):
+    input: str | list[str]
+    model: str = "bge-m3"
+
+@app.post("/v1/embeddings")
+def openai_embeddings(req: OpenAIEmbedRequest):
+    texts = [req.input] if isinstance(req.input, str) else req.input
+    if not texts:
+        return {"data": [], "model": req.model, "usage": {"prompt_tokens": 0, "total_tokens": 0}}
+    embeddings = model.encode(texts, batch_size=BATCH_SIZE, normalize_embeddings=True)
+    data = [
+        {"object": "embedding", "embedding": emb.tolist(), "index": i}
+        for i, emb in enumerate(embeddings)
+    ]
+    return {
+        "object": "list",
+        "data": data,
+        "model": MODEL_NAME,
+        "usage": {"prompt_tokens": sum(len(t) for t in texts), "total_tokens": sum(len(t) for t in texts)},
+    }
+
 @app.post("/rerank")
 async def rerank(request: dict):
     if rerank_model is None:
