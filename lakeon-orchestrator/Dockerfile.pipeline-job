@@ -1,0 +1,21 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install component dependencies
+RUN pip install --no-cache-dir \
+    boto3>=1.35.0 \
+    pyarrow>=14.0 \
+    datasketch>=1.6 \
+    jieba>=0.42 \
+    tiktoken>=0.5 \
+    pyyaml>=6.0
+
+# Install orchestrator package (for component context/decorator/loader)
+COPY pyproject.toml .
+COPY src/ src/
+COPY components/ components/
+
+RUN pip install --no-cache-dir .
+
+ENV PYTHONPATH=/app/src:/app

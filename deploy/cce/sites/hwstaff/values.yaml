@@ -139,7 +139,7 @@ orchestrator:
   enabled: true
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-orchestrator
-    tag: "0.1.4"
+    tag: "0.1.5"
   replicas: 1
   resources:
     requests:

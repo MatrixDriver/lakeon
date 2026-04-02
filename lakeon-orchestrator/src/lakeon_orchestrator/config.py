@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     obs_region: str = "cn-north-4"
 
     # Python single-pod execution
-    python_image: str = "swr.cn-north-4.myhuaweicloud.com/flex/python:3.11-slim"
+    python_image: str = "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-pipeline-job:0.1.0"
 
     # Ray / KubeRay
     ray_image: str = "swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data"
