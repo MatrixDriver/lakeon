@@ -81,6 +81,8 @@ lakeon:
     compute-size: ${LAKEON_DEFAULT_COMPUTE_SIZE:1cu}
     suspend-timeout: ${LAKEON_DEFAULT_SUSPEND_TIMEOUT:2m}
     storage-limit-gb: ${LAKEON_DEFAULT_STORAGE_LIMIT:10}
+  hwcloud:
+    account-id: ${LAKEON_HWCLOUD_ACCOUNT_ID:}
   demo:
     tenant-id: ${LAKEON_DEMO_TENANT_ID:}
   knowledge:

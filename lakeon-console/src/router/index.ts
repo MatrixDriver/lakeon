@@ -79,6 +79,8 @@ const routes = [
       { path: 'datalake/pipelines/:id', name: 'DatalakePipelineDetail', component: () => import('../views/datalake/DatalakePipelineDetail.vue') },
       { path: 'datalake/pipelines/:id/edit', name: 'DatalakePipelineEdit', component: () => import('../views/datalake/DatalakePipelineEditor.vue') },
       { path: 'datalake/pipelines/:id/runs/:runId', name: 'DatalakePipelineRun', component: () => import('../views/datalake/DatalakePipelineRun.vue') },
+      // Datalake — Connections
+      { path: 'datalake/connections', name: 'DatalakeConnections', component: () => import('../views/datalake/DatalakeConnections.vue') },
       // Datalake — Components
       { path: 'datalake/components', name: 'DatalakeComponents', component: () => import('../views/datalake/DatalakeComponents.vue') },
       { path: 'datalake/components/register', name: 'DatalakeComponentRegister', component: () => import('../views/datalake/DatalakeComponentRegister.vue') },

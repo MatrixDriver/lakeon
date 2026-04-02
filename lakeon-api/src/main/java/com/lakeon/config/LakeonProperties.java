@@ -29,6 +29,7 @@ public class LakeonProperties {
     private DatalakeConfig datalake = new DatalakeConfig();
     private MemoryConfig memory = new MemoryConfig();
     private DemoConfig demo = new DemoConfig();
+    private HwcloudConfig hwcloud = new HwcloudConfig();
 
     public NeonConfig getNeon() { return neon; }
     public void setNeon(NeonConfig neon) { this.neon = neon; }
@@ -68,6 +69,8 @@ public class LakeonProperties {
     public void setMemory(MemoryConfig memory) { this.memory = memory; }
     public DemoConfig getDemo() { return demo; }
     public void setDemo(DemoConfig demo) { this.demo = demo; }
+    public HwcloudConfig getHwcloud() { return hwcloud; }
+    public void setHwcloud(HwcloudConfig hwcloud) { this.hwcloud = hwcloud; }
 
     public static class NeonConfig {
         private String pageserverUrl;
@@ -375,6 +378,13 @@ public class LakeonProperties {
 
         public String getTenantId() { return tenantId; }
         public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+    }
+
+    public static class HwcloudConfig {
+        private String accountId = "";
+
+        public String getAccountId() { return accountId; }
+        public void setAccountId(String accountId) { this.accountId = accountId; }
     }
 
     public static class DatalakeConfig {
