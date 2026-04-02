@@ -1,5 +1,7 @@
 import httpx
 import time
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from typing import Any, Optional
 
 
@@ -370,6 +372,59 @@ class DbayClient:
 
     def delete_dataset(self, dataset_id: str) -> dict:
         return self._request("DELETE", f"/datasets/{dataset_id}")
+
+    def get_dataset_upload_urls(self, name: str, files: list[dict],
+                                description: str | None = None) -> dict:
+        body: dict[str, Any] = {"name": name, "files": files}
+        if description:
+            body["description"] = description
+        return self._request("POST", "/datasets/upload-urls", json=body)
+
+    def finalize_dataset(self, dataset_id: str) -> dict:
+        return self._request("POST", f"/datasets/{dataset_id}/finalize")
+
+    def upload_dataset(self, name: str, path: str,
+                       description: str | None = None) -> dict:
+        """Scan path (file or directory), upload all files via presigned URLs, and finalize."""
+        p = Path(path)
+        if not p.exists():
+            raise FileNotFoundError(f"Path not found: {path}")
+
+        # Collect files with relative paths
+        if p.is_file():
+            file_entries = [{"path": p.name, "size": p.stat().st_size, "_abs": str(p)}]
+        else:
+            file_entries = []
+            for f in sorted(p.rglob("*")):
+                if f.is_file():
+                    rel = str(f.relative_to(p.parent))
+                    file_entries.append({"path": rel, "size": f.stat().st_size, "_abs": str(f)})
+
+        if not file_entries:
+            raise ValueError(f"No files found at: {path}")
+
+        # Get presigned upload URLs
+        api_files = [{"path": e["path"], "size": e["size"]} for e in file_entries]
+        result = self.get_dataset_upload_urls(name, api_files, description)
+        dataset_id = result["dataset_id"]
+        uploads = result["uploads"]
+
+        # Build mapping from path to local abs path
+        abs_by_path = {e["path"]: e["_abs"] for e in file_entries}
+
+        def _upload_one(upload: dict):
+            local_path = abs_by_path[upload["path"]]
+            file_bytes = Path(local_path).read_bytes()
+            resp = httpx.put(upload["upload_url"], content=file_bytes, timeout=300)
+            resp.raise_for_status()
+
+        # Upload concurrently
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            futures = [pool.submit(_upload_one, u) for u in uploads]
+            for fut in futures:
+                fut.result()
+
+        return self.finalize_dataset(dataset_id)
 
     # -- Database extended --
     def update_database(self, db_id: str, **kwargs) -> dict:
