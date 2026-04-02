@@ -97,11 +97,8 @@
         <line x1="12" y1="10" x2="12" y2="16"/><line x1="9" y1="13" x2="15" y2="13"/>
       </svg>
       <div style="margin-top: 12px; color: #999;">
-        尚未创建数据生产线
+        尚未创建数据生产线，点击右上角「新建生产线」开始
       </div>
-      <button class="btn btn-primary" style="margin-top: 16px;" @click="showCreateMenu = true">
-        创建第一条生产线
-      </button>
     </div>
   </div>
 </template>
