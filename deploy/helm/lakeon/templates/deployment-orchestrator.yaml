@@ -17,6 +17,7 @@ spec:
       labels:
         app.kubernetes.io/name: pipeline-orchestrator
     spec:
+      serviceAccountName: pipeline-orchestrator
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -54,10 +55,16 @@ spec:
                   key: secret-key
             - name: LAKEON_ORCH_OBS_BUCKET
               value: {{ .Values.obs.bucket | default "lakeon-data" | quote }}
-            - name: LAKEON_ORCH_RAY_ADDRESS
-              value: {{ .Values.orchestrator.rayAddress | default "auto" | quote }}
-            - name: LAKEON_ORCH_RAY_NAMESPACE
-              value: {{ .Values.orchestrator.rayNamespace | default "lakeon-pipeline" | quote }}
+            - name: LAKEON_ORCH_RAY_IMAGE
+              value: {{ .Values.orchestrator.rayImage | default "swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data" | quote }}
+            - name: LAKEON_ORCH_K8S_NAMESPACE
+              value: {{ .Values.orchestrator.k8sNamespace | default "lakeon-pipeline" | quote }}
+            - name: LAKEON_ORCH_IMAGE_PULL_SECRETS
+              value: {{ .Values.orchestrator.imagePullSecrets | default "" | quote }}
+            - name: LAKEON_ORCH_VK_NODE_SELECTOR_KEY
+              value: {{ .Values.orchestrator.vkNodeSelectorKey | default "type" | quote }}
+            - name: LAKEON_ORCH_VK_NODE_SELECTOR_VALUE
+              value: {{ .Values.orchestrator.vkNodeSelectorValue | default "virtual-kubelet" | quote }}
           resources:
             requests:
               cpu: {{ .Values.orchestrator.resources.requests.cpu | default "100m" | quote }}

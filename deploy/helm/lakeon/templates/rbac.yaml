@@ -146,6 +146,50 @@ subjects:
     name: lakeon-api
     namespace: {{ .Values.global.namespace }}
 ---
+# Pipeline Orchestrator — ServiceAccount + RBAC for RayJob CRD management
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pipeline-orchestrator
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pipeline-orchestrator-rayjob-manager
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["ray.io"]
+    resources: ["rayjobs"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pipeline-orchestrator-rayjob-manager
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pipeline-orchestrator-rayjob-manager
+subjects:
+  - kind: ServiceAccount
+    name: pipeline-orchestrator
+    namespace: {{ .Values.global.namespace }}
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:

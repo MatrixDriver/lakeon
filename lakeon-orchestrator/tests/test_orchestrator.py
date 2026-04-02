@@ -40,13 +40,13 @@ def mock_state_manager():
 
 @pytest.fixture
 def mock_ray_client():
-    rc = MagicMock()
-    rc.connect = MagicMock()
-    rc.disconnect = MagicMock()
+    rc = AsyncMock()
+    rc.connect = AsyncMock()
+    rc.disconnect = AsyncMock()
     rc.is_connected = True
-    rc.submit_task = MagicMock(return_value="obj_ref_result")
-    rc.get_result = MagicMock(return_value={"text": "processed"})
-    rc.put_object = MagicMock(return_value="obj_ref_input")
+    rc.submit_pipeline_step = AsyncMock(return_value="pl-run-001-step-a")
+    rc.wait_for_completion = AsyncMock(return_value={"status": "SUCCEEDED", "ray_job_name": "pl-run-001-step-a", "message": ""})
+    rc.delete_job = AsyncMock()
     return rc
 
 

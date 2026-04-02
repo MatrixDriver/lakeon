@@ -23,7 +23,18 @@ async def lifespan(app: FastAPI):
         aws_secret_access_key=settings.obs_secret_key,
     )
 
-    ray_client = RayClient(address=settings.ray_address, namespace=settings.ray_namespace)
+    ray_client = RayClient(
+        ray_image=settings.ray_image,
+        k8s_namespace=settings.k8s_namespace,
+        image_pull_secrets=settings.get_image_pull_secrets_list(),
+        obs_endpoint=settings.obs_endpoint,
+        obs_access_key=settings.obs_access_key,
+        obs_secret_key=settings.obs_secret_key,
+        obs_bucket=settings.obs_bucket,
+        obs_region=settings.obs_region,
+        vk_node_selector_key=settings.vk_node_selector_key,
+        vk_node_selector_value=settings.vk_node_selector_value,
+    )
     checkpoint_mgr = CheckpointManager(obs_client=obs_client, bucket=settings.obs_bucket)
     orchestrator = Orchestrator(
         session_factory=get_session_factory(),
