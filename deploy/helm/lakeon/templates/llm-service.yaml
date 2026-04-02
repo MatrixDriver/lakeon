@@ -23,7 +23,7 @@ spec:
           image: {{ .Values.llm.image }}
           args:
             - "--model"
-            - "/models/{{ .Values.llm.model | default "Qwen3.5-9B" }}"
+            - "{{ .Values.llm.modelPath | default "/models/Qwen3.5-9B" }}"
             - "--port"
             - "8080"
             - "--tensor-parallel-size"
