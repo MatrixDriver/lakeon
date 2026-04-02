@@ -123,6 +123,8 @@ lakeon:
     memory: ${LAKEON_KB_WRITE_MEMORY:512Mi}
   memory:
     service-url: ${LAKEON_MEMORY_SERVICE_URL:http://memory-svc:8001}
+  orchestrator:
+    url: ${LAKEON_ORCHESTRATOR_URL:http://pipeline-orchestrator:8090}
   datalake:
     cci-namespace-prefix: "${LAKEON_DATALAKE_CCI_NS_PREFIX:datalake-}"
     vk-node-selector-key: "${LAKEON_DATALAKE_VK_NODE_SELECTOR_KEY:type}"

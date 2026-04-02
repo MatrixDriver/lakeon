@@ -133,7 +133,7 @@ class RayClient:
         """
         await self._ensure_k8s()
 
-        ns = namespace_override or f"datalake-tn-{tenant_id}"
+        ns = namespace_override or f"datalake-{tenant_id.replace('_', '-')}"
         ray_job_name = self._make_job_name(run_id, step_id)
         res = resources or {}
 

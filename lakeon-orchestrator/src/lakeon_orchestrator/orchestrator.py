@@ -87,15 +87,20 @@ class Orchestrator:
         async with self._session_factory() as session:
             sm = self._get_state_manager(session)
 
-            # 1. Create run record
-            await sm.create_run(
-                run_id=run_id,
-                pipeline_id=pipeline_id,
-                pipeline_version=pipeline_version,
-                tenant_id=tenant_id,
-                input_dataset_id=input_dataset_id,
-                input_dataset_version=input_dataset_version,
-            )
+            # 1. Check if run record already exists (created by lakeon-api)
+            existing_run = await sm.get_run(run_id)
+            if existing_run is None:
+                # Create run record if not already created by API
+                await sm.create_run(
+                    run_id=run_id,
+                    pipeline_id=pipeline_id,
+                    pipeline_version=pipeline_version,
+                    tenant_id=tenant_id,
+                    input_dataset_id=input_dataset_id,
+                    input_dataset_version=input_dataset_version,
+                )
+            else:
+                logger.info(f"Reusing existing run record {run_id}")
 
             # 2. Load and parse DAG
             pv = await sm.get_pipeline_version(pipeline_id, pipeline_version)
@@ -111,20 +116,30 @@ class Orchestrator:
             # Validate DAG (cycle detection)
             scheduler.topological_sort()
 
-            # 3. Create step_runs for all nodes
+            # 3. Check if step_runs already exist (created by lakeon-api)
+            existing_steps = await sm.get_step_runs(run_id)
             step_statuses: dict[str, str] = {}
             step_run_ids: dict[str, str] = {}
-            for node_id, node in dag.nodes.items():
-                sr_id = f"sr_{run_id}_{node_id}"
-                await sm.create_step_run(
-                    step_run_id=sr_id,
-                    run_id=run_id,
-                    step_id=node_id,
-                    component_id=node.component,
-                    component_version=node.component_version,
-                )
-                step_statuses[node_id] = "PENDING"
-                step_run_ids[node_id] = sr_id
+
+            if existing_steps:
+                # Reuse existing step_run records from API
+                logger.info(f"Reusing {len(existing_steps)} existing step_run records for {run_id}")
+                for sr in existing_steps:
+                    step_statuses[sr.step_id] = sr.status
+                    step_run_ids[sr.step_id] = sr.id
+            else:
+                # Create step_runs if not already created by API
+                for node_id, node in dag.nodes.items():
+                    sr_id = f"sr_{run_id}_{node_id}"
+                    await sm.create_step_run(
+                        step_run_id=sr_id,
+                        run_id=run_id,
+                        step_id=node_id,
+                        component_id=node.component,
+                        component_version=node.component_version,
+                    )
+                    step_statuses[node_id] = "PENDING"
+                    step_run_ids[node_id] = sr_id
 
             # 4. Connect K8s API clients
             await self._ray.connect()
@@ -280,7 +295,7 @@ class Orchestrator:
             )
 
             # Wait for the job to complete (positional args for cross-client compat)
-            ns = f"datalake-tn-{tenant_id}"
+            ns = f"datalake-{tenant_id.replace('_', '-')}"
             result = await engine_client.wait_for_completion(
                 job_name, namespace=ns,
             )

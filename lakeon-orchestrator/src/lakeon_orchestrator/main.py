@@ -61,22 +61,24 @@ async def lifespan(app: FastAPI):
     await close_db()
 
 
-app = FastAPI(
-    title="Lakeon Pipeline Orchestrator",
-    version="0.1.0",
-    lifespan=lifespan,
-)
-
-
 def create_app() -> FastAPI:
-    from lakeon_orchestrator.api.runs import router as runs_router
+    _app = FastAPI(
+        title="Lakeon Pipeline Orchestrator",
+        version="0.1.0",
+        lifespan=lifespan,
+    )
 
-    app.include_router(runs_router, prefix="/runs", tags=["runs"])
-    return app
+    from lakeon_orchestrator.api.runs import router as runs_router
+    _app.include_router(runs_router, prefix="/runs", tags=["runs"])
+
+    return _app
+
+
+# Module-level app for backward compat (tests, direct import)
+app = create_app()
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    create_app()
     uvicorn.run(app, host=settings.host, port=settings.port)

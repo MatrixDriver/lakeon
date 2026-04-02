@@ -33,6 +33,10 @@ lakeon-admin/dist/
 deploy/cce/.lakeon-cloud.json
 deploy/cce/sites/*/.lakeon-cloud.json
 
+# Test data fixtures (downloaded datasets)
+tests/e2e/fixtures/videos/
+tests/e2e/fixtures/text/
+
 # Claude worktrees
 .claude/worktrees/
 .worktrees/

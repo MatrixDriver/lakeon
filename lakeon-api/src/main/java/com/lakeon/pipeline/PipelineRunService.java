@@ -1,13 +1,21 @@
 package com.lakeon.pipeline;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lakeon.datalake.DatalakeNamespaceManager;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.yaml.snakeyaml.Yaml;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -20,15 +28,29 @@ public class PipelineRunService {
     private final PipelineStepRunRepository stepRunRepository;
     private final PipelineRepository pipelineRepository;
     private final PipelineVersionRepository pipelineVersionRepository;
+    private final DatalakeNamespaceManager nsManager;
+    private final HttpClient httpClient;
+    private final ObjectMapper objectMapper;
+
+    @Value("${lakeon.orchestrator.url:http://pipeline-orchestrator:8090}")
+    private String orchestratorUrl;
 
     public PipelineRunService(PipelineRunRepository runRepository,
                                PipelineStepRunRepository stepRunRepository,
                                PipelineRepository pipelineRepository,
-                               PipelineVersionRepository pipelineVersionRepository) {
+                               PipelineVersionRepository pipelineVersionRepository,
+                               DatalakeNamespaceManager nsManager,
+                               ObjectMapper objectMapper) {
         this.runRepository = runRepository;
         this.stepRunRepository = stepRunRepository;
         this.pipelineRepository = pipelineRepository;
         this.pipelineVersionRepository = pipelineVersionRepository;
+        this.nsManager = nsManager;
+        this.objectMapper = objectMapper;
+        this.httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
     }
 
     @Transactional
@@ -83,7 +105,59 @@ public class PipelineRunService {
 
         log.info("Triggered pipeline run {} for pipeline {} v{} tenant {}",
                 run.getId(), pipelineId, version, tenantId);
+
+        // Ensure tenant's datalake namespace exists before orchestrator submits jobs
+        try {
+            nsManager.ensureNamespace(tenantId);
+        } catch (Exception e) {
+            log.warn("Failed to ensure namespace for tenant {}: {}", tenantId, e.getMessage());
+        }
+
+        // Notify orchestrator to start execution (async, fire-and-forget)
+        notifyOrchestrator(run.getId(), pipelineId, version, tenantId,
+                inputDatasetId, inputDatasetVersion);
+
         return run;
+    }
+
+    private void notifyOrchestrator(String runId, String pipelineId, int version,
+                                     String tenantId, String inputDatasetId,
+                                     Integer inputDatasetVersion) {
+        new Thread(() -> {
+            try {
+                Map<String, Object> body = new java.util.HashMap<>();
+                body.put("run_id", runId);
+                body.put("pipeline_id", pipelineId);
+                body.put("pipeline_version", version);
+                body.put("tenant_id", tenantId);
+                if (inputDatasetId != null) {
+                    body.put("input_dataset_id", inputDatasetId);
+                }
+                if (inputDatasetVersion != null) {
+                    body.put("input_dataset_version", inputDatasetVersion);
+                }
+
+                String json = objectMapper.writeValueAsString(body);
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(orchestratorUrl + "/runs"))
+                        .header("Content-Type", "application/json")
+                        .timeout(Duration.ofSeconds(30))
+                        .POST(HttpRequest.BodyPublishers.ofString(json))
+                        .build();
+
+                HttpResponse<String> response = httpClient.send(request,
+                        HttpResponse.BodyHandlers.ofString());
+
+                if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                    log.info("Orchestrator accepted run {}: {}", runId, response.statusCode());
+                } else {
+                    log.error("Orchestrator rejected run {}: {} {}",
+                            runId, response.statusCode(), response.body());
+                }
+            } catch (Exception e) {
+                log.error("Failed to notify orchestrator for run {}: {}", runId, e.getMessage());
+            }
+        }, "orch-notify-" + runId).start();
     }
 
     public PipelineRunEntity get(String tenantId, String runId) {

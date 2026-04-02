@@ -15,6 +15,7 @@ class CreateRunRequest(BaseModel):
     pipeline_id: str
     pipeline_version: int
     tenant_id: str
+    run_id: Optional[str] = None  # If provided, reuse existing run record from API
     input_dataset_id: Optional[str] = None
     input_dataset_version: Optional[int] = None
 
@@ -59,7 +60,7 @@ async def create_run(req: CreateRunRequest, background_tasks: BackgroundTasks):
     The actual orchestration runs in the background.
     """
     orch = get_orchestrator()
-    run_id = f"run_{uuid.uuid4().hex[:12]}"
+    run_id = req.run_id or f"run_{uuid.uuid4().hex[:12]}"
 
     # Start orchestration in background
     background_tasks.add_task(

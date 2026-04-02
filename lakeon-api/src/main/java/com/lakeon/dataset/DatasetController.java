@@ -82,7 +82,7 @@ public class DatasetController {
         return datasetService.generateUploadUrls(tenant.getId(),
             (String) body.get("name"),
             (String) body.get("description"),
-            (List<String>) body.get("files"));
+            (List<Map<String, Object>>) body.get("files"));
     }
 
     @PostMapping("/{id}/finalize")

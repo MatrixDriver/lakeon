@@ -1,5 +1,6 @@
 package com.lakeon.service;
 
+import com.lakeon.dataset.DatasetSourceType;
 import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.enums.ComputeStatus;
@@ -71,6 +72,23 @@ public class SchemaMigration {
             log.info("Synced kb_write_tasks CHECK constraint with KbWriteTaskType enum: {}", values);
         } catch (Exception e) {
             log.warn("Failed to sync kb_write_tasks type CHECK constraint: {}", e.getMessage());
+        }
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void syncDatasetSourceTypeConstraint() {
+        String values = Arrays.stream(DatasetSourceType.values())
+                .map(e -> "'" + e.name() + "'")
+                .collect(Collectors.joining(","));
+
+        try (Connection conn = dataSource.getConnection();
+             Statement st = conn.createStatement()) {
+            st.execute("ALTER TABLE datasets DROP CONSTRAINT IF EXISTS datasets_source_type_check");
+            st.execute("ALTER TABLE datasets ADD CONSTRAINT datasets_source_type_check " +
+                    "CHECK (source_type::text = ANY(ARRAY[" + values + "]))");
+            log.info("Synced datasets CHECK constraint with DatasetSourceType enum: {}", values);
+        } catch (Exception e) {
+            log.warn("Failed to sync datasets source_type CHECK constraint: {}", e.getMessage());
         }
     }
 

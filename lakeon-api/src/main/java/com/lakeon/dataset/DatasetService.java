@@ -319,18 +319,19 @@ public class DatasetService {
      */
     @Transactional
     public Map<String, Object> generateUploadUrls(String tenantId, String name, String description,
-                                                   List<String> files) {
+                                                   List<Map<String, Object>> files) {
         if (name == null || name.isBlank()) {
             throw new BadRequestException("Dataset name is required");
         }
         if (files == null || files.isEmpty()) {
-            throw new BadRequestException("At least one file path is required");
+            throw new BadRequestException("At least one file is required");
         }
         if (files.size() > 200) {
             throw new BadRequestException("Maximum 200 files per upload");
         }
-        for (String path : files) {
-            if (path.contains("..") || path.startsWith("/")) {
+        for (Map<String, Object> file : files) {
+            String path = (String) file.get("path");
+            if (path == null || path.contains("..") || path.startsWith("/")) {
                 throw new BadRequestException("Invalid file path: " + path);
             }
         }
@@ -349,7 +350,8 @@ public class DatasetService {
 
         List<Map<String, Object>> uploads = new ArrayList<>();
         try (S3Presigner presigner = buildPresigner()) {
-            for (String path : files) {
+            for (Map<String, Object> file : files) {
+                String path = (String) file.get("path");
                 String obsKey = prefix + path;
                 PutObjectRequest putRequest = PutObjectRequest.builder()
                         .bucket(props.getObs().getBucket())
