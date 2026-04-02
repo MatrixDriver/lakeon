@@ -247,7 +247,7 @@ embedding:
   model: "BAAI/bge-m3"
 
 llm:
-  enabled: false  # TODO: enable after uploading Qwen3.5-9B model to OBS/PVC
+  enabled: true
   image: vllm/vllm-openai:latest
   model: "Qwen/Qwen3.5-9B"
   maxModelLen: 8192

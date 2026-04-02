@@ -23,7 +23,7 @@ spec:
           image: {{ .Values.llm.image }}
           args:
             - "--model"
-            - "{{ .Values.llm.model | default "Qwen/Qwen3.5-9B" }}"
+            - "/models/{{ .Values.llm.model | default "Qwen3.5-9B" }}"
             - "--port"
             - "8080"
             - "--tensor-parallel-size"
@@ -33,11 +33,11 @@ spec:
             - "--gpu-memory-utilization"
             - "{{ .Values.llm.gpuMemoryUtilization | default 0.6 | toString }}"
             - "--trust-remote-code"
-          {{- if .Values.llm.hfMirror }}
           env:
-            - name: HF_ENDPOINT
-              value: "{{ .Values.llm.hfMirror }}"
-          {{- end }}
+            - name: TRANSFORMERS_OFFLINE
+              value: "1"
+            - name: HF_HUB_OFFLINE
+              value: "1"
           ports:
             - containerPort: 8080
           resources:
@@ -49,6 +49,10 @@ spec:
               cpu: "4"
               memory: "16Gi"
               nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /health
@@ -59,8 +63,12 @@ spec:
             httpGet:
               path: /health
               port: 8080
-            initialDelaySeconds: 180
+            initialDelaySeconds: 300
             periodSeconds: 30
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
