@@ -2,15 +2,26 @@
 
 import type { ComponentCategory, StepRunStatus } from '@/api/pipeline'
 
+/** SVG icon paths (24x24 viewBox, stroke-based) */
+export const categoryIcons: Record<ComponentCategory, string> = {
+  DATA_PREP: 'M12 3v18M3 12h18M7.5 7.5L12 3l4.5 4.5M7.5 16.5L12 21l4.5-4.5',  // 十字箭头 — 规整适配
+  EXTRACT:   'M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 0 2-2h3M3 16h3a2 2 0 0 0 2 2v3',  // 切分框
+  CLEAN:     'M4 7h16M4 12h16M4 17h10',  // 文本行 — 清洗
+  FILTER:    'M22 3H2l8 9.46V19l4 2v-8.54L22 3',  // 漏斗
+  QC:        'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',  // 勾选框
+  LABEL:     'M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82zM7 7h.01',  // 标签
+  PUBLISH:   'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12',  // 上传箭头
+}
+
 /** 组件分类 → 颜色映射 */
-export const categoryColors: Record<ComponentCategory, { bg: string; border: string; text: string; icon: string }> = {
-  DATA_PREP: { bg: '#fef9ee', border: '#f0c674', text: '#92700c', icon: '📥' },
-  EXTRACT:   { bg: '#eef6fe', border: '#6ca6e0', text: '#1a5276', icon: '✂️' },
-  CLEAN:     { bg: '#eefbf4', border: '#52c07e', text: '#1a6b3c', icon: '🧹' },
-  FILTER:    { bg: '#fff5f0', border: '#e8825a', text: '#8b3a0e', icon: '🔍' },
-  QC:        { bg: '#f5eeff', border: '#9b7dd4', text: '#4a2d7a', icon: '✅' },
-  LABEL:     { bg: '#eef5fe', border: '#5b9bd5', text: '#1a3d6b', icon: '🏷️' },
-  PUBLISH:   { bg: '#f0faf5', border: '#3aa76d', text: '#145a32', icon: '📦' },
+export const categoryColors: Record<ComponentCategory, { bg: string; border: string; text: string }> = {
+  DATA_PREP: { bg: '#fef9ee', border: '#f0c674', text: '#92700c' },
+  EXTRACT:   { bg: '#eef6fe', border: '#6ca6e0', text: '#1a5276' },
+  CLEAN:     { bg: '#eefbf4', border: '#52c07e', text: '#1a6b3c' },
+  FILTER:    { bg: '#fff5f0', border: '#e8825a', text: '#8b3a0e' },
+  QC:        { bg: '#f5eeff', border: '#9b7dd4', text: '#4a2d7a' },
+  LABEL:     { bg: '#eef5fe', border: '#5b9bd5', text: '#1a3d6b' },
+  PUBLISH:   { bg: '#f0faf5', border: '#3aa76d', text: '#145a32' },
 }
 
 /** 分类中文显示名 */

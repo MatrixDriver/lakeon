@@ -60,7 +60,7 @@
         @click="openDetail(comp)"
       >
         <div class="comp-card-header">
-          <span class="comp-card-icon">{{ catIcon(comp.category) }}</span>
+          <svg class="comp-card-icon-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" :stroke="catColor(comp.category)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path :d="catIconPath(comp.category)" /></svg>
           <span class="comp-card-name">{{ comp.display_name }}</span>
           <span v-if="!comp.tenant_id" class="builtin-badge">内置</span>
         </div>
@@ -86,7 +86,7 @@
           <div class="detail-panel">
             <div class="panel-header">
               <div class="panel-title-row">
-                <span class="panel-icon">{{ catIcon(selected.category) }}</span>
+                <svg class="panel-icon-svg" viewBox="0 0 24 24" width="20" height="20" fill="none" :stroke="catColor(selected.category)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path :d="catIconPath(selected.category)" /></svg>
                 <h2 class="panel-title">{{ selected.display_name }}</h2>
                 <span class="data-type-tag" :class="'dt-' + selected.data_type.toLowerCase()">{{ dataTypeLabel(selected.data_type) }}</span>
                 <span v-if="!selected.tenant_id" class="builtin-badge">内置</span>
@@ -276,7 +276,7 @@ import {
   type ComponentCategory,
   type ComponentDataType,
 } from '@/api/pipeline'
-import { categoryColors, categoryLabels } from './components/pipeline/nodeStyles'
+import { categoryColors, categoryLabels, categoryIcons } from './components/pipeline/nodeStyles'
 
 interface SchemaProperty {
   type?: string
@@ -379,7 +379,7 @@ function dataTypeLabel(dt: string): string {
 }
 
 function catColor(cat: string): string { return categoryColors[cat as ComponentCategory]?.border || '#ccc' }
-function catIcon(cat: string): string { return categoryColors[cat as ComponentCategory]?.icon || '?' }
+function catIconPath(cat: string): string { return categoryIcons[cat as ComponentCategory] || categoryIcons.DATA_PREP }
 
 function isRayEntrypoint(ep: string): boolean {
   return ep.includes('ray') || ep.includes('Ray') || ep.includes('distributed')

@@ -15,7 +15,7 @@
           :style="{ borderLeftColor: groupColor(group.category) }"
           @click="toggleGroup(group.category)"
         >
-          <span class="group-icon">{{ groupIcon(group.category) }}</span>
+          <svg class="group-icon-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" :stroke="groupColor(group.category)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path :d="groupIconPath(group.category)" /></svg>
           <span class="group-label">{{ groupLabel(group.category) }}</span>
           <span class="group-count">{{ group.items.length }}</span>
           <span class="group-chevron" :class="{ expanded: expandedGroups.has(group.category) }">&#9654;</span>
@@ -41,7 +41,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { PipelineComponent, ComponentCategory } from '@/api/pipeline'
-import { categoryColors, categoryLabels } from './nodeStyles'
+import { categoryColors, categoryLabels, categoryIcons } from './nodeStyles'
 
 const props = defineProps<{
   components: PipelineComponent[]
@@ -92,8 +92,8 @@ const filteredGroups = computed<CompGroup[]>(() => {
 function groupColor(cat: string): string {
   return categoryColors[cat as ComponentCategory]?.border || '#ccc'
 }
-function groupIcon(cat: string): string {
-  return categoryColors[cat as ComponentCategory]?.icon || '?'
+function groupIconPath(cat: string): string {
+  return categoryIcons[cat as ComponentCategory] || categoryIcons.DATA_PREP
 }
 function groupLabel(cat: string): string {
   return categoryLabels[cat as ComponentCategory] || cat

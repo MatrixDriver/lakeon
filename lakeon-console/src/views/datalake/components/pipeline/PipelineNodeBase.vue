@@ -6,7 +6,7 @@
   >
     <Handle type="target" :position="Position.Top" />
     <div class="node-header">
-      <span class="node-icon">{{ icon }}</span>
+      <svg class="node-icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" :stroke="colors.text" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path :d="iconPath" /></svg>
       <span class="node-label">{{ data.step?.component || data.label }}</span>
     </div>
     <div class="node-category">{{ categoryLabel }}</div>
@@ -37,7 +37,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { categoryColors, categoryLabels } from './nodeStyles'
+import { categoryColors, categoryLabels, categoryIcons } from './nodeStyles'
 import { parseMetrics, parseOutputBranches, type ComponentCategory } from '@/api/pipeline'
 
 const props = defineProps<{
@@ -47,7 +47,7 @@ const props = defineProps<{
 
 const category = computed<ComponentCategory>(() => props.data.category || props.data.step?.category || 'DATA_PREP')
 const colors = computed(() => categoryColors[category.value] || categoryColors.DATA_PREP)
-const icon = computed(() => colors.value.icon)
+const iconPath = computed(() => categoryIcons[category.value] || categoryIcons.DATA_PREP)
 const categoryLabel = computed(() => categoryLabels[category.value] || category.value)
 
 const branches = computed(() => parseOutputBranches(props.data.step?.output_branches_raw || null)
