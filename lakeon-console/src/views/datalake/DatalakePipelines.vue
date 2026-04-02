@@ -99,7 +99,7 @@
       <div style="margin-top: 12px; color: #999;">
         尚未创建数据生产线
       </div>
-      <button class="btn btn-primary" style="margin-top: 16px;" @click="router.push('/datalake/pipelines/new')">
+      <button class="btn btn-primary" style="margin-top: 16px;" @click="showCreateMenu = true">
         创建第一条生产线
       </button>
     </div>
