@@ -1,9 +1,14 @@
 FROM python:3.12-slim
 
 WORKDIR /app
+
+# Install CPU-only PyTorch first, then sentence-transformers (skips CUDA torch)
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir --no-deps sentence-transformers==3.4.1 \
+    && pip install --no-cache-dir fastapi==0.115.0 uvicorn==0.34.0 \
+    && pip install --no-cache-dir transformers tqdm numpy scipy scikit-learn pillow huggingface-hub
 
 # Pre-download model into image (avoids startup download, ~2.2GB)
 ENV HF_ENDPOINT=https://hf-mirror.com
