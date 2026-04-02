@@ -30,28 +30,23 @@ spec:
               name: http
           env:
             - name: LAKEON_ORCH_DATABASE_URL
-              value: "postgresql+asyncpg://{{ .Values.metadataDb.user | default "lakeon" }}:$(RDS_PASSWORD)@$(RDS_HOST):{{ .Values.metadataDb.port | default 5432 }}/{{ .Values.metadataDb.name | default "lakeon" }}"
-            - name: RDS_PASSWORD
+              value: "postgresql+asyncpg://{{ .Values.metadataDb.user | default "lakeon" }}:$(LAKEON_DB_PASSWORD)@{{ .Values.metadataDb.host }}:{{ .Values.metadataDb.port | default 5432 }}/{{ .Values.metadataDb.name | default "lakeon" }}"
+            - name: LAKEON_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: lakeon-api-secret
-                  key: rds-password
-            - name: RDS_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: metadata-db-config
-                  key: host
+                  name: api-credentials
+                  key: db-password
             - name: LAKEON_ORCH_OBS_ENDPOINT
               value: {{ .Values.obs.endpoint | default "https://obs.cn-north-4.myhuaweicloud.com" | quote }}
             - name: LAKEON_ORCH_OBS_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: lakeon-obs-secret
+                  name: obs-credentials
                   key: access-key
             - name: LAKEON_ORCH_OBS_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: lakeon-obs-secret
+                  name: obs-credentials
                   key: secret-key
             - name: LAKEON_ORCH_OBS_BUCKET
               value: {{ .Values.obs.bucket | default "lakeon-data" | quote }}
@@ -60,7 +55,7 @@ spec:
             - name: LAKEON_ORCH_K8S_NAMESPACE
               value: {{ .Values.orchestrator.k8sNamespace | default "lakeon-pipeline" | quote }}
             - name: LAKEON_ORCH_IMAGE_PULL_SECRETS
-              value: {{ .Values.orchestrator.imagePullSecrets | default "" | quote }}
+              value: {{ .Values.orchestrator.imagePullSecrets | default "swr-secret" | quote }}
             - name: LAKEON_ORCH_VK_NODE_SELECTOR_KEY
               value: {{ .Values.orchestrator.vkNodeSelectorKey | default "type" | quote }}
             - name: LAKEON_ORCH_VK_NODE_SELECTOR_VALUE
