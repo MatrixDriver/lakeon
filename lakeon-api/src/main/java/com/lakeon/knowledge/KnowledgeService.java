@@ -607,6 +607,116 @@ public class KnowledgeService {
     }
 
     /**
+     * Ingest documents with parallel pods controlled by tenant quota.
+     * Splits document_ids into N groups (N = maxConcurrentJobs), each group becomes one task.
+     */
+    @Transactional
+    public Map<String, Object> ingestDocuments(TenantEntity tenant, List<String> documentIds,
+                                                Map<String, String> metadata) {
+        if (documentIds == null || documentIds.isEmpty()) {
+            throw new BadRequestException("document_ids is required");
+        }
+
+        // Validate all documents exist, are PENDING, belong to same KB
+        List<DocumentEntity> docs = new ArrayList<>();
+        String kbId = null;
+        String databaseId = null;
+
+        for (String docId : documentIds) {
+            DocumentEntity doc = documentRepository.findByIdAndTenantId(docId, tenant.getId())
+                    .orElseThrow(() -> new NotFoundException("Document not found: " + docId));
+            if (doc.getStatus() != DocumentStatus.PENDING) {
+                throw new BadRequestException("Document " + docId + " is not PENDING (status: " + doc.getStatus() + ")");
+            }
+            if (kbId == null) {
+                kbId = doc.getKbId();
+            } else if (!kbId.equals(doc.getKbId())) {
+                throw new BadRequestException("All documents must belong to the same knowledge base");
+            }
+            docs.add(doc);
+        }
+
+        final String finalKbId = kbId;
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(finalKbId, tenant.getId())
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + finalKbId));
+        databaseId = kb.getDatabaseId();
+        if (databaseId == null) {
+            throw new BadRequestException("Knowledge base " + kbId + " has no database assigned");
+        }
+
+        // Apply metadata to all documents if provided
+        if (metadata != null && !metadata.isEmpty()) {
+            for (DocumentEntity doc : docs) {
+                Map<String, String> merged = new LinkedHashMap<>(doc.getMetadata() != null ? doc.getMetadata() : Map.of());
+                merged.putAll(metadata);
+                doc.setMetadata(merged);
+                documentRepository.save(doc);
+            }
+        }
+
+        // Split into N groups based on tenant quota
+        int podCount = props.getKnowledge().getMaxConcurrentJobs();
+        podCount = Math.min(podCount, documentIds.size());
+
+        List<List<String>> groups = new ArrayList<>();
+        for (int i = 0; i < podCount; i++) {
+            groups.add(new ArrayList<>());
+        }
+        for (int i = 0; i < documentIds.size(); i++) {
+            groups.get(i % podCount).add(documentIds.get(i));
+        }
+
+        // Create one BATCH_DOCUMENT_PARSE task per group
+        List<String> taskIds = new ArrayList<>();
+        List<Integer> docsPerPod = new ArrayList<>();
+        String embModel = kb.getEmbeddingModel() != null
+                ? kb.getEmbeddingModel() : props.getKnowledge().getEmbeddingModel();
+
+        for (List<String> group : groups) {
+            List<Map<String, Object>> docParams = new ArrayList<>();
+            for (String docId : group) {
+                DocumentEntity doc = docs.stream().filter(d -> d.getId().equals(docId)).findFirst().orElseThrow();
+                Map<String, Object> dp = new LinkedHashMap<>();
+                dp.put("document_id", doc.getId());
+                dp.put("obs_key", doc.getObsKey());
+                dp.put("format", doc.getFormat());
+                dp.put("filename", doc.getFilename());
+                dp.put("kb_id", doc.getKbId());
+                dp.put("tenant_id", tenant.getId());
+                docParams.add(dp);
+            }
+
+            Map<String, Object> params = new LinkedHashMap<>();
+            params.put("document_ids", group);
+            params.put("documents", docParams);
+            params.put("tenant_id", tenant.getId());
+            params.put("kb_id", kbId);
+            params.put("database_connstr", "placeholder");
+            params.put("embedding_api_url", props.getKnowledge().getEmbeddingApiUrl());
+            params.put("embedding_api_key", props.getKnowledge().getEmbeddingApiKey());
+            params.put("embedding_model", embModel);
+
+            KbWriteTaskEntity task = kbWriteQueue.submit(tenant.getId(), kbId,
+                    databaseId, KbWriteTaskType.BATCH_DOCUMENT_PARSE, params);
+            taskIds.add(task.getId());
+            docsPerPod.add(group.size());
+        }
+
+        // Mark all documents as PROCESSING
+        for (DocumentEntity doc : docs) {
+            doc.setStatus(DocumentStatus.PROCESSING);
+            documentRepository.save(doc);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("task_ids", taskIds);
+        result.put("pod_count", podCount);
+        result.put("documents_per_pod", docsPerPod);
+        result.put("total_documents", documentIds.size());
+        return result;
+    }
+
+    /**
      * Get a document, syncing status from its job if still PROCESSING.
      */
     public DocumentEntity getDocument(String tenantId, String documentId) {

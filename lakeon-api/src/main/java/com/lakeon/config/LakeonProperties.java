@@ -339,6 +339,7 @@ public class LakeonProperties {
         private String embeddingModel = "BAAI/bge-m3";
         private int presignExpireSeconds = 900;
         private long maxFileSizeBytes = 104857600;
+        private int maxConcurrentJobs = 2;
         private RerankConfig rerank = new RerankConfig();
 
         public String getEmbeddingApiUrl() { return embeddingApiUrl; }
@@ -351,6 +352,8 @@ public class LakeonProperties {
         public void setPresignExpireSeconds(int presignExpireSeconds) { this.presignExpireSeconds = presignExpireSeconds; }
         public long getMaxFileSizeBytes() { return maxFileSizeBytes; }
         public void setMaxFileSizeBytes(long maxFileSizeBytes) { this.maxFileSizeBytes = maxFileSizeBytes; }
+        public int getMaxConcurrentJobs() { return maxConcurrentJobs; }
+        public void setMaxConcurrentJobs(int maxConcurrentJobs) { this.maxConcurrentJobs = maxConcurrentJobs; }
         public RerankConfig getRerank() { return rerank; }
         public void setRerank(RerankConfig rerank) { this.rerank = rerank; }
     }

@@ -137,6 +137,15 @@ public class KnowledgeController {
         return knowledgeService.batchProcessDocuments(tenant, documentIds);
     }
 
+    @SuppressWarnings("unchecked")
+    @PostMapping("/ingest")
+    public Map<String, Object> ingest(HttpServletRequest req, @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        List<String> documentIds = (List<String>) body.get("document_ids");
+        Map<String, String> metadata = (Map<String, String>) body.get("metadata");
+        return knowledgeService.ingestDocuments(tenant, documentIds, metadata);
+    }
+
     @PostMapping("/documents/{id}/process")
     public Map<String, Object> processDocument(HttpServletRequest req, @PathVariable String id) {
         TenantEntity tenant = getTenant(req);
