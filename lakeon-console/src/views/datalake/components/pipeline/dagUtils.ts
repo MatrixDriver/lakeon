@@ -60,7 +60,10 @@ export function serializeDagYaml(dag: DagDefinition): string {
  * 从 DagStep[] 生成 Vue Flow nodes + edges。
  * 使用简单的自上而下布局：每行一个节点，fan-out 后并排。
  */
-export function dagToFlow(steps: DagStep[]): { nodes: Node[]; edges: Edge[] } {
+export function dagToFlow(
+  steps: DagStep[],
+  componentDisplayNames?: Map<string, string>,
+): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = []
   const edges: Edge[] = []
 
@@ -130,7 +133,11 @@ export function dagToFlow(steps: DagStep[]): { nodes: Node[]; edges: Edge[] } {
         id: stepId,
         type: nodeType,
         position: { x: startX + colIdx * GAP_X, y: layerIdx * GAP_Y },
-        data: { step, label: step.component || step.type || stepId },
+        data: {
+          step,
+          label: (step.component && componentDisplayNames?.get(step.component))
+            || step.component || step.type || stepId,
+        },
       })
 
       // 生成 edges
@@ -231,9 +238,9 @@ export function flowToDag(nodes: Node[], edges: Edge[]): DagStep[] {
 /**
  * 自动布局：重新计算节点位置（拓扑排序后重新排列）。
  */
-export function autoLayout(nodes: Node[], edges: Edge[]): Node[] {
+export function autoLayout(nodes: Node[], edges: Edge[], componentDisplayNames?: Map<string, string>): Node[] {
   const steps = flowToDag(nodes, edges)
-  const { nodes: layoutNodes } = dagToFlow(steps)
+  const { nodes: layoutNodes } = dagToFlow(steps, componentDisplayNames)
 
   // 合并新位置到现有节点（保留 data 等其他属性）
   const posMap = new Map(layoutNodes.map(n => [n.id, n.position]))

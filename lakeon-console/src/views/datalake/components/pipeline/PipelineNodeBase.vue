@@ -7,7 +7,7 @@
     <Handle type="target" :position="Position.Top" />
     <div class="node-header">
       <svg class="node-icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" :stroke="colors.text" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path :d="iconPath" /></svg>
-      <span class="node-label">{{ data.step?.component || data.label }}</span>
+      <span class="node-label">{{ data.label || data.step?.component }}</span>
     </div>
     <div class="node-category">{{ categoryLabel }}</div>
     <!-- 运行监控模式下的 metrics 气泡 -->

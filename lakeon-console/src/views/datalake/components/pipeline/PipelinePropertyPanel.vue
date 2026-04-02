@@ -27,7 +27,7 @@
         </label>
         <!-- number -->
         <input
-          v-if="field.type === 'number'"
+          v-if="field.type === 'number' || field.type === 'integer'"
           type="number"
           class="field-input"
           :value="currentParams[field.name] ?? field.default"
@@ -133,7 +133,9 @@ const schemaFields = computed<SchemaField[]>(() => {
   const raw = matchedVersion.value?.params_schema
   if (!raw) return []
   const schema = typeof raw === 'string' ? parseJsonSchema(raw) : (raw || {})
-  return Object.entries(schema).map(([name, def]: [string, any]) => ({
+  // Support both flat { field: def } and JSON Schema { type: 'object', properties: { field: def } }
+  const fields = schema.properties || schema
+  return Object.entries(fields).map(([name, def]: [string, any]) => ({
     name,
     type: def?.type || 'string',
     default: def?.default,

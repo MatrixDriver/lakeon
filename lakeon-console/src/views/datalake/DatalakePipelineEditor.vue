@@ -147,6 +147,15 @@ const filteredComponents = computed(() => {
   )
 })
 
+// 组件技术名 → 中文显示名映射（供 dagToFlow 使用）
+const componentDisplayNames = computed(() => {
+  const map = new Map<string, string>()
+  for (const c of components.value) {
+    if (c.display_name) map.set(c.name, c.display_name)
+  }
+  return map
+})
+
 // ── localStorage 草稿自动保存 ──
 const DRAFT_KEY = 'lakeon_pipeline_draft'
 
@@ -220,7 +229,7 @@ onMounted(async () => {
       dataType.value = pRes.data.data_type || ''
       const vRes = await getPipelineVersion(pipelineId.value, pRes.data.latest_version)
       const dag = parseDagYaml(vRes.data.dag_yaml)
-      const flow = dagToFlow(dag.steps)
+      const flow = dagToFlow(dag.steps, componentDisplayNames.value)
       nodes.value = flow.nodes
       edges.value = flow.edges
       yamlText.value = vRes.data.dag_yaml
@@ -238,7 +247,7 @@ onMounted(async () => {
       dataType.value = tRes.data.data_type || ''
       const vRes = await getPipelineVersion(templateId, tRes.data.latest_version)
       const dag = parseDagYaml(vRes.data.dag_yaml)
-      const flow = dagToFlow(dag.steps)
+      const flow = dagToFlow(dag.steps, componentDisplayNames.value)
       nodes.value = flow.nodes
       edges.value = flow.edges
       yamlText.value = vRes.data.dag_yaml
@@ -258,7 +267,7 @@ onMounted(async () => {
         if (draft.yaml) {
           yamlText.value = draft.yaml
           const dag = parseDagYaml(draft.yaml)
-          const flow = dagToFlow(dag.steps)
+          const flow = dagToFlow(dag.steps, componentDisplayNames.value)
           nodes.value = flow.nodes
           edges.value = flow.edges
         }
@@ -283,7 +292,7 @@ function onYamlChange(newYaml: string) {
   yamlText.value = newYaml
   try {
     const dag = parseDagYaml(newYaml)
-    const flow = dagToFlow(dag.steps)
+    const flow = dagToFlow(dag.steps, componentDisplayNames.value)
     nodes.value = flow.nodes
     edges.value = flow.edges
     if (dag.name) pipelineName.value = dag.name
@@ -417,7 +426,7 @@ function onDeleteNode(nodeId: string) {
 
 function handleAutoLayout() {
   pushUndo()
-  nodes.value = autoLayout(nodes.value, edges.value)
+  nodes.value = autoLayout(nodes.value, edges.value, componentDisplayNames.value)
 }
 
 function handleFitView() {
