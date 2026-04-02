@@ -153,8 +153,12 @@ export interface StepMetrics {
 // ── API 函数 ──
 
 // Pipeline CRUD
-export function listPipelines(params?: { is_template?: boolean }) {
-  return api.get<Pipeline[]>('/pipelines', { params })
+export function listPipelines() {
+  return api.get<Pipeline[]>('/pipelines')
+}
+
+export function listTemplates() {
+  return api.get<Pipeline[]>('/pipelines/templates')
 }
 
 export function getPipeline(id: string) {

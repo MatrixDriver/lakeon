@@ -53,7 +53,10 @@ public class PipelineService {
     }
 
     public PipelineEntity get(String tenantId, String pipelineId) {
+        // 先查本租户，再查模板（tenant_id='system'）
         return pipelineRepository.findByIdAndTenantId(pipelineId, tenantId)
+                .or(() -> pipelineRepository.findById(pipelineId)
+                        .filter(p -> Boolean.TRUE.equals(p.getIsTemplate())))
                 .orElseThrow(() -> new NotFoundException("Pipeline not found: " + pipelineId));
     }
 

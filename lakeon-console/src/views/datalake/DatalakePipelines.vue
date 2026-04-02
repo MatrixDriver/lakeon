@@ -108,7 +108,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import ViewToggle from '@/components/ViewToggle.vue'
 import ResourceCard from '@/components/ResourceCard.vue'
-import { listPipelines, deletePipeline, type Pipeline } from '@/api/pipeline'
+import { listPipelines, listTemplates, deletePipeline, type Pipeline } from '@/api/pipeline'
 
 const router = useRouter()
 const loading = ref(true)
@@ -162,9 +162,9 @@ async function loadData() {
   try {
     const [allRes, tplRes] = await Promise.all([
       listPipelines(),
-      listPipelines({ is_template: true }),
+      listTemplates(),
     ])
-    pipelines.value = allRes.data.filter(p => !p.is_template)
+    pipelines.value = allRes.data
     templates.value = tplRes.data
   } catch (err) {
     console.error('Failed to load pipelines', err)
