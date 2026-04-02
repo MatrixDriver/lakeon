@@ -15,12 +15,21 @@ public class LogQueryService {
     @Value("${lakeon.log.db-dsn:}")
     private String logDbDsn;
 
+    // Normalize DSN to JDBC URL format (package-visible for testing)
+    static String normalizeJdbcUrl(String dsn) {
+        if (dsn == null) return dsn;
+        if (dsn.startsWith("jdbc:")) return dsn;
+        if (dsn.startsWith("postgresql://")) return "jdbc:" + dsn;
+        if (dsn.startsWith("postgres://")) return "jdbc:postgresql://" + dsn.substring("postgres://".length());
+        return dsn;
+    }
+
     // Helper: execute query, return list of maps
     private List<Map<String, Object>> query(String sql, Object... params) {
         if (logDbDsn == null || logDbDsn.isBlank()) {
             return List.of(); // Log DB not configured
         }
-        try (Connection conn = DriverManager.getConnection(logDbDsn);
+        try (Connection conn = DriverManager.getConnection(normalizeJdbcUrl(logDbDsn));
              PreparedStatement ps = conn.prepareStatement(sql)) {
             for (int i = 0; i < params.length; i++) {
                 ps.setObject(i + 1, params[i]);
