@@ -203,10 +203,11 @@ onMounted(loadData)
 /* 复用项目全局 .page-container / .page-header / .data-table 等样式 */
 /* 仅补充此页面特有的样式 */
 
+.page-header-actions { position: relative; }
 .create-menu {
   position: absolute; right: 0; top: 100%; margin-top: 4px;
   background: #fff; border: 1px solid #e8e4df; border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08); min-width: 240px; z-index: 10;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12); min-width: 260px; z-index: 100;
   padding: 6px 0;
 }
 .create-menu-item {
