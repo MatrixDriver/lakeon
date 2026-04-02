@@ -70,6 +70,7 @@ lakeon:
   ai:
     api-key: ${LAKEON_AI_API_KEY:}
     base-url: ${LAKEON_AI_BASE_URL:https://api.siliconflow.cn/v1}
+    model: ${LAKEON_AI_MODEL:}
   invite-required: ${LAKEON_INVITE_REQUIRED:false}
   suspend:
     pod-retain-minutes: ${LAKEON_SUSPEND_POD_RETAIN_MINUTES:30}

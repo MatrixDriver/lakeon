@@ -256,7 +256,8 @@ public class SreAiService {
         }
 
         Map<String, Object> requestBody = new LinkedHashMap<>();
-        requestBody.put("model", MODEL);
+        String aiModel = props.getAi().getModel();
+        requestBody.put("model", aiModel.isEmpty() ? MODEL : aiModel);
         requestBody.put("messages", messages);
         requestBody.put("tools", TOOLS);
         requestBody.put("temperature", 0.1);

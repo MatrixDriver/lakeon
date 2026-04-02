@@ -86,8 +86,11 @@ public class AiScriptService {
             return Map.of("error", "AI service not configured (missing API key)");
         }
 
-        // Validate model
-        if (modelId == null || modelId.isBlank()) {
+        // Use global override model if configured, otherwise validate user selection
+        String aiModel = props.getAi().getModel();
+        if (!aiModel.isEmpty()) {
+            modelId = aiModel;
+        } else if (modelId == null || modelId.isBlank()) {
             modelId = AVAILABLE_MODELS.get(0).get("id").toString();
         }
 

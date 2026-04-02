@@ -167,7 +167,8 @@ public class SummaryService {
         }
 
         Map<String, Object> requestBody = new LinkedHashMap<>();
-        requestBody.put("model", SUMMARY_MODEL);
+        String aiModel = props.getAi().getModel();
+        requestBody.put("model", aiModel.isEmpty() ? SUMMARY_MODEL : aiModel);
         requestBody.put("messages", List.of(
                 Map.of("role", "user", "content", prompt)
         ));

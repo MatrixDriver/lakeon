@@ -70,7 +70,8 @@ public class QueryRewriteService {
 
         try {
             Map<String, Object> requestBody = new LinkedHashMap<>();
-            requestBody.put("model", REWRITE_MODEL);
+            String aiModel = props.getAi().getModel();
+            requestBody.put("model", aiModel.isEmpty() ? REWRITE_MODEL : aiModel);
             requestBody.put("messages", List.of(
                     Map.of("role", "system", "content", SYSTEM_PROMPT),
                     Map.of("role", "user", "content", sb.toString())
