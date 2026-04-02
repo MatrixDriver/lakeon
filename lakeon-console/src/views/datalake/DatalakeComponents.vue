@@ -107,7 +107,52 @@
               </div>
               <div v-if="selected.description" class="desc-block">
                 <span class="info-label">描述</span>
-                <p class="desc-text">{{ selected.description }}</p>
+                <!-- 结构化描述展示 -->
+                <template v-if="parsedDescription">
+                  <p class="desc-summary">{{ parsedDescription.summary }}</p>
+
+                  <div v-if="parsedDescription.techStack || parsedDescription.framework" class="desc-badges-row">
+                    <div v-if="parsedDescription.techStack" class="desc-badge-group">
+                      <span class="desc-badge-label">技术栈</span>
+                      <span class="desc-badge tech-stack">{{ parsedDescription.techStack }}</span>
+                    </div>
+                    <div v-if="parsedDescription.framework" class="desc-badge-group">
+                      <span class="desc-badge-label">执行框架</span>
+                      <span class="desc-badge framework">{{ parsedDescription.framework }}</span>
+                    </div>
+                  </div>
+
+                  <div v-if="parsedDescription.input || parsedDescription.output" class="desc-io-row">
+                    <div v-if="parsedDescription.input" class="desc-io-card">
+                      <span class="desc-io-icon">&#8594;</span>
+                      <div class="desc-io-content">
+                        <span class="desc-io-label">输入</span>
+                        <span class="desc-io-value">{{ parsedDescription.input }}</span>
+                      </div>
+                    </div>
+                    <div v-if="parsedDescription.output" class="desc-io-card">
+                      <span class="desc-io-icon">&#8592;</span>
+                      <div class="desc-io-content">
+                        <span class="desc-io-label">输出</span>
+                        <span class="desc-io-value">{{ parsedDescription.output }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="parsedDescription.keyParams" class="desc-params-block">
+                    <span class="desc-block-title">关键参数</span>
+                    <div class="desc-params-content" v-html="formatKeyParams(parsedDescription.keyParams)"></div>
+                  </div>
+
+                  <div v-if="parsedDescription.typicalScenario" class="desc-scenario-block">
+                    <span class="desc-block-title">典型场景</span>
+                    <div class="desc-scenario-content">{{ parsedDescription.typicalScenario }}</div>
+                  </div>
+
+                  <div v-if="parsedDescription.extra && parsedDescription.extra.length > 0" class="desc-extra-block">
+                    <div v-for="(line, idx) in parsedDescription.extra" :key="idx" class="desc-extra-line">{{ line }}</div>
+                  </div>
+                </template>
               </div>
             </section>
 
@@ -256,6 +301,69 @@ const selected = ref<PipelineComponent | null>(null)
 const selectedVersion = ref<PipelineComponentVersion | null>(null)
 const versionLoading = ref(false)
 
+interface ParsedDescription {
+  summary: string
+  techStack?: string
+  framework?: string
+  input?: string
+  output?: string
+  keyParams?: string
+  typicalScenario?: string
+  extra?: string[]
+}
+
+function parseComponentDescription(desc: string): ParsedDescription {
+  if (!desc) return { summary: '' }
+
+  const lines = desc.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+  if (lines.length === 0) return { summary: '' }
+
+  const labelMap: Record<string, keyof ParsedDescription> = {
+    '技术栈': 'techStack',
+    '执行框架': 'framework',
+    '输入': 'input',
+    '输出': 'output',
+    '关键参数': 'keyParams',
+    '典型场景': 'typicalScenario',
+  }
+
+  const result: ParsedDescription = { summary: '', extra: [] }
+  // First line(s) before any labeled line form the summary
+  let summaryDone = false
+
+  for (const line of lines) {
+    let matched = false
+    for (const [label, key] of Object.entries(labelMap)) {
+      // Match patterns like "技术栈：xxx" or "技术栈: xxx"
+      const pattern = new RegExp(`^${label}[：:]\\s*(.+)$`)
+      const m = line.match(pattern)
+      if (m) {
+        ;(result as unknown as Record<string, string>)[key] = m[1]!.trim()
+        matched = true
+        summaryDone = true
+        break
+      }
+    }
+    if (!matched) {
+      if (!summaryDone) {
+        result.summary = result.summary ? result.summary + '\n' + line : line
+      } else {
+        result.extra!.push(line)
+      }
+    }
+  }
+
+  return result
+}
+
+function formatKeyParams(params: string): string {
+  // Parse "name（desc）、name（desc）" or "name(desc), name(desc)" patterns
+  // Wrap parameter names in <code> tags
+  return params.replace(/([a-zA-Z_][a-zA-Z0-9_]*)/g, (_match, name: string) => {
+    return `<code class="param-code">${name}</code>`
+  })
+}
+
 const categories: ComponentCategory[] = ['DATA_PREP', 'EXTRACT', 'CLEAN', 'FILTER', 'QC', 'LABEL', 'PUBLISH']
 
 const dataTypeOptions: { value: ComponentDataType | '', label: string }[] = [
@@ -315,6 +423,11 @@ const hasInputOutput = computed(() => {
 const outputBranches = computed(() => {
   if (!selectedVersion.value) return []
   return parseOutputBranches(selectedVersion.value.output_branches)
+})
+
+const parsedDescription = computed<ParsedDescription | null>(() => {
+  if (!selected.value?.description) return null
+  return parseComponentDescription(selected.value.description)
 })
 
 const filtered = computed(() => {
@@ -599,6 +712,136 @@ onMounted(async () => {
   color: var(--c-text-2, #64748b);
   line-height: 1.5;
   margin-top: 4px;
+}
+
+/* ── 结构化描述 ── */
+.desc-summary {
+  font-size: 13px;
+  color: var(--c-text-2, #64748b);
+  line-height: 1.6;
+  margin: 6px 0 12px;
+  white-space: pre-line;
+}
+.desc-badges-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.desc-badge-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.desc-badge-label {
+  font-size: 10px;
+  color: var(--c-text-3, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.desc-badge {
+  display: inline-block;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.desc-badge.tech-stack {
+  background: #eef6fe;
+  color: #1a5276;
+}
+.desc-badge.framework {
+  background: #fff8e1;
+  color: #f57f17;
+}
+.desc-io-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.desc-io-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--c-bg-alt, #faf8f5);
+  border: 1px solid var(--c-border-light, #f0ece7);
+  border-radius: 6px;
+}
+.desc-io-icon {
+  font-size: 14px;
+  color: var(--c-primary, #2a4d6a);
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+.desc-io-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.desc-io-label {
+  font-size: 10px;
+  color: var(--c-text-3, #94a3b8);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.desc-io-value {
+  font-size: 12px;
+  color: var(--c-text, #2c3e50);
+  line-height: 1.4;
+}
+.desc-block-title {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c-text-2, #64748b);
+  margin-bottom: 6px;
+}
+.desc-params-block {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: var(--c-bg-alt, #faf8f5);
+  border: 1px solid var(--c-border-light, #f0ece7);
+  border-radius: 6px;
+}
+.desc-params-content {
+  font-size: 12px;
+  color: var(--c-text, #2c3e50);
+  line-height: 1.6;
+}
+.desc-params-content :deep(.param-code) {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #e8e4df;
+  color: #2a4d6a;
+}
+.desc-scenario-block {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #fdf5ed 0%, #faf8f5 100%);
+  border: 1px solid #f0ece7;
+  border-left: 3px solid #d4a76a;
+  border-radius: 6px;
+}
+.desc-scenario-content {
+  font-size: 12px;
+  color: var(--c-text, #2c3e50);
+  line-height: 1.5;
+  font-style: italic;
+}
+.desc-extra-block {
+  margin-bottom: 8px;
+}
+.desc-extra-line {
+  font-size: 12px;
+  color: var(--c-text-2, #64748b);
+  line-height: 1.5;
+  padding: 2px 0;
 }
 
 /* ── 技术标签 ── */
