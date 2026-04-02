@@ -156,20 +156,69 @@ export function dagToFlow(steps: DagStep[]): { nodes: Node[]; edges: Edge[] } {
     }
   }
 
+  // ── 添加 $input 虚拟节点 ──
+  // 找出引用 $input 的步骤（inputs 值以 "$input" 开头）
+  const inputConsumers: string[] = []
+  for (const step of steps) {
+    if (step.inputs) {
+      for (const ref of Object.values(step.inputs)) {
+        if (typeof ref === 'string' && ref.startsWith('$input')) {
+          if (!inputConsumers.includes(step.id)) inputConsumers.push(step.id)
+        }
+      }
+    }
+  }
+  // 如果没有显式 $input 引用，则连到所有无依赖的根节点
+  if (inputConsumers.length === 0) {
+    for (const step of steps) {
+      const d = deps.get(step.id) || []
+      if (d.length === 0) inputConsumers.push(step.id)
+    }
+  }
+
+  if (inputConsumers.length > 0) {
+    // 找到最高层节点的 y 坐标，将 input 节点放在其上方
+    const minY = nodes.length > 0 ? Math.min(...nodes.map(n => n.position.y)) : 0
+    const avgX = inputConsumers.length > 0
+      ? nodes.filter(n => inputConsumers.includes(n.id)).reduce((sum, n) => sum + n.position.x, 0) / inputConsumers.length
+      : 0
+
+    nodes.unshift({
+      id: '$input',
+      type: 'inputNode',
+      position: { x: avgX, y: minY - GAP_Y },
+      data: { label: '输入数据集' },
+    })
+
+    for (const targetId of inputConsumers) {
+      edges.push({
+        id: `e-$input-${targetId}`,
+        source: '$input',
+        target: targetId,
+        animated: false,
+        type: 'pipelineEdge',
+        style: { strokeDasharray: '6 3' },
+      })
+    }
+  }
+
   return { nodes, edges }
 }
 
 /**
  * 从 Vue Flow nodes + edges 反向生成 DagStep[]。
  * 用于 DAG → YAML 同步。
+ * 跳过 $input 虚拟节点。
  */
 export function flowToDag(nodes: Node[], edges: Edge[]): DagStep[] {
   const steps: DagStep[] = []
 
   for (const node of nodes) {
+    // 跳过 $input 虚拟节点
+    if (node.id === '$input') continue
     const step: DagStep = { ...node.data.step }
-    // 根据 edges 更新 depends_on
-    const incoming = edges.filter(e => e.target === node.id)
+    // 根据 edges 更新 depends_on（排除来自 $input 的边）
+    const incoming = edges.filter(e => e.target === node.id && e.source !== '$input')
     if (incoming.length > 0) {
       step.depends_on = incoming.map(e => e.source)
     }

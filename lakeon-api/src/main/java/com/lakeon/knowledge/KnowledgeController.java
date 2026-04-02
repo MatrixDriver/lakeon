@@ -160,17 +160,34 @@ public class KnowledgeController {
                                              @RequestParam(value = "page", defaultValue = "1") int page,
                                              @RequestParam(value = "page_size", defaultValue = "50") int pageSize,
                                              @RequestParam(value = "status", required = false) String status,
+                                             @RequestParam(value = "folder", required = false) String folder,
                                              @RequestParam(value = "sort_by", defaultValue = "upload_time") String sortBy,
                                              @RequestParam(value = "sort_order", defaultValue = "desc") String sortOrder) {
         TenantEntity tenant = getTenant(req);
         KnowledgeService.DocumentPage result = knowledgeService.listDocumentsPaged(
-            tenant.getId(), kbId, status, sortBy, sortOrder, page, pageSize);
+            tenant.getId(), kbId, status, folder, sortBy, sortOrder, page, pageSize);
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("documents", result.documents().stream().map(this::toDocumentResponse).toList());
         response.put("total", result.total());
         response.put("page", result.page());
         response.put("page_size", result.pageSize());
         return response;
+    }
+
+    @GetMapping("/folders")
+    public List<Map<String, Object>> listFolders(HttpServletRequest req,
+                                                  @RequestParam("kb_id") String kbId,
+                                                  @RequestParam(value = "parent", defaultValue = "") String parent) {
+        TenantEntity tenant = getTenant(req);
+        return knowledgeService.listFolders(tenant.getId(), kbId, parent).stream()
+            .map(f -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("name", f.name());
+                m.put("path", f.path());
+                m.put("document_count", f.documentCount());
+                m.put("total_size", f.totalSize());
+                return m;
+            }).toList();
     }
 
     @GetMapping("/documents/stats")

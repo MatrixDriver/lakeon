@@ -94,7 +94,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Node } from '@vue-flow/core'
-import { parseJsonSchema, parseOutputBranches, type PipelineComponent } from '@/api/pipeline'
+import { parseJsonSchema, parseOutputBranches, type PipelineComponent, type PipelineComponentVersion } from '@/api/pipeline'
 
 interface SchemaField {
   name: string
@@ -107,6 +107,7 @@ interface SchemaField {
 const props = defineProps<{
   node: Node
   components: PipelineComponent[]
+  componentVersions: Map<string, PipelineComponentVersion>
 }>()
 
 const emit = defineEmits<{
@@ -116,9 +117,21 @@ const emit = defineEmits<{
 
 const currentParams = computed(() => props.node.data.step?.params || {})
 
-// 从 node.data 中解析 params_schema
+// 找到当前节点对应的组件和版本
+const matchedComponent = computed(() => {
+  const compName = props.node.data.step?.component
+  return props.components.find(c => c.name === compName)
+})
+
+const matchedVersion = computed(() => {
+  if (!matchedComponent.value) return null
+  return props.componentVersions.get(matchedComponent.value.id) || null
+})
+
+// 从版本的 params_schema 读取字段定义
 const schemaFields = computed<SchemaField[]>(() => {
-  const raw = props.node.data.step?.params_schema || props.node.data.params_schema
+  const raw = matchedVersion.value?.params_schema
+  if (!raw) return []
   const schema = typeof raw === 'string' ? parseJsonSchema(raw) : (raw || {})
   return Object.entries(schema).map(([name, def]: [string, any]) => ({
     name,
@@ -129,10 +142,11 @@ const schemaFields = computed<SchemaField[]>(() => {
   }))
 })
 
-const branches = computed(() =>
-  parseOutputBranches(props.node.data.step?.output_branches_raw || null) ||
-  props.node.data.step?.output_branches || []
-)
+// 输出分支也从版本读取
+const branches = computed(() => {
+  const raw = matchedVersion.value?.output_branches ?? null
+  return parseOutputBranches(raw) || []
+})
 
 function updateParam(key: string, value: any) {
   const params = { ...currentParams.value, [key]: value }

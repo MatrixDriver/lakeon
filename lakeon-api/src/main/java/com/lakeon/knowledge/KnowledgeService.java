@@ -769,7 +769,7 @@ public class KnowledgeService {
     public record DocumentPage(List<DocumentEntity> documents, long total, int page, int pageSize) {}
 
     public DocumentPage listDocumentsPaged(String tenantId, String kbId,
-                                           String status, String sortBy, String sortOrder,
+                                           String status, String folder, String sortBy, String sortOrder,
                                            int page, int pageSize) {
         if (sortBy == null || !List.of("upload_time", "size_bytes", "chunks_count", "status").contains(sortBy)) {
             sortBy = "upload_time";
@@ -784,11 +784,26 @@ public class KnowledgeService {
         int offset = (page - 1) * pageSize;
         String statusParam = (status != null && !status.isBlank()) ? status : null;
         String kbParam = (kbId != null && !kbId.isBlank()) ? kbId : null;
+        String folderParam = (folder != null && !folder.isEmpty()) ? folder : null;
 
         List<DocumentEntity> docs = documentRepository.findPagedDocuments(
-            tenantId, kbParam, statusParam, sortBy, sortOrder, pageSize, offset);
-        long total = documentRepository.countDocuments(tenantId, kbParam, statusParam);
+            tenantId, kbParam, statusParam, folderParam, sortBy, sortOrder, pageSize, offset);
+        long total = documentRepository.countDocuments(tenantId, kbParam, statusParam, folderParam);
         return new DocumentPage(docs, total, page, pageSize);
+    }
+
+    public record FolderInfo(String name, String path, long documentCount, long totalSize) {}
+
+    public List<FolderInfo> listFolders(String tenantId, String kbId, String parent) {
+        String parentPath = (parent == null) ? "" : parent;
+        List<Object[]> rows = documentRepository.findSubfolders(tenantId, kbId, parentPath);
+        return rows.stream().map(row -> {
+            String name = (String) row[0];
+            long count = ((Number) row[1]).longValue();
+            long size = ((Number) row[2]).longValue();
+            String path = parentPath.isEmpty() ? name : parentPath + "/" + name;
+            return new FolderInfo(name, path, count, size);
+        }).toList();
     }
 
     /**

@@ -37,6 +37,7 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, String
         WHERE tenant_id = :tenantId
           AND (:kbId IS NULL OR kb_id = :kbId)
           AND (:status IS NULL OR status = :status)
+          AND (:folder IS NULL OR folder = :folder)
         ORDER BY
           CASE WHEN :sortBy = 'upload_time' AND :sortOrder = 'asc' THEN created_at END ASC,
           CASE WHEN :sortBy = 'upload_time' AND :sortOrder = 'desc' THEN created_at END DESC,
@@ -53,6 +54,7 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, String
         @Param("tenantId") String tenantId,
         @Param("kbId") String kbId,
         @Param("status") String status,
+        @Param("folder") String folder,
         @Param("sortBy") String sortBy,
         @Param("sortOrder") String sortOrder,
         @Param("limit") int limit,
@@ -63,11 +65,37 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, String
         WHERE tenant_id = :tenantId
           AND (:kbId IS NULL OR kb_id = :kbId)
           AND (:status IS NULL OR status = :status)
+          AND (:folder IS NULL OR folder = :folder)
         """, nativeQuery = true)
     long countDocuments(
         @Param("tenantId") String tenantId,
         @Param("kbId") String kbId,
-        @Param("status") String status);
+        @Param("status") String status,
+        @Param("folder") String folder);
+
+    @Query(value = """
+        SELECT
+          CASE WHEN :parent = '' THEN split_part(folder, '/', 1)
+               ELSE split_part(substring(folder from length(:parent) + 2), '/', 1)
+          END AS name,
+          COUNT(*) AS doc_count,
+          COALESCE(SUM(size_bytes), 0) AS total_size
+        FROM documents
+        WHERE tenant_id = :tenantId
+          AND kb_id = :kbId
+          AND folder != ''
+          AND (
+            (:parent = '' AND folder != '')
+            OR (:parent != '' AND folder LIKE :parent || '/%')
+          )
+        GROUP BY name
+        HAVING name != ''
+        ORDER BY name
+        """, nativeQuery = true)
+    List<Object[]> findSubfolders(
+        @Param("tenantId") String tenantId,
+        @Param("kbId") String kbId,
+        @Param("parent") String parent);
 
     @Query(value = """
         SELECT status, COUNT(*) as cnt FROM documents

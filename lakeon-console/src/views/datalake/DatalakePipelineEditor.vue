@@ -71,6 +71,7 @@
         v-if="viewMode === 'dag' && selectedNode"
         :node="selectedNode"
         :components="components"
+        :component-versions="componentVersions"
         @update:params="onParamsUpdate"
         @delete="onDeleteNode"
       />
@@ -98,6 +99,7 @@ import PipelineNodeBase from './components/pipeline/PipelineNodeBase.vue'
 import PipelineNodeFanOut from './components/pipeline/PipelineNodeFanOut.vue'
 import PipelineNodeMerge from './components/pipeline/PipelineNodeMerge.vue'
 import PipelineNodeHumanReview from './components/pipeline/PipelineNodeHumanReview.vue'
+import PipelineNodeInput from './components/pipeline/PipelineNodeInput.vue'
 import PipelineCustomEdge from './components/pipeline/PipelineCustomEdge.vue'
 
 import {
@@ -185,6 +187,7 @@ const nodeTypes: Record<string, any> = {
   fanOutNode: markRaw(PipelineNodeFanOut),
   mergeNode: markRaw(PipelineNodeMerge),
   humanReviewNode: markRaw(PipelineNodeHumanReview),
+  inputNode: markRaw(PipelineNodeInput),
 }
 const edgeTypes: Record<string, any> = {
   pipelineEdge: markRaw(PipelineCustomEdge),
@@ -328,6 +331,8 @@ function redo() {
 }
 
 function onNodeClick(event: NodeMouseEvent) {
+  // $input 虚拟节点不可选中编辑
+  if (event.node.id === '$input') return
   selectedNode.value = event.node
 }
 
