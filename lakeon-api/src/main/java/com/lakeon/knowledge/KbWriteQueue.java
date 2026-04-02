@@ -278,7 +278,10 @@ public class KbWriteQueue {
                     task.setStartedAt(null);
                     task.setJobId(null);
                     if ("RATE_LIMIT".equals(errorCategory)) {
-                        task.setNextRetryAt(Instant.now().plusSeconds(300)); // 5 minutes
+                        long delay = rateLimitDelaySeconds(task.getRetryCount());
+                        task.setNextRetryAt(Instant.now().plusSeconds(delay));
+                        log.info("RATE_LIMIT retry for task {} in {}s (attempt {})",
+                                 task.getId(), delay, task.getRetryCount());
                     } else {
                         task.setNextRetryAt(null); // immediate retry
                     }
@@ -307,6 +310,16 @@ public class KbWriteQueue {
             // Trigger drain for next task
             executor.submit(() -> drain(task.getDatabaseId()));
         });
+    }
+
+    /**
+     * Exponential backoff with jitter for RATE_LIMIT retries.
+     * Base: 30s * 2^retryCount, capped at 240s. Jitter: 0..50% of base.
+     */
+    static long rateLimitDelaySeconds(int retryCount) {
+        long base = Math.min(30L * (1L << retryCount), 240L);
+        long jitter = (long) (base * 0.5 * Math.random());
+        return base + jitter;
     }
 
     private String parseErrorCategory(String error, String resultJson) {
