@@ -2,6 +2,10 @@ import { chromium, type FullConfig } from '@playwright/test'
 import { createTestTenant } from './api-helpers'
 import * as fs from 'fs'
 import * as path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 async function globalSetup(config: FullConfig) {
   const { apiKey, tenantId, tenantName } = await createTestTenant()

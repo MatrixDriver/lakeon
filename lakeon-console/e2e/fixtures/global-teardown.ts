@@ -1,6 +1,10 @@
 import { deleteTestTenant } from './api-helpers'
 import * as fs from 'fs'
 import * as path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 async function globalTeardown() {
   const tenantFile = path.join(__dirname, '..', '.auth', 'tenant.json')

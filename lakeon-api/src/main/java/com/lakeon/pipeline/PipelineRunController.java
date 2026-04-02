@@ -36,6 +36,16 @@ public class PipelineRunController {
         return toResponse(run);
     }
 
+    @GetMapping
+    public List<Map<String, Object>> list(HttpServletRequest req,
+                                           @RequestParam(name = "pipeline_id") String pipelineId) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        // Verify pipeline belongs to tenant before listing runs
+        return runService.listByPipeline(pipelineId).stream()
+                .filter(r -> r.getTenantId().equals(tenant.getId()))
+                .map(this::toResponse).toList();
+    }
+
     @GetMapping("/{id}")
     public Map<String, Object> get(HttpServletRequest req, @PathVariable String id) {
         TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");

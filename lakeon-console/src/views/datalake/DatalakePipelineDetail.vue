@@ -191,14 +191,17 @@ function formatTime(iso: string | null): string {
 async function loadData() {
   loading.value = true
   try {
-    const [pRes, vRes, rRes] = await Promise.all([
+    const [pRes, vRes, rRes] = await Promise.allSettled([
       getPipeline(pipelineId.value),
       listPipelineVersions(pipelineId.value),
       listPipelineRuns(pipelineId.value),
     ])
-    pipeline.value = pRes.data
-    versions.value = vRes.data
-    runs.value = rRes.data
+    if (pRes.status === 'fulfilled') pipeline.value = pRes.value.data
+    else console.error('Failed to load pipeline', pRes.reason)
+    if (vRes.status === 'fulfilled') versions.value = vRes.value.data
+    else console.error('Failed to load versions', vRes.reason)
+    if (rRes.status === 'fulfilled') runs.value = rRes.value.data
+    else console.error('Failed to load runs', rRes.reason)
   } catch (err) {
     console.error('Failed to load pipeline detail', err)
   } finally {
