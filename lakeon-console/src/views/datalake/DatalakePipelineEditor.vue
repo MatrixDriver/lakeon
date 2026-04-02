@@ -47,7 +47,7 @@
           v-model:edges="edges"
           :node-types="nodeTypes"
           :edge-types="edgeTypes"
-          :default-edge-options="{ type: 'pipelineEdge', animated: false }"
+          :default-edge-options="{ type: 'pipelineEdge', animated: false, markerEnd: { type: MarkerType.ArrowClosed, color: '#b0aaA0' } }"
           :snap-to-grid="true"
           :snap-grid="[20, 20]"
           fit-view-on-init
@@ -109,7 +109,7 @@ import {
   dagToFlow, flowToDag, autoLayout, parseDagYaml, serializeDagYaml,
   type DagStep, type DagDefinition,
 } from './components/pipeline/dagUtils'
-import { useVueFlow, type Node, type Edge, type Connection, type NodeMouseEvent } from '@vue-flow/core'
+import { useVueFlow, MarkerType, type Node, type Edge, type Connection, type NodeMouseEvent } from '@vue-flow/core'
 
 const route = useRoute()
 const router = useRouter()

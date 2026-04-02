@@ -45,7 +45,7 @@ const props = defineProps<{
   selected?: boolean
 }>()
 
-const category = computed<ComponentCategory>(() => props.data.step?.category || 'DATA_PREP')
+const category = computed<ComponentCategory>(() => props.data.category || props.data.step?.category || 'DATA_PREP')
 const colors = computed(() => categoryColors[category.value] || categoryColors.DATA_PREP)
 const icon = computed(() => colors.value.icon)
 const categoryLabel = computed(() => categoryLabels[category.value] || category.value)
