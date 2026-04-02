@@ -14,7 +14,7 @@
       </div>
       <div class="page-header-actions">
         <button class="btn btn-secondary" @click="router.push(`/datalake/pipelines/${pipelineId}/edit`)">编辑</button>
-        <button class="btn btn-primary" @click="openTriggerDialog">触发运行</button>
+        <button class="btn btn-primary" @click="openTriggerDialog">生成代码</button>
       </div>
     </div>
 
@@ -104,7 +104,7 @@
       <div class="dialog" :class="{ 'dialog-wide': triggerStep === 'preview' }">
         <!-- Step 1: 选择版本和数据集 -->
         <template v-if="triggerStep === 'form'">
-          <h3>触发运行</h3>
+          <h3>生成执行脚本</h3>
           <div class="dialog-field">
             <label>Pipeline 版本</label>
             <select v-model="triggerForm.version">
@@ -126,7 +126,7 @@
           <div class="dialog-actions">
             <button class="btn btn-secondary" @click="closeTriggerDialog">取消</button>
             <button class="btn btn-primary" @click="handlePreview" :disabled="previewLoading">
-              {{ previewLoading ? '加载中...' : '下一步' }}
+              {{ previewLoading ? '生成中...' : '生成脚本' }}
             </button>
           </div>
         </template>
@@ -156,7 +156,7 @@
                 {{ openingNotebook ? '创建中...' : '在 Notebook 中打开' }}
               </button>
               <button class="btn btn-primary" @click="handleTrigger" :disabled="triggering">
-                {{ triggering ? '提交中...' : '直接运行' }}
+                {{ triggering ? '提交中...' : '提交运行' }}
               </button>
             </div>
           </div>
