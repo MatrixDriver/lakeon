@@ -40,6 +40,7 @@ public class DatasetService {
     private static final Logger log = LoggerFactory.getLogger(DatasetService.class);
 
     private final DatasetRepository datasetRepository;
+    private final DatasetVersionRepository datasetVersionRepository;
     private final ComputeLifecycleService computeLifecycleService;
     private final DatabaseRepository databaseRepository;
     private final DatabaseQueryService databaseQueryService;
@@ -49,6 +50,7 @@ public class DatasetService {
     private final ObjectMapper objectMapper;
 
     public DatasetService(DatasetRepository datasetRepository,
+                          DatasetVersionRepository datasetVersionRepository,
                           ComputeLifecycleService computeLifecycleService,
                           DatabaseRepository databaseRepository,
                           DatabaseQueryService databaseQueryService,
@@ -57,6 +59,7 @@ public class DatasetService {
                           TenantRepository tenantRepository,
                           ObjectMapper objectMapper) {
         this.datasetRepository = datasetRepository;
+        this.datasetVersionRepository = datasetVersionRepository;
         this.computeLifecycleService = computeLifecycleService;
         this.databaseRepository = databaseRepository;
         this.databaseQueryService = databaseQueryService;
@@ -279,6 +282,31 @@ public class DatasetService {
 
         datasetRepository.delete(dataset);
         log.info("Deleted dataset {} for tenant {}", datasetId, tenantId);
+    }
+
+    /**
+     * List versions for a dataset, verifying tenant ownership.
+     */
+    public List<Map<String, Object>> listVersions(String tenantId, String datasetId) {
+        // Verify dataset belongs to tenant
+        findDataset(tenantId, datasetId);
+
+        List<DatasetVersionEntity> versions = datasetVersionRepository.findByDatasetIdOrderByVersionDesc(datasetId);
+        return versions.stream().map(v -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", v.getId());
+            m.put("dataset_id", v.getDatasetId());
+            m.put("version", v.getVersion());
+            m.put("format", v.getFormat());
+            m.put("status", v.getStatus());
+            m.put("row_count", v.getRowCount());
+            m.put("file_size", v.getFileSize());
+            m.put("obs_path", v.getObsPath());
+            m.put("source_pipeline_run_id", v.getSourcePipelineRunId());
+            m.put("source_job_id", v.getSourceJobId());
+            m.put("created_at", v.getCreatedAt() != null ? v.getCreatedAt().toString() : null);
+            return m;
+        }).toList();
     }
 
     // ─── Private helpers ────────────────────────────────────────────

@@ -86,6 +86,24 @@ export function resubmitDatalakeJob(jobId: string) {
   return api.post(`/datalake/jobs/${jobId}/resubmit`)
 }
 
+export interface DatasetVersion {
+  id: string
+  dataset_id: string
+  version: number
+  format: string
+  status: string
+  row_count: number | null
+  file_size: number | null
+  obs_path: string | null
+  source_pipeline_run_id: string | null
+  source_job_id: string | null
+  created_at: string
+}
+
+export function listDatasetVersions(datasetId: string) {
+  return api.get<DatasetVersion[]>(`/datasets/${datasetId}/versions`)
+}
+
 export function streamDatalakeLogsUrl(jobId: string): string {
   const apiKey = localStorage.getItem('lakeon_api_key') || ''
   return `https://api.dbay.cloud:8443/api/v1/datalake/jobs/${jobId}/logs?token=${encodeURIComponent(apiKey)}`

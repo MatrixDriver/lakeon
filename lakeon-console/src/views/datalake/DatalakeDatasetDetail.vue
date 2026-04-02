@@ -96,56 +96,113 @@
         <strong>错误信息：</strong>{{ dataset.error }}
       </div>
 
-      <!-- Schema -->
-      <div v-if="dataset.schema && dataset.schema.length > 0" class="section">
-        <h3 class="section-title" style="margin-bottom: 12px;">Schema <span style="color: #999; font-size: 13px; font-weight: 400;">({{ dataset.schema.length }} 列)</span></h3>
-        <div class="schema-table-wrap">
-          <table class="schema-table">
-            <thead>
-              <tr>
-                <th class="schema-col-pos">#</th>
-                <th>列名</th>
-                <th>类型</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(col, i) in dataset.schema" :key="col.name">
-                <td class="schema-col-pos">{{ i + 1 }}</td>
-                <td class="schema-col-name">{{ col.name }}</td>
-                <td class="schema-col-type">{{ col.type }}</td>
-              </tr>
-            </tbody>
-          </table>
+      <!-- Detail tabs -->
+      <div class="detail-tabs">
+        <button
+          class="detail-tab"
+          :class="{ active: detailTab === 'info' }"
+          @click="detailTab = 'info'"
+        >概览</button>
+        <button
+          class="detail-tab"
+          :class="{ active: detailTab === 'versions' }"
+          @click="detailTab = 'versions'; loadVersions()"
+        >版本 <span v-if="versions.length" class="tab-count">{{ versions.length }}</span></button>
+      </div>
+
+      <!-- Tab: Info -->
+      <div v-if="detailTab === 'info'">
+        <!-- Schema -->
+        <div v-if="dataset.schema && dataset.schema.length > 0" class="section">
+          <h3 class="section-title" style="margin-bottom: 12px;">Schema <span style="color: #999; font-size: 13px; font-weight: 400;">({{ dataset.schema.length }} 列)</span></h3>
+          <div class="schema-table-wrap">
+            <table class="schema-table">
+              <thead>
+                <tr>
+                  <th class="schema-col-pos">#</th>
+                  <th>列名</th>
+                  <th>类型</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(col, i) in dataset.schema" :key="col.name">
+                  <td class="schema-col-pos">{{ i + 1 }}</td>
+                  <td class="schema-col-name">{{ col.name }}</td>
+                  <td class="schema-col-type">{{ col.type }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Code snippets -->
+        <div v-if="dataset.status === 'READY' && dataset.code_snippets" class="section">
+          <h3 class="section-title" style="margin-bottom: 12px;">使用示例</h3>
+          <div class="snippet-tabs">
+            <button
+              v-for="tab in snippetTabs"
+              :key="tab.key"
+              class="snippet-tab"
+              :class="{ active: activeTab === tab.key }"
+              @click="activeTab = tab.key"
+            >{{ tab.label }}</button>
+          </div>
+          <div class="snippet-body">
+            <div class="snippet-toolbar">
+              <span class="snippet-lang">{{ activeTabLabel }}</span>
+              <button class="copy-btn" @click="copySnippet">
+                <svg v-if="!copied" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                {{ copied ? '已复制' : '复制' }}
+              </button>
+            </div>
+            <pre class="snippet-code">{{ activeSnippet }}</pre>
+          </div>
         </div>
       </div>
 
-      <!-- Code snippets -->
-      <div v-if="dataset.status === 'READY' && dataset.code_snippets" class="section">
-        <h3 class="section-title" style="margin-bottom: 12px;">使用示例</h3>
-        <div class="snippet-tabs">
-          <button
-            v-for="tab in snippetTabs"
-            :key="tab.key"
-            class="snippet-tab"
-            :class="{ active: activeTab === tab.key }"
-            @click="activeTab = tab.key"
-          >{{ tab.label }}</button>
-        </div>
-        <div class="snippet-body">
-          <div class="snippet-toolbar">
-            <span class="snippet-lang">{{ activeTabLabel }}</span>
-            <button class="copy-btn" @click="copySnippet">
-              <svg v-if="!copied" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="9" y="9" width="13" height="13" rx="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-              </svg>
-              <svg v-else viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-              {{ copied ? '已复制' : '复制' }}
-            </button>
-          </div>
-          <pre class="snippet-code">{{ activeSnippet }}</pre>
+      <!-- Tab: Versions -->
+      <div v-if="detailTab === 'versions'">
+        <div v-if="versionsLoading" style="text-align: center; padding: 24px; color: #999;">加载中...</div>
+        <div v-else-if="versions.length === 0" style="text-align: center; padding: 40px; color: #999;">暂无版本记录</div>
+        <div v-else class="schema-table-wrap">
+          <table class="schema-table">
+            <thead>
+              <tr>
+                <th>版本</th>
+                <th>格式</th>
+                <th>状态</th>
+                <th>行数</th>
+                <th>文件大小</th>
+                <th>来源</th>
+                <th>创建时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="v in versions" :key="v.id">
+                <td style="font-weight: 600;">v{{ v.version }}</td>
+                <td><span class="format-badge">{{ v.format }}</span></td>
+                <td><span class="status-badge" :class="'badge-' + versionStatusColor(v.status)">{{ versionStatusText(v.status) }}</span></td>
+                <td>{{ v.row_count != null ? v.row_count.toLocaleString() : '-' }}</td>
+                <td>{{ v.file_size != null ? formatSize(v.file_size) : '-' }}</td>
+                <td>
+                  <router-link v-if="v.source_pipeline_run_id" :to="'/datalake/pipelines/runs/' + v.source_pipeline_run_id" style="color: #2563eb; text-decoration: none; font-size: 12px; font-family: monospace;">
+                    pipeline {{ v.source_pipeline_run_id.substring(0, 12) }}...
+                  </router-link>
+                  <router-link v-else-if="v.source_job_id" :to="'/datalake/jobs/' + v.source_job_id" style="color: #2563eb; text-decoration: none; font-size: 12px; font-family: monospace;">
+                    job {{ v.source_job_id.substring(0, 12) }}...
+                  </router-link>
+                  <span v-else style="color: #999;">-</span>
+                </td>
+                <td>{{ formatTime(v.created_at) }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </template>
@@ -156,6 +213,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import client from '../../api/client'
+import { listDatasetVersions, type DatasetVersion } from '../../api/datalake'
 import { formatSize } from '../../utils/format'
 
 interface CodeSnippets {
@@ -192,6 +250,9 @@ const dataset = ref<Dataset | null>(null)
 const loading = ref(false)
 const activeTab = ref<'pandas' | 'ray' | 'duckdb'>('pandas')
 const copied = ref(false)
+const detailTab = ref<'info' | 'versions'>('info')
+const versions = ref<DatasetVersion[]>([])
+const versionsLoading = ref(false)
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let copyTimer: ReturnType<typeof setTimeout> | null = null
@@ -239,6 +300,37 @@ function sourceLabel(sourceType: string) {
 function formatTime(t: string | null) {
   if (!t) return '-'
   return new Date(t).toLocaleString('zh-CN')
+}
+
+function versionStatusColor(status: string) {
+  const map: Record<string, string> = {
+    CREATING: 'blue',
+    READY: 'green',
+    FAILED: 'red',
+  }
+  return map[status] || 'gray'
+}
+
+function versionStatusText(status: string) {
+  const map: Record<string, string> = {
+    CREATING: '创建中',
+    READY: '就绪',
+    FAILED: '失败',
+  }
+  return map[status] || status
+}
+
+async function loadVersions() {
+  if (versionsLoading.value) return
+  versionsLoading.value = true
+  try {
+    const res = await listDatasetVersions(id)
+    versions.value = res.data
+  } catch {
+    // silently fail
+  } finally {
+    versionsLoading.value = false
+  }
 }
 
 async function loadDataset() {
@@ -489,6 +581,60 @@ onUnmounted(() => {
   white-space: pre-wrap;
   word-break: break-all;
   overflow-x: auto;
+}
+
+/* Detail tabs */
+.detail-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid #e5e5e5;
+  margin-bottom: 20px;
+}
+
+.detail-tab {
+  padding: 8px 20px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.detail-tab:hover {
+  color: #333;
+}
+
+.detail-tab.active {
+  color: #9a5b25;
+  border-bottom-color: #c67d3a;
+  font-weight: 500;
+}
+
+.tab-count {
+  display: inline-block;
+  background: #f0ebe4;
+  color: #9a5b25;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.format-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: monospace;
+  background: #f0f0f0;
+  color: #666;
 }
 
 /* Schema table — matches StructureView style */

@@ -68,6 +68,12 @@ public class DatasetController {
         return datasetService.getDatasetResponse(tenant.getId(), id);
     }
 
+    @GetMapping("/{id}/versions")
+    public List<Map<String, Object>> listVersions(HttpServletRequest req, @PathVariable String id) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return datasetService.listVersions(tenant.getId(), id);
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(HttpServletRequest req, @PathVariable String id) {
