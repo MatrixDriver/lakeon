@@ -17,12 +17,15 @@ spec:
         app: lakeon-embedding
     spec:
       nodeSelector:
-        lakeon/role: compute
+        lakeon/role: gpu
       containers:
         - name: embedding
           image: {{ .Values.embedding.image }}
           ports:
             - containerPort: 8000
+          env:
+            - name: RERANK_ENABLED
+              value: {{ .Values.embedding.rerankEnabled | default "false" | quote }}
           resources:
             requests:
               cpu: {{ .Values.embedding.cpu | default "2" | quote }}
