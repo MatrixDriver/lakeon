@@ -14,14 +14,7 @@
         class="name-input"
         placeholder="生产线名称"
       />
-      <select v-model="dataType" class="type-select">
-        <option value="">通用</option>
-        <option value="TEXT">文本</option>
-        <option value="VIDEO">视频</option>
-        <option value="IMAGE">图片</option>
-        <option value="AUDIO">音频</option>
-        <option value="DOCUMENT">文档</option>
-      </select>
+      <span class="type-tag">{{ dataTypeLabel }}</span>
     </div>
 
     <!-- Toolbar -->
@@ -42,7 +35,7 @@
       <!-- 左栏：组件面板 -->
       <PipelineComponentPanel
         v-if="viewMode === 'dag'"
-        :components="components"
+        :components="filteredComponents"
         @drag-start="onComponentDragStart"
       />
 
@@ -129,7 +122,7 @@ const pipeline = ref<Pipeline | null>(null)
 const components = ref<PipelineComponent[]>([])
 const componentVersions = ref<Map<string, PipelineComponentVersion>>(new Map())
 const pipelineName = ref('')
-const dataType = ref('')
+const dataType = ref((route.query.dataType as string) || '')
 const viewMode = ref<'dag' | 'yaml'>('dag')
 // Use shallowRef to avoid Vue Flow's deeply recursive type instantiation issues
 const nodes = shallowRef<Node[]>([])
@@ -138,6 +131,19 @@ const selectedNode = ref<Node | null>(null)
 const yamlText = ref('')
 const canvasRef = ref<HTMLElement | null>(null)
 const { project } = useVueFlow()
+
+const dataTypeLabel = computed(() => {
+  const labels: Record<string, string> = { VIDEO: '视频数据', TEXT: '文本数据', IMAGE: '图片数据', AUDIO: '音频数据', DOCUMENT: '文档数据' }
+  return labels[dataType.value] || '通用'
+})
+
+// 按数据类型过滤组件：只显示匹配当前类型 + UNIVERSAL 的组件
+const filteredComponents = computed(() => {
+  if (!dataType.value) return components.value
+  return components.value.filter(c =>
+    c.dataType === dataType.value || c.dataType === 'UNIVERSAL'
+  )
+})
 
 // ── localStorage 草稿自动保存 ──
 const DRAFT_KEY = 'lakeon_pipeline_draft'

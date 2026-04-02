@@ -9,15 +9,23 @@
         </button>
         <!-- 创建下拉菜单 -->
         <div v-if="showCreateMenu" class="create-menu" @mouseleave="showCreateMenu = false">
-          <div class="create-menu-item" @click="router.push('/datalake/pipelines/new')">
-            <span class="create-icon">+</span>
+          <div class="create-menu-section">选择数据类型</div>
+          <div class="create-menu-item" @click="createNew('VIDEO')">
+            <span class="create-icon">🎬</span>
             <div>
-              <div class="create-label">空白创建</div>
-              <div class="create-desc">从空画布开始</div>
+              <div class="create-label">视频数据生产线</div>
+              <div class="create-desc">视频切片、清洗、标注等</div>
             </div>
           </div>
-          <div class="create-menu-divider"></div>
-          <div class="create-menu-section">从模板创建</div>
+          <div class="create-menu-item" @click="createNew('TEXT')">
+            <span class="create-icon">📄</span>
+            <div>
+              <div class="create-label">文本数据生产线</div>
+              <div class="create-desc">去重、清洗、分词、质量评分等</div>
+            </div>
+          </div>
+          <div v-if="templates.length > 0" class="create-menu-divider"></div>
+          <div v-if="templates.length > 0" class="create-menu-section">从模板创建</div>
           <div
             v-for="tpl in templates"
             :key="tpl.id"
@@ -30,7 +38,6 @@
               <div class="create-desc">{{ tpl.description || tpl.dataType }}</div>
             </div>
           </div>
-          <div v-if="templates.length === 0" class="create-menu-empty">暂无模板</div>
         </div>
       </div>
     </div>
@@ -169,9 +176,14 @@ async function loadData() {
   }
 }
 
+function createNew(dt: string) {
+  showCreateMenu.value = false
+  router.push({ path: '/datalake/pipelines/new', query: { dataType: dt } })
+}
+
 function createFromTemplate(tpl: Pipeline) {
   showCreateMenu.value = false
-  router.push({ path: '/datalake/pipelines/new', query: { template: tpl.id } })
+  router.push({ path: '/datalake/pipelines/new', query: { template: tpl.id, dataType: tpl.dataType || '' } })
 }
 
 async function handleDelete(p: Pipeline) {
