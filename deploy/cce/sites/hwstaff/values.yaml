@@ -256,7 +256,7 @@ llm:
 
 memory:
   enabled: true
-  image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.2.4
+  image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.2.5
   chatApiUrl: "http://llm-svc:8080/v1"
   chatModel: "Qwen/Qwen3.5-9B"
 
