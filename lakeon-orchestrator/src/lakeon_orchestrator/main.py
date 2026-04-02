@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from lakeon_orchestrator.config import settings
 from lakeon_orchestrator.db.engine import init_db, close_db, get_session_factory
 from lakeon_orchestrator.ray_client.client import RayClient
+from lakeon_orchestrator.ray_client.python_job_client import PythonJobClient
 from lakeon_orchestrator.checkpoint.manager import CheckpointManager
 from lakeon_orchestrator.orchestrator import Orchestrator
 from lakeon_orchestrator.api.runs import set_orchestrator
@@ -35,11 +36,24 @@ async def lifespan(app: FastAPI):
         vk_node_selector_key=settings.vk_node_selector_key,
         vk_node_selector_value=settings.vk_node_selector_value,
     )
+    python_client = PythonJobClient(
+        python_image=settings.python_image,
+        k8s_namespace=settings.k8s_namespace,
+        image_pull_secrets=settings.get_image_pull_secrets_list(),
+        obs_endpoint=settings.obs_endpoint,
+        obs_access_key=settings.obs_access_key,
+        obs_secret_key=settings.obs_secret_key,
+        obs_bucket=settings.obs_bucket,
+        obs_region=settings.obs_region,
+        vk_node_selector_key=settings.vk_node_selector_key,
+        vk_node_selector_value=settings.vk_node_selector_value,
+    )
     checkpoint_mgr = CheckpointManager(obs_client=obs_client, bucket=settings.obs_bucket)
     orchestrator = Orchestrator(
         session_factory=get_session_factory(),
         ray_client=ray_client,
         checkpoint_manager=checkpoint_mgr,
+        python_job_client=python_client,
     )
     set_orchestrator(orchestrator)
 

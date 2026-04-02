@@ -22,6 +22,7 @@ class DAGNode:
     depends_on: list[str] = field(default_factory=list)
     node_type: str = "component"  # "component" | "merge"
     output_dataset: Optional[dict[str, str]] = None
+    execution_engine: str = "python"  # "python" | "ray"
 
 
 @dataclass
@@ -29,6 +30,7 @@ class DAG:
     name: str
     data_type: str
     description: str = ""
+    default_engine: str = "python"  # "python" | "ray"
     nodes: dict[str, DAGNode] = field(default_factory=dict)
     edges: dict[str, list[str]] = field(default_factory=dict)  # parent -> [children]
     reverse_edges: dict[str, list[str]] = field(default_factory=dict)  # child -> [parents]
@@ -51,10 +53,12 @@ class DAGParser:
         if not data or "steps" not in data:
             raise ValueError("Invalid pipeline YAML: missing 'steps' key")
 
+        default_engine = data.get("execution_engine", "python")
         dag = DAG(
             name=data.get("name", ""),
             data_type=data.get("data_type", ""),
             description=data.get("description", ""),
+            default_engine=default_engine,
         )
 
         # Pass 1: create nodes
@@ -74,6 +78,7 @@ class DAGParser:
                 depends_on=step.get("depends_on", []),
                 node_type=step.get("type", "component"),
                 output_dataset=step.get("output_dataset"),
+                execution_engine=step.get("execution_engine", default_engine),
             )
             dag.nodes[node.id] = node
 

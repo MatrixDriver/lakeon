@@ -15,6 +15,7 @@ from lakeon_orchestrator.dag.fan_in_handler import FanInHandler
 from lakeon_orchestrator.dag.branch_router import BranchRouter
 from lakeon_orchestrator.db.state_manager import StateManager
 from lakeon_orchestrator.ray_client.client import RayClient
+from lakeon_orchestrator.ray_client.python_job_client import PythonJobClient
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +43,12 @@ class Orchestrator:
         ray_client: RayClient,
         checkpoint_manager,
         component_loader: Optional[ComponentLoader] = None,
+        python_job_client: Optional[PythonJobClient] = None,
         _state_manager_override=None,
     ):
         self._session_factory = session_factory
         self._ray = ray_client
+        self._python = python_job_client
         self._checkpoint = checkpoint_manager
         self._loader = component_loader or ComponentLoader()
         self._fan_out = FanOutHandler()
@@ -54,6 +57,15 @@ class Orchestrator:
 
         # Runtime state per run (keyed by run_id)
         self._run_data: dict[str, dict[str, Any]] = {}
+
+    def _get_engine_client(self, execution_engine: str):
+        """Return the appropriate job client based on execution engine."""
+        if execution_engine == "ray":
+            return self._ray
+        if self._python is None:
+            logger.warning("PythonJobClient not configured, falling back to RayClient")
+            return self._ray
+        return self._python
 
     def _get_state_manager(self, session: AsyncSession) -> StateManager:
         if self._state_override:
@@ -114,8 +126,10 @@ class Orchestrator:
                 step_statuses[node_id] = "PENDING"
                 step_run_ids[node_id] = sr_id
 
-            # 4. Connect K8s API
+            # 4. Connect K8s API clients
             await self._ray.connect()
+            if self._python:
+                await self._python.connect()
             await sm.update_run_status(run_id, "RUNNING")
 
             # Initialize data store for this run
@@ -140,6 +154,8 @@ class Orchestrator:
                 await sm.update_run_status(run_id, "FAILED")
             finally:
                 await self._ray.disconnect()
+                if self._python:
+                    await self._python.disconnect()
                 await session.commit()
 
     async def _run_loop(
@@ -242,8 +258,10 @@ class Orchestrator:
         step_run_ids: dict[str, str],
         output_refs: dict[str, Any],
     ) -> None:
-        """Execute a single component step by submitting a RayJob CRD."""
-        logger.info(f"Executing step {node.id} (component: {node.component})")
+        """Execute a single component step via the configured execution engine."""
+        engine = node.execution_engine
+        engine_client = self._get_engine_client(engine)
+        logger.info(f"Executing step {node.id} (component: {node.component}, engine: {engine})")
         await sm.update_step_status(sr_id, "RUNNING")
         step_statuses[node.id] = "RUNNING"
 
@@ -251,8 +269,8 @@ class Orchestrator:
             # Resolve input data from upstream outputs
             input_data = self._resolve_inputs(node, output_refs)
 
-            # Submit as a RayJob CRD
-            ray_job_name = await self._ray.submit_pipeline_step(
+            # Submit via the selected engine client
+            job_name = await engine_client.submit_pipeline_step(
                 run_id=run_id,
                 step_id=node.id,
                 component_entrypoint=f"placeholder.{node.component}",
@@ -261,22 +279,21 @@ class Orchestrator:
                 tenant_id=tenant_id,
             )
 
-            # Wait for the RayJob to complete
+            # Wait for the job to complete (positional args for cross-client compat)
             ns = f"datalake-tn-{tenant_id}"
-            result = await self._ray.wait_for_completion(
-                ray_job_name=ray_job_name,
-                namespace=ns,
+            result = await engine_client.wait_for_completion(
+                job_name, namespace=ns,
             )
 
             job_status = result["status"]
             if job_status != "SUCCEEDED":
                 raise RuntimeError(
-                    f"RayJob {ray_job_name} finished with status {job_status}: {result.get('message', '')}"
+                    f"Job {job_name} ({engine}) finished with status {job_status}: {result.get('message', '')}"
                 )
 
             # The component writes its output to OBS; store a reference
             result_data = {
-                "ray_job_name": ray_job_name,
+                "job_name": job_name,
                 "obs_output_key": f"pipeline-runs/{run_id}/{node.id}/output.json",
             }
 
@@ -310,16 +327,16 @@ class Orchestrator:
             # Update metrics
             await sm.update_step_status(
                 sr_id, "SUCCEEDED",
-                output_ref=json.dumps({"ray_job_name": ray_job_name}),
+                output_ref=json.dumps({"job_name": job_name, "engine": engine}),
             )
             step_statuses[node.id] = "SUCCEEDED"
-            logger.info(f"Step {node.id} succeeded (RayJob: {ray_job_name})")
+            logger.info(f"Step {node.id} succeeded (engine: {engine}, job: {job_name})")
 
-            # Clean up RayJob CRD (ttlSecondsAfterFinished also handles this)
+            # Clean up Job (ttlSecondsAfterFinished also handles this)
             try:
-                await self._ray.delete_job(ray_job_name, namespace=ns)
+                await engine_client.delete_job(job_name, namespace=ns)
             except Exception:
-                logger.warning(f"Failed to delete RayJob {ray_job_name}", exc_info=True)
+                logger.warning(f"Failed to delete job {job_name}", exc_info=True)
 
         except Exception as e:
             logger.exception(f"Step {node.id} failed: {e}")
@@ -384,6 +401,8 @@ class Orchestrator:
 
         await sm.update_run_status(run_id, "PAUSED")
         await self._ray.disconnect()
+        if self._python:
+            await self._python.disconnect()
 
     async def _handle_fan_out(
         self,
@@ -463,8 +482,10 @@ class Orchestrator:
             if paused_step is None:
                 raise ValueError(f"No paused step found in run {run_id}")
 
-            # Reconnect K8s API
+            # Reconnect K8s API clients
             await self._ray.connect()
+            if self._python:
+                await self._python.connect()
 
             # Load checkpoint or use approved data
             if approved_data is not None:
@@ -514,6 +535,8 @@ class Orchestrator:
                 await sm.update_run_status(run_id, "FAILED")
             finally:
                 await self._ray.disconnect()
+                if self._python:
+                    await self._python.disconnect()
                 await session.commit()
 
     async def cancel_run(self, run_id: str) -> None:
@@ -524,3 +547,5 @@ class Orchestrator:
             await sm.update_run_status(run_id, "CANCELLED")
             await session.commit()
         await self._ray.disconnect()
+        if self._python:
+            await self._python.disconnect()

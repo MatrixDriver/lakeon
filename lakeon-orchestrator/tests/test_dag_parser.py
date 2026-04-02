@@ -116,3 +116,78 @@ def test_roots():
 def test_invalid_yaml():
     with pytest.raises(ValueError, match="steps"):
         DAGParser.parse("name: bad\nno_steps: true")
+
+
+# --- execution_engine tests ---
+
+EXECUTION_ENGINE_YAML = """
+name: engine-pipeline
+data_type: VIDEO
+execution_engine: python
+
+steps:
+  - id: normalize
+    component: video_normalize
+    inputs: { video: "$input.dataset" }
+
+  - id: scene_split
+    component: video_scene_split
+    execution_engine: ray
+    inputs: { video: normalize.video }
+
+  - id: export
+    component: video_export
+    execution_engine: python
+    inputs: { video: scene_split.clips }
+"""
+
+
+def test_parse_default_engine():
+    dag = DAGParser.parse(EXECUTION_ENGINE_YAML)
+    assert dag.default_engine == "python"
+
+
+def test_step_inherits_pipeline_engine():
+    dag = DAGParser.parse(EXECUTION_ENGINE_YAML)
+    # normalize has no execution_engine set, should inherit pipeline default
+    assert dag.nodes["normalize"].execution_engine == "python"
+
+
+def test_step_overrides_engine():
+    dag = DAGParser.parse(EXECUTION_ENGINE_YAML)
+    # scene_split explicitly sets ray
+    assert dag.nodes["scene_split"].execution_engine == "ray"
+    # export explicitly sets python
+    assert dag.nodes["export"].execution_engine == "python"
+
+
+def test_default_engine_when_not_specified():
+    """When pipeline YAML has no execution_engine, default to python."""
+    dag = DAGParser.parse(SIMPLE_YAML)
+    assert dag.default_engine == "python"
+    assert dag.nodes["normalize"].execution_engine == "python"
+    assert dag.nodes["scene_split"].execution_engine == "python"
+
+
+RAY_DEFAULT_YAML = """
+name: ray-pipeline
+data_type: TEXT
+execution_engine: ray
+
+steps:
+  - id: step_a
+    component: comp_a
+    inputs: { text: "$input.dataset" }
+
+  - id: step_b
+    component: comp_b
+    execution_engine: python
+    inputs: { text: step_a.text }
+"""
+
+
+def test_ray_default_engine():
+    dag = DAGParser.parse(RAY_DEFAULT_YAML)
+    assert dag.default_engine == "ray"
+    assert dag.nodes["step_a"].execution_engine == "ray"
+    assert dag.nodes["step_b"].execution_engine == "python"

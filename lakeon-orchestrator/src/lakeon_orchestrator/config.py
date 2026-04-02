@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     obs_bucket: str = "lakeon-data"
     obs_region: str = "cn-north-4"
 
+    # Python single-pod execution
+    python_image: str = "swr.cn-north-4.myhuaweicloud.com/flex/python:3.11-slim"
+
     # Ray / KubeRay
     ray_image: str = "swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data"
     k8s_namespace: str = "lakeon-pipeline"

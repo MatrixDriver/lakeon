@@ -81,18 +81,32 @@ def mock_session_factory():
 
 
 @pytest.fixture
+def mock_python_client():
+    pc = AsyncMock()
+    pc.connect = AsyncMock()
+    pc.disconnect = AsyncMock()
+    pc.is_connected = True
+    pc.submit_pipeline_step = AsyncMock(return_value="pl-py-run-001-step-a")
+    pc.wait_for_completion = AsyncMock(return_value={"status": "SUCCEEDED", "job_name": "pl-py-run-001-step-a", "message": ""})
+    pc.delete_job = AsyncMock()
+    return pc
+
+
+@pytest.fixture
 def orchestrator(
     mock_state_manager,
     mock_ray_client,
     mock_checkpoint_mgr,
     mock_component_loader,
     mock_session_factory,
+    mock_python_client,
 ):
     return Orchestrator(
         session_factory=mock_session_factory,
         ray_client=mock_ray_client,
         checkpoint_manager=mock_checkpoint_mgr,
         component_loader=mock_component_loader,
+        python_job_client=mock_python_client,
         _state_manager_override=mock_state_manager,
     )
 
@@ -143,7 +157,7 @@ async def test_cancel_run(orchestrator, mock_state_manager):
 
 
 @pytest.mark.asyncio
-async def test_start_run_disconnects_ray_on_completion(orchestrator, mock_ray_client):
+async def test_start_run_disconnects_ray_on_completion(orchestrator, mock_ray_client, mock_python_client):
     await orchestrator.start_run(
         run_id="run_005",
         pipeline_id="pipe_abc",
@@ -151,3 +165,127 @@ async def test_start_run_disconnects_ray_on_completion(orchestrator, mock_ray_cl
         tenant_id="tn_test",
     )
     mock_ray_client.disconnect.assert_called()
+    mock_python_client.disconnect.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_python_engine_uses_python_client(
+    mock_state_manager, mock_ray_client, mock_checkpoint_mgr,
+    mock_component_loader, mock_session_factory, mock_python_client,
+):
+    """When default engine is python, PythonJobClient should be used."""
+    # The default SIMPLE_YAML has no execution_engine, so defaults to python
+    orch = Orchestrator(
+        session_factory=mock_session_factory,
+        ray_client=mock_ray_client,
+        checkpoint_manager=mock_checkpoint_mgr,
+        component_loader=mock_component_loader,
+        python_job_client=mock_python_client,
+        _state_manager_override=mock_state_manager,
+    )
+    await orch.start_run(
+        run_id="run_py",
+        pipeline_id="pipe_abc",
+        pipeline_version=1,
+        tenant_id="tn_test",
+    )
+    # Python client should have been called for submission (default engine = python)
+    assert mock_python_client.submit_pipeline_step.await_count >= 1
+    # Ray client should NOT have been called for submission
+    assert mock_ray_client.submit_pipeline_step.await_count == 0
+
+
+RAY_ENGINE_YAML = """
+name: ray-test
+data_type: TEXT
+execution_engine: ray
+steps:
+  - id: step_a
+    component: comp_a
+    component_version: 1
+    inputs: { text: "$input.dataset" }
+    outputs: { text: a_out }
+  - id: step_b
+    component: comp_b
+    component_version: 1
+    inputs: { text: step_a.text }
+    outputs: { text: b_out }
+"""
+
+
+@pytest.mark.asyncio
+async def test_ray_engine_uses_ray_client(
+    mock_state_manager, mock_ray_client, mock_checkpoint_mgr,
+    mock_component_loader, mock_session_factory, mock_python_client,
+):
+    """When pipeline sets execution_engine: ray, RayClient should be used."""
+    version_mock = MagicMock()
+    version_mock.dag_yaml = RAY_ENGINE_YAML
+    mock_state_manager.get_pipeline_version = AsyncMock(return_value=version_mock)
+
+    orch = Orchestrator(
+        session_factory=mock_session_factory,
+        ray_client=mock_ray_client,
+        checkpoint_manager=mock_checkpoint_mgr,
+        component_loader=mock_component_loader,
+        python_job_client=mock_python_client,
+        _state_manager_override=mock_state_manager,
+    )
+    await orch.start_run(
+        run_id="run_ray",
+        pipeline_id="pipe_abc",
+        pipeline_version=1,
+        tenant_id="tn_test",
+    )
+    # Ray client should have been called
+    assert mock_ray_client.submit_pipeline_step.await_count >= 1
+    # Python client should NOT have been called
+    assert mock_python_client.submit_pipeline_step.await_count == 0
+
+
+MIXED_ENGINE_YAML = """
+name: mixed-test
+data_type: TEXT
+execution_engine: python
+steps:
+  - id: step_a
+    component: comp_a
+    component_version: 1
+    inputs: { text: "$input.dataset" }
+    outputs: { text: a_out }
+  - id: step_b
+    component: comp_b
+    component_version: 1
+    execution_engine: ray
+    inputs: { text: step_a.text }
+    outputs: { text: b_out }
+"""
+
+
+@pytest.mark.asyncio
+async def test_mixed_engine_dispatch(
+    mock_state_manager, mock_ray_client, mock_checkpoint_mgr,
+    mock_component_loader, mock_session_factory, mock_python_client,
+):
+    """step_a uses python (default), step_b overrides to ray."""
+    version_mock = MagicMock()
+    version_mock.dag_yaml = MIXED_ENGINE_YAML
+    mock_state_manager.get_pipeline_version = AsyncMock(return_value=version_mock)
+
+    orch = Orchestrator(
+        session_factory=mock_session_factory,
+        ray_client=mock_ray_client,
+        checkpoint_manager=mock_checkpoint_mgr,
+        component_loader=mock_component_loader,
+        python_job_client=mock_python_client,
+        _state_manager_override=mock_state_manager,
+    )
+    await orch.start_run(
+        run_id="run_mix",
+        pipeline_id="pipe_abc",
+        pipeline_version=1,
+        tenant_id="tn_test",
+    )
+    # Python client called once (step_a), Ray client called once (step_b)
+    assert mock_python_client.submit_pipeline_step.await_count == 1
+    assert mock_ray_client.submit_pipeline_step.await_count == 1
