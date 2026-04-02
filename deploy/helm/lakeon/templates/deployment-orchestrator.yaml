@@ -29,13 +29,19 @@ spec:
             - containerPort: 8090
               name: http
           env:
-            - name: LAKEON_DB_PASSWORD
+            - name: LAKEON_ORCH_DB_HOST
+              value: {{ .Values.metadataDb.host | quote }}
+            - name: LAKEON_ORCH_DB_PORT
+              value: {{ .Values.metadataDb.port | default 5432 | quote }}
+            - name: LAKEON_ORCH_DB_NAME
+              value: {{ .Values.metadataDb.name | default "lakeon" | quote }}
+            - name: LAKEON_ORCH_DB_USER
+              value: {{ .Values.metadataDb.user | default "lakeon" | quote }}
+            - name: LAKEON_ORCH_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: api-credentials
                   key: db-password
-            - name: LAKEON_ORCH_DATABASE_URL
-              value: "postgresql+asyncpg://{{ .Values.metadataDb.user | default "lakeon" }}:$(LAKEON_DB_PASSWORD)@{{ .Values.metadataDb.host }}:{{ .Values.metadataDb.port | default 5432 }}/{{ .Values.metadataDb.name | default "lakeon" }}"
             - name: LAKEON_ORCH_OBS_ENDPOINT
               value: {{ .Values.obs.endpoint | default "https://obs.cn-north-4.myhuaweicloud.com" | quote }}
             - name: LAKEON_ORCH_OBS_ACCESS_KEY

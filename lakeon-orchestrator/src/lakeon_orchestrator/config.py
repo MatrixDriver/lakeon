@@ -1,9 +1,30 @@
+from urllib.parse import quote_plus
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     # Database (shared RDS with lakeon-api)
     database_url: str = "postgresql+asyncpg://lakeon:lakeon@localhost:5432/lakeon"
+
+    # Individual DB fields (used when password contains special chars)
+    db_host: str = ""
+    db_port: int = 5432
+    db_name: str = "lakeon"
+    db_user: str = "lakeon"
+    db_password: str = ""
+
+    @model_validator(mode="after")
+    def _build_database_url(self):
+        """If individual DB fields are set, build database_url from them with URL-encoded password."""
+        if self.db_host and self.db_password:
+            pwd = quote_plus(self.db_password)
+            self.database_url = (
+                f"postgresql+asyncpg://{self.db_user}:{pwd}"
+                f"@{self.db_host}:{self.db_port}/{self.db_name}"
+            )
+        return self
 
     # OBS / S3-compatible storage
     obs_endpoint: str = "https://obs.cn-north-4.myhuaweicloud.com"
