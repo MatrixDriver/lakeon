@@ -197,13 +197,13 @@ onMounted(async () => {
   try {
     const res = await listComponents()
     components.value = res.data
-    // 预加载每个组件的最新版本（用于属性面板的 params_schema）
-    for (const comp of components.value) {
+    // 并行预加载所有组件的最新版本
+    await Promise.all(components.value.map(async (comp) => {
       try {
         const vRes = await getComponentLatestVersion(comp.id)
         componentVersions.value.set(comp.id, vRes.data)
       } catch { /* 忽略单个组件加载失败 */ }
-    }
+    }))
   } catch (err) {
     console.error('Failed to load components', err)
   }
