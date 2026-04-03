@@ -242,8 +242,17 @@ public class KbWriteQueue {
         taskRepository.save(task);
         log.info("Submitted kb-write task {} type={} db={}", task.getId(), type, databaseId);
 
-        // Trigger async drain
-        executor.submit(() -> drain(databaseId));
+        // Trigger async drain after transaction commits (so drain can see the QUEUED task)
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override public void afterCommit() {
+                        executor.submit(() -> drain(databaseId));
+                    }
+                });
+        } else {
+            executor.submit(() -> drain(databaseId));
+        }
         return task;
     }
 
