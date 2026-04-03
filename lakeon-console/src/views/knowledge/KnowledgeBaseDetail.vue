@@ -908,9 +908,15 @@ async function runBatchUpload(files: File[]) {
         }
       })
 
-      // Ingest immediately per batch so processing starts while upload continues
-      ingestDocuments(successIds).then(() => { loadStats(); startPollingIfNeeded() }).catch(() => {})
       allDocumentIds.push(...successIds)
+
+      // Ingest in chunks of 200 docs to balance responsiveness vs pod overhead
+      const INGEST_BATCH = 200
+      const isLastBatch = batchStart + BATCH_SIZE >= files.length
+      if (allDocumentIds.length >= INGEST_BATCH || isLastBatch) {
+        const toIngest = allDocumentIds.splice(0, allDocumentIds.length)
+        ingestDocuments(toIngest).then(() => { loadStats(); startPollingIfNeeded() }).catch(() => {})
+      }
     }
   } catch (err: any) {
     const serverMsg = err.response?.data?.error?.message || err.response?.data?.message
