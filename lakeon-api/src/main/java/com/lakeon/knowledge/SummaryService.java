@@ -174,6 +174,7 @@ public class SummaryService {
         ));
         requestBody.put("temperature", 0.0);
         requestBody.put("max_tokens", 1024);
+        requestBody.put("chat_template_kwargs", Map.of("enable_thinking", false));
 
         try {
             String body = objectMapper.writeValueAsString(requestBody);

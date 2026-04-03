@@ -78,6 +78,7 @@ public class QueryRewriteService {
             ));
             requestBody.put("temperature", 0.1);
             requestBody.put("max_tokens", 200);
+            requestBody.put("chat_template_kwargs", Map.of("enable_thinking", false));
 
             String body = objectMapper.writeValueAsString(requestBody);
 

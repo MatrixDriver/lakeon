@@ -109,6 +109,7 @@ public class AiScriptService {
             ));
             requestBody.put("temperature", 0.1);
             requestBody.put("max_tokens", 4000);
+            requestBody.put("chat_template_kwargs", Map.of("enable_thinking", false));
 
             String body = objectMapper.writeValueAsString(requestBody);
 

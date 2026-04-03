@@ -97,6 +97,7 @@ public class AiSqlService {
             ));
             requestBody.put("temperature", 0.1);
             requestBody.put("max_tokens", 2000);
+            requestBody.put("chat_template_kwargs", Map.of("enable_thinking", false));
 
             String body = objectMapper.writeValueAsString(requestBody);
 
