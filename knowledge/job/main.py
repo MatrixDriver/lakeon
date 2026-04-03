@@ -260,6 +260,14 @@ def main():
             logger.info(f"Batch mode: processing {total} documents")
             report_progress(f"Starting batch processing of {total} documents", 0.05, tracker=tracker)
 
+            # Pre-fetch connstr once for entire batch (avoid per-doc wake overhead)
+            if (not database_connstr or database_connstr.strip() == "") and params.get("connstr_refresh_url"):
+                logger.info("Fetching connstr for batch (wake compute pod once)")
+                resp = requests.get(params["connstr_refresh_url"], timeout=180, verify=False)
+                resp.raise_for_status()
+                database_connstr = resp.json().get("connstr", "")
+                logger.info("Connstr obtained for batch")
+
             results = []
             for idx, doc_params in enumerate(doc_specs):
                 doc_params_full = dict(doc_params)
