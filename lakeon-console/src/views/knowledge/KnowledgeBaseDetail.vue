@@ -909,7 +909,7 @@ async function runBatchUpload(files: File[]) {
       })
 
       // Ingest immediately per batch so processing starts while upload continues
-      ingestDocuments(successIds).catch(() => {})
+      ingestDocuments(successIds).then(() => { loadStats(); startPollingIfNeeded() }).catch(() => {})
       allDocumentIds.push(...successIds)
     }
   } catch (err: any) {
