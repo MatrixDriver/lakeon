@@ -4,6 +4,7 @@ import resource
 import sys
 import time
 import logging
+import threading
 import requests
 
 logger = logging.getLogger(__name__)
@@ -113,14 +114,17 @@ def report_progress(message, progress=0, tracker=None):
     if _is_exec_mode():
         logger.info(f"Progress: {message} ({progress:.0%})")
         return
-    try:
-        result = {"progress": progress, "message": message}
-        if tracker:
-            result.update(tracker.build_result())
-        payload = {"status": "RUNNING", "result": result}
-        _send_callback(payload)
-    except Exception as e:
-        logger.warning(f"Progress callback failed: {e}")
+    # Fire-and-forget: don't block processing pipeline on progress updates
+    result = {"progress": progress, "message": message}
+    if tracker:
+        result.update(tracker.build_result())
+    payload = {"status": "RUNNING", "result": result}
+    def _send():
+        try:
+            _send_callback(payload)
+        except Exception as e:
+            logger.warning(f"Progress callback failed: {e}")
+    threading.Thread(target=_send, daemon=True).start()
 
 def report_failure(error, error_category="PERMANENT", failed_stage=None, tracker=None):
     try:
