@@ -117,6 +117,8 @@ public class JobPodManager {
                     .withOperator("Exists")
                     .build())
                 .withAutomountServiceAccountToken(false)
+                // Note: CCI pods cannot resolve cluster DNS, so services must be
+                // referenced by ClusterIP in job params (e.g. embedding_api_url)
                 .addNewContainer()
                     .withName("job")
                     .withImage(image)

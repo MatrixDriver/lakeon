@@ -225,6 +225,13 @@ public class KnowledgeController {
         return toDocumentResponse(doc);
     }
 
+    @DeleteMapping("/bases/{kbId}/documents")
+    public Map<String, Object> clearAllDocuments(HttpServletRequest req, @PathVariable String kbId) {
+        TenantEntity tenant = getTenant(req);
+        int deleted = knowledgeService.clearAllDocuments(tenant.getId(), kbId);
+        return Map.of("deleted", deleted);
+    }
+
     @PutMapping("/documents/{id}/tags")
     @SuppressWarnings("unchecked")
     public ResponseEntity<?> setTags(HttpServletRequest req,

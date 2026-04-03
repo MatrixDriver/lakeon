@@ -493,7 +493,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getKnowledgeBase, deleteKnowledgeBase, listDocuments, listFolders, getDocumentStats, deleteDocument, searchKnowledge, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, type KnowledgeBase as KBType, type Document, type DocumentStats, type SearchResult, type DataSource, type DataSourceCredentials, type Folder } from '../../api/knowledge'
+import { getKnowledgeBase, deleteKnowledgeBase, listDocuments, listFolders, getDocumentStats, deleteDocument, clearAllDocuments, searchKnowledge, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, type KnowledgeBase as KBType, type Document, type DocumentStats, type SearchResult, type DataSource, type DataSourceCredentials, type Folder } from '../../api/knowledge'
 import ChunkStats from '../../components/knowledge/ChunkStats.vue'
 import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
 import TableToolbar from '../../components/TableToolbar.vue'
@@ -1010,17 +1010,7 @@ async function handleClearAll() {
   const total = docStats.value.total
   if (total === 0) return
   if (!confirm(`确认清空全部 ${total} 个文档？此操作不可恢复。`)) return
-  // Paginate through all documents and delete them
-  let deleted = 0
-  while (true) {
-    const resp = await listDocuments(route.params.kbId as string, { page: 1, page_size: 200 })
-    const docs = resp.data.documents
-    if (docs.length === 0) break
-    await Promise.all(docs.map(doc =>
-      deleteDocument(doc.id).catch(e => console.error('Failed to delete', doc.id, e))
-    ))
-    deleted += docs.length
-  }
+  await clearAllDocuments(route.params.kbId as string)
   selectedDocIds.value = new Set()
   await Promise.all([loadDocuments(), loadStats()])
 }

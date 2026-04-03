@@ -175,6 +175,10 @@ export function deleteDocument(documentId: string) {
   return api.delete(`/knowledge/documents/${documentId}`)
 }
 
+export function clearAllDocuments(kbId: string) {
+  return api.delete<{ deleted: number }>(`/knowledge/bases/${kbId}/documents`)
+}
+
 export function setDocumentTags(docId: string, tags: string[]) {
   return api.put<{ tags: string[] }>(`/knowledge/documents/${docId}/tags`, { tags })
 }

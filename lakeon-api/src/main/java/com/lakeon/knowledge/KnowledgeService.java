@@ -277,15 +277,21 @@ public class KnowledgeService {
         // Cancel any pending/running write tasks for this KB first
         kbWriteQueue.cancelTasksForKb(kbId);
 
-        // Delete all documents in this KB (OBS files, jobs, chunks)
+        // Delete all documents: cancel jobs, batch-delete OBS files, remove records
         List<DocumentEntity> docs = documentRepository.findAllByKbId(kbId);
         for (DocumentEntity doc : docs) {
-            try {
-                deleteDocument(tenantId, doc.getId());
-            } catch (Exception e) {
-                log.warn("Failed to delete document {} during KB deletion: {}", doc.getId(), e.getMessage());
+            if (doc.getJobId() != null && doc.getStatus() == DocumentStatus.PROCESSING) {
+                try { jobService.cancelJob(tenantId, doc.getJobId()); }
+                catch (Exception e) { log.warn("Failed to cancel job {} during KB deletion: {}", doc.getJobId(), e.getMessage()); }
             }
         }
+        try {
+            String prefix = String.format("knowledge/%s/%s/", tenantId, kbId);
+            deleteObsPrefix(prefix);
+        } catch (Exception e) {
+            log.warn("Failed to batch delete OBS files for KB {}: {}", kbId, e.getMessage());
+        }
+        documentRepository.deleteAll(docs);
 
         // Delete the hidden database (best-effort)
         if (kb.getDatabaseId() != null) {
@@ -804,6 +810,55 @@ public class KnowledgeService {
             String path = parentPath.isEmpty() ? name : parentPath + "/" + name;
             return new FolderInfo(name, path, count, size);
         }).toList();
+    }
+
+    /**
+     * Clear all documents from a knowledge base.
+     * Deletes OBS files by prefix, cancels tasks/jobs, removes chunks and document records.
+     */
+    @Transactional
+    public int clearAllDocuments(String tenantId, String kbId) {
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+
+        List<DocumentEntity> docs = documentRepository.findAllByKbId(kbId);
+        if (docs.isEmpty()) return 0;
+
+        // 1. Cancel all pending/running write tasks for this KB
+        kbWriteQueue.cancelTasksForKb(kbId);
+
+        // 2. Cancel running jobs
+        for (DocumentEntity doc : docs) {
+            if (doc.getJobId() != null && doc.getStatus() == DocumentStatus.PROCESSING) {
+                try { jobService.cancelJob(tenantId, doc.getJobId()); }
+                catch (Exception e) { log.warn("Failed to cancel job {} for doc {}: {}", doc.getJobId(), doc.getId(), e.getMessage()); }
+            }
+        }
+
+        // 3. Delete all OBS files under the KB prefix in one batch
+        try {
+            String prefix = String.format("knowledge/%s/%s/", tenantId, kbId);
+            deleteObsPrefix(prefix);
+        } catch (Exception e) {
+            log.warn("Failed to batch delete OBS files for KB {}: {}", kbId, e.getMessage());
+        }
+
+        // 4. Submit a single chunk deletion task for all documents (truncate knowledge_chunks)
+        if (kb.getDatabaseId() != null) {
+            try {
+                kbWriteQueue.submit(tenantId, kbId, kb.getDatabaseId(),
+                        KbWriteTaskType.DELETE_DOCUMENT_CHUNKS,
+                        Map.of("document_id", "__ALL__"));
+            } catch (Exception e) {
+                log.warn("Failed to submit chunk deletion for KB {}: {}", kbId, e.getMessage());
+            }
+        }
+
+        // 5. Batch delete all document records
+        int count = docs.size();
+        documentRepository.deleteAll(docs);
+        log.info("Cleared {} documents from KB {}", count, kbId);
+        return count;
     }
 
     /**
@@ -1388,6 +1443,42 @@ public class KnowledgeService {
                 .region(Region.of("cn-north-4"))
                 .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(false).build())
                 .build();
+    }
+
+    private void deleteObsPrefix(String prefix) {
+        S3Client s3 = S3Client.builder()
+                .endpointOverride(URI.create(props.getObs().getEndpoint()))
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(props.getObs().getAccessKey(), props.getObs().getSecretKey())))
+                .region(Region.of("cn-north-4"))
+                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(false).build())
+                .build();
+        try {
+            String continuationToken = null;
+            int totalDeleted = 0;
+            do {
+                var listBuilder = software.amazon.awssdk.services.s3.model.ListObjectsV2Request.builder()
+                        .bucket(props.getObs().getBucket())
+                        .prefix(prefix)
+                        .maxKeys(1000);
+                if (continuationToken != null) listBuilder.continuationToken(continuationToken);
+                var listResp = s3.listObjectsV2(listBuilder.build());
+                var keys = listResp.contents().stream()
+                        .map(obj -> software.amazon.awssdk.services.s3.model.ObjectIdentifier.builder().key(obj.key()).build())
+                        .toList();
+                if (!keys.isEmpty()) {
+                    s3.deleteObjects(software.amazon.awssdk.services.s3.model.DeleteObjectsRequest.builder()
+                            .bucket(props.getObs().getBucket())
+                            .delete(software.amazon.awssdk.services.s3.model.Delete.builder().objects(keys).build())
+                            .build());
+                    totalDeleted += keys.size();
+                }
+                continuationToken = listResp.isTruncated() ? listResp.nextContinuationToken() : null;
+            } while (continuationToken != null);
+            log.info("Deleted {} OBS files under prefix {}", totalDeleted, prefix);
+        } finally {
+            s3.close();
+        }
     }
 
     private void deleteObsFile(String obsKey) {

@@ -469,6 +469,7 @@ public class KbWriteQueue {
             log.debug("drain already running for db {}", databaseId);
             return;
         }
+        log.info("drain started for db {}", databaseId);
         try {
             while (true) {
                 // Check if there's a RUNNING lightweight task — must wait for it to finish
@@ -534,8 +535,11 @@ public class KbWriteQueue {
                     // Continue draining next task
                 }
             }
+        } catch (Exception e) {
+            log.error("drain failed for db {}: {}", databaseId, e.getMessage(), e);
         } finally {
             lock.unlock();
+            log.info("drain finished for db {}", databaseId);
         }
     }
 
@@ -819,11 +823,19 @@ public class KbWriteQueue {
 
     private void executeDeleteDocumentChunks(Connection conn, Map<String, Object> params) throws Exception {
         String docId = (String) params.get("document_id");
-        try (PreparedStatement ps = conn.prepareStatement(
-                "DELETE FROM knowledge_chunks WHERE document_id = ?")) {
-            ps.setString(1, docId);
-            int deleted = ps.executeUpdate();
-            log.info("Deleted {} chunks (all levels) for document {}", deleted, docId);
+        if ("__ALL__".equals(docId)) {
+            // Truncate all chunks in the KB database
+            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM knowledge_chunks")) {
+                int deleted = ps.executeUpdate();
+                log.info("Cleared all {} chunks from KB database", deleted);
+            }
+        } else {
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "DELETE FROM knowledge_chunks WHERE document_id = ?")) {
+                ps.setString(1, docId);
+                int deleted = ps.executeUpdate();
+                log.info("Deleted {} chunks (all levels) for document {}", deleted, docId);
+            }
         }
 
         // Re-generate L2 global summary now that a document's chunks are gone

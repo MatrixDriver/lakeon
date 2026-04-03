@@ -38,7 +38,7 @@ echo ""
 # 1. Maven 编译
 echo "[1/3] Maven 编译..."
 cd "$API_DIR"
-mvn package -DskipTests -q
+mvn package -Dmaven.test.skip=true -q
 JAR=$(ls target/lakeon-api-*.jar 2>/dev/null | head -1)
 if [[ -z "$JAR" ]]; then
     echo "ERROR: 编译失败，未找到 jar 文件" >&2
