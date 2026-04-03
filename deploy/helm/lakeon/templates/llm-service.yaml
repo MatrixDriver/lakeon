@@ -35,8 +35,8 @@ spec:
             - "--trust-remote-code"
             - "--served-model-name"
             - "{{ .Values.llm.model | default "Qwen3.5-9B" }}"
-            - "--chat-template-kwargs"
-            - '{"enable_thinking": false}'
+            - "--override-generation-config"
+            - '{"chat_template_kwargs": {"enable_thinking": false}}'
             {{- if .Values.llm.quantization }}
             - "--quantization"
             - "{{ .Values.llm.quantization }}"
