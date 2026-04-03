@@ -90,15 +90,16 @@
       </div>
 
       <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-        <label class="btn btn-primary" style="cursor: pointer;" :class="{ disabled: uploading }">
+        <label class="btn btn-primary" style="cursor: pointer;" :class="{ disabled: uploading || kb?.status !== 'READY' }">
           上传文件
-          <input type="file" accept=".pdf,.docx,.doc,.xlsx,.xls,.xlsm,.pptx,.epub,.html,.htm,.md,.markdown,.txt" multiple style="display: none;" :disabled="uploading" @change="handleUpload" />
+          <input type="file" accept=".pdf,.docx,.doc,.xlsx,.xls,.xlsm,.pptx,.epub,.html,.htm,.md,.markdown,.txt" multiple style="display: none;" :disabled="uploading || kb?.status !== 'READY'" @change="handleUpload" />
         </label>
-        <label class="btn btn-secondary" style="cursor: pointer;" :class="{ disabled: uploading }">
+        <label class="btn btn-secondary" style="cursor: pointer;" :class="{ disabled: uploading || kb?.status !== 'READY' }">
           上传目录
-          <input type="file" style="display: none;" :disabled="uploading" webkitdirectory @change="handleDirectoryUpload" />
+          <input type="file" style="display: none;" :disabled="uploading || kb?.status !== 'READY'" webkitdirectory @change="handleDirectoryUpload" />
         </label>
-        <span style="color: #999; font-size: 13px;">支持 PDF、DOCX、DOC、XLSX、XLS、PPTX、EPUB、HTML、Markdown、TXT，最多 20 个/批</span>
+        <span v-if="kb?.status === 'CREATING'" style="color: #c87a20; font-size: 13px;">知识库正在创建中，请稍候...</span>
+        <span v-else style="color: #999; font-size: 13px;">支持 PDF、DOCX、DOC、XLSX、XLS、PPTX、EPUB、HTML、Markdown、TXT，最多 20 个/批</span>
       </div>
 
       <!-- Combined progress card -->
@@ -912,7 +913,8 @@ async function runBatchUpload(files: File[]) {
       await ingestDocuments(allDocumentIds)
     }
   } catch (err: any) {
-    alert(`上传失败: ${err.message || err}`)
+    const serverMsg = err.response?.data?.error?.message || err.response?.data?.message
+    alert(`上传失败: ${serverMsg || err.message || err}`)
   } finally {
     clearInterval(speedInterval)
     uploading.value = false
@@ -1099,6 +1101,20 @@ onMounted(async () => {
   kb.value = kbResp.data
   loadDataSources()
   startPollingIfNeeded()
+  // Auto-poll KB status while CREATING
+  if (kb.value?.status === 'CREATING') {
+    const kbPollInterval = setInterval(async () => {
+      try {
+        const resp = await getKnowledgeBase(kbId)
+        kb.value = resp.data
+        if (resp.data.status !== 'CREATING') {
+          clearInterval(kbPollInterval)
+          await Promise.all([loadDocuments().catch(() => {}), loadStats()])
+        }
+      } catch { clearInterval(kbPollInterval) }
+    }, 3000)
+    onUnmounted(() => clearInterval(kbPollInterval))
+  }
 })
 </script>
 
