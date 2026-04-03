@@ -112,7 +112,8 @@ def embed_texts(texts, embedding_api_url, embedding_api_key, embedding_model, ba
 
 def process_single_document(s3, obs_bucket, doc_params, database_connstr,
                              embedding_api_url, embedding_api_key, embedding_model,
-                             doc_index=None, total_docs=None, tracker=None):
+                             doc_index=None, total_docs=None, tracker=None,
+                             shared_connstr=None):
     """Process a single document: download → parse → chunk → embed → write.
 
     Returns {"document_id": ..., "chunks_count": N}.
@@ -195,8 +196,12 @@ def process_single_document(s3, obs_bucket, doc_params, database_connstr,
 
         # ── WRITE ──
         connstr_refresh_url = doc_params.get("connstr_refresh_url")
-        write_chunks(database_connstr, doc_params["document_id"], chunks, all_embeddings,
+        effective_connstr = (shared_connstr or {}).get("value", "") or database_connstr
+        used_connstr = write_chunks(effective_connstr, doc_params["document_id"], chunks, all_embeddings,
                      connstr_refresh_url=connstr_refresh_url, tracker=tracker)
+        # Cache connstr for next documents in batch (avoids re-waking compute pod)
+        if shared_connstr is not None and used_connstr:
+            shared_connstr["value"] = used_connstr
 
         logger.info(f"{prefix}Done: {len(chunks)} chunks written for {document_id}")
         return {"document_id": document_id, "chunks_count": len(chunks)}
@@ -260,13 +265,9 @@ def main():
             logger.info(f"Batch mode: processing {total} documents")
             report_progress(f"Starting batch processing of {total} documents", 0.05, tracker=tracker)
 
-            # Pre-fetch connstr once for entire batch (avoid per-doc wake overhead)
-            if (not database_connstr or database_connstr.strip() == "") and params.get("connstr_refresh_url"):
-                logger.info("Fetching connstr for batch (wake compute pod once)")
-                resp = requests.get(params["connstr_refresh_url"], timeout=180, verify=False)
-                resp.raise_for_status()
-                database_connstr = resp.json().get("connstr", "")
-                logger.info("Connstr obtained for batch")
+            # Connstr will be lazily fetched on first write (after embed is done)
+            # This avoids waking compute pod too early (it may auto-suspend during embed)
+            _batch_connstr = {"value": database_connstr}
 
             results = []
             for idx, doc_params in enumerate(doc_specs):
@@ -278,9 +279,10 @@ def main():
                 report_progress(f"Processing {doc_params_full.get('filename', doc_params_full['document_id'])} ({idx+1}/{total})", progress, tracker=tracker)
                 doc_tracker = StageTracker()
                 result = process_single_document(
-                    s3, obs_bucket, doc_params_full, database_connstr,
+                    s3, obs_bucket, doc_params_full, _batch_connstr["value"],
                     embedding_api_url, embedding_api_key, embedding_model,
-                    doc_index=idx, total_docs=total, tracker=doc_tracker
+                    doc_index=idx, total_docs=total, tracker=doc_tracker,
+                    shared_connstr=_batch_connstr
                 )
                 results.append(result)
 

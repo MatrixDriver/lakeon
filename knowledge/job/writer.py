@@ -124,6 +124,7 @@ def _ensure_schema(conn):
 
 
 def write_chunks(connstr, document_id, chunks, embeddings, connstr_refresh_url=None, tracker=None):
+    """Write chunks to DB. Returns the connstr used (may have been fetched via refresh)."""
     # Delayed wake: if connstr is empty, fetch it via connstr_refresh_url
     if (not connstr or connstr.strip() == "") and connstr_refresh_url:
         if tracker:
@@ -198,6 +199,7 @@ def write_chunks(connstr, document_id, chunks, embeddings, connstr_refresh_url=N
         raise
     finally:
         conn.close()
+    return connstr
 
 def delete_chunks(connstr, document_id):
     conn = _connect_with_retry(connstr)
