@@ -252,7 +252,7 @@ llm:
   model: "Qwen/Qwen3.5-9B"
   modelPath: "/models/Qwen3.5-9B"
   apiUrl: "http://llm-svc:8080/v1"
-  maxModelLen: 4096
+  maxModelLen: 16384
   gpuMemoryUtilization: 0.9
 
 memory:
