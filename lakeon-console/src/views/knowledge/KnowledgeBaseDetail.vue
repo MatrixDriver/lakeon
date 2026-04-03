@@ -1088,9 +1088,9 @@ onMounted(async () => {
   const kbId = route.params.kbId as string
   const [kbResp] = await Promise.all([
     getKnowledgeBase(kbId),
-    loadDocuments(),
+    loadDocuments().catch(() => {}),
     loadStats(),
-    loadFolders(),
+    loadFolders().catch(() => {}),
   ])
   kb.value = kbResp.data
   loadDataSources()
