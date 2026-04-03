@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.9.186"
+    tag: "0.9.187"
   jobCallbackBaseUrl: "https://api.dbay.cloud:8443"
   jobNamespace: "lakeon-jobs"
   resources:
@@ -257,7 +257,7 @@ llm:
 
 memory:
   enabled: true
-  image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.2.5
+  image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.2.6
   chatApiUrl: "http://llm-svc:8080/v1"
   chatModel: "Qwen/Qwen3.5-9B"
 
