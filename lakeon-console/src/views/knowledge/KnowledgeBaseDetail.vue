@@ -917,7 +917,6 @@ async function runBatchUpload(files: File[]) {
     clearInterval(speedInterval)
     uploading.value = false
     uploadJustFinished.value = true
-    setTimeout(() => { uploadJustFinished.value = false }, 5000)
     await Promise.all([loadDocuments(), loadStats()])
   }
 }
@@ -1056,18 +1055,20 @@ async function handleSearch() {
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
 function startPollingIfNeeded() {
-  const hasProcessing = docStats.value.processing > 0
-  if (hasProcessing && !pollTimer) {
+  const hasActive = docStats.value.processing > 0 || docStats.value.pending > 0
+  if (hasActive && !pollTimer) {
     pollTimer = setInterval(async () => {
       try {
         await Promise.all([loadDocuments(), loadStats()])
-        if (docStats.value.processing === 0) {
+        if (docStats.value.processing === 0 && docStats.value.pending === 0) {
           stopPolling()
+          uploadJustFinished.value = false
         }
       } catch { /* ignore */ }
     }, 8000)
-  } else if (!hasProcessing && pollTimer) {
+  } else if (!hasActive && pollTimer) {
     stopPolling()
+    uploadJustFinished.value = false
   }
 }
 
@@ -1078,9 +1079,12 @@ function stopPolling() {
   }
 }
 
-watch(() => docStats.value.processing, (val) => {
-  if (val > 0) startPollingIfNeeded()
-  else stopPolling()
+watch([() => docStats.value.processing, () => docStats.value.pending], ([proc, pend]) => {
+  if (proc > 0 || pend > 0) startPollingIfNeeded()
+  else {
+    stopPolling()
+    uploadJustFinished.value = false
+  }
 })
 onUnmounted(stopPolling)
 
