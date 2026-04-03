@@ -1007,18 +1007,22 @@ async function handleBatchDelete() {
 }
 
 async function handleClearAll() {
-  const total = documents.value.length
+  const total = docStats.value.total
+  if (total === 0) return
   if (!confirm(`确认清空全部 ${total} 个文档？此操作不可恢复。`)) return
-  // Loop until all documents are deleted (handles cases where list wasn't fully loaded)
-  let remaining = [...documents.value]
-  while (remaining.length > 0) {
-    for (const doc of remaining) {
-      try { await deleteDocument(doc.id) } catch (e) { console.error('Failed to delete', doc.id, e) }
-    }
-    await loadDocuments()
-    remaining = [...documents.value]
+  // Paginate through all documents and delete them
+  let deleted = 0
+  while (true) {
+    const resp = await listDocuments(route.params.kbId as string, { page: 1, page_size: 200 })
+    const docs = resp.data.documents
+    if (docs.length === 0) break
+    await Promise.all(docs.map(doc =>
+      deleteDocument(doc.id).catch(e => console.error('Failed to delete', doc.id, e))
+    ))
+    deleted += docs.length
   }
   selectedDocIds.value = new Set()
+  await Promise.all([loadDocuments(), loadStats()])
 }
 
 async function handleDeleteKb() {
