@@ -52,7 +52,7 @@ api:
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
     tag: "0.9.187"
-  jobCallbackBaseUrl: "https://api.dbay.cloud:8443"
+  jobCallbackBaseUrl: "http://10.247.156.79:8088"  # CCI job pods use ClusterIP (no external access)
   jobNamespace: "lakeon-jobs"
   resources:
     requests:
@@ -260,7 +260,7 @@ embedding:
   cpu: "2"
   memory: "8Gi"
   modelPath: "/models/bge-m3"
-  maxModelLen: "512"
+  maxModelLen: "8192"
   gpuMemoryUtilization: "0.3"
   apiUrl: "http://embedding-svc:8000/v1/embeddings"
   model: "BAAI/bge-m3"
