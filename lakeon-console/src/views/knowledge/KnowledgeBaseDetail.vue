@@ -112,10 +112,10 @@
           <span style="font-size: 13px; color: #333; min-width: 75px; text-align: right;">
             {{ uploadProgress.filter(f => f.status === 'done' || f.status === 'processing').length }}/{{ uploadProgress.length }}
           </span>
-          <span v-if="uploading && uploadStats.speed > 0" style="font-size: 11px; color: #999; min-width: 160px;">
-            {{ formatSpeed(uploadStats.speed) }} &middot; 预计还需 {{ formatEta(uploadStats.eta) }}
+          <span style="font-size: 11px; min-width: 160px;">
+            <template v-if="uploading && uploadStats.speed > 0"><span style="color: #999;">{{ formatSpeed(uploadStats.speed) }} &middot; 预计还需 {{ formatEta(uploadStats.eta) }}</span></template>
+            <template v-else-if="!uploading"><span style="color: #52c41a;">上传完成</span></template>
           </span>
-          <span v-else-if="!uploading" style="font-size: 11px; color: #52c41a;">上传完成</span>
         </div>
         <div v-if="docStats.processing > 0 || docStats.pending > 0" style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 12px; color: #666; width: 56px; flex-shrink: 0;">处理</span>
