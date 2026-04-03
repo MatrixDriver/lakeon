@@ -1,10 +1,10 @@
-FROM python:3.12-slim
+ARG BASE_IMAGE=python:3.12-slim
+FROM ${BASE_IMAGE}
 
 WORKDIR /app
 
 COPY requirements.txt .
-RUN PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Model will be mounted at /models/bge-m3 via PVC or downloaded at startup
 ENV MODEL_NAME=/models/bge-m3

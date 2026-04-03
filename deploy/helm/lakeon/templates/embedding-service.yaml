@@ -21,18 +21,38 @@ spec:
       containers:
         - name: embedding
           image: {{ .Values.embedding.image }}
-          ports:
-            - containerPort: 8000
+          {{- if .Values.embedding.gpu }}
+          args:
+            - {{ .Values.embedding.modelPath | default "/models/bge-m3" | quote }}
+            - "--port"
+            - "8000"
+            - "--max-model-len"
+            - {{ .Values.embedding.maxModelLen | default "512" | quote }}
+            - "--gpu-memory-utilization"
+            - {{ .Values.embedding.gpuMemoryUtilization | default "0.3" | quote }}
+            - "--trust-remote-code"
+            - "--served-model-name"
+            - {{ .Values.embedding.model | default "BAAI/bge-m3" | quote }}
+          {{- else }}
           env:
             - name: RERANK_ENABLED
               value: {{ .Values.embedding.rerankEnabled | default "false" | quote }}
+          {{- end }}
+          ports:
+            - containerPort: 8000
           resources:
             requests:
               cpu: {{ .Values.embedding.cpu | default "2" | quote }}
               memory: {{ .Values.embedding.memory | default "4Gi" | quote }}
+              {{- if .Values.embedding.gpu }}
+              nvidia.com/gpu: {{ .Values.embedding.gpu | quote }}
+              {{- end }}
             limits:
               cpu: {{ .Values.embedding.cpu | default "2" | quote }}
               memory: {{ .Values.embedding.memory | default "4Gi" | quote }}
+              {{- if .Values.embedding.gpu }}
+              nvidia.com/gpu: {{ .Values.embedding.gpu | quote }}
+              {{- end }}
           volumeMounts:
             - name: models
               mountPath: /models

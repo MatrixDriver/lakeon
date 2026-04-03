@@ -95,6 +95,9 @@ data:
   {{- if .Values.api.ai.baseUrl }}
   LAKEON_AI_BASE_URL: {{ .Values.api.ai.baseUrl | quote }}
   {{- end }}
+  {{- if .Values.api.ai.model }}
+  LAKEON_AI_MODEL: {{ .Values.api.ai.model | quote }}
+  {{- end }}
   {{- end }}
   {{- if .Values.api.inviteRequired }}
   LAKEON_INVITE_REQUIRED: "true"

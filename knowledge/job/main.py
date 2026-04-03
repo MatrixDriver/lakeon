@@ -72,8 +72,8 @@ def _ensure_compute_ready(connstr, retries=5, wait=15):
 MAX_EMBED_CHARS = 8000  # BGE-M3 supports ~8192 tokens; truncate to stay under API payload limits
 
 
-def embed_texts(texts, embedding_api_url, embedding_api_key, embedding_model, batch_size=64):
-    """Embed texts via OpenAI-compatible API. Auto-halves batch on 413.
+def embed_texts(texts, embedding_api_url, embedding_api_key, embedding_model, batch_size=16):
+    """Embed texts via OpenAI-compatible API. Auto-halves batch on 413/timeout.
     Truncates texts exceeding MAX_EMBED_CHARS to avoid payload limits."""
     headers = {"Content-Type": "application/json"}
     if embedding_api_key:
@@ -84,11 +84,18 @@ def embed_texts(texts, embedding_api_url, embedding_api_key, embedding_model, ba
     current_batch_size = batch_size
     while i < len(texts):
         batch = [t[:MAX_EMBED_CHARS] for t in texts[i:i + current_batch_size]]
-        resp = requests.post(embedding_api_url, json={
-            "model": embedding_model,
-            "input": batch,
-            "encoding_format": "float"
-        }, headers=headers, timeout=120)
+        try:
+            resp = requests.post(embedding_api_url, json={
+                "model": embedding_model,
+                "input": batch,
+                "encoding_format": "float"
+            }, headers=headers, timeout=300)
+        except requests.exceptions.ReadTimeout:
+            if current_batch_size > 1:
+                current_batch_size = max(1, current_batch_size // 2)
+                logger.warning(f"Embedding timeout, reducing batch_size to {current_batch_size}")
+                continue
+            raise
 
         if resp.status_code == 413 and current_batch_size > 1:
             current_batch_size = max(1, current_batch_size // 2)

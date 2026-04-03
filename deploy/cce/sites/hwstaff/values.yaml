@@ -63,11 +63,14 @@ api:
       memory: "4Gi"
   logDbDsn: "postgres://user_a62546dc:jiLOMbuLfYVXFp7OdD37JMZw@pg.dbay.cloud:4432/dbay-logs?options=endpoint%3Ddbay-logs&sslmode=require"
   inviteRequired: true  # 注册需要邀请码
-  aiApiKey: ""          # --set api.aiApiKey=$AI_API_KEY (硅基流动)
+  aiApiKey: ""          # injected from secret api-credentials/ai-api-key
+  ai:
+    baseUrl: "https://openrouter.ai/api/v1"
+    model: "qwen/qwen3-8b"
   suspendPodRetainMinutes: 5  # 挂起后 Pod 保留时间（热启动窗口），默认30分钟太长
-  # Compute Pod 调度到弹性节点池 (autoscaler min=0 max=5)
+  # Compute Pod 调度到专用数据库弹性节点池 dbay-db-pool (min=1 max=5)
   computeNodeSelector:
-    lakeon/role: compute
+    lakeon/pool: database
   computeMemory: "1Gi"  # 允许多个KB并发创建（弹性节点4C/8G）
   kbWriteCpu: "500m"   # 降低以便和compute pod共存于同一个弹性节点(4C)
   kbWriteMemory: "1Gi"
@@ -220,13 +223,25 @@ cloud:
   nodePoolId: "55859b9b"
 
 # ── 弹性节点池（compute pod 自动扩缩容）──────────────────────────
-# 节点池 dbay-compute-pool (55859b9b) 已在 CCE 控制台创建:
-#   规格: c9.xlarge.2 (4C/8G)
-#   弹性伸缩: min=1, max=5
-#   节点标签: lakeon/role=compute
-#   autoscaler 插件: v1.33.57
-# compute pod 通过 api.computeNodeSelector 定向到弹性池，
-# 管控面组件留在固定节点上。
+# ── 节点池架构 ──────────────────────────────────────────────────
+# 1) dbay-compute-pool (55859b9b) — 管控面 + Neon 数据面
+#    规格: c9.xlarge.2 (4C/8G)
+#    弹性伸缩: min=1, max=5
+#    节点标签: lakeon/role=compute
+#    运行: lakeon-api, pageserver, safekeeper, proxy, memory-svc,
+#          orchestrator, kuberay, log-collector, storage-broker
+#
+# 2) dbay-db-pool (待创建) — 数据库 compute pods 专用
+#    规格: c9.xlarge.2 (4C/8G)
+#    弹性伸缩: min=1, max=5
+#    节点标签: lakeon/pool=database
+#    运行: compute pods (PostgreSQL 17 实例)
+#    目的: compute 冷启动稳定 ~3s，不受管控面影响
+#
+# 3) GPU 节点 (p2sne.2xlarge.8) — AI 推理
+#    节点标签: lakeon/role=gpu
+#    运行: embedding-svc, llm-svc
+#
 # node-init DaemonSet 自动在新节点修复 containerd core ulimit。
 
 # ── 节点初始化（修复 containerd core ulimit）─────────────────────
@@ -240,26 +255,24 @@ networkPolicy:
 
 embedding:
   enabled: true
-  image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-embedding:0.3.0
+  image: vllm/vllm-openai:latest
+  gpu: "1"
   cpu: "2"
-  memory: "6Gi"
+  memory: "8Gi"
+  modelPath: "/models/bge-m3"
+  maxModelLen: "512"
+  gpuMemoryUtilization: "0.3"
   apiUrl: "http://embedding-svc:8000/v1/embeddings"
   model: "BAAI/bge-m3"
 
 llm:
-  enabled: true
-  image: vllm/vllm-openai:latest
-  model: "Qwen/Qwen3.5-9B"
-  modelPath: "/models/Qwen3.5-9B"
-  apiUrl: "http://llm-svc:8080/v1"
-  maxModelLen: 16384
-  gpuMemoryUtilization: 0.9
+  enabled: false
 
 memory:
   enabled: true
   image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.2.6
-  chatApiUrl: "http://llm-svc:8080/v1"
-  chatModel: "Qwen/Qwen3.5-9B"
+  chatApiUrl: "https://openrouter.ai/api/v1"
+  chatModel: "qwen/qwen3-8b"
 
 minio:
   enabled: false
