@@ -107,10 +107,10 @@
         <div v-if="uploading || uploadJustFinished" style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
           <span style="font-size: 12px; color: #666; width: 56px; flex-shrink: 0;">上传</span>
           <div style="flex: 1; height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
-            <div :style="{ width: (uploadProgress.length > 0 ? Math.round(uploadProgress.filter(f => f.status === 'done' || f.status === 'error').length / uploadProgress.length * 100) : 0) + '%', height: '100%', background: '#1890ff', borderRadius: '3px', transition: 'width 0.3s' }"></div>
+            <div :style="{ width: (uploadProgress.length > 0 ? Math.round(uploadProgress.filter(f => f.status === 'done' || f.status === 'processing' || f.status === 'error').length / uploadProgress.length * 100) : 0) + '%', height: '100%', background: '#1890ff', borderRadius: '3px', transition: 'width 0.3s' }"></div>
           </div>
           <span style="font-size: 13px; color: #333; min-width: 75px; text-align: right;">
-            {{ uploadProgress.filter(f => f.status === 'done').length }}/{{ uploadProgress.length }}
+            {{ uploadProgress.filter(f => f.status === 'done' || f.status === 'processing').length }}/{{ uploadProgress.length }}
           </span>
           <span v-if="uploading && uploadStats.speed > 0" style="font-size: 11px; color: #999; min-width: 160px;">
             {{ formatSpeed(uploadStats.speed) }} &middot; 预计还需 {{ formatEta(uploadStats.eta) }}
@@ -130,7 +130,7 @@
           </span>
         </div>
         <div v-if="docStats.processing > 0 || docStats.pending > 0" style="font-size: 11px; color: #999; margin-top: 6px; padding-left: 66px;">
-          排队 {{ docStats.pending }} &middot; 解析中 {{ docStats.processing }} &middot; 已完成 {{ docStats.ready }} &middot; 失败 {{ docStats.failed }}
+          排队 {{ docStats.pending }} &middot; 解析中 {{ docStats.processing - embeddingCount }} &middot; Embedding {{ embeddingCount }} &middot; 已完成 {{ docStats.ready }} &middot; 失败 {{ docStats.failed }}
         </div>
       </div>
 
@@ -531,6 +531,9 @@ const docStatusFilter = ref<string | undefined>(undefined)
 const docSortBy = ref('upload_time')
 const docSortOrder = ref<'asc' | 'desc'>('desc')
 const docStats = ref<DocumentStats>({ total: 0, processing: 0, ready: 0, failed: 0, pending: 0 })
+const embeddingCount = computed(() =>
+  documents.value.filter(d => d.status === 'PROCESSING' && d.progress_message && /embedding/i.test(d.progress_message)).length
+)
 const chatInput = ref<HTMLInputElement | null>(null)
 
 // Folder navigation
