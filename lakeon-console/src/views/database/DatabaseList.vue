@@ -235,7 +235,7 @@ function statusClass(status: string): string {
   switch (status) {
     case 'RUNNING': return 'dot-green'
     case 'SUSPENDED': return 'dot-gray'
-    case 'CREATING': return 'dot-blue'
+    case 'CREATING': case 'STARTING': return 'dot-blue'
     default: return 'dot-red'
   }
 }
@@ -245,6 +245,7 @@ function statusText(status: string): string {
     case 'RUNNING': return '运行中'
     case 'SUSPENDED': return '已挂起'
     case 'CREATING': return '创建中'
+    case 'STARTING': return '唤醒中'
     case 'ERROR': return '创建失败'
     default: return '异常'
   }

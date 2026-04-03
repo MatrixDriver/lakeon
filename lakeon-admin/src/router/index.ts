@@ -14,6 +14,7 @@ const routes = [
       { path: '', redirect: '/databases' },
       { path: 'dashboard', redirect: '/databases' },
       { path: 'tenants', name: 'TenantList', component: () => import('../views/tenants/TenantList.vue') },
+      { path: 'invite-codes', name: 'InviteCodes', component: () => import('../views/tenants/InviteCodes.vue') },
       { path: 'databases', name: 'DatabaseList', component: () => import('../views/databases/DatabaseList.vue') },
       { path: 'databases/:id', name: 'DatabaseDetail', component: () => import('../views/databases/DatabaseDetail.vue') },
       { path: 'operations', name: 'OperationList', component: () => import('../views/operations/OperationList.vue') },

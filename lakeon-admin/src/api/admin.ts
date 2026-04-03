@@ -136,6 +136,11 @@ export const adminApi = {
   getPipelineRunAdmin: (id: string) => client.get(`/pipelines/runs/${id}`),
   listAllPipelineComponents: () => client.get('/pipelines/components'),
 
+  // Invite Codes
+  listInviteCodes: () => client.get('/invite-codes'),
+  createInviteCode: (data?: Record<string, number>) => client.post('/invite-codes', data || {}),
+  deleteInviteCode: (code: string) => client.delete(`/invite-codes/${code}`),
+
   // AI Assistant
   aiChat: (messages: Array<{role: string; content: string}>, context?: {resource_type: string; resource_id: string}) => {
     const token = localStorage.getItem('lakeon_admin_token')

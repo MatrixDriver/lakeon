@@ -32,6 +32,7 @@ defineEmits<{ click: [] }>()
 const statusClass = computed(() => {
   const s = (props.status || '').toLowerCase()
   if (['running', 'ready', 'active', '运行中', '就绪'].includes(s)) return 'status-on'
+  if (['starting', 'creating', '唤醒中', '创建中'].includes(s)) return 'status-starting'
   if (['error', 'failed', '异常', '失败'].includes(s)) return 'status-error'
   return 'status-off'
 })
@@ -47,6 +48,7 @@ const statusClass = computed(() => {
 .rc-name { font-size: 13px; font-weight: 600; color: #2c3e50; }
 .rc-status { font-size: 10px; padding: 2px 6px; border-radius: 3px; }
 .status-on { background: #ecfdf5; color: #16a34a; }
+.status-starting { background: #eff6ff; color: #2563eb; }
 .status-off { background: #f5f3f0; color: #94a3b8; }
 .status-error { background: #fef2f2; color: #e6393d; }
 .rc-bottom { display: flex; justify-content: space-between; align-items: center; }

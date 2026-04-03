@@ -437,7 +437,7 @@ function statusClass(status: string): string {
   switch (status) {
     case 'RUNNING': return 'dot-green'
     case 'SUSPENDED': return 'dot-gray'
-    case 'CREATING': return 'dot-blue'
+    case 'CREATING': case 'STARTING': return 'dot-blue'
     default: return 'dot-red'
   }
 }
@@ -447,6 +447,7 @@ function statusText(status: string): string {
     case 'RUNNING': return '运行中'
     case 'SUSPENDED': return '已挂起'
     case 'CREATING': return '创建中'
+    case 'STARTING': return '唤醒中'
     default: return '异常'
   }
 }
@@ -460,7 +461,7 @@ function updateStats() {
   stats.total = databases.value.length
   stats.running = databases.value.filter(d => d.status === 'RUNNING').length
   stats.suspended = databases.value.filter(d => d.status === 'SUSPENDED').length
-  stats.error = databases.value.filter(d => !['RUNNING', 'SUSPENDED', 'CREATING'].includes(d.status)).length
+  stats.error = databases.value.filter(d => !['RUNNING', 'SUSPENDED', 'CREATING', 'STARTING'].includes(d.status)).length
   stats.storageUsed = databases.value.reduce((sum, d) => sum + (d.storage_used_gb || 0), 0)
   stats.storageTotal = databases.value.reduce((sum, d) => sum + (d.storage_limit_gb || 0), 0)
 }
@@ -540,8 +541,9 @@ async function handleResume(db: Database) {
   actionLoading[db.id] = true
   try {
     await databaseApi.resume(db.id)
-    toast.success(`数据库 "${db.name}" 成功唤醒`)
-    await fetchData()
+    db.status = 'STARTING'
+    updateStats()
+    toast.success(`数据库 "${db.name}" 正在唤醒`)
     pollUntilReady(db.id)
   } catch (e) {
     toast.error(`唤醒 "${db.name}" 失败`)

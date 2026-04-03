@@ -1,6 +1,6 @@
 # Knowledge Pipeline & 数据飞轮路线图
 
-> 2026-03-18 创建，2026-03-28 更新
+> 2026-03-18 创建，2026-04-03 更新
 
 ## Phase 1 进度
 
@@ -102,6 +102,22 @@
 
 **设计文档：** `docs/superpowers/specs/2026-03-28-knowledge-hierarchical-summary-design.md`
 
+### 1f. 文件夹管理 & 并行摄入 ✅ 完成（2026-04-02）
+
+- **文件夹管理**: folder 字段 + 树形视图 + 面包屑导航 + 文件夹聚合 API
+- **文档元数据**: metadata JSONB + 单条/批量编辑 API + 上传自动生成 tags
+- **并行摄入**: `/knowledge/ingest` API，按租户配额控制并发 Pod 数
+- **跨库搜索**: 一次搜索所有知识库
+- **分页文档列表**: 服务端分页/筛选/排序 + 文档统计端点
+- **失败重试**: 单条/批量重试按钮
+- **zhparser 中文分词**: 替换 simple 分词，提升中文搜索质量（不可用时回退）
+
+### 1g. 自托管推理 ✅ 完成（2026-04-03）
+
+- **Embedding 自托管**: BGE-M3 on V100，OpenAI 兼容 `/v1/embeddings` 端点
+- **LLM 自托管**: Qwen3.5-9B FP16 on V100 (vLLM)
+- **内部路由**: 可配置 `internal.llm.*` 参数，所有 AI 服务统一走内部 LLM
+
 ## Phase 2：高级 RAG + 数据飞轮
 
 | 技术 | 作用 | 依赖 | 状态 |
@@ -144,3 +160,8 @@ Console UI: 作业管理（分步创建向导 + 代码编辑器 + SSE 日志流 
 | 摘要 LLM 用 DeepSeek-V3.2 | 长文档理解强、SiliconFlow 成本低、与 SRE AI 统一 | 03-28 |
 | 摘要异步生成不阻塞文档状态 | 用户看到 READY 时 L0 已可用，L1 后台补齐 | 03-28 |
 | SummaryService 复用 KbWriteQueue 的 Connection | compute pod 通过 proxy 连接，自行解析 connstr 不可靠 | 03-28 |
+| BM25 → zhparser 中文全文搜索 | tsvector simple 分词对中文效果差，zhparser 提供专业中文分词 | 03-29 |
+| 文件夹管理 + 并行摄入 | 大量文档需要组织结构，串行摄入太慢 | 04-01 |
+| 跨库搜索 | 用户可能不知道信息在哪个 KB，需要全局搜索 | 04-01 |
+| Embedding 自托管 | 降低硅基流动 API 成本，内网低延迟 | 04-02 |
+| LLM 自托管 (Qwen3.5-9B) | 摘要/查询重写等全部走内部 LLM，降本 | 04-03 |

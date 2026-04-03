@@ -1,6 +1,6 @@
 # Lakeon (DBay) 产品路线图
 
-> 最后更新: 2026-04-01
+> 最后更新: 2026-04-03
 
 ## 阶段总览
 
@@ -28,16 +28,20 @@
 | Stage 11b | 分支独立 Compute | 03-18 | ✅ 完成 | — |
 | Stage 12 | 弹性节点池 & 自动扩缩容 | 03-15 → 03-19 | ✅ 完成 | — |
 | Stage 14 | DBay CLI & E2E 测试 | 03-18 → 03-19 | ✅ 完成 | — |
-| Stage 15 | Job 框架 & Knowledge Pipeline | 03-18 → | 🔨 进行中 | — |
+| Stage 15 | Job 框架 & Knowledge Pipeline | 03-18 → 03-28 | ✅ 完成 | — |
 | Stage 15b | 知识库增强 (标签/重写/重排/表KB) | 03-19 | ✅ 完成 | — |
 | Stage 15c | 切片管理 | 03-18 | ✅ 完成 | — |
-| Stage 16 | DBay 数据湖 | 03-20 → | 🔨 进行中 | — |
+| Stage 16 | DBay 数据湖 | 03-20 → 03-25 | ✅ 完成 | — |
 | Stage 16b | BM25 → tsvector 全文搜索 | 03-22 | ✅ 完成 | — |
-| Stage 17 | Notebook 交互式开发 | 03-27 → | 🔨 进行中 | — |
+| Stage 17 | Notebook 交互式开发 | 03-27 → 04-01 | ✅ 完成 | — |
 | Stage 17b | Ray Notebook + 热池 | 03-28 | ✅ 完成 | — |
 | Stage 15d | KB Pipeline 增强 | 03-25 → 03-28 | ✅ 完成 | — |
 | Stage 18 | 控制台体验重构 | 03-28 → 04-01 | ✅ 完成 | — |
 | Stage 15e | 知识库交互优化 | 03-29 → 04-01 | ✅ 完成 | — |
+| Stage 15f | 知识库文件夹 & 并行摄入 | 04-01 → 04-02 | ✅ 完成 | — |
+| Stage 19 | 日志可观测性 | 04-01 | ✅ 完成 | — |
+| Stage 20 | 数据生产线 | 03-28 → 04-02 | ✅ 完成 | — |
+| Stage 21 | 自托管 GPU 推理 | 04-01 → 04-03 | ✅ 完成 | — |
 
 ---
 
@@ -387,7 +391,7 @@
 - 将 CLI 能力封装为 MCP Server，Claude Code 可直接调用
 - 实现对话中自动化测试：开发 → CLI 验证 → 报告结果
 
-## 🔨 Stage 15: Job 框架 & Knowledge Pipeline
+## ✅ Stage 15: Job 框架 & Knowledge Pipeline
 
 > 详细方案: [`plans/2026-03-18-job-framework-and-knowledge-pipeline.md`](plans/2026-03-18-job-framework-and-knowledge-pipeline.md)
 
@@ -467,7 +471,7 @@
 - **DDL 死锁修复**: 并发文档写入时防止 schema 创建死锁
 - **全文高亮修复**: char_offset 越界校验 + 文本匹配回退
 
-## 🔨 Stage 16: DBay 数据湖
+## ✅ Stage 16: DBay 数据湖
 
 > 详细架构: [`AI-DataLake.md`](AI-DataLake.md)
 
@@ -501,11 +505,16 @@
 - ✅ E2E tests + CCE/CCI deployment fixes
 - ✅ Console 前端 — job 管理页面 + sidebar rail
 - ✅ CCI per-tenant namespace 自动创建（PythonJobRunner 自动建 namespace，含 tenant label）
+- ✅ OBS 数据源连接 (IAM agency 委托)
+- ✅ Dataset 文件上传 (FILE_UPLOAD source type + upload-urls + finalize)
+- ✅ Dataset 版本列表 API + Console 版本 Tab
+- ✅ CCI Pod 安全加固 (K8s API 访问限制 + 云元数据 API 探测防护)
+- ✅ OBS STS 策略加固 (防止数据泄露)
+- ✅ Ray Head ServiceAccount 最小 RBAC + egress NetworkPolicy
 
 ### 待完成
 - 📋 Job 计量和配额（core_hours / gpu_hours 字段已有，计算逻辑未实现）
 - 📋 日志持久化到 OBS（任务完成后写 logs.txt，当前只有实时 SSE 流）
-- 📋 output_dataset_name — 任务完成后自动创建 DatasetEntity
 - 📋 GPU 任务支持 (Ray GPU image + FINETUNE 端到端验证)
 
 ## ✅ Stage 16b: BM25 → tsvector 全文搜索
@@ -521,7 +530,7 @@
 
 ---
 
-## 🔨 Stage 17: Notebook 交互式开发环境
+## ✅ Stage 17: Notebook 交互式开发环境
 
 ### Phase 1 — 基础 Notebook (2026-03-27, ✅ 完成)
 - repl_server.py (exec 上下文持久化, JSON lines 协议)
@@ -532,20 +541,22 @@
 - 输出渲染: 文本, DataFrame 表格, Plotly 图表, matplotlib PNG, error traceback
 - 一键 "Submit as Job" (合并 cells → 预填作业创建页)
 
-### Phase 2 — Notebook 持久化 + 管理 (📋 计划中)
-- Notebook 保存到 OBS (`notebooks/{tenantId}/{notebookId}/notebook.json`)
-- 自动保存 (debounce 3s, cell 修改后自动上传)
+### Phase 2 — Notebook 持久化 + 管理 (✅ 完成)
+- NotebookEntity + OBS 持久化 (`notebooks/{tenantId}/{notebookId}/notebook.json`)
+- NotebookStorageService — OBS 读写 + 版本快照
+- NotebookCrudController — CRUD + 版本端点
 - Notebook 列表页 (名称、最后修改时间、打开/复制/删除)
-- 新建/重命名 Notebook
-- 从 localStorage 迁移到 OBS 持久化
+- 自动保存 (debounce 3s) + Ctrl+S 版本保存
+- 版本历史面板 + 还原功能
 
-### Phase 3 — 开发体验增强 (📋 计划中)
+### Phase 3 — 开发体验增强 (✅ 完成)
 - **Magic commands**: `%pip install`, `%sh`, `%sql` (连用户数据库), `%md` (Markdown cell)
 - **Markdown cell**: Code/Markdown 类型切换, 编辑→渲染切换
-- **代码自动补全**: CodeMirror autocomplete 扩展 + Python 关键字/标准库补全
-- **AI 内联辅助**: 复用现有 AI Script API, cell 内 Ctrl+Space 触发补全
-- **Variable explorer**: 侧边栏显示当前变量名/类型/值 (repl_server 加 `type: vars` 命令)
-- **执行状态 minimap**: 右侧显示每个 cell 状态 (queued/running/success/error)
+- **Variable explorer**: 侧边栏显示当前变量名/类型/值
+- **Reference panel**: Magic commands + 快捷键参考面板
+- **启动进度**: 内核启动进度条 + 计时
+- **自动重连**: 页面加载时自动重连已有 session，防止重复启动
+- **Notebook 镜像选择**: 卡片式选择替代下拉框
 
 ### Phase 4 — 分布式 Ray Notebook + 热池 (2026-03-28, ✅ 完成)
 - Ray head + N worker pods，用户可选 worker 数量和规格 (small/medium/large)
@@ -608,6 +619,102 @@
 - **分页获取全部切片**: 解决大文档切片截断问题
 - **自动唤醒日志**: RESUME 操作 (warm + cold 路径) 写入操作日志
 
+## ✅ Stage 15f: 知识库文件夹 & 并行摄入
+
+> 2026-04-01 → 04-02
+
+- **文件夹管理**: 文档按 folder 字段组织，文件夹树形视图 + 面包屑导航
+- **文件夹聚合**: folders aggregation API，按文件夹筛选文档列表
+- **文档元数据**: metadata JSONB 字段，单条/批量编辑 API，上传时 folder 自动生成 tags
+- **知识搜索增强**: 支持 metadata 和 folder 过滤
+- **并行摄入**: `/knowledge/ingest` API，按租户配额控制并发 Pod 数，Job launcher 线程池扩大
+- **跨库搜索**: 一次搜索所有知识库 (cross-KB search)
+- **分页文档列表**: 服务端分页 + 筛选 + 排序，文档统计端点
+- **失败重试**: 失败文档单条/批量重试按钮
+- **Console**: 进度卡片、筛选 Tab、可排序表头、分页组件
+
+## ✅ Stage 19: 日志可观测性
+
+> 2026-04-01
+
+全链路结构化日志系统，从应用到 SRE AI 诊断。
+
+- **Go log-collector**: HTTP 接收 + PG 批量写入，部署为独立 Deployment
+- **Fluent Bit DaemonSet**: CRI parser 采集容器日志，转发到 log-collector
+- **结构化日志 (Java)**: JSON 格式 + RequestIdFilter (requestId/tenantId MDC)
+- **结构化日志 (Python)**: lakeon-log 模块 (JSON formatter + HTTP batch handler)
+- **Knowledge Pipeline 接入**: requestId 透传，全链路追踪
+- **dbay-logs 系统租户**: 日志存储迁移到 system 租户，不占用用户配额
+- **SRE MCP 工具**: dbay-sre-mcp 提供 log_search/log_trace/log_errors/log_stats
+- **Admin API**: 结构化日志查询端点
+- **SRE Console**: 日志诊断页面 (搜索、追踪、错误列表、统计)，整合为单 Tab 视图
+- **SRE AI 助手**: 日志查询工具集成到 AI 对话
+
+## ✅ Stage 20: 数据生产线
+
+> 2026-03-28 → 04-02
+
+完整的数据处理流水线系统，支持可视化 DAG 编辑、双引擎执行、组件库。
+
+### 后端架构
+- **Pipeline 数据模型**: Pipeline/PipelineVersion/PipelineRun/StepRun + Component/ComponentVersion 实体
+- **Pipeline CRUD**: PipelineService + PipelineController (含版本管理)
+- **Component CRUD**: ComponentService + ComponentController
+- **Run 管理**: PipelineRunService + PipelineRunController (提交/查询/取消)
+- **Dataset 版本**: DatasetVersionEntity + 版本列表 API
+- **Dataset 文件上传**: FILE_UPLOAD source type，upload-urls + finalize 端点
+- **预置组件迁移**: V29 migration 预填 12 个视频/文本处理组件 + 2 个模板
+
+### Orchestrator (Python FastAPI)
+- **DAG 解析器**: 拓扑排序 + 依赖验证
+- **DAG 调度器**: 状态机调度 (PENDING → RUNNING → COMPLETED/FAILED)
+- **双执行引擎**:
+  - PythonJobRunner — 单 Pod K8s Job (轻量任务)
+  - RayJobRunner — RayJob CRD (分布式计算)
+- **组件框架**: @Component 装饰器 + ComponentContext + 动态加载
+- **高级调度**: fan-out 并行、branch 路由、pause 人工审核、checkpoint 持久化
+- **状态管理**: SQLAlchemy StateManager + FastAPI REST 端点
+
+### 预置组件 (12 个)
+- **视频**: video_normalize, video_scene_split, video_crop, video_labeling_mock
+- **文本**: text_dedup, text_clean, text_tokenize, text_quality_score
+- **通用**: rule_filter, model_filter_mock, quality_check (HUMAN_REVIEW), dataset_publish
+
+### Console 前端
+- **DAG 编辑器**: Vue Flow + 自定义节点样式 + 拖放添加组件 + YAML 双向同步
+- **Pipeline 列表**: 卡片/表格视图 + 数据类型筛选 + 模板创建
+- **Pipeline 详情**: 版本列表 + 运行历史
+- **运行监控**: 实时 DAG 状态视图 + Step 详情 + 人工审核面板
+- **组件库**: pill 筛选 + 滑入式详情面板 + 组件注册页
+- **触发对话框**: 运行预览 + DAG-to-Python 代码生成 + 代码预览
+- **数据集**: 版本列表 Tab + 文件上传创建
+
+### CLI & SRE
+- **dbay pipeline**: CLI 命令支持 pipeline 管理
+- **SRE Admin**: Pipeline 监控页面
+- **E2E 测试**: 视频流水线 + 文本流水线端到端验证
+- **Playwright E2E**: Pipeline 页面 + 组件库页面浏览器自动化测试
+
+## ✅ Stage 21: 自托管 GPU 推理
+
+> 2026-04-01 → 04-03
+
+将 AI 服务从外部 API (硅基流动) 迁移到自托管 GPU 推理，降本增效。
+
+### Embedding Service
+- **OpenAI 兼容 API**: `/v1/embeddings` 端点，BGE-M3 模型
+- **模型加载**: PVC/OBS 运行时加载，轻量化镜像 (CPU-only PyTorch)
+- **GPU 部署**: V100 节点，Helm 模板 + build-and-push 脚本
+
+### LLM Service (vLLM)
+- **模型**: Qwen3.5-9B FP16 (从 AWQ 量化切换到 FP16 以适配 V100)
+- **部署**: PVC 模型挂载 + 离线模式，GPU memory utilization 0.9
+- **健康检查**: 600s liveness probe (大模型加载耗时)
+
+### 内部路由
+- **统一模型覆盖**: 可配置 `internal.llm.*` 参数，所有 AI 服务 (摘要、查询重写、AI SQL、SRE AI) 路由到内部 LLM
+- **零改动切换**: 通过 Helm values 配置 internal LLM URL/model，应用层代码不变
+
 ---
 
 ### Backlog
@@ -624,15 +731,20 @@
 
 | 组件 | 版本 | 部署位置 |
 |------|------|----------|
-| lakeon-api | 0.9.167 | CCE (hostNetwork, HTTPS) |
+| lakeon-api | 0.9.186 | CCE (hostNetwork, HTTPS) |
 | lakeon-console | — | Railway |
 | lakeon-admin | — | Railway |
-| lakeon-knowledge-job | 0.2.8 | CCE (Job Pod) |
+| lakeon-orchestrator | 0.1.4 | CCE (FastAPI) |
+| lakeon-knowledge-job | 0.2.13 | CCI (Job Pod) |
 | lakeon-import | 0.2.0 | CCE (Job Pod) |
-| lakeon-memory | 0.2.4 | CCE (Sidecar) |
+| lakeon-memory | 0.2.5 | CCE (Sidecar) |
 | lakeon-datalake | 0.3.12 | CCI (Serverless) |
+| lakeon-embedding | — | CCE (GPU, V100) |
+| lakeon-llm | — | CCE (GPU, V100, vLLM) |
+| log-collector | — | CCE (Go) |
 | dbay-cli | 0.1.0 | pip install |
 | dbay-mcp | 0.1.0 | MCP Server |
+| dbay-sre-mcp | — | MCP Server |
 
 ## 基础设施
 
@@ -641,6 +753,7 @@
 | CCE 集群 | lakeon-k8s-cluster (cn-north-4) |
 | 固定节点 | 2x c9.2xlarge.2 (8C16G) — 管控面 |
 | 弹性节点池 | 1~5x c9.xlarge.2 (4C8G) — compute pod |
+| GPU 节点 | V100 — embedding-svc + llm-svc (vLLM) |
 | RDS | PostgreSQL (VPC 内网) |
 | ELB | 独享型 (TCP:8443, TCP:4432) |
 | OBS | lakeon-storage (cn-north-4) |

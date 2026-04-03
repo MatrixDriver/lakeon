@@ -12,21 +12,16 @@
       <h3 class="section-title">部署架构</h3>
       <div class="arch-diagram" v-if="topology">
 
-        <!-- Top Row: Railway + External APIs -->
+        <!-- Top Row: Railway -->
         <div class="arch-layer arch-layer-storage">
           <div class="arch-box arch-box-railway">
             <div class="arch-box-label">Railway (海外)</div>
             <div class="arch-box-value">dbay.cloud</div>
             <div class="arch-box-pods">Web 控制台 &middot; SRE Admin</div>
           </div>
-          <div class="arch-box arch-box-external">
-            <div class="arch-box-label">外部 API</div>
-            <div class="arch-box-value">SiliconFlow</div>
-            <div class="arch-box-pods">Embedding (BGE-M3) &middot; LLM (DeepSeek)</div>
-          </div>
         </div>
 
-        <div class="arch-arrow">&#8595; 浏览器直连 API &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &#8593; KB/Memory 调用</div>
+        <div class="arch-arrow">&#8595; 浏览器直连 API</div>
 
         <!-- EIP → ELB -->
         <div class="arch-layer arch-layer-storage">
@@ -51,7 +46,7 @@
               <div class="arch-box-label">CCE 集群</div>
               <div class="arch-box-value">{{ topology.cce.name }}</div>
               <div class="arch-box-pods">
-                lakeon-api &middot; proxy &middot; memory-service<br>
+                lakeon-api &middot; orchestrator &middot; proxy &middot; memory-svc<br>
                 pageserver &middot; safekeeper &middot; storage-broker<br>
                 kuberay-operator &middot; log-collector &middot; fluentbit
               </div>
@@ -77,6 +72,17 @@
               </div>
             </div>
           </div>
+          <!-- GPU -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <div class="arch-box arch-box-gpu">
+              <div class="arch-box-label">GPU 节点 (V100)</div>
+              <div class="arch-box-value">AI 推理服务</div>
+              <div class="arch-box-pods">
+                <b>embedding-svc</b>: BGE-M3 (1024维)<br>
+                <b>llm-svc</b>: Qwen3.5-9B (vLLM)
+              </div>
+            </div>
+          </div>
           <!-- CCI -->
           <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
             <div class="arch-box arch-box-cci">
@@ -85,7 +91,7 @@
               <div class="arch-box-pods">
                 <b>KB Job</b>: 文档解析 job pods (lakeon-jobs)<br>
                 <b>Notebook</b>: Ray head + worker pods<br>
-                <b>数据湖</b>: Python &middot; Ray &middot; 微调<br>
+                <b>数据湖/生产线</b>: Python &middot; Ray<br>
                 <b>热池</b>: warm-ray-head (预热)
               </div>
             </div>
@@ -113,7 +119,7 @@
           <div class="arch-box arch-box-storage">
             <div class="arch-box-label">SWR 镜像仓库</div>
             <div class="arch-box-value">flex</div>
-            <div class="arch-box-pods">API &middot; Console &middot; KB Job &middot; Memory &middot; Ray &middot; Python</div>
+            <div class="arch-box-pods">API &middot; Orchestrator &middot; KB Job &middot; Memory &middot; Embedding &middot; Ray &middot; Python</div>
           </div>
         </div>
       </div>
@@ -358,6 +364,11 @@ onMounted(loadData)
 .arch-box-cci {
   background: #ecfeff;
   border-color: #06b6d4;
+}
+
+.arch-box-gpu {
+  background: #fef3c7;
+  border-color: #d97706;
 }
 
 .arch-box-label {
