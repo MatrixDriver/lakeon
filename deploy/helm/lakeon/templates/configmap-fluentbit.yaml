@@ -19,6 +19,7 @@ data:
         Path              /var/log/containers/*_lakeon_*.log
         Parser            cri
         Tag               lakeon.*
+        Path_Key          source_file
         Refresh_Interval  5
         Mem_Buf_Limit     5MB
         Skip_Long_Lines   On
@@ -28,6 +29,7 @@ data:
         Path              /var/log/containers/*_lakeon-compute_*.log
         Parser            cri
         Tag               lakeon-compute.*
+        Path_Key          source_file
         Refresh_Interval  5
         Mem_Buf_Limit     5MB
         Skip_Long_Lines   On

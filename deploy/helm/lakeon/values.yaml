@@ -201,4 +201,4 @@ fluentbit:
 logCollector:
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/log-collector
-    tag: "0.1.0"
+    tag: "0.1.4"

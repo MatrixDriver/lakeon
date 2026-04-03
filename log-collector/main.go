@@ -70,10 +70,39 @@ func handleHealthz(w http.ResponseWriter, r *http.Request) {
 
 // fluentBitRecord is the format Fluent Bit sends via HTTP output (Format json).
 // The "log" field contains the actual container stdout line (may be nested JSON).
+// "source_file" is injected by Fluent Bit's Path_Key option (e.g. /var/log/containers/<pod>_<ns>_<container>-<id>.log).
 type fluentBitRecord struct {
-	Date   float64 `json:"date"`
-	Log    string  `json:"log"`
-	Stream string  `json:"stream"`
+	Date       float64 `json:"date"`
+	Log        string  `json:"log"`
+	Stream     string  `json:"stream"`
+	SourceFile string  `json:"source_file,omitempty"`
+}
+
+// componentFromSourceFile extracts a component name from a container log file path.
+// Path format: /var/log/containers/<pod-name>_<namespace>_<container>-<id>.log
+func componentFromSourceFile(path string) string {
+	// Extract filename from path
+	idx := strings.LastIndex(path, "/")
+	if idx >= 0 {
+		path = path[idx+1:]
+	}
+	// Get pod name (before first underscore)
+	if us := strings.Index(path, "_"); us > 0 {
+		return componentFromPodName(path[:us])
+	}
+	return "unknown"
+}
+
+// componentFromPodName extracts a component name from a Kubernetes pod name
+// by stripping the trailing replicaset/random suffixes (e.g. "embedding-svc-5b6987d9cd-22mwn" → "embedding-svc").
+func componentFromPodName(podName string) string {
+	// Pod names from Deployments: <deploy>-<rs-hash>-<pod-hash>
+	// Strip last two dash-separated segments
+	parts := strings.Split(podName, "-")
+	if len(parts) > 2 {
+		return strings.Join(parts[:len(parts)-2], "-")
+	}
+	return podName
 }
 
 // parseJSON tries to parse a single JSON blob into a LogEntry.
@@ -82,6 +111,12 @@ func parseJSON(raw []byte) (LogEntry, bool) {
 	// Check if this is a Fluent Bit record (has "log" field)
 	var fb fluentBitRecord
 	if err := json.Unmarshal(raw, &fb); err == nil && fb.Log != "" {
+		// Derive component from source_file path (e.g. /var/log/containers/<pod>_<ns>_<container>-<id>.log)
+		fbComponent := "unknown"
+		if fb.SourceFile != "" {
+			fbComponent = componentFromSourceFile(fb.SourceFile)
+		}
+
 		// The "log" field contains the actual log line — try parsing as LogEntry
 		logLine := strings.TrimSpace(fb.Log)
 		var e LogEntry
@@ -90,10 +125,14 @@ func parseJSON(raw []byte) (LogEntry, bool) {
 			if e.Ts.IsZero() && fb.Date > 0 {
 				e.Ts = time.Unix(int64(fb.Date), int64((fb.Date-float64(int64(fb.Date)))*1e9))
 			}
+			// If structured log has no component, use k8s-derived one
+			if e.Component == "" {
+				e.Component = fbComponent
+			}
 			return e, true
 		}
-		// log field is plain text — wrap it
-		entry := parseRawLog(logLine, "unknown")
+		// log field is plain text — wrap it with k8s-derived component
+		entry := parseRawLog(logLine, fbComponent)
 		if fb.Date > 0 {
 			entry.Ts = time.Unix(int64(fb.Date), int64((fb.Date-float64(int64(fb.Date)))*1e9))
 		}

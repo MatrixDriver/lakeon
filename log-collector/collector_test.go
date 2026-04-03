@@ -155,6 +155,51 @@ func TestParseFluentBitPlainText(t *testing.T) {
 	}
 }
 
+// TestComponentFromPodName verifies pod name to component extraction.
+func TestComponentFromPodName(t *testing.T) {
+	cases := []struct{ podName, want string }{
+		{"embedding-svc-5b6987d9cd-22mwn", "embedding-svc"},
+		{"llm-svc-85b8f4549d-q56tf", "llm-svc"},
+		{"lakeon-api-7f8b9c4d6-x2k4m", "lakeon-api"},
+		{"memory-svc-abc123-def456", "memory-svc"},
+		{"simple-pod", "simple-pod"},
+	}
+	for _, c := range cases {
+		got := componentFromPodName(c.podName)
+		if got != c.want {
+			t.Errorf("componentFromPodName(%q): want %q, got %q", c.podName, c.want, got)
+		}
+	}
+}
+
+// TestParseFluentBitWithSourceFile verifies component extraction from source_file path.
+func TestParseFluentBitWithSourceFile(t *testing.T) {
+	fbJSON := `[{"date":1743487200.0,"log":"INFO: embedding request completed","stream":"stdout","source_file":"/var/log/containers/embedding-svc-5b6987d9cd-22mwn_lakeon_embedding-svc-abc123.log"}]`
+	entries := parseBody([]byte(fbJSON))
+	if len(entries) != 1 {
+		t.Fatalf("want 1 entry, got %d", len(entries))
+	}
+	e := entries[0]
+	if e.Component != "embedding-svc" {
+		t.Errorf("Component: want embedding-svc, got %q", e.Component)
+	}
+}
+
+// TestComponentFromSourceFile verifies source file path to component extraction.
+func TestComponentFromSourceFile(t *testing.T) {
+	cases := []struct{ path, want string }{
+		{"/var/log/containers/embedding-svc-5b6987d9cd-22mwn_lakeon_embedding-svc-abc123.log", "embedding-svc"},
+		{"/var/log/containers/llm-svc-85b8f4549d-q56tf_lakeon_llm-svc-def456.log", "llm-svc"},
+		{"/var/log/containers/lakeon-api-7f8b9c4d6-x2k4m_lakeon_lakeon-api-ghi789.log", "lakeon-api"},
+	}
+	for _, c := range cases {
+		got := componentFromSourceFile(c.path)
+		if got != c.want {
+			t.Errorf("componentFromSourceFile(%q): want %q, got %q", c.path, c.want, got)
+		}
+	}
+}
+
 // TestBatchAutoFlush verifies add() returns true and drains the buffer when full.
 func TestBatchAutoFlush(t *testing.T) {
 	b := newBatcher(2, time.Minute)
