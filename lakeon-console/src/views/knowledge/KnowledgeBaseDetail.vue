@@ -901,19 +901,16 @@ async function runBatchUpload(files: File[]) {
       const successIds = results.filter((id): id is string => id !== null)
       if (successIds.length === 0) continue
 
-      // Mark as processing (ingest will be called after all batches complete)
+      // Mark as processing
       batchIndices.forEach((idx, i) => {
         if (results[i] !== null) {
           uploadProgress.value[idx] = { filename: files[idx]!.name, status: 'processing' }
         }
       })
 
+      // Ingest immediately per batch so processing starts while upload continues
+      ingestDocuments(successIds).catch(() => {})
       allDocumentIds.push(...successIds)
-    }
-
-    // Call ingest once for all uploaded documents
-    if (allDocumentIds.length > 0) {
-      await ingestDocuments(allDocumentIds)
     }
   } catch (err: any) {
     const serverMsg = err.response?.data?.error?.message || err.response?.data?.message
