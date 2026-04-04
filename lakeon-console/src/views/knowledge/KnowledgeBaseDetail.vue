@@ -35,7 +35,7 @@
           <span style="color: #999;">名称</span><span>{{ kb?.name }}</span>
           <span style="color: #999;">描述</span><span>{{ kb?.description || '-' }}</span>
           <span style="color: #999;">文档数</span><span>{{ kb?.document_count ?? 0 }}</span>
-          <span style="color: #999;">存储大小</span><span>{{ kb?.total_size_bytes != null ? formatSize(kb.total_size_bytes) : '-' }}</span>
+          <span style="color: #999;">存储大小</span><span>{{ storageDisplay }}</span>
           <span style="color: #999;">Embedding 模型</span><span>BGE-M3 (1024维)</span>
           <span style="color: #999;">切片策略</span><span>结构化切片 (400 tokens)</span>
           <span style="color: #999;">状态</span>
@@ -488,11 +488,13 @@ import ChunkStats from '../../components/knowledge/ChunkStats.vue'
 import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
 import TableToolbar from '../../components/TableToolbar.vue'
 import { formatSize } from '../../utils/format'
+import { databaseApi } from '../../api/database'
 
 const route = useRoute()
 const router = useRouter()
 
 const kb = ref<KBType | null>(null)
+const storageDisplay = ref('-')
 const documents = ref<Document[]>([])
 const activeTab = ref('documents')
 const searchQuery = ref('')
@@ -1078,6 +1080,14 @@ onMounted(async () => {
     loadFolders().catch(() => {}),
   ])
   kb.value = kbResp.data
+  if (kbResp.data.database_id) {
+    databaseApi.get(kbResp.data.database_id).then(dbResp => {
+      const gb = dbResp.data.storage_used_gb
+      if (gb < 0.01) storageDisplay.value = `${Math.round(gb * 1024 * 1024)} KB`
+      else if (gb < 1) storageDisplay.value = `${(gb * 1024).toFixed(1)} MB`
+      else storageDisplay.value = `${gb.toFixed(2)} GB`
+    }).catch(() => {})
+  }
   loadDataSources()
   startPollingIfNeeded()
   // Auto-poll KB status while CREATING
