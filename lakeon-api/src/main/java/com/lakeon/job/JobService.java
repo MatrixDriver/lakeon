@@ -248,23 +248,23 @@ public class JobService {
             if (resultJson != null) {
                 job.setResult(resultJson);
                 jobRepository.save(job);
-                // Stream: if progress contains a completed document, mark it READY immediately
+                // Stream: mark completed documents as READY immediately
                 try {
                     var resultNode = objectMapper.readTree(resultJson);
+                    // Single doc
                     var completedDoc = resultNode.path("completed_document");
                     if (!completedDoc.isMissingNode() && completedDoc.has("document_id")) {
-                        String docId = completedDoc.get("document_id").asText();
-                        int chunksCount = completedDoc.path("chunks_count").asInt(0);
-                        documentRepository.findById(docId).ifPresent(doc -> {
-                            doc.setStatus(com.lakeon.knowledge.DocumentStatus.READY);
-                            doc.setChunksCount(chunksCount);
-                            documentRepository.save(doc);
-                            log.info("Streamed doc {} to READY ({} chunks)", docId, chunksCount);
-                        });
+                        markDocReady(completedDoc);
+                    }
+                    // Batch of docs
+                    var completedDocs = resultNode.path("completed_documents");
+                    if (completedDocs.isArray()) {
+                        for (var docNode : completedDocs) {
+                            if (docNode.has("document_id")) markDocReady(docNode);
+                        }
                     }
                 } catch (Exception e) {
-                    // Non-fatal: progress parsing failure shouldn't block processing
-                    log.debug("Failed to parse completed_document from progress: {}", e.getMessage());
+                    log.debug("Failed to parse completed docs from progress: {}", e.getMessage());
                 }
             }
         } else if (newStatus == JobStatus.SUCCEEDED || newStatus == JobStatus.FAILED) {
@@ -318,6 +318,16 @@ public class JobService {
         }
 
         return true;
+    }
+
+    private void markDocReady(com.fasterxml.jackson.databind.JsonNode docNode) {
+        String docId = docNode.get("document_id").asText();
+        int chunksCount = docNode.path("chunks_count").asInt(0);
+        documentRepository.findById(docId).ifPresent(doc -> {
+            doc.setStatus(com.lakeon.knowledge.DocumentStatus.READY);
+            doc.setChunksCount(chunksCount);
+            documentRepository.save(doc);
+        });
     }
 
     private void updateDatasetFromExport(JobEntity job, String resultJson) {

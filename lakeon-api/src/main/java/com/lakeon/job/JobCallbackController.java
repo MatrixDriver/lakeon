@@ -136,6 +136,45 @@ public class JobCallbackController {
     }
 
     /**
+     * Pod reuse: pod calls this after completing a batch to get the next queued task.
+     * Marks the current task SUCCEEDED, syncs document statuses, and claims the next
+     * QUEUED BATCH_DOCUMENT_PARSE task for the same database.
+     * Returns 200 with next task params, or 204 if no more tasks (pod should exit).
+     */
+    @SuppressWarnings("unchecked")
+    @PostMapping("/{id}/next-task")
+    public ResponseEntity<?> nextTask(@PathVariable String id,
+                                       @RequestParam String token,
+                                       @RequestBody Map<String, Object> body) {
+        JobEntity job = jobService.findById(id);
+        if (job == null || !token.equals(job.getCallbackToken())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        try {
+            // Serialize the completed batch result
+            String resultJson = null;
+            Object resultObj = body.get("result");
+            if (resultObj != null) {
+                resultJson = objectMapper.writeValueAsString(resultObj);
+            }
+
+            // Extract database_id from job params
+            Map<String, Object> jobParams = objectMapper.readValue(job.getParams(), Map.class);
+            String databaseId = (String) jobParams.get("database_id");
+
+            // Complete current task and claim next one
+            var nextTaskParams = kbWriteQueue.completeAndClaimNextTask(id, databaseId, resultJson);
+            if (nextTaskParams.isEmpty()) {
+                return ResponseEntity.noContent().build();
+            }
+            return ResponseEntity.ok(nextTaskParams.get());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
      * Get a fresh database connstr for a job pod.
      * Wakes the compute pod and returns the latest connection string.
      * Authenticated by job callback token (same as callback endpoint).

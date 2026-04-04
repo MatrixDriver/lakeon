@@ -660,9 +660,13 @@ public class KnowledgeService {
             }
         }
 
-        // Split into N groups based on tenant quota
-        int podCount = props.getKnowledge().getMaxConcurrentJobs();
-        podCount = Math.min(podCount, documentIds.size());
+        // Split into N groups: 1 pod for small batches, N pods for large
+        int podCount;
+        if (documentIds.size() <= 20) {
+            podCount = 1;
+        } else {
+            podCount = Math.min(props.getKnowledge().getMaxConcurrentJobs(), documentIds.size());
+        }
 
         List<List<String>> groups = new ArrayList<>();
         for (int i = 0; i < podCount; i++) {
@@ -697,7 +701,8 @@ public class KnowledgeService {
             params.put("documents", docParams);
             params.put("tenant_id", tenant.getId());
             params.put("kb_id", kbId);
-            params.put("database_connstr", "placeholder");
+            params.put("database_connstr", "");
+            params.put("callback_frequency", documentIds.size() <= 20 ? 1 : 20);
             params.put("embedding_api_url", props.getKnowledge().getEmbeddingApiUrl());
             params.put("embedding_api_key", props.getKnowledge().getEmbeddingApiKey());
             params.put("embedding_model", embModel);

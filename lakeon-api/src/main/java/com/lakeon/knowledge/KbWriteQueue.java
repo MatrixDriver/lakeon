@@ -257,6 +257,53 @@ public class KbWriteQueue {
     }
 
     /**
+     * Pod reuse: complete the current task and claim the next QUEUED BATCH_DOCUMENT_PARSE
+     * for the same database. Returns the next task's params, or empty if no more tasks.
+     */
+    @SuppressWarnings("unchecked")
+    @org.springframework.transaction.annotation.Transactional
+    public Optional<Map<String, Object>> completeAndClaimNextTask(String jobId, String databaseId, String resultJson) {
+        // 1. Complete the current RUNNING task for this job
+        taskRepository.findByJobId(jobId).ifPresent(task -> {
+            if (task.getStatus() == KbWriteTaskStatus.RUNNING) {
+                task.setStatus(KbWriteTaskStatus.SUCCEEDED);
+                task.setResult(resultJson);
+                task.setCompletedAt(Instant.now());
+                taskRepository.save(task);
+                log.info("Pod-reuse: completed task {} via job {}", task.getId(), jobId);
+
+                if (task.getType() == KbWriteTaskType.BATCH_DOCUMENT_PARSE) {
+                    syncBatchDocumentsFromTask(task, true, resultJson, null);
+                    enqueueSummarizeAfterBatchParse(task);
+                }
+            }
+        });
+
+        // 2. Claim next QUEUED BATCH_DOCUMENT_PARSE task for same database
+        List<KbWriteTaskEntity> queued = taskRepository.findQueuedBatchParseByDatabaseId(databaseId);
+        if (queued.isEmpty()) {
+            return Optional.empty();
+        }
+
+        KbWriteTaskEntity next = queued.get(0);
+        next.setStatus(KbWriteTaskStatus.RUNNING);
+        next.setStartedAt(Instant.now());
+        next.setJobId(jobId);  // reuse same job so callback token stays valid
+        taskRepository.save(next);
+        log.info("Pod-reuse: claimed task {} for db {} (job {})", next.getId(), databaseId, jobId);
+
+        // 3. Return the task params for the pod to process
+        try {
+            Map<String, Object> params = objectMapper.readValue(next.getParams(), Map.class);
+            params.put("task_id", next.getId());
+            return Optional.of(params);
+        } catch (Exception e) {
+            log.error("Failed to parse params for task {}: {}", next.getId(), e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /**
      * Called when a job pod completes (from JobService.handleCallback).
      * Marks the associated task as SUCCEEDED/FAILED and triggers drain for next task.
      * On failure, applies smart retry logic: PERMANENT errors fail immediately,

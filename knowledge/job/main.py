@@ -11,7 +11,7 @@ import requests
 
 from parser import parse_document
 from chunker import chunk_document, assign_pages, detect_duplicates
-from callback import StageTracker, report_success, report_success_batch, report_failure, report_progress
+from callback import StageTracker, report_success, report_success_batch, report_failure, report_progress, request_next_task
 from writer import write_chunks
 
 try:
@@ -265,33 +265,55 @@ def main():
             logger.info(f"Batch mode: processing {total} documents")
             report_progress(f"Starting batch processing of {total} documents", 0.05, tracker=tracker)
 
-            # Connstr will be lazily fetched on first write (after embed is done)
-            # This avoids waking compute pod too early (it may auto-suspend during embed)
             _batch_connstr = {"value": database_connstr}
+            callback_freq = int(params.get("callback_frequency", 1))
+            is_small = (callback_freq == 1)
 
-            results = []
-            for idx, doc_params in enumerate(doc_specs):
-                doc_params_full = dict(doc_params)
-                doc_params_full["tenant_id"] = doc_params_full.get("tenant_id") or params.get("tenant_id")
-                if params.get("connstr_refresh_url"):
-                    doc_params_full.setdefault("connstr_refresh_url", params["connstr_refresh_url"])
-                progress = 0.05 + 0.9 * idx / total
-                report_progress(f"Processing {doc_params_full.get('filename', doc_params_full['document_id'])} ({idx+1}/{total})", progress, tracker=tracker)
-                doc_tracker = StageTracker()
-                result = process_single_document(
-                    s3, obs_bucket, doc_params_full, _batch_connstr["value"],
-                    embedding_api_url, embedding_api_key, embedding_model,
-                    doc_index=idx, total_docs=total, tracker=doc_tracker,
-                    shared_connstr=_batch_connstr
-                )
-                results.append(result)
+            # Small data: pre-wake compute pod (embed is fast, no risk of auto-suspend)
+            if is_small and (not _batch_connstr["value"] or _batch_connstr["value"].strip() == "") and params.get("connstr_refresh_url"):
+                try:
+                    logger.info("Small batch: pre-waking compute pod")
+                    resp = requests.get(params["connstr_refresh_url"], timeout=180, verify=False)
+                    resp.raise_for_status()
+                    _batch_connstr["value"] = resp.json().get("connstr", "")
+                except Exception as e:
+                    logger.warning(f"Pre-wake failed (will retry lazily): {e}")
 
-                # Stream: report each completed document immediately so UI updates in real-time
-                report_progress(f"Completed {idx+1}/{total}", (idx+1)/total, tracker=tracker,
-                                completed_document=result)
+            # Pod reuse loop: process current batch, then pull next task
+            while True:
+                results = []
+                for idx, doc_params_item in enumerate(doc_specs):
+                    doc_params_full = dict(doc_params_item)
+                    doc_params_full["tenant_id"] = doc_params_full.get("tenant_id") or params.get("tenant_id")
+                    if params.get("connstr_refresh_url"):
+                        doc_params_full.setdefault("connstr_refresh_url", params["connstr_refresh_url"])
+                    doc_tracker = StageTracker()
+                    result = process_single_document(
+                        s3, obs_bucket, doc_params_full, _batch_connstr["value"],
+                        embedding_api_url, embedding_api_key, embedding_model,
+                        doc_index=idx, total_docs=total, tracker=doc_tracker,
+                        shared_connstr=_batch_connstr
+                    )
+                    results.append(result)
 
-            report_success_batch(results, tracker=tracker)
-            logger.info(f"Batch done: {total} documents processed")
+                    # Stream progress: per-doc for small data, every N docs for large data
+                    if is_small or (idx + 1) % callback_freq == 0 or idx == total - 1:
+                        report_progress(f"Completed {idx+1}/{total}", (idx+1)/total, tracker=tracker,
+                                        completed_documents=results[-callback_freq:] if not is_small else [result])
+
+                logger.info(f"Batch done: {total} documents processed")
+
+                # Try to claim next task (pod reuse)
+                next_params = request_next_task(results, tracker)
+                if next_params is None:
+                    report_success_batch(results, tracker=tracker)
+                    break
+
+                # Continue with next batch using same pod + DB connection
+                doc_specs = next_params.get("documents", [])
+                total = len(doc_specs)
+                logger.info(f"Pod reuse: continuing with {total} documents")
+
             return
 
         # ── Single mode: backward-compatible ─────────────────────────

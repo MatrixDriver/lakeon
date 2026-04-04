@@ -110,7 +110,7 @@ def report_success_batch(documents, tracker=None):
     resp = _send_callback(payload)
     logger.info(f"Callback SUCCEEDED (batch {len(documents)} docs): {resp.status_code}")
 
-def report_progress(message, progress=0, tracker=None, completed_document=None):
+def report_progress(message, progress=0, tracker=None, completed_document=None, completed_documents=None):
     if _is_exec_mode():
         logger.info(f"Progress: {message} ({progress:.0%})")
         return
@@ -118,6 +118,8 @@ def report_progress(message, progress=0, tracker=None, completed_document=None):
     result = {"progress": progress, "message": message}
     if completed_document:
         result["completed_document"] = completed_document
+    if completed_documents:
+        result["completed_documents"] = completed_documents
     if tracker:
         result.update(tracker.build_result())
     payload = {"status": "RUNNING", "result": result}
@@ -127,6 +129,26 @@ def report_progress(message, progress=0, tracker=None, completed_document=None):
         except Exception as e:
             logger.warning(f"Progress callback failed: {e}")
     threading.Thread(target=_send, daemon=True).start()
+
+def request_next_task(completed_results, tracker=None):
+    """Request next batch task from API. Returns params dict or None if no more tasks."""
+    if _is_exec_mode():
+        return None
+    url = os.environ["JOB_CALLBACK_URL"].replace("/callback", "/next-task")
+    token = os.environ["JOB_CALLBACK_TOKEN"]
+    result = {"documents": completed_results}
+    if tracker:
+        result.update(tracker.build_result())
+    try:
+        resp = requests.post(url, params={"token": token}, json={"result": result},
+                             timeout=30, verify=False)
+        if resp.status_code == 204:
+            return None
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        logger.warning(f"next-task request failed: {e}")
+        return None
 
 def report_failure(error, error_category="PERMANENT", failed_stage=None, tracker=None):
     try:

@@ -21,6 +21,9 @@ public interface KbWriteTaskRepository extends JpaRepository<KbWriteTaskEntity, 
     @Query("SELECT t FROM KbWriteTaskEntity t WHERE t.databaseId = ?1 AND t.status IN ('QUEUED', 'RUNNING')")
     List<KbWriteTaskEntity> findActiveByDatabaseId(String databaseId);
 
+    @Query("SELECT t FROM KbWriteTaskEntity t WHERE t.databaseId = :dbId AND t.status = 'QUEUED' AND t.type = 'BATCH_DOCUMENT_PARSE' ORDER BY t.createdAt ASC")
+    List<KbWriteTaskEntity> findQueuedBatchParseByDatabaseId(@Param("dbId") String databaseId);
+
     Optional<KbWriteTaskEntity> findByJobId(String jobId);
 
     @Query("SELECT DISTINCT t.databaseId FROM KbWriteTaskEntity t WHERE t.status IN ('QUEUED', 'RUNNING')")
