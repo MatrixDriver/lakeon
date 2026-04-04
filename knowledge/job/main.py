@@ -69,7 +69,7 @@ def _ensure_compute_ready(connstr, retries=5, wait=15):
                 raise RuntimeError(f"Database connection failed after {retries} retries: {e}")
 
 
-MAX_EMBED_CHARS = 8000  # BGE-M3 supports ~8192 tokens; truncate to stay under API payload limits
+MAX_EMBED_CHARS = 3000  # ~1000 tokens; keep under vllm max-model-len for fast GPU inference
 
 
 def embed_texts(texts, embedding_api_url, embedding_api_key, embedding_model, batch_size=16):
