@@ -110,12 +110,14 @@ def report_success_batch(documents, tracker=None):
     resp = _send_callback(payload)
     logger.info(f"Callback SUCCEEDED (batch {len(documents)} docs): {resp.status_code}")
 
-def report_progress(message, progress=0, tracker=None):
+def report_progress(message, progress=0, tracker=None, completed_document=None):
     if _is_exec_mode():
         logger.info(f"Progress: {message} ({progress:.0%})")
         return
     # Fire-and-forget: don't block processing pipeline on progress updates
     result = {"progress": progress, "message": message}
+    if completed_document:
+        result["completed_document"] = completed_document
     if tracker:
         result.update(tracker.build_result())
     payload = {"status": "RUNNING", "result": result}

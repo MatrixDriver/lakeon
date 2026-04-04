@@ -28,6 +28,7 @@ public class JobService {
     private final JobRepository jobRepository;
     private final JobPodManager jobPodManager;
     private final ObjectMapper objectMapper;
+    private final com.lakeon.knowledge.DocumentRepository documentRepository;
     private final ExecutorService executor = Executors.newFixedThreadPool(8);
 
     // Lazy reference to avoid circular dependency (KbWriteQueue → JobService → KbWriteQueue)
@@ -35,10 +36,12 @@ public class JobService {
 
     private com.lakeon.dataset.DatasetRepository datasetRepository;
 
-    public JobService(JobRepository jobRepository, JobPodManager jobPodManager, ObjectMapper objectMapper) {
+    public JobService(JobRepository jobRepository, JobPodManager jobPodManager, ObjectMapper objectMapper,
+                      com.lakeon.knowledge.DocumentRepository documentRepository) {
         this.jobRepository = jobRepository;
         this.jobPodManager = jobPodManager;
         this.objectMapper = objectMapper;
+        this.documentRepository = documentRepository;
     }
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -241,11 +244,28 @@ public class JobService {
         }
 
         if (newStatus == JobStatus.RUNNING) {
-            // Progress update — only update result field
+            // Progress update — update result field
             if (resultJson != null) {
                 job.setResult(resultJson);
                 jobRepository.save(job);
-                log.debug("Job {} progress update", jobId);
+                // Stream: if progress contains a completed document, mark it READY immediately
+                try {
+                    var resultNode = objectMapper.readTree(resultJson);
+                    var completedDoc = resultNode.path("completed_document");
+                    if (!completedDoc.isMissingNode() && completedDoc.has("document_id")) {
+                        String docId = completedDoc.get("document_id").asText();
+                        int chunksCount = completedDoc.path("chunks_count").asInt(0);
+                        documentRepository.findById(docId).ifPresent(doc -> {
+                            doc.setStatus(com.lakeon.knowledge.DocumentStatus.READY);
+                            doc.setChunksCount(chunksCount);
+                            documentRepository.save(doc);
+                            log.info("Streamed doc {} to READY ({} chunks)", docId, chunksCount);
+                        });
+                    }
+                } catch (Exception e) {
+                    // Non-fatal: progress parsing failure shouldn't block processing
+                    log.debug("Failed to parse completed_document from progress: {}", e.getMessage());
+                }
             }
         } else if (newStatus == JobStatus.SUCCEEDED || newStatus == JobStatus.FAILED) {
             // Terminal update

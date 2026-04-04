@@ -286,6 +286,10 @@ def main():
                 )
                 results.append(result)
 
+                # Stream: report each completed document immediately so UI updates in real-time
+                report_progress(f"Completed {idx+1}/{total}", (idx+1)/total, tracker=tracker,
+                                completed_document=result)
+
             report_success_batch(results, tracker=tracker)
             logger.info(f"Batch done: {total} documents processed")
             return
