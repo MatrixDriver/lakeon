@@ -69,7 +69,7 @@ def _ensure_compute_ready(connstr, retries=5, wait=15):
                 raise RuntimeError(f"Database connection failed after {retries} retries: {e}")
 
 
-MAX_EMBED_CHARS = 3000  # ~1000 tokens; keep under vllm max-model-len for fast GPU inference
+MAX_EMBED_CHARS = 2000  # ~600 tokens; safe margin under vllm max-model-len=2048
 
 
 def embed_texts(texts, embedding_api_url, embedding_api_key, embedding_model, batch_size=16):
