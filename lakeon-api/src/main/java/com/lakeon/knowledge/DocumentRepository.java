@@ -16,6 +16,9 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, String
     List<DocumentEntity> findByDatasourceId(String datasourceId);
     long countByStatus(DocumentStatus status);
 
+    @Query(value = "SELECT COALESCE(SUM(size_bytes), 0) FROM documents WHERE kb_id = :kbId", nativeQuery = true)
+    long sumSizeBytesByKbId(@Param("kbId") String kbId);
+
     @Query(value = "SELECT id FROM documents WHERE kb_id = :kbId AND tenant_id = :tenantId AND tags && CAST(:tags AS text[])",
            nativeQuery = true)
     List<String> findIdsByKbIdAndTenantIdAndTagsContaining(

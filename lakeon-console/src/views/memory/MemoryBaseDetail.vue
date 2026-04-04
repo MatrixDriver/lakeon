@@ -36,6 +36,7 @@
             <span>
               <span class="status-tag" :class="statusClass">{{ statusLabel }}</span>
             </span>
+            <span style="color: #999;">存储大小</span><span>{{ storageDisplay }}</span>
             <span style="color: #999;">记忆数</span><span>{{ stats?.total ?? 0 }}</span>
             <span style="color: #999;">特征数</span><span>{{ stats?.trait_count ?? 0 }}</span>
             <span style="color: #999;">创建时间</span><span>{{ base.created_at ? new Date(base.created_at).toLocaleString('zh-CN') : '-' }}</span>
@@ -293,11 +294,13 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getMemoryBase, type MemoryBase, type MemoryStats, getMemoryStats, listRawMessages, getRawMessage, type RawMessage, type RawMessageDetail } from '../../api/memory'
 import { MEMORY_TYPE_COLORS, MEMORY_TYPE_LABELS } from '../../constants/memory'
+import { databaseApi } from '../../api/database'
 
 const route = useRoute()
 const base = ref<MemoryBase | null>(null)
 const activeTab = ref('overview')
 const stats = ref<MemoryStats | null>(null)
+const storageDisplay = ref('-')
 
 const tabs = [
   { key: 'overview', label: '概览' },
@@ -499,6 +502,19 @@ async function loadBase() {
   const memId = route.params.memId as string
   const resp = await getMemoryBase(memId)
   base.value = resp.data
+  if (resp.data.database_id) {
+    try {
+      const dbResp = await databaseApi.get(resp.data.database_id)
+      const gb = dbResp.data.storage_used_gb
+      if (gb < 0.01) {
+        storageDisplay.value = `${Math.round(gb * 1024 * 1024)} KB`
+      } else if (gb < 1) {
+        storageDisplay.value = `${(gb * 1024).toFixed(1)} MB`
+      } else {
+        storageDisplay.value = `${gb.toFixed(2)} GB`
+      }
+    } catch {}
+  }
 }
 
 async function loadStats() {

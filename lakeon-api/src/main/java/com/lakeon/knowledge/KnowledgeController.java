@@ -79,6 +79,7 @@ public class KnowledgeController {
         TenantEntity tenant = getTenant(req);
         KnowledgeBaseEntity kb = knowledgeService.getKnowledgeBase(tenant.getId(), id);
         Map<String, Object> response = toKbResponse(kb);
+        response.put("total_size_bytes", documentRepository.sumSizeBytesByKbId(id));
         // Include KB-level summary if available
         if (kb.getStatus() == KnowledgeBaseStatus.READY && kb.getType() == KnowledgeBaseType.DOCUMENT) {
             try {

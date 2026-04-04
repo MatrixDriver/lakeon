@@ -16,6 +16,7 @@ export interface KnowledgeBase {
   table_names: string[]
   embedding_model: string | null
   summary?: string
+  total_size_bytes?: number
 }
 
 export interface TableSearchResult {

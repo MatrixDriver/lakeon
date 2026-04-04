@@ -35,6 +35,7 @@
           <span style="color: #999;">名称</span><span>{{ kb?.name }}</span>
           <span style="color: #999;">描述</span><span>{{ kb?.description || '-' }}</span>
           <span style="color: #999;">文档数</span><span>{{ kb?.document_count ?? 0 }}</span>
+          <span style="color: #999;">存储大小</span><span>{{ kb?.total_size_bytes != null ? formatSize(kb.total_size_bytes) : '-' }}</span>
           <span style="color: #999;">Embedding 模型</span><span>BGE-M3 (1024维)</span>
           <span style="color: #999;">切片策略</span><span>结构化切片 (400 tokens)</span>
           <span style="color: #999;">状态</span>
@@ -50,17 +51,6 @@
       <div v-if="kb?.summary" class="section-card" style="max-width: 600px; margin-top: 16px;">
         <div class="section-header">知识库概览</div>
         <div style="padding: 16px; font-size: 14px; line-height: 1.8; color: #333; white-space: pre-wrap;">{{ kb.summary }}</div>
-      </div>
-      <!-- Danger zone -->
-      <div class="section-card" style="max-width: 600px; margin-top: 32px; border-color: #f0d0d0;">
-        <div class="section-header" style="color: #e6393d;">危险操作</div>
-        <div style="padding: 16px; display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <div style="font-size: 14px; font-weight: 500;">删除知识库</div>
-            <div style="font-size: 12px; color: #999; margin-top: 2px;">删除后所有文档、切片和索引数据将被永久清除，不可恢复。</div>
-          </div>
-          <button class="btn btn-danger" style="flex-shrink: 0;" @click="handleDeleteKb">删除知识库</button>
-        </div>
       </div>
     </div>
 
@@ -493,7 +483,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getKnowledgeBase, deleteKnowledgeBase, listDocuments, listFolders, getDocumentStats, deleteDocument, clearAllDocuments, searchKnowledge, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, type KnowledgeBase as KBType, type Document, type DocumentStats, type SearchResult, type DataSource, type DataSourceCredentials, type Folder } from '../../api/knowledge'
+import { getKnowledgeBase, listDocuments, listFolders, getDocumentStats, deleteDocument, clearAllDocuments, searchKnowledge, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, type KnowledgeBase as KBType, type Document, type DocumentStats, type SearchResult, type DataSource, type DataSourceCredentials, type Folder } from '../../api/knowledge'
 import ChunkStats from '../../components/knowledge/ChunkStats.vue'
 import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
 import TableToolbar from '../../components/TableToolbar.vue'
@@ -1016,17 +1006,6 @@ async function handleClearAll() {
   await clearAllDocuments(route.params.kbId as string)
   selectedDocIds.value = new Set()
   await Promise.all([loadDocuments(), loadStats()])
-}
-
-async function handleDeleteKb() {
-  const name = kb.value?.name || ''
-  if (!confirm(`确认删除知识库"${name}"？所有文档和索引数据将被永久删除。`)) return
-  try {
-    await deleteKnowledgeBase(route.params.kbId as string)
-    router.push('/knowledge')
-  } catch (e: any) {
-    alert('删除失败: ' + (e.response?.data?.error?.message || e.message))
-  }
 }
 
 async function handleSearch() {
