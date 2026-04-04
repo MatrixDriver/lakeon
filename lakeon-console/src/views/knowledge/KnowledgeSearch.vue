@@ -45,7 +45,7 @@
       </div>
     </div>
 
-    <div v-else-if="searched && results.length === 0" style="margin-top: 32px; text-align: center; color: #999;">
+    <div v-else-if="searched && !searching && results.length === 0" style="margin-top: 32px; text-align: center; color: #999;">
       未找到相关结果
     </div>
   </div>
