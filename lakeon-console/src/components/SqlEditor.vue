@@ -109,14 +109,15 @@
             </tr>
           </tbody>
         </table>
-        <TableFooter
-          v-if="result.rows.length > 0"
-          :total="result.rows.length"
-          v-model:pageSize="resultPageSize"
-          v-model:currentPage="resultCurrentPage"
-          :pageSizeOptions="[20, 50, 100]"
-        />
       </div>
+      <TableFooter
+        v-if="result && result.is_select && result.rows.length > 0"
+        :total="result.rows.length"
+        v-model:pageSize="resultPageSize"
+        v-model:currentPage="resultCurrentPage"
+        :pageSizeOptions="[20, 50, 100]"
+        style="flex-shrink: 0;"
+      />
       <div v-else-if="result && !result.is_select" class="result-message">
         语句执行成功，影响 {{ result.row_count }} 行
       </div>
