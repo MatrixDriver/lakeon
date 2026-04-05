@@ -414,6 +414,8 @@ defineExpose({ executeQuery })
   flex-direction: column;
   height: 100%;
   background: #fff;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .editor-toolbar {
@@ -485,6 +487,8 @@ defineExpose({ executeQuery })
   flex-direction: column;
   max-height: 50%;
   min-height: 80px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .result-header {
