@@ -134,16 +134,9 @@
     <div style="margin-top: 16px;">
       <!-- Toolbar: all buttons + search on one row -->
       <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
-        <label class="btn btn-primary" style="cursor: pointer;" :class="{ disabled: uploading || kb?.status !== 'READY' }">
-          上传文件
-          <input type="file" accept=".pdf,.docx,.doc,.xlsx,.xls,.xlsm,.pptx,.epub,.html,.htm,.md,.markdown,.txt" multiple style="display: none;" :disabled="uploading || kb?.status !== 'READY'" @change="handleUpload" />
-        </label>
-        <label class="btn btn-secondary" style="cursor: pointer;" :class="{ disabled: uploading || kb?.status !== 'READY' }">
-          上传目录
-          <input type="file" style="display: none;" :disabled="uploading || kb?.status !== 'READY'" webkitdirectory @change="handleDirectoryUpload" />
-        </label>
+        <button class="btn btn-primary" @click="showUploadDialog = true" :disabled="uploading || kb?.status !== 'READY'">本地上传</button>
         <button class="btn btn-secondary" @click="showUrlDialog = true" :disabled="kb?.status !== 'READY'">导入 URL</button>
-        <button class="btn btn-secondary" @click="dsCreateDialog = true">OBS 数据源</button>
+        <button class="btn btn-secondary" @click="handleObsDataSource" :disabled="kb?.status !== 'READY'">OBS 数据源</button>
         <span style="flex: 1;"></span>
         <div style="display: flex; align-items: center; gap: 6px;">
           <input v-model="docSearch" placeholder="搜索文件名..." style="padding: 6px 12px; border: 1px solid #e0d8ce; border-radius: 4px; font-size: 12px; width: 180px; outline: none;" />
@@ -339,90 +332,6 @@
       </div>
     </div>
 
-    <!-- OBS Datasources section -->
-    <div style="margin-top: 32px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h3 style="margin: 0; font-size: 16px;">OBS 数据源</h3>
-        <button class="btn btn-primary" @click="dsCreateDialog = true">添加数据源</button>
-      </div>
-
-      <div v-if="datasources.length === 0 && !dsLoading" class="empty-state" style="padding: 40px; text-align: center; color: #999;">
-        暂无数据源。点击"添加数据源"创建一个 OBS 目录，将文件批量上传后同步到知识库。
-      </div>
-
-      <div v-for="ds in datasources" :key="ds.id" class="section-card" style="margin-bottom: 16px; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-          <div>
-            <div style="font-weight: 600; font-size: 15px;">{{ ds.name }}</div>
-            <div style="color: #999; font-size: 12px; margin-top: 4px;">
-              <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">obs://{{ ds.obs_prefix }}</code>
-            </div>
-            <div style="display: flex; gap: 16px; margin-top: 8px; font-size: 13px; color: #666;">
-              <span>{{ ds.file_count }} 个文件</span>
-              <span v-if="ds.last_synced_at">上次同步: {{ new Date(ds.last_synced_at).toLocaleString('zh-CN') }}</span>
-              <span v-else>未同步</span>
-              <span :style="{ color: ds.status === 'SYNCING' ? '#1890ff' : ds.status === 'ERROR' ? '#e6393d' : '#52c41a' }">
-                {{ ds.status === 'ACTIVE' ? '正常' : ds.status === 'SYNCING' ? '同步中...' : '错误' }}
-              </span>
-            </div>
-            <div v-if="ds.last_sync_stats" style="margin-top: 6px; font-size: 12px; color: #999;">
-              新增 {{ ds.last_sync_stats.added }} / 修改 {{ ds.last_sync_stats.modified }} / 删除 {{ ds.last_sync_stats.deleted }} / 跳过 {{ ds.last_sync_stats.skipped }}
-            </div>
-            <div v-if="ds.error" style="margin-top: 6px; font-size: 12px; color: #e6393d;">{{ ds.error }}</div>
-          </div>
-          <div style="display: flex; gap: 8px; flex-shrink: 0;">
-            <button class="btn btn-text" @click="handleGetCredentials(ds.id)">上传凭据</button>
-            <button class="btn btn-primary" :disabled="dsSyncing.has(ds.id)" @click="handleSyncDs(ds.id)">
-              {{ dsSyncing.has(ds.id) ? '同步中...' : '同步' }}
-            </button>
-            <button class="btn btn-danger-text" @click="handleDeleteDs(ds.id)">删除</button>
-          </div>
-        </div>
-
-        <!-- Credentials panel -->
-        <div v-if="dsCredentials && dsCredentials.dsId === ds.id" style="margin-top: 16px; padding: 16px; background: #f8f9fa; border-radius: 6px; font-size: 13px;">
-          <div style="font-weight: 600; margin-bottom: 12px;">上传指引</div>
-          <p style="margin-bottom: 8px;">将文件上传到以下 OBS 目录，然后点击"同步"将文件导入知识库：</p>
-          <code style="display: block; background: #fff; padding: 8px 12px; border-radius: 4px; margin-bottom: 12px; word-break: break-all;">
-            obs://{{ dsCredentials.creds.bucket }}/{{ dsCredentials.creds.prefix }}
-          </code>
-          <div style="margin-bottom: 8px; font-weight: 500;">支持格式：PDF、DOCX、DOC、XLSX、XLS、PPTX、EPUB、HTML、Markdown、TXT（支持子目录）</div>
-          <div style="margin-bottom: 8px; font-weight: 500;">方式一：hcloud CLI</div>
-          <pre style="background: #fff; padding: 8px 12px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin-bottom: 12px; white-space: pre-wrap; word-break: break-all;">{{ dsCredentials.creds.upload_commands.hcloud }}</pre>
-          <div style="margin-bottom: 8px; font-weight: 500;">方式二：obsutil</div>
-          <pre style="background: #fff; padding: 8px 12px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin-bottom: 12px; white-space: pre-wrap; word-break: break-all;">{{ dsCredentials.creds.upload_commands.obsutil }}</pre>
-          <div style="margin-bottom: 8px; font-weight: 500;">方式三：华为云 OBS Console 网页端</div>
-          <p style="margin: 0; color: #666;">登录华为云 Console → 对象存储服务 → {{ dsCredentials.creds.bucket }} → 进入 {{ dsCredentials.creds.prefix }} 目录 → 上传</p>
-          <div style="margin-top: 12px; color: #faad14; font-size: 12px;">
-            凭据有效期至 {{ new Date(dsCredentials.creds.expires_at).toLocaleString('zh-CN') }}，过期后重新获取。
-          </div>
-          <button class="btn btn-text" style="margin-top: 8px;" @click="dsCredentials = null">收起</button>
-        </div>
-      </div>
-
-      <!-- Create dialog -->
-      <div v-if="dsCreateDialog" class="modal-overlay" @click.self="dsCreateDialog = false">
-        <div class="modal-box" style="max-width: 400px;">
-          <div class="modal-header">
-            <span>添加数据源</span>
-            <button class="btn-icon" @click="dsCreateDialog = false">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          </div>
-          <div class="modal-body">
-            <label class="form-label">数据源名称</label>
-            <input v-model="dsCreateName" class="form-input" placeholder="例如：产品文档" @keyup.enter="handleCreateDs" />
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-text" @click="dsCreateDialog = false">取消</button>
-            <button class="btn btn-primary" :disabled="!dsCreateName.trim()" @click="handleCreateDs">创建</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
     </div><!-- end doc tab -->
 
     </template><!-- end DOCUMENT type -->
@@ -499,6 +408,93 @@
           </button>
         </div>
       </div>
+    <!-- Upload Dialog -->
+    <div v-if="showUploadDialog" class="modal-overlay" @click.self="showUploadDialog = false">
+      <div class="modal-box" style="max-width: 440px;">
+        <div class="modal-header">
+          <span>本地上传</span>
+          <button class="btn-icon" @click="showUploadDialog = false">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body" style="text-align: center; padding: 24px;">
+          <p style="color: #666; font-size: 13px; margin-bottom: 20px;">支持 PDF、DOCX、XLSX、PPTX、EPUB、HTML、Markdown、TXT</p>
+          <div style="display: flex; gap: 12px; justify-content: center;">
+            <label class="btn btn-primary" style="cursor: pointer; padding: 10px 24px;">
+              选择文件
+              <input type="file" accept=".pdf,.docx,.doc,.xlsx,.xls,.xlsm,.pptx,.epub,.html,.htm,.md,.markdown,.txt" multiple style="display: none;" @change="handleUploadFromDialog" />
+            </label>
+            <label class="btn btn-secondary" style="cursor: pointer; padding: 10px 24px;">
+              选择目录
+              <input type="file" style="display: none;" webkitdirectory @change="handleDirUploadFromDialog" />
+            </label>
+          </div>
+          <p style="color: #aaa; font-size: 12px; margin-top: 12px;">单次最多 20 个文件</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- OBS Datasource List Dialog -->
+    <div v-if="showDsListDialog" class="modal-overlay" @click.self="showDsListDialog = false">
+      <div class="modal-box" style="max-width: 560px;">
+        <div class="modal-header">
+          <span>OBS 数据源</span>
+          <button class="btn-icon" @click="showDsListDialog = false">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body" style="padding: 16px;">
+          <div v-for="ds in datasources" :key="ds.id" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid #e8e0d8; border-radius: 6px; margin-bottom: 8px;">
+            <div>
+              <div style="font-weight: 500; font-size: 14px;">{{ ds.name }}</div>
+              <div style="font-size: 12px; color: #999; margin-top: 2px;">
+                <code style="background: #f5f5f5; padding: 1px 4px; border-radius: 2px;">obs://{{ ds.obs_prefix }}</code>
+                &middot; {{ ds.file_count }} 个文件
+                <span v-if="ds.last_synced_at"> &middot; 上次同步 {{ new Date(ds.last_synced_at).toLocaleString('zh-CN') }}</span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-text btn-small" @click="handleGetCredentials(ds.id)">凭据</button>
+              <button class="btn btn-primary btn-small" :disabled="dsSyncing.has(ds.id)" @click="handleSyncDs(ds.id)">
+                {{ dsSyncing.has(ds.id) ? '同步中...' : '同步' }}
+              </button>
+              <button class="btn btn-text btn-small" style="color: #e6393d;" @click="handleDeleteDs(ds.id)">删除</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-text" @click="showDsListDialog = false; dsCreateDialog = true">新增数据源</button>
+          <button class="btn btn-text" @click="showDsListDialog = false">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- OBS Create Dialog -->
+    <div v-if="dsCreateDialog" class="modal-overlay" @click.self="dsCreateDialog = false">
+      <div class="modal-box" style="max-width: 400px;">
+        <div class="modal-header">
+          <span>添加数据源</span>
+          <button class="btn-icon" @click="dsCreateDialog = false">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <label class="form-label">数据源名称</label>
+          <input v-model="dsCreateName" class="form-input" placeholder="例如：产品文档" @keyup.enter="handleCreateDs" />
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-text" @click="dsCreateDialog = false">取消</button>
+          <button class="btn btn-primary" :disabled="!dsCreateName.trim()" @click="handleCreateDs">创建</button>
+        </div>
+      </div>
+    </div>
+
     </div>
   </div>
 </template>
@@ -564,6 +560,31 @@ const tagDialog = ref<{
   input: string
   saving: boolean
 }>({ open: false, doc: null, input: '', saving: false })
+
+// ── Upload dialog state ──
+const showUploadDialog = ref(false)
+
+function handleUploadFromDialog(e: Event) {
+  showUploadDialog.value = false
+  handleUpload(e)
+}
+
+function handleDirUploadFromDialog(e: Event) {
+  showUploadDialog.value = false
+  handleDirectoryUpload(e)
+}
+
+// ── OBS datasource list dialog ──
+const showDsListDialog = ref(false)
+
+async function handleObsDataSource() {
+  await loadDataSources()
+  if (datasources.value.length > 0) {
+    showDsListDialog.value = true
+  } else {
+    dsCreateDialog.value = true
+  }
+}
 
 // ── URL Import state ──
 const showUrlDialog = ref(false)
