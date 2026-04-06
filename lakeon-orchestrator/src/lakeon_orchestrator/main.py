@@ -71,6 +71,9 @@ def create_app() -> FastAPI:
     from lakeon_orchestrator.api.runs import router as runs_router
     _app.include_router(runs_router, prefix="/runs", tags=["runs"])
 
+    from lakeon_orchestrator.api.url_fetch import router as url_fetch_router
+    _app.include_router(url_fetch_router, prefix="/url", tags=["url-fetch"])
+
     return _app
 
 
