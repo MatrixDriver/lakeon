@@ -22,7 +22,15 @@
       "WebFetch(domain:neon.com)",
       "WebFetch(domain:www.paradedb.com)",
       "WebFetch(domain:news.ycombinator.com)",
-      "mcp__plugin_playwright_playwright__browser_take_screenshot"
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "mcp__dbay-sre-mcp__log_search",
+      "WebFetch(domain:docs.vllm.ai)",
+      "WebFetch(domain:support.huaweicloud.com)",
+      "WebFetch(domain:www.huaweicloud.com)",
+      "mcp__dbay-sre-mcp__log_errors",
+      "mcp__dbay-sre-mcp__log_stats",
+      "WebFetch(domain:gist.github.com)",
+      "WebFetch(domain:louiswang524.github.io)"
     ]
   }
 }

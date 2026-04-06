@@ -22,6 +22,7 @@ const logLoading = ref(false)
 
 async function openLogDrawer() {
   showLog.value = true
+  if (logContent.value) return  // already loaded
   const logPage = pages.value.find(p => p.filename === 'log.md')
   if (!logPage) {
     logContent.value = '暂无日志'

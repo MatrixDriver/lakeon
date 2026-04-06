@@ -310,6 +310,7 @@
               <td style="color: #999;">{{ doc.created_at ? new Date(doc.created_at).toLocaleString('zh-CN') : '-' }}</td>
               <td @click.stop>
                 <button v-if="doc.status === 'FAILED'" class="btn btn-text btn-small" style="color: #1890ff;" @click="handleRetryDoc(doc)">重试</button>
+                <router-link v-if="doc.status === 'READY'" :to="{ name: 'DocumentDetail', params: { kbId: route.params.kbId, docId: doc.id } }" class="btn btn-text btn-small" style="color: #9a5b25;" @click.stop>切片</router-link>
                 <button class="btn btn-text btn-small btn-danger-text" @click="handleDeleteDoc(doc)">删除</button>
               </td>
             </tr>

@@ -202,7 +202,10 @@ mcp = FastMCP(
     instructions=(
         "SRE diagnostic tools for DBay log analysis. "
         "Use log_search for flexible filtering, log_trace to follow a request chain, "
-        "log_errors for recent failures, and log_stats for an overview of activity."
+        "log_errors for recent failures, and log_stats for an overview of activity.\n"
+        "Strategy: start broad (log_stats or log_errors), then narrow down with log_search. "
+        "Do NOT guess keywords — browse logs first by component/level/time, "
+        "then use exact words from actual log messages as keywords."
     ),
 )
 
@@ -210,7 +213,12 @@ mcp = FastMCP(
 @mcp.tool(
     description=(
         "Search logs with flexible filters: component, log level, full-text keyword, "
-        "tenant_id, db_id, time window (since e.g. '1h','30m','2d'), and row limit."
+        "tenant_id, db_id, time window (since e.g. '1h','30m','2d'), and row limit.\n"
+        "IMPORTANT: keyword uses PostgreSQL full-text search (simple tokenizer, no stemming). "
+        "Use exact words that appear in the log message. If you don't know what words the logs "
+        "contain, first search WITHOUT keyword (filter by component/level/time only) to see "
+        "actual log messages, then refine with keyword. "
+        "Avoid guessing keywords like function names or camelCase identifiers."
     )
 )
 def log_search(
