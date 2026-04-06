@@ -139,9 +139,6 @@ class TestAdminWikiConfig:
     def test_get_wiki_config(self):
         r = httpx.get(f"{BASE}/knowledge/admin/wiki/config",
                       headers=self._admin_headers(), verify=False, timeout=TIMEOUT)
-        # If 401, the endpoint path needs to be under /admin/ prefix — skip gracefully
-        if r.status_code == 401:
-            pytest.skip("Wiki config endpoint auth requires fix (path not under /admin/)")
         assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
         data = r.json()
         assert "ingest_prompt" in data
@@ -154,9 +151,10 @@ class TestAdminWikiConfig:
         assert r.status_code in [401, 403], f"Expected 401/403, got {r.status_code}"
 
     def test_update_wiki_config(self):
+        """PUT should return 200. Note: in-memory config with multiple pods
+        means GET after PUT may hit a different pod, so we only verify the PUT succeeds."""
+        headers = self._admin_headers()
         r = httpx.put(f"{BASE}/knowledge/admin/wiki/config",
                       json={"model": "test-model"},
-                      headers=self._admin_headers(), verify=False, timeout=TIMEOUT)
-        if r.status_code == 401:
-            pytest.skip("Wiki config endpoint auth requires fix (path not under /admin/)")
+                      headers=headers, verify=False, timeout=TIMEOUT)
         assert r.status_code == 200

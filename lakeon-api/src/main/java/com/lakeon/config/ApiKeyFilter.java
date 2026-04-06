@@ -79,7 +79,7 @@ public class ApiKeyFilter implements Filter {
         }
 
         // Admin API endpoints require admin token
-        if (path.startsWith("/api/v1/admin/")) {
+        if (path.startsWith("/api/v1/admin/") || path.contains("/admin/wiki/")) {
             String adminToken = props.getAdmin().getToken();
             if (adminToken == null || adminToken.isBlank()) {
                 response.setStatus(403);

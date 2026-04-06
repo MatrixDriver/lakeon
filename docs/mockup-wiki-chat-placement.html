@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wiki Agent - 对话位置方案对比</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f0eb; color: #3d3d3d; }
+
+.page-title { text-align: center; padding: 28px 32px 8px; font-size: 20px; color: #5a4a3a; font-weight: 600; }
+.page-subtitle { text-align: center; padding: 0 32px 28px; font-size: 14px; color: #8c7a68; }
+
+.schemes { display: flex; flex-direction: column; gap: 36px; padding: 0 32px 48px; align-items: center; }
+
+.scheme {
+  background: #fff; border-radius: 12px; overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06); width: 100%; max-width: 1100px;
+  border: 2px solid transparent;
+}
+.scheme.recommended { border-color: #c25a3c; }
+.scheme-header {
+  padding: 14px 20px; background: #faf5f0; border-bottom: 1px solid #e8e0d8;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.scheme-header h2 { font-size: 15px; color: #5a4a3a; }
+.scheme-header .badge { background: #c25a3c; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+
+.layout { display: flex; height: 400px; }
+
+/* Sidebar */
+.sidebar {
+  width: 160px; background: #faf5f0; border-right: 1px solid #e8e0d8; padding: 10px 0; flex-shrink: 0;
+}
+.sidebar-item {
+  padding: 7px 14px; font-size: 12px; color: #8c7a68; display: flex; align-items: center; gap: 6px;
+}
+.sidebar-item.active { background: #f0e6d8; color: #c25a3c; font-weight: 500; }
+.sidebar-section { padding: 10px 14px 3px; font-size: 10px; color: #b0a090; letter-spacing: 0.5px; }
+
+/* Main */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.topbar {
+  padding: 10px 16px; border-bottom: 1px solid #e8e0d8; display: flex;
+  justify-content: space-between; align-items: center;
+}
+.topbar-title { font-size: 15px; font-weight: 600; color: #5a4a3a; }
+.topbar-btn {
+  font-size: 11px; color: #b0a090; border: 1px solid #d4c4b0; padding: 3px 10px;
+  border-radius: 4px; cursor: default;
+}
+
+/* Two-col: wiki + graph */
+.two-col { display: flex; flex: 1; overflow: hidden; }
+.col-wiki { flex: 1; border-right: 1px solid #e8e0d8; padding: 12px; overflow: hidden; }
+.col-graph { width: 320px; flex-shrink: 0; padding: 12px; position: relative; overflow: hidden; }
+.col-label { font-size: 10px; color: #b0a090; margin-bottom: 6px; font-weight: 600; letter-spacing: 0.3px; }
+
+/* Wiki content */
+.wiki-list { display: flex; gap: 8px; height: 100%; }
+.wiki-nav { width: 110px; flex-shrink: 0; }
+.wiki-nav-item { padding: 3px 6px; font-size: 11px; color: #5a4a3a; border-radius: 3px; margin-bottom: 1px; }
+.wiki-nav-item.active { background: #f0e6d8; color: #8b6914; font-weight: 500; }
+.wiki-body { flex: 1; }
+.wiki-body h3 { font-size: 14px; color: #2c2c2c; margin-bottom: 6px; border-bottom: 1px solid #e8e0d8; padding-bottom: 4px; }
+.wiki-body p { font-size: 11px; color: #666; line-height: 1.6; margin-bottom: 4px; }
+.wikilink { color: #8b6914; border-bottom: 1px dashed #8b6914; }
+
+/* Graph */
+.graph-box {
+  background: #fdfbf8; border: 1px solid #e8e0d8; border-radius: 8px;
+  height: 100%; position: relative;
+}
+.gn { width: 10px; height: 10px; border-radius: 50%; position: absolute; border: 2px solid #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+.gn.main { background: #c25a3c; width: 14px; height: 14px; }
+.gn.sub { background: #d4a574; }
+.gn.ref { background: #8b6914; width: 8px; height: 8px; }
+.gl { position: absolute; font-size: 9px; color: #5a4a3a; }
+.ge { position: absolute; height: 1px; background: #d4c4b0; transform-origin: left center; }
+
+/* ── Scheme 1: Right panel ── */
+.right-panel {
+  width: 280px; flex-shrink: 0; border-left: 1px solid #e8e0d8;
+  display: flex; flex-direction: column; background: #fdfbf8;
+}
+.rp-header {
+  padding: 10px 12px; border-bottom: 1px solid #e8e0d8; font-size: 13px;
+  font-weight: 500; color: #5a4a3a; display: flex; justify-content: space-between; align-items: center;
+  background: #faf5f0;
+}
+.rp-toggle {
+  font-size: 10px; color: #b0a090; border: 1px solid #d4c4b0; padding: 2px 8px;
+  border-radius: 3px; cursor: default;
+}
+.rp-body { flex: 1; padding: 10px; overflow: hidden; }
+.rp-msg { margin-bottom: 8px; }
+.rp-msg-label { font-size: 9px; color: #b0a090; margin-bottom: 2px; }
+.rp-bubble { font-size: 11px; padding: 6px 10px; border-radius: 8px; line-height: 1.5; }
+.rp-msg.user .rp-bubble { background: #f0e6d8; text-align: right; }
+.rp-msg.bot .rp-bubble { background: #fff; border: 1px solid #e8e0d8; }
+.rp-save { font-size: 10px; color: #8b6914; border: 1px solid #8b6914; background: none; padding: 2px 8px; border-radius: 3px; margin-top: 4px; cursor: default; }
+.rp-input {
+  border-top: 1px solid #e8e0d8; padding: 8px 10px; display: flex; gap: 6px;
+}
+.rp-input input { flex: 1; border: 1px solid #d4c4b0; border-radius: 5px; padding: 6px 8px; font-size: 11px; outline: none; }
+.rp-input button { background: #c25a3c; color: #fff; border: none; border-radius: 5px; padding: 6px 12px; font-size: 11px; cursor: default; }
+
+/* ── Scheme 2: Bottom drawer ── */
+.bottom-drawer {
+  height: 130px; border-top: 2px solid #e8e0d8; background: #fdfbf8;
+  display: flex; flex-direction: column; flex-shrink: 0;
+}
+.bd-header {
+  padding: 6px 16px; border-bottom: 1px solid #e8e0d8; font-size: 12px;
+  font-weight: 500; color: #5a4a3a; display: flex; justify-content: space-between; align-items: center;
+  background: #faf5f0;
+}
+.bd-body { flex: 1; display: flex; padding: 8px 16px; gap: 16px; overflow: hidden; }
+.bd-messages { flex: 1; overflow: hidden; display: flex; gap: 12px; }
+.bd-msg { font-size: 11px; }
+.bd-msg .label { font-size: 9px; color: #b0a090; margin-bottom: 2px; }
+.bd-msg .text { background: #fff; border: 1px solid #e8e0d8; padding: 6px 10px; border-radius: 6px; line-height: 1.5; }
+.bd-msg.user .text { background: #f0e6d8; border: none; }
+.bd-input-area { width: 240px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+.bd-input-area textarea {
+  border: 1px solid #d4c4b0; border-radius: 6px; padding: 6px 10px; font-size: 11px;
+  outline: none; resize: none; height: 50px; font-family: inherit;
+}
+.bd-input-area button { align-self: flex-end; background: #c25a3c; color: #fff; border: none; border-radius: 5px; padding: 5px 14px; font-size: 11px; }
+
+/* ── Scheme 3: Separate page ── */
+.sep-tab { display: flex; gap: 0; border-bottom: 1px solid #e8e0d8; }
+.sep-tab-item {
+  padding: 8px 18px; font-size: 12px; color: #8c7a68; border-bottom: 2px solid transparent; cursor: default;
+}
+.sep-tab-item.active { color: #c25a3c; border-bottom-color: #c25a3c; font-weight: 500; }
+
+/* ── Scheme 4: Node click ── */
+.node-detail {
+  position: absolute; right: 12px; top: 30px; width: 180px;
+  background: #fff; border: 1px solid #e8e0d8; border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1); padding: 10px; z-index: 10;
+}
+.nd-title { font-size: 13px; font-weight: 600; color: #5a4a3a; margin-bottom: 6px; border-bottom: 1px solid #e8e0d8; padding-bottom: 4px; }
+.nd-text { font-size: 10px; color: #666; line-height: 1.5; margin-bottom: 6px; }
+.nd-ask { display: flex; gap: 4px; }
+.nd-ask input { flex: 1; border: 1px solid #d4c4b0; border-radius: 4px; padding: 3px 6px; font-size: 10px; outline: none; }
+.nd-ask button { background: #c25a3c; color: #fff; border: none; border-radius: 4px; padding: 3px 8px; font-size: 10px; }
+
+/* Pros/Cons */
+.pros-cons { padding: 10px 20px; font-size: 12px; line-height: 1.8; display: flex; gap: 24px; flex-wrap: wrap; }
+.pros-cons div { white-space: nowrap; }
+.pro { color: #5a8a3a; }
+.con { color: #c25a3c; }
+</style>
+</head>
+<body>
+
+<div class="page-title">对话放在哪里？</div>
+<div class="page-subtitle">基于方案 B（Wiki + 图谱一页看全），对话的四种放置方式对比</div>
+
+<div class="schemes">
+
+<!-- ════════════════ 方案1：右侧面板 ════════════════ -->
+<div class="scheme recommended">
+  <div class="scheme-header">
+    <h2>方案 1：右侧面板（Copilot 风格）</h2>
+    <span class="badge">推荐</span>
+  </div>
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sidebar-section">知识库</div>
+      <div class="sidebar-item active">📚 区块链技术</div>
+      <div class="sidebar-item">📚 经典文学</div>
+      <div class="sidebar-item">📚 test-kb</div>
+      <div class="sidebar-section">系统</div>
+      <div class="sidebar-item">🗄 数据库</div>
+      <div class="sidebar-item">🔍 搜索</div>
+    </div>
+    <div class="main" style="flex:1;">
+      <div class="topbar">
+        <div class="topbar-title">区块链技术</div>
+        <div class="topbar-btn">文档管理 →</div>
+      </div>
+      <div class="two-col" style="flex:1;">
+        <div class="col-wiki">
+          <div class="col-label">WIKI 页面</div>
+          <div class="wiki-list">
+            <div class="wiki-nav">
+              <div class="wiki-nav-item active">Consensus</div>
+              <div class="wiki-nav-item">Bitcoin</div>
+              <div class="wiki-nav-item">Ethereum</div>
+              <div class="wiki-nav-item">Lightning Net</div>
+              <div class="wiki-nav-item">ZK-Rollup</div>
+              <div class="wiki-nav-item">DeFi</div>
+            </div>
+            <div class="wiki-body">
+              <h3>Consensus Mechanism</h3>
+              <p>共识机制是区块链网络中节点就交易有效性达成一致的协议。</p>
+              <p>主要类型：<span class="wikilink">[[PoW]]</span>、<span class="wikilink">[[PoS]]</span>、<span class="wikilink">[[BFT]]</span>、<span class="wikilink">[[DPoS]]</span></p>
+              <p><span class="wikilink">[[Bitcoin]]</span> 使用 PoW，<span class="wikilink">[[Ethereum]]</span> 已转为 PoS。</p>
+              <p>2026 趋势：混合共识、AI 优化、后量子密码学。</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-graph">
+          <div class="col-label">知识图谱</div>
+          <div class="graph-box">
+            <div class="gn main" style="left:140px;top:70px;"></div><div class="gl" style="left:158px;top:68px;">Consensus</div>
+            <div class="gn sub" style="left:60px;top:40px;"></div><div class="gl" style="left:74px;top:36px;">PoW</div>
+            <div class="gn sub" style="left:220px;top:40px;"></div><div class="gl" style="left:234px;top:36px;">PoS</div>
+            <div class="gn sub" style="left:50px;top:140px;"></div><div class="gl" style="left:64px;top:136px;">Bitcoin</div>
+            <div class="gn sub" style="left:210px;top:140px;"></div><div class="gl" style="left:224px;top:136px;">Ethereum</div>
+            <div class="gn ref" style="left:100px;top:200px;"></div><div class="gl" style="left:112px;top:196px;">Lightning</div>
+            <div class="gn ref" style="left:200px;top:210px;"></div><div class="gl" style="left:212px;top:206px;">ZK-Rollup</div>
+            <div class="gn ref" style="left:260px;top:170px;"></div><div class="gl" style="left:272px;top:166px;">DeFi</div>
+            <div class="ge" style="left:68px;top:48px;width:75px;transform:rotate(16deg);"></div>
+            <div class="ge" style="left:150px;top:78px;width:75px;transform:rotate(-24deg);"></div>
+            <div class="ge" style="left:60px;top:50px;width:60px;transform:rotate(60deg);"></div>
+            <div class="ge" style="left:148px;top:84px;width:72px;transform:rotate(42deg);"></div>
+            <div class="ge" style="left:60px;top:148px;width:50px;transform:rotate(50deg);"></div>
+            <div class="ge" style="left:218px;top:150px;width:50px;transform:rotate(50deg);"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Right chat panel -->
+    <div class="right-panel">
+      <div class="rp-header">
+        <span>Wiki Agent</span>
+        <span class="rp-toggle">收起 ✕</span>
+      </div>
+      <div class="rp-body">
+        <div class="rp-msg user">
+          <div class="rp-msg-label">你</div>
+          <div class="rp-bubble">PoW 和 PoS 的核心区别是什么？</div>
+        </div>
+        <div class="rp-msg bot">
+          <div class="rp-msg-label">Wiki Agent · <span style="color:#c25a3c;font-size:9px;">深度分析</span></div>
+          <div class="rp-bubble">
+            根据 Wiki，<span class="wikilink">[[PoW]]</span> 依靠算力竞争出块，能耗高但去中心化强；<span class="wikilink">[[PoS]]</span> 通过质押代币选验证者，能效提升 99%...
+          </div>
+          <button class="rp-save">沉淀到知识库</button>
+        </div>
+      </div>
+      <div class="rp-input">
+        <input placeholder="基于知识库提问...">
+        <button>发送</button>
+      </div>
+    </div>
+  </div>
+  <div class="pros-cons">
+    <div class="pro">+ Wiki/图谱不被压缩，保持全宽</div>
+    <div class="pro">+ 对话随时可展开/收起</div>
+    <div class="pro">+ 对话中的 wikilink 可直接跳转左侧 Wiki</div>
+    <div class="con">- 展开时占 280px 宽度</div>
+  </div>
+</div>
+
+<!-- ════════════════ 方案2：底部抽屉 ════════════════ -->
+<div class="scheme">
+  <div class="scheme-header">
+    <h2>方案 2：底部抽屉（IDE 终端风格）</h2>
+  </div>
+  <div class="layout" style="flex-direction: column;">
+    <div style="display:flex; flex:1; overflow:hidden;">
+      <div class="sidebar">
+        <div class="sidebar-section">知识库</div>
+        <div class="sidebar-item active">📚 区块链技术</div>
+        <div class="sidebar-item">📚 经典文学</div>
+        <div class="sidebar-section">系统</div>
+        <div class="sidebar-item">🗄 数据库</div>
+      </div>
+      <div class="main" style="flex:1;">
+        <div class="topbar">
+          <div class="topbar-title">区块链技术</div>
+          <div class="topbar-btn">文档管理 →</div>
+        </div>
+        <div class="two-col" style="flex:1;">
+          <div class="col-wiki">
+            <div class="col-label">WIKI 页面</div>
+            <div class="wiki-list">
+              <div class="wiki-nav">
+                <div class="wiki-nav-item active">Consensus</div>
+                <div class="wiki-nav-item">Bitcoin</div>
+                <div class="wiki-nav-item">Ethereum</div>
+              </div>
+              <div class="wiki-body">
+                <h3>Consensus Mechanism</h3>
+                <p>共识机制是区块链网络中节点就交易有效性达成一致的协议。</p>
+                <p>主要类型：<span class="wikilink">[[PoW]]</span>、<span class="wikilink">[[PoS]]</span></p>
+              </div>
+            </div>
+          </div>
+          <div class="col-graph" style="width:260px;">
+            <div class="col-label">知识图谱</div>
+            <div class="graph-box">
+              <div class="gn main" style="left:110px;top:40px;"></div><div class="gl" style="left:128px;top:38px;">Consensus</div>
+              <div class="gn sub" style="left:50px;top:100px;"></div><div class="gl" style="left:64px;top:96px;">Bitcoin</div>
+              <div class="gn sub" style="left:170px;top:100px;"></div><div class="gl" style="left:184px;top:96px;">Ethereum</div>
+              <div class="ge" style="left:60px;top:105px;width:55px;transform:rotate(-50deg);"></div>
+              <div class="ge" style="left:120px;top:50px;width:60px;transform:rotate(45deg);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Bottom drawer -->
+    <div class="bottom-drawer">
+      <div class="bd-header">
+        <span>Wiki Agent 对话</span>
+        <span style="font-size:10px;color:#b0a090;cursor:default;">▼ 收起</span>
+      </div>
+      <div class="bd-body">
+        <div class="bd-messages">
+          <div class="bd-msg user">
+            <div class="label">你</div>
+            <div class="text">PoW 和 PoS 的区别？</div>
+          </div>
+          <div class="bd-msg">
+            <div class="label">Wiki Agent</div>
+            <div class="text">PoW 依靠算力竞争，PoS 通过质押选验证者。能效差异 99%...</div>
+          </div>
+        </div>
+        <div class="bd-input-area">
+          <textarea placeholder="基于知识库提问..."></textarea>
+          <button>发送</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="pros-cons">
+    <div class="pro">+ 不占横向空间</div>
+    <div class="pro">+ 开发者熟悉的交互模式</div>
+    <div class="con">- 压缩 Wiki/图谱的纵向空间</div>
+    <div class="con">- 对话区域太扁，体验不好</div>
+  </div>
+</div>
+
+<!-- ════════════════ 方案3：独立标签页 ════════════════ -->
+<div class="scheme">
+  <div class="scheme-header">
+    <h2>方案 3：独立标签页</h2>
+  </div>
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sidebar-section">知识库</div>
+      <div class="sidebar-item active">📚 区块链技术</div>
+      <div class="sidebar-item">📚 经典文学</div>
+      <div class="sidebar-section">系统</div>
+      <div class="sidebar-item">🗄 数据库</div>
+    </div>
+    <div class="main" style="flex:1;">
+      <div class="topbar">
+        <div class="topbar-title">区块链技术</div>
+        <div class="topbar-btn">文档管理 →</div>
+      </div>
+      <div class="sep-tab">
+        <div class="sep-tab-item">Wiki + 图谱</div>
+        <div class="sep-tab-item active">对话</div>
+      </div>
+      <div style="flex:1; padding:16px; display:flex; flex-direction:column;">
+        <div style="flex:1; overflow:hidden; padding:8px;">
+          <div class="rp-msg user" style="margin-bottom:12px;">
+            <div class="rp-msg-label">你</div>
+            <div class="rp-bubble" style="max-width:60%;">区块链技术的发展趋势是什么？</div>
+          </div>
+          <div class="rp-msg bot" style="margin-bottom:12px;">
+            <div class="rp-msg-label">Wiki Agent · <span style="color:#c25a3c;">深度分析</span></div>
+            <div class="rp-bubble" style="max-width:80%;">
+              根据知识库中 35 个 wiki 页面的综合分析：<br><br>
+              1. <b>共识机制演进</b>：从 <span class="wikilink">[[PoW]]</span> 到 <span class="wikilink">[[PoS]]</span>，2026 年混合共识成为主流<br>
+              2. <b>扩展方案成熟</b>：<span class="wikilink">[[Lightning Network]]</span> 和 <span class="wikilink">[[ZK-Rollup]]</span> 进入生产阶段<br>
+              3. <b>机构化加速</b>：ETF 通过后资本大量流入...
+            </div>
+            <button class="rp-save" style="margin-top:6px;">沉淀到知识库</button>
+          </div>
+        </div>
+        <div style="border-top:1px solid #e8e0d8; padding:12px; display:flex; gap:8px;">
+          <input style="flex:1;border:1px solid #d4c4b0;border-radius:6px;padding:8px 12px;font-size:13px;outline:none;" placeholder="基于知识库提问...">
+          <button style="background:#c25a3c;color:#fff;border:none;border-radius:6px;padding:8px 20px;font-size:13px;">发送</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="pros-cons">
+    <div class="pro">+ 对话区域最大，体验最好</div>
+    <div class="pro">+ 可展示长回答和复杂分析</div>
+    <div class="con">- 看不到 Wiki/图谱（需要切标签）</div>
+    <div class="con">- 对话中引用的 wikilink 不能直接对照 Wiki 页面</div>
+  </div>
+</div>
+
+<!-- ════════════════ 方案4：点击节点弹出 ════════════════ -->
+<div class="scheme">
+  <div class="scheme-header">
+    <h2>方案 4：点击图谱节点 → 弹出详情 + 提问</h2>
+  </div>
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sidebar-section">知识库</div>
+      <div class="sidebar-item active">📚 区块链技术</div>
+      <div class="sidebar-item">📚 经典文学</div>
+      <div class="sidebar-section">系统</div>
+      <div class="sidebar-item">🗄 数据库</div>
+    </div>
+    <div class="main" style="flex:1;">
+      <div class="topbar">
+        <div class="topbar-title">区块链技术</div>
+        <div class="topbar-btn">文档管理 →</div>
+      </div>
+      <div class="two-col" style="flex:1;">
+        <div class="col-wiki">
+          <div class="col-label">WIKI 页面</div>
+          <div class="wiki-list">
+            <div class="wiki-nav">
+              <div class="wiki-nav-item active">Consensus</div>
+              <div class="wiki-nav-item">Bitcoin</div>
+              <div class="wiki-nav-item">Ethereum</div>
+              <div class="wiki-nav-item">Lightning Net</div>
+              <div class="wiki-nav-item">ZK-Rollup</div>
+            </div>
+            <div class="wiki-body">
+              <h3>Consensus Mechanism</h3>
+              <p>共识机制是区块链网络中节点就交易有效性达成一致的协议。</p>
+              <p>主要类型：<span class="wikilink">[[PoW]]</span>、<span class="wikilink">[[PoS]]</span>、<span class="wikilink">[[BFT]]</span></p>
+            </div>
+          </div>
+        </div>
+        <div class="col-graph" style="width: 360px;">
+          <div class="col-label">知识图谱 <span style="font-size:9px;color:#c25a3c;">(点击节点查看详情)</span></div>
+          <div class="graph-box">
+            <div class="gn main" style="left:120px;top:60px;"></div><div class="gl" style="left:138px;top:58px;">Consensus</div>
+            <div class="gn sub" style="left:50px;top:30px;"></div><div class="gl" style="left:64px;top:26px;">PoW</div>
+            <div class="gn sub" style="left:200px;top:35px;"></div><div class="gl" style="left:214px;top:31px;">PoS</div>
+            <div class="gn sub" style="left:40px;top:130px; background:#c25a3c; width:14px; height:14px; box-shadow: 0 0 0 3px rgba(194,90,60,0.3);"></div>
+            <div class="gl" style="left:58px;top:128px; font-weight:600; color:#c25a3c;">Bitcoin</div>
+            <div class="gn sub" style="left:190px;top:130px;"></div><div class="gl" style="left:204px;top:126px;">Ethereum</div>
+            <div class="gn ref" style="left:80px;top:200px;"></div><div class="gl" style="left:92px;top:196px;">Lightning</div>
+            <div class="gn ref" style="left:220px;top:190px;"></div><div class="gl" style="left:232px;top:186px;">ZK-Rollup</div>
+            <div class="ge" style="left:58px;top:38px;width:65px;transform:rotate(18deg);"></div>
+            <div class="ge" style="left:130px;top:68px;width:75px;transform:rotate(-20deg);"></div>
+            <div class="ge" style="left:50px;top:138px;width:75px;transform:rotate(-55deg);"></div>
+            <div class="ge" style="left:55px;top:140px;width:40px;transform:rotate(55deg);"></div>
+            <div class="ge" style="left:198px;top:138px;width:40px;transform:rotate(55deg);"></div>
+
+            <!-- Node detail popup -->
+            <div class="node-detail">
+              <div class="nd-title">Bitcoin</div>
+              <div class="nd-text">
+                最早的去中心化加密货币，使用 <span class="wikilink">[[PoW]]</span> 共识机制。Layer 2 方案包括 <span class="wikilink">[[Lightning Network]]</span>。
+              </div>
+              <div style="font-size:9px;color:#b0a090;margin-bottom:4px;">关于 Bitcoin 提问：</div>
+              <div class="nd-ask">
+                <input placeholder="问一下...">
+                <button>问</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="pros-cons">
+    <div class="pro">+ 图谱和知识紧密联动</div>
+    <div class="pro">+ 探索式交互，点哪问哪</div>
+    <div class="con">- 只能问单个实体，不适合综合性问题</div>
+    <div class="con">- 弹窗空间小，不适合长对话</div>
+  </div>
+</div>
+
+</div>
+
+</body>
+</html>
