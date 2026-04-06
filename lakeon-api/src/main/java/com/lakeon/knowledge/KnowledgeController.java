@@ -528,8 +528,18 @@ public class KnowledgeController {
         try {
             Map<String, Object> result = wikiService.ingestUrl(tenant.getId(), kbId, url);
             return ResponseEntity.ok(result);
+        } catch (RuntimeException e) {
+            String msg = e.getMessage() != null ? e.getMessage() : "Unknown error";
+            int status = 500;
+            if (msg.startsWith("Failed to fetch URL") || msg.startsWith("HTTP ")) {
+                status = 422;
+            } else if (msg.contains("content too short")) {
+                status = 422;
+                msg = "页面内容过少，可能需要 JavaScript 渲染或登录访问";
+            }
+            return ResponseEntity.status(status).body(Map.of("error", Map.of("message", msg)));
         } catch (Exception e) {
-            return ResponseEntity.status(502).body(Map.of("error", "URL 导入失败: " + e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of("error", Map.of("message", e.getMessage())));
         }
     }
 

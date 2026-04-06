@@ -225,17 +225,38 @@ public class WikiService {
         // 1. Fetch HTML
         String html;
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .header("User-Agent", "Mozilla/5.0 (compatible; DBay/1.0)")
-                    .timeout(Duration.ofSeconds(30))
-                    .GET()
-                    .build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            int maxRedirects = 3;
+            HttpResponse<String> response = null;
+            String currentUrl = url;
+            for (int i = 0; i <= maxRedirects; i++) {
+                HttpRequest req = HttpRequest.newBuilder()
+                        .uri(URI.create(currentUrl))
+                        .header("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                        .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                        .header("Accept-Language", "en-US,en;q=0.9,zh-CN;q=0.8")
+                        .timeout(Duration.ofSeconds(30))
+                        .GET()
+                        .build();
+                response = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+                int sc = response.statusCode();
+                if (sc >= 300 && sc < 400) {
+                    String location = response.headers().firstValue("Location").orElse(null);
+                    if (location == null) break;
+                    if (location.startsWith("/")) {
+                        URI base = URI.create(currentUrl);
+                        location = base.getScheme() + "://" + base.getHost() + location;
+                    }
+                    currentUrl = location;
+                    continue;
+                }
+                break;
+            }
             if (response.statusCode() != 200) {
                 throw new RuntimeException("HTTP " + response.statusCode());
             }
             html = response.body();
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException("Failed to fetch URL: " + e.getMessage(), e);
         }
