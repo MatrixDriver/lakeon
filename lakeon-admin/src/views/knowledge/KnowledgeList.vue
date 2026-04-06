@@ -9,6 +9,7 @@
       <div class="tab-item" :class="{ active: activeTab === 'bases' }" @click="activeTab = 'bases'">知识库列表</div>
       <div class="tab-item" :class="{ active: activeTab === 'tasks' }" @click="activeTab = 'tasks'; loadTasks()">写入任务队列</div>
       <div class="tab-item" :class="{ active: activeTab === 'pipeline' }" @click="activeTab = 'pipeline'; loadPipeline()">流水线监控</div>
+      <div class="tab-item" :class="{ active: activeTab === 'wiki-agent' }" @click="activeTab = 'wiki-agent'">Wiki Agent</div>
     </div>
 
     <!-- KB List Tab -->
@@ -356,11 +357,45 @@
         <button class="btn btn-default btn-small" :disabled="(plPage + 1) * 20 >= plTotal" @click="plPage++; loadPipelineTasks()">下一页</button>
       </div>
     </template>
+
+    <!-- Wiki Agent Config Tab -->
+    <div v-if="activeTab === 'wiki-agent'" style="padding: 20px;">
+      <h3 style="font-size: 16px; margin-bottom: 16px;">Wiki Agent 配置</h3>
+
+      <!-- LLM Config -->
+      <div style="background: #f9f9f9; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px; margin-bottom: 20px; max-width: 600px;">
+        <div style="font-weight: 600; margin-bottom: 12px;">LLM 配置</div>
+        <div style="display: grid; grid-template-columns: 100px 1fr; gap: 10px; align-items: center; font-size: 13px;">
+          <span style="color: #666;">Model</span>
+          <input v-model="wikiConfig.model" style="padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; max-width: 300px;" />
+          <span style="color: #666;">Base URL</span>
+          <input v-model="wikiConfig.base_url" style="padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; max-width: 400px;" />
+        </div>
+      </div>
+
+      <!-- Ingest Prompt -->
+      <div style="margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <span style="font-weight: 600;">Ingest Prompt</span>
+          <span style="font-size: 12px; color: #999;">文档导入后生成/更新 Wiki 页面的系统提示词</span>
+        </div>
+        <textarea v-model="wikiConfig.ingest_prompt"
+          style="width: 100%; height: 400px; font-family: 'SF Mono', Monaco, Menlo, monospace; font-size: 12px; padding: 12px; border: 1px solid #d9d9d9; border-radius: 6px; resize: vertical; line-height: 1.6;"
+        ></textarea>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-primary" :disabled="wikiConfigSaving" @click="saveWikiConfig">
+          {{ wikiConfigSaving ? '保存中...' : '保存配置' }}
+        </button>
+        <button class="btn" @click="loadWikiConfig">重新加载</button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { adminApi } from '../../api/admin'
 import { formatDate } from '../../utils/format'
 import { useTenantStore } from '../../stores/tenants'
@@ -638,10 +673,41 @@ function taskStatusClass(status: string) {
   return { 'status-green': status === 'SUCCEEDED', 'status-blue': status === 'RUNNING', 'status-red': status === 'FAILED', 'status-grey': status === 'QUEUED' }
 }
 
+// Wiki Agent Config
+const wikiConfig = ref<Record<string, string>>({ ingest_prompt: '', model: '', base_url: '' })
+const wikiConfigSaving = ref(false)
+
+async function loadWikiConfig() {
+  try {
+    const { data } = await adminApi.getWikiConfig()
+    wikiConfig.value = data
+  } catch (e: any) {
+    console.warn('Failed to load wiki config', e)
+  }
+}
+
+async function saveWikiConfig() {
+  wikiConfigSaving.value = true
+  try {
+    await adminApi.updateWikiConfig(wikiConfig.value)
+    alert('配置已保存')
+  } catch (e: any) {
+    alert('保存失败: ' + (e?.response?.data?.error || e.message || '未知错误'))
+  } finally {
+    wikiConfigSaving.value = false
+  }
+}
+
 onMounted(() => {
   tenantStore.load()
   loadStats()
   loadKbs()
+})
+
+watch(activeTab, (tab) => {
+  if (tab === 'wiki-agent' && !wikiConfig.value.ingest_prompt) {
+    loadWikiConfig()
+  }
 })
 </script>
 

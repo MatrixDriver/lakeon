@@ -95,6 +95,8 @@ export const adminApi = {
     client.get('/knowledge/pipeline/tasks', { params }),
   pipelineStats: (params?: { from?: string; to?: string }) =>
     client.get('/knowledge/pipeline/stats', { params }),
+  getWikiConfig: () => client.get('/admin/wiki/config'),
+  updateWikiConfig: (data: Record<string, string>) => client.put('/admin/wiki/config', data),
 
   // Memory Admin
   memoryStats: () => client.get('/memory/stats'),
