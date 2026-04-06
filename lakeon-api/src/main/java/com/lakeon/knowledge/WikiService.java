@@ -86,19 +86,22 @@ public class WikiService {
     private final DocumentRepository documentRepository;
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final KbWriteQueue kbWriteQueue;
+    private final KnowledgeService knowledgeService;
 
     public WikiService(LakeonProperties props,
                        ObjectMapper objectMapper,
                        ChunkService chunkService,
                        DocumentRepository documentRepository,
                        KnowledgeBaseRepository knowledgeBaseRepository,
-                       KbWriteQueue kbWriteQueue) {
+                       KbWriteQueue kbWriteQueue,
+                       KnowledgeService knowledgeService) {
         this.props = props;
         this.objectMapper = objectMapper;
         this.chunkService = chunkService;
         this.documentRepository = documentRepository;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.kbWriteQueue = kbWriteQueue;
+        this.knowledgeService = knowledgeService;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -194,16 +197,218 @@ public class WikiService {
     }
 
     /**
-     * Wiki chat — Query Router Agent stub.
-     * Will be fully implemented in Task 5.
+     * Wiki chat — Query Router Agent.
+     * Step 1: routes the question to relevant wiki pages and determines depth.
+     * Step 2: reads wiki pages, optionally searches raw chunks, and generates an answer.
      */
     public Map<String, Object> chat(String tenantId, String kbId, String question,
                                      List<Map<String, String>> history) {
-        // Stub: returns a placeholder response
+        // 1. Read index.md to get an overview of available wiki pages
+        String indexContent = readWikiPage(tenantId, kbId, "index.md");
+        if (indexContent == null) {
+            indexContent = "# Wiki Index\n\nNo pages yet.\n";
+        }
+        if (indexContent.length() > MAX_INDEX_CHARS) {
+            indexContent = indexContent.substring(0, MAX_INDEX_CHARS);
+        }
+
+        // 2. Routing: ask LLM which pages are relevant and whether this is simple or deep
+        String routingPrompt = buildRoutingPrompt(indexContent, question);
+        String routingResponse = callDeepSeek(routingPrompt);
+
+        // 3. Parse routing response: {"relevant_pages": [...], "depth": "simple|deep"}
+        List<String> relevantPages = new ArrayList<>();
+        String depth = "simple";
+        try {
+            JsonNode routing = objectMapper.readTree(routingResponse);
+            JsonNode pagesNode = routing.path("relevant_pages");
+            if (pagesNode.isArray()) {
+                for (JsonNode p : pagesNode) {
+                    String pageName = p.asText("").trim();
+                    if (!pageName.isBlank()) {
+                        relevantPages.add(pageName);
+                    }
+                }
+            }
+            String depthVal = routing.path("depth").asText("simple").trim().toLowerCase();
+            if ("deep".equals(depthVal)) {
+                depth = "deep";
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse routing response, falling back to defaults: {}", e.getMessage());
+        }
+        log.debug("Wiki chat routing: depth={}, pages={}", depth, relevantPages);
+
+        // 4. Read relevant wiki pages
+        StringBuilder wikiContext = new StringBuilder();
+        List<String> sources = new ArrayList<>();
+        for (String pageTitle : relevantPages) {
+            String filename = titleToFilename(pageTitle);
+            String pageContent = readWikiPage(tenantId, kbId, filename);
+            if (pageContent != null && !pageContent.isBlank()) {
+                wikiContext.append("### ").append(pageTitle).append("\n");
+                wikiContext.append(pageContent, 0, Math.min(pageContent.length(), 4000));
+                wikiContext.append("\n\n");
+                sources.add(pageTitle);
+            }
+        }
+
+        // 5. For deep questions, also search raw chunks
+        StringBuilder rawContext = new StringBuilder();
+        if ("deep".equals(depth)) {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> searchResult = knowledgeService.search(
+                        tenantId, kbId, question, 10,
+                        null, null, null, null, false, null);
+                Object resultsObj = searchResult.get("results");
+                if (resultsObj instanceof List<?> resultList) {
+                    for (Object item : resultList) {
+                        if (item instanceof Map<?, ?> resultMap) {
+                            Object contentObj = resultMap.get("content");
+                            if (contentObj instanceof String content && !content.isBlank()) {
+                                rawContext.append(content, 0, Math.min(content.length(), 800));
+                                rawContext.append("\n\n");
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Raw chunk search failed during wiki chat: {}", e.getMessage());
+            }
+        }
+
+        // 6. Build answer prompt and call LLM in free-text mode
+        String answerPrompt = buildAnswerPrompt(question, history, wikiContext.toString(), rawContext.toString());
+        String answer = callDeepSeekText(answerPrompt);
+
+        // 7. Return result
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("answer", "Wiki chat is not yet implemented. Please use the knowledge base search instead.");
-        result.put("sources", List.of());
+        result.put("answer", answer != null ? answer : "");
+        result.put("depth", depth);
+        result.put("sources", sources);
         return result;
+    }
+
+    /**
+     * Build the routing prompt that asks the LLM to identify relevant wiki pages and question depth.
+     */
+    private String buildRoutingPrompt(String indexContent, String question) {
+        return """
+                You are a query router for a wiki knowledge base.
+                Given the wiki index below and a user question, output a JSON object identifying:
+                1. Which wiki page titles are most relevant to the question (use the exact titles from the index).
+                2. Whether the question is "simple" (answerable from wiki summaries/overviews) or "deep" (requires detailed document chunks).
+
+                Wiki index:
+                ---
+                %s
+                ---
+
+                User question: %s
+
+                Output ONLY valid JSON in this exact format (no markdown, no explanation):
+                {"relevant_pages": ["Page Title 1", "Page Title 2"], "depth": "simple"}
+
+                Rules:
+                - relevant_pages: list of page titles from the index that are directly relevant; empty list if none.
+                - depth: "simple" for factual or overview questions, "deep" for analytical, comparative, or detailed questions.
+                """.formatted(indexContent, question);
+    }
+
+    /**
+     * Build the answer prompt using wiki context, optional raw chunk context, question, and history.
+     */
+    private String buildAnswerPrompt(String question, List<Map<String, String>> history,
+                                      String wikiContext, String rawContext) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("You are a helpful wiki assistant. Answer the user's question based on the provided context.\n\n");
+
+        if (!wikiContext.isBlank()) {
+            sb.append("## Wiki Pages\n\n");
+            sb.append(wikiContext);
+        }
+
+        if (!rawContext.isBlank()) {
+            sb.append("## Additional Document Excerpts\n\n");
+            sb.append(rawContext);
+        }
+
+        if (wikiContext.isBlank() && rawContext.isBlank()) {
+            sb.append("No relevant context found in the knowledge base.\n\n");
+        }
+
+        if (history != null && !history.isEmpty()) {
+            sb.append("## Conversation History\n\n");
+            for (Map<String, String> turn : history) {
+                String role = turn.getOrDefault("role", "user");
+                String content = turn.getOrDefault("content", "");
+                sb.append(role.equals("assistant") ? "Assistant: " : "User: ");
+                sb.append(content).append("\n");
+            }
+            sb.append("\n");
+        }
+
+        sb.append("## Question\n\n");
+        sb.append(question).append("\n\n");
+        sb.append("""
+                ## Instructions
+                - Answer based on the wiki and document context above.
+                - Use [[wikilink]] syntax to reference relevant wiki pages by their exact title.
+                - Cite the source page(s) when making specific claims.
+                - If the context does not contain enough information to answer, say so honestly.
+                - Write in the same language as the question.
+                - Use clear, concise Markdown formatting.
+                """);
+
+        return sb.toString();
+    }
+
+    /**
+     * Call DeepSeek LLM for free-text (Markdown) response — no JSON mode.
+     */
+    private String callDeepSeekText(String prompt) {
+        String apiKey = getWikiApiKey();
+        String baseUrl = getWikiBaseUrl();
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new RuntimeException("Wiki/AI API key not configured, cannot run wiki agent");
+        }
+
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        requestBody.put("model", DEEPSEEK_MODEL);
+        requestBody.put("messages", List.of(
+                Map.of("role", "user", "content", prompt)
+        ));
+        requestBody.put("temperature", 0.3);
+        requestBody.put("max_tokens", 4096);
+        // No response_format — free-text Markdown output
+
+        try {
+            String body = objectMapper.writeValueAsString(requestBody);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/chat/completions"))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + apiKey)
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .timeout(Duration.ofSeconds(120))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request,
+                    HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                throw new RuntimeException("DeepSeek API returned " + response.statusCode()
+                        + ": " + response.body());
+            }
+
+            JsonNode root = objectMapper.readTree(response.body());
+            return root.path("choices").path(0).path("message").path("content")
+                    .asText("").trim();
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("DeepSeek call failed: " + e.getMessage(), e);
+        }
     }
 
     // ── Internal helpers ────────────────────────────────────────────
