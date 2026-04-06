@@ -64,6 +64,14 @@ spec:
                 secretKeyRef:
                   name: api-credentials
                   key: ai-api-key
+            - name: LAKEON_WIKI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: wiki-api-key
+                  optional: true
+            - name: LAKEON_WIKI_BASE_URL
+              value: "https://api.deepseek.com/v1"
             {{- if .Values.embedding.apiUrl }}
             - name: LAKEON_EMBEDDING_API_URL
               value: {{ .Values.embedding.apiUrl | quote }}

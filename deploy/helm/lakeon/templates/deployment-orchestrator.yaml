@@ -38,22 +38,13 @@ spec:
             - name: LAKEON_ORCH_DB_USER
               value: {{ .Values.metadataDb.user | default "lakeon" | quote }}
             - name: LAKEON_ORCH_DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: api-credentials
-                  key: db-password
+              value: {{ .Values.metadataDb.password | quote }}
             - name: LAKEON_ORCH_OBS_ENDPOINT
               value: {{ .Values.obs.endpoint | default "https://obs.cn-north-4.myhuaweicloud.com" | quote }}
             - name: LAKEON_ORCH_OBS_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: obs-credentials
-                  key: access-key
+              value: {{ .Values.obs.accessKey | quote }}
             - name: LAKEON_ORCH_OBS_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: obs-credentials
-                  key: secret-key
+              value: {{ .Values.obs.secretKey | quote }}
             - name: LAKEON_ORCH_OBS_BUCKET
               value: {{ .Values.obs.bucket | default "lakeon-data" | quote }}
             - name: LAKEON_ORCH_RAY_IMAGE
