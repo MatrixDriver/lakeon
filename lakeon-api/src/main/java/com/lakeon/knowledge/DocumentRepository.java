@@ -9,6 +9,16 @@ import java.util.Optional;
 
 public interface DocumentRepository extends JpaRepository<DocumentEntity, String> {
     Optional<DocumentEntity> findByIdAndTenantId(String id, String tenantId);
+
+    @Query("SELECT d FROM DocumentEntity d WHERE d.tenantId = :tenantId AND d.kbId = :kbId AND d.docType = :docType AND d.filename = :filename")
+    Optional<DocumentEntity> findByTypeAndFilename(
+        @Param("tenantId") String tenantId,
+        @Param("kbId") String kbId,
+        @Param("docType") String docType,
+        @Param("filename") String filename);
+
+    List<DocumentEntity> findByTenantIdAndKbIdAndDocType(String tenantId, String kbId, String docType);
+
     List<DocumentEntity> findAllByTenantIdAndDatabaseIdOrderByCreatedAtDesc(String tenantId, String databaseId);
     List<DocumentEntity> findAllByTenantIdAndKbIdOrderByCreatedAtDesc(String tenantId, String kbId);
     List<DocumentEntity> findAllByTenantIdOrderByCreatedAtDesc(String tenantId);
@@ -91,23 +101,25 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, String
         @Param("folder") String folder);
 
     @Query(value = """
-        SELECT
-          CASE WHEN :parent = '' THEN split_part(folder, '/', 1)
-               ELSE split_part(substring(folder from length(:parent) + 2), '/', 1)
-          END AS name,
-          COUNT(*) AS doc_count,
-          COALESCE(SUM(size_bytes), 0) AS total_size
-        FROM documents
-        WHERE tenant_id = :tenantId
-          AND kb_id = :kbId
-          AND folder != ''
-          AND (
-            (:parent = '' AND folder != '')
-            OR (:parent != '' AND folder LIKE :parent || '/%')
-          )
-        GROUP BY name
-        HAVING name != ''
-        ORDER BY name
+        SELECT sub.name, COUNT(*) AS doc_count, COALESCE(SUM(sub.size_bytes), 0) AS total_size
+        FROM (
+          SELECT
+            CASE WHEN :parent = '' THEN split_part(folder, '/', 1)
+                 ELSE split_part(substring(folder from length(:parent) + 2), '/', 1)
+            END AS name,
+            size_bytes
+          FROM documents
+          WHERE tenant_id = :tenantId
+            AND kb_id = :kbId
+            AND folder != ''
+            AND (
+              (:parent = '' AND folder != '')
+              OR (:parent != '' AND folder LIKE :parent || '/%')
+            )
+        ) sub
+        WHERE sub.name != ''
+        GROUP BY sub.name
+        ORDER BY sub.name
         """, nativeQuery = true)
     List<Object[]> findSubfolders(
         @Param("tenantId") String tenantId,

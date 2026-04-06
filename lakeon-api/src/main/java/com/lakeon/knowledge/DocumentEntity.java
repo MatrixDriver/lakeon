@@ -1,5 +1,6 @@
 package com.lakeon.knowledge;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -80,6 +81,9 @@ public class DocumentEntity {
 
     @Column(name = "folder", length = 512)
     private String folder = "";
+
+    @Column(name = "doc_type", length = 16)
+    private String docType = "raw";
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata", columnDefinition = "jsonb")
@@ -175,6 +179,10 @@ public class DocumentEntity {
 
     public String getFolder() { return folder; }
     public void setFolder(String folder) { this.folder = folder; }
+
+    @JsonProperty("type")
+    public String getDocType() { return docType; }
+    public void setDocType(String docType) { this.docType = docType; }
 
     public Map<String, String> getMetadata() { return metadata; }
     public void setMetadata(Map<String, String> metadata) { this.metadata = metadata; }
