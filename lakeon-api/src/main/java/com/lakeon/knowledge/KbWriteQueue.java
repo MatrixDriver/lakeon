@@ -47,6 +47,7 @@ public class KbWriteQueue {
     private final DocumentRepository documentRepository;
     private final JobService jobService;
     private final SummaryService summaryService;
+    private final WikiService wikiService;
     private final LakeonProperties props;
     private final ObjectMapper objectMapper;
     @org.springframework.beans.factory.annotation.Value("${lakeon.job.callback-base-url:}")
@@ -62,7 +63,8 @@ public class KbWriteQueue {
         KbWriteTaskType.RECHUNK_ROLLBACK,
         KbWriteTaskType.DELETE_DOCUMENT_CHUNKS,
         KbWriteTaskType.DOCUMENT_SUMMARIZE,
-        KbWriteTaskType.KB_SUMMARIZE
+        KbWriteTaskType.KB_SUMMARIZE,
+        KbWriteTaskType.WIKI_UPDATE
     );
 
     public KbWriteQueue(KbWriteTaskRepository taskRepository,
@@ -73,6 +75,7 @@ public class KbWriteQueue {
                          DocumentRepository documentRepository,
                          @Lazy JobService jobService,
                          SummaryService summaryService,
+                         @Lazy WikiService wikiService,
                          LakeonProperties props,
                          ObjectMapper objectMapper) {
         this.taskRepository = taskRepository;
@@ -83,6 +86,7 @@ public class KbWriteQueue {
         this.documentRepository = documentRepository;
         this.jobService = jobService;
         this.summaryService = summaryService;
+        this.wikiService = wikiService;
         this.props = props;
         this.objectMapper = objectMapper;
     }
@@ -656,6 +660,7 @@ public class KbWriteQueue {
                 case DELETE_DOCUMENT_CHUNKS -> executeDeleteDocumentChunks(conn, params);
                 case DOCUMENT_SUMMARIZE -> executeDocumentSummarize(conn, params);
                 case KB_SUMMARIZE -> executeKbSummarize(conn, params);
+                case WIKI_UPDATE -> executeWikiUpdate(params);
                 default -> throw new IllegalStateException("Unknown lightweight type: " + task.getType());
             }
         }
@@ -930,6 +935,13 @@ public class KbWriteQueue {
         String tenantId = (String) params.get("tenant_id");
         String kbId = (String) params.get("kb_id");
         summaryService.summarizeKb(conn, tenantId, kbId);
+    }
+
+    private void executeWikiUpdate(Map<String, Object> params) {
+        String tenantId = (String) params.get("tenant_id");
+        String kbId = (String) params.get("kb_id");
+        String documentId = (String) params.get("document_id");
+        wikiService.processIngest(tenantId, kbId, documentId);
     }
 
     @SuppressWarnings("unchecked")

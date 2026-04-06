@@ -30,6 +30,7 @@ public class LakeonProperties {
     private MemoryConfig memory = new MemoryConfig();
     private DemoConfig demo = new DemoConfig();
     private HwcloudConfig hwcloud = new HwcloudConfig();
+    private WikiConfig wiki = new WikiConfig();
 
     public NeonConfig getNeon() { return neon; }
     public void setNeon(NeonConfig neon) { this.neon = neon; }
@@ -71,6 +72,8 @@ public class LakeonProperties {
     public void setDemo(DemoConfig demo) { this.demo = demo; }
     public HwcloudConfig getHwcloud() { return hwcloud; }
     public void setHwcloud(HwcloudConfig hwcloud) { this.hwcloud = hwcloud; }
+    public WikiConfig getWiki() { return wiki; }
+    public void setWiki(WikiConfig wiki) { this.wiki = wiki; }
 
     public static class NeonConfig {
         private String pageserverUrl;
@@ -395,6 +398,16 @@ public class LakeonProperties {
         public void setAccountId(String accountId) { this.accountId = accountId; }
         public String getAccountName() { return accountName; }
         public void setAccountName(String accountName) { this.accountName = accountName; }
+    }
+
+    public static class WikiConfig {
+        private String apiKey = "";
+        private String baseUrl = "https://api.deepseek.com/v1";
+
+        public String getApiKey() { return apiKey; }
+        public void setApiKey(String apiKey) { this.apiKey = apiKey; }
+        public String getBaseUrl() { return baseUrl; }
+        public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
     }
 
     public static class DatalakeConfig {
