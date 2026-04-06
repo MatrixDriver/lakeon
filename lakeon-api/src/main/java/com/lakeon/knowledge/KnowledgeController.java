@@ -489,7 +489,18 @@ public class KnowledgeController {
     @PostMapping("/wiki/ingest-url")
     public ResponseEntity<?> ingestWikiUrl(HttpServletRequest req,
                                            @RequestBody Map<String, Object> body) {
-        return ResponseEntity.status(501).body(Map.of("error", "URL ingest not yet implemented"));
+        TenantEntity tenant = getTenant(req);
+        String kbId = (String) body.get("kb_id");
+        String url = (String) body.get("url");
+        if (url == null || url.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "url is required"));
+        }
+        try {
+            Map<String, Object> result = wikiService.ingestUrl(tenant.getId(), kbId, url);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(502).body(Map.of("error", "URL 导入失败: " + e.getMessage()));
+        }
     }
 
     // ── Helpers ──────────────────────────────────────────────────────

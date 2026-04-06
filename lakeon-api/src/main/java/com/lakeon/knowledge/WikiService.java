@@ -197,6 +197,115 @@ public class WikiService {
     }
 
     /**
+     * Ingest a URL: fetch HTML, extract text, store as a raw document, trigger processing.
+     */
+    public Map<String, Object> ingestUrl(String tenantId, String kbId, String url) {
+        // 1. Fetch HTML
+        String html;
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("User-Agent", "Mozilla/5.0 (compatible; DBay/1.0)")
+                    .timeout(Duration.ofSeconds(30))
+                    .GET()
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                throw new RuntimeException("HTTP " + response.statusCode());
+            }
+            html = response.body();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to fetch URL: " + e.getMessage(), e);
+        }
+
+        // 2. Extract title from <title> tag
+        String title = "Untitled";
+        java.util.regex.Matcher titleMatcher = java.util.regex.Pattern
+                .compile("<title[^>]*>(.*?)</title>", java.util.regex.Pattern.DOTALL | java.util.regex.Pattern.CASE_INSENSITIVE)
+                .matcher(html);
+        if (titleMatcher.find()) {
+            title = titleMatcher.group(1).strip().replaceAll("\\s+", " ");
+            if (title.length() > 200) title = title.substring(0, 200);
+        }
+
+        // 3. Extract text content: strip HTML tags, keep text
+        String text = html
+                .replaceAll("(?s)<script[^>]*>.*?</script>", "")
+                .replaceAll("(?s)<style[^>]*>.*?</style>", "")
+                .replaceAll("(?s)<nav[^>]*>.*?</nav>", "")
+                .replaceAll("(?s)<header[^>]*>.*?</header>", "")
+                .replaceAll("(?s)<footer[^>]*>.*?</footer>", "")
+                .replaceAll("<br\\s*/?>", "\n")
+                .replaceAll("</p>", "\n\n")
+                .replaceAll("</h[1-6]>", "\n\n")
+                .replaceAll("</li>", "\n")
+                .replaceAll("<[^>]+>", "")
+                .replaceAll("&nbsp;", " ")
+                .replaceAll("&amp;", "&")
+                .replaceAll("&lt;", "<")
+                .replaceAll("&gt;", ">")
+                .replaceAll("&quot;", "\"")
+                .replaceAll("&#39;", "'")
+                .replaceAll("\n{3,}", "\n\n")
+                .strip();
+
+        if (text.length() < 100) {
+            throw new RuntimeException("Extracted content too short, the page may require JavaScript rendering or login");
+        }
+
+        // 4. Create document
+        String markdown = "# " + title + "\n\n> Source: " + url + "\n\n" + text;
+        String filename = title.replaceAll("[/\\\\:*?\"<>|]", "_") + ".md";
+        String docId = "doc_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+
+        // Find KB to get databaseId
+        var kb = knowledgeService.getKnowledgeBase(tenantId, kbId);
+        String databaseId = kb.getDatabaseId();
+
+        // Save document entity
+        DocumentEntity doc = new DocumentEntity();
+        doc.setId(docId);
+        doc.setTenantId(tenantId);
+        doc.setKbId(kbId);
+        doc.setDatabaseId(databaseId);
+        doc.setFilename(filename);
+        doc.setDocType("raw");
+        doc.setFormat("MD");
+        doc.setStatus(DocumentStatus.PENDING);
+        doc.setTags(List.of("url-import"));
+        doc.setMetadata(Map.of("source_url", url));
+
+        String obsKey = "knowledge/" + tenantId + "/" + kbId + "/" + docId + "/" + filename;
+        doc.setObsKey(obsKey);
+        doc.setSizeBytes((long) markdown.getBytes(StandardCharsets.UTF_8).length);
+        documentRepository.save(doc);
+
+        // Upload to OBS
+        uploadToObs(obsKey, markdown.getBytes(StandardCharsets.UTF_8), "text/markdown");
+
+        // Also upload fulltext.md for ChunkService.getFulltext()
+        String fulltextKey = "knowledge/" + tenantId + "/" + kbId + "/" + docId + "/fulltext.md";
+        uploadToObs(fulltextKey, markdown.getBytes(StandardCharsets.UTF_8), "text/markdown");
+
+        // Trigger document processing (parse → chunk → embed → summarize → wiki update)
+        try {
+            Map<String, Object> params = new LinkedHashMap<>();
+            params.put("tenant_id", tenantId);
+            params.put("kb_id", kbId);
+            params.put("document_id", docId);
+            params.put("database_id", databaseId);
+            params.put("obs_key", obsKey);
+            kbWriteQueue.enqueueTask(databaseId, KbWriteTaskType.DOCUMENT_PARSE, params);
+        } catch (Exception e) {
+            log.warn("Failed to enqueue DOCUMENT_PARSE for URL import {}: {}", docId, e.getMessage());
+        }
+
+        log.info("URL ingested: {} → doc {} ({})", url, docId, filename);
+
+        return Map.of("document_id", docId, "filename", filename, "status", "processing");
+    }
+
+    /**
      * Wiki chat — Query Router Agent.
      * Step 1: routes the question to relevant wiki pages and determines depth.
      * Step 2: reads wiki pages, optionally searches raw chunks, and generates an answer.
