@@ -29,31 +29,11 @@
       </div>
     </div>
 
-    <!-- Wiki + Graph Tab (default) -->
-    <div v-if="activeTab === 'wiki'" style="display: flex; gap: 0; height: calc(100vh - 200px); margin-top: 0;">
-      <div style="flex: 1; border-right: 1px solid #e8e0d8; overflow: hidden;">
-        <WikiPage ref="wikiPageRef" :kb-id="(route.params.kbId as string)" />
-      </div>
-      <div style="width: 45%; overflow: hidden; padding: 12px;">
-        <WikiGraph :kb-id="(route.params.kbId as string)" @navigate="handleGraphNavigate" />
-      </div>
-    </div>
-
-    <!-- Document Management Tab -->
-    <div v-if="activeTab === 'manage'">
-      <!-- Sub-tabs -->
-      <div style="display: flex; gap: 0; border-bottom: 1px solid #e8e0d8; margin-bottom: 12px; margin-top: 8px;">
-        <span v-for="st in manageTabs" :key="st.key"
-              :style="{ padding: '8px 16px', fontSize: '13px', cursor: 'pointer', borderBottom: manageSubTab === st.key ? '2px solid #c25a3c' : '2px solid transparent', color: manageSubTab === st.key ? '#c25a3c' : '#8c7a68', transition: 'color 0.15s' }"
-              @click="manageSubTab = st.key">
-          {{ st.label }}
-        </span>
-      </div>
-
-    <!-- Overview sub-tab -->
-    <div v-if="manageSubTab === 'overview'" style="margin-top: 24px;">
+    <!-- Overview Tab (default) -->
+    <div v-if="activeTab === 'overview'" style="margin-top: 24px;">
+      <!-- KB info card -->
       <div class="section-card" style="max-width: 600px;">
-        <div class="section-header">概览</div>
+        <div class="section-header">知识库信息</div>
         <div style="padding: 16px; display: grid; grid-template-columns: 120px 1fr; gap: 12px; font-size: 14px;">
           <span style="color: #999;">名称</span><span>{{ kb?.name }}</span>
           <span style="color: #999;">描述</span><span>{{ kb?.description || '-' }}</span>
@@ -71,14 +51,87 @@
           <span v-else>-</span>
         </div>
       </div>
+
+      <!-- KB summary -->
       <div v-if="kb?.summary" class="section-card" style="max-width: 600px; margin-top: 16px;">
         <div class="section-header">知识库概览</div>
         <div style="padding: 16px; font-size: 14px; line-height: 1.8; color: #333; white-space: pre-wrap;">{{ kb.summary }}</div>
       </div>
+
+      <!-- Empty KB onboarding -->
+      <div v-if="isEmptyKb" style="margin-top: 32px; display: flex; justify-content: center;">
+        <div style="max-width: 560px; text-align: center;">
+          <h2 style="font-size: 18px; color: #2c2420; margin-bottom: 6px;">开始构建你的知识库</h2>
+          <p style="color: #999; font-size: 13px; margin-bottom: 24px;">上传文档，AI 自动整理为结构化的 Wiki 知识体系</p>
+          <!-- 4-step journey -->
+          <div style="display: flex; gap: 8px; margin-bottom: 24px;">
+            <!-- Step 1: 导入 (active) -->
+            <div style="flex: 1; background: #fdf6f4; border: 1px solid #c25a3c; border-radius: 8px; padding: 14px 10px;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: #c25a3c; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; margin-bottom: 5px;">1</div>
+              <div style="font-size: 12px; font-weight: 600; color: #3d3d3d;">导入</div>
+              <div style="font-size: 11px; color: #999;">上传文件、目录或 URL</div>
+            </div>
+            <div style="display: flex; align-items: center; color: #d4c4b0;">&rarr;</div>
+            <!-- Step 2: Wiki -->
+            <div style="flex: 1; background: #faf8f5; border: 1px solid #e8e0d8; border-radius: 8px; padding: 14px 10px;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: #e8e0d8; color: #8c7a68; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; margin-bottom: 5px;">2</div>
+              <div style="font-size: 12px; font-weight: 600; color: #3d3d3d;">Wiki</div>
+              <div style="font-size: 11px; color: #999;">AI 自动生成 Wiki 和知识图谱</div>
+            </div>
+            <div style="display: flex; align-items: center; color: #d4c4b0;">&rarr;</div>
+            <!-- Step 3: 对话 -->
+            <div style="flex: 1; background: #faf8f5; border: 1px solid #e8e0d8; border-radius: 8px; padding: 14px 10px;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: #e8e0d8; color: #8c7a68; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; margin-bottom: 5px;">3</div>
+              <div style="font-size: 12px; font-weight: 600; color: #3d3d3d;">对话</div>
+              <div style="font-size: 11px; color: #999;">向知识库提问，深度探索</div>
+            </div>
+            <div style="display: flex; align-items: center; color: #d4c4b0;">&rarr;</div>
+            <!-- Step 4: 沉淀 -->
+            <div style="flex: 1; background: #faf8f5; border: 1px solid #e8e0d8; border-radius: 8px; padding: 14px 10px;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: #e8e0d8; color: #8c7a68; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; margin-bottom: 5px;">4</div>
+              <div style="font-size: 12px; font-weight: 600; color: #3d3d3d;">沉淀</div>
+              <div style="font-size: 11px; color: #999;">洞察保存回 Wiki</div>
+            </div>
+          </div>
+          <!-- Upload area -->
+          <label style="display: block; background: #faf8f5; border: 2px dashed #d4c4b0; border-radius: 8px; padding: 24px; cursor: pointer;">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#c25a3c" stroke-width="1.5" style="margin-bottom: 6px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <p style="font-size: 13px; color: #5a4a3a; margin: 0 0 4px;">点击上传文件开始</p>
+            <p style="font-size: 12px; color: #aaa; margin: 0;">支持 PDF、DOCX、Markdown、TXT 等格式</p>
+            <input type="file" accept=".pdf,.docx,.doc,.xlsx,.xls,.xlsm,.pptx,.epub,.html,.htm,.md,.markdown,.txt" multiple style="display: none;" @change="handleUpload" />
+          </label>
+          <div style="margin-top: 10px;">
+            <button @click="activeTab = 'doc'" style="padding: 4px 12px; font-size: 12px; border: 1px solid #d4c4b0; border-radius: 4px; background: #fff; color: #5a4a3a; cursor: pointer;">
+              或前往文档 Tab 使用更多导入方式
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Documents sub-tab -->
-    <div v-if="manageSubTab === 'documents'" style="margin-top: 24px;">
+    <!-- Wiki Tab -->
+    <div v-if="activeTab === 'wiki'" style="display: flex; height: calc(100vh - 200px); margin-top: 0; position: relative;">
+      <div style="flex: 1; overflow: hidden;">
+        <WikiPage ref="wikiPageRef" :kb-id="(route.params.kbId as string)" />
+      </div>
+      <div v-if="showGraph" style="width: 320px; border-left: 1px solid #e8e0d8; flex-shrink: 0; display: flex; flex-direction: column;">
+        <div style="padding: 8px 12px; border-bottom: 1px solid #f0ebe4; display: flex; align-items: center; font-size: 13px; font-weight: 600; color: #3d3d3d;">
+          知识图谱
+          <span style="flex: 1;"></span>
+          <span style="cursor: pointer; color: #bbb; font-size: 16px;" @click="showGraph = false" title="收起图谱">&times;</span>
+        </div>
+        <div style="flex: 1; overflow: hidden;">
+          <WikiGraph :kb-id="(route.params.kbId as string)" @navigate="handleGraphNavigate" />
+        </div>
+      </div>
+      <button v-if="!showGraph"
+        style="position: absolute; right: 12px; top: 12px; padding: 4px 10px; font-size: 11px; border: 1px solid #e0d8ce; border-radius: 4px; background: #fff; color: #8c7a68; cursor: pointer; z-index: 2;"
+        @click="showGraph = true">图谱</button>
+    </div>
+
+    <!-- Document Tab -->
+    <div v-if="activeTab === 'doc'">
+    <div style="margin-top: 24px;">
       <!-- Status filter tabs -->
       <div v-if="docStats.total > 0" style="display: flex; gap: 0; margin-bottom: 14px; border-bottom: 1px solid #e8e8e8;">
         <div v-for="tab in [
@@ -286,8 +339,8 @@
       </div>
     </div>
 
-    <!-- Datasources sub-tab -->
-    <div v-if="manageSubTab === 'datasources'" style="margin-top: 24px;">
+    <!-- OBS Datasources section -->
+    <div style="margin-top: 32px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
         <h3 style="margin: 0; font-size: 16px;">OBS 数据源</h3>
         <button class="btn btn-primary" @click="dsCreateDialog = true">添加数据源</button>
@@ -370,81 +423,7 @@
       </div>
     </div>
 
-    <!-- Chunks sub-tab -->
-    <div v-if="manageSubTab === 'chunks'" style="margin-top: 8px;">
-      <ChunkStats :kb-id="(route.params.kbId as string)" />
-    </div>
-
-    <!-- Search sub-tab -->
-    <div v-if="manageSubTab === 'search'" style="margin-top: 24px;">
-      <!-- Search input -->
-      <div style="display: flex; gap: 8px; max-width: 600px;">
-        <input
-          ref="chatInput"
-          v-model="searchQuery"
-          class="form-input"
-          placeholder="输入查询语句检索分片..."
-          :disabled="isSearching"
-          @keyup.enter="handleSearch"
-          style="flex: 1;"
-        />
-        <button class="btn btn-primary" style="flex-shrink: 0;" :disabled="!searchQuery.trim() || isSearching" @click="handleSearch">
-          {{ isSearching ? '检索中...' : '检索' }}
-        </button>
-      </div>
-
-      <!-- Tag filter -->
-      <div v-if="allTags.length > 0" style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
-        <span style="font-size: 12px; color: #999; margin-right: 4px;">标签过滤:</span>
-        <span v-for="tag in allTags" :key="tag"
-              class="tag-badge tag-filter"
-              :class="{ 'tag-filter-active': searchFilterTags.includes(tag) }"
-              @click="toggleFilterTag(tag)">
-          {{ tag }}
-        </span>
-      </div>
-
-      <!-- Results -->
-      <div style="margin-top: 20px;">
-        <!-- Empty state -->
-        <div v-if="!searchResults && !isSearching" style="text-align: center; padding: 48px 0; color: #bbb;">
-          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" style="margin: 0 auto;">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <p style="margin-top: 10px; font-size: 13px;">语义检索 + 全文检索（RRF 融合排序）</p>
-        </div>
-
-        <!-- Loading -->
-        <div v-if="isSearching" style="text-align: center; padding: 32px 0; color: #999; font-size: 13px;">检索中...</div>
-
-        <!-- No results -->
-        <div v-if="searchResults && searchResults.length === 0 && !isSearching" style="text-align: center; padding: 32px 0; color: #999; font-size: 13px;">
-          未找到相关分片
-        </div>
-
-        <!-- Result info bar -->
-        <div v-if="searchResults && searchResults.length > 0" style="font-size: 12px; color: #999; margin-bottom: 12px;">
-          找到 {{ searchResults.length }} 个分片
-          <span v-if="searchRewrittenQuery" style="margin-left: 12px; font-style: italic;">查询改写: <span style="color: #9a5b25;">{{ searchRewrittenQuery }}</span></span>
-        </div>
-
-        <!-- Chunk result cards -->
-        <div v-if="searchResults && searchResults.length > 0" style="display: flex; flex-direction: column; gap: 8px;">
-          <div v-for="(r, ri) in searchResults" :key="ri" class="search-chunk-card">
-            <div class="search-chunk-header">
-              <span class="search-chunk-index">#{{ ri + 1 }}</span>
-              <span class="search-chunk-score">{{ r.score?.toFixed(3) }}</span>
-              <span v-if="r.level === 1" class="search-chunk-level1">摘要</span>
-              <span v-if="r.metadata?.filename" class="search-chunk-source">{{ r.metadata.filename }}</span>
-              <span v-if="r.metadata?.section" class="search-chunk-section">{{ r.metadata.section }}</span>
-            </div>
-            <div class="search-chunk-content">{{ r.content }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    </div><!-- end manage tab -->
+    </div><!-- end doc tab -->
 
     </template><!-- end DOCUMENT type -->
 
@@ -527,8 +506,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getKnowledgeBase, listDocuments, listFolders, getDocumentStats, deleteDocument, clearAllDocuments, searchKnowledge, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, ingestUrl, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, type KnowledgeBase as KBType, type Document, type DocumentStats, type SearchResult, type DataSource, type DataSourceCredentials, type Folder } from '../../api/knowledge'
-import ChunkStats from '../../components/knowledge/ChunkStats.vue'
+import { getKnowledgeBase, listDocuments, listFolders, getDocumentStats, deleteDocument, clearAllDocuments, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, ingestUrl, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, type KnowledgeBase as KBType, type Document, type DocumentStats, type DataSource, type DataSourceCredentials, type Folder } from '../../api/knowledge'
 import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
 import TableToolbar from '../../components/TableToolbar.vue'
 import WikiPage from './WikiPage.vue'
@@ -543,14 +521,7 @@ const router = useRouter()
 const kb = ref<KBType | null>(null)
 const storageDisplay = ref('-')
 const documents = ref<Document[]>([])
-const activeTab = ref('wiki')
-const searchQuery = ref('')
-const searchFilterTags = ref<string[]>([])
-
-// Chat-style search state
-const searchResults = ref<SearchResult[] | null>(null)
-const searchRewrittenQuery = ref<string | null>(null)
-const isSearching = ref(false)
+const activeTab = ref('overview')
 const uploading = ref(false)
 const uploadJustFinished = ref(false)
 const docLoading = ref(false)
@@ -573,8 +544,6 @@ const docStats = ref<DocumentStats>({ total: 0, processing: 0, ready: 0, failed:
 const embeddingCount = computed(() =>
   documents.value.filter(d => d.status === 'PROCESSING' && d.progress_message && /embedding/i.test(d.progress_message)).length
 )
-const chatInput = ref<HTMLInputElement | null>(null)
-
 // Folder navigation
 const currentFolder = ref('')
 const folders = ref<Folder[]>([])
@@ -627,18 +596,13 @@ function handleGraphNavigate(title: string) {
 }
 
 const tabs = [
-  { key: 'wiki', label: 'Wiki + 图谱' },
-  { key: 'manage', label: '文档管理' },
+  { key: 'overview', label: '概览' },
+  { key: 'doc', label: '文档' },
+  { key: 'wiki', label: 'Wiki' },
 ]
 
-const manageTabs = [
-  { key: 'documents', label: '文档' },
-  { key: 'datasources', label: '数据源' },
-  { key: 'search', label: '搜索' },
-  { key: 'chunks', label: '切片' },
-  { key: 'overview', label: '概览' },
-]
-const manageSubTab = ref('documents')
+const showGraph = ref(true)
+const isEmptyKb = computed(() => docStats.value.total === 0 && !docLoading.value)
 
 // ── Data sources state ──
 const datasources = ref<DataSource[]>([])
@@ -694,16 +658,6 @@ async function handleGetCredentials(dsId: string) {
   dsCredentials.value = { dsId, creds: res.data }
 }
 
-const allTags = computed(() => {
-  const tagSet = new Set<string>()
-  for (const d of documents.value) {
-    for (const t of (d.tags || [])) {
-      tagSet.add(t)
-    }
-  }
-  return Array.from(tagSet).sort()
-})
-
 function docStatusColor(s: string) {
   if (s === 'READY') return '#52c41a'
   if (s === 'PROCESSING') return '#1890ff'
@@ -740,15 +694,6 @@ async function saveDocTags() {
     tagDialog.value.open = false
   } finally {
     tagDialog.value.saving = false
-  }
-}
-
-function toggleFilterTag(tag: string) {
-  const idx = searchFilterTags.value.indexOf(tag)
-  if (idx === -1) {
-    searchFilterTags.value.push(tag)
-  } else {
-    searchFilterTags.value.splice(idx, 1)
   }
 }
 
@@ -1090,30 +1035,6 @@ async function handleClearAll() {
   await clearAllDocuments(route.params.kbId as string)
   selectedDocIds.value = new Set()
   await Promise.all([loadDocuments(), loadStats()])
-}
-
-async function handleSearch() {
-  const query = searchQuery.value.trim()
-  if (!query || isSearching.value) return
-  const kbId = route.params.kbId as string
-
-  isSearching.value = true
-  searchResults.value = null
-  searchRewrittenQuery.value = null
-
-  try {
-    const options: { tags?: string[] } = {}
-    if (searchFilterTags.value.length > 0) options.tags = searchFilterTags.value
-
-    const resp = await searchKnowledge(kbId, query, 10, options)
-    searchResults.value = resp.data.results
-    searchRewrittenQuery.value = resp.data.rewritten_query || null
-  } catch {
-    searchResults.value = []
-  } finally {
-    isSearching.value = false
-    chatInput.value?.focus()
-  }
 }
 
 // ── Auto-poll PROCESSING documents for progress ────────────────
