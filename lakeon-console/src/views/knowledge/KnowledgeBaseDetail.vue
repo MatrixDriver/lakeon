@@ -131,31 +131,9 @@
 
     <!-- Document Tab -->
     <div v-if="activeTab === 'doc'">
-    <div style="margin-top: 24px;">
-      <!-- Status filter tabs -->
-      <div v-if="docStats.total > 0" style="display: flex; gap: 0; margin-bottom: 14px; border-bottom: 1px solid #e8e8e8;">
-        <div v-for="tab in [
-          { key: undefined, label: '全部', count: docStats.total },
-          { key: 'PROCESSING', label: '处理中', count: docStats.processing },
-          { key: 'READY', label: '已就绪', count: docStats.ready },
-          { key: 'FAILED', label: '失败', count: docStats.failed },
-        ]" :key="tab.label"
-          style="padding: 8px 16px; font-size: 13px; cursor: pointer; transition: color 0.2s;"
-          :style="{
-            color: docStatusFilter === tab.key ? '#1890ff' : '#666',
-            borderBottom: docStatusFilter === tab.key ? '2px solid #1890ff' : '2px solid transparent',
-            fontWeight: docStatusFilter === tab.key ? 500 : 400,
-          }"
-          @click="setStatusFilter(tab.key)">
-          {{ tab.label }} ({{ tab.count }})
-        </div>
-        <div style="flex: 1;"></div>
-        <div style="padding: 8px 0; font-size: 12px; color: #999; align-self: center;">
-          共 {{ docTotal }} 条
-        </div>
-      </div>
-
-      <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+    <div style="margin-top: 16px;">
+      <!-- Toolbar: all buttons + search on one row -->
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
         <label class="btn btn-primary" style="cursor: pointer;" :class="{ disabled: uploading || kb?.status !== 'READY' }">
           上传文件
           <input type="file" accept=".pdf,.docx,.doc,.xlsx,.xls,.xlsm,.pptx,.epub,.html,.htm,.md,.markdown,.txt" multiple style="display: none;" :disabled="uploading || kb?.status !== 'READY'" @change="handleUpload" />
@@ -164,9 +142,18 @@
           上传目录
           <input type="file" style="display: none;" :disabled="uploading || kb?.status !== 'READY'" webkitdirectory @change="handleDirectoryUpload" />
         </label>
-        <span v-if="kb?.status === 'CREATING'" style="color: #c87a20; font-size: 13px;">知识库正在创建中，请稍候...</span>
-        <span v-else style="color: #999; font-size: 13px;">支持 PDF、DOCX、DOC、XLSX、XLS、PPTX、EPUB、HTML、Markdown、TXT，最多 20 个/批</span>
+        <button class="btn btn-secondary" @click="showUrlDialog = true" :disabled="kb?.status !== 'READY'">导入 URL</button>
+        <button class="btn btn-secondary" @click="dsCreateDialog = true">OBS 数据源</button>
+        <span style="flex: 1;"></span>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <input v-model="docSearch" placeholder="搜索文件名..." style="padding: 6px 12px; border: 1px solid #e0d8ce; border-radius: 4px; font-size: 12px; width: 180px; outline: none;" />
+          <button class="btn btn-text" style="padding: 6px;" @click="loadDocuments" title="刷新">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          </button>
+        </div>
       </div>
+
+      <span v-if="kb?.status === 'CREATING'" style="color: #c87a20; font-size: 13px; display: block; margin-bottom: 12px;">知识库正在创建中，请稍候...</span>
 
       <!-- Combined progress card -->
       <div v-if="uploading || uploadJustFinished || docStats.processing > 0 || docStats.pending > 0" style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px;">
@@ -200,22 +187,34 @@
         </div>
       </div>
 
-      <TableToolbar v-model="docSearch" placeholder="搜索文件名" :loading="docLoading" @refresh="loadDocuments">
-        <template #extra>
-          <button @click="showUrlDialog = true" style="background: #fff; border: 1px solid #c25a3c; color: #c25a3c; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12px; white-space: nowrap;">
-            导入 URL
+      <!-- Status filter + batch actions -->
+      <div v-if="docStats.total > 0" style="display: flex; gap: 0; margin-bottom: 14px; border-bottom: 1px solid #e8e8e8;">
+        <div v-for="tab in [
+          { key: undefined, label: '全部', count: docStats.total },
+          { key: 'PROCESSING', label: '处理中', count: docStats.processing },
+          { key: 'READY', label: '已就绪', count: docStats.ready },
+          { key: 'FAILED', label: '失败', count: docStats.failed },
+        ]" :key="tab.label"
+          style="padding: 8px 16px; font-size: 13px; cursor: pointer; transition: color 0.2s;"
+          :style="{
+            color: docStatusFilter === tab.key ? '#1890ff' : '#666',
+            borderBottom: docStatusFilter === tab.key ? '2px solid #1890ff' : '2px solid transparent',
+            fontWeight: docStatusFilter === tab.key ? 500 : 400,
+          }"
+          @click="setStatusFilter(tab.key)">
+          {{ tab.label }} ({{ tab.count }})
+        </div>
+        <div style="flex: 1;"></div>
+        <div style="display: flex; align-items: center; gap: 6px; padding: 4px 0;">
+          <button v-if="docStats.failed > 0" class="btn btn-text btn-small" style="color: #1890ff;" :disabled="retryingFailed" @click="handleRetryAllFailed">
+            {{ retryingFailed ? '重试中...' : `重试失败 (${docStats.failed})` }}
           </button>
-          <button v-if="docStats.failed > 0" style="background: #fff; color: #1890ff; border: 1px solid #1890ff; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12px; white-space: nowrap;" :disabled="retryingFailed" @click="handleRetryAllFailed">
-            {{ retryingFailed ? '重试中...' : `重试全部失败 (${docStats.failed})` }}
-          </button>
-          <button v-if="selectedDocIds.size > 0" style="background: #e6393d; color: #fff; border: none; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12px; white-space: nowrap;" @click="handleBatchDelete">
+          <button v-if="selectedDocIds.size > 0" class="btn btn-small" style="background: #e6393d; color: #fff; border: none;" @click="handleBatchDelete">
             删除选中 ({{ selectedDocIds.size }})
           </button>
-          <button v-if="documents.length > 0" style="background: #fff; color: #e6393d; border: 1px solid #e6393d; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12px; white-space: nowrap;" @click="handleClearAll">
-            清空文档
-          </button>
-        </template>
-      </TableToolbar>
+          <button v-if="documents.length > 0" class="btn btn-text btn-small" style="color: #e6393d;" @click="handleClearAll">清空</button>
+        </div>
+      </div>
       <!-- Breadcrumb navigation -->
       <div v-if="currentFolder" style="margin-bottom: 12px; display: flex; align-items: center; gap: 4px; font-size: 14px;">
         <span class="breadcrumb-link" @click="navigateToFolder('')">全部文档</span>
@@ -509,7 +508,6 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getKnowledgeBase, listDocuments, listFolders, getDocumentStats, deleteDocument, clearAllDocuments, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, ingestUrl, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, type KnowledgeBase as KBType, type Document, type DocumentStats, type DataSource, type DataSourceCredentials, type Folder } from '../../api/knowledge'
 import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
-import TableToolbar from '../../components/TableToolbar.vue'
 import WikiPage from './WikiPage.vue'
 import WikiGraph from './WikiGraph.vue'
 // WikiChat moved to standalone page /knowledge/chat
