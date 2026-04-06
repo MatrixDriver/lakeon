@@ -347,3 +347,49 @@ export function syncDataSource(kbId: string, dsId: string) {
 export function getDataSourceCredentials(kbId: string, dsId: string) {
   return api.get<DataSourceCredentials>(`/knowledge/${kbId}/datasources/${dsId}/credentials`)
 }
+
+// ── Wiki API ──
+
+export interface WikiPageItem {
+  id: string
+  filename: string
+  tags: string[]
+  metadata: Record<string, string>
+  created_at: string
+  updated_at: string | null
+}
+
+export function listWikiPages(kbId: string) {
+  return api.get<WikiPageItem[]>('/knowledge/wiki/pages', { params: { kb_id: kbId } })
+}
+
+export function getWikiPageContent(kbId: string, docId: string) {
+  return api.get<{ content: string }>(`/knowledge/wiki/pages/${docId}/content`, {
+    params: { kb_id: kbId }
+  })
+}
+
+export interface WikiGraph {
+  nodes: { id: string; label: string; document_id: string }[]
+  edges: { source: string; target: string }[]
+}
+
+export function getWikiGraph(kbId: string) {
+  return api.get<WikiGraph>('/knowledge/wiki/graph', { params: { kb_id: kbId } })
+}
+
+export function wikiChat(kbId: string, question: string, history: { role: string; content: string }[] = []) {
+  return api.post<{ answer: string; depth: string; sources: string[] }>('/knowledge/wiki/chat', {
+    kb_id: kbId, question, history
+  })
+}
+
+export function saveWikiResponse(kbId: string, title: string, content: string) {
+  return api.post('/knowledge/wiki/save-response', { kb_id: kbId, title, content })
+}
+
+export function ingestUrl(kbId: string, url: string) {
+  return api.post<{ document_id: string; status: string }>('/knowledge/wiki/ingest-url', {
+    kb_id: kbId, url
+  })
+}
