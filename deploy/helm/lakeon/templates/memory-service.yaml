@@ -39,9 +39,9 @@ spec:
             - name: EMBEDDING_MODEL
               value: {{ .Values.embedding.model | default "BAAI/bge-m3" }}
             - name: CHAT_API_URL
-              value: {{ .Values.memory.chatApiUrl | default "https://api.siliconflow.cn/v1" }}
+              value: {{ .Values.memory.chatApiUrl | default "https://api.deepseek.com/v1" }}
             - name: CHAT_MODEL
-              value: {{ .Values.memory.chatModel | default "Qwen/Qwen2.5-7B-Instruct" }}
+              value: {{ .Values.memory.chatModel | default "deepseek-chat" }}
             {{- if not .Values.llm.enabled }}
             - name: CHAT_API_KEY
               valueFrom:

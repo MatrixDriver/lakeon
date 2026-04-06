@@ -7,9 +7,9 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-CHAT_API_URL = os.getenv("CHAT_API_URL", "https://api.siliconflow.cn/v1")
+CHAT_API_URL = os.getenv("CHAT_API_URL", "https://api.deepseek.com/v1")
 CHAT_API_KEY = os.getenv("CHAT_API_KEY", os.getenv("EMBEDDING_API_KEY", ""))
-CHAT_MODEL = os.getenv("CHAT_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+CHAT_MODEL = os.getenv("CHAT_MODEL", "deepseek-chat")
 
 
 async def chat_extract(prompt: str) -> dict:

@@ -286,7 +286,7 @@ public class LakeonProperties {
 
     public static class AiConfig {
         private String apiKey;
-        private String baseUrl = "https://api.siliconflow.cn/v1";
+        private String baseUrl = "https://api.deepseek.com/v1";
         private String model = "";
 
         public String getApiKey() { return apiKey; }
