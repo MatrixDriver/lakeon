@@ -126,6 +126,9 @@
 
       <TableToolbar v-model="docSearch" placeholder="搜索文件名" :loading="docLoading" @refresh="loadDocuments">
         <template #extra>
+          <button @click="showUrlDialog = true" style="background: #fff; border: 1px solid #c25a3c; color: #c25a3c; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12px; white-space: nowrap;">
+            导入 URL
+          </button>
           <button v-if="docStats.failed > 0" style="background: #fff; color: #1890ff; border: 1px solid #1890ff; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12px; white-space: nowrap;" :disabled="retryingFailed" @click="handleRetryAllFailed">
             {{ retryingFailed ? '重试中...' : `重试全部失败 (${docStats.failed})` }}
           </button>
@@ -344,6 +347,21 @@
       </div>
     </div>
 
+    <!-- Wiki Tab -->
+    <div v-if="activeTab === 'wiki'" style="margin-top: 24px;">
+      <WikiPage :kb-id="(route.params.kbId as string)" />
+    </div>
+
+    <!-- Graph Tab -->
+    <div v-if="activeTab === 'graph'" style="margin-top: 24px;">
+      <WikiGraph :kb-id="(route.params.kbId as string)" @navigate="navigateToWikiPage" />
+    </div>
+
+    <!-- Chat Tab -->
+    <div v-if="activeTab === 'chat'" style="margin-top: 24px;">
+      <WikiChat :kb-id="(route.params.kbId as string)" @navigate="navigateToWikiPage" />
+    </div>
+
     <!-- Chunks Tab -->
     <div v-if="activeTab === 'chunks'" style="margin-top: 8px;">
       <ChunkStats :kb-id="(route.params.kbId as string)" />
@@ -443,6 +461,22 @@
       </div>
     </div>
 
+    <!-- URL Import Dialog -->
+    <div v-if="showUrlDialog" style="position: fixed; inset: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; z-index: 1000;" @click.self="showUrlDialog = false">
+      <div style="background: #fff; border-radius: 8px; padding: 24px; width: 480px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        <h3 style="margin: 0 0 16px; font-size: 16px; color: #3d3d3d;">导入 URL</h3>
+        <input v-model="urlInput" placeholder="输入文章 URL" @keydown.enter="handleUrlIngest"
+               style="width: 100%; padding: 8px 12px; border: 1px solid #d4c4b0; border-radius: 6px; font-size: 14px; outline: none; box-sizing: border-box;" />
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
+          <button @click="showUrlDialog = false" style="padding: 6px 16px; background: #fff; border: 1px solid #d4c4b0; border-radius: 4px; cursor: pointer; color: #5a4a3a;">取消</button>
+          <button @click="handleUrlIngest" :disabled="urlLoading || !urlInput.trim()"
+                  style="padding: 6px 16px; background: #c25a3c; color: #fff; border: none; border-radius: 4px; cursor: pointer;">
+            {{ urlLoading ? '导入中...' : '导入' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Tag Edit Dialog -->
     <div v-if="tagDialog.open" class="modal-overlay" @click.self="tagDialog.open = false">
       <div class="modal-box">
@@ -483,10 +517,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getKnowledgeBase, listDocuments, listFolders, getDocumentStats, deleteDocument, clearAllDocuments, searchKnowledge, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, type KnowledgeBase as KBType, type Document, type DocumentStats, type SearchResult, type DataSource, type DataSourceCredentials, type Folder } from '../../api/knowledge'
+import { getKnowledgeBase, listDocuments, listFolders, getDocumentStats, deleteDocument, clearAllDocuments, searchKnowledge, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, ingestUrl, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, type KnowledgeBase as KBType, type Document, type DocumentStats, type SearchResult, type DataSource, type DataSourceCredentials, type Folder } from '../../api/knowledge'
 import ChunkStats from '../../components/knowledge/ChunkStats.vue'
 import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
 import TableToolbar from '../../components/TableToolbar.vue'
+import WikiPage from './WikiPage.vue'
+import WikiGraph from './WikiGraph.vue'
+import WikiChat from './WikiChat.vue'
 import { formatSize } from '../../utils/format'
 import { databaseApi } from '../../api/database'
 
@@ -550,9 +587,36 @@ const tagDialog = ref<{
   saving: boolean
 }>({ open: false, doc: null, input: '', saving: false })
 
+// ── URL Import state ──
+const showUrlDialog = ref(false)
+const urlInput = ref('')
+const urlLoading = ref(false)
+
+async function handleUrlIngest() {
+  if (!urlInput.value.trim() || urlLoading.value) return
+  urlLoading.value = true
+  try {
+    await ingestUrl(route.params.kbId as string, urlInput.value.trim())
+    showUrlDialog.value = false
+    urlInput.value = ''
+    await loadDocuments()
+  } catch (e: any) {
+    alert('URL 导入失败: ' + (e?.response?.data?.error?.message || e.message || '未知错误'))
+  } finally {
+    urlLoading.value = false
+  }
+}
+
+function navigateToWikiPage(_title: string) {
+  activeTab.value = 'wiki'
+}
+
 const tabs = [
   { key: 'overview', label: '概览' },
   { key: 'documents', label: '文档' },
+  { key: 'wiki', label: 'Wiki' },
+  { key: 'graph', label: '图谱' },
+  { key: 'chat', label: '对话' },
   { key: 'datasources', label: '数据源' },
   { key: 'search', label: '搜索' },
   { key: 'chunks', label: '切片' },
