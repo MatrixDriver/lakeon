@@ -21,15 +21,18 @@ public class KnowledgeController {
     private final DocumentRepository documentRepository;
     private final KbWriteQueue kbWriteQueue;
     private final KnowledgeBaseRepository knowledgeBaseRepository;
+    private final WikiService wikiService;
 
     public KnowledgeController(KnowledgeService knowledgeService,
                                DocumentRepository documentRepository,
                                KbWriteQueue kbWriteQueue,
-                               KnowledgeBaseRepository knowledgeBaseRepository) {
+                               KnowledgeBaseRepository knowledgeBaseRepository,
+                               WikiService wikiService) {
         this.knowledgeService = knowledgeService;
         this.documentRepository = documentRepository;
         this.kbWriteQueue = kbWriteQueue;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
+        this.wikiService = wikiService;
     }
 
     // ── Knowledge Base endpoints ─────────────────────────────────────
@@ -422,6 +425,71 @@ public class KnowledgeController {
         }
         java.util.List<Map<String, Object>> schemas = knowledgeService.getTableSchema(tenant.getId(), id);
         return ResponseEntity.ok(schemas);
+    }
+
+    // ── Wiki endpoints ───────────────────────────────────────────────
+
+    @GetMapping("/wiki/pages")
+    public ResponseEntity<?> listWikiPages(HttpServletRequest req,
+                                           @RequestParam("kb_id") String kbId) {
+        TenantEntity tenant = getTenant(req);
+        List<DocumentEntity> pages = knowledgeService.listWikiPages(tenant.getId(), kbId);
+        return ResponseEntity.ok(pages.stream().map(this::toDocumentResponse).toList());
+    }
+
+    @GetMapping("/wiki/pages/{docId}/content")
+    public ResponseEntity<?> getWikiPageContent(HttpServletRequest req,
+                                                @PathVariable String docId,
+                                                @RequestParam("kb_id") String kbId) {
+        TenantEntity tenant = getTenant(req);
+        String content = knowledgeService.getWikiPageContent(tenant.getId(), kbId, docId);
+        return ResponseEntity.ok(Map.of("content", content != null ? content : ""));
+    }
+
+    @GetMapping("/wiki/graph")
+    public ResponseEntity<?> getWikiGraph(HttpServletRequest req,
+                                          @RequestParam("kb_id") String kbId) {
+        TenantEntity tenant = getTenant(req);
+        Map<String, Object> graph = wikiService.getGraph(tenant.getId(), kbId);
+        return ResponseEntity.ok(graph);
+    }
+
+    @PostMapping("/wiki/chat")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> wikiChat(HttpServletRequest req,
+                                      @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        String kbId = (String) body.get("kb_id");
+        String question = (String) body.get("question");
+        if (question == null || question.isBlank()) {
+            throw new com.lakeon.service.exception.BadRequestException("question is required");
+        }
+        List<Map<String, String>> history = (List<Map<String, String>>) body.get("history");
+        Map<String, Object> result = wikiService.chat(tenant.getId(), kbId, question, history);
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/wiki/save-response")
+    public ResponseEntity<?> saveWikiResponse(HttpServletRequest req,
+                                              @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        String kbId = (String) body.get("kb_id");
+        String title = (String) body.get("title");
+        String content = (String) body.get("content");
+        if (title == null || title.isBlank()) {
+            throw new com.lakeon.service.exception.BadRequestException("title is required");
+        }
+        if (content == null || content.isBlank()) {
+            throw new com.lakeon.service.exception.BadRequestException("content is required");
+        }
+        wikiService.saveResponse(tenant.getId(), kbId, title, content);
+        return ResponseEntity.ok(Map.of("status", "saved", "title", title));
+    }
+
+    @PostMapping("/wiki/ingest-url")
+    public ResponseEntity<?> ingestWikiUrl(HttpServletRequest req,
+                                           @RequestBody Map<String, Object> body) {
+        return ResponseEntity.status(501).body(Map.of("error", "URL ingest not yet implemented"));
     }
 
     // ── Helpers ──────────────────────────────────────────────────────

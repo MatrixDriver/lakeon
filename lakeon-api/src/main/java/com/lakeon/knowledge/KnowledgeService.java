@@ -60,6 +60,7 @@ public class KnowledgeService {
     private final QueryRewriteService queryRewriteService;
     private final AiSqlService aiSqlService;
     private final KbWriteQueue kbWriteQueue;
+    private final ChunkService chunkService;
 
     public KnowledgeService(DocumentRepository documentRepository,
                             KnowledgeBaseRepository knowledgeBaseRepository,
@@ -72,7 +73,8 @@ public class KnowledgeService {
                             KnowledgeDbHelper dbHelper,
                             QueryRewriteService queryRewriteService,
                             AiSqlService aiSqlService,
-                            KbWriteQueue kbWriteQueue) {
+                            KbWriteQueue kbWriteQueue,
+                            ChunkService chunkService) {
         this.documentRepository = documentRepository;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.jobService = jobService;
@@ -85,6 +87,7 @@ public class KnowledgeService {
         this.queryRewriteService = queryRewriteService;
         this.aiSqlService = aiSqlService;
         this.kbWriteQueue = kbWriteQueue;
+        this.chunkService = chunkService;
         this.restTemplate = new RestTemplate();
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
@@ -762,6 +765,16 @@ public class KnowledgeService {
             // ignore — progress is best-effort
         }
         return null;
+    }
+
+    // ── Wiki helpers ─────────────────────────────────────────────────
+
+    public List<DocumentEntity> listWikiPages(String tenantId, String kbId) {
+        return documentRepository.findByTenantIdAndKbIdAndDocType(tenantId, kbId, "wiki");
+    }
+
+    public String getWikiPageContent(String tenantId, String kbId, String docId) {
+        return chunkService.getFulltext(tenantId, kbId, docId);
     }
 
     /**
