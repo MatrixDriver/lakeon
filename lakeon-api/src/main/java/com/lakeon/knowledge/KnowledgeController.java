@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -419,17 +420,26 @@ public class KnowledgeController {
     }
 
     @GetMapping("/admin/wiki/config")
-    public ResponseEntity<?> getWikiConfig() {
+    public ResponseEntity<?> getWikiConfig(
+            @RequestHeader(value = "X-Admin-Token", required = false) String adminToken) {
+        validateAdminToken(adminToken);
         Map<String, Object> config = new LinkedHashMap<>();
         config.put("ingest_prompt", wikiService.getIngestPrompt());
+        config.put("model", wikiService.getModel());
         config.put("base_url", lakeonProperties.getWiki() != null ? lakeonProperties.getWiki().getBaseUrl() : "");
         return ResponseEntity.ok(config);
     }
 
     @PutMapping("/admin/wiki/config")
-    public ResponseEntity<?> updateWikiConfig(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> updateWikiConfig(
+            @RequestHeader(value = "X-Admin-Token", required = false) String adminToken,
+            @RequestBody Map<String, String> body) {
+        validateAdminToken(adminToken);
         if (body.containsKey("ingest_prompt")) {
             lakeonProperties.getWiki().setIngestPrompt(body.get("ingest_prompt"));
+        }
+        if (body.containsKey("model")) {
+            lakeonProperties.getWiki().setModel(body.get("model"));
         }
         return ResponseEntity.ok(Map.of("status", "ok"));
     }
@@ -524,6 +534,13 @@ public class KnowledgeController {
     }
 
     // ── Helpers ──────────────────────────────────────────────────────
+
+    private void validateAdminToken(String token) {
+        String expected = lakeonProperties.getAdmin() != null ? lakeonProperties.getAdmin().getToken() : null;
+        if (token == null || !token.equals(expected)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid admin token");
+        }
+    }
 
     private TenantEntity getTenant(HttpServletRequest req) {
         return (TenantEntity) req.getAttribute("tenant");

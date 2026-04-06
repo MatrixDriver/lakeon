@@ -119,6 +119,17 @@ public class WikiService {
     }
 
     /**
+     * Returns the configured wiki model, or the default DEEPSEEK_MODEL if not set.
+     */
+    public String getModel() {
+        String custom = props.getWiki() != null ? props.getWiki().getModel() : null;
+        if (custom != null && !custom.isBlank()) {
+            return custom;
+        }
+        return DEEPSEEK_MODEL;
+    }
+
+    /**
      * Main entry point: process a newly ingested document and create/update wiki pages.
      * Called by KbWriteQueue after document summarization completes.
      */
@@ -495,7 +506,7 @@ public class WikiService {
         }
 
         Map<String, Object> requestBody = new LinkedHashMap<>();
-        requestBody.put("model", DEEPSEEK_MODEL);
+        requestBody.put("model", getModel());
         requestBody.put("messages", List.of(
                 Map.of("role", "user", "content", prompt)
         ));
@@ -770,7 +781,7 @@ public class WikiService {
         }
 
         Map<String, Object> requestBody = new LinkedHashMap<>();
-        requestBody.put("model", DEEPSEEK_MODEL);
+        requestBody.put("model", getModel());
         requestBody.put("messages", List.of(
                 Map.of("role", "user", "content", prompt)
         ));
