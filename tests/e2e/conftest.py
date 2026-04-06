@@ -77,7 +77,7 @@ def _cleanup_stale_tenants():
             if not any(name.startswith(p) for p in ("e2e-", "dbg", "test", "kb-debug", "kb-0",
                                                       "debug", "compute-test", "sql-test",
                                                       "ext-test", "url-", "export-debug",
-                                                      "quota-", "memtest")):
+                                                      "quota-", "memtest", "wiki-e2e")):
                 continue
             created = t.get("created_at", "")
             if created:
