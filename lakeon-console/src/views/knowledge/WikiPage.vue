@@ -38,6 +38,8 @@ function navigateToTitle(title: string) {
 }
 
 watch(() => props.kbId, loadPages, { immediate: true })
+
+defineExpose({ navigateToTitle })
 </script>
 
 <template>

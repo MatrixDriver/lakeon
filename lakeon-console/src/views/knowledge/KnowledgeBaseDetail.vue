@@ -7,8 +7,10 @@
       <span style="color: #333;">{{ kb?.name || '...' }}</span>
     </div>
 
-    <div class="page-header">
-      <h1 class="page-title">{{ kb?.name || '加载中...' }}</h1>
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <h1 class="page-title" style="margin: 0;">{{ kb?.name || '加载中...' }}</h1>
+      </div>
     </div>
 
     <!-- TABLE type KB: delegate to TableKbDetail -->
@@ -27,8 +29,29 @@
       </div>
     </div>
 
-    <!-- Overview Tab -->
-    <div v-if="activeTab === 'overview'" style="margin-top: 24px;">
+    <!-- Wiki + Graph Tab (default) -->
+    <div v-if="activeTab === 'wiki'" style="display: flex; gap: 0; height: calc(100vh - 200px); margin-top: 0;">
+      <div style="flex: 1; border-right: 1px solid #e8e0d8; overflow: hidden;">
+        <WikiPage ref="wikiPageRef" :kb-id="(route.params.kbId as string)" />
+      </div>
+      <div style="width: 45%; overflow: hidden; padding: 12px;">
+        <WikiGraph :kb-id="(route.params.kbId as string)" @navigate="handleGraphNavigate" />
+      </div>
+    </div>
+
+    <!-- Document Management Tab -->
+    <div v-if="activeTab === 'manage'">
+      <!-- Sub-tabs -->
+      <div style="display: flex; gap: 0; border-bottom: 1px solid #e8e0d8; margin-bottom: 12px; margin-top: 8px;">
+        <span v-for="st in manageTabs" :key="st.key"
+              :style="{ padding: '8px 16px', fontSize: '13px', cursor: 'pointer', borderBottom: manageSubTab === st.key ? '2px solid #c25a3c' : '2px solid transparent', color: manageSubTab === st.key ? '#c25a3c' : '#8c7a68', transition: 'color 0.15s' }"
+              @click="manageSubTab = st.key">
+          {{ st.label }}
+        </span>
+      </div>
+
+    <!-- Overview sub-tab -->
+    <div v-if="manageSubTab === 'overview'" style="margin-top: 24px;">
       <div class="section-card" style="max-width: 600px;">
         <div class="section-header">概览</div>
         <div style="padding: 16px; display: grid; grid-template-columns: 120px 1fr; gap: 12px; font-size: 14px;">
@@ -54,8 +77,8 @@
       </div>
     </div>
 
-    <!-- Documents Tab -->
-    <div v-if="activeTab === 'documents'" style="margin-top: 24px;">
+    <!-- Documents sub-tab -->
+    <div v-if="manageSubTab === 'documents'" style="margin-top: 24px;">
       <!-- Status filter tabs -->
       <div v-if="docStats.total > 0" style="display: flex; gap: 0; margin-bottom: 14px; border-bottom: 1px solid #e8e8e8;">
         <div v-for="tab in [
@@ -263,8 +286,8 @@
       </div>
     </div>
 
-    <!-- Datasources Tab -->
-    <div v-if="activeTab === 'datasources'" style="margin-top: 24px;">
+    <!-- Datasources sub-tab -->
+    <div v-if="manageSubTab === 'datasources'" style="margin-top: 24px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
         <h3 style="margin: 0; font-size: 16px;">OBS 数据源</h3>
         <button class="btn btn-primary" @click="dsCreateDialog = true">添加数据源</button>
@@ -347,28 +370,13 @@
       </div>
     </div>
 
-    <!-- Wiki Tab -->
-    <div v-if="activeTab === 'wiki'" style="margin-top: 24px;">
-      <WikiPage :kb-id="(route.params.kbId as string)" />
-    </div>
-
-    <!-- Graph Tab -->
-    <div v-if="activeTab === 'graph'" style="margin-top: 24px;">
-      <WikiGraph :kb-id="(route.params.kbId as string)" @navigate="navigateToWikiPage" />
-    </div>
-
-    <!-- Chat Tab -->
-    <div v-if="activeTab === 'chat'" style="margin-top: 24px;">
-      <WikiChat :kb-id="(route.params.kbId as string)" @navigate="navigateToWikiPage" />
-    </div>
-
-    <!-- Chunks Tab -->
-    <div v-if="activeTab === 'chunks'" style="margin-top: 8px;">
+    <!-- Chunks sub-tab -->
+    <div v-if="manageSubTab === 'chunks'" style="margin-top: 8px;">
       <ChunkStats :kb-id="(route.params.kbId as string)" />
     </div>
 
-    <!-- Search Tab -->
-    <div v-if="activeTab === 'search'" style="margin-top: 24px;">
+    <!-- Search sub-tab -->
+    <div v-if="manageSubTab === 'search'" style="margin-top: 24px;">
       <!-- Search input -->
       <div style="display: flex; gap: 8px; max-width: 600px;">
         <input
@@ -435,6 +443,8 @@
         </div>
       </div>
     </div>
+
+    </div><!-- end manage tab -->
 
     </template><!-- end DOCUMENT type -->
 
@@ -523,7 +533,7 @@ import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
 import TableToolbar from '../../components/TableToolbar.vue'
 import WikiPage from './WikiPage.vue'
 import WikiGraph from './WikiGraph.vue'
-import WikiChat from './WikiChat.vue'
+// WikiChat moved to standalone page /knowledge/chat
 import { formatSize } from '../../utils/format'
 import { databaseApi } from '../../api/database'
 
@@ -533,7 +543,7 @@ const router = useRouter()
 const kb = ref<KBType | null>(null)
 const storageDisplay = ref('-')
 const documents = ref<Document[]>([])
-const activeTab = ref('documents')
+const activeTab = ref('wiki')
 const searchQuery = ref('')
 const searchFilterTags = ref<string[]>([])
 
@@ -607,20 +617,28 @@ async function handleUrlIngest() {
   }
 }
 
-function navigateToWikiPage(_title: string) {
+const wikiPageRef = ref()
+
+function handleGraphNavigate(title: string) {
   activeTab.value = 'wiki'
+  if (wikiPageRef.value?.navigateToTitle) {
+    wikiPageRef.value.navigateToTitle(title)
+  }
 }
 
 const tabs = [
-  { key: 'overview', label: '概览' },
+  { key: 'wiki', label: 'Wiki + 图谱' },
+  { key: 'manage', label: '文档管理' },
+]
+
+const manageTabs = [
   { key: 'documents', label: '文档' },
-  { key: 'wiki', label: 'Wiki' },
-  { key: 'graph', label: '图谱' },
-  { key: 'chat', label: '对话' },
   { key: 'datasources', label: '数据源' },
   { key: 'search', label: '搜索' },
   { key: 'chunks', label: '切片' },
+  { key: 'overview', label: '概览' },
 ]
+const manageSubTab = ref('documents')
 
 // ── Data sources state ──
 const datasources = ref<DataSource[]>([])

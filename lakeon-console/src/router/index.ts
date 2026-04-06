@@ -84,12 +84,13 @@ const routes = [
       // Datalake — Components
       { path: 'datalake/components', name: 'DatalakeComponents', component: () => import('../views/datalake/DatalakeComponents.vue') },
       { path: 'datalake/components/register', name: 'DatalakeComponentRegister', component: () => import('../views/datalake/DatalakeComponentRegister.vue') },
-      // Knowledge
+      // Knowledge — static routes MUST come before :kbId
       { path: 'knowledge', name: 'KnowledgeBases', component: () => import('../views/knowledge/KnowledgeBases.vue') },
-      { path: 'knowledge/:kbId', name: 'KnowledgeBaseDetail', component: () => import('../views/knowledge/KnowledgeBaseDetail.vue') },
-      { path: 'knowledge/:kbId/documents/:docId', name: 'DocumentDetail', component: () => import('../views/knowledge/DocumentDetail.vue') },
       { path: 'knowledge/datasources', redirect: '/knowledge' },
       { path: 'knowledge/search', name: 'KnowledgeSearch', component: () => import('../views/knowledge/KnowledgeSearch.vue') },
+      { path: 'knowledge/chat', name: 'KnowledgeChat', component: () => import('../views/knowledge/KnowledgeChatPage.vue') },
+      { path: 'knowledge/:kbId', name: 'KnowledgeBaseDetail', component: () => import('../views/knowledge/KnowledgeBaseDetail.vue') },
+      { path: 'knowledge/:kbId/documents/:docId', name: 'DocumentDetail', component: () => import('../views/knowledge/DocumentDetail.vue') },
       // Memory — static routes MUST come before :memId
       { path: 'memory', name: 'MemoryBases', component: () => import('../views/memory/MemoryBases.vue') },
       { path: 'memory/browse', name: 'MemoryBrowse', component: () => import('../views/memory/MemoryBrowse.vue') },
