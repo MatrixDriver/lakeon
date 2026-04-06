@@ -42,7 +42,7 @@ public class WikiService {
     private static final DateTimeFormatter LOG_TS_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.of("Asia/Shanghai"));
 
-    private static final String WIKI_AGENT_PROMPT = """
+    private static final String DEFAULT_WIKI_AGENT_PROMPT = """
             You are a wiki maintenance agent for a knowledge base. A new document has been ingested.
             Your task is to analyze the document and determine which wiki pages to create or update.
 
@@ -108,6 +108,17 @@ public class WikiService {
     }
 
     /**
+     * Returns the configured ingest prompt, or the default if not set.
+     */
+    public String getIngestPrompt() {
+        String custom = props.getWiki() != null ? props.getWiki().getIngestPrompt() : null;
+        if (custom != null && !custom.isBlank()) {
+            return custom;
+        }
+        return DEFAULT_WIKI_AGENT_PROMPT;
+    }
+
+    /**
      * Main entry point: process a newly ingested document and create/update wiki pages.
      * Called by KbWriteQueue after document summarization completes.
      */
@@ -134,7 +145,7 @@ public class WikiService {
         }
 
         // 3. Call LLM to determine wiki changes
-        String prompt = String.format(WIKI_AGENT_PROMPT, currentIndex, fulltext);
+        String prompt = String.format(getIngestPrompt(), currentIndex, fulltext);
         String llmResponse = callDeepSeek(prompt);
         if (llmResponse == null || llmResponse.isBlank()) {
             log.warn("LLM returned empty response for wiki update on doc {}", documentId);

@@ -1,5 +1,6 @@
 package com.lakeon.knowledge;
 
+import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.TenantEntity;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -22,17 +23,20 @@ public class KnowledgeController {
     private final KbWriteQueue kbWriteQueue;
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final WikiService wikiService;
+    private final LakeonProperties lakeonProperties;
 
     public KnowledgeController(KnowledgeService knowledgeService,
                                DocumentRepository documentRepository,
                                KbWriteQueue kbWriteQueue,
                                KnowledgeBaseRepository knowledgeBaseRepository,
-                               WikiService wikiService) {
+                               WikiService wikiService,
+                               LakeonProperties lakeonProperties) {
         this.knowledgeService = knowledgeService;
         this.documentRepository = documentRepository;
         this.kbWriteQueue = kbWriteQueue;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.wikiService = wikiService;
+        this.lakeonProperties = lakeonProperties;
     }
 
     // ── Knowledge Base endpoints ─────────────────────────────────────
@@ -412,6 +416,22 @@ public class KnowledgeController {
         kbWriteQueue.enqueueTask(databaseId, KbWriteTaskType.DOCUMENT_SUMMARIZE, params);
 
         return ResponseEntity.ok(Map.of("status", "enqueued", "document_id", docId));
+    }
+
+    @GetMapping("/admin/wiki/config")
+    public ResponseEntity<?> getWikiConfig() {
+        Map<String, Object> config = new LinkedHashMap<>();
+        config.put("ingest_prompt", wikiService.getIngestPrompt());
+        config.put("base_url", lakeonProperties.getWiki() != null ? lakeonProperties.getWiki().getBaseUrl() : "");
+        return ResponseEntity.ok(config);
+    }
+
+    @PutMapping("/admin/wiki/config")
+    public ResponseEntity<?> updateWikiConfig(@RequestBody Map<String, String> body) {
+        if (body.containsKey("ingest_prompt")) {
+            lakeonProperties.getWiki().setIngestPrompt(body.get("ingest_prompt"));
+        }
+        return ResponseEntity.ok(Map.of("status", "ok"));
     }
 
     // ── TABLE KB endpoints ─────────────────────────────────────────
