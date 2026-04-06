@@ -25,12 +25,13 @@
 
 ```typescript
 const tabs = [
-  { key: 'wiki', label: 'Wiki' },
+  { key: 'overview', label: '概览' },
   { key: 'doc', label: '文档' },
+  { key: 'wiki', label: 'Wiki' },
 ]
 ```
 
-去掉 `manageTabs` 和 `manageSubTab`（约 line 634-641）。
+将 `activeTab` 默认值改为 `'overview'`。去掉 `manageTabs` 和 `manageSubTab`（约 line 634-641）。
 
 - [ ] **Step 2: 重写 Wiki tab template**
 
@@ -205,12 +206,12 @@ git commit -m "feat(console): flatten doc tab — remove sub-tabs, integrate dat
 
 ---
 
-### Task 3: 空 KB 引导页
+### Task 3: 概览 Tab + 空 KB 引导页
 
 **Files:**
-- Modify: `lakeon-console/src/views/knowledge/KnowledgeBaseDetail.vue` (Wiki tab 区域)
+- Modify: `lakeon-console/src/views/knowledge/KnowledgeBaseDetail.vue` (新增概览 tab 区域)
 
-**目标：** 当 KB 无文档时，Wiki tab 显示引导页面（导入→Wiki→对话→沉淀四步 + 拖拽上传区），而不是空白的 WikiPage。
+**目标：** 概览 tab 作为默认首页，显示 KB 基础信息。当 KB 无文档时，概览 tab 额外显示引导页面（导入→Wiki→对话→沉淀四步 + 上传区）。
 
 - [ ] **Step 1: 添加空状态判断**
 
@@ -220,13 +221,45 @@ git commit -m "feat(console): flatten doc tab — remove sub-tabs, integrate dat
 const isEmptyKb = computed(() => docStats.value.total === 0 && !docLoading.value)
 ```
 
-- [ ] **Step 2: 添加引导页 template**
+- [ ] **Step 2: 添加概览 tab template**
 
-在 Wiki tab 区域，WikiPage 之前添加：
+在 tab 内容区域添加概览 tab（复用原 overview sub-tab 的 KB 信息卡片 + 空状态引导）：
 
 ```html
-<!-- Empty KB onboarding -->
-<div v-if="isEmptyKb && activeTab === 'wiki'" style="flex: 1; display: flex; align-items: center; justify-content: center; background: #fff;">
+<!-- 概览 Tab -->
+<div v-if="activeTab === 'overview'" style="margin-top: 24px;">
+  <!-- KB 信息卡片 -->
+  <div class="section-card" style="max-width: 600px;">
+    <div class="section-header">知识库信息</div>
+    <div style="padding: 16px; display: grid; grid-template-columns: 120px 1fr; gap: 12px; font-size: 14px;">
+      <span style="color: #999;">名称</span><span>{{ kb?.name }}</span>
+      <span style="color: #999;">描述</span><span>{{ kb?.description || '-' }}</span>
+      <span style="color: #999;">文档数</span><span>{{ kb?.document_count ?? 0 }}</span>
+      <span style="color: #999;">存储大小</span><span>{{ storageDisplay }}</span>
+      <span style="color: #999;">Embedding 模型</span><span>BGE-M3 (1024维)</span>
+      <span style="color: #999;">切片策略</span><span>结构化切片 (400 tokens)</span>
+      <span style="color: #999;">状态</span>
+      <span><span class="status-tag" :class="'tag-' + (kb?.status === 'READY' ? 'green' : 'blue')">{{ kb?.status === 'READY' ? '就绪' : kb?.status }}</span></span>
+      <span style="color: #999;">创建时间</span><span>{{ kb?.created_at ? new Date(kb.created_at).toLocaleString('zh-CN') : '-' }}</span>
+      <span style="color: #999;">底层数据库</span>
+      <span v-if="kb?.database_id">
+        <router-link :to="'/databases/' + kb.database_id" style="color: #2563eb; text-decoration: none;">{{ kb.database_id }}</router-link>
+      </span>
+      <span v-else>-</span>
+    </div>
+  </div>
+
+  <!-- KB Summary -->
+  <div v-if="kb?.summary" class="section-card" style="max-width: 600px; margin-top: 16px;">
+    <div class="section-header">知识库概览</div>
+    <div style="padding: 16px; font-size: 14px; line-height: 1.8; color: #333; white-space: pre-wrap;">{{ kb.summary }}</div>
+  </div>
+
+  <!-- Empty KB onboarding -->
+  <div v-if="isEmptyKb" style="margin-top: 32px; display: flex; justify-content: center;">
+    <div style="max-width: 560px; text-align: center;">
+      <h2 style="font-size: 18px; color: #2c2420; margin-bottom: 6px;">开始构建你的知识库</h2>
+      <p style="color: #999; font-size: 13px; margin-bottom: 24px;">上传文档，AI 自动整理为结构化的 Wiki 知识体系</p>
   <div style="max-width: 560px; text-align: center; padding: 40px;">
     <h2 style="font-size: 20px; color: #2c2420; margin-bottom: 8px;">开始构建你的知识库</h2>
     <p style="color: #999; font-size: 14px; margin-bottom: 28px;">上传文档，AI 自动整理为结构化的 Wiki 知识体系</p>
@@ -268,11 +301,10 @@ const isEmptyKb = computed(() => docStats.value.total === 0 && !docLoading.value
         或前往文档 Tab 使用更多导入方式
       </button>
     </div>
+    </div>
   </div>
 </div>
 ```
-
-在 Wiki tab 的 WikiPage/WikiGraph 部分加上 `v-if="!isEmptyKb"`。
 
 - [ ] **Step 3: 运行 type check**
 
