@@ -406,6 +406,8 @@ public class LakeonProperties {
         private String model = "";
         private String ingestPrompt = "";
         private String curatePrompt = "";
+        private String chatRoutingPrompt = "";
+        private String chatAnswerPrompt = "";
 
         public String getApiKey() { return apiKey; }
         public void setApiKey(String apiKey) { this.apiKey = apiKey; }
@@ -417,6 +419,10 @@ public class LakeonProperties {
         public void setIngestPrompt(String ingestPrompt) { this.ingestPrompt = ingestPrompt; }
         public String getCuratePrompt() { return curatePrompt; }
         public void setCuratePrompt(String curatePrompt) { this.curatePrompt = curatePrompt; }
+        public String getChatRoutingPrompt() { return chatRoutingPrompt; }
+        public void setChatRoutingPrompt(String chatRoutingPrompt) { this.chatRoutingPrompt = chatRoutingPrompt; }
+        public String getChatAnswerPrompt() { return chatAnswerPrompt; }
+        public void setChatAnswerPrompt(String chatAnswerPrompt) { this.chatAnswerPrompt = chatAnswerPrompt; }
     }
 
     public static class DatalakeConfig {

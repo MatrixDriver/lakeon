@@ -117,6 +117,31 @@ public class WikiService {
             If no changes are needed, return: {"wiki_pages": [], "delete_pages": [], "index_updates": [], "log_entry": "No changes needed"}
             """;
 
+    private static final String DEFAULT_ROUTING_PROMPT = """
+            You are a query router for a wiki knowledge base.
+            Given the wiki index below and a user question, output a JSON object identifying:
+            1. Which wiki page titles are most relevant to the question (use the exact titles from the index).
+            2. Whether the question is "simple" (answerable from wiki summaries/overviews) or "deep" (requires detailed document chunks).
+
+            Wiki index:
+            ---
+            %s
+            ---
+
+            User question: %s
+
+            Output ONLY valid JSON in this exact format (no markdown, no explanation):
+            {"relevant_pages": ["Page Title 1", "Page Title 2"], "depth": "simple"}
+
+            Rules:
+            - relevant_pages: list of page titles from the index that are directly relevant; empty list if none.
+            - depth: "simple" for factual or overview questions, "deep" for analytical, comparative, or detailed questions.
+            """;
+
+    private static final String DEFAULT_ANSWER_PROMPT = """
+            You are a helpful wiki assistant. Answer the user's question based on the provided context.
+            """;
+
     private final LakeonProperties props;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
@@ -176,6 +201,64 @@ public class WikiService {
             return custom;
         }
         return DEEPSEEK_MODEL;
+    }
+
+    /**
+     * Returns the configured chat routing prompt, or the default if not set.
+     */
+    public String getChatRoutingPrompt() {
+        String custom = props.getWiki() != null ? props.getWiki().getChatRoutingPrompt() : null;
+        if (custom != null && !custom.isBlank()) return custom;
+        return DEFAULT_ROUTING_PROMPT;
+    }
+
+    /**
+     * Returns the configured chat answer prompt, or the default if not set.
+     */
+    public String getChatAnswerPrompt() {
+        String custom = props.getWiki() != null ? props.getWiki().getChatAnswerPrompt() : null;
+        if (custom != null && !custom.isBlank()) return custom;
+        return DEFAULT_ANSWER_PROMPT;
+    }
+
+    /**
+     * Rebuild all wiki pages: delete existing wiki docs and re-enqueue WIKI_UPDATE for each raw doc.
+     * Returns the number of deleted wiki pages.
+     */
+    public int rebuildWiki(String tenantId, String kbId) {
+        // Delete all doc_type=wiki documents for this KB
+        List<DocumentEntity> wikiDocs = documentRepository.findByTenantIdAndKbIdAndDocType(tenantId, kbId, DOC_TYPE_WIKI);
+        int deleted = wikiDocs.size();
+        for (DocumentEntity doc : wikiDocs) {
+            documentRepository.delete(doc);
+        }
+
+        // For each raw+READY document, enqueue WIKI_UPDATE
+        List<DocumentEntity> rawDocs = documentRepository.findByTenantIdAndKbIdAndDocType(tenantId, kbId, "raw");
+        var kb = knowledgeBaseRepository.findById(kbId).orElse(null);
+        String databaseId = kb != null ? kb.getDatabaseId() : null;
+
+        for (DocumentEntity rawDoc : rawDocs) {
+            if (rawDoc.getStatus() == DocumentStatus.READY && databaseId != null) {
+                Map<String, Object> params = new LinkedHashMap<>();
+                params.put("tenant_id", tenantId);
+                params.put("kb_id", kbId);
+                params.put("document_id", rawDoc.getId());
+                params.put("database_id", databaseId);
+                kbWriteQueue.enqueueTask(databaseId, KbWriteTaskType.WIKI_UPDATE, params);
+            }
+        }
+
+        log.info("Rebuild wiki for KB {}: deleted {} wiki pages, enqueued {} raw docs", kbId, deleted, rawDocs.size());
+        return deleted;
+    }
+
+    /**
+     * Test LLM connection by sending a simple prompt.
+     * Returns the response string, or throws on failure.
+     */
+    public String testConnection() {
+        return callDeepSeekText("Say 'OK' in one word.");
     }
 
     /**
@@ -529,26 +612,7 @@ public class WikiService {
      * Build the routing prompt that asks the LLM to identify relevant wiki pages and question depth.
      */
     private String buildRoutingPrompt(String indexContent, String question) {
-        return """
-                You are a query router for a wiki knowledge base.
-                Given the wiki index below and a user question, output a JSON object identifying:
-                1. Which wiki page titles are most relevant to the question (use the exact titles from the index).
-                2. Whether the question is "simple" (answerable from wiki summaries/overviews) or "deep" (requires detailed document chunks).
-
-                Wiki index:
-                ---
-                %s
-                ---
-
-                User question: %s
-
-                Output ONLY valid JSON in this exact format (no markdown, no explanation):
-                {"relevant_pages": ["Page Title 1", "Page Title 2"], "depth": "simple"}
-
-                Rules:
-                - relevant_pages: list of page titles from the index that are directly relevant; empty list if none.
-                - depth: "simple" for factual or overview questions, "deep" for analytical, comparative, or detailed questions.
-                """.formatted(indexContent, question);
+        return getChatRoutingPrompt().formatted(indexContent, question);
     }
 
     /**
@@ -557,7 +621,7 @@ public class WikiService {
     private String buildAnswerPrompt(String question, List<Map<String, String>> history,
                                       String wikiContext, String rawContext) {
         StringBuilder sb = new StringBuilder();
-        sb.append("You are a helpful wiki assistant. Answer the user's question based on the provided context.\n\n");
+        sb.append(getChatAnswerPrompt().trim()).append("\n\n");
 
         if (!wikiContext.isBlank()) {
             sb.append("## Wiki Pages\n\n");

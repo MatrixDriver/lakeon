@@ -431,6 +431,8 @@ public class KnowledgeController {
         Map<String, Object> config = new LinkedHashMap<>();
         config.put("ingest_prompt", wikiService.getIngestPrompt());
         config.put("curate_prompt", wikiService.getCuratePrompt());
+        config.put("chat_routing_prompt", wikiService.getChatRoutingPrompt());
+        config.put("chat_answer_prompt", wikiService.getChatAnswerPrompt());
         config.put("model", wikiService.getModel());
         config.put("base_url", lakeonProperties.getWiki() != null ? lakeonProperties.getWiki().getBaseUrl() : "");
         return ResponseEntity.ok(config);
@@ -449,6 +451,12 @@ public class KnowledgeController {
         }
         if (body.containsKey("model")) {
             lakeonProperties.getWiki().setModel(body.get("model"));
+        }
+        if (body.containsKey("chat_routing_prompt")) {
+            lakeonProperties.getWiki().setChatRoutingPrompt(body.get("chat_routing_prompt"));
+        }
+        if (body.containsKey("chat_answer_prompt")) {
+            lakeonProperties.getWiki().setChatAnswerPrompt(body.get("chat_answer_prompt"));
         }
         return ResponseEntity.ok(Map.of("status", "ok"));
     }
@@ -478,6 +486,51 @@ public class KnowledgeController {
         if (kb == null) return ResponseEntity.notFound().build();
         String content = knowledgeService.getWikiPageContent(kb.getTenantId(), kbId, docId);
         return ResponseEntity.ok(Map.of("content", content != null ? content : ""));
+    }
+
+    @DeleteMapping("/admin/wiki/pages/{docId}")
+    public ResponseEntity<?> adminDeleteWikiPage(
+            @RequestHeader(value = "X-Admin-Token", required = false) String adminToken,
+            @PathVariable String docId,
+            @RequestParam("kb_id") String kbId) {
+        validateAdminToken(adminToken);
+        documentRepository.deleteById(docId);
+        return ResponseEntity.ok(Map.of("status", "deleted"));
+    }
+
+    @PostMapping("/admin/wiki/rebuild")
+    public ResponseEntity<?> adminRebuildWiki(
+            @RequestHeader(value = "X-Admin-Token", required = false) String adminToken,
+            @RequestParam("kb_id") String kbId) {
+        validateAdminToken(adminToken);
+        var kb = knowledgeBaseRepository.findById(kbId).orElse(null);
+        if (kb == null) return ResponseEntity.notFound().build();
+        int deleted = wikiService.rebuildWiki(kb.getTenantId(), kbId);
+        return ResponseEntity.ok(Map.of("status", "rebuilding", "wiki_pages_deleted", deleted));
+    }
+
+    @PostMapping("/admin/wiki/test-connection")
+    public ResponseEntity<?> adminTestConnection(
+            @RequestHeader(value = "X-Admin-Token", required = false) String adminToken) {
+        validateAdminToken(adminToken);
+        long start = System.currentTimeMillis();
+        try {
+            String response = wikiService.testConnection();
+            long latency = System.currentTimeMillis() - start;
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "latency_ms", latency,
+                    "model", wikiService.getModel(),
+                    "response", response
+            ));
+        } catch (Exception e) {
+            long latency = System.currentTimeMillis() - start;
+            return ResponseEntity.ok(Map.of(
+                    "success", false,
+                    "latency_ms", latency,
+                    "error", e.getMessage() != null ? e.getMessage() : "Unknown error"
+            ));
+        }
     }
 
     // ── TABLE KB endpoints ─────────────────────────────────────────
