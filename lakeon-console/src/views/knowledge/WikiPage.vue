@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { listWikiPages, getWikiPageContent, type WikiPageItem } from '@/api/knowledge'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 
@@ -72,6 +72,49 @@ function navigateToTitle(title: string) {
 
 watch(() => props.kbId, loadPages, { immediate: true })
 
+// Fullscreen modal
+const showFullscreen = ref(false)
+const fullscreenContentEl = ref<HTMLDivElement>()
+
+interface TocItem { level: number; text: string; id: string }
+// Used in template (fullscreen TOC sidebar)
+// noinspection JSUnusedLocalSymbols
+const toc = computed<TocItem[]>(() => {
+  if (!content.value) return []
+  const items: TocItem[] = []
+  const lines = content.value.split('\n')
+  for (const line of lines) {
+    const m = line.match(/^(#{1,3})\s+(.+)/)
+    if (m && m[1] && m[2]) {
+      const text = m[2].trim()
+      const id = text.replace(/\s+/g, '-').replace(/[^\w\u4e00-\u9fff-]/g, '').toLowerCase()
+      items.push({ level: m[1].length, text, id })
+    }
+  }
+  return items
+})
+
+function openFullscreen() {
+  showFullscreen.value = true
+  nextTick(() => {
+    // Add id attributes to headings inside the fullscreen modal for anchor navigation
+    if (fullscreenContentEl.value) {
+      const headings = fullscreenContentEl.value.querySelectorAll('h1, h2, h3')
+      headings.forEach(h => {
+        const text = h.textContent?.trim() || ''
+        h.id = text.replace(/\s+/g, '-').replace(/[^\w\u4e00-\u9fff-]/g, '').toLowerCase()
+      })
+    }
+  })
+}
+
+// Used in template (fullscreen TOC click)
+// noinspection JSUnusedLocalSymbols
+function scrollToHeading(id: string) {
+  const el = fullscreenContentEl.value?.querySelector('#' + CSS.escape(id))
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 defineExpose({ navigateToTitle })
 </script>
 
@@ -97,9 +140,16 @@ defineExpose({ navigateToTitle })
     <div style="flex: 1; overflow-y: auto; padding: 0 8px;">
       <div v-if="loading" style="color: #b0a090; padding: 20px;">加载中...</div>
       <div v-else-if="selectedPage">
-        <div style="margin-bottom: 8px; font-size: 12px; color: #b0a090;">
+        <div style="margin-bottom: 8px; font-size: 12px; color: #b0a090; display: flex; align-items: center;">
           版本 {{ selectedPage.metadata?.wiki_version || '1' }}
           · {{ selectedPage.updated_at || selectedPage.created_at }}
+          <span style="flex: 1;"></span>
+          <button class="expand-btn" @click="openFullscreen" title="全屏阅读">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+              <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+            </svg>
+          </button>
         </div>
         <MarkdownRenderer :content="content" :kb-id="kbId" @navigate="navigateToTitle" />
       </div>
@@ -121,6 +171,37 @@ defineExpose({ navigateToTitle })
         </div>
       </div>
     </div>
+    <!-- Fullscreen Reading Modal -->
+    <Teleport to="body">
+      <div v-if="showFullscreen" class="fullscreen-overlay" @click.self="showFullscreen = false">
+        <div class="fullscreen-modal">
+          <div class="fullscreen-header">
+            <span style="font-weight: 600; color: #3d3d3d;">{{ selectedPage?.filename?.replace('.md', '') }}</span>
+            <button class="expand-btn" @click="showFullscreen = false" title="关闭">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <div style="display: flex; flex: 1; overflow: hidden;">
+            <!-- TOC sidebar -->
+            <div v-if="toc.length > 0" class="fullscreen-toc">
+              <div style="font-size: 12px; color: #b0a090; margin-bottom: 8px; font-weight: 600;">目录</div>
+              <div v-for="item in toc" :key="item.id"
+                   class="toc-item"
+                   :style="{ paddingLeft: (item.level - 1) * 14 + 'px' }"
+                   @click="scrollToHeading(item.id)">
+                {{ item.text }}
+              </div>
+            </div>
+            <!-- Content -->
+            <div ref="fullscreenContentEl" class="fullscreen-content">
+              <MarkdownRenderer :content="content" :kb-id="kbId" @navigate="navigateToTitle" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -140,5 +221,70 @@ defineExpose({ navigateToTitle })
   background: #f0e6d8;
   color: #8b6914;
   font-weight: 500;
+}
+.expand-btn {
+  background: none;
+  border: 1px solid #e0d8ce;
+  border-radius: 4px;
+  padding: 3px 6px;
+  cursor: pointer;
+  color: #8c7a68;
+  display: inline-flex;
+  align-items: center;
+}
+.expand-btn:hover {
+  background: #faf5f0;
+  color: #5a4a3a;
+}
+.fullscreen-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fullscreen-modal {
+  width: 90vw;
+  height: 88vh;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.fullscreen-header {
+  padding: 12px 20px;
+  border-bottom: 1px solid #e8e0d8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.fullscreen-toc {
+  width: 200px;
+  flex-shrink: 0;
+  border-right: 1px solid #f0ebe4;
+  padding: 16px;
+  overflow-y: auto;
+}
+.toc-item {
+  font-size: 13px;
+  color: #5a4a3a;
+  padding: 4px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  margin-bottom: 1px;
+}
+.toc-item:hover {
+  background: #faf5f0;
+  color: #8b6914;
+}
+.fullscreen-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
 }
 </style>

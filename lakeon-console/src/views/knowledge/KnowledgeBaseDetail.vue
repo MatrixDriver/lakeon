@@ -55,7 +55,7 @@
       </div>
 
       <!-- KB info (vertical) -->
-      <div style="font-size: 13px; color: #666; padding: 14px 16px; background: #faf8f5; border-radius: 8px; max-width: 500px; display: grid; grid-template-columns: 100px 1fr; gap: 8px 12px; align-items: baseline;">
+      <div style="font-size: 13px; color: #666; padding: 14px 16px; max-width: 500px; display: grid; grid-template-columns: 100px 1fr; gap: 8px 12px; align-items: baseline;">
         <span style="color: #999;">描述</span><span>{{ kb?.description || '-' }}</span>
         <span style="color: #999;">LLM 模型</span><span>DeepSeek V3.2</span>
         <span style="color: #999;">Embedding</span><span>{{ kb?.embedding_model || 'BGE-M3' }}</span>
@@ -87,6 +87,13 @@
         <div style="padding: 8px 12px; border-bottom: 1px solid #f0ebe4; display: flex; align-items: center; font-size: 13px; font-weight: 600; color: #3d3d3d;">
           知识图谱
           <span style="flex: 1;"></span>
+          <button style="background: none; border: 1px solid #e0d8ce; border-radius: 4px; padding: 2px 5px; cursor: pointer; color: #8c7a68; margin-right: 8px; display: inline-flex; align-items: center;"
+                  @click="showGraphFullscreen = true" title="全屏图谱">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+              <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+            </svg>
+          </button>
           <span style="cursor: pointer; color: #bbb; font-size: 16px;" @click="showGraph = false" title="收起图谱">&times;</span>
         </div>
         <div style="flex: 1; overflow: hidden;">
@@ -477,6 +484,25 @@
       </div>
     </div>
 
+    <!-- Graph Fullscreen Modal -->
+    <Teleport to="body">
+      <div v-if="showGraphFullscreen" style="position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center;" @click.self="showGraphFullscreen = false">
+        <div style="width: 92vw; height: 88vh; background: #fff; border-radius: 10px; box-shadow: 0 8px 40px rgba(0,0,0,0.2); display: flex; flex-direction: column; overflow: hidden;">
+          <div style="padding: 12px 20px; border-bottom: 1px solid #e8e0d8; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
+            <span style="font-weight: 600; color: #3d3d3d;">知识图谱</span>
+            <button style="background: none; border: 1px solid #e0d8ce; border-radius: 4px; padding: 3px 6px; cursor: pointer; color: #8c7a68; display: inline-flex; align-items: center;" @click="showGraphFullscreen = false" title="关闭">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <div style="flex: 1; overflow: hidden;">
+            <WikiGraph :kb-id="(route.params.kbId as string)" @navigate="(t) => { showGraphFullscreen = false; handleGraphNavigate(t) }" />
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     </div>
   </div>
 </template>
@@ -622,6 +648,7 @@ const tabs = [
 ]
 
 const showGraph = ref(true)
+const showGraphFullscreen = ref(false)
 const graphWidth = ref(320)
 
 function startGraphResize(e: MouseEvent) {
