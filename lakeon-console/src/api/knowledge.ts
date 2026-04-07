@@ -421,3 +421,27 @@ export interface WikiStats {
 export function getWikiStats(kbId: string) {
   return api.get<WikiStats>('/knowledge/wiki/stats', { params: { kb_id: kbId } })
 }
+
+// ── KB Sharing API ──
+
+export interface KbShare {
+  id: string
+  kb_id: string
+  tenant_id: string
+  username: string
+  role: string
+  invited_by: string
+  created_at: string
+}
+
+export function listShares(kbId: string) {
+  return api.get<KbShare[]>(`/knowledge/bases/${kbId}/shares`)
+}
+
+export function createShare(kbId: string, username: string) {
+  return api.post<KbShare>(`/knowledge/bases/${kbId}/shares`, { username })
+}
+
+export function deleteShare(kbId: string, shareId: string) {
+  return api.delete(`/knowledge/bases/${kbId}/shares/${shareId}`)
+}

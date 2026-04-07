@@ -1,10 +1,25 @@
 <template>
   <div class="page-container">
     <!-- Breadcrumb + Title in one line -->
-    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;">
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
       <router-link to="/knowledge" style="color: #9a5b25; text-decoration: none; font-size: 13px;">知识库</router-link>
       <span style="color: #ccc; font-size: 13px;">/</span>
-      <h1 class="page-title" style="margin: 0; font-size: 18px;">{{ kb?.name || '...' }}</h1>
+      <h1 class="page-title" style="margin: 0; font-size: 18px; line-height: 1.4;">{{ kb?.name || '...' }}</h1>
+      <span v-if="isShared" style="display: inline-block; padding: 1px 7px; border-radius: 3px; font-size: 11px; font-weight: 500; background: #fff7e6; color: #c19a6b; border: 1px solid #e8d5b0; margin-left: 4px;">共享</span>
+      <span style="flex: 1;"></span>
+      <!-- Share management button (admin only) -->
+      <button v-if="isAdmin && kb && kb.type !== 'TABLE'" class="share-mgmt-btn" @click="showSharePanel = !showSharePanel" :title="showSharePanel ? '收起共享管理' : '共享管理'">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+        共享管理
+      </button>
+    </div>
+    <!-- Share panel (collapsible) -->
+    <div v-if="showSharePanel && isAdmin" style="margin-bottom: 16px;">
+      <KbSharePanel :kb-id="(route.params.kbId as string)" @close="showSharePanel = false" />
     </div>
 
     <!-- TABLE type KB: delegate to TableKbDetail -->
@@ -208,10 +223,10 @@
           <button v-if="docStats.failed > 0" class="btn btn-text btn-small" style="color: #1890ff;" :disabled="retryingFailed" @click="handleRetryAllFailed">
             {{ retryingFailed ? '重试中...' : `重试失败 (${docStats.failed})` }}
           </button>
-          <button v-if="selectedDocIds.size > 0" class="btn btn-small" style="background: #e6393d; color: #fff; border: none;" @click="handleBatchDelete">
+          <button v-if="isAdmin && selectedDocIds.size > 0" class="btn btn-small" style="background: #e6393d; color: #fff; border: none;" @click="handleBatchDelete">
             删除选中 ({{ selectedDocIds.size }})
           </button>
-          <button v-if="documents.length > 0" class="btn btn-text btn-small" style="color: #e6393d;" @click="handleClearAll">清空</button>
+          <button v-if="isAdmin && documents.length > 0" class="btn btn-text btn-small" style="color: #e6393d;" @click="handleClearAll">清空</button>
         </div>
       </div>
       <!-- Breadcrumb navigation -->
@@ -320,7 +335,7 @@
               <td @click.stop>
                 <button v-if="doc.status === 'FAILED'" class="btn btn-text btn-small" style="color: #1890ff;" @click="handleRetryDoc(doc)">重试</button>
                 <router-link v-if="doc.status === 'READY'" :to="{ name: 'DocumentDetail', params: { kbId: route.params.kbId, docId: doc.id } }" class="btn btn-text btn-small" style="color: #9a5b25;" @click.stop>切片</router-link>
-                <button class="btn btn-text btn-small btn-danger-text" @click="handleDeleteDoc(doc)">删除</button>
+                <button v-if="isAdmin" class="btn btn-text btn-small btn-danger-text" @click="handleDeleteDoc(doc)">删除</button>
               </td>
             </tr>
           </tbody>
@@ -515,6 +530,7 @@ import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
 import WikiPage from './WikiPage.vue'
 import WikiGraph from './WikiGraph.vue'
 import WikiChat from './WikiChat.vue'
+import KbSharePanel from './KbSharePanel.vue'
 // WikiChat moved to standalone page /knowledge/chat
 import { formatSize } from '../../utils/format'
 import { marked } from 'marked'
@@ -526,6 +542,9 @@ const router = useRouter()
 
 const kb = ref<KBType | null>(null)
 const storageDisplay = ref('-')
+const isShared = computed(() => (kb.value as any)?.is_shared === true)
+const isAdmin = computed(() => !isShared.value)
+const showSharePanel = ref(false)
 const documents = ref<Document[]>([])
 const validTabs = ['overview', 'doc', 'wiki']
 const hashTab = window.location.hash.replace('#', '')
@@ -1596,5 +1615,23 @@ onMounted(async () => {
 .stat-label {
   font-size: 12px;
   color: #8c7a68;
+}
+.share-mgmt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  font-size: 12px;
+  border: 1px solid #d4c4b0;
+  border-radius: 5px;
+  background: #fff;
+  color: #8c7a68;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.share-mgmt-btn:hover {
+  border-color: #c19a6b;
+  color: #9a5b25;
+  background: #faf8f5;
 }
 </style>

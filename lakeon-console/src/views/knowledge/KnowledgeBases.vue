@@ -133,10 +133,10 @@
 
     <!-- Knowledge base list -->
 
-    <!-- Card view -->
-    <div v-if="viewMode === 'card' && filteredKBs.length > 0" class="card-grid">
+    <!-- Card view: owned KBs -->
+    <div v-if="viewMode === 'card' && ownedKbs.length > 0" class="card-grid">
       <ResourceCard
-        v-for="kb in filteredKBs"
+        v-for="kb in ownedKbs"
         :key="kb.id"
         :name="kb.name"
         :status="kb.status"
@@ -152,6 +152,29 @@
         + 创建知识库
       </div>
     </div>
+
+    <!-- Card view: shared KBs section -->
+    <template v-if="viewMode === 'card' && sharedKbs.length > 0">
+      <div class="section-header">共享知识库</div>
+      <div class="card-grid">
+        <ResourceCard
+          v-for="kb in sharedKbs"
+          :key="kb.id"
+          :name="kb.name"
+          :status="kb.status"
+          :statusLabel="statusText(kb.status)"
+          :meta="[kb.type === 'TABLE' ? '数据表' : '文档', kb.embedding_model || '-', kb.type === 'TABLE' ? '-' : `${(kb as any).document_count ?? 0} 文档`]"
+          @click="$router.push(`/knowledge/${kb.id}`)"
+        >
+          <template #badge>
+            <span class="shared-badge">共享</span>
+          </template>
+          <template #extra>
+            <span v-if="(kb as any).owner_name" class="shared-owner">来自 {{ (kb as any).owner_name }}</span>
+          </template>
+        </ResourceCard>
+      </div>
+    </template>
 
     <!-- Table view -->
     <div v-if="viewMode === 'table' && filteredKBs.length > 0" class="table-wrapper">
@@ -171,9 +194,13 @@
         <tbody>
           <tr v-for="kb in filteredKBs" :key="kb.id">
             <td>
-              <router-link :to="`/knowledge/${kb.id}`" style="color: #9a5b25; text-decoration: none; font-weight: 500;">
-                {{ kb.name }}
-              </router-link>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <router-link :to="`/knowledge/${kb.id}`" style="color: #9a5b25; text-decoration: none; font-weight: 500;">
+                  {{ kb.name }}
+                </router-link>
+                <span v-if="(kb as any).is_shared" class="shared-badge">共享</span>
+                <span v-if="(kb as any).is_shared && (kb as any).owner_name" class="shared-owner">来自 {{ (kb as any).owner_name }}</span>
+              </div>
             </td>
             <td>
               <span v-if="kb.type === 'TABLE'" class="type-tag type-tag-table">数据表</span>
@@ -187,7 +214,7 @@
             </td>
             <td style="color: #999;">{{ formatTime(kb.created_at) }}</td>
             <td>
-              <button class="btn btn-text btn-small btn-danger-text" @click="handleDelete(kb)">删除</button>
+              <button v-if="!(kb as any).is_shared" class="btn btn-text btn-small btn-danger-text" @click="handleDelete(kb)">删除</button>
             </td>
           </tr>
         </tbody>
@@ -257,6 +284,9 @@ const filteredKBs = computed(() => {
   const q = kbSearch.value.toLowerCase()
   return knowledgeBases.value.filter(kb => kb.name.toLowerCase().includes(q) || (kb.description || '').toLowerCase().includes(q))
 })
+
+const ownedKbs = computed(() => filteredKBs.value.filter((kb: any) => !kb.is_shared))
+const sharedKbs = computed(() => filteredKBs.value.filter((kb: any) => kb.is_shared))
 
 const createFormValid = computed(() => {
   if (!createForm.value.name.trim()) return false
@@ -481,5 +511,27 @@ onMounted(loadKBs)
 .card-create:hover { border-color: #94a3b8; }
 @media (max-width: 768px) {
   .card-grid { grid-template-columns: 1fr; }
+}
+.section-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: #8c7a68;
+  margin: 24px 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e8e0d8;
+}
+.shared-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  background: #fff7e6;
+  color: #c19a6b;
+  border: 1px solid #e8d5b0;
+}
+.shared-owner {
+  font-size: 11px;
+  color: #a89080;
 }
 </style>
