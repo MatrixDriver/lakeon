@@ -30,8 +30,52 @@
     </div>
 
     <!-- Overview Tab (default) -->
+    <!-- 引导 Tab (default) — clickable journey steps -->
+    <div v-if="activeTab === 'guide'" style="margin-top: 20px; display: flex; flex-direction: column; align-items: center;">
+      <div style="text-align: center; max-width: 700px;">
+        <h2 style="font-size: 18px; color: #2c2420; margin-bottom: 6px;">知识构建流程</h2>
+        <p style="color: #999; font-size: 13px; margin-bottom: 28px;">上传文档，AI 自动整理为结构化的 Wiki 知识体系</p>
+
+        <div style="display: flex; gap: 10px; margin-bottom: 28px;">
+          <!-- Step 1: 导入 -->
+          <div class="guide-step" @click="activeTab = 'doc'" style="border-color: #c25a3c; background: #fdf6f4;">
+            <div class="guide-step-num" style="background: #c25a3c;">1</div>
+            <div class="guide-step-title">导入</div>
+            <div class="guide-step-desc">上传文件、目录<br/>或导入 URL</div>
+          </div>
+          <div style="display: flex; align-items: center; color: #d4c4b0; font-size: 20px;">&rarr;</div>
+          <!-- Step 2: Wiki -->
+          <div class="guide-step" @click="activeTab = 'wiki'">
+            <div class="guide-step-num" style="background: #d4885a;">2</div>
+            <div class="guide-step-title">Wiki</div>
+            <div class="guide-step-desc">AI 自动生成<br/>Wiki 和知识图谱</div>
+          </div>
+          <div style="display: flex; align-items: center; color: #d4c4b0; font-size: 20px;">&rarr;</div>
+          <!-- Step 3: 对话 -->
+          <div class="guide-step" @click="router.push('/knowledge/chat')">
+            <div class="guide-step-num" style="background: #8c7a68;">3</div>
+            <div class="guide-step-title">对话</div>
+            <div class="guide-step-desc">向知识库提问<br/>深度探索</div>
+          </div>
+          <div style="display: flex; align-items: center; color: #d4c4b0; font-size: 20px;">&rarr;</div>
+          <!-- Step 4: 沉淀 -->
+          <div class="guide-step" @click="router.push('/knowledge/chat')">
+            <div class="guide-step-num" style="background: #a89080;">4</div>
+            <div class="guide-step-title">沉淀</div>
+            <div class="guide-step-desc">洞察保存回 Wiki<br/>知识越用越多</div>
+          </div>
+        </div>
+
+        <!-- KB summary if available -->
+        <div v-if="kb?.summary" style="text-align: left; background: #faf8f5; border: 1px solid #e8e0d8; border-radius: 8px; padding: 16px; margin-top: 8px;">
+          <div style="font-size: 13px; font-weight: 600; color: #5a4a3a; margin-bottom: 8px;">知识库摘要</div>
+          <div style="font-size: 13px; line-height: 1.8; color: #444; white-space: pre-wrap;">{{ kb.summary }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 概览 Tab -->
     <div v-if="activeTab === 'overview'" style="margin-top: 24px;">
-      <!-- KB info card -->
       <div class="section-card" style="max-width: 600px;">
         <div class="section-header">知识库信息</div>
         <div style="padding: 16px; display: grid; grid-template-columns: 120px 1fr; gap: 12px; font-size: 14px;">
@@ -51,61 +95,9 @@
           <span v-else>-</span>
         </div>
       </div>
-
-      <!-- KB summary -->
       <div v-if="kb?.summary" class="section-card" style="max-width: 600px; margin-top: 16px;">
         <div class="section-header">知识库概览</div>
         <div style="padding: 16px; font-size: 14px; line-height: 1.8; color: #333; white-space: pre-wrap;">{{ kb.summary }}</div>
-      </div>
-
-      <!-- Empty KB onboarding -->
-      <div v-if="isEmptyKb" style="margin-top: 32px; display: flex; justify-content: center;">
-        <div style="max-width: 560px; text-align: center;">
-          <h2 style="font-size: 18px; color: #2c2420; margin-bottom: 6px;">开始构建你的知识库</h2>
-          <p style="color: #999; font-size: 13px; margin-bottom: 24px;">上传文档，AI 自动整理为结构化的 Wiki 知识体系</p>
-          <!-- 4-step journey -->
-          <div style="display: flex; gap: 8px; margin-bottom: 24px;">
-            <!-- Step 1: 导入 (active) -->
-            <div style="flex: 1; background: #fdf6f4; border: 1px solid #c25a3c; border-radius: 8px; padding: 14px 10px;">
-              <div style="width: 24px; height: 24px; border-radius: 50%; background: #c25a3c; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; margin-bottom: 5px;">1</div>
-              <div style="font-size: 12px; font-weight: 600; color: #3d3d3d;">导入</div>
-              <div style="font-size: 11px; color: #999;">上传文件、目录或 URL</div>
-            </div>
-            <div style="display: flex; align-items: center; color: #d4c4b0;">&rarr;</div>
-            <!-- Step 2: Wiki -->
-            <div style="flex: 1; background: #faf8f5; border: 1px solid #e8e0d8; border-radius: 8px; padding: 14px 10px;">
-              <div style="width: 24px; height: 24px; border-radius: 50%; background: #e8e0d8; color: #8c7a68; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; margin-bottom: 5px;">2</div>
-              <div style="font-size: 12px; font-weight: 600; color: #3d3d3d;">Wiki</div>
-              <div style="font-size: 11px; color: #999;">AI 自动生成 Wiki 和知识图谱</div>
-            </div>
-            <div style="display: flex; align-items: center; color: #d4c4b0;">&rarr;</div>
-            <!-- Step 3: 对话 -->
-            <div style="flex: 1; background: #faf8f5; border: 1px solid #e8e0d8; border-radius: 8px; padding: 14px 10px;">
-              <div style="width: 24px; height: 24px; border-radius: 50%; background: #e8e0d8; color: #8c7a68; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; margin-bottom: 5px;">3</div>
-              <div style="font-size: 12px; font-weight: 600; color: #3d3d3d;">对话</div>
-              <div style="font-size: 11px; color: #999;">向知识库提问，深度探索</div>
-            </div>
-            <div style="display: flex; align-items: center; color: #d4c4b0;">&rarr;</div>
-            <!-- Step 4: 沉淀 -->
-            <div style="flex: 1; background: #faf8f5; border: 1px solid #e8e0d8; border-radius: 8px; padding: 14px 10px;">
-              <div style="width: 24px; height: 24px; border-radius: 50%; background: #e8e0d8; color: #8c7a68; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; margin-bottom: 5px;">4</div>
-              <div style="font-size: 12px; font-weight: 600; color: #3d3d3d;">沉淀</div>
-              <div style="font-size: 11px; color: #999;">洞察保存回 Wiki</div>
-            </div>
-          </div>
-          <!-- Upload area -->
-          <label style="display: block; background: #faf8f5; border: 2px dashed #d4c4b0; border-radius: 8px; padding: 24px; cursor: pointer;">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#c25a3c" stroke-width="1.5" style="margin-bottom: 6px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <p style="font-size: 13px; color: #5a4a3a; margin: 0 0 4px;">点击上传文件开始</p>
-            <p style="font-size: 12px; color: #aaa; margin: 0;">支持 PDF、DOCX、Markdown、TXT 等格式</p>
-            <input type="file" accept=".pdf,.docx,.doc,.xlsx,.xls,.xlsm,.pptx,.epub,.html,.htm,.md,.markdown,.txt" multiple style="display: none;" @change="handleUpload" />
-          </label>
-          <div style="margin-top: 10px;">
-            <button @click="activeTab = 'doc'" style="padding: 4px 12px; font-size: 12px; border: 1px solid #d4c4b0; border-radius: 4px; background: #fff; color: #5a4a3a; cursor: pointer;">
-              或前往文档 Tab 使用更多导入方式
-            </button>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -495,7 +487,7 @@ const router = useRouter()
 const kb = ref<KBType | null>(null)
 const storageDisplay = ref('-')
 const documents = ref<Document[]>([])
-const activeTab = ref('overview')
+const activeTab = ref('guide')
 const uploading = ref(false)
 const uploadJustFinished = ref(false)
 const docLoading = ref(false)
@@ -583,13 +575,13 @@ function handleGraphNavigate(title: string) {
 }
 
 const tabs = [
+  { key: 'guide', label: '引导' },
   { key: 'overview', label: '概览' },
   { key: 'doc', label: '文档' },
   { key: 'wiki', label: 'Wiki' },
 ]
 
 const showGraph = ref(true)
-const isEmptyKb = computed(() => docStats.value.total === 0 && !docLoading.value)
 
 // ── Data sources state ──
 const datasources = ref<DataSource[]>([])
@@ -1098,6 +1090,43 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.guide-step {
+  flex: 1;
+  background: #faf8f5;
+  border: 1px solid #e8e0d8;
+  border-radius: 10px;
+  padding: 20px 12px;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  text-align: center;
+}
+.guide-step:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.guide-step-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.guide-step-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #3d3d3d;
+  margin-bottom: 4px;
+}
+.guide-step-desc {
+  font-size: 12px;
+  color: #8c7a68;
+  line-height: 1.5;
+}
 .tab-bar {
   display: flex;
   gap: 0;
