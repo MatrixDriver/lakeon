@@ -139,6 +139,24 @@
         </div>
       </div>
 
+      <!-- Layer filter -->
+      <div style="display: flex; gap: 0; margin-bottom: 12px;">
+        <span v-for="lf in [
+          { key: 'source', label: '源文档' },
+          { key: 'wiki', label: 'Wiki 文档' },
+        ]" :key="lf.key"
+          style="padding: 5px 14px; font-size: 12px; cursor: pointer; border: 1px solid #e0d8ce; transition: all 0.15s;"
+          :style="{
+            background: docLayerFilter === lf.key ? '#c25a3c' : '#fff',
+            color: docLayerFilter === lf.key ? '#fff' : '#5a4a3a',
+            borderRadius: lf.key === 'source' ? '4px 0 0 4px' : '0 4px 4px 0',
+            borderLeft: lf.key === 'wiki' ? 'none' : undefined,
+          }"
+          @click="docLayerFilter = lf.key as 'source' | 'wiki'">
+          {{ lf.label }}
+        </span>
+      </div>
+
       <span v-if="kb?.status === 'CREATING'" style="color: #c87a20; font-size: 13px; display: block; margin-bottom: 12px;">知识库正在创建中，请稍候...</span>
 
       <!-- Combined progress card -->
@@ -525,6 +543,7 @@ interface UploadFileState {
 }
 const uploadProgress = ref<UploadFileState[]>([])
 const docSearch = ref('')
+const docLayerFilter = ref<'source' | 'wiki'>('source')
 
 const docPage = ref(1)
 const docPageSize = ref(50)
@@ -727,8 +746,12 @@ async function saveDocTags() {
 }
 
 const filteredDocs = computed(() => {
-  // Hide wiki/index type docs — they belong in Wiki tab, not document management
-  let docs = documents.value.filter(d => d.type !== 'wiki' && d.type !== 'index')
+  let docs = documents.value
+  if (docLayerFilter.value === 'source') {
+    docs = docs.filter(d => d.type !== 'wiki' && d.type !== 'index')
+  } else {
+    docs = docs.filter(d => d.type === 'wiki' || d.type === 'index')
+  }
   if (docSearch.value) {
     const q = docSearch.value.toLowerCase()
     docs = docs.filter(d => d.filename.toLowerCase().includes(q))
