@@ -14,6 +14,12 @@ const routes = [
     meta: { noAuth: true },
   },
   {
+    path: '/ext-login',
+    name: 'ExtLogin',
+    component: () => import('../views/login/ExtLoginView.vue'),
+    meta: { noAuth: true },
+  },
+  {
     path: '/',
     component: () => import('../layouts/PublicLayout.vue'),
     meta: { noAuth: true },
