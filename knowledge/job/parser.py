@@ -30,7 +30,7 @@ def parse_document(file_path: str, format: str) -> Tuple[str, List[Dict]]:
         return _parse_epub(file_path), []
     elif format == "HTML":
         return _parse_html(file_path), []
-    elif format in ("MARKDOWN", "TEXT"):
+    elif format in ("MARKDOWN", "MD", "TEXT", "TXT"):
         return _parse_markdown(file_path), []
     else:
         raise ValueError(f"Unsupported format: {format}")

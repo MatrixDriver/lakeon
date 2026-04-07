@@ -313,7 +313,7 @@ public class WikiService {
         doc.setDatabaseId(databaseId);
         doc.setFilename(filename);
         doc.setDocType("raw");
-        doc.setFormat("MD");
+        doc.setFormat("MARKDOWN");
         doc.setStatus(DocumentStatus.PENDING);
         doc.setTags(List.of("url-import"));
         doc.setMetadata(Map.of("source_url", url));
