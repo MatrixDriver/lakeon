@@ -52,11 +52,15 @@
     </div>
 
     <!-- Wiki Tab -->
-    <div v-if="activeTab === 'wiki'" style="display: flex; height: calc(100vh - 200px); margin-top: 0; position: relative;">
+    <div v-if="activeTab === 'wiki'" style="display: flex; height: calc(100vh - 140px); margin-top: 12px; position: relative;">
       <div style="flex: 1; overflow: hidden;">
         <WikiPage ref="wikiPageRef" :kb-id="(route.params.kbId as string)" />
       </div>
-      <div v-if="showGraph" style="width: 320px; border-left: 1px solid #e8e0d8; flex-shrink: 0; display: flex; flex-direction: column;">
+      <!-- Resizable graph panel -->
+      <div v-if="showGraph" :style="{ width: graphWidth + 'px', borderLeft: '1px solid #e8e0d8', flexShrink: 0, display: 'flex', flexDirection: 'column', position: 'relative' }">
+        <!-- Drag handle -->
+        <div style="position: absolute; left: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 5;"
+             @mousedown="startGraphResize"></div>
         <div style="padding: 8px 12px; border-bottom: 1px solid #f0ebe4; display: flex; align-items: center; font-size: 13px; font-weight: 600; color: #3d3d3d;">
           知识图谱
           <span style="flex: 1;"></span>
@@ -545,6 +549,23 @@ const tabs = [
 ]
 
 const showGraph = ref(true)
+const graphWidth = ref(320)
+
+function startGraphResize(e: MouseEvent) {
+  e.preventDefault()
+  const startX = e.clientX
+  const startW = graphWidth.value
+  const onMove = (ev: MouseEvent) => {
+    const delta = startX - ev.clientX
+    graphWidth.value = Math.max(200, Math.min(800, startW + delta))
+  }
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+}
 
 // ── Data sources state ──
 const datasources = ref<DataSource[]>([])

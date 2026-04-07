@@ -21,7 +21,7 @@ import java.util.*;
 public class SummaryService {
     private static final Logger log = LoggerFactory.getLogger(SummaryService.class);
 
-    private static final String SUMMARY_MODEL = "deepseek-chat";
+    private static final String SUMMARY_MODEL = "deepseek-v3.2";
     private static final int MAX_FULLTEXT_CHARS = 28_000;
     private static final String SUMMARY_PROMPT = """
             你是一个文档摘要助手。请为以下文档生成一份结构化摘要。

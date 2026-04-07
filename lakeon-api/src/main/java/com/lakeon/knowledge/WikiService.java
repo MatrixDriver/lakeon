@@ -35,7 +35,7 @@ import java.util.*;
 public class WikiService {
     private static final Logger log = LoggerFactory.getLogger(WikiService.class);
 
-    private static final String DEEPSEEK_MODEL = "deepseek-chat";
+    private static final String DEEPSEEK_MODEL = "deepseek-v3.2";
     private static final int MAX_FULLTEXT_CHARS = 28_000;
     private static final int MAX_INDEX_CHARS = 8_000;
     private static final String DOC_TYPE_WIKI = "wiki";
@@ -910,7 +910,7 @@ public class WikiService {
     private String getWikiBaseUrl() {
         String wikiUrl = props.getWiki().getBaseUrl();
         if (wikiUrl != null && !wikiUrl.isBlank()) return wikiUrl;
-        return "https://api.deepseek.com/v1";
+        return "https://api.modelarts-maas.com/v1";
     }
 
     /**

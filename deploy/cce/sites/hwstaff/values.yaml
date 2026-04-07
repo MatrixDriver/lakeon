@@ -65,8 +65,8 @@ api:
   inviteRequired: true  # 注册需要邀请码
   aiApiKey: ""          # injected from secret api-credentials/ai-api-key
   ai:
-    baseUrl: "https://api.deepseek.com/v1"
-    model: "deepseek-chat"
+    baseUrl: "https://api.modelarts-maas.com/v1"
+    model: "deepseek-v3.2"
   suspendPodRetainMinutes: 5  # 挂起后 Pod 保留时间（热启动窗口），默认30分钟太长
   # Compute Pod 调度到专用数据库弹性节点池 dbay-db-pool (min=1 max=5)
   computeNodeSelector:
@@ -271,8 +271,8 @@ llm:
 memory:
   enabled: true
   image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.2.6
-  chatApiUrl: "https://api.deepseek.com/v1"
-  chatModel: "deepseek-chat"
+  chatApiUrl: "https://api.modelarts-maas.com/v1"
+  chatModel: "deepseek-v3.2"
 
 minio:
   enabled: false

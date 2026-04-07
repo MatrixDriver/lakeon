@@ -95,12 +95,12 @@ export const adminApi = {
     client.get('/knowledge/pipeline/tasks', { params }),
   pipelineStats: (params?: { from?: string; to?: string }) =>
     client.get('/knowledge/pipeline/stats', { params }),
-  getWikiConfig: () => client.get('/admin/wiki/config'),
-  updateWikiConfig: (data: Record<string, string>) => client.put('/admin/wiki/config', data),
+  getWikiConfig: () => client.get('/wiki/config'),
+  updateWikiConfig: (data: Record<string, string>) => client.put('/wiki/config', data),
   listWikiPages: (kbId: string, docType?: string) =>
-    client.get('/admin/wiki/pages', { params: { kb_id: kbId, doc_type: docType } }),
+    client.get('/wiki/pages', { params: { kb_id: kbId, doc_type: docType } }),
   getWikiPageContent: (kbId: string, docId: string) =>
-    client.get(`/admin/wiki/pages/${docId}/content`, { params: { kb_id: kbId } }),
+    client.get(`/wiki/pages/${docId}/content`, { params: { kb_id: kbId } }),
 
   // Memory Admin
   memoryStats: () => client.get('/memory/stats'),

@@ -29,7 +29,7 @@ public class AiScriptService {
     // Model definitions with pricing (CNY per million tokens)
     public static final List<Map<String, Object>> AVAILABLE_MODELS = List.of(
         Map.of(
-            "id", "deepseek-chat",
+            "id", "deepseek-v3.2",
             "name", "DeepSeek V3.2",
             "input_price", 2.0,
             "output_price", 3.0,

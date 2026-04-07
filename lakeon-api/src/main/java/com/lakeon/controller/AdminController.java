@@ -156,6 +156,7 @@ public class AdminController {
         this.pipelineRunRepository = pipelineRunRepository;
         this.pipelineStepRunRepository = pipelineStepRunRepository;
         this.pipelineComponentRepository = pipelineComponentRepository;
+        this.wikiService = wikiService;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────
@@ -899,6 +900,66 @@ public class AdminController {
         result.put("period_start", start.toString());
         result.put("period_end", end.toString());
         return result;
+    }
+
+    // ── Wiki Agent Admin ──────────────────────────────────
+
+    @GetMapping("/wiki/config")
+    public Map<String, Object> getWikiConfig() {
+        Map<String, Object> config = new java.util.LinkedHashMap<>();
+        config.put("ingest_prompt", wikiService.getIngestPrompt());
+        config.put("curate_prompt", wikiService.getCuratePrompt());
+        config.put("model", wikiService.getModel());
+        config.put("base_url", props.getWiki() != null ? props.getWiki().getBaseUrl() : "");
+        return config;
+    }
+
+    @PutMapping("/wiki/config")
+    public Map<String, String> updateWikiConfig(@RequestBody Map<String, String> body) {
+        if (body.containsKey("ingest_prompt")) {
+            props.getWiki().setIngestPrompt(body.get("ingest_prompt"));
+        }
+        if (body.containsKey("curate_prompt")) {
+            props.getWiki().setCuratePrompt(body.get("curate_prompt"));
+        }
+        if (body.containsKey("model")) {
+            props.getWiki().setModel(body.get("model"));
+        }
+        if (body.containsKey("base_url")) {
+            props.getWiki().setBaseUrl(body.get("base_url"));
+        }
+        return Map.of("status", "ok");
+    }
+
+    @GetMapping("/wiki/pages")
+    public List<Map<String, Object>> adminListWikiPages(
+            @RequestParam("kb_id") String kbId,
+            @RequestParam(value = "doc_type", required = false, defaultValue = "wiki") String docType) {
+        var kb = knowledgeBaseRepository.findById(kbId).orElse(null);
+        if (kb == null) return List.of();
+        return documentRepository.findByTenantIdAndKbIdAndDocType(kb.getTenantId(), kbId, docType)
+                .stream().map(this::toDocResponse).toList();
+    }
+
+    @GetMapping("/wiki/pages/{docId}/content")
+    public Map<String, String> adminGetWikiPageContent(
+            @PathVariable String docId, @RequestParam("kb_id") String kbId) {
+        var kb = knowledgeBaseRepository.findById(kbId).orElse(null);
+        if (kb == null) return Map.of("content", "");
+        String content = knowledgeService.getWikiPageContent(kb.getTenantId(), kbId, docId);
+        return Map.of("content", content != null ? content : "");
+    }
+
+    private Map<String, Object> toDocResponse(com.lakeon.knowledge.DocumentEntity doc) {
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("id", doc.getId());
+        m.put("filename", doc.getFilename());
+        m.put("format", doc.getFormat());
+        m.put("doc_type", doc.getDocType());
+        m.put("status", doc.getStatus() != null ? doc.getStatus().name() : null);
+        m.put("size_bytes", doc.getSizeBytes());
+        m.put("created_at", doc.getCreatedAt() != null ? doc.getCreatedAt().toString() : null);
+        return m;
     }
 
     // ── Memory Admin ──────────────────────────────────────

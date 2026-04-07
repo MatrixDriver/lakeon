@@ -21,7 +21,7 @@ import java.util.*;
 @Service
 public class SreAiService {
     private static final Logger log = LoggerFactory.getLogger(SreAiService.class);
-    private static final String MODEL = "deepseek-chat";
+    private static final String MODEL = "deepseek-v3.2";
     private static final int MAX_TOOL_ROUNDS = 5;
 
     private final LakeonProperties props;
