@@ -83,7 +83,7 @@
             </router-link>
             <router-link to="/knowledge/chat" class="nav-item" active-class="active" @click="sidebarOpen = false">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              对话
+              Wiki 对话
             </router-link>
           </div>
 
