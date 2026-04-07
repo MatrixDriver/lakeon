@@ -3,6 +3,7 @@ package com.lakeon.controller;
 import com.lakeon.model.dto.ErrorResponse;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.ConflictException;
+import com.lakeon.service.exception.ForbiddenException;
 import com.lakeon.service.exception.NotFoundException;
 import com.lakeon.service.exception.QuotaExceededException;
 import com.lakeon.service.exception.ServiceException;
@@ -34,6 +35,12 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleBadRequest(BadRequestException e) {
         return ErrorResponse.of("BAD_REQUEST", e.getMessage());
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ErrorResponse handleForbidden(ForbiddenException e) {
+        return ErrorResponse.of("FORBIDDEN", e.getMessage());
     }
 
     @ExceptionHandler(QuotaExceededException.class)
