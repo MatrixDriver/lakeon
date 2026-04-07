@@ -286,7 +286,7 @@ public class LakeonProperties {
 
     public static class AiConfig {
         private String apiKey;
-        private String baseUrl = "https://api.modelarts-maas.com/v1";
+        private String baseUrl = "https://api.deepseek.com/v1";
         private String model = "";
 
         public String getApiKey() { return apiKey; }
@@ -402,7 +402,7 @@ public class LakeonProperties {
 
     public static class WikiConfig {
         private String apiKey = "";
-        private String baseUrl = "https://api.modelarts-maas.com/v1";
+        private String baseUrl = "https://api.deepseek.com/v1";
         private String model = "";
         private String ingestPrompt = "";
         private String curatePrompt = "";
