@@ -379,81 +379,57 @@ public class WikiService {
 
     /**
      * Ingest a URL: fetch HTML, extract text, store as a raw document, trigger processing.
+     * Falls back to Jina Reader for JavaScript-rendered pages.
      */
     public Map<String, Object> ingestUrl(String tenantId, String kbId, String url) {
-        // 1. Fetch HTML
-        String html;
+        // 1. Try direct fetch first
+        String text = null;
+        String title = "Untitled";
+        boolean usedJina = false;
+
         try {
-            int maxRedirects = 3;
-            HttpResponse<String> response = null;
-            String currentUrl = url;
-            for (int i = 0; i <= maxRedirects; i++) {
-                HttpRequest req = HttpRequest.newBuilder()
-                        .uri(URI.create(currentUrl))
-                        .header("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                        .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-                        .header("Accept-Language", "en-US,en;q=0.9,zh-CN;q=0.8")
-                        .timeout(Duration.ofSeconds(30))
+            String[] extracted = fetchAndExtract(url);
+            title = extracted[0];
+            text = extracted[1];
+        } catch (Exception e) {
+            log.warn("Direct fetch failed for {}: {}", url, e.getMessage());
+        }
+
+        // 2. Fallback to Jina Reader if content is too short or fetch failed
+        if (text == null || text.length() < 200) {
+            log.info("Direct fetch insufficient for {}, trying Jina Reader", url);
+            try {
+                String jinaUrl = "https://r.jina.ai/" + url;
+                HttpRequest jinaReq = HttpRequest.newBuilder()
+                        .uri(URI.create(jinaUrl))
+                        .header("User-Agent", "Mozilla/5.0")
+                        .header("Accept", "text/plain,text/markdown,*/*")
+                        .timeout(Duration.ofSeconds(45))
                         .GET()
                         .build();
-                response = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
-                int sc = response.statusCode();
-                if (sc >= 300 && sc < 400) {
-                    String location = response.headers().firstValue("Location").orElse(null);
-                    if (location == null) break;
-                    if (location.startsWith("/")) {
-                        URI base = URI.create(currentUrl);
-                        location = base.getScheme() + "://" + base.getHost() + location;
-                    }
-                    currentUrl = location;
-                    continue;
+                HttpResponse<String> jinaResp = httpClient.send(jinaReq,
+                        HttpResponse.BodyHandlers.ofString());
+                if (jinaResp.statusCode() == 200 && jinaResp.body().length() > 200) {
+                    String body = jinaResp.body();
+                    // Jina prepends metadata lines like "Title: ...\nURL Source: ...\n"
+                    java.util.regex.Matcher tm = java.util.regex.Pattern
+                            .compile("(?m)^Title:\\s*(.+)$").matcher(body);
+                    if (tm.find()) title = tm.group(1).strip();
+                    text = body;
+                    usedJina = true;
+                    log.info("Jina Reader succeeded for {}: {} chars", url, text.length());
                 }
-                break;
+            } catch (Exception e) {
+                log.warn("Jina Reader also failed for {}: {}", url, e.getMessage());
             }
-            if (response.statusCode() != 200) {
-                throw new RuntimeException("HTTP " + response.statusCode());
-            }
-            html = response.body();
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to fetch URL: " + e.getMessage(), e);
         }
 
-        // 2. Extract title from <title> tag
-        String title = "Untitled";
-        java.util.regex.Matcher titleMatcher = java.util.regex.Pattern
-                .compile("<title[^>]*>(.*?)</title>", java.util.regex.Pattern.DOTALL | java.util.regex.Pattern.CASE_INSENSITIVE)
-                .matcher(html);
-        if (titleMatcher.find()) {
-            title = titleMatcher.group(1).strip().replaceAll("\\s+", " ");
-            if (title.length() > 200) title = title.substring(0, 200);
+        if (text == null || text.length() < 100) {
+            throw new RuntimeException("Failed to fetch URL: page content is too short or requires login. " +
+                    (usedJina ? "" : "Try again — if the page is JavaScript-rendered, Jina Reader will be used automatically."));
         }
 
-        // 3. Extract text content: strip HTML tags, keep text
-        String text = html
-                .replaceAll("(?s)<script[^>]*>.*?</script>", "")
-                .replaceAll("(?s)<style[^>]*>.*?</style>", "")
-                .replaceAll("(?s)<nav[^>]*>.*?</nav>", "")
-                .replaceAll("(?s)<header[^>]*>.*?</header>", "")
-                .replaceAll("(?s)<footer[^>]*>.*?</footer>", "")
-                .replaceAll("<br\\s*/?>", "\n")
-                .replaceAll("</p>", "\n\n")
-                .replaceAll("</h[1-6]>", "\n\n")
-                .replaceAll("</li>", "\n")
-                .replaceAll("<[^>]+>", "")
-                .replaceAll("&nbsp;", " ")
-                .replaceAll("&amp;", "&")
-                .replaceAll("&lt;", "<")
-                .replaceAll("&gt;", ">")
-                .replaceAll("&quot;", "\"")
-                .replaceAll("&#39;", "'")
-                .replaceAll("\n{3,}", "\n\n")
-                .strip();
-
-        if (text.length() < 100) {
-            throw new RuntimeException("Extracted content too short, the page may require JavaScript rendering or login");
-        }
+        log.info("URL ingest for {}: {} chars, via {}", url, text.length(), usedJina ? "Jina" : "direct");
 
         // 4. Create document
         String markdown = "# " + title + "\n\n> Source: " + url + "\n\n" + text;
@@ -512,6 +488,50 @@ public class WikiService {
         log.info("URL ingested: {} → doc {} ({})", url, docId, filename);
 
         return Map.of("document_id", docId, "filename", filename, "status", "processing");
+    }
+
+    /**
+     * Fetch a URL and extract title + plain text from the HTML response.
+     * Returns String[2]: [0]=title, [1]=plain text
+     */
+    private String[] fetchAndExtract(String url) throws Exception {
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("User-Agent", "Mozilla/5.0 (compatible; LakeonBot/1.0)")
+                .header("Accept", "text/html,application/xhtml+xml,*/*")
+                .timeout(Duration.ofSeconds(30))
+                .GET()
+                .build();
+        HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() != 200) {
+            throw new RuntimeException("HTTP " + resp.statusCode());
+        }
+        String html = resp.body();
+
+        // Extract title from <title> tag
+        String title = "Untitled";
+        java.util.regex.Matcher tm = java.util.regex.Pattern
+                .compile("(?i)<title[^>]*>([^<]+)</title>").matcher(html);
+        if (tm.find()) {
+            title = tm.group(1).strip().replaceAll("\\s+", " ");
+        }
+
+        // Strip scripts, styles, then all HTML tags
+        String text = html
+                .replaceAll("(?si)<script[^>]*>.*?</script>", " ")
+                .replaceAll("(?si)<style[^>]*>.*?</style>", " ")
+                .replaceAll("(?s)<[^>]+>", " ")
+                .replace("&nbsp;", " ")
+                .replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", "\"")
+                .replace("&#39;", "'")
+                .replaceAll("[ \\t]{2,}", " ")
+                .replaceAll("(\\r?\\n[ \\t]*){3,}", "\n\n")
+                .strip();
+
+        return new String[]{title, text};
     }
 
     /**
