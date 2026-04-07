@@ -988,53 +988,30 @@ public class WikiService {
     public void chatStream(String tenantId, String kbId, String question,
                            List<Map<String, String>> history,
                            java.util.function.Consumer<String> onEvent) {
-        // 1. Read index.md to get an overview of available wiki pages
-        String indexContent = readWikiPage(tenantId, kbId, "index.md");
-        if (indexContent == null) {
-            indexContent = "# Wiki Index\n\nNo pages yet.\n";
-        }
-        if (indexContent.length() > MAX_INDEX_CHARS) {
-            indexContent = indexContent.substring(0, MAX_INDEX_CHARS);
-        }
+        // 1. Get all wiki page entities (single DB query, fast)
+        List<DocumentEntity> wikiDocs = documentRepository.findByTenantIdAndKbIdAndDocType(
+                tenantId, kbId, DOC_TYPE_WIKI);
 
-        // 2. Routing: ask LLM which pages are relevant and whether this is simple or deep
-        String routingPrompt = buildRoutingPrompt(indexContent, question);
-        String routingResponse = callDeepSeek(routingPrompt);
+        // 2. Determine depth heuristically (no LLM call needed)
+        String depth = isDeepQuestion(question) ? "deep" : "simple";
 
-        // 3. Parse routing response
-        List<String> relevantPages = new ArrayList<>();
-        String depth = "simple";
-        try {
-            JsonNode routing = objectMapper.readTree(routingResponse);
-            JsonNode pagesNode = routing.path("relevant_pages");
-            if (pagesNode.isArray()) {
-                for (JsonNode p : pagesNode) {
-                    String pageName = p.asText("").trim();
-                    if (!pageName.isBlank()) {
-                        relevantPages.add(pageName);
-                    }
-                }
-            }
-            String depthVal = routing.path("depth").asText("simple").trim().toLowerCase();
-            if ("deep".equals(depthVal)) {
-                depth = "deep";
-            }
-        } catch (Exception e) {
-            log.warn("Failed to parse routing response, falling back to defaults: {}", e.getMessage());
-        }
-        log.debug("Wiki chat stream routing: depth={}, pages={}", depth, relevantPages);
+        // 3. Select relevant pages via keyword matching (no LLM routing call)
+        List<DocumentEntity> relevantDocs = selectRelevantPages(wikiDocs, question);
 
-        // 4. Read relevant wiki pages
+        // 4. Load page contents from OBS
         StringBuilder wikiContext = new StringBuilder();
         List<String> sources = new ArrayList<>();
-        for (String pageTitle : relevantPages) {
-            String filename = titleToFilename(pageTitle);
-            String pageContent = readWikiPage(tenantId, kbId, filename);
+        int totalChars = 0;
+        for (DocumentEntity doc : relevantDocs) {
+            if (totalChars >= 20000) break;
+            String pageContent = readWikiPage(tenantId, kbId, doc.getFilename());
             if (pageContent != null && !pageContent.isBlank()) {
-                wikiContext.append("### ").append(pageTitle).append("\n");
-                wikiContext.append(pageContent, 0, Math.min(pageContent.length(), 4000));
-                wikiContext.append("\n\n");
-                sources.add(pageTitle);
+                String title = doc.getFilename().replace(".md", "");
+                wikiContext.append("### ").append(title).append("\n");
+                int take = Math.min(pageContent.length(), 4000);
+                wikiContext.append(pageContent, 0, take).append("\n\n");
+                sources.add(title);
+                totalChars += take;
             }
         }
 
@@ -1063,7 +1040,7 @@ public class WikiService {
             }
         }
 
-        // 6. Send metadata event first
+        // 6. Send metadata event immediately (no LLM wait)
         try {
             String metaJson = objectMapper.writeValueAsString(
                     Map.of("type", "meta", "depth", depth, "sources", sources));
@@ -1072,7 +1049,7 @@ public class WikiService {
             log.warn("Failed to send meta event: {}", e.getMessage());
         }
 
-        // 7. Build answer prompt and stream the answer
+        // 7. Stream the answer directly
         String answerPrompt = buildAnswerPrompt(question, history, wikiContext.toString(), rawContext.toString());
         callDeepSeekStream(answerPrompt, chunk -> {
             try {
@@ -1083,6 +1060,52 @@ public class WikiService {
                 log.warn("Failed to send chunk event: {}", e.getMessage());
             }
         });
+    }
+
+    /**
+     * Determine if a question requires deep analysis based on keywords.
+     */
+    private boolean isDeepQuestion(String question) {
+        String q = question.toLowerCase();
+        return q.contains("为什么") || q.contains("原因") || q.contains("分析") ||
+               q.contains("比较") || q.contains("对比") || q.contains("详细") ||
+               q.contains("深入") || q.contains("explain") || q.contains("why") ||
+               q.contains("compare") || q.contains("analyze") || q.contains("difference");
+    }
+
+    /**
+     * Select relevant wiki pages using keyword matching (no LLM needed).
+     * If few pages, return all. Otherwise score by keyword overlap with question.
+     */
+    private List<DocumentEntity> selectRelevantPages(List<DocumentEntity> allDocs, String question) {
+        // Filter out index and log pages
+        List<DocumentEntity> pages = allDocs.stream()
+                .filter(d -> !"index.md".equals(d.getFilename()) && !"log.md".equals(d.getFilename()))
+                .collect(java.util.stream.Collectors.toList());
+
+        // If 5 or fewer pages, load all (context is small enough)
+        if (pages.size() <= 5) return pages;
+
+        // Score pages by keyword overlap between question and filename/title
+        String[] words = question.toLowerCase().split("[\\s\\p{Punct}]+");
+        java.util.Map<DocumentEntity, Integer> scores = new java.util.LinkedHashMap<>();
+        for (DocumentEntity doc : pages) {
+            String title = doc.getFilename().replace(".md", "").toLowerCase();
+            int score = 0;
+            for (String word : words) {
+                if (word.length() >= 2 && title.contains(word)) {
+                    score += word.length(); // longer word match = higher score
+                }
+            }
+            scores.put(doc, score);
+        }
+
+        // Return top 5 by score; if all score 0, return first 5
+        return scores.entrySet().stream()
+                .sorted((a, b) -> Integer.compare(b.getValue(), a.getValue()))
+                .limit(5)
+                .map(java.util.Map.Entry::getKey)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     /**
