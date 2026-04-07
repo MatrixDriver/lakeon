@@ -87,6 +87,7 @@ public class AdminController {
     private final PipelineRunRepository pipelineRunRepository;
     private final PipelineStepRunRepository pipelineStepRunRepository;
     private final PipelineComponentRepository pipelineComponentRepository;
+    private final com.lakeon.knowledge.WikiService wikiService;
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AdminController.class);
 
@@ -121,7 +122,8 @@ public class AdminController {
                            PipelineRepository pipelineRepository,
                            PipelineRunRepository pipelineRunRepository,
                            PipelineStepRunRepository pipelineStepRunRepository,
-                           PipelineComponentRepository pipelineComponentRepository) {
+                           PipelineComponentRepository pipelineComponentRepository,
+                           com.lakeon.knowledge.WikiService wikiService) {
         this.tenantService = tenantService;
         this.adminService = adminService;
         this.databaseService = databaseService;

@@ -167,7 +167,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getPipeline, listPipelineVersions, listPipelineRuns,
@@ -192,7 +192,10 @@ const loading = ref(true)
 const pipeline = ref<Pipeline | null>(null)
 const versions = ref<PipelineVersion[]>([])
 const runs = ref<PipelineRun[]>([])
-const activeTab = ref('runs')
+const _validTabs = ['runs', 'versions']
+const _hashTab = window.location.hash.replace('#', '')
+const activeTab = ref(_validTabs.includes(_hashTab) ? _hashTab : 'runs')
+watch(activeTab, (tab) => { window.location.hash = tab })
 const showTriggerDialog = ref(false)
 const triggering = ref(false)
 const triggerForm = ref<{ version?: number; engine: 'python' | 'ray'; inputDatasetId?: string }>({ engine: 'python' })

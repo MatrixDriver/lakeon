@@ -250,7 +250,10 @@ function statusLabel(status: string): string {
 }
 
 const route = useRoute()
-const activeTab = ref('operations')
+const _validTabs = ['operations', 'audit', 'errorlog']
+const _hashTab = window.location.hash.replace('#', '')
+const activeTab = ref(_validTabs.includes(_hashTab) ? _hashTab : 'operations')
+watch(activeTab, (tab) => { window.location.hash = tab })
 const databases = ref<Database[]>([])
 
 // ── Operations Tab ──

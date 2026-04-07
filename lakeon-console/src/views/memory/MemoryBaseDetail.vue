@@ -286,7 +286,7 @@ dbay login</pre>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getMemoryBase, type MemoryBase, type MemoryStats, getMemoryStats, listRawMessages, getRawMessage, type RawMessage, type RawMessageDetail } from '../../api/memory'
 import { MEMORY_TYPE_COLORS, MEMORY_TYPE_LABELS } from '../../constants/memory'
@@ -294,7 +294,10 @@ import { databaseApi } from '../../api/database'
 
 const route = useRoute()
 const base = ref<MemoryBase | null>(null)
-const activeTab = ref('overview')
+const _validTabs = ['overview', 'messages', 'usage', 'settings']
+const _hashTab = window.location.hash.replace('#', '')
+const activeTab = ref(_validTabs.includes(_hashTab) ? _hashTab : 'overview')
+watch(activeTab, (tab) => { window.location.hash = tab })
 const stats = ref<MemoryStats | null>(null)
 const storageDisplay = ref('-')
 

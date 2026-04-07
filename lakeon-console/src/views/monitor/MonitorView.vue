@@ -314,7 +314,10 @@ import { operationApi, type OperationLog } from '../../api/operation'
 import { formatDuration, formatDate, formatSize } from '../../utils/format'
 import PerformanceMonitor from '../../components/PerformanceMonitor.vue'
 
-const activeTab = ref('overview')
+const _validTabs = ['overview', 'wakeup', 'performance', 'usage']
+const _hashTab = window.location.hash.replace('#', '')
+const activeTab = ref(_validTabs.includes(_hashTab) ? _hashTab : 'overview')
+watch(activeTab, (tab) => { window.location.hash = tab })
 const databases = ref<Database[]>([])
 const recentOps = ref<OperationLog[]>([])
 const loading = ref(true)

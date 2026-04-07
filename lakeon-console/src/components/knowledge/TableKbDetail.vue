@@ -171,12 +171,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
 import { getTableInfo, searchKnowledge, type KnowledgeBase, type TableSearchResult } from '../../api/knowledge'
 
 const props = defineProps<{ kb: KnowledgeBase }>()
 
-const activeTab = ref('overview')
+const _validTabs = ['overview', 'tables', 'query']
+const _hashTab = window.location.hash.replace('#', '')
+const activeTab = ref(_validTabs.includes(_hashTab) ? _hashTab : 'overview')
+watch(activeTab, (tab) => { window.location.hash = tab })
 const tabs = [
   { key: 'overview', label: '概览' },
   { key: 'tables', label: '数据表' },

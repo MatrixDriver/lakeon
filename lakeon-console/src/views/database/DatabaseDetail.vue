@@ -527,7 +527,10 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
 const newPassword = ref<string | null>(null)
 const resettingPassword = ref(false)
 
-const activeTab = ref('info')
+const _validTabs = ['info', 'extensions', 'parameters', 'users', 'connections', 'security', 'backups']
+const _hashTab = window.location.hash.replace('#', '')
+const activeTab = ref(_validTabs.includes(_hashTab) ? _hashTab : 'info')
+watch(activeTab, (tab) => { window.location.hash = tab })
 const tabs = [
   { key: 'info', label: '基本信息' },
   { key: 'extensions', label: '扩展' },

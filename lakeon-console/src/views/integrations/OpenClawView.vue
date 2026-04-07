@@ -242,11 +242,14 @@ dbay login
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useLocale } from '../../stores/locale'
 
 const { t } = useLocale()
-const activeTab = ref('plugin')
+const _validTabs = ['plugin', 'mcp']
+const _hashTab = window.location.hash.replace('#', '')
+const activeTab = ref(_validTabs.includes(_hashTab) ? _hashTab : 'plugin')
+watch(activeTab, (tab) => { window.location.hash = tab })
 
 const toc = computed(() => [
   { id: 'pain-points', label: t('OpenClaw 的局限', 'OpenClaw Limitations') },

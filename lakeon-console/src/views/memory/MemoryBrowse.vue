@@ -113,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import MemoryBaseSelector from '@/components/MemoryBaseSelector.vue'
 import TraitCard from '@/components/memory/TraitCard.vue'
 import { listMemories, recallMemories, deleteMemory, listTraits, type MemoryItem, type Trait } from '@/api/memory'
@@ -123,7 +123,10 @@ const PAGE_SIZE = 20
 
 const baseId = ref('')
 const traits = ref<Trait[]>([])
-const activeTab = ref<'memories' | 'traits'>('memories')
+const _validTabs: ('memories' | 'traits')[] = ['memories', 'traits']
+const _hashTab = window.location.hash.replace('#', '') as 'memories' | 'traits'
+const activeTab = ref<'memories' | 'traits'>(_validTabs.includes(_hashTab) ? _hashTab : 'memories')
+watch(activeTab, (tab) => { window.location.hash = tab })
 const typeFilter = ref('')
 const searchQuery = ref('')
 const memories = ref<MemoryItem[]>([])
