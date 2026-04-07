@@ -1,16 +1,10 @@
 <template>
   <div class="page-container">
-    <!-- Breadcrumb -->
-    <div class="breadcrumb" style="margin-bottom: 16px;">
-      <router-link to="/knowledge" style="color: #9a5b25; text-decoration: none;">知识库</router-link>
-      <span style="margin: 0 8px; color: #ccc;">/</span>
-      <span style="color: #333;">{{ kb?.name || '...' }}</span>
-    </div>
-
-    <div style="display: flex; align-items: center; justify-content: space-between;">
-      <div style="display: flex; align-items: center; gap: 16px;">
-        <h1 class="page-title" style="margin: 0;">{{ kb?.name || '加载中...' }}</h1>
-      </div>
+    <!-- Breadcrumb + Title in one line -->
+    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;">
+      <router-link to="/knowledge" style="color: #9a5b25; text-decoration: none; font-size: 13px;">知识库</router-link>
+      <span style="color: #ccc; font-size: 13px;">/</span>
+      <h1 class="page-title" style="margin: 0; font-size: 18px;">{{ kb?.name || '...' }}</h1>
     </div>
 
     <!-- TABLE type KB: delegate to TableKbDetail -->
@@ -20,7 +14,7 @@
     <template v-if="!kb || kb.type !== 'TABLE'">
 
     <!-- Tabs -->
-    <div class="tab-bar" style="margin-top: 20px; border-bottom: 1px solid #e5e5e5; display: flex; gap: 0;">
+    <div class="tab-bar" style="margin-top: 8px; border-bottom: 1px solid #e5e5e5; display: flex; gap: 0;">
       <div v-for="tab in tabs" :key="tab.key"
            class="tab-item"
            :class="{ active: activeTab === tab.key }"
