@@ -40,10 +40,17 @@ async function openLogDrawer() {
   }
 }
 
+const pendingTitle = ref<string | null>(null)
+
 async function loadPages() {
   try {
     const resp = await listWikiPages(props.kbId)
     pages.value = resp.data
+    if (pendingTitle.value) {
+      const t = pendingTitle.value
+      pendingTitle.value = null
+      navigateToTitle(t)
+    }
   } catch (e) {
     console.error('Failed to load wiki pages:', e)
   }
@@ -67,7 +74,12 @@ async function openPage(page: WikiPageItem) {
 
 function navigateToTitle(title: string) {
   const page = pages.value.find(p => p.filename === title + '.md')
-  if (page) openPage(page)
+  if (page) {
+    openPage(page)
+  } else {
+    // Pages not loaded yet — store as pending, loadPages will pick it up
+    pendingTitle.value = title
+  }
 }
 
 watch(() => props.kbId, loadPages, { immediate: true })

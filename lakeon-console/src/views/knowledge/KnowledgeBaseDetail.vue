@@ -508,7 +508,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getKnowledgeBase, listDocuments, listFolders, getDocumentStats, deleteDocument, clearAllDocuments, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, ingestUrl, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, getWikiStats, type KnowledgeBase as KBType, type Document, type DocumentStats, type DataSource, type DataSourceCredentials, type Folder, type WikiStats } from '../../api/knowledge'
 import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
@@ -627,11 +627,10 @@ async function handleUrlIngest() {
 const wikiPageRef = ref()
 const wikiGraphRef = ref()
 
-function handleGraphNavigate(title: string) {
+async function handleGraphNavigate(title: string) {
   activeTab.value = 'wiki'
-  if (wikiPageRef.value?.navigateToTitle) {
-    wikiPageRef.value.navigateToTitle(title)
-  }
+  await nextTick()
+  wikiPageRef.value?.navigateToTitle(title)
 }
 
 function handlePageSelect(title: string) {
