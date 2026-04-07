@@ -80,7 +80,7 @@
         <WikiPage ref="wikiPageRef" :kb-id="(route.params.kbId as string)" @select="handlePageSelect" />
       </div>
       <!-- Resizable graph panel -->
-      <div v-if="showGraph" :style="{ width: graphWidth + 'px', borderLeft: '1px solid #e8e0d8', flexShrink: 0, display: 'flex', flexDirection: 'column', position: 'relative' }">
+      <div v-if="showGraph" :style="graphWidth ? { width: graphWidth + 'px', borderLeft: '1px solid #e8e0d8', flexShrink: 0, display: 'flex', flexDirection: 'column', position: 'relative' } : { flex: '1', borderLeft: '1px solid #e8e0d8', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }">
         <!-- Drag handle -->
         <div style="position: absolute; left: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 5;"
              @mousedown="startGraphResize"></div>
@@ -648,15 +648,18 @@ const tabs = [
 
 const showGraph = ref(true)
 const showGraphFullscreen = ref(false)
-const graphWidth = ref(320)
+const graphWidth = ref<number | null>(null) // null = 50/50 flex split; set on drag
 
 function startGraphResize(e: MouseEvent) {
   e.preventDefault()
   const startX = e.clientX
-  const startW = graphWidth.value
+  // Read actual rendered width on first drag
+  const startW = graphWidth.value ?? (e.currentTarget as HTMLElement).parentElement
+    ? (e.currentTarget as HTMLElement).closest('[style]')?.getBoundingClientRect().width ?? 400
+    : 400
   const onMove = (ev: MouseEvent) => {
     const delta = startX - ev.clientX
-    graphWidth.value = Math.max(200, Math.min(800, startW + delta))
+    graphWidth.value = Math.max(200, Math.min(1200, startW + delta))
   }
   const onUp = () => {
     document.removeEventListener('mousemove', onMove)
