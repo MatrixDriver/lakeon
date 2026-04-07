@@ -703,7 +703,11 @@ public class WikiService {
             doc.setMetadata(new LinkedHashMap<>(Map.of("title", title)));
         }
 
-        // Upload content to OBS
+        // Save first to trigger @PrePersist and generate id
+        doc.setSizeBytes((long) content.getBytes(StandardCharsets.UTF_8).length);
+        documentRepository.save(doc);
+
+        // Now doc.getId() is guaranteed to be set
         String obsKey = "knowledge/" + tenantId + "/" + kbId + "/" + doc.getId() + "/" + filename;
         byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
         uploadToObs(obsKey, bytes, "text/markdown; charset=utf-8");
@@ -713,7 +717,6 @@ public class WikiService {
         uploadToObs(fulltextKey, bytes, "text/markdown; charset=utf-8");
 
         doc.setObsKey(obsKey);
-        doc.setSizeBytes((long) bytes.length);
         documentRepository.save(doc);
 
         log.debug("Wiki document written: {} ({} bytes)", filename, bytes.length);
