@@ -181,10 +181,15 @@ async function scrollToBottom() {
           {{ msg.content }}
         </div>
         <div v-else>
-          <div style="background: #fff; border: 1px solid #e8e0d8; padding: 12px 16px; border-radius: 8px;">
+          <!-- Show content bubble only when there's content, otherwise show thinking indicator -->
+          <div v-if="msg.content" style="background: #fff; border: 1px solid #e8e0d8; padding: 12px 16px; border-radius: 8px;">
             <MarkdownRenderer :content="msg.content" :kb-id="kbId" @navigate="(t) => emit('navigate', t)" />
           </div>
-          <div v-if="msg.role === 'assistant' && !msg.saved" style="margin-top: 6px;">
+          <div v-else-if="loading && i === messages.length - 1" style="color: #b0a090; padding: 8px;">
+            思考中...
+          </div>
+          <!-- Show save button only when content is complete (not loading) -->
+          <div v-if="msg.content && !loading && !msg.saved" style="margin-top: 6px;">
             <button :disabled="msg.saving"
                     style="font-size: 12px; color: #8b6914; background: none; border: 1px solid #8b6914; border-radius: 4px; padding: 3px 10px; cursor: pointer;"
                     @click="saveToWiki(msg)">
@@ -196,7 +201,6 @@ async function scrollToBottom() {
           </span>
         </div>
       </div>
-      <div v-if="loading" style="color: #b0a090; padding: 8px;">思考中...</div>
     </div>
 
     <!-- Input -->
