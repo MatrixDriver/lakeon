@@ -33,6 +33,7 @@ export interface Document {
   kb_id: string
   filename: string
   format: string
+  type?: string  // doc_type: 'raw' | 'wiki' | 'index'
   size_bytes: number
   chunks_count: number | null
   status: string

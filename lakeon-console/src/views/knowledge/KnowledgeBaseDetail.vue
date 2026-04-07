@@ -638,7 +638,7 @@ async function saveDocTags() {
 
 const filteredDocs = computed(() => {
   // Hide wiki/index type docs — they belong in Wiki tab, not document management
-  let docs = documents.value.filter(d => (d as any).type !== 'wiki' && (d as any).type !== 'index')
+  let docs = documents.value.filter(d => d.type !== 'wiki' && d.type !== 'index')
   if (docSearch.value) {
     const q = docSearch.value.toLowerCase()
     docs = docs.filter(d => d.filename.toLowerCase().includes(q))
