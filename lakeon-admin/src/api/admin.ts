@@ -101,6 +101,11 @@ export const adminApi = {
     client.get('/wiki/pages', { params: { kb_id: kbId, doc_type: docType } }),
   getWikiPageContent: (kbId: string, docId: string) =>
     client.get(`/wiki/pages/${docId}/content`, { params: { kb_id: kbId } }),
+  adminDeleteWikiPage: (kbId: string, docId: string) =>
+    client.delete(`/wiki/pages/${docId}`, { params: { kb_id: kbId } }),
+  adminRebuildWiki: (kbId: string) =>
+    client.post('/wiki/rebuild', null, { params: { kb_id: kbId } }),
+  testLlmConnection: () => client.post('/wiki/test-connection'),
 
   // Memory Admin
   memoryStats: () => client.get('/memory/stats'),
