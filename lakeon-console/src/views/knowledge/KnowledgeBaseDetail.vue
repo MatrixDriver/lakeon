@@ -425,6 +425,7 @@
           </button>
         </div>
       </div>
+    </div>
     <!-- OBS Datasource List Dialog -->
     <div v-if="showDsListDialog" class="modal-overlay" @click.self="showDsListDialog = false">
       <div class="modal-box" style="max-width: 560px;">
