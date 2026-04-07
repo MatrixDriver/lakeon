@@ -25,12 +25,12 @@
 
     <!-- Overview Tab (default) -->
     <!-- 概览 Tab (default) -->
-    <div v-if="activeTab === 'overview'" style="margin-top: 24px;">
+    <div v-if="activeTab === 'overview'" style="margin-top: 20px;">
       <!-- Stats cards -->
       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px;">
         <div class="stat-card">
-          <div class="stat-value">{{ wikiStats?.document_count ?? kb?.document_count ?? 0 }}</div>
-          <div class="stat-label">文档数</div>
+          <div class="stat-value">{{ sourceDocCount }}</div>
+          <div class="stat-label">源文档</div>
         </div>
         <div class="stat-card">
           <div class="stat-value">{{ wikiStats?.wiki_page_count ?? 0 }}</div>
@@ -41,10 +41,6 @@
           <div class="stat-label">图谱节点</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value">{{ wikiStats?.graph_edges ?? 0 }}</div>
-          <div class="stat-label">图谱关系</div>
-        </div>
-        <div class="stat-card">
           <div class="stat-value">{{ wikiStats?.chat_count ?? 0 }}</div>
           <div class="stat-label">对话次数</div>
         </div>
@@ -53,36 +49,24 @@
           <div class="stat-label">沉淀次数</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value">{{ formatTokens(wikiStats?.llm_tokens_used ?? 0) }}</div>
-          <div class="stat-label">LLM Tokens</div>
-        </div>
-        <div class="stat-card">
           <div class="stat-value">{{ storageDisplay }}</div>
           <div class="stat-label">存储大小</div>
         </div>
       </div>
-      <div class="section-card" style="max-width: 600px;">
-        <div class="section-header">知识库信息</div>
-        <div style="padding: 16px; display: grid; grid-template-columns: 120px 1fr; gap: 12px; font-size: 14px;">
-          <span style="color: #999;">名称</span><span>{{ kb?.name }}</span>
-          <span style="color: #999;">描述</span><span>{{ kb?.description || '-' }}</span>
-          <span style="color: #999;">文档数</span><span>{{ kb?.document_count ?? 0 }}</span>
-          <span style="color: #999;">存储大小</span><span>{{ storageDisplay }}</span>
-          <span style="color: #999;">Embedding 模型</span><span>BGE-M3 (1024维)</span>
-          <span style="color: #999;">切片策略</span><span>结构化切片 (400 tokens)</span>
-          <span style="color: #999;">状态</span>
-          <span><span class="status-tag" :class="'tag-' + (kb?.status === 'READY' ? 'green' : 'blue')">{{ kb?.status === 'READY' ? '就绪' : kb?.status }}</span></span>
-          <span style="color: #999;">创建时间</span><span>{{ kb?.created_at ? new Date(kb.created_at).toLocaleString('zh-CN') : '-' }}</span>
-          <span style="color: #999;">底层数据库</span>
-          <span v-if="kb?.database_id">
-            <router-link :to="'/databases/' + kb.database_id" style="color: #2563eb; text-decoration: none;">{{ kb.database_id }}</router-link>
-          </span>
-          <span v-else>-</span>
-        </div>
+
+      <!-- KB settings (compact) -->
+      <div style="display: flex; gap: 24px; flex-wrap: wrap; font-size: 13px; color: #666; padding: 12px 16px; background: #faf8f5; border-radius: 8px; max-width: 700px;">
+        <span><span style="color: #999;">描述</span> {{ kb?.description || '-' }}</span>
+        <span><span style="color: #999;">Embedding</span> {{ kb?.embedding_model || 'BGE-M3' }}</span>
+        <span><span style="color: #999;">状态</span> <span class="status-tag" :class="'tag-' + (kb?.status === 'READY' ? 'green' : 'blue')">{{ kb?.status === 'READY' ? '就绪' : kb?.status }}</span></span>
+        <span><span style="color: #999;">创建</span> {{ kb?.created_at ? new Date(kb.created_at).toLocaleDateString('zh-CN') : '-' }}</span>
+        <span v-if="kb?.database_id"><span style="color: #999;">数据库</span> <router-link :to="'/databases/' + kb.database_id" style="color: #9a5b25; text-decoration: none;">{{ kb.database_id }}</router-link></span>
       </div>
-      <div v-if="kb?.summary" class="section-card" style="max-width: 600px; margin-top: 16px;">
-        <div class="section-header">知识库概览</div>
-        <div style="padding: 16px; font-size: 14px; line-height: 1.8; color: #333; white-space: pre-wrap;">{{ kb.summary }}</div>
+
+      <!-- KB summary -->
+      <div v-if="kb?.summary" style="margin-top: 16px; max-width: 700px; background: #faf8f5; border: 1px solid #e8e0d8; border-radius: 8px; padding: 14px 16px;">
+        <div style="font-size: 13px; font-weight: 600; color: #5a4a3a; margin-bottom: 6px;">知识库摘要</div>
+        <div style="font-size: 13px; line-height: 1.8; color: #444; white-space: pre-wrap;">{{ kb.summary }}</div>
       </div>
     </div>
 
@@ -526,15 +510,15 @@ watch(activeTab, async (tab) => {
   }
 })
 
-function formatTokens(tokens: number): string {
-  if (tokens >= 1000000) return (tokens / 1000000).toFixed(1) + 'M'
-  if (tokens >= 1000) return (tokens / 1000).toFixed(1) + 'K'
-  return String(tokens)
-}
 const uploading = ref(false)
 const uploadJustFinished = ref(false)
 const docLoading = ref(false)
 const wikiStats = ref<WikiStats | null>(null)
+const sourceDocCount = computed(() => {
+  const total = wikiStats.value?.document_count ?? kb.value?.document_count ?? 0
+  const wiki = wikiStats.value?.wiki_page_count ?? 0
+  return Math.max(0, total - wiki)
+})
 
 interface UploadFileState {
   filename: string
