@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, onMounted } from 'vue'
 import { wikiChatStream, saveWikiResponse } from '@/api/knowledge'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 
@@ -15,10 +15,40 @@ interface Message {
   saving?: boolean
 }
 
+const STORAGE_KEY_PREFIX = 'wiki_chat_'
+function storageKey() { return STORAGE_KEY_PREFIX + props.kbId }
+
+function loadMessages(): Message[] {
+  try {
+    const raw = localStorage.getItem(storageKey())
+    if (!raw) return []
+    return JSON.parse(raw)
+  } catch { return [] }
+}
+
+function saveMessages() {
+  if (!messages.value.length) {
+    localStorage.removeItem(storageKey())
+    return
+  }
+  // Only persist completed messages (skip if assistant is still streaming)
+  const toSave = messages.value
+    .filter(m => m.content)
+    .map(({ role, content, depth, sources, saved }) => ({ role, content, depth, sources, saved }))
+  try {
+    localStorage.setItem(storageKey(), JSON.stringify(toSave))
+  } catch { /* quota exceeded — silently ignore */ }
+}
+
 const messages = ref<Message[]>([])
 const input = ref('')
 const loading = ref(false)
 const messagesEl = ref<HTMLDivElement>()
+
+onMounted(() => {
+  messages.value = loadMessages()
+  scrollToBottom()
+})
 
 async function send() {
   const question = input.value.trim()
@@ -86,6 +116,7 @@ async function send() {
     }
   } finally {
     loading.value = false
+    saveMessages()
     await scrollToBottom()
   }
 }
@@ -97,11 +128,17 @@ async function saveToWiki(msg: Message) {
     const title = (msg.sources?.length ? msg.sources[0] : undefined) ?? '对话沉淀'
     await saveWikiResponse(props.kbId, title, msg.content)
     msg.saved = true
+    saveMessages()
   } catch (e: any) {
     alert('保存失败: ' + (e.message || e))
   } finally {
     msg.saving = false
   }
+}
+
+function clearChat() {
+  messages.value = []
+  saveMessages()
 }
 
 function handleKeydown(e: KeyboardEvent) {
@@ -125,6 +162,9 @@ async function scrollToBottom() {
     <div ref="messagesEl" style="flex: 1; overflow-y: auto; padding: 16px;">
       <div v-if="messages.length === 0" style="color: #b0a090; text-align: center; padding: 40px 0;">
         基于知识库 Wiki 提问，获得智能回答
+      </div>
+      <div v-else style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
+        <button @click="clearChat" style="font-size: 11px; color: #b0a090; background: none; border: 1px solid #e0d8ce; border-radius: 4px; padding: 2px 8px; cursor: pointer;">清空对话</button>
       </div>
       <div v-for="(msg, i) in messages" :key="i" style="margin-bottom: 16px;">
         <div style="font-size: 12px; color: #b0a090; margin-bottom: 4px;">

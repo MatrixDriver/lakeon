@@ -94,8 +94,8 @@
         @click="showGraph = true">图谱</button>
     </div>
 
-    <!-- Chat Tab -->
-    <div v-if="activeTab === 'chat'" style="height: calc(100vh - 140px); margin-top: 12px;">
+    <!-- Chat Tab (v-show to preserve state across tab switches) -->
+    <div v-show="activeTab === 'chat'" style="height: calc(100vh - 140px); margin-top: 12px;">
       <WikiChat :kb-id="(route.params.kbId as string)" @navigate="handleGraphNavigate" />
     </div>
 
