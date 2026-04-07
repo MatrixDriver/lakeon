@@ -129,6 +129,8 @@
       <button @click="showGuide = true" style="background: none; border: none; color: #9a5b25; cursor: pointer; font-size: 12px; padding: 0;">显示知识构建流程引导</button>
     </div>
 
+    <div style="border-bottom: 1px solid #e8e0d8; margin-bottom: 20px;"></div>
+
     <!-- Knowledge base list -->
 
     <!-- Card view -->

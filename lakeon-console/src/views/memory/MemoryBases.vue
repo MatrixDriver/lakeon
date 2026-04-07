@@ -90,6 +90,45 @@
       </div>
     </div>
 
+    <!-- Journey guide banner (collapsible) -->
+    <div v-if="showGuide" style="margin-bottom: 20px; background: #faf8f5; border: 1px solid #e8e0d8; border-radius: 10px; padding: 20px 24px; position: relative;">
+      <button @click="showGuide = false" style="position: absolute; right: 12px; top: 10px; background: none; border: none; color: #bbb; cursor: pointer; font-size: 16px; padding: 2px 6px;" title="收起">&times;</button>
+      <div style="text-align: center; margin-bottom: 14px;">
+        <span style="font-size: 15px; font-weight: 600; color: #2c2420;">记忆构建流程</span>
+        <span style="font-size: 12px; color: #999; margin-left: 12px;">对话产生记忆，AI 自动提炼并持久化，下次对话更懂你</span>
+      </div>
+      <div style="display: flex; gap: 10px; max-width: 640px; margin: 0 auto;">
+        <div class="guide-card">
+          <div class="guide-num" style="background: #6b8e8a;">1</div>
+          <div class="guide-title">对话</div>
+          <div class="guide-desc">通过 MCP 接入，自然对话</div>
+        </div>
+        <div style="display: flex; align-items: center; color: #d4c4b0;">&rarr;</div>
+        <div class="guide-card">
+          <div class="guide-num" style="background: #7a9e7e;">2</div>
+          <div class="guide-title">提取</div>
+          <div class="guide-desc">AI 自动提取事实、偏好和决策</div>
+        </div>
+        <div style="display: flex; align-items: center; color: #d4c4b0;">&rarr;</div>
+        <div class="guide-card">
+          <div class="guide-num" style="background: #8c7a68;">3</div>
+          <div class="guide-title">积累</div>
+          <div class="guide-desc">记忆持久化，跨会话可用</div>
+        </div>
+        <div style="display: flex; align-items: center; color: #d4c4b0;">&rarr;</div>
+        <div class="guide-card">
+          <div class="guide-num" style="background: #a89080;">4</div>
+          <div class="guide-title">回忆</div>
+          <div class="guide-desc">下次对话自动召回相关记忆</div>
+        </div>
+      </div>
+    </div>
+    <div v-if="!showGuide" style="margin-bottom: 12px;">
+      <button @click="showGuide = true" style="background: none; border: none; color: #9a5b25; cursor: pointer; font-size: 12px; padding: 0;">显示记忆构建流程引导</button>
+    </div>
+
+    <div style="border-bottom: 1px solid #e8e0d8; margin-bottom: 20px;"></div>
+
     <!-- Memory base list -->
     <!-- Card view -->
     <div v-if="viewMode === 'card' && memoryBases.length > 0" class="card-grid" style="margin-top: 20px;">
@@ -192,6 +231,7 @@ import CardMenu from '../../components/CardMenu.vue'
 const router = useRouter()
 const viewMode = ref<'card' | 'table'>('card')
 const memoryBases = ref<MemoryBase[]>([])
+const showGuide = ref(true)
 const showCreate = ref(false)
 const createStep = ref(1)
 const loading = ref(false)
@@ -280,6 +320,21 @@ onMounted(loadMemoryBases)
 </script>
 
 <style scoped>
+.guide-card {
+  flex: 1;
+  background: #fff;
+  border: 1px solid #e8e0d8;
+  border-radius: 8px;
+  padding: 14px 10px;
+  text-align: center;
+}
+.guide-num {
+  width: 28px; height: 28px; border-radius: 50%; color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 600; margin-bottom: 6px;
+}
+.guide-title { font-size: 14px; font-weight: 600; color: #3d3d3d; margin-bottom: 2px; }
+.guide-desc { font-size: 11px; color: #8c7a68; line-height: 1.4; }
 .type-radio {
   display: flex;
   align-items: center;
