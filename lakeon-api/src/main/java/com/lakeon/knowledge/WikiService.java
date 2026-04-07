@@ -241,7 +241,11 @@ public class WikiService {
         Set<String> nodeIds = new HashSet<>();
 
         for (DocumentEntity doc : wikiDocs) {
-            String title = filenameToTitle(doc.getFilename());
+            // Skip index and log — they connect to everything and add noise
+            String fn = doc.getFilename();
+            if ("index.md".equals(fn) || "log.md".equals(fn)) continue;
+
+            String title = filenameToTitle(fn);
             String nodeId = title.toLowerCase();
             if (nodeIds.add(nodeId)) {
                 nodes.add(Map.of("id", nodeId, "label", title));
