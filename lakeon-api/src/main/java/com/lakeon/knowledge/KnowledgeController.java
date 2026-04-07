@@ -509,6 +509,17 @@ public class KnowledgeController {
         return ResponseEntity.ok(Map.of("status", "rebuilding", "wiki_pages_deleted", deleted));
     }
 
+    @PostMapping("/admin/wiki/curate")
+    public ResponseEntity<?> adminCurateWiki(
+            @RequestHeader(value = "X-Admin-Token", required = false) String adminToken,
+            @RequestParam("kb_id") String kbId) {
+        validateAdminToken(adminToken);
+        var kb = knowledgeBaseRepository.findById(kbId).orElse(null);
+        if (kb == null) return ResponseEntity.notFound().build();
+        new Thread(() -> wikiService.runCurate(kb.getTenantId(), kbId)).start();
+        return ResponseEntity.ok(Map.of("status", "curating"));
+    }
+
     @PostMapping("/admin/wiki/test-connection")
     public ResponseEntity<?> adminTestConnection(
             @RequestHeader(value = "X-Admin-Token", required = false) String adminToken) {

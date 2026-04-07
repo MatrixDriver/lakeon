@@ -760,6 +760,113 @@ public class WikiService {
         }
 
         log.info("Wiki update complete for KB {}: {} created, {} updated", kbId, created, updated);
+
+        // Auto-curate: every ~10 new pages (when total >= 15), run curation in background
+        if (created > 0) {
+            maybeRunCurate(tenantId, kbId, created);
+        }
+    }
+
+    /**
+     * Decide whether to run auto-curation: triggers every ~10 newly created pages,
+     * but only after the wiki has at least 15 content pages.
+     */
+    private void maybeRunCurate(String tenantId, String kbId, int newlyCreated) {
+        List<DocumentEntity> allWiki = documentRepository.findByTenantIdAndKbIdAndDocType(
+                tenantId, kbId, DOC_TYPE_WIKI);
+        long pageCount = allWiki.stream()
+                .filter(d -> !"index.md".equals(d.getFilename()) && !"log.md".equals(d.getFilename()))
+                .count();
+        if (pageCount >= 15 && pageCount % 10 < newlyCreated) {
+            log.info("Auto-curate triggered for KB {} (total {} pages, {} newly created)",
+                    kbId, pageCount, newlyCreated);
+            Thread curateThread = new Thread(() -> {
+                try {
+                    runCurate(tenantId, kbId);
+                } catch (Exception e) {
+                    log.warn("Auto-curate failed for KB {}: {}", kbId, e.getMessage());
+                }
+            });
+            curateThread.setDaemon(true);
+            curateThread.start();
+        }
+    }
+
+    /**
+     * Run the curate agent: merges overlapping pages, removes redundant ones,
+     * fixes wikilinks, and updates the index.
+     */
+    public void runCurate(String tenantId, String kbId) {
+        log.info("Running wiki curate for KB {}", kbId);
+
+        // 1. Load current index
+        String indexContent = readWikiPage(tenantId, kbId, "index.md");
+        if (indexContent == null) indexContent = "# Wiki Index\n\nNo pages yet.\n";
+        if (indexContent.length() > MAX_INDEX_CHARS) {
+            indexContent = indexContent.substring(0, MAX_INDEX_CHARS);
+        }
+
+        // 2. Load all content pages (exclude index, log) — truncate each to save context
+        List<DocumentEntity> wikiDocs = documentRepository.findByTenantIdAndKbIdAndDocType(
+                tenantId, kbId, DOC_TYPE_WIKI);
+        StringBuilder pagesContext = new StringBuilder();
+        int totalChars = 0;
+        for (DocumentEntity doc : wikiDocs) {
+            if ("index.md".equals(doc.getFilename()) || "log.md".equals(doc.getFilename())) continue;
+            if (totalChars >= 60_000) break; // cap total context
+            String content = readWikiPage(tenantId, kbId, doc.getFilename());
+            if (content == null || content.isBlank()) continue;
+            String title = doc.getFilename().replace(".md", "");
+            String excerpt = content.substring(0, Math.min(content.length(), 1_500));
+            pagesContext.append("### ").append(title).append("\n").append(excerpt).append("\n\n");
+            totalChars += excerpt.length();
+        }
+
+        if (pagesContext.isEmpty()) {
+            log.info("No pages to curate for KB {}", kbId);
+            return;
+        }
+
+        // 3. Call LLM with curate prompt
+        String prompt = String.format(getCuratePrompt(), indexContent, pagesContext);
+        String llmResponse;
+        try {
+            llmResponse = callDeepSeek(prompt);
+        } catch (Exception e) {
+            log.error("Curate LLM call failed for KB {}: {}", kbId, e.getMessage());
+            return;
+        }
+        if (llmResponse == null || llmResponse.isBlank()) return;
+
+        // 4. Parse and apply curate changes
+        try {
+            JsonNode response = objectMapper.readTree(llmResponse);
+
+            // Apply page updates/creates (same as ingest flow)
+            applyWikiChanges(tenantId, kbId, response, indexContent);
+
+            // Delete pages marked for removal
+            JsonNode deletePages = response.path("delete_pages");
+            int deleted = 0;
+            if (deletePages.isArray()) {
+                for (JsonNode titleNode : deletePages) {
+                    String title = titleNode.asText("").trim();
+                    if (title.isBlank()) continue;
+                    String filename = titleToFilename(title);
+                    Optional<DocumentEntity> docOpt = documentRepository.findByTypeAndFilename(
+                            tenantId, kbId, DOC_TYPE_WIKI, filename);
+                    docOpt.ifPresent(doc -> {
+                        documentRepository.delete(doc);
+                        log.info("Curate deleted wiki page: {}", filename);
+                    });
+                    deleted++;
+                }
+            }
+            log.info("Wiki curate complete for KB {}: {} deleted", kbId, deleted);
+            appendToLog(tenantId, kbId, "[自动整理] 合并/清理重叠页面，删除 " + deleted + " 个冗余页面");
+        } catch (Exception e) {
+            log.error("Failed to apply curate changes for KB {}: {}", kbId, e.getMessage(), e);
+        }
     }
 
     /**
