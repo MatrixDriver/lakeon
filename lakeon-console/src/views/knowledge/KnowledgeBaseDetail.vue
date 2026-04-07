@@ -68,9 +68,9 @@
       </div>
 
       <!-- KB summary -->
-      <div v-if="kb?.summary" style="margin-top: 16px; max-width: 700px; background: #faf8f5; border: 1px solid #e8e0d8; border-radius: 8px; padding: 14px 16px;">
-        <div style="font-size: 13px; font-weight: 600; color: #5a4a3a; margin-bottom: 6px;">知识库摘要</div>
-        <div style="font-size: 13px; line-height: 1.8; color: #444; white-space: pre-wrap;">{{ kb.summary }}</div>
+      <div v-if="kb?.summary" class="stat-card kb-summary-card">
+        <div style="font-size: 13px; font-weight: 600; color: #5a4a3a; margin-bottom: 8px;">知识库摘要</div>
+        <div class="kb-summary-body" v-html="DOMPurify.sanitize(marked.parse(kb.summary) as string)"></div>
       </div>
     </div>
 
@@ -517,6 +517,8 @@ import WikiGraph from './WikiGraph.vue'
 import WikiChat from './WikiChat.vue'
 // WikiChat moved to standalone page /knowledge/chat
 import { formatSize } from '../../utils/format'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import { databaseApi } from '../../api/database'
 
 const route = useRoute()
@@ -1567,6 +1569,24 @@ onMounted(async () => {
   padding: 14px 16px;
   text-align: center;
 }
+.kb-summary-card {
+  text-align: left;
+  margin-top: 16px;
+}
+.kb-summary-body {
+  font-size: 13px;
+  line-height: 1.8;
+  color: #444;
+}
+.kb-summary-body :deep(p) { margin: 0 0 8px; }
+.kb-summary-body :deep(p:last-child) { margin-bottom: 0; }
+.kb-summary-body :deep(h1), .kb-summary-body :deep(h2), .kb-summary-body :deep(h3) {
+  font-size: 14px; font-weight: 600; color: #3d3028; margin: 12px 0 4px;
+}
+.kb-summary-body :deep(ul), .kb-summary-body :deep(ol) { padding-left: 20px; margin: 4px 0 8px; }
+.kb-summary-body :deep(li) { margin-bottom: 2px; }
+.kb-summary-body :deep(strong) { color: #3d3028; }
+.kb-summary-body :deep(code) { background: #ede8e2; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
 .stat-value {
   font-size: 22px;
   font-weight: 600;
