@@ -592,7 +592,11 @@ const tagDialog = ref<{
 const showDsListDialog = ref(false)
 
 async function handleObsDataSource() {
-  await loadDataSources()
+  try {
+    await loadDataSources()
+  } catch (e) {
+    console.warn('Failed to load datasources', e)
+  }
   if (datasources.value.length > 0) {
     showDsListDialog.value = true
   } else {
