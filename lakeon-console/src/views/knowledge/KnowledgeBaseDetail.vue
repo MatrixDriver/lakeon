@@ -142,8 +142,8 @@
           上传目录
           <input type="file" style="display: none;" :disabled="uploading || kb?.status !== 'READY'" webkitdirectory @change="handleDirectoryUpload" />
         </label>
-        <button class="btn btn-secondary" @click="showUrlDialog = true" :disabled="kb?.status !== 'READY'">导入 URL</button>
-        <button class="btn btn-secondary" @click="handleObsDataSource" :disabled="kb?.status !== 'READY'">OBS 数据源</button>
+        <button class="btn" style="border: 1px solid #d4c4b0; background: #fff; color: #5a4a3a; border-radius: 6px;" @click="showUrlDialog = true" :disabled="kb?.status !== 'READY'">导入 URL</button>
+        <button class="btn" style="border: 1px solid #d4c4b0; background: #fff; color: #5a4a3a; border-radius: 6px;" @click="handleObsDataSource" :disabled="kb?.status !== 'READY'">OBS 数据源</button>
         <span style="flex: 1;"></span>
         <div style="display: flex; align-items: center; gap: 6px;">
           <input v-model="docSearch" placeholder="搜索文件名..." style="padding: 6px 12px; border: 1px solid #e0d8ce; border-radius: 4px; font-size: 12px; width: 180px; outline: none;" />
