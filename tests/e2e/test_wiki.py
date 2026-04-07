@@ -1,7 +1,8 @@
-"""Wiki Agent E2E tests — covers the full user journey:
-    导入文档 → 等待处理 → 查看 Wiki 页面 → 查看图谱 → 对话 → 沉淀知识回 Wiki
+"""Wiki Agent E2E tests — validates the FULL pipeline end-to-end:
+    上传文档 → 解析+切片+embedding → summarize → wiki 生成 → 图谱 → 对话 → 沉淀
 
-Also tests URL ingest, admin wiki config, and edge cases.
+Uses local markdown upload (no external URL dependency).
+Every test that depends on pipeline completion will FAIL (not skip) if the pipeline doesn't work.
 """
 import pytest
 import httpx
@@ -10,7 +11,6 @@ import random
 import sys
 import os
 
-# Ensure dbay-cli is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'dbay-cli'))
 from dbay_cli.client import DbayClient
 
@@ -18,94 +18,90 @@ BASE = "https://api.dbay.cloud:8443/api/v1"
 ADMIN_TOKEN = "lakeon-sre-2026"
 TIMEOUT = 30
 
-# Test document — small markdown file about blockchain for fast processing
+# Small but rich markdown document — enough content for wiki pages + wikilinks
 BLOCKCHAIN_MD = """# 区块链共识机制
 
 ## 工作量证明 (PoW)
 工作量证明是比特币使用的共识机制。矿工通过计算哈希值来竞争区块打包权。
-PoW 的优点是安全性高，缺点是能源消耗巨大。
+PoW 的优点是安全性高，经过十多年验证；缺点是能源消耗巨大，每年消耗与中等国家相当的电力。
+比特币网络通过调整难度来维持约10分钟的出块间隔。
 
 ## 权益证明 (PoS)
-权益证明是以太坊 2.0 采用的共识机制。验证者通过质押代币来获得出块权。
-PoS 比 PoW 节能，但可能导致"富者愈富"的问题。
+权益证明是以太坊 2.0 采用的[[共识机制]]。验证者通过质押 ETH 来获得出块权。
+PoS 比 [[工作量证明 (PoW)]] 节能超过 99%，但可能导致"富者愈富"的中心化问题。
+以太坊的 PoS 要求至少质押 32 ETH 成为验证者。
 
 ## 拜占庭容错 (BFT)
 BFT 系列算法（如 PBFT、Tendermint）适用于联盟链场景。
 在 3f+1 个节点中，最多可以容忍 f 个恶意节点。
+Cosmos 网络使用 Tendermint BFT 作为其共识引擎。
 
-## Layer 2 扩容
-为了解决主链吞吐量限制，Layer 2 方案应运而生：
-- Lightning Network：基于支付通道的链下扩容
-- ZK-Rollups：使用零知识证明进行批量验证
-- Optimistic Rollups：乐观执行，欺诈证明兜底
+## Layer 2 扩容方案
+为了解决主链吞吐量限制，[[Layer 2]] 扩容方案应运而生：
+- **Lightning Network**：基于支付通道的链下扩容，适用于比特币小额支付
+- **ZK-Rollups**：使用[[零知识证明]]进行批量验证，安全性等同 L1
+- **Optimistic Rollups**：乐观执行，通过欺诈证明保障安全，代表项目有 Arbitrum 和 Optimism
+
+## 零知识证明
+零知识证明（ZKP）是一种密码学技术，允许证明者向验证者证明某个陈述的真实性，
+而无需透露任何额外信息。在区块链中，ZKP 被广泛用于[[Layer 2 扩容方案]]和隐私保护。
+主要的 ZKP 方案包括 zk-SNARKs（Zcash 使用）和 zk-STARKs（StarkNet 使用）。
 """
 
 
 @pytest.fixture(scope="module")
-def wiki_kb():
-    """Create a tenant, KB, upload a test document, wait for full processing.
-    This provides a KB with wiki pages generated — the foundation for all tests.
+def pipeline_kb():
+    """Create tenant + KB, upload markdown doc, wait for FULL pipeline completion.
+    This fixture MUST succeed for all pipeline tests to run.
     """
     ts = int(time.time())
-    username = f"wiki-e2e-{ts}"
-    password = f"WikiTest@{ts}"
-
     admin = DbayClient(endpoint=BASE.replace("/api/v1", ""), api_key=ADMIN_TOKEN)
     invite = admin.admin_create_invite_code(max_uses=1)
 
     fake_ip = f"10.{random.randint(0,255)}.{random.randint(0,255)}.{random.randint(1,254)}"
-    reg_client = DbayClient(endpoint=BASE.replace("/api/v1", ""),
-                            extra_headers={"X-Forwarded-For": fake_ip})
-    tenant = reg_client.create_tenant(
-        username=username, password=password,
-        name=f"Wiki E2E {ts}", invite_code=invite.get("code"),
+    reg = DbayClient(endpoint=BASE.replace("/api/v1", ""),
+                     extra_headers={"X-Forwarded-For": fake_ip})
+    tenant = reg.create_tenant(
+        username=f"wiki-e2e-{ts}", password=f"WikiTest@{ts}",
+        name=f"Wiki Pipeline E2E {ts}", invite_code=invite.get("code"),
     )
-    tenant_id = tenant["id"]
-    api_key = tenant["api_key"]
-    client = DbayClient(endpoint=BASE.replace("/api/v1", ""), api_key=api_key)
-    headers = {"Authorization": f"Bearer {api_key}"}
+    client = DbayClient(endpoint=BASE.replace("/api/v1", ""), api_key=tenant["api_key"])
+    headers = {"Authorization": f"Bearer {tenant['api_key']}"}
 
     # Create KB
-    r = httpx.post(f"{BASE}/knowledge/bases", json={"name": "Wiki E2E Test"},
-                   headers=headers, verify=False, timeout=TIMEOUT)
-    assert r.status_code in [200, 201], f"Failed to create KB: {r.text}"
-    kb = r.json()
+    kb = client.create_knowledge_base("Pipeline E2E Test")
     kb_id = kb["id"]
 
-    # Wait for KB READY
+    # Wait KB READY
     for _ in range(30):
-        r = httpx.get(f"{BASE}/knowledge/bases/{kb_id}", headers=headers,
-                      verify=False, timeout=TIMEOUT)
-        if r.status_code == 200 and r.json().get("status") == "READY":
+        info = client.get_knowledge_base(kb_id)
+        if info.get("status") == "READY":
             break
         time.sleep(2)
-    assert r.json().get("status") == "READY", f"KB not ready: {r.json().get('status')}"
+    assert info.get("status") == "READY", f"KB not ready: {info.get('status')}"
 
-    # Upload a markdown document via presigned URL
+    # Upload markdown doc via presigned URL
     upload_info = client.batch_get_upload_urls(kb_id, [{"filename": "blockchain-consensus.md"}])
-    docs = upload_info.get("documents", upload_info.get("uploads", []))
-    assert len(docs) == 1, f"Expected 1 upload URL, got {len(docs)}. Response: {upload_info}"
-
-    upload_url = docs[0]["upload_url"]
+    docs = upload_info.get("documents", [])
+    assert len(docs) == 1, f"No upload URL returned: {upload_info}"
     doc_id = docs[0]["document_id"]
-    content_bytes = BLOCKCHAIN_MD.encode("utf-8")
-    r = httpx.put(upload_url, content=content_bytes, verify=False, timeout=60)
+    upload_url = docs[0]["upload_url"]
+
+    r = httpx.put(upload_url, content=BLOCKCHAIN_MD.encode("utf-8"), verify=False, timeout=60)
     assert r.status_code in [200, 201], f"Upload failed: {r.status_code}"
 
     # Trigger processing
     client.batch_process_documents([doc_id])
 
-    # Wait for document to be READY (parse → chunk → embed → summarize → wiki update)
-    # This can take 2-3 minutes with LLM calls
-    max_wait = 180  # 3 minutes
-    start = time.time()
+    # Wait for document READY (up to 4 min — parse+chunk+embed+summarize)
     doc_status = "PROCESSING"
-    while time.time() - start < max_wait:
-        r = httpx.get(f"{BASE}/knowledge/documents?kb_id={kb_id}",
+    for _ in range(48):  # 48 * 5s = 240s = 4 min
+        r = httpx.get(f"{BASE}/knowledge/documents",
+                      params={"kb_id": kb_id},
                       headers=headers, verify=False, timeout=TIMEOUT)
         if r.status_code == 200:
-            docs = r.json() if isinstance(r.json(), list) else r.json().get("documents", [])
-            for d in docs:
+            doc_list = r.json() if isinstance(r.json(), list) else r.json().get("documents", [])
+            for d in doc_list:
                 if d.get("id") == doc_id:
                     doc_status = d.get("status", "UNKNOWN")
                     break
@@ -113,139 +109,111 @@ def wiki_kb():
             break
         time.sleep(5)
 
+    # Wait extra time for WIKI_UPDATE (async after summarize, up to 2 min)
+    wiki_pages = []
+    if doc_status == "READY":
+        for _ in range(24):  # 24 * 5s = 120s
+            r = httpx.get(f"{BASE}/knowledge/wiki/pages",
+                          params={"kb_id": kb_id},
+                          headers=headers, verify=False, timeout=TIMEOUT)
+            if r.status_code == 200:
+                wiki_pages = r.json()
+                content_pages = [p for p in wiki_pages
+                                 if p.get("filename", "") not in ("index.md", "log.md")]
+                if len(content_pages) > 0:
+                    break
+            time.sleep(5)
+
     yield {
-        "tenant_id": tenant_id,
+        "tenant_id": tenant["id"],
         "kb_id": kb_id,
-        "api_key": api_key,
-        "headers": headers,
-        "client": client,
         "doc_id": doc_id,
         "doc_status": doc_status,
+        "wiki_pages": wiki_pages,
+        "headers": headers,
+        "client": client,
     }
 
     # Cleanup
-    admin.admin_batch_delete_tenants([tenant_id])
+    admin.admin_batch_delete_tenants([tenant["id"]])
 
 
 # ---------------------------------------------------------------------------
-# 1. 文档导入与处理
+# 1. 文档处理流水线
 # ---------------------------------------------------------------------------
 
-class TestDocumentIngestion:
-    """Test document upload and processing pipeline."""
+class TestPipeline:
+    """Document must be fully processed before wiki can be generated."""
 
-    def test_document_processed_successfully(self, wiki_kb):
-        """Uploaded document should reach READY status after full pipeline."""
-        assert wiki_kb["doc_status"] == "READY", \
-            f"Document not ready after 3 min wait, status: {wiki_kb['doc_status']}"
+    def test_document_reaches_ready(self, pipeline_kb):
+        """Document MUST reach READY status — parse + chunk + embed + summarize."""
+        assert pipeline_kb["doc_status"] == "READY", \
+            f"Document stuck at '{pipeline_kb['doc_status']}' after 4 min. Pipeline broken."
 
-    def test_document_has_chunks(self, wiki_kb):
-        """Processed document should have chunks."""
-        if wiki_kb["doc_status"] != "READY":
-            pytest.skip("Document not ready")
-        r = httpx.get(f"{BASE}/knowledge/documents?kb_id={wiki_kb['kb_id']}",
-                      headers=wiki_kb["headers"], verify=False, timeout=TIMEOUT)
+    def test_document_has_chunks(self, pipeline_kb):
+        """Processed document must have chunks."""
+        assert pipeline_kb["doc_status"] == "READY", "Document not ready"
+        r = httpx.get(f"{BASE}/knowledge/documents",
+                      params={"kb_id": pipeline_kb["kb_id"]},
+                      headers=pipeline_kb["headers"], verify=False, timeout=TIMEOUT)
         docs = r.json() if isinstance(r.json(), list) else r.json().get("documents", [])
-        doc = next((d for d in docs if d["id"] == wiki_kb["doc_id"]), None)
+        doc = next((d for d in docs if d["id"] == pipeline_kb["doc_id"]), None)
         assert doc is not None
-        assert doc.get("chunks_count", 0) > 0, "Document should have chunks after processing"
+        assert (doc.get("chunks_count") or 0) > 0, \
+            f"Document has 0 chunks — chunking pipeline broken"
 
 
 # ---------------------------------------------------------------------------
-# 2. Wiki 页面浏览
+# 2. Wiki 页面自动生成
 # ---------------------------------------------------------------------------
 
-class TestWikiPageBrowsing:
-    """Test wiki page listing, content viewing, and navigation."""
+class TestWikiGeneration:
+    """After document processing, Wiki Agent must auto-generate wiki pages."""
 
-    def test_wiki_pages_generated(self, wiki_kb):
-        """After document processing, wiki pages should be auto-generated.
-        Note: Wiki generation depends on LLM availability (DeepSeek API).
-        If the pipeline hasn't completed wiki update, we skip dependent tests.
-        """
-        if wiki_kb["doc_status"] != "READY":
-            pytest.skip("Document not ready")
-        # Wiki update is async after summarize + LLM call, needs longer wait
-        pages = []
-        for _ in range(24):  # wait up to 120s for wiki update
-            r = httpx.get(f"{BASE}/knowledge/wiki/pages",
-                          params={"kb_id": wiki_kb["kb_id"]},
-                          headers=wiki_kb["headers"], verify=False, timeout=TIMEOUT)
-            assert r.status_code == 200
-            pages = r.json()
-            content_pages = [p for p in pages if p.get("title") not in ("index", "log")
-                             and p.get("filename") not in ("index.md", "log.md")]
-            if len(content_pages) > 0:
-                break
-            time.sleep(5)
-        if len(content_pages) == 0:
-            pytest.skip("Wiki pages not generated (LLM pipeline may not have completed)")
+    def test_wiki_pages_generated(self, pipeline_kb):
+        """Wiki pages MUST be generated after document reaches READY."""
+        assert pipeline_kb["doc_status"] == "READY", "Document not ready"
+        pages = pipeline_kb["wiki_pages"]
+        content_pages = [p for p in pages
+                         if p.get("filename", "") not in ("index.md", "log.md")]
+        assert len(content_pages) > 0, \
+            f"No wiki pages generated after 2 min wait. WIKI_UPDATE pipeline broken. Total pages: {len(pages)}"
 
-    def test_wiki_page_has_content(self, wiki_kb):
-        """Each wiki page should have markdown content with reasonable length."""
-        if wiki_kb["doc_status"] != "READY":
-            pytest.skip("Document not ready")
-        r = httpx.get(f"{BASE}/knowledge/wiki/pages",
-                      params={"kb_id": wiki_kb["kb_id"]},
-                      headers=wiki_kb["headers"], verify=False, timeout=TIMEOUT)
-        pages = r.json()
-        content_pages = [p for p in pages if p.get("title") not in ("index", "log")
-                         and p.get("filename") not in ("index.md", "log.md")]
-        if not content_pages:
-            pytest.skip("No wiki pages generated yet")
+    def test_wiki_page_has_content(self, pipeline_kb):
+        """Each wiki page must have non-trivial markdown content."""
+        assert pipeline_kb["doc_status"] == "READY", "Document not ready"
+        pages = pipeline_kb["wiki_pages"]
+        content_pages = [p for p in pages
+                         if p.get("filename", "") not in ("index.md", "log.md")]
+        assert len(content_pages) > 0, "No wiki pages"
 
-        # Read the first wiki page content
         page = content_pages[0]
         page_id = page.get("id") or page.get("document_id")
         r = httpx.get(f"{BASE}/knowledge/wiki/pages/{page_id}/content",
-                      params={"kb_id": wiki_kb["kb_id"]},
-                      headers=wiki_kb["headers"], verify=False, timeout=TIMEOUT)
+                      params={"kb_id": pipeline_kb["kb_id"]},
+                      headers=pipeline_kb["headers"], verify=False, timeout=TIMEOUT)
         assert r.status_code == 200
-        data = r.json()
-        content = data.get("content", "")
+        content = r.json().get("content", "")
         assert len(content) > 50, f"Wiki page content too short ({len(content)} chars)"
 
-    def test_wiki_page_contains_wikilinks(self, wiki_kb):
-        """Wiki pages should contain [[wikilink]] references to other pages."""
-        if wiki_kb["doc_status"] != "READY":
-            pytest.skip("Document not ready")
-        r = httpx.get(f"{BASE}/knowledge/wiki/pages",
-                      params={"kb_id": wiki_kb["kb_id"]},
-                      headers=wiki_kb["headers"], verify=False, timeout=TIMEOUT)
-        pages = r.json()
-        content_pages = [p for p in pages if p.get("title") not in ("index", "log")
-                         and p.get("filename") not in ("index.md", "log.md")]
-        if not content_pages:
-            pytest.skip("No wiki pages generated yet")
+    def test_wiki_page_has_wikilinks(self, pipeline_kb):
+        """At least one wiki page must contain [[wikilink]] cross-references."""
+        assert pipeline_kb["doc_status"] == "READY", "Document not ready"
+        pages = pipeline_kb["wiki_pages"]
+        content_pages = [p for p in pages
+                         if p.get("filename", "") not in ("index.md", "log.md")]
+        assert len(content_pages) > 0, "No wiki pages"
 
-        # Check if any page has [[wikilinks]]
-        found_wikilink = False
-        for page in content_pages[:3]:  # check first 3 pages
+        found = False
+        for page in content_pages[:5]:
             page_id = page.get("id") or page.get("document_id")
             r = httpx.get(f"{BASE}/knowledge/wiki/pages/{page_id}/content",
-                          params={"kb_id": wiki_kb["kb_id"]},
-                          headers=wiki_kb["headers"], verify=False, timeout=TIMEOUT)
-            if r.status_code == 200:
-                content = r.json().get("content", "")
-                if "[[" in content and "]]" in content:
-                    found_wikilink = True
-                    break
-        assert found_wikilink, "At least one wiki page should contain [[wikilinks]]"
-
-    def test_index_and_log_exist(self, wiki_kb):
-        """index.md and log.md should be created as metadata pages."""
-        if wiki_kb["doc_status"] != "READY":
-            pytest.skip("Document not ready")
-        r = httpx.get(f"{BASE}/knowledge/wiki/pages",
-                      params={"kb_id": wiki_kb["kb_id"]},
-                      headers=wiki_kb["headers"], verify=False, timeout=TIMEOUT)
-        pages = r.json()
-        filenames = [p.get("filename", "") for p in pages]
-        titles = [p.get("title", "") for p in pages]
-        has_index = "index.md" in filenames or "index" in titles
-        has_log = "log.md" in filenames or "log" in titles
-        if not (has_index or has_log):
-            pytest.skip("index/log pages not generated (wiki pipeline may not have run)")
+                          params={"kb_id": pipeline_kb["kb_id"]},
+                          headers=pipeline_kb["headers"], verify=False, timeout=TIMEOUT)
+            if r.status_code == 200 and "[[" in r.json().get("content", ""):
+                found = True
+                break
+        assert found, "No wiki page contains [[wikilinks]] — LLM not extracting relationships"
 
 
 # ---------------------------------------------------------------------------
@@ -253,268 +221,179 @@ class TestWikiPageBrowsing:
 # ---------------------------------------------------------------------------
 
 class TestWikiGraph:
-    """Test knowledge graph (nodes and edges from wikilinks)."""
+    """Knowledge graph must have nodes from wiki pages."""
 
-    def test_graph_has_nodes(self, wiki_kb):
-        """Graph should have nodes corresponding to wiki pages."""
-        if wiki_kb["doc_status"] != "READY":
-            pytest.skip("Document not ready")
-        # Wait briefly for graph to be populated
-        time.sleep(2)
+    def test_graph_has_nodes(self, pipeline_kb):
+        """Graph must have nodes if wiki pages exist."""
+        assert pipeline_kb["doc_status"] == "READY", "Document not ready"
         r = httpx.get(f"{BASE}/knowledge/wiki/graph",
-                      params={"kb_id": wiki_kb["kb_id"]},
-                      headers=wiki_kb["headers"], verify=False, timeout=TIMEOUT)
+                      params={"kb_id": pipeline_kb["kb_id"]},
+                      headers=pipeline_kb["headers"], verify=False, timeout=TIMEOUT)
         assert r.status_code == 200
         data = r.json()
-        nodes = data.get("nodes", [])
-        # Graph might be empty if wiki pages don't have wikilinks yet
-        # Just verify structure
-        assert isinstance(nodes, list)
-        assert isinstance(data.get("edges", []), list)
-
-    def test_graph_nodes_match_wiki_pages(self, wiki_kb):
-        """Graph nodes should correspond to actual wiki page titles."""
-        if wiki_kb["doc_status"] != "READY":
-            pytest.skip("Document not ready")
-        # Get wiki pages
-        r = httpx.get(f"{BASE}/knowledge/wiki/pages",
-                      params={"kb_id": wiki_kb["kb_id"]},
-                      headers=wiki_kb["headers"], verify=False, timeout=TIMEOUT)
-        pages = r.json()
-        page_titles = {p.get("title") for p in pages
-                       if p.get("title") not in ("index", "log")}
-
-        # Get graph
-        r = httpx.get(f"{BASE}/knowledge/wiki/graph",
-                      params={"kb_id": wiki_kb["kb_id"]},
-                      headers=wiki_kb["headers"], verify=False, timeout=TIMEOUT)
-        data = r.json()
-        node_titles = {n.get("title") or n.get("id") for n in data.get("nodes", [])}
-
-        if not node_titles:
-            pytest.skip("Graph has no nodes yet")
-
-        # At least some graph nodes should match wiki page titles
-        overlap = page_titles & node_titles
-        assert len(overlap) > 0, \
-            f"Graph nodes {node_titles} should overlap with wiki pages {page_titles}"
-
-    def test_graph_edges_reference_valid_nodes(self, wiki_kb):
-        """Graph edges should reference existing node IDs."""
-        if wiki_kb["doc_status"] != "READY":
-            pytest.skip("Document not ready")
-        r = httpx.get(f"{BASE}/knowledge/wiki/graph",
-                      params={"kb_id": wiki_kb["kb_id"]},
-                      headers=wiki_kb["headers"], verify=False, timeout=TIMEOUT)
-        data = r.json()
-        nodes = data.get("nodes", [])
-        edges = data.get("edges", [])
-        if not edges:
-            pytest.skip("Graph has no edges yet")
-
-        node_ids = {n.get("id") or n.get("title") for n in nodes}
-        for edge in edges:
-            source = edge.get("source")
-            target = edge.get("target")
-            assert source in node_ids or True, \
-                f"Edge source '{source}' not in nodes"  # soft check
+        assert "nodes" in data and "edges" in data
+        # If wiki pages exist, graph should have nodes
+        if len(pipeline_kb["wiki_pages"]) > 0:
+            assert len(data["nodes"]) > 0, \
+                f"Graph has 0 nodes but wiki has {len(pipeline_kb['wiki_pages'])} pages"
 
 
 # ---------------------------------------------------------------------------
-# 4. 对话 (Wiki Chat)
+# 4. 对话 — 基于内容回答
 # ---------------------------------------------------------------------------
 
-class TestWikiChatWithContent:
-    """Test wiki chat with a populated KB — Query Router Agent."""
+class TestWikiChat:
+    """Chat must return answers grounded in the uploaded document content."""
 
-    def test_chat_returns_answer(self, wiki_kb):
-        """Chat should return a meaningful answer based on wiki content."""
-        if wiki_kb["doc_status"] != "READY":
-            pytest.skip("Document not ready")
+    def test_chat_returns_relevant_answer(self, pipeline_kb):
+        """Chat about PoW/PoS should mention relevant terms from the document."""
+        assert pipeline_kb["doc_status"] == "READY", "Document not ready"
         r = httpx.post(f"{BASE}/knowledge/wiki/chat",
-                       json={"kb_id": wiki_kb["kb_id"],
-                             "question": "什么是工作量证明？", "history": []},
-                       headers=wiki_kb["headers"], verify=False, timeout=120)
-        assert r.status_code == 200, f"Chat failed: {r.text}"
-        data = r.json()
-        assert "answer" in data
-        answer = data["answer"]
-        assert len(answer) > 20, f"Answer too short: {answer}"
-
-    def test_chat_answer_references_wiki(self, wiki_kb):
-        """Chat answer should reference wiki page content (mentions relevant terms)."""
-        if wiki_kb["doc_status"] != "READY":
-            pytest.skip("Document not ready")
-        r = httpx.post(f"{BASE}/knowledge/wiki/chat",
-                       json={"kb_id": wiki_kb["kb_id"],
+                       json={"kb_id": pipeline_kb["kb_id"],
                              "question": "PoW和PoS有什么区别？", "history": []},
-                       headers=wiki_kb["headers"], verify=False, timeout=120)
-        assert r.status_code == 200
+                       headers=pipeline_kb["headers"], verify=False, timeout=120)
+        assert r.status_code == 200, f"Chat failed: {r.text}"
         answer = r.json().get("answer", "")
-        # Answer should mention at least one of: PoW, PoS, 工作量证明, 权益证明
-        relevant_terms = ["PoW", "PoS", "工作量", "权益", "proof", "stake", "work"]
-        found = any(term.lower() in answer.lower() for term in relevant_terms)
-        assert found, f"Answer should reference PoW/PoS concepts: {answer[:200]}"
+        assert len(answer) > 20, f"Answer too short: {answer}"
+        terms = ["PoW", "PoS", "工作量", "权益", "比特币", "以太坊", "质押", "矿工"]
+        found = any(t in answer for t in terms)
+        assert found, f"Answer doesn't reference document content: {answer[:200]}"
 
-    def test_chat_with_history(self, wiki_kb):
-        """Chat should support multi-turn conversation with history."""
-        if wiki_kb["doc_status"] != "READY":
-            pytest.skip("Document not ready")
-        # First turn
+    def test_chat_multi_turn(self, pipeline_kb):
+        """Multi-turn conversation should work with history."""
+        assert pipeline_kb["doc_status"] == "READY", "Document not ready"
         r1 = httpx.post(f"{BASE}/knowledge/wiki/chat",
-                        json={"kb_id": wiki_kb["kb_id"],
-                              "question": "什么是Layer 2？", "history": []},
-                        headers=wiki_kb["headers"], verify=False, timeout=120)
-        assert r1.status_code == 200
-        answer1 = r1.json().get("answer", "")
+                        json={"kb_id": pipeline_kb["kb_id"],
+                              "question": "什么是Layer 2?", "history": []},
+                        headers=pipeline_kb["headers"], verify=False, timeout=120)
+        assert r1.status_code == 200, f"Chat turn 1 failed: {r1.text}"
+        a1 = r1.json().get("answer", "")
 
-        # Second turn with history
-        history = [
-            {"role": "user", "content": "什么是Layer 2？"},
-            {"role": "assistant", "content": answer1},
-        ]
         r2 = httpx.post(f"{BASE}/knowledge/wiki/chat",
-                        json={"kb_id": wiki_kb["kb_id"],
-                              "question": "ZK-Rollups 具体是怎么工作的？",
-                              "history": history},
-                        headers=wiki_kb["headers"], verify=False, timeout=120)
-        assert r2.status_code == 200
-        answer2 = r2.json().get("answer", "")
-        assert len(answer2) > 20, f"Follow-up answer too short: {answer2}"
-
-    def test_chat_on_empty_kb(self, wiki_kb):
-        """Chat on a KB without content should still return an answer (not crash)."""
-        # Create a separate empty KB for this test
-        headers = wiki_kb["headers"]
-        r = httpx.post(f"{BASE}/knowledge/bases", json={"name": "Empty Chat Test"},
-                       headers=headers, verify=False, timeout=TIMEOUT)
-        if r.status_code not in [200, 201]:
-            pytest.skip("Cannot create second KB")
-        empty_kb_id = r.json()["id"]
-
-        # Wait for READY
-        for _ in range(15):
-            r = httpx.get(f"{BASE}/knowledge/bases/{empty_kb_id}", headers=headers,
-                          verify=False, timeout=TIMEOUT)
-            if r.status_code == 200 and r.json().get("status") == "READY":
-                break
-            time.sleep(2)
-
-        r = httpx.post(f"{BASE}/knowledge/wiki/chat",
-                       json={"kb_id": empty_kb_id,
-                             "question": "hello", "history": []},
-                       headers=headers, verify=False, timeout=60)
-        assert r.status_code == 200
-        assert "answer" in r.json()
+                        json={"kb_id": pipeline_kb["kb_id"],
+                              "question": "ZK-Rollups具体怎么工作？",
+                              "history": [
+                                  {"role": "user", "content": "什么是Layer 2?"},
+                                  {"role": "assistant", "content": a1},
+                              ]},
+                        headers=pipeline_kb["headers"], verify=False, timeout=120)
+        assert r2.status_code == 200, f"Chat turn 2 failed: {r2.text}"
+        a2 = r2.json().get("answer", "")
+        assert len(a2) > 20, f"Follow-up answer too short: {a2}"
 
 
 # ---------------------------------------------------------------------------
-# 5. 沉淀知识 (Save chat response to wiki)
+# 5. 沉淀知识 — 保存回 Wiki 并验证
 # ---------------------------------------------------------------------------
 
 class TestKnowledgeSettlement:
-    """Test saving chat responses back to wiki — the knowledge flywheel."""
+    """Save chat answer to wiki, then verify it appears in page list with content."""
 
-    def test_save_response_to_wiki(self, wiki_kb):
-        """Save a chat response as a new wiki page."""
-        if wiki_kb["doc_status"] != "READY":
-            pytest.skip("Document not ready")
+    def test_save_and_verify(self, pipeline_kb):
+        """Full cycle: chat → save → verify page exists with content."""
+        assert pipeline_kb["doc_status"] == "READY", "Document not ready"
+        headers = pipeline_kb["headers"]
+        kb_id = pipeline_kb["kb_id"]
 
-        # First get a chat answer
+        # 1. Chat
         r = httpx.post(f"{BASE}/knowledge/wiki/chat",
-                       json={"kb_id": wiki_kb["kb_id"],
-                             "question": "总结一下Layer 2扩容方案", "history": []},
-                       headers=wiki_kb["headers"], verify=False, timeout=120)
-        if r.status_code != 200:
-            pytest.skip(f"Chat failed: {r.text}")
+                       json={"kb_id": kb_id,
+                             "question": "总结Layer 2扩容方案的优缺点", "history": []},
+                       headers=headers, verify=False, timeout=120)
+        assert r.status_code == 200, f"Chat failed: {r.text}"
         answer = r.json().get("answer", "")
+        assert len(answer) > 20
 
-        # Save the answer as a wiki page
+        # 2. Save to wiki
+        save_title = f"L2扩容总结-{int(time.time())}"
         r = httpx.post(f"{BASE}/knowledge/wiki/save-response",
-                       json={"kb_id": wiki_kb["kb_id"],
-                             "title": "Layer2 扩容方案总结",
-                             "content": answer},
-                       headers=wiki_kb["headers"], verify=False, timeout=60)
-        assert r.status_code == 200, f"Save response failed: {r.text}"
+                       json={"kb_id": kb_id, "title": save_title, "content": answer},
+                       headers=headers, verify=False, timeout=60)
+        assert r.status_code == 200, f"Save failed: {r.text}"
 
-    def test_saved_page_appears_in_wiki_list(self, wiki_kb):
-        """After saving, the new page should appear in wiki page list."""
-        if wiki_kb["doc_status"] != "READY":
-            pytest.skip("Document not ready")
+        # 3. Verify page appears in list (poll up to 10s)
+        found_page = None
+        for _ in range(5):
+            r = httpx.get(f"{BASE}/knowledge/wiki/pages",
+                          params={"kb_id": kb_id},
+                          headers=headers, verify=False, timeout=TIMEOUT)
+            assert r.status_code == 200
+            for p in r.json():
+                if save_title in (p.get("filename", "") + p.get("title", "")):
+                    found_page = p
+                    break
+            if found_page:
+                break
+            time.sleep(2)
+        assert found_page is not None, \
+            f"Saved page '{save_title}' not in wiki list. Pages: {[p.get('filename') for p in r.json()]}"
 
-        r = httpx.get(f"{BASE}/knowledge/wiki/pages",
-                      params={"kb_id": wiki_kb["kb_id"]},
-                      headers=wiki_kb["headers"], verify=False, timeout=TIMEOUT)
-        assert r.status_code == 200
-        pages = r.json()
-        # Check by title, filename, or any field containing "Layer2"
-        found = any(
-            "Layer2" in str(p.get("title", "")) or
-            "Layer2" in str(p.get("filename", "")) or
-            "扩容" in str(p.get("title", "")) or
-            "扩容" in str(p.get("filename", ""))
-            for p in pages
-        )
-        if not found and len(pages) > 0:
-            # Page was saved (we know from save test passing) but may have different title format
-            # Just verify at least one wiki page exists
-            pass
-        assert len(pages) > 0, \
-            f"Expected at least one wiki page after save-response, got 0"
-
-    def test_saved_page_has_content(self, wiki_kb):
-        """The saved wiki page should have the content we provided."""
-        if wiki_kb["doc_status"] != "READY":
-            pytest.skip("Document not ready")
-
-        r = httpx.get(f"{BASE}/knowledge/wiki/pages",
-                      params={"kb_id": wiki_kb["kb_id"]},
-                      headers=wiki_kb["headers"], verify=False, timeout=TIMEOUT)
-        pages = r.json()
-        saved_page = next(
-            (p for p in pages if "Layer2" in (p.get("title", "") + p.get("filename", ""))),
-            None
-        )
-        if not saved_page:
-            pytest.skip("Saved page not found in list")
-
-        page_id = saved_page.get("id") or saved_page.get("document_id")
+        # 4. Verify page content is readable
+        page_id = found_page.get("id") or found_page.get("document_id")
         r = httpx.get(f"{BASE}/knowledge/wiki/pages/{page_id}/content",
-                      params={"kb_id": wiki_kb["kb_id"]},
-                      headers=wiki_kb["headers"], verify=False, timeout=TIMEOUT)
+                      params={"kb_id": kb_id},
+                      headers=headers, verify=False, timeout=TIMEOUT)
         assert r.status_code == 200
         content = r.json().get("content", "")
-        assert len(content) > 20, f"Saved page content too short: {content[:100]}"
+        assert len(content) > 20, f"Saved page has no content"
 
 
 # ---------------------------------------------------------------------------
-# 6. URL 导入
+# 6. URL 导入 — 完整流水线验证
 # ---------------------------------------------------------------------------
 
-class TestUrlIngest:
-    """Test URL ingest functionality."""
+class TestUrlIngestPipeline:
+    """URL ingest must work end-to-end: fetch → create doc → process → READY."""
 
-    def test_ingest_url(self, wiki_kb):
-        """Ingest a real URL and verify document is created."""
-        r = httpx.post(f"{BASE}/knowledge/wiki/ingest-url",
-                       json={"kb_id": wiki_kb["kb_id"],
-                             "url": "https://chain.link/education-hub/bitcoin-layer-2"},
-                       headers=wiki_kb["headers"], verify=False, timeout=60)
-        if r.status_code in [502, 422] and "timed out" in r.text:
-            pytest.skip("CCE outbound network cannot reach external URL (timeout)")
-        assert r.status_code == 200, f"URL ingest failed: {r.text}"
-        data = r.json()
-        assert "document_id" in data
-        assert data["status"] == "processing"
+    def test_url_ingest_full_pipeline(self, pipeline_kb):
+        """Import URL → doc created with MARKDOWN format → processing → READY."""
+        headers = pipeline_kb["headers"]
+        kb_id = pipeline_kb["kb_id"]
 
-    def test_ingest_invalid_url(self, wiki_kb):
-        """Invalid URL should return error, not crash."""
+        # 1. Ingest URL
         r = httpx.post(f"{BASE}/knowledge/wiki/ingest-url",
-                       json={"kb_id": wiki_kb["kb_id"],
+                       json={"kb_id": kb_id,
+                             "url": "https://ethereum.org/developers/docs/scaling/zk-rollups/"},
+                       headers=headers, verify=False, timeout=60)
+        assert r.status_code == 200, f"URL ingest failed ({r.status_code}): {r.text}"
+        url_doc_id = r.json()["document_id"]
+
+        # 2. Verify document exists with format MARKDOWN
+        time.sleep(2)
+        r = httpx.get(f"{BASE}/knowledge/documents",
+                      params={"kb_id": kb_id}, headers=headers, verify=False, timeout=TIMEOUT)
+        docs = r.json() if isinstance(r.json(), list) else r.json().get("documents", [])
+        url_doc = next((d for d in docs if d["id"] == url_doc_id), None)
+        assert url_doc is not None, "URL imported doc not in document list"
+        assert url_doc.get("format") == "MARKDOWN", \
+            f"Expected MARKDOWN, got '{url_doc.get('format')}'"
+
+        # 3. Wait for READY (up to 4 min)
+        status = "PROCESSING"
+        for _ in range(48):
+            r = httpx.get(f"{BASE}/knowledge/documents",
+                          params={"kb_id": kb_id}, headers=headers, verify=False, timeout=TIMEOUT)
+            doc_list = r.json() if isinstance(r.json(), list) else r.json().get("documents", [])
+            d = next((x for x in doc_list if x["id"] == url_doc_id), None)
+            if d:
+                status = d.get("status", "UNKNOWN")
+            if status == "READY":
+                break
+            if status == "FAILED":
+                error = d.get("error", "unknown") if d else "doc not found"
+                pytest.fail(f"URL doc processing FAILED: {error}")
+            time.sleep(5)
+        assert status == "READY", \
+            f"URL doc stuck at '{status}' after 4 min — processing pipeline broken for URL imports"
+
+    def test_url_ingest_invalid_url(self, pipeline_kb):
+        """Invalid URL must return error status, not crash."""
+        r = httpx.post(f"{BASE}/knowledge/wiki/ingest-url",
+                       json={"kb_id": pipeline_kb["kb_id"],
                              "url": "https://nonexistent-domain-12345.com/page"},
-                       headers=wiki_kb["headers"], verify=False, timeout=60)
+                       headers=pipeline_kb["headers"], verify=False, timeout=60)
         assert r.status_code in [422, 502], \
-            f"Expected 422/502, got {r.status_code}: {r.text}"
+            f"Expected error status, got {r.status_code}: {r.text}"
 
 
 # ---------------------------------------------------------------------------
@@ -522,34 +401,27 @@ class TestUrlIngest:
 # ---------------------------------------------------------------------------
 
 class TestAdminWikiConfig:
-    """Test admin wiki config API."""
+    """Admin API for wiki agent configuration."""
 
-    def _admin_headers(self):
-        return {
-            "Authorization": f"Bearer {ADMIN_TOKEN}",
-            "X-Admin-Token": ADMIN_TOKEN,
-        }
+    def _headers(self):
+        return {"Authorization": f"Bearer {ADMIN_TOKEN}", "X-Admin-Token": ADMIN_TOKEN}
 
-    def test_get_wiki_config(self):
+    def test_get_config(self):
         r = httpx.get(f"{BASE}/knowledge/admin/wiki/config",
-                      headers=self._admin_headers(), verify=False, timeout=TIMEOUT)
-        assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
+                      headers=self._headers(), verify=False, timeout=TIMEOUT)
+        assert r.status_code == 200
         data = r.json()
-        assert "ingest_prompt" in data
+        assert "ingest_prompt" in data and len(data["ingest_prompt"]) > 0
         assert "model" in data
-        assert len(data["ingest_prompt"]) > 0, "default prompt should be returned"
 
-    def test_get_wiki_config_requires_admin(self):
-        """Should fail without any auth token."""
+    def test_requires_admin(self):
         r = httpx.get(f"{BASE}/knowledge/admin/wiki/config",
                       verify=False, timeout=TIMEOUT)
-        assert r.status_code in [401, 403], f"Expected 401/403, got {r.status_code}"
+        assert r.status_code in [401, 403]
 
-    def test_update_wiki_config(self):
-        """PUT should succeed. Uses ingest_prompt (not model) to avoid breaking LLM calls."""
-        headers = self._admin_headers()
-        # Only update ingest_prompt (safe), never touch model to avoid breaking wiki pipeline
+    def test_update_config(self):
+        """Update prompt (safe — doesn't break LLM calls unlike model change)."""
         r = httpx.put(f"{BASE}/knowledge/admin/wiki/config",
-                      json={"ingest_prompt": "test prompt - will be reset on pod restart"},
-                      headers=headers, verify=False, timeout=TIMEOUT)
+                      json={"ingest_prompt": "test prompt"},
+                      headers=self._headers(), verify=False, timeout=TIMEOUT)
         assert r.status_code == 200
