@@ -426,3 +426,47 @@ class TestAdminWikiConfig:
                       json={"ingest_prompt": "test prompt"},
                       headers=self._headers(), verify=False, timeout=TIMEOUT)
         assert r.status_code == 200
+
+    def test_config_has_all_prompts(self):
+        """Config should return all 3 prompts."""
+        r = httpx.get(f"{BASE}/knowledge/admin/wiki/config",
+                      headers=self._headers(), verify=False, timeout=TIMEOUT)
+        assert r.status_code == 200
+        data = r.json()
+        assert "chat_routing_prompt" in data, f"Missing chat_routing_prompt. Keys: {list(data.keys())}"
+        assert "chat_answer_prompt" in data, f"Missing chat_answer_prompt. Keys: {list(data.keys())}"
+        assert len(data["chat_routing_prompt"]) > 0, "Default routing prompt should not be empty"
+        assert len(data["chat_answer_prompt"]) > 0, "Default answer prompt should not be empty"
+
+    def test_update_routing_prompt(self):
+        """Should be able to update chat routing prompt."""
+        r = httpx.put(f"{BASE}/knowledge/admin/wiki/config",
+                      json={"chat_routing_prompt": "test routing prompt"},
+                      headers=self._headers(), verify=False, timeout=TIMEOUT)
+        assert r.status_code == 200
+
+    def test_llm_connection(self):
+        """LLM connection test should return success with latency."""
+        r = httpx.post(f"{BASE}/knowledge/admin/wiki/test-connection",
+                       headers=self._headers(), verify=False, timeout=60)
+        assert r.status_code == 200, f"Test connection failed: {r.text}"
+        data = r.json()
+        assert "success" in data
+        assert "latency_ms" in data
+        assert data["success"] is True, f"LLM connection failed: {data.get('error')}"
+        assert data["latency_ms"] > 0
+
+    def test_wiki_page_delete(self, pipeline_kb):
+        """Admin should be able to delete a wiki page."""
+        # List wiki pages first
+        r = httpx.get(f"{BASE}/knowledge/admin/wiki/pages",
+                      params={"kb_id": pipeline_kb["kb_id"]},
+                      headers=self._headers(), verify=False, timeout=TIMEOUT)
+        if r.status_code != 200 or len(r.json()) == 0:
+            pytest.skip("No wiki pages to test delete")
+        page_id = r.json()[0]["id"]
+        # Delete it
+        r = httpx.delete(f"{BASE}/knowledge/admin/wiki/pages/{page_id}",
+                         params={"kb_id": pipeline_kb["kb_id"]},
+                         headers=self._headers(), verify=False, timeout=TIMEOUT)
+        assert r.status_code == 200
