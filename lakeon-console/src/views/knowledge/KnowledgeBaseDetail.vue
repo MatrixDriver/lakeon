@@ -134,7 +134,14 @@
     <div style="margin-top: 16px;">
       <!-- Toolbar: all buttons + search on one row -->
       <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
-        <button class="btn btn-primary" @click="showUploadDialog = true" :disabled="uploading || kb?.status !== 'READY'">本地上传</button>
+        <label class="btn btn-primary" style="cursor: pointer;" :class="{ disabled: uploading || kb?.status !== 'READY' }">
+          上传文件
+          <input type="file" accept=".pdf,.docx,.doc,.xlsx,.xls,.xlsm,.pptx,.epub,.html,.htm,.md,.markdown,.txt" multiple style="display: none;" :disabled="uploading || kb?.status !== 'READY'" @change="handleUpload" />
+        </label>
+        <label class="btn btn-secondary" style="cursor: pointer;" :class="{ disabled: uploading || kb?.status !== 'READY' }">
+          上传目录
+          <input type="file" style="display: none;" :disabled="uploading || kb?.status !== 'READY'" webkitdirectory @change="handleDirectoryUpload" />
+        </label>
         <button class="btn btn-secondary" @click="showUrlDialog = true" :disabled="kb?.status !== 'READY'">导入 URL</button>
         <button class="btn btn-secondary" @click="handleObsDataSource" :disabled="kb?.status !== 'READY'">OBS 数据源</button>
         <span style="flex: 1;"></span>
@@ -408,34 +415,6 @@
           </button>
         </div>
       </div>
-    <!-- Upload Dialog -->
-    <div v-if="showUploadDialog" class="modal-overlay" @click.self="showUploadDialog = false">
-      <div class="modal-box" style="max-width: 440px;">
-        <div class="modal-header">
-          <span>本地上传</span>
-          <button class="btn-icon" @click="showUploadDialog = false">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>
-        <div class="modal-body" style="text-align: center; padding: 24px;">
-          <p style="color: #666; font-size: 13px; margin-bottom: 20px;">支持 PDF、DOCX、XLSX、PPTX、EPUB、HTML、Markdown、TXT</p>
-          <div style="display: flex; gap: 12px; justify-content: center;">
-            <label class="btn btn-primary" style="cursor: pointer; padding: 10px 24px;">
-              选择文件
-              <input type="file" accept=".pdf,.docx,.doc,.xlsx,.xls,.xlsm,.pptx,.epub,.html,.htm,.md,.markdown,.txt" multiple style="display: none;" @change="handleUploadFromDialog" />
-            </label>
-            <label class="btn btn-secondary" style="cursor: pointer; padding: 10px 24px;">
-              选择目录
-              <input type="file" style="display: none;" webkitdirectory @change="handleDirUploadFromDialog" />
-            </label>
-          </div>
-          <p style="color: #aaa; font-size: 12px; margin-top: 12px;">单次最多 20 个文件</p>
-        </div>
-      </div>
-    </div>
-
     <!-- OBS Datasource List Dialog -->
     <div v-if="showDsListDialog" class="modal-overlay" @click.self="showDsListDialog = false">
       <div class="modal-box" style="max-width: 560px;">
@@ -561,18 +540,6 @@ const tagDialog = ref<{
   saving: boolean
 }>({ open: false, doc: null, input: '', saving: false })
 
-// ── Upload dialog state ──
-const showUploadDialog = ref(false)
-
-function handleUploadFromDialog(e: Event) {
-  showUploadDialog.value = false
-  handleUpload(e)
-}
-
-function handleDirUploadFromDialog(e: Event) {
-  showUploadDialog.value = false
-  handleDirectoryUpload(e)
-}
 
 // ── OBS datasource list dialog ──
 const showDsListDialog = ref(false)
