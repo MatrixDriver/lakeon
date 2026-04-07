@@ -1,19 +1,15 @@
 <template>
   <div class="page-container">
-    <!-- Breadcrumb -->
-    <div class="breadcrumb" style="margin-bottom: 16px;">
-      <router-link to="/memory" style="color: #9a5b25; text-decoration: none;">记忆库</router-link>
-      <span style="margin: 0 8px; color: #ccc;">/</span>
-      <span style="color: #333;">{{ base?.name || '...' }}</span>
-    </div>
-
-    <div class="page-header">
-      <h1 class="page-title">{{ base?.name || '加载中...' }}</h1>
+    <!-- Breadcrumb + Title in one line -->
+    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;">
+      <router-link to="/memory" style="color: #9a5b25; text-decoration: none; font-size: 13px;">记忆库</router-link>
+      <span style="color: #ccc; font-size: 13px;">/</span>
+      <h1 class="page-title" style="margin: 0; font-size: 18px;">{{ base?.name || '...' }}</h1>
     </div>
 
     <template v-if="base">
       <!-- Tabs -->
-      <div class="tab-bar" style="margin-top: 20px;">
+      <div class="tab-bar" style="margin-top: 8px;">
         <div v-for="tab in tabs" :key="tab.key"
              class="tab-item"
              :class="{ active: activeTab === tab.key }"
