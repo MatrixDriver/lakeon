@@ -61,6 +61,10 @@ KUBECONFIG=~/.kube/cce-lakeon-config kubectl rollout restart deployment/lakeon-a
 
 - **Pre-push hook**: 自动跑 `vue-tsc -b` 检查两个前端项目，不过不能 push
 - **E2E 测试**: 每个新特性都要加 E2E 测试 (API pytest + Playwright browser)
+  - **全部通过才算成功**: 有 FAILED 必须全部修复后再汇报，不能留 FAILED
+  - **不能作假**: FAILED 不能标记为 SKIPPED 来蒙混过关
+  - **端到端验证业务流程**: 不只是验证 API 返回 200，要断言业务结果正确。例如知识库要覆盖：上传→解析→切片→embedding→summarize→wiki生成→图谱→对话→沉淀→验证沉淀结果
+  - **不稳定依赖要调查根因**: 遇到外部服务超时等问题，要查明原因并修复，不能 skip
 - **API endpoint**: 线上 `https://api.dbay.cloud:8443/api/v1`，dev proxy `localhost:8080`
 - **Admin token**: `lakeon-sre-2026` (测试和 SRE 控制台用)
 - **测试租户**: E2E 测试创建临时租户，测试后自动清理
