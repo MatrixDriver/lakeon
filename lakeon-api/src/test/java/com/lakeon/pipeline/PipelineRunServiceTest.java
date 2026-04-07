@@ -1,5 +1,7 @@
 package com.lakeon.pipeline;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lakeon.datalake.DatalakeNamespaceManager;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +29,8 @@ class PipelineRunServiceTest {
     @Mock private PipelineStepRunRepository stepRunRepository;
     @Mock private PipelineRepository pipelineRepository;
     @Mock private PipelineVersionRepository pipelineVersionRepository;
+    @Mock private DatalakeNamespaceManager nsManager;
+    @Mock private ObjectMapper objectMapper;
 
     private PipelineRunService runService;
 
@@ -35,7 +39,7 @@ class PipelineRunServiceTest {
     @BeforeEach
     void setUp() {
         runService = new PipelineRunService(runRepository, stepRunRepository,
-                pipelineRepository, pipelineVersionRepository);
+                pipelineRepository, pipelineVersionRepository, nsManager, objectMapper);
     }
 
     // --- UT-SVC-RUN-001: trigger --- creates run + step_runs ---
