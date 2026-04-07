@@ -105,6 +105,8 @@ export const adminApi = {
     client.delete(`/wiki/pages/${docId}`, { params: { kb_id: kbId } }),
   adminRebuildWiki: (kbId: string) =>
     client.post('/wiki/rebuild', null, { params: { kb_id: kbId } }),
+  adminCurateWiki: (kbId: string) =>
+    client.post('/wiki/curate', null, { params: { kb_id: kbId } }),
   testLlmConnection: () => client.post('/wiki/test-connection'),
 
   // Memory Admin

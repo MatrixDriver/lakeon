@@ -142,6 +142,7 @@
                       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                         <span style="font-weight: 600; font-size: 13px;">Wiki 页面</span>
                         <button class="btn-small" @click="loadWikiPagesForKb(kb.id)" style="font-size: 11px; padding: 2px 8px; border: 1px solid #ddd; border-radius: 3px; background: #fff; cursor: pointer;">刷新</button>
+                        <button class="btn-small" @click="handleCurateWiki(kb.id)" style="font-size: 11px; padding: 2px 8px; border: 1px solid #1890ff; border-radius: 3px; background: #fff; color: #1890ff; cursor: pointer;">整理</button>
                         <button class="btn-small" @click="handleRebuildWiki(kb.id)" style="font-size: 11px; padding: 2px 8px; border: 1px solid #c25a3c; border-radius: 3px; background: #fff; color: #c25a3c; cursor: pointer;">全量重建</button>
                       </div>
                       <div v-if="!wikiPagesMap[kb.id]" style="font-size: 12px; color: #999;">
@@ -812,6 +813,15 @@ async function handleDeleteWikiPage(kbId: string, docId: string) {
   if (!confirm('确认删除此 Wiki 页面？')) return
   await adminApi.adminDeleteWikiPage(kbId, docId)
   await loadWikiPagesForKb(kbId)
+}
+
+async function handleCurateWiki(kbId: string) {
+  try {
+    await adminApi.adminCurateWiki(kbId)
+    alert('Wiki 整理已触发（后台运行，完成后可刷新查看页面变化）')
+  } catch (e: any) {
+    alert('整理失败: ' + e.message)
+  }
 }
 
 async function handleRebuildWiki(kbId: string) {
