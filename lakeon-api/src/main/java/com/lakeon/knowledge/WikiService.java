@@ -150,6 +150,7 @@ public class WikiService {
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final KbWriteQueue kbWriteQueue;
     private final KnowledgeService knowledgeService;
+    private final WikiRunLogRepository wikiRunLogRepository;
 
     public WikiService(LakeonProperties props,
                        ObjectMapper objectMapper,
@@ -157,7 +158,8 @@ public class WikiService {
                        DocumentRepository documentRepository,
                        KnowledgeBaseRepository knowledgeBaseRepository,
                        KbWriteQueue kbWriteQueue,
-                       KnowledgeService knowledgeService) {
+                       KnowledgeService knowledgeService,
+                       WikiRunLogRepository wikiRunLogRepository) {
         this.props = props;
         this.objectMapper = objectMapper;
         this.chunkService = chunkService;
@@ -165,6 +167,7 @@ public class WikiService {
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.kbWriteQueue = kbWriteQueue;
         this.knowledgeService = knowledgeService;
+        this.wikiRunLogRepository = wikiRunLogRepository;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -266,41 +269,49 @@ public class WikiService {
      * Called by KbWriteQueue after document summarization completes.
      */
     public void processIngest(String tenantId, String kbId, String documentId) {
+        long startMs = System.currentTimeMillis();
         log.info("Wiki agent processing document {} in KB {}", documentId, kbId);
 
-        // 1. Read the source document fulltext
-        String fulltext = chunkService.getFulltext(tenantId, kbId, documentId);
-        if (fulltext == null || fulltext.isBlank()) {
-            log.warn("No fulltext found for doc {}, skipping wiki update", documentId);
-            return;
-        }
-        if (fulltext.length() > MAX_FULLTEXT_CHARS) {
-            fulltext = fulltext.substring(0, MAX_FULLTEXT_CHARS);
-        }
+        String docFilename = documentRepository.findById(documentId)
+                .map(DocumentEntity::getFilename).orElse(documentId);
 
-        // 2. Read current wiki index
-        String currentIndex = readWikiPage(tenantId, kbId, "index.md");
-        if (currentIndex == null) {
-            currentIndex = "# Wiki Index\n\nNo pages yet.\n";
-        }
-        if (currentIndex.length() > MAX_INDEX_CHARS) {
-            currentIndex = currentIndex.substring(0, MAX_INDEX_CHARS);
-        }
-
-        // 3. Call LLM to determine wiki changes
-        String prompt = String.format(getIngestPrompt(), currentIndex, fulltext);
-        String llmResponse = callDeepSeek(prompt);
-        if (llmResponse == null || llmResponse.isBlank()) {
-            log.warn("LLM returned empty response for wiki update on doc {}", documentId);
-            return;
-        }
-
-        // 4. Parse and apply changes
         try {
+            // 1. Read the source document fulltext
+            String fulltext = chunkService.getFulltext(tenantId, kbId, documentId);
+            if (fulltext == null || fulltext.isBlank()) {
+                log.warn("No fulltext found for doc {}, skipping wiki update", documentId);
+                writeRunLog(tenantId, kbId, "ingest", docFilename, 0, 0, 0, startMs, "No fulltext found");
+                return;
+            }
+            if (fulltext.length() > MAX_FULLTEXT_CHARS) {
+                fulltext = fulltext.substring(0, MAX_FULLTEXT_CHARS);
+            }
+
+            // 2. Read current wiki index
+            String currentIndex = readWikiPage(tenantId, kbId, "index.md");
+            if (currentIndex == null) {
+                currentIndex = "# Wiki Index\n\nNo pages yet.\n";
+            }
+            if (currentIndex.length() > MAX_INDEX_CHARS) {
+                currentIndex = currentIndex.substring(0, MAX_INDEX_CHARS);
+            }
+
+            // 3. Call LLM to determine wiki changes
+            String prompt = String.format(getIngestPrompt(), currentIndex, fulltext);
+            String llmResponse = callDeepSeek(prompt);
+            if (llmResponse == null || llmResponse.isBlank()) {
+                log.warn("LLM returned empty response for wiki update on doc {}", documentId);
+                writeRunLog(tenantId, kbId, "ingest", docFilename, 0, 0, 0, startMs, "LLM returned empty response");
+                return;
+            }
+
+            // 4. Parse and apply changes
             JsonNode response = objectMapper.readTree(llmResponse);
-            applyWikiChanges(tenantId, kbId, response, currentIndex);
+            int[] counts = applyWikiChanges(tenantId, kbId, response, currentIndex);
+            writeRunLog(tenantId, kbId, "ingest", docFilename, counts[0], counts[1], 0, startMs, null);
         } catch (Exception e) {
-            log.error("Failed to parse/apply wiki changes for doc {}: {}", documentId, e.getMessage(), e);
+            log.error("processIngest failed for doc {}: {}", documentId, e.getMessage(), e);
+            writeRunLog(tenantId, kbId, "ingest", docFilename, 0, 0, 0, startMs, e.getMessage());
         }
     }
 
@@ -715,15 +726,15 @@ public class WikiService {
     /**
      * Apply wiki changes from the LLM response: write wiki pages, update index, append log.
      */
-    private void applyWikiChanges(String tenantId, String kbId, JsonNode response,
-                                   String currentIndex) {
+    private int[] applyWikiChanges(String tenantId, String kbId, JsonNode response,
+                                    String currentIndex) {
         JsonNode wikiPages = response.path("wiki_pages");
         JsonNode indexUpdates = response.path("index_updates");
         String logEntry = response.path("log_entry").asText("");
 
         if (!wikiPages.isArray() || wikiPages.isEmpty()) {
             log.info("No wiki pages to create/update for KB {}", kbId);
-            return;
+            return new int[]{0, 0};
         }
 
         int created = 0, updated = 0;
@@ -765,6 +776,7 @@ public class WikiService {
         if (created > 0) {
             maybeRunCurate(tenantId, kbId, created);
         }
+        return new int[]{created, updated};
     }
 
     /**
@@ -797,6 +809,7 @@ public class WikiService {
      * fixes wikilinks, and updates the index.
      */
     public void runCurate(String tenantId, String kbId) {
+        long startMs = System.currentTimeMillis();
         log.info("Running wiki curate for KB {}", kbId);
 
         // 1. Load current index
@@ -834,6 +847,7 @@ public class WikiService {
             llmResponse = callDeepSeek(prompt);
         } catch (Exception e) {
             log.error("Curate LLM call failed for KB {}: {}", kbId, e.getMessage());
+            writeRunLog(tenantId, kbId, "curate", null, 0, 0, 0, startMs, e.getMessage());
             return;
         }
         if (llmResponse == null || llmResponse.isBlank()) return;
@@ -843,7 +857,7 @@ public class WikiService {
             JsonNode response = objectMapper.readTree(llmResponse);
 
             // Apply page updates/creates (same as ingest flow)
-            applyWikiChanges(tenantId, kbId, response, indexContent);
+            int[] counts = applyWikiChanges(tenantId, kbId, response, indexContent);
 
             // Delete pages marked for removal
             JsonNode deletePages = response.path("delete_pages");
@@ -864,8 +878,36 @@ public class WikiService {
             }
             log.info("Wiki curate complete for KB {}: {} deleted", kbId, deleted);
             appendToLog(tenantId, kbId, "[自动整理] 合并/清理重叠页面，删除 " + deleted + " 个冗余页面");
+            writeRunLog(tenantId, kbId, "curate", null, counts[0], counts[1], deleted, startMs, null);
         } catch (Exception e) {
             log.error("Failed to apply curate changes for KB {}: {}", kbId, e.getMessage(), e);
+            writeRunLog(tenantId, kbId, "curate", null, 0, 0, 0, startMs, e.getMessage());
+        }
+    }
+
+    /**
+     * Write a WikiRunLog entry for operational history tracking.
+     */
+    private void writeRunLog(String tenantId, String kbId, String runType,
+                              String triggerDoc, int created, int updated, int deleted,
+                              long startMs, String error) {
+        try {
+            WikiRunLogEntity runLog = new WikiRunLogEntity();
+            runLog.setId(UUID.randomUUID().toString().replace("-", "").substring(0, 32));
+            runLog.setTenantId(tenantId);
+            runLog.setKbId(kbId);
+            runLog.setRunType(runType);
+            runLog.setTriggerDoc(triggerDoc);
+            runLog.setPagesCreated(created);
+            runLog.setPagesUpdated(updated);
+            runLog.setPagesDeleted(deleted);
+            runLog.setDurationMs(System.currentTimeMillis() - startMs);
+            runLog.setStatus(error == null ? "success" : "error");
+            runLog.setErrorMessage(error != null && error.length() > 1024 ? error.substring(0, 1024) : error);
+            runLog.setCreatedAt(Instant.now());
+            wikiRunLogRepository.save(runLog);
+        } catch (Exception e) {
+            log.warn("Failed to write wiki run log: {}", e.getMessage());
         }
     }
 

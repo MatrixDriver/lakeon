@@ -6,6 +6,8 @@ import com.lakeon.model.entity.TenantEntity;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +28,7 @@ public class KnowledgeController {
     private final KbWriteQueue kbWriteQueue;
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final WikiService wikiService;
+    private final WikiRunLogRepository wikiRunLogRepository;
     private final LakeonProperties lakeonProperties;
     private final ObjectMapper objectMapper;
 
@@ -34,6 +37,7 @@ public class KnowledgeController {
                                KbWriteQueue kbWriteQueue,
                                KnowledgeBaseRepository knowledgeBaseRepository,
                                WikiService wikiService,
+                               WikiRunLogRepository wikiRunLogRepository,
                                LakeonProperties lakeonProperties,
                                ObjectMapper objectMapper) {
         this.knowledgeService = knowledgeService;
@@ -41,6 +45,7 @@ public class KnowledgeController {
         this.kbWriteQueue = kbWriteQueue;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.wikiService = wikiService;
+        this.wikiRunLogRepository = wikiRunLogRepository;
         this.lakeonProperties = lakeonProperties;
         this.objectMapper = objectMapper;
     }
@@ -542,6 +547,23 @@ public class KnowledgeController {
                     "error", e.getMessage() != null ? e.getMessage() : "Unknown error"
             ));
         }
+    }
+
+    @GetMapping("/admin/wiki/run-logs")
+    public ResponseEntity<?> getWikiRunLogs(
+            @RequestHeader(value = "X-Admin-Token", required = false) String adminToken,
+            @RequestParam(required = false) String kb_id,
+            @RequestParam(defaultValue = "50") int limit) {
+        validateAdminToken(adminToken);
+        org.springframework.data.domain.Pageable pageable = PageRequest.of(0, Math.min(limit, 200),
+                Sort.by("createdAt").descending());
+        List<WikiRunLogEntity> logs;
+        if (kb_id != null && !kb_id.isBlank()) {
+            logs = wikiRunLogRepository.findByKbIdOrderByCreatedAtDesc(kb_id, pageable);
+        } else {
+            logs = wikiRunLogRepository.findAllRecent(pageable);
+        }
+        return ResponseEntity.ok(logs);
     }
 
     // ── TABLE KB endpoints ─────────────────────────────────────────

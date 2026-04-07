@@ -108,6 +108,8 @@ export const adminApi = {
   adminCurateWiki: (kbId: string) =>
     client.post('/wiki/curate', null, { params: { kb_id: kbId } }),
   testLlmConnection: () => client.post('/wiki/test-connection'),
+  getWikiRunLogs: (kbId?: string, limit = 50) =>
+    client.get('/wiki/run-logs', { params: { kb_id: kbId, limit } }),
 
   // Memory Admin
   memoryStats: () => client.get('/memory/stats'),
