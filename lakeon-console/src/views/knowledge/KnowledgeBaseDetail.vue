@@ -89,7 +89,7 @@
     <!-- Wiki Tab -->
     <div v-if="activeTab === 'wiki'" style="display: flex; height: calc(100vh - 140px); margin-top: 12px; position: relative;">
       <div style="flex: 1; overflow: hidden;">
-        <WikiPage ref="wikiPageRef" :kb-id="(route.params.kbId as string)" />
+        <WikiPage ref="wikiPageRef" :kb-id="(route.params.kbId as string)" @select="handlePageSelect" />
       </div>
       <!-- Resizable graph panel -->
       <div v-if="showGraph" :style="{ width: graphWidth + 'px', borderLeft: '1px solid #e8e0d8', flexShrink: 0, display: 'flex', flexDirection: 'column', position: 'relative' }">
@@ -102,7 +102,7 @@
           <span style="cursor: pointer; color: #bbb; font-size: 16px;" @click="showGraph = false" title="收起图谱">&times;</span>
         </div>
         <div style="flex: 1; overflow: hidden;">
-          <WikiGraph :kb-id="(route.params.kbId as string)" @navigate="handleGraphNavigate" />
+          <WikiGraph ref="wikiGraphRef" :kb-id="(route.params.kbId as string)" @navigate="handleGraphNavigate" />
         </div>
       </div>
       <button v-if="!showGraph"
@@ -592,11 +592,18 @@ async function handleUrlIngest() {
 }
 
 const wikiPageRef = ref()
+const wikiGraphRef = ref()
 
 function handleGraphNavigate(title: string) {
   activeTab.value = 'wiki'
   if (wikiPageRef.value?.navigateToTitle) {
     wikiPageRef.value.navigateToTitle(title)
+  }
+}
+
+function handlePageSelect(title: string) {
+  if (wikiGraphRef.value?.focusNode) {
+    wikiGraphRef.value.focusNode(title)
   }
 }
 

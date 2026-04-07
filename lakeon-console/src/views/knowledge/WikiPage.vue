@@ -4,6 +4,7 @@ import { listWikiPages, getWikiPageContent, type WikiPageItem } from '@/api/know
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 
 const props = defineProps<{ kbId: string }>()
+const emit = defineEmits<{ (e: 'select', title: string): void }>()
 
 const pages = ref<WikiPageItem[]>([])
 const selectedPage = ref<WikiPageItem | null>(null)
@@ -50,6 +51,9 @@ async function loadPages() {
 
 async function openPage(page: WikiPageItem) {
   selectedPage.value = page
+  // Notify parent so graph can focus on this page
+  const title = page.filename.replace(/\.md$/, '')
+  emit('select', title)
   loading.value = true
   try {
     const resp = await getWikiPageContent(props.kbId, page.id)

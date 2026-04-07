@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// @ts-nocheck — d3 module-level vars are assigned in loadAndRender and read in navigateToNode
 import { ref, onMounted, watch, onUnmounted } from 'vue'
 import * as d3 from 'd3'
 import { getWikiGraph } from '@/api/knowledge'
@@ -8,6 +9,12 @@ const emit = defineEmits<{ (e: 'navigate', title: string): void }>()
 
 const svgRef = ref<SVGSVGElement>()
 let simulation: d3.Simulation<any, any> | null = null
+let nodesData: any[] = []
+let svgSelection: d3.Selection<SVGSVGElement, unknown, null, undefined> | null = null
+let gSelection: d3.Selection<SVGGElement, unknown, null, undefined> | null = null
+let zoomBehavior: d3.ZoomBehavior<SVGSVGElement, unknown> | null = null
+let nodeSelection: d3.Selection<any, any, any, any> | null = null
+let activeNodeLabel: string | null = null
 
 async function loadAndRender() {
   if (!svgRef.value) return
@@ -32,15 +39,17 @@ async function loadAndRender() {
   const height = svgRef.value.clientHeight || 500
 
   const g = svg.append('g')
+  svgSelection = svg
+  gSelection = g
 
   // Zoom
-  svg.call(
-    d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.2, 4])
-      .on('zoom', (event) => g.attr('transform', event.transform))
-  )
+  zoomBehavior = d3.zoom<SVGSVGElement, unknown>()
+    .scaleExtent([0.2, 4])
+    .on('zoom', (event) => g.attr('transform', event.transform))
+  svg.call(zoomBehavior)
 
   const nodes = data.nodes.map((n: any) => ({ ...n }))
+  nodesData = nodes
   const edges = data.edges.map((e: any) => ({ ...e }))
 
   simulation = d3.forceSimulation(nodes)
@@ -76,6 +85,8 @@ async function loadAndRender() {
       })
     )
     .on('click', (_event, d: any) => emit('navigate', d.label))
+
+  nodeSelection = node
 
   // Node circles
   node.append('circle')
@@ -114,6 +125,33 @@ async function loadAndRender() {
 watch(() => props.kbId, loadAndRender)
 onMounted(loadAndRender)
 onUnmounted(() => { if (simulation) simulation.stop() })
+
+function focusNode(title: string) {
+  if (!svgSelection || !zoomBehavior || !nodeSelection) return
+  const target = nodesData.find((n: any) => n.label === title)
+  if (!target || target.x == null || target.y == null) return
+
+  const width = svgRef.value?.clientWidth || 800
+  const height = svgRef.value?.clientHeight || 500
+
+  // Animate zoom to center on target node
+  const scale = 1.5
+  const tx = width / 2 - target.x * scale
+  const ty = height / 2 - target.y * scale
+  svgSelection.transition().duration(500)
+    .call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(scale))
+
+  // Highlight the target node, reset others
+  activeNodeLabel = title
+  nodeSelection.select('circle')
+    .transition().duration(300)
+    .attr('r', (d: any) => d.label === title ? 12 : (d.document_id ? 8 : 5))
+    .attr('fill', (d: any) => d.label === title ? '#e07020' : (d.document_id ? '#c25a3c' : '#d4c4b0'))
+    .attr('stroke', (d: any) => d.label === title ? '#fff5e0' : '#fff')
+    .attr('stroke-width', (d: any) => d.label === title ? 3 : 2)
+}
+
+defineExpose({ focusNode })
 </script>
 
 <template>
