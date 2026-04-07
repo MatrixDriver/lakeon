@@ -92,6 +92,43 @@
       </div>
     </div>
 
+    <!-- Journey guide banner (collapsible) -->
+    <div v-if="showGuide" style="margin-bottom: 20px; background: #faf8f5; border: 1px solid #e8e0d8; border-radius: 10px; padding: 20px 24px; position: relative;">
+      <button @click="showGuide = false" style="position: absolute; right: 12px; top: 10px; background: none; border: none; color: #bbb; cursor: pointer; font-size: 16px; padding: 2px 6px;" title="收起">&times;</button>
+      <div style="text-align: center; margin-bottom: 14px;">
+        <span style="font-size: 15px; font-weight: 600; color: #2c2420;">知识构建流程</span>
+        <span style="font-size: 12px; color: #999; margin-left: 12px;">上传文档，AI 自动整理为结构化的 Wiki 知识体系</span>
+      </div>
+      <div style="display: flex; gap: 10px; max-width: 640px; margin: 0 auto;">
+        <div class="guide-card">
+          <div class="guide-num" style="background: #c25a3c;">1</div>
+          <div class="guide-title">导入</div>
+          <div class="guide-desc">上传文件、目录或 URL</div>
+        </div>
+        <div style="display: flex; align-items: center; color: #d4c4b0;">&rarr;</div>
+        <div class="guide-card">
+          <div class="guide-num" style="background: #d4885a;">2</div>
+          <div class="guide-title">Wiki</div>
+          <div class="guide-desc">AI 自动生成 Wiki 和知识图谱</div>
+        </div>
+        <div style="display: flex; align-items: center; color: #d4c4b0;">&rarr;</div>
+        <div class="guide-card">
+          <div class="guide-num" style="background: #8c7a68;">3</div>
+          <div class="guide-title">对话</div>
+          <div class="guide-desc">向知识库提问，深度探索</div>
+        </div>
+        <div style="display: flex; align-items: center; color: #d4c4b0;">&rarr;</div>
+        <div class="guide-card">
+          <div class="guide-num" style="background: #a89080;">4</div>
+          <div class="guide-title">沉淀</div>
+          <div class="guide-desc">洞察保存回 Wiki</div>
+        </div>
+      </div>
+    </div>
+    <div v-if="!showGuide" style="margin-bottom: 12px;">
+      <button @click="showGuide = true" style="background: none; border: none; color: #9a5b25; cursor: pointer; font-size: 12px; padding: 0;">显示知识构建流程引导</button>
+    </div>
+
     <!-- Knowledge base list -->
 
     <!-- Card view -->
@@ -189,6 +226,7 @@ import CardMenu from '../../components/CardMenu.vue'
 
 const viewMode = ref<'card' | 'table'>('card')
 const knowledgeBases = ref<KnowledgeBase[]>([])
+const showGuide = ref(true)
 const showCreate = ref(false)
 const createForm = ref({
   name: '',
@@ -319,6 +357,37 @@ onMounted(loadKBs)
 </script>
 
 <style scoped>
+.guide-card {
+  flex: 1;
+  background: #fff;
+  border: 1px solid #e8e0d8;
+  border-radius: 8px;
+  padding: 14px 10px;
+  text-align: center;
+}
+.guide-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.guide-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #3d3d3d;
+  margin-bottom: 2px;
+}
+.guide-desc {
+  font-size: 11px;
+  color: #8c7a68;
+  line-height: 1.4;
+}
 .type-radio {
   display: flex;
   align-items: center;

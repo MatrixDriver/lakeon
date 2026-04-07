@@ -30,51 +30,7 @@
     </div>
 
     <!-- Overview Tab (default) -->
-    <!-- 引导 Tab (default) — clickable journey steps -->
-    <div v-if="activeTab === 'guide'" style="margin-top: 20px; display: flex; flex-direction: column; align-items: center;">
-      <div style="text-align: center; max-width: 700px;">
-        <h2 style="font-size: 18px; color: #2c2420; margin-bottom: 6px;">知识构建流程</h2>
-        <p style="color: #999; font-size: 13px; margin-bottom: 28px;">上传文档，AI 自动整理为结构化的 Wiki 知识体系</p>
-
-        <div style="display: flex; gap: 10px; margin-bottom: 28px;">
-          <!-- Step 1: 导入 -->
-          <div class="guide-step" @click="activeTab = 'doc'" style="border-color: #c25a3c; background: #fdf6f4;">
-            <div class="guide-step-num" style="background: #c25a3c;">1</div>
-            <div class="guide-step-title">导入</div>
-            <div class="guide-step-desc">上传文件、目录<br/>或导入 URL</div>
-          </div>
-          <div style="display: flex; align-items: center; color: #d4c4b0; font-size: 20px;">&rarr;</div>
-          <!-- Step 2: Wiki -->
-          <div class="guide-step" @click="activeTab = 'wiki'">
-            <div class="guide-step-num" style="background: #d4885a;">2</div>
-            <div class="guide-step-title">Wiki</div>
-            <div class="guide-step-desc">AI 自动生成<br/>Wiki 和知识图谱</div>
-          </div>
-          <div style="display: flex; align-items: center; color: #d4c4b0; font-size: 20px;">&rarr;</div>
-          <!-- Step 3: 对话 -->
-          <div class="guide-step" @click="router.push('/knowledge/chat')">
-            <div class="guide-step-num" style="background: #8c7a68;">3</div>
-            <div class="guide-step-title">对话</div>
-            <div class="guide-step-desc">向知识库提问<br/>深度探索</div>
-          </div>
-          <div style="display: flex; align-items: center; color: #d4c4b0; font-size: 20px;">&rarr;</div>
-          <!-- Step 4: 沉淀 -->
-          <div class="guide-step" @click="router.push('/knowledge/chat')">
-            <div class="guide-step-num" style="background: #a89080;">4</div>
-            <div class="guide-step-title">沉淀</div>
-            <div class="guide-step-desc">洞察保存回 Wiki<br/>知识越用越多</div>
-          </div>
-        </div>
-
-        <!-- KB summary if available -->
-        <div v-if="kb?.summary" style="text-align: left; background: #faf8f5; border: 1px solid #e8e0d8; border-radius: 8px; padding: 16px; margin-top: 8px;">
-          <div style="font-size: 13px; font-weight: 600; color: #5a4a3a; margin-bottom: 8px;">知识库摘要</div>
-          <div style="font-size: 13px; line-height: 1.8; color: #444; white-space: pre-wrap;">{{ kb.summary }}</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 概览 Tab -->
+    <!-- 概览 Tab (default) -->
     <div v-if="activeTab === 'overview'" style="margin-top: 24px;">
       <div class="section-card" style="max-width: 600px;">
         <div class="section-header">知识库信息</div>
@@ -487,7 +443,7 @@ const router = useRouter()
 const kb = ref<KBType | null>(null)
 const storageDisplay = ref('-')
 const documents = ref<Document[]>([])
-const activeTab = ref('guide')
+const activeTab = ref('overview')
 const uploading = ref(false)
 const uploadJustFinished = ref(false)
 const docLoading = ref(false)
@@ -575,7 +531,6 @@ function handleGraphNavigate(title: string) {
 }
 
 const tabs = [
-  { key: 'guide', label: '引导' },
   { key: 'overview', label: '概览' },
   { key: 'doc', label: '文档' },
   { key: 'wiki', label: 'Wiki' },
