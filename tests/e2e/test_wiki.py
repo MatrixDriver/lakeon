@@ -319,7 +319,8 @@ class TestKnowledgeSettlement:
                           headers=headers, verify=False, timeout=TIMEOUT)
             assert r.status_code == 200
             for p in r.json():
-                if save_title in (p.get("filename", "") + p.get("title", "")):
+                combined = (p.get("filename", "") + p.get("title", "")).lower()
+                if save_title.lower() in combined:
                     found_page = p
                     break
             if found_page:
