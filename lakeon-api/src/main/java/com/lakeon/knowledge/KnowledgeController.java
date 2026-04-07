@@ -3,6 +3,9 @@ package com.lakeon.knowledge;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.TenantEntity;
+import com.lakeon.repository.TenantRepository;
+import com.lakeon.service.exception.BadRequestException;
+import com.lakeon.service.exception.NotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +34,9 @@ public class KnowledgeController {
     private final WikiRunLogRepository wikiRunLogRepository;
     private final LakeonProperties lakeonProperties;
     private final ObjectMapper objectMapper;
+    private final KbAccessService kbAccessService;
+    private final KbShareRepository kbShareRepository;
+    private final TenantRepository tenantRepository;
 
     public KnowledgeController(KnowledgeService knowledgeService,
                                DocumentRepository documentRepository,
@@ -39,7 +45,10 @@ public class KnowledgeController {
                                WikiService wikiService,
                                WikiRunLogRepository wikiRunLogRepository,
                                LakeonProperties lakeonProperties,
-                               ObjectMapper objectMapper) {
+                               ObjectMapper objectMapper,
+                               KbAccessService kbAccessService,
+                               KbShareRepository kbShareRepository,
+                               TenantRepository tenantRepository) {
         this.knowledgeService = knowledgeService;
         this.documentRepository = documentRepository;
         this.kbWriteQueue = kbWriteQueue;
@@ -48,6 +57,9 @@ public class KnowledgeController {
         this.wikiRunLogRepository = wikiRunLogRepository;
         this.lakeonProperties = lakeonProperties;
         this.objectMapper = objectMapper;
+        this.kbAccessService = kbAccessService;
+        this.kbShareRepository = kbShareRepository;
+        this.tenantRepository = tenantRepository;
     }
 
     // ── Knowledge Base endpoints ─────────────────────────────────────
@@ -88,7 +100,14 @@ public class KnowledgeController {
     public List<Map<String, Object>> listKnowledgeBases(HttpServletRequest req) {
         TenantEntity tenant = getTenant(req);
         return knowledgeService.listKnowledgeBases(tenant.getId()).stream()
-                .map(this::toKbResponse)
+                .map(kb -> {
+                    Map<String, Object> m = toKbResponse(kb);
+                    m.put("is_shared", !kb.getTenantId().equals(tenant.getId()));
+                    if (!kb.getTenantId().equals(tenant.getId())) {
+                        tenantRepository.findById(kb.getTenantId()).ifPresent(t -> m.put("owner_name", t.getName()));
+                    }
+                    return m;
+                })
                 .toList();
     }
 
@@ -117,6 +136,73 @@ public class KnowledgeController {
         TenantEntity tenant = getTenant(req);
         KnowledgeBaseEntity kb = knowledgeService.deleteKnowledgeBase(tenant.getId(), id);
         return toKbResponse(kb);
+    }
+
+    // ── Share management endpoints ───────────────────────────────────
+
+    @GetMapping("/bases/{kbId}/shares")
+    public List<Map<String, Object>> listShares(HttpServletRequest req, @PathVariable String kbId) {
+        TenantEntity tenant = getTenant(req);
+        kbAccessService.getKbAdminOnly(kbId, tenant.getId());
+        List<KbShareEntity> shares = kbShareRepository.findAllByKbId(kbId);
+        return shares.stream().map(s -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", s.getId());
+            m.put("kb_id", s.getKbId());
+            m.put("tenant_id", s.getTenantId());
+            m.put("role", s.getRole().name().toLowerCase());
+            m.put("invited_by", s.getInvitedBy());
+            m.put("created_at", s.getCreatedAt().toString());
+            tenantRepository.findById(s.getTenantId()).ifPresent(t -> m.put("username", t.getUsername()));
+            return m;
+        }).toList();
+    }
+
+    @PostMapping("/bases/{kbId}/shares")
+    public Map<String, Object> createShare(HttpServletRequest req, @PathVariable String kbId,
+                                            @RequestBody Map<String, String> body) {
+        TenantEntity tenant = getTenant(req);
+        kbAccessService.getKbAdminOnly(kbId, tenant.getId());
+        String username = body.get("username");
+        if (username == null || username.isBlank()) {
+            throw new BadRequestException("username is required");
+        }
+        TenantEntity target = tenantRepository.findByUsername(username)
+                .orElseThrow(() -> new NotFoundException("User not found: " + username));
+        if (target.getId().equals(tenant.getId())) {
+            throw new BadRequestException("Cannot share with yourself");
+        }
+        if (kbShareRepository.findByKbIdAndTenantId(kbId, target.getId()).isPresent()) {
+            throw new BadRequestException("Already shared with this user");
+        }
+        KbShareEntity share = new KbShareEntity();
+        share.setKbId(kbId);
+        share.setTenantId(target.getId());
+        share.setRole(KbRole.MEMBER);
+        share.setInvitedBy(tenant.getId());
+        kbShareRepository.save(share);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", share.getId());
+        result.put("kb_id", share.getKbId());
+        result.put("tenant_id", share.getTenantId());
+        result.put("username", target.getUsername());
+        result.put("role", share.getRole().name().toLowerCase());
+        result.put("created_at", share.getCreatedAt().toString());
+        return result;
+    }
+
+    @DeleteMapping("/bases/{kbId}/shares/{shareId}")
+    public ResponseEntity<?> deleteShare(HttpServletRequest req, @PathVariable String kbId,
+                                          @PathVariable String shareId) {
+        TenantEntity tenant = getTenant(req);
+        kbAccessService.getKbAdminOnly(kbId, tenant.getId());
+        KbShareEntity share = kbShareRepository.findById(shareId)
+                .orElseThrow(() -> new NotFoundException("Share not found: " + shareId));
+        if (!share.getKbId().equals(kbId)) {
+            throw new NotFoundException("Share not found in this KB");
+        }
+        kbShareRepository.delete(share);
+        return ResponseEntity.ok(Map.of("deleted", true));
     }
 
     // ── Document endpoints ───────────────────────────────────────────
