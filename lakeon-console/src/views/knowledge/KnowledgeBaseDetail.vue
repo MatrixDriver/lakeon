@@ -54,13 +54,17 @@
         </div>
       </div>
 
-      <!-- KB settings (compact) -->
-      <div style="display: flex; gap: 24px; flex-wrap: wrap; font-size: 13px; color: #666; padding: 12px 16px; background: #faf8f5; border-radius: 8px; max-width: 700px;">
-        <span><span style="color: #999;">描述</span> {{ kb?.description || '-' }}</span>
-        <span><span style="color: #999;">Embedding</span> {{ kb?.embedding_model || 'BGE-M3' }}</span>
-        <span><span style="color: #999;">状态</span> <span class="status-tag" :class="'tag-' + (kb?.status === 'READY' ? 'green' : 'blue')">{{ kb?.status === 'READY' ? '就绪' : kb?.status }}</span></span>
-        <span><span style="color: #999;">创建</span> {{ kb?.created_at ? new Date(kb.created_at).toLocaleDateString('zh-CN') : '-' }}</span>
-        <span v-if="kb?.database_id"><span style="color: #999;">数据库</span> <router-link :to="'/databases/' + kb.database_id" style="color: #9a5b25; text-decoration: none;">{{ kb.database_id }}</router-link></span>
+      <!-- KB info (vertical) -->
+      <div style="font-size: 13px; color: #666; padding: 14px 16px; background: #faf8f5; border-radius: 8px; max-width: 500px; display: grid; grid-template-columns: 100px 1fr; gap: 8px 12px; align-items: baseline;">
+        <span style="color: #999;">描述</span><span>{{ kb?.description || '-' }}</span>
+        <span style="color: #999;">LLM 模型</span><span>DeepSeek V3.2</span>
+        <span style="color: #999;">Embedding</span><span>{{ kb?.embedding_model || 'BGE-M3' }}</span>
+        <span style="color: #999;">状态</span><span><span class="status-tag" :class="'tag-' + (kb?.status === 'READY' ? 'green' : 'blue')">{{ kb?.status === 'READY' ? '就绪' : kb?.status }}</span></span>
+        <span style="color: #999;">创建时间</span><span>{{ kb?.created_at ? new Date(kb.created_at).toLocaleString('zh-CN') : '-' }}</span>
+        <span style="color: #999;">最后更新</span><span>{{ kb?.updated_at ? new Date(kb.updated_at).toLocaleString('zh-CN') : '-' }}</span>
+        <template v-if="kb?.database_id">
+          <span style="color: #999;">底层数据库</span><span><router-link :to="'/databases/' + kb.database_id" style="color: #9a5b25; text-decoration: none;">{{ kb.database_id }}</router-link></span>
+        </template>
       </div>
 
       <!-- KB summary -->
