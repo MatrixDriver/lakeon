@@ -75,7 +75,7 @@
     </div>
 
     <!-- Wiki Tab -->
-    <div v-if="activeTab === 'wiki'" style="display: flex; height: calc(100vh - 140px); margin-top: 12px; position: relative;">
+    <div v-if="activeTab === 'wiki'" style="display: flex; height: calc(100vh - 196px); margin-top: 12px; position: relative;">
       <div style="flex: 1; overflow: hidden;">
         <WikiPage ref="wikiPageRef" :kb-id="(route.params.kbId as string)" @select="handlePageSelect" />
       </div>
@@ -106,7 +106,7 @@
     </div>
 
     <!-- Chat Tab (v-show to preserve state across tab switches) -->
-    <div v-show="activeTab === 'chat'" style="height: calc(100vh - 140px); margin-top: 12px;">
+    <div v-show="activeTab === 'chat'" style="height: calc(100vh - 196px); margin-top: 12px;">
       <WikiChat :kb-id="(route.params.kbId as string)" @navigate="handleGraphNavigate" />
     </div>
 
@@ -544,11 +544,7 @@ const uploading = ref(false)
 const uploadJustFinished = ref(false)
 const docLoading = ref(false)
 const wikiStats = ref<WikiStats | null>(null)
-const sourceDocCount = computed(() => {
-  const total = wikiStats.value?.document_count ?? kb.value?.document_count ?? 0
-  const wiki = wikiStats.value?.wiki_page_count ?? 0
-  return Math.max(0, total - wiki)
-})
+const sourceDocCount = computed(() => wikiStats.value?.source_doc_count ?? 0)
 
 interface UploadFileState {
   filename: string

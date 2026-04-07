@@ -25,7 +25,7 @@ fi
 
 SWR_REGION="${SWR_REGION:-cn-north-4}"
 SWR_ORG="${SWR_ORG:-flex}"
-IMAGE_TAG="${IMAGE_TAG:-0.9.210}"
+IMAGE_TAG="${IMAGE_TAG:-0.9.211}"
 IMAGE="swr.${SWR_REGION}.myhuaweicloud.com/${SWR_ORG}/lakeon-api:${IMAGE_TAG}"
 
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"

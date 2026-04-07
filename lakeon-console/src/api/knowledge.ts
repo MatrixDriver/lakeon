@@ -409,6 +409,7 @@ export function ingestUrl(kbId: string, url: string) {
 
 export interface WikiStats {
   document_count: number
+  source_doc_count: number
   wiki_page_count: number
   graph_nodes: number
   graph_edges: number

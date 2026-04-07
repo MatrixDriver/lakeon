@@ -514,8 +514,13 @@ public class KnowledgeController {
         @SuppressWarnings("unchecked")
         int graphEdges = ((List<?>) graph.get("edges")).size();
 
+        // Count source docs (raw type)
+        List<DocumentEntity> rawDocs = documentRepository.findByTenantIdAndKbIdAndDocType(tenant.getId(), kbId, "raw");
+        int sourceDocCount = rawDocs.size();
+
         Map<String, Object> stats = new LinkedHashMap<>();
         stats.put("document_count", kb.getDocumentCount() != null ? kb.getDocumentCount() : 0);
+        stats.put("source_doc_count", sourceDocCount);
         stats.put("wiki_page_count", wikiPageCount);
         stats.put("graph_nodes", graphNodes);
         stats.put("graph_edges", graphEdges);
