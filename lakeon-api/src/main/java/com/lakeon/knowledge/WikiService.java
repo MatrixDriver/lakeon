@@ -151,6 +151,7 @@ public class WikiService {
     private final KbWriteQueue kbWriteQueue;
     private final KnowledgeService knowledgeService;
     private final WikiRunLogRepository wikiRunLogRepository;
+    private final KbAccessService kbAccessService;
 
     public WikiService(LakeonProperties props,
                        ObjectMapper objectMapper,
@@ -159,7 +160,8 @@ public class WikiService {
                        KnowledgeBaseRepository knowledgeBaseRepository,
                        KbWriteQueue kbWriteQueue,
                        KnowledgeService knowledgeService,
-                       WikiRunLogRepository wikiRunLogRepository) {
+                       WikiRunLogRepository wikiRunLogRepository,
+                       KbAccessService kbAccessService) {
         this.props = props;
         this.objectMapper = objectMapper;
         this.chunkService = chunkService;
@@ -168,6 +170,7 @@ public class WikiService {
         this.kbWriteQueue = kbWriteQueue;
         this.knowledgeService = knowledgeService;
         this.wikiRunLogRepository = wikiRunLogRepository;
+        this.kbAccessService = kbAccessService;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -319,6 +322,8 @@ public class WikiService {
      * Save a chat response as a wiki page.
      */
     public void saveResponse(String tenantId, String kbId, String title, String content) {
+        KnowledgeBaseEntity kbAccess = kbAccessService.getKbWithAccess(kbId, tenantId);
+        tenantId = kbAccess.getTenantId();
         String filename = titleToFilename(title);
         writeWikiDocument(tenantId, kbId, filename, title, content);
         appendToLog(tenantId, kbId, "[对话沉淀] 保存页面: " + title);
@@ -340,6 +345,8 @@ public class WikiService {
      * Extract a wiki graph (nodes and edges) from wikilinks in all wiki pages.
      */
     public Map<String, Object> getGraph(String tenantId, String kbId) {
+        KnowledgeBaseEntity kb = kbAccessService.getKbWithAccess(kbId, tenantId);
+        tenantId = kb.getTenantId(); // resolve to KB owner for internal queries
         List<DocumentEntity> wikiDocs = documentRepository.findByTenantIdAndKbIdAndDocType(tenantId, kbId, DOC_TYPE_WIKI);
 
         List<Map<String, String>> nodes = new ArrayList<>();
@@ -387,6 +394,8 @@ public class WikiService {
 
     public Map<String, Object> ingestUrl(String tenantId, String kbId, String url,
                                           String prefetchedTitle, String prefetchedContent) {
+        KnowledgeBaseEntity kbAccess = kbAccessService.getKbWithAccess(kbId, tenantId);
+        tenantId = kbAccess.getTenantId();
         String text;
         String title;
 
@@ -555,6 +564,8 @@ public class WikiService {
      */
     public Map<String, Object> chat(String tenantId, String kbId, String question,
                                      List<Map<String, String>> history) {
+        KnowledgeBaseEntity kbAccess = kbAccessService.getKbWithAccess(kbId, tenantId);
+        tenantId = kbAccess.getTenantId();
         // 1. Read index.md to get an overview of available wiki pages
         String indexContent = readWikiPage(tenantId, kbId, "index.md");
         if (indexContent == null) {
@@ -950,10 +961,9 @@ public class WikiService {
      */
     private void writeWikiDocument(String tenantId, String kbId, String filename,
                                     String title, String content) {
-        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
-                .orElse(null);
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findById(kbId).orElse(null);
         if (kb == null) {
-            log.error("Knowledge base not found: {} for tenant {}", kbId, tenantId);
+            log.error("Knowledge base not found: {}", kbId);
             return;
         }
 
@@ -1006,8 +1016,7 @@ public class WikiService {
         if (docOpt.isEmpty()) return;
 
         DocumentEntity doc = docOpt.get();
-        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
-                .orElse(null);
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findById(kbId).orElse(null);
         if (kb == null) return;
 
         doc.setStatus(DocumentStatus.PROCESSING);
@@ -1235,6 +1244,8 @@ public class WikiService {
     public void chatStream(String tenantId, String kbId, String question,
                            List<Map<String, String>> history,
                            java.util.function.Consumer<String> onEvent) {
+        KnowledgeBaseEntity kbAccess = kbAccessService.getKbWithAccess(kbId, tenantId);
+        tenantId = kbAccess.getTenantId();
         // 1. Get all wiki page entities (single DB query, fast)
         List<DocumentEntity> wikiDocs = documentRepository.findByTenantIdAndKbIdAndDocType(
                 tenantId, kbId, DOC_TYPE_WIKI);
