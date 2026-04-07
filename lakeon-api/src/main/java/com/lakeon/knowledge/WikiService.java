@@ -227,6 +227,7 @@ public class WikiService {
     public void saveResponse(String tenantId, String kbId, String title, String content) {
         String filename = titleToFilename(title);
         writeWikiDocument(tenantId, kbId, filename, title, content);
+        appendToLog(tenantId, kbId, "[对话沉淀] 保存页面: " + title);
         log.info("Saved chat response as wiki page: {} in KB {}", title, kbId);
 
         // Increment settlement count
@@ -691,7 +692,7 @@ public class WikiService {
 
         // Append to log.md
         if (!logEntry.isBlank()) {
-            appendToLog(tenantId, kbId, logEntry);
+            appendToLog(tenantId, kbId, "[文档导入] " + logEntry);
         }
 
         log.info("Wiki update complete for KB {}: {} created, {} updated", kbId, created, updated);
