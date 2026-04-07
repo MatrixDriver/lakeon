@@ -704,6 +704,7 @@ public class KnowledgeController {
         map.put("database_id", doc.getDatabaseId());
         map.put("filename", doc.getFilename());
         map.put("format", doc.getFormat());
+        map.put("type", doc.getDocType());
         map.put("status", doc.getStatus() != null ? doc.getStatus().name() : null);
         map.put("obs_key", doc.getObsKey());
         map.put("size_bytes", doc.getSizeBytes());
