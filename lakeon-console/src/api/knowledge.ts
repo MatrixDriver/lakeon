@@ -394,3 +394,17 @@ export function ingestUrl(kbId: string, url: string) {
     kb_id: kbId, url
   })
 }
+
+export interface WikiStats {
+  document_count: number
+  wiki_page_count: number
+  graph_nodes: number
+  graph_edges: number
+  chat_count: number
+  settlement_count: number
+  llm_tokens_used: number
+}
+
+export function getWikiStats(kbId: string) {
+  return api.get<WikiStats>('/knowledge/wiki/stats', { params: { kb_id: kbId } })
+}

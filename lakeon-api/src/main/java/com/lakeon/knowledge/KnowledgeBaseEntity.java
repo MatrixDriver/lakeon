@@ -50,6 +50,18 @@ public class KnowledgeBaseEntity {
     @Column(name = "document_count")
     private Integer documentCount = 0;
 
+    @Column(name = "wiki_page_count")
+    private Integer wikiPageCount = 0;
+
+    @Column(name = "chat_count")
+    private Integer chatCount = 0;
+
+    @Column(name = "settlement_count")
+    private Integer settlementCount = 0;
+
+    @Column(name = "llm_tokens_used")
+    private Long llmTokensUsed = 0L;
+
     @Column(name = "db_password", length = 256)
     private String dbPassword;
 
@@ -125,4 +137,16 @@ public class KnowledgeBaseEntity {
 
     public Instant getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+
+    public Integer getWikiPageCount() { return wikiPageCount; }
+    public void setWikiPageCount(Integer wikiPageCount) { this.wikiPageCount = wikiPageCount; }
+
+    public Integer getChatCount() { return chatCount; }
+    public void setChatCount(Integer chatCount) { this.chatCount = chatCount; }
+
+    public Integer getSettlementCount() { return settlementCount; }
+    public void setSettlementCount(Integer settlementCount) { this.settlementCount = settlementCount; }
+
+    public Long getLlmTokensUsed() { return llmTokensUsed; }
+    public void setLlmTokensUsed(Long llmTokensUsed) { this.llmTokensUsed = llmTokensUsed; }
 }

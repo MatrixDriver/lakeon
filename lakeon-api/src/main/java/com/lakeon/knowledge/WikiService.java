@@ -228,6 +228,17 @@ public class WikiService {
         String filename = titleToFilename(title);
         writeWikiDocument(tenantId, kbId, filename, title, content);
         log.info("Saved chat response as wiki page: {} in KB {}", title, kbId);
+
+        // Increment settlement count
+        try {
+            KnowledgeBaseEntity kbEntity = knowledgeBaseRepository.findById(kbId).orElse(null);
+            if (kbEntity != null) {
+                kbEntity.setSettlementCount((kbEntity.getSettlementCount() != null ? kbEntity.getSettlementCount() : 0) + 1);
+                knowledgeBaseRepository.save(kbEntity);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to increment settlement count: {}", e.getMessage());
+        }
     }
 
     /**
@@ -494,7 +505,18 @@ public class WikiService {
         String answerPrompt = buildAnswerPrompt(question, history, wikiContext.toString(), rawContext.toString());
         String answer = callDeepSeekText(answerPrompt);
 
-        // 7. Return result
+        // 7. Increment chat count
+        try {
+            KnowledgeBaseEntity kbEntity = knowledgeBaseRepository.findById(kbId).orElse(null);
+            if (kbEntity != null) {
+                kbEntity.setChatCount((kbEntity.getChatCount() != null ? kbEntity.getChatCount() : 0) + 1);
+                knowledgeBaseRepository.save(kbEntity);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to increment chat count: {}", e.getMessage());
+        }
+
+        // 8. Return result
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("answer", answer != null ? answer : "");
         result.put("depth", depth);

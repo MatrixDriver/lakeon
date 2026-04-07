@@ -490,6 +490,36 @@ public class KnowledgeController {
 
     // ── Wiki endpoints ───────────────────────────────────────────────
 
+    @GetMapping("/wiki/stats")
+    public ResponseEntity<?> getWikiStats(HttpServletRequest req,
+                                           @RequestParam("kb_id") String kbId) {
+        TenantEntity tenant = getTenant(req);
+        KnowledgeBaseEntity kb = knowledgeService.getKnowledgeBase(tenant.getId(), kbId);
+
+        // Count wiki pages
+        List<DocumentEntity> wikiDocs = knowledgeService.listWikiPages(tenant.getId(), kbId);
+        int wikiPageCount = (int) wikiDocs.stream()
+            .filter(d -> !"index.md".equals(d.getFilename()) && !"log.md".equals(d.getFilename()))
+            .count();
+
+        // Get graph stats
+        Map<String, Object> graph = wikiService.getGraph(tenant.getId(), kbId);
+        @SuppressWarnings("unchecked")
+        int graphNodes = ((List<?>) graph.get("nodes")).size();
+        @SuppressWarnings("unchecked")
+        int graphEdges = ((List<?>) graph.get("edges")).size();
+
+        Map<String, Object> stats = new LinkedHashMap<>();
+        stats.put("document_count", kb.getDocumentCount() != null ? kb.getDocumentCount() : 0);
+        stats.put("wiki_page_count", wikiPageCount);
+        stats.put("graph_nodes", graphNodes);
+        stats.put("graph_edges", graphEdges);
+        stats.put("chat_count", kb.getChatCount() != null ? kb.getChatCount() : 0);
+        stats.put("settlement_count", kb.getSettlementCount() != null ? kb.getSettlementCount() : 0);
+        stats.put("llm_tokens_used", kb.getLlmTokensUsed() != null ? kb.getLlmTokensUsed() : 0);
+        return ResponseEntity.ok(stats);
+    }
+
     @GetMapping("/wiki/pages")
     public ResponseEntity<?> listWikiPages(HttpServletRequest req,
                                            @RequestParam("kb_id") String kbId) {
@@ -600,6 +630,9 @@ public class KnowledgeController {
         map.put("status", kb.getStatus() != null ? kb.getStatus().name() : null);
         map.put("embedding_model", kb.getEmbeddingModel());
         map.put("document_count", kb.getDocumentCount());
+        map.put("chat_count", kb.getChatCount());
+        map.put("settlement_count", kb.getSettlementCount());
+        map.put("llm_tokens_used", kb.getLlmTokensUsed());
         map.put("error", kb.getError());
         map.put("created_at", kb.getCreatedAt() != null ? kb.getCreatedAt().toString() : null);
         map.put("updated_at", kb.getUpdatedAt() != null ? kb.getUpdatedAt().toString() : null);

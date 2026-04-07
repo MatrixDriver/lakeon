@@ -26,6 +26,41 @@
     <!-- Overview Tab (default) -->
     <!-- 概览 Tab (default) -->
     <div v-if="activeTab === 'overview'" style="margin-top: 24px;">
+      <!-- Stats cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px;">
+        <div class="stat-card">
+          <div class="stat-value">{{ wikiStats?.document_count ?? kb?.document_count ?? 0 }}</div>
+          <div class="stat-label">文档数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ wikiStats?.wiki_page_count ?? 0 }}</div>
+          <div class="stat-label">Wiki 页面</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ wikiStats?.graph_nodes ?? 0 }}</div>
+          <div class="stat-label">图谱节点</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ wikiStats?.graph_edges ?? 0 }}</div>
+          <div class="stat-label">图谱关系</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ wikiStats?.chat_count ?? 0 }}</div>
+          <div class="stat-label">对话次数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ wikiStats?.settlement_count ?? 0 }}</div>
+          <div class="stat-label">沉淀次数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ formatTokens(wikiStats?.llm_tokens_used ?? 0) }}</div>
+          <div class="stat-label">LLM Tokens</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ storageDisplay }}</div>
+          <div class="stat-label">存储大小</div>
+        </div>
+      </div>
       <div class="section-card" style="max-width: 600px;">
         <div class="section-header">知识库信息</div>
         <div style="padding: 16px; display: grid; grid-template-columns: 120px 1fr; gap: 12px; font-size: 14px;">
@@ -73,6 +108,11 @@
       <button v-if="!showGraph"
         style="position: absolute; right: 12px; top: 12px; padding: 4px 10px; font-size: 11px; border: 1px solid #e0d8ce; border-radius: 4px; background: #fff; color: #8c7a68; cursor: pointer; z-index: 2;"
         @click="showGraph = true">图谱</button>
+    </div>
+
+    <!-- Chat Tab -->
+    <div v-if="activeTab === 'chat'" style="height: calc(100vh - 140px); margin-top: 12px;">
+      <WikiChat :kb-id="(route.params.kbId as string)" @navigate="handleGraphNavigate" />
     </div>
 
     <!-- Document Tab -->
@@ -438,10 +478,11 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getKnowledgeBase, listDocuments, listFolders, getDocumentStats, deleteDocument, clearAllDocuments, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, ingestUrl, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, type KnowledgeBase as KBType, type Document, type DocumentStats, type DataSource, type DataSourceCredentials, type Folder } from '../../api/knowledge'
+import { getKnowledgeBase, listDocuments, listFolders, getDocumentStats, deleteDocument, clearAllDocuments, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, ingestUrl, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, getWikiStats, type KnowledgeBase as KBType, type Document, type DocumentStats, type DataSource, type DataSourceCredentials, type Folder, type WikiStats } from '../../api/knowledge'
 import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
 import WikiPage from './WikiPage.vue'
 import WikiGraph from './WikiGraph.vue'
+import WikiChat from './WikiChat.vue'
 // WikiChat moved to standalone page /knowledge/chat
 import { formatSize } from '../../utils/format'
 import { databaseApi } from '../../api/database'
@@ -455,10 +496,27 @@ const documents = ref<Document[]>([])
 const validTabs = ['overview', 'doc', 'wiki']
 const hashTab = window.location.hash.replace('#', '')
 const activeTab = ref(validTabs.includes(hashTab) ? hashTab : 'overview')
-watch(activeTab, (tab) => { window.location.hash = tab })
+watch(activeTab, async (tab) => {
+  window.location.hash = tab
+  if (tab === 'overview' && !wikiStats.value) {
+    try {
+      const res = await getWikiStats(route.params.kbId as string)
+      wikiStats.value = res.data
+    } catch (e) {
+      console.warn('Failed to load wiki stats', e)
+    }
+  }
+})
+
+function formatTokens(tokens: number): string {
+  if (tokens >= 1000000) return (tokens / 1000000).toFixed(1) + 'M'
+  if (tokens >= 1000) return (tokens / 1000).toFixed(1) + 'K'
+  return String(tokens)
+}
 const uploading = ref(false)
 const uploadJustFinished = ref(false)
 const docLoading = ref(false)
+const wikiStats = ref<WikiStats | null>(null)
 
 interface UploadFileState {
   filename: string
@@ -546,6 +604,7 @@ const tabs = [
   { key: 'overview', label: '概览' },
   { key: 'doc', label: '文档' },
   { key: 'wiki', label: 'Wiki' },
+  { key: 'chat', label: '对话' },
 ]
 
 const showGraph = ref(true)
@@ -1050,6 +1109,10 @@ onMounted(async () => {
     loadFolders().catch(() => {}),
   ])
   kb.value = kbResp.data
+  // Load wiki stats for overview tab
+  if (activeTab.value === 'overview') {
+    getWikiStats(kbId).then(res => { wikiStats.value = res.data }).catch(() => {})
+  }
   if (kbResp.data.database_id) {
     databaseApi.get(kbResp.data.database_id).then(dbResp => {
       const gb = dbResp.data.storage_used_gb
@@ -1429,5 +1492,22 @@ onMounted(async () => {
 }
 .breadcrumb-link:hover {
   text-decoration: underline;
+}
+.stat-card {
+  background: #faf8f5;
+  border: 1px solid #e8e0d8;
+  border-radius: 8px;
+  padding: 14px 16px;
+  text-align: center;
+}
+.stat-value {
+  font-size: 22px;
+  font-weight: 600;
+  color: #2c2420;
+  margin-bottom: 4px;
+}
+.stat-label {
+  font-size: 12px;
+  color: #8c7a68;
 }
 </style>
