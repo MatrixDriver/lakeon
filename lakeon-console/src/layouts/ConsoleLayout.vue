@@ -426,15 +426,17 @@ onUnmounted(() => {
   color: #64748b;
 }
 
-.nav-item.active {
-  color: #2a4d6a;
+.nav-item.active,
+.nav-item.router-link-active {
+  color: #9a5b25;
   font-weight: 600;
-  background-color: #f0f4f8;
-  border-right-color: #2a4d6a;
+  background-color: #f5efe8;
+  border-right: 3px solid #c25a3c;
 }
 
-.nav-item.active svg {
-  color: #2a4d6a;
+.nav-item.active svg,
+.nav-item.router-link-active svg {
+  color: #9a5b25;
 }
 
 .nav-separator {
