@@ -497,6 +497,12 @@ public class KnowledgeService {
                     }
                 }
 
+                // Set file size if provided
+                Object sizeObj = fileSpec.get("size");
+                if (sizeObj instanceof Number) {
+                    doc.setSizeBytes(((Number) sizeObj).longValue());
+                }
+
                 if (tags != null && !tags.isEmpty()) {
                     doc.setTags(tags);
                 }

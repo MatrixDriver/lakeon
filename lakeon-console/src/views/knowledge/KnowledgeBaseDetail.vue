@@ -218,6 +218,17 @@
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                   <span style="font-weight: 500;">{{ doc.filename }}</span>
                   <span v-for="tag in (doc.tags || [])" :key="tag" class="tag-badge">{{ tag }}</span>
+                  <a v-if="doc.metadata?.source_url"
+                     :href="doc.metadata.source_url" target="_blank" rel="noopener"
+                     class="source-url-link" :title="doc.metadata.source_url"
+                     @click.stop>
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                      <polyline points="15 3 21 3 21 9"/>
+                      <line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                    <span>来源</span>
+                  </a>
                   <button class="btn-icon" title="编辑标签" @click.stop="openTagDialog(doc)">
                     <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -814,7 +825,7 @@ async function runBatchUpload(files: File[]) {
 
       // Get presigned URLs for this batch, including folder from webkitRelativePath
       const fileSpecs = batchFiles.map(f => {
-        const spec: { filename: string; folder?: string } = { filename: f.name }
+        const spec: { filename: string; folder?: string; size?: number } = { filename: f.name, size: f.size }
         if ((f as any).webkitRelativePath) {
           const parts = (f as any).webkitRelativePath.split('/')
           if (parts.length > 1) {
@@ -1114,6 +1125,23 @@ onMounted(async () => {
   color: #9a5b25;
   border: 1px solid #b3d4f7;
   white-space: nowrap;
+}
+.source-url-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: #1890ff;
+  text-decoration: none;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: #f0f7ff;
+  border: 1px solid #d0e4f7;
+  white-space: nowrap;
+}
+.source-url-link:hover {
+  background: #e0efff;
+  color: #096dd9;
 }
 .btn-icon {
   display: inline-flex;
