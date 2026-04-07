@@ -1,5 +1,6 @@
 package com.lakeon.knowledge;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.TenantEntity;
 import jakarta.servlet.http.HttpServletRequest;
@@ -9,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,19 +27,22 @@ public class KnowledgeController {
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final WikiService wikiService;
     private final LakeonProperties lakeonProperties;
+    private final ObjectMapper objectMapper;
 
     public KnowledgeController(KnowledgeService knowledgeService,
                                DocumentRepository documentRepository,
                                KbWriteQueue kbWriteQueue,
                                KnowledgeBaseRepository knowledgeBaseRepository,
                                WikiService wikiService,
-                               LakeonProperties lakeonProperties) {
+                               LakeonProperties lakeonProperties,
+                               ObjectMapper objectMapper) {
         this.knowledgeService = knowledgeService;
         this.documentRepository = documentRepository;
         this.kbWriteQueue = kbWriteQueue;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.wikiService = wikiService;
         this.lakeonProperties = lakeonProperties;
+        this.objectMapper = objectMapper;
     }
 
     // ── Knowledge Base endpoints ─────────────────────────────────────
@@ -558,6 +563,53 @@ public class KnowledgeController {
         List<Map<String, String>> history = (List<Map<String, String>>) body.get("history");
         Map<String, Object> result = wikiService.chat(tenant.getId(), kbId, question, history);
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/wiki/chat/stream")
+    @SuppressWarnings("unchecked")
+    public SseEmitter wikiChatStream(HttpServletRequest req,
+                                     @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        String kbId = (String) body.get("kb_id");
+        String question = (String) body.get("question");
+        if (question == null || question.isBlank()) {
+            throw new com.lakeon.service.exception.BadRequestException("question is required");
+        }
+        List<Map<String, String>> history = (List<Map<String, String>>) body.getOrDefault("history", List.of());
+
+        var emitter = new SseEmitter(120_000L);
+
+        new Thread(() -> {
+            try {
+                wikiService.chatStream(tenant.getId(), kbId, question, history, event -> {
+                    try {
+                        emitter.send(SseEmitter.event().data(event));
+                    } catch (Exception e) {
+                        // client disconnected
+                    }
+                });
+                emitter.send(SseEmitter.event().data("[DONE]"));
+                emitter.complete();
+            } catch (Exception e) {
+                try {
+                    emitter.send(SseEmitter.event().data(
+                            "{\"type\":\"error\",\"message\":\"" +
+                            e.getMessage().replace("\"", "\\\"") + "\"}"));
+                } catch (Exception ignored) {}
+                emitter.complete();
+            }
+
+            // Increment chat count
+            try {
+                KnowledgeBaseEntity kbEntity = knowledgeBaseRepository.findById(kbId).orElse(null);
+                if (kbEntity != null) {
+                    kbEntity.setChatCount((kbEntity.getChatCount() != null ? kbEntity.getChatCount() : 0) + 1);
+                    knowledgeBaseRepository.save(kbEntity);
+                }
+            } catch (Exception ignored) {}
+        }).start();
+
+        return emitter;
     }
 
     @PostMapping("/wiki/save-response")

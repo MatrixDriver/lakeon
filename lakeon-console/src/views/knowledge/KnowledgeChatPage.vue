@@ -1,10 +1,18 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { listKnowledgeBases } from '@/api/knowledge'
 import WikiChat from './WikiChat.vue'
 
+const router = useRouter()
 const knowledgeBases = ref<any[]>([])
 const selectedKbId = ref('')
+
+function handleNavigate(_title: string) {
+  if (selectedKbId.value) {
+    router.push(`/knowledge/${selectedKbId.value}#wiki`)
+  }
+}
 
 onMounted(async () => {
   try {
@@ -30,7 +38,7 @@ onMounted(async () => {
     </div>
     <!-- Chat -->
     <div style="flex: 1; overflow: hidden;">
-      <WikiChat v-if="selectedKbId" :kb-id="selectedKbId" @navigate="() => {}" />
+      <WikiChat v-if="selectedKbId" :kb-id="selectedKbId" @navigate="handleNavigate" />
       <div v-else style="padding: 40px; text-align: center; color: #b0a090;">请先选择一个知识库</div>
     </div>
   </div>

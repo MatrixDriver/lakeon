@@ -982,6 +982,176 @@ public class WikiService {
     }
 
     /**
+     * Streaming wiki chat — returns SSE events for real-time answer display.
+     * Step 1 (routing) runs synchronously, then Step 2 streams the answer.
+     */
+    public void chatStream(String tenantId, String kbId, String question,
+                           List<Map<String, String>> history,
+                           java.util.function.Consumer<String> onEvent) {
+        // 1. Read index.md to get an overview of available wiki pages
+        String indexContent = readWikiPage(tenantId, kbId, "index.md");
+        if (indexContent == null) {
+            indexContent = "# Wiki Index\n\nNo pages yet.\n";
+        }
+        if (indexContent.length() > MAX_INDEX_CHARS) {
+            indexContent = indexContent.substring(0, MAX_INDEX_CHARS);
+        }
+
+        // 2. Routing: ask LLM which pages are relevant and whether this is simple or deep
+        String routingPrompt = buildRoutingPrompt(indexContent, question);
+        String routingResponse = callDeepSeek(routingPrompt);
+
+        // 3. Parse routing response
+        List<String> relevantPages = new ArrayList<>();
+        String depth = "simple";
+        try {
+            JsonNode routing = objectMapper.readTree(routingResponse);
+            JsonNode pagesNode = routing.path("relevant_pages");
+            if (pagesNode.isArray()) {
+                for (JsonNode p : pagesNode) {
+                    String pageName = p.asText("").trim();
+                    if (!pageName.isBlank()) {
+                        relevantPages.add(pageName);
+                    }
+                }
+            }
+            String depthVal = routing.path("depth").asText("simple").trim().toLowerCase();
+            if ("deep".equals(depthVal)) {
+                depth = "deep";
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse routing response, falling back to defaults: {}", e.getMessage());
+        }
+        log.debug("Wiki chat stream routing: depth={}, pages={}", depth, relevantPages);
+
+        // 4. Read relevant wiki pages
+        StringBuilder wikiContext = new StringBuilder();
+        List<String> sources = new ArrayList<>();
+        for (String pageTitle : relevantPages) {
+            String filename = titleToFilename(pageTitle);
+            String pageContent = readWikiPage(tenantId, kbId, filename);
+            if (pageContent != null && !pageContent.isBlank()) {
+                wikiContext.append("### ").append(pageTitle).append("\n");
+                wikiContext.append(pageContent, 0, Math.min(pageContent.length(), 4000));
+                wikiContext.append("\n\n");
+                sources.add(pageTitle);
+            }
+        }
+
+        // 5. For deep questions, also search raw chunks
+        StringBuilder rawContext = new StringBuilder();
+        if ("deep".equals(depth)) {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> searchResult = knowledgeService.search(
+                        tenantId, kbId, question, 10,
+                        null, null, null, null, false, null);
+                Object resultsObj = searchResult.get("results");
+                if (resultsObj instanceof List<?> resultList) {
+                    for (Object item : resultList) {
+                        if (item instanceof Map<?, ?> resultMap) {
+                            Object contentObj = resultMap.get("content");
+                            if (contentObj instanceof String content && !content.isBlank()) {
+                                rawContext.append(content, 0, Math.min(content.length(), 800));
+                                rawContext.append("\n\n");
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Raw chunk search failed during wiki chat stream: {}", e.getMessage());
+            }
+        }
+
+        // 6. Send metadata event first
+        try {
+            String metaJson = objectMapper.writeValueAsString(
+                    Map.of("type", "meta", "depth", depth, "sources", sources));
+            onEvent.accept(metaJson);
+        } catch (Exception e) {
+            log.warn("Failed to send meta event: {}", e.getMessage());
+        }
+
+        // 7. Build answer prompt and stream the answer
+        String answerPrompt = buildAnswerPrompt(question, history, wikiContext.toString(), rawContext.toString());
+        callDeepSeekStream(answerPrompt, chunk -> {
+            try {
+                String chunkJson = objectMapper.writeValueAsString(
+                        Map.of("type", "chunk", "content", chunk));
+                onEvent.accept(chunkJson);
+            } catch (Exception e) {
+                log.warn("Failed to send chunk event: {}", e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Call DeepSeek LLM with streaming (SSE). Emits content chunks via onChunk callback.
+     */
+    private void callDeepSeekStream(String prompt,
+                                     java.util.function.Consumer<String> onChunk) {
+        String apiKey = getWikiApiKey();
+        String baseUrl = getWikiBaseUrl();
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new RuntimeException("Wiki/AI API key not configured, cannot run wiki agent");
+        }
+
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        requestBody.put("model", getModel());
+        requestBody.put("messages", List.of(
+                Map.of("role", "user", "content", prompt)
+        ));
+        requestBody.put("max_tokens", 4096);
+        requestBody.put("temperature", 0.3);
+        requestBody.put("stream", true);
+
+        try {
+            String body = objectMapper.writeValueAsString(requestBody);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/chat/completions"))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + apiKey)
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .timeout(Duration.ofSeconds(120))
+                    .build();
+
+            HttpResponse<java.io.InputStream> response = httpClient.send(request,
+                    HttpResponse.BodyHandlers.ofInputStream());
+
+            if (response.statusCode() != 200) {
+                byte[] errBytes = response.body().readAllBytes();
+                throw new RuntimeException("DeepSeek stream API returned " + response.statusCode()
+                        + ": " + new String(errBytes, StandardCharsets.UTF_8));
+            }
+
+            try (var reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.startsWith("data: ")) {
+                        String data = line.substring(6).trim();
+                        if ("[DONE]".equals(data)) break;
+                        try {
+                            JsonNode node = objectMapper.readTree(data);
+                            String content = node.path("choices").path(0)
+                                    .path("delta").path("content").asText("");
+                            if (!content.isEmpty()) {
+                                onChunk.accept(content);
+                            }
+                        } catch (Exception e) {
+                            // skip malformed chunks
+                        }
+                    }
+                }
+            }
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("LLM stream failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Convert a wiki page title to a filename: "Database Sharding" -> "database-sharding.md"
      */
     static String titleToFilename(String title) {

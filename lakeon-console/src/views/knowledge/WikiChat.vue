@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
-import { wikiChat, saveWikiResponse } from '@/api/knowledge'
+import { wikiChatStream, saveWikiResponse } from '@/api/knowledge'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 
 const props = defineProps<{ kbId: string }>()
@@ -29,24 +29,61 @@ async function send() {
   loading.value = true
   await scrollToBottom()
 
+  // Add empty assistant message that will be filled incrementally
+  const assistantMsg: Message = {
+    role: 'assistant',
+    content: '',
+    saved: false,
+    saving: false,
+  }
+  messages.value.push(assistantMsg)
+
   try {
-    const history = messages.value.slice(0, -1).map(m => ({
+    const history = messages.value.slice(0, -2).map(m => ({
       role: m.role, content: m.content
     }))
-    const resp = await wikiChat(props.kbId, question, history)
-    messages.value.push({
-      role: 'assistant',
-      content: resp.data.answer,
-      depth: resp.data.depth,
-      sources: resp.data.sources,
-      saved: false,
-      saving: false
-    })
+
+    const response = await wikiChatStream(props.kbId, question, history)
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        // SSE format: "data:" prefix
+        if (!line.startsWith('data:')) continue
+        const data = line.slice(5).trim()
+        if (data === '[DONE]' || !data) continue
+
+        try {
+          const parsed = JSON.parse(data)
+          if (parsed.type === 'meta') {
+            assistantMsg.depth = parsed.depth
+            assistantMsg.sources = parsed.sources
+          } else if (parsed.type === 'chunk') {
+            assistantMsg.content += parsed.content
+            if (assistantMsg.content.length % 50 < 5) {
+              await scrollToBottom()
+            }
+          } else if (parsed.type === 'error') {
+            assistantMsg.content = '抱歉，出错了: ' + parsed.message
+          }
+        } catch { /* skip malformed */ }
+      }
+    }
   } catch (e: any) {
-    messages.value.push({
-      role: 'assistant',
-      content: '抱歉，出错了: ' + (e?.response?.data?.error?.message || e.message || '未知错误')
-    })
+    if (!assistantMsg.content) {
+      assistantMsg.content = '抱歉，出错了: ' + (e.message || '未知错误')
+    }
   } finally {
     loading.value = false
     await scrollToBottom()
@@ -83,7 +120,7 @@ async function scrollToBottom() {
 </script>
 
 <template>
-  <div style="display: flex; flex-direction: column; height: 500px;">
+  <div style="display: flex; flex-direction: column; height: 100%;">
     <!-- Messages -->
     <div ref="messagesEl" style="flex: 1; overflow-y: auto; padding: 16px;">
       <div v-if="messages.length === 0" style="color: #b0a090; text-align: center; padding: 40px 0;">

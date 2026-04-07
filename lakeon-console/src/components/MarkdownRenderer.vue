@@ -28,7 +28,7 @@ md.inline.ruler.push('wikilink', wikilinkRule)
 md.renderer.rules.wikilink = (tokens: any, idx: number) => {
   const title = tokens[idx].content
   const escaped = title.replace(/"/g, '&quot;')
-  return `<a class="wikilink" data-title="${escaped}" href="javascript:void(0)">${title}</a>`
+  return `<a class="wikilink" data-title="${escaped}" href="#">${title}</a>`
 }
 
 const rendered = computed(() => md.render(props.content || ''))
@@ -36,6 +36,7 @@ const rendered = computed(() => md.render(props.content || ''))
 function handleClick(e: Event) {
   const target = e.target as HTMLElement
   if (target.classList.contains('wikilink')) {
+    e.preventDefault()
     const title = target.getAttribute('data-title')
     if (title) emit('navigate', title)
   }
