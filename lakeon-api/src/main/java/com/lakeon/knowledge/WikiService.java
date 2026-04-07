@@ -382,54 +382,68 @@ public class WikiService {
      * Falls back to Jina Reader for JavaScript-rendered pages.
      */
     public Map<String, Object> ingestUrl(String tenantId, String kbId, String url) {
-        // 1. Try direct fetch first
-        String text = null;
-        String title = "Untitled";
-        boolean usedJina = false;
+        return ingestUrl(tenantId, kbId, url, null, null);
+    }
 
-        try {
-            String[] extracted = fetchAndExtract(url);
-            title = extracted[0];
-            text = extracted[1];
-        } catch (Exception e) {
-            log.warn("Direct fetch failed for {}: {}", url, e.getMessage());
-        }
+    public Map<String, Object> ingestUrl(String tenantId, String kbId, String url,
+                                          String prefetchedTitle, String prefetchedContent) {
+        String text;
+        String title;
 
-        // 2. Fallback to Jina Reader if content is too short or fetch failed
-        if (text == null || text.length() < 200) {
-            log.info("Direct fetch insufficient for {}, trying Jina Reader", url);
+        if (prefetchedContent != null && !prefetchedContent.isBlank()) {
+            // Content was fetched by the browser (avoids server-side network restrictions)
+            text = prefetchedContent;
+            title = (prefetchedTitle != null && !prefetchedTitle.isBlank()) ? prefetchedTitle : "Untitled";
+            log.info("URL ingest for {} using browser-prefetched content: {} chars", url, text.length());
+        } else {
+            // 1. Try direct server-side fetch first
+            text = null;
+            title = "Untitled";
+            boolean usedJina = false;
+
             try {
-                String jinaUrl = "https://r.jina.ai/" + url;
-                HttpRequest jinaReq = HttpRequest.newBuilder()
-                        .uri(URI.create(jinaUrl))
-                        .header("User-Agent", "Mozilla/5.0")
-                        .header("Accept", "text/plain,text/markdown,*/*")
-                        .timeout(Duration.ofSeconds(45))
-                        .GET()
-                        .build();
-                HttpResponse<String> jinaResp = httpClient.send(jinaReq,
-                        HttpResponse.BodyHandlers.ofString());
-                if (jinaResp.statusCode() == 200 && jinaResp.body().length() > 200) {
-                    String body = jinaResp.body();
-                    // Jina prepends metadata lines like "Title: ...\nURL Source: ...\n"
-                    java.util.regex.Matcher tm = java.util.regex.Pattern
-                            .compile("(?m)^Title:\\s*(.+)$").matcher(body);
-                    if (tm.find()) title = tm.group(1).strip();
-                    text = body;
-                    usedJina = true;
-                    log.info("Jina Reader succeeded for {}: {} chars", url, text.length());
-                }
+                String[] extracted = fetchAndExtract(url);
+                title = extracted[0];
+                text = extracted[1];
             } catch (Exception e) {
-                log.warn("Jina Reader also failed for {}: {}", url, e.getMessage());
+                log.warn("Direct fetch failed for {}: {}", url, e.getMessage());
             }
-        }
 
-        if (text == null || text.length() < 100) {
-            throw new RuntimeException("Failed to fetch URL: page content is too short or requires login. " +
-                    (usedJina ? "" : "Try again — if the page is JavaScript-rendered, Jina Reader will be used automatically."));
-        }
+            // 2. Fallback to Jina Reader if content is too short or fetch failed
+            if (text == null || text.length() < 200) {
+                log.info("Direct fetch insufficient for {}, trying Jina Reader", url);
+                try {
+                    String jinaUrl = "https://r.jina.ai/" + url;
+                    HttpRequest jinaReq = HttpRequest.newBuilder()
+                            .uri(URI.create(jinaUrl))
+                            .header("User-Agent", "Mozilla/5.0")
+                            .header("Accept", "text/plain,text/markdown,*/*")
+                            .timeout(Duration.ofSeconds(45))
+                            .GET()
+                            .build();
+                    HttpResponse<String> jinaResp = httpClient.send(jinaReq,
+                            HttpResponse.BodyHandlers.ofString());
+                    if (jinaResp.statusCode() == 200 && jinaResp.body().length() > 200) {
+                        String body = jinaResp.body();
+                        // Jina prepends metadata lines like "Title: ...\nURL Source: ...\n"
+                        java.util.regex.Matcher tm = java.util.regex.Pattern
+                                .compile("(?m)^Title:\\s*(.+)$").matcher(body);
+                        if (tm.find()) title = tm.group(1).strip();
+                        text = body;
+                        usedJina = true;
+                        log.info("Jina Reader succeeded for {}: {} chars", url, text.length());
+                    }
+                } catch (Exception e) {
+                    log.warn("Jina Reader also failed for {}: {}", url, e.getMessage());
+                }
+            }
 
-        log.info("URL ingest for {}: {} chars, via {}", url, text.length(), usedJina ? "Jina" : "direct");
+            if (text == null || text.length() < 100) {
+                throw new RuntimeException("Failed to fetch URL: page content is too short or requires login.");
+            }
+
+            log.info("URL ingest for {}: {} chars, via {}", url, text.length(), usedJina ? "Jina" : "direct");
+        }
 
         // 4. Create document
         String markdown = "# " + title + "\n\n> Source: " + url + "\n\n" + text;

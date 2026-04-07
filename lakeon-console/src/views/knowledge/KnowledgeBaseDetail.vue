@@ -612,8 +612,28 @@ const urlLoading = ref(false)
 async function handleUrlIngest() {
   if (!urlInput.value.trim() || urlLoading.value) return
   urlLoading.value = true
+  const url = urlInput.value.trim()
   try {
-    await ingestUrl(route.params.kbId as string, urlInput.value.trim())
+    // Try Jina Reader from the browser (avoids server-side network restrictions for foreign sites)
+    let title: string | undefined
+    let content: string | undefined
+    try {
+      const jinaResp = await fetch('https://r.jina.ai/' + url, {
+        headers: { 'Accept': 'text/plain,text/markdown,*/*' },
+        signal: AbortSignal.timeout(30000)
+      })
+      if (jinaResp.ok) {
+        const body = await jinaResp.text()
+        if (body.length > 200) {
+          content = body
+          const m = body.match(/^Title:\s*(.+)$/m)
+          if (m?.[1]) title = m[1].trim()
+        }
+      }
+    } catch {
+      // Jina unreachable from browser; fall back to server-side fetch
+    }
+    await ingestUrl(route.params.kbId as string, url, title, content)
     showUrlDialog.value = false
     urlInput.value = ''
     await loadDocuments()

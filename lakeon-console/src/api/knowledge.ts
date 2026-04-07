@@ -401,9 +401,9 @@ export function saveWikiResponse(kbId: string, title: string, content: string) {
   return api.post('/knowledge/wiki/save-response', { kb_id: kbId, title, content })
 }
 
-export function ingestUrl(kbId: string, url: string) {
+export function ingestUrl(kbId: string, url: string, title?: string, content?: string) {
   return api.post<{ document_id: string; status: string }>('/knowledge/wiki/ingest-url', {
-    kb_id: kbId, url
+    kb_id: kbId, url, title, content
   })
 }
 

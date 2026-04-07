@@ -726,11 +726,14 @@ public class KnowledgeController {
         TenantEntity tenant = getTenant(req);
         String kbId = (String) body.get("kb_id");
         String url = (String) body.get("url");
+        String prefetchedTitle = (String) body.get("title");
+        String prefetchedContent = (String) body.get("content");
         if (url == null || url.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "url is required"));
         }
         try {
-            Map<String, Object> result = wikiService.ingestUrl(tenant.getId(), kbId, url);
+            Map<String, Object> result = wikiService.ingestUrl(tenant.getId(), kbId, url,
+                    prefetchedTitle, prefetchedContent);
             return ResponseEntity.ok(result);
         } catch (RuntimeException e) {
             String msg = e.getMessage() != null ? e.getMessage() : "Unknown error";
