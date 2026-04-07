@@ -504,7 +504,6 @@
       </div>
     </Teleport>
 
-    </div>
   </div>
 </template>
 
