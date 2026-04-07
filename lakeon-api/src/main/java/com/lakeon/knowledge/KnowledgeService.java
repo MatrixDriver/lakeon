@@ -14,6 +14,7 @@ import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.DatabaseService;
 import com.lakeon.service.AiSqlService;
 import com.lakeon.service.exception.BadRequestException;
+import com.lakeon.service.exception.ForbiddenException;
 import com.lakeon.service.exception.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +62,8 @@ public class KnowledgeService {
     private final AiSqlService aiSqlService;
     private final KbWriteQueue kbWriteQueue;
     private final ChunkService chunkService;
+    private final KbAccessService kbAccessService;
+    private final KbShareRepository kbShareRepository;
 
     public KnowledgeService(DocumentRepository documentRepository,
                             KnowledgeBaseRepository knowledgeBaseRepository,
@@ -74,7 +77,9 @@ public class KnowledgeService {
                             QueryRewriteService queryRewriteService,
                             AiSqlService aiSqlService,
                             KbWriteQueue kbWriteQueue,
-                            ChunkService chunkService) {
+                            ChunkService chunkService,
+                            KbAccessService kbAccessService,
+                            KbShareRepository kbShareRepository) {
         this.documentRepository = documentRepository;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.jobService = jobService;
@@ -88,6 +93,8 @@ public class KnowledgeService {
         this.aiSqlService = aiSqlService;
         this.kbWriteQueue = kbWriteQueue;
         this.chunkService = chunkService;
+        this.kbAccessService = kbAccessService;
+        this.kbShareRepository = kbShareRepository;
         this.restTemplate = new RestTemplate();
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
@@ -264,18 +271,24 @@ public class KnowledgeService {
     }
 
     public List<KnowledgeBaseEntity> listKnowledgeBases(String tenantId) {
-        return knowledgeBaseRepository.findAllByTenantIdOrderByCreatedAtDesc(tenantId);
+        List<KnowledgeBaseEntity> owned = knowledgeBaseRepository.findAllByTenantIdOrderByCreatedAtDesc(tenantId);
+        List<String> sharedKbIds = kbShareRepository.findKbIdsByTenantId(tenantId);
+        if (sharedKbIds.isEmpty()) {
+            return owned;
+        }
+        List<KnowledgeBaseEntity> shared = knowledgeBaseRepository.findAllByIdInOrderByCreatedAtDesc(sharedKbIds);
+        List<KnowledgeBaseEntity> all = new ArrayList<>(owned);
+        all.addAll(shared);
+        return all;
     }
 
     public KnowledgeBaseEntity getKnowledgeBase(String tenantId, String kbId) {
-        return knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
-                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+        return kbAccessService.getKbWithAccess(kbId, tenantId);
     }
 
     @Transactional
     public KnowledgeBaseEntity deleteKnowledgeBase(String tenantId, String kbId) {
-        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
-                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+        KnowledgeBaseEntity kb = kbAccessService.getKbAdminOnly(kbId, tenantId);
 
         // Cancel any pending/running write tasks for this KB first
         kbWriteQueue.cancelTasksForKb(kbId);
@@ -310,6 +323,7 @@ public class KnowledgeService {
             }
         }
 
+        kbShareRepository.deleteAllByKbId(kbId);
         knowledgeBaseRepository.delete(kb);
         return kb;
     }
@@ -322,8 +336,7 @@ public class KnowledgeService {
      */
     @Transactional
     public Map<String, Object> generateUploadUrl(TenantEntity tenant, String kbId, String filename, List<String> tags) {
-        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenant.getId())
-                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+        KnowledgeBaseEntity kb = kbAccessService.getKbWithAccess(kbId, tenant.getId());
 
         if (kb.getStatus() != KnowledgeBaseStatus.READY) {
             throw new BadRequestException("Knowledge base is not ready. Current status: " + kb.getStatus());
@@ -340,9 +353,12 @@ public class KnowledgeService {
             throw new BadRequestException("Unsupported file format. Supported: .pdf, .docx, .doc, .xlsx, .xls, .pptx, .epub, .html, .md, .txt");
         }
 
+        // Use KB owner's tenantId so all docs in a shared KB have consistent tenantId
+        String kbOwnerTenantId = kb.getTenantId();
+
         // Create DocumentEntity in PENDING status
         DocumentEntity doc = new DocumentEntity();
-        doc.setTenantId(tenant.getId());
+        doc.setTenantId(kbOwnerTenantId);
         doc.setDatabaseId(databaseId);
         doc.setKbId(kbId);
         doc.setFilename(filename);
@@ -353,8 +369,8 @@ public class KnowledgeService {
         }
         documentRepository.save(doc);
 
-        // Generate OBS key
-        String obsKey = "knowledge/" + tenant.getId() + "/" + kbId + "/" + doc.getId() + "/" + filename;
+        // Generate OBS key using KB owner's tenantId for consistent OBS paths
+        String obsKey = "knowledge/" + kbOwnerTenantId + "/" + kbId + "/" + doc.getId() + "/" + filename;
 
         // Generate presigned PUT URL
         int expireSeconds = props.getKnowledge().getPresignExpireSeconds();
@@ -388,15 +404,15 @@ public class KnowledgeService {
      * The queue ensures the kb-write pod is ready and submits the job pod.
      */
     public DocumentEntity processDocument(TenantEntity tenant, String documentId) {
-        DocumentEntity doc = documentRepository.findByIdAndTenantId(documentId, tenant.getId())
+        DocumentEntity doc = documentRepository.findById(documentId)
                 .orElseThrow(() -> new NotFoundException("Document not found: " + documentId));
+        checkDocumentAccess(doc, tenant.getId());
 
         if (doc.getStatus() != DocumentStatus.PENDING) {
             throw new BadRequestException("Document is not in PENDING status, current: " + doc.getStatus());
         }
 
-        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(doc.getKbId(), tenant.getId())
-                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + doc.getKbId()));
+        KnowledgeBaseEntity kb = kbAccessService.getKbWithAccess(doc.getKbId(), tenant.getId());
 
         // Build job params — connstr will be overridden by KbWriteQueue to point to kb-write pod
         Map<String, Object> params = new LinkedHashMap<>();
@@ -436,11 +452,11 @@ public class KnowledgeService {
             throw new BadRequestException("Maximum 20 files per batch");
         }
 
-        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenant.getId())
-                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+        KnowledgeBaseEntity kb = kbAccessService.getKbWithAccess(kbId, tenant.getId());
         if (kb.getStatus() != KnowledgeBaseStatus.READY) {
             throw new BadRequestException("Knowledge base is not ready. Current status: " + kb.getStatus());
         }
+        String kbOwnerTenantId = kb.getTenantId();
         String databaseId = kb.getDatabaseId();
         if (databaseId == null) {
             throw new BadRequestException("Knowledge base has no backing database");
@@ -467,7 +483,7 @@ public class KnowledgeService {
                 }
 
                 DocumentEntity doc = new DocumentEntity();
-                doc.setTenantId(tenant.getId());
+                doc.setTenantId(kbOwnerTenantId);
                 doc.setDatabaseId(databaseId);
                 doc.setKbId(kbId);
                 doc.setFilename(filename);
@@ -517,7 +533,7 @@ public class KnowledgeService {
 
                 documentRepository.save(doc);
 
-                String obsKey = "knowledge/" + tenant.getId() + "/" + kbId + "/" + doc.getId() + "/" + filename;
+                String obsKey = "knowledge/" + kbOwnerTenantId + "/" + kbId + "/" + doc.getId() + "/" + filename;
                 doc.setObsKey(obsKey);
                 documentRepository.save(doc);
 
@@ -560,7 +576,7 @@ public class KnowledgeService {
         String databaseId = null;
 
         for (String docId : documentIds) {
-            DocumentEntity doc = documentRepository.findByIdAndTenantId(docId, tenant.getId())
+            DocumentEntity doc = documentRepository.findById(docId)
                     .orElseThrow(() -> new NotFoundException("Document not found: " + docId));
             if (doc.getStatus() != DocumentStatus.PENDING) {
                 throw new BadRequestException("Document " + docId + " is not PENDING (status: " + doc.getStatus() + ")");
@@ -574,8 +590,7 @@ public class KnowledgeService {
         }
 
         final String finalKbId = kbId;
-        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(finalKbId, tenant.getId())
-                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + finalKbId));
+        KnowledgeBaseEntity kb = kbAccessService.getKbWithAccess(finalKbId, tenant.getId());
         databaseId = kb.getDatabaseId();
         // Validate database exists before queuing tasks
         if (databaseId == null) {
@@ -638,7 +653,7 @@ public class KnowledgeService {
         String databaseId = null;
 
         for (String docId : documentIds) {
-            DocumentEntity doc = documentRepository.findByIdAndTenantId(docId, tenant.getId())
+            DocumentEntity doc = documentRepository.findById(docId)
                     .orElseThrow(() -> new NotFoundException("Document not found: " + docId));
             if (doc.getStatus() != DocumentStatus.PENDING) {
                 throw new BadRequestException("Document " + docId + " is not PENDING (status: " + doc.getStatus() + ")");
@@ -652,8 +667,7 @@ public class KnowledgeService {
         }
 
         final String finalKbId = kbId;
-        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(finalKbId, tenant.getId())
-                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + finalKbId));
+        KnowledgeBaseEntity kb = kbAccessService.getKbWithAccess(finalKbId, tenant.getId());
         databaseId = kb.getDatabaseId();
         if (databaseId == null) {
             throw new BadRequestException("Knowledge base " + kbId + " has no database assigned");
@@ -740,8 +754,9 @@ public class KnowledgeService {
      * Get a document, syncing status from its job if still PROCESSING.
      */
     public DocumentEntity getDocument(String tenantId, String documentId) {
-        DocumentEntity doc = documentRepository.findByIdAndTenantId(documentId, tenantId)
+        DocumentEntity doc = documentRepository.findById(documentId)
                 .orElseThrow(() -> new NotFoundException("Document not found: " + documentId));
+        checkDocumentAccess(doc, tenantId);
 
         if (doc.getStatus() == DocumentStatus.PROCESSING && doc.getJobId() != null) {
             syncDocumentStatusFromJob(doc);
@@ -788,7 +803,8 @@ public class KnowledgeService {
      */
     public List<DocumentEntity> listDocuments(String tenantId, String kbId, String databaseId) {
         if (kbId != null && !kbId.isBlank()) {
-            return documentRepository.findAllByTenantIdAndKbIdOrderByCreatedAtDesc(tenantId, kbId);
+            KnowledgeBaseEntity kb = kbAccessService.getKbWithAccess(kbId, tenantId);
+            return documentRepository.findAllByTenantIdAndKbIdOrderByCreatedAtDesc(kb.getTenantId(), kbId);
         }
         if (databaseId != null && !databaseId.isBlank()) {
             return documentRepository.findAllByTenantIdAndDatabaseIdOrderByCreatedAtDesc(tenantId, databaseId);
@@ -816,17 +832,26 @@ public class KnowledgeService {
         String kbParam = (kbId != null && !kbId.isBlank()) ? kbId : null;
         String folderParam = (folder != null && !folder.isEmpty()) ? folder : null;
 
+        // For shared KBs, use KB owner's tenantId for document queries
+        String queryTenantId = tenantId;
+        if (kbParam != null) {
+            KnowledgeBaseEntity kb = kbAccessService.getKbWithAccess(kbParam, tenantId);
+            queryTenantId = kb.getTenantId();
+        }
+
         List<DocumentEntity> docs = documentRepository.findPagedDocuments(
-            tenantId, kbParam, statusParam, folderParam, sortBy, sortOrder, pageSize, offset);
-        long total = documentRepository.countDocuments(tenantId, kbParam, statusParam, folderParam);
+            queryTenantId, kbParam, statusParam, folderParam, sortBy, sortOrder, pageSize, offset);
+        long total = documentRepository.countDocuments(queryTenantId, kbParam, statusParam, folderParam);
         return new DocumentPage(docs, total, page, pageSize);
     }
 
     public record FolderInfo(String name, String path, long documentCount, long totalSize) {}
 
     public List<FolderInfo> listFolders(String tenantId, String kbId, String parent) {
+        // For shared KBs, use KB owner's tenantId for document queries
+        KnowledgeBaseEntity kb = kbAccessService.getKbWithAccess(kbId, tenantId);
         String parentPath = (parent == null) ? "" : parent;
-        List<Object[]> rows = documentRepository.findSubfolders(tenantId, kbId, parentPath);
+        List<Object[]> rows = documentRepository.findSubfolders(kb.getTenantId(), kbId, parentPath);
         return rows.stream().map(row -> {
             String name = (String) row[0];
             long count = ((Number) row[1]).longValue();
@@ -842,8 +867,7 @@ public class KnowledgeService {
      */
     @Transactional
     public int clearAllDocuments(String tenantId, String kbId) {
-        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
-                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+        KnowledgeBaseEntity kb = kbAccessService.getKbAdminOnly(kbId, tenantId);
 
         List<DocumentEntity> docs = documentRepository.findAllByKbId(kbId);
         if (docs.isEmpty()) return 0;
@@ -890,8 +914,14 @@ public class KnowledgeService {
      */
     @Transactional
     public DocumentEntity deleteDocument(String tenantId, String documentId) {
-        DocumentEntity doc = documentRepository.findByIdAndTenantId(documentId, tenantId)
+        DocumentEntity doc = documentRepository.findById(documentId)
                 .orElseThrow(() -> new NotFoundException("Document not found: " + documentId));
+        // Delete requires admin access
+        if (doc.getKbId() != null) {
+            kbAccessService.getKbAdminOnly(doc.getKbId(), tenantId);
+        } else if (!doc.getTenantId().equals(tenantId)) {
+            throw new ForbiddenException("No access to document: " + documentId);
+        }
 
         // Delete OBS file (best-effort)
         if (doc.getObsKey() != null) {
@@ -946,8 +976,9 @@ public class KnowledgeService {
     @Transactional
     public DocumentEntity updateDocumentMetadata(String tenantId, String documentId,
                                                   Map<String, String> metadata) {
-        DocumentEntity doc = documentRepository.findByIdAndTenantId(documentId, tenantId)
+        DocumentEntity doc = documentRepository.findById(documentId)
                 .orElseThrow(() -> new NotFoundException("Document not found: " + documentId));
+        checkDocumentAccess(doc, tenantId);
         Map<String, String> current = doc.getMetadata() != null ? new LinkedHashMap<>(doc.getMetadata()) : new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : metadata.entrySet()) {
             if (entry.getValue() == null) {
@@ -968,7 +999,8 @@ public class KnowledgeService {
     public int bulkUpdateDocumentMetadata(String tenantId, List<String> documentIds,
                                            Map<String, String> metadata) {
         for (String docId : documentIds) {
-            documentRepository.findByIdAndTenantId(docId, tenantId).ifPresent(doc -> {
+            documentRepository.findById(docId).ifPresent(doc -> {
+                checkDocumentAccess(doc, tenantId);
                 Map<String, String> current = doc.getMetadata() != null ? new LinkedHashMap<>(doc.getMetadata()) : new LinkedHashMap<>();
                 for (Map.Entry<String, String> entry : metadata.entrySet()) {
                     if (entry.getValue() == null) {
@@ -1068,8 +1100,7 @@ public class KnowledgeService {
         }
 
         // Get query embedding from embedding service (use searchQuery which may be rewritten)
-        KnowledgeBaseEntity kbEntity = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
-                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+        KnowledgeBaseEntity kbEntity = kbAccessService.getKbWithAccess(kbId, tenantId);
         String embModel = kbEntity.getEmbeddingModel() != null
                 ? kbEntity.getEmbeddingModel() : props.getKnowledge().getEmbeddingModel();
         List<Double> embedding = getQueryEmbedding(searchQuery, embModel);
@@ -1196,8 +1227,7 @@ public class KnowledgeService {
      */
     @SuppressWarnings("unchecked")
     public Map<String, Object> searchTable(String tenantId, String kbId, String query, String modelId) {
-        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
-                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+        KnowledgeBaseEntity kb = kbAccessService.getKbWithAccess(kbId, tenantId);
 
         if (kb.getType() != KnowledgeBaseType.TABLE) {
             throw new BadRequestException("Knowledge base is not TABLE type");
@@ -1282,8 +1312,7 @@ public class KnowledgeService {
      * Get table schema info for a TABLE type KB.
      */
     public List<Map<String, Object>> getTableSchema(String tenantId, String kbId) {
-        KnowledgeBaseEntity kb = knowledgeBaseRepository.findByIdAndTenantId(kbId, tenantId)
-                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
+        KnowledgeBaseEntity kb = kbAccessService.getKbWithAccess(kbId, tenantId);
 
         if (kb.getType() != KnowledgeBaseType.TABLE) {
             throw new BadRequestException("Knowledge base is not TABLE type");
@@ -1457,6 +1486,17 @@ public class KnowledgeService {
             throw new RuntimeException("Failed to get embedding: no data returned");
         }
         return (List<Double>) data.get(0).get("embedding");
+    }
+
+    /**
+     * Check if a tenant has access to a document (via its KB or direct ownership).
+     */
+    private void checkDocumentAccess(DocumentEntity doc, String tenantId) {
+        if (doc.getKbId() != null) {
+            kbAccessService.checkAccess(doc.getKbId(), tenantId);
+        } else if (!doc.getTenantId().equals(tenantId)) {
+            throw new ForbiddenException("No access to document: " + doc.getId());
+        }
     }
 
     private S3Presigner buildPresigner() {

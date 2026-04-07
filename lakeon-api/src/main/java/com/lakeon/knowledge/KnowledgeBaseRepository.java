@@ -10,6 +10,7 @@ import java.util.Optional;
 public interface KnowledgeBaseRepository extends JpaRepository<KnowledgeBaseEntity, String> {
     Optional<KnowledgeBaseEntity> findByIdAndTenantId(String id, String tenantId);
     List<KnowledgeBaseEntity> findAllByTenantIdOrderByCreatedAtDesc(String tenantId);
+    List<KnowledgeBaseEntity> findAllByIdInOrderByCreatedAtDesc(List<String> ids);
 
     @Modifying
     @Transactional
