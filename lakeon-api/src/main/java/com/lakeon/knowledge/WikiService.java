@@ -338,6 +338,8 @@ public class WikiService {
             params.put("document_id", docId);
             params.put("database_id", databaseId);
             params.put("obs_key", obsKey);
+            params.put("format", "MARKDOWN");
+            params.put("filename", filename);
             kbWriteQueue.enqueueTask(databaseId, KbWriteTaskType.DOCUMENT_PARSE, params);
         } catch (Exception e) {
             log.warn("Failed to enqueue DOCUMENT_PARSE for URL import {}: {}", docId, e.getMessage());
@@ -685,7 +687,7 @@ public class WikiService {
         params.put("tenant_id", tenantId);
         params.put("kb_id", kbId);
         params.put("obs_key", doc.getObsKey());
-        params.put("format", "md");
+        params.put("format", "MARKDOWN");
         params.put("filename", filename);
         params.put("database_connstr", "placeholder");
         params.put("embedding_api_url", props.getKnowledge().getEmbeddingApiUrl());
