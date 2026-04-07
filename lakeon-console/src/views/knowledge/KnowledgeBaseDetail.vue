@@ -76,11 +76,11 @@
 
     <!-- Wiki Tab -->
     <div v-if="activeTab === 'wiki'" style="display: flex; height: calc(100vh - 196px); margin-top: 12px; position: relative;">
-      <div style="flex: 1; overflow: hidden;">
+      <div style="flex: 1; min-width: 0; overflow: hidden;">
         <WikiPage ref="wikiPageRef" :kb-id="(route.params.kbId as string)" @select="handlePageSelect" />
       </div>
       <!-- Resizable graph panel -->
-      <div v-if="showGraph" :style="graphWidth ? { width: graphWidth + 'px', borderLeft: '1px solid #e8e0d8', flexShrink: 0, display: 'flex', flexDirection: 'column', position: 'relative' } : { flex: '1', borderLeft: '1px solid #e8e0d8', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }">
+      <div v-if="showGraph" :style="graphWidth ? { width: graphWidth + 'px', flexShrink: '0', borderLeft: '1px solid #e8e0d8', display: 'flex', flexDirection: 'column', position: 'relative' } : { width: '50%', flexShrink: '0', borderLeft: '1px solid #e8e0d8', display: 'flex', flexDirection: 'column', position: 'relative' }">
         <!-- Drag handle -->
         <div style="position: absolute; left: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 5;"
              @mousedown="startGraphResize"></div>

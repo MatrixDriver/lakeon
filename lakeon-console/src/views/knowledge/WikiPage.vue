@@ -133,7 +133,7 @@ defineExpose({ navigateToTitle })
 <template>
   <div style="display: flex; gap: 16px; min-height: 400px; height: 100%;">
     <!-- Sidebar -->
-    <div style="width: 220px; flex-shrink: 0; border-right: 1px solid #e8e0d8; padding-right: 12px; overflow-y: auto;">
+    <div style="width: 160px; flex-shrink: 0; border-right: 1px solid #e8e0d8; padding-right: 12px; overflow-y: auto;">
       <div style="margin: 0 0 12px; color: #8c7a68; font-size: 13px; font-weight: 500; display: flex; align-items: center; justify-content: space-between;">
         <span>Wiki 页面 ({{ displayPages.length }})</span>
         <span style="cursor: pointer; font-size: 12px; color: #bbb;" title="查看日志" @click="openLogDrawer">日志</span>
