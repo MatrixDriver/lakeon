@@ -79,6 +79,44 @@ public class WikiService {
             If no wiki changes are needed, return: {"wiki_pages": [], "index_updates": [], "log_entry": "No changes needed"}
             """;
 
+    private static final String DEFAULT_CURATE_PROMPT = """
+            You are a wiki curator agent. Your task is to review and reorganize an existing knowledge base wiki.
+
+            Current wiki index (index.md):
+            ---
+            %s
+            ---
+
+            Current wiki pages:
+            ---
+            %s
+            ---
+
+            Instructions:
+            1. Review all wiki pages for consistency, completeness, and organization.
+            2. Merge pages that cover the same topic or have significant overlap.
+            3. Split pages that are too broad into more focused articles.
+            4. Fix broken or missing [[wikilinks]] between related pages.
+            5. Improve page structure: add clear headings, remove redundancy, ensure accuracy.
+            6. Update the index to reflect the reorganized structure.
+            7. Write in the same language as the source content.
+
+            Output a JSON object with this exact structure:
+            {
+              "wiki_pages": [
+                {"title": "Page Title", "action": "update", "content": "Reorganized full markdown content with [[wikilinks]]..."},
+                {"title": "Merged Page", "action": "create", "content": "Content merged from multiple pages..."}
+              ],
+              "delete_pages": ["Old Page To Remove"],
+              "index_updates": [
+                {"title": "Page Title", "summary": "Updated one-line summary"}
+              ],
+              "log_entry": "Brief description of reorganization"
+            }
+
+            If no changes are needed, return: {"wiki_pages": [], "delete_pages": [], "index_updates": [], "log_entry": "No changes needed"}
+            """;
+
     private final LakeonProperties props;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
@@ -116,6 +154,17 @@ public class WikiService {
             return custom;
         }
         return DEFAULT_WIKI_AGENT_PROMPT;
+    }
+
+    /**
+     * Returns the configured curate prompt, or the default if not set.
+     */
+    public String getCuratePrompt() {
+        String custom = props.getWiki() != null ? props.getWiki().getCuratePrompt() : null;
+        if (custom != null && !custom.isBlank()) {
+            return custom;
+        }
+        return DEFAULT_CURATE_PROMPT;
     }
 
     /**

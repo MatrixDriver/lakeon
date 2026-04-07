@@ -425,6 +425,7 @@ public class KnowledgeController {
         validateAdminToken(adminToken);
         Map<String, Object> config = new LinkedHashMap<>();
         config.put("ingest_prompt", wikiService.getIngestPrompt());
+        config.put("curate_prompt", wikiService.getCuratePrompt());
         config.put("model", wikiService.getModel());
         config.put("base_url", lakeonProperties.getWiki() != null ? lakeonProperties.getWiki().getBaseUrl() : "");
         return ResponseEntity.ok(config);
@@ -438,10 +439,40 @@ public class KnowledgeController {
         if (body.containsKey("ingest_prompt")) {
             lakeonProperties.getWiki().setIngestPrompt(body.get("ingest_prompt"));
         }
+        if (body.containsKey("curate_prompt")) {
+            lakeonProperties.getWiki().setCuratePrompt(body.get("curate_prompt"));
+        }
         if (body.containsKey("model")) {
             lakeonProperties.getWiki().setModel(body.get("model"));
         }
         return ResponseEntity.ok(Map.of("status", "ok"));
+    }
+
+    @GetMapping("/admin/wiki/pages")
+    public ResponseEntity<?> adminListWikiPages(
+            @RequestHeader(value = "X-Admin-Token", required = false) String adminToken,
+            @RequestParam("kb_id") String kbId,
+            @RequestParam(value = "doc_type", required = false) String docType) {
+        validateAdminToken(adminToken);
+        // Find KB to get tenant_id
+        var kb = knowledgeBaseRepository.findById(kbId).orElse(null);
+        if (kb == null) return ResponseEntity.notFound().build();
+        String tenantId = kb.getTenantId();
+        String type = docType != null ? docType : "wiki";
+        List<DocumentEntity> pages = documentRepository.findByTenantIdAndKbIdAndDocType(tenantId, kbId, type);
+        return ResponseEntity.ok(pages.stream().map(this::toDocumentResponse).toList());
+    }
+
+    @GetMapping("/admin/wiki/pages/{docId}/content")
+    public ResponseEntity<?> adminGetWikiPageContent(
+            @RequestHeader(value = "X-Admin-Token", required = false) String adminToken,
+            @PathVariable String docId,
+            @RequestParam("kb_id") String kbId) {
+        validateAdminToken(adminToken);
+        var kb = knowledgeBaseRepository.findById(kbId).orElse(null);
+        if (kb == null) return ResponseEntity.notFound().build();
+        String content = knowledgeService.getWikiPageContent(kb.getTenantId(), kbId, docId);
+        return ResponseEntity.ok(Map.of("content", content != null ? content : ""));
     }
 
     // ── TABLE KB endpoints ─────────────────────────────────────────

@@ -405,6 +405,7 @@ public class LakeonProperties {
         private String baseUrl = "https://api.deepseek.com/v1";
         private String model = "";
         private String ingestPrompt = "";
+        private String curatePrompt = "";
 
         public String getApiKey() { return apiKey; }
         public void setApiKey(String apiKey) { this.apiKey = apiKey; }
@@ -414,6 +415,8 @@ public class LakeonProperties {
         public void setModel(String model) { this.model = model; }
         public String getIngestPrompt() { return ingestPrompt; }
         public void setIngestPrompt(String ingestPrompt) { this.ingestPrompt = ingestPrompt; }
+        public String getCuratePrompt() { return curatePrompt; }
+        public void setCuratePrompt(String curatePrompt) { this.curatePrompt = curatePrompt; }
     }
 
     public static class DatalakeConfig {
