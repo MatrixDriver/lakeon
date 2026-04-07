@@ -138,7 +138,7 @@
           上传文件
           <input type="file" accept=".pdf,.docx,.doc,.xlsx,.xls,.xlsm,.pptx,.epub,.html,.htm,.md,.markdown,.txt" multiple style="display: none;" :disabled="uploading || kb?.status !== 'READY'" @change="handleUpload" />
         </label>
-        <label class="btn btn-secondary" style="cursor: pointer;" :class="{ disabled: uploading || kb?.status !== 'READY' }">
+        <label class="btn" style="cursor: pointer; border: 1px solid #d4c4b0; background: #fff; color: #5a4a3a; border-radius: 6px;" :class="{ disabled: uploading || kb?.status !== 'READY' }">
           上传目录
           <input type="file" style="display: none;" :disabled="uploading || kb?.status !== 'READY'" webkitdirectory @change="handleDirectoryUpload" />
         </label>
