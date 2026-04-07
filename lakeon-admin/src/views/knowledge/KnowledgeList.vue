@@ -137,6 +137,32 @@
                         </tr>
                       </tbody>
                     </table>
+                    <!-- Wiki Pages Section -->
+                    <div style="margin-top: 12px; border-top: 1px solid #eee; padding-top: 12px;">
+                      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <span style="font-weight: 600; font-size: 13px;">Wiki 页面</span>
+                        <button class="btn-small" @click="loadWikiPagesForKb(kb.id)" style="font-size: 11px; padding: 2px 8px; border: 1px solid #ddd; border-radius: 3px; background: #fff; cursor: pointer;">刷新</button>
+                        <button class="btn-small" @click="handleRebuildWiki(kb.id)" style="font-size: 11px; padding: 2px 8px; border: 1px solid #c25a3c; border-radius: 3px; background: #fff; color: #c25a3c; cursor: pointer;">全量重建</button>
+                      </div>
+                      <div v-if="!wikiPagesMap[kb.id]" style="font-size: 12px; color: #999;">
+                        <button @click="loadWikiPagesForKb(kb.id)" style="font-size: 12px; color: #1890ff; background: none; border: none; cursor: pointer; text-decoration: underline;">加载 Wiki 页面</button>
+                      </div>
+                      <table v-else-if="(wikiPagesMap[kb.id]?.length ?? 0) > 0" style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                        <thead>
+                          <tr style="border-bottom: 1px solid #eee;"><th style="text-align:left;padding:4px 8px;">标题</th><th style="padding:4px 8px;">类型</th><th style="padding:4px 8px;">大小</th><th style="padding:4px 8px;">创建时间</th><th style="padding:4px 8px;">操作</th></tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="page in wikiPagesMap[kb.id]" :key="page.id" style="border-bottom: 1px solid #f5f5f5;">
+                            <td style="padding:4px 8px;">{{ (page.filename || '').replace('.md', '') }}</td>
+                            <td style="padding:4px 8px;">{{ page.type || 'wiki' }}</td>
+                            <td style="padding:4px 8px;">{{ page.size_bytes > 1024 ? ((page.size_bytes / 1024).toFixed(1) + ' KB') : (page.size_bytes + ' B') }}</td>
+                            <td style="padding:4px 8px;">{{ page.created_at ? new Date(page.created_at).toLocaleString('zh-CN') : '-' }}</td>
+                            <td style="padding:4px 8px;"><button @click="handleDeleteWikiPage(kb.id, page.id)" style="font-size: 11px; color: #e6393d; background: none; border: none; cursor: pointer;">删除</button></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                      <div v-else style="font-size: 12px; color: #999;">暂无 Wiki 页面</div>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -371,18 +397,41 @@
           <span style="color: #666;">Base URL</span>
           <input v-model="wikiConfig.base_url" placeholder="https://api.deepseek.com/v1" style="padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; max-width: 400px;" />
         </div>
+        <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
+          <button @click="testConnection" :disabled="testingConnection"
+            style="padding: 5px 12px; font-size: 12px; border: 1px solid #d9d9d9; border-radius: 4px; cursor: pointer; background: #fff;">
+            {{ testingConnection ? '测试中...' : '测试连接' }}
+          </button>
+          <span v-if="connectionResult" :style="{ fontSize: '12px', color: connectionResult.success ? '#52c41a' : '#e6393d' }">
+            {{ connectionResult.success ? `连接成功 (${connectionResult.latency_ms}ms)` : `失败: ${connectionResult.error}` }}
+          </span>
+        </div>
       </div>
 
-      <!-- Ingest Prompt -->
+      <!-- Prompt Tabs -->
       <div style="margin-bottom: 20px;">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-          <span style="font-weight: 600;">Ingest Prompt</span>
-          <span style="font-size: 12px; color: #999;">文档导入后生成/更新 Wiki 页面的系统提示词</span>
+        <div style="display: flex; gap: 0; margin-bottom: 8px;">
+          <span v-for="pt in [
+            { key: 'ingest', label: 'Ingest Prompt' },
+            { key: 'routing', label: 'Chat Routing' },
+            { key: 'answer', label: 'Chat Answer' },
+          ]" :key="pt.key"
+            style="padding: 6px 14px; font-size: 12px; cursor: pointer; border: 1px solid #e0d8ce;"
+            :style="{
+              background: promptTab === pt.key ? '#c25a3c' : '#fff',
+              color: promptTab === pt.key ? '#fff' : '#5a4a3a',
+              borderRadius: pt.key === 'ingest' ? '4px 0 0 4px' : pt.key === 'answer' ? '0 4px 4px 0' : '0',
+            }"
+            @click="promptTab = pt.key as any">{{ pt.label }}</span>
         </div>
-        <textarea v-model="wikiConfig.ingest_prompt"
+        <div style="font-size: 11px; color: #999; margin-bottom: 6px;">
+          {{ promptTab === 'ingest' ? '文档导入后生成/更新 Wiki 页面的系统提示词' :
+             promptTab === 'routing' ? 'Query Router 路由策略：判断问题深度和相关页面' :
+             '回答生成的系统提示词：控制回答风格和格式' }}
+        </div>
+        <textarea v-model="wikiConfig[promptTab === 'ingest' ? 'ingest_prompt' : promptTab === 'routing' ? 'chat_routing_prompt' : 'chat_answer_prompt']"
           placeholder="（使用内置默认 prompt）"
-          style="width: 100%; height: 300px; font-family: 'SF Mono', Monaco, Menlo, monospace; font-size: 12px; padding: 12px; border: 1px solid #d9d9d9; border-radius: 6px; resize: vertical; line-height: 1.6;"
-        ></textarea>
+          style="width: 100%; height: 300px; font-family: 'SF Mono', Monaco, Menlo, monospace; font-size: 12px; padding: 12px; border: 1px solid #d9d9d9; border-radius: 6px; resize: vertical; line-height: 1.6;" />
       </div>
 
       <!-- Curate Prompt -->
@@ -732,7 +781,54 @@ function taskStatusClass(status: string) {
 }
 
 // Wiki Agent Config
-const wikiConfig = ref<Record<string, string>>({ ingest_prompt: '', curate_prompt: '', model: '', base_url: '' })
+const promptTab = ref<'ingest' | 'routing' | 'answer'>('ingest')
+const testingConnection = ref(false)
+const connectionResult = ref<{ success: boolean; latency_ms: number; error?: string } | null>(null)
+
+async function testConnection() {
+  testingConnection.value = true
+  connectionResult.value = null
+  try {
+    const { data } = await adminApi.testLlmConnection()
+    connectionResult.value = data
+  } catch (e: any) {
+    connectionResult.value = { success: false, latency_ms: 0, error: e.message }
+  } finally {
+    testingConnection.value = false
+  }
+}
+
+// Wiki page management in KB expansion
+const wikiPagesMap = ref<Record<string, any[]>>({})
+
+async function loadWikiPagesForKb(kbId: string) {
+  try {
+    const { data } = await adminApi.listWikiPages(kbId)
+    wikiPagesMap.value = { ...wikiPagesMap.value, [kbId]: data }
+  } catch (e) { console.warn('Failed to load wiki pages', e) }
+}
+
+async function handleDeleteWikiPage(kbId: string, docId: string) {
+  if (!confirm('确认删除此 Wiki 页面？')) return
+  await adminApi.adminDeleteWikiPage(kbId, docId)
+  await loadWikiPagesForKb(kbId)
+}
+
+async function handleRebuildWiki(kbId: string) {
+  if (!confirm('确认全量重建 Wiki？将清空现有页面并重新生成。')) return
+  try {
+    await adminApi.adminRebuildWiki(kbId)
+    alert('Wiki 重建已触发')
+    await loadWikiPagesForKb(kbId)
+  } catch (e: any) {
+    alert('重建失败: ' + e.message)
+  }
+}
+
+const wikiConfig = ref<Record<string, string>>({
+  ingest_prompt: '', chat_routing_prompt: '', chat_answer_prompt: '',
+  model: '', base_url: '', curate_prompt: ''
+})
 const wikiConfigSaving = ref(false)
 
 async function loadWikiConfig() {
@@ -740,6 +836,8 @@ async function loadWikiConfig() {
     const { data } = await adminApi.getWikiConfig()
     wikiConfig.value = {
       ingest_prompt: data.ingest_prompt || '',
+      chat_routing_prompt: data.chat_routing_prompt || '',
+      chat_answer_prompt: data.chat_answer_prompt || '',
       curate_prompt: data.curate_prompt || '',
       model: data.model || '',
       base_url: data.base_url || ''
