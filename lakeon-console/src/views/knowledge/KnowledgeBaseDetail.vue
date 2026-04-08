@@ -108,6 +108,10 @@
           {{ lintLoading ? '检查中...' : '健康检查' }}
         </button>
         <button style="padding: 4px 10px; font-size: 11px; border: 1px solid #e0d8ce; border-radius: 4px; background: #fff; color: #8c7a68; cursor: pointer;"
+                @click="handleCurate" :disabled="curateLoading">
+          {{ curateLoading ? '整理中...' : '整理 Wiki' }}
+        </button>
+        <button style="padding: 4px 10px; font-size: 11px; border: 1px solid #e0d8ce; border-radius: 4px; background: #fff; color: #8c7a68; cursor: pointer;"
                 @click="showGraph = true">图谱</button>
       </div>
       <WikiLintPanel v-if="showLintPanel"
@@ -527,7 +531,7 @@ import WikiGraph from './WikiGraph.vue'
 import WikiChat from './WikiChat.vue'
 import KbSharePanel from './KbSharePanel.vue'
 import WikiLintPanel from '@/components/knowledge/WikiLintPanel.vue'
-import { runWikiLint, type LintIssue } from '@/api/knowledge'
+import { runWikiLint, curateWiki, type LintIssue } from '@/api/knowledge'
 // WikiChat moved to standalone page /knowledge/chat
 import { formatSize } from '../../utils/format'
 import { marked } from 'marked'
@@ -691,6 +695,24 @@ const tabs = computed(() => {
 
 const showGraph = ref(true)
 const showGraphFullscreen = ref(false)
+
+// Wiki Curate
+const curateLoading = ref(false)
+async function handleCurate() {
+  if (!confirm('整理 Wiki 会合并重叠页面、修复链接、删除冗余内容。继续？')) return
+  curateLoading.value = true
+  try {
+    await curateWiki(route.params.kbId as string)
+    // Curate runs async on server, poll wiki pages for changes
+    setTimeout(() => {
+      wikiPageRef.value?.loadPages?.()
+      curateLoading.value = false
+    }, 15000)
+  } catch (e) {
+    console.error('Curate failed:', e)
+    curateLoading.value = false
+  }
+}
 
 // Wiki Lint
 const showLintPanel = ref(false)

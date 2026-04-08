@@ -994,6 +994,19 @@ public class KnowledgeController {
         }
     }
 
+    @PostMapping("/wiki/curate")
+    public ResponseEntity<?> curateWiki(HttpServletRequest req,
+                                        @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        String kbId = (String) body.get("kb_id");
+        if (kbId == null || kbId.isBlank()) {
+            throw new BadRequestException("kb_id is required");
+        }
+        KnowledgeBaseEntity kb = kbAccessService.getKbWithAccess(kbId, tenant.getId());
+        new Thread(() -> wikiService.runCurate(kb.getTenantId(), kbId)).start();
+        return ResponseEntity.ok(Map.of("status", "curating"));
+    }
+
     @PostMapping("/wiki/lint")
     public ResponseEntity<?> runWikiLint(HttpServletRequest req,
                                          @RequestBody Map<String, Object> body) {

@@ -463,6 +463,10 @@ export function deleteShare(kbId: string, shareId: string) {
   return api.delete(`/knowledge/bases/${kbId}/shares/${shareId}`)
 }
 
+export function curateWiki(kbId: string) {
+  return api.post<{ status: string }>('/knowledge/wiki/curate', { kb_id: kbId })
+}
+
 // ── Wiki Lint API ──
 
 export function runWikiLint(kbId: string) {
