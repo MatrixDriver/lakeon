@@ -58,6 +58,11 @@ async function loadPages() {
 
 async function openPage(page: WikiPageItem) {
   selectedPage.value = page
+  // Scroll sidebar to show selected page
+  nextTick(() => {
+    const el = document.querySelector('.wiki-page-item.active')
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  })
   // Notify parent so graph can focus on this page
   const title = page.filename.replace(/\.md$/, '')
   emit('select', title)
