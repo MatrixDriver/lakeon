@@ -182,7 +182,7 @@
             <td>{{ item.memory_count ?? 0 }}</td>
             <td>{{ item.trait_count ?? 0 }}</td>
             <td>
-              <span class="status-tag" :class="item.status === 'READY' ? 'tag-green' : item.status === 'FAILED' ? 'tag-red' : 'tag-gray'">
+              <span class="status-tag" :class="item.status === 'READY' ? (item.database_status === 'RUNNING' ? 'tag-green' : 'tag-gray') : item.status === 'FAILED' ? 'tag-red' : 'tag-gray'">
                 {{ statusText(item.status) }}
               </span>
             </td>

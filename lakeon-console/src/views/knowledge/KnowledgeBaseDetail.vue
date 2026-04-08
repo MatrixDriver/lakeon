@@ -1249,23 +1249,6 @@ async function runBatchUpload(files: File[]) {
   }
 }
 
-// ── Regenerate Wiki ──
-const regeneratingWiki = ref(false)
-async function handleRegenerateWiki() {
-  if (!confirm('重新生成 Wiki 会覆盖现有 Wiki 页面，确认继续？')) return
-  regeneratingWiki.value = true
-  try {
-    const readyDocs = documents.value.filter((d: any) => d.status === 'READY')
-    if (readyDocs.length > 0) {
-      await ingestDocuments(readyDocs.map((d: any) => d.id))
-    }
-  } catch (e) {
-    console.error('Regenerate wiki failed:', e)
-  } finally {
-    regeneratingWiki.value = false
-  }
-}
-
 // ── Retry failed documents ──
 const retryingFailed = ref(false)
 

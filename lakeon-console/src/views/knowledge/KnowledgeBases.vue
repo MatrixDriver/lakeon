@@ -210,7 +210,7 @@
             <td style="color: #666;">{{ kb.description || '-' }}</td>
             <td>{{ kb.type === 'TABLE' ? '-' : (kb.document_count ?? 0) }}</td>
             <td>
-              <span class="status-tag" :class="'tag-' + statusColor(kb.status)">{{ statusText(kb.status) }}</span>
+              <span class="status-tag" :class="'tag-' + statusColor(kb.status, kb)">{{ statusText(kb.status, kb) }}</span>
             </td>
             <td style="color: #999;">{{ formatTime(kb.created_at) }}</td>
             <td>
@@ -320,16 +320,27 @@ watch(showCreate, (val) => {
   if (val) loadDatabases()
 })
 
-function statusColor(status: string) {
-  if (status === 'READY') return 'green'
+function statusColor(status: string, kb?: any) {
   if (status === 'CREATING') return 'blue'
   if (status === 'FAILED') return 'red'
+  if (status === 'READY') {
+    // Use database_status to distinguish running vs suspended
+    const dbStatus = kb?.database_status
+    if (dbStatus === 'RUNNING') return 'green'
+    return 'gray'  // SUSPENDED or no compute pod
+  }
   return 'blue'
 }
 
-function statusText(status: string) {
-  const map: Record<string, string> = { READY: '就绪', CREATING: '创建中', FAILED: '失败' }
-  return map[status] || status
+function statusText(status: string, kb?: any) {
+  if (status === 'CREATING') return '创建中'
+  if (status === 'FAILED') return '失败'
+  if (status === 'READY') {
+    const dbStatus = kb?.database_status
+    if (dbStatus === 'RUNNING') return '运行中'
+    return '就绪'
+  }
+  return status
 }
 
 function formatTime(t: string) {

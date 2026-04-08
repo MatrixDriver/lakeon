@@ -11,9 +11,12 @@ import java.util.*;
 public class MemoryController {
 
     private final MemoryService memoryService;
+    private final com.lakeon.repository.DatabaseRepository databaseRepository;
 
-    public MemoryController(MemoryService memoryService) {
+    public MemoryController(MemoryService memoryService,
+                            com.lakeon.repository.DatabaseRepository databaseRepository) {
         this.memoryService = memoryService;
+        this.databaseRepository = databaseRepository;
     }
 
     @GetMapping("/bases")
@@ -177,6 +180,10 @@ public class MemoryController {
         map.put("scene", mem.getScene());
         map.put("created_at", mem.getCreatedAt() != null ? mem.getCreatedAt().toString() : null);
         map.put("updated_at", mem.getUpdatedAt() != null ? mem.getUpdatedAt().toString() : null);
+        if (mem.getDatabaseId() != null) {
+            databaseRepository.findById(mem.getDatabaseId()).ifPresent(db ->
+                    map.put("database_status", db.getStatus().name()));
+        }
         return map;
     }
 }

@@ -9,6 +9,7 @@ export interface MemoryBase {
   scene: 'DEVELOPER_TOOL' | 'CHAT_ASSISTANT'
   status: string
   database_id: string | null
+  database_status?: string
   memory_count: number
   trait_count: number
   embedding_model: string | null
