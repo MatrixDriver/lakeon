@@ -69,7 +69,14 @@
               </span>
 
               <!-- Content -->
-              <p style="margin: 0; font-size: 14px; line-height: 1.6;"
+              <div v-if="currentBase?.encrypted" style="margin: 8px 0; padding: 12px 16px; background: #f7f7f5; border-radius: 6px; color: #888; font-size: 13px; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 16px;">&#x1f512;</span>
+                <div>
+                  <div style="font-weight: 500; color: #666;">内容已加密</div>
+                  <div style="font-size: 12px; margin-top: 2px;">仅可通过 MCP 客户端查看明文</div>
+                </div>
+              </div>
+              <p v-else style="margin: 0; font-size: 14px; line-height: 1.6;"
                  :style="expandedId !== m.id ? 'display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;' : ''">
                 {{ m.content }}
               </p>
@@ -116,12 +123,13 @@
 import { ref, watch } from 'vue'
 import MemoryBaseSelector from '@/components/MemoryBaseSelector.vue'
 import TraitCard from '@/components/memory/TraitCard.vue'
-import { listMemories, recallMemories, deleteMemory, listTraits, type MemoryItem, type Trait } from '@/api/memory'
+import { listMemories, recallMemories, deleteMemory, listTraits, getMemoryBase, type MemoryItem, type Trait, type MemoryBase } from '@/api/memory'
 import { MEMORY_TYPES, MEMORY_TYPE_COLORS, MEMORY_TYPE_LABELS } from '@/constants/memory'
 
 const PAGE_SIZE = 20
 
 const baseId = ref('')
+const currentBase = ref<MemoryBase | null>(null)
 const traits = ref<Trait[]>([])
 const _validTabs: ('memories' | 'traits')[] = ['memories', 'traits']
 const _hashTab = window.location.hash.replace('#', '') as 'memories' | 'traits'
@@ -135,9 +143,13 @@ const currentPage = ref(1)
 const loading = ref(false)
 const expandedId = ref<number | null>(null)
 
-function onBaseChange(id: string) {
+async function onBaseChange(id: string) {
   baseId.value = id
   currentPage.value = 1
+  try {
+    const { data } = await getMemoryBase(id)
+    currentBase.value = data
+  } catch { currentBase.value = null }
   load()
   loadTraits()
 }

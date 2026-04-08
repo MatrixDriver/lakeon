@@ -28,6 +28,11 @@
             <span style="color: #999;">类型</span><span>{{ typeLabel }}</span>
             <span style="color: #999;">模式</span><span>{{ base.one_llm_mode ? 'Agent-Extract 模式' : '普通模式（服务端提取）' }}</span>
             <span style="color: #999;">Embedding 模型</span><span>{{ base.embedding_model || '-' }}</span>
+            <template v-if="base.encrypted">
+              <span style="color: #999;">加密</span>
+              <span><span style="display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 12px; background: #f0f0f0; color: #666;">&#x1f512; 端到端加密</span></span>
+              <span style="color: #999;">Embedding 维度</span><span>{{ base.embedding_dim || '-' }}</span>
+            </template>
             <span style="color: #999;">状态</span>
             <span>
               <span class="status-tag" :class="statusClass">{{ statusLabel }}</span>
@@ -199,6 +204,26 @@
 
       <!-- Settings tab -->
       <div v-if="activeTab === 'settings'" style="margin-top: 24px;">
+
+        <!-- Encryption info card -->
+        <div v-if="base?.encrypted" class="section-card" style="padding: 20px 24px; margin-bottom: 24px; border-left: 3px solid #8c7a68;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <span style="font-size: 18px;">&#x1f512;</span>
+            <h3 style="font-size: 15px; font-weight: 600; margin: 0; color: #333;">端到端加密</h3>
+          </div>
+          <p style="font-size: 13px; color: #666; line-height: 1.8; margin: 0 0 12px;">
+            此记忆库已启用客户端加密。记忆内容在本地加密后上传，服务端无法查看明文。
+          </p>
+          <div style="font-size: 13px; color: #555; line-height: 2;">
+            <div><strong>创建加密记忆库：</strong><code style="background: #f5f3f0; padding: 1px 6px; border-radius: 3px;">dbay mem create --encrypted</code></div>
+            <div><strong>密码存储：</strong><code style="background: #f5f3f0; padding: 1px 6px; border-radius: 3px;">~/.dbay/secret</code></div>
+            <div><strong>密钥配置：</strong><code style="background: #f5f3f0; padding: 1px 6px; border-radius: 3px;">~/.dbay/encrypted_bases.json</code>（可安全传播）</div>
+            <div><strong>MCP 使用：</strong>自动加解密，无需额外操作</div>
+          </div>
+          <div style="margin-top: 12px; padding: 10px 14px; background: #faf8f5; border-radius: 6px; font-size: 12px; color: #8c7a68; line-height: 1.6;">
+            <strong>跨设备使用：</strong>复制 <code>~/.dbay/encrypted_bases.json</code> 到新设备，并创建 <code>~/.dbay/secret</code> 写入密码即可。
+          </div>
+        </div>
 
         <div v-if="base?.type === 'BUILTIN'">
           <!-- Client cards grid -->

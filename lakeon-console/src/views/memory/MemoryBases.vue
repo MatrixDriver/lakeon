@@ -138,7 +138,7 @@
         :name="item.name"
         :status="item.status"
         :statusLabel="statusText(item.status)"
-        :meta="[item.scene === 'DEVELOPER_TOOL' ? '开发者工具' : item.scene === 'CHAT_ASSISTANT' ? '对话助理' : '-', typeText(item.type), `${item.memory_count ?? 0} 记忆`]"
+        :meta="[item.scene === 'DEVELOPER_TOOL' ? '开发者工具' : item.scene === 'CHAT_ASSISTANT' ? '对话助理' : '-', typeText(item.type), item.encrypted ? '端到端加密' : '', `${item.memory_count ?? 0} 记忆`].filter(Boolean)"
         @click="handleRowClick(item)"
       >
         <template #actions>
@@ -171,6 +171,9 @@
               <span v-if="item.scene" style="font-size: 11px; padding: 1px 6px; border-radius: 3px; margin-left: 8px;"
                     :style="item.scene === 'DEVELOPER_TOOL' ? 'background:#e8f5e9;color:#2e7d32' : 'background:#fdf5ed;color:#1565c0'">
                 {{ item.scene === 'DEVELOPER_TOOL' ? '开发者工具' : '对话助理' }}
+              </span>
+              <span v-if="item.encrypted" style="font-size: 11px; padding: 1px 6px; border-radius: 3px; margin-left: 6px; background: #f0f0f0; color: #666;">
+                &#x1f512; 加密
               </span>
             </td>
             <td>

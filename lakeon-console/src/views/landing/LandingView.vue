@@ -82,6 +82,7 @@
           <div class="layer-tags">
             <span class="tag">{{ t('MCP 一键接入', 'MCP one-click') }}</span>
             <span class="tag">{{ t('记忆自动提取', 'Auto memory extraction') }}</span>
+            <span class="tag">{{ t('端到端加密', 'End-to-end encryption') }}</span>
             <span class="tag">{{ t('文档向量化', 'Doc vectorization') }}</span>
             <span class="tag">{{ t('分支并行探索', 'Branch parallel explore') }}</span>
             <span class="tag">{{ t('Console 管理', 'Console management') }}</span>

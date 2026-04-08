@@ -14,6 +14,10 @@ export interface MemoryBase {
   trait_count: number
   embedding_model: string | null
   one_llm_mode: boolean
+  encrypted: boolean
+  encrypted_dek: string | null
+  kdf_salt: string | null
+  embedding_dim: number | null
   error: string | null
   created_at: string
   updated_at: string
