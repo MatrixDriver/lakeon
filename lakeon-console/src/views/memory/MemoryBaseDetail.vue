@@ -205,23 +205,95 @@
       <!-- Settings tab -->
       <div v-if="activeTab === 'settings'" style="margin-top: 24px;">
 
-        <!-- Encryption info card -->
+        <!-- Encryption quick start guide -->
         <div v-if="base?.encrypted" class="section-card" style="padding: 20px 24px; margin-bottom: 24px; border-left: 3px solid #8c7a68;">
-          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
             <span style="font-size: 18px;">&#x1f512;</span>
-            <h3 style="font-size: 15px; font-weight: 600; margin: 0; color: #333;">端到端加密</h3>
+            <h3 style="font-size: 15px; font-weight: 600; margin: 0; color: #333;">加密记忆库 Quick Start</h3>
           </div>
-          <p style="font-size: 13px; color: #666; line-height: 1.8; margin: 0 0 12px;">
-            此记忆库已启用客户端加密。记忆内容在本地加密后上传，服务端无法查看明文。
-          </p>
-          <div style="font-size: 13px; color: #555; line-height: 2;">
-            <div><strong>创建加密记忆库：</strong><code style="background: #f5f3f0; padding: 1px 6px; border-radius: 3px;">dbay mem create --encrypted</code></div>
-            <div><strong>密码存储：</strong><code style="background: #f5f3f0; padding: 1px 6px; border-radius: 3px;">~/.dbay/secret</code></div>
-            <div><strong>密钥配置：</strong><code style="background: #f5f3f0; padding: 1px 6px; border-radius: 3px;">~/.dbay/encrypted_bases.json</code>（可安全传播）</div>
-            <div><strong>MCP 使用：</strong>自动加解密，无需额外操作</div>
+
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <!-- Step 1 -->
+            <div class="enc-step">
+              <div class="enc-step-num">1</div>
+              <div style="flex: 1;">
+                <div class="enc-step-title">放置密钥配置文件</div>
+                <p class="enc-step-desc">创建时已自动下载 <code>encrypted_bases_{{ base.id }}.json</code>，将内容合并到以下文件中：</p>
+                <div style="position: relative;">
+                  <pre class="code-block">~/.dbay/encrypted_bases.json</pre>
+                </div>
+                <p class="enc-step-desc" style="margin-top: 6px;">如果文件不存在，直接将下载的文件重命名为 <code>encrypted_bases.json</code> 放入 <code>~/.dbay/</code> 即可。</p>
+              </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="enc-step">
+              <div class="enc-step-num">2</div>
+              <div style="flex: 1;">
+                <div class="enc-step-title">设置加密密码</div>
+                <p class="enc-step-desc">创建密码文件（与创建记忆库时设置的密码一致）：</p>
+                <div style="position: relative;">
+                  <pre class="code-block">echo "DBAY_ENCRYPTION_PASSWORD=你的密码" > ~/.dbay/secret
+chmod 600 ~/.dbay/secret</pre>
+                  <button class="copy-btn" @click.stop="copyCode('echo \"DBAY_ENCRYPTION_PASSWORD=你的密码\" > ~/.dbay/secret\nchmod 600 ~/.dbay/secret')">{{ copied === 'echo \"DBAY_ENCRYPTION_PASSWORD=你的密码\" > ~/.dbay/secret\nchmod 600 ~/.dbay/secret' ? '已复制 ✓' : '复制' }}</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="enc-step">
+              <div class="enc-step-num">3</div>
+              <div style="flex: 1;">
+                <div class="enc-step-title">安装并登录 DBay CLI</div>
+                <div style="position: relative;">
+                  <pre class="code-block">pip install dbay-cli
+dbay login</pre>
+                  <button class="copy-btn" @click.stop="copyCode('pip install dbay-cli\ndbay login')">{{ copied === 'pip install dbay-cli\ndbay login' ? '已复制 ✓' : '复制' }}</button>
+                </div>
+                <p class="enc-step-desc" style="margin-top: 6px;">登录后凭据保存在 <code>~/.dbay/config.json</code>。</p>
+              </div>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="enc-step">
+              <div class="enc-step-num">4</div>
+              <div style="flex: 1;">
+                <div class="enc-step-title">设为默认记忆库</div>
+                <div style="position: relative;">
+                  <pre class="code-block">dbay mem use {{ base.id }}</pre>
+                  <button class="copy-btn" @click.stop="copyCode('dbay mem use ' + base.id)">{{ copied === 'dbay mem use ' + base.id ? '已复制 ✓' : '复制' }}</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 5 -->
+            <div class="enc-step">
+              <div class="enc-step-num">5</div>
+              <div style="flex: 1;">
+                <div class="enc-step-title">注册 MCP Server 到 Claude Code</div>
+                <div style="position: relative;">
+                  <pre class="code-block">claude mcp add --scope user dbay -- uvx dbay-mcp</pre>
+                  <button class="copy-btn" @click.stop="copyCode('claude mcp add --scope user dbay -- uvx dbay-mcp')">{{ copied === 'claude mcp add --scope user dbay -- uvx dbay-mcp' ? '已复制 ✓' : '复制' }}</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 6 -->
+            <div class="enc-step">
+              <div class="enc-step-num">6</div>
+              <div style="flex: 1;">
+                <div class="enc-step-title">验证</div>
+                <p class="enc-step-desc">重启 Claude Code，输入 <code>/mcp</code> 确认 dbay 已连接，然后试试：</p>
+                <div style="position: relative;">
+                  <pre class="code-block">对 Claude 说："记住我偏好 TypeScript"</pre>
+                </div>
+                <p class="enc-step-desc" style="margin-top: 6px;">Claude 会调用 <code>memory_ingest</code>，内容在本地加密后上传。你可以在本页的「记忆浏览」中看到密文（无法解读），确认加密生效。</p>
+              </div>
+            </div>
           </div>
-          <div style="margin-top: 12px; padding: 10px 14px; background: #faf8f5; border-radius: 6px; font-size: 12px; color: #8c7a68; line-height: 1.6;">
-            <strong>跨设备使用：</strong>复制 <code>~/.dbay/encrypted_bases.json</code> 到新设备，并创建 <code>~/.dbay/secret</code> 写入密码即可。
+
+          <div style="margin-top: 16px; padding: 10px 14px; background: #faf8f5; border-radius: 6px; font-size: 12px; color: #8c7a68; line-height: 1.6;">
+            <strong>跨设备：</strong>复制 <code>~/.dbay/encrypted_bases.json</code> 到新设备，创建 <code>~/.dbay/secret</code> 写入密码，然后 <code>dbay login</code> + <code>dbay mem use {{ base.id }}</code> 即可。
           </div>
         </div>
 
@@ -572,6 +644,37 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.enc-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.enc-step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #8c7a68;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.enc-step-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 6px;
+}
+.enc-step-desc {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.6;
+  margin: 0 0 6px;
+}
 .tab-bar {
   display: flex;
   gap: 0;
