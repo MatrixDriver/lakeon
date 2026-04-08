@@ -1432,6 +1432,389 @@ public class WikiService {
         }
     }
 
+    // ── Wiki Lint ────────────────────────────────────────────────────
+
+    /**
+     * Run lint checks on all wiki pages: rule-based (language, orphan, broken_link)
+     * followed by LLM-based analysis (contradiction, stale, missing_link).
+     */
+    public Map<String, Object> runLint(String tenantId, String kbId) {
+        KnowledgeBaseEntity kb = kbAccessService.getKbWithAccess(kbId, tenantId);
+        tenantId = kb.getTenantId();
+
+        List<DocumentEntity> wikiDocs = documentRepository.findByTenantIdAndKbIdAndDocType(
+                tenantId, kbId, DOC_TYPE_WIKI);
+
+        // Load all content pages (skip index.md, log.md)
+        Map<String, String> pageContents = new LinkedHashMap<>(); // title -> content
+        Set<String> pageTitles = new HashSet<>(); // normalized titles for existence check
+        for (DocumentEntity doc : wikiDocs) {
+            String fn = doc.getFilename();
+            if ("index.md".equals(fn) || "log.md".equals(fn)) continue;
+            String title = filenameToTitle(fn);
+            String content = readWikiPage(tenantId, kbId, fn);
+            if (content != null) {
+                pageContents.put(title, content);
+                pageTitles.add(title.toLowerCase());
+            }
+        }
+
+        List<Map<String, Object>> issues = new ArrayList<>();
+        Map<String, Integer> summary = new LinkedHashMap<>();
+        String[] categories = {"language", "orphan", "broken_link", "contradiction", "stale", "missing_link"};
+        for (String c : categories) summary.put(c, 0);
+
+        // 1. Language check
+        for (Map.Entry<String, String> entry : pageContents.entrySet()) {
+            String title = entry.getKey();
+            String content = entry.getValue();
+            String stripped = stripMarkdown(content);
+            if (stripped.isEmpty()) continue;
+            double chineseRatio = calcChineseRatio(stripped);
+            if (chineseRatio < 0.3) {
+                issues.add(lintIssue("language", "error", title,
+                        "全页非中文内容，中文比例仅 " + Math.round(chineseRatio * 100) + "%", List.of()));
+                summary.merge("language", 1, Integer::sum);
+            } else if (chineseRatio < 0.7) {
+                issues.add(lintIssue("language", "warning", title,
+                        "部分非中文内容，中文比例 " + Math.round(chineseRatio * 100) + "%", List.of()));
+                summary.merge("language", 1, Integer::sum);
+            }
+        }
+
+        // 2. Orphan check — build inbound link map
+        Map<String, Set<String>> inboundLinks = new HashMap<>();
+        for (String title : pageContents.keySet()) {
+            inboundLinks.put(title.toLowerCase(), new HashSet<>());
+        }
+        for (Map.Entry<String, String> entry : pageContents.entrySet()) {
+            String sourceTitle = entry.getKey();
+            List<String> links = extractWikilinks(entry.getValue());
+            for (String link : links) {
+                String targetKey = link.toLowerCase();
+                if (inboundLinks.containsKey(targetKey)) {
+                    inboundLinks.get(targetKey).add(sourceTitle);
+                }
+            }
+        }
+        for (Map.Entry<String, Set<String>> entry : inboundLinks.entrySet()) {
+            if (entry.getValue().isEmpty()) {
+                // Find original-case title
+                String title = entry.getKey();
+                for (String t : pageContents.keySet()) {
+                    if (t.toLowerCase().equals(entry.getKey())) { title = t; break; }
+                }
+                issues.add(lintIssue("orphan", "warning", title,
+                        "孤立页面：没有任何其他页面链接到此页", List.of()));
+                summary.merge("orphan", 1, Integer::sum);
+            }
+        }
+
+        // 3. Broken link check
+        Map<String, Set<String>> brokenLinks = new LinkedHashMap<>(); // target -> set of source pages
+        for (Map.Entry<String, String> entry : pageContents.entrySet()) {
+            String sourceTitle = entry.getKey();
+            List<String> links = extractWikilinks(entry.getValue());
+            for (String link : links) {
+                if (!pageTitles.contains(link.toLowerCase())) {
+                    brokenLinks.computeIfAbsent(link, k -> new LinkedHashSet<>()).add(sourceTitle);
+                }
+            }
+        }
+        for (Map.Entry<String, Set<String>> entry : brokenLinks.entrySet()) {
+            String target = entry.getKey();
+            Set<String> sources = entry.getValue();
+            issues.add(lintIssue("broken_link", "error", target,
+                    "断链：" + sources.size() + " 个页面引用了不存在的 [[" + target + "]]",
+                    new ArrayList<>(sources)));
+            summary.merge("broken_link", 1, Integer::sum);
+        }
+
+        // 4. LLM-based analysis
+        try {
+            List<Map<String, Object>> llmIssues = runLlmLintAnalysis(pageContents);
+            for (Map<String, Object> issue : llmIssues) {
+                String cat = (String) issue.get("category");
+                issues.add(issue);
+                summary.merge(cat, 1, Integer::sum);
+            }
+        } catch (Exception e) {
+            log.warn("LLM lint analysis failed for KB {}: {}", kbId, e.getMessage());
+        }
+
+        int total = summary.values().stream().mapToInt(Integer::intValue).sum();
+        summary.put("total", total);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("issues", issues);
+        result.put("summary", summary);
+        result.put("checked_at", Instant.now().toString());
+        return result;
+    }
+
+    /**
+     * LLM-based lint analysis: detect contradictions, stale content, missing cross-references.
+     */
+    private List<Map<String, Object>> runLlmLintAnalysis(Map<String, String> pageContents) {
+        if (pageContents.size() < 2) return List.of(); // need at least 2 pages
+
+        // Build page summaries (first 500 chars each, cap 30000 total)
+        StringBuilder context = new StringBuilder();
+        int totalChars = 0;
+        for (Map.Entry<String, String> entry : pageContents.entrySet()) {
+            if (totalChars >= 30_000) break;
+            String title = entry.getKey();
+            String content = entry.getValue();
+            String excerpt = content.substring(0, Math.min(content.length(), 500));
+            context.append("### ").append(title).append("\n").append(excerpt).append("\n\n");
+            totalChars += excerpt.length() + title.length() + 10;
+        }
+
+        String prompt = """
+                你是一个知识库Wiki质量审查专家。请分析以下Wiki页面，找出以下三类问题：
+
+                1. **矛盾 (contradictions)**：不同页面之间存在信息冲突或矛盾
+                2. **过时 (stale)**：内容可能已过时，如引用旧版本号、过期日期等
+                3. **缺失链接 (missing_links)**：两个页面内容相关但没有互相引用
+
+                Wiki页面内容：
+                ---
+                %s
+                ---
+
+                请输出JSON格式（不要markdown包裹）：
+                {
+                  "contradictions": [
+                    {"page": "页面标题", "related_pages": ["关联页面"], "description": "矛盾描述"}
+                  ],
+                  "stale": [
+                    {"page": "页面标题", "description": "过时原因"}
+                  ],
+                  "missing_links": [
+                    {"page": "页面标题", "related_pages": ["应链接的页面"], "description": "缺失链接说明"}
+                  ]
+                }
+
+                如果某类问题不存在，返回空数组。所有描述用中文。
+                """.formatted(context);
+
+        String llmResponse = callDeepSeek(prompt);
+        if (llmResponse == null || llmResponse.isBlank()) return List.of();
+
+        List<Map<String, Object>> issues = new ArrayList<>();
+        try {
+            JsonNode root = objectMapper.readTree(llmResponse);
+
+            JsonNode contradictions = root.path("contradictions");
+            if (contradictions.isArray()) {
+                for (JsonNode item : contradictions) {
+                    List<String> related = new ArrayList<>();
+                    item.path("related_pages").forEach(n -> related.add(n.asText()));
+                    issues.add(lintIssue("contradiction", "warning",
+                            item.path("page").asText(""),
+                            item.path("description").asText(""),
+                            related));
+                }
+            }
+
+            JsonNode stale = root.path("stale");
+            if (stale.isArray()) {
+                for (JsonNode item : stale) {
+                    issues.add(lintIssue("stale", "info",
+                            item.path("page").asText(""),
+                            item.path("description").asText(""),
+                            List.of()));
+                }
+            }
+
+            JsonNode missingLinks = root.path("missing_links");
+            if (missingLinks.isArray()) {
+                for (JsonNode item : missingLinks) {
+                    List<String> related = new ArrayList<>();
+                    item.path("related_pages").forEach(n -> related.add(n.asText()));
+                    issues.add(lintIssue("missing_link", "info",
+                            item.path("page").asText(""),
+                            item.path("description").asText(""),
+                            related));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse LLM lint response: {}", e.getMessage());
+        }
+        return issues;
+    }
+
+    /**
+     * Fix lint issues by calling the curate LLM with lint context appended.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> fixLintIssues(String tenantId, String kbId,
+                                              List<String> categories,
+                                              List<Map<String, Object>> issues) {
+        KnowledgeBaseEntity kb = kbAccessService.getKbWithAccess(kbId, tenantId);
+        tenantId = kb.getTenantId();
+        long startMs = System.currentTimeMillis();
+
+        // Filter issues by categories (empty = all)
+        List<Map<String, Object>> filtered = issues;
+        if (categories != null && !categories.isEmpty()) {
+            Set<String> catSet = new HashSet<>(categories);
+            filtered = issues.stream()
+                    .filter(i -> catSet.contains(i.get("category")))
+                    .toList();
+        }
+
+        if (filtered.isEmpty()) {
+            return Map.of("fixed", 0, "pages_updated", 0, "pages_created", 0);
+        }
+
+        // Build lint context string
+        StringBuilder lintContext = new StringBuilder();
+        lintContext.append("\n\n--- Lint Issues to Fix ---\n");
+        for (Map<String, Object> issue : filtered) {
+            lintContext.append("- [").append(issue.get("category")).append("] ")
+                    .append(issue.get("page")).append(": ")
+                    .append(issue.get("description"));
+            List<String> related = (List<String>) issue.get("related_pages");
+            if (related != null && !related.isEmpty()) {
+                lintContext.append(" (关联: ").append(String.join(", ", related)).append(")");
+            }
+            lintContext.append("\n");
+        }
+        lintContext.append("---\n\nPlease fix the above lint issues. ");
+        lintContext.append("For language issues, translate the page content to Chinese. ");
+        lintContext.append("For orphan pages, add appropriate wikilinks from related pages. ");
+        lintContext.append("For broken links, either create the missing page or fix the link. ");
+        lintContext.append("For contradictions, resolve the conflicting information. ");
+        lintContext.append("For stale content, update or flag the outdated information. ");
+        lintContext.append("For missing links, add the cross-references.\n");
+
+        // Load current index and pages (same as runCurate)
+        String indexContent = readWikiPage(tenantId, kbId, "index.md");
+        if (indexContent == null) indexContent = "# Wiki Index\n\nNo pages yet.\n";
+        if (indexContent.length() > MAX_INDEX_CHARS) {
+            indexContent = indexContent.substring(0, MAX_INDEX_CHARS);
+        }
+
+        List<DocumentEntity> wikiDocs = documentRepository.findByTenantIdAndKbIdAndDocType(
+                tenantId, kbId, DOC_TYPE_WIKI);
+        StringBuilder pagesContext = new StringBuilder();
+        int totalChars = 0;
+        for (DocumentEntity doc : wikiDocs) {
+            if ("index.md".equals(doc.getFilename()) || "log.md".equals(doc.getFilename())) continue;
+            if (totalChars >= 60_000) break;
+            String content = readWikiPage(tenantId, kbId, doc.getFilename());
+            if (content == null || content.isBlank()) continue;
+            String title = doc.getFilename().replace(".md", "");
+            String excerpt = content.substring(0, Math.min(content.length(), 1_500));
+            pagesContext.append("### ").append(title).append("\n").append(excerpt).append("\n\n");
+            totalChars += excerpt.length();
+        }
+
+        // Build prompt: curate prompt + lint context
+        String prompt = String.format(getCuratePrompt(), indexContent, pagesContext) + lintContext;
+
+        String llmResponse;
+        try {
+            llmResponse = callDeepSeek(prompt);
+        } catch (Exception e) {
+            log.error("Lint fix LLM call failed for KB {}: {}", kbId, e.getMessage());
+            writeRunLog(tenantId, kbId, "lint-fix", null, 0, 0, 0, startMs, e.getMessage());
+            throw new RuntimeException("LLM call failed: " + e.getMessage(), e);
+        }
+
+        if (llmResponse == null || llmResponse.isBlank()) {
+            return Map.of("fixed", 0, "pages_updated", 0, "pages_created", 0);
+        }
+
+        // Parse and apply changes (reuse curate parsing logic)
+        try {
+            JsonNode response = objectMapper.readTree(llmResponse);
+            int[] counts = applyWikiChanges(tenantId, kbId, response, indexContent);
+
+            JsonNode deletePages = response.path("delete_pages");
+            int deleted = 0;
+            if (deletePages.isArray()) {
+                for (JsonNode titleNode : deletePages) {
+                    String title = titleNode.asText("").trim();
+                    if (title.isBlank()) continue;
+                    String filename = titleToFilename(title);
+                    Optional<DocumentEntity> docOpt = documentRepository.findByTypeAndFilename(
+                            tenantId, kbId, DOC_TYPE_WIKI, filename);
+                    docOpt.ifPresent(doc -> {
+                        documentRepository.delete(doc);
+                        log.info("Lint fix deleted wiki page: {}", filename);
+                    });
+                    deleted++;
+                }
+            }
+
+            appendToLog(tenantId, kbId, "[Lint修复] 修复 " + filtered.size() + " 个问题，"
+                    + "创建 " + counts[0] + " 页，更新 " + counts[1] + " 页，删除 " + deleted + " 页");
+            writeRunLog(tenantId, kbId, "lint-fix", null, counts[0], counts[1], deleted, startMs, null);
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("fixed", filtered.size());
+            result.put("pages_updated", counts[1]);
+            result.put("pages_created", counts[0]);
+            return result;
+        } catch (Exception e) {
+            log.error("Failed to apply lint fix changes for KB {}: {}", kbId, e.getMessage(), e);
+            writeRunLog(tenantId, kbId, "lint-fix", null, 0, 0, 0, startMs, e.getMessage());
+            throw new RuntimeException("Failed to apply fixes: " + e.getMessage(), e);
+        }
+    }
+
+    private static Map<String, Object> lintIssue(String category, String severity,
+                                                   String page, String description,
+                                                   List<String> relatedPages) {
+        Map<String, Object> issue = new LinkedHashMap<>();
+        issue.put("category", category);
+        issue.put("severity", severity);
+        issue.put("page", page);
+        issue.put("description", description);
+        issue.put("related_pages", relatedPages != null ? relatedPages : List.of());
+        return issue;
+    }
+
+    /**
+     * Strip markdown syntax (headings, links, bold, italic, code blocks, etc.) to get plain text.
+     */
+    static String stripMarkdown(String md) {
+        if (md == null) return "";
+        String text = md;
+        // Remove code blocks
+        text = text.replaceAll("```[\\s\\S]*?```", "");
+        text = text.replaceAll("`[^`]+`", "");
+        // Remove headings markers
+        text = text.replaceAll("(?m)^#{1,6}\\s+", "");
+        // Remove wikilinks but keep text
+        text = text.replaceAll("\\[\\[([^\\]]+)]]", "$1");
+        // Remove markdown links
+        text = text.replaceAll("\\[([^\\]]+)]\\([^)]+\\)", "$1");
+        // Remove bold/italic markers
+        text = text.replaceAll("[*_]{1,3}", "");
+        // Remove horizontal rules
+        text = text.replaceAll("(?m)^[-*_]{3,}$", "");
+        // Remove list markers
+        text = text.replaceAll("(?m)^\\s*[-*+]\\s+", "");
+        text = text.replaceAll("(?m)^\\s*\\d+\\.\\s+", "");
+        // Collapse whitespace
+        text = text.replaceAll("\\s+", "");
+        return text;
+    }
+
+    /**
+     * Calculate the ratio of Chinese characters in a string.
+     */
+    static double calcChineseRatio(String text) {
+        if (text == null || text.isEmpty()) return 0.0;
+        long chinese = text.codePoints()
+                .filter(cp -> cp >= 0x4E00 && cp <= 0x9FFF)
+                .count();
+        return (double) chinese / text.length();
+    }
+
     /**
      * Convert a wiki page title to a filename: "Database Sharding" -> "database-sharding.md"
      */

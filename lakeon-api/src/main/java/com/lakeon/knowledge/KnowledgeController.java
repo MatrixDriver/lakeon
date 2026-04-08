@@ -836,6 +836,37 @@ public class KnowledgeController {
         }
     }
 
+    @PostMapping("/wiki/lint")
+    public ResponseEntity<?> runWikiLint(HttpServletRequest req,
+                                         @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        String kbId = (String) body.get("kb_id");
+        if (kbId == null || kbId.isBlank()) {
+            throw new BadRequestException("kb_id is required");
+        }
+        Map<String, Object> result = wikiService.runLint(tenant.getId(), kbId);
+        return ResponseEntity.ok(result);
+    }
+
+    @SuppressWarnings("unchecked")
+    @PostMapping("/wiki/lint/fix")
+    public ResponseEntity<?> fixWikiLint(HttpServletRequest req,
+                                          @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        String kbId = (String) body.get("kb_id");
+        if (kbId == null || kbId.isBlank()) {
+            throw new BadRequestException("kb_id is required");
+        }
+        List<String> categories = (List<String>) body.get("categories");
+        List<Map<String, Object>> issues = (List<Map<String, Object>>) body.get("issues");
+        if (issues == null || issues.isEmpty()) {
+            throw new BadRequestException("issues is required");
+        }
+        Map<String, Object> result = wikiService.fixLintIssues(
+                tenant.getId(), kbId, categories, issues);
+        return ResponseEntity.ok(result);
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────
 
     private void validateAdminToken(String token) {
