@@ -58,12 +58,13 @@ public class WikiService {
             ---
 
             Instructions:
-            1. Identify key topics, concepts, and entities in the new document.
-            2. For each topic, decide whether to CREATE a new wiki page or UPDATE an existing one.
-            3. Wiki pages should be concise reference articles (not copies of the source).
+            1. Identify the 2-5 MOST IMPORTANT topics in the new document. Do NOT create a page for every minor concept.
+            2. STRONGLY prefer UPDATING existing wiki pages over creating new ones. Only create a new page if no existing page covers the topic.
+            3. Wiki pages should be concise reference articles (not copies of the source). Merge related concepts into one page.
             4. Use [[wikilinks]] to cross-reference between pages.
-            5. Each wiki page title should be a clear noun phrase in Chinese (e.g. "数据库分片", "API 鉴权").
+            5. Each wiki page title should be a clear noun phrase in Chinese (e.g. "数据库分片", "API 鉴权"). Avoid overly specific titles.
             6. Write in Simplified Chinese (简体中文) regardless of the source document language.
+            7. Aim for 2-4 page changes per document (creates + updates combined). Quality over quantity.
 
             Output a JSON object with this exact structure:
             {
