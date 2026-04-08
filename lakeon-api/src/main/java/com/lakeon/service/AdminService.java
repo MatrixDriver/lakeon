@@ -1,9 +1,15 @@
 package com.lakeon.service;
 
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.knowledge.DocumentRepository;
+import com.lakeon.knowledge.KnowledgeBaseEntity;
+import com.lakeon.knowledge.KnowledgeBaseRepository;
+import com.lakeon.memory.MemoryBaseEntity;
+import com.lakeon.memory.MemoryBaseRepository;
 import com.lakeon.model.dto.TenantUsageSummary;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.OperationLogEntity;
+import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.model.enums.OperationStatus;
 import com.lakeon.model.enums.OperationType;
@@ -13,6 +19,12 @@ import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.OperationLogRepository;
 import com.lakeon.repository.TenantRepository;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.model.*;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
@@ -27,6 +39,7 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.micrometer.core.instrument.Timer;
 
 import javax.sql.DataSource;
+import java.net.URI;
 import java.sql.Connection;
 import java.time.Instant;
 import java.time.YearMonth;
@@ -50,6 +63,9 @@ public class AdminService {
     private final MeterRegistry meterRegistry;
     private final KubernetesClient k8sClient;
     private final CbcBillingService cbcBillingService;
+    private final KnowledgeBaseRepository knowledgeBaseRepository;
+    private final DocumentRepository documentRepository;
+    private final MemoryBaseRepository memoryBaseRepository;
 
 
     public AdminService(TenantRepository tenantRepository,
@@ -62,7 +78,10 @@ public class AdminService {
                         UsageMeteringService usageMeteringService,
                         MeterRegistry meterRegistry,
                         KubernetesClient k8sClient,
-                        CbcBillingService cbcBillingService) {
+                        CbcBillingService cbcBillingService,
+                        KnowledgeBaseRepository knowledgeBaseRepository,
+                        DocumentRepository documentRepository,
+                        MemoryBaseRepository memoryBaseRepository) {
         this.tenantRepository = tenantRepository;
         this.databaseRepository = databaseRepository;
         this.branchRepository = branchRepository;
@@ -74,6 +93,9 @@ public class AdminService {
         this.meterRegistry = meterRegistry;
         this.k8sClient = k8sClient;
         this.cbcBillingService = cbcBillingService;
+        this.knowledgeBaseRepository = knowledgeBaseRepository;
+        this.documentRepository = documentRepository;
+        this.memoryBaseRepository = memoryBaseRepository;
 
         Gauge.builder("lakeon_tenants_total", tenantRepository, TenantRepository::count)
             .description("Total number of tenants")
@@ -1554,5 +1576,301 @@ public class AdminService {
         result.put("db_id", dbId);
         result.put("message", "Pod deleted. Will be recreated on next database access.");
         return result;
+    }
+
+    // ── Storage Management ──────────────────────────────────────────
+
+    private static final List<String> OBS_PREFIXES = List.of(
+            "datasets/", "knowledge/", "tenant-", "datalake-logs/", "datasources/");
+
+    /**
+     * Returns storage usage summary per tenant, including database logical size,
+     * knowledge base document OBS size, and memory base database size.
+     */
+    public Map<String, Object> getStorageSummary() {
+        List<TenantEntity> tenants = tenantRepository.findAll();
+        List<Map<String, Object>> tenantSummaries = new ArrayList<>();
+        long totalDbSize = 0;
+        long totalDocSize = 0;
+        long totalMemSize = 0;
+
+        for (TenantEntity tenant : tenants) {
+            String tid = tenant.getId();
+            Map<String, Object> ts = new LinkedHashMap<>();
+            ts.put("tenant_id", tid);
+            ts.put("tenant_name", tenant.getName());
+
+            // Database logical sizes
+            List<DatabaseEntity> databases = databaseRepository.findAllByTenantId(tid);
+            long tenantDbSize = 0;
+            List<Map<String, Object>> dbDetails = new ArrayList<>();
+            for (DatabaseEntity db : databases) {
+                if (db.getStatus() == DatabaseStatus.DELETING) continue;
+                long logicalSize = 0;
+                try {
+                    if (db.getNeonTenantId() != null && db.getNeonTimelineId() != null) {
+                        var timeline = neonApiClient.getTimeline(db.getNeonTenantId(), db.getNeonTimelineId());
+                        if (timeline != null && timeline.getCurrentLogicalSize() != null) {
+                            logicalSize = timeline.getCurrentLogicalSize();
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to get logical size for db {} (tenant {}): {}", db.getId(), tid, e.getMessage());
+                }
+                tenantDbSize += logicalSize;
+                Map<String, Object> dbMap = new LinkedHashMap<>();
+                dbMap.put("id", db.getId());
+                dbMap.put("name", db.getName());
+                dbMap.put("logical_size", logicalSize);
+                dbDetails.add(dbMap);
+            }
+            ts.put("databases", dbDetails);
+            ts.put("db_total_size", tenantDbSize);
+            totalDbSize += tenantDbSize;
+
+            // Knowledge base document OBS sizes
+            List<KnowledgeBaseEntity> kbs = knowledgeBaseRepository.findAllByTenantIdOrderByCreatedAtDesc(tid);
+            long tenantDocSize = 0;
+            List<Map<String, Object>> kbDetails = new ArrayList<>();
+            for (KnowledgeBaseEntity kb : kbs) {
+                long obsSize = documentRepository.sumObsSizeByKbId(kb.getId());
+                tenantDocSize += obsSize;
+                Map<String, Object> kbMap = new LinkedHashMap<>();
+                kbMap.put("id", kb.getId());
+                kbMap.put("name", kb.getName());
+                kbMap.put("obs_size", obsSize);
+                kbDetails.add(kbMap);
+            }
+            ts.put("knowledge_bases", kbDetails);
+            ts.put("kb_total_obs_size", tenantDocSize);
+            totalDocSize += tenantDocSize;
+
+            // Memory base sizes (from associated database logical size)
+            List<MemoryBaseEntity> mbs = memoryBaseRepository.findByTenantIdOrderByCreatedAtDesc(tid);
+            long tenantMemSize = 0;
+            List<Map<String, Object>> mbDetails = new ArrayList<>();
+            for (MemoryBaseEntity mb : mbs) {
+                long memDbSize = 0;
+                if (mb.getDatabaseId() != null) {
+                    var memDb = databaseRepository.findById(mb.getDatabaseId()).orElse(null);
+                    if (memDb != null && memDb.getStatus() != DatabaseStatus.DELETING
+                            && memDb.getNeonTenantId() != null && memDb.getNeonTimelineId() != null) {
+                        try {
+                            var timeline = neonApiClient.getTimeline(memDb.getNeonTenantId(), memDb.getNeonTimelineId());
+                            if (timeline != null && timeline.getCurrentLogicalSize() != null) {
+                                memDbSize = timeline.getCurrentLogicalSize();
+                            }
+                        } catch (Exception e) {
+                            log.warn("Failed to get logical size for memory db {} (tenant {}): {}", mb.getDatabaseId(), tid, e.getMessage());
+                        }
+                    }
+                }
+                tenantMemSize += memDbSize;
+                Map<String, Object> mbMap = new LinkedHashMap<>();
+                mbMap.put("id", mb.getId());
+                mbMap.put("name", mb.getName());
+                mbMap.put("db_logical_size", memDbSize);
+                mbDetails.add(mbMap);
+            }
+            ts.put("memory_bases", mbDetails);
+            ts.put("mem_total_size", tenantMemSize);
+            totalMemSize += tenantMemSize;
+
+            ts.put("total_size", tenantDbSize + tenantDocSize + tenantMemSize);
+            tenantSummaries.add(ts);
+        }
+
+        // Sort by total_size descending
+        tenantSummaries.sort((a, b) -> Long.compare((long) b.get("total_size"), (long) a.get("total_size")));
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("tenant_count", tenants.size());
+        result.put("total_db_size", totalDbSize);
+        result.put("total_doc_obs_size", totalDocSize);
+        result.put("total_mem_size", totalMemSize);
+        result.put("total_size", totalDbSize + totalDocSize + totalMemSize);
+        result.put("tenants", tenantSummaries);
+        return result;
+    }
+
+    /**
+     * Scans OBS bucket for orphan prefixes (tenant IDs not present in DB).
+     */
+    public Map<String, Object> scanOrphanStorage() {
+        Set<String> knownTenantIds = tenantRepository.findAll().stream()
+                .map(TenantEntity::getId)
+                .collect(Collectors.toSet());
+
+        List<Map<String, Object>> orphans = new ArrayList<>();
+        long totalOrphanSize = 0;
+        int totalOrphanObjects = 0;
+
+        try (S3Client s3 = buildObsS3Client()) {
+            String bucket = props.getObs().getBucket();
+
+            for (String prefix : OBS_PREFIXES) {
+                // List top-level "directories" under this prefix
+                ListObjectsV2Request listReq = ListObjectsV2Request.builder()
+                        .bucket(bucket)
+                        .prefix(prefix)
+                        .delimiter("/")
+                        .build();
+
+                ListObjectsV2Response resp = s3.listObjectsV2(listReq);
+
+                for (CommonPrefix cp : resp.commonPrefixes()) {
+                    String fullPrefix = cp.prefix(); // e.g. "knowledge/abc123/"
+                    String tenantId = extractTenantId(prefix, fullPrefix);
+                    if (tenantId == null || tenantId.isEmpty()) continue;
+
+                    if (!knownTenantIds.contains(tenantId)) {
+                        // Count objects and size under this orphan prefix
+                        long prefixSize = 0;
+                        int objectCount = 0;
+                        ListObjectsV2Request countReq = ListObjectsV2Request.builder()
+                                .bucket(bucket)
+                                .prefix(fullPrefix)
+                                .build();
+                        ListObjectsV2Response countResp;
+                        do {
+                            countResp = s3.listObjectsV2(countReq);
+                            for (S3Object obj : countResp.contents()) {
+                                prefixSize += obj.size();
+                                objectCount++;
+                            }
+                            countReq = countReq.toBuilder()
+                                    .continuationToken(countResp.nextContinuationToken())
+                                    .build();
+                        } while (countResp.isTruncated());
+
+                        Map<String, Object> orphan = new LinkedHashMap<>();
+                        orphan.put("tenant_id", tenantId);
+                        orphan.put("prefix", fullPrefix);
+                        orphan.put("object_count", objectCount);
+                        orphan.put("total_size", prefixSize);
+                        orphans.add(orphan);
+                        totalOrphanSize += prefixSize;
+                        totalOrphanObjects += objectCount;
+                    }
+                }
+            }
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("known_tenant_count", knownTenantIds.size());
+        result.put("orphan_prefix_count", orphans.size());
+        result.put("orphan_total_objects", totalOrphanObjects);
+        result.put("orphan_total_size", totalOrphanSize);
+        result.put("orphans", orphans);
+        return result;
+    }
+
+    /**
+     * Deletes orphan objects for a given tenant ID. Refuses if tenant still exists.
+     */
+    public Map<String, Object> cleanupOrphanStorage(String tenantId, boolean dryRun) {
+        // Safety check: refuse if tenant still exists
+        if (tenantRepository.findById(tenantId).isPresent()) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", false);
+            result.put("error", "Tenant " + tenantId + " still exists. Cannot cleanup.");
+            return result;
+        }
+
+        List<Map<String, Object>> deletedPrefixes = new ArrayList<>();
+        int totalDeleted = 0;
+        long totalFreed = 0;
+
+        try (S3Client s3 = buildObsS3Client()) {
+            String bucket = props.getObs().getBucket();
+
+            for (String prefixTemplate : OBS_PREFIXES) {
+                String fullPrefix;
+                if (prefixTemplate.equals("tenant-")) {
+                    fullPrefix = "tenant-" + tenantId + "/";
+                } else {
+                    fullPrefix = prefixTemplate + tenantId + "/";
+                }
+
+                // List all objects under this prefix
+                List<ObjectIdentifier> toDelete = new ArrayList<>();
+                long prefixSize = 0;
+                ListObjectsV2Request listReq = ListObjectsV2Request.builder()
+                        .bucket(bucket)
+                        .prefix(fullPrefix)
+                        .build();
+                ListObjectsV2Response listResp;
+                do {
+                    listResp = s3.listObjectsV2(listReq);
+                    for (S3Object obj : listResp.contents()) {
+                        toDelete.add(ObjectIdentifier.builder().key(obj.key()).build());
+                        prefixSize += obj.size();
+                    }
+                    listReq = listReq.toBuilder()
+                            .continuationToken(listResp.nextContinuationToken())
+                            .build();
+                } while (listResp.isTruncated());
+
+                if (toDelete.isEmpty()) continue;
+
+                if (!dryRun) {
+                    // Delete in batches of 1000 (S3 limit)
+                    for (int i = 0; i < toDelete.size(); i += 1000) {
+                        List<ObjectIdentifier> batch = toDelete.subList(i, Math.min(i + 1000, toDelete.size()));
+                        s3.deleteObjects(DeleteObjectsRequest.builder()
+                                .bucket(bucket)
+                                .delete(Delete.builder().objects(batch).build())
+                                .build());
+                    }
+                }
+
+                Map<String, Object> prefixResult = new LinkedHashMap<>();
+                prefixResult.put("prefix", fullPrefix);
+                prefixResult.put("object_count", toDelete.size());
+                prefixResult.put("size", prefixSize);
+                deletedPrefixes.add(prefixResult);
+                totalDeleted += toDelete.size();
+                totalFreed += prefixSize;
+
+                log.info("Storage cleanup {}: tenant={}, prefix={}, objects={}, size={}",
+                        dryRun ? "DRY-RUN" : "DELETED", tenantId, fullPrefix, toDelete.size(), prefixSize);
+            }
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", true);
+        result.put("dry_run", dryRun);
+        result.put("tenant_id", tenantId);
+        result.put("total_objects_deleted", totalDeleted);
+        result.put("total_size_freed", totalFreed);
+        result.put("prefixes", deletedPrefixes);
+        return result;
+    }
+
+    private S3Client buildObsS3Client() {
+        return S3Client.builder()
+                .endpointOverride(URI.create(props.getObs().getEndpoint()))
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(props.getObs().getAccessKey(), props.getObs().getSecretKey())))
+                .region(Region.of("cn-north-4"))
+                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(false).build())
+                .build();
+    }
+
+    /**
+     * Extracts tenant ID from an OBS prefix.
+     * For "tenant-" prefix: "tenant-abc123/" -> "abc123"
+     * For other prefixes: "knowledge/abc123/" -> "abc123"
+     */
+    private String extractTenantId(String prefixTemplate, String fullPrefix) {
+        if (prefixTemplate.equals("tenant-")) {
+            // fullPrefix = "tenant-abc123/"
+            String withoutTrailing = fullPrefix.endsWith("/") ? fullPrefix.substring(0, fullPrefix.length() - 1) : fullPrefix;
+            return withoutTrailing.startsWith("tenant-") ? withoutTrailing.substring("tenant-".length()) : null;
+        } else {
+            // fullPrefix = "knowledge/abc123/"
+            String afterPrefix = fullPrefix.substring(prefixTemplate.length());
+            return afterPrefix.endsWith("/") ? afterPrefix.substring(0, afterPrefix.length() - 1) : afterPrefix;
+        }
     }
 }

@@ -670,6 +670,25 @@ public class AdminController {
         return adminService.restartComputePod(podName);
     }
 
+    // ── Storage Management ──────────────────────────────────────────
+
+    @GetMapping("/storage/summary")
+    public Map<String, Object> getStorageSummary() {
+        return adminService.getStorageSummary();
+    }
+
+    @PostMapping("/storage/scan")
+    public Map<String, Object> scanOrphanStorage() {
+        return adminService.scanOrphanStorage();
+    }
+
+    @PostMapping("/storage/cleanup")
+    public Map<String, Object> cleanupOrphanStorage(@RequestBody Map<String, Object> body) {
+        String tenantId = (String) body.get("tenant_id");
+        boolean dryRun = body.get("dry_run") != null ? (Boolean) body.get("dry_run") : true;
+        return adminService.cleanupOrphanStorage(tenantId, dryRun);
+    }
+
     // ── Audit Logs ──────────────────────────────────────────────────
 
     @GetMapping("/audit/logs")
