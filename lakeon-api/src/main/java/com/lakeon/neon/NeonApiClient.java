@@ -112,9 +112,12 @@ public class NeonApiClient {
     /**
      * Wait for a tenant to become Active (up to timeoutSeconds).
      * Polls GET /v1/tenant/{tenant_id} until state.slug == "Active".
+     * If the tenant is not found on pageserver (404), automatically re-attaches it
+     * via location_config API — this handles pageserver restarts that lose tenant state.
      */
     public void waitForTenantActive(String tenantId, int timeoutSeconds) {
         long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
+        boolean reattached = false;
         while (System.currentTimeMillis() < deadline) {
             try {
                 HttpRequest httpRequest = HttpRequest.newBuilder()
@@ -131,6 +134,10 @@ public class NeonApiClient {
                         return;
                     }
                     log.debug("Tenant {} state: {}, waiting...", tenantId, state);
+                } else if (response.statusCode() == 404 && !reattached) {
+                    log.warn("Tenant {} not found on pageserver, re-attaching via location_config", tenantId);
+                    reattachTenant(tenantId);
+                    reattached = true;
                 }
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
@@ -145,6 +152,34 @@ public class NeonApiClient {
             }
         }
         throw new NeonApiException("Tenant " + tenantId + " did not become Active within " + timeoutSeconds + "s");
+    }
+
+    /**
+     * Re-attach a tenant to pageserver via location_config.
+     * Used when a tenant is missing after pageserver restart.
+     */
+    private void reattachTenant(String tenantId) {
+        try {
+            String body = objectMapper.writeValueAsString(Map.of(
+                "mode", "AttachedSingle",
+                "generation", 1,
+                "tenant_conf", Map.of()
+            ));
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/v1/tenant/" + encodePathSegment(tenantId) + "/location_config"))
+                .PUT(HttpRequest.BodyPublishers.ofString(body))
+                .header("Content-Type", "application/json")
+                .timeout(REQUEST_TIMEOUT)
+                .build();
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() >= 400) {
+                log.error("Failed to re-attach tenant {}: HTTP {}", tenantId, response.statusCode());
+            } else {
+                log.info("Re-attached tenant {} to pageserver", tenantId);
+            }
+        } catch (Exception e) {
+            log.error("Failed to re-attach tenant {}: {}", tenantId, e.getMessage());
+        }
     }
 
     /**

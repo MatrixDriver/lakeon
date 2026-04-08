@@ -240,14 +240,22 @@
           </div>
           <div class="table-wrapper" v-if="computeSummary.pods.length > 0" style="margin-top: 12px;">
             <table class="data-table">
-              <thead><tr><th>Pod</th><th>数据库</th><th>数据库状态</th><th>Pod 状态</th><th>内存</th></tr></thead>
+              <thead><tr><th>Pod</th><th>数据库</th><th>数据库状态</th><th>Pod 状态</th><th>内存</th><th>操作</th></tr></thead>
               <tbody>
-                <tr v-for="p in computeSummary.pods" :key="p.pod_name" :class="{ 'row-warn': p.db_status === 'suspended' || p.db_status === 'orphaned' }">
+                <tr v-for="p in computeSummary.pods" :key="p.pod_name"
+                    :class="{ 'row-warn': p.db_status === 'suspended' || p.db_status === 'orphaned', 'row-clickable': !!p.db_id }"
+                    @click="p.db_id && $router.push(`/databases/${p.db_id}`)"
+                    :style="p.db_id ? 'cursor: pointer' : ''">
                   <td class="pod-name">{{ p.pod_name }}</td>
                   <td>{{ p.db_name || '-' }}</td>
                   <td><span class="phase-badge" :class="dbStatusBadge(p.db_status)">{{ DB_STATUS_LABELS[p.db_status] || p.db_status }}</span></td>
                   <td><span class="phase-badge" :class="phaseBadgeClass(p.phase, true)">{{ p.phase }}</span></td>
                   <td>{{ p.mem_request_mb }} MB</td>
+                  <td @click.stop>
+                    <button v-if="p.db_status === 'error'" class="btn btn-small btn-danger-outline" @click="restartPod(p.pod_name)" :disabled="restartingPod === p.pod_name">
+                      {{ restartingPod === p.pod_name ? '重启中...' : '重启' }}
+                    </button>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -641,6 +649,7 @@ const poolLoading = ref(true)
 const autoscaleLoading = ref(true)
 const computeLoading = ref(true)
 const cleanupLoading = ref(false)
+const restartingPod = ref<string | null>(null)
 const metrics = ref<any>(null)
 const psMetrics = ref<any>(null)
 const psCachePercent = computed(() => {
@@ -758,6 +767,25 @@ async function confirmCleanup() {
   }
 }
 
+
+async function restartPod(podName: string) {
+  if (!confirm(`确定重启 Pod ${podName}？\n这会删除当前 Pod 并在下次访问时重建。`)) return
+  restartingPod.value = podName
+  try {
+    const res = await adminApi.restartPod(podName)
+    if (res.data.success) {
+      alert(`Pod ${podName} 已重启。数据库将在下次访问时自动恢复。`)
+      await loadComputeSummary()
+    } else {
+      alert(`重启失败: ${res.data.error}`)
+    }
+  } catch (e) {
+    alert('重启请求失败')
+    console.error(e)
+  } finally {
+    restartingPod.value = null
+  }
+}
 
 async function loadComputeSummary() {
   computeLoading.value = true
@@ -1225,6 +1253,7 @@ onUnmounted(() => {
 .stat-red .stat-value { color: #e53e3e; }
 .stat-orange .stat-value { color: #d48806; }
 .row-warn { background: #fffbe6; }
+.row-clickable:hover { background: #f0f5ff; transition: background 0.15s; }
 .btn-danger-outline {
   background: #fff;
   color: #e53e3e;

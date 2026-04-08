@@ -665,6 +665,11 @@ public class AdminController {
         return adminService.cleanupIdleComputePods();
     }
 
+    @PostMapping("/infra/restart-pod/{podName}")
+    public Map<String, Object> restartPod(@PathVariable String podName) {
+        return adminService.restartComputePod(podName);
+    }
+
     // ── Audit Logs ──────────────────────────────────────────────────
 
     @GetMapping("/audit/logs")

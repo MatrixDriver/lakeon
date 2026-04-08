@@ -580,7 +580,7 @@ public class AdminService {
         topoNodes.add(Map.of("id", "railway", "label", "Railway (海外)", "sublabel", "dbay.cloud", "desc", "Web 控制台 · SRE Admin", "type", "railway"));
         topoNodes.add(Map.of("id", "eip", "label", "EIP 弹性公网IP", "sublabel", "api.dbay.cloud:8443", "desc", "HTTPS 入口", "type", "network"));
         topoNodes.add(Map.of("id", "elb", "label", "ELB 负载均衡", "sublabel", "TCP:8443 透传", "desc", "共享型 ELB", "type", "network"));
-        topoNodes.add(Map.of("id", "external-api", "label", "外部 API", "sublabel", "SiliconFlow", "desc", "Embedding (BGE-M3) · LLM (DeepSeek)", "type", "railway"));
+        topoNodes.add(Map.of("id", "external-api", "label", "外部 API", "sublabel", "华为云 MaaS", "desc", "LLM (DeepSeek V3.2)", "type", "railway"));
         topoNodes.add(Map.of("id", "cce", "label", "CCE 集群", "sublabel", "lakeon-k8s-cluster", "desc", "API · Proxy · Pageserver · Safekeeper · Memory · KubeRay · FluentBit", "type", "compute"));
         topoNodes.add(Map.of("id", "compute-pool", "label", "弹性节点池", "sublabel", "dbay-compute-pool", "desc", "数据库 Compute Pod (按需扩缩)", "type", "compute"));
         topoNodes.add(Map.of("id", "cci", "label", "CCI (Serverless)", "sublabel", "virtual-kubelet 调度", "desc", "KB Job · Notebook (Ray) · 数据湖 (Python/Ray/微调) · 热池", "type", "compute"));
@@ -636,8 +636,8 @@ public class AdminService {
                 "", "https://railway.com/dashboard"));
         resources.add(buildResource("Railway Admin", "海外 (Singapore)", "Railway", "Web 托管", "ACTIVE",
                 "", "https://railway.com/dashboard"));
-        resources.add(buildResource("SiliconFlow API", "海外", "SiliconFlow", "Embedding/LLM", "ACTIVE",
-                "", "https://cloud.siliconflow.cn"));
+        resources.add(buildResource("华为云 MaaS", "华北-北京四", "华为云", "LLM (DeepSeek V3.2)", "ACTIVE",
+                "", "https://console.huaweicloud.com/modelarts"));
 
         result.put("resources", resources);
         return result;
@@ -1503,6 +1503,56 @@ public class AdminService {
         result.put("deleted", deleted);
         result.put("deleted_pods", deletedPods);
         if (!errors.isEmpty()) result.put("errors", errors);
+        return result;
+    }
+
+    /**
+     * Restart a single compute pod: delete the existing pod and clear DB references.
+     * The pod will be recreated on next database access (via wakeCompute).
+     */
+    public Map<String, Object> restartComputePod(String podName) {
+        String computeNs = props.getK8s().getNamespace();
+
+        // Find associated database
+        DatabaseEntity db = databaseRepository.findAll().stream()
+                .filter(d -> podName.equals(d.getComputePodName()))
+                .findFirst().orElse(null);
+        BranchEntity branch = branchRepository.findAll().stream()
+                .filter(b -> podName.equals(b.getComputePodName()))
+                .findFirst().orElse(null);
+
+        String dbId = db != null ? db.getId() : null;
+
+        // Delete the pod
+        try {
+            k8sClient.pods().inNamespace(computeNs).withName(podName).delete();
+        } catch (Exception e) {
+            log.error("Failed to delete pod {} for restart: {}", podName, e.getMessage());
+            return Map.of("success", false, "error", "Failed to delete pod: " + e.getMessage());
+        }
+
+        // Clear DB references
+        if (db != null) {
+            db.setComputePodName(null);
+            db.setComputeHost(null);
+            db.setComputePort(null);
+            db.setStatus(DatabaseStatus.SUSPENDED);
+            databaseRepository.save(db);
+        }
+        if (branch != null) {
+            branch.setComputePodName(null);
+            branch.setComputeHost(null);
+            branch.setComputePort(null);
+            branchRepository.save(branch);
+        }
+
+        log.info("SRE restart: deleted pod {} (db_id={}), will recreate on next access", podName, dbId);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", true);
+        result.put("pod_name", podName);
+        result.put("db_id", dbId);
+        result.put("message", "Pod deleted. Will be recreated on next database access.");
         return result;
     }
 }

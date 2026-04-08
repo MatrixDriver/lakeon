@@ -72,6 +72,7 @@ export const adminApi = {
   autoscalingEvents: () => client.get('/infra/autoscaling-events'),
   computeSummary: () => client.get('/infra/compute-summary'),
   cleanupIdlePods: () => client.post('/infra/cleanup-idle-pods'),
+  restartPod: (podName: string) => client.post(`/infra/restart-pod/${podName}`),
 
   // Audit
   auditLogs: (params?: { tenant_id?: string; db_id?: string; type?: string; page?: number; size?: number }) =>
