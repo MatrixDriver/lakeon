@@ -73,7 +73,7 @@ const allGroups: CmdGroup[] = [
       { label: '时间旅行', icon: '◷', route: '/timetravel' },
       { label: 'SQL 编辑器', icon: '⟩', route: '/sql' },
       { label: '知识库', icon: '◇', route: '/knowledge' },
-      { label: '知识搜索', icon: '⊘', route: '/knowledge/search' },
+      { label: '原文搜索', icon: '⊘', route: '/knowledge/search' },
       { label: '记忆库', icon: '◎', route: '/memory' },
       { label: '记忆浏览', icon: '◉', route: '/memory/browse' },
       { label: '数据集', icon: '▤', route: '/datalake/datasets' },

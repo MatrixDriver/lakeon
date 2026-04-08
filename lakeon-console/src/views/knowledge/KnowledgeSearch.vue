@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">知识搜索</h1>
+      <h1 class="page-title">原文搜索</h1>
     </div>
 
     <div style="margin-top: 20px; max-width: 720px;">
