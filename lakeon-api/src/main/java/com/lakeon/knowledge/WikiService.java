@@ -1269,8 +1269,8 @@ public class WikiService {
             }
 
             JsonNode root = objectMapper.readTree(response.body());
-            return root.path("choices").path(0).path("message").path("content")
-                    .asText("").trim();
+            return stripMarkdownFence(root.path("choices").path(0).path("message").path("content")
+                    .asText("").trim());
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
@@ -1318,6 +1318,18 @@ public class WikiService {
     /**
      * Extract [[wikilinks]] from markdown content.
      */
+    /** Strip markdown code fences (```json ... ```) that some LLMs wrap around JSON output. */
+    private static String stripMarkdownFence(String text) {
+        if (text != null && text.startsWith("```")) {
+            int firstNewline = text.indexOf('\n');
+            int lastFence = text.lastIndexOf("```");
+            if (firstNewline > 0 && lastFence > firstNewline) {
+                return text.substring(firstNewline + 1, lastFence).trim();
+            }
+        }
+        return text;
+    }
+
     static List<String> extractWikilinks(String content) {
         List<String> links = new ArrayList<>();
         int pos = 0;
