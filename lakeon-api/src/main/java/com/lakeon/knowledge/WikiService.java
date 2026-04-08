@@ -269,6 +269,30 @@ public class WikiService {
     }
 
     /**
+     * Use LLM to extract key points from document fulltext in Chinese.
+     */
+    public List<String> extractKeyPointsWithLlm(String fulltext) {
+        if (fulltext.length() > 12000) {
+            fulltext = fulltext.substring(0, 12000);
+        }
+        String prompt = "请从以下文档内容中提取 3-6 个核心要点，用简体中文输出。" +
+                "每个要点一行，不要编号，不要 bullet，直接写内容。要点应该是独立的、有信息量的句子。\n\n" +
+                "文档内容：\n" + fulltext;
+        String response = callDeepSeekText(prompt);
+        if (response == null || response.isBlank()) {
+            return List.of();
+        }
+        List<String> points = new ArrayList<>();
+        for (String line : response.split("\n")) {
+            line = line.trim().replaceFirst("^[-*•]\\s*", "").replaceFirst("^\\d+[.)、]\\s*", "");
+            if (line.length() > 5) {
+                points.add(line);
+            }
+        }
+        return points.size() > 8 ? points.subList(0, 8) : points;
+    }
+
+    /**
      * Main entry point: process a newly ingested document and create/update wiki pages.
      * Called by KbWriteQueue after document summarization completes.
      */
