@@ -6,7 +6,11 @@ from dbay_cli.output import print_table, print_item, console
 app = typer.Typer()
 
 def _client() -> DbayClient:
-    return DbayClient(endpoint=get_endpoint(), api_key=get_api_key())
+    key = get_api_key()
+    if not key:
+        console.print("[red]未找到 API key。请先运行: dbay login[/red]")
+        raise typer.Exit(1)
+    return DbayClient(endpoint=get_endpoint(), api_key=key)
 
 @app.command("list")
 def list_kbs():
@@ -21,6 +25,8 @@ def create_kb(
 ):
     """Create a knowledge base"""
     kb = _client().create_knowledge_base(name, description)
+    from dbay_cli.config import set as config_set
+    config_set("knowledge_base", kb["id"])
     print_item(kb)
 
 @app.command("info")
