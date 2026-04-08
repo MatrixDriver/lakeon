@@ -350,6 +350,7 @@
               </td>
               <td style="white-space: nowrap;">
                 <span v-if="doc.metadata?.wiki_processed_at" style="color: #52c41a; font-size: 12px;" :title="new Date(doc.metadata.wiki_processed_at).toLocaleString('zh-CN')">已生成</span>
+                <span v-else-if="doc.status === 'WIKI_PENDING'" style="color: #fa8c16; font-size: 12px;">待审核</span>
                 <span v-else-if="doc.status === 'READY'" style="color: #faad14; font-size: 12px;">待生成</span>
                 <span v-else style="color: #bbb; font-size: 12px;">-</span>
               </td>

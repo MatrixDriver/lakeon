@@ -38,6 +38,7 @@ public class KnowledgeController {
     private final KbShareRepository kbShareRepository;
     private final TenantRepository tenantRepository;
     private final ChunkService chunkService;
+    private final com.lakeon.repository.DatabaseRepository databaseRepository;
 
     public KnowledgeController(KnowledgeService knowledgeService,
                                DocumentRepository documentRepository,
@@ -50,7 +51,8 @@ public class KnowledgeController {
                                KbAccessService kbAccessService,
                                KbShareRepository kbShareRepository,
                                TenantRepository tenantRepository,
-                               ChunkService chunkService) {
+                               ChunkService chunkService,
+                               com.lakeon.repository.DatabaseRepository databaseRepository) {
         this.knowledgeService = knowledgeService;
         this.documentRepository = documentRepository;
         this.kbWriteQueue = kbWriteQueue;
@@ -63,6 +65,7 @@ public class KnowledgeController {
         this.kbShareRepository = kbShareRepository;
         this.tenantRepository = tenantRepository;
         this.chunkService = chunkService;
+        this.databaseRepository = databaseRepository;
     }
 
     // ── Knowledge Base endpoints ─────────────────────────────────────
@@ -899,6 +902,9 @@ public class KnowledgeController {
             if (fulltext != null && !fulltext.isBlank()) {
                 Map<String, Object> result = wikiService.ingestText(
                         tenant.getId(), doc.getKbId(), fulltext, keyPoints, doc.getFilename());
+                // Mark wiki_processed_at (consistent with processIngest)
+                doc.getMetadata().put("wiki_processed_at", java.time.Instant.now().toString());
+                documentRepository.save(doc);
                 return ResponseEntity.ok(result);
             }
             return ResponseEntity.ok(Map.of("status", "ok", "message", "No fulltext found, skipped wiki generation"));
@@ -1028,6 +1034,11 @@ public class KnowledgeController {
         map.put("error", kb.getError());
         map.put("created_at", kb.getCreatedAt() != null ? kb.getCreatedAt().toString() : null);
         map.put("updated_at", kb.getUpdatedAt() != null ? kb.getUpdatedAt().toString() : null);
+        // Include associated database status (RUNNING/SUSPENDED) for UI display
+        if (kb.getDatabaseId() != null) {
+            databaseRepository.findById(kb.getDatabaseId()).ifPresent(db ->
+                    map.put("database_status", db.getStatus().name()));
+        }
         return map;
     }
 
