@@ -15,8 +15,23 @@ def _client() -> DbayClient:
 @app.command("list")
 def list_kbs():
     """List knowledge bases"""
+    from dbay_cli.config import get as config_get
+    current = config_get("knowledge_base") or ""
     kbs = _client().list_knowledge_bases()
-    print_table(kbs, columns=["id", "name", "status", "document_count", "created_at"])
+    for kb in kbs:
+        marker = "* " if kb['id'] == current else "  "
+        console.print(f"{marker}{kb['id']}  {kb['name']}  [{kb.get('status', '?')}]  docs={kb.get('document_count', 0)}")
+
+
+@app.command("use")
+def use_kb(
+    kb_id: str = typer.Argument(..., help="Knowledge base ID"),
+):
+    """Switch default knowledge base."""
+    from dbay_cli.config import set as config_set
+    kb = _client().get_knowledge_base(kb_id)
+    config_set("knowledge_base", kb_id)
+    console.print(f"Default knowledge base set to: {kb['name']} ({kb_id})")
 
 @app.command("create")
 def create_kb(

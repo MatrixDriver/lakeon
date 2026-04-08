@@ -17,10 +17,24 @@ def _client():
 @app.command("list")
 def list_bases():
     """List memory bases."""
+    from dbay_cli.config import get as config_get
+    current = config_get("memory_base") or ""
     bases = _client().list_memory_bases()
     for b in bases:
         mode = "agent-extract" if b.get("one_llm_mode") else "normal"
-        typer.echo(f"{b['id']}  {b['name']}  [{b['status']}]  mode={mode}")
+        marker = "* " if b['id'] == current else "  "
+        enc = " [encrypted]" if b.get("encrypted") else ""
+        typer.echo(f"{marker}{b['id']}  {b['name']}  [{b['status']}]  mode={mode}{enc}")
+
+
+@app.command("use")
+def use(mem_id: str):
+    """Switch default memory base."""
+    from dbay_cli.config import set as config_set
+    # Verify it exists
+    info = _client().get_memory_base(mem_id)
+    config_set("memory_base", mem_id)
+    typer.echo(f"Default memory base set to: {info['name']} ({mem_id})")
 
 
 @app.command("create")
