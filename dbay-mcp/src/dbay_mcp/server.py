@@ -245,6 +245,40 @@ def knowledge_upload(file_path: str, kb_name_or_id: str | None = None, tags: lis
     return f"Uploaded {filename} → document {doc_id} (status={status}). Processing will run in the background."
 
 
+@mcp.tool(description=_desc("knowledge_wiki_ingest"))
+def knowledge_wiki_ingest(
+    content: str,
+    key_points: list[str] | None = None,
+    kb_name_or_id: str | None = None,
+    source: str = "claude-code",
+) -> str:
+    """Ingest text content into a knowledge base's wiki, guided by user-confirmed key points.
+
+    Args:
+        content: The source text to ingest into wiki pages
+        key_points: Key points confirmed by the user (guides wiki page generation)
+        kb_name_or_id: Knowledge base name or ID (optional, uses default)
+        source: Source description (e.g. "CC conversation", "web article")
+    """
+    kb_id = _resolve_kb_id(kb_name_or_id)
+    body: dict = {"kb_id": kb_id, "content": content, "source": source}
+    if key_points:
+        body["key_points"] = key_points
+    data = _api("POST", "/knowledge/wiki/ingest-text", json=body)
+
+    status = data.get("status", "?")
+    created = data.get("pages_created", 0)
+    updated = data.get("pages_updated", 0)
+    if status == "ok":
+        parts = []
+        if created:
+            parts.append(f"{created} wiki pages created")
+        if updated:
+            parts.append(f"{updated} wiki pages updated")
+        return f"Wiki ingest complete: {', '.join(parts) if parts else 'no changes'}."
+    return f"Wiki ingest result: {data}"
+
+
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".md", ".markdown", ".txt"}
 
 BATCH_SIZE = 20
