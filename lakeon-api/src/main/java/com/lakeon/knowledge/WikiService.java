@@ -313,6 +313,13 @@ public class WikiService {
             JsonNode response = objectMapper.readTree(llmResponse);
             int[] counts = applyWikiChanges(tenantId, kbId, response, currentIndex);
             writeRunLog(tenantId, kbId, "ingest", docFilename, counts[0], counts[1], 0, startMs, null);
+
+            // 5. Mark source document as wiki-processed
+            documentRepository.findById(documentId).ifPresent(doc -> {
+                doc.getMetadata().put("wiki_processed_at",
+                        java.time.Instant.now().toString());
+                documentRepository.save(doc);
+            });
         } catch (Exception e) {
             log.error("processIngest failed for doc {}: {}", documentId, e.getMessage(), e);
             writeRunLog(tenantId, kbId, "ingest", docFilename, 0, 0, 0, startMs, e.getMessage());

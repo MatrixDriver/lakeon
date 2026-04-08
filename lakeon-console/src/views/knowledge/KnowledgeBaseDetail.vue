@@ -295,6 +295,7 @@
               <th style="cursor: pointer; user-select: none;" @click="setSort('size')">大小 {{ sortIcon('size') }}</th>
               <th style="cursor: pointer; user-select: none;" @click="setSort('chunks')">Chunks {{ sortIcon('chunks') }}</th>
               <th style="cursor: pointer; user-select: none;" @click="setSort('status')">状态 {{ sortIcon('status') }}</th>
+              <th>Wiki</th>
               <th style="cursor: pointer; user-select: none;" @click="setSort('upload_time')">上传时间 {{ sortIcon('upload_time') }}</th>
               <th>操作</th>
             </tr>
@@ -354,6 +355,11 @@
                     {{ doc.error }}
                   </div>
                 </div>
+              </td>
+              <td style="white-space: nowrap;">
+                <span v-if="doc.metadata?.wiki_processed_at" style="color: #52c41a; font-size: 12px;" :title="new Date(doc.metadata.wiki_processed_at).toLocaleString('zh-CN')">已生成</span>
+                <span v-else-if="doc.status === 'READY'" style="color: #faad14; font-size: 12px;">待生成</span>
+                <span v-else style="color: #bbb; font-size: 12px;">-</span>
               </td>
               <td style="color: #999;">{{ doc.created_at ? new Date(doc.created_at).toLocaleString('zh-CN') : '-' }}</td>
               <td @click.stop>
