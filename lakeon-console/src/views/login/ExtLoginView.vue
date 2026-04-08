@@ -120,8 +120,9 @@ async function handleLogin() {
       errorMsg.value = '登录成功但未获取到 API Key，请联系支持。'
       return
     }
-    // Redirect back to the extension with the API key in the hash
-    window.location.href = redirectUri + '#key=' + encodeURIComponent(apiKey)
+    // Redirect to web callback page (not chrome-extension:// which browsers block)
+    // The extension's background.js listens for this URL and extracts the key
+    window.location.href = '/ext-callback#key=' + encodeURIComponent(apiKey) + '&redirect_uri=' + encodeURIComponent(redirectUri)
   } catch (e: any) {
     if (e.response?.status === 401) {
       errorMsg.value = '用户名或密码错误，请重试。'

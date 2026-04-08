@@ -20,6 +20,12 @@ const routes = [
     meta: { noAuth: true },
   },
   {
+    path: '/ext-callback',
+    name: 'ExtCallback',
+    component: () => import('../views/login/ExtCallbackView.vue'),
+    meta: { noAuth: true },
+  },
+  {
     path: '/',
     component: () => import('../layouts/PublicLayout.vue'),
     meta: { noAuth: true },

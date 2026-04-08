@@ -39,10 +39,16 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 })
 
 async function handleLogin() {
-  // Use chrome.tabs approach instead of chrome.identity.launchWebAuthFlow
-  // More reliable for unpacked/dev-mode extensions
+  // Login flow:
+  // 1. Open ext-login page with redirect_uri pointing to our callback.html
+  // 2. After login, ext-login redirects to /ext-callback (web URL, not chrome-extension://)
+  //    with #key=xxx&redirect_uri=chrome-extension://[ID]/callback.html
+  // 3. We detect navigation to /ext-callback, extract the key, close the tab
+  //
+  // Why not redirect directly to chrome-extension://? Browsers block web→extension navigation.
   const callbackUrl = chrome.runtime.getURL('callback.html')
   const authUrl = `${AUTH_URL}?redirect_uri=${encodeURIComponent(callbackUrl)}`
+  const WEB_CALLBACK = 'https://dbay.cloud/ext-callback'
 
   return new Promise((resolve) => {
     chrome.tabs.create({ url: authUrl }, (tab) => {
@@ -52,8 +58,8 @@ async function handleLogin() {
         if (updatedTabId !== tabId || !changeInfo.url) return
         const url = changeInfo.url
 
-        // Check if the tab navigated to our callback URL
-        if (url.startsWith(callbackUrl)) {
+        // Detect navigation to the web callback page
+        if (url.startsWith(WEB_CALLBACK)) {
           chrome.tabs.onUpdated.removeListener(onUpdated)
           chrome.tabs.onRemoved.removeListener(onRemoved)
 
