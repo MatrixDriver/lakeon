@@ -10,6 +10,7 @@
       <button class="infra-tab" :class="{ active: activeTab === 'neon' }" @click="activeTab = 'neon'">Neon 数据层</button>
       <button class="infra-tab" :class="{ active: activeTab === 'cce' }" @click="activeTab = 'cce'">CCE 弹性节点池</button>
       <button class="infra-tab" :class="{ active: activeTab === 'cci' }" @click="activeTab = 'cci'">CCI Pod</button>
+      <button class="infra-tab" :class="{ active: activeTab === 'storage' }" @click="activeTab = 'storage'">存储</button>
     </div>
 
     <!-- Tab: CCE 弹性节点池 -->
@@ -362,6 +363,11 @@
       </div>
     </div>
 
+    <!-- Tab: 存储 -->
+    <div v-if="activeTab === 'storage'" style="padding: 20px;">
+      <StoragePanel />
+    </div>
+
     <!-- Tab: 管控面 -->
     <div v-if="activeTab === 'control'">
       <!-- API Pressure Overview -->
@@ -471,9 +477,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, defineComponent, h } from 'vue'
+import { ref, computed, onMounted, onUnmounted, defineComponent, defineAsyncComponent, h } from 'vue'
 import { useRoute } from 'vue-router'
 import { adminApi } from '../../api/admin'
+
+const StoragePanel = defineAsyncComponent(() => import('./StoragePanel.vue'))
 
 // ── Inline SVG Line Chart ──
 interface ChartPoint { time: string; value: number }

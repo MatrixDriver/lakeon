@@ -157,6 +157,12 @@ export const adminApi = {
   createInviteCode: (data?: Record<string, number>) => client.post('/invite-codes', data || {}),
   deleteInviteCode: (code: string) => client.delete(`/invite-codes/${code}`),
 
+  // Storage
+  storageSummary: () => client.get('/storage/summary'),
+  storageScan: () => client.post('/storage/scan'),
+  storageCleanup: (tenantId: string, dryRun: boolean) =>
+    client.post('/storage/cleanup', { tenantId, dryRun }),
+
   // AI Assistant
   aiChat: (messages: Array<{role: string; content: string}>, context?: {resource_type: string; resource_id: string}) => {
     const token = localStorage.getItem('lakeon_admin_token')
