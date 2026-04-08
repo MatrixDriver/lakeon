@@ -1566,7 +1566,7 @@ public class WikiService {
             String content = readWikiPage(tenantId, kbId, fn);
             if (content != null) {
                 pageContents.put(title, content);
-                pageTitles.add(title.toLowerCase());
+                pageTitles.add(normalizeLinkTitle(title));
             }
         }
 
@@ -1596,13 +1596,13 @@ public class WikiService {
         // 2. Orphan check — build inbound link map
         Map<String, Set<String>> inboundLinks = new HashMap<>();
         for (String title : pageContents.keySet()) {
-            inboundLinks.put(title.toLowerCase(), new HashSet<>());
+            inboundLinks.put(normalizeLinkTitle(title), new HashSet<>());
         }
         for (Map.Entry<String, String> entry : pageContents.entrySet()) {
             String sourceTitle = entry.getKey();
             List<String> links = extractWikilinks(entry.getValue());
             for (String link : links) {
-                String targetKey = link.toLowerCase();
+                String targetKey = normalizeLinkTitle(link);
                 if (inboundLinks.containsKey(targetKey)) {
                     inboundLinks.get(targetKey).add(sourceTitle);
                 }
@@ -1613,7 +1613,7 @@ public class WikiService {
                 // Find original-case title
                 String title = entry.getKey();
                 for (String t : pageContents.keySet()) {
-                    if (t.toLowerCase().equals(entry.getKey())) { title = t; break; }
+                    if (normalizeLinkTitle(t).equals(entry.getKey())) { title = t; break; }
                 }
                 issues.add(lintIssue("orphan", "warning", title,
                         "孤立页面：没有任何其他页面链接到此页", List.of()));
@@ -1627,7 +1627,7 @@ public class WikiService {
             String sourceTitle = entry.getKey();
             List<String> links = extractWikilinks(entry.getValue());
             for (String link : links) {
-                if (!pageTitles.contains(link.toLowerCase())) {
+                if (!pageTitles.contains(normalizeLinkTitle(link))) {
                     brokenLinks.computeIfAbsent(link, k -> new LinkedHashSet<>()).add(sourceTitle);
                 }
             }
@@ -1939,6 +1939,12 @@ public class WikiService {
     /**
      * Convert a filename back to a display title: "database-sharding.md" -> "database-sharding"
      */
+    /** Normalize a wiki title/link for comparison: lowercase, spaces/underscores → hyphens, strip parens. */
+    static String normalizeLinkTitle(String title) {
+        if (title == null) return "";
+        return title.toLowerCase().replaceAll("[\\s_]+", "-").replaceAll("[（()）]", "").trim();
+    }
+
     static String filenameToTitle(String filename) {
         if (filename.endsWith(".md")) {
             return filename.substring(0, filename.length() - 3);
