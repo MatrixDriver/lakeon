@@ -4,6 +4,7 @@ Config: env vars DBAY_API_KEY / DBAY_ENDPOINT / DBAY_MEMORY_BASE / DBAY_KNOWLEDG
 Tool descriptions: tool_descriptions.yaml (editable by SRE without touching Python code)
 """
 
+import asyncio
 import json
 import os
 from pathlib import Path
@@ -302,8 +303,6 @@ def knowledge_upload_directory(
         recursive: Whether to scan subdirectories (default True)
         tags: Optional tags to apply to all uploaded documents
     """
-    import asyncio
-
     kb_id = _resolve_kb_id(kb_name_or_id)
     dir_path = Path(directory_path).expanduser().resolve()
     if not dir_path.is_dir():
@@ -393,6 +392,40 @@ def knowledge_upload_directory(
 # Memory tools
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Encryption helpers
+# ---------------------------------------------------------------------------
+
+def _get_encrypted_base_info(mem_id: str) -> dict | None:
+    """Check if mem_id is an encrypted base. Returns base info with encrypted_dek or None."""
+    from dbay_mcp.crypto import is_encrypted_base
+    if not is_encrypted_base(mem_id):
+        return None
+    data = _api("GET", f"/memory/bases/{mem_id}")
+    if data.get("encrypted"):
+        return data
+    return None
+
+
+def _encrypt_and_embed(mem_id: str, content: str, base_info: dict) -> tuple[str, list[float]]:
+    """Encrypt content and generate embedding locally."""
+    from dbay_mcp.crypto import get_dek, encrypt_content
+    from dbay_mcp.embedding import generate_embedding
+
+    dek = get_dek(mem_id, base_info["encrypted_dek"])
+    encrypted_content = encrypt_content(dek, content)
+    embedding = asyncio.get_event_loop().run_until_complete(
+        generate_embedding(mem_id, content, api_key=_get_api_key(), endpoint=_get_endpoint())
+    )
+    return encrypted_content, embedding
+
+
+def _decrypt_content(mem_id: str, encrypted_content: str, base_info: dict) -> str:
+    """Decrypt content using DEK."""
+    from dbay_mcp.crypto import get_dek, decrypt_content
+    dek = get_dek(mem_id, base_info["encrypted_dek"])
+    return decrypt_content(dek, encrypted_content)
+
 
 def _get_memory_base_id() -> str:
     """Get the default memory base ID from env or config."""
@@ -442,28 +475,60 @@ def memory_recall(
         memory_base: Memory base name or ID (optional, auto-detected if only one exists)
     """
     mem_id = _resolve_mem_id(memory_base)
-    body: dict = {"query": query, "top_k": min(top_k, 50)}
-    if memory_types:
-        body["memory_types"] = memory_types
-    data = _api("POST", f"/memory/bases/{mem_id}/recall", json=body)
 
-    memories = data.get("memories", [])
-    if not memories:
-        return "No memories found."
+    base_info = _get_encrypted_base_info(mem_id)
+    if base_info:
+        from dbay_mcp.embedding import generate_embedding
+        query_embedding = asyncio.get_event_loop().run_until_complete(
+            generate_embedding(mem_id, query, api_key=_get_api_key(), endpoint=_get_endpoint())
+        )
+        body: dict = {"query_embedding": query_embedding, "top_k": min(top_k, 50)}
+        if memory_types:
+            body["memory_types"] = memory_types
+        data = _api("POST", f"/memory/bases/{mem_id}/recall", json=body)
 
-    parts = []
-    for i, m in enumerate(memories, 1):
-        mtype = m.get("memory_type", "?")
-        content = m.get("content", "").strip()
-        meta = m.get("metadata", {})
-        meta_str = ""
-        if meta:
-            meta_parts = [f"{k}={v}" for k, v in meta.items() if v and k != "source"]
-            if meta_parts:
-                meta_str = f" ({', '.join(meta_parts)})"
-        parts.append(f"{i}. [{mtype}] {content}{meta_str}")
+        memories = data.get("memories", [])
+        if not memories:
+            return "No memories found."
 
-    return "\n".join(parts)
+        parts = []
+        for i, m in enumerate(memories, 1):
+            mtype = m.get("memory_type", "?")
+            encrypted_content = m.get("content", "").strip()
+            try:
+                content = _decrypt_content(mem_id, encrypted_content, base_info)
+            except Exception:
+                content = "[decryption failed]"
+            meta = m.get("metadata", {})
+            meta_str = ""
+            if meta:
+                meta_parts = [f"{k}={v}" for k, v in meta.items() if v and k != "source"]
+                if meta_parts:
+                    meta_str = f" ({', '.join(meta_parts)})"
+            parts.append(f"{i}. [{mtype}] {content}{meta_str}")
+        return "\n".join(parts)
+    else:
+        body = {"query": query, "top_k": min(top_k, 50)}
+        if memory_types:
+            body["memory_types"] = memory_types
+        data = _api("POST", f"/memory/bases/{mem_id}/recall", json=body)
+
+        memories = data.get("memories", [])
+        if not memories:
+            return "No memories found."
+
+        parts = []
+        for i, m in enumerate(memories, 1):
+            mtype = m.get("memory_type", "?")
+            content = m.get("content", "").strip()
+            meta = m.get("metadata", {})
+            meta_str = ""
+            if meta:
+                meta_parts = [f"{k}={v}" for k, v in meta.items() if v and k != "source"]
+                if meta_parts:
+                    meta_str = f" ({', '.join(meta_parts)})"
+            parts.append(f"{i}. [{mtype}] {content}{meta_str}")
+        return "\n".join(parts)
 
 
 @mcp.tool(description=_desc("memory_ingest"))
@@ -484,17 +549,29 @@ def memory_ingest(
         memory_base: Memory base name or ID (optional, auto-detected)
     """
     mem_id = _resolve_mem_id(memory_base)
-    data = _api("POST", f"/memory/bases/{mem_id}/ingest", json={
-        "content": content,
-        "signal": "memory",
-        "source": source,
-        "memory_type": memory_type,
-        "importance": importance,
-    })
+
+    base_info = _get_encrypted_base_info(mem_id)
+    if base_info:
+        encrypted_content, embedding = _encrypt_and_embed(mem_id, content, base_info)
+        data = _api("POST", f"/memory/bases/{mem_id}/ingest", json={
+            "content": encrypted_content,
+            "signal": "memory",
+            "source": source,
+            "memory_type": memory_type,
+            "importance": importance,
+            "embedding": embedding,
+        })
+    else:
+        data = _api("POST", f"/memory/bases/{mem_id}/ingest", json={
+            "content": content,
+            "signal": "memory",
+            "source": source,
+            "memory_type": memory_type,
+            "importance": importance,
+        })
 
     if data.get("status") == "stored":
         return f"Memory stored (id={data.get('memory_id')}, type={data.get('memory_type')})."
-    # Fallback for older server versions
     return f"Memory stored (status={data.get('status', 'ok')})."
 
 
@@ -521,13 +598,23 @@ def memory_list(
     if not memories:
         return "No memories found."
 
+    base_info = _get_encrypted_base_info(mem_id)
     total = data.get("total", len(memories))
     parts = [f"Showing {len(memories)} of {total} memories:\n"]
     for m in memories:
         mid = m.get("id", "?")
         mtype = m.get("memory_type", "?")
-        content = m.get("content", "").strip()
+        raw_content = m.get("content", "").strip()
         importance = m.get("importance", 0)
+
+        if base_info:
+            try:
+                content = _decrypt_content(mem_id, raw_content, base_info)
+            except Exception:
+                content = "[decryption failed]"
+        else:
+            content = raw_content
+
         preview = content[:120] + "..." if len(content) > 120 else content
         parts.append(f"  [{mid}] ({mtype}, imp={importance}) {preview}")
 
