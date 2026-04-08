@@ -73,7 +73,12 @@ async function openPage(page: WikiPageItem) {
 }
 
 function navigateToTitle(title: string) {
-  const page = pages.value.find(p => p.filename === title + '.md')
+  // Normalize for matching: lowercase, replace spaces with hyphens, strip .md
+  const normalize = (s: string) => s.replace(/\.md$/, '').toLowerCase().replace(/[\s_]+/g, '-')
+  const target = normalize(title)
+  const page = pages.value.find(p => normalize(p.filename) === target)
+    || pages.value.find(p => normalize(p.filename).includes(target))
+    || pages.value.find(p => target.includes(normalize(p.filename)))
   if (page) {
     openPage(page)
   } else {
