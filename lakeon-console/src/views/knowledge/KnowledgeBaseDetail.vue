@@ -297,10 +297,10 @@
                 <div style="display: flex; flex-direction: column; gap: 4px;">
                   <div style="display: flex; align-items: center; gap: 6px; white-space: nowrap;">
                     <span class="status-dot" :style="{ background: docStatusColor(doc.status) }"></span>
-                    <template v-if="doc.status === 'READY' && doc.metadata?.wiki_processed_at">
+                    <template v-if="(doc.status === 'READY' || doc.status === 'WIKI_PENDING') && doc.metadata?.wiki_processed_at">
                       <span style="color: #52c41a;" :title="'Wiki 生成于 ' + new Date(doc.metadata.wiki_processed_at).toLocaleString('zh-CN')">就绪 · Wiki 已生成</span>
                     </template>
-                    <template v-else-if="doc.status === 'READY'">
+                    <template v-else-if="doc.status === 'READY' || doc.status === 'WIKI_PENDING'">
                       <span>就绪 · <span style="color: #faad14;">Wiki 待生成</span></span>
                     </template>
                     <template v-else>
@@ -329,7 +329,7 @@
               <td style="color: #999;">{{ doc.created_at ? new Date(doc.created_at).toLocaleString('zh-CN') : '-' }}</td>
               <td @click.stop>
                 <button v-if="doc.status === 'FAILED'" class="btn btn-text btn-small" style="color: #c19a6b;" @click="handleRetryDoc(doc)">重试</button>
-                <router-link v-if="doc.status === 'READY'" :to="{ name: 'DocumentDetail', params: { kbId: route.params.kbId, docId: doc.id } }" class="btn btn-text btn-small" style="color: #9a5b25;" @click.stop>切片</router-link>
+                <router-link v-if="doc.status === 'READY' || doc.status === 'WIKI_PENDING'" :to="{ name: 'DocumentDetail', params: { kbId: route.params.kbId, docId: doc.id } }" class="btn btn-text btn-small" style="color: #9a5b25;" @click.stop>切片</router-link>
                 <button v-if="isAdmin" class="btn btn-text btn-small btn-danger-text" style="font-size: 11px;" @click="handleDeleteDoc(doc)">删除</button>
               </td>
             </tr>
@@ -794,14 +794,14 @@ async function handleGetCredentials(dsId: string) {
 }
 
 function docStatusColor(s: string) {
-  if (s === 'READY') return '#52c41a'
+  if (s === 'READY' || s === 'WIKI_PENDING') return '#52c41a'
   if (s === 'PROCESSING') return '#c19a6b'
   if (s === 'FAILED') return '#e6393d'
   return '#d9d9d9'
 }
 
 function docStatusText(s: string) {
-  const map: Record<string, string> = { PENDING: '等待中', PROCESSING: '处理中', READY: '就绪', FAILED: '失败' }
+  const map: Record<string, string> = { PENDING: '等待中', PROCESSING: '处理中', READY: '就绪', WIKI_PENDING: '就绪', FAILED: '失败' }
   return map[s] || s
 }
 
