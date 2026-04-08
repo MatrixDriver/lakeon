@@ -207,7 +207,7 @@ async function handleDelete(memoryId: number) {
   font-size: 11px; background: #f0ece7; color: #64748b; border-radius: 8px;
 }
 .traits-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 8px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 10px;
 }
 </style>
