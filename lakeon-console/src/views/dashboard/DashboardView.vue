@@ -420,10 +420,12 @@ const createForm = reactive({
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
+const STATUS_ORDER: Record<string, number> = { RUNNING: 0, CREATING: 1, ERROR: 2, SUSPENDED: 3, DELETED: 4 }
+
 const filteredDatabases = computed(() => {
   const q = dbSearch.value.toLowerCase()
-  if (!q) return databases.value
-  return databases.value.filter(d => d.name.toLowerCase().includes(q))
+  const list = q ? databases.value.filter(d => d.name.toLowerCase().includes(q)) : [...databases.value]
+  return list.sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9))
 })
 
 const pagedDatabases = computed(() => {
