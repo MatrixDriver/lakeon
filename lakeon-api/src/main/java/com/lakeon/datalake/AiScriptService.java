@@ -29,25 +29,18 @@ public class AiScriptService {
     // Model definitions with pricing (CNY per million tokens)
     public static final List<Map<String, Object>> AVAILABLE_MODELS = List.of(
         Map.of(
-            "id", "deepseek-chat",
+            "id", "deepseek-v3.2",
             "name", "DeepSeek V3.2",
             "input_price", 2.0,
             "output_price", 3.0,
             "desc", "综合能力强，性价比高"
         ),
         Map.of(
-            "id", "Qwen/Qwen3-Coder-480B-A35B-Instruct",
-            "name", "Qwen3 Coder 480B",
-            "input_price", 8.0,
+            "id", "deepseek-r1",
+            "name", "DeepSeek R1",
+            "input_price", 4.0,
             "output_price", 16.0,
-            "desc", "最强代码模型，脚本生成质量最高"
-        ),
-        Map.of(
-            "id", "Qwen/Qwen3-Coder-30B-A3B-Instruct",
-            "name", "Qwen3 Coder 30B",
-            "input_price", 0.7,
-            "output_price", 2.8,
-            "desc", "轻量代码模型，速度快价格低"
+            "desc", "推理模型，复杂脚本生成质量最高"
         )
     );
 

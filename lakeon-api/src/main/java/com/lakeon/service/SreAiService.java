@@ -21,7 +21,7 @@ import java.util.*;
 @Service
 public class SreAiService {
     private static final Logger log = LoggerFactory.getLogger(SreAiService.class);
-    private static final String MODEL = "deepseek-chat";
+    private static final String MODEL = "deepseek-v3.2";
     private static final int MAX_TOOL_ROUNDS = 5;
 
     private final LakeonProperties props;
@@ -246,9 +246,20 @@ public class SreAiService {
     }
 
     /**
-     * Call SiliconFlow chat/completions API.
+     * Call LLM chat/completions API with tools.
      */
     public JsonNode callLlm(List<Map<String, Object>> messages) throws Exception {
+        return callLlmInternal(messages, TOOLS);
+    }
+
+    /**
+     * Call LLM chat/completions API without tools (forces text response).
+     */
+    public JsonNode callLlmWithoutTools(List<Map<String, Object>> messages) throws Exception {
+        return callLlmInternal(messages, null);
+    }
+
+    private JsonNode callLlmInternal(List<Map<String, Object>> messages, List<Map<String, Object>> tools) throws Exception {
         String apiKey = props.getAi().getApiKey();
         String baseUrl = props.getAi().getBaseUrl();
         if (apiKey == null || apiKey.isBlank()) {
@@ -259,7 +270,9 @@ public class SreAiService {
         String aiModel = props.getAi().getModel();
         requestBody.put("model", aiModel.isEmpty() ? MODEL : aiModel);
         requestBody.put("messages", messages);
-        requestBody.put("tools", TOOLS);
+        if (tools != null) {
+            requestBody.put("tools", tools);
+        }
         requestBody.put("temperature", 0.1);
         requestBody.put("max_tokens", 4000);
         requestBody.put("chat_template_kwargs", Map.of("enable_thinking", false));
@@ -349,6 +362,19 @@ public class SreAiService {
                     sendSse(emitter, "content", content);
                 }
                 break;
+            }
+
+            // If all rounds were tool calls, make one final call without tools to force a summary
+            if (messages.get(messages.size() - 1).get("role").equals("tool")) {
+                sendSse(emitter, "thinking", "正在总结...");
+                messages.add(Map.of("role", "user", "content",
+                        "请根据以上工具调用的结果，直接用中文给出总结回答。不要再调用任何工具。"));
+                JsonNode finalResult = callLlmWithoutTools(messages);
+                String finalContent = finalResult.path("choices").path(0)
+                        .path("message").path("content").asText("");
+                if (!finalContent.isBlank()) {
+                    sendSse(emitter, "content", finalContent);
+                }
             }
 
             sendSse(emitter, "done", "");

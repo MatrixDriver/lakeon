@@ -69,8 +69,8 @@ lakeon:
     smn-region: ${LAKEON_ALERT_SMN_REGION:cn-north-4}
   ai:
     api-key: ${LAKEON_AI_API_KEY:}
-    base-url: ${LAKEON_AI_BASE_URL:https://api.siliconflow.cn/v1}
-    model: ${LAKEON_AI_MODEL:}
+    base-url: ${LAKEON_AI_BASE_URL:https://api.modelarts-maas.com/openai/v1}
+    model: ${LAKEON_AI_MODEL:deepseek-v3.2}
   invite-required: ${LAKEON_INVITE_REQUIRED:false}
   suspend:
     pod-retain-minutes: ${LAKEON_SUSPEND_POD_RETAIN_MINUTES:30}
@@ -87,7 +87,7 @@ lakeon:
   demo:
     tenant-id: ${LAKEON_DEMO_TENANT_ID:}
   knowledge:
-    embedding-api-url: ${LAKEON_EMBEDDING_API_URL:https://api.siliconflow.cn/v1/embeddings}
+    embedding-api-url: ${LAKEON_EMBEDDING_API_URL:http://embedding-svc:8000/v1/embeddings}
     embedding-api-key: ${LAKEON_EMBEDDING_API_KEY:${LAKEON_AI_API_KEY:}}
     embedding-model: ${LAKEON_EMBEDDING_MODEL:BAAI/bge-m3}
     presign-expire-seconds: ${LAKEON_KNOWLEDGE_PRESIGN_EXPIRE:900}

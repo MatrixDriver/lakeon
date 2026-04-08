@@ -35,7 +35,7 @@ import java.util.*;
 public class WikiService {
     private static final Logger log = LoggerFactory.getLogger(WikiService.class);
 
-    private static final String DEEPSEEK_MODEL = "deepseek-chat";
+    private static final String DEEPSEEK_MODEL = "deepseek-v3.2";
     private static final int MAX_FULLTEXT_CHARS = 28_000;
     private static final int MAX_INDEX_CHARS = 8_000;
     private static final String DOC_TYPE_WIKI = "wiki";
@@ -61,8 +61,8 @@ public class WikiService {
             2. For each topic, decide whether to CREATE a new wiki page or UPDATE an existing one.
             3. Wiki pages should be concise reference articles (not copies of the source).
             4. Use [[wikilinks]] to cross-reference between pages.
-            5. Each wiki page title should be a clear noun phrase (e.g. "Database Sharding", "API Authentication").
-            6. Write in the same language as the source document.
+            5. Each wiki page title should be a clear noun phrase in Chinese (e.g. "数据库分片", "API 鉴权").
+            6. Write in Simplified Chinese (简体中文) regardless of the source document language.
 
             Output a JSON object with this exact structure:
             {
@@ -99,7 +99,7 @@ public class WikiService {
             4. Fix broken or missing [[wikilinks]] between related pages.
             5. Improve page structure: add clear headings, remove redundancy, ensure accuracy.
             6. Update the index to reflect the reorganized structure.
-            7. Write in the same language as the source content.
+            7. Write in Simplified Chinese (简体中文) regardless of the source content language. Translate any existing pages that are not in Chinese.
 
             Output a JSON object with this exact structure:
             {
@@ -1189,7 +1189,7 @@ public class WikiService {
     private String getWikiBaseUrl() {
         String wikiUrl = props.getWiki().getBaseUrl();
         if (wikiUrl != null && !wikiUrl.isBlank()) return wikiUrl;
-        return "https://api.deepseek.com/v1";
+        return "https://api.modelarts-maas.com/openai/v1";
     }
 
     /**

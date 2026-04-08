@@ -24,7 +24,7 @@ public class QueryRewriteService {
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
-    private static final String REWRITE_MODEL = "Qwen/Qwen3.5-4B";
+    private static final String REWRITE_MODEL = "deepseek-v3.2";
     private static final int MAX_HISTORY_TURNS = 5;
     private static final String SYSTEM_PROMPT = """
         你是查询改写助手。根据对话历史，将用户的最新问题改写为一个独立的、上下文完整的搜索查询。

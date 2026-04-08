@@ -286,7 +286,7 @@ public class LakeonProperties {
 
     public static class AiConfig {
         private String apiKey;
-        private String baseUrl = "https://api.deepseek.com/v1";
+        private String baseUrl = "https://api.modelarts-maas.com/openai/v1";
         private String model = "";
 
         public String getApiKey() { return apiKey; }
@@ -341,7 +341,7 @@ public class LakeonProperties {
     }
 
     public static class KnowledgeConfig {
-        private String embeddingApiUrl = "https://api.siliconflow.cn/v1/embeddings";
+        private String embeddingApiUrl = "http://embedding-svc:8000/v1/embeddings";
         private String embeddingApiKey = "";
         private String embeddingModel = "BAAI/bge-m3";
         private int presignExpireSeconds = 900;
@@ -402,7 +402,7 @@ public class LakeonProperties {
 
     public static class WikiConfig {
         private String apiKey = "";
-        private String baseUrl = "https://api.deepseek.com/v1";
+        private String baseUrl = "https://api.modelarts-maas.com/openai/v1";
         private String model = "";
         private String ingestPrompt = "";
         private String curatePrompt = "";
