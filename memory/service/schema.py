@@ -75,13 +75,15 @@ CREATE INDEX IF NOT EXISTS idx_graph_edges_target ON graph_edges(target_type, ta
 """
 
 
-def init_schema(connstr: str, retries: int = 10, delay: float = 3.0):
+def init_schema(connstr: str, retries: int = 10, delay: float = 3.0,
+                embedding_dim: int = 1024):
     for attempt in range(retries):
         try:
             conn = psycopg2.connect(connstr, connect_timeout=30)
             conn.autocommit = True
+            schema_sql = SCHEMA_SQL.replace("vector(1024)", f"vector({embedding_dim})")
             with conn.cursor() as cur:
-                cur.execute(SCHEMA_SQL)
+                cur.execute(schema_sql)
                 cur.execute("""
                     ALTER TABLE memories DROP CONSTRAINT IF EXISTS memories_memory_type_check;
                     ALTER TABLE memories ADD CONSTRAINT memories_memory_type_check

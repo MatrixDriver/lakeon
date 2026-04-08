@@ -11,8 +11,10 @@ def _connect(connstr: str):
 
 
 async def ingest(connstr: str, content: str, role: str, memory_type: str,
-                 importance: float, metadata: dict) -> Memory:
-    embedding = await get_embedding(content)
+                 importance: float, metadata: dict,
+                 embedding: list[float] | None = None) -> Memory:
+    if embedding is None:
+        embedding = await get_embedding(content)
     conn = _connect(connstr)
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -187,10 +189,17 @@ async def store_digest_traits(connstr: str, traits: list[dict]) -> int:
     return stored
 
 
-async def recall(connstr: str, query: str, top_k: int,
-                 memory_types: Optional[list[str]]) -> list[Memory]:
-    """Hybrid search: vector cosine + text search + RRF merge."""
-    embedding = await get_embedding(query)
+async def recall(connstr: str, query: str | None, top_k: int,
+                 memory_types: Optional[list[str]],
+                 query_embedding: list[float] | None = None) -> list[Memory]:
+    """Hybrid search: vector cosine + text search + RRF merge.
+    When query_embedding is provided, skip BM25 and use vector-only search.
+    """
+    if query_embedding is not None:
+        embedding = query_embedding
+    else:
+        embedding = await get_embedding(query)
+
     conn = _connect(connstr)
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -207,38 +216,43 @@ async def recall(connstr: str, query: str, top_k: int,
                 FROM memories {type_filter}
                 ORDER BY embedding <=> %s::vector
                 LIMIT %s
-            """, type_params + [json.dumps(embedding), top_k * 3])
+            """, type_params + [json.dumps(embedding), top_k if query_embedding is not None else top_k * 3])
             vector_results = cur.fetchall()
 
-            # Text search — param order: ts_rank query, [type_filter], WHERE query, limit
-            cur.execute(f"""
-                SELECT id, content, memory_type, importance, access_count, last_accessed_at, metadata,
-                       event_time, created_at,
-                       ts_rank(to_tsvector('simple', content), plainto_tsquery('simple', %s)) AS text_score
-                FROM memories
-                {type_filter + ' AND' if type_filter else 'WHERE'}
-                to_tsvector('simple', content) @@ plainto_tsquery('simple', %s)
-                ORDER BY text_score DESC
-                LIMIT %s
-            """, [query] + ([memory_types] if memory_types else []) + [query, top_k * 3])
-            text_results = cur.fetchall()
+            if query_embedding is not None:
+                # Vector-only mode (encrypted bases): skip BM25, take results directly
+                sorted_ids = [row["id"] for row in vector_results]
+                all_rows = {row["id"]: row for row in vector_results}
+            else:
+                # Hybrid mode: vector + BM25 text search + RRF merge
+                cur.execute(f"""
+                    SELECT id, content, memory_type, importance, access_count, last_accessed_at, metadata,
+                           event_time, created_at,
+                           ts_rank(to_tsvector('simple', content), plainto_tsquery('simple', %s)) AS text_score
+                    FROM memories
+                    {type_filter + ' AND' if type_filter else 'WHERE'}
+                    to_tsvector('simple', content) @@ plainto_tsquery('simple', %s)
+                    ORDER BY text_score DESC
+                    LIMIT %s
+                """, [query] + ([memory_types] if memory_types else []) + [query, top_k * 3])
+                text_results = cur.fetchall()
 
-            # RRF merge (k=60)
-            rrf_scores: dict[int, float] = {}
-            all_rows: dict[int, dict] = {}
+                # RRF merge (k=60)
+                rrf_scores: dict[int, float] = {}
+                all_rows: dict[int, dict] = {}
 
-            for rank, row in enumerate(vector_results):
-                mid = row["id"]
-                rrf_scores[mid] = rrf_scores.get(mid, 0) + 1.0 / (60 + rank)
-                all_rows[mid] = row
-
-            for rank, row in enumerate(text_results):
-                mid = row["id"]
-                rrf_scores[mid] = rrf_scores.get(mid, 0) + 1.0 / (60 + rank)
-                if mid not in all_rows:
+                for rank, row in enumerate(vector_results):
+                    mid = row["id"]
+                    rrf_scores[mid] = rrf_scores.get(mid, 0) + 1.0 / (60 + rank)
                     all_rows[mid] = row
 
-            sorted_ids = sorted(rrf_scores, key=lambda x: rrf_scores[x], reverse=True)[:top_k]
+                for rank, row in enumerate(text_results):
+                    mid = row["id"]
+                    rrf_scores[mid] = rrf_scores.get(mid, 0) + 1.0 / (60 + rank)
+                    if mid not in all_rows:
+                        all_rows[mid] = row
+
+                sorted_ids = sorted(rrf_scores, key=lambda x: rrf_scores[x], reverse=True)[:top_k]
 
             if sorted_ids:
                 cur.execute("""

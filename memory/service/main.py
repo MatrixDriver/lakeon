@@ -9,8 +9,9 @@ app = FastAPI(title="DBay Memory Service")
 
 
 @app.post("/init")
-async def init_memory(x_database_connstr: str = Header(...)):
-    schema.init_schema(x_database_connstr)
+async def init_memory(x_database_connstr: str = Header(...),
+                      x_embedding_dim: int = Header(1024)):
+    schema.init_schema(x_database_connstr, embedding_dim=x_embedding_dim)
     return {"status": "ok"}
 
 
@@ -23,7 +24,8 @@ async def ingest(req: IngestRequest, x_database_connstr: str = Header(...),
             raise HTTPException(400, "memory_type is required when signal='memory'")
         metadata = {"source": req.source} if req.source else {}
         mem = await engine.ingest(x_database_connstr, req.content, req.role,
-                                  req.memory_type, req.importance, metadata)
+                                  req.memory_type, req.importance, metadata,
+                                  embedding=req.embedding)
         return {"memory_id": mem.id, "memory_type": mem.memory_type, "status": "stored"}
 
     elif req.signal == "conversation":
@@ -41,7 +43,10 @@ async def ingest_extracted(req: IngestExtractedRequest, x_database_connstr: str 
 
 @app.post("/recall")
 async def recall(req: RecallRequest, x_database_connstr: str = Header(...)):
-    results = await engine.recall(x_database_connstr, req.query, req.top_k, req.memory_types)
+    if not req.query and not req.query_embedding:
+        raise HTTPException(400, "Either query or query_embedding is required")
+    results = await engine.recall(x_database_connstr, req.query, req.top_k,
+                                   req.memory_types, query_embedding=req.query_embedding)
     return {"memories": [m.model_dump() for m in results]}
 
 

@@ -50,7 +50,8 @@ class LegacyIngestRequest(BaseModel):
 
 
 class RecallRequest(BaseModel):
-    query: str
+    query: Optional[str] = None
+    query_embedding: Optional[list[float]] = None  # Pre-computed query embedding
     top_k: int = 10
     memory_types: Optional[list[str]] = None
 
@@ -73,6 +74,7 @@ class IngestRequest(BaseModel):
     source: Optional[str] = None  # e.g. "openclaw", "claude-code", "api"
     memory_type: Optional[Literal['fact', 'episode', 'procedural', 'decision', 'rejection', 'convention']] = None
     importance: float = 0.5
+    embedding: Optional[list[float]] = None  # Pre-computed embedding (encrypted bases)
 
     model_config = {"extra": "ignore"}
 
