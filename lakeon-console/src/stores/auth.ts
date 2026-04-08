@@ -6,12 +6,13 @@ export const useAuthStore = defineStore('auth', () => {
   const apiKey = ref(localStorage.getItem('lakeon_api_key') || '')
   const tenantId = ref(localStorage.getItem('lakeon_tenant_id') || '')
   const tenantName = ref(localStorage.getItem('lakeon_tenant_name') || '')
+  const username = ref(localStorage.getItem('lakeon_username') || '')
   const isTrial = ref(localStorage.getItem('lakeon_is_trial') === 'true')
   const trialExpiresAt = ref(localStorage.getItem('lakeon_trial_expires_at') || '')
 
-  async function login(username: string, password: string): Promise<{ ok: boolean; error?: string }> {
+  async function login(loginUsername: string, password: string): Promise<{ ok: boolean; error?: string }> {
     try {
-      const res = await client.post('/auth/login', { username, password })
+      const res = await client.post('/auth/login', { username: loginUsername, password })
       const tenant = res.data
       const key = tenant?.api_key
       if (!key) return { ok: false, error: '登录失败' }
@@ -20,6 +21,10 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem('lakeon_api_key', key)
       if (tenant?.id) {
         setTenant(tenant.id, tenant.name || '')
+      }
+      if (tenant?.username) {
+        username.value = tenant.username
+        localStorage.setItem('lakeon_username', tenant.username)
       }
       setTrialState(false)
       return { ok: true }
@@ -56,12 +61,14 @@ export const useAuthStore = defineStore('auth', () => {
     tenantName.value = ''
     isTrial.value = false
     trialExpiresAt.value = ''
+    username.value = ''
     localStorage.removeItem('lakeon_api_key')
     localStorage.removeItem('lakeon_tenant_id')
     localStorage.removeItem('lakeon_tenant_name')
+    localStorage.removeItem('lakeon_username')
     localStorage.removeItem('lakeon_is_trial')
     localStorage.removeItem('lakeon_trial_expires_at')
   }
 
-  return { apiKey, tenantId, tenantName, isTrial, trialExpiresAt, login, setTenant, setTrialState, logout }
+  return { apiKey, tenantId, tenantName, username, isTrial, trialExpiresAt, login, setTenant, setTrialState, logout }
 })

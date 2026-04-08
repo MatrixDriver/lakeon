@@ -7,6 +7,8 @@ import java.time.Instant;
 public class TenantResponse {
     private String id;
     private String name;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String username;
     @JsonProperty("api_key")
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private String apiKey;
@@ -63,6 +65,8 @@ public class TenantResponse {
     public void setId(String id) { this.id = id; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
     public String getApiKey() { return apiKey; }
     public void setApiKey(String apiKey) { this.apiKey = apiKey; }
     public Instant getCreatedAt() { return createdAt; }
@@ -95,11 +99,13 @@ public class TenantResponse {
         private Integer databaseCount;
         private Boolean disabled;
         private Instant disabledAt;
+        private String username;
         private Boolean trial;
         private Instant expiresAt;
 
         public Builder id(String id) { this.id = id; return this; }
         public Builder name(String name) { this.name = name; return this; }
+        public Builder username(String username) { this.username = username; return this; }
         public Builder apiKey(String apiKey) { this.apiKey = apiKey; return this; }
         public Builder createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
         public Builder maxDatabases(Integer maxDatabases) { this.maxDatabases = maxDatabases; return this; }
@@ -112,7 +118,9 @@ public class TenantResponse {
         public Builder expiresAt(Instant expiresAt) { this.expiresAt = expiresAt; return this; }
 
         public TenantResponse build() {
-            return new TenantResponse(id, name, apiKey, createdAt, maxDatabases, maxStorageGb, maxComputeCu, databaseCount, disabled, disabledAt, trial, expiresAt);
+            TenantResponse r = new TenantResponse(id, name, apiKey, createdAt, maxDatabases, maxStorageGb, maxComputeCu, databaseCount, disabled, disabledAt, trial, expiresAt);
+            r.setUsername(username);
+            return r;
         }
     }
 }

@@ -48,6 +48,14 @@ public class TenantService {
         return tenantRepository.findByUsername(username.trim()).isEmpty();
     }
 
+    public List<Map<String, String>> searchUsers(String keyword) {
+        if (keyword == null || keyword.length() < 2) return List.of();
+        return tenantRepository.findByUsernameContainingIgnoreCaseOrderByUsernameAsc(keyword).stream()
+                .limit(10)
+                .map(t -> Map.of("username", t.getUsername(), "name", t.getName()))
+                .toList();
+    }
+
     @Transactional
     public TenantResponse create(CreateTenantRequest request) {
         // Validate invite code if required
@@ -261,6 +269,7 @@ public class TenantService {
         return TenantResponse.builder()
             .id(entity.getId())
             .name(entity.getName())
+            .username(entity.getUsername())
             .apiKey(entity.getApiKey())
             .createdAt(entity.getCreatedAt())
             .maxDatabases(entity.getMaxDatabases())

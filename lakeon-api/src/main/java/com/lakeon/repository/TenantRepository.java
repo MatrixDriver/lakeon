@@ -10,5 +10,6 @@ public interface TenantRepository extends JpaRepository<TenantEntity, String> {
     Optional<TenantEntity> findByApiKey(String apiKey);
     Optional<TenantEntity> findByName(String name);
     Optional<TenantEntity> findByUsername(String username);
+    List<TenantEntity> findByUsernameContainingIgnoreCaseOrderByUsernameAsc(String keyword);
     List<TenantEntity> findByTrialTrueAndExpiresAtBefore(Instant cutoff);
 }

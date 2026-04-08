@@ -45,6 +45,11 @@ public class TenantController {
         return Map.of("available", available);
     }
 
+    @GetMapping("/users/search")
+    public List<Map<String, String>> searchUsers(@RequestParam String q) {
+        return tenantService.searchUsers(q.trim());
+    }
+
     @PostMapping("/tenants")
     @ResponseStatus(HttpStatus.CREATED)
     public TenantResponse createTenant(@Valid @RequestBody CreateTenantRequest request) {
