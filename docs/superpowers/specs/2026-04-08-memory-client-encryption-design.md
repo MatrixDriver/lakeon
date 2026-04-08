@@ -61,7 +61,7 @@
 
 ```
 用户密码 "mypassword"
-  → Argon2id(密码, salt) → 密码派生密钥
+  → Scrypt(密码, salt) → 密码派生密钥
     → AES-256-GCM 加密 private_key → encrypted_private_key（存配置文件）
 
 RSA-4096 密钥对
@@ -77,7 +77,7 @@ DEK（256-bit 随机密钥）
 
 | 用途 | 算法 | 说明 |
 |------|------|------|
-| 密码派生 | Argon2id | 抗 GPU/ASIC 暴力破解 |
+| 密码派生 | Scrypt (n=2^17, r=8, p=1) | 抗 GPU/ASIC 暴力破解，cryptography 库内置无需额外 C 依赖 |
 | 私钥加密 | AES-256-GCM | 对称加密，带认证 |
 | DEK 加密 | RSA-4096 + OAEP | 非对称加密，配置文件可安全传播 |
 | 内容加密 | AES-256-GCM | 对称加密，每条记忆独立 nonce |
@@ -189,7 +189,7 @@ CLI 创建加密记忆库时自动写入。MCP 启动时自动读取，无需交
     "public_key": "-----BEGIN PUBLIC KEY-----\n...",
     "encrypted_private_key": "base64_encoded_aes_gcm_ciphertext",
     "kdf_salt": "base64_encoded_salt",
-    "kdf_algorithm": "argon2id",
+    "kdf_algorithm": "scrypt",
     "embedding_provider": "dbay",
     "embedding_dim": 1024
   },
@@ -197,7 +197,7 @@ CLI 创建加密记忆库时自动写入。MCP 启动时自动读取，无需交
     "public_key": "-----BEGIN PUBLIC KEY-----\n...",
     "encrypted_private_key": "base64_encoded_aes_gcm_ciphertext",
     "kdf_salt": "base64_encoded_salt",
-    "kdf_algorithm": "argon2id",
+    "kdf_algorithm": "scrypt",
     "embedding_provider": "external",
     "embedding_endpoint": "https://api.example.com/v1/embeddings",
     "embedding_api_key": "sk-...",
@@ -236,7 +236,7 @@ MCP 由 Claude Code/Cursor 自动拉起，没有交互式终端。通过读取 `
 MCP 启动
   → 读 ~/.dbay/secret → 拿到 DBAY_ENCRYPTION_PASSWORD
   → 读 ~/.dbay/encrypted_bases.json → 拿到 encrypted_private_key + salt
-  → Argon2id(密码, salt) → 解密 private_key（内存中）
+  → Scrypt(密码, salt) → 解密 private_key（内存中）
   → 从服务端拉 encrypted_dek → private_key 解密 → DEK（内存中）
   → 进程生命周期内 DEK 缓存在内存，进程退出即消失
 ```
