@@ -72,6 +72,9 @@ public class DatabaseEntity {
     @Column(name = "kb_id", length = 32)
     private String kbId;
 
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -255,5 +258,13 @@ public class DatabaseEntity {
 
     public void setSuspendedAt(Instant suspendedAt) {
         this.suspendedAt = suspendedAt;
+    }
+
+    public Instant getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(Instant deletedAt) {
+        this.deletedAt = deletedAt;
     }
 }

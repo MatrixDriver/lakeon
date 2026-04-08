@@ -81,6 +81,10 @@ public class DatabaseResponse {
     public void setBranches(List<BranchSummary> branches) { this.branches = branches; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    @JsonProperty("deleted_at")
+    private Instant deletedAt;
+    public Instant getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
     public Integer getActiveConnections() { return activeConnections; }
     public void setActiveConnections(Integer activeConnections) { this.activeConnections = activeConnections; }
     public String getNeonTimelineId() { return neonTimelineId; }

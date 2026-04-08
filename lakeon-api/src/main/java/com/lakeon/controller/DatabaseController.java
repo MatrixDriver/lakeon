@@ -57,6 +57,18 @@ public class DatabaseController {
         databaseService.delete(tenant, dbId);
     }
 
+    @GetMapping("/recycle-bin")
+    public List<DatabaseResponse> listDeleted(HttpServletRequest req) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return databaseService.listDeleted(tenant);
+    }
+
+    @PostMapping("/{dbId}/restore")
+    public DatabaseResponse restoreDatabase(HttpServletRequest req, @PathVariable String dbId) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return databaseService.restore(tenant, dbId);
+    }
+
     @GetMapping("/{dbId}/metrics")
     public DatabaseMetrics getMetrics(HttpServletRequest req, @PathVariable String dbId) {
         TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");

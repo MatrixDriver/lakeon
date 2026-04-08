@@ -3,7 +3,7 @@ package com.lakeon.model.enums;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum DatabaseStatus {
-    CREATING, RUNNING, SUSPENDED, ERROR, DELETING;
+    CREATING, RUNNING, SUSPENDED, ERROR, DELETING, DELETED;
 
     @JsonValue
     public String toJson() {

@@ -17,6 +17,7 @@ import com.lakeon.neon.dto.CreateTimelineRequest;
 import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.exception.ConflictException;
+import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
 import com.lakeon.service.exception.QuotaExceededException;
 import com.lakeon.service.exception.ServiceException;
@@ -26,6 +27,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -254,7 +256,16 @@ public class DatabaseService {
     }
 
     public List<DatabaseResponse> list(TenantEntity tenant) {
-        return databaseRepository.findAllByTenantId(tenant.getId()).stream()
+        return databaseRepository.findAllByTenantIdAndStatusNot(tenant.getId(), DatabaseStatus.DELETED).stream()
+            .map(entity -> {
+                List<BranchEntity> branches = branchRepository.findAllByDatabaseId(entity.getId());
+                return toResponse(entity, branches);
+            })
+            .toList();
+    }
+
+    public List<DatabaseResponse> listDeleted(TenantEntity tenant) {
+        return databaseRepository.findAllByTenantIdAndStatus(tenant.getId(), DatabaseStatus.DELETED).stream()
             .map(entity -> {
                 List<BranchEntity> branches = branchRepository.findAllByDatabaseId(entity.getId());
                 return toResponse(entity, branches);
@@ -301,6 +312,9 @@ public class DatabaseService {
         }
     }
 
+    /**
+     * Soft-delete: move database to recycle bin. Compute pod is released but Neon data is preserved.
+     */
     @Transactional
     public void delete(TenantEntity tenant, String dbId) {
         DatabaseEntity entity = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
@@ -309,49 +323,127 @@ public class DatabaseService {
         OperationLogEntity opLog = operationLogService.startOperation(
                 entity.getId(), entity.getTenantId(), entity.getName(), OperationType.DELETE);
         try {
-            // Delete all branches' compute pods and timelines (best-effort cleanup)
+            // Release compute pods (save resources) but keep Neon tenant/timeline
             List<BranchEntity> branches = branchRepository.findAllByDatabaseId(dbId);
             for (BranchEntity branch : branches) {
                 try {
                     if (branch.getComputePodName() != null) {
                         computePodManager.deleteComputePod(branch.getComputePodName());
+                        branch.setComputePodName(null);
+                        branch.setComputeHost(null);
+                        branch.setComputePort(null);
+                        branchRepository.save(branch);
                     }
                 } catch (Exception e) {
                     log.warn("Failed to delete compute pod for branch {}: {}", branch.getId(), e.getMessage());
                 }
-                try {
-                    if (branch.getNeonTimelineId() != null) {
-                        neonApiClient.deleteTimeline(entity.getNeonTenantId(), branch.getNeonTimelineId());
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to delete timeline for branch {}: {}", branch.getId(), e.getMessage());
-                }
-                branchRepository.delete(branch);
             }
-
-            // Delete main compute pod
             try {
                 if (entity.getComputePodName() != null) {
                     computePodManager.deleteComputePod(entity.getComputePodName());
                 }
             } catch (Exception e) {
-                log.warn("Failed to delete main compute pod for database {}: {}", dbId, e.getMessage());
+                log.warn("Failed to delete compute pod for database {}: {}", dbId, e.getMessage());
             }
 
-            // Delete Neon tenant
-            try {
-                if (entity.getNeonTenantId() != null) {
-                    neonApiClient.deleteTenant(entity.getNeonTenantId());
-                }
-            } catch (Exception e) {
-                log.warn("Failed to delete Neon tenant for database {}: {}", dbId, e.getMessage());
-            }
-
-            databaseRepository.delete(entity);
+            // Soft delete: mark as DELETED, preserve Neon data for recovery
+            entity.setComputePodName(null);
+            entity.setComputeHost(null);
+            entity.setComputePort(null);
+            entity.setStatus(DatabaseStatus.DELETED);
+            entity.setDeletedAt(Instant.now());
+            databaseRepository.save(entity);
             operationLogService.completeOperation(opLog, null);
+            log.info("Soft-deleted database {} ({}), will be purged after 7 days", entity.getName(), dbId);
         } catch (Exception e) {
             operationLogService.completeOperation(opLog, e.getMessage());
             throw e;
+        }
+    }
+
+    /**
+     * Restore a soft-deleted database from the recycle bin.
+     */
+    @Transactional
+    public DatabaseResponse restore(TenantEntity tenant, String dbId) {
+        DatabaseEntity entity = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
+            .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+        if (entity.getStatus() != DatabaseStatus.DELETED) {
+            throw new BadRequestException("Database is not in recycle bin");
+        }
+        entity.setStatus(DatabaseStatus.SUSPENDED);
+        entity.setDeletedAt(null);
+        databaseRepository.save(entity);
+        log.info("Restored database {} ({}) from recycle bin", entity.getName(), dbId);
+        List<BranchEntity> branches = branchRepository.findAllByDatabaseId(dbId);
+        return toResponse(entity, branches);
+    }
+
+    /**
+     * Permanently delete a database: remove Neon tenant/timeline and metadata record.
+     */
+    @Transactional
+    public void purge(String dbId) {
+        DatabaseEntity entity = databaseRepository.findById(dbId)
+            .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+        hardDelete(entity);
+    }
+
+    private void hardDelete(DatabaseEntity entity) {
+        String dbId = entity.getId();
+        List<BranchEntity> branches = branchRepository.findAllByDatabaseId(dbId);
+        for (BranchEntity branch : branches) {
+            try {
+                if (branch.getComputePodName() != null) {
+                    computePodManager.deleteComputePod(branch.getComputePodName());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to delete compute pod for branch {}: {}", branch.getId(), e.getMessage());
+            }
+            try {
+                if (branch.getNeonTimelineId() != null) {
+                    neonApiClient.deleteTimeline(entity.getNeonTenantId(), branch.getNeonTimelineId());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to delete timeline for branch {}: {}", branch.getId(), e.getMessage());
+            }
+            branchRepository.delete(branch);
+        }
+        try {
+            if (entity.getComputePodName() != null) {
+                computePodManager.deleteComputePod(entity.getComputePodName());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to delete compute pod for database {}: {}", dbId, e.getMessage());
+        }
+        try {
+            if (entity.getNeonTenantId() != null) {
+                neonApiClient.deleteTenant(entity.getNeonTenantId());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to delete Neon tenant for database {}: {}", dbId, e.getMessage());
+        }
+        databaseRepository.delete(entity);
+        log.info("Permanently deleted database {} ({})", entity.getName(), dbId);
+    }
+
+    /**
+     * Scheduled cleanup: permanently delete databases that have been in recycle bin for over 7 days.
+     */
+    @Scheduled(cron = "0 0 * * * *")
+    @Transactional
+    public void cleanupExpiredDeleted() {
+        Instant cutoff = Instant.now().minus(7, java.time.temporal.ChronoUnit.DAYS);
+        List<DatabaseEntity> expired = databaseRepository.findAllByStatusAndDeletedAtBefore(
+                DatabaseStatus.DELETED, cutoff);
+        if (expired.isEmpty()) return;
+        log.info("Cleaning up {} expired deleted databases", expired.size());
+        for (DatabaseEntity entity : expired) {
+            try {
+                hardDelete(entity);
+            } catch (Exception e) {
+                log.error("Failed to purge expired database {}: {}", entity.getId(), e.getMessage());
+            }
         }
     }
 
@@ -570,6 +662,10 @@ public class DatabaseService {
             .kbId(entity.getKbId())
             .createdAt(entity.getCreatedAt())
             .build();
+
+        if (entity.getDeletedAt() != null) {
+            response.setDeletedAt(entity.getDeletedAt());
+        }
 
         // Query active connections if Pod exists (even when SUSPENDED, Pod may still be retained)
         if (entity.getComputePodName() != null) {

@@ -339,6 +339,12 @@ public class AdminController {
         return result;
     }
 
+    @DeleteMapping("/databases/{dbId}/purge")
+    public Map<String, Object> purgeDatabase(@PathVariable String dbId) {
+        databaseService.purge(dbId);
+        return Map.of("success", true, "message", "Database permanently deleted");
+    }
+
     // ── Cloud Resources ─────────────────────────────────────────────
 
     @GetMapping("/cloud/resources")
