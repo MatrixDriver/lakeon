@@ -39,38 +39,57 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 })
 
 async function handleLogin() {
-  const redirectUri = chrome.identity.getRedirectURL()
-  const authUrl = `${AUTH_URL}?redirect_uri=${encodeURIComponent(redirectUri)}`
+  // Use chrome.tabs approach instead of chrome.identity.launchWebAuthFlow
+  // More reliable for unpacked/dev-mode extensions
+  const callbackUrl = chrome.runtime.getURL('callback.html')
+  const authUrl = `${AUTH_URL}?redirect_uri=${encodeURIComponent(callbackUrl)}`
 
-  let responseUrl
-  try {
-    responseUrl = await chrome.identity.launchWebAuthFlow({
-      url: authUrl,
-      interactive: true,
+  return new Promise((resolve) => {
+    chrome.tabs.create({ url: authUrl }, (tab) => {
+      const tabId = tab.id
+
+      function onUpdated(updatedTabId, changeInfo) {
+        if (updatedTabId !== tabId || !changeInfo.url) return
+        const url = changeInfo.url
+
+        // Check if the tab navigated to our callback URL
+        if (url.startsWith(callbackUrl)) {
+          chrome.tabs.onUpdated.removeListener(onUpdated)
+          chrome.tabs.onRemoved.removeListener(onRemoved)
+
+          // Extract key from hash
+          try {
+            const hash = new URL(url).hash
+            const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash)
+            const key = params.get('key')
+
+            if (key) {
+              chrome.storage.local.set({ apiKey: key }, () => {
+                chrome.tabs.remove(tabId)
+                resolve({ ok: true })
+              })
+            } else {
+              chrome.tabs.remove(tabId)
+              resolve({ ok: false, error: '未获取到 API Key' })
+            }
+          } catch (err) {
+            chrome.tabs.remove(tabId)
+            resolve({ ok: false, error: '解析认证结果失败' })
+          }
+        }
+      }
+
+      function onRemoved(removedTabId) {
+        if (removedTabId !== tabId) return
+        chrome.tabs.onUpdated.removeListener(onUpdated)
+        chrome.tabs.onRemoved.removeListener(onRemoved)
+        resolve({ ok: false, error: '登录窗口已关闭' })
+      }
+
+      chrome.tabs.onUpdated.addListener(onUpdated)
+      chrome.tabs.onRemoved.addListener(onRemoved)
     })
-  } catch (err) {
-    return { ok: false, error: err.message || 'Auth flow cancelled' }
-  }
-
-  if (!responseUrl) {
-    return { ok: false, error: 'No response URL from auth flow' }
-  }
-
-  let key
-  try {
-    const hash = new URL(responseUrl).hash
-    const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash)
-    key = params.get('key')
-  } catch (err) {
-    return { ok: false, error: 'Failed to parse auth response URL' }
-  }
-
-  if (!key) {
-    return { ok: false, error: 'No API key found in auth response' }
-  }
-
-  await chrome.storage.local.set({ apiKey: key })
-  return { ok: true }
+  })
 }
 
 async function fetchKbList(apiKey) {

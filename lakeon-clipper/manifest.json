@@ -6,7 +6,7 @@
   "permissions": [
     "activeTab",
     "storage",
-    "identity"
+    "tabs"
   ],
   "host_permissions": [
     "https://api.dbay.cloud:8443/*"

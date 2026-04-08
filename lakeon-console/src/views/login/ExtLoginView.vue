@@ -82,10 +82,12 @@ onMounted(() => {
     return
   }
 
-  // Security: only allow chromiumapp.org redirect URIs
+  // Security: only allow Chrome extension redirect URIs
   try {
     const url = new URL(raw)
-    if (!url.hostname.endsWith('.chromiumapp.org')) {
+    const isChromiumApp = url.hostname.endsWith('.chromiumapp.org')
+    const isChromeExt = url.protocol === 'chrome-extension:'
+    if (!isChromiumApp && !isChromeExt) {
       fatalError.value = '无效的 redirect_uri，仅允许 Chrome 扩展回调地址。'
       return
     }
