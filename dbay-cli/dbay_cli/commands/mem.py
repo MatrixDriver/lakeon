@@ -7,7 +7,11 @@ app = typer.Typer()
 def _client():
     from dbay_cli.config import get_endpoint, get as config_get
     from dbay_cli.client import DbayClient
-    return DbayClient(endpoint=get_endpoint(), api_key=config_get("api_key"))
+    api_key = config_get("api_key")
+    if not api_key:
+        typer.echo("未找到 API key。请先运行: dbay login", err=True)
+        raise typer.Exit(1)
+    return DbayClient(endpoint=get_endpoint(), api_key=api_key)
 
 
 @app.command("list")
@@ -28,6 +32,8 @@ def create(name: str, desc: str = typer.Option(None, "--desc"),
         _create_encrypted(name, desc, agent_extract)
     else:
         result = _client().create_memory_base(name, desc, one_llm_mode=agent_extract)
+        from dbay_cli.config import set as config_set
+        config_set("memory_base", result["id"])
         typer.echo(json.dumps(result, indent=2, default=str))
 
 
@@ -144,9 +150,15 @@ def _create_encrypted(name: str, desc: str | None, agent_extract: bool):
     # 9. Save password
     write_secret(password)
 
+    # 10. Set as default memory base
+    from dbay_cli.config import set as config_set
+    config_set("memory_base", mem_id)
+
     typer.echo(f"\nEncrypted memory base created: {mem_id}")
-    typer.echo(f"Config saved to: ~/.dbay/encrypted_bases.json")
-    typer.echo(f"Password saved to: ~/.dbay/secret")
+    typer.echo(f"  Config:   ~/.dbay/encrypted_bases.json")
+    typer.echo(f"  Password: ~/.dbay/secret")
+    typer.echo(f"  Default:  ~/.dbay/config.json (memory_base={mem_id})")
+    typer.echo(f"\nMCP will auto-detect this memory base. No additional setup needed.")
     typer.echo(f"\nTo use on another device:")
     typer.echo(f"  1. Copy ~/.dbay/encrypted_bases.json")
     typer.echo(f"  2. Create ~/.dbay/secret with DBAY_ENCRYPTION_PASSWORD=<your_password>")
