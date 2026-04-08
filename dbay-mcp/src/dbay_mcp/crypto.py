@@ -192,31 +192,38 @@ def _read_password() -> Optional[str]:
     if not _SECRET_FILE.exists():
         return None
 
-    # The secret file may contain other lines; the password is on the first line
     text = _SECRET_FILE.read_text(encoding="utf-8").strip()
     if not text:
         return None
 
-    # First line is the password
-    return text.split("\n")[0].strip()
+    # Parse KEY=VALUE format
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("DBAY_ENCRYPTION_PASSWORD="):
+            return line.split("=", 1)[1]
+
+    # Fallback: treat first line as raw password (backward compat)
+    return text.splitlines()[0].strip() or None
 
 
 def write_secret(password: str) -> None:
-    """Write the encryption password to ~/.dbay/secret with chmod 600."""
+    """Write the encryption password to ~/.dbay/secret in KEY=VALUE format, chmod 600."""
     _DBAY_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Preserve other lines if the file already exists
-    other_lines: list[str] = []
+    # Preserve other lines, update or add password entry
+    lines: list[str] = []
+    found = False
     if _SECRET_FILE.exists():
-        lines = _SECRET_FILE.read_text(encoding="utf-8").strip().split("\n")
-        if len(lines) > 1:
-            other_lines = lines[1:]
+        for line in _SECRET_FILE.read_text(encoding="utf-8").strip().splitlines():
+            if line.strip().startswith("DBAY_ENCRYPTION_PASSWORD="):
+                lines.append(f"DBAY_ENCRYPTION_PASSWORD={password}")
+                found = True
+            else:
+                lines.append(line)
+    if not found:
+        lines.append(f"DBAY_ENCRYPTION_PASSWORD={password}")
 
-    content = password
-    if other_lines:
-        content = password + "\n" + "\n".join(other_lines)
-
-    _SECRET_FILE.write_text(content + "\n", encoding="utf-8")
+    _SECRET_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
     _SECRET_FILE.chmod(0o600)
 
 
