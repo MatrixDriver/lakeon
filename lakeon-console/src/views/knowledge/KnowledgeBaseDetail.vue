@@ -77,7 +77,23 @@
     </div>
 
     <!-- Wiki Tab -->
-    <div v-if="activeTab === 'wiki'" style="display: flex; height: calc(100vh - 196px); margin-top: 12px; position: relative;">
+    <div v-if="activeTab === 'wiki'" style="margin-top: 12px;">
+      <!-- Wiki toolbar -->
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 8px;">
+        <button style="padding: 4px 10px; font-size: 11px; border: 1px solid #e0d8ce; border-radius: 4px; background: #fff; color: #8c7a68; cursor: pointer;"
+                @click="handleLint" :disabled="lintLoading">
+          {{ lintLoading ? '检查中...' : '健康检查' }}
+        </button>
+        <button style="padding: 4px 10px; font-size: 11px; border: 1px solid #e0d8ce; border-radius: 4px; background: #fff; color: #8c7a68; cursor: pointer;"
+                @click="handleCurate" :disabled="curateLoading">
+          {{ curateLoading ? '整理中...' : '整理 Wiki' }}
+        </button>
+        <button style="padding: 4px 10px; font-size: 11px; border: 1px solid #e0d8ce; border-radius: 4px; background: #fff; color: #8c7a68; cursor: pointer;"
+                @click="showGraph = !showGraph">
+          {{ showGraph ? '收起图谱' : '图谱' }}
+        </button>
+      </div>
+      <div style="display: flex; height: calc(100vh - 232px); position: relative;">
       <div style="flex: 1; min-width: 0; overflow: hidden;">
         <WikiPage ref="wikiPageRef" :kb-id="(route.params.kbId as string)" @select="handlePageSelect" />
       </div>
@@ -102,18 +118,6 @@
           <WikiGraph ref="wikiGraphRef" :kb-id="(route.params.kbId as string)" @navigate="handleGraphNavigate" />
         </div>
       </div>
-      <div v-if="!showGraph" style="position: absolute; right: 12px; top: 12px; display: flex; gap: 8px; z-index: 2;">
-        <button style="padding: 4px 10px; font-size: 11px; border: 1px solid #e0d8ce; border-radius: 4px; background: #fff; color: #8c7a68; cursor: pointer;"
-                @click="handleLint" :disabled="lintLoading">
-          {{ lintLoading ? '检查中...' : '健康检查' }}
-        </button>
-        <button style="padding: 4px 10px; font-size: 11px; border: 1px solid #e0d8ce; border-radius: 4px; background: #fff; color: #8c7a68; cursor: pointer;"
-                @click="handleCurate" :disabled="curateLoading">
-          {{ curateLoading ? '整理中...' : '整理 Wiki' }}
-        </button>
-        <button style="padding: 4px 10px; font-size: 11px; border: 1px solid #e0d8ce; border-radius: 4px; background: #fff; color: #8c7a68; cursor: pointer;"
-                @click="showGraph = true">图谱</button>
-      </div>
       <WikiLintPanel v-if="showLintPanel"
         :kb-id="(route.params.kbId as string)"
         :issues="lintIssues"
@@ -123,7 +127,8 @@
         @navigate="handleGraphNavigate"
         @fixed="handleLintFixed"
       />
-    </div>
+    </div><!-- end flex row -->
+    </div><!-- end wiki tab -->
 
     <!-- Chat Tab (v-show to preserve state across tab switches) -->
     <div v-show="activeTab === 'chat'" style="height: calc(100vh - 196px); margin-top: 12px;">
