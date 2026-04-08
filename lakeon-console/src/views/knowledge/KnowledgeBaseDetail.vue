@@ -149,28 +149,10 @@
         <span style="flex: 1;"></span>
         <div style="display: flex; align-items: center; gap: 6px;">
           <input v-model="docSearch" placeholder="搜索文件名..." style="padding: 6px 12px; border: 1px solid #e0d8ce; border-radius: 4px; font-size: 12px; width: 180px; outline: none;" />
-          <button class="btn btn-text" style="padding: 6px;" @click="loadDocuments" title="刷新">
+          <button class="btn btn-text" style="padding: 6px;" @click="loadDocuments" title="刷新文档列表">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
           </button>
         </div>
-      </div>
-
-      <!-- Layer filter -->
-      <div style="display: flex; gap: 0; margin-bottom: 12px;">
-        <span v-for="lf in [
-          { key: 'source', label: '源文档' },
-          { key: 'wiki', label: 'Wiki 文档' },
-        ]" :key="lf.key"
-          style="padding: 5px 14px; font-size: 12px; cursor: pointer; border: 1px solid #e0d8ce; transition: all 0.15s;"
-          :style="{
-            background: docLayerFilter === lf.key ? '#c25a3c' : '#fff',
-            color: docLayerFilter === lf.key ? '#fff' : '#5a4a3a',
-            borderRadius: lf.key === 'source' ? '4px 0 0 4px' : '0 4px 4px 0',
-            borderLeft: lf.key === 'wiki' ? 'none' : undefined,
-          }"
-          @click="docLayerFilter = lf.key as 'source' | 'wiki'">
-          {{ lf.label }}
-        </span>
       </div>
 
       <span v-if="kb?.status === 'CREATING'" style="color: #c87a20; font-size: 13px; display: block; margin-bottom: 12px;">知识库正在创建中，请稍候...</span>
@@ -180,7 +162,7 @@
         <div v-if="uploading || uploadJustFinished" style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
           <span style="font-size: 12px; color: #666; width: 56px; flex-shrink: 0;">上传</span>
           <div style="flex: 1; height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
-            <div :style="{ width: (uploadProgress.length > 0 ? Math.round(uploadProgress.filter(f => f.status === 'done' || f.status === 'processing' || f.status === 'error').length / uploadProgress.length * 100) : 0) + '%', height: '100%', background: '#1890ff', borderRadius: '3px', transition: 'width 0.3s' }"></div>
+            <div :style="{ width: (uploadProgress.length > 0 ? Math.round(uploadProgress.filter(f => f.status === 'done' || f.status === 'processing' || f.status === 'error').length / uploadProgress.length * 100) : 0) + '%', height: '100%', background: '#c19a6b', borderRadius: '3px', transition: 'width 0.3s' }"></div>
           </div>
           <span style="font-size: 13px; color: #333; min-width: 75px; text-align: right;">
             {{ uploadProgress.filter(f => f.status === 'done' || f.status === 'processing').length }}/{{ uploadProgress.length }}
@@ -217,8 +199,8 @@
         ]" :key="tab.label"
           style="padding: 8px 16px; font-size: 13px; cursor: pointer; transition: color 0.2s;"
           :style="{
-            color: docStatusFilter === tab.key ? '#1890ff' : '#666',
-            borderBottom: docStatusFilter === tab.key ? '2px solid #1890ff' : '2px solid transparent',
+            color: docStatusFilter === tab.key ? '#c19a6b' : '#666',
+            borderBottom: docStatusFilter === tab.key ? '2px solid #c19a6b' : '2px solid transparent',
             fontWeight: docStatusFilter === tab.key ? 500 : 400,
           }"
           @click="setStatusFilter(tab.key)">
@@ -226,13 +208,13 @@
         </div>
         <div style="flex: 1;"></div>
         <div style="display: flex; align-items: center; gap: 6px; padding: 4px 0;">
-          <button v-if="docStats.failed > 0" class="btn btn-text btn-small" style="color: #1890ff;" :disabled="retryingFailed" @click="handleRetryAllFailed">
+          <button v-if="docStats.failed > 0" class="btn btn-text btn-small" style="color: #c19a6b;" :disabled="retryingFailed" @click="handleRetryAllFailed">
             {{ retryingFailed ? '重试中...' : `重试失败 (${docStats.failed})` }}
           </button>
           <button v-if="isAdmin && selectedDocIds.size > 0" class="btn btn-small" style="background: #e6393d; color: #fff; border: none;" @click="handleBatchDelete">
             删除选中 ({{ selectedDocIds.size }})
           </button>
-          <button v-if="isAdmin && documents.length > 0" class="btn btn-text btn-small" style="color: #e6393d;" @click="handleClearAll">清空</button>
+          <button v-if="isAdmin && documents.length > 0" class="btn btn-text btn-small" style="color: #999;" @click="handleClearAll">清空</button>
         </div>
       </div>
       <!-- Breadcrumb navigation -->
@@ -273,11 +255,9 @@
                 <input type="checkbox" ref="selectAllCheckbox" :checked="isAllSelected" @change="toggleSelectAll" style="cursor: pointer;">
               </th>
               <th>文件名</th>
-              <th>格式</th>
               <th style="cursor: pointer; user-select: none;" @click="setSort('size')">大小 {{ sortIcon('size') }}</th>
-              <th style="cursor: pointer; user-select: none;" @click="setSort('chunks')">Chunks {{ sortIcon('chunks') }}</th>
+              <th style="cursor: pointer; user-select: none;" @click="setSort('chunks')">切片数 {{ sortIcon('chunks') }}</th>
               <th style="cursor: pointer; user-select: none;" @click="setSort('status')">状态 {{ sortIcon('status') }}</th>
-              <th>Wiki</th>
               <th style="cursor: pointer; user-select: none;" @click="setSort('upload_time')">上传时间 {{ sortIcon('upload_time') }}</th>
               <th>操作</th>
             </tr>
@@ -290,7 +270,8 @@
               <td>
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                   <span style="font-weight: 500;">{{ doc.filename }}</span>
-                  <span v-for="tag in (doc.tags || [])" :key="tag" class="tag-badge">{{ tag }}</span>
+                  <span class="tag-blue" style="font-size: 10px; padding: 0px 5px; border-radius: 3px; opacity: 0.7;">{{ formatLabel(doc.format) }}</span>
+                  <span v-for="tag in (doc.tags || [])" :key="tag" class="tag-badge">{{ tagLabel(tag) }}</span>
                   <a v-if="doc.metadata?.source_url"
                      :href="doc.metadata.source_url" target="_blank" rel="noopener"
                      class="source-url-link" :title="doc.metadata.source_url"
@@ -310,21 +291,28 @@
                   </button>
                 </div>
               </td>
-              <td><span class="tag-blue" style="font-size: 11px; padding: 1px 6px; border-radius: 3px;">{{ doc.format }}</span></td>
               <td style="color: #666;">{{ formatSize(doc.size_bytes) }}</td>
               <td>{{ doc.chunks_count ?? '-' }}</td>
               <td>
                 <div style="display: flex; flex-direction: column; gap: 4px;">
                   <div style="display: flex; align-items: center; gap: 6px; white-space: nowrap;">
                     <span class="status-dot" :style="{ background: docStatusColor(doc.status) }"></span>
-                    <span>{{ docStatusText(doc.status) }}</span>
+                    <template v-if="doc.status === 'READY' && doc.metadata?.wiki_processed_at">
+                      <span style="color: #52c41a;" :title="'Wiki 生成于 ' + new Date(doc.metadata.wiki_processed_at).toLocaleString('zh-CN')">就绪 · Wiki 已生成</span>
+                    </template>
+                    <template v-else-if="doc.status === 'READY'">
+                      <span>就绪 · <span style="color: #faad14;">Wiki 待生成</span></span>
+                    </template>
+                    <template v-else>
+                      <span>{{ docStatusText(doc.status) }}</span>
+                    </template>
                   </div>
                   <!-- Progress bar for PROCESSING -->
                   <div v-if="doc.status === 'PROCESSING' && doc.progress != null" style="display: flex; align-items: center; gap: 8px;">
                     <div style="flex: 1; height: 4px; background: #e5e5e5; border-radius: 4px; max-width: 120px;">
-                      <div :style="{ width: Math.round(doc.progress * 100) + '%', height: '100%', background: '#1890ff', borderRadius: '2px', transition: 'width 0.3s' }"></div>
+                      <div :style="{ width: Math.round(doc.progress * 100) + '%', height: '100%', background: '#c19a6b', borderRadius: '2px', transition: 'width 0.3s' }"></div>
                     </div>
-                    <span style="color: #1890ff; font-size: 12px; white-space: nowrap;">{{ Math.round(doc.progress * 100) }}%</span>
+                    <span style="color: #c19a6b; font-size: 12px; white-space: nowrap;">{{ Math.round(doc.progress * 100) }}%</span>
                   </div>
                   <div v-if="doc.status === 'PROCESSING' && doc.progress_message" style="color: #999; font-size: 11px;">
                     {{ doc.progress_message }}
@@ -338,16 +326,11 @@
                   </div>
                 </div>
               </td>
-              <td style="white-space: nowrap;">
-                <span v-if="doc.metadata?.wiki_processed_at" style="color: #52c41a; font-size: 12px;" :title="new Date(doc.metadata.wiki_processed_at).toLocaleString('zh-CN')">已生成</span>
-                <span v-else-if="doc.status === 'READY'" style="color: #faad14; font-size: 12px;">待生成</span>
-                <span v-else style="color: #bbb; font-size: 12px;">-</span>
-              </td>
               <td style="color: #999;">{{ doc.created_at ? new Date(doc.created_at).toLocaleString('zh-CN') : '-' }}</td>
               <td @click.stop>
-                <button v-if="doc.status === 'FAILED'" class="btn btn-text btn-small" style="color: #1890ff;" @click="handleRetryDoc(doc)">重试</button>
+                <button v-if="doc.status === 'FAILED'" class="btn btn-text btn-small" style="color: #c19a6b;" @click="handleRetryDoc(doc)">重试</button>
                 <router-link v-if="doc.status === 'READY'" :to="{ name: 'DocumentDetail', params: { kbId: route.params.kbId, docId: doc.id } }" class="btn btn-text btn-small" style="color: #9a5b25;" @click.stop>切片</router-link>
-                <button v-if="isAdmin" class="btn btn-text btn-small btn-danger-text" @click="handleDeleteDoc(doc)">删除</button>
+                <button v-if="isAdmin" class="btn btn-text btn-small btn-danger-text" style="font-size: 11px;" @click="handleDeleteDoc(doc)">删除</button>
               </td>
             </tr>
           </tbody>
@@ -588,7 +571,6 @@ interface UploadFileState {
 }
 const uploadProgress = ref<UploadFileState[]>([])
 const docSearch = ref('')
-const docLayerFilter = ref<'source' | 'wiki'>('source')
 
 const docPage = ref(1)
 const docPageSize = ref(50)
@@ -813,7 +795,7 @@ async function handleGetCredentials(dsId: string) {
 
 function docStatusColor(s: string) {
   if (s === 'READY') return '#52c41a'
-  if (s === 'PROCESSING') return '#1890ff'
+  if (s === 'PROCESSING') return '#c19a6b'
   if (s === 'FAILED') return '#e6393d'
   return '#d9d9d9'
 }
@@ -821,6 +803,17 @@ function docStatusColor(s: string) {
 function docStatusText(s: string) {
   const map: Record<string, string> = { PENDING: '等待中', PROCESSING: '处理中', READY: '就绪', FAILED: '失败' }
   return map[s] || s
+}
+
+function formatLabel(format: string) {
+  if (!format) return ''
+  if (format.toUpperCase() === 'MARKDOWN') return 'Markdown'
+  return format
+}
+
+function tagLabel(tag: string) {
+  const map: Record<string, string> = { 'url-import': '网页导入' }
+  return map[tag] || tag
 }
 
 
@@ -851,12 +844,8 @@ async function saveDocTags() {
 }
 
 const filteredDocs = computed(() => {
-  let docs = documents.value
-  if (docLayerFilter.value === 'source') {
-    docs = docs.filter(d => d.type !== 'wiki' && d.type !== 'index')
-  } else {
-    docs = docs.filter(d => d.type === 'wiki' || d.type === 'index')
-  }
+  // Always show source docs only (wiki docs are in the Wiki tab)
+  let docs = documents.value.filter(d => d.type !== 'wiki' && d.type !== 'index')
   if (docSearch.value) {
     const q = docSearch.value.toLowerCase()
     docs = docs.filter(d => d.filename.toLowerCase().includes(q))
@@ -1351,12 +1340,12 @@ onMounted(async () => {
   align-items: center;
   gap: 3px;
   font-size: 11px;
-  color: #1890ff;
+  color: #9a5b25;
   text-decoration: none;
   padding: 1px 6px;
   border-radius: 10px;
-  background: #f0f7ff;
-  border: 1px solid #d0e4f7;
+  background: #faf5ee;
+  border: 1px solid #e8d5b0;
   white-space: nowrap;
 }
 .source-url-link:hover {
@@ -1597,13 +1586,13 @@ onMounted(async () => {
   color: #333;
 }
 .page-btn:hover:not(:disabled) {
-  border-color: #1890ff;
-  color: #1890ff;
+  border-color: #c19a6b;
+  color: #c19a6b;
 }
 .page-btn.active {
-  background: #1890ff;
+  background: #c19a6b;
   color: #fff;
-  border-color: #1890ff;
+  border-color: #c19a6b;
 }
 .page-btn:disabled {
   color: #d9d9d9;
