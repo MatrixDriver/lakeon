@@ -319,6 +319,72 @@ public class WikiService {
     }
 
     /**
+     * Ingest raw text with optional key points into wiki pages.
+     * Used by MCP tool for ingesting knowledge from CC conversations.
+     */
+    public Map<String, Object> ingestText(String tenantId, String kbId, String content,
+                                           List<String> keyPoints, String source) {
+        KnowledgeBaseEntity kbAccess = kbAccessService.getKbWithAccess(kbId, tenantId);
+        tenantId = kbAccess.getTenantId();
+        long startMs = System.currentTimeMillis();
+        String sourceName = source != null ? source : "text-ingest";
+
+        if (content == null || content.isBlank()) {
+            throw new BadRequestException("content is required");
+        }
+        if (content.length() > MAX_FULLTEXT_CHARS) {
+            content = content.substring(0, MAX_FULLTEXT_CHARS);
+        }
+
+        // Build enhanced input: prepend key points if provided
+        String fulltext = content;
+        if (keyPoints != null && !keyPoints.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("=== Key Points (confirmed by user) ===\n");
+            for (int i = 0; i < keyPoints.size(); i++) {
+                sb.append(i + 1).append(". ").append(keyPoints.get(i)).append("\n");
+            }
+            sb.append("\n=== Source Content ===\n");
+            sb.append(content);
+            fulltext = sb.toString();
+        }
+
+        // Read current wiki index
+        String currentIndex = readWikiPage(tenantId, kbId, "index.md");
+        if (currentIndex == null) {
+            currentIndex = "# Wiki Index\n\nNo pages yet.\n";
+        }
+        if (currentIndex.length() > MAX_INDEX_CHARS) {
+            currentIndex = currentIndex.substring(0, MAX_INDEX_CHARS);
+        }
+
+        // Call LLM to determine wiki changes
+        String prompt = String.format(getIngestPrompt(), currentIndex, fulltext);
+        String llmResponse = callDeepSeek(prompt);
+        if (llmResponse == null || llmResponse.isBlank()) {
+            writeRunLog(tenantId, kbId, "ingest", sourceName, 0, 0, 0, startMs, "LLM returned empty response");
+            return Map.of("status", "empty", "message", "LLM returned empty response");
+        }
+
+        try {
+            JsonNode response = objectMapper.readTree(llmResponse);
+            int[] counts = applyWikiChanges(tenantId, kbId, response, currentIndex);
+            writeRunLog(tenantId, kbId, "ingest", sourceName, counts[0], counts[1], 0, startMs, null);
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("status", "ok");
+            result.put("pages_created", counts[0]);
+            result.put("pages_updated", counts[1]);
+            appendToLog(tenantId, kbId, "[Text Ingest] source=" + sourceName + ", created=" + counts[0] + ", updated=" + counts[1]);
+            return result;
+        } catch (Exception e) {
+            log.error("ingestText failed: {}", e.getMessage(), e);
+            writeRunLog(tenantId, kbId, "ingest", sourceName, 0, 0, 0, startMs, e.getMessage());
+            throw new RuntimeException("Wiki ingest failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Save a chat response as a wiki page.
      */
     public void saveResponse(String tenantId, String kbId, String title, String content) {

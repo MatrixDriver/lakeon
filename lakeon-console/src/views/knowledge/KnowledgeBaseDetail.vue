@@ -115,9 +115,23 @@
           <WikiGraph ref="wikiGraphRef" :kb-id="(route.params.kbId as string)" @navigate="handleGraphNavigate" />
         </div>
       </div>
-      <button v-if="!showGraph"
-        style="position: absolute; right: 12px; top: 12px; padding: 4px 10px; font-size: 11px; border: 1px solid #e0d8ce; border-radius: 4px; background: #fff; color: #8c7a68; cursor: pointer; z-index: 2;"
-        @click="showGraph = true">图谱</button>
+      <div v-if="!showGraph" style="position: absolute; right: 12px; top: 12px; display: flex; gap: 8px; z-index: 2;">
+        <button style="padding: 4px 10px; font-size: 11px; border: 1px solid #e0d8ce; border-radius: 4px; background: #fff; color: #8c7a68; cursor: pointer;"
+                @click="handleLint" :disabled="lintLoading">
+          {{ lintLoading ? '检查中...' : '健康检查' }}
+        </button>
+        <button style="padding: 4px 10px; font-size: 11px; border: 1px solid #e0d8ce; border-radius: 4px; background: #fff; color: #8c7a68; cursor: pointer;"
+                @click="showGraph = true">图谱</button>
+      </div>
+      <WikiLintPanel v-if="showLintPanel"
+        :kb-id="(route.params.kbId as string)"
+        :issues="lintIssues"
+        :summary="lintSummary"
+        :checked-at="lintCheckedAt"
+        @close="showLintPanel = false"
+        @navigate="handleGraphNavigate"
+        @fixed="handleLintFixed"
+      />
     </div>
 
     <!-- Chat Tab (v-show to preserve state across tab switches) -->
@@ -531,6 +545,8 @@ import WikiPage from './WikiPage.vue'
 import WikiGraph from './WikiGraph.vue'
 import WikiChat from './WikiChat.vue'
 import KbSharePanel from './KbSharePanel.vue'
+import WikiLintPanel from '@/components/knowledge/WikiLintPanel.vue'
+import { runWikiLint, type LintIssue } from '@/api/knowledge'
 // WikiChat moved to standalone page /knowledge/chat
 import { formatSize } from '../../utils/format'
 import { marked } from 'marked'
@@ -689,6 +705,33 @@ const tabs = [
 
 const showGraph = ref(true)
 const showGraphFullscreen = ref(false)
+
+// Wiki Lint
+const showLintPanel = ref(false)
+const lintLoading = ref(false)
+const lintIssues = ref<LintIssue[]>([])
+const lintSummary = ref<Record<string, number>>({})
+const lintCheckedAt = ref('')
+
+async function handleLint() {
+  lintLoading.value = true
+  showLintPanel.value = true
+  try {
+    const resp = await runWikiLint(route.params.kbId as string)
+    lintIssues.value = resp.data.issues
+    lintSummary.value = resp.data.summary
+    lintCheckedAt.value = resp.data.checked_at
+  } catch (e) {
+    console.error('Lint failed:', e)
+  } finally {
+    lintLoading.value = false
+  }
+}
+
+function handleLintFixed() {
+  handleLint()
+  wikiPageRef.value?.loadPages?.()
+}
 const graphWidth = ref<number | null>(null) // null = 50/50 flex split; set on drag
 
 function startGraphResize(e: MouseEvent) {

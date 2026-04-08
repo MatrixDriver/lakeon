@@ -445,3 +445,26 @@ export function createShare(kbId: string, username: string) {
 export function deleteShare(kbId: string, shareId: string) {
   return api.delete(`/knowledge/bases/${kbId}/shares/${shareId}`)
 }
+
+// ── Wiki Lint API ──
+
+export function runWikiLint(kbId: string) {
+  return api.post<{
+    issues: LintIssue[]
+    summary: Record<string, number>
+    checked_at: string
+  }>('/knowledge/wiki/lint', { kb_id: kbId })
+}
+
+export function fixWikiLint(kbId: string, categories: string[], issues: LintIssue[]) {
+  return api.post<{ fixed: number; pages_updated: number; pages_created: number }>(
+    '/knowledge/wiki/lint/fix', { kb_id: kbId, categories, issues })
+}
+
+export interface LintIssue {
+  category: string
+  severity: string
+  page: string
+  description: string
+  related_pages: string[]
+}

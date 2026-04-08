@@ -836,6 +836,29 @@ public class KnowledgeController {
         }
     }
 
+    @PostMapping("/wiki/ingest-text")
+    public ResponseEntity<?> ingestWikiText(HttpServletRequest req,
+                                            @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        String kbId = (String) body.get("kb_id");
+        String content = (String) body.get("content");
+        @SuppressWarnings("unchecked")
+        List<String> keyPoints = (List<String>) body.get("key_points");
+        String source = (String) body.get("source");
+        if (kbId == null || kbId.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "kb_id is required"));
+        }
+        if (content == null || content.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "content is required"));
+        }
+        try {
+            Map<String, Object> result = wikiService.ingestText(tenant.getId(), kbId, content, keyPoints, source);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", Map.of("message", e.getMessage())));
+        }
+    }
+
     @PostMapping("/wiki/lint")
     public ResponseEntity<?> runWikiLint(HttpServletRequest req,
                                          @RequestBody Map<String, Object> body) {
