@@ -37,6 +37,7 @@ public class KnowledgeController {
     private final KbAccessService kbAccessService;
     private final KbShareRepository kbShareRepository;
     private final TenantRepository tenantRepository;
+    private final ChunkService chunkService;
 
     public KnowledgeController(KnowledgeService knowledgeService,
                                DocumentRepository documentRepository,
@@ -48,7 +49,8 @@ public class KnowledgeController {
                                ObjectMapper objectMapper,
                                KbAccessService kbAccessService,
                                KbShareRepository kbShareRepository,
-                               TenantRepository tenantRepository) {
+                               TenantRepository tenantRepository,
+                               ChunkService chunkService) {
         this.knowledgeService = knowledgeService;
         this.documentRepository = documentRepository;
         this.kbWriteQueue = kbWriteQueue;
@@ -60,6 +62,7 @@ public class KnowledgeController {
         this.kbAccessService = kbAccessService;
         this.kbShareRepository = kbShareRepository;
         this.tenantRepository = tenantRepository;
+        this.chunkService = chunkService;
     }
 
     // ── Knowledge Base endpoints ─────────────────────────────────────
@@ -300,7 +303,7 @@ public class KnowledgeController {
                                              @RequestParam("kb_id") String kbId) {
         TenantEntity tenant = getTenant(req);
         List<Object[]> rows = documentRepository.countByStatusGrouped(tenant.getId(), kbId);
-        long total = 0, processing = 0, ready = 0, failed = 0, pending = 0;
+        long total = 0, processing = 0, ready = 0, failed = 0, pending = 0, wikiPending = 0;
         for (Object[] row : rows) {
             String s = (String) row[0];
             long count = ((Number) row[1]).longValue();
@@ -310,9 +313,17 @@ public class KnowledgeController {
                 case "READY" -> ready = count;
                 case "FAILED" -> failed = count;
                 case "PENDING" -> pending = count;
+                case "WIKI_PENDING" -> wikiPending = count;
             }
         }
-        return Map.of("total", total, "processing", processing, "ready", ready, "failed", failed, "pending", pending);
+        Map<String, Object> stats = new LinkedHashMap<>();
+        stats.put("total", total);
+        stats.put("processing", processing);
+        stats.put("ready", ready);
+        stats.put("failed", failed);
+        stats.put("pending", pending);
+        stats.put("wiki_pending", wikiPending);
+        return stats;
     }
 
     @GetMapping("/documents/{id}")
@@ -834,6 +845,101 @@ public class KnowledgeController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", Map.of("message", e.getMessage())));
         }
+    }
+
+    /**
+     * Get wiki preview for a WIKI_PENDING document: summary + key points extracted from fulltext.
+     */
+    @GetMapping("/documents/{docId}/wiki-preview")
+    public ResponseEntity<?> getWikiPreview(HttpServletRequest req, @PathVariable String docId) {
+        TenantEntity tenant = getTenant(req);
+        DocumentEntity doc = documentRepository.findById(docId).orElse(null);
+        if (doc == null) return ResponseEntity.notFound().build();
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("document_id", docId);
+        result.put("filename", doc.getFilename());
+        result.put("status", doc.getStatus().name());
+
+        // Get fulltext from OBS
+        String fulltext = chunkService.getFulltext(tenant.getId(), doc.getKbId(), docId);
+        if (fulltext != null && !fulltext.isBlank()) {
+            // Show a preview (first 500 chars)
+            result.put("preview", fulltext.length() > 500 ? fulltext.substring(0, 500) + "..." : fulltext);
+            List<String> keyPoints = extractKeyPoints(fulltext);
+            result.put("key_points", keyPoints);
+        }
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Confirm wiki generation for a WIKI_PENDING document, with optional user-edited key points.
+     */
+    @PostMapping("/documents/{docId}/wiki-confirm")
+    public ResponseEntity<?> confirmWikiGeneration(HttpServletRequest req,
+                                                    @PathVariable String docId,
+                                                    @RequestBody(required = false) Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        DocumentEntity doc = documentRepository.findById(docId).orElse(null);
+        if (doc == null) return ResponseEntity.notFound().build();
+        if (doc.getStatus() != DocumentStatus.WIKI_PENDING) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Document is not pending wiki review"));
+        }
+
+        @SuppressWarnings("unchecked")
+        List<String> keyPoints = body != null ? (List<String>) body.get("key_points") : null;
+
+        // Mark as READY first
+        doc.setStatus(DocumentStatus.READY);
+        documentRepository.save(doc);
+
+        // Trigger wiki ingest with key points
+        try {
+            String fulltext = chunkService.getFulltext(tenant.getId(), doc.getKbId(), docId);
+            if (fulltext != null && !fulltext.isBlank()) {
+                Map<String, Object> result = wikiService.ingestText(
+                        tenant.getId(), doc.getKbId(), fulltext, keyPoints, doc.getFilename());
+                return ResponseEntity.ok(result);
+            }
+            return ResponseEntity.ok(Map.of("status", "ok", "message", "No fulltext found, skipped wiki generation"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", Map.of("message", e.getMessage())));
+        }
+    }
+
+    /**
+     * Skip wiki generation for a WIKI_PENDING document.
+     */
+    @PostMapping("/documents/{docId}/wiki-skip")
+    public ResponseEntity<?> skipWikiGeneration(HttpServletRequest req, @PathVariable String docId) {
+        DocumentEntity doc = documentRepository.findById(docId).orElse(null);
+        if (doc == null) return ResponseEntity.notFound().build();
+        doc.setStatus(DocumentStatus.READY);
+        documentRepository.save(doc);
+        return ResponseEntity.ok(Map.of("status", "skipped"));
+    }
+
+    private List<String> extractKeyPoints(String summary) {
+        // Split summary into key points by lines/sentences
+        List<String> points = new java.util.ArrayList<>();
+        for (String line : summary.split("\n")) {
+            line = line.trim();
+            if (line.isEmpty()) continue;
+            // Skip markdown headers
+            if (line.startsWith("#")) {
+                continue;
+            }
+            // Remove bullet prefixes
+            line = line.replaceFirst("^[-*•]\\s*", "").replaceFirst("^\\d+\\.\\s*", "");
+            if (line.length() > 10) {
+                points.add(line);
+            }
+        }
+        // Limit to top 8 points
+        if (points.size() > 8) {
+            points = points.subList(0, 8);
+        }
+        return points;
     }
 
     @PostMapping("/wiki/ingest-text")

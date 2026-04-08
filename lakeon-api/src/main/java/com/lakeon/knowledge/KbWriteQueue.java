@@ -919,16 +919,34 @@ public class KbWriteQueue {
         summaryService.summarizeDocument(conn, tenantId, kbId, documentId);
 
         // Trigger wiki update after summarize
-        try {
-            Map<String, Object> wikiParams = new LinkedHashMap<>();
-            wikiParams.put("tenant_id", tenantId);
-            wikiParams.put("kb_id", kbId);
-            wikiParams.put("document_id", documentId);
-            wikiParams.put("database_id", params.get("database_id"));
-            enqueueTask((String) params.get("database_id"), KbWriteTaskType.WIKI_UPDATE, wikiParams);
-            log.info("Enqueued WIKI_UPDATE for doc {} in KB {}", documentId, kbId);
-        } catch (Exception e) {
-            log.warn("Failed to enqueue WIKI_UPDATE after summarize: {}", e.getMessage());
+        // Single-doc upload: pause for user review (WIKI_PENDING); batch: auto wiki
+        List<String> allDocIds = (List<String>) params.get("all_document_ids");
+        boolean isSingleDoc = (allDocIds == null || allDocIds.size() <= 1);
+        if (isSingleDoc) {
+            // Single doc: set WIKI_PENDING for user review before wiki generation
+            try {
+                DocumentEntity doc = documentRepository.findById(documentId).orElse(null);
+                if (doc != null) {
+                    doc.setStatus(DocumentStatus.WIKI_PENDING);
+                    documentRepository.save(doc);
+                    log.info("Document {} set to WIKI_PENDING for review in KB {}", documentId, kbId);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to set WIKI_PENDING for doc {}: {}", documentId, e.getMessage());
+            }
+        } else {
+            // Batch upload: auto wiki update
+            try {
+                Map<String, Object> wikiParams = new LinkedHashMap<>();
+                wikiParams.put("tenant_id", tenantId);
+                wikiParams.put("kb_id", kbId);
+                wikiParams.put("document_id", documentId);
+                wikiParams.put("database_id", params.get("database_id"));
+                enqueueTask((String) params.get("database_id"), KbWriteTaskType.WIKI_UPDATE, wikiParams);
+                log.info("Enqueued WIKI_UPDATE for doc {} in KB {}", documentId, kbId);
+            } catch (Exception e) {
+                log.warn("Failed to enqueue WIKI_UPDATE after summarize: {}", e.getMessage());
+            }
         }
 
         // Check if all documents now have L1 → enqueue KB_SUMMARIZE

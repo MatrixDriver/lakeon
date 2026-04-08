@@ -183,12 +183,14 @@
 
       <span v-if="kb?.status === 'CREATING'" style="color: #c87a20; font-size: 13px; display: block; margin-bottom: 12px;">知识库正在创建中，请稍候...</span>
 
-      <!-- Wiki not generated notice -->
-      <div v-if="wikiStats !== null && wikiStats.wiki_page_count === 0 && docStats.ready > 0 && docStats.processing === 0"
-           style="display: flex; align-items: center; gap: 8px; background: #fffbe6; border: 1px solid #ffe58f; border-radius: 6px; padding: 8px 14px; margin-bottom: 12px; font-size: 13px; color: #7a5c00;">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        文档已就绪，但 Wiki 尚未生成。切换到「概览」页可查看 Wiki 生成进度，或点击「Wiki 文档」标签查看生成结果。
+      <!-- Wiki review pending notice -->
+      <div v-if="docStats.wiki_pending > 0"
+           style="display: flex; align-items: center; gap: 8px; background: #fff7e6; border: 1px solid #ffd591; border-radius: 6px; padding: 8px 14px; margin-bottom: 12px; font-size: 13px; color: #ad6800;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        {{ docStats.wiki_pending }} 篇文档等待 Wiki 审核 --
+        <button class="btn btn-small" style="background: #ad6800; color: #fff; border: none; border-radius: 4px; padding: 3px 10px; font-size: 12px; cursor: pointer;" @click="docStatusFilter = 'WIKI_PENDING'; loadDocuments()">查看并审核</button>
       </div>
+
 
       <!-- Combined progress card -->
       <div v-if="uploading || uploadJustFinished || docStats.processing > 0 || docStats.pending > 0" style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px;">
@@ -229,6 +231,7 @@
           { key: 'PROCESSING', label: '处理中', count: docStats.processing },
           { key: 'READY', label: '已就绪', count: docStats.ready },
           { key: 'FAILED', label: '失败', count: docStats.failed },
+          ...(docStats.wiki_pending > 0 ? [{ key: 'WIKI_PENDING', label: '待审核', count: docStats.wiki_pending }] : []),
         ]" :key="tab.label"
           style="padding: 8px 16px; font-size: 13px; cursor: pointer; transition: color 0.2s;"
           :style="{
@@ -354,6 +357,8 @@
               </td>
               <td style="color: #999;">{{ doc.created_at ? new Date(doc.created_at).toLocaleString('zh-CN') : '-' }}</td>
               <td @click.stop>
+                <button v-if="doc.status === 'WIKI_PENDING'" class="btn btn-small" style="background: #fa8c16; color: #fff; border: none; border-radius: 4px; font-size: 11px;" @click="openWikiReview(doc)">审核</button>
+                <button v-if="doc.status === 'WIKI_PENDING'" class="btn btn-text btn-small" style="color: #999;" @click="handleSkipWiki(doc)">跳过</button>
                 <button v-if="doc.status === 'FAILED'" class="btn btn-text btn-small" style="color: #1890ff;" @click="handleRetryDoc(doc)">重试</button>
                 <router-link v-if="doc.status === 'READY'" :to="{ name: 'DocumentDetail', params: { kbId: route.params.kbId, docId: doc.id } }" class="btn btn-text btn-small" style="color: #9a5b25;" @click.stop>切片</router-link>
                 <button v-if="isAdmin" class="btn btn-text btn-small btn-danger-text" @click="handleDeleteDoc(doc)">删除</button>
@@ -408,6 +413,41 @@
         </div>
         <div class="modal-footer">
           <button class="btn btn-text" @click="errorDetail.open = false">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wiki Review Dialog -->
+    <div v-if="wikiReview.open" class="modal-overlay" @click.self="wikiReview.open = false">
+      <div class="modal-box" style="max-width: 640px;">
+        <div class="modal-header">
+          <span>Wiki 审核 — {{ wikiReview.filename }}</span>
+          <button class="btn-icon" @click="wikiReview.open = false">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div v-if="wikiReview.loading" style="text-align: center; padding: 24px; color: #999;">加载中...</div>
+          <template v-else>
+            <div v-if="wikiReview.preview" style="background: #fafaf8; border: 1px solid #e8e4df; border-radius: 6px; padding: 12px; margin-bottom: 16px; max-height: 160px; overflow-y: auto; font-size: 12px; color: #666; line-height: 1.6;">
+              {{ wikiReview.preview }}
+            </div>
+            <div style="font-size: 13px; font-weight: 500; margin-bottom: 8px; color: #333;">提取的要点（可取消勾选或编辑）</div>
+            <div v-for="(_pt, i) in wikiReview.keyPoints" :key="i" style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
+              <input type="checkbox" v-model="wikiReview.checked[i]" style="margin-top: 3px; cursor: pointer;">
+              <input v-model="wikiReview.keyPoints[i]" style="flex: 1; border: 1px solid #e0d8ce; border-radius: 4px; padding: 4px 8px; font-size: 12px; outline: none;" />
+            </div>
+            <button class="btn btn-text btn-small" style="color: #1890ff; margin-top: 4px;" @click="wikiReview.keyPoints.push(''); wikiReview.checked.push(true)">+ 补充要点</button>
+          </template>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button class="btn btn-text" @click="wikiReview.open = false">取消</button>
+          <button class="btn" style="background: #999; color: #fff; border: none; border-radius: 4px;" @click="handleSkipWikiFromReview">跳过 Wiki</button>
+          <button class="btn btn-primary" :disabled="wikiReview.confirming" @click="handleConfirmWiki">
+            {{ wikiReview.confirming ? '生成中...' : '确认写入 Wiki' }}
+          </button>
         </div>
       </div>
     </div>
@@ -546,7 +586,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getKnowledgeBase, listDocuments, listFolders, getDocumentStats, deleteDocument, clearAllDocuments, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, ingestUrl, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, getWikiStats, type KnowledgeBase as KBType, type Document, type DocumentStats, type DataSource, type DataSourceCredentials, type Folder, type WikiStats } from '../../api/knowledge'
+import { getKnowledgeBase, listDocuments, listFolders, getDocumentStats, deleteDocument, clearAllDocuments, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, ingestUrl, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, getWikiStats, getWikiPreview, confirmWikiGeneration, skipWikiGeneration, type KnowledgeBase as KBType, type Document, type DocumentStats, type DataSource, type DataSourceCredentials, type Folder, type WikiStats } from '../../api/knowledge'
 import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
 import WikiPage from './WikiPage.vue'
 import WikiGraph from './WikiGraph.vue'
@@ -605,7 +645,7 @@ const docTotal = ref(0)
 const docStatusFilter = ref<string | undefined>(undefined)
 const docSortBy = ref('upload_time')
 const docSortOrder = ref<'asc' | 'desc'>('desc')
-const docStats = ref<DocumentStats>({ total: 0, processing: 0, ready: 0, failed: 0, pending: 0 })
+const docStats = ref<DocumentStats>({ total: 0, processing: 0, ready: 0, failed: 0, pending: 0, wiki_pending: 0 })
 const embeddingCount = computed(() =>
   documents.value.filter(d => d.status === 'PROCESSING' && d.progress_message && /embedding/i.test(d.progress_message)).length
 )
@@ -814,15 +854,85 @@ async function handleGetCredentials(dsId: string) {
   dsCredentials.value = { dsId, creds: res.data }
 }
 
+// Wiki review dialog state
+const wikiReview = reactive({
+  open: false,
+  loading: false,
+  confirming: false,
+  docId: '',
+  filename: '',
+  preview: '',
+  keyPoints: [] as string[],
+  checked: [] as boolean[],
+})
+
+async function openWikiReview(doc: Document) {
+  wikiReview.open = true
+  wikiReview.loading = true
+  wikiReview.docId = doc.id
+  wikiReview.filename = doc.filename
+  wikiReview.preview = ''
+  wikiReview.keyPoints = []
+  wikiReview.checked = []
+  try {
+    const res = await getWikiPreview(doc.id)
+    wikiReview.preview = res.data.preview || ''
+    wikiReview.keyPoints = res.data.key_points || []
+    wikiReview.checked = wikiReview.keyPoints.map(() => true)
+  } catch (e) {
+    console.error('Failed to load wiki preview', e)
+  } finally {
+    wikiReview.loading = false
+  }
+}
+
+async function handleConfirmWiki() {
+  wikiReview.confirming = true
+  try {
+    const selectedPoints = wikiReview.keyPoints.filter((_, i) => wikiReview.checked[i]).filter(p => p.trim())
+    await confirmWikiGeneration(wikiReview.docId, selectedPoints.length > 0 ? selectedPoints : undefined)
+    wikiReview.open = false
+    loadDocuments()
+    loadStats()
+  } catch (e) {
+    alert('Wiki 生成失败')
+    console.error(e)
+  } finally {
+    wikiReview.confirming = false
+  }
+}
+
+async function handleSkipWiki(doc: Document) {
+  try {
+    await skipWikiGeneration(doc.id)
+    loadDocuments()
+    loadStats()
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+async function handleSkipWikiFromReview() {
+  try {
+    await skipWikiGeneration(wikiReview.docId)
+    wikiReview.open = false
+    loadDocuments()
+    loadStats()
+  } catch (e) {
+    console.error(e)
+  }
+}
+
 function docStatusColor(s: string) {
   if (s === 'READY') return '#52c41a'
   if (s === 'PROCESSING') return '#1890ff'
   if (s === 'FAILED') return '#e6393d'
+  if (s === 'WIKI_PENDING') return '#fa8c16'
   return '#d9d9d9'
 }
 
 function docStatusText(s: string) {
-  const map: Record<string, string> = { PENDING: '等待中', PROCESSING: '处理中', READY: '就绪', FAILED: '失败' }
+  const map: Record<string, string> = { PENDING: '等待中', PROCESSING: '处理中', READY: '就绪', FAILED: '失败', WIKI_PENDING: '待审核' }
   return map[s] || s
 }
 
@@ -891,10 +1001,6 @@ async function loadStats() {
   try {
     const resp = await getDocumentStats(kbId)
     docStats.value = resp.data
-  } catch { /* ignore */ }
-  try {
-    const res = await getWikiStats(kbId)
-    wikiStats.value = res.data
   } catch { /* ignore */ }
 }
 

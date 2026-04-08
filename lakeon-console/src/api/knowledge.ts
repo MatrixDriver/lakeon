@@ -59,6 +59,7 @@ export interface DocumentStats {
   ready: number
   failed: number
   pending: number
+  wiki_pending: number
 }
 
 export interface Folder {
@@ -405,6 +406,18 @@ export function ingestUrl(kbId: string, url: string, title?: string, content?: s
   return api.post<{ document_id: string; status: string }>('/knowledge/wiki/ingest-url', {
     kb_id: kbId, url, title, content
   })
+}
+
+export function getWikiPreview(docId: string) {
+  return api.get<{ document_id: string; filename: string; status: string; preview?: string; key_points?: string[] }>(`/knowledge/documents/${docId}/wiki-preview`)
+}
+
+export function confirmWikiGeneration(docId: string, keyPoints?: string[]) {
+  return api.post<{ status: string; pages_created?: number; pages_updated?: number }>(`/knowledge/documents/${docId}/wiki-confirm`, keyPoints ? { key_points: keyPoints } : {})
+}
+
+export function skipWikiGeneration(docId: string) {
+  return api.post(`/knowledge/documents/${docId}/wiki-skip`)
 }
 
 export interface WikiStats {
