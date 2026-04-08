@@ -23,15 +23,33 @@ def list_kbs():
         console.print(f"{marker}{kb['id']}  {kb['name']}  [{kb.get('status', '?')}]  docs={kb.get('document_count', 0)}")
 
 
+def _resolve_kb(name_or_id: str) -> dict:
+    """Resolve a knowledge base by ID or name."""
+    if name_or_id.startswith("kb_"):
+        return _client().get_knowledge_base(name_or_id)
+    kbs = _client().list_knowledge_bases()
+    matches = [k for k in kbs if k["name"] == name_or_id]
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        console.print(f"[red]Multiple knowledge bases named '{name_or_id}':[/red]")
+        for k in matches:
+            console.print(f"  {k['id']}  {k['name']}")
+        console.print("[red]Please use ID instead.[/red]")
+        raise typer.Exit(1)
+    console.print(f"[red]Knowledge base '{name_or_id}' not found.[/red]")
+    raise typer.Exit(1)
+
+
 @app.command("use")
 def use_kb(
-    kb_id: str = typer.Argument(..., help="Knowledge base ID"),
+    name_or_id: str = typer.Argument(..., help="Knowledge base ID or name"),
 ):
-    """Switch default knowledge base."""
+    """Switch default knowledge base. Accepts ID or name."""
     from dbay_cli.config import set as config_set
-    kb = _client().get_knowledge_base(kb_id)
-    config_set("knowledge_base", kb_id)
-    console.print(f"Default knowledge base set to: {kb['name']} ({kb_id})")
+    kb = _resolve_kb(name_or_id)
+    config_set("knowledge_base", kb["id"])
+    console.print(f"Default knowledge base set to: {kb['name']} ({kb['id']})")
 
 @app.command("create")
 def create_kb(

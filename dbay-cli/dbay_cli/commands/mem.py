@@ -27,14 +27,31 @@ def list_bases():
         typer.echo(f"{marker}{b['id']}  {b['name']}  [{b['status']}]  mode={mode}{enc}")
 
 
+def _resolve_mem(name_or_id: str) -> dict:
+    """Resolve a memory base by ID or name."""
+    if name_or_id.startswith("mem_"):
+        return _client().get_memory_base(name_or_id)
+    bases = _client().list_memory_bases()
+    matches = [b for b in bases if b["name"] == name_or_id]
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        typer.echo(f"Multiple memory bases named '{name_or_id}':", err=True)
+        for b in matches:
+            typer.echo(f"  {b['id']}  {b['name']}", err=True)
+        typer.echo("Please use ID instead.", err=True)
+        raise typer.Exit(1)
+    typer.echo(f"Memory base '{name_or_id}' not found.", err=True)
+    raise typer.Exit(1)
+
+
 @app.command("use")
-def use(mem_id: str):
-    """Switch default memory base."""
+def use(name_or_id: str):
+    """Switch default memory base. Accepts ID or name."""
     from dbay_cli.config import set as config_set
-    # Verify it exists
-    info = _client().get_memory_base(mem_id)
-    config_set("memory_base", mem_id)
-    typer.echo(f"Default memory base set to: {info['name']} ({mem_id})")
+    info = _resolve_mem(name_or_id)
+    config_set("memory_base", info["id"])
+    typer.echo(f"Default memory base set to: {info['name']} ({info['id']})")
 
 
 @app.command("create")
