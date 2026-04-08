@@ -21,10 +21,135 @@ def list_bases():
 
 @app.command("create")
 def create(name: str, desc: str = typer.Option(None, "--desc"),
-           agent_extract: bool = typer.Option(False, "--agent-extract")):
-    """Create a memory base."""
-    result = _client().create_memory_base(name, desc, one_llm_mode=agent_extract)
-    typer.echo(json.dumps(result, indent=2, default=str))
+           agent_extract: bool = typer.Option(False, "--agent-extract"),
+           encrypted: bool = typer.Option(False, "--encrypted")):
+    """Create a memory base. Use --encrypted for client-side encryption."""
+    if encrypted:
+        _create_encrypted(name, desc, agent_extract)
+    else:
+        result = _client().create_memory_base(name, desc, one_llm_mode=agent_extract)
+        typer.echo(json.dumps(result, indent=2, default=str))
+
+
+def _create_encrypted(name: str, desc: str | None, agent_extract: bool):
+    """Interactive flow for creating an encrypted memory base."""
+    import base64
+    import getpass
+    import asyncio
+    from dbay_mcp.crypto import (
+        generate_keypair, generate_dek, generate_salt,
+        encrypt_private_key, encrypt_dek_with_public_key,
+        save_encrypted_base, write_secret,
+        load_encrypted_bases, ENCRYPTED_BASES_FILE,
+    )
+    from dbay_mcp.embedding import probe_embedding_dim
+
+    typer.echo("Creating encrypted memory base...")
+    typer.echo("Warning: If you lose your password, your data cannot be recovered.\n")
+
+    # 1. Password
+    password = getpass.getpass("Set encryption password: ")
+    confirm = getpass.getpass("Confirm password: ")
+    if password != confirm:
+        typer.echo("Passwords do not match.", err=True)
+        raise typer.Exit(1)
+
+    # 2. Embedding provider
+    typer.echo("\nEmbedding provider:")
+    typer.echo("  1) DBay (default, uses your API key)")
+    typer.echo("  2) External API (provide endpoint/key/model)")
+    typer.echo("  3) Local model (not yet supported)")
+    choice = typer.prompt("Choose", default="1")
+
+    embedding_config: dict = {}
+    if choice == "1":
+        embedding_config = {"embedding_provider": "dbay"}
+    elif choice == "2":
+        embedding_config = {
+            "embedding_provider": "external",
+            "embedding_endpoint": typer.prompt("Embedding API endpoint"),
+            "embedding_api_key": typer.prompt("Embedding API key", default=""),
+            "embedding_model": typer.prompt("Embedding model name"),
+        }
+    else:
+        typer.echo("Local model not yet supported.", err=True)
+        raise typer.Exit(1)
+
+    # 3. Generate keys
+    typer.echo("\nGenerating RSA-4096 key pair...")
+    private_pem, public_pem = generate_keypair()
+    salt = generate_salt()
+    dek = generate_dek()
+
+    # 4. Encrypt private key with password
+    encrypted_private_key = encrypt_private_key(private_pem, password, salt)
+
+    # 5. Encrypt DEK with public key
+    encrypted_dek = encrypt_dek_with_public_key(dek, public_pem)
+
+    # 6. Probe embedding dimension
+    temp_mem_id = "probe_temp"
+    temp_config = {
+        **embedding_config,
+        "public_key": public_pem.decode("ascii"),
+        "encrypted_private_key": encrypted_private_key,
+        "kdf_salt": base64.b64encode(salt).decode("ascii"),
+        "kdf_algorithm": "scrypt",
+    }
+    save_encrypted_base(temp_mem_id, temp_config)
+
+    typer.echo("Probing embedding dimension...")
+    from dbay_cli.config import get_endpoint, get as config_get
+    try:
+        dim = asyncio.get_event_loop().run_until_complete(
+            probe_embedding_dim(temp_mem_id, api_key=config_get("api_key"), endpoint=get_endpoint())
+        )
+    except Exception as e:
+        bases = load_encrypted_bases()
+        bases.pop(temp_mem_id, None)
+        ENCRYPTED_BASES_FILE.write_text(json.dumps(bases, indent=2) + "\n")
+        typer.echo(f"Embedding probe failed: {e}", err=True)
+        raise typer.Exit(1)
+
+    typer.echo(f"Detected embedding dimension: {dim}")
+
+    # Clean up temp entry
+    bases = load_encrypted_bases()
+    bases.pop(temp_mem_id, None)
+    if bases:
+        ENCRYPTED_BASES_FILE.write_text(json.dumps(bases, indent=2) + "\n")
+
+    # 7. Create memory base on server
+    typer.echo("Creating memory base on server...")
+    result = _client().create_memory_base(
+        name, desc, one_llm_mode=agent_extract,
+        encrypted=True,
+        encrypted_dek=encrypted_dek,
+        kdf_salt=base64.b64encode(salt).decode("ascii"),
+        embedding_dim=dim,
+    )
+    mem_id = result["id"]
+
+    # 8. Save config locally
+    config = {
+        "public_key": public_pem.decode("ascii"),
+        "encrypted_private_key": encrypted_private_key,
+        "kdf_salt": base64.b64encode(salt).decode("ascii"),
+        "kdf_algorithm": "scrypt",
+        **embedding_config,
+        "embedding_dim": dim,
+    }
+    save_encrypted_base(mem_id, config)
+
+    # 9. Save password
+    write_secret(password)
+
+    typer.echo(f"\nEncrypted memory base created: {mem_id}")
+    typer.echo(f"Config saved to: ~/.dbay/encrypted_bases.json")
+    typer.echo(f"Password saved to: ~/.dbay/secret")
+    typer.echo(f"\nTo use on another device:")
+    typer.echo(f"  1. Copy ~/.dbay/encrypted_bases.json")
+    typer.echo(f"  2. Create ~/.dbay/secret with DBAY_ENCRYPTION_PASSWORD=<your_password>")
 
 
 @app.command("info")
@@ -112,3 +237,45 @@ def digest_extracted(mem_id: str,
     """Store pre-extracted digest traits."""
     result = _client().mem_digest_extracted(mem_id, json.loads(data))
     typer.echo(json.dumps(result, indent=2, default=str))
+
+
+@app.command("change-password")
+def change_password(mem_id: str):
+    """Change encryption password for a memory base."""
+    import base64
+    import getpass
+    from dbay_mcp.crypto import (
+        load_encrypted_bases, save_encrypted_base, write_secret,
+        decrypt_private_key, encrypt_private_key, generate_salt,
+    )
+
+    bases = load_encrypted_bases()
+    if mem_id not in bases:
+        typer.echo(f"No encryption config for {mem_id}", err=True)
+        raise typer.Exit(1)
+
+    config = bases[mem_id]
+    salt = base64.b64decode(config["kdf_salt"])
+
+    old_password = getpass.getpass("Current password: ")
+    try:
+        private_pem = decrypt_private_key(config["encrypted_private_key"], old_password, salt)
+    except Exception:
+        typer.echo("Wrong password.", err=True)
+        raise typer.Exit(1)
+
+    new_password = getpass.getpass("New password: ")
+    confirm = getpass.getpass("Confirm new password: ")
+    if new_password != confirm:
+        typer.echo("Passwords do not match.", err=True)
+        raise typer.Exit(1)
+
+    new_salt = generate_salt()
+    new_encrypted_private_key = encrypt_private_key(private_pem, new_password, new_salt)
+
+    config["encrypted_private_key"] = new_encrypted_private_key
+    config["kdf_salt"] = base64.b64encode(new_salt).decode("ascii")
+    save_encrypted_base(mem_id, config)
+    write_secret(new_password)
+
+    typer.echo("Password changed successfully.")

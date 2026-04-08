@@ -585,10 +585,17 @@ class DbayClient:
         return self._request("GET", "/memory/bases")
 
     def create_memory_base(self, name: str, description: str = None,
-                           one_llm_mode: bool = False) -> dict:
+                           one_llm_mode: bool = False, encrypted: bool = False,
+                           encrypted_dek: str = None, kdf_salt: str = None,
+                           embedding_dim: int = None) -> dict:
         body: dict = {"name": name, "one_llm_mode": one_llm_mode}
         if description:
             body["description"] = description
+        if encrypted:
+            body["encrypted"] = True
+            body["encrypted_dek"] = encrypted_dek
+            body["kdf_salt"] = kdf_salt
+            body["embedding_dim"] = embedding_dim
         return self._request("POST", "/memory/bases", json=body)
 
     def get_memory_base(self, mem_id: str) -> dict:
