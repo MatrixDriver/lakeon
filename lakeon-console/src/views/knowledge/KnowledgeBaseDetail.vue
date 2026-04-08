@@ -7,19 +7,6 @@
       <h1 class="page-title" style="margin: 0; font-size: 18px; line-height: 1.4;">{{ kb?.name || '...' }}</h1>
       <span v-if="isShared" style="display: inline-block; padding: 1px 7px; border-radius: 3px; font-size: 11px; font-weight: 500; background: #fff7e6; color: #c19a6b; border: 1px solid #e8d5b0; margin-left: 4px;">共享</span>
       <span style="flex: 1;"></span>
-      <!-- Share management button (admin only) -->
-      <button v-if="isAdmin && kb && kb.type !== 'TABLE'" class="share-mgmt-btn" @click="showSharePanel = !showSharePanel" :title="showSharePanel ? '收起共享管理' : '共享管理'">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;">
-          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-        </svg>
-        共享管理
-      </button>
-    </div>
-    <!-- Share panel (collapsible) -->
-    <div v-if="showSharePanel && isAdmin" style="margin-bottom: 16px;">
-      <KbSharePanel :kb-id="(route.params.kbId as string)" @close="showSharePanel = false" />
     </div>
 
     <!-- TABLE type KB: delegate to TableKbDetail -->
@@ -137,6 +124,11 @@
     <!-- Chat Tab (v-show to preserve state across tab switches) -->
     <div v-show="activeTab === 'chat'" style="height: calc(100vh - 196px); margin-top: 12px;">
       <WikiChat :kb-id="(route.params.kbId as string)" @navigate="handleGraphNavigate" />
+    </div>
+
+    <!-- Share Tab -->
+    <div v-if="activeTab === 'share' && isAdmin" style="margin-top: 20px; max-width: 600px;">
+      <KbSharePanel :kb-id="(route.params.kbId as string)" />
     </div>
 
     <!-- Document Tab -->
@@ -613,9 +605,9 @@ const kb = ref<KBType | null>(null)
 const storageDisplay = ref('-')
 const isShared = computed(() => (kb.value as any)?.is_shared === true)
 const isAdmin = computed(() => !isShared.value)
-const showSharePanel = ref(false)
+// showSharePanel removed — share is now a tab
 const documents = ref<Document[]>([])
-const validTabs = ['overview', 'doc', 'wiki']
+const validTabs = ['overview', 'doc', 'wiki', 'share']
 const hashTab = window.location.hash.replace('#', '')
 const activeTab = ref(validTabs.includes(hashTab) ? hashTab : 'overview')
 watch(activeTab, async (tab) => {
@@ -749,12 +741,18 @@ function handlePageSelect(title: string) {
   }
 }
 
-const tabs = [
-  { key: 'overview', label: '概览' },
-  { key: 'doc', label: '文档' },
-  { key: 'wiki', label: 'Wiki' },
-  { key: 'chat', label: '对话' },
-]
+const tabs = computed(() => {
+  const base = [
+    { key: 'overview', label: '概览' },
+    { key: 'doc', label: '文档' },
+    { key: 'wiki', label: 'Wiki' },
+    { key: 'chat', label: '对话' },
+  ]
+  if (isAdmin.value && kb.value && kb.value.type !== 'TABLE') {
+    base.push({ key: 'share', label: '共享' })
+  }
+  return base
+})
 
 const showGraph = ref(true)
 const showGraphFullscreen = ref(false)

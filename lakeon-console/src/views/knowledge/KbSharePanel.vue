@@ -1,10 +1,5 @@
 <template>
   <div class="share-panel">
-    <div class="share-panel-header">
-      <span class="share-panel-title">共享管理</span>
-      <button class="share-panel-close" @click="$emit('close')">&times;</button>
-    </div>
-
     <!-- Invite form -->
     <div class="share-invite-row">
       <input
