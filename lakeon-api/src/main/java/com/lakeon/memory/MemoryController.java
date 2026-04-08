@@ -41,6 +41,11 @@ public class MemoryController {
         if (!java.util.List.of("DEVELOPER_TOOL", "CHAT_ASSISTANT").contains(scene)) {
             throw new com.lakeon.service.exception.BadRequestException("Invalid scene: " + scene + ". Must be DEVELOPER_TOOL or CHAT_ASSISTANT");
         }
+        boolean encrypted = Boolean.TRUE.equals(body.get("encrypted"));
+        String encryptedDek = (String) body.get("encrypted_dek");
+        String kdfSalt = (String) body.get("kdf_salt");
+        Integer embeddingDim = body.get("embedding_dim") != null
+                ? ((Number) body.get("embedding_dim")).intValue() : null;
         return toMemResponse(memoryService.createBase(
             tenant,
             (String) body.get("name"),
@@ -48,7 +53,11 @@ public class MemoryController {
             MemoryBaseType.valueOf(body.getOrDefault("type", "BUILTIN").toString()),
             (String) body.get("embedding_model"),
             oneLlmMode,
-            scene
+            scene,
+            encrypted,
+            encryptedDek,
+            kdfSalt,
+            embeddingDim
         ));
     }
 
@@ -178,6 +187,10 @@ public class MemoryController {
         map.put("error", mem.getError());
         map.put("one_llm_mode", Boolean.TRUE.equals(mem.getOneLlmMode()));
         map.put("scene", mem.getScene());
+        map.put("encrypted", Boolean.TRUE.equals(mem.getEncrypted()));
+        map.put("encrypted_dek", mem.getEncryptedDek());
+        map.put("kdf_salt", mem.getKdfSalt());
+        map.put("embedding_dim", mem.getEmbeddingDim());
         map.put("created_at", mem.getCreatedAt() != null ? mem.getCreatedAt().toString() : null);
         map.put("updated_at", mem.getUpdatedAt() != null ? mem.getUpdatedAt().toString() : null);
         if (mem.getDatabaseId() != null) {

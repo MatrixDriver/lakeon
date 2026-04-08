@@ -56,6 +56,18 @@ public class MemoryBaseEntity {
     @Column(name = "scene", length = 32)
     private String scene = "CHAT_ASSISTANT";
 
+    @Column(name = "encrypted")
+    private Boolean encrypted = false;
+
+    @Column(name = "encrypted_dek", columnDefinition = "TEXT")
+    private String encryptedDek;
+
+    @Column(name = "kdf_salt")
+    private String kdfSalt;
+
+    @Column(name = "embedding_dim")
+    private Integer embeddingDim;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -119,6 +131,18 @@ public class MemoryBaseEntity {
 
     public String getScene() { return scene; }
     public void setScene(String scene) { this.scene = scene; }
+
+    public Boolean getEncrypted() { return encrypted; }
+    public void setEncrypted(Boolean encrypted) { this.encrypted = encrypted; }
+
+    public String getEncryptedDek() { return encryptedDek; }
+    public void setEncryptedDek(String encryptedDek) { this.encryptedDek = encryptedDek; }
+
+    public String getKdfSalt() { return kdfSalt; }
+    public void setKdfSalt(String kdfSalt) { this.kdfSalt = kdfSalt; }
+
+    public Integer getEmbeddingDim() { return embeddingDim; }
+    public void setEmbeddingDim(Integer embeddingDim) { this.embeddingDim = embeddingDim; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

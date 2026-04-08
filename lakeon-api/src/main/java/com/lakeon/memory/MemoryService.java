@@ -54,7 +54,8 @@ public class MemoryService {
 
     public MemoryBaseEntity createBase(TenantEntity tenant, String name, String description,
                                         MemoryBaseType type, String embeddingModel, boolean oneLlmMode,
-                                        String scene) {
+                                        String scene, boolean encrypted, String encryptedDek,
+                                        String kdfSalt, Integer embeddingDim) {
         String tenantId = tenant.getId();
         // Use a generated slug for DB name (ASCII-safe, avoids HTTP header encoding issues with Chinese names)
         String dbSlug = "mem_" + java.util.UUID.randomUUID().toString().substring(0, 8);
@@ -69,6 +70,12 @@ public class MemoryService {
         entity.setEmbeddingModel(embeddingModel != null ? embeddingModel : "BAAI/bge-m3");
         entity.setOneLlmMode(oneLlmMode);
         entity.setScene(scene != null ? scene : "CHAT_ASSISTANT");
+        entity.setEncrypted(encrypted);
+        if (encrypted) {
+            entity.setEncryptedDek(encryptedDek);
+            entity.setKdfSalt(kdfSalt);
+            entity.setEmbeddingDim(embeddingDim);
+        }
         entity.setDatabaseId(dbResp.getId());
         entity.setStatus("PROVISIONING");
         entity = repository.save(entity);
@@ -82,10 +89,13 @@ public class MemoryService {
 
     // ── Proxy methods to Python memory microservice ──────────
 
-    private void ensureSchemaInitialized(String connstr) {
+    private void ensureSchemaInitialized(String connstr, Integer embeddingDim) {
         String url = props.getMemory().getServiceUrl() + "/init";
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-Database-Connstr", connstr);
+        if (embeddingDim != null) {
+            headers.set("X-Embedding-Dim", String.valueOf(embeddingDim));
+        }
         headers.setContentType(MediaType.APPLICATION_JSON);
         try {
             restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(null, headers), Object.class);
@@ -120,7 +130,7 @@ public class MemoryService {
     public Object proxyPost(String tenantId, String memId, String path, Object body) {
         MemoryBaseEntity mem = getBase(tenantId, memId);
         String connstr = dbHelper.resolveConnstr(tenantId, memId);
-        ensureSchemaInitialized(connstr);
+        ensureSchemaInitialized(connstr, mem.getEmbeddingDim());
         String url = props.getMemory().getServiceUrl() + path;
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-Database-Connstr", connstr);
@@ -132,8 +142,9 @@ public class MemoryService {
     }
 
     public Object proxyGet(String tenantId, String memId, String path, Map<String, String> params) {
+        MemoryBaseEntity mem = getBase(tenantId, memId);
         String connstr = dbHelper.resolveConnstr(tenantId, memId);
-        ensureSchemaInitialized(connstr);
+        ensureSchemaInitialized(connstr, mem.getEmbeddingDim());
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(props.getMemory().getServiceUrl() + path);
         if (params != null) {
             params.forEach((k, v) -> { if (v != null) builder.queryParam(k, v); });
