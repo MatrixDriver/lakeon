@@ -23,6 +23,7 @@
 | Embedding 生成 | 本地 MCP 端生成 | 避免明文经过服务端 |
 | 创建入口 | dbay-cli 命令行 | 密码输入需要安全交互（getpass） |
 | 日常使用 | dbay-mcp 透明加解密 | 接口不变，对 AI agent 无感 |
+| 密码存储 | `~/.dbay/secret` 文件（权限 600） | MCP 启动时自动读取，无需交互输入 |
 
 ## 密钥体系架构
 
@@ -154,30 +155,33 @@ dbay mem create --encrypted
 # 交互流程：
 # 1. 输入记忆库名称
 # 2. 设置加密密码（getpass 双次确认）
-# 3. 生成 RSA-4096 密钥对（openssl/cryptography 库）
+# 3. 生成 RSA-4096 密钥对（cryptography 库）
 # 4. Argon2id(密码, random_salt) → 派生密钥 → AES-256-GCM 加密私钥
 # 5. 生成随机 DEK (256-bit)
 # 6. RSA-OAEP(公钥, DEK) → encrypted_dek
 # 7. 选择 embedding provider（DBay / 外部 API / 本地模型）
 # 8. 探测 embedding 维度
 # 9. 调 API 创建 memory_base（encrypted=true, encrypted_dek, salt, embedding_dim）
-# 10. 写入配置文件 ~/.dbay/encrypted_bases.json
-
-# 新设备解锁
-dbay mem unlock <memory_base_id>
-# 1. 输入密码
-# 2. 从服务端拉取 encrypted_dek + salt
-# 3. Argon2id(密码, salt) → 派生密钥 → 解密 encrypted_private_key → 验证成功
-# 4. 写入 KEK 到配置文件（或确认已有配置）
+# 10. 写入密码到 ~/.dbay/secret
+# 11. 写入密钥配置到 ~/.dbay/encrypted_bases.json
 
 # 修改密码
 dbay mem change-password <memory_base_id>
 # 1. 输入旧密码 → 解密私钥 → 验证
 # 2. 输入新密码 → 重新加密私钥
-# 3. 更新配置文件
+# 3. 更新 ~/.dbay/encrypted_bases.json 和 ~/.dbay/secret
 ```
 
-**配置文件 `~/.dbay/encrypted_bases.json`（权限 600，可安全传播）：**
+**密码文件 `~/.dbay/secret`（权限 600，不可传播）：**
+
+```
+DBAY_ENCRYPTION_PASSWORD=mypassword
+```
+
+CLI 创建加密记忆库时自动写入。MCP 启动时自动读取，无需交互输入密码。
+新设备上用户手动创建此文件即可。
+
+**密钥配置文件 `~/.dbay/encrypted_bases.json`（可安全传播，如上传 GitHub）：**
 
 ```json
 {
@@ -217,19 +221,27 @@ memory_delete(memory_id, memory_base)
 
 **内部变化：**
 
-- 启动时加载 `~/.dbay/encrypted_bases.json`
-- 首次使用加密库时：需要密码解密私钥 → 从服务端拉 encrypted_dek → 私钥解密 → DEK 缓存在进程内存
+- 启动时加载 `~/.dbay/encrypted_bases.json` 和 `~/.dbay/secret`
+- 首次使用加密库时：从 secret 读密码 → 解密 private_key → 从服务端拉 encrypted_dek → private_key 解密 → DEK 缓存在进程内存
 - `memory_ingest`：检测加密库 → DEK 加密 content → 本地生成 embedding → 上传密文+向量
 - `memory_recall`：本地生成 query embedding → 服务端向量搜索 → 返回密文 → DEK 解密
 - `memory_list`：拿到密文列表 → 逐条解密 → 返回明文
 - 非加密库走现有逻辑，完全不变
 
-**MCP 启动时密码输入问题：**
+**MCP 启动时自动解锁：**
 
-MCP 由 Claude Code/Cursor 自动拉起，没有交互式终端。解决方案：
-- `dbay mem unlock` 命令在解密私钥后，将 DEK 缓存到 `~/.dbay/session/` 目录（权限 600，进程级临时文件）
-- MCP 启动时读取 session 缓存，无需再输入密码
-- Session 文件可设置过期时间（如 7 天），过期后需重新 unlock
+MCP 由 Claude Code/Cursor 自动拉起，没有交互式终端。通过读取 `~/.dbay/secret` 文件获取密码，自动完成解锁：
+
+```
+MCP 启动
+  → 读 ~/.dbay/secret → 拿到 DBAY_ENCRYPTION_PASSWORD
+  → 读 ~/.dbay/encrypted_bases.json → 拿到 encrypted_private_key + salt
+  → Argon2id(密码, salt) → 解密 private_key（内存中）
+  → 从服务端拉 encrypted_dek → private_key 解密 → DEK（内存中）
+  → 进程生命周期内 DEK 缓存在内存，进程退出即消失
+```
+
+如果 `~/.dbay/secret` 不存在或密码错误，返回错误提示用户创建 secret 文件。
 
 ### 3. lakeon-api（Java）— 服务端元数据
 
