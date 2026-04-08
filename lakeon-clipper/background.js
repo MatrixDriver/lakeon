@@ -1,5 +1,5 @@
 const API_BASE = 'https://api.dbay.cloud:8443/api/v1'
-const AUTH_URL = 'https://console.dbay.cloud/ext-login'
+const AUTH_URL = 'https://dbay.cloud/ext-login'
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'login') {
