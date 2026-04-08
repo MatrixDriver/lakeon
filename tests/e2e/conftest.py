@@ -64,7 +64,8 @@ def run_psql(connstr: str, sql: str, password: str = None) -> str:
 # ---------------------------------------------------------------------------
 
 def _cleanup_stale_tenants():
-    """Delete test tenants older than 1 hour. Prevents accumulation from crashed runs."""
+    """Delete test tenants older than 1 hour and expired invite codes.
+    Prevents accumulation from crashed runs."""
     from datetime import datetime, timezone, timedelta
     try:
         admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
@@ -91,6 +92,17 @@ def _cleanup_stale_tenants():
             for i in range(0, len(stale), 20):
                 admin.admin_batch_delete_tenants(stale[i:i+20])
             print(f"\n🧹 Cleaned up {len(stale)} stale test tenants")
+
+        # Clean up expired/used invite codes
+        codes = admin._request("GET", "/admin/invite-codes")
+        expired = [c["code"] for c in codes if not c.get("valid", True)]
+        for code in expired:
+            try:
+                admin._request("DELETE", f"/admin/invite-codes/{code}")
+            except Exception:
+                pass
+        if expired:
+            print(f"🧹 Cleaned up {len(expired)} expired invite codes")
     except Exception as e:
         print(f"\n⚠️  Stale tenant cleanup failed: {e}")
 
