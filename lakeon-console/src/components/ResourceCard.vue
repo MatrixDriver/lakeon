@@ -1,5 +1,5 @@
 <template>
-  <div class="resource-card" @click="$emit('click')">
+  <div class="resource-card" :class="{ 'card-running': statusClass === 'status-on' }" @click="$emit('click')">
     <div class="rc-top">
       <span class="rc-name">{{ name }}</span>
       <span class="rc-status" :class="statusClass">{{ statusLabel }}</span>
@@ -44,6 +44,8 @@ const statusClass = computed(() => {
   cursor: pointer; transition: box-shadow 0.15s; background: #fff;
 }
 .resource-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.card-running { background: #f0faf4; border-color: #c6e9d4; }
+.card-running:hover { box-shadow: 0 2px 8px rgba(22,163,74,0.08); }
 .rc-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .rc-name { font-size: 13px; font-weight: 600; color: #2c3e50; }
 .rc-status { font-size: 10px; padding: 2px 6px; border-radius: 3px; }
