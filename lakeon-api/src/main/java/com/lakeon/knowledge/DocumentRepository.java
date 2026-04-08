@@ -23,6 +23,7 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, String
     List<DocumentEntity> findAllByTenantIdAndKbIdOrderByCreatedAtDesc(String tenantId, String kbId);
     List<DocumentEntity> findAllByTenantIdOrderByCreatedAtDesc(String tenantId);
     List<DocumentEntity> findAllByKbId(String kbId);
+    List<DocumentEntity> findAllByKbIdAndStatus(String kbId, DocumentStatus status);
     List<DocumentEntity> findByDatasourceId(String datasourceId);
     long countByStatus(DocumentStatus status);
 

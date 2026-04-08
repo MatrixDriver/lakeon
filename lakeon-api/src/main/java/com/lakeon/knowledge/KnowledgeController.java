@@ -948,6 +948,29 @@ public class KnowledgeController {
         return points;
     }
 
+    /**
+     * Set all READY documents in a KB back to WIKI_PENDING for re-review.
+     */
+    @PostMapping("/documents/regenerate-wiki")
+    public ResponseEntity<?> regenerateWiki(HttpServletRequest req,
+                                            @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        String kbId = (String) body.get("kb_id");
+        if (kbId == null || kbId.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "kb_id is required"));
+        }
+        List<DocumentEntity> docs = documentRepository.findAllByKbIdAndStatus(kbId, DocumentStatus.READY);
+        // Filter to only source docs (not wiki pages)
+        docs = docs.stream().filter(d -> !"wiki".equals(d.getDocType()) && !"index".equals(d.getDocType())).toList();
+        int count = 0;
+        for (DocumentEntity doc : docs) {
+            doc.setStatus(DocumentStatus.WIKI_PENDING);
+            documentRepository.save(doc);
+            count++;
+        }
+        return ResponseEntity.ok(Map.of("status", "ok", "count", count));
+    }
+
     @PostMapping("/wiki/ingest-text")
     public ResponseEntity<?> ingestWikiText(HttpServletRequest req,
                                             @RequestBody Map<String, Object> body) {

@@ -236,6 +236,9 @@
         </div>
         <div style="flex: 1;"></div>
         <div style="display: flex; align-items: center; gap: 6px; padding: 4px 0;">
+          <button v-if="docStats.ready > 0" class="btn btn-text btn-small" style="color: #fa8c16;" :disabled="regeneratingWiki" @click="handleRegenerateWiki">
+            {{ regeneratingWiki ? '处理中...' : '重新生成 Wiki' }}
+          </button>
           <button v-if="docStats.failed > 0" class="btn btn-text btn-small" style="color: #1890ff;" :disabled="retryingFailed" @click="handleRetryAllFailed">
             {{ retryingFailed ? '重试中...' : `重试失败 (${docStats.failed})` }}
           </button>
@@ -585,7 +588,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getKnowledgeBase, listDocuments, listFolders, getDocumentStats, deleteDocument, clearAllDocuments, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, ingestUrl, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, getWikiStats, getWikiPreview, confirmWikiGeneration, skipWikiGeneration, type KnowledgeBase as KBType, type Document, type DocumentStats, type DataSource, type DataSourceCredentials, type Folder, type WikiStats } from '../../api/knowledge'
+import { getKnowledgeBase, listDocuments, listFolders, getDocumentStats, deleteDocument, clearAllDocuments, setDocumentTags, batchGetUploadUrls, batchProcessDocuments, ingestDocuments, ingestUrl, listDataSources, createDataSource, deleteDataSource, syncDataSource, getDataSourceCredentials, getWikiStats, getWikiPreview, confirmWikiGeneration, skipWikiGeneration, regenerateWiki, type KnowledgeBase as KBType, type Document, type DocumentStats, type DataSource, type DataSourceCredentials, type Folder, type WikiStats } from '../../api/knowledge'
 import TableKbDetail from '../../components/knowledge/TableKbDetail.vue'
 import WikiPage from './WikiPage.vue'
 import WikiGraph from './WikiGraph.vue'
@@ -857,6 +860,25 @@ async function handleGetCredentials(dsId: string) {
   const kbId = route.params.kbId as string
   const res = await getDataSourceCredentials(kbId, dsId)
   dsCredentials.value = { dsId, creds: res.data }
+}
+
+const regeneratingWiki = ref(false)
+
+async function handleRegenerateWiki() {
+  const kbId = route.params.kbId as string
+  const readyCount = docStats.value.ready
+  if (!confirm(`将 ${readyCount} 篇已就绪文档设为待审核，重新生成 Wiki？`)) return
+  regeneratingWiki.value = true
+  try {
+    await regenerateWiki(kbId)
+    loadDocuments()
+    loadStats()
+  } catch (e) {
+    alert('操作失败')
+    console.error(e)
+  } finally {
+    regeneratingWiki.value = false
+  }
 }
 
 // Wiki review dialog state
@@ -1224,6 +1246,23 @@ async function runBatchUpload(files: File[]) {
     uploading.value = false
     uploadJustFinished.value = true
     await Promise.all([loadDocuments(), loadStats()])
+  }
+}
+
+// ── Regenerate Wiki ──
+const regeneratingWiki = ref(false)
+async function handleRegenerateWiki() {
+  if (!confirm('重新生成 Wiki 会覆盖现有 Wiki 页面，确认继续？')) return
+  regeneratingWiki.value = true
+  try {
+    const readyDocs = documents.value.filter((d: any) => d.status === 'READY')
+    if (readyDocs.length > 0) {
+      await ingestDocuments(readyDocs.map((d: any) => d.id))
+    }
+  } catch (e) {
+    console.error('Regenerate wiki failed:', e)
+  } finally {
+    regeneratingWiki.value = false
   }
 }
 

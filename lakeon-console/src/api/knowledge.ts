@@ -420,6 +420,10 @@ export function skipWikiGeneration(docId: string) {
   return api.post(`/knowledge/documents/${docId}/wiki-skip`)
 }
 
+export function regenerateWiki(kbId: string) {
+  return api.post<{ status: string; count: number }>('/knowledge/documents/regenerate-wiki', { kb_id: kbId })
+}
+
 export interface WikiStats {
   document_count: number
   source_doc_count: number
