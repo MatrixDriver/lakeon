@@ -31,7 +31,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 
   if (msg.type === 'saveUrl') {
-    saveUrl(msg.apiKey, msg.kbId, msg.url)
+    saveUrl(msg.apiKey, msg.kbId, msg.url, msg.title, msg.content)
       .then(result => sendResponse(result))
       .catch(err => sendResponse({ ok: false, error: err.message }))
     return true
@@ -134,16 +134,19 @@ async function fetchKbList(apiKey) {
   return { ok: true, kbs }
 }
 
-async function saveUrl(apiKey, kbId, url) {
+async function saveUrl(apiKey, kbId, url, title, content) {
   let response
   try {
+    const body = { kb_id: kbId, url }
+    if (title) body.title = title
+    if (content) body.content = content
     response = await fetch(`${API_BASE}/knowledge/wiki/ingest-url`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ kb_id: kbId, url }),
+      body: JSON.stringify(body),
     })
   } catch (err) {
     return { ok: false, error: err.message }

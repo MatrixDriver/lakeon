@@ -183,6 +183,13 @@
 
       <span v-if="kb?.status === 'CREATING'" style="color: #c87a20; font-size: 13px; display: block; margin-bottom: 12px;">知识库正在创建中，请稍候...</span>
 
+      <!-- Wiki not generated notice -->
+      <div v-if="wikiStats !== null && wikiStats.wiki_page_count === 0 && docStats.ready > 0 && docStats.processing === 0"
+           style="display: flex; align-items: center; gap: 8px; background: #fffbe6; border: 1px solid #ffe58f; border-radius: 6px; padding: 8px 14px; margin-bottom: 12px; font-size: 13px; color: #7a5c00;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        文档已就绪，但 Wiki 尚未生成。切换到「概览」页可查看 Wiki 生成进度，或点击「Wiki 文档」标签查看生成结果。
+      </div>
+
       <!-- Combined progress card -->
       <div v-if="uploading || uploadJustFinished || docStats.processing > 0 || docStats.pending > 0" style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px;">
         <div v-if="uploading || uploadJustFinished" style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
@@ -322,7 +329,7 @@
               <td>{{ doc.chunks_count ?? '-' }}</td>
               <td>
                 <div style="display: flex; flex-direction: column; gap: 4px;">
-                  <div style="display: flex; align-items: center; gap: 6px;">
+                  <div style="display: flex; align-items: center; gap: 6px; white-space: nowrap;">
                     <span class="status-dot" :style="{ background: docStatusColor(doc.status) }"></span>
                     <span>{{ docStatusText(doc.status) }}</span>
                   </div>
@@ -884,6 +891,10 @@ async function loadStats() {
   try {
     const resp = await getDocumentStats(kbId)
     docStats.value = resp.data
+  } catch { /* ignore */ }
+  try {
+    const res = await getWikiStats(kbId)
+    wikiStats.value = res.data
   } catch { /* ignore */ }
 }
 

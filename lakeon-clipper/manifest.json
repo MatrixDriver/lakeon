@@ -1,15 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "DBay Web Clipper",
+  "name": "DBay Clipper",
   "version": "1.0.0",
   "description": "Save web pages to your DBay knowledge base with one click",
   "permissions": [
     "activeTab",
     "storage",
-    "tabs"
+    "tabs",
+    "scripting"
   ],
   "host_permissions": [
-    "https://api.dbay.cloud:8443/*"
+    "https://api.dbay.cloud:8443/*",
+    "https://dbay.cloud/*"
   ],
   "action": {
     "default_popup": "popup.html",

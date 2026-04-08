@@ -12,14 +12,18 @@ const statusEl = document.getElementById('status')
 // State
 let currentApiKey = null
 let currentTabUrl = ''
+let currentTabId = null
+let currentTabTitle = ''
 
 // Init
 document.addEventListener('DOMContentLoaded', init)
 
 async function init() {
-  // Get current tab URL
+  // Get current tab info
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
   currentTabUrl = tabs[0]?.url || ''
+  currentTabId = tabs[0]?.id || null
+  currentTabTitle = tabs[0]?.title || ''
   currentUrlEl.textContent = currentTabUrl
 
   // Check auth
@@ -83,11 +87,27 @@ saveBtn.addEventListener('click', async () => {
   showStatus('loading', '正在保存...')
 
   try {
+    // Extract rendered page content from the browser tab to bypass server-side fetch issues
+    let pageContent = ''
+    if (currentTabId) {
+      try {
+        const [{ result: extracted }] = await chrome.scripting.executeScript({
+          target: { tabId: currentTabId },
+          func: () => document.body?.innerText || '',
+        })
+        pageContent = extracted || ''
+      } catch (_) {
+        // Falls back to server-side fetch (e.g. chrome:// pages)
+      }
+    }
+
     const result = await sendMessage({
       type: 'saveUrl',
       apiKey: currentApiKey,
       kbId,
       url: currentTabUrl,
+      title: currentTabTitle,
+      content: pageContent,
     })
 
     if (result.ok) {
