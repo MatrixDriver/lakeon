@@ -2,7 +2,7 @@
 Client-side encryption module for DBay memory.
 
 Three-factor key hierarchy:
-1. Password (in ~/.dbay/secret) -> Scrypt -> derived key -> decrypts private_key
+1. Password (in ~/.dbay/secret) -> PBKDF2 -> derived key -> decrypts private_key
 2. Config file (~/.dbay/encrypted_bases.json) -> encrypted_private_key + public_key
 3. Server (memory_bases table) -> encrypted_dek (RSA-encrypted)
 """
@@ -18,7 +18,7 @@ from typing import Optional
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -31,10 +31,8 @@ _ENCRYPTED_BASES_FILE = _DBAY_DIR / "encrypted_bases.json"
 # Public alias for external consumers (e.g. tests, CLI)
 ENCRYPTED_BASES_FILE = _ENCRYPTED_BASES_FILE
 
-_SCRYPT_N = 2**17
-_SCRYPT_R = 8
-_SCRYPT_P = 1
-_SCRYPT_KEY_LENGTH = 32  # 256 bits
+_PBKDF2_ITERATIONS = 600_000
+_PBKDF2_KEY_LENGTH = 32  # 256 bits
 
 _AES_NONCE_LENGTH = 12  # 96 bits for AES-GCM
 
@@ -73,7 +71,7 @@ def generate_dek() -> bytes:
 
 
 def generate_salt() -> bytes:
-    """Generate a random 16-byte salt for Scrypt."""
+    """Generate a random 16-byte salt for PBKDF2."""
     return os.urandom(16)
 
 
@@ -83,13 +81,12 @@ def generate_salt() -> bytes:
 
 
 def derive_key_from_password(password: str, salt: bytes) -> bytes:
-    """Derive a 256-bit key from a password using Scrypt."""
-    kdf = Scrypt(
+    """Derive a 256-bit key from a password using PBKDF2-HMAC-SHA256."""
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=_PBKDF2_KEY_LENGTH,
         salt=salt,
-        length=_SCRYPT_KEY_LENGTH,
-        n=_SCRYPT_N,
-        r=_SCRYPT_R,
-        p=_SCRYPT_P,
+        iterations=_PBKDF2_ITERATIONS,
     )
     return kdf.derive(password.encode("utf-8"))
 

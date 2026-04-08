@@ -94,7 +94,7 @@ def _create_encrypted(name: str, desc: str | None, agent_extract: bool):
         "public_key": public_pem.decode("ascii"),
         "encrypted_private_key": encrypted_private_key,
         "kdf_salt": base64.b64encode(salt).decode("ascii"),
-        "kdf_algorithm": "scrypt",
+        "kdf_algorithm": "pbkdf2",
     }
     save_encrypted_base(temp_mem_id, temp_config)
 
@@ -135,7 +135,7 @@ def _create_encrypted(name: str, desc: str | None, agent_extract: bool):
         "public_key": public_pem.decode("ascii"),
         "encrypted_private_key": encrypted_private_key,
         "kdf_salt": base64.b64encode(salt).decode("ascii"),
-        "kdf_algorithm": "scrypt",
+        "kdf_algorithm": "pbkdf2",
         **embedding_config,
         "embedding_dim": dim,
     }
