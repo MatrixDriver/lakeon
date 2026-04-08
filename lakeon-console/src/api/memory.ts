@@ -36,6 +36,10 @@ export function createMemoryBase(name: string, description?: string, options?: {
   scene?: MemoryBase['scene']
   embedding_model?: string
   one_llm_mode?: boolean
+  encrypted?: boolean
+  encrypted_dek?: string
+  kdf_salt?: string
+  embedding_dim?: number
 }) {
   return api.post<MemoryBase>('/memory/bases', { name, description, ...options })
 }

@@ -81,11 +81,40 @@
                   : '服务端自动提取记忆（默认）。' }}
               </p>
             </div>
+
+            <!-- Encryption toggle -->
+            <div v-if="createForm.type === 'BUILTIN'" class="form-group">
+              <label class="form-label">端到端加密</label>
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px;">
+                <input type="checkbox" v-model="createForm.encrypted" style="width: 16px; height: 16px;" />
+                启用客户端加密
+              </label>
+              <p style="font-size: 12px; color: #999; margin-top: 4px;">
+                记忆内容在本地加密后上传，服务端无法查看明文。
+              </p>
+            </div>
+
+            <!-- Password input (when encrypted) -->
+            <template v-if="createForm.encrypted">
+              <div class="form-group">
+                <label class="form-label">加密密码 <span style="color:#e6393d">*</span></label>
+                <input v-model="createForm.password" type="password" class="form-input" placeholder="设置加密密码" autocomplete="new-password" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">确认密码 <span style="color:#e6393d">*</span></label>
+                <input v-model="createForm.passwordConfirm" type="password" class="form-input" placeholder="再次输入密码" autocomplete="new-password" />
+              </div>
+              <div style="padding: 8px 12px; background: #fff7ed; border-radius: 6px; font-size: 12px; color: #8c7a68; line-height: 1.6;">
+                &#x26a0; 密码丢失将无法恢复数据。请妥善保管密码。
+              </div>
+            </template>
           </template>
         </div>
         <div v-if="createStep === 2" class="dialog-footer">
           <button class="btn btn-default" @click="createStep = 1">上一步</button>
-          <button class="btn btn-primary" @click="handleCreate" :disabled="!createForm.name.trim()">创建</button>
+          <button class="btn btn-primary" @click="handleCreate" :disabled="!createForm.name.trim() || creating || (createForm.encrypted && (!createForm.password || createForm.password !== createForm.passwordConfirm))">
+            {{ creating ? '创建中...' : '创建' }}
+          </button>
         </div>
       </div>
     </div>
@@ -239,6 +268,8 @@ const showCreate = ref(false)
 const createStep = ref(1)
 const loading = ref(false)
 
+const creating = ref(false)
+
 const createForm = ref({
   name: '',
   description: '',
@@ -246,6 +277,9 @@ const createForm = ref({
   scene: '' as string,
   embedding_model: 'BAAI/bge-m3',
   agent_extract: false,
+  encrypted: false,
+  password: '',
+  passwordConfirm: '',
 })
 
 function statusText(status: string) {
@@ -271,7 +305,75 @@ function resetCreateForm() {
     scene: '',
     embedding_model: 'BAAI/bge-m3',
     agent_extract: false,
+    encrypted: false,
+    password: '',
+    passwordConfirm: '',
   }
+}
+
+// ---------------------------------------------------------------------------
+// Browser-side encryption helpers (Web Crypto API)
+// ---------------------------------------------------------------------------
+
+function arrayBufferToBase64(buf: ArrayBuffer): string {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+}
+
+async function generateEncryptionKeys(password: string) {
+  // 1. Generate RSA-4096 key pair
+  const keyPair = await crypto.subtle.generateKey(
+    { name: 'RSA-OAEP', modulusLength: 4096, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+    true, ['encrypt', 'decrypt']
+  )
+
+  // 2. Export keys
+  const publicKeySpki = await crypto.subtle.exportKey('spki', keyPair.publicKey)
+  const privateKeyPkcs8 = await crypto.subtle.exportKey('pkcs8', keyPair.privateKey)
+
+  // 3. Format as PEM
+  const publicPem = `-----BEGIN PUBLIC KEY-----\n${arrayBufferToBase64(publicKeySpki).match(/.{1,64}/g)!.join('\n')}\n-----END PUBLIC KEY-----`
+  const privatePem = `-----BEGIN PRIVATE KEY-----\n${arrayBufferToBase64(privateKeyPkcs8).match(/.{1,64}/g)!.join('\n')}\n-----END PRIVATE KEY-----`
+
+  // 4. Generate DEK (256-bit) and salt (16-byte)
+  const dek = crypto.getRandomValues(new Uint8Array(32))
+  const salt = crypto.getRandomValues(new Uint8Array(16))
+
+  // 5. Derive key from password using PBKDF2 (browser doesn't have scrypt, use PBKDF2 with high iterations)
+  const enc = new TextEncoder()
+  const passwordKey = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey'])
+  const derivedKey = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 600000, hash: 'SHA-256' },
+    passwordKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt']
+  )
+
+  // 6. Encrypt private key with derived key (AES-256-GCM)
+  const nonce = crypto.getRandomValues(new Uint8Array(12))
+  const encryptedPrivateKey = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: nonce }, derivedKey, new TextEncoder().encode(privatePem)
+  )
+  const encryptedPrivateKeyB64 = arrayBufferToBase64(new Uint8Array([...nonce, ...new Uint8Array(encryptedPrivateKey)]).buffer)
+
+  // 7. Encrypt DEK with public key (RSA-OAEP)
+  const encryptedDek = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, keyPair.publicKey, dek)
+  const encryptedDekB64 = arrayBufferToBase64(encryptedDek)
+
+  return {
+    publicPem,
+    encryptedPrivateKeyB64,
+    encryptedDekB64,
+    saltB64: arrayBufferToBase64(salt.buffer),
+  }
+}
+
+function downloadConfigFile(memId: string, config: Record<string, any>) {
+  const content = JSON.stringify({ [memId]: config }, null, 2)
+  const blob = new Blob([content], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `encrypted_bases_${memId}.json`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 async function loadMemoryBases() {
@@ -287,21 +389,57 @@ async function loadMemoryBases() {
 }
 
 async function handleCreate() {
+  creating.value = true
   try {
-    const { name, description, type, scene, embedding_model, agent_extract } = createForm.value
-    const options: { type?: MemoryBase['type']; scene?: MemoryBase['scene']; embedding_model?: string; one_llm_mode?: boolean } = { type, scene: scene as MemoryBase['scene'] }
+    const { name, description, type, scene, embedding_model, agent_extract, encrypted, password } = createForm.value
+    const options: Record<string, any> = { type, scene }
     if (type === 'BUILTIN' && embedding_model) {
       options.embedding_model = embedding_model
     }
     if (type === 'BUILTIN' && agent_extract) {
       options.one_llm_mode = true
     }
-    await createMemoryBase(name, description || undefined, options)
+
+    let configForDownload: Record<string, any> | null = null
+
+    if (encrypted) {
+      // Browser-side crypto
+      const keys = await generateEncryptionKeys(password)
+      options.encrypted = true
+      options.encrypted_dek = keys.encryptedDekB64
+      options.kdf_salt = keys.saltB64
+      options.embedding_dim = 1024 // Default DBay embedding dim
+
+      configForDownload = {
+        public_key: keys.publicPem,
+        encrypted_private_key: keys.encryptedPrivateKeyB64,
+        kdf_salt: keys.saltB64,
+        kdf_algorithm: 'pbkdf2',
+        embedding_provider: 'dbay',
+        embedding_dim: 1024,
+      }
+    }
+
+    const res = await createMemoryBase(name, description || undefined, options)
+
+    if (encrypted && configForDownload) {
+      downloadConfigFile(res.data.id, configForDownload)
+      alert(
+        `加密记忆库已创建：${res.data.id}\n\n` +
+        `请完成以下设置：\n` +
+        `1. 将下载的配置文件内容合并到 ~/.dbay/encrypted_bases.json\n` +
+        `2. 创建 ~/.dbay/secret 文件，写入：\n   DBAY_ENCRYPTION_PASSWORD=${password}\n` +
+        `3. MCP 将自动加解密，无需其他操作`
+      )
+    }
+
     showCreate.value = false
     resetCreateForm()
     await loadMemoryBases()
   } catch (e: any) {
     alert('创建失败: ' + (e.response?.data?.error?.message || e.message))
+  } finally {
+    creating.value = false
   }
 }
 
