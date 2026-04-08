@@ -59,55 +59,65 @@
               <input v-model="createForm.description" class="form-input" placeholder="可选，描述记忆库用途" />
             </div>
 
-            <!-- Embedding model selector -->
-            <div v-if="createForm.type === 'BUILTIN'" class="form-group">
-              <label class="form-label">嵌入模型</label>
-              <select v-model="createForm.embedding_model" class="form-input" style="cursor: pointer;">
-                <option value="BAAI/bge-m3">BAAI/bge-m3</option>
-                <option value="text-embedding-3-small">text-embedding-3-small</option>
-              </select>
-            </div>
+            <!-- Advanced options (collapsed by default) -->
+            <div v-if="createForm.type === 'BUILTIN'" style="margin-top: 4px;">
+              <button type="button" @click="showAdvanced = !showAdvanced"
+                      style="background: none; border: none; color: #9a5b25; cursor: pointer; font-size: 13px; padding: 0; display: flex; align-items: center; gap: 4px;">
+                <span style="display: inline-block; transition: transform 0.15s;" :style="showAdvanced ? 'transform: rotate(90deg)' : ''">&#x25b6;</span>
+                高级选项
+              </button>
 
-            <!-- Agent-Extract mode toggle -->
-            <div v-if="createForm.type === 'BUILTIN'" class="form-group">
-              <label class="form-label">提取模式</label>
-              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px;">
-                <input type="checkbox" v-model="createForm.agent_extract" style="width: 16px; height: 16px;" />
-                Agent-Extract 模式
-              </label>
-              <p style="font-size: 12px; color: #999; margin-top: 4px;">
-                {{ createForm.agent_extract
-                  ? '客户端（如 Claude Code）自行提取记忆，零服务端 LLM 成本。'
-                  : '服务端自动提取记忆（默认）。' }}
-              </p>
-            </div>
+              <div v-if="showAdvanced" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0ece8;">
+                <!-- Embedding model -->
+                <div class="form-group">
+                  <label class="form-label">嵌入模型</label>
+                  <select v-model="createForm.embedding_model" class="form-input" style="cursor: pointer;">
+                    <option value="BAAI/bge-m3">BAAI/bge-m3</option>
+                    <option value="text-embedding-3-small">text-embedding-3-small</option>
+                  </select>
+                </div>
 
-            <!-- Encryption toggle -->
-            <div v-if="createForm.type === 'BUILTIN'" class="form-group">
-              <label class="form-label">端到端加密</label>
-              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px;">
-                <input type="checkbox" v-model="createForm.encrypted" style="width: 16px; height: 16px;" />
-                启用客户端加密
-              </label>
-              <p style="font-size: 12px; color: #999; margin-top: 4px;">
-                记忆内容在本地加密后上传，服务端无法查看明文。
-              </p>
-            </div>
+                <!-- Agent-Extract mode -->
+                <div class="form-group">
+                  <label class="form-label">提取模式</label>
+                  <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px;">
+                    <input type="checkbox" v-model="createForm.agent_extract" style="width: 16px; height: 16px;" />
+                    Agent-Extract 模式
+                  </label>
+                  <p style="font-size: 12px; color: #999; margin-top: 4px;">
+                    {{ createForm.agent_extract
+                      ? '客户端（如 Claude Code）自行提取记忆，零服务端 LLM 成本。'
+                      : '服务端自动提取记忆（默认）。' }}
+                  </p>
+                </div>
 
-            <!-- Password input (when encrypted) -->
-            <template v-if="createForm.encrypted">
-              <div class="form-group">
-                <label class="form-label">加密密码 <span style="color:#e6393d">*</span></label>
-                <input v-model="createForm.password" type="password" class="form-input" placeholder="设置加密密码" autocomplete="new-password" />
+                <!-- Encryption -->
+                <div class="form-group">
+                  <label class="form-label">端到端加密</label>
+                  <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px;">
+                    <input type="checkbox" v-model="createForm.encrypted" style="width: 16px; height: 16px;" />
+                    启用客户端加密
+                  </label>
+                  <p style="font-size: 12px; color: #999; margin-top: 4px;">
+                    记忆内容在本地加密后上传，服务端无法查看明文。
+                  </p>
+                </div>
+
+                <template v-if="createForm.encrypted">
+                  <div class="form-group">
+                    <label class="form-label">加密密码 <span style="color:#e6393d">*</span></label>
+                    <input v-model="createForm.password" type="password" class="form-input" placeholder="设置加密密码" autocomplete="new-password" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">确认密码 <span style="color:#e6393d">*</span></label>
+                    <input v-model="createForm.passwordConfirm" type="password" class="form-input" placeholder="再次输入密码" autocomplete="new-password" />
+                  </div>
+                  <div style="padding: 8px 12px; background: #fff7ed; border-radius: 6px; font-size: 12px; color: #8c7a68; line-height: 1.6;">
+                    &#x26a0; 密码丢失将无法恢复数据。请妥善保管密码。
+                  </div>
+                </template>
               </div>
-              <div class="form-group">
-                <label class="form-label">确认密码 <span style="color:#e6393d">*</span></label>
-                <input v-model="createForm.passwordConfirm" type="password" class="form-input" placeholder="再次输入密码" autocomplete="new-password" />
-              </div>
-              <div style="padding: 8px 12px; background: #fff7ed; border-radius: 6px; font-size: 12px; color: #8c7a68; line-height: 1.6;">
-                &#x26a0; 密码丢失将无法恢复数据。请妥善保管密码。
-              </div>
-            </template>
+            </div>
           </template>
         </div>
         <div v-if="createStep === 2" class="dialog-footer">
@@ -266,6 +276,7 @@ const memoryBases = ref<MemoryBase[]>([])
 const showGuide = ref(true)
 const showCreate = ref(false)
 const createStep = ref(1)
+const showAdvanced = ref(false)
 const loading = ref(false)
 
 const creating = ref(false)
