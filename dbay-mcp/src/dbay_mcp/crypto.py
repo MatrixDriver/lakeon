@@ -28,6 +28,9 @@ _DBAY_DIR = Path.home() / ".dbay"
 _SECRET_FILE = _DBAY_DIR / "secret"
 _ENCRYPTED_BASES_FILE = _DBAY_DIR / "encrypted_bases.json"
 
+# Public alias for external consumers (e.g. tests, CLI)
+ENCRYPTED_BASES_FILE = _ENCRYPTED_BASES_FILE
+
 _SCRYPT_N = 2**17
 _SCRYPT_R = 8
 _SCRYPT_P = 1
