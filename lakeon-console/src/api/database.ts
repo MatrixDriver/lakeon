@@ -161,6 +161,8 @@ export const databaseApi = {
   update: (id: string, data: { compute_size?: string; suspend_timeout?: string; storage_limit_gb?: number }) =>
     client.patch<Database>(`/databases/${id}`, data),
   delete: (id: string) => client.delete(`/databases/${id}`),
+  listDeleted: () => client.get<Database[]>('/databases/recycle-bin'),
+  restore: (id: string) => client.post<Database>(`/databases/${id}/restore`),
   suspend: (id: string) => client.post(`/databases/${id}/suspend`),
   resume: (id: string) => client.post(`/databases/${id}/resume`),
   resetPassword: (id: string) => client.post<{ password: string }>(`/databases/${id}/reset-password`),

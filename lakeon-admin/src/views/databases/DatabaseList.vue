@@ -33,6 +33,10 @@
         <div class="stat-value" style="color: #e53e3e;">{{ databases.filter(d => d.status === 'FAILED' || d.status === 'ERROR').length }}</div>
         <div class="stat-label">异常</div>
       </div>
+      <div class="stat-card" v-if="databases.filter(d => d.status === 'DELETED').length > 0">
+        <div class="stat-value" style="color: #d48806;">{{ databases.filter(d => d.status === 'DELETED').length }}</div>
+        <div class="stat-label">回收站</div>
+      </div>
     </div>
 
     <div class="action-toolbar">
@@ -42,6 +46,7 @@
         <option value="SUSPENDED">SUSPENDED</option>
         <option value="CREATING">CREATING</option>
         <option value="ERROR">ERROR</option>
+        <option value="DELETED">DELETED (回收站)</option>
       </select>
       <input
         type="text"
@@ -436,6 +441,7 @@ function statusClass(status: string): string {
     case 'SUSPENDED': return 'dot-gray'
     case 'CREATING': return 'dot-blue'
     case 'ERROR': return 'dot-red'
+    case 'DELETED': return 'dot-orange'
     default: return 'dot-gray'
   }
 }

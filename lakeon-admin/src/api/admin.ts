@@ -19,6 +19,7 @@ export const adminApi = {
   getDatabase: (id: string) => client.get(`/databases/${id}`),
   batchDeleteDatabases: (ids: string[]) =>
     client.delete('/databases/batch', { data: { ids } }),
+  purgeDatabase: (id: string) => client.delete(`/databases/${id}/purge`),
 
   // Compute
   computeStats: () => client.get('/compute/stats'),
