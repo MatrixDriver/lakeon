@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
-import { listWikiPages, getWikiPageContent, type WikiPageItem } from '@/api/knowledge'
+import { listWikiPages, getWikiPageContent, deleteWikiPage, type WikiPageItem } from '@/api/knowledge'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 
 const props = defineProps<{ kbId: string }>()
@@ -137,6 +137,26 @@ function scrollToHeading(id: string) {
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+const deleting = ref(false)
+async function handleDeletePage(page: WikiPageItem) {
+  const name = page.filename.replace('.md', '')
+  if (!confirm(`确定删除 Wiki 页面「${name}」？此操作不可撤销。`)) return
+  deleting.value = true
+  try {
+    await deleteWikiPage(props.kbId, page.id)
+    // Remove from list and clear content if it was selected
+    pages.value = pages.value.filter(p => p.id !== page.id)
+    if (selectedPage.value?.id === page.id) {
+      selectedPage.value = null
+      content.value = ''
+    }
+  } catch (e) {
+    console.error('Failed to delete wiki page:', e)
+  } finally {
+    deleting.value = false
+  }
+}
+
 defineExpose({ navigateToTitle })
 </script>
 
@@ -151,7 +171,8 @@ defineExpose({ navigateToTitle })
       <div v-for="page in displayPages" :key="page.id"
            :class="['wiki-page-item', { active: selectedPage?.id === page.id }]"
            @click="openPage(page)">
-        {{ page.filename.replace('.md', '') }}
+        <span class="wiki-page-name">{{ page.filename.replace('.md', '') }}</span>
+        <span class="wiki-page-delete" title="删除此页面" @click.stop="handleDeletePage(page)">&times;</span>
       </div>
       <div v-if="displayPages.length === 0" style="color: #b0a090; font-size: 13px; padding: 8px 0;">
         暂无 wiki 页面，上传文章后自动生成
@@ -235,7 +256,25 @@ defineExpose({ navigateToTitle })
   font-size: 14px;
   margin-bottom: 2px;
   color: #5a4a3a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
+.wiki-page-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wiki-page-delete {
+  display: none;
+  font-size: 16px;
+  color: #c0b0a0;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.wiki-page-item:hover .wiki-page-delete { display: inline; }
+.wiki-page-delete:hover { color: #e74c3c; }
 .wiki-page-item:hover {
   background: #faf5f0;
 }

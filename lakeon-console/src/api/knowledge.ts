@@ -371,6 +371,10 @@ export function getWikiPageContent(kbId: string, docId: string) {
   })
 }
 
+export function deleteWikiPage(kbId: string, docId: string) {
+  return api.delete(`/knowledge/wiki/pages/${docId}`, { params: { kb_id: kbId } })
+}
+
 export interface WikiGraph {
   nodes: { id: string; label: string; document_id: string }[]
   edges: { source: string; target: string }[]

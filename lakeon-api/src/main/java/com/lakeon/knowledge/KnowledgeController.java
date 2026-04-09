@@ -733,6 +733,20 @@ public class KnowledgeController {
         return ResponseEntity.ok(Map.of("content", content != null ? content : ""));
     }
 
+    @DeleteMapping("/wiki/pages/{docId}")
+    public ResponseEntity<?> deleteWikiPage(HttpServletRequest req,
+                                            @PathVariable String docId,
+                                            @RequestParam("kb_id") String kbId) {
+        TenantEntity tenant = getTenant(req);
+        // Verify the document belongs to this tenant's KB
+        var doc = documentRepository.findById(docId).orElse(null);
+        if (doc == null || !doc.getTenantId().equals(tenant.getId()) || !doc.getKbId().equals(kbId)) {
+            return ResponseEntity.notFound().build();
+        }
+        documentRepository.deleteById(docId);
+        return ResponseEntity.ok(Map.of("status", "deleted"));
+    }
+
     @GetMapping("/wiki/graph")
     public ResponseEntity<?> getWikiGraph(HttpServletRequest req,
                                           @RequestParam("kb_id") String kbId) {
