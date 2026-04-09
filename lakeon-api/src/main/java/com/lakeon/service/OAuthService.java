@@ -87,7 +87,7 @@ public class OAuthService {
                 "&client_secret=" + enc(google.getClientSecret()) +
                 "&redirect_uri=" + enc(getCallbackUrl("google")) +
                 "&grant_type=authorization_code";
-        JsonNode tokenResp = postForm("https://oauth2.googleapis.com/token", tokenBody);
+        JsonNode tokenResp = postForm(relayUrl("/oauth-relay/google/token", "https://oauth2.googleapis.com/token"), tokenBody);
         String accessToken = tokenResp.path("access_token").asText(null);
         String refreshToken = tokenResp.path("refresh_token").asText(null);
         String scope = tokenResp.path("scope").asText(null);
@@ -97,7 +97,7 @@ public class OAuthService {
         }
 
         // 2. Fetch user info
-        JsonNode userInfo = getJson("https://www.googleapis.com/oauth2/v2/userinfo", "Bearer " + accessToken);
+        JsonNode userInfo = getJson(relayUrl("/oauth-relay/google/userinfo", "https://www.googleapis.com/oauth2/v2/userinfo"), "Bearer " + accessToken);
 
         // 3. Extract fields
         String providerUserId = userInfo.path("id").asText(null);
@@ -123,7 +123,7 @@ public class OAuthService {
                 "&client_id=" + enc(github.getClientId()) +
                 "&client_secret=" + enc(github.getClientSecret()) +
                 "&redirect_uri=" + enc(getCallbackUrl("github"));
-        JsonNode tokenResp = postForm("https://github.com/login/oauth/access_token", tokenBody);
+        JsonNode tokenResp = postForm(relayUrl("/oauth-relay/github/token", "https://github.com/login/oauth/access_token"), tokenBody);
         String accessToken = tokenResp.path("access_token").asText(null);
         String scope = tokenResp.path("scope").asText(null);
 
@@ -132,7 +132,7 @@ public class OAuthService {
         }
 
         // 2. Fetch user info
-        JsonNode userInfo = getJson("https://api.github.com/user", "Bearer " + accessToken);
+        JsonNode userInfo = getJson(relayUrl("/oauth-relay/github/api/user", "https://api.github.com/user"), "Bearer " + accessToken);
 
         // 3. Extract fields; if email is null, fetch from /user/emails
         String providerUserId = String.valueOf(userInfo.path("id").asLong());
@@ -145,7 +145,7 @@ public class OAuthService {
 
         if (email == null || email.isBlank()) {
             // Fetch primary verified email from /user/emails
-            JsonNode emails = getJson("https://api.github.com/user/emails", "Bearer " + accessToken);
+            JsonNode emails = getJson(relayUrl("/oauth-relay/github/api/user/emails", "https://api.github.com/user/emails"), "Bearer " + accessToken);
             if (emails.isArray()) {
                 for (JsonNode emailNode : emails) {
                     if (emailNode.path("primary").asBoolean(false) && emailNode.path("verified").asBoolean(false)) {
@@ -314,6 +314,14 @@ public class OAuthService {
             sb.append(String.format("%02x", b));
         }
         return sb.toString();
+    }
+
+    private String relayUrl(String relayPath, String directUrl) {
+        String relay = props.getOauth().getRelayBaseUrl();
+        if (relay != null && !relay.isBlank()) {
+            return relay.replaceAll("/+$", "") + relayPath;
+        }
+        return directUrl;
     }
 
     private String getCallbackUrl(String provider) {

@@ -1,0 +1,4 @@
+{"type":"server-started","port":52972,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:52972","screen_dir":"/Users/jacky/code/lakeon/.superpowers/brainstorm/10247-1775614000/content","state_dir":"/Users/jacky/code/lakeon/.superpowers/brainstorm/10247-1775614000/state"}
+{"type":"screen-added","file":"/Users/jacky/code/lakeon/.superpowers/brainstorm/10247-1775614000/content/storage-tab-mockup.html"}
+{"type":"screen-added","file":"/Users/jacky/code/lakeon/.superpowers/brainstorm/10247-1775614000/content/waiting.html"}
+{"type":"server-stopped","reason":"idle timeout"}

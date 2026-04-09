@@ -432,6 +432,7 @@ public class LakeonProperties {
         private OAuthProviderConfig google = new OAuthProviderConfig();
         private OAuthProviderConfig github = new OAuthProviderConfig();
         private String callbackBaseUrl = "";
+        private String relayBaseUrl = "";
 
         public OAuthProviderConfig getGoogle() { return google; }
         public void setGoogle(OAuthProviderConfig google) { this.google = google; }
@@ -439,6 +440,8 @@ public class LakeonProperties {
         public void setGithub(OAuthProviderConfig github) { this.github = github; }
         public String getCallbackBaseUrl() { return callbackBaseUrl; }
         public void setCallbackBaseUrl(String callbackBaseUrl) { this.callbackBaseUrl = callbackBaseUrl; }
+        public String getRelayBaseUrl() { return relayBaseUrl; }
+        public void setRelayBaseUrl(String relayBaseUrl) { this.relayBaseUrl = relayBaseUrl; }
     }
 
     public static class OAuthProviderConfig {

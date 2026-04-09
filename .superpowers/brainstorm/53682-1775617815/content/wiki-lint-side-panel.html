@@ -1,0 +1,212 @@
+<h2>Wiki Lint 健康检查 — 侧边面板方案</h2>
+<p class="subtitle">点击"健康检查"后从右侧滑出面板，wiki 内容保持可见</p>
+
+<div class="mockup">
+  <div class="mockup-header">KbDetail.vue — Wiki Tab + Lint 侧边面板</div>
+  <div class="mockup-body" style="background:#1a1a2e;color:#e0e0e0;padding:0;font-family:system-ui;display:flex;min-height:600px;position:relative;">
+
+    <!-- Main content (shrunk) -->
+    <div style="flex:1;min-width:0;border-right:1px solid #333;">
+      <!-- Tab bar -->
+      <div style="display:flex;border-bottom:1px solid #333;background:#16162a;">
+        <div style="padding:10px 18px;color:#888;font-size:13px;">概览</div>
+        <div style="padding:10px 18px;color:#888;font-size:13px;">文档</div>
+        <div style="padding:10px 18px;color:#c9a96e;font-size:13px;border-bottom:2px solid #c9a96e;font-weight:600;">Wiki</div>
+      </div>
+
+      <div style="padding:16px;">
+        <!-- Toolbar -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div style="font-size:14px;font-weight:600;">Wiki 页面 (12)</div>
+          <button style="background:#c9a96e;color:#1a1a2e;border:none;border-radius:6px;padding:7px 16px;font-size:12px;cursor:pointer;font-weight:600;">
+            健康检查
+          </button>
+        </div>
+
+        <!-- Wiki page list -->
+        <div style="background:#1e1e38;border-radius:8px;border:1px solid #333;">
+          <div style="padding:10px 14px;font-size:12px;border-bottom:1px solid #1a1a2e;display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:#7eb8da;">API 鉴权</span>
+            <span style="color:#666;font-size:11px;">3 链接 · 2 源文档</span>
+          </div>
+          <div style="padding:10px 14px;font-size:12px;border-bottom:1px solid #1a1a2e;display:flex;justify-content:space-between;align-items:center;background:#1a1a32;">
+            <span style="color:#7eb8da;">数据库索引</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="background:#5a4020;color:#c9a96e;padding:1px 6px;border-radius:3px;font-size:9px;">部分英文</span>
+              <span style="color:#666;font-size:11px;">5 链接</span>
+            </div>
+          </div>
+          <div style="padding:10px 14px;font-size:12px;border-bottom:1px solid #1a1a2e;display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:#7eb8da;">缓存策略</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="background:#302050;color:#d4a8d5;padding:1px 6px;border-radius:3px;font-size:9px;">矛盾</span>
+              <span style="color:#666;font-size:11px;">2 链接</span>
+            </div>
+          </div>
+          <div style="padding:10px 14px;font-size:12px;border-bottom:1px solid #1a1a2e;display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:#e07070;text-decoration:line-through;">API Authentication</span>
+            <span style="background:#5a4020;color:#c9a96e;padding:1px 6px;border-radius:3px;font-size:9px;">英文</span>
+          </div>
+          <div style="padding:10px 14px;font-size:12px;border-bottom:1px solid #1a1a2e;display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:#7eb8da;">性能优化</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="background:#302050;color:#d4a8d5;padding:1px 6px;border-radius:3px;font-size:9px;">矛盾</span>
+              <span style="color:#666;font-size:11px;">4 链接</span>
+            </div>
+          </div>
+          <div style="padding:10px 14px;font-size:12px;border-bottom:1px solid #1a1a2e;display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:#7eb8da;">部署流程</span>
+            <span style="background:#203050;color:#7eb8da;padding:1px 6px;border-radius:3px;font-size:9px;">孤儿</span>
+          </div>
+          <div style="padding:10px 14px;font-size:12px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:#666;">... 其他 6 页</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Side panel -->
+    <div style="width:340px;background:#16162a;flex-shrink:0;display:flex;flex-direction:column;">
+      <!-- Panel header -->
+      <div style="padding:14px 16px;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:14px;font-weight:600;">健康检查</div>
+          <div style="font-size:11px;color:#888;margin-top:2px;">发现 8 个问题</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button style="background:#c9a96e;color:#1a1a2e;border:none;border-radius:5px;padding:5px 12px;font-size:11px;cursor:pointer;font-weight:600;">全部修复</button>
+          <button style="background:none;border:none;color:#888;font-size:18px;cursor:pointer;padding:0 4px;">×</button>
+        </div>
+      </div>
+
+      <!-- Panel content -->
+      <div style="flex:1;overflow-y:auto;padding:12px;">
+
+        <!-- 语言 -->
+        <div style="margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="background:#5a4020;color:#c9a96e;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;">语言</span>
+              <span style="font-size:12px;color:#ccc;">3 个问题</span>
+            </div>
+            <button style="background:#2a2a4a;color:#aaa;border:1px solid #444;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer;">修复</button>
+          </div>
+          <div style="background:#1e1e38;border-radius:6px;border:1px solid #2a2a4a;">
+            <div style="padding:8px 12px;border-bottom:1px solid #1a1a2e;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:6px;">
+              <span style="color:#e07070;">●</span>
+              <span style="color:#7eb8da;text-decoration:underline;text-decoration-color:#444;">API Authentication</span>
+              <span style="color:#555;font-size:10px;margin-left:auto;">→</span>
+            </div>
+            <div style="padding:8px 12px;border-bottom:1px solid #1a1a2e;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:6px;">
+              <span style="color:#e07070;">●</span>
+              <span style="color:#7eb8da;text-decoration:underline;text-decoration-color:#444;">Database Sharding</span>
+              <span style="color:#555;font-size:10px;margin-left:auto;">→</span>
+            </div>
+            <div style="padding:8px 12px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:6px;">
+              <span style="color:#e0c070;">●</span>
+              <span style="color:#7eb8da;text-decoration:underline;text-decoration-color:#444;">数据库索引</span>
+              <span style="color:#555;font-size:10px;">部分英文</span>
+              <span style="color:#555;font-size:10px;margin-left:auto;">→</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 孤儿 -->
+        <div style="margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="background:#203050;color:#7eb8da;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;">孤儿</span>
+              <span style="font-size:12px;color:#ccc;">2 个问题</span>
+            </div>
+            <button style="background:#2a2a4a;color:#aaa;border:1px solid #444;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer;">修复</button>
+          </div>
+          <div style="background:#1e1e38;border-radius:6px;border:1px solid #2a2a4a;">
+            <div style="padding:8px 12px;border-bottom:1px solid #1a1a2e;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:6px;">
+              <span style="color:#e0c070;">●</span>
+              <span style="color:#7eb8da;text-decoration:underline;text-decoration-color:#444;">部署流程</span>
+              <span style="color:#555;font-size:10px;">无入链接</span>
+              <span style="color:#555;font-size:10px;margin-left:auto;">→</span>
+            </div>
+            <div style="padding:8px 12px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:6px;">
+              <span style="color:#e0c070;">●</span>
+              <span style="color:#7eb8da;text-decoration:underline;text-decoration-color:#444;">监控告警</span>
+              <span style="color:#555;font-size:10px;">无入链接</span>
+              <span style="color:#555;font-size:10px;margin-left:auto;">→</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 断链 -->
+        <div style="margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="background:#502020;color:#e07070;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;">断链</span>
+              <span style="font-size:12px;color:#ccc;">1 个问题</span>
+            </div>
+            <button style="background:#2a2a4a;color:#aaa;border:1px solid #444;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer;">修复</button>
+          </div>
+          <div style="background:#1e1e38;border-radius:6px;border:1px solid #2a2a4a;">
+            <div style="padding:8px 12px;font-size:11px;display:flex;align-items:center;gap:6px;">
+              <span style="color:#e07070;">●</span>
+              <span style="color:#e07070;">[[负载均衡]]</span>
+              <span style="color:#555;font-size:10px;">被 3 页引用</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 矛盾 -->
+        <div style="margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="background:#302050;color:#d4a8d5;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;">矛盾</span>
+              <span style="font-size:12px;color:#ccc;">1 个问题</span>
+            </div>
+            <button style="background:#2a2a4a;color:#aaa;border:1px solid #444;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer;">修复</button>
+          </div>
+          <div style="background:#1e1e38;border-radius:6px;border:1px solid #2a2a4a;">
+            <div style="padding:8px 12px;font-size:11px;">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                <span style="color:#e07070;">●</span>
+                <span style="color:#d4a8d5;">TTL 默认值冲突</span>
+              </div>
+              <div style="color:#666;font-size:10px;padding-left:14px;line-height:1.6;">
+                <span style="color:#7eb8da;cursor:pointer;text-decoration:underline;text-decoration-color:#444;">缓存策略</span> 说 5 分钟<br>
+                <span style="color:#7eb8da;cursor:pointer;text-decoration:underline;text-decoration-color:#444;">性能优化</span> 说 10 分钟
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 建议 -->
+        <div style="margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="background:#205030;color:#a8d5a2;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;">建议</span>
+              <span style="font-size:12px;color:#ccc;">1 个问题</span>
+            </div>
+            <button style="background:#2a2a4a;color:#aaa;border:1px solid #444;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer;">修复</button>
+          </div>
+          <div style="background:#1e1e38;border-radius:6px;border:1px solid #2a2a4a;">
+            <div style="padding:8px 12px;font-size:11px;display:flex;align-items:center;gap:6px;">
+              <span style="color:#a8d5a2;">●</span>
+              <span style="color:#666;font-size:10px;">
+                <span style="color:#7eb8da;cursor:pointer;">API 鉴权</span> ↔ <span style="color:#7eb8da;cursor:pointer;">用户管理</span> 缺少互链
+              </span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <h3>方案 B 优势</h3>
+  <ul style="line-height:1.8;">
+    <li>Wiki 页面列表始终可见，问题标签直接标注在页面上</li>
+    <li>侧边面板里点击页面名 → 左侧自动跳转到该页面内容</li>
+    <li>面板可关闭，不影响正常浏览</li>
+    <li>分组修复和全部修复都在面板内</li>
+  </ul>
+</div>

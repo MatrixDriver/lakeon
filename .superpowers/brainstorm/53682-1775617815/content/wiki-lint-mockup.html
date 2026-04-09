@@ -1,0 +1,153 @@
+<h2>Wiki Lint 健康检查 — UI 设计</h2>
+<p class="subtitle">嵌入 Wiki Tab，在页面列表上方展示</p>
+
+<div class="mockup">
+  <div class="mockup-header">KbDetail.vue — Wiki Tab（健康检查展开状态）</div>
+  <div class="mockup-body" style="background:#1a1a2e;color:#e0e0e0;padding:0;font-family:system-ui;">
+
+    <!-- Tab bar -->
+    <div style="display:flex;border-bottom:1px solid #333;background:#16162a;">
+      <div style="padding:10px 18px;color:#888;font-size:13px;">概览</div>
+      <div style="padding:10px 18px;color:#888;font-size:13px;">文档</div>
+      <div style="padding:10px 18px;color:#c9a96e;font-size:13px;border-bottom:2px solid #c9a96e;font-weight:600;">Wiki</div>
+    </div>
+
+    <div style="padding:20px;">
+
+      <!-- Lint toolbar -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button style="background:#2a2a4a;color:#c9a96e;border:1px solid #444;border-radius:6px;padding:7px 16px;font-size:12px;cursor:pointer;">
+            健康检查
+          </button>
+          <span style="color:#888;font-size:11px;">上次检查：2 小时前 · 发现 8 个问题</span>
+        </div>
+        <button style="background:#c9a96e;color:#1a1a2e;border:none;border-radius:6px;padding:7px 16px;font-size:12px;cursor:pointer;font-weight:600;">
+          全部修复 (8)
+        </button>
+      </div>
+
+      <!-- Lint report -->
+      <div style="background:#1e1e38;border-radius:8px;border:1px solid #333;margin-bottom:20px;overflow:hidden;">
+
+        <!-- Category: 语言一致性 -->
+        <div style="padding:12px 16px;border-bottom:1px solid #2a2a4a;display:flex;align-items:center;gap:8px;">
+          <span style="background:#5a4020;color:#c9a96e;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;">语言</span>
+          <span style="font-size:13px;font-weight:600;">3 个非中文页面</span>
+          <span style="flex:1;"></span>
+          <button style="background:#2a2a4a;color:#aaa;border:1px solid #444;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer;">修复</button>
+        </div>
+        <div style="padding:0 16px;">
+          <div style="padding:8px 0;border-bottom:1px solid #1a1a2e;font-size:12px;display:flex;align-items:center;gap:8px;">
+            <span style="color:#e07070;">●</span>
+            <span style="color:#7eb8da;">API Authentication</span>
+            <span style="color:#666;">— 整页英文，应翻译为中文</span>
+          </div>
+          <div style="padding:8px 0;border-bottom:1px solid #1a1a2e;font-size:12px;display:flex;align-items:center;gap:8px;">
+            <span style="color:#e07070;">●</span>
+            <span style="color:#7eb8da;">Database Sharding</span>
+            <span style="color:#666;">— 整页英文，应翻译为中文</span>
+          </div>
+          <div style="padding:8px 0;font-size:12px;display:flex;align-items:center;gap:8px;">
+            <span style="color:#e0c070;">●</span>
+            <span style="color:#7eb8da;">数据库索引</span>
+            <span style="color:#666;">— 部分段落为英文</span>
+          </div>
+        </div>
+
+        <!-- Category: 孤儿页 -->
+        <div style="padding:12px 16px;border-top:1px solid #2a2a4a;border-bottom:1px solid #2a2a4a;display:flex;align-items:center;gap:8px;">
+          <span style="background:#203050;color:#7eb8da;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;">孤儿</span>
+          <span style="font-size:13px;font-weight:600;">2 个没有入链接的页面</span>
+          <span style="flex:1;"></span>
+          <button style="background:#2a2a4a;color:#aaa;border:1px solid #444;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer;">修复</button>
+        </div>
+        <div style="padding:0 16px;">
+          <div style="padding:8px 0;border-bottom:1px solid #1a1a2e;font-size:12px;display:flex;align-items:center;gap:8px;">
+            <span style="color:#e0c070;">●</span>
+            <span style="color:#7eb8da;">部署流程</span>
+            <span style="color:#666;">— 无其他页面链接到此页</span>
+          </div>
+          <div style="padding:8px 0;font-size:12px;display:flex;align-items:center;gap:8px;">
+            <span style="color:#e0c070;">●</span>
+            <span style="color:#7eb8da;">监控告警</span>
+            <span style="color:#666;">— 无其他页面链接到此页</span>
+          </div>
+        </div>
+
+        <!-- Category: 缺失页面 -->
+        <div style="padding:12px 16px;border-top:1px solid #2a2a4a;border-bottom:1px solid #2a2a4a;display:flex;align-items:center;gap:8px;">
+          <span style="background:#502020;color:#e07070;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;">断链</span>
+          <span style="font-size:13px;font-weight:600;">1 个 wikilink 指向不存在的页面</span>
+          <span style="flex:1;"></span>
+          <button style="background:#2a2a4a;color:#aaa;border:1px solid #444;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer;">修复</button>
+        </div>
+        <div style="padding:0 16px;">
+          <div style="padding:8px 0;font-size:12px;display:flex;align-items:center;gap:8px;">
+            <span style="color:#e07070;">●</span>
+            <span style="color:#7eb8da;">[[负载均衡]]</span>
+            <span style="color:#666;">— 被 3 个页面引用但不存在</span>
+          </div>
+        </div>
+
+        <!-- Category: LLM 分析结果 -->
+        <div style="padding:12px 16px;border-top:1px solid #2a2a4a;border-bottom:1px solid #2a2a4a;display:flex;align-items:center;gap:8px;">
+          <span style="background:#302050;color:#d4a8d5;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;">矛盾</span>
+          <span style="font-size:13px;font-weight:600;">1 处内容矛盾</span>
+          <span style="flex:1;"></span>
+          <button style="background:#2a2a4a;color:#aaa;border:1px solid #444;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer;">修复</button>
+        </div>
+        <div style="padding:0 16px;">
+          <div style="padding:8px 0;font-size:12px;display:flex;align-items:center;gap:8px;">
+            <span style="color:#e07070;">●</span>
+            <span style="color:#d4a8d5;">「缓存策略」说默认 TTL 是 5 分钟，「性能优化」说是 10 分钟</span>
+          </div>
+        </div>
+
+        <!-- Category: 缺失引用 -->
+        <div style="padding:12px 16px;border-top:1px solid #2a2a4a;display:flex;align-items:center;gap:8px;">
+          <span style="background:#205030;color:#a8d5a2;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;">建议</span>
+          <span style="font-size:13px;font-weight:600;">1 处建议补充交叉引用</span>
+          <span style="flex:1;"></span>
+          <button style="background:#2a2a4a;color:#aaa;border:1px solid #444;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer;">修复</button>
+        </div>
+        <div style="padding:0 16px;">
+          <div style="padding:8px 0;font-size:12px;display:flex;align-items:center;gap:8px;">
+            <span style="color:#a8d5a2;">●</span>
+            <span style="color:#666;">「API 鉴权」和「用户管理」内容相关但没有互相链接</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Wiki pages list (below lint) -->
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#888;">Wiki 页面 (12)</div>
+      <div style="background:#1e1e38;border-radius:8px;border:1px solid #333;padding:8px 0;">
+        <div style="padding:8px 16px;font-size:12px;border-bottom:1px solid #1a1a2e;display:flex;justify-content:space-between;">
+          <span style="color:#7eb8da;">API 鉴权</span>
+          <span style="color:#666;">3 个链接 · 2 个源文档</span>
+        </div>
+        <div style="padding:8px 16px;font-size:12px;border-bottom:1px solid #1a1a2e;display:flex;justify-content:space-between;">
+          <span style="color:#7eb8da;">数据库索引</span>
+          <span style="color:#666;">5 个链接 · 1 个源文档</span>
+        </div>
+        <div style="padding:8px 16px;font-size:12px;display:flex;justify-content:space-between;">
+          <span style="color:#666;">...</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <h3>检查项说明</h3>
+  <ul style="line-height:2;">
+    <li><strong style="color:#c9a96e;">语言</strong> — 检测非中文页面（规则检查，无 LLM）</li>
+    <li><strong style="color:#7eb8da;">孤儿</strong> — 没有入链接的页面（图谱分析，无 LLM）</li>
+    <li><strong style="color:#e07070;">断链</strong> — wikilink 指向不存在的页面（规则检查，无 LLM）</li>
+    <li><strong style="color:#d4a8d5;">矛盾</strong> — 不同页面对同一概念描述冲突（LLM 分析）</li>
+    <li><strong style="color:#a8d5a2;">过时</strong> — 被新源文档推翻的旧结论（LLM 分析）</li>
+    <li><strong style="color:#a8d5a2;">建议</strong> — 缺失的交叉引用（LLM 分析）</li>
+  </ul>
+  <p style="margin-top:12px;color:#888;font-size:12px;">规则检查（语言/孤儿/断链）即时完成，LLM 分析（矛盾/过时/建议）需要几秒钟。</p>
+</div>

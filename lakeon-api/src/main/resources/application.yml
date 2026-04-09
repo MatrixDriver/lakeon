@@ -145,6 +145,7 @@ lakeon:
     db-dsn: "${LOG_DB_DSN:}"
   oauth:
     callback-base-url: ${LAKEON_OAUTH_CALLBACK_BASE_URL:http://localhost:8080}
+    relay-base-url: ${LAKEON_OAUTH_RELAY_BASE_URL:}
     google:
       client-id: ${LAKEON_OAUTH_GOOGLE_CLIENT_ID:}
       client-secret: ${LAKEON_OAUTH_GOOGLE_CLIENT_SECRET:}

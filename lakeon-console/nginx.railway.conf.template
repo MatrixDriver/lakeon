@@ -22,6 +22,37 @@ server {
         return 503 '{"error":{"code":"SERVICE_UNAVAILABLE","message":"Lakeon API is currently offline. The service may be in maintenance mode."}}';
     }
 
+    # OAuth relay — backend (behind GFW) calls these to reach Google/GitHub
+    resolver 8.8.8.8 valid=300s;
+
+    location = /oauth-relay/google/token {
+        proxy_pass https://oauth2.googleapis.com/token;
+        proxy_ssl_server_name on;
+        proxy_set_header Host oauth2.googleapis.com;
+    }
+
+    location = /oauth-relay/google/userinfo {
+        proxy_pass https://www.googleapis.com/oauth2/v2/userinfo;
+        proxy_ssl_server_name on;
+        proxy_set_header Host www.googleapis.com;
+        proxy_pass_request_headers on;
+    }
+
+    location = /oauth-relay/github/token {
+        proxy_pass https://github.com/login/oauth/access_token;
+        proxy_ssl_server_name on;
+        proxy_set_header Host github.com;
+        proxy_set_header Accept application/json;
+    }
+
+    location /oauth-relay/github/api/ {
+        proxy_pass https://api.github.com/;
+        proxy_ssl_server_name on;
+        proxy_set_header Host api.github.com;
+        proxy_set_header User-Agent DBay;
+        proxy_pass_request_headers on;
+    }
+
     location /assets/ {
         expires 30d;
         add_header Cache-Control "public, immutable";
