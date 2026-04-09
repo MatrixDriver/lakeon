@@ -3,6 +3,7 @@ import client from './client'
 export interface Tenant {
   id: string
   name: string
+  username?: string
   api_key?: string
   created_at: string
   trial?: boolean
@@ -31,4 +32,8 @@ export const tenantApi = {
   listApiKeys: () => client.get<ApiKeyItem[]>('/api-keys'),
   createApiKey: (name: string) => client.post<ApiKeyItem>('/api-keys', { name }),
   deleteApiKey: (keyId: string) => client.delete(`/api-keys/${keyId}`),
+
+  // OAuth
+  oauthExchangeToken: (code: string) =>
+    client.post<Tenant>('/auth/oauth/token', { code }),
 }

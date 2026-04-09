@@ -26,6 +26,12 @@ const routes = [
     meta: { noAuth: true },
   },
   {
+    path: '/oauth/callback',
+    name: 'OAuthCallback',
+    component: () => import('../views/login/OAuthCallbackView.vue'),
+    meta: { noAuth: true },
+  },
+  {
     path: '/',
     component: () => import('../layouts/PublicLayout.vue'),
     meta: { noAuth: true },
