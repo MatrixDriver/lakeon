@@ -6,8 +6,10 @@ COPY . .
 RUN npm run build
 
 FROM nginx:alpine
+RUN apk add --no-cache nodejs
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.railway.conf.template /tmp/default.conf.template
+COPY github-relay.js /app/github-relay.js
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 CMD ["/start.sh"]
