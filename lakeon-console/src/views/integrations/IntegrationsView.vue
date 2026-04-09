@@ -14,6 +14,7 @@
           <button class="copy-btn" @click="copyText(quickstartSnippet)">{{ copyLabel }}</button>
         </div>
         <p class="tip">{{ t('API Key 存放在 ~/.dbay/config.json，不进入 Claude 配置文件或代码仓库。', 'API Key lives in ~/.dbay/config.json — never enters Claude config or your repo.') }}</p>
+        <p class="tip">{{ t('如果 Claude Code 提示 MCP failed to connect，请检查 Python 是否已安装：python --version。如未安装，请先安装 Python 3.11+。', 'If Claude Code shows "MCP failed to connect", check that Python is installed: python --version. If not, install Python 3.11+ first.') }}</p>
       </div>
 
       <!-- 集成卡片 -->
@@ -83,11 +84,20 @@ function copyText(text: string) {
 }
 
 const quickstartSnippet = `# 1. Install & login
-pip install dbay-mcp
+pip install dbay-cli
 dbay login
 
-# 2. Register MCP server (Claude Code)
-claude mcp add --scope user dbay -- uvx dbay-mcp`
+# 2. Connect to Claude Code
+claude mcp add --scope user dbay -- python -m dbay_mcp
+
+# 3. Create a memory base
+dbay memory create                # plain memory
+dbay memory create --encrypted    # encrypted (e2e, you'll be prompted to set a password)
+
+# Embedding provider options:
+#   1) DBay (default)       — uses your DBay API key
+#   2) External API         — bring your own endpoint/key/model
+#   3) Local model          — coming soon`
 
 const expandedTool = ref<string | null>(null)
 function toggleTool(id: string) {
@@ -110,30 +120,42 @@ const integrations = [
 pip install dbay-cli
 dbay login
 
-# 2. Register MCP server
-claude mcp add --scope user dbay -- uvx dbay-mcp`,
+# 2. Connect to Claude Code
+claude mcp add --scope user dbay -- python -m dbay_mcp
+
+# 3. Create a memory base
+dbay memory create                # plain memory
+dbay memory create --encrypted    # encrypted (e2e, you'll be prompted to set a password)`,
   },
   {
     id: 'claude-desktop', anchor: 'claude-desktop', name: 'Claude Desktop', featured: false,
     href: '/integrations#claude-desktop',
     desc: 'Persistent memory for Claude Desktop conversations across sessions.',
     descZh: '让 Claude Desktop 的对话记忆跨会话持久化。',
-    setup: `# Add to Claude Desktop config (~/.claude/claude_desktop_config.json):
+    setup: `# 1. Install & login
+pip install dbay-cli
+dbay login
+
+# 2. Add to Claude Desktop config (~/.claude/claude_desktop_config.json):
 {
   "mcpServers": {
     "dbay": {
-      "command": "uvx",
-      "args": ["dbay-mcp"]
+      "command": "python",
+      "args": ["-m", "dbay_mcp"]
     }
   }
-}`,
+}
+
+# 3. Create a memory base
+dbay memory create                # plain memory
+dbay memory create --encrypted    # encrypted (e2e, you'll be prompted to set a password)`,
   },
   {
     id: 'cursor', anchor: 'cursor', name: 'Cursor', featured: false,
     href: '/integrations#cursor',
     desc: 'Codebase knowledge base retrieval and project memory in Cursor.',
     descZh: '在 Cursor 中使用代码库知识库检索和项目记忆。',
-    setup: `# 1. Install
+    setup: `# 1. Install & login
 pip install dbay-cli
 dbay login
 
@@ -141,18 +163,22 @@ dbay login
 {
   "mcpServers": {
     "dbay": {
-      "command": "uvx",
-      "args": ["dbay-mcp"]
+      "command": "python",
+      "args": ["-m", "dbay_mcp"]
     }
   }
-}`,
+}
+
+# 3. Create a memory base
+dbay memory create                # plain memory
+dbay memory create --encrypted    # encrypted (e2e, you'll be prompted to set a password)`,
   },
   {
     id: 'gemini-cli', anchor: 'gemini-cli', name: 'Gemini CLI', featured: false,
     href: '/integrations#gemini-cli',
     desc: 'Long-term memory for Gemini CLI — your AI assistant remembers between sessions.',
     descZh: '为 Gemini CLI 提供长期记忆能力，跨会话记住用户偏好和上下文。',
-    setup: `# 1. Install
+    setup: `# 1. Install & login
 pip install dbay-cli
 dbay login
 
@@ -160,11 +186,15 @@ dbay login
 {
   "mcpServers": {
     "dbay": {
-      "command": "uvx",
-      "args": ["dbay-mcp"]
+      "command": "python",
+      "args": ["-m", "dbay_mcp"]
     }
   }
-}`,
+}
+
+# 3. Create a memory base
+dbay memory create                # plain memory
+dbay memory create --encrypted    # encrypted (e2e, you'll be prompted to set a password)`,
   },
   {
     id: 'chatgpt', anchor: 'chatgpt', name: 'ChatGPT', featured: false,

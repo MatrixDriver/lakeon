@@ -195,7 +195,7 @@ cat > ~/.dbay/config.json << 'EOF'
 }
 EOF`)
 
-const claudeCodeSnippet = 'claude mcp add --scope user dbay -- uvx dbay-mcp'
+const claudeCodeSnippet = 'claude mcp add --scope user dbay -- python -m dbay_mcp'
 
 const skillSnippet = '/plugin marketplace add jackylk/dbay-plugins\n/plugin install memory'
 

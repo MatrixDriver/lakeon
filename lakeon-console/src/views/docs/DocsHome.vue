@@ -48,7 +48,7 @@ const steps = computed(() => [
   },
   {
     title: t('注册 MCP 服务（Claude Code）', 'Register MCP Server (Claude Code)'),
-    code: 'claude mcp add --scope user dbay -- uvx dbay-mcp',
+    code: 'claude mcp add --scope user dbay -- python -m dbay_mcp',
   },
   {
     title: t('安装记忆 Skill（推荐）', 'Install Memory Skill (Recommended)'),

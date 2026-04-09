@@ -216,7 +216,7 @@
             <div class="enc-step">
               <div class="enc-step-num" style="background: #6b8e8a;">1</div>
               <div style="flex: 1;">
-                <div class="enc-step-title">安装并登录</div>
+                <div class="enc-step-title">安装 CLI 并登录</div>
                 <div style="position: relative;">
                   <pre class="code-block">pip install dbay-cli
 dbay login</pre>
@@ -241,8 +241,8 @@ dbay login</pre>
               <div style="flex: 1;">
                 <div class="enc-step-title">注册 MCP Server 到 Claude Code</div>
                 <div style="position: relative;">
-                  <pre class="code-block">claude mcp add --scope user dbay -- uvx dbay-mcp</pre>
-                  <button class="copy-btn" @click.stop="copyCode('claude mcp add --scope user dbay -- uvx dbay-mcp')">{{ copied === 'claude mcp add --scope user dbay -- uvx dbay-mcp' ? '已复制 ✓' : '复制' }}</button>
+                  <pre class="code-block">claude mcp add --scope user dbay -- python -m dbay_mcp</pre>
+                  <button class="copy-btn" @click.stop="copyCode('claude mcp add --scope user dbay -- python -m dbay_mcp')">{{ copied === 'claude mcp add --scope user dbay -- python -m dbay_mcp' ? '已复制 ✓' : '复制' }}</button>
                 </div>
               </div>
             </div>
@@ -255,6 +255,7 @@ dbay login</pre>
                 <div style="position: relative;">
                   <pre class="code-block">对 Claude 说："记住我偏好 TypeScript"</pre>
                 </div>
+                <p class="enc-step-desc" style="margin-top: 6px; color: #999;">如果提示 MCP failed to connect，请检查 Python 是否已安装：<code>python --version</code>，需要 Python 3.11+。</p>
               </div>
             </div>
           </div>
@@ -299,13 +300,12 @@ chmod 600 ~/.dbay/secret</pre>
             <div class="enc-step">
               <div class="enc-step-num">3</div>
               <div style="flex: 1;">
-                <div class="enc-step-title">安装并登录 DBay CLI</div>
+                <div class="enc-step-title">安装 CLI 并登录</div>
                 <div style="position: relative;">
                   <pre class="code-block">pip install dbay-cli
 dbay login</pre>
                   <button class="copy-btn" @click.stop="copyCode('pip install dbay-cli\ndbay login')">{{ copied === 'pip install dbay-cli\ndbay login' ? '已复制 ✓' : '复制' }}</button>
                 </div>
-                <p class="enc-step-desc" style="margin-top: 6px;">登录后凭据保存在 <code>~/.dbay/config.json</code>。</p>
               </div>
             </div>
 
@@ -327,8 +327,8 @@ dbay login</pre>
               <div style="flex: 1;">
                 <div class="enc-step-title">注册 MCP Server 到 Claude Code</div>
                 <div style="position: relative;">
-                  <pre class="code-block">claude mcp add --scope user dbay -- uvx dbay-mcp</pre>
-                  <button class="copy-btn" @click.stop="copyCode('claude mcp add --scope user dbay -- uvx dbay-mcp')">{{ copied === 'claude mcp add --scope user dbay -- uvx dbay-mcp' ? '已复制 ✓' : '复制' }}</button>
+                  <pre class="code-block">claude mcp add --scope user dbay -- python -m dbay_mcp</pre>
+                  <button class="copy-btn" @click.stop="copyCode('claude mcp add --scope user dbay -- python -m dbay_mcp')">{{ copied === 'claude mcp add --scope user dbay -- python -m dbay_mcp' ? '已复制 ✓' : '复制' }}</button>
                 </div>
               </div>
             </div>
@@ -343,12 +343,13 @@ dbay login</pre>
                   <pre class="code-block">对 Claude 说："记住我偏好 TypeScript"</pre>
                 </div>
                 <p class="enc-step-desc" style="margin-top: 6px;">Claude 会调用 <code>memory_ingest</code>，内容在本地加密后上传。你可以在本页的「记忆浏览」中看到密文（无法解读），确认加密生效。</p>
+                <p class="enc-step-desc" style="margin-top: 6px; color: #999;">如果提示 MCP failed to connect，请检查 Python 是否已安装：<code>python --version</code>，需要 Python 3.11+。</p>
               </div>
             </div>
           </div>
 
           <div style="margin-top: 16px; padding: 10px 14px; background: #faf8f5; border-radius: 6px; font-size: 12px; color: #8c7a68; line-height: 1.6;">
-            <strong>跨设备：</strong>复制 <code>~/.dbay/encrypted_bases.json</code> 到新设备，创建 <code>~/.dbay/secret</code> 写入密码，然后 <code>dbay login</code> + <code>dbay mem use {{ base.id }}</code> 即可。
+            <strong>跨设备：</strong>复制 <code>~/.dbay/encrypted_bases.json</code> 到新设备，创建 <code>~/.dbay/secret</code> 写入密码，然后 <code>pip install dbay-cli</code> + <code>dbay login</code> + <code>dbay mem use {{ base.id }}</code> 即可。
           </div>
         </div>
 
@@ -561,7 +562,7 @@ function uvxMcpJson() {
 }`
 }
 
-const loginStep = { title: '安装并登录（只需一次）', desc: '安装 dbay-cli（自动包含 MCP server），凭据保存在 ~/.dbay/config.json。', code: 'pip install dbay-cli\ndbay login' }
+const loginStep = { title: '安装并登录（只需一次）', desc: '安装 dbay-cli（自动包含 MCP server），在终端登录获取 API Key。', code: 'pip install dbay-cli\ndbay login' }
 
 const clients = computed(() => {
   return [
@@ -569,7 +570,7 @@ const clients = computed(() => {
       id: 'claude-code', name: 'Claude Code', short: 'claude mcp add',
       steps: [
         loginStep,
-        { title: '注册 MCP Server', desc: '在终端执行以下命令，全局生效：', code: 'claude mcp add --scope user dbay -- uvx dbay-mcp' },
+        { title: '注册 MCP Server', desc: '在终端执行以下命令，全局生效：', code: 'claude mcp add --scope user dbay -- python -m dbay_mcp' },
         { title: '安装记忆 Skill（推荐）', desc: '在 Claude Code 中执行以下命令，安装后说"记住"时会自动调用 DBay 记忆库：', code: '/plugin marketplace add jackylk/dbay-plugins\n/plugin install memory' },
         { title: '配置自动召回（推荐）', desc: '每次新会话启动时自动加载你的惯例和决策，Claude 从第一句话就知道你的做事规矩。\n\n第1步：创建 Hook 脚本：', code: `cat > ~/.claude/hooks/session-recall.sh << 'SCRIPT'
 #!/usr/bin/env bash
