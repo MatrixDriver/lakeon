@@ -1,6 +1,6 @@
 [project]
 name = "dbay-mcp"
-version = "0.5.5"
+version = "0.5.6"
 description = "DBay MCP server — knowledge base and agent memory for AI tools"
 readme = "README.md"
 requires-python = ">=3.11"
