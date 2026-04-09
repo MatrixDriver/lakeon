@@ -14,6 +14,18 @@ def _client():
     return DbayClient(endpoint=get_endpoint(), api_key=api_key)
 
 
+def _default_mem_id(mem_id: str | None) -> str:
+    """Return mem_id if given, otherwise read from config. Exit if neither."""
+    if mem_id:
+        return mem_id
+    from dbay_cli.config import get as config_get
+    default = config_get("memory_base")
+    if default:
+        return default
+    typer.echo("未指定记忆库。请用 dbay mem use <name> 设置默认记忆库，或传入 MEM_ID 参数。", err=True)
+    raise typer.Exit(1)
+
+
 @app.command("list")
 def list_bases():
     """List memory bases."""
@@ -196,95 +208,105 @@ def _create_encrypted(name: str, desc: str | None, agent_extract: bool):
 
 
 @app.command("info")
-def info(mem_id: str):
-    """Show memory base details."""
-    result = _client().get_memory_base(mem_id)
+def info(mem_id: str = typer.Argument(None)):
+    """Show memory base details. Uses default if MEM_ID omitted."""
+    mid = _default_mem_id(mem_id)
+    result = _client().get_memory_base(mid)
     typer.echo(json.dumps(result, indent=2, default=str))
 
 
 @app.command("delete")
-def delete(mem_id: str, yes: bool = typer.Option(False, "-y")):
-    """Delete a memory base."""
+def delete(mem_id: str = typer.Argument(None), yes: bool = typer.Option(False, "-y")):
+    """Delete a memory base. Uses default if MEM_ID omitted."""
+    mid = _default_mem_id(mem_id)
     if not yes:
-        typer.confirm(f"Delete memory base {mem_id}?", abort=True)
-    _client().delete_memory_base(mem_id)
+        typer.confirm(f"Delete memory base {mid}?", abort=True)
+    _client().delete_memory_base(mid)
     typer.echo("Deleted.")
 
 
 @app.command("ingest")
-def ingest(mem_id: str, content: str,
+def ingest(content: str, mem_id: str = typer.Option(None, "--base"),
            role: str = typer.Option("user", "--role"),
            no_extract: bool = typer.Option(False, "--no-extract")):
-    """Ingest content into memory base."""
+    """Ingest content into memory base. Uses default base if --base omitted."""
+    mid = _default_mem_id(mem_id)
     auto_extract = False if no_extract else None
-    result = _client().mem_ingest(mem_id, content, role, auto_extract)
+    result = _client().mem_ingest(mid, content, role, auto_extract)
     typer.echo(json.dumps(result, indent=2, default=str))
 
 
 @app.command("ingest-extracted")
-def ingest_extracted(mem_id: str,
-                     message_id: str = typer.Option(..., "--message-id"),
-                     data: str = typer.Option(..., "--data")):
-    """Store pre-extracted memories."""
-    result = _client().mem_ingest_extracted(mem_id, message_id, json.loads(data))
+def ingest_extracted(message_id: str = typer.Option(..., "--message-id"),
+                     data: str = typer.Option(..., "--data"),
+                     mem_id: str = typer.Option(None, "--base")):
+    """Store pre-extracted memories. Uses default base if --base omitted."""
+    mid = _default_mem_id(mem_id)
+    result = _client().mem_ingest_extracted(mid, message_id, json.loads(data))
     typer.echo(json.dumps(result, indent=2, default=str))
 
 
 @app.command("recall")
-def recall(mem_id: str, query: str,
+def recall(query: str, mem_id: str = typer.Option(None, "--base"),
            types: str = typer.Option(None, "--types"),
            limit: int = typer.Option(10, "--limit")):
-    """Recall memories by semantic search."""
+    """Recall memories by semantic search. Uses default base if --base omitted."""
+    mid = _default_mem_id(mem_id)
     memory_types = types.split(",") if types else None
-    result = _client().mem_recall(mem_id, query, limit, memory_types)
+    result = _client().mem_recall(mid, query, limit, memory_types)
     for m in result.get("memories", []):
         typer.echo(f"  [{m.get('memory_type', '?')}] {m.get('content', '')}")
 
 
 @app.command("list-memories")
-def list_memories(mem_id: str,
+def list_memories(mem_id: str = typer.Argument(None),
                   type: str = typer.Option(None, "--type"),
                   limit: int = typer.Option(20, "--limit"),
                   offset: int = typer.Option(0, "--offset")):
-    """List memories in a base."""
-    result = _client().mem_list(mem_id, type, offset, limit)
+    """List memories in a base. Uses default if MEM_ID omitted."""
+    mid = _default_mem_id(mem_id)
+    result = _client().mem_list(mid, type, offset, limit)
     typer.echo(f"Total: {result.get('total', 0)}")
     for m in result.get("memories", []):
         typer.echo(f"  #{m['id']} [{m['memory_type']}] {m['content'][:80]}")
 
 
 @app.command("delete-memory")
-def delete_memory(mem_id: str, memory_id: int):
-    """Delete a single memory."""
-    _client().mem_delete(mem_id, memory_id)
+def delete_memory(memory_id: int, mem_id: str = typer.Option(None, "--base")):
+    """Delete a single memory. Uses default base if --base omitted."""
+    mid = _default_mem_id(mem_id)
+    _client().mem_delete(mid, memory_id)
     typer.echo("Deleted.")
 
 
 @app.command("stats")
-def stats(mem_id: str):
-    """Show memory statistics."""
-    result = _client().mem_stats(mem_id)
+def stats(mem_id: str = typer.Argument(None)):
+    """Show memory statistics. Uses default if MEM_ID omitted."""
+    mid = _default_mem_id(mem_id)
+    result = _client().mem_stats(mid)
     typer.echo(json.dumps(result, indent=2, default=str))
 
 
 @app.command("digest")
-def digest(mem_id: str):
-    """Run digest (reflection) on unreflected memories."""
-    result = _client().mem_digest(mem_id)
+def digest(mem_id: str = typer.Argument(None)):
+    """Run digest (reflection) on unreflected memories. Uses default if MEM_ID omitted."""
+    mid = _default_mem_id(mem_id)
+    result = _client().mem_digest(mid)
     typer.echo(json.dumps(result, indent=2, default=str))
 
 
 @app.command("digest-extracted")
-def digest_extracted(mem_id: str,
-                     data: str = typer.Option(..., "--data")):
-    """Store pre-extracted digest traits."""
-    result = _client().mem_digest_extracted(mem_id, json.loads(data))
+def digest_extracted(data: str = typer.Option(..., "--data"),
+                     mem_id: str = typer.Option(None, "--base")):
+    """Store pre-extracted digest traits. Uses default base if --base omitted."""
+    mid = _default_mem_id(mem_id)
+    result = _client().mem_digest_extracted(mid, json.loads(data))
     typer.echo(json.dumps(result, indent=2, default=str))
 
 
 @app.command("change-password")
-def change_password(mem_id: str):
-    """Change encryption password for a memory base."""
+def change_password(mem_id: str = typer.Argument(None)):
+    """Change encryption password. Uses default if MEM_ID omitted."""
     import base64
     import getpass
     from dbay_mcp.crypto import (
@@ -292,12 +314,13 @@ def change_password(mem_id: str):
         decrypt_private_key, encrypt_private_key, generate_salt,
     )
 
+    mid = _default_mem_id(mem_id)
     bases = load_encrypted_bases()
-    if mem_id not in bases:
-        typer.echo(f"No encryption config for {mem_id}", err=True)
+    if mid not in bases:
+        typer.echo(f"No encryption config for {mid}", err=True)
         raise typer.Exit(1)
 
-    config = bases[mem_id]
+    config = bases[mid]
     salt = base64.b64decode(config["kdf_salt"])
 
     old_password = getpass.getpass("Current password: ")
@@ -318,7 +341,7 @@ def change_password(mem_id: str):
 
     config["encrypted_private_key"] = new_encrypted_private_key
     config["kdf_salt"] = base64.b64encode(new_salt).decode("ascii")
-    save_encrypted_base(mem_id, config)
+    save_encrypted_base(mid, config)
     write_secret(new_password)
 
     typer.echo("Password changed successfully.")
