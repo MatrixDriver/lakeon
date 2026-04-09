@@ -22,7 +22,7 @@ def _get_embedding_config(mem_id: str) -> dict:
     return bases[mem_id]
 
 
-async def generate_embedding(
+def generate_embedding(
     mem_id: str,
     text: str,
     api_key: str | None = None,
@@ -37,10 +37,10 @@ async def generate_embedding(
             raise RuntimeError("api_key is required for dbay embedding provider")
         if not endpoint:
             raise RuntimeError("endpoint is required for dbay embedding provider")
-        return await _embed_dbay(text, api_key, endpoint)
+        return _embed_dbay(text, api_key, endpoint)
 
     if provider == "external":
-        return await _embed_external(text, config)
+        return _embed_external(text, config)
 
     if provider == "local":
         raise RuntimeError(
@@ -51,28 +51,20 @@ async def generate_embedding(
     raise RuntimeError(f"Unknown embedding provider: {provider}")
 
 
-async def _embed_dbay(text: str, api_key: str, endpoint: str) -> list[float]:
+def _embed_dbay(text: str, api_key: str, endpoint: str) -> list[float]:
     """Call DBay's embedding API at {endpoint}/api/v1/embedding."""
     url = f"{endpoint}/api/v1/embedding"
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
-    payload = {"input": text}
-
-    async with httpx.AsyncClient(verify=False, timeout=30) as client:
-        resp = await client.post(url, json=payload, headers=headers)
-        resp.raise_for_status()
-        data = resp.json()
-        return data["data"][0]["embedding"]
+    resp = httpx.post(url, json={"input": text}, headers=headers, verify=False, timeout=30)
+    resp.raise_for_status()
+    return resp.json()["data"][0]["embedding"]
 
 
-async def _embed_external(text: str, config: dict) -> list[float]:
-    """
-    Call user-provided external embedding API (OpenAI-compatible).
-
-    Uses config keys: embedding_endpoint, embedding_model, embedding_api_key.
-    """
+def _embed_external(text: str, config: dict) -> list[float]:
+    """Call user-provided external embedding API (OpenAI-compatible)."""
     ep = config.get("embedding_endpoint")
     model = config.get("embedding_model")
     key = config.get("embedding_api_key")
@@ -86,20 +78,16 @@ async def _embed_external(text: str, config: dict) -> list[float]:
     if key:
         headers["Authorization"] = f"Bearer {key}"
 
-    payload = {"model": model, "input": text}
-
-    async with httpx.AsyncClient(verify=False, timeout=30) as client:
-        resp = await client.post(ep, json=payload, headers=headers)
-        resp.raise_for_status()
-        data = resp.json()
-        return data["data"][0]["embedding"]
+    resp = httpx.post(ep, json={"model": model, "input": text}, headers=headers, verify=False, timeout=30)
+    resp.raise_for_status()
+    return resp.json()["data"][0]["embedding"]
 
 
-async def probe_embedding_dim(
+def probe_embedding_dim(
     mem_id: str,
     api_key: str | None = None,
     endpoint: str | None = None,
 ) -> int:
     """Probe the embedding dimension by sending a test text."""
-    vec = await generate_embedding(mem_id, "dimension probe", api_key, endpoint)
+    vec = generate_embedding(mem_id, "dimension probe", api_key, endpoint)
     return len(vec)

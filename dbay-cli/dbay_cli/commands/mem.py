@@ -84,7 +84,6 @@ def _create_encrypted(name: str, desc: str | None, agent_extract: bool):
     """Interactive flow for creating an encrypted memory base."""
     import base64
     import getpass
-    import asyncio
     from dbay_mcp.crypto import (
         generate_keypair, generate_dek, generate_salt,
         encrypt_private_key, encrypt_dek_with_public_key,
@@ -150,9 +149,7 @@ def _create_encrypted(name: str, desc: str | None, agent_extract: bool):
     typer.echo("Probing embedding dimension...")
     from dbay_cli.config import get_endpoint, get as config_get
     try:
-        dim = asyncio.get_event_loop().run_until_complete(
-            probe_embedding_dim(temp_mem_id, api_key=config_get("api_key"), endpoint=get_endpoint())
-        )
+        dim = probe_embedding_dim(temp_mem_id, api_key=config_get("api_key"), endpoint=get_endpoint())
     except Exception as e:
         bases = load_encrypted_bases()
         bases.pop(temp_mem_id, None)

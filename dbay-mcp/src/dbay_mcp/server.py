@@ -414,9 +414,7 @@ def _encrypt_and_embed(mem_id: str, content: str, base_info: dict) -> tuple[str,
 
     dek = get_dek(mem_id, base_info["encrypted_dek"])
     encrypted_content = encrypt_content(dek, content)
-    embedding = asyncio.get_event_loop().run_until_complete(
-        generate_embedding(mem_id, content, api_key=_get_api_key(), endpoint=_get_endpoint())
-    )
+    embedding = generate_embedding(mem_id, content, api_key=_get_api_key(), endpoint=_get_endpoint())
     return encrypted_content, embedding
 
 
@@ -479,9 +477,7 @@ def memory_recall(
     base_info = _get_encrypted_base_info(mem_id)
     if base_info:
         from dbay_mcp.embedding import generate_embedding
-        query_embedding = asyncio.get_event_loop().run_until_complete(
-            generate_embedding(mem_id, query, api_key=_get_api_key(), endpoint=_get_endpoint())
-        )
+        query_embedding = generate_embedding(mem_id, query, api_key=_get_api_key(), endpoint=_get_endpoint())
         body: dict = {"query_embedding": query_embedding, "top_k": min(top_k, 50)}
         if memory_types:
             body["memory_types"] = memory_types
