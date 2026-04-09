@@ -26,6 +26,36 @@ def _default_mem_id(mem_id: str | None) -> str:
     raise typer.Exit(1)
 
 
+def _is_encrypted(mem_id: str) -> bool:
+    """Check if a memory base is encrypted (has local config)."""
+    from dbay_mcp.crypto import is_encrypted_base
+    return is_encrypted_base(mem_id)
+
+
+def _get_base_info(mem_id: str) -> dict:
+    """Fetch memory base info from server."""
+    return _client().get_memory_base(mem_id)
+
+
+def _encrypt_for_ingest(mem_id: str, content: str, base_info: dict) -> tuple[str, list[float]]:
+    """Encrypt content and generate embedding locally."""
+    from dbay_mcp.crypto import get_dek, encrypt_content
+    from dbay_mcp.embedding import generate_embedding
+    from dbay_cli.config import get_endpoint, get as config_get
+
+    dek = get_dek(mem_id, base_info["encrypted_dek"])
+    encrypted_content = encrypt_content(dek, content)
+    embedding = generate_embedding(mem_id, content, api_key=config_get("api_key"), endpoint=get_endpoint())
+    return encrypted_content, embedding
+
+
+def _decrypt_content(mem_id: str, encrypted_content: str, base_info: dict) -> str:
+    """Decrypt content using DEK."""
+    from dbay_mcp.crypto import get_dek, decrypt_content
+    dek = get_dek(mem_id, base_info["encrypted_dek"])
+    return decrypt_content(dek, encrypted_content)
+
+
 @app.command("list")
 def list_bases():
     """List memory bases."""
@@ -228,8 +258,18 @@ def ingest(content: str, mem_id: str = typer.Option(None, "--base"),
            no_extract: bool = typer.Option(False, "--no-extract")):
     """Ingest content into memory base. Uses default base if --base omitted."""
     mid = _default_mem_id(mem_id)
-    auto_extract = False if no_extract else None
-    result = _client().mem_ingest(mid, content, role, auto_extract)
+    if _is_encrypted(mid):
+        info = _get_base_info(mid)
+        encrypted_content, embedding = _encrypt_for_ingest(mid, content, info)
+        result = _client()._request("POST", f"/memory/bases/{mid}/ingest", json={
+            "content": encrypted_content,
+            "signal": "memory",
+            "memory_type": "fact",
+            "embedding": embedding,
+        })
+    else:
+        auto_extract = False if no_extract else None
+        result = _client().mem_ingest(mid, content, role, auto_extract)
     typer.echo(json.dumps(result, indent=2, default=str))
 
 
@@ -250,9 +290,25 @@ def recall(query: str, mem_id: str = typer.Option(None, "--base"),
     """Recall memories by semantic search. Uses default base if --base omitted."""
     mid = _default_mem_id(mem_id)
     memory_types = types.split(",") if types else None
-    result = _client().mem_recall(mid, query, limit, memory_types)
-    for m in result.get("memories", []):
-        typer.echo(f"  [{m.get('memory_type', '?')}] {m.get('content', '')}")
+    if _is_encrypted(mid):
+        from dbay_mcp.embedding import generate_embedding
+        from dbay_cli.config import get_endpoint, get as config_get
+        info = _get_base_info(mid)
+        query_embedding = generate_embedding(mid, query, api_key=config_get("api_key"), endpoint=get_endpoint())
+        body: dict = {"query_embedding": query_embedding, "top_k": limit}
+        if memory_types:
+            body["memory_types"] = memory_types
+        result = _client()._request("POST", f"/memory/bases/{mid}/recall", json=body)
+        for m in result.get("memories", []):
+            try:
+                content = _decrypt_content(mid, m.get("content", ""), info)
+            except Exception:
+                content = "[decryption failed]"
+            typer.echo(f"  [{m.get('memory_type', '?')}] {content}")
+    else:
+        result = _client().mem_recall(mid, query, limit, memory_types)
+        for m in result.get("memories", []):
+            typer.echo(f"  [{m.get('memory_type', '?')}] {m.get('content', '')}")
 
 
 @app.command("list-memories")
@@ -262,10 +318,18 @@ def list_memories(mem_id: str = typer.Argument(None),
                   offset: int = typer.Option(0, "--offset")):
     """List memories in a base. Uses default if MEM_ID omitted."""
     mid = _default_mem_id(mem_id)
+    encrypted = _is_encrypted(mid)
+    info = _get_base_info(mid) if encrypted else None
     result = _client().mem_list(mid, type, offset, limit)
     typer.echo(f"Total: {result.get('total', 0)}")
     for m in result.get("memories", []):
-        typer.echo(f"  #{m['id']} [{m['memory_type']}] {m['content'][:80]}")
+        content = m['content']
+        if encrypted and info:
+            try:
+                content = _decrypt_content(mid, content, info)
+            except Exception:
+                content = "[decryption failed]"
+        typer.echo(f"  #{m['id']} [{m['memory_type']}] {content[:80]}")
 
 
 @app.command("delete-memory")
