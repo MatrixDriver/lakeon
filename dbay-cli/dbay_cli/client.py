@@ -79,6 +79,9 @@ class DbayClient:
     def login(self, username: str, password: str) -> dict:
         return self._request("POST", "/auth/login", json={"username": username, "password": password})
 
+    def oauth_exchange_token(self, code: str) -> dict:
+        return self._request("POST", "/auth/oauth/token", json={"code": code})
+
     def get_me(self) -> dict:
         return self._request("GET", "/tenants/me")
 
