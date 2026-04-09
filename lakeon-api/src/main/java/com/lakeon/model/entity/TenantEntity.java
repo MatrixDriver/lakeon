@@ -32,13 +32,13 @@ public class TenantEntity {
     private Instant updatedAt;
 
     @Column(name = "max_databases", nullable = false)
-    private Integer maxDatabases = 1;
+    private Integer maxDatabases = 10;
 
     @Column(name = "max_storage_gb", nullable = false)
-    private Integer maxStorageGb = 1;
+    private Integer maxStorageGb = 10;
 
     @Column(name = "max_compute_cu", nullable = false)
-    private Integer maxComputeCu = 1;
+    private Integer maxComputeCu = 10;
 
     @Column(name = "max_datalake_jobs")
     private Integer maxDatalakeJobs;
