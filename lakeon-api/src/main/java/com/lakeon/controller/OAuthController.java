@@ -84,7 +84,15 @@ public class OAuthController {
             response.sendRedirect(redirectUri + "#" + fragment);
         } catch (Exception e) {
             log.error("OAuth callback failed for provider={}", provider, e);
-            response.sendRedirect("/login?error=oauth_failed");
+            // Redirect to frontend login page, not backend
+            String errorRedirect = extractRedirectUri(state);
+            if (errorRedirect.isEmpty()) {
+                errorRedirect = "https://dbay.cloud/login";
+            } else {
+                // Strip /oauth/callback path to get base, then append /login
+                errorRedirect = errorRedirect.replaceAll("/oauth/callback.*", "/login");
+            }
+            response.sendRedirect(errorRedirect + "?error=oauth_failed");
         }
     }
 
