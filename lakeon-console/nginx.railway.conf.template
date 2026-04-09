@@ -39,20 +39,24 @@ server {
     }
 
     location = /oauth-relay/github/token {
-        proxy_pass https://github.com/login/oauth/access_token;
+        set $github https://github.com;
+        proxy_pass $github/login/oauth/access_token;
         proxy_ssl_server_name on;
         proxy_set_header Host github.com;
         proxy_set_header User-Agent DBay;
         proxy_connect_timeout 10s;
         proxy_read_timeout 15s;
+        proxy_ssl_protocols TLSv1.2 TLSv1.3;
     }
 
     location /oauth-relay/github/api/ {
-        proxy_pass https://api.github.com/;
+        set $github_api https://api.github.com;
+        proxy_pass $github_api/;
         proxy_ssl_server_name on;
         proxy_set_header Host api.github.com;
         proxy_set_header User-Agent DBay;
         proxy_pass_request_headers on;
+        proxy_ssl_protocols TLSv1.2 TLSv1.3;
     }
 
     location /assets/ {
