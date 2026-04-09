@@ -290,7 +290,7 @@ dbay login</pre>
                 <div style="position: relative;">
                   <pre class="code-block">echo "DBAY_ENCRYPTION_PASSWORD=你的密码" > ~/.dbay/secret
 chmod 600 ~/.dbay/secret</pre>
-                  <button class="copy-btn" @click.stop="copyCode('echo \"DBAY_ENCRYPTION_PASSWORD=你的密码\" > ~/.dbay/secret\nchmod 600 ~/.dbay/secret')">{{ copied === 'echo \"DBAY_ENCRYPTION_PASSWORD=你的密码\" > ~/.dbay/secret\nchmod 600 ~/.dbay/secret' ? '已复制 ✓' : '复制' }}</button>
+                  <button class="copy-btn" @click.stop="copyEncryptionSnippet">{{ copied === encryptionSnippet ? '已复制 ✓' : '复制' }}</button>
                 </div>
               </div>
             </div>
@@ -538,10 +538,16 @@ const maxCount = computed(() => {
 const expandedClient = ref<string | null>(null)
 const copied = ref<string | null>(null)
 
+const encryptionSnippet = 'echo "DBAY_ENCRYPTION_PASSWORD=你的密码" > ~/.dbay/secret\nchmod 600 ~/.dbay/secret'
+
 function copyCode(code: string) {
   navigator.clipboard.writeText(code)
   copied.value = code
   setTimeout(() => { copied.value = null }, 2000)
+}
+
+function copyEncryptionSnippet() {
+  copyCode(encryptionSnippet)
 }
 
 function uvxMcpJson() {
