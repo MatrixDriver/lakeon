@@ -73,6 +73,13 @@ public class MemoryController {
     @PostMapping("/bases/{id}/ingest")
     public Object ingest(HttpServletRequest req, @PathVariable String id, @RequestBody Map<String, Object> body) {
         TenantEntity tenant = getTenant(req);
+        // Encrypted bases require pre-computed embedding (proof that client encrypted locally)
+        MemoryBaseEntity mem = memoryService.getBase(tenant.getId(), id);
+        if (Boolean.TRUE.equals(mem.getEncrypted()) && !body.containsKey("embedding")) {
+            throw new com.lakeon.service.exception.BadRequestException(
+                "Encrypted memory base requires 'embedding' parameter. " +
+                "Please upgrade dbay-mcp to 0.5.2+ for client-side encryption support.");
+        }
         Object result = memoryService.proxyPost(tenant.getId(), id, "/ingest", body);
         memoryService.refreshCountAsync(tenant.getId(), id);
         return result;
