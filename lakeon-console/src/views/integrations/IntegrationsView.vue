@@ -55,11 +55,14 @@ const knowledgeBases = ref<KnowledgeBase[]>([])
 const memoryBases = ref<MemoryBase[]>([])
 
 onMounted(async () => {
+  // Only fetch if user is logged in (has API key) — this is a public page
+  const apiKey = localStorage.getItem('lakeon_api_key')
+  if (!apiKey) return
   try {
     const [kbRes, memRes] = await Promise.all([listKnowledgeBases(), listMemoryBases()])
     knowledgeBases.value = kbRes.data
     memoryBases.value = memRes.data.filter(b => b.status === 'READY')
-  } catch { /* ignore */ }
+  } catch { /* ignore — user may not be logged in */ }
 })
 
 const copyLabel = ref('Copy')
