@@ -329,7 +329,7 @@ def list_memories(mem_id: str = typer.Argument(None),
                 content = _decrypt_content(mid, content, info)
             except Exception:
                 content = "[decryption failed]"
-        typer.echo(f"  #{m['id']} [{m['memory_type']}] {content[:80]}")
+        typer.echo(f"  #{m['id']} [{m['memory_type']}] {content}")
 
 
 @app.command("delete-memory")
