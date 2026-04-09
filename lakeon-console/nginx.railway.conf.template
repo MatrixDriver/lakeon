@@ -38,12 +38,18 @@ server {
         proxy_pass_request_headers on;
     }
 
+    # GitHub token relay: backend sends params as query string
+    # e.g. /oauth-relay/github/token?code=X&client_id=Y&client_secret=Z&redirect_uri=W
+    # nginx forwards as GET-style query to GitHub (which accepts it)
     location = /oauth-relay/github/token {
         set $github https://github.com;
-        proxy_pass $github/login/oauth/access_token;
+        proxy_pass $github/login/oauth/access_token?$query_string;
+        proxy_method POST;
+        proxy_set_header Content-Length 0;
         proxy_ssl_server_name on;
         proxy_set_header Host github.com;
         proxy_set_header User-Agent DBay;
+        proxy_set_header Accept application/json;
         proxy_connect_timeout 10s;
         proxy_read_timeout 15s;
         proxy_ssl_protocols TLSv1.2 TLSv1.3;

@@ -119,11 +119,20 @@ public class OAuthService {
         LakeonProperties.OAuthProviderConfig github = props.getOauth().getGithub();
 
         // 1. Exchange code for token
-        String tokenBody = "code=" + enc(code) +
+        // For relay: send params as query string to avoid GFW DPI on POST body
+        String tokenParams = "code=" + enc(code) +
                 "&client_id=" + enc(github.getClientId()) +
                 "&client_secret=" + enc(github.getClientSecret()) +
                 "&redirect_uri=" + enc(getCallbackUrl("github"));
-        JsonNode tokenResp = postForm(relayUrl("/oauth-relay/github/token", "https://github.com/login/oauth/access_token"), tokenBody);
+        String relayBase = props.getOauth().getRelayBaseUrl();
+        JsonNode tokenResp;
+        if (relayBase != null && !relayBase.isBlank()) {
+            // Via relay: params go as query string, nginx forwards to GitHub
+            tokenResp = postForm(relayBase.replaceAll("/+$", "") + "/oauth-relay/github/token?" + tokenParams, "");
+        } else {
+            // Direct: standard POST body
+            tokenResp = postForm("https://github.com/login/oauth/access_token", tokenParams);
+        }
         String accessToken = tokenResp.path("access_token").asText(null);
         String scope = tokenResp.path("scope").asText(null);
 
