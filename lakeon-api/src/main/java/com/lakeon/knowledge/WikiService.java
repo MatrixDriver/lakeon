@@ -58,13 +58,14 @@ public class WikiService {
             ---
 
             Instructions:
-            1. Identify the 2-5 MOST IMPORTANT topics in the new document. Do NOT create a page for every minor concept.
+            1. Identify the 2-5 MOST IMPORTANT topics that are **specific and unique to this knowledge base's domain**. Do NOT create pages for generic or widely-known concepts (e.g. "AI 产品设计", "对话式 AI", "数据安全") — only create pages for concepts that are central to what this knowledge base is actually about and that a reader would need to understand to use this KB effectively.
             2. STRONGLY prefer UPDATING existing wiki pages over creating new ones. Only create a new page if no existing page covers the topic.
             3. Wiki pages should be concise reference articles (not copies of the source). Merge related concepts into one page.
             4. Use [[wikilinks]] to cross-reference between pages.
-            5. Each wiki page title should be a clear noun phrase in Chinese (e.g. "数据库分片", "API 鉴权"). Avoid overly specific titles.
+            5. Each wiki page title should be a clear noun phrase in Chinese (e.g. "数据库分片", "API 鉴权"). Avoid overly generic titles.
             6. Write in Simplified Chinese (简体中文) regardless of the source document language.
             7. Aim for 2-4 page changes per document (creates + updates combined). Quality over quantity.
+            8. Ask yourself: "Would someone searching this specific knowledge base need a dedicated wiki page on this topic?" If the answer is no, skip it.
 
             Output a JSON object with this exact structure:
             {
