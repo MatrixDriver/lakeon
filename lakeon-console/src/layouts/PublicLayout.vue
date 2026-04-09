@@ -45,23 +45,26 @@
 
           <!-- 集成 dropdown -->
           <NavDropdown :label="t('集成', 'Integrations')">
-            <router-link to="/integrations#mcp" class="nav-item nav-item-row">
+            <router-link to="/integrations/openclaw" class="nav-item nav-item-row">
               <span class="nav-dot nav-dot-knowledge"></span>
-              <span class="nav-item-title">{{ t('MCP 集成', 'MCP Integration') }}</span>
+              <span class="nav-item-title">OpenClaw</span>
             </router-link>
-            <router-link to="/integrations#skill" class="nav-item nav-item-row">
+            <router-link to="/integrations#claude-code" class="nav-item nav-item-row">
               <span class="nav-dot nav-dot-lakebase"></span>
-              <span class="nav-item-title">{{ t('Skill 集成', 'Skill Integration') }}</span>
+              <span class="nav-item-title">Claude Code</span>
             </router-link>
-            <router-link to="/integrations#pg" class="nav-item nav-item-row">
+            <router-link to="/integrations#cursor" class="nav-item nav-item-row">
               <span class="nav-dot nav-dot-memory"></span>
-              <span class="nav-item-title">{{ t('PostgreSQL 协议', 'PostgreSQL Protocol') }}</span>
+              <span class="nav-item-title">Cursor</span>
             </router-link>
-            <router-link to="/integrations#rest" class="nav-item nav-item-row">
+            <router-link to="/integrations#gemini-cli" class="nav-item nav-item-row">
               <span class="nav-dot nav-dot-datalake"></span>
-              <span class="nav-item-title">REST API</span>
+              <span class="nav-item-title">Gemini CLI</span>
             </router-link>
             <div class="nav-divider"></div>
+            <router-link to="/integrations" class="nav-item">
+              <span class="nav-item-title" style="color: var(--pub-text-2)">{{ t('查看全部', 'View all') }} →</span>
+            </router-link>
             <router-link to="/docs/rest-api" class="nav-item">
               <span class="nav-item-title" style="color: var(--pub-primary)">{{ t('API 文档', 'API Docs') }}</span>
             </router-link>
