@@ -6,56 +6,76 @@
         {{ t('通过 MCP 协议，让任何 AI 应用接入 DBay 的记忆、知识和数据能力', 'Connect any AI application to DBay memory, knowledge, and data capabilities via MCP protocol') }}
       </p>
 
-      <!-- MCP 快速接入 -->
-      <div class="mcp-quickstart">
-        <h3>{{ t('5 分钟接入', '5-minute Setup') }}</h3>
-        <div class="code-wrapper">
-          <pre class="code-block"><code>{{ quickstartSnippet }}</code></pre>
-          <button class="copy-btn" @click="copyText(quickstartSnippet)">{{ copyLabel }}</button>
+      <!-- Quick start -->
+      <section class="quickstart">
+        <div class="quickstart-header">
+          <h2>{{ t('快速开始', 'Quick Start') }}</h2>
+          <span class="quickstart-badge">~3 min</span>
         </div>
-        <p class="tip">{{ t('API Key 存放在 ~/.dbay/config.json，不进入 Claude 配置文件或代码仓库。', 'API Key lives in ~/.dbay/config.json — never enters Claude config or your repo.') }}</p>
-        <p class="tip">{{ t('如果 Claude Code 提示 MCP failed to connect，请检查 Python 是否已安装：python --version。如未安装，请先安装 Python 3.11+。', 'If Claude Code shows "MCP failed to connect", check that Python is installed: python --version. If not, install Python 3.11+ first.') }}</p>
-      </div>
-
-      <!-- 集成卡片 -->
-      <div class="integ-grid">
-        <component
-          v-for="tool in integrations"
-          :key="tool.id"
-          :is="tool.href.startsWith('/integrations/') ? 'router-link' : 'div'"
-          :to="tool.href.startsWith('/integrations/') ? tool.href : undefined"
-          :id="tool.anchor"
-          class="integ-card"
-          :class="{ featured: tool.featured, active: expandedTool === tool.id }"
-          @click="tool.href.startsWith('/integrations/') ? null : toggleTool(tool.id)"
-          :style="tool.href.startsWith('/integrations/') ? '' : 'cursor: pointer;'"
-        >
-          <div class="integ-card-hd">
-            <span class="integ-name">{{ tool.name }}</span>
-            <span v-if="tool.featured" class="badge-featured">{{ t('精选', 'Featured') }}</span>
-          </div>
-          <p>{{ locale === 'zh' ? tool.descZh : tool.desc }}</p>
-          <!-- Expanded setup instructions -->
-          <div v-if="expandedTool === tool.id && tool.setup" class="integ-setup">
-            <div class="code-wrapper">
-              <pre class="code-block"><code>{{ tool.setup }}</code></pre>
-              <button class="copy-btn" @click.stop.prevent="copyText(tool.setup)">{{ copyLabel }}</button>
+        <div class="quickstart-steps">
+          <div class="step" v-for="(step, i) in quickstartSteps" :key="i">
+            <div class="step-num">{{ i + 1 }}</div>
+            <div class="step-body">
+              <div class="step-title">{{ locale === 'zh' ? step.titleZh : step.title }}</div>
+              <div class="code-wrapper" v-if="step.code">
+                <pre class="code-block"><code>{{ step.code }}</code></pre>
+                <button class="copy-btn" @click="copyText(step.code)">{{ copiedKey === step.code ? t('已复制', 'Copied') : t('复制', 'Copy') }}</button>
+              </div>
+              <p class="step-note" v-if="step.note">{{ locale === 'zh' ? step.noteZh : step.note }}</p>
             </div>
           </div>
-          <span v-else class="integ-link">{{ tool.href.startsWith('/integrations/') ? t('查看详情', 'View details') + ' →' : t('查看接入方式', 'Setup guide') + ' ↓' }}</span>
-        </component>
-
-        <div class="integ-card coming">
-          <span class="integ-name">+ {{ t('更多即将支持', 'More coming soon') }}</span>
-          <p>{{ t('如有集成需求，欢迎提交 Issue', 'Submit an issue to request an integration') }}</p>
         </div>
-      </div>
+        <div class="quickstart-result">
+          <div class="result-label">{{ t('完成后，在 Claude Code 中直接说：', 'Then in Claude Code, just say:') }}</div>
+          <div class="result-examples">
+            <span class="result-example">"{{ t('记住我喜欢用 TypeScript', 'Remember I prefer TypeScript') }}"<span class="result-arrow">&rarr;</span>{{ t('保存到记忆库', 'saves to memory') }}</span>
+            <span class="result-example">"{{ t('我之前说过什么偏好？', 'What preferences did I mention?') }}"<span class="result-arrow">&rarr;</span>{{ t('从记忆库召回', 'recalls from memory') }}</span>
+          </div>
+        </div>
+        <p class="quickstart-tip">{{ t('如果提示 MCP failed to connect，请检查 Python 是否已安装：python --version（需要 3.11+）', 'If you see "MCP failed to connect", check Python is installed: python --version (requires 3.11+)') }}</p>
+      </section>
+
+      <!-- OpenClaw spotlight -->
+      <router-link to="/integrations/openclaw" class="spotlight">
+        <div class="spotlight-text">
+          <h3>OpenClaw</h3>
+          <p>{{ t('龙虾 AI 助手，原生 DBay 记忆集成。每次对话自动回忆、自动捕获、自动反思。', 'AI assistant with native DBay memory. Auto-recall, auto-capture, and auto-digest on every conversation.') }}</p>
+        </div>
+        <span class="spotlight-action">{{ t('查看详情', 'View details') }} &rarr;</span>
+      </router-link>
+
+      <!-- Tool setup panel -->
+      <section class="tools-section">
+        <h2>{{ t('接入其他工具', 'Setup for Other Tools') }}</h2>
+        <div class="tools-panel">
+          <nav class="tools-nav">
+            <button
+              v-for="tool in tools"
+              :key="tool.id"
+              :id="tool.id"
+              class="tool-tab"
+              :class="{ active: activeTool === tool.id }"
+              @click="activeTool = tool.id"
+            >
+              <span class="tool-tab-name">{{ tool.name }}</span>
+              <span class="tool-tab-desc">{{ locale === 'zh' ? tool.shortZh : tool.short }}</span>
+            </button>
+          </nav>
+          <div class="tools-content">
+            <div class="code-wrapper">
+              <pre class="code-block"><code>{{ activeSetup }}</code></pre>
+              <button class="copy-btn" @click="copyText(activeSetup)">{{ copiedKey === activeSetup ? t('已复制', 'Copied') : t('复制', 'Copy') }}</button>
+            </div>
+          </div>
+        </div>
+        <p class="tools-more">{{ t('更多工具即将支持。如有集成需求，欢迎提交', 'More tools coming soon. To request an integration, submit an') }} <a href="https://github.com/MatrixDriver/lakeon/issues" target="_blank" rel="noopener">Issue</a></p>
+      </section>
     </div>
   </main>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useLocale } from '../../stores/locale'
 import { listKnowledgeBases, type KnowledgeBase } from '../../api/knowledge'
 import { listMemoryBases, type MemoryBase } from '../../api/memory'
@@ -66,60 +86,45 @@ const knowledgeBases = ref<KnowledgeBase[]>([])
 const memoryBases = ref<MemoryBase[]>([])
 
 onMounted(async () => {
-  // Only fetch if user is logged in (has API key) — this is a public page
   const apiKey = localStorage.getItem('lakeon_api_key')
   if (!apiKey) return
   try {
     const [kbRes, memRes] = await Promise.all([listKnowledgeBases(), listMemoryBases()])
     knowledgeBases.value = kbRes.data
     memoryBases.value = memRes.data.filter(b => b.status === 'READY')
-  } catch { /* ignore — user may not be logged in */ }
+  } catch { /* ignore */ }
 })
 
-const copyLabel = ref('Copy')
+const copiedKey = ref('')
 function copyText(text: string) {
   navigator.clipboard.writeText(text)
-  copyLabel.value = 'Copied!'
-  setTimeout(() => { copyLabel.value = 'Copy' }, 1500)
+  copiedKey.value = text
+  setTimeout(() => { copiedKey.value = '' }, 1500)
 }
 
-const quickstartSnippet = `# 1. Install & login
-pip install dbay-cli
-dbay login
-
-# 2. Connect to Claude Code
-claude mcp add --scope user dbay -- python -m dbay_mcp
-
-# 3. Create a memory base
-dbay memory create                # plain memory
-dbay memory create --encrypted    # encrypted (e2e, you'll be prompted to set a password)
-
-# Embedding provider options:
-#   1) DBay (default)       — uses your DBay API key
-#   2) External API         — bring your own endpoint/key/model
-#   3) Local model          — coming soon
-
-# Done! In Claude Code, just say:
-#   "记住我喜欢用 TypeScript"    → saves to memory
-#   "我之前说过什么偏好？"        → recalls from memory`
-
-const expandedTool = ref<string | null>(null)
-function toggleTool(id: string) {
-  expandedTool.value = expandedTool.value === id ? null : id
-}
-
-const integrations = [
+const quickstartSteps = [
   {
-    id: 'openclaw', anchor: 'openclaw', name: 'OpenClaw', featured: true,
-    href: '/integrations/openclaw',
-    desc: 'OpenClaw AI assistant with native DBay memory integration. Auto-recall, auto-capture, and auto-digest on every conversation.',
-    descZh: '龙虾 AI 助手，原生 DBay 记忆集成。每次对话自动回忆、自动捕获、自动反思。',
+    titleZh: '安装并登录', title: 'Install & login',
+    code: 'pip install dbay-cli\ndbay login',
+    noteZh: 'API Key 存放在 ~/.dbay/config.json，不进入 Claude 配置文件或代码仓库。',
+    note: 'API Key lives in ~/.dbay/config.json — never enters Claude config or your repo.',
   },
   {
-    id: 'claude-code', anchor: 'claude-code', name: 'Claude Code', featured: true,
-    href: '/integrations#claude-code',
-    desc: 'Connect DBay memory and knowledge base to Claude Code via MCP for persistent project context.',
-    descZh: '通过 MCP 将 DBay 记忆库与知识库接入 Claude Code，实现持久化项目上下文。',
+    titleZh: '连接 Claude Code', title: 'Connect Claude Code',
+    code: 'claude mcp add --scope user dbay -- python -m dbay_mcp',
+  },
+  {
+    titleZh: '创建记忆库', title: 'Create a memory base',
+    code: 'dbay memory create                # plain memory\ndbay memory create --encrypted    # encrypted (e2e, you\'ll be prompted to set a password)',
+    noteZh: 'Embedding 可选：1) DBay（默认）  2) 自有 API  3) 本地模型（即将支持）',
+    note: 'Embedding options: 1) DBay (default)  2) External API  3) Local model (coming soon)',
+  },
+]
+
+const tools = [
+  {
+    id: 'claude-code', name: 'Claude Code',
+    shortZh: 'MCP 命令行注册', short: 'CLI registration',
     setup: `# 1. Install & login
 pip install dbay-cli
 dbay login
@@ -132,10 +137,8 @@ dbay memory create                # plain memory
 dbay memory create --encrypted    # encrypted (e2e, you'll be prompted to set a password)`,
   },
   {
-    id: 'claude-desktop', anchor: 'claude-desktop', name: 'Claude Desktop', featured: false,
-    href: '/integrations#claude-desktop',
-    desc: 'Persistent memory for Claude Desktop conversations across sessions.',
-    descZh: '让 Claude Desktop 的对话记忆跨会话持久化。',
+    id: 'claude-desktop', name: 'Claude Desktop',
+    shortZh: 'JSON 配置文件', short: 'JSON config',
     setup: `# 1. Install & login
 pip install dbay-cli
 dbay login
@@ -155,10 +158,8 @@ dbay memory create                # plain memory
 dbay memory create --encrypted    # encrypted (e2e, you'll be prompted to set a password)`,
   },
   {
-    id: 'cursor', anchor: 'cursor', name: 'Cursor', featured: false,
-    href: '/integrations#cursor',
-    desc: 'Codebase knowledge base retrieval and project memory in Cursor.',
-    descZh: '在 Cursor 中使用代码库知识库检索和项目记忆。',
+    id: 'cursor', name: 'Cursor',
+    shortZh: '项目级 MCP 配置', short: 'Project MCP config',
     setup: `# 1. Install & login
 pip install dbay-cli
 dbay login
@@ -178,10 +179,8 @@ dbay memory create                # plain memory
 dbay memory create --encrypted    # encrypted (e2e, you'll be prompted to set a password)`,
   },
   {
-    id: 'gemini-cli', anchor: 'gemini-cli', name: 'Gemini CLI', featured: false,
-    href: '/integrations#gemini-cli',
-    desc: 'Long-term memory for Gemini CLI — your AI assistant remembers between sessions.',
-    descZh: '为 Gemini CLI 提供长期记忆能力，跨会话记住用户偏好和上下文。',
+    id: 'gemini-cli', name: 'Gemini CLI',
+    shortZh: '全局配置文件', short: 'Global settings',
     setup: `# 1. Install & login
 pip install dbay-cli
 dbay login
@@ -201,64 +200,307 @@ dbay memory create                # plain memory
 dbay memory create --encrypted    # encrypted (e2e, you'll be prompted to set a password)`,
   },
   {
-    id: 'chatgpt', anchor: 'chatgpt', name: 'ChatGPT', featured: false,
-    href: '/integrations#chatgpt',
-    desc: 'Cross-session user memory sync for ChatGPT Plus and above.',
-    descZh: '为 ChatGPT Plus 及以上用户提供跨会话记忆同步。',
-    setup: `# ChatGPT 通过 REST API 集成（需要自建中间层）
-# 详见 API 文档: https://dbay.cloud/docs/rest-api`,
+    id: 'chatgpt', name: 'ChatGPT',
+    shortZh: 'REST API 集成', short: 'REST API',
+    setup: `# ChatGPT integrates via REST API (requires a middleware layer)
+# See API docs: https://dbay.cloud/docs/rest-api`,
   },
 ]
+
+const activeTool = ref('claude-code')
+const activeSetup = computed(() => tools.find(t => t.id === activeTool.value)?.setup ?? '')
 </script>
 
 <style scoped>
-.integrations-page { min-height: 100vh; background: var(--pub-bg); color: var(--pub-text); }
-.integrations-inner { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
-h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
-.integ-subtitle { color: var(--pub-text-2); font-size: 15px; margin-bottom: 32px; max-width: 600px; }
-.mcp-quickstart {
-  background: var(--pub-surface); border: 1px solid var(--pub-border);
-  border-radius: 10px; padding: 20px; margin-bottom: 40px;
+.integrations-page {
+  min-height: 100vh;
+  background: var(--pub-bg);
+  color: var(--pub-text);
 }
-.mcp-quickstart h3 { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
+.integrations-inner {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 56px 24px 80px;
+}
+
+h1 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+}
+.integ-subtitle {
+  color: var(--pub-text-3);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 40px;
+  max-width: 520px;
+}
+
+/* ---- Quick Start ---- */
+.quickstart {
+  margin-bottom: 48px;
+}
+.quickstart-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.quickstart-header h2 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0;
+}
+.quickstart-badge {
+  font-size: 11px;
+  color: var(--pub-hint-text);
+  background: var(--pub-hint-bg);
+  border: 1px solid var(--pub-hint-border);
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.quickstart-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.step {
+  display: flex;
+  gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--pub-border);
+}
+.step:first-child { padding-top: 0; }
+.step:last-child { border-bottom: none; }
+
+.step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--pub-text);
+  color: var(--pub-surface);
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.step-body {
+  flex: 1;
+  min-width: 0;
+}
+.step-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--pub-text);
+}
+.step-note {
+  font-size: 12px;
+  color: var(--pub-text-4);
+  margin: 8px 0 0;
+  line-height: 1.5;
+}
+
+/* ---- Quick Start result ---- */
+.quickstart-result {
+  margin-top: 20px;
+  padding: 14px 16px;
+  background: var(--pub-accent-bg);
+  border-radius: 8px;
+}
+.result-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pub-text-2);
+  margin-bottom: 8px;
+}
+.result-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.result-example {
+  font-size: 13px;
+  color: var(--pub-text);
+  font-family: monospace;
+}
+.result-arrow {
+  display: inline-block;
+  margin: 0 8px;
+  color: var(--pub-text-4);
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.quickstart-tip {
+  font-size: 11px;
+  color: var(--pub-text-4);
+  margin: 12px 0 0;
+  line-height: 1.5;
+}
+
+/* ---- OpenClaw spotlight ---- */
+.spotlight {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  margin-bottom: 48px;
+  background: var(--pub-surface);
+  border: 1px solid var(--pub-border);
+  border-radius: 10px;
+  text-decoration: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.spotlight:hover {
+  border-color: var(--pub-code);
+  box-shadow: 0 2px 12px var(--pub-shadow);
+}
+.spotlight-text {
+  flex: 1;
+}
+.spotlight-text h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--pub-text);
+  margin: 0 0 4px;
+}
+.spotlight-text p {
+  font-size: 13px;
+  color: var(--pub-text-2);
+  margin: 0;
+  line-height: 1.5;
+}
+.spotlight-action {
+  font-size: 13px;
+  color: var(--pub-code);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ---- Tool setup panel ---- */
+.tools-section {
+  margin-bottom: 40px;
+}
+.tools-section h2 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0 0 16px;
+}
+.tools-panel {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  border: 1px solid var(--pub-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--pub-surface);
+}
+
+.tools-nav {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--pub-border);
+  background: var(--pub-bg);
+}
+.tool-tab {
+  all: unset;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--pub-border);
+  transition: background 0.15s;
+}
+.tool-tab:last-child { border-bottom: none; }
+.tool-tab:hover { background: var(--pub-hover); }
+.tool-tab.active {
+  background: var(--pub-surface);
+  box-shadow: inset 3px 0 0 var(--pub-code);
+}
+.tool-tab-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pub-text);
+}
+.tool-tab-desc {
+  font-size: 11px;
+  color: var(--pub-text-4);
+  margin-top: 2px;
+}
+
+.tools-content {
+  padding: 16px;
+  min-height: 240px;
+}
+
+.tools-more {
+  font-size: 12px;
+  color: var(--pub-text-4);
+  margin: 12px 0 0;
+}
+.tools-more a {
+  color: var(--pub-code);
+  text-decoration: none;
+}
+.tools-more a:hover { text-decoration: underline; }
+
+/* ---- Shared: code blocks ---- */
 .code-wrapper { position: relative; }
+.code-block {
+  background: var(--pub-code-bg);
+  border: 1px solid var(--pub-border);
+  border-radius: 6px;
+  padding: 14px;
+  font-size: 12px;
+  color: var(--pub-code);
+  overflow-x: auto;
+  margin: 0;
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  white-space: pre;
+  line-height: 1.6;
+}
 .copy-btn {
-  position: absolute; top: 8px; right: 8px;
-  background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 4px;
-  padding: 2px 8px; font-size: 11px; color: var(--pub-text-4); cursor: pointer;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--pub-surface);
+  border: 1px solid var(--pub-border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--pub-text-4);
+  cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
 }
 .copy-btn:hover { color: var(--pub-code); border-color: var(--pub-code); }
-.code-block {
-  background: var(--pub-code-bg); border: 1px solid var(--pub-border); border-radius: 6px;
-  padding: 14px; font-size: 12px; color: var(--pub-code);
-  overflow-x: auto; margin: 0; font-family: monospace; white-space: pre;
-}
-.tip { font-size: 12px; color: var(--pub-text-4); margin-top: 8px; }
-.integ-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.integ-card {
-  background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 10px;
-  padding: 18px; text-decoration: none; display: flex;
-  flex-direction: column; gap: 8px; transition: border-color 0.15s;
-}
-.integ-card:hover { border-color: var(--pub-code); }
-.integ-card.featured { border-color: var(--pub-accent-border); background: var(--pub-accent-bg); }
-.integ-card.coming { border-style: dashed; border-color: var(--pub-border); cursor: default; }
-.integ-card.coming:hover { border-color: var(--pub-border); }
-.integ-card-hd { display: flex; align-items: center; gap: 8px; }
-.integ-name { font-size: 15px; font-weight: 600; color: var(--pub-text); }
-.badge-featured {
-  font-size: 10px; background: #7c3aed15; color: var(--pub-code);
-  padding: 1px 6px; border-radius: 4px;
-}
-.integ-card p { font-size: 12px; color: var(--pub-text-2); margin: 0; line-height: 1.5; flex: 1; }
-.integ-link { font-size: 12px; color: var(--pub-code); margin-top: auto; }
-.integ-card.active { border-color: var(--pub-code); }
-.integ-setup { margin-top: 12px; }
-.integ-setup .code-wrapper { position: relative; }
-.integ-setup .code-block { font-size: 12px; padding: 12px; border-radius: 6px; background: var(--pub-surface); overflow-x: auto; }
-.integ-setup .copy-btn { position: absolute; top: 8px; right: 8px; }
-@media (max-width: 768px) {
-  .integ-grid { grid-template-columns: 1fr; }
+
+/* ---- Responsive ---- */
+@media (max-width: 640px) {
+  .tools-panel {
+    grid-template-columns: 1fr;
+  }
+  .tools-nav {
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid var(--pub-border);
+    overflow-x: auto;
+  }
+  .tool-tab {
+    border-bottom: none;
+    border-right: 1px solid var(--pub-border);
+    white-space: nowrap;
+    padding: 10px 14px;
+  }
+  .tool-tab:last-child { border-right: none; }
+  .tool-tab.active {
+    box-shadow: inset 0 -2px 0 var(--pub-code);
+  }
+  .tool-tab-desc { display: none; }
+  .spotlight { flex-direction: column; align-items: flex-start; }
 }
 </style>
