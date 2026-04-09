@@ -97,7 +97,11 @@ dbay memory create --encrypted    # encrypted (e2e, you'll be prompted to set a 
 # Embedding provider options:
 #   1) DBay (default)       — uses your DBay API key
 #   2) External API         — bring your own endpoint/key/model
-#   3) Local model          — coming soon`
+#   3) Local model          — coming soon
+
+# Done! In Claude Code, just say:
+#   "记住我喜欢用 TypeScript"    → saves to memory
+#   "我之前说过什么偏好？"        → recalls from memory`
 
 const expandedTool = ref<string | null>(null)
 function toggleTool(id: string) {

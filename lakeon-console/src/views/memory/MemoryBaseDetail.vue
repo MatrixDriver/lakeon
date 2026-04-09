@@ -250,11 +250,13 @@ dbay login</pre>
             <div class="enc-step">
               <div class="enc-step-num" style="background: #6b8e8a;">4</div>
               <div style="flex: 1;">
-                <div class="enc-step-title">验证</div>
-                <p class="enc-step-desc">重启 Claude Code，输入 <code>/mcp</code> 确认 dbay 已连接，然后试试：</p>
+                <div class="enc-step-title">开始使用</div>
+                <p class="enc-step-desc">重启 Claude Code，输入 <code>/mcp</code> 确认 dbay 已连接。然后直接对 Claude 说：</p>
                 <div style="position: relative;">
-                  <pre class="code-block">对 Claude 说："记住我偏好 TypeScript"</pre>
+                  <pre class="code-block">"记住我喜欢用 TypeScript"     → 保存到记忆库
+"我之前说过什么偏好？"          → 从记忆库召回</pre>
                 </div>
+                <p class="enc-step-desc" style="margin-top: 6px;">Claude 会自动调用 DBay 记忆库，无需其他操作。你说「记住」它就存，你问它就回忆。</p>
                 <p class="enc-step-desc" style="margin-top: 6px; color: #999;">如果提示 MCP failed to connect，请检查 Python 是否已安装：<code>python --version</code>，需要 Python 3.11+。</p>
               </div>
             </div>
@@ -337,12 +339,13 @@ dbay login</pre>
             <div class="enc-step">
               <div class="enc-step-num">6</div>
               <div style="flex: 1;">
-                <div class="enc-step-title">验证</div>
-                <p class="enc-step-desc">重启 Claude Code，输入 <code>/mcp</code> 确认 dbay 已连接，然后试试：</p>
+                <div class="enc-step-title">开始使用</div>
+                <p class="enc-step-desc">重启 Claude Code，输入 <code>/mcp</code> 确认 dbay 已连接。然后直接对 Claude 说：</p>
                 <div style="position: relative;">
-                  <pre class="code-block">对 Claude 说："记住我偏好 TypeScript"</pre>
+                  <pre class="code-block">"记住我喜欢用 TypeScript"     → 保存到记忆库（本地加密后上传）
+"我之前说过什么偏好？"          → 从记忆库召回（下载后本地解密）</pre>
                 </div>
-                <p class="enc-step-desc" style="margin-top: 6px;">Claude 会调用 <code>memory_ingest</code>，内容在本地加密后上传。你可以在本页的「记忆浏览」中看到密文（无法解读），确认加密生效。</p>
+                <p class="enc-step-desc" style="margin-top: 6px;">你说「记住」它就存，你问它就回忆。加密记忆库的内容在本地加密后上传，服务端只存密文。你可以在本页的「记忆浏览」中看到密文，确认加密生效。</p>
                 <p class="enc-step-desc" style="margin-top: 6px; color: #999;">如果提示 MCP failed to connect，请检查 Python 是否已安装：<code>python --version</code>，需要 Python 3.11+。</p>
               </div>
             </div>
