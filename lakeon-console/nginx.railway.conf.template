@@ -42,7 +42,9 @@ server {
         proxy_pass https://github.com/login/oauth/access_token;
         proxy_ssl_server_name on;
         proxy_set_header Host github.com;
-        proxy_set_header Accept application/json;
+        proxy_set_header User-Agent DBay;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 15s;
     }
 
     location /oauth-relay/github/api/ {
