@@ -143,6 +143,14 @@ lakeon:
   warm-pool-idle-timeout-minutes: "${LAKEON_DATALAKE_WARM_POOL_IDLE_TIMEOUT:30}"
   log:
     db-dsn: "${LOG_DB_DSN:}"
+  oauth:
+    callback-base-url: ${LAKEON_OAUTH_CALLBACK_BASE_URL:http://localhost:8080}
+    google:
+      client-id: ${LAKEON_OAUTH_GOOGLE_CLIENT_ID:}
+      client-secret: ${LAKEON_OAUTH_GOOGLE_CLIENT_SECRET:}
+    github:
+      client-id: ${LAKEON_OAUTH_GITHUB_CLIENT_ID:}
+      client-secret: ${LAKEON_OAUTH_GITHUB_CLIENT_SECRET:}
 
 management:
   endpoints:

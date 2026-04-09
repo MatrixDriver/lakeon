@@ -22,6 +22,12 @@ public class TenantEntity {
     @Column(name = "password_hash", length = 128)
     private String passwordHash;
 
+    @Column(name = "email", length = 255)
+    private String email;
+
+    @Column(name = "avatar_url", length = 512)
+    private String avatarUrl;
+
     @Column(name = "api_key", nullable = false, unique = true, length = 128)
     private String apiKey;
 
@@ -103,6 +109,12 @@ public class TenantEntity {
 
     public String getPasswordHash() { return passwordHash; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
 
     public String getApiKey() {
         return apiKey;

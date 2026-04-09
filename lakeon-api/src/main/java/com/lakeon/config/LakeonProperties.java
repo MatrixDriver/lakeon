@@ -31,6 +31,7 @@ public class LakeonProperties {
     private DemoConfig demo = new DemoConfig();
     private HwcloudConfig hwcloud = new HwcloudConfig();
     private WikiConfig wiki = new WikiConfig();
+    private OAuthConfig oauth = new OAuthConfig();
 
     public NeonConfig getNeon() { return neon; }
     public void setNeon(NeonConfig neon) { this.neon = neon; }
@@ -74,6 +75,8 @@ public class LakeonProperties {
     public void setHwcloud(HwcloudConfig hwcloud) { this.hwcloud = hwcloud; }
     public WikiConfig getWiki() { return wiki; }
     public void setWiki(WikiConfig wiki) { this.wiki = wiki; }
+    public OAuthConfig getOauth() { return oauth; }
+    public void setOauth(OAuthConfig oauth) { this.oauth = oauth; }
 
     public static class NeonConfig {
         private String pageserverUrl;
@@ -423,6 +426,29 @@ public class LakeonProperties {
         public void setChatRoutingPrompt(String chatRoutingPrompt) { this.chatRoutingPrompt = chatRoutingPrompt; }
         public String getChatAnswerPrompt() { return chatAnswerPrompt; }
         public void setChatAnswerPrompt(String chatAnswerPrompt) { this.chatAnswerPrompt = chatAnswerPrompt; }
+    }
+
+    public static class OAuthConfig {
+        private OAuthProviderConfig google = new OAuthProviderConfig();
+        private OAuthProviderConfig github = new OAuthProviderConfig();
+        private String callbackBaseUrl = "";
+
+        public OAuthProviderConfig getGoogle() { return google; }
+        public void setGoogle(OAuthProviderConfig google) { this.google = google; }
+        public OAuthProviderConfig getGithub() { return github; }
+        public void setGithub(OAuthProviderConfig github) { this.github = github; }
+        public String getCallbackBaseUrl() { return callbackBaseUrl; }
+        public void setCallbackBaseUrl(String callbackBaseUrl) { this.callbackBaseUrl = callbackBaseUrl; }
+    }
+
+    public static class OAuthProviderConfig {
+        private String clientId = "";
+        private String clientSecret = "";
+
+        public String getClientId() { return clientId; }
+        public void setClientId(String clientId) { this.clientId = clientId; }
+        public String getClientSecret() { return clientSecret; }
+        public void setClientSecret(String clientSecret) { this.clientSecret = clientSecret; }
     }
 
     public static class DatalakeConfig {
