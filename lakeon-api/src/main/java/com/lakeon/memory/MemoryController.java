@@ -77,8 +77,8 @@ public class MemoryController {
         MemoryBaseEntity mem = memoryService.getBase(tenant.getId(), id);
         if (Boolean.TRUE.equals(mem.getEncrypted()) && !body.containsKey("embedding")) {
             throw new com.lakeon.service.exception.BadRequestException(
-                "Encrypted memory base requires 'embedding' parameter. " +
-                "Please upgrade dbay-mcp to 0.5.2+ for client-side encryption support.");
+                "Server rejected plaintext memory for encrypted base. " +
+                "Your client is sending unencrypted content. Please upgrade: pip install --upgrade dbay-mcp>=0.5.2");
         }
         Object result = memoryService.proxyPost(tenant.getId(), id, "/ingest", body);
         memoryService.refreshCountAsync(tenant.getId(), id);
