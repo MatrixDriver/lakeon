@@ -16,27 +16,43 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 
 const router = useRouter()
-const route = useRoute()
 const authStore = useAuthStore()
 const error = ref('')
 
-onMounted(async () => {
-  const code = route.query.code as string
-  if (!code) {
-    error.value = '缺少授权码'
+onMounted(() => {
+  // Tenant info comes via hash fragment (not query params) to avoid server log exposure
+  const hash = window.location.hash.substring(1)
+  const params = new URLSearchParams(hash)
+  const apiKey = params.get('api_key')
+  const tenantId = params.get('tenant_id')
+  const name = params.get('name') || ''
+  const username = params.get('username') || ''
+
+  if (!apiKey) {
+    error.value = '登录失败：未收到凭证'
     return
   }
 
-  const result = await authStore.loginWithOAuthCode(code)
-  if (result.ok) {
-    router.push('/dashboard')
-  } else {
-    error.value = result.error || '登录失败'
+  // Store auth state directly — no second API call needed
+  localStorage.setItem('lakeon_api_key', apiKey)
+  localStorage.setItem('lakeon_tenant_id', tenantId || '')
+  localStorage.setItem('lakeon_tenant_name', name)
+  localStorage.setItem('lakeon_username', username)
+  authStore.apiKey = apiKey
+  authStore.setTenant(tenantId || '', name)
+  if (username) {
+    authStore.username = username
+    localStorage.setItem('lakeon_username', username)
   }
+  authStore.setTrialState(false)
+
+  // Clear hash fragment from URL
+  window.history.replaceState(null, '', window.location.pathname)
+  router.push('/dashboard')
 })
 
 function goToLogin() {

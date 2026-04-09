@@ -249,14 +249,8 @@ public class OAuthService {
             throw new IllegalStateException("Account is disabled");
         }
 
-        // 5. Generate temp auth code, store in authCodes map
-        String authCode = generateAuthCode();
-        authCodes.put(authCode, new AuthCodeEntry(tenant.getId(), System.currentTimeMillis() + AUTH_CODE_TTL_MS));
-
         log.info("OAuth login: provider={} tenantId={}", provider, tenant.getId());
-
-        // 6. Return auth code
-        return authCode;
+        return tenant.getId();
     }
 
     private TenantEntity createNewTenant(String provider, String displayName, String providerUserId,

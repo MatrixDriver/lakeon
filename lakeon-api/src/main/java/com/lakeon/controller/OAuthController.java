@@ -56,16 +56,18 @@ public class OAuthController {
                          @RequestParam(required = false) String state,
                          HttpServletResponse response) throws IOException {
         try {
-            String authCode = switch (provider) {
+            String tenantId = switch (provider) {
                 case "google" -> oauthService.handleGoogleCallback(code);
                 case "github" -> oauthService.handleGithubCallback(code);
                 default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown provider: " + provider);
             };
 
+            // Get tenant with api_key
+            TenantResponse tenant = tenantService.getForLogin(tenantId);
+
             // Extract redirect_uri from state
             String redirectUri = extractRedirectUri(state);
             if (redirectUri.isEmpty()) {
-                // Default: console OAuth callback page
                 redirectUri = props.getOauth().getCallbackBaseUrl().replace("/api/v1", "")
                         .replace(":8080", ":5173");
                 if (redirectUri.contains("8443")) {
@@ -74,8 +76,12 @@ public class OAuthController {
                 redirectUri += "/oauth/callback";
             }
 
-            String separator = redirectUri.contains("?") ? "&" : "?";
-            response.sendRedirect(redirectUri + separator + "code=" + authCode + "&provider=" + provider);
+            // Pass tenant info via hash fragment (not exposed in server logs)
+            String fragment = "api_key=" + tenant.getApiKey()
+                    + "&tenant_id=" + tenant.getId()
+                    + "&name=" + java.net.URLEncoder.encode(tenant.getName() != null ? tenant.getName() : "", java.nio.charset.StandardCharsets.UTF_8)
+                    + "&username=" + java.net.URLEncoder.encode(tenant.getUsername() != null ? tenant.getUsername() : "", java.nio.charset.StandardCharsets.UTF_8);
+            response.sendRedirect(redirectUri + "#" + fragment);
         } catch (Exception e) {
             log.error("OAuth callback failed for provider={}", provider, e);
             response.sendRedirect("/login?error=oauth_failed");
