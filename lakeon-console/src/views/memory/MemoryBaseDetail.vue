@@ -205,6 +205,61 @@
       <!-- Settings tab -->
       <div v-if="activeTab === 'settings'" style="margin-top: 24px;">
 
+        <!-- CLI Quick Start (non-encrypted) -->
+        <div v-if="base?.type === 'BUILTIN' && !base?.encrypted" class="section-card" style="padding: 20px 24px; margin-bottom: 24px; border-left: 3px solid #6b8e8a;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+            <span style="font-size: 18px;">&#x2318;</span>
+            <h3 style="font-size: 15px; font-weight: 600; margin: 0; color: #333;">CLI Quick Start — Claude Code</h3>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="enc-step">
+              <div class="enc-step-num" style="background: #6b8e8a;">1</div>
+              <div style="flex: 1;">
+                <div class="enc-step-title">安装并登录</div>
+                <div style="position: relative;">
+                  <pre class="code-block">pip install dbay-cli
+dbay login</pre>
+                  <button class="copy-btn" @click.stop="copyCode('pip install dbay-cli\ndbay login')">{{ copied === 'pip install dbay-cli\ndbay login' ? '已复制 ✓' : '复制' }}</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="enc-step">
+              <div class="enc-step-num" style="background: #6b8e8a;">2</div>
+              <div style="flex: 1;">
+                <div class="enc-step-title">设为默认记忆库</div>
+                <div style="position: relative;">
+                  <pre class="code-block">dbay mem use {{ base.id }}</pre>
+                  <button class="copy-btn" @click.stop="copyCode('dbay mem use ' + base.id)">{{ copied === 'dbay mem use ' + base.id ? '已复制 ✓' : '复制' }}</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="enc-step">
+              <div class="enc-step-num" style="background: #6b8e8a;">3</div>
+              <div style="flex: 1;">
+                <div class="enc-step-title">注册 MCP Server 到 Claude Code</div>
+                <div style="position: relative;">
+                  <pre class="code-block">claude mcp add --scope user dbay -- uvx dbay-mcp</pre>
+                  <button class="copy-btn" @click.stop="copyCode('claude mcp add --scope user dbay -- uvx dbay-mcp')">{{ copied === 'claude mcp add --scope user dbay -- uvx dbay-mcp' ? '已复制 ✓' : '复制' }}</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="enc-step">
+              <div class="enc-step-num" style="background: #6b8e8a;">4</div>
+              <div style="flex: 1;">
+                <div class="enc-step-title">验证</div>
+                <p class="enc-step-desc">重启 Claude Code，输入 <code>/mcp</code> 确认 dbay 已连接，然后试试：</p>
+                <div style="position: relative;">
+                  <pre class="code-block">对 Claude 说："记住我偏好 TypeScript"</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Encryption quick start guide -->
         <div v-if="base?.encrypted" class="section-card" style="padding: 20px 24px; margin-bottom: 24px; border-left: 3px solid #8c7a68;">
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
