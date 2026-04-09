@@ -112,6 +112,12 @@ public class ApiKeyFilter implements Filter {
             return;
         }
 
+        // OAuth endpoints (public, no auth)
+        if (path.startsWith("/api/v1/auth/oauth/")) {
+            chain.doFilter(req, res);
+            return;
+        }
+
         // Trial endpoint (no auth required)
         if ("POST".equals(request.getMethod()) && "/api/v1/trial".equals(path)) {
             chain.doFilter(req, res);

@@ -115,6 +115,12 @@ public class TenantService {
         return toResponseWithDisabled(entity, dbCount);
     }
 
+    public TenantResponse getForLogin(String tenantId) {
+        TenantEntity entity = tenantRepository.findById(tenantId)
+            .orElseThrow(() -> new NotFoundException("Tenant not found: " + tenantId));
+        return toResponse(entity);
+    }
+
     @Transactional
     public TenantResponse regenerateApiKey(String tenantId) {
         TenantEntity tenant = tenantRepository.findById(tenantId)
