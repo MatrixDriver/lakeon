@@ -78,6 +78,9 @@ public class RateLimitFilter implements Filter {
         if ("POST".equals(method) && path.startsWith("/api/v1/auth/login")) {
             return RateRule.LOGIN;
         }
+        if (path.startsWith("/api/v1/auth/oauth/")) {
+            return RateRule.OAUTH;
+        }
         if (path.startsWith("/api/v1/") && !path.startsWith("/api/v1/admin/")
                 && !path.startsWith("/actuator")) {
             return RateRule.API;
@@ -112,6 +115,7 @@ public class RateLimitFilter implements Filter {
     private enum RateRule {
         REGISTER("reg", true, 10, 3600_000L),       // 10/hour per IP
         LOGIN("login", true, 10, 60_000L),           // 10/min per IP
+        OAUTH("oauth", true, 20, 60_000L),           // 20/min per IP
         API("api", false, 200, 60_000L);             // 200/min per key
 
         final String keyPrefix;
