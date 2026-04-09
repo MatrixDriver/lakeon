@@ -282,7 +282,7 @@ def get_dek(mem_id: str, encrypted_dek_b64: str) -> bytes:
 
     config = bases[mem_id]
     encrypted_private_key = config["encrypted_private_key"]
-    salt = base64.b64decode(config["salt"])
+    salt = base64.b64decode(config["kdf_salt"])
 
     # Decrypt private key with password
     private_pem = decrypt_private_key(encrypted_private_key, password, salt)
