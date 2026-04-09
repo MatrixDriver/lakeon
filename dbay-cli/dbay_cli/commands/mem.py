@@ -136,7 +136,7 @@ def _create_encrypted(name: str, desc: str | None, agent_extract: bool):
     typer.echo("\nEmbedding provider:")
     typer.echo("  1) DBay (default, uses your API key)")
     typer.echo("  2) External API (provide endpoint/key/model)")
-    typer.echo("  3) Local model (not yet supported)")
+    typer.echo("  3) Local model (requires: pip install sentence-transformers)")
     choice = typer.prompt("Choose", default="1")
 
     embedding_config: dict = {}
@@ -149,8 +149,14 @@ def _create_encrypted(name: str, desc: str | None, agent_extract: bool):
             "embedding_api_key": typer.prompt("Embedding API key", default=""),
             "embedding_model": typer.prompt("Embedding model name"),
         }
+    elif choice == "3":
+        model = typer.prompt("Model name", default="BAAI/bge-m3")
+        embedding_config = {
+            "embedding_provider": "local",
+            "embedding_model": model,
+        }
     else:
-        typer.echo("Local model not yet supported.", err=True)
+        typer.echo("Invalid choice.", err=True)
         raise typer.Exit(1)
 
     # 3. Generate keys

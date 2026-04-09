@@ -4,7 +4,7 @@ Local embedding generation for encrypted memory bases.
 Supports three providers:
 - "dbay"     — call DBay's embedding API (uses user's apikey)
 - "external" — user-provided embedding API endpoint (OpenAI-compatible)
-- "local"    — not yet supported
+- "local"    — run sentence-transformers model locally (requires: pip install sentence-transformers)
 """
 
 from __future__ import annotations
@@ -12,6 +12,10 @@ from __future__ import annotations
 import httpx
 
 from dbay_mcp.crypto import load_encrypted_bases
+
+# Lazy-loaded local model cache
+_local_model = None
+_local_model_name = None
 
 
 def _get_embedding_config(mem_id: str) -> dict:
@@ -43,10 +47,7 @@ def generate_embedding(
         return _embed_external(text, config)
 
     if provider == "local":
-        raise RuntimeError(
-            "Local embedding provider is not yet supported. "
-            "Use 'dbay' or 'external' provider instead."
-        )
+        return _embed_local(text, config)
 
     raise RuntimeError(f"Unknown embedding provider: {provider}")
 
@@ -81,6 +82,27 @@ def _embed_external(text: str, config: dict) -> list[float]:
     resp = httpx.post(ep, json={"model": model, "input": text}, headers=headers, verify=False, timeout=30)
     resp.raise_for_status()
     return resp.json()["data"][0]["embedding"]
+
+
+def _embed_local(text: str, config: dict) -> list[float]:
+    """Run sentence-transformers model locally."""
+    global _local_model, _local_model_name
+
+    model_name = config.get("embedding_model", "BAAI/bge-m3")
+
+    if _local_model is None or _local_model_name != model_name:
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError:
+            raise RuntimeError(
+                "Local embedding requires sentence-transformers. "
+                "Install it with: pip install sentence-transformers"
+            )
+        _local_model = SentenceTransformer(model_name)
+        _local_model_name = model_name
+
+    embedding = _local_model.encode(text, normalize_embeddings=True)
+    return embedding.tolist()
 
 
 def probe_embedding_dim(
