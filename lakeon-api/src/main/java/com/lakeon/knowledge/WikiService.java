@@ -103,6 +103,7 @@ public class WikiService {
             5. Improve page structure: add clear headings, remove redundancy, ensure accuracy.
             6. Update the index to reflect the reorganized structure.
             7. Write in Simplified Chinese (简体中文) regardless of the source content language. Translate any existing pages that are not in Chinese.
+            8. DELETE pages that cover generic, widely-known concepts not specific to this knowledge base (e.g. "AI 产品设计", "对话式 AI", "数据安全"). Only keep pages for concepts that are central and unique to what this KB is about. Add them to the "delete_pages" array.
 
             Output a JSON object with this exact structure:
             {
