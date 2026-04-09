@@ -1,6 +1,6 @@
 [project]
 name = "dbay-mcp"
-version = "0.5.1"
+version = "0.5.2"
 description = "DBay MCP server — knowledge base and agent memory for AI tools"
 requires-python = ">=3.11"
 dependencies = [

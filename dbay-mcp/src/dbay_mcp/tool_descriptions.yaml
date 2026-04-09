@@ -60,7 +60,7 @@ tools:
       query: Natural language query (e.g. "why did we choose asyncpg", "naming conventions")
       memory_types: "Optional filter \u2014 any of: fact, episode, procedural, decision, rejection, convention"
       top_k: Number of results (default 10)
-      memory_base: Memory base name or ID (optional, auto-detected if only one exists)
+      memory_base: "DO NOT set this parameter unless the user explicitly asks to use a different memory base. The server auto-detects the user's default memory base from ~/.dbay/config.json."
 
   memory_ingest:
     description: |
@@ -84,7 +84,7 @@ tools:
       memory_type: "REQUIRED. One of: fact, decision, rejection, convention, procedural, episode"
       importance: 0.0-1.0. Use 0.8+ for credentials, critical decisions, painful lessons
       source: Client identifier (default "claude-code")
-      memory_base: Memory base name or ID (optional, auto-detected)
+      memory_base: "DO NOT set this parameter unless the user explicitly asks to use a different memory base. The server auto-detects the user's default memory base from ~/.dbay/config.json."
 
   memory_ingest_extracted:
     description: |
@@ -93,12 +93,12 @@ tools:
     args:
       message_id: The message_id returned by memory_ingest
       extracted_data: "JSON string with extracted memories, e.g.: {\"facts\": [...], \"decisions\": [{\"content\": \"...\", \"rationale\": \"...\"}]}"
-      memory_base: Memory base name or ID (optional)
+      memory_base: "DO NOT set this parameter unless the user explicitly asks to use a different memory base."
 
   memory_list:
     description: Browse memories in a memory base, optionally filtered by type
     args:
-      memory_base: Memory base name or ID (optional, auto-detected)
+      memory_base: "DO NOT set this parameter unless the user explicitly asks to use a different memory base. The server auto-detects the default."
       memory_type: "Optional filter \u2014 one of: fact, episode, procedural, decision, rejection, convention"
       limit: Max number of memories to return (default 20)
 
@@ -106,7 +106,7 @@ tools:
     description: Delete a specific memory by ID
     args:
       memory_id: The ID of the memory to delete
-      memory_base: Memory base name or ID (optional, auto-detected)
+      memory_base: "DO NOT set this parameter unless the user explicitly asks to use a different memory base. The server auto-detects the default."
 
 # ---------------------------------------------------------------------------
 # Agent instruction injection (`dbay setup <agent>`)
