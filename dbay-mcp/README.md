@@ -1,56 +1,15 @@
-# DBay MCP Server
+# dbay-mcp
 
-MCP server for connecting AI tools to DBay knowledge base and agent memory.
+MCP server for [DBay](https://dbay.cloud) — gives AI agents persistent memory and knowledge base across projects, sessions, and devices.
 
 ## Quick Start
 
 ```bash
-# 1. Install
-pip install dbay-mcp
-
-# 2. Login (creates ~/.dbay/config.json)
-dbay login
-
-# 3. Register with Claude Code
+# Claude Code (one command, global)
 claude mcp add --scope user dbay -- uvx dbay-mcp
-```
 
-New to DBay? Sign up at [dbay.cloud](https://dbay.cloud) first.
-
-## Config
-
-`dbay login` writes `~/.dbay/config.json`:
-
-```json
-{
-  "endpoint": "https://api.dbay.cloud:8443",
-  "api_key": "lk_...",
-  "knowledge_base": "kb_...",
-  "memory_base": "mem_..."
-}
-```
-
-Environment variables (`DBAY_API_KEY`, `DBAY_ENDPOINT`, `DBAY_KNOWLEDGE_BASE`, `DBAY_MEMORY_BASE`) take priority over config file.
-
-## Tools
-
-| Tool | Description |
-|------|-------------|
-| `knowledge_list` | List all knowledge bases |
-| `knowledge_search` | Hybrid vector + BM25 search |
-| `knowledge_upload` | Upload a file for processing |
-| `knowledge_upload_directory` | Upload all files from a directory |
-| `memory_recall` | Semantic search over agent memory |
-| `memory_ingest` | Store a memory |
-| `memory_ingest_extracted` | Batch write structured memories |
-| `memory_list` | Browse memories |
-| `memory_delete` | Delete a memory |
-
-## Other MCP Clients (Cursor, Windsurf, etc.)
-
-Add to `.mcp.json` in your project root:
-
-```json
+# Other MCP clients (Cursor, Windsurf, Claude Desktop)
+# Add to your MCP config (.mcp.json / claude_desktop_config.json):
 {
   "mcpServers": {
     "dbay": {
@@ -60,3 +19,69 @@ Add to `.mcp.json` in your project root:
   }
 }
 ```
+
+New to DBay? Install the CLI first: `pip install dbay-cli && dbay login`
+
+## MCP Tools
+
+### Memory
+
+AI agents remember your decisions, conventions, credentials, and preferences across sessions.
+
+| Tool | Description |
+|------|-------------|
+| `memory_recall` | Semantic search over past decisions, conventions, facts |
+| `memory_ingest` | Store a memory (fact, decision, rejection, convention, procedural, episode) |
+| `memory_list` | Browse memories by type |
+| `memory_delete` | Remove a memory |
+
+### Knowledge
+
+Search and upload documents to your knowledge base.
+
+| Tool | Description |
+|------|-------------|
+| `knowledge_search` | Hybrid vector + BM25 search over documents |
+| `knowledge_upload` | Upload a file (PDF, DOCX, MD) for processing |
+| `knowledge_upload_directory` | Bulk upload a directory |
+| `knowledge_list` | List all knowledge bases |
+
+## End-to-End Encryption
+
+For privacy-sensitive use cases, create an encrypted memory base. Content is encrypted locally before upload — the server only stores ciphertext.
+
+```bash
+pip install dbay-cli
+dbay login
+dbay mem create --encrypted my-private-mem
+```
+
+The MCP server auto-detects encrypted bases and handles encryption/decryption transparently. No changes needed in your AI agent workflow.
+
+**Three-factor security**: password (local) + config file (portable) + server-stored encrypted DEK. Any single factor leaked cannot decrypt your data.
+
+## Configuration
+
+```bash
+# Login stores credentials in ~/.dbay/config.json
+pip install dbay-cli
+dbay login
+
+# Switch default memory/knowledge base
+dbay mem use my-mem
+dbay kb use my-kb
+```
+
+Environment variables override config file:
+
+| Variable | Description |
+|----------|-------------|
+| `DBAY_API_KEY` | API key (required) |
+| `DBAY_MEMORY_BASE` | Default memory base ID |
+| `DBAY_KNOWLEDGE_BASE` | Default knowledge base ID |
+| `DBAY_ENDPOINT` | API endpoint (default: https://api.dbay.cloud:8443) |
+
+## Links
+
+- [DBay Console](https://console.dbay.cloud) — manage memory and knowledge bases
+- [dbay-cli](https://pypi.org/project/dbay-cli/) — CLI for DBay
