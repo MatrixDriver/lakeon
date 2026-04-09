@@ -18,21 +18,31 @@
 
       <!-- 集成卡片 -->
       <div class="integ-grid">
-        <router-link
+        <component
           v-for="tool in integrations"
           :key="tool.id"
-          :to="tool.href"
+          :is="tool.href.startsWith('/integrations/') ? 'router-link' : 'div'"
+          :to="tool.href.startsWith('/integrations/') ? tool.href : undefined"
           :id="tool.anchor"
           class="integ-card"
-          :class="{ featured: tool.featured }"
+          :class="{ featured: tool.featured, active: expandedTool === tool.id }"
+          @click="tool.href.startsWith('/integrations/') ? null : toggleTool(tool.id)"
+          :style="tool.href.startsWith('/integrations/') ? '' : 'cursor: pointer;'"
         >
           <div class="integ-card-hd">
             <span class="integ-name">{{ tool.name }}</span>
             <span v-if="tool.featured" class="badge-featured">{{ t('精选', 'Featured') }}</span>
           </div>
           <p>{{ locale === 'zh' ? tool.descZh : tool.desc }}</p>
-          <span class="integ-link">{{ t('查看文档', 'View docs') }} →</span>
-        </router-link>
+          <!-- Expanded setup instructions -->
+          <div v-if="expandedTool === tool.id && tool.setup" class="integ-setup">
+            <div class="code-wrapper">
+              <pre class="code-block"><code>{{ tool.setup }}</code></pre>
+              <button class="copy-btn" @click.stop.prevent="copyText(tool.setup)">{{ copyLabel }}</button>
+            </div>
+          </div>
+          <span v-else class="integ-link">{{ tool.href.startsWith('/integrations/') ? t('查看详情', 'View details') + ' →' : t('查看接入方式', 'Setup guide') + ' ↓' }}</span>
+        </component>
 
         <div class="integ-card coming">
           <span class="integ-name">+ {{ t('更多即将支持', 'More coming soon') }}</span>
@@ -79,6 +89,11 @@ dbay login
 # 2. Register MCP server (Claude Code)
 claude mcp add --scope user dbay -- uvx dbay-mcp`
 
+const expandedTool = ref<string | null>(null)
+function toggleTool(id: string) {
+  expandedTool.value = expandedTool.value === id ? null : id
+}
+
 const integrations = [
   {
     id: 'openclaw', anchor: 'openclaw', name: 'OpenClaw', featured: true,
@@ -91,30 +106,73 @@ const integrations = [
     href: '/integrations#claude-code',
     desc: 'Connect DBay memory and knowledge base to Claude Code via MCP for persistent project context.',
     descZh: '通过 MCP 将 DBay 记忆库与知识库接入 Claude Code，实现持久化项目上下文。',
+    setup: `# 1. Install & login
+pip install dbay-cli
+dbay login
+
+# 2. Register MCP server
+claude mcp add --scope user dbay -- uvx dbay-mcp`,
   },
   {
     id: 'claude-desktop', anchor: 'claude-desktop', name: 'Claude Desktop', featured: false,
     href: '/integrations#claude-desktop',
     desc: 'Persistent memory for Claude Desktop conversations across sessions.',
     descZh: '让 Claude Desktop 的对话记忆跨会话持久化。',
+    setup: `# Add to Claude Desktop config (~/.claude/claude_desktop_config.json):
+{
+  "mcpServers": {
+    "dbay": {
+      "command": "uvx",
+      "args": ["dbay-mcp"]
+    }
+  }
+}`,
   },
   {
     id: 'cursor', anchor: 'cursor', name: 'Cursor', featured: false,
     href: '/integrations#cursor',
     desc: 'Codebase knowledge base retrieval and project memory in Cursor.',
     descZh: '在 Cursor 中使用代码库知识库检索和项目记忆。',
+    setup: `# 1. Install
+pip install dbay-cli
+dbay login
+
+# 2. Add to .cursor/mcp.json in your project:
+{
+  "mcpServers": {
+    "dbay": {
+      "command": "uvx",
+      "args": ["dbay-mcp"]
+    }
+  }
+}`,
   },
   {
     id: 'gemini-cli', anchor: 'gemini-cli', name: 'Gemini CLI', featured: false,
     href: '/integrations#gemini-cli',
     desc: 'Long-term memory for Gemini CLI — your AI assistant remembers between sessions.',
     descZh: '为 Gemini CLI 提供长期记忆能力，跨会话记住用户偏好和上下文。',
+    setup: `# 1. Install
+pip install dbay-cli
+dbay login
+
+# 2. Add to ~/.gemini/settings.json:
+{
+  "mcpServers": {
+    "dbay": {
+      "command": "uvx",
+      "args": ["dbay-mcp"]
+    }
+  }
+}`,
   },
   {
     id: 'chatgpt', anchor: 'chatgpt', name: 'ChatGPT', featured: false,
     href: '/integrations#chatgpt',
     desc: 'Cross-session user memory sync for ChatGPT Plus and above.',
     descZh: '为 ChatGPT Plus 及以上用户提供跨会话记忆同步。',
+    setup: `# ChatGPT 通过 REST API 集成（需要自建中间层）
+# 详见 API 文档: https://dbay.cloud/docs/rest-api`,
   },
 ]
 </script>
@@ -161,6 +219,11 @@ h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
 }
 .integ-card p { font-size: 12px; color: var(--pub-text-2); margin: 0; line-height: 1.5; flex: 1; }
 .integ-link { font-size: 12px; color: var(--pub-code); margin-top: auto; }
+.integ-card.active { border-color: var(--pub-code); }
+.integ-setup { margin-top: 12px; }
+.integ-setup .code-wrapper { position: relative; }
+.integ-setup .code-block { font-size: 12px; padding: 12px; border-radius: 6px; background: var(--pub-surface); overflow-x: auto; }
+.integ-setup .copy-btn { position: absolute; top: 8px; right: 8px; }
 @media (max-width: 768px) {
   .integ-grid { grid-template-columns: 1fr; }
 }
