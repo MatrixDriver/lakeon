@@ -1,6 +1,6 @@
 # Lakeon (DBay) 产品路线图
 
-> 最后更新: 2026-04-03
+> 最后更新: 2026-04-10
 
 ## 阶段总览
 
@@ -42,6 +42,11 @@
 | Stage 19 | 日志可观测性 | 04-01 | ✅ 完成 | — |
 | Stage 20 | 数据生产线 | 03-28 → 04-02 | ✅ 完成 | — |
 | Stage 21 | 自托管 GPU 推理 | 04-01 → 04-03 | ✅ 完成 | — |
+| Stage 22 | 记忆库端到端加密 | 04-08 → 04-09 | ✅ 完成 | — |
+| Stage 23 | 知识库分享 | 04-08 | ✅ 完成 | — |
+| Stage 24 | Wiki Agent & 知识图谱 | 04-06 → 04-10 | ✅ 完成 | — |
+| Stage 25 | Console 港湾风格重构 | 04-07 → 04-08 | ✅ 完成 | — |
+| Stage 26 | OAuth 登录 (Google/GitHub) | 04-09 → 04-10 | ✅ 完成 | — |
 
 ---
 
@@ -715,6 +720,102 @@
 - **统一模型覆盖**: 可配置 `internal.llm.*` 参数，所有 AI 服务 (摘要、查询重写、AI SQL、SRE AI) 路由到内部 LLM
 - **零改动切换**: 通过 Helm values 配置 internal LLM URL/model，应用层代码不变
 
+## ✅ Stage 22: 记忆库端到端加密
+
+> 2026-04-08 → 04-09
+
+用户持有密钥的客户端加密，服务端只存密文。即便数据库泄露也无法读取用户记忆。
+
+### 加密架构
+- **三因素密钥**: 密码 (PBKDF2 600k 轮) → 私钥 → DEK → 内容
+- **RSA-4096 OAEP-SHA256**: 加密 DEK，服务端存储加密后的 DEK
+- **AES-256-GCM**: 内容加密 (12-byte nonce)
+- **密钥存储**: `~/.dbay/encrypted_bases.json` (私钥、公钥、盐)，`~/.dbay/secret` (密码)
+
+### Embedding 三种模式
+- **DBay API**: 默认，用用户 API key 调服务端 embedding
+- **External API**: 用户自有 OpenAI 兼容端点
+- **本地模型**: `sentence-transformers` + BAAI/bge-m3，首次自动下载，模型缓存
+- **服务端零明文**: 所有 embedding 在客户端生成，服务端只收到密文 + 向量
+
+### Console 与 CLI 双入口
+- **Console**: Account 页面加密库管理，密码锁/解锁状态显示
+- **CLI**: `dbay mem create --encrypted` 交互式引导创建
+- **跨设备迁移**: 复制 `~/.dbay/` 到新机器即可
+
+## ✅ Stage 23: 知识库分享
+
+> 2026-04-08
+
+知识库跨租户只读分享，通过 ShareEntity + Panel UI 实现。
+
+- **分享 API**: 创建/撤销/列表分享，被分享租户通过 `owned` / `shared` 两个列表访问
+- **权限模型**: 只读分享，不允许修改
+- **Console UI**: 分享面板 + 接收方标识 + 分享列表管理
+- **已部署**: hwstaff 生产环境
+
+## ✅ Stage 24: Wiki Agent & 知识图谱
+
+> 2026-04-06 → 04-10
+
+知识库自动生成 Wiki 页面和概念图谱，文档摄入后由 Agent 分析生成结构化知识。
+
+### Wiki Agent
+- **Ingest Prompt**: 文档入库后自动识别核心概念 (2-5 个)，生成 wiki 页面，优先更新而非新增
+- **Curate Prompt**: "整理 Wiki" 按钮触发重组、合并、翻译、删除泛泛通用概念
+- **通用概念过滤**: prompt 明确要求只生成跟知识库主题相关的概念，排除 "AI 产品设计" 等泛词
+- **Lint & Chat**: Wiki 内容质量检查 + 基于 Wiki 的对话路由
+
+### 知识图谱
+- **可视化**: Wiki 页面交叉引用生成 D3 力导图
+- **导航**: 点击节点跳转对应页面，页面间 `[[wikilinks]]` 关联
+
+### 用户侧删除
+- **DELETE /wiki/pages/{docId}**: 用户级 API，租户隔离
+- **前端删除按钮**: Wiki 页面列表 hover 显示，确认后删除
+
+### KB 详情 3-Tab
+- **概览 / 文档 / Wiki**: 引导图放到列表页，详情页聚焦内容
+
+## ✅ Stage 25: Console 港湾风格重构
+
+> 2026-04-07 → 04-08
+
+Console 和 Landing 统一港湾暖色调设计，去掉 emoji 和通用 AI 模板风格。
+
+- **配色**: 暖色调 `#8b6914` / `#5a4a3a` / `#faf5f0`
+- **Integrations 页**: 步骤式快速上手 + Tab 面板
+- **MCP 引导**: 所有页面 MCP 设置文案统一
+- **计量说明**: 只做计量不做计费，去除商业性内容
+
+## ✅ Stage 26: OAuth 登录 (Google/GitHub)
+
+> 2026-04-09 → 04-10
+
+用户可以用 Google 或 GitHub 账号登录 DBay，CLI 支持 `dbay login --google/--github` 浏览器授权流。
+
+### 后端
+- **OAuthService**: Authorization Code flow，无 Spring Security OAuth2 依赖，纯 HttpClient 实现
+- **数据模型**: `oauth_connections` 表 + `tenants.email/avatar_url`，provider + provider_user_id 唯一索引
+- **账号匹配**: 按 provider_user_id 或 email 匹配已有租户，否则自动创建 (无密码，自动生成 username)
+- **API**: `GET /auth/oauth/{provider}` 跳转、`/callback` 处理、Hash fragment 直接返回 api_key (多副本兼容)
+- **限流**: OAuth 端点 20/min per IP
+
+### GFW 绕过
+- **问题**: CCE Pod (中国) 无法访问 Google/GitHub OAuth 端点
+- **Google relay**: Railway nginx `proxy_pass` 到 `oauth2.googleapis.com`
+- **GitHub relay**: Railway Node.js 脚本 (github-relay.js)，nginx proxy_pass 到 github.com 在 Railway 环境有问题
+- **配置**: `LAKEON_OAUTH_RELAY_BASE_URL=https://dbay.cloud`
+
+### 前端
+- **Login 页**: Google / GitHub 按钮 + SVG 图标，港湾风格
+- **OAuth Callback 页**: 从 URL hash fragment 读取 api_key，存 localStorage 后跳 dashboard
+- **错误处理**: OAuth 失败重定向到前端 `/login?error=oauth_failed`
+
+### CLI
+- **`dbay login --google/--github`**: 启动本地 HTTP server (随机端口) → 开浏览器 → Hash fragment 两步回调
+- **Desktop OAuth Client**: Google 创建 Desktop 类型客户端，用于未来直连场景
+
 ---
 
 ### Backlog
@@ -731,7 +832,7 @@
 
 | 组件 | 版本 | 部署位置 |
 |------|------|----------|
-| lakeon-api | 0.9.186 | CCE (hostNetwork, HTTPS) |
+| lakeon-api | 0.9.215 | CCE (hostNetwork, HTTPS) |
 | lakeon-console | — | Railway |
 | lakeon-admin | — | Railway |
 | lakeon-orchestrator | 0.1.4 | CCE (FastAPI) |
@@ -742,8 +843,8 @@
 | lakeon-embedding | — | CCE (GPU, V100) |
 | lakeon-llm | — | CCE (GPU, V100, vLLM) |
 | log-collector | — | CCE (Go) |
-| dbay-cli | 0.1.0 | pip install |
-| dbay-mcp | 0.1.0 | MCP Server |
+| dbay-cli | 0.2.7 | pip install |
+| dbay-mcp | 0.5.6 | MCP Server |
 | dbay-sre-mcp | — | MCP Server |
 
 ## 基础设施
