@@ -21,8 +21,8 @@
           <button class="cta-primary" @click="startTrial" :disabled="trialLoading">
             {{ trialLoading ? t('创建中…', 'Creating…') : t('开始使用', 'Get started') }}
           </button>
-          <router-link to="/architecture" class="cta-ghost">
-            {{ t('阅读架构', 'Read the architecture') }} →
+          <router-link to="/product" class="cta-ghost">
+            {{ t('了解产品', 'Explore the products') }} →
           </router-link>
         </div>
 
@@ -107,9 +107,55 @@
           ) }}
         </p>
 
-        <!-- Scene 1 · remember -->
+        <!-- Scene 1 · remember across projects -->
         <div class="cc-scene">
-          <div class="cc-scene-media"><div class="cc-gif-slot">{{ t('GIF 位 · 跨项目召回', 'GIF · cross-project recall') }}</div></div>
+          <div class="cc-scene-media">
+            <svg class="cc-svg" viewBox="0 0 360 240" role="img" aria-labelledby="svg1-title">
+              <title id="svg1-title">{{ t('跨项目的记忆层', 'Memory shared across projects') }}</title>
+              <!-- project-a window top-left -->
+              <g class="svg-win">
+                <rect x="20" y="24" width="120" height="60" rx="5" fill="#fff"/>
+                <rect x="20" y="24" width="120" height="60" rx="5" fill="none" stroke="var(--c-primary)" stroke-width="1.2"/>
+                <line x1="20" y1="38" x2="140" y2="38" stroke="var(--c-primary)" stroke-width="1"/>
+                <circle cx="28" cy="31" r="1.5" fill="var(--c-primary)"/>
+                <circle cx="34" cy="31" r="1.5" fill="var(--c-primary)"/>
+                <circle cx="40" cy="31" r="1.5" fill="var(--c-primary)"/>
+                <text x="80" y="58" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="10" fill="var(--c-primary)">project-a</text>
+                <text x="80" y="73" text-anchor="middle" font-family="'Source Serif 4', serif" font-size="9" font-style="italic" fill="var(--c-text-3)">{{ t('周一', 'Monday') }}</text>
+              </g>
+
+              <!-- project-b window top-right -->
+              <g class="svg-win">
+                <rect x="220" y="24" width="120" height="60" rx="5" fill="#fff"/>
+                <rect x="220" y="24" width="120" height="60" rx="5" fill="none" stroke="var(--c-primary)" stroke-width="1.2"/>
+                <line x1="220" y1="38" x2="340" y2="38" stroke="var(--c-primary)" stroke-width="1"/>
+                <circle cx="228" cy="31" r="1.5" fill="var(--c-primary)"/>
+                <circle cx="234" cy="31" r="1.5" fill="var(--c-primary)"/>
+                <circle cx="240" cy="31" r="1.5" fill="var(--c-primary)"/>
+                <text x="280" y="58" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="10" fill="var(--c-primary)">project-b</text>
+                <text x="280" y="73" text-anchor="middle" font-family="'Source Serif 4', serif" font-size="9" font-style="italic" fill="var(--c-text-3)">{{ t('一周后', 'a week later') }}</text>
+              </g>
+
+              <!-- Central memory node -->
+              <g>
+                <rect x="100" y="140" width="160" height="44" rx="22" fill="color-mix(in oklch, var(--c-accent) 8%, #fff)"/>
+                <rect x="100" y="140" width="160" height="44" rx="22" fill="none" stroke="var(--c-accent)" stroke-width="1.3"/>
+                <text x="180" y="159" text-anchor="middle" font-family="'Source Serif 4', serif" font-size="13" font-weight="500" fill="var(--c-accent-text)">DBay memory</text>
+                <text x="180" y="174" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="9" fill="var(--c-accent-text)">camelCase · no semicolons</text>
+              </g>
+
+              <!-- Curves: project-a → memory (save), memory → project-b (recall) -->
+              <path d="M 80 86 Q 80 130 120 142" fill="none" stroke="var(--c-accent)" stroke-width="1.3" stroke-dasharray="3 4"/>
+              <path d="M 240 142 Q 280 130 280 86" fill="none" stroke="var(--c-accent)" stroke-width="1.3" stroke-dasharray="3 4"/>
+
+              <!-- Arrow labels -->
+              <text x="82" y="118" font-family="'Geist', sans-serif" font-size="9" font-weight="500" fill="var(--c-accent-text)">↓ save</text>
+              <text x="252" y="118" font-family="'Geist', sans-serif" font-size="9" font-weight="500" fill="var(--c-accent-text)">↑ recall</text>
+
+              <!-- Bottom caption -->
+              <text x="180" y="216" text-anchor="middle" font-family="'Source Serif 4', serif" font-style="italic" font-size="11" fill="var(--c-text-2)">{{ t('一次说出口，跨项目都记得', 'Say it once, every project remembers') }}</text>
+            </svg>
+          </div>
           <div class="cc-scene-body">
             <div class="cc-scene-idx">①</div>
             <h3 class="cc-scene-title">{{ t('跨项目记住你的开发习惯', 'Remembers your habits across projects') }}</h3>
@@ -127,7 +173,59 @@
 
         <!-- Scene 2 · share -->
         <div class="cc-scene cc-scene-reverse">
-          <div class="cc-scene-media"><div class="cc-gif-slot">{{ t('GIF 位 · 团队共享', 'GIF · team sharing') }}</div></div>
+          <div class="cc-scene-media">
+            <svg class="cc-svg" viewBox="0 0 360 240" role="img" aria-labelledby="svg2-title">
+              <title id="svg2-title">{{ t('团队共享的记忆层', 'A memory layer shared by the team') }}</title>
+
+              <!-- Top shared memory bar -->
+              <g>
+                <rect x="60" y="28" width="240" height="40" rx="20" fill="color-mix(in oklch, var(--c-accent) 8%, #fff)"/>
+                <rect x="60" y="28" width="240" height="40" rx="20" fill="none" stroke="var(--c-accent)" stroke-width="1.3"/>
+                <text x="180" y="45" text-anchor="middle" font-family="'Source Serif 4', serif" font-size="12" font-weight="500" fill="var(--c-accent-text)">{{ t('团队共享记忆', 'team-shared memory') }}</text>
+                <text x="180" y="59" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="9" fill="var(--c-accent-text)">convention · commit rules · naming</text>
+              </g>
+
+              <!-- Three people as small circles below -->
+              <!-- Jacky (writer) -->
+              <g>
+                <circle cx="80" cy="160" r="22" fill="#fff" stroke="var(--c-primary)" stroke-width="1.2"/>
+                <text x="80" y="164" text-anchor="middle" font-family="'Source Serif 4', serif" font-size="16" font-weight="500" fill="var(--c-primary)">J</text>
+                <text x="80" y="198" text-anchor="middle" font-family="'Geist', sans-serif" font-size="10" fill="var(--c-text-2)">Jacky</text>
+                <text x="80" y="212" text-anchor="middle" font-family="'Source Serif 4', serif" font-size="9" font-style="italic" fill="var(--c-text-3)">{{ t('写规范', 'writes it') }}</text>
+              </g>
+
+              <!-- Alice (reader · new hire) -->
+              <g>
+                <circle cx="180" cy="160" r="22" fill="#fff" stroke="var(--c-primary)" stroke-width="1.2"/>
+                <text x="180" y="164" text-anchor="middle" font-family="'Source Serif 4', serif" font-size="16" font-weight="500" fill="var(--c-primary)">A</text>
+                <text x="180" y="198" text-anchor="middle" font-family="'Geist', sans-serif" font-size="10" fill="var(--c-text-2)">Alice</text>
+                <text x="180" y="212" text-anchor="middle" font-family="'Source Serif 4', serif" font-size="9" font-style="italic" fill="var(--c-text-3)">{{ t('新人', 'new hire') }}</text>
+              </g>
+
+              <!-- Bob -->
+              <g>
+                <circle cx="280" cy="160" r="22" fill="#fff" stroke="var(--c-primary)" stroke-width="1.2"/>
+                <text x="280" y="164" text-anchor="middle" font-family="'Source Serif 4', serif" font-size="16" font-weight="500" fill="var(--c-primary)">B</text>
+                <text x="280" y="198" text-anchor="middle" font-family="'Geist', sans-serif" font-size="10" fill="var(--c-text-2)">Bob</text>
+                <text x="280" y="212" text-anchor="middle" font-family="'Source Serif 4', serif" font-size="9" font-style="italic" fill="var(--c-text-3)">{{ t('老员工', 'veteran') }}</text>
+              </g>
+
+              <!-- Arrow: Jacky → memory (save, solid up) -->
+              <path d="M 80 138 L 80 90 L 90 90" fill="none" stroke="var(--c-accent)" stroke-width="1.3"/>
+              <path d="M 86 84 L 92 90 L 86 96" fill="none" stroke="var(--c-accent)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+              <text x="66" y="112" font-family="'Geist', sans-serif" font-size="9" font-weight="500" fill="var(--c-accent-text)">save</text>
+
+              <!-- Arrow: memory → Alice (recall, dashed down) -->
+              <path d="M 180 68 L 180 138" fill="none" stroke="var(--c-accent)" stroke-width="1.3" stroke-dasharray="3 4"/>
+              <path d="M 174 132 L 180 138 L 186 132" fill="none" stroke="var(--c-accent)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+              <text x="188" y="106" font-family="'Geist', sans-serif" font-size="9" font-weight="500" fill="var(--c-accent-text)">recall</text>
+
+              <!-- Arrow: memory → Bob (recall, dashed down) -->
+              <path d="M 280 68 L 280 138" fill="none" stroke="var(--c-accent)" stroke-width="1.3" stroke-dasharray="3 4"/>
+              <path d="M 274 132 L 280 138 L 286 132" fill="none" stroke="var(--c-accent)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+              <text x="288" y="106" font-family="'Geist', sans-serif" font-size="9" font-weight="500" fill="var(--c-accent-text)">recall</text>
+            </svg>
+          </div>
           <div class="cc-scene-body">
             <div class="cc-scene-idx">②</div>
             <h3 class="cc-scene-title">{{ t('团队共享一份开发约定', 'One team, one shared convention') }}</h3>
@@ -148,7 +246,59 @@
 
         <!-- Scene 3 · encrypted secrets -->
         <div class="cc-scene">
-          <div class="cc-scene-media"><div class="cc-gif-slot">{{ t('GIF 位 · 加密存储', 'GIF · encrypted vault') }}</div></div>
+          <div class="cc-scene-media">
+            <svg class="cc-svg" viewBox="0 0 360 240" role="img" aria-labelledby="svg3-title">
+              <title id="svg3-title">{{ t('本地加密后才上云', 'Encrypted locally before it leaves') }}</title>
+
+              <!-- Left · plaintext key -->
+              <g>
+                <rect x="20" y="70" width="96" height="60" rx="4" fill="#fff" stroke="var(--c-primary)" stroke-width="1.2"/>
+                <text x="68" y="90" text-anchor="middle" font-family="'Geist', sans-serif" font-size="9" font-weight="500" fill="var(--c-text-3)">{{ t('你的机器', 'Your machine') }}</text>
+                <text x="68" y="108" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="10" fill="var(--c-primary)">OPENAI_API_KEY</text>
+                <text x="68" y="120" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="9" fill="var(--c-text-2)">sk-proj-a7f3…</text>
+              </g>
+
+              <!-- Arrow · key → lock -->
+              <line x1="116" y1="100" x2="144" y2="100" stroke="var(--c-accent)" stroke-width="1.3"/>
+              <path d="M 138 94 L 144 100 L 138 106" fill="none" stroke="var(--c-accent)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+
+              <!-- Middle · local encrypt lock -->
+              <g>
+                <rect x="144" y="60" width="72" height="80" rx="6" fill="color-mix(in oklch, var(--c-accent) 8%, #fff)"/>
+                <rect x="144" y="60" width="72" height="80" rx="6" fill="none" stroke="var(--c-accent)" stroke-width="1.3"/>
+                <!-- padlock glyph -->
+                <g transform="translate(180, 92)">
+                  <path d="M -7 -5 A 7 7 0 0 1 7 -5 L 7 0" fill="none" stroke="var(--c-accent-text)" stroke-width="1.4" stroke-linecap="round"/>
+                  <rect x="-10" y="0" width="20" height="14" rx="2" fill="none" stroke="var(--c-accent-text)" stroke-width="1.4"/>
+                  <circle cx="0" cy="7" r="1.5" fill="var(--c-accent-text)"/>
+                </g>
+                <text x="180" y="125" text-anchor="middle" font-family="'Geist', sans-serif" font-size="9" font-weight="500" fill="var(--c-accent-text)">PBKDF2</text>
+                <text x="180" y="135" text-anchor="middle" font-family="'Geist', sans-serif" font-size="8" fill="var(--c-accent-text)">3-factor</text>
+              </g>
+
+              <!-- Arrow · lock → cloud -->
+              <line x1="216" y1="100" x2="244" y2="100" stroke="var(--c-accent)" stroke-width="1.3"/>
+              <path d="M 238 94 L 244 100 L 238 106" fill="none" stroke="var(--c-accent)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+
+              <!-- Right · cloud (DBay server) -->
+              <g>
+                <path d="M 254 110 Q 248 110 248 102 Q 248 92 258 92 Q 262 82 274 82 Q 286 80 290 90 Q 300 88 302 100 Q 308 102 306 112 Q 310 122 298 122 L 260 122 Q 252 122 254 110 Z" fill="#fff" stroke="var(--c-primary)" stroke-width="1.2"/>
+                <text x="278" y="108" text-anchor="middle" font-family="'Geist', sans-serif" font-size="9" font-weight="500" fill="var(--c-text-3)">DBay</text>
+                <text x="278" y="140" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="9" fill="var(--c-primary)">enc_v1:7a3f…9c1b</text>
+              </g>
+
+              <!-- Horizontal divider mid caption -->
+              <line x1="40" y1="180" x2="320" y2="180" stroke="var(--c-border)" stroke-width="1"/>
+
+              <!-- Caption below -->
+              <text x="180" y="202" text-anchor="middle" font-family="'Source Serif 4', serif" font-style="italic" font-size="11" fill="var(--c-text-2)">
+                <tspan>{{ t('服务端只看到密文。', 'The server only sees ciphertext.') }}</tspan>
+              </text>
+              <text x="180" y="220" text-anchor="middle" font-family="'Source Serif 4', serif" font-style="italic" font-size="11" fill="var(--c-text-2)">
+                <tspan>{{ t('数据库被拖走，也还原不了。', 'Even a full database leak stays opaque.') }}</tspan>
+              </text>
+            </svg>
+          </div>
           <div class="cc-scene-body">
             <div class="cc-scene-idx">③</div>
             <h3 class="cc-scene-title">{{ t('API Key 也可以存进记忆层', 'API keys can live inside the memory layer') }}</h3>
@@ -385,78 +535,6 @@
             <p class="hn-note">
               {{ t('Datalake DAG 分布式作业算子间无需磁盘落地。', 'Datalake DAG jobs hand data between operators without touching disk.') }}
             </p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ══════════════════════════════════════════
-         Screen 06 · Architecture kernel (whitepaper)
-         ══════════════════════════════════════════ -->
-    <section class="screen screen-06">
-      <div class="screen-inner">
-        <div class="arch-grid">
-          <!-- Left: kernel diagram -->
-          <div class="arch-stack">
-            <h2 class="section-title-small">{{ t('架构内核', 'The kernel underneath') }}</h2>
-
-            <div class="kernel-layer kernel-top">
-              <span class="kernel-layer-name">{{ t('本地加密 compute', 'Locally encrypted compute') }}</span>
-              <span class="kernel-layer-note">PBKDF2 · 三因素派生</span>
-            </div>
-            <div class="kernel-line">↓</div>
-            <div class="kernel-layer">
-              <span class="kernel-layer-name">Datalake</span>
-              <span class="kernel-layer-note">OBS · shared memory</span>
-            </div>
-            <div class="kernel-line">↓</div>
-            <div class="kernel-layer">
-              <span class="kernel-layer-name">Memory / Knowledge</span>
-              <span class="kernel-layer-note">{{ t('同 PageServer · 四路融合', 'Same PageServer · 4-way fusion') }}</span>
-            </div>
-            <div class="kernel-line">↓</div>
-            <div class="kernel-layer kernel-bold">
-              <span class="kernel-layer-name">Lakebase + BM25 {{ t('内核', 'kernel') }}</span>
-              <span class="kernel-layer-note">{{ t('PageServer 级索引', 'PageServer-level index') }}</span>
-            </div>
-            <div class="kernel-line">↓</div>
-            <div class="kernel-layer">
-              <span class="kernel-layer-name">Neon copy-on-write</span>
-              <span class="kernel-layer-note">{{ t('开源存算分离', 'Open-source storage/compute split') }}</span>
-            </div>
-          </div>
-
-          <!-- Right: long prose -->
-          <div class="arch-prose">
-            <p>
-              {{ t(
-                'DBay 建立在 Neon 的存算分离之上，但在内核层做了三件 Neon 原生没有的事：',
-                'DBay builds on Neon\'s storage/compute split, but the kernel does three things Neon doesn\'t:'
-              ) }}
-            </p>
-            <ol class="arch-ol">
-              <li>
-                <strong>{{ t('BM25 索引进 PageServer', 'BM25 inside the PageServer') }}</strong>
-                {{ t('— 全文不再需要外挂 Elasticsearch。', '— full-text no longer needs an Elasticsearch side-car.') }}
-              </li>
-              <li>
-                <strong>{{ t('多模态索引路由', 'Multi-modal index routing') }}</strong>
-                {{ t('— 向量、全文、图、时序在同一次查询里融合打分。', '— vector, full-text, graph, and temporal signals fuse in a single query.') }}
-              </li>
-              <li>
-                <strong>{{ t('本地加密 compute', 'Locally encrypted compute') }}</strong>
-                {{ t('— PBKDF2 派生密钥，服务端永远拿不到明文。即使数据库被拖走也无法还原。', '— PBKDF2-derived keys, ciphertext-only on the server. Even a full database leak stays opaque.') }}
-              </li>
-            </ol>
-            <p>
-              {{ t(
-                '再往上，Datalake 基于 Ray 但改了调度：DAG 编译成一个分布式 Python 程序，算子间通过 shared memory 传递，不写磁盘。文本清洗 → 特征抽取 → embedding → 写入，四步只有一次 I/O。',
-                'One layer up, Datalake runs on Ray but changes the scheduler: the DAG compiles into a single distributed Python program, and operators pass data through shared memory instead of disk. Text cleaning → feature extraction → embedding → writes runs with a single I/O pass.'
-              ) }}
-            </p>
-            <router-link to="/architecture" class="arch-more">
-              {{ t('继续阅读架构白皮书', 'Continue to the architecture note') }} →
-            </router-link>
           </div>
         </div>
       </div>
@@ -908,6 +986,17 @@ async function startTrial() {
   letter-spacing: 0.02em;
 }
 
+.cc-svg {
+  width: 100%;
+  height: auto;
+  max-width: 440px;
+  display: block;
+  background: var(--c-bg-alt);
+  border: 1px solid var(--c-border-light);
+  border-radius: 6px;
+  padding: var(--space-md);
+}
+
 .cc-scene-body {
   display: flex;
   flex-direction: column;
@@ -1326,137 +1415,6 @@ async function startTrial() {
   color: var(--c-text-2);
   margin: 0;
   max-width: 24ch;
-}
-
-/* ══════════════════════════════════════════
-   Screen 06 · Kernel architecture
-   ══════════════════════════════════════════ */
-.screen-06 {
-  background: var(--c-bg-alt);
-}
-
-.arch-grid {
-  display: grid;
-  grid-template-columns: minmax(280px, 360px) 1fr;
-  gap: clamp(48px, 6vw, 88px);
-  align-items: start;
-}
-
-.arch-stack {
-  display: flex;
-  flex-direction: column;
-}
-
-.arch-stack .section-title-small {
-  margin-bottom: var(--space-xl);
-}
-
-.kernel-layer {
-  background: #fff;
-  border: 1px solid var(--c-border-light);
-  border-radius: 4px;
-  padding: 12px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.kernel-layer.kernel-top {
-  border-color: color-mix(in oklch, var(--c-accent) 30%, var(--c-border));
-}
-
-.kernel-layer.kernel-bold {
-  background: color-mix(in oklch, var(--c-accent) 6%, #fff);
-  border-color: color-mix(in oklch, var(--c-accent) 30%, var(--c-border));
-}
-
-.kernel-layer-name {
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--c-text);
-}
-
-.kernel-layer-note {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--c-text-3);
-  letter-spacing: -0.01em;
-}
-
-.kernel-line {
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  color: var(--c-text-3);
-  padding: 4px 0;
-  line-height: 1;
-}
-
-.arch-prose {
-  max-width: 62ch;
-}
-
-.arch-prose p {
-  font-family: var(--font-sans);
-  font-size: 16px;
-  line-height: 1.75;
-  color: var(--c-text);
-  margin: 0 0 var(--space-xl);
-}
-
-.arch-ol {
-  padding: 0;
-  margin: 0 0 var(--space-xl);
-  list-style: none;
-  counter-reset: arch-count;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-.arch-ol li {
-  counter-increment: arch-count;
-  position: relative;
-  padding-left: 36px;
-  font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 1.7;
-  color: var(--c-text-2);
-}
-
-.arch-ol li::before {
-  content: counter(arch-count);
-  position: absolute;
-  left: 0;
-  top: 2px;
-  font-family: var(--font-display);
-  font-weight: 500;
-  font-size: 18px;
-  color: var(--c-accent);
-  width: 24px;
-  text-align: right;
-}
-
-.arch-ol strong {
-  color: var(--c-text);
-  font-weight: 600;
-}
-
-.arch-more {
-  display: inline-block;
-  margin-top: var(--space-md);
-  font-family: var(--font-sans);
-  font-size: 14px;
-  color: var(--c-accent-text);
-  text-decoration: none;
-  border-bottom: 1px solid currentColor;
-  padding-bottom: 2px;
-  transition: color 160ms ease-out;
-}
-
-.arch-more:hover {
-  color: var(--c-accent-hover);
 }
 
 /* ══════════════════════════════════════════

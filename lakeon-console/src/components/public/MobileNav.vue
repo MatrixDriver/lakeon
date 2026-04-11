@@ -4,8 +4,11 @@
       <button class="mobile-nav-close" @click="$emit('close')" aria-label="Close">✕</button>
     </div>
     <div class="mobile-nav-body">
-      <router-link to="/architecture" class="mobile-nav-link" @click="$emit('close')">
-        {{ t('架构', 'Architecture') }}
+      <router-link to="/product" class="mobile-nav-link" @click="$emit('close')">
+        {{ t('产品', 'Products') }}
+      </router-link>
+      <router-link to="/integrations" class="mobile-nav-link" @click="$emit('close')">
+        {{ t('集成', 'Integrations') }}
       </router-link>
       <router-link to="/docs" class="mobile-nav-link" @click="$emit('close')">
         {{ t('文档', 'Docs') }}

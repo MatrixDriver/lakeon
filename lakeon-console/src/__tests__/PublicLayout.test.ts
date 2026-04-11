@@ -8,7 +8,8 @@ const router = createRouter({
   history: createMemoryHistory(),
   routes: [
     { path: '/', component: { template: '<div>home</div>' } },
-    { path: '/architecture', component: { template: '<div>arch</div>' } },
+    { path: '/product', component: { template: '<div>product</div>' } },
+    { path: '/integrations', component: { template: '<div>integrations</div>' } },
     { path: '/docs', component: { template: '<div>docs</div>' } },
     { path: '/login', component: { template: '<div>login</div>' } },
     { path: '/dashboard', component: { template: '<div>dashboard</div>' } },
@@ -31,7 +32,7 @@ describe('PublicLayout', () => {
     expect(wrapper.text()).toContain('DBay')
   })
 
-  it('renders the 4-item Harbor Editorial nav', async () => {
+  it('renders the Harbor Editorial nav items', async () => {
     const wrapper = mount(PublicLayout, {
       global: {
         plugins: [router],
@@ -40,8 +41,9 @@ describe('PublicLayout', () => {
     })
     await router.isReady()
     const text = wrapper.text()
-    // New minimal nav: Architecture, Docs, Sign in, Get started
-    expect(text).toMatch(/架构|Architecture/)
+    // Nav: Products, Integrations, Docs, Sign in, Get started
+    expect(text).toMatch(/产品|Products/)
+    expect(text).toMatch(/集成|Integrations/)
     expect(text).toMatch(/文档|Docs/)
     expect(text).toMatch(/登录|Sign in/)
     expect(text).toMatch(/开始使用|Get started/)

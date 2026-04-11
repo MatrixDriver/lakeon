@@ -8,9 +8,10 @@
           <span class="pub-brand-tag">{{ t('数据港湾', 'Data Harbor') }}</span>
         </router-link>
 
-        <!-- Desktop nav · 4 items -->
+        <!-- Desktop nav -->
         <div class="pub-nav-links">
-          <router-link to="/architecture" class="pub-nav-link">{{ t('架构', 'Architecture') }}</router-link>
+          <router-link to="/product" class="pub-nav-link">{{ t('产品', 'Products') }}</router-link>
+          <router-link to="/integrations" class="pub-nav-link">{{ t('集成', 'Integrations') }}</router-link>
           <router-link to="/docs" class="pub-nav-link">{{ t('文档', 'Docs') }}</router-link>
         </div>
 
