@@ -49,8 +49,7 @@
             <div style="flex: 1; min-width: 0; padding: 0 6px;">
               <div style="display: flex; flex-direction: column; gap: 8px;">
                 <div v-for="trait in groupByStage(stage)" :key="trait.id"
-                     class="card" style="padding: 12px; border-left: 3px solid;"
-                     :style="`border-left-color: ${TRAIT_STAGE_COLORS[stage]?.text};`">
+                     class="card" style="padding: 12px; border: 1px solid #e8e4df; border-radius: 6px; background: #fff;">
                   <!-- Subtype -->
                   <div v-if="trait.trait_subtype" style="font-size: 11px; color: #999; margin-bottom: 4px;">
                     {{ trait.trait_subtype }}
@@ -145,9 +144,9 @@ function groupByStage(stage: string) {
 }
 
 function confidenceColor(v: number): string {
-  if (v >= 0.8) return '#52c41a'
-  if (v >= 0.5) return '#1890ff'
-  if (v >= 0.3) return '#faad14'
-  return '#f5222d'
+  if (v >= 0.8) return '#386b47'
+  if (v >= 0.5) return '#2a4d6a'
+  if (v >= 0.3) return '#9a5b25'
+  return '#c6333a'
 }
 </script>

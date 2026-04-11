@@ -56,8 +56,8 @@
             <div v-for="(count, type) in stats.by_type" :key="type"
                  style="display: flex; align-items: center; gap: 12px;">
               <span style="width: 56px; font-size: 12px; text-align: right; color: #666;">{{ type }}</span>
-              <div style="flex: 1; height: 16px; background: #f5f5f5; border-radius: 4px; overflow: hidden;">
-                <div style="height: 100%; border-radius: 4px; background: #1890ff;"
+              <div style="flex: 1; height: 12px; background: var(--c-border-light); border-radius: 4px; overflow: hidden;">
+                <div style="height: 100%; border-radius: 4px; background: var(--c-primary);"
                      :style="`width: ${stats.total ? (count / stats.total * 100) : 0}%`" />
               </div>
               <span style="width: 32px; font-size: 13px; font-weight: 500;">{{ count }}</span>
@@ -66,7 +66,7 @@
         </div>
 
         <!-- Error -->
-        <div v-if="base.error" style="margin-top: 16px; padding: 12px; background: #fff2f0; border: 1px solid #ffccc7; border-radius: 6px; color: #e6393d; font-size: 13px;">
+        <div v-if="base.error" style="margin-top: 16px; padding: 12px 16px; background: color-mix(in oklch, var(--cs-severe) 5%, #fff); border: 1px solid color-mix(in oklch, var(--cs-severe) 20%, var(--c-border-light)); border-radius: 4px; color: var(--cs-severe); font-size: 13px;">
           <strong>错误信息：</strong>{{ base.error }}
         </div>
       </div>
@@ -91,13 +91,13 @@
               <tr v-for="msg in messages" :key="msg.id" style="cursor: pointer;" @click="openMsgDetail(msg.id)">
                 <td style="color: #999; font-size: 13px;">{{ new Date(msg.created_at).toLocaleString('zh-CN') }}</td>
                 <td>
-                  <span style="display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px;"
-                        :style="msg.role === 'user' ? 'background:#fdf5ed;color:#1565c0' : 'background:#f3e5f5;color:#7b1fa2'">
+                  <span style="display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px;"
+                        :style="msg.role === 'user' ? 'background: color-mix(in oklch, var(--c-primary) 10%, #fff); color: var(--c-primary);' : 'background: color-mix(in oklch, var(--c-accent) 12%, #fff); color: var(--c-accent-text);'">
                     {{ msg.role }}
                   </span>
                 </td>
                 <td>
-                  <span v-if="msg.source" style="display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; background:#f0f5ff; color:#1890ff;">
+                  <span v-if="msg.source" style="display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; background: color-mix(in oklch, var(--c-primary) 10%, #fff); color: var(--c-primary);">
                     {{ msg.source }}
                   </span>
                   <span v-else style="color: #ccc;">-</span>
@@ -106,7 +106,7 @@
                   {{ msg.content_preview || msg.content }}
                 </td>
                 <td>
-                  <button class="btn btn-text btn-small" style="color: #9a5b25;" @click.stop="openMsgDetail(msg.id)">详情</button>
+                  <button class="btn btn-text btn-small" @click.stop="openMsgDetail(msg.id)">详情</button>
                 </td>
               </tr>
             </tbody>
@@ -151,9 +151,9 @@
                   暂无（可能正在提取中）
                 </div>
                 <div v-for="mem in msgDetail.extracted_memories" :key="mem.id"
-                     style="padding: 10px 12px; background: #fafafa; border-radius: 6px; margin-bottom: 8px; font-size: 13px;">
+                     style="padding: 10px 14px; background: var(--c-bg-alt); border: 1px solid var(--c-border-light); border-radius: 6px; margin-bottom: 8px; font-size: 13px;">
                   <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-                    <span style="padding: 1px 6px; border-radius: 3px; font-size: 11px; background: #e8f5e9; color: #2e7d32;">
+                    <span style="padding: 1px 8px; border-radius: 10px; font-size: 11px; background: color-mix(in oklch, var(--c-success) 12%, #fff); color: #386b47;">
                       {{ mem.memory_type }}
                     </span>
                     <span style="color: #999; font-size: 11px;">重要性 {{ Math.round(mem.importance * 100) }}%</span>
@@ -171,14 +171,14 @@
         <p v-if="usageLoading" style="text-align: center; color: #999; padding: 40px 0;">加载中...</p>
 
         <template v-else-if="usageStats">
-          <div style="display: flex; gap: 16px; margin-bottom: 32px;">
-            <div class="section-card" style="flex: 1; padding: 20px; text-align: center;">
-              <div style="font-size: 32px; font-weight: 600; color: #1890ff;">{{ usageStats.total }}</div>
-              <div style="font-size: 13px; color: #999; margin-top: 4px;">总记忆数</div>
+          <div style="display: flex; gap: var(--space-3xl); align-items: flex-end; padding: var(--space-lg) 0 var(--space-xl); margin-bottom: var(--space-xl);">
+            <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+              <div style="font-family: var(--font-display); font-size: 32px; font-weight: 500; color: var(--c-text); line-height: 1;">{{ usageStats.total }}</div>
+              <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--c-text-3);">总记忆数</div>
             </div>
-            <div class="section-card" style="flex: 1; padding: 20px; text-align: center;">
-              <div style="font-size: 32px; font-weight: 600; color: #722ed1;">{{ usageStats.trait_count }}</div>
-              <div style="font-size: 13px; color: #999; margin-top: 4px;">Trait 数</div>
+            <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+              <div style="font-family: var(--font-display); font-size: 32px; font-weight: 500; color: var(--c-accent-text); line-height: 1;">{{ usageStats.trait_count }}</div>
+              <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--c-text-3);">Trait 数</div>
             </div>
           </div>
 
@@ -206,7 +206,7 @@
       <div v-if="activeTab === 'settings'" style="margin-top: 24px;">
 
         <!-- CLI Quick Start (non-encrypted) -->
-        <div v-if="base?.type === 'BUILTIN' && !base?.encrypted" class="section-card" style="padding: 20px 24px; margin-bottom: 24px; border-left: 3px solid #6b8e8a;">
+        <div v-if="base?.type === 'BUILTIN' && !base?.encrypted" class="section-card" style="padding: 20px 24px; margin-bottom: 24px;">
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
             <span style="font-size: 18px;">&#x2318;</span>
             <h3 style="font-size: 15px; font-weight: 600; margin: 0; color: #333;">CLI Quick Start — Claude Code</h3>
@@ -214,7 +214,7 @@
 
           <div style="display: flex; flex-direction: column; gap: 16px;">
             <div class="enc-step">
-              <div class="enc-step-num" style="background: #6b8e8a;">1</div>
+              <div class="enc-step-num">1</div>
               <div style="flex: 1;">
                 <div class="enc-step-title">安装 CLI 并登录</div>
                 <div style="position: relative;">
@@ -226,7 +226,7 @@ dbay login</pre>
             </div>
 
             <div class="enc-step">
-              <div class="enc-step-num" style="background: #6b8e8a;">2</div>
+              <div class="enc-step-num">2</div>
               <div style="flex: 1;">
                 <div class="enc-step-title">设为默认记忆库</div>
                 <div style="position: relative;">
@@ -237,7 +237,7 @@ dbay login</pre>
             </div>
 
             <div class="enc-step">
-              <div class="enc-step-num" style="background: #6b8e8a;">3</div>
+              <div class="enc-step-num">3</div>
               <div style="flex: 1;">
                 <div class="enc-step-title">注册 MCP Server 到 Claude Code</div>
                 <div style="position: relative;">
@@ -248,7 +248,7 @@ dbay login</pre>
             </div>
 
             <div class="enc-step">
-              <div class="enc-step-num" style="background: #6b8e8a;">4</div>
+              <div class="enc-step-num">4</div>
               <div style="flex: 1;">
                 <div class="enc-step-title">开始使用</div>
                 <p class="enc-step-desc">重启 Claude Code，输入 <code>/mcp</code> 确认 dbay 已连接。然后直接对 Claude 说：</p>
@@ -264,7 +264,7 @@ dbay login</pre>
         </div>
 
         <!-- Encryption quick start guide -->
-        <div v-if="base?.encrypted" class="section-card" style="padding: 20px 24px; margin-bottom: 24px; border-left: 3px solid #8c7a68;">
+        <div v-if="base?.encrypted" class="section-card" style="padding: 20px 24px; margin-bottom: 24px;">
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
             <span style="font-size: 18px;">&#x1f512;</span>
             <h3 style="font-size: 15px; font-weight: 600; margin: 0; color: #333;">加密记忆库 Quick Start</h3>
@@ -424,7 +424,7 @@ dbay login</pre>
           <h3 style="margin-bottom: 16px;">mem0 + DBay 集成指南</h3>
           <p style="color: #666; font-size: 14px; line-height: 1.6;">在您的 DBay 数据库上运行 mem0，享受 Serverless PostgreSQL 的便利。</p>
           <p style="color: #666; font-size: 14px; line-height: 1.6; margin-top: 12px;">
-            <a href="https://docs.mem0.ai" target="_blank" style="color: #1890ff;">查看 mem0 官方文档 →</a>
+            <a href="https://docs.mem0.ai" target="_blank" style="color: var(--c-accent-text);">查看 mem0 官方文档 →</a>
           </p>
         </div>
 

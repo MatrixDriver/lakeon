@@ -274,7 +274,7 @@ defineExpose({ navigateToTitle })
   flex-shrink: 0;
 }
 .wiki-page-item:hover .wiki-page-delete { display: inline; }
-.wiki-page-delete:hover { color: #e74c3c; }
+.wiki-page-delete:hover { color: var(--cs-severe); }
 .wiki-page-item:hover {
   background: #faf5f0;
 }

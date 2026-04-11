@@ -178,19 +178,19 @@
           </span>
           <span style="font-size: 11px; min-width: 160px;">
             <template v-if="uploading && uploadStats.speed > 0"><span style="color: #999;">{{ formatSpeed(uploadStats.speed) }} &middot; 预计还需 {{ formatEta(uploadStats.eta) }}</span></template>
-            <template v-else-if="!uploading"><span style="color: #52c41a;">上传完成</span></template>
+            <template v-else-if="!uploading"><span style="color: #386b47;">上传完成</span></template>
           </span>
         </div>
         <div v-if="docStats.processing > 0 || docStats.pending > 0" style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 12px; color: #666; width: 56px; flex-shrink: 0;">处理</span>
           <div style="flex: 1; height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
-            <div :style="{ width: (docStats.total > 0 ? Math.round((docStats.ready + docStats.failed) / docStats.total * 100) : 0) + '%', height: '100%', background: '#52c41a', borderRadius: '3px', transition: 'width 0.3s' }"></div>
+            <div :style="{ width: (docStats.total > 0 ? Math.round((docStats.ready + docStats.failed) / docStats.total * 100) : 0) + '%', height: '100%', background: 'var(--c-primary)', borderRadius: '3px', transition: 'width 0.3s' }"></div>
           </div>
           <span style="font-size: 13px; color: #333; min-width: 75px; text-align: right;">
             {{ docStats.ready + docStats.failed }}/{{ docStats.total }} ({{ docStats.total > 0 ? Math.round((docStats.ready + docStats.failed) / docStats.total * 100) : 0 }}%)
           </span>
           <span style="font-size: 11px; color: #999; min-width: 160px;">
-            <span v-if="docStats.failed > 0" style="color: #e6393d;">{{ docStats.failed }} 失败</span>
+            <span v-if="docStats.failed > 0" style="color: var(--cs-severe);">{{ docStats.failed }} 失败</span>
           </span>
         </div>
         <div v-if="docStats.processing > 0 || docStats.pending > 0" style="font-size: 11px; color: #999; margin-top: 6px; padding-left: 66px;">
@@ -307,10 +307,10 @@
                   <div style="display: flex; align-items: center; gap: 6px; white-space: nowrap;">
                     <span class="status-dot" :style="{ background: docStatusColor(doc.status) }"></span>
                     <template v-if="(doc.status === 'READY' || doc.status === 'WIKI_PENDING') && doc.metadata?.wiki_processed_at">
-                      <span style="color: #52c41a;" :title="'Wiki 生成于 ' + new Date(doc.metadata.wiki_processed_at).toLocaleString('zh-CN')">就绪 · Wiki 已生成</span>
+                      <span style="color: #386b47;" :title="'Wiki 生成于 ' + new Date(doc.metadata.wiki_processed_at).toLocaleString('zh-CN')">就绪 · Wiki 已生成</span>
                     </template>
                     <template v-else-if="doc.status === 'READY' || doc.status === 'WIKI_PENDING'">
-                      <span>就绪 · <span style="color: #faad14;">Wiki 待生成</span></span>
+                      <span>就绪 · <span style="color: var(--cs-warn);">Wiki 待生成</span></span>
                     </template>
                     <template v-else>
                       <span>{{ docStatusText(doc.status) }}</span>
@@ -821,10 +821,10 @@ async function handleGetCredentials(dsId: string) {
 }
 
 function docStatusColor(s: string) {
-  if (s === 'READY' || s === 'WIKI_PENDING') return '#52c41a'
-  if (s === 'PROCESSING') return '#c19a6b'
-  if (s === 'FAILED') return '#e6393d'
-  return '#d9d9d9'
+  if (s === 'READY' || s === 'WIKI_PENDING') return '#386b47'
+  if (s === 'PROCESSING') return '#2a4d6a'
+  if (s === 'FAILED') return '#c6333a'
+  return '#c2c6cc'
 }
 
 function docStatusText(s: string) {
@@ -1376,8 +1376,8 @@ onMounted(async () => {
   white-space: nowrap;
 }
 .source-url-link:hover {
-  background: #e0efff;
-  color: #096dd9;
+  background: color-mix(in oklch, var(--c-primary) 8%, #fff);
+  color: var(--c-primary);
 }
 .btn-icon {
   display: inline-flex;

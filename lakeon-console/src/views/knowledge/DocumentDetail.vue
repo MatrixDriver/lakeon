@@ -31,9 +31,9 @@
 
     <!-- Threshold legend -->
     <div class="threshold-bar">
-      <span style="color: #fa8c16;">&#9888; 过短 &lt; 80 字</span>
-      <span style="color: #fa8c16;">&#9888; 过长 &gt; 800 字</span>
-      <span style="color: #e6393d;">&#9888; 疑似重复 &gt; 92% 相似度</span>
+      <span style="color: var(--cs-warn);">&#9888; 过短 &lt; 80 字</span>
+      <span style="color: var(--cs-warn);">&#9888; 过长 &gt; 800 字</span>
+      <span style="color: var(--cs-severe);">&#9888; 疑似重复 &gt; 92% 相似度</span>
     </div>
 
     <!-- Document summary -->
@@ -187,10 +187,10 @@ async function loadSummary() {
 }
 
 function docStatusColor(s: string) {
-  if (s === 'READY') return '#52c41a'
-  if (s === 'PROCESSING') return '#1890ff'
-  if (s === 'FAILED') return '#e6393d'
-  return '#d9d9d9'
+  if (s === 'READY') return '#386b47'
+  if (s === 'PROCESSING') return '#2a4d6a'
+  if (s === 'FAILED') return '#c6333a'
+  return '#c2c6cc'
 }
 
 function docStatusText(s: string) {

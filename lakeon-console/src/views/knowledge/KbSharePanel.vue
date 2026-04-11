@@ -242,14 +242,14 @@ onMounted(loadShares)
   margin-bottom: 8px;
 }
 .share-msg-error {
-  background: #fff1f0;
-  color: #cf1322;
-  border: 1px solid #ffa39e;
+  background: color-mix(in oklch, var(--cs-severe) 5%, #fff);
+  color: var(--cs-severe);
+  border: 1px solid color-mix(in oklch, var(--cs-severe) 20%, var(--c-border-light));
 }
 .share-msg-success {
-  background: #f6ffed;
-  color: #389e0d;
-  border: 1px solid #b7eb8f;
+  background: color-mix(in oklch, var(--c-success) 8%, #fff);
+  color: #386b47;
+  border: 1px solid color-mix(in oklch, var(--c-success) 25%, var(--c-border-light));
 }
 .share-members-title {
   font-size: 12px;

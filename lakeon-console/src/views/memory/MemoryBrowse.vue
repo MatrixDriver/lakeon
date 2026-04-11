@@ -91,7 +91,7 @@
 
               <!-- Footer -->
               <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; color: #999;">
-                <span v-if="m.metadata?.source" style="background: #f0f5ff; color: #1890ff; padding: 0 6px; border-radius: 3px;">{{ m.metadata.source }}</span>
+                <span v-if="m.metadata?.source" style="background: color-mix(in oklch, var(--c-primary) 10%, #fff); color: var(--c-primary); padding: 1px 8px; border-radius: 10px; font-size: 11px;">{{ m.metadata.source }}</span>
                 <span>创建: {{ new Date(m.created_at).toLocaleString('zh-CN') }}</span>
                 <span v-if="m.last_accessed_at">最近访问: {{ new Date(m.last_accessed_at).toLocaleString('zh-CN') }}</span>
                 <span>访问 {{ m.access_count }} 次</span>
@@ -100,7 +100,7 @@
             </div>
 
             <!-- Delete -->
-            <button class="btn btn-sm" style="color: #cf1322; margin-left: 12px; flex-shrink: 0;"
+            <button class="btn btn-sm" style="color: var(--cs-severe); margin-left: 12px; flex-shrink: 0;"
                     @click.stop="handleDelete(m.id)">删除</button>
           </div>
         </div>

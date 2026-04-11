@@ -36,14 +36,14 @@
                 <span>{{ ds.file_count }} 个文件</span>
                 <span v-if="ds.last_synced_at">上次同步: {{ new Date(ds.last_synced_at).toLocaleString('zh-CN') }}</span>
                 <span v-else>未同步</span>
-                <span :style="{ color: ds.status === 'SYNCING' ? '#1890ff' : ds.status === 'ERROR' ? '#e6393d' : '#52c41a' }">
+                <span :style="{ color: ds.status === 'SYNCING' ? 'var(--c-primary)' : ds.status === 'ERROR' ? 'var(--cs-severe)' : '#386b47' }">
                   {{ ds.status === 'ACTIVE' ? '正常' : ds.status === 'SYNCING' ? '同步中...' : '错误' }}
                 </span>
               </div>
               <div v-if="ds.last_sync_stats" style="margin-top: 6px; font-size: 12px; color: #999;">
                 新增 {{ ds.last_sync_stats.added }} / 修改 {{ ds.last_sync_stats.modified }} / 删除 {{ ds.last_sync_stats.deleted }} / 跳过 {{ ds.last_sync_stats.skipped }}
               </div>
-              <div v-if="ds.error" style="margin-top: 6px; font-size: 12px; color: #e6393d;">{{ ds.error }}</div>
+              <div v-if="ds.error" style="margin-top: 6px; font-size: 12px; color: var(--cs-severe);">{{ ds.error }}</div>
             </div>
             <div style="display: flex; gap: 8px; flex-shrink: 0;">
               <button class="btn btn-text" @click="handleGetCredentials(ds.id)">上传凭据</button>
@@ -68,7 +68,7 @@
             <pre style="background: #fff; padding: 8px 12px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin-bottom: 12px; white-space: pre-wrap; word-break: break-all;">{{ dsCredentials.creds.upload_commands.obsutil }}</pre>
             <div style="margin-bottom: 8px; font-weight: 500;">方式三：华为云 OBS Console 网页端</div>
             <p style="margin: 0; color: #666;">登录华为云 Console → 对象存储服务 → {{ dsCredentials.creds.bucket }} → 进入 {{ dsCredentials.creds.prefix }} 目录 → 上传</p>
-            <div style="margin-top: 12px; color: #faad14; font-size: 12px;">
+            <div style="margin-top: 12px; color: var(--cs-warn); font-size: 12px;">
               凭据有效期至 {{ new Date(dsCredentials.creds.expires_at).toLocaleString('zh-CN') }}，过期后重新获取。
             </div>
             <button class="btn btn-text" style="margin-top: 8px;" @click="dsCredentials = null">收起</button>
@@ -81,9 +81,9 @@
         <h3 style="margin: 0 0 12px; font-size: 16px;">同步的文档</h3>
         <div style="display: flex; gap: 16px; margin-bottom: 12px; font-size: 13px; color: #666;">
           <span>共 {{ documents.length }} 个文档</span>
-          <span v-if="processingCount > 0" style="color: #1890ff;">{{ processingCount }} 个处理中</span>
-          <span v-if="readyCount > 0" style="color: #52c41a;">{{ readyCount }} 个已就绪</span>
-          <span v-if="failedCount > 0" style="color: #e6393d;">{{ failedCount }} 个失败</span>
+          <span v-if="processingCount > 0" style="color: var(--c-primary);">{{ processingCount }} 个处理中</span>
+          <span v-if="readyCount > 0" style="color: #386b47;">{{ readyCount }} 个已就绪</span>
+          <span v-if="failedCount > 0" style="color: var(--cs-severe);">{{ failedCount }} 个失败</span>
         </div>
 
         <TableToolbar v-model="docSearch" placeholder="搜索文件名" :loading="docLoading" @refresh="loadDocuments" />
@@ -101,7 +101,7 @@
             </thead>
             <tbody>
               <tr v-for="doc in filteredDocs" :key="doc.id" @click="$router.push(`/knowledge/${selectedKbId}/documents/${doc.id}`)" style="cursor: pointer;">
-                <td style="font-weight: 500; color: #1890ff;">{{ doc.filename }}</td>
+                <td style="font-weight: 500; color: var(--c-primary);">{{ doc.filename }}</td>
                 <td><span style="background: #e8f4ff; color: #9a5b25; font-size: 11px; padding: 1px 6px; border-radius: 3px;">{{ doc.format }}</span></td>
                 <td style="color: #666;">{{ formatSize(doc.size_bytes) }}</td>
                 <td>{{ doc.chunks_count ?? '-' }}</td>
@@ -188,8 +188,8 @@ const filteredDocs = computed(() => {
 })
 
 function statusColor(s: string) {
-  if (s === 'READY') return '#52c41a'
-  if (s === 'PROCESSING') return '#1890ff'
+  if (s === 'READY') return '#386b47'
+  if (s === 'PROCESSING') return '#2a4d6a'
   if (s === 'FAILED') return '#e6393d'
   return '#d9d9d9'
 }

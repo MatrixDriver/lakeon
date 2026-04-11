@@ -1197,18 +1197,18 @@ onUnmounted(() => {
 }
 
 .tab-tip {
-  color: #6b7280;
+  color: var(--c-text-2);
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.55;
   margin: 0 0 16px;
-  padding: 8px 12px;
-  background: #f8f9fa;
+  padding: 10px 14px;
+  background: var(--c-bg-alt);
+  border: 1px solid var(--c-border-light);
   border-radius: 6px;
-  border-left: 3px solid #d1d5db;
 }
 .tip-link {
   margin-left: 6px;
-  color: #3b82f6;
+  color: var(--c-accent-text);
   text-decoration: none;
   &:hover { text-decoration: underline; }
 }
@@ -1833,9 +1833,11 @@ onUnmounted(() => {
 }
 
 .branch-list-item-selected {
-  background: #e6f0ff;
-  border-left: 3px solid #c67d3a;
-  padding-left: 13px;
+  background: color-mix(in oklch, var(--c-accent) 8%, #fff);
+}
+
+.branch-list-item-selected:hover {
+  background: color-mix(in oklch, var(--c-accent) 12%, #fff);
 }
 
 .branch-item-row {

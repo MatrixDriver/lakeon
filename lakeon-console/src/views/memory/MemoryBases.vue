@@ -216,10 +216,10 @@
               </span>
             </td>
             <td>
-              <span v-if="item.type === 'BUILTIN'" style="display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;background:#fef2f0;color:#e6393d;">自研</span>
-              <span v-else-if="item.type === 'MEM0'" style="display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;background:#fdf5ed;color:#1890ff;">mem0</span>
-              <span v-else-if="item.type === 'HINDSIGHT'" style="display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;background:#f0fff4;color:#389e0d;">hindsight</span>
-              <span v-else style="display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;background:#f5f5f5;color:#666;">自定义</span>
+              <span v-if="item.type === 'BUILTIN'" class="status-tag tag-orange">自研</span>
+              <span v-else-if="item.type === 'MEM0'" class="status-tag tag-blue">mem0</span>
+              <span v-else-if="item.type === 'HINDSIGHT'" class="status-tag tag-green">hindsight</span>
+              <span v-else class="status-tag tag-gray">自定义</span>
             </td>
             <td>{{ item.memory_count ?? 0 }}</td>
             <td>{{ item.trait_count ?? 0 }}</td>
@@ -545,9 +545,9 @@ onMounted(loadMemoryBases)
 .page-tips {
   margin-top: 48px;
   padding: 16px 20px;
-  background: #faf8f5;
+  background: color-mix(in oklch, var(--c-accent) 6%, #fff);
+  border: 1px solid color-mix(in oklch, var(--c-accent) 20%, var(--c-border-light));
   border-radius: 6px;
-  border-left: 3px solid #c67d3a;
 }
 .page-tips-title {
   font-size: 13px;

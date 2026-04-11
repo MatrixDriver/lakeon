@@ -579,14 +579,14 @@ onMounted(() => {
 }
 
 .page-desc {
-  color: #6b7280;
+  color: var(--c-text-2);
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.55;
   margin: 0 0 20px;
-  padding: 8px 12px;
-  background: #f8f9fa;
+  padding: 10px 14px;
+  background: var(--c-bg-alt);
+  border: 1px solid var(--c-border-light);
   border-radius: 6px;
-  border-left: 3px solid #d1d5db;
 }
 
 /* Database selector */
@@ -690,9 +690,11 @@ onMounted(() => {
 }
 
 .branch-list-item-selected {
-  background: #e6f0ff;
-  border-left: 3px solid #c67d3a;
-  padding-left: 13px;
+  background: color-mix(in oklch, var(--c-accent) 8%, #fff);
+}
+
+.branch-list-item-selected:hover {
+  background: color-mix(in oklch, var(--c-accent) 12%, #fff);
 }
 
 .branch-item-row {
@@ -709,11 +711,11 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-.dot-green { background: #52c41a; }
-.dot-yellow { background: #faad14; }
-.dot-gray { background: #c2c6cc; }
-.dot-blue { background: #9a5b25; }
-.dot-red { background: #e6393d; }
+.dot-green { background: var(--c-success); }
+.dot-yellow { background: var(--cs-warn); }
+.dot-gray { background: var(--c-text-3); }
+.dot-blue { background: var(--c-primary); }
+.dot-red { background: var(--cs-severe); }
 
 .compute-status-label {
   font-size: 11px;
@@ -723,18 +725,18 @@ onMounted(() => {
 }
 
 .status-running {
-  background: #f6ffed;
-  color: #52c41a;
+  background: color-mix(in oklch, var(--c-success) 12%, #fff);
+  color: #386b47;
 }
 
 .status-suspended {
-  background: #fffbe6;
-  color: #d48806;
+  background: color-mix(in oklch, var(--cs-warn) 10%, #fff);
+  color: var(--cs-warn);
 }
 
 .status-idle {
-  background: #f2f3f5;
-  color: #8a8e99;
+  background: var(--c-bg-alt);
+  color: var(--c-text-3);
 }
 
 .branch-item-uri {
@@ -800,22 +802,26 @@ onMounted(() => {
 }
 
 .default-tag {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   padding: 1px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  background-color: #fdf5ed;
-  color: #9a5b25;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  background-color: color-mix(in oklch, var(--c-accent) 12%, #fff);
+  color: var(--c-accent-text);
   margin-left: 6px;
 }
 
 .active-tag {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   padding: 1px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  background-color: #f6ffed;
-  color: #52c41a;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  background-color: color-mix(in oklch, var(--c-success) 12%, #fff);
+  color: #386b47;
   margin-left: 6px;
 }
 
@@ -830,8 +836,8 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 8px 20px;
-  background: #f0f5ff;
-  border-bottom: 1px solid #d6e4ff;
+  background: var(--c-bg-alt);
+  border-bottom: 1px solid var(--c-border-light);
 }
 
 .branch-uri-bar-label {
@@ -861,18 +867,18 @@ onMounted(() => {
 }
 
 .branch-status-active {
-  background: #f6ffed;
-  color: #52c41a;
+  background: color-mix(in oklch, var(--c-success) 12%, #fff);
+  color: #386b47;
 }
 
 .branch-status-creating {
-  background: #fdf5ed;
-  color: #1890ff;
+  background: color-mix(in oklch, var(--c-primary) 10%, #fff);
+  color: var(--c-primary);
 }
 
 .branch-status-error {
-  background: #fff1f0;
-  color: #e6393d;
+  background: color-mix(in oklch, var(--cs-severe) 10%, #fff);
+  color: var(--cs-severe);
 }
 
 /* Version timeline panel */
@@ -1046,12 +1052,12 @@ onMounted(() => {
 
 /* Squash mode */
 .squash-hint {
-  padding: 8px 16px;
-  background: #fffbe6;
-  border: 1px solid #ffe58f;
+  padding: 10px 14px;
+  background: color-mix(in oklch, var(--cs-warn) 6%, #fff);
+  border: 1px solid color-mix(in oklch, var(--cs-warn) 25%, var(--c-border-light));
   border-radius: 4px;
   font-size: 13px;
-  color: #d48806;
+  color: var(--cs-warn);
   margin-bottom: 12px;
 }
 
@@ -1081,8 +1087,8 @@ onMounted(() => {
 .squash-confirm-bar {
   margin-top: 16px;
   padding: 12px 16px;
-  background: #fffbe6;
-  border: 1px solid #ffe58f;
+  background: color-mix(in oklch, var(--cs-warn) 6%, #fff);
+  border: 1px solid color-mix(in oklch, var(--cs-warn) 25%, var(--c-border-light));
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -1092,7 +1098,7 @@ onMounted(() => {
 
 .squash-confirm-text {
   font-size: 13px;
-  color: #d48806;
+  color: var(--cs-warn);
 }
 
 .squash-confirm-actions {

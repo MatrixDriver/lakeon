@@ -13,11 +13,11 @@
         <!-- Summary cards -->
         <div style="display: flex; gap: 16px; margin-bottom: 32px;">
           <div class="card" style="flex: 1; padding: 20px; text-align: center;">
-            <div style="font-size: 32px; font-weight: 600; color: #1890ff;">{{ stats.total }}</div>
-            <div style="font-size: 13px; color: #999; margin-top: 4px;">总记忆数</div>
+            <div style="font-family: var(--font-display); font-size: 32px; font-weight: 500; color: var(--c-primary);">{{ stats.total }}</div>
+            <div style="font-size: 13px; color: var(--c-text-3); margin-top: 4px;">总记忆数</div>
           </div>
           <div class="card" style="flex: 1; padding: 20px; text-align: center;">
-            <div style="font-size: 32px; font-weight: 600; color: #722ed1;">{{ stats.trait_count }}</div>
+            <div style="font-family: var(--font-display); font-size: 32px; font-weight: 500; color: var(--c-accent-text);">{{ stats.trait_count }}</div>
             <div style="font-size: 13px; color: #999; margin-top: 4px;">Trait 数</div>
           </div>
         </div>

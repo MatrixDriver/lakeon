@@ -36,8 +36,8 @@
            style="border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; margin-bottom: 12px; background: #fafbfc;">
         <div style="font-size: 14px; line-height: 1.7; color: #333; white-space: pre-wrap;">{{ r.content }}</div>
         <div style="margin-top: 10px; font-size: 12px; color: #999; display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
-          <span v-if="r.level === 1" style="background: #eff6ff; color: #2563eb; padding: 1px 8px; border-radius: 3px; font-weight: 500;">文档摘要</span>
-          <span v-if="r.metadata?.kb_name" style="color: #1890ff;">{{ r.metadata.kb_name }}</span>
+          <span v-if="r.level === 1" style="background: color-mix(in oklch, var(--c-primary) 10%, #fff); color: var(--c-primary); padding: 1px 8px; border-radius: 10px; font-weight: 500; font-size: 11px;">文档摘要</span>
+          <span v-if="r.metadata?.kb_name" style="color: var(--c-primary);">{{ r.metadata.kb_name }}</span>
           <span>来源: {{ r.metadata?.filename }}</span>
           <span v-if="r.metadata?.section">章节: {{ r.metadata.section }}</span>
           <span>得分: {{ r.score?.toFixed(3) }}</span>

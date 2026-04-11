@@ -468,16 +468,16 @@ onMounted(loadKBs)
   border: 1px solid #b3d4f7;
 }
 .type-tag-table {
-  background: #f0fff4;
-  color: #389e0d;
-  border: 1px solid #b7eb8f;
+  background: color-mix(in oklch, var(--c-success) 12%, #fff);
+  color: #386b47;
+  border: 1px solid color-mix(in oklch, var(--c-success) 25%, #fff);
 }
 .page-tips {
   margin-top: 48px;
   padding: 16px 20px;
-  background: #faf8f5;
+  background: color-mix(in oklch, var(--c-accent) 6%, #fff);
+  border: 1px solid color-mix(in oklch, var(--c-accent) 20%, var(--c-border-light));
   border-radius: 6px;
-  border-left: 3px solid #c67d3a;
 }
 .page-tips-title {
   font-size: 13px;

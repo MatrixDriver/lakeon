@@ -25,13 +25,13 @@
             <tr v-for="msg in messages" :key="msg.id" style="cursor: pointer;" @click="openDetail(msg.id)">
               <td style="color: #999; font-size: 13px;">{{ new Date(msg.created_at).toLocaleString('zh-CN') }}</td>
               <td>
-                <span style="display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px;"
-                      :style="msg.role === 'user' ? 'background:#fdf5ed;color:#1565c0' : 'background:#f3e5f5;color:#7b1fa2'">
+                <span style="display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px;"
+                      :style="msg.role === 'user' ? 'background: color-mix(in oklch, var(--c-primary) 10%, #fff); color: var(--c-primary);' : 'background: color-mix(in oklch, var(--c-accent) 12%, #fff); color: var(--c-accent-text);'">
                   {{ msg.role }}
                 </span>
               </td>
               <td>
-                <span v-if="msg.source" style="display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; background:#f0f5ff; color:#1890ff;">
+                <span v-if="msg.source" style="display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; background: color-mix(in oklch, var(--c-primary) 10%, #fff); color: var(--c-primary);">
                   {{ msg.source }}
                 </span>
                 <span v-else style="color: #ccc;">-</span>
