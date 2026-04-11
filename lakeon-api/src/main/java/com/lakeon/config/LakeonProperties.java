@@ -411,6 +411,7 @@ public class LakeonProperties {
         private String curatePrompt = "";
         private String chatRoutingPrompt = "";
         private String chatAnswerPrompt = "";
+        private AgentConfig agent = new AgentConfig();
 
         public String getApiKey() { return apiKey; }
         public void setApiKey(String apiKey) { this.apiKey = apiKey; }
@@ -426,6 +427,21 @@ public class LakeonProperties {
         public void setChatRoutingPrompt(String chatRoutingPrompt) { this.chatRoutingPrompt = chatRoutingPrompt; }
         public String getChatAnswerPrompt() { return chatAnswerPrompt; }
         public void setChatAnswerPrompt(String chatAnswerPrompt) { this.chatAnswerPrompt = chatAnswerPrompt; }
+        public AgentConfig getAgent() { return agent; }
+        public void setAgent(AgentConfig agent) { this.agent = agent; }
+
+        public static class AgentConfig {
+            private String url;
+            private String internalToken;
+            private int timeoutSeconds = 300;
+
+            public String getUrl() { return url; }
+            public void setUrl(String url) { this.url = url; }
+            public String getInternalToken() { return internalToken; }
+            public void setInternalToken(String internalToken) { this.internalToken = internalToken; }
+            public int getTimeoutSeconds() { return timeoutSeconds; }
+            public void setTimeoutSeconds(int timeoutSeconds) { this.timeoutSeconds = timeoutSeconds; }
+        }
     }
 
     public static class OAuthConfig {
