@@ -18,6 +18,7 @@ import com.lakeon.service.exception.ForbiddenException;
 import com.lakeon.service.exception.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -64,6 +65,7 @@ public class KnowledgeService {
     private final ChunkService chunkService;
     private final KbAccessService kbAccessService;
     private final KbShareRepository kbShareRepository;
+    private final WikiService wikiService;
 
     public KnowledgeService(DocumentRepository documentRepository,
                             KnowledgeBaseRepository knowledgeBaseRepository,
@@ -79,7 +81,8 @@ public class KnowledgeService {
                             KbWriteQueue kbWriteQueue,
                             ChunkService chunkService,
                             KbAccessService kbAccessService,
-                            KbShareRepository kbShareRepository) {
+                            KbShareRepository kbShareRepository,
+                            @Lazy WikiService wikiService) {
         this.documentRepository = documentRepository;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.jobService = jobService;
@@ -95,6 +98,7 @@ public class KnowledgeService {
         this.chunkService = chunkService;
         this.kbAccessService = kbAccessService;
         this.kbShareRepository = kbShareRepository;
+        this.wikiService = wikiService;
         this.restTemplate = new RestTemplate();
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
@@ -181,6 +185,7 @@ public class KnowledgeService {
             kb.setTableNames(tableNames);
             kb.setStatus(KnowledgeBaseStatus.READY);
             knowledgeBaseRepository.save(kb);
+            seedDefaultSchema(kb);
             return kb;
         }
 
@@ -196,7 +201,27 @@ public class KnowledgeService {
         t.setDaemon(true);
         t.start();
 
+        seedDefaultSchema(kb);
         return kb;
+    }
+
+    private void seedDefaultSchema(KnowledgeBaseEntity kb) {
+        try {
+            String defaultSchema = loadResourceText("/wiki/default-schema.md");
+            wikiService.writeWikiDocument(
+                kb.getTenantId(), kb.getId(),
+                "schema.md", "KB Schema", defaultSchema);
+            log.info("Seeded default schema.md for KB {}", kb.getId());
+        } catch (Exception e) {
+            log.warn("Failed to seed default schema for KB {}: {}", kb.getId(), e.getMessage());
+        }
+    }
+
+    private static String loadResourceText(String path) throws java.io.IOException {
+        try (var in = KnowledgeService.class.getResourceAsStream(path)) {
+            if (in == null) throw new java.io.IOException("resource not found: " + path);
+            return new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        }
     }
 
     /**
