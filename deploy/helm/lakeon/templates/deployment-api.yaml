@@ -72,6 +72,13 @@ spec:
                   optional: true
             - name: LAKEON_WIKI_BASE_URL
               value: "https://api.modelarts-maas.com/openai/v1"
+            - name: WIKI_AGENT_URL
+              value: {{ .Values.wikiAgent.url | default "http://lakeon-wiki-agent.lakeon.svc:8090" | quote }}
+            - name: WIKI_AGENT_INTERNAL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: wiki-agent-secrets
+                  key: internal-token
             {{- if .Values.embedding.apiUrl }}
             - name: LAKEON_EMBEDDING_API_URL
               value: {{ .Values.embedding.apiUrl | quote }}

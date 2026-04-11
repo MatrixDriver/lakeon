@@ -202,3 +202,25 @@ logCollector:
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/log-collector
     tag: "0.1.4"
+
+wikiAgent:
+  enabled: true
+  replicas: 1
+  image:
+    repository: lakeon/lakeon-wiki-agent
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  lakeonApiUrl: "http://lakeon-api.lakeon.svc:8080"
+  llm:
+    baseUrl: "https://api.modelarts-maas.com/openai/v1"
+    model: "deepseek-v3.2"
+  maxToolRounds: 20
+  maxConcurrentAgents: 8
+  logLevel: "INFO"
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
