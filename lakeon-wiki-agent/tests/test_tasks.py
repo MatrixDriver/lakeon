@@ -49,31 +49,39 @@ async def test_registry_captures_error():
 @pytest.mark.asyncio
 async def test_semaphore_limits_concurrency():
     reg = TaskRegistry(max_concurrent=1)
-    started = []
+    started = [asyncio.Event(), asyncio.Event()]
+    release = [asyncio.Event(), asyncio.Event()]
     finished = []
 
     async def slow(i: int):
-        started.append(i)
-        await asyncio.sleep(0.1)
+        started[i].set()
+        await release[i].wait()
         finished.append(i)
         return {"i": i}
 
+    await reg.submit("ingest", slow(0))
     await reg.submit("ingest", slow(1))
-    await reg.submit("ingest", slow(2))
 
-    # With max_concurrent=1, only task 1 can be running at first
-    await asyncio.sleep(0.02)
-    assert started == [1]
+    # Wait for task 0 to start (semaphore admitted it)
+    await started[0].wait()
+    # Task 1 must still be waiting on the semaphore
+    assert not started[1].is_set()
     assert finished == []
 
-    # After task 1 finishes and task 2 starts
-    await asyncio.sleep(0.15)
-    assert started == [1, 2]
-    assert finished == [1]
+    # Release task 0 → semaphore frees → task 1 starts
+    release[0].set()
+    await started[1].wait()
+    # By the time task 1 has started, task 0's `finished.append(0)` must have run
+    # because it happens before `return` which releases the semaphore
+    assert 0 in finished
 
-    # After task 2 finishes
-    await asyncio.sleep(0.15)
-    assert finished == [1, 2]
+    # Release task 1 and wait for it
+    release[1].set()
+    for _ in range(50):
+        if len(finished) == 2:
+            break
+        await asyncio.sleep(0.01)
+    assert finished == [0, 1]
 
 
 @pytest.mark.asyncio
@@ -116,3 +124,58 @@ async def test_count_running_reflects_active_tasks():
     release.set()
     await asyncio.sleep(0.05)
     assert reg.count_running() == 0
+
+
+@pytest.mark.asyncio
+async def test_evict_older_than_removes_terminal_snapshots():
+    import time as _time
+
+    reg = TaskRegistry(max_concurrent=2)
+
+    async def work():
+        return {}
+
+    tid = await reg.submit("ingest", work())
+    # Wait for completion
+    for _ in range(50):
+        if reg.get(tid)["status"] == "completed":
+            break
+        await asyncio.sleep(0.01)
+    assert reg.get(tid)["status"] == "completed"
+
+    # Manually backdate finished_at so it appears old
+    snap = reg.get(tid)
+    snap["finished_at"] = _time.time() - 100  # 100 seconds ago
+
+    evicted = reg.evict_older_than(max_age_seconds=60)
+    assert evicted == 1
+    assert reg.get(tid) is None
+
+
+@pytest.mark.asyncio
+async def test_evict_leaves_running_tasks_alone():
+    reg = TaskRegistry(max_concurrent=2)
+    release = asyncio.Event()
+
+    async def held():
+        await release.wait()
+        return {}
+
+    tid = await reg.submit("ingest", held())
+    await asyncio.sleep(0.01)
+    assert reg.get(tid)["status"] == "running"
+
+    # Evict with tiny TTL — should NOT drop running tasks
+    evicted = reg.evict_older_than(max_age_seconds=0)
+    assert evicted == 0
+    assert reg.get(tid) is not None
+
+    release.set()
+
+
+def test_invalid_max_concurrent_raises():
+    import pytest as _pytest
+    with _pytest.raises(ValueError):
+        TaskRegistry(max_concurrent=0)
+    with _pytest.raises(ValueError):
+        TaskRegistry(max_concurrent=-1)

@@ -7,6 +7,9 @@ FastAPI routes submit an agent coroutine here and return a task_id immediately
 
 All tasks run under a single asyncio.Semaphore so bursty uploads don't
 overwhelm the LLM API rate limits or the lakeon-api internal endpoints.
+
+Terminal snapshots accumulate in memory — call `evict_older_than(seconds)`
+periodically (e.g. from a FastAPI lifespan sweeper) to prevent unbounded growth.
 """
 import asyncio
 import logging
@@ -20,8 +23,11 @@ log = logging.getLogger(__name__)
 
 class TaskRegistry:
     def __init__(self, max_concurrent: int = 8) -> None:
+        if max_concurrent < 1:
+            raise ValueError(f"max_concurrent must be >= 1, got {max_concurrent}")
         self._sem = asyncio.Semaphore(max_concurrent)
         self._tasks: dict[str, dict[str, Any]] = {}
+        self._bg: set[asyncio.Task] = set()
         self._lock = asyncio.Lock()
 
     async def submit(
@@ -44,21 +50,26 @@ class TaskRegistry:
         }
         async with self._lock:
             self._tasks[task_id] = snap
+        log.debug("task %s submitted (run_type=%s)", task_id, run_type)
 
         async def runner() -> None:
             async with self._sem:
                 try:
                     result = await coro
-                    snap["status"] = "completed"
                     snap["result"] = result
+                    snap["finished_at"] = time.time()
+                    snap["status"] = "completed"  # set last — terminal marker
                 except Exception as e:
                     log.exception("task %s failed", task_id)
-                    snap["status"] = "error"
                     snap["error"] = f"{type(e).__name__}: {e}"
-                finally:
                     snap["finished_at"] = time.time()
+                    snap["status"] = "error"  # set last
+                finally:
+                    log.debug("task %s finished (status=%s)", task_id, snap["status"])
 
-        asyncio.create_task(runner())
+        bg = asyncio.create_task(runner(), name=f"wiki-agent-{task_id}")
+        self._bg.add(bg)
+        bg.add_done_callback(self._bg.discard)
         return task_id
 
     def get(self, task_id: str) -> dict[str, Any] | None:
@@ -66,3 +77,23 @@ class TaskRegistry:
 
     def count_running(self) -> int:
         return sum(1 for t in self._tasks.values() if t["status"] == "running")
+
+    def evict_older_than(self, max_age_seconds: float) -> int:
+        """Drop terminal (completed|error) snapshots older than N seconds.
+
+        Called periodically by the FastAPI lifespan sweeper (Task 2.8) to
+        prevent unbounded growth of `self._tasks` in long-running services.
+
+        Returns the number of snapshots evicted.
+        """
+        cutoff = time.time() - max_age_seconds
+        stale = [
+            tid
+            for tid, snap in self._tasks.items()
+            if snap["status"] in ("completed", "error")
+            and snap["finished_at"] is not None
+            and snap["finished_at"] < cutoff
+        ]
+        for tid in stale:
+            del self._tasks[tid]
+        return len(stale)
