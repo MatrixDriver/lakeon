@@ -32,7 +32,7 @@ class LakeonPropertiesTest {
         Map<String, Object> properties = new HashMap<>();
         properties.put("lakeon.wiki.agent.url", "http://localhost:8090");
         properties.put("lakeon.wiki.agent.internal-token", "lakeon-wiki-agent-2026");
-        properties.put("lakeon.wiki.agent.timeout-seconds", "300");
+        properties.put("lakeon.wiki.agent.timeout-seconds", "450");
 
         ConfigurationPropertySource source = new MapConfigurationPropertySource(properties);
         LakeonProperties bound = new Binder(source)
@@ -43,6 +43,6 @@ class LakeonPropertiesTest {
         assertNotNull(bound.getWiki().getAgent());
         assertEquals("http://localhost:8090", bound.getWiki().getAgent().getUrl());
         assertEquals("lakeon-wiki-agent-2026", bound.getWiki().getAgent().getInternalToken());
-        assertEquals(300, bound.getWiki().getAgent().getTimeoutSeconds());
+        assertEquals(450, bound.getWiki().getAgent().getTimeoutSeconds());
     }
 }
