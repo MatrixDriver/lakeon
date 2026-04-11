@@ -49,6 +49,18 @@ public class WikiRunLogEntity {
     @Column(name = "created_at")
     private Instant createdAt;
 
+    @Column(name = "run_id", length = 64)
+    private String runId;
+
+    @Column(name = "tool_calls_count")
+    private int toolCallsCount;
+
+    @Column(name = "token_count")
+    private long tokenCount;
+
+    @Column(name = "source", length = 32)
+    private String source;
+
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     public String getTenantId() { return tenantId; }
@@ -73,4 +85,12 @@ public class WikiRunLogEntity {
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public String getRunId() { return runId; }
+    public void setRunId(String runId) { this.runId = runId; }
+    public int getToolCallsCount() { return toolCallsCount; }
+    public void setToolCallsCount(int toolCallsCount) { this.toolCallsCount = toolCallsCount; }
+    public long getTokenCount() { return tokenCount; }
+    public void setTokenCount(long tokenCount) { this.tokenCount = tokenCount; }
+    public String getSource() { return source; }
+    public void setSource(String source) { this.source = source; }
 }
