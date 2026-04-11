@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.job.JobService;
 import com.lakeon.k8s.ComputePodManager;
+import com.lakeon.model.dto.DatabaseResponse;
+import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.AiSqlService;
@@ -11,15 +13,23 @@ import com.lakeon.service.DatabaseService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 /**
- * Verifies that {@link KnowledgeService#createKnowledgeBase} seeds a default
- * {@code schema.md} wiki page via {@link WikiService#writeWikiDocument}.
+ * Verifies that {@link KnowledgeService#createKnowledgeBase} publishes a
+ * {@link KnowledgeBaseCreatedEvent} so that {@link WikiSchemaSeeder} can seed
+ * a default {@code schema.md} after the KB transaction commits.
  *
  * Uses a mock-based unit test rather than {@code @SpringBootTest} to avoid
  * external dependencies (OBS, MaaS, Postgres) and to keep the test fast.
@@ -41,12 +51,12 @@ class KnowledgeServiceSchemaSeedTest {
     ChunkService chunkService;
     KbAccessService kbAccessService;
     KbShareRepository kbShareRepository;
-    WikiService wikiService;
+    ApplicationEventPublisher eventPublisher;
 
     KnowledgeService knowledgeService;
 
     @BeforeEach
-    void setup() {
+    void setup() throws Exception {
         documentRepository = mock(DocumentRepository.class);
         knowledgeBaseRepository = mock(KnowledgeBaseRepository.class);
         jobService = mock(JobService.class);
@@ -62,12 +72,28 @@ class KnowledgeServiceSchemaSeedTest {
         chunkService = mock(ChunkService.class);
         kbAccessService = mock(KbAccessService.class);
         kbShareRepository = mock(KbShareRepository.class);
-        wikiService = mock(WikiService.class);
+        eventPublisher = mock(ApplicationEventPublisher.class);
 
         // Stub props.getKnowledge().getEmbeddingModel() for embedding model resolution.
         LakeonProperties.KnowledgeConfig knowledgeCfg = mock(LakeonProperties.KnowledgeConfig.class);
         when(knowledgeCfg.getEmbeddingModel()).thenReturn("bge-m3");
         when(props.getKnowledge()).thenReturn(knowledgeCfg);
+
+        // Stub props.getDefaults() so the kb-provision background thread doesn't NPE.
+        LakeonProperties.DefaultsConfig defaults = mock(LakeonProperties.DefaultsConfig.class);
+        when(defaults.getComputeSize()).thenReturn("nano");
+        when(defaults.getSuspendTimeout()).thenReturn("300s");
+        when(defaults.getStorageLimitGb()).thenReturn(10);
+        when(props.getDefaults()).thenReturn(defaults);
+
+        // Stub databaseService.create(...) so the kb-provision background thread exits cleanly
+        // (returning a synthetic response that won't match any DB lookup, terminating the poll loop).
+        DatabaseResponse dbResp = mock(DatabaseResponse.class);
+        when(dbResp.getId()).thenReturn("db-noop");
+        when(dbResp.getPassword()).thenReturn("");
+        when(databaseService.create(any(TenantEntity.class), any())).thenReturn(dbResp);
+        // Return empty so both the tag-kb-id block and the poll loop exit immediately.
+        when(databaseRepository.findById(anyString())).thenReturn(Optional.empty());
 
         // Simulate JPA assigning an id on save so the seeded schema can reference it.
         when(knowledgeBaseRepository.save(any(KnowledgeBaseEntity.class))).thenAnswer(inv -> {
@@ -82,11 +108,11 @@ class KnowledgeServiceSchemaSeedTest {
                 documentRepository, knowledgeBaseRepository, jobService, props,
                 databaseRepository, computePodManager, objectMapper, databaseService,
                 dbHelper, queryRewriteService, aiSqlService, kbWriteQueue, chunkService,
-                kbAccessService, kbShareRepository, wikiService);
+                kbAccessService, kbShareRepository, eventPublisher);
     }
 
     @Test
-    void createKnowledgeBaseSeedsDefaultSchemaPage() {
+    void createKnowledgeBasePublishesSeedEvent() {
         TenantEntity tenant = new TenantEntity();
         tenant.setId("tenant-test-schema-seed");
         tenant.setName("test");
@@ -98,43 +124,51 @@ class KnowledgeServiceSchemaSeedTest {
         assertNotNull(kb);
         assertNotNull(kb.getId());
 
-        ArgumentCaptor<String> contentCaptor = ArgumentCaptor.forClass(String.class);
-        verify(wikiService).writeWikiDocument(
-                eq(tenant.getId()),
-                eq(kb.getId()),
-                eq("schema.md"),
-                eq("KB Schema"),
-                contentCaptor.capture());
-
-        String seeded = contentCaptor.getValue();
-        assertNotNull(seeded);
-        assertTrue(seeded.contains("KB Schema"),
-                "seeded content should contain the 'KB Schema' title");
-        assertTrue(seeded.contains("Create vs Update Budget"),
-                "seeded content should contain the 'Create vs Update Budget' section");
-        assertTrue(seeded.contains("Self-maintenance"),
-                "seeded content should contain the 'Self-maintenance' section");
+        ArgumentCaptor<KnowledgeBaseCreatedEvent> captor =
+                ArgumentCaptor.forClass(KnowledgeBaseCreatedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertEquals(tenant.getId(), captor.getValue().getTenantId());
+        assertEquals(kb.getId(), captor.getValue().getKbId());
     }
 
     @Test
-    void seedFailureIsNonFatal() {
-        // If wikiService.writeWikiDocument throws, createKnowledgeBase should still
-        // succeed and return the persisted KB.
-        doThrow(new RuntimeException("simulated wiki failure"))
-                .when(wikiService).writeWikiDocument(
-                        any(), any(), eq("schema.md"), any(), any());
-
+    void createTableKbAlsoPublishesSeedEvent() throws Exception {
         TenantEntity tenant = new TenantEntity();
-        tenant.setId("tenant-test-schema-seed-fail");
+        tenant.setId("tenant-test-schema-seed-table");
         tenant.setName("test");
 
+        // Source database must exist for the tenant.
+        DatabaseEntity srcDb = new DatabaseEntity();
+        srcDb.setId("src-db-1");
+        srcDb.setTenantId(tenant.getId());
+        when(databaseRepository.findByIdAndTenantId("src-db-1", tenant.getId()))
+                .thenReturn(Optional.of(srcDb));
+
+        // Stub the JDBC chain used for table-name validation.
+        Connection conn = mock(Connection.class);
+        PreparedStatement ps = mock(PreparedStatement.class);
+        ResultSet rs = mock(ResultSet.class);
+        java.sql.Array sqlArr = mock(java.sql.Array.class);
+
+        when(dbHelper.getComputeConnectionByDbId(tenant.getId(), "src-db-1")).thenReturn(conn);
+        when(conn.prepareStatement(anyString())).thenReturn(ps);
+        when(conn.createArrayOf(anyString(), any(Object[].class))).thenReturn(sqlArr);
+        when(ps.executeQuery()).thenReturn(rs);
+        // Return the single table name we pass in, then terminate.
+        when(rs.next()).thenReturn(true, false);
+        when(rs.getString("table_name")).thenReturn("orders");
+
         KnowledgeBaseEntity kb = knowledgeService.createKnowledgeBase(
-                tenant, "Seed Fail KB", "desc",
-                KnowledgeBaseType.DOCUMENT, null, null, null);
+                tenant, "Seed Table KB", "desc",
+                KnowledgeBaseType.TABLE, "src-db-1", List.of("orders"), null);
 
         assertNotNull(kb);
         assertNotNull(kb.getId());
-        verify(wikiService).writeWikiDocument(
-                any(), any(), eq("schema.md"), any(), any());
+
+        ArgumentCaptor<KnowledgeBaseCreatedEvent> captor =
+                ArgumentCaptor.forClass(KnowledgeBaseCreatedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertEquals(tenant.getId(), captor.getValue().getTenantId());
+        assertEquals(kb.getId(), captor.getValue().getKbId());
     }
 }
