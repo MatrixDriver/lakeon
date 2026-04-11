@@ -12,8 +12,8 @@
 
         <p class="hero-lede">
           {{ t(
-            '今天构建一个"记得你、会学习"的 Agent，要拼装四套系统：Postgres 存状态、向量库做检索、批处理框架跑离线反思、再写一层自制记忆。DBay 把这四件事装进同一个 copy-on-write、serverless、多租户的 substrate。',
-            'Building a "remembers you, keeps learning" agent today means gluing together four systems: Postgres for state, a vector store for retrieval, a batch framework for offline reflection, and a homegrown memory layer on top. DBay packs all four into a single copy-on-write, serverless, multi-tenant substrate.'
+            '过去你要找 4 个组件，自己拼装 Agent 的状态库、知识库、记忆库，还得自己做数据库到数据湖之间的数据同步和加工，把一堆数据工具粘在一起。DBay 让这四件事发生在同一套基础设施上 — 弹性秒级扩缩、完全托管免运维，Agent 可以大胆探索试错，也能从任意断点恢复继续执行。',
+            'The old way to build a real agent: you stitch together four components — a state store, a knowledge store, a memory layer — and you also build your own pipeline from the database into a data lake so batch jobs can process it. DBay runs all four on the same foundation: elastic scaling, fully managed, zero ops. Agents can explore and try things freely, and resume from any checkpoint.'
           ) }}
         </p>
 
