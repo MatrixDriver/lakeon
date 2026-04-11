@@ -337,63 +337,65 @@ onMounted(loadData)
 }
 
 .arch-box-compute {
-  background: #eff6ff;
-  border-color: #3b82f6;
+  background: #fff;
+  border-color: color-mix(in oklch, var(--c-primary) 30%, var(--c-border));
 }
 
 .arch-box-storage {
-  background: #f0fdf4;
-  border-color: #22c55e;
+  background: #fff;
+  border-color: color-mix(in oklch, var(--c-success) 30%, var(--c-border));
 }
 
 .arch-box-network {
-  background: #fff7ed;
-  border-color: #f97316;
+  background: #fff;
+  border-color: color-mix(in oklch, var(--c-accent) 30%, var(--c-border));
 }
 
 .arch-box-railway {
-  background: #faf5ff;
-  border-color: #a855f7;
+  background: #fff;
+  border-color: color-mix(in oklch, var(--cs-warn) 30%, var(--c-border));
 }
 
 .arch-box-external {
-  background: #fefce8;
-  border-color: #eab308;
+  background: #fff;
+  border-color: var(--c-border);
 }
 
 .arch-box-cci {
-  background: #ecfeff;
-  border-color: #06b6d4;
+  background: #fff;
+  border-color: color-mix(in oklch, var(--c-primary) 20%, var(--c-border));
 }
 
 .arch-box-gpu {
-  background: #fef3c7;
-  border-color: #d97706;
+  background: #fff;
+  border-color: color-mix(in oklch, var(--cs-warn) 40%, var(--c-border));
 }
 
 .arch-box-label {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 500;
   text-transform: uppercase;
-  color: #6b7280;
+  letter-spacing: 0.08em;
+  color: var(--c-text-3);
   margin-bottom: 2px;
 }
 
 .arch-box-value {
-  font-size: 14px;
-  font-weight: 600;
-  color: #2c3e50;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--c-text);
 }
 
 .arch-box-ports {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--c-text-3);
   margin-top: 4px;
 }
 
 .arch-box-pods {
   font-size: 10px;
-  color: #6b7280;
+  color: var(--c-text-3);
   margin-top: 6px;
   line-height: 1.5;
 }
@@ -405,11 +407,11 @@ onMounted(loadData)
 }
 
 .status-ok {
-  color: #16a34a;
+  color: #386b47;
 }
 
 .status-error {
-  color: #dc2626;
+  color: var(--cs-severe);
 }
 
 .arch-box-cluster {
@@ -473,18 +475,18 @@ onMounted(loadData)
 }
 
 .tag-compute {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: color-mix(in oklch, var(--c-primary) 10%, #fff);
+  color: var(--c-primary);
 }
 
 .tag-storage {
-  background: #dcfce7;
-  color: #15803d;
+  background: color-mix(in oklch, var(--c-success) 12%, #fff);
+  color: #386b47;
 }
 
 .tag-network {
-  background: #ffedd5;
-  color: #c2410c;
+  background: color-mix(in oklch, var(--c-accent) 12%, #fff);
+  color: var(--c-accent-text);
 }
 
 .status-dot {
@@ -497,11 +499,11 @@ onMounted(loadData)
 }
 
 .dot-ok {
-  background: #22c55e;
+  background: var(--c-success);
 }
 
 .dot-error {
-  background: #ef4444;
+  background: var(--cs-severe);
 }
 
 .detail-link {

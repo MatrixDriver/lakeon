@@ -25,19 +25,19 @@
           <div class="stat-label">文档总数</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" style="color: #1890ff;">{{ stats.processing_count }}</div>
+          <div class="stat-value" style="color: var(--c-primary);">{{ stats.processing_count }}</div>
           <div class="stat-label">处理中</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" style="color: #52c41a;">{{ stats.ready_count }}</div>
+          <div class="stat-value" style="color: #386b47;">{{ stats.ready_count }}</div>
           <div class="stat-label">已就绪</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" style="color: #e53e3e;">{{ stats.failed_count }}</div>
+          <div class="stat-value" style="color: var(--cs-severe);">{{ stats.failed_count }}</div>
           <div class="stat-label">失败</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" style="color: #722ed1;">{{ stats.summary_count ?? '-' }}</div>
+          <div class="stat-value" style="color: var(--c-accent-text);">{{ stats.summary_count ?? '-' }}</div>
           <div class="stat-label">摘要覆盖</div>
         </div>
       </div>
@@ -94,7 +94,7 @@
                 <td style="font-size: 12px;">{{ kb.embedding_model || 'BGE-M3' }}</td>
                 <td>{{ formatDate(kb.created_at) }}</td>
                 <td>
-                  <button class="btn btn-text btn-small" style="color: #e53e3e;" @click="confirmDeleteKb(kb)">删除</button>
+                  <button class="btn btn-text btn-small" style="color: var(--cs-severe);" @click="confirmDeleteKb(kb)">删除</button>
                 </td>
               </tr>
               <!-- Expanded: document list -->
@@ -130,9 +130,9 @@
                           </td>
                           <td class="error-cell" style="max-width: 200px;">{{ doc.error || '-' }}</td>
                           <td>
-                            <button v-if="doc.status === 'FAILED'" class="btn btn-text btn-small" style="color: #1890ff;" @click="reprocessDoc(doc)">重处理</button>
-                            <button v-if="doc.status === 'READY'" class="btn btn-text btn-small" style="color: #722ed1;" @click="resummarizeDoc(doc, kb.id)">重新摘要</button>
-                            <button class="btn btn-text btn-small" style="color: #e53e3e;" @click="confirmDeleteDoc(doc, kb.id)">删除</button>
+                            <button v-if="doc.status === 'FAILED'" class="btn btn-text btn-small" style="color: var(--c-primary);" @click="reprocessDoc(doc)">重处理</button>
+                            <button v-if="doc.status === 'READY'" class="btn btn-text btn-small" style="color: var(--c-accent-text);" @click="resummarizeDoc(doc, kb.id)">重新摘要</button>
+                            <button class="btn btn-text btn-small" style="color: var(--cs-severe);" @click="confirmDeleteDoc(doc, kb.id)">删除</button>
                           </td>
                         </tr>
                       </tbody>
@@ -142,11 +142,11 @@
                       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                         <span style="font-weight: 600; font-size: 13px;">Wiki 页面</span>
                         <button class="btn-small" @click="loadWikiPagesForKb(kb.id)" style="font-size: 11px; padding: 2px 8px; border: 1px solid #ddd; border-radius: 3px; background: #fff; cursor: pointer;">刷新</button>
-                        <button class="btn-small" @click="handleCurateWiki(kb.id)" style="font-size: 11px; padding: 2px 8px; border: 1px solid #1890ff; border-radius: 3px; background: #fff; color: #1890ff; cursor: pointer;">整理</button>
+                        <button class="btn-small" @click="handleCurateWiki(kb.id)" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--c-primary); border-radius: 3px; background: #fff; color: var(--c-primary); cursor: pointer;">整理</button>
                         <button class="btn-small" @click="handleRebuildWiki(kb.id)" style="font-size: 11px; padding: 2px 8px; border: 1px solid #c25a3c; border-radius: 3px; background: #fff; color: #c25a3c; cursor: pointer;">全量重建</button>
                       </div>
                       <div v-if="!wikiPagesMap[kb.id]" style="font-size: 12px; color: #999;">
-                        <button @click="loadWikiPagesForKb(kb.id)" style="font-size: 12px; color: #1890ff; background: none; border: none; cursor: pointer; text-decoration: underline;">加载 Wiki 页面</button>
+                        <button @click="loadWikiPagesForKb(kb.id)" style="font-size: 12px; color: var(--c-accent-text); background: none; border: none; cursor: pointer; text-decoration: underline;">加载 Wiki 页面</button>
                       </div>
                       <table v-else-if="(wikiPagesMap[kb.id]?.length ?? 0) > 0" style="width: 100%; border-collapse: collapse; font-size: 12px;">
                         <thead>
@@ -249,11 +249,11 @@
             <div class="stat-label">总任务数</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value" style="color: #52c41a;">{{ plStats.success_rate != null ? (plStats.success_rate * 100).toFixed(1) + '%' : '-' }}</div>
+            <div class="stat-value" style="color: #386b47;">{{ plStats.success_rate != null ? (plStats.success_rate * 100).toFixed(1) + '%' : '-' }}</div>
             <div class="stat-label">成功率</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value" style="color: #faad14;">{{ plStats.retry_rate != null ? (plStats.retry_rate * 100).toFixed(1) + '%' : '-' }}</div>
+            <div class="stat-value" style="color: var(--cs-warn);">{{ plStats.retry_rate != null ? (plStats.retry_rate * 100).toFixed(1) + '%' : '-' }}</div>
             <div class="stat-label">重试率</div>
           </div>
         </div>
@@ -403,7 +403,7 @@
             style="padding: 5px 12px; font-size: 12px; border: 1px solid #d9d9d9; border-radius: 4px; cursor: pointer; background: #fff;">
             {{ testingConnection ? '测试中...' : '测试连接' }}
           </button>
-          <span v-if="connectionResult" :style="{ fontSize: '12px', color: connectionResult.success ? '#52c41a' : '#e6393d' }">
+          <span v-if="connectionResult" :style="{ fontSize: '12px', color: connectionResult.success ? '#386b47' : 'var(--cs-severe)' }">
             {{ connectionResult.success ? `连接成功 (${connectionResult.latency_ms}ms)` : `失败: ${connectionResult.error}` }}
           </span>
         </div>
@@ -574,8 +574,8 @@ const plStageTotalMs = computed(() => {
 })
 
 const stageColors: Record<string, string> = {
-  JOB_POD: '#94a3b8', DOWNLOAD: '#3b82f6', PARSE: '#10b981',
-  CHUNK: '#f59e0b', EMBED: '#8b5cf6', COMPUTE_WAKE: '#ec4899', WRITE: '#ef4444',
+  JOB_POD: '#94a3b8', DOWNLOAD: '#2a4d6a', PARSE: '#3a7d5c',
+  CHUNK: '#9a5b25', EMBED: '#c67d3a', COMPUTE_WAKE: '#8b5222', WRITE: '#c6333a',
 }
 
 const plStatusLabels: Record<string, string> = {
@@ -929,22 +929,7 @@ watch(activeTab, (tab) => {
 </script>
 
 <style scoped>
-.stats-row {
-  display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;
-}
-.stat-card {
-  background: #fff; border: 1px solid #e5e5e5; border-radius: 6px;
-  padding: 16px 24px; min-width: 120px; text-align: center;
-}
-.stat-value { font-size: 28px; font-weight: 600; color: #333; }
-.stat-label { font-size: 13px; color: #999; margin-top: 4px; }
-
-.tab-bar { display: flex; border-bottom: 1px solid #e5e5e5; margin-bottom: 16px; }
-.tab-item {
-  padding: 8px 16px; cursor: pointer; font-size: 14px; color: #666;
-  border-bottom: 2px solid transparent;
-}
-.tab-item.active { color: #1890ff; border-bottom-color: #1890ff; }
+/* .stats-row, .stat-card, .stat-value, .stat-label, .tab-bar, .tab-item now live in shared style.css */
 
 .btn-icon-small {
   background: none; border: none; cursor: pointer; font-size: 11px;
@@ -956,21 +941,21 @@ watch(activeTab, (tab) => {
   display: inline-block; width: 8px; height: 8px; border-radius: 50%;
   margin-right: 6px; background: #ccc;
 }
-.status-green { background: #52c41a; }
-.status-blue { background: #1890ff; }
-.status-yellow { background: #faad14; }
-.status-red { background: #e53e3e; }
-.status-grey { background: #ccc; }
+.status-green { background: var(--c-success); }
+.status-blue { background: var(--c-primary); }
+.status-yellow { background: var(--cs-warn); }
+.status-red { background: var(--cs-severe); }
+.status-grey { background: var(--c-text-3); }
 
 .error-cell {
-  font-size: 12px; color: #e53e3e; white-space: nowrap;
+  font-size: 12px; color: var(--cs-severe); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
 
 /* Pipeline Monitor */
-.pl-status-queued { color: #6b7280; }
-.pl-status-running { color: #9a5b25; }
-.pl-status-succeeded { color: #52c41a; }
+.pl-status-queued { color: var(--c-text-3); }
+.pl-status-running { color: var(--c-accent-text); }
+.pl-status-succeeded { color: #386b47; }
 .pl-status-failed { color: #e6393d; }
 
 .pipeline-gantt { margin-top: 4px; }

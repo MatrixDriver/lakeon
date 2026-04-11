@@ -345,10 +345,10 @@ onUnmounted(() => {
   color: #999;
   margin-top: 2px;
 }
-.text-warning { color: #e37318; }
-.text-danger { color: #e6393d; }
-.text-warm { color: #52c41a; }
-.dot-green-text { color: #52c41a; }
+.text-warning { color: var(--cs-warn); }
+.text-danger { color: var(--cs-severe); }
+.text-warm { color: #386b47; }
+.dot-green-text { color: #386b47; }
 .auto-refresh-hint {
   font-size: 12px;
   color: #999;
@@ -377,12 +377,12 @@ canvas {
   padding: 2px 10px;
   border-radius: 10px;
 }
-.pressure-low { background: #f0faf0; color: #52c41a; }
-.pressure-medium { background: #fff7e6; color: #e37318; }
-.pressure-high { background: #fff1f0; color: #e6393d; }
+.pressure-low { background: color-mix(in oklch, var(--c-success) 10%, #fff); color: #386b47; }
+.pressure-medium { background: color-mix(in oklch, var(--cs-warn) 10%, #fff); color: var(--cs-warn); }
+.pressure-high { background: color-mix(in oklch, var(--cs-severe) 10%, #fff); color: var(--cs-severe); }
 .ps-error {
   padding: 8px 16px;
   font-size: 12px;
-  color: #e6393d;
+  color: var(--cs-severe);
 }
 </style>

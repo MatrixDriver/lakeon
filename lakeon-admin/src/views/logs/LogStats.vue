@@ -223,15 +223,15 @@ onMounted(load)
 
 .level-col { text-align: right; width: 80px; }
 .count-cell { text-align: right; font-family: monospace; font-weight: 600; }
-.error-count { color: #e74c3c; }
-.warn-count { color: #f39c12; }
-.info-count { color: #2ecc71; }
-.debug-count { color: #95a5a6; }
-.total-count { color: #2c3e50; }
-.error-col { color: #e74c3c; }
-.warn-col { color: #f39c12; }
-.info-col { color: #2ecc71; }
-.debug-col { color: #95a5a6; }
+.error-count { color: var(--cs-severe); }
+.warn-count { color: var(--cs-warn); }
+.info-count { color: #386b47; }
+.debug-count { color: var(--c-text-3); }
+.total-count { color: var(--c-text); }
+.error-col { color: var(--cs-severe); }
+.warn-col { color: var(--cs-warn); }
+.info-col { color: #386b47; }
+.debug-col { color: var(--c-text-3); }
 
 .component-badge { font-size: 12px; font-weight: 600; }
 .ts-cell { color: #666; font-family: monospace; font-size: 12px; white-space: nowrap; }

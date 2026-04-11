@@ -1,22 +1,27 @@
 <template>
   <div>
-    <div class="page-header">
-      <h1 class="page-title">日志诊断</h1>
-    </div>
+    <header class="page-header">
+      <div>
+        <h1 class="page-title">日志诊断</h1>
+        <p class="page-subtitle">跨组件检索、调用链追踪、错误聚合与日志统计</p>
+      </div>
+    </header>
 
-    <!-- Tabs -->
-    <div class="tab-bar">
+    <nav class="log-tab-bar" role="tablist">
       <button
         v-for="tab in tabs"
         :key="tab.key"
-        class="tab-btn"
-        :class="{ active: activeTab === tab.key }"
+        class="log-tab"
+        :class="{ 'is-active': activeTab === tab.key }"
+        role="tab"
+        :aria-selected="activeTab === tab.key"
         @click="activeTab = tab.key"
       >{{ tab.label }}</button>
-    </div>
+    </nav>
 
-    <!-- Tab Content -->
-    <component :is="currentComponent" :request-id="requestId" />
+    <section class="log-tab-pane">
+      <component :is="currentComponent" :request-id="requestId" />
+    </section>
   </div>
 </template>
 
@@ -72,32 +77,63 @@ watch(() => route.query.tab, (val) => {
 </script>
 
 <style scoped>
-.tab-bar {
+.log-tab-bar {
   display: flex;
-  gap: 0;
-  border-bottom: 1px solid #e8e0d8;
-  margin-bottom: 20px;
+  gap: var(--space-2xl);
+  border-bottom: 1px solid var(--c-border);
+  margin-top: var(--space-xl);
+  margin-bottom: var(--space-2xl);
 }
 
-.tab-btn {
-  padding: 10px 20px;
-  border: none;
+.log-tab {
   background: none;
-  color: #7a6b5d;
-  font-size: 13px;
+  border: none;
+  padding: var(--space-md) 0;
+  font: inherit;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--c-text-2);
   cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s;
+  position: relative;
+  transition: color 160ms ease-out;
 }
 
-.tab-btn:hover {
-  color: #4a3728;
-  background: #faf7f3;
+.log-tab:hover {
+  color: var(--c-text);
 }
 
-.tab-btn.active {
-  color: #c67d3a;
-  border-bottom-color: #c67d3a;
-  font-weight: 600;
+.log-tab.is-active {
+  color: var(--c-primary);
+}
+
+.log-tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--c-accent);
+  border-radius: 1px;
+}
+
+.log-tab:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+.log-tab-pane {
+  animation: fade-in 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .log-tab-pane { animation: none; }
 }
 </style>

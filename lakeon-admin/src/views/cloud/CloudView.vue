@@ -100,17 +100,17 @@ onMounted(async () => {
 .section-header h3 { margin: 0; font-size: 14px; font-weight: 600; }
 .empty-text { padding: 24px; text-align: center; color: #999; }
 .resource-id-text { font-family: monospace; font-size: 12px; color: #666; }
-.service-tag { font-size: 12px; padding: 2px 8px; border-radius: 3px; background: #f0f5ff; color: #1890ff; }
-.console-link { color: #1890ff; text-decoration: none; font-size: 13px; }
-.console-link:hover { text-decoration: underline; }
-.arch-diagram { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-.arch-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-.arch-box { border: 1px solid #e5e5e5; border-radius: 6px; padding: 12px 16px; min-width: 140px; text-align: center; }
-.arch-box-label { font-weight: 600; font-size: 13px; }
-.arch-box-value { font-size: 12px; color: #666; margin-top: 2px; }
-.arch-box-desc { font-size: 11px; color: #999; margin-top: 2px; }
-.arch-box-railway { border-color: #722ed1; background: #f9f0ff; }
-.arch-box-network { border-color: #1890ff; background: #fdf5ed; }
-.arch-box-compute { border-color: #52c41a; background: #f6ffed; }
-.arch-box-storage { border-color: #faad14; background: #fffbe6; }
+.service-tag { font-size: 11px; padding: 2px 10px; border-radius: 10px; background: color-mix(in oklch, var(--c-primary) 10%, #fff); color: var(--c-primary); font-weight: 500; }
+.console-link { color: var(--c-accent-text); text-decoration: none; font-size: 13px; }
+.console-link:hover { color: var(--c-accent-hover); text-decoration: underline; text-underline-offset: 3px; }
+.arch-diagram { padding: var(--space-lg); display: flex; flex-direction: column; gap: var(--space-md); }
+.arch-row { display: flex; gap: var(--space-md); justify-content: center; flex-wrap: wrap; }
+.arch-box { border: 1px solid var(--c-border); background: #fff; border-radius: 6px; padding: var(--space-md) var(--space-lg); min-width: 140px; text-align: center; }
+.arch-box-label { font-family: var(--font-display); font-weight: 500; font-size: 14px; color: var(--c-text); }
+.arch-box-value { font-size: 12px; color: var(--c-text-2); margin-top: 2px; }
+.arch-box-desc { font-size: 11px; color: var(--c-text-3); margin-top: 2px; }
+.arch-box-railway { border-color: color-mix(in oklch, var(--cs-warn) 30%, var(--c-border)); }
+.arch-box-network { border-color: color-mix(in oklch, var(--c-accent) 30%, var(--c-border)); }
+.arch-box-compute { border-color: color-mix(in oklch, var(--c-primary) 30%, var(--c-border)); }
+.arch-box-storage { border-color: color-mix(in oklch, var(--c-success) 30%, var(--c-border)); }
 </style>

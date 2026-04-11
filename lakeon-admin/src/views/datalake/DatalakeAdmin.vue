@@ -21,15 +21,15 @@
           <div class="stat-label">作业总数</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" style="color: #1890ff;">{{ stats.running_count }}</div>
+          <div class="stat-value" style="color: var(--c-primary);">{{ stats.running_count }}</div>
           <div class="stat-label">运行中</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" style="color: #e53e3e;">{{ stats.failed_count }}</div>
+          <div class="stat-value" style="color: var(--cs-severe);">{{ stats.failed_count }}</div>
           <div class="stat-label">失败</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" style="color: #52c41a;">{{ datasetCount }}</div>
+          <div class="stat-value" style="color: #386b47;">{{ datasetCount }}</div>
           <div class="stat-label">数据集</div>
         </div>
       </div>
@@ -99,8 +99,8 @@
                 <td>{{ formatDate(job.started_at) }}</td>
                 <td>{{ formatDuration(job) }}</td>
                 <td>
-                  <button v-if="!isTerminal(job.status)" class="btn btn-text btn-small" style="color: #e53e3e;" @click="cancelJob(job)">取消</button>
-                  <button class="btn btn-text btn-small" style="color: #1890ff;" @click="viewLogs(job)">日志</button>
+                  <button v-if="!isTerminal(job.status)" class="btn btn-text btn-small" style="color: var(--cs-severe);" @click="cancelJob(job)">取消</button>
+                  <button class="btn btn-text btn-small" style="color: var(--c-primary);" @click="viewLogs(job)">日志</button>
                 </td>
               </tr>
               <!-- Expanded detail row -->
@@ -115,7 +115,7 @@
                         <div><strong>K8s Job:</strong> {{ detail.k8s_job_name || '-' }}</div>
                         <div><strong>Ray Job:</strong> {{ detail.ray_job_name || '-' }}</div>
                         <div><strong>日志路径:</strong> {{ detail.log_obs_path || '-' }}</div>
-                        <div v-if="detail.error_message" style="color: #e53e3e; grid-column: 1 / -1;">
+                        <div v-if="detail.error_message" style="color: var(--cs-severe); grid-column: 1 / -1;">
                           <strong>错误信息:</strong> {{ detail.error_message }}
                         </div>
                       </div>
@@ -148,15 +148,15 @@
           <div class="stat-label">生产线</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" style="color: #1890ff;">{{ plStats.running_count }}</div>
+          <div class="stat-value" style="color: var(--c-primary);">{{ plStats.running_count }}</div>
           <div class="stat-label">运行中</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" style="color: #52c41a;">{{ plStats.succeeded_count }}</div>
+          <div class="stat-value" style="color: #386b47;">{{ plStats.succeeded_count }}</div>
           <div class="stat-label">成功</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" style="color: #e53e3e;">{{ plStats.failed_count }}</div>
+          <div class="stat-value" style="color: var(--cs-severe);">{{ plStats.failed_count }}</div>
           <div class="stat-label">失败</div>
         </div>
         <div class="stat-card">
@@ -262,7 +262,7 @@
                                 </td>
                                 <td>{{ formatDate(step.started_at) }}</td>
                                 <td>{{ formatDate(step.finished_at) }}</td>
-                                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #e53e3e;">
+                                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cs-severe);">
                                   {{ step.error || '-' }}
                                 </td>
                               </tr>
@@ -428,7 +428,7 @@
               <td class="obs-path-cell">{{ ds.obs_path || '-' }}</td>
               <td>{{ formatDate(ds.created_at) }}</td>
               <td>
-                <button class="btn btn-text btn-small" style="color: #e53e3e;" @click="deleteDataset(ds)">删除</button>
+                <button class="btn btn-text btn-small" style="color: var(--cs-severe);" @click="deleteDataset(ds)">删除</button>
               </td>
             </tr>
             <tr v-if="datasets.length === 0">
@@ -450,11 +450,11 @@
       <template v-else>
         <div class="stats-row">
           <div class="stat-card">
-            <div class="stat-value" :style="{ color: warmPool.idle >= warmPool.target_size ? '#52c41a' : '#faad14' }">{{ warmPool.idle }}</div>
+            <div class="stat-value" :style="{ color: warmPool.idle >= warmPool.target_size ? '#386b47' : 'var(--cs-warn)' }">{{ warmPool.idle }}</div>
             <div class="stat-label">空闲</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value" style="color: #1890ff;">{{ warmPool.claimed }}</div>
+            <div class="stat-value" style="color: var(--c-primary);">{{ warmPool.claimed }}</div>
             <div class="stat-label">已分配</div>
           </div>
           <div class="stat-card">
@@ -868,29 +868,14 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.stats-row {
-  display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;
-}
-.stat-card {
-  background: #fff; border: 1px solid #e5e5e5; border-radius: 6px;
-  padding: 16px 24px; min-width: 120px; text-align: center;
-}
-.stat-value { font-size: 28px; font-weight: 600; color: #333; }
-.stat-label { font-size: 13px; color: #999; margin-top: 4px; }
-
-.tab-bar { display: flex; border-bottom: 1px solid #e5e5e5; margin-bottom: 16px; }
-.tab-item {
-  padding: 8px 16px; cursor: pointer; font-size: 14px; color: #666;
-  border-bottom: 2px solid transparent;
-}
-.tab-item.active { color: #1890ff; border-bottom-color: #1890ff; }
+/* .stats-row, .stat-card, .stat-value, .stat-label, .tab-bar, .tab-item now live in shared style.css */
 
 .type-tag {
-  display: inline-block; padding: 1px 8px; border-radius: 3px; font-size: 12px;
+  display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 500;
 }
-.type-python { background: #fdf5ed; color: #9a5b25; }
-.type-ray { background: #f6ffed; color: #389e0d; }
-.type-finetune { background: #fff7e6; color: #d48806; }
+.type-python { background: color-mix(in oklch, var(--c-accent) 12%, #fff); color: var(--c-accent-text); }
+.type-ray { background: color-mix(in oklch, var(--c-success) 12%, #fff); color: #386b47; }
+.type-finetune { background: color-mix(in oklch, var(--cs-warn) 10%, #fff); color: var(--cs-warn); }
 
 .source-tag {
   display: inline-block; padding: 1px 6px; border-radius: 3px;
@@ -941,9 +926,9 @@ onMounted(() => {
 .pool-status-tag {
   display: inline-block; padding: 1px 8px; border-radius: 3px; font-size: 12px; font-weight: 500;
 }
-.ps-idle { background: #f6ffed; color: #389e0d; }
-.ps-claimed { background: #fdf5ed; color: #9a5b25; }
-.ps-unknown { background: #f0f0f0; color: #999; }
+.ps-idle { background: color-mix(in oklch, var(--c-success) 12%, #fff); color: #386b47; }
+.ps-claimed { background: color-mix(in oklch, var(--c-accent) 12%, #fff); color: var(--c-accent-text); }
+.ps-unknown { background: var(--c-bg-alt); color: var(--c-text-3); }
 
 .warmpool-config {
   display: flex; align-items: center; gap: 20px; font-size: 13px; color: #666;
@@ -960,23 +945,23 @@ onMounted(() => {
   padding: 5px 14px; cursor: pointer; font-size: 13px; color: #666;
   border: 1px solid #e5e5e5; border-radius: 4px; background: #fafafa;
 }
-.sub-tab.active { color: #1890ff; border-color: #1890ff; background: #f0f7ff; }
+.sub-tab.active { color: #fff; border-color: var(--c-accent); background: var(--c-accent); }
 
 .category-tag {
-  display: inline-block; padding: 1px 8px; border-radius: 3px; font-size: 12px;
+  display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 500;
 }
-.cat-data_prep { background: #f0f5ff; color: #2f54eb; }
-.cat-extract { background: #f6ffed; color: #389e0d; }
-.cat-clean { background: #fff7e6; color: #d48806; }
-.cat-filter { background: #fff1f0; color: #cf1322; }
-.cat-qc { background: #f9f0ff; color: #722ed1; }
-.cat-label { background: #e6fffb; color: #13c2c2; }
-.cat-publish { background: #fdf5ed; color: #9a5b25; }
+.cat-data_prep { background: color-mix(in oklch, var(--c-primary) 10%, #fff); color: var(--c-primary); }
+.cat-extract { background: color-mix(in oklch, var(--c-success) 12%, #fff); color: #386b47; }
+.cat-clean { background: color-mix(in oklch, var(--cs-warn) 10%, #fff); color: var(--cs-warn); }
+.cat-filter { background: color-mix(in oklch, var(--cs-severe) 10%, #fff); color: var(--cs-severe); }
+.cat-qc { background: color-mix(in oklch, var(--c-accent) 10%, #fff); color: var(--c-accent-text); }
+.cat-label { background: var(--c-bg-alt); color: var(--c-text-2); }
+.cat-publish { background: color-mix(in oklch, var(--c-accent) 12%, #fff); color: var(--c-accent-text); }
 
-.type-text { background: #f0f5ff; color: #2f54eb; }
-.type-video { background: #fff1f0; color: #cf1322; }
-.type-image { background: #f9f0ff; color: #722ed1; }
-.type-audio { background: #e6fffb; color: #13c2c2; }
-.type-document { background: #fff7e6; color: #d48806; }
-.type-universal { background: #f0f0f0; color: #666; }
+.type-text { background: color-mix(in oklch, var(--c-primary) 10%, #fff); color: var(--c-primary); }
+.type-video { background: color-mix(in oklch, var(--cs-severe) 10%, #fff); color: var(--cs-severe); }
+.type-image { background: color-mix(in oklch, var(--cs-warn) 10%, #fff); color: var(--cs-warn); }
+.type-audio { background: color-mix(in oklch, var(--c-success) 12%, #fff); color: #386b47; }
+.type-document { background: color-mix(in oklch, var(--c-accent) 12%, #fff); color: var(--c-accent-text); }
+.type-universal { background: var(--c-bg-alt); color: var(--c-text-2); }
 </style>

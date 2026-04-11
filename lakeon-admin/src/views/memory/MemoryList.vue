@@ -16,19 +16,19 @@
     <!-- Stats cards -->
     <div class="stats-row">
       <div class="stat-card">
-        <div class="stat-value" style="color: #1890ff;">{{ stats.base_count ?? '-' }}</div>
+        <div class="stat-value" style="color: var(--c-primary);">{{ stats.base_count ?? '-' }}</div>
         <div class="stat-label">记忆库</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" style="color: #52c41a;">{{ stats.total_memories ?? '-' }}</div>
+        <div class="stat-value" style="color: #386b47;">{{ stats.total_memories ?? '-' }}</div>
         <div class="stat-label">总记忆</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" style="color: #722ed1;">{{ stats.total_traits ?? '-' }}</div>
+        <div class="stat-value" style="color: var(--c-accent-text);">{{ stats.total_traits ?? '-' }}</div>
         <div class="stat-label">Traits</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" style="color: #e53e3e;">{{ errorCount }}</div>
+        <div class="stat-value" style="color: var(--cs-severe);">{{ errorCount }}</div>
         <div class="stat-label">异常</div>
       </div>
     </div>
@@ -92,14 +92,14 @@
                 <div style="display: flex; gap: 16px; margin-bottom: 12px; font-size: 13px; color: #666;">
                   <span>数据库: {{ detail.database_id || '无' }}</span>
                   <span>嵌入模型: {{ detail.embedding_model }}</span>
-                  <span v-if="detail.error" style="color: #e53e3e;">错误: {{ detail.error }}</span>
+                  <span v-if="detail.error" style="color: var(--cs-severe);">错误: {{ detail.error }}</span>
                 </div>
 
                 <!-- Recent memories -->
                 <div v-if="detail.recent_memories && detail.recent_memories.memories" style="margin-bottom: 12px;">
                   <h4 style="font-size: 13px; font-weight: 600; margin: 0 0 8px;">最近记忆 ({{ detail.recent_memories.memories.length }})</h4>
                   <div v-for="m in detail.recent_memories.memories" :key="m.id"
-                       style="padding: 6px 8px; border-left: 3px solid #d9d9d9; margin-bottom: 4px; font-size: 12px;">
+                       style="padding: 6px 10px; background: #faf8f5; border-radius: 4px; margin-bottom: 4px; font-size: 12px;">
                     <span style="display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; margin-right: 6px;"
                           :style="`background: ${typeColor(m.memory_type)}20; color: ${typeColor(m.memory_type)};`">
                       {{ m.memory_type }}
@@ -134,7 +134,7 @@
         </p>
         <div style="display: flex; gap: 8px;">
           <button class="btn" @click="loadMcpDescriptions">刷新</button>
-          <button class="btn" style="background: #1890ff; color: #fff;" @click="saveMcpDescriptions" :disabled="mcpSaving">
+          <button class="btn btn-primary" @click="saveMcpDescriptions" :disabled="mcpSaving">
             {{ mcpSaving ? '保存中...' : '保存' }}
           </button>
         </div>
@@ -316,8 +316,8 @@ function statusColor(status: string): string {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  fact: '#1890ff', episode: '#722ed1', procedural: '#d48806',
-  decision: '#13c2c2', rejection: '#f5222d', convention: '#52c41a',
+  fact: '#2a4d6a', episode: '#9a5b25', procedural: '#c67d3a',
+  decision: '#3a7d5c', rejection: '#c6333a', convention: '#386b47',
 }
 function typeColor(type: string): string { return TYPE_COLORS[type] || '#999' }
 
@@ -328,13 +328,7 @@ function formatDate(d: string | null): string {
 </script>
 
 <style scoped>
-.stats-row { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-.stat-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 6px; padding: 16px 24px; min-width: 120px; text-align: center; }
-.stat-value { font-size: 28px; font-weight: 600; color: #333; }
-.stat-label { font-size: 13px; color: #999; margin-top: 4px; }
-.tab-bar { display: flex; border-bottom: 1px solid #e5e5e5; margin-bottom: 16px; }
-.tab-item { padding: 8px 16px; cursor: pointer; font-size: 14px; color: #666; border-bottom: 2px solid transparent; }
-.tab-item.active { color: #1890ff; border-bottom-color: #1890ff; }
+/* .stats-row, .stat-card, .stat-value, .stat-label, .tab-bar, .tab-item now live in shared style.css */
 .mcp-section { margin-bottom: 24px; }
 .mcp-section-title { font-size: 14px; font-weight: 600; color: #333; margin: 0 0 8px; }
 .mcp-textarea {
@@ -342,11 +336,11 @@ function formatDate(d: string | null): string {
   border: 1px solid #d9d9d9; border-radius: 4px; line-height: 1.6;
   background: #fafafa; resize: vertical; box-sizing: border-box;
 }
-.mcp-textarea:focus { border-color: #1890ff; outline: none; }
+.mcp-textarea:focus { border-color: var(--c-accent); outline: none; box-shadow: 0 0 0 3px rgb(from var(--c-accent) r g b / 0.15); }
 .mcp-tool-card {
   border: 1px solid #e5e5e5; border-radius: 6px; padding: 12px 16px;
   margin-bottom: 8px; background: #fff;
 }
 .mcp-tool-header { margin-bottom: 8px; }
-.mcp-tool-name { font-size: 13px; font-weight: 600; color: #1890ff; background: #f0f5ff; padding: 2px 8px; border-radius: 3px; }
+.mcp-tool-name { font-size: 13px; font-weight: 600; color: var(--c-primary); background: color-mix(in oklch, var(--c-primary) 10%, #fff); padding: 2px 8px; border-radius: 10px; }
 </style>

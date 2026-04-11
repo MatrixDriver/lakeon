@@ -232,29 +232,41 @@ onUnmounted(() => {
 
 .summary-cards {
   display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
+  align-items: flex-end;
+  gap: var(--space-3xl);
+  padding: var(--space-lg) 0 var(--space-xl);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-lg);
 }
 .summary-card {
-  flex: 1;
-  padding: 20px;
-  text-align: center;
-  background: #fff;
-  border-radius: 6px;
-  border: 1px solid #ebebeb;
+  background: transparent;
+  border: none;
+  padding: 0;
+  min-width: 96px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
 }
 .summary-value {
-  font-size: 32px;
-  font-weight: 700;
-  color: #2c3e50;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--c-text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 .summary-label {
-  font-size: 13px;
-  color: #64748b;
-  margin-top: 4px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--c-text-3);
 }
-.text-error { color: #e74c3c; }
-.text-warn { color: #f39c12; }
+.text-error { color: var(--cs-severe); }
+.text-warn { color: var(--cs-warn); }
 
 .empty-state {
   padding: 60px;
@@ -316,10 +328,10 @@ onUnmounted(() => {
   font-weight: 700;
   letter-spacing: 0.4px;
 }
-.level-error { background: #fff0f0; color: #e74c3c; }
-.level-warn  { background: #fff7e6; color: #f39c12; }
-.level-info  { background: #f0fff4; color: #2ecc71; }
-.level-debug { background: #f5f5f5; color: #95a5a6; }
+.level-error { background: color-mix(in oklch, var(--cs-severe) 10%, #fff); color: var(--cs-severe); }
+.level-warn  { background: color-mix(in oklch, var(--cs-warn) 10%, #fff); color: var(--cs-warn); }
+.level-info  { background: color-mix(in oklch, var(--c-success) 12%, #fff); color: #386b47; }
+.level-debug { background: var(--c-bg-alt); color: var(--c-text-3); }
 .request-id-link {
   font-family: monospace;
   font-size: 11px;

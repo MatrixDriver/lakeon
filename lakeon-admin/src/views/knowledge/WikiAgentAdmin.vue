@@ -38,8 +38,8 @@
                 <span v-else style="color: #ccc;">-</span>
               </td>
               <td>
-                <button class="btn btn-text btn-small" style="color: #1890ff;" @click="viewWikiPages(kb)">查看页面</button>
-                <button class="btn btn-text btn-small" style="color: #722ed1;" @click="handleCurateWiki(kb)">整理</button>
+                <button class="btn btn-text btn-small" style="color: var(--c-primary);" @click="viewWikiPages(kb)">查看页面</button>
+                <button class="btn btn-text btn-small" style="color: var(--c-accent-text);" @click="handleCurateWiki(kb)">整理</button>
                 <button class="btn btn-text btn-small" style="color: #c25a3c;" @click="handleRebuildWiki(kb)">重建</button>
               </td>
             </tr>
@@ -77,7 +77,7 @@
               <td>{{ page.size_bytes > 1024 ? ((page.size_bytes / 1024).toFixed(1) + ' KB') : (page.size_bytes + ' B') }}</td>
               <td>{{ page.created_at ? new Date(page.created_at).toLocaleString('zh-CN') : '-' }}</td>
               <td>
-                <button class="btn btn-text btn-small" style="color: #e53e3e;" @click="handleDeleteWikiPage(page.id)">删除</button>
+                <button class="btn btn-text btn-small" style="color: var(--cs-severe);" @click="handleDeleteWikiPage(page.id)">删除</button>
               </td>
             </tr>
           </tbody>
@@ -123,13 +123,13 @@
               <td style="font-size: 12px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 {{ entry.trigger_doc || '-' }}
               </td>
-              <td style="text-align: center; color: #52c41a; font-weight: 600;">{{ entry.pages_created || 0 }}</td>
-              <td style="text-align: center; color: #1890ff; font-weight: 600;">{{ entry.pages_updated || 0 }}</td>
-              <td style="text-align: center; color: #f5222d; font-weight: 600;">{{ entry.pages_deleted || 0 }}</td>
+              <td style="text-align: center; color: #386b47; font-weight: 600;">{{ entry.pages_created || 0 }}</td>
+              <td style="text-align: center; color: var(--c-primary); font-weight: 600;">{{ entry.pages_updated || 0 }}</td>
+              <td style="text-align: center; color: var(--cs-severe); font-weight: 600;">{{ entry.pages_deleted || 0 }}</td>
               <td style="font-size: 12px;">{{ formatDuration(entry.duration_ms) }}</td>
               <td>
                 <span class="status-badge" :class="'status-' + entry.status">{{ entry.status }}</span>
-                <div v-if="entry.status === 'error' && entry.error_message" style="font-size: 11px; color: #f5222d; margin-top: 2px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" :title="entry.error_message">
+                <div v-if="entry.status === 'error' && entry.error_message" style="font-size: 11px; color: var(--cs-severe); margin-top: 2px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" :title="entry.error_message">
                   {{ entry.error_message }}
                 </div>
               </td>
@@ -196,7 +196,7 @@
           </button>
           <button class="btn btn-default" @click="loadWikiConfig">重新加载</button>
         </div>
-        <div v-if="configSaveMsg" style="font-size: 13px;" :style="{ color: configSaveMsg.ok ? '#52c41a' : '#f5222d' }">
+        <div v-if="configSaveMsg" style="font-size: 13px;" :style="{ color: configSaveMsg.ok ? '#386b47' : 'var(--cs-severe)' }">
           {{ configSaveMsg.text }}
         </div>
       </div>
@@ -214,7 +214,7 @@
             <button class="btn btn-primary" :disabled="testingConnection" @click="testConnection" style="min-width: 100px;">
               {{ testingConnection ? '测试中...' : '开始测试' }}
             </button>
-            <span v-if="connectionResult" style="font-size: 13px;" :style="{ color: connectionResult.success ? '#52c41a' : '#f5222d' }">
+            <span v-if="connectionResult" style="font-size: 13px;" :style="{ color: connectionResult.success ? '#386b47' : 'var(--cs-severe)' }">
               {{ connectionResult.success
                 ? `连接成功 (${connectionResult.latency_ms}ms)`
                 : `失败: ${connectionResult.error}` }}
@@ -222,8 +222,8 @@
           </div>
         </div>
 
-        <div v-if="connectionResult?.success" style="background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 8px; padding: 16px;">
-          <div style="font-weight: 600; color: #389e0d; margin-bottom: 8px;">响应详情</div>
+        <div v-if="connectionResult?.success" style="background: color-mix(in oklch, var(--c-success) 5%, #fff); border: 1px solid color-mix(in oklch, var(--c-success) 25%, #fff); border-radius: 8px; padding: 16px;">
+          <div style="font-weight: 600; color: #386b47; margin-bottom: 8px;">响应详情</div>
           <div style="display: grid; grid-template-columns: 100px 1fr; gap: 6px; font-size: 13px;">
             <span style="color: #666;">延迟</span><span>{{ connectionResult.latency_ms }} ms</span>
             <span style="color: #666;">模型</span><span>{{ connectionResult.model || '-' }}</span>
@@ -462,30 +462,7 @@ onMounted(() => {
 .page-header {
   margin-bottom: 20px;
 }
-.page-title {
-  font-size: 22px;
-  font-weight: 600;
-  color: #1a2332;
-  margin: 0;
-}
-
-.tab-bar {
-  display: flex;
-  border-bottom: 1px solid #e5e5e5;
-  margin-bottom: 16px;
-}
-.tab-item {
-  padding: 8px 16px;
-  cursor: pointer;
-  font-size: 14px;
-  color: #666;
-  border-bottom: 2px solid transparent;
-  transition: all 0.15s;
-}
-.tab-item.active {
-  color: #1890ff;
-  border-bottom-color: #1890ff;
-}
+/* .page-title, .tab-bar, .tab-item now live in shared style.css */
 
 .action-toolbar {
   display: flex;
@@ -562,7 +539,7 @@ onMounted(() => {
   background: none;
   border: none;
   padding: 2px 6px;
-  color: #1890ff;
+  color: var(--c-accent-text);
   cursor: pointer;
   font-size: 13px;
 }
@@ -587,20 +564,20 @@ onMounted(() => {
   font-weight: 500;
 }
 .run-type-ingest {
-  background: #e6f4ff;
-  color: #0958d9;
+  background: color-mix(in oklch, var(--c-primary) 10%, #fff);
+  color: var(--c-primary);
 }
 .run-type-curate {
-  background: #f9f0ff;
-  color: #531dab;
+  background: color-mix(in oklch, var(--c-accent) 12%, #fff);
+  color: var(--c-accent-text);
 }
 .run-type-save_response {
-  background: #fff7e6;
-  color: #873800;
+  background: color-mix(in oklch, var(--cs-warn) 10%, #fff);
+  color: var(--cs-warn);
 }
 .run-type-rebuild {
-  background: #fff1f0;
-  color: #a8071a;
+  background: color-mix(in oklch, var(--cs-severe) 10%, #fff);
+  color: var(--cs-severe);
 }
 
 .status-badge {
@@ -611,11 +588,11 @@ onMounted(() => {
   font-weight: 500;
 }
 .status-success {
-  background: #f6ffed;
-  color: #389e0d;
+  background: color-mix(in oklch, var(--c-success) 12%, #fff);
+  color: #386b47;
 }
 .status-error {
-  background: #fff1f0;
-  color: #cf1322;
+  background: color-mix(in oklch, var(--cs-severe) 10%, #fff);
+  color: var(--cs-severe);
 }
 </style>

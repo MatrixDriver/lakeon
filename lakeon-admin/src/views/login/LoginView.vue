@@ -1,46 +1,55 @@
 <template>
   <div class="login-page">
-    <div class="login-card">
-      <div class="login-header">
-        <h1 class="login-logo">DBay</h1>
-        <p class="login-subtitle">运维控制台</p>
-        <p class="login-desc">管理员登录</p>
+    <div class="login-shell">
+      <div class="login-brand">
+        <div class="login-logo">DBay</div>
+        <div class="login-brand-tag">运维控制台</div>
       </div>
 
-      <div class="login-form">
-        <div class="form-group">
-          <label class="form-label">Admin Token</label>
-          <div class="input-wrapper">
+      <form class="login-form" @submit.prevent="handleLogin">
+        <h1 class="login-title">管理员登录</h1>
+        <p class="login-lede">使用 Admin Token 进入 Lakeon 运维控制台。</p>
+
+        <label class="login-field">
+          <span class="login-field-lbl">Admin Token</span>
+          <div class="login-input-wrap">
             <input
               :type="showToken ? 'text' : 'password'"
               v-model="tokenInput"
-              class="form-input"
-              placeholder="请输入管理员 Token"
+              class="login-input"
+              placeholder="粘贴或输入管理员 Token"
+              autocomplete="off"
               @keyup.enter="handleLogin"
             />
-            <button class="toggle-btn" @click="showToken = !showToken" type="button">
-              {{ showToken ? '隐藏' : '显示' }}
-            </button>
+            <button
+              class="login-input-toggle"
+              @click="showToken = !showToken"
+              type="button"
+              tabindex="-1"
+            >{{ showToken ? '隐藏' : '显示' }}</button>
           </div>
-        </div>
+        </label>
 
-        <div v-if="errorMsg" class="error-msg">{{ errorMsg }}</div>
+        <div v-if="errorMsg" class="login-error" role="alert">{{ errorMsg }}</div>
 
         <button
-          class="login-btn"
-          :class="{ loading: isLoading }"
+          class="login-submit"
           :disabled="isLoading || !tokenInput.trim()"
-          @click="handleLogin"
+          type="submit"
         >
-          <span v-if="isLoading" class="spinner"></span>
-          {{ isLoading ? '登录中...' : '登 录' }}
+          <span v-if="isLoading" class="login-spinner" aria-hidden="true"></span>
+          {{ isLoading ? '登录中' : '登 录' }}
         </button>
-      </div>
 
-      <div class="login-footer">
-        <p>仅限平台管理员使用</p>
-      </div>
+        <div class="login-note">仅限平台管理员使用 · 所有登录行为记录在审计日志</div>
+      </form>
     </div>
+
+    <footer class="login-footprint">
+      <span>Lakeon · Serverless PostgreSQL</span>
+      <span class="login-sep" aria-hidden="true"></span>
+      <span>Harbor Editorial</span>
+    </footer>
   </div>
 </template>
 
@@ -67,7 +76,7 @@ async function handleLogin() {
   try {
     const result = await authStore.login(token)
     if (result.ok) {
-      router.push('/dashboard')
+      router.push('/databases')
     } else {
       errorMsg.value = result.error || 'Admin Token 无效，请检查后重试'
     }
@@ -82,181 +91,254 @@ async function handleLogin() {
 <style scoped>
 .login-page {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   min-height: 100vh;
-  background: #f5f5f5;
+  padding: var(--space-4xl) var(--space-xl) var(--space-2xl);
+  background: var(--c-bg-alt);
+  background-image:
+    radial-gradient(ellipse 800px 400px at 50% -10%, color-mix(in oklch, var(--c-accent) 6%, transparent), transparent 70%);
 }
 
-.login-card {
-  width: 420px;
-  background: #fff;
-  border-radius: 4px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  padding: 48px 40px 36px;
+.login-shell {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3xl);
+  width: 100%;
+  max-width: 420px;
+  flex: 1;
+  place-content: center;
+  padding: var(--space-xl) 0;
 }
 
-.login-header {
+/* ───────── Brand ───────── */
+.login-brand {
   text-align: center;
-  margin-bottom: 28px;
 }
 
 .login-logo {
-  font-size: 32px;
-  font-weight: 700;
-  color: #e6393d;
-  margin-bottom: 8px;
-  letter-spacing: 1px;
-}
-
-.login-subtitle {
-  font-size: 16px;
-  color: #191919;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.login-desc {
-  font-size: 14px;
-  color: #999;
-}
-
-.login-form {
-  margin-top: 24px;
-}
-
-.form-group {
-  margin-bottom: 20px;
-}
-
-.form-label {
-  display: block;
-  font-size: 14px;
-  color: #333;
-  margin-bottom: 8px;
+  font-family: var(--font-display);
   font-weight: 500;
+  font-size: 56px;
+  line-height: 1;
+  color: var(--c-primary);
+  letter-spacing: -0.02em;
 }
 
-.input-wrapper {
+.login-brand-tag {
+  margin-top: var(--space-sm);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--c-accent-text);
+}
+
+/* ───────── Form ───────── */
+.login-form {
+  background: #fff;
+  border: 1px solid var(--c-border-light);
+  border-radius: 8px;
+  padding: var(--space-2xl) var(--space-2xl) var(--space-xl);
+  box-shadow: 0 12px 40px -16px rgb(42 77 106 / 0.14),
+              0 2px 6px -2px rgb(42 77 106 / 0.06);
+}
+
+.login-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 24px;
+  line-height: 1.2;
+  color: var(--c-text);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.login-lede {
+  margin: var(--space-xs) 0 var(--space-xl);
+  font-size: 13px;
+  color: var(--c-text-2);
+  line-height: 1.55;
+}
+
+.login-field {
+  display: block;
+  margin-bottom: var(--space-lg);
+}
+
+.login-field-lbl {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--c-text-3);
+  margin-bottom: var(--space-xs);
+}
+
+.login-input-wrap {
   display: flex;
-  align-items: center;
-  border: 1px solid #d9d9d9;
-  border-radius: 2px;
-  overflow: hidden;
-  transition: border-color 0.2s;
+  align-items: stretch;
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  background: #fff;
+  transition: border-color 160ms ease-out, box-shadow 160ms ease-out;
 }
 
-.input-wrapper:focus-within {
-  border-color: #0073e6;
-  box-shadow: 0 0 0 2px rgba(0, 115, 230, 0.1);
+.login-input-wrap:hover {
+  border-color: var(--c-text-3);
 }
 
-.form-input {
+.login-input-wrap:focus-within {
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px rgb(from var(--c-accent) r g b / 0.15);
+}
+
+.login-input {
   flex: 1;
   border: none;
   outline: none;
-  padding: 10px 12px;
-  font-size: 14px;
-  color: #333;
+  padding: var(--space-md) var(--space-md);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--c-text);
   background: transparent;
+  letter-spacing: -0.01em;
 }
 
-.form-input::placeholder {
-  color: #bfbfbf;
+.login-input::placeholder {
+  color: var(--c-text-3);
+  font-family: var(--font-sans);
+  letter-spacing: 0;
 }
 
-.toggle-btn {
+.login-input-toggle {
   background: none;
   border: none;
-  border-left: 1px solid #d9d9d9;
-  padding: 10px 12px;
-  font-size: 13px;
-  color: #0073e6;
+  border-left: 1px solid var(--c-border-light);
+  padding: 0 var(--space-md);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--c-text-2);
   cursor: pointer;
-  white-space: nowrap;
+  transition: color 160ms ease-out, background 160ms ease-out;
 }
 
-.toggle-btn:hover {
-  background-color: #f5f7fa;
+.login-input-toggle:hover {
+  color: var(--c-accent-text);
+  background-color: var(--c-accent-light);
 }
 
-.error-msg {
-  color: #ff4d4f;
-  font-size: 13px;
-  margin-bottom: 16px;
-  padding: 8px 12px;
-  background: #fff2f0;
-  border: 1px solid #ffccc7;
-  border-radius: 2px;
+.login-error {
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 12px;
+  color: var(--cs-severe);
+  background: color-mix(in oklch, var(--cs-severe) 5%, #fff);
+  border: 1px solid color-mix(in oklch, var(--cs-severe) 20%, #fff);
+  border-radius: 4px;
+  line-height: 1.5;
 }
 
-.login-btn {
+.login-submit {
   width: 100%;
   height: 40px;
-  background-color: #e6393d;
+  background-color: var(--c-accent);
   color: #fff;
   border: none;
-  border-radius: 2px;
-  font-size: 15px;
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  font-size: 14px;
   font-weight: 500;
+  letter-spacing: 0.04em;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  transition: background-color 0.2s;
+  gap: var(--space-sm);
+  transition: background-color 160ms ease-out;
 }
 
-.login-btn:hover:not(:disabled) {
-  background-color: #cc2f33;
+.login-submit:hover:not(:disabled) {
+  background-color: var(--c-accent-hover);
 }
 
-.login-btn:disabled {
-  background-color: #f5a3a5;
+.login-submit:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+.login-submit:disabled {
+  background-color: color-mix(in oklch, var(--c-accent) 40%, #fff);
   cursor: not-allowed;
 }
 
-.login-btn.loading {
-  background-color: #d43438;
-}
-
-.spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.4);
+.login-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgb(255 255 255 / 0.35);
   border-top-color: #fff;
   border-radius: 50%;
-  animation: spin 0.6s linear infinite;
+  animation: login-spin 0.7s linear infinite;
 }
 
-@keyframes spin {
+@keyframes login-spin {
   to { transform: rotate(360deg); }
 }
 
-.login-footer {
+@media (prefers-reduced-motion: reduce) {
+  .login-spinner { animation-duration: 2s; }
+}
+
+.login-note {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--c-border-light);
+  font-size: 11px;
+  color: var(--c-text-3);
+  line-height: 1.5;
   text-align: center;
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid #e8e8e8;
 }
 
-.login-footer p {
-  font-size: 13px;
-  color: #999;
+/* ───────── Footprint ───────── */
+.login-footprint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-md);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--c-text-3);
+  letter-spacing: 0.04em;
 }
 
+.login-sep {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--c-border);
+}
+
+/* ───────── Mobile ───────── */
 @media (max-width: 480px) {
-  .login-card {
-    width: 100%;
-    margin: 16px;
-    padding: 32px 24px 28px;
+  .login-page {
+    padding: var(--space-xl) var(--space-lg) var(--space-lg);
+  }
+
+  .login-shell {
+    gap: var(--space-xl);
   }
 
   .login-logo {
-    font-size: 28px;
+    font-size: 48px;
   }
 
-  .login-btn {
+  .login-form {
+    padding: var(--space-xl) var(--space-lg) var(--space-lg);
+  }
+
+  .login-submit {
     height: 44px;
   }
 }

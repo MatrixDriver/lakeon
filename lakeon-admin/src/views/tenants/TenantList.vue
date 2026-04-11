@@ -1,71 +1,110 @@
 <template>
   <div>
-    <div class="page-header">
-      <h1 class="page-title">租户管理</h1>
+    <header class="page-header">
+      <div>
+        <h1 class="page-title">租户管理</h1>
+        <p class="page-subtitle">查看与管理 Lakeon 上的所有租户、配额与启用状态</p>
+      </div>
+    </header>
+
+    <!-- Status line -->
+    <div class="tenant-status-line">
+      <span class="sl-item sl-total">
+        <span class="sl-num">{{ tenants.length }}</span>
+        <span class="sl-lbl">个租户</span>
+      </span>
+      <span class="sl-sep" aria-hidden="true"></span>
+      <span class="sl-item">
+        <span class="sl-chip sl-chip-enabled"></span>
+        <span class="sl-lbl">启用</span>
+        <span class="sl-num">{{ enabledCount }}</span>
+      </span>
+      <span class="sl-item" :class="{ 'sl-alert': disabledCount > 0 }">
+        <span class="sl-chip sl-chip-disabled"></span>
+        <span class="sl-lbl">禁用</span>
+        <span class="sl-num">{{ disabledCount }}</span>
+      </span>
     </div>
 
-    <div class="action-toolbar">
+    <div class="tenant-toolbar">
       <input
         type="text"
         class="search-input"
-        placeholder="搜索租户名称..."
+        placeholder="搜索租户名称"
         v-model="searchText"
-        style="width: 260px;"
       />
-      <button
-        v-if="selectedIds.size > 0"
-        class="btn btn-danger btn-small"
-        @click="confirmBatchDelete"
-        :disabled="deleting"
-      >
-        {{ deleting ? '删除中...' : `批量删除 (${selectedIds.size})` }}
-      </button>
+      <div v-if="selectedIds.size > 0" class="tenant-batch-inline">
+        <span class="tenant-batch-count">已选择 {{ selectedIds.size }} 个</span>
+        <button
+          class="btn btn-danger btn-small"
+          @click="confirmBatchDelete"
+          :disabled="deleting"
+        >{{ deleting ? '删除中…' : '批量删除' }}</button>
+      </div>
     </div>
 
     <div class="table-wrapper">
       <table class="data-table">
         <thead>
           <tr>
-            <th style="width: 40px;">
+            <th class="th-check">
               <input type="checkbox" :checked="allSelected" @change="toggleAll" />
             </th>
             <th>名称</th>
-            <th>ID</th>
             <th>状态</th>
-            <th>数据库数/配额</th>
-            <th>存储配额(GB)</th>
-            <th>计算配额(CU)</th>
-            <th>创建时间</th>
-            <th>操作</th>
+            <th>数据库数 / 配额</th>
+            <th>存储配额</th>
+            <th>计算配额</th>
+            <th>创建于</th>
+            <th class="th-actions"></th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="t in filteredTenants" :key="t.id" :class="{ 'row-selected': selectedIds.has(t.id) }">
+          <tr
+            v-for="t in filteredTenants"
+            :key="t.id"
+            :class="{
+              'row-selected': selectedIds.has(t.id),
+              'row-disabled': t.disabled
+            }"
+          >
             <td>
               <input type="checkbox" :checked="selectedIds.has(t.id)" @change="toggleSelect(t.id)" />
             </td>
-            <td>{{ t.name }}</td>
-            <td style="font-family: monospace; font-size: 13px;">{{ t.id }}</td>
-            <td>
-              <span class="status-dot" :class="t.disabled ? 'dot-red' : 'dot-green'"></span>
-              {{ t.disabled ? '已禁用' : '已启用' }}
+            <td class="td-name">
+              <div class="td-name-title">{{ t.name }}</div>
+              <div class="td-sub-mono">{{ t.id }}</div>
             </td>
-            <td>{{ t.database_count ?? 0 }} / {{ t.max_databases ?? '-' }}</td>
-            <td>{{ t.max_storage_gb ?? '-' }}</td>
-            <td>{{ t.max_compute_cu ?? '-' }}</td>
-            <td>{{ formatDate(t.created_at) }}</td>
             <td>
-              <button class="btn btn-text btn-small" @click="openEditQuota(t)">编辑配额</button>
-              <button
-                class="btn btn-text btn-small"
-                :style="{ color: t.disabled ? '#38a169' : '#e37318' }"
-                @click="toggleDisabled(t)"
-              >{{ t.disabled ? '启用' : '禁用' }}</button>
-              <button class="btn btn-text btn-small" style="color: #e53e3e;" @click="confirmDeleteOne(t)">删除</button>
+              <span class="status-chip" :class="t.disabled ? 'chip-disabled' : 'chip-enabled'">
+                <span class="chip-dot"></span>{{ t.disabled ? '已禁用' : '已启用' }}
+              </span>
+            </td>
+            <td class="td-quota">
+              <span class="td-quota-use">{{ t.database_count ?? 0 }}</span>
+              <span class="td-quota-sep">/</span>
+              <span class="td-quota-max">{{ t.max_databases ?? '—' }}</span>
+            </td>
+            <td class="td-compact">{{ t.max_storage_gb ? t.max_storage_gb + ' GB' : '—' }}</td>
+            <td class="td-compact">{{ t.max_compute_cu ? t.max_compute_cu + ' CU' : '—' }}</td>
+            <td class="td-date">{{ formatDate(t.created_at) }}</td>
+            <td class="td-actions">
+              <div class="row-actions">
+                <button class="row-btn row-btn-accent" @click="openEditQuota(t)">编辑配额</button>
+                <button
+                  class="row-btn"
+                  :class="t.disabled ? 'row-btn-enable' : 'row-btn-disable'"
+                  @click="toggleDisabled(t)"
+                >{{ t.disabled ? '启用' : '禁用' }}</button>
+                <button class="row-btn row-btn-danger" @click="confirmDeleteOne(t)">删除</button>
+              </div>
             </td>
           </tr>
           <tr v-if="filteredTenants.length === 0">
-            <td colspan="9" class="empty-state">暂无数据</td>
+            <td colspan="8" class="empty-row">
+              <div class="empty-title">{{ searchText ? '没有匹配的租户' : '还没有任何租户' }}</div>
+              <div class="empty-sub">{{ searchText ? '试试其它关键词' : '邀请码页面可以生成新租户的入口' }}</div>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -75,10 +114,11 @@
     <div class="dialog-overlay" v-if="showDialog" @click.self="showDialog = false">
       <div class="dialog-box">
         <div class="dialog-header">
-          <h3>编辑配额 - {{ editingTenant?.name }}</h3>
+          <h3>编辑配额 · {{ editingTenant?.name }}</h3>
           <button class="dialog-close" @click="showDialog = false">&times;</button>
         </div>
         <div class="dialog-body">
+          <p class="dialog-lede">调整该租户能创建的资源上限。减少配额不会影响已存在的资源。</p>
           <div class="form-group">
             <label class="form-label">最大数据库数</label>
             <input type="number" class="form-input" v-model.number="quotaForm.max_databases" min="1" />
@@ -95,7 +135,7 @@
         <div class="dialog-footer">
           <button class="btn btn-default" @click="showDialog = false">取消</button>
           <button class="btn btn-primary" @click="saveQuota" :disabled="saving">
-            {{ saving ? '保存中...' : '保存' }}
+            {{ saving ? '保存中…' : '保存' }}
           </button>
         </div>
       </div>
@@ -105,22 +145,24 @@
     <div class="dialog-overlay" v-if="showDeleteDialog" @click.self="showDeleteDialog = false">
       <div class="dialog-box">
         <div class="dialog-header">
-          <h3 style="color: #e53e3e;">确认删除</h3>
+          <h3>删除租户</h3>
           <button class="dialog-close" @click="showDeleteDialog = false">&times;</button>
         </div>
         <div class="dialog-body">
-          <p>确定要删除以下 <strong>{{ deleteTargetIds.length }}</strong> 个租户吗？</p>
-          <p style="color: #e53e3e; font-size: 13px;">此操作会同时删除租户下的所有数据库和计算资源，不可恢复。</p>
-          <ul style="font-size: 13px; max-height: 200px; overflow-y: auto; margin: 8px 0;">
+          <p class="dialog-lede">
+            将永久删除以下 <strong>{{ deleteTargetIds.length }}</strong> 个租户、租户下的所有数据库和计算资源，此操作不可恢复。
+          </p>
+          <ul class="dialog-list">
             <li v-for="id in deleteTargetIds" :key="id">
-              {{ tenantNameById(id) }} <span style="color: #999;">({{ id }})</span>
+              <span class="dialog-list-name">{{ tenantNameById(id) }}</span>
+              <span class="dialog-list-id">{{ id }}</span>
             </li>
           </ul>
         </div>
         <div class="dialog-footer">
           <button class="btn btn-default" @click="showDeleteDialog = false">取消</button>
           <button class="btn btn-danger" @click="executeBatchDelete" :disabled="deleting">
-            {{ deleting ? '删除中...' : '确认删除' }}
+            {{ deleting ? '删除中…' : '删除' }}
           </button>
         </div>
       </div>
@@ -156,7 +198,6 @@ const quotaForm = ref({
   max_compute_cu: 2,
 })
 
-// Selection state
 const selectedIds = ref<Set<string>>(new Set())
 const showDeleteDialog = ref(false)
 const deleteTargetIds = ref<string[]>([])
@@ -168,9 +209,12 @@ const filteredTenants = computed(() => {
   return tenants.value.filter(t => t.name.toLowerCase().includes(q))
 })
 
-const allSelected = computed(() => {
-  return filteredTenants.value.length > 0 && filteredTenants.value.every(t => selectedIds.value.has(t.id))
-})
+const enabledCount = computed(() => tenants.value.filter(t => !t.disabled).length)
+const disabledCount = computed(() => tenants.value.filter(t => !!t.disabled).length)
+
+const allSelected = computed(() =>
+  filteredTenants.value.length > 0 && filteredTenants.value.every(t => selectedIds.value.has(t.id))
+)
 
 function toggleAll() {
   if (allSelected.value) {
@@ -182,11 +226,8 @@ function toggleAll() {
 }
 
 function toggleSelect(id: string) {
-  if (selectedIds.value.has(id)) {
-    selectedIds.value.delete(id)
-  } else {
-    selectedIds.value.add(id)
-  }
+  if (selectedIds.value.has(id)) selectedIds.value.delete(id)
+  else selectedIds.value.add(id)
   selectedIds.value = new Set(selectedIds.value)
 }
 
@@ -273,22 +314,321 @@ onMounted(loadTenants)
 </script>
 
 <style scoped>
-.row-selected {
-  background-color: #fff5f5;
+/* Status line */
+.tenant-status-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-xl);
+  padding: var(--space-md) 0 var(--space-lg);
+  margin-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--c-border-light);
 }
-.btn-danger {
-  background-color: #e53e3e;
-  color: white;
+
+.sl-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  font-size: 13px;
+  color: var(--c-text-2);
+}
+
+.sl-item.sl-alert .sl-num { color: var(--cs-severe); }
+
+.sl-total .sl-num {
+  font-family: var(--font-display);
+  font-size: 22px;
+}
+
+.sl-num {
+  font-weight: 600;
+  color: var(--c-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.sl-lbl { color: var(--c-text-2); }
+
+.sl-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--c-border);
+  align-self: center;
+}
+
+.sl-chip {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  transform: translateY(-1px);
+}
+
+.sl-chip-enabled { background: var(--c-success); }
+.sl-chip-disabled { background: var(--cs-severe); }
+
+/* Toolbar */
+.tenant-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.tenant-toolbar .search-input {
+  width: 300px;
+}
+
+.tenant-batch-inline {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-md);
+  font-size: 13px;
+  color: var(--c-text-2);
+}
+
+.tenant-batch-count {
+  font-weight: 500;
+  color: var(--c-text);
+}
+
+/* Status chip */
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 3px 10px;
+  border-radius: 10px;
+  background: var(--c-bg-alt);
+  color: var(--c-text-2);
+  white-space: nowrap;
+}
+
+.chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c-text-3);
+}
+
+.chip-enabled {
+  background: color-mix(in oklch, var(--c-success) 12%, #fff);
+  color: #386b47;
+}
+.chip-enabled .chip-dot { background: var(--c-success); }
+
+.chip-disabled {
+  background: color-mix(in oklch, var(--cs-severe) 10%, #fff);
+  color: var(--cs-severe);
+}
+.chip-disabled .chip-dot { background: var(--cs-severe); }
+
+/* Table row tints */
+.data-table tbody tr.row-selected {
+  background: color-mix(in oklch, var(--c-accent) 6%, #fff);
+}
+
+.data-table tbody tr.row-disabled {
+  background: color-mix(in oklch, var(--cs-severe) 3%, #fff);
+}
+
+.data-table tbody tr.row-disabled:hover {
+  background: color-mix(in oklch, var(--cs-severe) 6%, #fff);
+}
+
+/* Table cells */
+.td-name {
+  min-width: 180px;
+  max-width: 240px;
+}
+
+.td-name-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--c-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.td-sub-mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--c-text-3);
+  margin-top: 2px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.td-quota {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.td-quota-use {
+  font-weight: 600;
+  color: var(--c-text);
+  font-family: var(--font-display);
+  font-size: 15px;
+}
+
+.td-quota-sep {
+  color: var(--c-border);
+  margin: 0 var(--space-xs);
+}
+
+.td-quota-max {
+  color: var(--c-text-3);
+  font-size: 13px;
+}
+
+.td-compact {
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text-2);
+  white-space: nowrap;
+}
+
+.td-date {
+  color: var(--c-text-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.th-check,
+.th-actions {
+  width: 1%;
+}
+
+/* Row actions — hidden until hover */
+.td-actions {
+  text-align: right;
+  width: 1%;
+}
+
+.row-actions {
+  display: inline-flex;
+  gap: var(--space-sm);
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+}
+
+.data-table tbody tr:hover .row-actions,
+.data-table tbody tr:focus-within .row-actions {
+  opacity: 1;
+}
+
+.row-btn {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  background: none;
   border: none;
-  padding: 6px 16px;
-  border-radius: 4px;
+  padding: 4px 8px;
+  border-radius: 3px;
   cursor: pointer;
+  transition: background 120ms ease-out, color 120ms ease-out;
 }
-.btn-danger:hover {
-  background-color: #c53030;
+
+.row-btn-accent {
+  color: var(--c-accent-text);
 }
-.btn-danger:disabled {
-  background-color: #feb2b2;
-  cursor: not-allowed;
+.row-btn-accent:hover {
+  background: var(--c-accent-light);
+}
+
+.row-btn-disable {
+  color: var(--c-text-3);
+}
+.row-btn-disable:hover {
+  color: var(--cs-warn);
+  background: color-mix(in oklch, var(--cs-warn) 8%, #fff);
+}
+
+.row-btn-enable {
+  color: #386b47;
+}
+.row-btn-enable:hover {
+  background: color-mix(in oklch, var(--c-success) 10%, #fff);
+}
+
+.row-btn-danger {
+  color: var(--c-text-3);
+}
+.row-btn-danger:hover {
+  color: var(--cs-severe);
+  background: color-mix(in oklch, var(--cs-severe) 8%, #fff);
+}
+
+/* Empty state */
+.empty-row {
+  padding: var(--space-4xl) var(--space-xl);
+  text-align: center;
+  background: #fff;
+}
+
+.empty-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 18px;
+  color: var(--c-text);
+}
+
+.empty-sub {
+  margin-top: var(--space-xs);
+  font-size: 13px;
+  color: var(--c-text-3);
+}
+
+/* Dialog list (for delete confirm) */
+.dialog-lede {
+  margin-bottom: var(--space-md);
+  line-height: 1.55;
+}
+
+.dialog-list {
+  list-style: none;
+  padding: var(--space-sm) 0;
+  margin: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 13px;
+  border-top: 1px solid var(--c-border-light);
+  border-bottom: 1px solid var(--c-border-light);
+}
+
+.dialog-list li {
+  padding: 6px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dialog-list-name {
+  color: var(--c-text);
+  font-weight: 500;
+}
+
+.dialog-list-id {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--c-text-3);
+}
+
+@media (max-width: 768px) {
+  .tenant-toolbar .search-input {
+    width: 100%;
+  }
+
+  .tenant-batch-inline {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 </style>

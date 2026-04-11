@@ -171,15 +171,19 @@ provide('openAiDiagnose', openAiDiagnose)
   overflow: hidden;
 }
 
+/* ══════════════════════════════════════════
+   Top header
+   ══════════════════════════════════════════ */
 .console-header {
-  height: 48px;
-  background-color: #2a4d6a;
+  height: 52px;
+  background-color: var(--c-primary);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 var(--space-xl);
   flex-shrink: 0;
   z-index: 100;
+  border-bottom: 1px solid color-mix(in oklch, var(--c-primary) 80%, black);
 }
 
 .header-left {
@@ -188,107 +192,124 @@ provide('openAiDiagnose', openAiDiagnose)
 }
 
 .logo-brand {
-  color: #c67d3a;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-family: var(--font-display);
+  color: var(--c-accent);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   text-decoration: none;
   display: flex;
   align-items: baseline;
-  gap: 4px;
+  gap: var(--space-sm);
+  line-height: 1;
 }
 
 .logo-tagline {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 12px;
+  font-family: var(--font-sans);
+  color: rgb(255 255 255 / 0.5);
+  font-size: 10px;
   font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--space-md);
 }
 
 .cmd-k-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
-  color: rgba(255, 255, 255, 0.5);
-  padding: 4px 10px;
+  gap: var(--space-sm);
+  background: rgb(255 255 255 / 0.06);
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: 4px;
+  color: rgb(255 255 255 / 0.55);
+  padding: 4px var(--space-md);
+  font-family: var(--font-sans);
   font-size: 12px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background 160ms ease-out, color 160ms ease-out;
   height: 28px;
 }
 
 .cmd-k-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.8);
+  background: rgb(255 255 255 / 0.12);
+  color: rgb(255 255 255 / 0.9);
 }
 
 .cmd-k-text {
+  font-family: var(--font-mono);
   font-size: 11px;
-  opacity: 0.7;
+  opacity: 0.75;
+  letter-spacing: 0.02em;
 }
 
 .header-divider-small {
   width: 1px;
-  height: 14px;
-  background: rgba(255, 255, 255, 0.15);
+  height: 16px;
+  background: rgb(255 255 255 / 0.16);
 }
 
 .header-user {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .user-avatar {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #c67d3a;
+  background: var(--c-accent);
   color: #fff;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-family: var(--font-sans);
 }
 
 .header-username {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 14px;
+  color: rgb(255 255 255 / 0.88);
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .header-nav-btn {
   background: transparent;
   border: none;
   padding: 0;
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 14px;
+  color: rgb(255 255 255 / 0.7);
+  font-family: var(--font-sans);
+  font-size: 13px;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: color 160ms ease-out;
 }
 
 .header-nav-btn:hover {
   color: #fff;
 }
 
+/* ══════════════════════════════════════════
+   Body layout
+   ══════════════════════════════════════════ */
 .console-body {
   display: flex;
   flex: 1;
   overflow: hidden;
 }
 
+/* ══════════════════════════════════════════
+   Sidebar
+   ══════════════════════════════════════════ */
 .console-sidebar {
-  width: 220px;
+  width: 232px;
   background-color: #fff;
-  border-right: 1px solid #e8e4df;
+  border-right: 1px solid var(--c-border);
   flex-shrink: 0;
   overflow-y: auto;
   display: flex;
@@ -299,105 +320,119 @@ provide('openAiDiagnose', openAiDiagnose)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24px 20px 20px;
-  border-bottom: 1px solid #e8e4df;
+  padding: var(--space-xl) var(--space-xl) var(--space-lg);
+  border-bottom: 1px solid var(--c-border-light);
+  font-family: var(--font-display);
   font-size: 18px;
-  font-weight: 700;
-  color: #2c3e50;
-  line-height: 1.3;
+  font-weight: 500;
+  color: var(--c-primary);
+  line-height: 1.2;
+  letter-spacing: -0.005em;
 }
 
 .sidebar-search-icon {
-  color: #8a8e99;
+  color: var(--c-text-3);
   cursor: pointer;
   flex-shrink: 0;
+  transition: color 160ms ease-out;
 }
 
 .sidebar-search-icon:hover {
-  color: #2c3e50;
+  color: var(--c-accent-text);
 }
 
 .sidebar-nav {
   flex: 1;
-  padding: 0;
+  padding: var(--space-sm) 0 var(--space-lg);
 }
 
 .nav-group {
-  padding: 8px 0;
-  border-bottom: 1px solid #e8e4df;
+  padding: var(--space-sm) 0 var(--space-md);
 }
 
-.nav-group:last-child {
-  border-bottom: none;
+.nav-group + .nav-group {
+  border-top: 1px solid var(--c-border-light);
+  margin-top: var(--space-xs);
+  padding-top: var(--space-md);
 }
 
 .nav-group-title {
-  padding: 16px 24px 8px;
+  padding: var(--space-md) var(--space-xl) var(--space-xs);
+  font-family: var(--font-sans);
   font-size: 10px;
-  font-weight: 600;
-  color: #94a3b8;
+  font-weight: 500;
+  color: var(--c-text-3);
   line-height: 1.4;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.1em;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 24px;
-  height: 32px;
-  color: #333;
+  gap: var(--space-md);
+  padding: 0 var(--space-xl);
+  height: 34px;
+  color: var(--c-text-2);
   text-decoration: none;
-  font-size: 14px;
-  border-right: 2px solid transparent;
-  transition: all 0.15s;
+  font-size: 13px;
+  font-weight: 400;
+  transition: background 160ms ease-out, color 160ms ease-out;
+  position: relative;
 }
 
 .nav-item svg {
   flex-shrink: 0;
-  opacity: 0.5;
+  opacity: 0.6;
+  transition: opacity 160ms ease-out;
 }
 
 .nav-item:hover {
-  color: #9a5b25;
-  background-color: #f8f5f1;
+  color: var(--c-text);
+  background-color: var(--c-hover);
 }
 
 .nav-item:hover svg {
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 .nav-item.active {
-  color: #2a4d6a;
+  color: var(--c-primary);
   font-weight: 600;
-  border-right-color: #2a4d6a;
-  background-color: #f0f4f8;
+  background-color: color-mix(in oklch, var(--c-accent) 8%, #fff);
+}
+
+.nav-item.active:hover {
+  background-color: color-mix(in oklch, var(--c-accent) 12%, #fff);
 }
 
 .nav-item.active svg {
   opacity: 1;
+  color: var(--c-accent);
 }
-
 
 .sidebar-collapse {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding: 16px 12px;
-  color: #c2c6cc;
+  padding: var(--space-md) var(--space-md);
+  color: var(--c-text-3);
   cursor: pointer;
+  border-top: 1px solid var(--c-border-light);
 }
 
 .sidebar-collapse:hover {
-  color: #9a5b25;
+  color: var(--c-accent-text);
 }
 
+/* ══════════════════════════════════════════
+   Main area — warm background
+   ══════════════════════════════════════════ */
 .console-main {
   flex: 1;
-  background-color: #fff;
+  background-color: var(--c-bg-alt);
   overflow-y: auto;
-  padding: 24px 24px 24px 32px;
+  padding: var(--space-2xl) var(--space-2xl) var(--space-4xl) var(--space-2xl);
 }
 
 /* Mobile hamburger button - hidden on desktop */

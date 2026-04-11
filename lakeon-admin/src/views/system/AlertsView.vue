@@ -234,10 +234,10 @@ onMounted(() => { loadData() })
   font-size: 12px;
   font-weight: 500;
 }
-.tag-green { background: #f6ffed; color: #52c41a; }
-.tag-gray { background: #f5f5f5; color: #999; }
-.tag-red { background: #fff2f0; color: #e6393d; }
-.tag-orange { background: #fff7e6; color: #e37318; }
+.tag-green { background: color-mix(in oklch, var(--c-success) 12%, #fff); color: #386b47; }
+.tag-gray { background: var(--c-bg-alt); color: var(--c-text-3); }
+.tag-red { background: color-mix(in oklch, var(--cs-severe) 10%, #fff); color: var(--cs-severe); }
+.tag-orange { background: color-mix(in oklch, var(--c-accent) 12%, #fff); color: var(--c-accent-text); }
 .webhook-test {
   display: flex;
   align-items: center;
@@ -247,7 +247,7 @@ onMounted(() => { loadData() })
   border-top: 1px solid #ebebeb;
 }
 .test-result { font-size: 13px; }
-.text-green { color: #52c41a; }
-.text-red { color: #e6393d; }
+.text-green { color: #386b47; }
+.text-red { color: var(--cs-severe); }
 .empty-text { color: #999; font-size: 14px; padding: 20px 0; }
 </style>

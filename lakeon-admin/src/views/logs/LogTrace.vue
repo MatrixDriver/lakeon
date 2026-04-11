@@ -216,10 +216,10 @@ onMounted(() => {
   font-weight: 700;
   letter-spacing: 0.4px;
 }
-.level-error { background: #fff0f0; color: #e74c3c; }
-.level-warn  { background: #fff7e6; color: #f39c12; }
-.level-info  { background: #f0fff4; color: #2ecc71; }
-.level-debug { background: #f5f5f5; color: #95a5a6; }
+.level-error { background: color-mix(in oklch, var(--cs-severe) 10%, #fff); color: var(--cs-severe); }
+.level-warn  { background: color-mix(in oklch, var(--cs-warn) 10%, #fff); color: var(--cs-warn); }
+.level-info  { background: color-mix(in oklch, var(--c-success) 12%, #fff); color: #386b47; }
+.level-debug { background: var(--c-bg-alt); color: var(--c-text-3); }
 .delta-badge {
   font-size: 11px;
   color: #9a7b5a;

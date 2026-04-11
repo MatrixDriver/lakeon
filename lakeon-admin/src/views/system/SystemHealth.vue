@@ -210,7 +210,7 @@ onMounted(loadHealth)
   font-weight: 400;
 }
 
-.dot-green-text { color: #52c41a; }
+.dot-green-text { color: #386b47; }
 
 .refresh-btn {
   background: none;

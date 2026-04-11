@@ -252,7 +252,7 @@ function renderTrendChart() {
   }
 
   drawLine(fixedCosts, '#9a5b25')
-  drawLine(computeCosts, '#e37318')
+  drawLine(computeCosts, '#c67d3a')
 
   // Legend
   const legendY = 12
@@ -260,7 +260,7 @@ function renderTrendChart() {
   ctx.fillRect(padding.left, legendY - 8, 12, 3)
   ctx.fillStyle = '#333'
   ctx.fillText('固定成本', padding.left + 16, legendY)
-  ctx.fillStyle = '#e37318'
+  ctx.fillStyle = '#c67d3a'
   ctx.fillRect(padding.left + 80, legendY - 8, 12, 3)
   ctx.fillStyle = '#333'
   ctx.fillText('计算成本', padding.left + 96, legendY)

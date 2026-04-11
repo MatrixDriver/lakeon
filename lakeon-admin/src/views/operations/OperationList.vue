@@ -241,12 +241,12 @@ onMounted(loadOperations)
 }
 
 .rt-warm {
-  background: #f6ffed;
-  color: #389e0d;
+  background: color-mix(in oklch, var(--c-success) 12%, #fff);
+  color: #386b47;
 }
 
 .rt-cold {
-  background: #fdf5ed;
-  color: #9a5b25;
+  background: color-mix(in oklch, var(--c-accent) 12%, #fff);
+  color: var(--c-accent-text);
 }
 </style>

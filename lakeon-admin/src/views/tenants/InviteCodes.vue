@@ -369,13 +369,13 @@ onMounted(loadCodes)
 }
 
 .tag-active {
-  background: #dcfce7;
-  color: #15803d;
+  background: color-mix(in oklch, var(--c-success) 12%, #fff);
+  color: #386b47;
 }
 
 .tag-expired {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: color-mix(in oklch, var(--cs-severe) 10%, #fff);
+  color: var(--cs-severe);
 }
 
 .delete-btn {
