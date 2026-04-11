@@ -60,10 +60,11 @@
           </div>
 
           <div class="wl-arrow">
-            <div class="wl-arrow-label">{{ t('完成任务后反刍', 'Reflect after each task') }}</div>
-            <svg class="wl-arrow-svg" viewBox="0 0 24 80" fill="none" aria-hidden="true">
-              <line x1="12" y1="0" x2="12" y2="72" stroke="currentColor" stroke-width="1" stroke-dasharray="3 4"/>
-              <path d="M6 66 L12 78 L18 66" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <div class="wl-arrow-label">{{ t('数据双向同步', 'Data flows both ways') }}</div>
+            <svg class="wl-arrow-svg" viewBox="0 0 80 24" fill="none" aria-hidden="true">
+              <line x1="10" y1="12" x2="70" y2="12" stroke="currentColor" stroke-width="1" stroke-dasharray="3 4"/>
+              <path d="M16 6 L4 12 L16 18" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M64 6 L76 12 L64 18" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
 
@@ -907,8 +908,8 @@ async function startTrial() {
 }
 
 .wl-arrow-svg {
-  width: 24px;
-  height: 80px;
+  width: 80px;
+  height: 24px;
 }
 
 /* ══════════════════════════════════════════
