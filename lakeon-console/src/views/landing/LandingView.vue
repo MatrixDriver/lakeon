@@ -52,9 +52,9 @@
               <span class="wl-phase-name">{{ t('Agent 执行时', 'When the agent runs') }}</span>
             </div>
             <div class="wl-nodes">
-              <div class="wl-node">Lakebase</div>
               <div class="wl-node">Memory.recall</div>
               <div class="wl-node">Knowledge.search</div>
+              <div class="wl-node">Lakebase</div>
             </div>
             <div class="wl-caption">{{ t('读写事务 · 召回记忆 · 检索知识', 'Read/write state · Recall memory · Search knowledge') }}</div>
           </div>
@@ -74,8 +74,8 @@
             </div>
             <div class="wl-nodes">
               <div class="wl-node">Memory.digest</div>
-              <div class="wl-node">Datalake</div>
               <div class="wl-node">Knowledge.curate</div>
+              <div class="wl-node">Datalake</div>
             </div>
             <div class="wl-caption">{{ t('反思记忆 · 批处理 · 沉淀知识', 'Digest memory · Batch compute · Curate knowledge') }}</div>
           </div>
@@ -83,8 +83,8 @@
 
         <p class="section-prose">
           {{ t(
-            'Agent 不是无状态的 API 调用。它们在时间维度上积累认知，又在每次执行时消费这些认知。DBay 让这两件事发生在同一套 substrate 上。',
-            'Agents are not stateless API calls. They accumulate understanding over time and consume it on every run. DBay keeps both on a single substrate.'
+            'Agent 不是无状态的 API 调用。它们在时间维度上积累认知，又在每次执行时消费这些认知。DBay 让这两件事发生在同一套底座上。',
+            'Agents are not stateless API calls. They accumulate understanding over time and consume it on every run. DBay keeps both on a single foundation.'
           ) }}
         </p>
       </div>
@@ -376,7 +376,7 @@
             <p class="cc-scene-p cc-scene-aside">
               {{ t(
                 '这就是我们说的「学习态」。工作态是你读写它，学习态是它在读你。',
-                'This is the "learning state." Working state is you reading and writing. Learning state is the substrate reading you.'
+                'This is the "learning state." Working state is you reading and writing. Learning state is the foundation reading you.'
               ) }}
             </p>
           </div>
@@ -432,8 +432,8 @@
           </h2>
           <p class="section-prose">
             {{ t(
-              'Memory 和 Knowledge 只是 DBay 四种能力中的两种。全部四种是同一个 substrate 的不同入口。',
-              'Memory and Knowledge are two of DBay\'s four capabilities. All four are entry points into the same substrate.'
+              'Memory 和 Knowledge 只是 DBay 四种能力中的两种。全部四种，长在同一套底座上。',
+              'Memory and Knowledge are two of DBay\'s four capabilities. All four sit on the same foundation.'
             ) }}
           </p>
         </div>
