@@ -1,112 +1,243 @@
 <template>
-  <div class="docs-home">
-    <h1>{{ t('DBay 记忆库文档', 'DBay Memory Store Docs') }}</h1>
-    <p class="subtitle">{{ t('快速接入 API、SDK 和 MCP，为你的 AI 应用赋予持久记忆', 'Get started with the API, SDK, and MCP to add persistent memory to your AI app') }}</p>
+  <div class="ppage dp">
+    <!-- Manifesto -->
+    <section class="ppage-section ppage-section-white">
+      <div class="ppage-inner dp-inner">
+        <div class="ppage-eyebrow">{{ t('文档 · 概览', 'Docs · Overview') }}</div>
 
-    <section class="qs-section">
-      <h2>{{ t('5 步快速开始', '5-Step Quick Start') }}</h2>
+        <h1 class="dp-title">
+          <span class="dp-title-a">{{ t('文档。', 'Documentation.') }}</span>
+          <span class="dp-title-b">{{ t('在你这边。', 'On your side.') }}</span>
+        </h1>
 
-      <div v-for="(step, i) in steps" :key="i" class="step">
-        <div class="step-num">{{ i + 1 }}</div>
-        <div>
-          <strong>{{ step.title }}</strong>
-          <pre class="code-block"><code>{{ step.code }}</code></pre>
+        <p class="dp-lede">
+          {{ t(
+            'DBay 给你三种使用方式：浏览器里的 Console、终端里的 CLI、Agent 内的 MCP 工具。参考文档包含 REST API 和 Python SDK。选一个开始，或者随你的工作方式切换——数据始终在同一个地方。',
+            "DBay gives you three ways to use it: a Console in the browser, a CLI in your terminal, and MCP tools inside your agent. Reference docs cover the REST API and the Python SDK. Pick one to start — or switch between them freely. Your data is always in the same place."
+          ) }}
+        </p>
+      </div>
+    </section>
+
+    <!-- 使用方式 · three cards -->
+    <section class="ppage-section">
+      <div class="ppage-inner dp-inner">
+        <h2 class="ppage-section-title">{{ t('三种使用方式', 'Three ways to use it') }}</h2>
+
+        <div class="dp-grid dp-grid-3">
+          <router-link to="/docs/console" class="dp-card">
+            <div class="dp-card-num">01</div>
+            <h3 class="dp-card-title">Console</h3>
+            <p class="dp-card-claim">{{ t('浏览器里管理数据库、知识、记忆、数据湖流水线。', 'Manage databases, knowledge, memory, and datalake pipelines from the browser.') }}</p>
+            <ul class="dp-card-list">
+              <li>{{ t('数据库 Dashboard · 连接 · 存储 · 资源趋势', 'Database dashboard · connections · storage · resource trends') }}</li>
+              <li>{{ t('知识 · 记忆 · 数据湖流水线一体化', 'Knowledge · memory · datalake pipelines in one place') }}</li>
+              <li>{{ t('API Key 管理 · 用量 · 团队分享', 'API keys · usage · team sharing') }}</li>
+            </ul>
+            <span class="dp-card-more">{{ t('读 Console 文档', 'Open Console docs') }} →</span>
+          </router-link>
+
+          <router-link to="/docs/cli" class="dp-card">
+            <div class="dp-card-num">02</div>
+            <h3 class="dp-card-title">CLI</h3>
+            <p class="dp-card-claim">{{ t('终端里的 DBay。一行命令搞定大多数事。', 'DBay in your terminal. Most things in a single command.') }}</p>
+            <ul class="dp-card-list">
+              <li>{{ t('登录 · 数据库 · 知识 · 记忆 · 秘钥', 'Login · databases · knowledge · memory · secrets') }}</li>
+              <li>{{ t('导入 / 导出 · 数据可携带', 'Import / export · take your data with you') }}</li>
+              <li>{{ t('MCP 服务随 dbay-cli 一起安装', 'The MCP server ships with dbay-cli') }}</li>
+            </ul>
+            <span class="dp-card-more">{{ t('读 CLI 文档', 'Open CLI docs') }} →</span>
+          </router-link>
+
+          <router-link to="/docs/mcp" class="dp-card">
+            <div class="dp-card-num">03</div>
+            <h3 class="dp-card-title">MCP {{ t('工具', 'tools') }}</h3>
+            <p class="dp-card-claim">{{ t('Agent 能直接调用的一组工具。你的 Agent 变成 DBay 的入口。', 'A set of tools your agent can call directly. Turn any agent into a DBay front end.') }}</p>
+            <ul class="dp-card-list">
+              <li>{{ t('知识：search / list / upload / ingest', 'Knowledge: search / list / upload / ingest') }}</li>
+              <li>{{ t('记忆：ingest / recall / list / delete', 'Memory: ingest / recall / list / delete') }}</li>
+              <li>{{ t('接入方式看集成指引', 'Wiring instructions live on the Integrations page') }}</li>
+            </ul>
+            <span class="dp-card-more">{{ t('看有哪些工具', 'See available tools') }} →</span>
+          </router-link>
         </div>
       </div>
     </section>
 
-    <section class="link-cards">
-      <router-link to="/docs/rest-api" class="link-card">
-        <h3>REST API</h3>
-        <p>{{ t('完整 HTTP API 参考，含所有端点、参数和示例', 'Full HTTP API reference with all endpoints, parameters and examples') }}</p>
-        <span class="more">{{ t('查看文档', 'View docs') }} →</span>
-      </router-link>
-      <router-link to="/docs/python-sdk" class="link-card">
-        <h3>Python SDK</h3>
-        <p>{{ t('异步 Python 客户端，支持 OpenAI / Anthropic 嵌入模型', 'Async Python client supporting OpenAI / Anthropic embedding models') }}</p>
-        <span class="more">{{ t('查看文档', 'View docs') }} →</span>
-      </router-link>
-      <router-link to="/docs/mcp" class="link-card">
-        <h3>MCP {{ t('工具', 'Tools') }}</h3>
-        <p>{{ t('通过 MCP 将记忆库接入 Claude Code、Cursor 等 AI 工具', 'Connect memory store to Claude Code, Cursor and other AI tools via MCP') }}</p>
-        <span class="more">{{ t('查看文档', 'View docs') }} →</span>
-      </router-link>
+    <!-- 参考文档 -->
+    <section class="ppage-section ppage-section-white">
+      <div class="ppage-inner dp-inner">
+        <h2 class="ppage-section-title">{{ t('参考文档', 'Reference') }}</h2>
+
+        <div class="dp-grid dp-grid-2">
+          <router-link to="/docs/rest-api" class="dp-card dp-card-ref">
+            <div class="dp-card-num">01</div>
+            <h3 class="dp-card-title">REST API</h3>
+            <p class="dp-card-claim">{{ t('完整 HTTP 参考：端点、参数、返回格式。', 'Full HTTP reference: endpoints, parameters, return shapes.') }}</p>
+            <span class="dp-card-more">{{ t('打开', 'Open') }} →</span>
+          </router-link>
+
+          <router-link to="/docs/python-sdk" class="dp-card dp-card-ref">
+            <div class="dp-card-num">02</div>
+            <h3 class="dp-card-title">Python SDK</h3>
+            <p class="dp-card-claim">{{ t('异步 Python 客户端，支持 OpenAI / Anthropic 嵌入模型。', 'Async Python client, supports OpenAI / Anthropic embedding models.') }}</p>
+            <span class="dp-card-more">{{ t('打开', 'Open') }} →</span>
+          </router-link>
+        </div>
+      </div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useLocale } from '../../stores/locale'
-
 const { t } = useLocale()
-
-const steps = computed(() => [
-  {
-    title: t('安装并登录', 'Install & Login'),
-    code: 'pip install dbay-cli\ndbay login',
-  },
-  {
-    title: t('注册 MCP 服务（Claude Code）', 'Register MCP Server (Claude Code)'),
-    code: 'claude mcp add --scope user dbay -- python -m dbay_mcp',
-  },
-  {
-    title: t('安装记忆 Skill（推荐）', 'Install Memory Skill (Recommended)'),
-    code: `# Claude Code 用户：安装 dbay skill 插件
-# /plugin marketplace add jackylk/dbay-plugins
-# /plugin install memory
-# 安装后，说"记住"时 CC 自动调用 DBay 记忆库
-
-# 其他 AI 工具：注入记忆提示
-dbay setup gemini    # Gemini CLI
-dbay setup cursor    # Cursor
-dbay setup windsurf  # Windsurf`,
-  },
-  {
-    title: t('存入记忆', 'Store a Memory'),
-    code: t(
-      '# 在 AI 工具中直接说：\n# "记住我的 PyPI token 是 pypi-xxx"\n# AI 会自动调用 DBay 记忆库存储',
-      '# Just tell your AI tool:\n# "Remember my PyPI token is pypi-xxx"\n# It will automatically call DBay memory to store it'
-    ),
-  },
-  {
-    title: t('检索记忆', 'Recall Memories'),
-    code: t(
-      '# 在 AI 工具中直接问：\n# "我之前的 PyPI token 是什么？"\n# AI 会自动从 DBay 记忆库检索',
-      '# Just ask your AI tool:\n# "What was my PyPI token?"\n# It will automatically recall from DBay memory'
-    ),
-  },
-])
 </script>
 
 <style scoped>
-.docs-home h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; }
-.subtitle { color: var(--pub-text-2); font-size: 15px; margin-bottom: 40px; line-height: 1.6; }
-.qs-section { margin-bottom: 48px; }
-.qs-section h2 { font-size: 18px; font-weight: 600; margin-bottom: 24px; }
-.step { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 20px; }
-.step-num {
-  width: 24px; height: 24px; border-radius: 50%;
-  background: #7c3aed; color: #fff; font-size: 12px; font-weight: 600;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;
+.dp {
+  background: var(--c-bg-alt);
 }
-.step strong { font-size: 14px; font-weight: 600; display: block; margin-bottom: 8px; }
-.code-block {
-  background: var(--pub-code-bg); border: 1px solid var(--pub-border); border-radius: 6px;
-  padding: 12px 14px; font-size: 12px; color: var(--pub-code);
-  overflow-x: auto; margin: 0; font-family: monospace; white-space: pre;
+
+.dp-inner {
+  max-width: 1080px;
 }
-.link-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.link-card {
-  background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 8px;
-  padding: 16px; text-decoration: none; display: flex;
-  flex-direction: column; gap: 6px; transition: border-color 0.15s;
+
+.dp-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(40px, 5vw, 72px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--c-primary);
+  margin: 0 0 clamp(20px, 3vw, 32px);
 }
-.link-card:hover { border-color: var(--pub-code); }
-.link-card h3 { font-size: 14px; font-weight: 600; color: var(--pub-text); margin: 0; }
-.link-card p { font-size: 12px; color: var(--pub-text-2); margin: 0; flex: 1; line-height: 1.5; }
-.more { font-size: 12px; color: var(--pub-code); }
-@media (max-width: 768px) {
-  .link-cards { grid-template-columns: 1fr; }
+
+.dp-title-a,
+.dp-title-b {
+  display: block;
+}
+
+.dp-title-b {
+  color: var(--c-accent-text);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.dp-lede {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(18px, 2vw, 24px);
+  line-height: 1.55;
+  color: var(--c-text-2);
+  max-width: 62ch;
+  margin: 0;
+}
+
+.dp-grid {
+  display: grid;
+  gap: clamp(20px, 2.5vw, 32px);
+}
+
+.dp-grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.dp-grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.dp-card {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(24px, 3vw, 36px);
+  background: #fff;
+  border: 1px solid var(--c-border-light);
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 160ms ease-out, transform 160ms ease-out;
+}
+
+.dp-card:hover {
+  border-color: var(--c-text-3);
+  transform: translateY(-2px);
+}
+
+.dp-card-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--c-accent-text);
+  margin-bottom: var(--space-md);
+}
+
+.dp-card-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(24px, 2.5vw, 32px);
+  line-height: 1.15;
+  color: var(--c-primary);
+  letter-spacing: -0.01em;
+  margin: 0 0 var(--space-md);
+}
+
+.dp-card-claim {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(15px, 1.6vw, 17px);
+  line-height: 1.5;
+  color: var(--c-text);
+  margin: 0 0 var(--space-lg);
+}
+
+.dp-card-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  flex: 1;
+}
+
+.dp-card-list li {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--c-text-2);
+  padding-left: 14px;
+  position: relative;
+}
+
+.dp-card-list li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--c-text-3);
+}
+
+.dp-card-more {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-accent-text);
+  transition: color 160ms ease-out;
+}
+
+.dp-card:hover .dp-card-more {
+  color: var(--c-accent-hover);
+}
+
+.dp-card-ref .dp-card-claim {
+  margin-bottom: var(--space-lg);
+}
+
+@media (max-width: 900px) {
+  .dp-grid-3 { grid-template-columns: 1fr; }
+  .dp-grid-2 { grid-template-columns: 1fr; }
 }
 </style>

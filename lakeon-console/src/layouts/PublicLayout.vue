@@ -10,7 +10,7 @@
 
         <!-- Desktop nav -->
         <div class="pub-nav-links">
-          <router-link to="/product" class="pub-nav-link">{{ t('产品', 'Products') }}</router-link>
+          <router-link to="/product" class="pub-nav-link">{{ t('方案', 'Solution') }}</router-link>
           <router-link to="/integrations" class="pub-nav-link">{{ t('集成', 'Integrations') }}</router-link>
           <router-link to="/docs" class="pub-nav-link">{{ t('文档', 'Docs') }}</router-link>
         </div>

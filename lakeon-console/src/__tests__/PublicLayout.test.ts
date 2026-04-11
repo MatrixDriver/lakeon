@@ -42,7 +42,7 @@ describe('PublicLayout', () => {
     await router.isReady()
     const text = wrapper.text()
     // Nav: Products, Integrations, Docs, Sign in, Get started
-    expect(text).toMatch(/产品|Products/)
+    expect(text).toMatch(/方案|Solution/)
     expect(text).toMatch(/集成|Integrations/)
     expect(text).toMatch(/文档|Docs/)
     expect(text).toMatch(/登录|Sign in/)

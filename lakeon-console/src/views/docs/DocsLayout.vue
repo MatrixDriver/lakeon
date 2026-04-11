@@ -1,21 +1,27 @@
 <template>
   <div class="docs-shell">
     <aside class="docs-sidebar">
-      <nav class="sidebar-nav">
-        <div class="nav-group">
-          <span class="nav-group-title">{{ t('入门', 'GETTING STARTED') }}</span>
-          <router-link to="/docs" class="nav-link" exact-active-class="router-link-exact-active">{{ t('快速开始', 'Quick Start') }}</router-link>
-          <router-link to="/docs/deploy" class="nav-link">{{ t('部署指南', 'Deploy Guide') }}</router-link>
-        </div>
-        <div class="nav-group nav-group--spaced">
-          <span class="nav-group-title">{{ t('参考文档', 'REFERENCE') }}</span>
-          <router-link to="/docs/rest-api" class="nav-link">REST API</router-link>
-          <router-link to="/docs/python-sdk" class="nav-link">Python SDK</router-link>
-          <router-link to="/docs/mcp" class="nav-link">{{ t('MCP 接入', 'MCP Integration') }}</router-link>
-        </div>
-      </nav>
+      <div class="docs-sidebar-inner">
+        <div class="docs-side-eyebrow">{{ t('文档', 'Documentation') }}</div>
+
+        <nav class="docs-nav">
+          <div class="docs-nav-group">
+            <span class="docs-nav-title">{{ t('开始使用', 'Using DBay') }}</span>
+            <router-link to="/docs" class="docs-nav-link" exact-active-class="is-active">{{ t('概览', 'Overview') }}</router-link>
+            <router-link to="/docs/console" class="docs-nav-link" active-class="is-active">{{ t('Console 简介', 'Console') }}</router-link>
+            <router-link to="/docs/cli" class="docs-nav-link" active-class="is-active">{{ t('CLI 简介', 'CLI') }}</router-link>
+            <router-link to="/docs/mcp" class="docs-nav-link" active-class="is-active">{{ t('MCP 工具', 'MCP Tools') }}</router-link>
+          </div>
+          <div class="docs-nav-group">
+            <span class="docs-nav-title">{{ t('参考文档', 'Reference') }}</span>
+            <router-link to="/docs/rest-api" class="docs-nav-link" active-class="is-active">REST API</router-link>
+            <router-link to="/docs/python-sdk" class="docs-nav-link" active-class="is-active">Python SDK</router-link>
+          </div>
+        </nav>
+      </div>
     </aside>
-    <main class="docs-content">
+
+    <main class="docs-main">
       <router-view />
     </main>
   </div>
@@ -29,80 +35,109 @@ const { t } = useLocale()
 <style scoped>
 .docs-shell {
   display: flex;
-  min-height: 100vh;
-  color: var(--pub-text);
+  align-items: flex-start;
+  min-height: calc(100vh - 64px);
+  background: var(--c-bg-alt);
 }
 
 .docs-sidebar {
-  width: 240px;
+  width: 260px;
   flex-shrink: 0;
-  background: var(--pub-surface);
-  border-right: 1px solid var(--pub-border);
   position: sticky;
-  top: 52px;
-  height: calc(100vh - 52px);
+  top: 64px;
+  height: calc(100vh - 64px);
   overflow-y: auto;
-  padding: 24px 16px;
+  border-right: 1px solid var(--c-border-light);
+  background: #fff;
 }
 
-.sidebar-nav {
-  display: flex;
-  flex-direction: column;
+.docs-sidebar-inner {
+  padding: clamp(32px, 4vw, 48px) clamp(20px, 2vw, 28px);
 }
 
-.nav-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.nav-group--spaced {
-  margin-top: 20px;
-}
-
-.nav-group-title {
-  display: block;
+.docs-side-eyebrow {
+  font-family: var(--font-sans);
   font-size: 11px;
-  font-weight: 600;
-  color: var(--pub-text-3);
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-bottom: 8px;
+  letter-spacing: 0.14em;
+  color: var(--c-accent-text);
+  margin-bottom: var(--space-xl);
 }
 
-.nav-link {
+.docs-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.docs-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.docs-nav-title {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--c-text-3);
+  margin-bottom: var(--space-sm);
+}
+
+.docs-nav-link {
   display: block;
-  padding: 8px 12px;
-  border-radius: 6px;
+  padding: 8px 0;
+  font-family: var(--font-sans);
   font-size: 14px;
-  color: var(--pub-text-2);
+  font-weight: 400;
+  color: var(--c-text-2);
   text-decoration: none;
-  transition: color 0.15s, background 0.15s;
+  border-left: 2px solid transparent;
+  padding-left: 12px;
+  margin-left: -12px;
+  transition: color 160ms ease-out, border-color 160ms ease-out;
 }
 
-.nav-link:hover {
-  background: var(--pub-hover);
+.docs-nav-link:hover {
+  color: var(--c-primary);
 }
 
-.nav-link.router-link-exact-active,
-.nav-link.router-link-active {
-  color: var(--pub-primary);
-  background: var(--pub-primary-light);
-  font-weight: 600;
+.docs-nav-link.is-active {
+  color: var(--c-accent-text);
+  font-weight: 500;
 }
 
-.docs-content {
+.docs-main {
   flex: 1;
-  background: var(--pub-surface);
-  padding: 32px 48px;
+  min-width: 0;
+  background: var(--c-bg-alt);
 }
 
-@media (max-width: 768px) {
-  .docs-sidebar {
-    display: none;
+@media (max-width: 900px) {
+  .docs-shell {
+    flex-direction: column;
   }
-
-  .docs-content {
-    padding: 20px;
+  .docs-sidebar {
+    width: 100%;
+    position: static;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--c-border-light);
+  }
+  .docs-sidebar-inner {
+    padding: var(--space-xl);
+  }
+  .docs-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-lg);
+  }
+  .docs-nav-group {
+    flex: 1;
+    min-width: 160px;
   }
 }
 </style>

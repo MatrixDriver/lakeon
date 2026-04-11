@@ -5,7 +5,7 @@
     </div>
     <div class="mobile-nav-body">
       <router-link to="/product" class="mobile-nav-link" @click="$emit('close')">
-        {{ t('产品', 'Products') }}
+        {{ t('方案', 'Solution') }}
       </router-link>
       <router-link to="/integrations" class="mobile-nav-link" @click="$emit('close')">
         {{ t('集成', 'Integrations') }}

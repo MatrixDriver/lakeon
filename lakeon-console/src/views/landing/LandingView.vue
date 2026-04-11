@@ -12,8 +12,8 @@
 
         <p class="hero-lede">
           {{ t(
-            'OpenClaw 有一份 Memory，Claude 有一份 Projects，Cursor 有一份 context —— 你每换一个 Agent，都得从零开始。DBay 反过来：它是你自己的记忆库和知识库，任何 Agent 都可以接上，但数据始终属于你。',
-            'OpenClaw has its own Memory. Claude has its own Projects. Cursor has its own context. Every time you switch agents, you start over. DBay flips it: your memory and knowledge live in your own place, any agent can plug in, and the data always belongs to you.'
+            'OpenClaw 有一份 Memory，Claude 有一份 Projects，Cursor 有一份 Context —— 你每换一个 Agent，都得从零开始。DBay 反过来：它是你自己的记忆库和知识库，任何 Agent 都可以接上，但数据始终属于你。',
+            'OpenClaw has its own Memory. Claude has its own Projects. Cursor has its own Context. Every time you switch agents, you start over. DBay flips it: your memory and knowledge live in your own place, any agent can plug in, and the data always belongs to you.'
           ) }}
         </p>
 

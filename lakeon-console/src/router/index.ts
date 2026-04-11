@@ -52,10 +52,11 @@ const routes = [
         component: () => import('../views/docs/DocsLayout.vue'),
         children: [
           { path: '', name: 'DocsHome', component: () => import('../views/docs/DocsHome.vue') },
+          { path: 'console', name: 'DocsConsole', component: () => import('../views/docs/DocsConsole.vue') },
+          { path: 'cli', name: 'DocsCli', component: () => import('../views/docs/DocsCli.vue') },
+          { path: 'mcp', name: 'DocsMcp', component: () => import('../views/docs/DocsMcp.vue') },
           { path: 'rest-api', name: 'DocsRestApi', component: () => import('../views/docs/DocsRestApi.vue') },
           { path: 'python-sdk', name: 'DocsPythonSdk', component: () => import('../views/docs/DocsPythonSdk.vue') },
-          { path: 'deploy', name: 'DocsDeploy', component: () => import('../views/docs/DocsDeploy.vue') },
-          { path: 'mcp', name: 'DocsMcp', component: () => import('../views/docs/DocsMcp.vue') },
         ],
       },
     ],

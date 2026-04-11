@@ -1,11 +1,18 @@
 <template>
-  <div class="rest-api-docs">
-    <h1>REST API</h1>
-    <p class="subtitle">{{ t('完整 HTTP API 参考文档', 'Complete HTTP API reference') }}</p>
-    <p class="base-url">
-      Base URL: <code>https://api.dbay.cloud</code>
-    </p>
+  <div class="ppage dp">
+    <section class="ppage-section ppage-section-white">
+      <div class="ppage-inner dp-inner">
+        <router-link to="/docs" class="ppage-back">← {{ t('回到文档首页', 'Back to docs') }}</router-link>
+        <div class="ppage-eyebrow">{{ t('参考文档 · REST API', 'Reference · REST API') }}</div>
+        <h1 class="dp-title">REST API</h1>
+        <p class="dp-lede">
+          {{ t('完整 HTTP API 参考文档。Base URL:', 'Complete HTTP API reference. Base URL:') }}
+          <code class="dp-inline-code">https://api.dbay.cloud</code>
+        </p>
+      </div>
+    </section>
 
+  <div class="rest-api-docs">
     <section class="section">
       <h2>{{ t('认证', 'Authentication') }}</h2>
       <p>{{ t('所有请求需在 Authorization 请求头中携带 API Key，可在控制台获取，格式为', 'All requests require an API Key in the Authorization header. Get yours from the dashboard. Keys start with') }} <code>dbay_sk_</code>.</p>
@@ -58,6 +65,7 @@
       </section>
       <hr class="divider" />
     </template>
+  </div>
   </div>
 </template>
 
@@ -181,47 +189,178 @@ const endpoints = computed(() => [
 </script>
 
 <style scoped>
-.rest-api-docs h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; }
-.subtitle { color: var(--pub-text-2); font-size: 15px; margin-bottom: 4px; }
-.base-url { font-size: 13px; color: var(--pub-text-3); margin-bottom: 32px; }
-.base-url code { background: var(--pub-code-bg); padding: 2px 6px; border-radius: 3px; color: var(--pub-code); font-family: monospace; }
+.dp { background: var(--c-bg-alt); }
+.dp-inner { max-width: 1040px; }
+.dp-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(40px, 5vw, 64px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--c-primary);
+  margin: 0 0 clamp(16px, 2vw, 24px);
+}
+.dp-lede {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(18px, 2vw, 22px);
+  line-height: 1.55;
+  color: var(--c-text-2);
+  max-width: 62ch;
+  margin: 0;
+}
+.dp-inline-code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--c-accent-text);
+  background: color-mix(in oklch, var(--c-accent) 8%, #fff);
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.rest-api-docs {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: clamp(48px, 6vw, 80px) clamp(20px, 3vw, 40px);
+  font-family: var(--font-sans);
+}
+
 .section { margin-bottom: 40px; }
-.section h2 { font-size: 18px; font-weight: 600; margin-bottom: 12px; }
-.section p { font-size: 14px; color: var(--pub-text-2); line-height: 1.6; margin-bottom: 10px; }
-.section code { background: var(--pub-code-bg); padding: 1px 6px; border-radius: 3px; color: #2563eb; font-family: monospace; font-size: 13px; }
-.endpoint-toc { background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 8px; padding: 16px; margin-bottom: 40px; }
-.toc-label { font-size: 10px; font-weight: 600; color: var(--pub-text-4); text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 10px; }
-.toc-item { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-.toc-path { font-size: 13px; font-family: monospace; color: var(--pub-text-2); text-decoration: none; }
-.toc-path:hover { color: var(--pub-text); }
+.section h2 {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 2vw, 28px);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--c-primary);
+  margin-bottom: var(--space-md);
+}
+.section p { font-size: 14px; color: var(--c-text-2); line-height: 1.65; margin-bottom: 10px; }
+.section code, .rest-api-docs code { background: color-mix(in oklch, var(--c-accent) 7%, #fff); padding: 1px 6px; border-radius: 3px; color: var(--c-accent-text); font-family: var(--font-mono); font-size: 13px; }
+
+.endpoint-toc {
+  background: #fff;
+  border: 1px solid var(--c-border-light);
+  border-radius: 8px;
+  padding: var(--space-lg);
+  margin-bottom: clamp(32px, 4vw, 56px);
+}
+.toc-label {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--c-text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 0 0 var(--space-sm);
+}
+.toc-item { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: 6px; }
+.toc-path { font-size: 13px; font-family: var(--font-mono); color: var(--c-text-2); text-decoration: none; }
+.toc-path:hover { color: var(--c-accent-text); }
+
 .method-badge {
-  font-size: 10px; font-weight: 700; font-family: monospace;
-  padding: 1px 6px; border-radius: 3px; border: 1px solid;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 3px;
+  border: 1px solid;
+  letter-spacing: 0.04em;
 }
-.method-badge.post { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
-.method-badge.get { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
-.method-badge.delete { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
-.method-badge.patch { background: #fff7ed; color: #ea580c; border-color: #fed7aa; }
-.endpoint-section { margin-bottom: 0; padding: 32px 0; }
-.endpoint-hd { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-.endpoint-path { font-size: 18px; font-weight: 600; font-family: monospace; margin: 0; }
-.endpoint-desc { font-size: 14px; color: var(--pub-text-2); margin-bottom: 20px; line-height: 1.6; }
-.param-title { font-size: 12px; font-weight: 600; color: var(--pub-text-4); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 8px; }
-.param-table { border: 1px solid var(--pub-border); border-radius: 6px; overflow: hidden; margin-bottom: 16px; font-size: 13px; }
-.param-row { display: grid; grid-template-columns: 160px 80px 60px 1fr; gap: 1px; background: var(--pub-border); }
-.param-row.header { background: var(--pub-hover); }
-.param-row > * { background: var(--pub-surface); padding: 8px 10px; }
-.param-row.header > * { background: var(--pub-surface); color: var(--pub-text-4); font-size: 11px; font-weight: 600; text-transform: uppercase; }
-.param-row code { font-family: monospace; color: var(--pub-code); background: transparent; padding: 8px 10px; }
-.type { color: var(--pub-text-4); font-family: monospace; }
-.req-yes { color: #ea580c; font-size: 11px; font-weight: 600; }
-.req-no { color: #bbb; font-size: 11px; }
+.method-badge.post { background: color-mix(in oklch, var(--c-accent) 10%, #fff); color: var(--c-accent-text); border-color: color-mix(in oklch, var(--c-accent) 30%, transparent); }
+.method-badge.get { background: color-mix(in oklch, var(--c-primary) 7%, #fff); color: var(--c-primary); border-color: color-mix(in oklch, var(--c-primary) 25%, transparent); }
+.method-badge.delete { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.method-badge.patch { background: color-mix(in oklch, var(--c-accent) 14%, #fff); color: var(--c-accent-hover); border-color: color-mix(in oklch, var(--c-accent) 40%, transparent); }
+
+.endpoint-section { margin-bottom: 0; padding: var(--space-xl) 0; }
+.endpoint-hd { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: 8px; }
+.endpoint-path {
+  font-family: var(--font-mono);
+  font-size: clamp(17px, 1.6vw, 20px);
+  font-weight: 500;
+  color: var(--c-primary);
+  margin: 0;
+}
+.endpoint-desc { font-size: 14px; color: var(--c-text-2); margin-bottom: var(--space-lg); line-height: 1.65; }
+
+.param-title {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--c-text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 0 0 var(--space-sm);
+}
+.param-table {
+  border: 1px solid var(--c-border-light);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: var(--space-lg);
+  font-size: 13px;
+  background: #fff;
+}
+.param-row {
+  display: grid;
+  grid-template-columns: 180px 100px 70px 1fr;
+  gap: 1px;
+  background: var(--c-border-light);
+}
+.param-row.header { background: var(--c-bg-alt); }
+.param-row > * { background: #fff; padding: 10px 14px; color: var(--c-text-2); }
+.param-row.header > * {
+  background: var(--c-bg-alt);
+  color: var(--c-text-3);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.param-row code {
+  font-family: var(--font-mono);
+  color: var(--c-accent-text);
+  background: transparent;
+  padding: 10px 14px;
+}
+.type { color: var(--c-text-3); font-family: var(--font-mono); }
+.req-yes { color: var(--c-accent-text); font-size: 11px; font-weight: 600; }
+.req-no { color: var(--c-text-3); font-size: 11px; }
+
 .code-block {
-  background: var(--pub-code-bg); border: 1px solid var(--pub-border); border-radius: 6px;
-  padding: 12px 14px; font-size: 12px; color: var(--pub-code);
-  overflow-x: auto; margin-bottom: 16px; font-family: monospace; white-space: pre;
+  background: color-mix(in oklch, var(--c-accent) 5%, #fff);
+  border: 1px solid var(--c-border-light);
+  border-radius: 6px;
+  padding: var(--space-md) var(--space-lg);
+  font-size: 12px;
+  color: var(--c-text);
+  overflow-x: auto;
+  margin-bottom: var(--space-md);
+  font-family: var(--font-mono);
+  white-space: pre;
+  line-height: 1.7;
 }
-.code-block.response { color: var(--pub-text-2); }
-.note { border-left: 2px solid #7c3aed; background: var(--pub-accent-bg); border-radius: 0 6px 6px 0; padding: 10px 14px; font-size: 13px; color: var(--pub-text-2); margin-bottom: 0; }
-.divider { border: 1px solid var(--pub-border); margin: 0; }
+.code-block.response { color: var(--c-text-2); }
+
+.note {
+  background: color-mix(in oklch, var(--c-accent) 6%, #fff);
+  border: 1px solid color-mix(in oklch, var(--c-accent) 18%, transparent);
+  border-radius: 6px;
+  padding: var(--space-md) var(--space-lg);
+  font-size: 13px;
+  color: var(--c-text-2);
+  line-height: 1.6;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--c-border-light);
+  margin: var(--space-lg) 0 0;
+}
+
+@media (max-width: 900px) {
+  .param-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .param-row.header { display: none; }
+}
 </style>
