@@ -108,6 +108,44 @@ tools:
       memory_id: The ID of the memory to delete
       memory_base: "DO NOT set this parameter unless the user explicitly asks to use a different memory base. The server auto-detects the default."
 
+  # ---------------------------------------------------------------------------
+  # Wiki
+  # ---------------------------------------------------------------------------
+  wiki_list_pages: |
+    List all wiki pages in a knowledge base with their title, filename, and one-line summary.
+    Call this before creating a new wiki page to avoid duplicates. If kb_name_or_id is omitted,
+    uses the user's current default KB.
+
+  wiki_read_page: |
+    Read the full markdown content of a single wiki page by title. Use this when deciding whether
+    to update or create a page during wiki ingestion.
+
+  wiki_search_pages: |
+    Keyword-search wiki pages by title and summary. Returns top_k matches with scores.
+    Use to find relevant existing pages before creating a new one.
+
+  wiki_get_schema: |
+    Read the /schema.md document of a KB — the Karpathy-style schema that describes how the wiki
+    should be maintained. Read this at the start of every ingest/curate/lint session to understand
+    the KB's scope, page budget, and conventions.
+
+  wiki_ingest: |
+    Trigger the wiki agent to integrate a source document into the KB wiki. The agent runs
+    asynchronously; this tool returns a task_id immediately. Poll wiki_task_status to watch
+    progress. Requires the document to already be uploaded to the KB via knowledge_upload.
+
+  wiki_curate: |
+    Trigger the wiki curate agent, which merges duplicate pages, removes generic content,
+    and reorganizes the wiki. Returns task_id. Use when the wiki has grown bloated.
+
+  wiki_lint: |
+    Trigger the wiki lint agent, which finds dead links, orphan pages, format errors,
+    and proposes fixes. Returns task_id.
+
+  wiki_task_status: |
+    Query the status of a wiki agent task (from wiki_ingest/curate/lint). Returns
+    status=running|completed|error and any result or error details.
+
 # ---------------------------------------------------------------------------
 # Agent instruction injection (`dbay setup <agent>`)
 # ---------------------------------------------------------------------------
