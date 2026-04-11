@@ -56,6 +56,10 @@ public class WikiAgentClient {
     /**
      * Returns null when the agent is unreachable/misconfigured. Callers should
      * log and continue — agent availability must not fail queue draining.
+     *
+     * No retry here — KbWriteQueue handles retry at the dispatch layer.
+     * Adding client-level retry would multiply retry counts and amplify
+     * transient failures into thundering herds.
      */
     private String post(String path, Map<String, Object> body) {
         String baseUrl = props.getWiki().getAgent().getUrl();
@@ -71,7 +75,7 @@ public class WikiAgentClient {
                     .uri(URI.create(url))
                     .header("Content-Type", "application/json")
                     .header("Authorization", "Bearer " + token)
-                    .timeout(Duration.ofSeconds(10))
+                    .timeout(Duration.ofSeconds(props.getWiki().getAgent().getTimeoutSeconds()))
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
             HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
@@ -82,10 +86,15 @@ public class WikiAgentClient {
             }
             Map<?, ?> result = objectMapper.readValue(resp.body(), Map.class);
             Object taskId = result.get("task_id");
-            log.info("Wiki agent accepted {}: task={}", path, taskId);
-            return taskId != null ? taskId.toString() : null;
+            if (taskId == null) {
+                log.warn("Wiki agent {} returned 2xx without task_id: {}",
+                        path, truncate(resp.body(), 200));
+                return null;
+            }
+            log.debug("Wiki agent accepted {}: task={}", path, taskId);
+            return taskId.toString();
         } catch (Exception e) {
-            log.warn("Wiki agent call failed {}: {}", path, e.toString());
+            log.warn("Wiki agent call failed {}: {}", path, e.toString(), e);
             return null;
         }
     }

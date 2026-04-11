@@ -118,16 +118,22 @@ class WikiAgentClientTest {
 
     @Test
     void returnsNullOnConnectionFailure() {
-        // Don't install any handler — close the server immediately
-        server.stop(0);
-        server = null;
-
+        // Point at a closed port — OS returns connect-refused immediately
         LakeonProperties props = new LakeonProperties();
-        props.getWiki().getAgent().setUrl("http://localhost:" + port);
+        props.getWiki().getAgent().setUrl("http://localhost:1");
         props.getWiki().getAgent().setInternalToken("t");
         WikiAgentClient client = new WikiAgentClient(props, new ObjectMapper());
 
         String taskId = client.triggerIngest("t1", "kb1", "doc1");
+
+        assertNull(taskId);
+    }
+
+    @Test
+    void returnsNullWhen2xxResponseHasNoTaskId() {
+        installHandler("/v1/wiki/ingest", 200, "{\"status\":\"error\",\"reason\":\"no capacity\"}");
+
+        String taskId = newClient().triggerIngest("t1", "kb1", "doc1");
 
         assertNull(taskId);
     }
