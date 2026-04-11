@@ -1,635 +1,276 @@
 <template>
-  <main class="product-detail">
-    <!-- Hero -->
-    <div class="hero">
-      <div class="hero-inner">
-        <h1 class="hero-title">{{ t('记忆库', 'Memory Store') }}</h1>
-        <p class="hero-subtitle">
-          {{ t('为 AI Agent 提供结构化长期记忆，越用越懂你', 'Structured long-term memory for AI Agents — gets smarter with every interaction') }}
-        </p>
-      </div>
-    </div>
+  <div class="ppage">
+    <!-- 01 · Manifesto -->
+    <section class="ppage-section ppage-section-white">
+      <div class="ppage-inner">
+        <router-link to="/" class="ppage-back">← {{ t('回到首页', 'Back to home') }}</router-link>
+        <div class="ppage-eyebrow">{{ t('能力 03 · 记忆库', 'Capability 03 · Memory') }}</div>
 
-    <div class="content">
+        <h1 class="ppage-manifesto-title">
+          <span class="mm-title-a">{{ t('Agent 的长期记忆，', "The agent's long-term memory —") }}</span>
+          <span class="mm-title-b">{{ t('会自己反思你是谁。', "it thinks about who you are.") }}</span>
+        </h1>
 
-      <!-- Section 1: Three Core Operations -->
-      <section class="section">
-        <h2 class="section-title">{{ t('三个核心操作', 'Three Core Operations') }}</h2>
-        <div class="api-grid">
-          <div class="api-card" v-for="op in coreOps" :key="op.name">
-            <div class="api-name">{{ op.name }}</div>
-            <div class="api-desc">{{ t(op.descZh, op.descEn) }}</div>
-            <div class="api-detail">{{ t(op.detailZh, op.detailEn) }}</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Section 2: Four Memory Types -->
-      <section class="section">
-        <h2 class="section-title">{{ t('四种记忆类型', 'Four Memory Types') }}</h2>
-        <div class="types-grid">
-          <div class="type-card" v-for="mt in memoryTypes" :key="mt.en">
-            <div class="type-body">
-              <div class="type-title">{{ t(mt.zh, mt.en) }}</div>
-              <div class="type-desc">{{ t(mt.descZh, mt.descEn) }}</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Section 3: Trait Lifecycle -->
-      <section class="section">
-        <h2 class="section-title">{{ t('特征生命周期', 'Trait Lifecycle') }}</h2>
-        <div class="lifecycle">
-          <div
-            v-for="(step, i) in lifecycleSteps"
-            :key="step.zh"
-            class="lifecycle-step"
-            :class="{ 'step-first': i === 0, 'step-last': i === lifecycleSteps.length - 1 }"
-          >
-            <div class="step-dot" :class="{ 'dot-first': i === 0, 'dot-last': i === lifecycleSteps.length - 1 }"></div>
-            <div class="step-label">{{ t(step.zh, step.en) }}</div>
-            <div v-if="i < lifecycleSteps.length - 1" class="step-line"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Section 4: LoCoMo Benchmark -->
-      <section class="section">
-        <h2 class="section-title">{{ t('LoCoMo 基准测试', 'LoCoMo Benchmark') }}</h2>
-        <div class="benchmark-card">
-          <div class="benchmark-score-block">
-            <div class="benchmark-main-score">81.7%</div>
-            <div class="benchmark-score-label">{{ t('综合得分', 'Overall Score') }}</div>
-          </div>
-          <div class="benchmark-sub-scores">
-            <div class="sub-score" v-for="sub in subScores" :key="sub.labelZh">
-              <div class="sub-score-value">{{ sub.value }}</div>
-              <div class="sub-score-label">{{ t(sub.labelZh, sub.labelEn) }}</div>
-            </div>
-          </div>
-          <div class="benchmark-bars">
-            <div
-              class="bar-row"
-              v-for="bar in comparisonBars"
-              :key="bar.name"
-              :class="{ 'bar-highlighted': bar.highlighted }"
-            >
-              <div class="bar-label">{{ bar.name }}</div>
-              <div class="bar-track">
-                <div class="bar-fill" :style="{ width: bar.pct }"></div>
-              </div>
-              <div class="bar-value">{{ bar.value }}</div>
-            </div>
-          </div>
-          <div class="benchmark-note">
-            {{ t('基于公开基准测试，与主流 AI 记忆框架对比', 'Compared with mainstream AI memory frameworks on public benchmarks') }}
-          </div>
-        </div>
-      </section>
-
-      <!-- Section 5: Claude Code Integration -->
-      <section class="section">
-        <h2 class="section-title">{{ t('Claude Code 集成', 'Claude Code Integration') }}</h2>
-        <p class="section-desc">
+        <p class="ppage-manifesto-lede">
           {{ t(
-            '记忆库可以作为 Claude Code 的长期记忆，跨项目、跨会话、跨设备持久化你的开发惯例、技术决策和工作流程。支持两种使用方式：',
-            'Memory Store serves as long-term memory for Claude Code, persisting your development conventions, technical decisions, and workflows across projects, sessions, and devices. Two integration modes:'
+            '不是一个被动的 KV 存储。DBay Memory 每晚 digest 最近的对话，抽出你的开发偏好、架构倾向、决策风格。几天后打开 Memory 面板，你会看到它自动积累出的"你是谁"。跨 Agent 共享，本地加密，即使数据库被拖走也无法还原。',
+            "Not a passive KV store. DBay Memory digests your conversations every night, extracts your coding preferences, architectural leanings, and decision style. A few days in, open the Memory panel and you'll see it's quietly written down who you are. Shared across agents, locally encrypted — even a full database leak stays unreadable."
           ) }}
         </p>
-        <div class="integration-grid">
-          <div class="integration-card">
-            <div class="integration-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-            </div>
-            <div class="integration-title">{{ t('MCP Tool 交互', 'MCP Tool Interaction') }}</div>
-            <div class="integration-desc">
-              {{ t(
-                '通过 dbay-mcp 的 memory_ingest / memory_recall 工具，Claude Code 可以在对话中随时存储和召回记忆。说"记住"即可存储，问"之前怎么决定的"即可召回。',
-                'Via dbay-mcp memory_ingest / memory_recall tools, Claude Code can store and recall memories anytime during conversation. Say "remember this" to store, ask "what did we decide" to recall.'
-              ) }}
-            </div>
+      </div>
+    </section>
+
+    <!-- 02 · Scene -->
+    <section class="ppage-section">
+      <div class="ppage-inner">
+        <h2 class="ppage-section-title">{{ t('一个场景', 'The situation') }}</h2>
+
+        <div class="ppage-scene">
+          <p>
+            {{ t(
+              '你和 Claude Code 说过无数次你偏好 TypeScript 严格模式、你不用 semicolons、你在这个团队用 camelCase。但每一次新 session 开始，它都忘了。',
+              "You've told Claude Code, dozens of times, that you prefer strict TypeScript, no semicolons, camelCase on this team. Every new session it forgets."
+            ) }}
+          </p>
+          <p>
+            {{ t(
+              '你想"我需要一个记忆层"，花了半个下午研究 Mem0、Zep、Letta。每一个都要接一套 API，每一个都停在 KV 检索，每一个都不跨 Agent 共享，每一个都不敢让你存 API key。',
+              "You decide you need a memory layer. You burn half an afternoon reading Mem0, Zep, Letta. Every one wants its own API. Every one stops at KV retrieval. None of them share across agents. None of them let you store an API key with a straight face."
+            ) }}
+          </p>
+          <p>
+            <em>{{ t(
+              '他们解决的是"存储"，你真正需要的是"理解"。',
+              "They solve storage. What you actually need is understanding."
+            ) }}</em>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03 · Contrast -->
+    <section class="ppage-section ppage-section-white">
+      <div class="ppage-inner">
+        <h2 class="ppage-section-title">{{ t('大部分记忆层停在哪里', 'Where most memory layers stop') }}</h2>
+
+        <div class="ppage-contrast">
+          <div class="ppage-contrast-col is-faded">
+            <h3>{{ t('通用 KV / 向量记忆层', 'Generic KV / vector memory layers') }}</h3>
+            <ul>
+              <li>{{ t('存起来，再用 cosine 找回来', 'Store it, cosine-search it back') }}</li>
+              <li>{{ t('没有 "reflection" 概念 · 它永远是一堆碎片', 'No "reflection" concept — it stays a pile of fragments') }}</li>
+              <li>{{ t('每次 recall 都把所有相关碎片塞进 context · token 爆炸', 'Every recall stuffs matching fragments into context — tokens explode') }}</li>
+              <li>{{ t('单 Agent · 单 session · 不跨工具共享', 'Single agent, single session, not shared across tools') }}</li>
+              <li>{{ t('明文存储 · 你不敢把 API key 写进去', 'Plaintext storage — you\'d never drop an API key in') }}</li>
+            </ul>
           </div>
-          <div class="integration-card">
-            <div class="integration-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            </div>
-            <div class="integration-title">{{ t('SessionStart 自动召回', 'SessionStart Auto-Recall') }}</div>
-            <div class="integration-desc">
-              {{ t(
-                '通过 Claude Code Hook 机制，每次新会话启动时自动召回你的开发惯例、技术决策和偏好设置，无需手动提醒。Claude 从第一句话就知道你的做事规矩。',
-                'Via Claude Code Hook mechanism, automatically recalls your development conventions, technical decisions, and preferences at every session start. Claude knows your rules from the first message.'
-              ) }}
-            </div>
+          <div class="ppage-contrast-col is-accent">
+            <h3>DBay Memory</h3>
+            <ul>
+              <li>{{ t('每晚 digest 反刍最近对话 · 抽出 traits', 'Nightly digest walks recent conversations and extracts traits') }}</li>
+              <li>{{ t('几天后自动出现"反思洞察" · 你是谁', 'A few days in, "reflection insights" appear — who you are') }}</li>
+              <li>{{ t('召回时带回条目，不是整段历史 · token 成本 50–70% ↓', 'Recall returns entries, not raw history — token cost drops 50–70%') }}</li>
+              <li>{{ t('跨 Agent · 跨 session · 跨机器 · 跨项目', 'Across agents, sessions, machines, projects') }}</li>
+              <li>{{ t('本地加密 · 三因素密钥 · 服务端永远拿不到明文', 'Locally encrypted · three-factor keys · ciphertext-only on the server') }}</li>
+            </ul>
           </div>
         </div>
-      </section>
-
-      <!-- CTA -->
-      <div class="cta-section">
-        <a href="/console" class="cta-button">{{ t('立即试用', 'Get Started') }}</a>
-        <router-link to="/product" class="back-link">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-          {{ t('返回产品总览', 'Back to Products') }}
-        </router-link>
       </div>
+    </section>
 
-    </div>
-  </main>
+    <!-- 04 · Approach -->
+    <section class="ppage-section">
+      <div class="ppage-inner">
+        <h2 class="ppage-section-title">{{ t('三层做法', 'Three layers, one substrate') }}</h2>
+
+        <div class="ppage-approach">
+          <div class="ppage-stack">
+            <div class="ppage-stack-layer is-bold">
+              <span class="ppage-stack-name">{{ t('① 反思层 · reflection', '① Reflection layer') }}</span>
+              <span class="ppage-stack-note">{{ t('每晚 digest 抽 traits', 'Nightly digest pulls traits') }}</span>
+            </div>
+            <div class="ppage-stack-line">↓</div>
+            <div class="ppage-stack-layer">
+              <span class="ppage-stack-name">{{ t('② 召回层 · recall', '② Recall layer') }}</span>
+              <span class="ppage-stack-note">{{ t('四路融合 · 带引用', '4-way fusion · with citations') }}</span>
+            </div>
+            <div class="ppage-stack-line">↓</div>
+            <div class="ppage-stack-layer">
+              <span class="ppage-stack-name">{{ t('③ 加密存储 · encrypted', '③ Encrypted store') }}</span>
+              <span class="ppage-stack-note">{{ t('三因素密钥 · PBKDF2', 'Three-factor keys · PBKDF2') }}</span>
+            </div>
+            <div class="ppage-stack-line">↓</div>
+            <div class="ppage-stack-layer">
+              <span class="ppage-stack-name">Lakebase + BM25</span>
+              <span class="ppage-stack-note">{{ t('同一个 substrate', 'Same substrate') }}</span>
+            </div>
+          </div>
+
+          <div class="ppage-section-prose">
+            <p>
+              {{ t('①', '①') }}
+              <strong>{{ t('反思层', 'Reflection') }}</strong>
+              {{ t(
+                '。DBay Memory 每晚跑一次 digest：读当日所有对话，用 LLM 抽出用户偏好、技术倾向、决策风格，把它们沉淀为 traits。三天后，Memory 面板上会出现自动产出的"反思洞察"条目，附置信度分数。',
+                ". DBay Memory runs a nightly digest: it reads the day's conversations, asks an LLM to extract preferences, technical leanings, and decision style, and settles them as traits. Three days in, reflection insights show up in the Memory panel with confidence scores."
+              ) }}
+            </p>
+            <p>
+              {{ t('②', '②') }}
+              <strong>{{ t('召回层', 'Recall') }}</strong>
+              {{ t(
+                '。Agent 问 "用户偏好什么 runtime?" 时，Memory 返回的不是一堆原始对话片段，而是被反思过的条目 —— 带原对话的引用。LoCoMo 长时记忆基准上召回准确率 82%，同一次测试相比 "全历史塞进 context" 的基线，输入 token 减少 50–70%。',
+                ". When an agent asks \"what runtime does the user prefer?\", Memory doesn't return raw conversation fragments. It returns reflected entries with citations back to the original messages. On the LoCoMo long-term memory benchmark, recall accuracy lands at 82%, and input tokens drop 50–70% compared to the \"stuff the whole history in\" baseline."
+              ) }}
+            </p>
+            <p>
+              {{ t('③', '③') }}
+              <strong>{{ t('加密存储', 'Encrypted store') }}</strong>
+              {{ t(
+                '。所有记忆条目在',
+                '. Every memory entry is encrypted'
+              ) }}
+              <strong>{{ t('本地', ' locally') }}</strong>
+              {{ t(
+                '加密后才写入 DBay。密钥通过三因素派生 (密码 + device salt + base salt) + PBKDF2 得到，服务端永远只存密文。即便数据库被整库拖走，也无法在没有原始三因素的情况下还原出明文。这就是为什么你敢把 OPENAI_API_KEY 写进记忆层。',
+                ' before it\'s written. The key is derived from three factors (password + device salt + base salt) through PBKDF2. The server never sees plaintext. Even a full database exfiltration stays unreadable without the original three factors. That\'s why you can store OPENAI_API_KEY in the memory layer without flinching.'
+              ) }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 · Today you can do -->
+    <section class="ppage-section ppage-section-white">
+      <div class="ppage-inner">
+        <div class="ppage-today">
+          <span class="ppage-today-eyebrow">{{ t('今天你就能做', 'You can do this today') }}</span>
+          <h2>{{ t('让 Claude Code 明天就记得你', 'Make Claude Code remember you, starting tomorrow') }}</h2>
+
+          <div class="ppage-today-prose">
+            <p>{{ t('把 dbay MCP 装进 Claude Code：', 'Install the dbay MCP into Claude Code:') }}</p>
+            <code class="ppage-code">$ claude mcp add --scope user dbay -- python -m dbay_mcp</code>
+
+            <p>{{ t('然后正常用 Claude Code。有事告诉它：', 'Then just use Claude Code as usual. Tell it things:') }}</p>
+            <p>
+              <em>{{ t(
+                '"记住：这个团队偏好 camelCase，不用 semicolons，runtime 是 Bun。"',
+                '"Remember: camelCase on this team, no semicolons, runtime is Bun."'
+              ) }}</em>
+            </p>
+            <p>
+              {{ t(
+                '下次你在另一个项目打开 Claude Code，它还记得。跨机器、跨 repo、跨 session。',
+                'Next time you open Claude Code in another project, it still knows. Across machines, repos, and sessions.'
+              ) }}
+            </p>
+
+            <p>
+              {{ t(
+                '用三天之后，在 console 的 Memory 面板打开',
+                "Three days in, open your Memory panel and switch to the"
+              ) }}
+              <span class="ppage-code-inline">{{ t('反思洞察', 'Reflection Insights') }}</span>
+              {{ t(
+                '标签 —— DBay 已经自己从对话里抽出了你的开发模式。这些条目不是你写的，是它读你读出来的。',
+                " tab — DBay has already pulled your patterns out of the conversations. You didn't write them. It read you."
+              ) }}
+            </p>
+
+            <p>
+              {{ t(
+                '你也可以把秘钥写进去。API key、数据库连接串、token —— 三因素密钥派生，本地加密，服务端永远只看到密文：',
+                'You can also drop secrets in. API keys, database URLs, tokens — three-factor key derivation, local encryption, ciphertext on the server:'
+              ) }}
+            </p>
+            <code class="ppage-code">$ dbay memory set OPENAI_API_KEY sk-...
+Encrypted locally. Server stored ciphertext only.</code>
+          </div>
+
+          <p class="ppage-today-aside">
+            {{ t(
+              '顺便说一句：这套召回比"把历史都塞进 context"省 50–70% 的输入 token。对你的 API 账单和 Agent 延迟都有可感的差别。',
+              "Side note: this recall costs 50–70% fewer input tokens than stuffing the full history into context. Your API bill and your agent latency both get quieter."
+            ) }}
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 06 · Hard numbers -->
+    <section class="ppage-section">
+      <div class="ppage-inner">
+        <h2 class="ppage-section-title">{{ t('三个可以被验证的事实', 'Three facts you can verify') }}</h2>
+
+        <div class="ppage-numbers">
+          <div class="ppage-num">
+            <div class="ppage-num-val">82<span class="ppage-num-unit">%</span></div>
+            <div class="ppage-num-label">LoCoMo</div>
+            <p class="ppage-num-note">
+              {{ t('LoCoMo 长时记忆任务基准上的召回准确率。', 'Recall accuracy on the LoCoMo long-term memory benchmark.') }}
+            </p>
+          </div>
+          <div class="ppage-num">
+            <div class="ppage-num-val">50–70<span class="ppage-num-unit">% ↓</span></div>
+            <div class="ppage-num-label">{{ t('输入 token', 'input tokens') }}</div>
+            <p class="ppage-num-note">
+              {{ t('相比把全历史塞进上下文的基线减少的输入 token 数。', 'Reduction versus stuffing the full history into context.') }}
+            </p>
+          </div>
+          <div class="ppage-num">
+            <div class="ppage-num-val">3<span class="ppage-num-unit">{{ t(' 因素', '-factor') }}</span></div>
+            <div class="ppage-num-label">{{ t('密钥派生', 'key derivation') }}</div>
+            <p class="ppage-num-note">
+              {{ t('密码 + device salt + base salt，PBKDF2 本地派生。', 'Password + device salt + base salt, PBKDF2 locally.') }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="ppage-footer">
+      <div class="ppage-footer-inner">
+        <h3 class="ppage-footer-title">{{ t('继续了解', 'Keep reading') }}</h3>
+        <div class="ppage-footer-grid">
+          <router-link to="/product/lakebase" class="ppage-footer-card">
+            <div class="ppage-footer-card-name">Lakebase</div>
+            <div class="ppage-footer-card-tag">{{ t('PostgreSQL · BM25 内核 · 数据湖', 'PostgreSQL · BM25 kernel · data lake') }}</div>
+          </router-link>
+          <router-link to="/product/knowledge" class="ppage-footer-card">
+            <div class="ppage-footer-card-name">Knowledge</div>
+            <div class="ppage-footer-card-tag">{{ t('Agent 自己维护的活 wiki', 'A living wiki the agent maintains') }}</div>
+          </router-link>
+          <router-link to="/product/datalake" class="ppage-footer-card">
+            <div class="ppage-footer-card-name">Datalake</div>
+            <div class="ppage-footer-card-tag">{{ t('多模态算子 · DAG · zero-copy', 'Multi-modal operators · DAG · zero-copy') }}</div>
+          </router-link>
+        </div>
+      </div>
+    </footer>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { useLocale } from '../../stores/locale'
 
 const { t } = useLocale()
-
-const coreOps = [
-  {
-    name: 'ingest',
-    descZh: '将对话和事实存入长期记忆，自动提取实体、偏好和事件',
-    descEn: 'Store conversations and facts into long-term memory. Auto-extracts entities, preferences, and events.',
-    detailZh: '接收原始对话、文档或结构化事实。通过 LLM 驱动的解析自动提取实体和事件片段，以向量嵌入存储用于语义搜索，同时建立 BM25 关键词索引。',
-    detailEn: 'Receives raw conversations, documents, or structured facts. LLM-driven parsing extracts entities and events, stored as vector embeddings for semantic search alongside BM25 keyword index.',
-  },
-  {
-    name: 'recall',
-    descZh: '混合检索记忆，结合向量、BM25 和知识图谱',
-    descEn: 'Hybrid memory retrieval combining vector search, BM25, and knowledge graph traversal.',
-    detailZh: '结合稠密向量搜索、稀疏 BM25 评分和知识图谱遍历。结果经过融合与重排序以获得最佳相关性，支持时间过滤和可配置的 top-k。',
-    detailEn: 'Combines dense vector search, sparse BM25 scoring, and knowledge graph traversal. Results are fusion-ranked for optimal relevance, with time filtering and configurable top-k.',
-  },
-  {
-    name: 'digest',
-    descZh: '将记忆合成洞察，生成用户画像和行为模式',
-    descEn: 'Synthesize memories into insights — user profiles and behavioral patterns.',
-    detailZh: '分析累积的记忆生成结构化洞察：行为模式、偏好摘要、情感画像和关系图谱。异步运行并缓存结果以便快速获取。',
-    detailEn: 'Analyzes accumulated memories to generate structured insights: behavioral patterns, preference summaries, emotional profiles, and relationship maps. Runs asynchronously with cached results.',
-  },
-]
-
-const memoryTypes = [
-  {
-    zh: '事实 / Fact',
-    en: 'Fact',
-    descZh: '从对话中提取的离散、客观、可验证的信息。以向量嵌入存储并关联知识图谱。',
-    descEn: 'Discrete, objective, verifiable information extracted from conversations. Stored as vector embeddings linked to the knowledge graph.',
-  },
-  {
-    zh: '事件 / Episode',
-    en: 'Episode',
-    descZh: '带有情绪元数据（效价、唤醒度、情绪标签）和时间表达的时间绑定事件和体验。',
-    descEn: 'Time-bound events and experiences with emotional metadata (valence, arousal, emotion tags) and temporal expressions.',
-  },
-  {
-    zh: '特征 / Trait',
-    en: 'Trait',
-    descZh: '通过多会话反思发现的行为模式。经历从趋势到核心的 6 阶段生命周期演化。',
-    descEn: 'Behavioral patterns discovered through multi-session reflection. Evolves through a 6-stage lifecycle from trend to core.',
-  },
-  {
-    zh: '文档 / Document',
-    en: 'Document',
-    descZh: '上传的静态参考资料，用于 RAG 风格检索。支持 PDF 和文件的专项搜索。',
-    descEn: 'Uploaded static reference materials for RAG-style retrieval. Supports targeted search over PDFs and files.',
-  },
-]
-
-const lifecycleSteps = [
-  { zh: '趋势', en: 'Trend' },
-  { zh: '候选', en: 'Candidate' },
-  { zh: '萌发', en: 'Emerging' },
-  { zh: '确立', en: 'Established' },
-  { zh: '核心', en: 'Core' },
-  { zh: '消解', en: 'Dissolved' },
-]
-
-const subScores = [
-  { value: '82.9%', labelZh: 'Single-hop', labelEn: 'Single-hop' },
-  { value: '84.3%', labelZh: 'Multi-hop', labelEn: 'Multi-hop' },
-  { value: '81.1%', labelZh: 'Open-domain', labelEn: 'Open-domain' },
-  { value: '76.6%', labelZh: 'Temporal', labelEn: 'Temporal' },
-]
-
-const comparisonBars = [
-  { name: 'DBay', value: '81.7%', pct: '81.7%', highlighted: true },
-  { name: 'Framework A', value: '75.8%', pct: '75.8%', highlighted: false },
-  { name: 'Framework B', value: '75.1%', pct: '75.1%', highlighted: false },
-  { name: 'Framework C', value: '68.4%', pct: '68.4%', highlighted: false },
-  { name: 'Framework D', value: '66.9%', pct: '66.9%', highlighted: false },
-]
 </script>
 
 <style scoped>
-.product-detail {
-  min-height: 100vh;
-  background: var(--pub-bg);
+.mm-title-a,
+.mm-title-b {
+  display: block;
 }
 
-/* Hero */
-.hero {
-  background: var(--pub-surface);
-  padding: 72px 24px 64px;
+.mm-title-b {
+  color: var(--c-accent-text);
 }
 
-.hero-inner {
-  max-width: 960px;
-  margin: 0 auto;
-}
-
-.hero-title {
-  font-size: 48px;
-  font-weight: 700;
-  color: var(--pub-text);
-  margin: 0 0 12px;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-}
-
-.hero-subtitle {
-  font-size: 15px;
-  color: var(--pub-text-2);
-  margin: 0;
-  line-height: 1.6;
-}
-
-/* Content wrapper */
-.content {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 48px 24px 64px;
-  display: flex;
-  flex-direction: column;
-  gap: 48px;
-}
-
-/* Section */
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.section-title {
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--pub-text);
-  margin: 0;
-  padding-left: 14px;
-  border-left: 3px solid #ff9800;
-}
-
-/* Section 1: API cards */
-.api-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-
-.api-card {
-  background: var(--pub-surface);
-  border: 1px solid var(--pub-border);
-  border-radius: 10px;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  transition: box-shadow 0.2s ease;
-}
-
-.api-card:hover {
-  box-shadow: 0 4px 16px rgba(255, 152, 0, 0.08);
-}
-
-.api-name {
-  font-family: var(--pub-code, 'JetBrains Mono', 'Fira Code', monospace);
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #ff9800;
-}
-
-.api-desc {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--pub-text);
-  line-height: 1.5;
-}
-
-.api-detail {
-  font-size: 13px;
-  color: var(--pub-text-2);
-  line-height: 1.6;
-}
-
-/* Section 2: Memory types */
-.types-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-}
-
-.type-card {
-  background: var(--pub-surface);
-  border: 1px solid var(--pub-border);
-  border-left: 4px solid #ff9800;
-  border-radius: 10px;
-  padding: 24px 24px 24px 28px;
-  transition: box-shadow 0.2s ease;
-}
-
-.type-card:hover {
-  box-shadow: 0 4px 16px rgba(255, 152, 0, 0.08);
-}
-
-.type-body {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.type-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--pub-text);
-}
-
-.type-desc {
-  font-size: 13px;
-  color: var(--pub-text-2);
-  line-height: 1.6;
-}
-
-/* Section 3: Trait lifecycle */
-.lifecycle {
-  display: flex;
-  align-items: flex-start;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  padding-bottom: 8px;
-  gap: 0;
-}
-
-.lifecycle-step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-  flex: 1;
-  min-width: 80px;
-}
-
-.step-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #ff9800;
-  border: 2px solid #ff9800;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 1;
-}
-
-.dot-first {
-  background: #ffcc80;
-  border-color: #ffcc80;
-}
-
-.dot-last {
-  background: transparent;
-  border: 2px dashed #ff9800;
-}
-
-.step-line {
-  position: absolute;
-  top: 5px;
-  left: calc(50% + 6px);
-  right: calc(-50% + 6px);
-  height: 2px;
-  background: #ff9800;
-  opacity: 0.3;
-  z-index: 0;
-}
-
-.step-label {
-  margin-top: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--pub-text-2);
-  text-align: center;
-  white-space: nowrap;
-}
-
-/* Section 4: Benchmark */
-.benchmark-card {
-  background: var(--pub-surface);
-  border: 1px solid var(--pub-border);
-  border-radius: 12px;
-  padding: 32px 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.benchmark-score-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.benchmark-main-score {
-  font-size: 64px;
-  font-weight: 800;
-  color: var(--pub-primary, #0073e6);
-  line-height: 1;
-}
-
-.benchmark-score-label {
-  font-size: 13px;
-  color: var(--pub-text-3);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.benchmark-sub-scores {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.sub-score {
-  background: var(--pub-bg-alt);
-  border: 1px solid var(--pub-border);
-  border-radius: 8px;
-  padding: 10px 16px;
-  text-align: center;
-  min-width: 100px;
-}
-
-.sub-score-value {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: var(--pub-text);
-}
-
-.sub-score-label {
-  font-size: 12px;
-  color: var(--pub-text-3);
-  margin-top: 2px;
-}
-
-.benchmark-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.bar-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.bar-label {
-  font-size: 13px;
-  color: var(--pub-text-2);
-  width: 110px;
-  flex-shrink: 0;
-}
-
-.bar-highlighted .bar-label {
-  font-weight: 700;
-  color: var(--pub-text);
-}
-
-.bar-track {
-  flex: 1;
-  height: 10px;
-  background: var(--pub-bg-alt);
-  border-radius: 5px;
-  overflow: hidden;
-}
-
-.bar-fill {
-  height: 100%;
-  background: var(--pub-text-3);
-  border-radius: 5px;
-  transition: width 0.4s ease;
-}
-
-.bar-highlighted .bar-fill {
-  background: var(--pub-primary, #0073e6);
-}
-
-.bar-value {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--pub-text-2);
-  width: 48px;
-  text-align: right;
-  flex-shrink: 0;
-}
-
-.bar-highlighted .bar-value {
-  color: var(--pub-primary, #0073e6);
-  font-weight: 700;
-}
-
-.benchmark-note {
-  font-size: 12px;
-  color: var(--pub-text-4);
-  text-align: center;
-  line-height: 1.5;
-}
-
-/* CTA */
-.cta-section {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-
-.cta-button {
-  display: inline-block;
-  padding: 12px 32px;
-  background: #ff9800;
-  color: #fff;
-  font-size: 15px;
-  font-weight: 600;
-  border-radius: 100px;
-  text-decoration: none;
-  transition: opacity 0.2s;
-}
-
-.cta-button:hover {
-  opacity: 0.85;
-}
-
-.back-link {
-  font-size: 14px;
-  color: var(--pub-text-2);
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  transition: color 0.2s;
-}
-
-.back-link:hover {
-  color: #ff9800;
-}
-
-/* Responsive */
-@media (max-width: 700px) {
-  .hero { padding: 48px 20px 40px; }
-  .hero-title { font-size: 32px; }
-  .api-grid { grid-template-columns: 1fr; }
-  .types-grid { grid-template-columns: 1fr; }
-  .lifecycle-step { min-width: 60px; }
-  .step-label { font-size: 11px; }
-  .benchmark-main-score { font-size: 48px; }
-  .cta-section { flex-direction: column; align-items: flex-start; }
-  .integration-grid { grid-template-columns: 1fr; }
-}
-
-/* Integration Section */
-.section-desc {
-  color: var(--pub-muted);
-  font-size: 15px;
-  line-height: 1.7;
-  margin-bottom: 24px;
-  max-width: 680px;
-}
-
-.integration-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-
-.integration-card {
-  background: var(--pub-card-bg, #fff);
-  border: 1px solid var(--pub-border, #e8e0d8);
-  border-radius: 12px;
-  padding: 28px;
-}
-
-.integration-icon {
-  color: var(--pub-accent, #c67d3a);
-  margin-bottom: 16px;
-}
-
-.integration-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--pub-heading, #2a3d4e);
-  margin-bottom: 10px;
-}
-
-.integration-desc {
-  font-size: 14px;
-  color: var(--pub-muted, #6b7b8d);
-  line-height: 1.7;
+.ppage-num-unit {
+  font-size: 0.45em;
+  color: var(--c-text-3);
+  margin-left: 0.08em;
+  font-weight: 400;
 }
 </style>

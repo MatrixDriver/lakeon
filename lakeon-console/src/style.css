@@ -948,6 +948,445 @@ body {
 }
 
 /* ============================
+   Product Pages (public site, Phase C)
+   shared editorial structure · each page brings its own content
+   ============================ */
+.ppage {
+  background: var(--c-bg-alt);
+  color: var(--c-text);
+  font-family: var(--font-sans);
+}
+
+.ppage-section {
+  width: 100%;
+  padding: clamp(72px, 10vh, 140px) clamp(24px, 4vw, 56px);
+  border-bottom: 1px solid var(--c-border-light);
+}
+
+.ppage-section:last-of-type {
+  border-bottom: none;
+}
+
+.ppage-section-white {
+  background: #fff;
+}
+
+.ppage-inner {
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+.ppage-eyebrow {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--c-accent-text);
+  margin-bottom: var(--space-xl);
+}
+
+.ppage-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--c-text-3);
+  text-decoration: none;
+  margin-bottom: var(--space-lg);
+  transition: color 160ms ease-out;
+}
+
+.ppage-back:hover {
+  color: var(--c-accent-text);
+}
+
+/* Section 01 · Manifesto */
+.ppage-manifesto-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(42px, 7vw, 96px);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  color: var(--c-primary);
+  margin: 0 0 clamp(24px, 3vw, 40px);
+  max-width: 20ch;
+}
+
+.ppage-manifesto-lede {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(18px, 2vw, 26px);
+  line-height: 1.55;
+  color: var(--c-text-2);
+  max-width: 60ch;
+  margin: 0;
+}
+
+/* Section 02 · Scene */
+.ppage-scene {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(17px, 1.7vw, 22px);
+  line-height: 1.7;
+  color: var(--c-text);
+  max-width: 60ch;
+}
+
+.ppage-scene p {
+  margin: 0 0 var(--space-xl);
+}
+
+.ppage-scene p:last-child {
+  margin-bottom: 0;
+}
+
+.ppage-scene em {
+  font-style: italic;
+  color: var(--c-text);
+}
+
+/* Section titles (shared by sections 3 · 4 · 5 · 6) */
+.ppage-section-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(28px, 4vw, 48px);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  color: var(--c-primary);
+  margin: 0 0 clamp(24px, 3vw, 40px);
+  max-width: 24ch;
+}
+
+.ppage-section-prose {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--c-text);
+  max-width: 62ch;
+}
+
+.ppage-section-prose p {
+  margin: 0 0 var(--space-lg);
+}
+
+.ppage-section-prose p:last-child {
+  margin-bottom: 0;
+}
+
+.ppage-section-prose strong {
+  color: var(--c-text);
+  font-weight: 600;
+}
+
+/* Section 03 · Contrast (暗示对比) */
+.ppage-contrast {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(32px, 4vw, 72px);
+  align-items: start;
+}
+
+.ppage-contrast-col {
+  border: 1px solid var(--c-border-light);
+  border-radius: 6px;
+  padding: var(--space-xl);
+  background: #fff;
+}
+
+.ppage-contrast-col.is-faded {
+  background: color-mix(in oklch, var(--c-bg-alt) 70%, #fff);
+  opacity: 0.88;
+}
+
+.ppage-contrast-col h3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 18px;
+  color: var(--c-text);
+  margin: 0 0 var(--space-md);
+}
+
+.ppage-contrast-col.is-faded h3 {
+  color: var(--c-text-3);
+}
+
+.ppage-contrast-col ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.ppage-contrast-col li {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--c-text-2);
+  padding-left: 18px;
+  position: relative;
+}
+
+.ppage-contrast-col li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--c-text-3);
+}
+
+.ppage-contrast-col.is-accent {
+  border-color: color-mix(in oklch, var(--c-accent) 25%, var(--c-border));
+}
+
+/* Section 04 · Approach (架构小图 + prose + code) */
+.ppage-approach {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) 1fr;
+  gap: clamp(40px, 5vw, 72px);
+  align-items: start;
+}
+
+.ppage-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.ppage-stack-layer {
+  background: #fff;
+  border: 1px solid var(--c-border-light);
+  border-radius: 4px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ppage-stack-layer.is-bold {
+  background: color-mix(in oklch, var(--c-accent) 6%, #fff);
+  border-color: color-mix(in oklch, var(--c-accent) 30%, var(--c-border));
+}
+
+.ppage-stack-name {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.ppage-stack-note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--c-text-3);
+  letter-spacing: -0.01em;
+}
+
+.ppage-stack-line {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--c-text-3);
+  padding: 4px 0;
+  line-height: 1;
+}
+
+.ppage-code {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--c-text);
+  background: var(--c-bg-alt);
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  padding: 12px 16px;
+  margin: var(--space-lg) 0;
+  white-space: pre-wrap;
+  user-select: all;
+}
+
+.ppage-code-inline {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--c-bg-alt);
+  border: 1px solid var(--c-border-light);
+  border-radius: 3px;
+  padding: 1px 6px;
+  color: var(--c-accent-text);
+}
+
+/* Section 05 · Today you can do (developer voice) */
+.ppage-today {
+  background: #fff;
+  border: 1px solid var(--c-border-light);
+  border-radius: 8px;
+  padding: clamp(32px, 4vw, 56px);
+}
+
+.ppage-today-eyebrow {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--c-accent-text);
+  margin-bottom: var(--space-md);
+}
+
+.ppage-today h2 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(24px, 3vw, 36px);
+  line-height: 1.15;
+  color: var(--c-text);
+  margin: 0 0 var(--space-lg);
+  letter-spacing: -0.01em;
+}
+
+.ppage-today-prose {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--c-text);
+  max-width: 60ch;
+}
+
+.ppage-today-prose p {
+  margin: 0 0 var(--space-md);
+}
+
+.ppage-today-prose em {
+  font-family: var(--font-display);
+  font-style: italic;
+  color: var(--c-text);
+  font-size: 17px;
+}
+
+.ppage-today-aside {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--c-border-light);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-style: italic;
+  color: var(--c-text-3);
+  max-width: 60ch;
+}
+
+/* Section 06 · Hard numbers */
+.ppage-numbers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(32px, 4vw, 64px);
+}
+
+.ppage-num {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.ppage-num-val {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(48px, 6vw, 88px);
+  line-height: 0.95;
+  letter-spacing: -0.025em;
+  color: var(--c-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ppage-num-label {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--c-text-3);
+}
+
+.ppage-num-note {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--c-text-2);
+  margin: 0;
+  max-width: 26ch;
+}
+
+/* Product page footer cross-links */
+.ppage-footer {
+  background: var(--c-bg-alt);
+  border-top: 1px solid var(--c-border-light);
+  padding: clamp(48px, 6vw, 80px) clamp(24px, 4vw, 56px);
+}
+
+.ppage-footer-inner {
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+.ppage-footer-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(20px, 2.4vw, 26px);
+  color: var(--c-primary);
+  margin: 0 0 var(--space-xl);
+}
+
+.ppage-footer-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-xl);
+}
+
+.ppage-footer-card {
+  display: block;
+  padding: var(--space-lg);
+  background: #fff;
+  border: 1px solid var(--c-border-light);
+  border-radius: 6px;
+  text-decoration: none;
+  transition: border-color 160ms ease-out;
+}
+
+.ppage-footer-card:hover {
+  border-color: var(--c-text-3);
+}
+
+.ppage-footer-card-name {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 18px;
+  color: var(--c-primary);
+  margin-bottom: 4px;
+}
+
+.ppage-footer-card-tag {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--c-text-3);
+  line-height: 1.5;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .ppage-contrast,
+  .ppage-approach {
+    grid-template-columns: 1fr;
+  }
+  .ppage-numbers {
+    grid-template-columns: 1fr;
+  }
+  .ppage-footer-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================
    Mobile responsive
    ============================ */
 @media (max-width: 768px) {
