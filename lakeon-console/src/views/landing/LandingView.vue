@@ -12,8 +12,8 @@
 
         <p class="hero-lede">
           {{ t(
-            '当前构建 Agent 的标准做法是把 Neon、向量库、消息队列、批处理集群粘在一起。DBay 把这四件事装进同一个 copy-on-write、serverless、多租户的壳子。',
-            'The standard way to build agent systems today is to glue together Neon, a vector store, a queue, and a batch cluster. DBay packs these four into a single copy-on-write, serverless, multi-tenant substrate.'
+            '今天构建一个"记得你、会学习"的 Agent，要拼装四套系统：Postgres 存状态、向量库做检索、批处理框架跑离线反思、再写一层自制记忆。DBay 把这四件事装进同一个 copy-on-write、serverless、多租户的 substrate。',
+            'Building a "remembers you, keeps learning" agent today means gluing together four systems: Postgres for state, a vector store for retrieval, a batch framework for offline reflection, and a homegrown memory layer on top. DBay packs all four into a single copy-on-write, serverless, multi-tenant substrate.'
           ) }}
         </p>
 
@@ -560,12 +560,16 @@ async function startTrial() {
 .hero-title {
   font-family: var(--font-display);
   font-weight: 500;
-  font-size: clamp(48px, 8vw, 120px);
-  line-height: 0.98;
-  letter-spacing: -0.025em;
+  font-size: clamp(40px, 5.5vw, 80px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
   color: var(--c-primary);
-  margin: 0 0 clamp(24px, 4vw, 48px);
+  margin: 0 0 clamp(20px, 3vw, 40px);
   position: relative;
+}
+
+.hero-line-2 {
+  white-space: nowrap;
 }
 
 .hero-line-1,
