@@ -937,8 +937,6 @@ public class AdminController {
     @GetMapping("/wiki/config")
     public Map<String, Object> getWikiConfig() {
         Map<String, Object> config = new java.util.LinkedHashMap<>();
-        config.put("ingest_prompt", wikiService.getIngestPrompt());
-        config.put("curate_prompt", wikiService.getCuratePrompt());
         config.put("model", wikiService.getModel());
         config.put("base_url", props.getWiki() != null ? props.getWiki().getBaseUrl() : "");
         return config;
@@ -946,12 +944,6 @@ public class AdminController {
 
     @PutMapping("/wiki/config")
     public Map<String, String> updateWikiConfig(@RequestBody Map<String, String> body) {
-        if (body.containsKey("ingest_prompt")) {
-            props.getWiki().setIngestPrompt(body.get("ingest_prompt"));
-        }
-        if (body.containsKey("curate_prompt")) {
-            props.getWiki().setCuratePrompt(body.get("curate_prompt"));
-        }
         if (body.containsKey("model")) {
             props.getWiki().setModel(body.get("model"));
         }

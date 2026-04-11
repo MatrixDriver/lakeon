@@ -3,7 +3,6 @@ package com.lakeon.knowledge;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
-import com.lakeon.service.exception.BadRequestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -43,45 +42,11 @@ public class WikiService {
     private static final DateTimeFormatter LOG_TS_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.of("Asia/Shanghai"));
 
-    private static final String DEFAULT_WIKI_AGENT_PROMPT = """
-            You are a wiki maintenance agent for a knowledge base. A new document has been ingested.
-            Your task is to analyze the document and determine which wiki pages to create or update.
-
-            Current wiki index (index.md):
-            ---
-            %s
-            ---
-
-            New document content:
-            ---
-            %s
-            ---
-
-            Instructions:
-            1. Identify the 2-5 MOST IMPORTANT topics that are **specific and unique to this knowledge base's domain**. Do NOT create pages for generic or widely-known concepts (e.g. "AI 产品设计", "对话式 AI", "数据安全") — only create pages for concepts that are central to what this knowledge base is actually about and that a reader would need to understand to use this KB effectively.
-            2. STRONGLY prefer UPDATING existing wiki pages over creating new ones. Only create a new page if no existing page covers the topic.
-            3. Wiki pages should be concise reference articles (not copies of the source). Merge related concepts into one page.
-            4. Use [[wikilinks]] to cross-reference between pages.
-            5. Each wiki page title should be a clear noun phrase in Chinese (e.g. "数据库分片", "API 鉴权"). Avoid overly generic titles.
-            6. Write in Simplified Chinese (简体中文) regardless of the source document language.
-            7. Aim for 2-4 page changes per document (creates + updates combined). Quality over quantity.
-            8. Ask yourself: "Would someone searching this specific knowledge base need a dedicated wiki page on this topic?" If the answer is no, skip it.
-
-            Output a JSON object with this exact structure:
-            {
-              "wiki_pages": [
-                {"title": "Page Title", "action": "create", "content": "Full markdown content with [[wikilinks]]..."},
-                {"title": "Existing Page", "action": "update", "content": "Updated full markdown content..."}
-              ],
-              "index_updates": [
-                {"title": "Page Title", "summary": "One-line summary of this page"}
-              ],
-              "log_entry": "Brief description of what was updated"
-            }
-
-            If no wiki changes are needed, return: {"wiki_pages": [], "index_updates": [], "log_entry": "No changes needed"}
-            """;
-
+    /**
+     * Legacy curate prompt kept ONLY for {@link #fixLintIssues}, which still uses
+     * a single-shot LLM call. All other ingest/curate flows have moved to the
+     * external lakeon-wiki-agent service (see {@link WikiAgentClient}).
+     */
     private static final String DEFAULT_CURATE_PROMPT = """
             You are a wiki curator agent. Your task is to review and reorganize an existing knowledge base wiki.
 
@@ -181,28 +146,6 @@ public class WikiService {
     }
 
     /**
-     * Returns the configured ingest prompt, or the default if not set.
-     */
-    public String getIngestPrompt() {
-        String custom = props.getWiki() != null ? props.getWiki().getIngestPrompt() : null;
-        if (custom != null && !custom.isBlank()) {
-            return custom;
-        }
-        return DEFAULT_WIKI_AGENT_PROMPT;
-    }
-
-    /**
-     * Returns the configured curate prompt, or the default if not set.
-     */
-    public String getCuratePrompt() {
-        String custom = props.getWiki() != null ? props.getWiki().getCuratePrompt() : null;
-        if (custom != null && !custom.isBlank()) {
-            return custom;
-        }
-        return DEFAULT_CURATE_PROMPT;
-    }
-
-    /**
      * Returns the configured wiki model, or the default DEEPSEEK_MODEL if not set.
      */
     public String getModel() {
@@ -293,130 +236,6 @@ public class WikiService {
             }
         }
         return points.size() > 8 ? points.subList(0, 8) : points;
-    }
-
-    /**
-     * Main entry point: process a newly ingested document and create/update wiki pages.
-     * Called by KbWriteQueue after document summarization completes.
-     */
-    public void processIngest(String tenantId, String kbId, String documentId) {
-        long startMs = System.currentTimeMillis();
-        log.info("Wiki agent processing document {} in KB {}", documentId, kbId);
-
-        String docFilename = documentRepository.findById(documentId)
-                .map(DocumentEntity::getFilename).orElse(documentId);
-
-        try {
-            // 1. Read the source document fulltext
-            String fulltext = chunkService.getFulltext(tenantId, kbId, documentId);
-            if (fulltext == null || fulltext.isBlank()) {
-                log.warn("No fulltext found for doc {}, skipping wiki update", documentId);
-                writeRunLog(tenantId, kbId, "ingest", docFilename, 0, 0, 0, startMs, "No fulltext found");
-                return;
-            }
-            if (fulltext.length() > MAX_FULLTEXT_CHARS) {
-                fulltext = fulltext.substring(0, MAX_FULLTEXT_CHARS);
-            }
-
-            // 2. Read current wiki index
-            String currentIndex = readWikiPage(tenantId, kbId, "index.md");
-            if (currentIndex == null) {
-                currentIndex = "# Wiki Index\n\nNo pages yet.\n";
-            }
-            if (currentIndex.length() > MAX_INDEX_CHARS) {
-                currentIndex = currentIndex.substring(0, MAX_INDEX_CHARS);
-            }
-
-            // 3. Call LLM to determine wiki changes
-            String prompt = String.format(getIngestPrompt(), currentIndex, fulltext);
-            String llmResponse = callDeepSeek(prompt);
-            if (llmResponse == null || llmResponse.isBlank()) {
-                log.warn("LLM returned empty response for wiki update on doc {}", documentId);
-                writeRunLog(tenantId, kbId, "ingest", docFilename, 0, 0, 0, startMs, "LLM returned empty response");
-                return;
-            }
-
-            // 4. Parse and apply changes
-            JsonNode response = objectMapper.readTree(llmResponse);
-            int[] counts = applyWikiChanges(tenantId, kbId, response, currentIndex);
-            writeRunLog(tenantId, kbId, "ingest", docFilename, counts[0], counts[1], 0, startMs, null);
-
-            // 5. Mark source document as wiki-processed
-            documentRepository.findById(documentId).ifPresent(doc -> {
-                doc.getMetadata().put("wiki_processed_at",
-                        java.time.Instant.now().toString());
-                documentRepository.save(doc);
-            });
-        } catch (Exception e) {
-            log.error("processIngest failed for doc {}: {}", documentId, e.getMessage(), e);
-            writeRunLog(tenantId, kbId, "ingest", docFilename, 0, 0, 0, startMs, e.getMessage());
-        }
-    }
-
-    /**
-     * Ingest raw text with optional key points into wiki pages.
-     * Used by MCP tool for ingesting knowledge from CC conversations.
-     */
-    public Map<String, Object> ingestText(String tenantId, String kbId, String content,
-                                           List<String> keyPoints, String source) {
-        KnowledgeBaseEntity kbAccess = kbAccessService.getKbWithAccess(kbId, tenantId);
-        tenantId = kbAccess.getTenantId();
-        long startMs = System.currentTimeMillis();
-        String sourceName = source != null ? source : "text-ingest";
-
-        if (content == null || content.isBlank()) {
-            throw new BadRequestException("content is required");
-        }
-        if (content.length() > MAX_FULLTEXT_CHARS) {
-            content = content.substring(0, MAX_FULLTEXT_CHARS);
-        }
-
-        // Build enhanced input: prepend key points if provided
-        String fulltext = content;
-        if (keyPoints != null && !keyPoints.isEmpty()) {
-            StringBuilder sb = new StringBuilder();
-            sb.append("=== Key Points (confirmed by user) ===\n");
-            for (int i = 0; i < keyPoints.size(); i++) {
-                sb.append(i + 1).append(". ").append(keyPoints.get(i)).append("\n");
-            }
-            sb.append("\n=== Source Content ===\n");
-            sb.append(content);
-            fulltext = sb.toString();
-        }
-
-        // Read current wiki index
-        String currentIndex = readWikiPage(tenantId, kbId, "index.md");
-        if (currentIndex == null) {
-            currentIndex = "# Wiki Index\n\nNo pages yet.\n";
-        }
-        if (currentIndex.length() > MAX_INDEX_CHARS) {
-            currentIndex = currentIndex.substring(0, MAX_INDEX_CHARS);
-        }
-
-        // Call LLM to determine wiki changes
-        String prompt = String.format(getIngestPrompt(), currentIndex, fulltext);
-        String llmResponse = callDeepSeek(prompt);
-        if (llmResponse == null || llmResponse.isBlank()) {
-            writeRunLog(tenantId, kbId, "ingest", sourceName, 0, 0, 0, startMs, "LLM returned empty response");
-            return Map.of("status", "empty", "message", "LLM returned empty response");
-        }
-
-        try {
-            JsonNode response = objectMapper.readTree(llmResponse);
-            int[] counts = applyWikiChanges(tenantId, kbId, response, currentIndex);
-            writeRunLog(tenantId, kbId, "ingest", sourceName, counts[0], counts[1], 0, startMs, null);
-
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("status", "ok");
-            result.put("pages_created", counts[0]);
-            result.put("pages_updated", counts[1]);
-            appendToLog(tenantId, kbId, "[Text Ingest] source=" + sourceName + ", created=" + counts[0] + ", updated=" + counts[1]);
-            return result;
-        } catch (Exception e) {
-            log.error("ingestText failed: {}", e.getMessage(), e);
-            writeRunLog(tenantId, kbId, "ingest", sourceName, 0, 0, 0, startMs, e.getMessage());
-            throw new RuntimeException("Wiki ingest failed: " + e.getMessage(), e);
-        }
     }
 
     /**
@@ -870,168 +689,6 @@ public class WikiService {
     // ── Internal helpers ────────────────────────────────────────────
 
     /**
-     * Apply wiki changes from the LLM response: write wiki pages, update index, append log.
-     */
-    private int[] applyWikiChanges(String tenantId, String kbId, JsonNode response,
-                                    String currentIndex) {
-        JsonNode wikiPages = response.path("wiki_pages");
-        JsonNode indexUpdates = response.path("index_updates");
-        String logEntry = response.path("log_entry").asText("");
-
-        if (!wikiPages.isArray() || wikiPages.isEmpty()) {
-            log.info("No wiki pages to create/update for KB {}", kbId);
-            return new int[]{0, 0};
-        }
-
-        int created = 0, updated = 0;
-
-        for (JsonNode page : wikiPages) {
-            String title = page.path("title").asText("");
-            String action = page.path("action").asText("create");
-            String content = page.path("content").asText("");
-
-            if (title.isBlank() || content.isBlank()) continue;
-
-            String filename = titleToFilename(title);
-            writeWikiDocument(tenantId, kbId, filename, title, content);
-
-            // Enqueue DOCUMENT_PARSE so wiki page gets chunked and embedded
-            triggerDocumentParse(tenantId, kbId, filename);
-
-            if ("update".equals(action)) {
-                updated++;
-            } else {
-                created++;
-            }
-        }
-
-        // Update index.md
-        if (indexUpdates.isArray() && !indexUpdates.isEmpty()) {
-            String newIndex = buildUpdatedIndex(currentIndex, indexUpdates);
-            writeWikiDocument(tenantId, kbId, "index.md", "Wiki Index", newIndex);
-        }
-
-        // Append to log.md
-        if (!logEntry.isBlank()) {
-            appendToLog(tenantId, kbId, "[文档导入] " + logEntry);
-        }
-
-        log.info("Wiki update complete for KB {}: {} created, {} updated", kbId, created, updated);
-
-        // Auto-curate: every ~10 new pages (when total >= 15), run curation in background
-        if (created > 0) {
-            maybeRunCurate(tenantId, kbId, created);
-        }
-        return new int[]{created, updated};
-    }
-
-    /**
-     * Decide whether to run auto-curation: triggers every ~10 newly created pages,
-     * but only after the wiki has at least 15 content pages.
-     */
-    private void maybeRunCurate(String tenantId, String kbId, int newlyCreated) {
-        List<DocumentEntity> allWiki = documentRepository.findByTenantIdAndKbIdAndDocType(
-                tenantId, kbId, DOC_TYPE_WIKI);
-        long pageCount = allWiki.stream()
-                .filter(d -> !"index.md".equals(d.getFilename()) && !"log.md".equals(d.getFilename()))
-                .count();
-        if (pageCount >= 15 && pageCount % 10 < newlyCreated) {
-            log.info("Auto-curate triggered for KB {} (total {} pages, {} newly created)",
-                    kbId, pageCount, newlyCreated);
-            Thread curateThread = new Thread(() -> {
-                try {
-                    runCurate(tenantId, kbId);
-                } catch (Exception e) {
-                    log.warn("Auto-curate failed for KB {}: {}", kbId, e.getMessage());
-                }
-            });
-            curateThread.setDaemon(true);
-            curateThread.start();
-        }
-    }
-
-    /**
-     * Run the curate agent: merges overlapping pages, removes redundant ones,
-     * fixes wikilinks, and updates the index.
-     */
-    public void runCurate(String tenantId, String kbId) {
-        long startMs = System.currentTimeMillis();
-        log.info("Running wiki curate for KB {}", kbId);
-
-        // 1. Load current index
-        String indexContent = readWikiPage(tenantId, kbId, "index.md");
-        if (indexContent == null) indexContent = "# Wiki Index\n\nNo pages yet.\n";
-        if (indexContent.length() > MAX_INDEX_CHARS) {
-            indexContent = indexContent.substring(0, MAX_INDEX_CHARS);
-        }
-
-        // 2. Load all content pages (exclude index, log) — truncate each to save context
-        List<DocumentEntity> wikiDocs = documentRepository.findByTenantIdAndKbIdAndDocType(
-                tenantId, kbId, DOC_TYPE_WIKI);
-        StringBuilder pagesContext = new StringBuilder();
-        int totalChars = 0;
-        for (DocumentEntity doc : wikiDocs) {
-            if ("index.md".equals(doc.getFilename()) || "log.md".equals(doc.getFilename())) continue;
-            if (totalChars >= 60_000) break; // cap total context
-            String content = readWikiPage(tenantId, kbId, doc.getFilename());
-            if (content == null || content.isBlank()) continue;
-            String title = doc.getFilename().replace(".md", "");
-            String excerpt = content.substring(0, Math.min(content.length(), 1_500));
-            pagesContext.append("### ").append(title).append("\n").append(excerpt).append("\n\n");
-            totalChars += excerpt.length();
-        }
-
-        if (pagesContext.isEmpty()) {
-            log.info("No pages to curate for KB {}", kbId);
-            return;
-        }
-
-        // 3. Call LLM with curate prompt
-        String prompt = String.format(getCuratePrompt(), indexContent, pagesContext);
-        String llmResponse;
-        try {
-            llmResponse = callDeepSeek(prompt);
-        } catch (Exception e) {
-            log.error("Curate LLM call failed for KB {}: {}", kbId, e.getMessage());
-            writeRunLog(tenantId, kbId, "curate", null, 0, 0, 0, startMs, e.getMessage());
-            return;
-        }
-        if (llmResponse == null || llmResponse.isBlank()) return;
-
-        // 4. Parse and apply curate changes
-        try {
-            JsonNode response = objectMapper.readTree(llmResponse);
-
-            // Apply page updates/creates (same as ingest flow)
-            int[] counts = applyWikiChanges(tenantId, kbId, response, indexContent);
-
-            // Delete pages marked for removal
-            JsonNode deletePages = response.path("delete_pages");
-            int deleted = 0;
-            if (deletePages.isArray()) {
-                for (JsonNode titleNode : deletePages) {
-                    String title = titleNode.asText("").trim();
-                    if (title.isBlank()) continue;
-                    String filename = titleToFilename(title);
-                    Optional<DocumentEntity> docOpt = documentRepository.findByTypeAndFilename(
-                            tenantId, kbId, DOC_TYPE_WIKI, filename);
-                    docOpt.ifPresent(doc -> {
-                        documentRepository.delete(doc);
-                        log.info("Curate deleted wiki page: {}", filename);
-                    });
-                    deleted++;
-                }
-            }
-            log.info("Wiki curate complete for KB {}: {} deleted", kbId, deleted);
-            appendToLog(tenantId, kbId, "[自动整理] 合并/清理重叠页面，删除 " + deleted + " 个冗余页面");
-            writeRunLog(tenantId, kbId, "curate", null, counts[0], counts[1], deleted, startMs, null);
-        } catch (Exception e) {
-            log.error("Failed to apply curate changes for KB {}: {}", kbId, e.getMessage(), e);
-            writeRunLog(tenantId, kbId, "curate", null, 0, 0, 0, startMs, e.getMessage());
-        }
-    }
-
-    /**
      * Write a WikiRunLog entry for operational history tracking.
      */
     private void writeRunLog(String tenantId, String kbId, String runType,
@@ -1138,60 +795,6 @@ public class WikiService {
 
         kbWriteQueue.enqueueTask(kb.getDatabaseId(), KbWriteTaskType.DOCUMENT_PARSE, params);
         log.debug("Enqueued DOCUMENT_PARSE for wiki page: {}", filename);
-    }
-
-    /**
-     * Build an updated index.md by merging new entries into the existing index.
-     */
-    private String buildUpdatedIndex(String currentIndex, JsonNode indexUpdates) {
-        StringBuilder sb = new StringBuilder();
-        // Keep the header if it exists
-        if (currentIndex.startsWith("# ")) {
-            int newlinePos = currentIndex.indexOf('\n');
-            if (newlinePos > 0) {
-                sb.append(currentIndex, 0, newlinePos + 1);
-            }
-        } else {
-            sb.append("# Wiki Index\n");
-        }
-        sb.append("\n");
-
-        // Collect existing entries (title -> summary)
-        LinkedHashMap<String, String> entries = new LinkedHashMap<>();
-        for (String line : currentIndex.split("\n")) {
-            if (line.startsWith("- [[")) {
-                int end = line.indexOf("]]");
-                if (end > 4) {
-                    String title = line.substring(4, end);
-                    String summary = "";
-                    int dashPos = line.indexOf(" — ", end);
-                    if (dashPos > 0) {
-                        summary = line.substring(dashPos + 3).trim();
-                    }
-                    entries.put(title, summary);
-                }
-            }
-        }
-
-        // Merge new entries
-        for (JsonNode update : indexUpdates) {
-            String title = update.path("title").asText("");
-            String summary = update.path("summary").asText("");
-            if (!title.isBlank()) {
-                entries.put(title, summary);
-            }
-        }
-
-        // Write sorted entries
-        for (Map.Entry<String, String> entry : entries.entrySet()) {
-            sb.append("- [[").append(entry.getKey()).append("]]");
-            if (!entry.getValue().isBlank()) {
-                sb.append(" — ").append(entry.getValue());
-            }
-            sb.append("\n");
-        }
-
-        return sb.toString();
     }
 
     /**
@@ -1760,6 +1363,40 @@ public class WikiService {
     }
 
     /**
+     * Apply wiki page create/update actions parsed from a lint-fix LLM response.
+     * Writes each page through {@link #writeWikiDocument} and enqueues a DOCUMENT_PARSE
+     * so the updated content is re-chunked and re-embedded. Returns {@code [created, updated]}.
+     *
+     * <p>Intentionally minimal compared to the deleted {@code applyWikiChanges}: it does
+     * not maintain index.md or auto-trigger curation — lint fixes are targeted edits and
+     * index maintenance now belongs to the wiki agent.
+     */
+    private int[] applyLintFixPages(String tenantId, String kbId, JsonNode response) {
+        JsonNode wikiPages = response.path("wiki_pages");
+        if (!wikiPages.isArray() || wikiPages.isEmpty()) {
+            return new int[]{0, 0};
+        }
+        int created = 0, updated = 0;
+        for (JsonNode page : wikiPages) {
+            String title = page.path("title").asText("");
+            String action = page.path("action").asText("create");
+            String content = page.path("content").asText("");
+            if (title.isBlank() || content.isBlank()) continue;
+
+            String filename = titleToFilename(title);
+            writeWikiDocument(tenantId, kbId, filename, title, content);
+            triggerDocumentParse(tenantId, kbId, filename);
+            if ("update".equals(action)) {
+                updated++;
+            } else {
+                created++;
+            }
+        }
+        log.info("Lint fix applied to KB {}: {} created, {} updated", kbId, created, updated);
+        return new int[]{created, updated};
+    }
+
+    /**
      * Fix lint issues by calling the curate LLM with lint context appended.
      */
     @SuppressWarnings("unchecked")
@@ -1827,7 +1464,7 @@ public class WikiService {
         }
 
         // Build prompt: curate prompt + lint context
-        String prompt = String.format(getCuratePrompt(), indexContent, pagesContext) + lintContext;
+        String prompt = String.format(DEFAULT_CURATE_PROMPT, indexContent, pagesContext) + lintContext;
 
         String llmResponse;
         try {
@@ -1842,10 +1479,10 @@ public class WikiService {
             return Map.of("fixed", 0, "pages_updated", 0, "pages_created", 0);
         }
 
-        // Parse and apply changes (reuse curate parsing logic)
+        // Parse and apply changes (inlined from the deleted applyWikiChanges helper)
         try {
             JsonNode response = objectMapper.readTree(llmResponse);
-            int[] counts = applyWikiChanges(tenantId, kbId, response, indexContent);
+            int[] counts = applyLintFixPages(tenantId, kbId, response);
 
             JsonNode deletePages = response.path("delete_pages");
             int deleted = 0;

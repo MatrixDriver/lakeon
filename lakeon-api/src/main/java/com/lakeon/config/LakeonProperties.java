@@ -407,8 +407,6 @@ public class LakeonProperties {
         private String apiKey = "";
         private String baseUrl = "https://api.modelarts-maas.com/openai/v1";
         private String model = "";
-        private String ingestPrompt = "";
-        private String curatePrompt = "";
         private String chatRoutingPrompt = "";
         private String chatAnswerPrompt = "";
         private WikiAgentConfig agent = new WikiAgentConfig();
@@ -419,10 +417,6 @@ public class LakeonProperties {
         public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
         public String getModel() { return model; }
         public void setModel(String model) { this.model = model; }
-        public String getIngestPrompt() { return ingestPrompt; }
-        public void setIngestPrompt(String ingestPrompt) { this.ingestPrompt = ingestPrompt; }
-        public String getCuratePrompt() { return curatePrompt; }
-        public void setCuratePrompt(String curatePrompt) { this.curatePrompt = curatePrompt; }
         public String getChatRoutingPrompt() { return chatRoutingPrompt; }
         public void setChatRoutingPrompt(String chatRoutingPrompt) { this.chatRoutingPrompt = chatRoutingPrompt; }
         public String getChatAnswerPrompt() { return chatAnswerPrompt; }

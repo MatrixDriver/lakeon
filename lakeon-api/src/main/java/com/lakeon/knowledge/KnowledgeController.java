@@ -540,8 +540,6 @@ public class KnowledgeController {
             @RequestHeader(value = "X-Admin-Token", required = false) String adminToken) {
         validateAdminToken(adminToken);
         Map<String, Object> config = new LinkedHashMap<>();
-        config.put("ingest_prompt", wikiService.getIngestPrompt());
-        config.put("curate_prompt", wikiService.getCuratePrompt());
         config.put("chat_routing_prompt", wikiService.getChatRoutingPrompt());
         config.put("chat_answer_prompt", wikiService.getChatAnswerPrompt());
         config.put("model", wikiService.getModel());
@@ -554,12 +552,6 @@ public class KnowledgeController {
             @RequestHeader(value = "X-Admin-Token", required = false) String adminToken,
             @RequestBody Map<String, String> body) {
         validateAdminToken(adminToken);
-        if (body.containsKey("ingest_prompt")) {
-            lakeonProperties.getWiki().setIngestPrompt(body.get("ingest_prompt"));
-        }
-        if (body.containsKey("curate_prompt")) {
-            lakeonProperties.getWiki().setCuratePrompt(body.get("curate_prompt"));
-        }
         if (body.containsKey("model")) {
             lakeonProperties.getWiki().setModel(body.get("model"));
         }
@@ -627,8 +619,12 @@ public class KnowledgeController {
         validateAdminToken(adminToken);
         var kb = knowledgeBaseRepository.findById(kbId).orElse(null);
         if (kb == null) return ResponseEntity.notFound().build();
-        new Thread(() -> wikiService.runCurate(kb.getTenantId(), kbId)).start();
-        return ResponseEntity.ok(Map.of("status", "curating"));
+        String taskId = wikiAgentClient.triggerCurate(kb.getTenantId(), kbId);
+        if (taskId == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("error", "Wiki agent is unavailable"));
+        }
+        return ResponseEntity.ok(Map.of("status", "curating", "task_id", taskId));
     }
 
     @PostMapping("/admin/wiki/test-connection")
@@ -990,7 +986,10 @@ public class KnowledgeController {
     }
 
     /**
-     * Confirm wiki generation for a WIKI_PENDING document, with optional user-edited key points.
+     * Confirm wiki generation for a WIKI_PENDING document.
+     * The legacy one-shot LLM call with user-edited key points has been removed —
+     * the wiki agent now owns ingest decisions. The endpoint simply marks the
+     * document READY and dispatches a wiki agent ingest task.
      */
     @PostMapping("/documents/{docId}/wiki-confirm")
     public ResponseEntity<?> confirmWikiGeneration(HttpServletRequest req,
@@ -1003,28 +1002,19 @@ public class KnowledgeController {
             return ResponseEntity.badRequest().body(Map.of("error", "Document is not pending wiki review"));
         }
 
-        @SuppressWarnings("unchecked")
-        List<String> keyPoints = body != null ? (List<String>) body.get("key_points") : null;
-
         // Mark as READY first
         doc.setStatus(DocumentStatus.READY);
         documentRepository.save(doc);
 
-        // Trigger wiki ingest with key points
-        try {
-            String fulltext = chunkService.getFulltext(tenant.getId(), doc.getKbId(), docId);
-            if (fulltext != null && !fulltext.isBlank()) {
-                Map<String, Object> result = wikiService.ingestText(
-                        tenant.getId(), doc.getKbId(), fulltext, keyPoints, doc.getFilename());
-                // Mark wiki_processed_at (consistent with processIngest)
-                doc.getMetadata().put("wiki_processed_at", java.time.Instant.now().toString());
-                documentRepository.save(doc);
-                return ResponseEntity.ok(result);
-            }
-            return ResponseEntity.ok(Map.of("status", "ok", "message", "No fulltext found, skipped wiki generation"));
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", Map.of("message", e.getMessage())));
+        // Dispatch a wiki agent ingest task — agent reads fulltext from OBS itself.
+        String taskId = wikiAgentClient.triggerIngest(tenant.getId(), doc.getKbId(), docId);
+        if (taskId == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("error", Map.of("message", "Wiki agent is unavailable")));
         }
+        return ResponseEntity.ok(Map.of(
+                "status", "dispatched",
+                "task_id", taskId));
     }
 
     /**
@@ -1085,29 +1075,6 @@ public class KnowledgeController {
         return ResponseEntity.ok(Map.of("status", "ok", "count", count));
     }
 
-    @PostMapping("/wiki/ingest-text")
-    public ResponseEntity<?> ingestWikiText(HttpServletRequest req,
-                                            @RequestBody Map<String, Object> body) {
-        TenantEntity tenant = getTenant(req);
-        String kbId = (String) body.get("kb_id");
-        String content = (String) body.get("content");
-        @SuppressWarnings("unchecked")
-        List<String> keyPoints = (List<String>) body.get("key_points");
-        String source = (String) body.get("source");
-        if (kbId == null || kbId.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "kb_id is required"));
-        }
-        if (content == null || content.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "content is required"));
-        }
-        try {
-            Map<String, Object> result = wikiService.ingestText(tenant.getId(), kbId, content, keyPoints, source);
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", Map.of("message", e.getMessage())));
-        }
-    }
-
     @PostMapping("/wiki/curate")
     public ResponseEntity<?> curateWiki(HttpServletRequest req,
                                         @RequestBody Map<String, Object> body) {
@@ -1117,8 +1084,12 @@ public class KnowledgeController {
             throw new BadRequestException("kb_id is required");
         }
         KnowledgeBaseEntity kb = kbAccessService.getKbWithAccess(kbId, tenant.getId());
-        new Thread(() -> wikiService.runCurate(kb.getTenantId(), kbId)).start();
-        return ResponseEntity.ok(Map.of("status", "curating"));
+        String taskId = wikiAgentClient.triggerCurate(kb.getTenantId(), kbId);
+        if (taskId == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("error", "Wiki agent is unavailable"));
+        }
+        return ResponseEntity.ok(Map.of("status", "curating", "task_id", taskId));
     }
 
     @PostMapping("/wiki/lint")
