@@ -6,27 +6,30 @@
         <h1 class="brand-logo">DBay</h1>
         <p class="brand-name">数据港湾</p>
       </router-link>
-      <h2 class="brand-headline">Agent 时代的<br>数据基础设施</h2>
+      <h2 class="brand-headline">
+        <span class="brand-headline-lede">为 Agent 时代而造的</span>
+        <span class="brand-headline-body">数据基础设施</span>
+      </h2>
       <div class="brand-features">
         <div class="brand-feature">
-          <span class="feature-dot" style="background: #4da6ff;"></span>
+          <span class="feature-mark"></span>
           <div>
             <div class="feature-title">Serverless PostgreSQL</div>
             <div class="feature-desc">按需弹性，空闲自动休眠，内置 pgvector</div>
           </div>
         </div>
         <div class="brand-feature">
-          <span class="feature-dot" style="background: #a78bfa;"></span>
+          <span class="feature-mark"></span>
           <div>
             <div class="feature-title">记忆库 + 知识库</div>
             <div class="feature-desc">MCP 一键接入，AI Agent 即刻获得长期记忆</div>
           </div>
         </div>
         <div class="brand-feature">
-          <span class="feature-dot" style="background: #34d399;"></span>
+          <span class="feature-mark"></span>
           <div>
             <div class="feature-title">数据湖</div>
-            <div class="feature-desc">Python / Ray / 微调，Serverless 算力</div>
+            <div class="feature-desc">Python · Ray · 微调，Serverless 算力</div>
           </div>
         </div>
       </div>
@@ -39,9 +42,9 @@
     <div class="form-panel">
       <div class="form-card">
         <!-- Tab Switch -->
-        <div class="login-tabs">
-          <button class="login-tab" :class="{ active: tab === 'login' }" @click="switchTab('login')">登录</button>
-          <button class="login-tab" :class="{ active: tab === 'register' }" @click="switchTab('register')">注册</button>
+        <div class="login-tabs" role="tablist">
+          <button class="login-tab" :class="{ active: tab === 'login' }" @click="switchTab('login')" role="tab">登录</button>
+          <button class="login-tab" :class="{ active: tab === 'register' }" @click="switchTab('register')" role="tab">注册</button>
         </div>
 
         <!-- Login Form -->
@@ -280,18 +283,22 @@ function loginWithGithub() {
 .login-page {
   display: flex;
   min-height: 100vh;
+  background: var(--c-bg-alt);
 }
 
-/* ── Left: Brand panel ── */
+/* ══════════════════════════════════════════
+   Left: Brand panel — editorial, warm, no dark gradient
+   ══════════════════════════════════════════ */
 .brand-panel {
   width: 480px;
   flex-shrink: 0;
-  background: linear-gradient(135deg, #0a1628 0%, #0d2847 50%, #0a1628 100%);
-  color: #fff;
+  background: #fff;
+  border-right: 1px solid var(--c-border-light);
+  color: var(--c-text);
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 64px 52px;
+  padding: var(--space-4xl) var(--space-3xl);
   position: relative;
   overflow: hidden;
 }
@@ -299,103 +306,123 @@ function loginWithGithub() {
 .brand-panel::before {
   content: '';
   position: absolute;
-  top: -120px;
-  right: -120px;
-  width: 400px;
-  height: 400px;
-  background: radial-gradient(circle, rgba(0, 115, 230, 0.12) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.brand-panel::after {
-  content: '';
-  position: absolute;
-  bottom: -80px;
-  left: -80px;
-  width: 300px;
-  height: 300px;
-  background: radial-gradient(circle, rgba(77, 166, 255, 0.08) 0%, transparent 70%);
+  top: 0;
+  right: 0;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(ellipse at top right, color-mix(in oklch, var(--c-accent) 8%, transparent), transparent 70%);
   pointer-events: none;
 }
 
 .brand-logo-link {
   text-decoration: none;
   display: block;
-  margin-bottom: 44px;
+  margin-bottom: var(--space-4xl);
+  position: relative;
 }
 
 .brand-logo {
-  font-size: 40px;
-  font-weight: 800;
-  color: #4da6ff;
-  letter-spacing: 1px;
+  font-family: var(--font-display);
+  font-size: 64px;
+  font-weight: 500;
+  color: var(--c-primary);
+  letter-spacing: -0.02em;
+  line-height: 1;
   margin: 0;
 }
 
 .brand-name {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.5);
-  margin: 4px 0 0;
-  letter-spacing: 4px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--c-accent-text);
+  margin: var(--space-sm) 0 0;
 }
 
 .brand-headline {
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1.35;
-  margin: 0 0 48px;
-  color: rgba(255, 255, 255, 0.95);
+  margin: 0 0 var(--space-3xl);
+  position: relative;
+}
+
+.brand-headline-lede {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-text-3);
+  margin-bottom: var(--space-sm);
+  letter-spacing: 0.02em;
+}
+
+.brand-headline-body {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--c-text);
+  letter-spacing: -0.01em;
 }
 
 .brand-features {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: var(--space-xl);
+  position: relative;
 }
 
 .brand-feature {
   display: flex;
-  gap: 14px;
+  gap: var(--space-md);
   align-items: flex-start;
 }
 
-.feature-dot {
-  width: 8px;
-  height: 8px;
+.feature-mark {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
-  margin-top: 5px;
+  margin-top: 8px;
+  background: var(--c-accent);
 }
 
 .feature-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-  margin-bottom: 3px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--c-text);
+  margin-bottom: 2px;
+  letter-spacing: -0.005em;
 }
 
 .feature-desc {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.4);
-  line-height: 1.5;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--c-text-2);
+  line-height: 1.55;
 }
 
 .brand-footer {
   margin-top: auto;
-  padding-top: 56px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.2);
-  letter-spacing: 1.5px;
+  padding-top: var(--space-3xl);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--c-text-3);
+  letter-spacing: 0.04em;
+  position: relative;
 }
 
-/* ── Right: Form panel ── */
+/* ══════════════════════════════════════════
+   Right: Form panel
+   ══════════════════════════════════════════ */
 .form-panel {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--pub-bg);
-  padding: 48px;
+  padding: var(--space-3xl);
 }
 
 .form-card {
@@ -403,242 +430,370 @@ function loginWithGithub() {
   max-width: 400px;
 }
 
+/* ── Tab switcher — underline, not pill ── */
 .login-tabs {
   display: flex;
-  gap: 6px;
-  background: var(--pub-surface);
-  border: 1px solid var(--pub-border);
-  border-radius: 24px;
-  padding: 4px;
-  margin-bottom: 32px;
+  gap: var(--space-2xl);
+  border-bottom: 1px solid var(--c-border);
+  margin-bottom: var(--space-2xl);
 }
 
 .login-tab {
-  flex: 1;
+  position: relative;
   background: none;
   border: none;
-  padding: 10px 0;
-  font-size: 14px;
+  padding: var(--space-md) 0;
+  font-family: var(--font-sans);
+  font-size: 15px;
   font-weight: 500;
-  color: var(--pub-text-2);
+  color: var(--c-text-3);
   cursor: pointer;
-  border-radius: 20px;
-  transition: all 0.25s ease;
+  transition: color 160ms ease-out;
+}
+
+.login-tab:hover {
+  color: var(--c-text-2);
 }
 
 .login-tab.active {
-  color: var(--pub-primary);
-  background: var(--pub-bg);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  font-weight: 600;
+  color: var(--c-primary);
 }
 
-.login-tab:hover:not(.active) {
-  color: var(--pub-text);
+.login-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--c-accent);
+  border-radius: 1px;
 }
 
-.form-group { margin-bottom: 20px; }
-.form-label { display: block; font-size: 14px; color: var(--pub-text); margin-bottom: 6px; font-weight: 500; }
-.required { color: #ef4444; }
+.login-tab:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+/* ── Form fields ── */
+.form-group {
+  margin-bottom: var(--space-lg);
+}
+
+.form-label {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--c-text-3);
+  margin-bottom: var(--space-xs);
+}
+
+.required {
+  color: var(--cs-severe);
+  margin-left: 2px;
+}
 
 .input-wrapper {
   display: flex;
-  align-items: center;
-  border: 1px solid var(--pub-border);
-  border-radius: 8px;
+  align-items: stretch;
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
   overflow: hidden;
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
-  background: var(--pub-surface);
+  transition: border-color 160ms ease-out, box-shadow 160ms ease-out;
+  background: #fff;
+}
+
+.input-wrapper:hover {
+  border-color: var(--c-text-3);
 }
 
 .input-wrapper:focus-within {
-  border-color: var(--pub-primary);
-  box-shadow: 0 0 0 3px rgba(0, 115, 230, 0.08);
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px rgb(from var(--c-accent) r g b / 0.15);
 }
 
 .form-input {
   width: 100%;
-  border: 1px solid var(--pub-border);
-  border-radius: 8px;
-  padding: 0 14px;
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  padding: 0 var(--space-md);
   height: 40px;
+  font-family: var(--font-sans);
   font-size: 14px;
-  color: var(--pub-text);
-  background: var(--pub-surface);
+  color: var(--c-text);
+  background: #fff;
   outline: none;
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  transition: border-color 160ms ease-out, box-shadow 160ms ease-out;
+}
+
+.form-input:hover {
+  border-color: var(--c-text-3);
 }
 
 .form-input:focus {
-  border-color: var(--pub-primary);
-  box-shadow: 0 0 0 3px rgba(0, 115, 230, 0.08);
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px rgb(from var(--c-accent) r g b / 0.15);
 }
 
-.input-wrapper .form-input { border: none; border-radius: 0; box-shadow: none; }
-.form-input::placeholder { color: var(--pub-text-4, #aaa); }
+.input-wrapper .form-input {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.form-input::placeholder {
+  color: var(--c-text-3);
+}
 
 .toggle-btn {
   background: none;
   border: none;
-  border-left: 1px solid var(--pub-border);
-  padding: 0 14px;
+  border-left: 1px solid var(--c-border-light);
+  padding: 0 var(--space-md);
   height: 40px;
+  font-family: var(--font-sans);
   font-size: 12px;
-  color: var(--pub-text-3);
+  color: var(--c-text-2);
   cursor: pointer;
   white-space: nowrap;
-  transition: color 0.25s ease, background 0.25s ease;
+  transition: color 160ms ease-out, background 160ms ease-out;
 }
 
 .toggle-btn:hover {
-  color: var(--pub-primary);
-  background: var(--pub-hover);
+  color: var(--c-accent-text);
+  background: var(--c-accent-light);
 }
 
-.input-error { border-color: #ef4444 !important; }
-.field-error { color: #ef4444; font-size: 12px; margin-top: 4px; }
-.field-ok { color: #22c55e; font-size: 12px; margin-top: 4px; }
+.input-error {
+  border-color: var(--cs-severe) !important;
+}
+
+.field-error {
+  color: var(--cs-severe);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.field-ok {
+  color: #386b47;
+  font-size: 12px;
+  margin-top: 4px;
+}
 
 .error-msg {
-  color: #dc2626;
-  font-size: 13px;
-  margin-bottom: 16px;
-  padding: 10px 14px;
-  background: rgba(239, 68, 68, 0.05);
-  border: 1px solid rgba(239, 68, 68, 0.12);
-  border-radius: 10px;
+  color: var(--cs-severe);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: color-mix(in oklch, var(--cs-severe) 5%, #fff);
+  border: 1px solid color-mix(in oklch, var(--cs-severe) 20%, #fff);
+  border-radius: 4px;
+  line-height: 1.5;
 }
 
+/* ── Primary submit ── */
 .login-btn {
   width: 100%;
-  height: 46px;
-  background: var(--pub-primary);
+  height: 44px;
+  background: var(--c-accent);
   color: #fff;
   border: none;
-  border-radius: 100px;
-  font-size: 15px;
-  font-weight: 600;
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  gap: var(--space-sm);
+  transition: background 160ms ease-out;
 }
 
 .login-btn:hover:not(:disabled) {
-  opacity: 0.92;
-  transform: translateY(-1px);
+  background: var(--c-accent-hover);
 }
-.login-btn:active:not(:disabled) {
-  transform: translateY(0);
+
+.login-btn:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
 }
-.login-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.login-btn:disabled {
+  background: color-mix(in oklch, var(--c-accent) 40%, #fff);
+  cursor: not-allowed;
+}
 
 .spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.4);
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgb(255 255 255 / 0.35);
   border-top-color: #fff;
   border-radius: 50%;
-  animation: spin 0.6s linear infinite;
+  animation: spin 0.7s linear infinite;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
-.register-success { margin-top: 16px; }
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2s; }
+}
+
+.register-success {
+  margin-top: var(--space-lg);
+}
 
 .success-alert {
-  background: rgba(34, 197, 94, 0.06);
-  border: 1px solid rgba(34, 197, 94, 0.15);
-  border-radius: 10px;
-  padding: 10px 16px;
-  font-size: 14px;
-  color: #16a34a;
+  background: color-mix(in oklch, var(--c-success) 6%, #fff);
+  border: 1px solid color-mix(in oklch, var(--c-success) 25%, #fff);
+  border-radius: 4px;
+  padding: var(--space-sm) var(--space-md);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: #386b47;
 }
 
 .login-footer {
   text-align: center;
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid var(--pub-border);
+  margin-top: var(--space-2xl);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--c-border-light);
 }
 
-.login-footer p { font-size: 13px; color: var(--pub-text-3); }
+.login-footer p {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--c-text-3);
+}
 
-/* ── OAuth Section ── */
+/* ══════════════════════════════════════════
+   OAuth section
+   ══════════════════════════════════════════ */
 .oauth-section {
-  margin-top: 24px;
+  margin-top: var(--space-xl);
 }
 
 .oauth-divider {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
 }
 
 .divider-line {
   flex: 1;
   height: 1px;
-  background: var(--pub-border);
+  background: var(--c-border-light);
 }
 
 .divider-text {
-  font-size: 12px;
-  color: var(--pub-text-4, #aaa);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--c-text-3);
   white-space: nowrap;
 }
 
 .oauth-buttons {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-sm);
 }
 
 .oauth-btn {
   width: 100%;
-  height: 42px;
-  border: 1px solid var(--pub-border);
-  border-radius: 100px;
-  background: var(--pub-surface);
-  color: var(--pub-text);
-  font-size: 14px;
+  height: 40px;
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--c-text);
+  font-family: var(--font-sans);
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  transition: all 0.25s ease;
+  gap: var(--space-sm);
+  transition: border-color 160ms ease-out, background 160ms ease-out;
 }
 
 .oauth-btn:hover {
-  border-color: var(--pub-text-3);
-  background: var(--pub-hover);
+  border-color: var(--c-text-3);
+  background: var(--c-hover);
+}
+
+.oauth-btn:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
 }
 
 .oauth-icon {
   flex-shrink: 0;
 }
 
-/* ── Mobile ── */
+/* ══════════════════════════════════════════
+   Mobile
+   ══════════════════════════════════════════ */
 @media (max-width: 768px) {
-  .login-page { flex-direction: column; }
+  .login-page {
+    flex-direction: column;
+  }
 
   .brand-panel {
     width: 100%;
-    padding: 36px 24px;
+    padding: var(--space-2xl) var(--space-xl);
+    border-right: none;
+    border-bottom: 1px solid var(--c-border-light);
   }
 
-  .brand-headline { font-size: 24px; margin-bottom: 24px; }
-  .brand-features { display: none; }
-  .brand-footer { display: none; }
+  .brand-logo {
+    font-size: 48px;
+  }
 
-  .form-panel { padding: 32px 24px; }
-  .form-card { max-width: 100%; }
-  .login-btn { height: 48px; font-size: 16px; }
-  .form-input { height: 44px; padding: 0 12px; font-size: 16px; }
-  .toggle-btn { padding: 0 12px; height: 44px; }
+  .brand-headline-body {
+    font-size: 22px;
+  }
+
+  .brand-features {
+    display: none;
+  }
+
+  .brand-footer {
+    display: none;
+  }
+
+  .form-panel {
+    padding: var(--space-xl);
+  }
+
+  .form-card {
+    max-width: 100%;
+  }
+
+  .login-btn {
+    height: 48px;
+    font-size: 15px;
+  }
+
+  .form-input {
+    height: 44px;
+    padding: 0 var(--space-md);
+    font-size: 15px;
+  }
+
+  .toggle-btn {
+    padding: 0 var(--space-md);
+    height: 44px;
+  }
 }
 </style>

@@ -247,15 +247,19 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
+/* ══════════════════════════════════════════
+   Top header
+   ══════════════════════════════════════════ */
 .console-header {
-  height: 48px;
-  background-color: #2a4d6a;
+  height: 52px;
+  background-color: var(--c-primary);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 var(--space-xl);
   flex-shrink: 0;
   z-index: 100;
+  border-bottom: 1px solid color-mix(in oklch, var(--c-primary) 80%, black);
 }
 
 .header-left {
@@ -264,59 +268,68 @@ onUnmounted(() => {
 }
 
 .logo-brand {
-  color: #c67d3a;
+  font-family: var(--font-display);
+  color: var(--c-accent);
   text-decoration: none;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-sm);
+  line-height: 1;
 }
 
 .logo-tagline {
-  font-size: 13px;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.4);
-  letter-spacing: 1px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 500;
+  color: rgb(255 255 255 / 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-md);
 }
 
-/* Command Palette button */
+/* Command palette button */
 .cmd-k-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  color: rgba(255, 255, 255, 0.6);
-  padding: 4px 10px;
+  gap: var(--space-sm);
+  background: rgb(255 255 255 / 0.06);
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: 4px;
+  color: rgb(255 255 255 / 0.55);
+  padding: 4px var(--space-md);
   cursor: pointer;
+  font-family: var(--font-sans);
   font-size: 12px;
-  transition: all 0.15s;
+  transition: background 160ms ease-out, color 160ms ease-out;
+  height: 28px;
 }
 
 .cmd-k-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.9);
+  background: rgb(255 255 255 / 0.12);
+  color: rgb(255 255 255 / 0.9);
 }
 
 .cmd-k-text {
+  font-family: var(--font-mono);
   font-size: 11px;
-  font-family: inherit;
+  opacity: 0.75;
+  letter-spacing: 0.02em;
 }
 
 .header-nav-link {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgb(255 255 255 / 0.7);
+  font-family: var(--font-sans);
   font-size: 13px;
   text-decoration: none;
-  transition: color 0.15s;
+  transition: color 160ms ease-out;
 }
 
 .header-nav-link:hover {
@@ -325,60 +338,69 @@ onUnmounted(() => {
 
 .header-divider-small {
   width: 1px;
-  height: 14px;
-  background: rgba(255, 255, 255, 0.15);
+  height: 16px;
+  background: rgb(255 255 255 / 0.16);
 }
 
 .header-user {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-sm);
 }
 
 .user-avatar {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #c67d3a;
+  background: var(--c-accent);
   color: #fff;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  font-family: var(--font-sans);
 }
 
 .header-username {
-  color: rgba(255, 255, 255, 0.9);
+  color: rgb(255 255 255 / 0.88);
+  font-family: var(--font-sans);
   font-size: 13px;
+  font-weight: 500;
 }
 
 .header-nav-btn {
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgb(255 255 255 / 0.7);
+  font-family: var(--font-sans);
   font-size: 13px;
   cursor: pointer;
   padding: 0;
-  transition: color 0.15s;
+  transition: color 160ms ease-out;
 }
 
 .header-nav-btn:hover {
-  color: rgba(255, 255, 255, 0.9);
+  color: #fff;
 }
 
+/* ══════════════════════════════════════════
+   Body layout
+   ══════════════════════════════════════════ */
 .console-body {
   display: flex;
   flex: 1;
   overflow: hidden;
 }
 
-/* Single Sidebar */
+/* ══════════════════════════════════════════
+   Sidebar
+   ══════════════════════════════════════════ */
 .sidebar {
-  width: 200px;
+  width: 220px;
   background-color: #fff;
-  border-right: 1px solid #e8e4df;
+  border-right: 1px solid var(--c-border);
   flex-shrink: 0;
   overflow-y: auto;
   display: flex;
@@ -387,77 +409,100 @@ onUnmounted(() => {
 
 .sidebar-nav {
   flex: 1;
-  padding: 8px 0;
+  padding: var(--space-md) 0 var(--space-lg);
 }
 
 .nav-group {
-  padding: 4px 0;
+  padding: var(--space-xs) 0 var(--space-sm);
+}
+
+.nav-group + .nav-group {
+  border-top: 1px solid var(--c-border-light);
+  margin-top: var(--space-xs);
+  padding-top: var(--space-sm);
 }
 
 .nav-group-title {
-  padding: 12px 16px 4px;
+  padding: var(--space-sm) var(--space-xl) var(--space-xs);
+  font-family: var(--font-sans);
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
-  color: #94a3b8;
-  letter-spacing: 0.8px;
+  color: var(--c-text-3);
+  letter-spacing: 0.1em;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-md);
   height: 32px;
-  padding: 0 16px;
-  color: #64748b;
+  padding: 0 var(--space-xl);
+  color: var(--c-text-2);
   text-decoration: none;
+  font-family: var(--font-sans);
   font-size: 13px;
-  border-right: 2px solid transparent;
-  transition: all 0.15s;
+  transition: background 160ms ease-out, color 160ms ease-out;
 }
 
 .nav-item svg {
   flex-shrink: 0;
-  color: #94a3b8;
-  transition: color 0.15s;
+  opacity: 0.6;
+  transition: opacity 160ms ease-out;
 }
 
 .nav-item:hover {
-  background-color: #f8f5f1;
+  color: var(--c-text);
+  background-color: var(--c-hover);
 }
 
 .nav-item:hover svg {
-  color: #64748b;
+  opacity: 0.85;
 }
 
 .nav-item.active,
 .nav-item.router-link-active {
-  color: #9a5b25;
+  color: var(--c-primary);
   font-weight: 600;
-  background-color: #f5efe8;
-  border-right: 3px solid #c25a3c;
+  background-color: color-mix(in oklch, var(--c-accent) 8%, #fff);
+}
+
+.nav-item.active:hover,
+.nav-item.router-link-active:hover {
+  background-color: color-mix(in oklch, var(--c-accent) 12%, #fff);
 }
 
 .nav-item.active svg,
 .nav-item.router-link-active svg {
-  color: #9a5b25;
+  opacity: 1;
+  color: var(--c-accent);
 }
 
 .nav-separator {
   height: 1px;
-  background-color: #e8e4df;
-  margin: 8px 16px;
+  background-color: var(--c-border-light);
+  margin: var(--space-xs) var(--space-xl);
 }
 
 .nav-group-bottom {
-  padding-bottom: 8px;
+  padding-bottom: var(--space-sm);
 }
 
+.nav-group-bottom + .nav-group,
+.nav-separator + .nav-group {
+  border-top: none;
+  margin-top: 0;
+  padding-top: var(--space-xs);
+}
+
+/* ══════════════════════════════════════════
+   Main area — warm background
+   ══════════════════════════════════════════ */
 .console-main {
   flex: 1;
-  background-color: #fff;
+  background-color: var(--c-bg-alt);
   overflow-y: auto;
-  padding: 24px 24px 24px 32px;
+  padding: var(--space-2xl) var(--space-2xl) var(--space-4xl) var(--space-2xl);
 }
 
 /* Mobile hamburger button - hidden on desktop */
@@ -551,27 +596,33 @@ onUnmounted(() => {
 }
 
 .trial-banner {
-  background: linear-gradient(90deg, #fdf5ed, #faecd8);
-  border-bottom: 1px solid #e8d5b8;
-  padding: 6px 16px;
+  background: color-mix(in oklch, var(--c-accent) 7%, #fff);
+  border-bottom: 1px solid color-mix(in oklch, var(--c-accent) 25%, var(--c-border-light));
+  padding: 6px var(--space-xl);
   text-align: center;
-  font-size: 13px;
-  color: #8b5e2f;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--c-accent-text);
   z-index: 100;
 }
 .trial-banner-content {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: var(--space-lg);
+}
+.trial-banner-text {
+  letter-spacing: 0.02em;
 }
 .trial-banner-cta {
-  color: #9a5b25;
+  color: var(--c-accent-text);
   font-weight: 600;
-  text-decoration: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
   white-space: nowrap;
+  transition: color 160ms ease-out;
 }
 .trial-banner-cta:hover {
-  text-decoration: underline;
+  color: var(--c-accent-hover);
 }
 </style>

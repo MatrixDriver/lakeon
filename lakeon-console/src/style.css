@@ -39,7 +39,7 @@
 }
 /* ── end theme variables ── */
 
-/* ── Console theme (harbor warm tone) ── */
+/* ── Harbor Editorial theme (console, authed app) ── */
 :root {
   --c-primary: #2a4d6a;
   --c-primary-hover: #1e3a52;
@@ -49,7 +49,7 @@
   --c-accent-light: #fdf5ed;
   --c-danger: #e6393d;
   --c-danger-hover: #cc2f33;
-  --c-success: #52c41a;
+  --c-success: #52a36b;
   --c-text: #2c3e50;
   --c-text-2: #64748b;
   --c-text-3: #94a3b8;
@@ -57,16 +57,35 @@
   --c-border-light: #f0ece7;
   --c-bg-alt: #faf8f5;
   --c-hover: #f8f5f1;
-}
 
-:root {
-  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* Cold start / severity thresholds (<3s normal, 3–10s warn, >10s severe) */
+  --cs-normal: #2a4d6a;
+  --cs-warn: #9a5b25;
+  --cs-severe: #c6333a;
+
+  /* Typography stack */
+  --font-display: 'Source Serif 4', 'Iowan Old Style', 'Apple Garamond', Georgia, serif;
+  --font-sans: 'Geist', 'Geist Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* Semantic spacing scale (4pt base) */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+  --space-3xl: 48px;
+  --space-4xl: 64px;
+
+  font-family: var(--font-sans);
   line-height: 1.5;
   font-weight: 400;
-  color: #333;
+  color: var(--c-text);
   background-color: #fff;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  font-feature-settings: 'ss01', 'cv11';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -89,36 +108,61 @@ body {
 }
 
 /* ============================
-   Page Header (华为云 RDS 风格)
+   Page Header
    ============================ */
 .page-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 24px;
+  gap: var(--space-xl);
+  margin-bottom: var(--space-xl);
+  padding-top: var(--space-sm);
 }
 
 .page-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--c-text);
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 30px;
+  line-height: 1.15;
+  color: var(--c-primary);
+  letter-spacing: -0.01em;
   margin: 0;
+}
+
+.page-subtitle {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--c-text-2);
+  margin: 6px 0 0;
+  max-width: 64ch;
+  line-height: 1.5;
+}
+
+.page-lede {
+  font-family: var(--font-display);
+  font-size: 17px;
+  color: var(--c-text-2);
+  margin: var(--space-sm) 0 0;
+  line-height: 1.45;
+  max-width: 60ch;
 }
 
 .page-header-actions {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: var(--space-md);
+  flex-shrink: 0;
 }
 
 .page-header-link {
-  color: #575d6c;
-  font-size: 14px;
+  color: var(--c-text-2);
+  font-size: 13px;
   text-decoration: none;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  transition: color 160ms ease-out;
 }
 
 .page-header-link:hover {
@@ -126,47 +170,151 @@ body {
 }
 
 /* ============================
-   Status Bar (华为云横排统计条)
+   Stats Row (editorial — no card grid)
+   ============================ */
+.stats-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3xl);
+  padding: var(--space-lg) 0 var(--space-xl);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-lg);
+}
+
+.stat-card {
+  background: transparent;
+  border: none;
+  padding: 0;
+  min-width: 96px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--c-text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.stat-unit {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--c-text-3);
+  margin-left: 2px;
+  letter-spacing: 0;
+}
+
+.stat-label {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--c-text-3);
+}
+
+/* ============================
+   Tab Bar (harbor editorial)
+   ============================ */
+.tab-bar {
+  display: flex;
+  gap: var(--space-2xl);
+  border-bottom: 1px solid var(--c-border);
+  margin-top: var(--space-md);
+  margin-bottom: var(--space-2xl);
+}
+
+.tab-item {
+  padding: var(--space-md) 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--c-text-2);
+  background: none;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: color 160ms ease-out;
+}
+
+.tab-item:hover {
+  color: var(--c-text);
+}
+
+.tab-item.active {
+  color: var(--c-primary);
+}
+
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--c-accent);
+  border-radius: 1px;
+}
+
+.tab-item:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+/* ============================
+   Status Bar (single-line stat summary)
    ============================ */
 .status-bar {
   display: flex;
-  align-items: center;
-  gap: 28px;
-  padding: 14px 0;
-  margin-bottom: 16px;
-  font-size: 14px;
-  color: #333;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-xl);
+  padding: var(--space-md) 0 var(--space-lg);
+  margin-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--c-border-light);
+  font-size: 13px;
+  color: var(--c-text-2);
 }
 
 .status-bar-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-sm);
 }
 
 .status-bar-label {
   color: var(--c-text-2);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .status-bar-count {
-  font-weight: 700;
+  font-weight: 600;
   color: var(--c-text);
+  font-variant-numeric: tabular-nums;
   font-size: 14px;
 }
 
 .status-bar-count.has-error {
-  color: #e6393d;
+  color: var(--cs-severe);
 }
 
 /* ============================
-   Action Toolbar (华为云操作按钮行)
+   Action Toolbar
    ============================ */
 .action-toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+  flex-wrap: wrap;
 }
 
 /* ============================
@@ -174,101 +322,148 @@ body {
    ============================ */
 .section-card {
   background: #fff;
+  border: 1px solid var(--c-border-light);
+  border-radius: 6px;
   overflow: hidden;
 }
 
 .section-header {
-  padding: 14px 16px;
+  padding: var(--space-md) var(--space-lg);
   border-bottom: 1px solid var(--c-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
 }
 
 .section-header h3 {
-  font-size: 14px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 500;
   color: var(--c-text);
   margin: 0;
+  letter-spacing: -0.005em;
+}
+
+.section-header .section-meta {
+  font-size: 12px;
+  color: var(--c-text-3);
 }
 
 /* ============================
-   Data Table (华为云 RDS 风格)
+   Data Table
    ============================ */
 .table-wrapper {
   overflow-x: auto;
+  border: 1px solid var(--c-border-light);
+  border-radius: 6px;
+  background: #fff;
 }
 
 .data-table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 13px;
 }
 
-.data-table th {
-  padding: 14px 16px;
+.data-table thead th {
+  padding: var(--space-md) var(--space-lg);
   text-align: left;
-  font-size: 12px;
-  font-weight: 400;
-  color: #575d6c;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--c-text-3);
   background: var(--c-bg-alt);
-  border-top: 1px solid var(--c-border-light);
-  border-bottom: 1px solid var(--c-border-light);
+  border-bottom: 1px solid var(--c-border);
   white-space: nowrap;
-  line-height: 20px;
+  line-height: 1.4;
 }
 
-.data-table td {
-  padding: 16px 16px;
-  font-size: 14px;
+.data-table tbody td {
+  padding: var(--space-lg) var(--space-lg);
+  font-size: 13px;
   color: var(--c-text);
   border-bottom: 1px solid var(--c-border-light);
-  line-height: 22px;
+  line-height: 1.5;
+  vertical-align: middle;
+}
+
+.data-table tbody tr {
+  transition: background 120ms ease-out;
 }
 
 .data-table tbody tr:hover {
   background-color: var(--c-hover);
 }
 
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
 /* ============================
-   Buttons (华为云 RDS 风格)
+   Buttons
    ============================ */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 32px;
-  padding: 0 16px;
-  font-size: 14px;
+  gap: var(--space-sm);
+  height: 34px;
+  padding: 0 var(--space-lg);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
   border-radius: 4px;
   border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.2s;
   white-space: nowrap;
+  transition: background 160ms ease-out, border-color 160ms ease-out, color 160ms ease-out;
 }
 
 .btn:disabled {
-  opacity: 0.4;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
+.btn:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+/* Primary = warm orange (the "main action") */
 .btn-primary {
-  background-color: var(--c-primary);
+  background-color: var(--c-accent);
   color: #fff;
-  border-color: var(--c-primary);
-  border-radius: 4px;
+  border-color: var(--c-accent);
 }
 
 .btn-primary:hover:not(:disabled) {
+  background-color: var(--c-accent-hover);
+  border-color: var(--c-accent-hover);
+}
+
+/* Harbor blue alternative for navigation-y actions */
+.btn-blue {
+  background-color: var(--c-primary);
+  color: #fff;
+  border-color: var(--c-primary);
+}
+
+.btn-blue:hover:not(:disabled) {
   background-color: var(--c-primary-hover);
   border-color: var(--c-primary-hover);
 }
 
 .btn-default {
   background-color: #fff;
-  color: #575d6c;
-  border-color: #c2c6cc;
+  color: var(--c-text-2);
+  border-color: var(--c-border);
 }
 
 .btn-default:hover:not(:disabled) {
-  border-color: var(--c-accent-text);
-  color: var(--c-accent-text);
+  color: var(--c-text);
+  border-color: var(--c-text-3);
 }
 
 .btn-danger {
@@ -279,11 +474,12 @@ body {
 
 .btn-danger:hover:not(:disabled) {
   background-color: var(--c-danger-hover);
+  border-color: var(--c-danger-hover);
 }
 
 .btn-small {
   height: 28px;
-  padding: 0 10px;
+  padding: 0 var(--space-md);
   font-size: 12px;
 }
 
@@ -291,9 +487,10 @@ body {
   background: none;
   border: none;
   color: var(--c-accent-text);
-  padding: 0 6px;
+  padding: 0 var(--space-xs);
   height: auto;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .btn-text:hover:not(:disabled) {
@@ -301,24 +498,24 @@ body {
 }
 
 .btn-danger-text {
-  color: #94a3b8;
+  color: var(--c-text-3);
 }
 
 .btn-danger-text:hover:not(:disabled) {
-  color: #e6393d;
+  color: var(--cs-severe);
 }
 
 .btn-accent-text {
-  color: #9a5b25;
+  color: var(--c-accent-text);
 }
 
 .btn-accent-text:hover:not(:disabled) {
-  color: #8b5222;
+  color: var(--c-accent-hover);
 }
 
 .action-btns {
-  display: flex;
-  gap: 4px;
+  display: inline-flex;
+  gap: var(--space-xs);
   align-items: center;
 }
 
@@ -327,47 +524,59 @@ body {
    ============================ */
 .status-dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   margin-right: 6px;
   vertical-align: middle;
 }
 
-.dot-green { background-color: #52c41a; }
-.dot-gray { background-color: #d9d9d9; }
-.dot-blue { background-color: #1890ff; }
-.dot-red { background-color: #e6393d; }
+.dot-green { background-color: var(--c-success); }
+.dot-gray { background-color: var(--c-text-3); }
+.dot-blue { background-color: var(--c-primary); }
+.dot-red { background-color: var(--cs-severe); }
+.dot-orange { background-color: var(--c-accent); }
 
 /* ============================
-   Status Tags
+   Status Tag (pill)
    ============================ */
 .status-tag {
-  display: inline-block;
-  padding: 1px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 11px;
   font-weight: 500;
+  letter-spacing: 0.02em;
+  background: var(--c-bg-alt);
+  color: var(--c-text-2);
+  white-space: nowrap;
 }
 
 .tag-green {
-  color: #52c41a;
-  background-color: #f6ffed;
+  color: #386b47;
+  background: color-mix(in oklch, var(--c-success) 12%, #fff);
 }
 
 .tag-red {
-  color: #e6393d;
-  background-color: #fff2f0;
+  color: var(--cs-severe);
+  background: color-mix(in oklch, var(--cs-severe) 10%, #fff);
 }
 
 .tag-blue {
-  color: #1565c0;
-  background-color: #e6f7ff;
+  color: var(--c-primary);
+  background: color-mix(in oklch, var(--c-primary) 10%, #fff);
+}
+
+.tag-orange {
+  color: var(--c-accent-text);
+  background: color-mix(in oklch, var(--c-accent) 12%, #fff);
 }
 
 .tag-gray {
-  color: #8c8c8c;
-  background-color: #f5f5f5;
+  color: var(--c-text-2);
+  background: var(--c-bg-alt);
 }
 
 /* ============================
@@ -375,87 +584,124 @@ body {
    ============================ */
 .empty-state {
   text-align: center;
-  padding: 48px 20px;
-  color: #8a8e99;
-  font-size: 14px;
+  padding: var(--space-4xl) var(--space-xl);
+  color: var(--c-text-3);
+  font-size: 13px;
+}
+
+.empty-state-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--c-text);
+  margin-bottom: var(--space-xs);
+}
+
+.empty-state-sub {
+  font-size: 13px;
+  color: var(--c-text-3);
 }
 
 /* ============================
-   Dialog (华为云弹窗)
+   Dialog
    ============================ */
 .dialog-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: color-mix(in oklch, var(--c-primary) 30%, transparent);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: dialog-fade-in 160ms ease-out;
 }
 
 .dialog-box {
   background: #fff;
   border-radius: 8px;
   width: 480px;
-  max-width: 90vw;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  max-width: 92vw;
+  box-shadow: 0 24px 64px -12px rgb(42 77 106 / 0.22),
+              0 8px 16px -8px rgb(42 77 106 / 0.08);
+  animation: dialog-scale-in 240ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .dialog-confirm {
-  width: 420px;
+  width: 440px;
 }
 
 .dialog-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: 20px 24px 16px;
+  gap: var(--space-md);
+  padding: var(--space-xl) var(--space-xl) var(--space-md);
 }
 
 .dialog-header h3 {
-  font-size: 16px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 500;
   color: var(--c-text);
   margin: 0;
+  line-height: 1.2;
 }
 
 .dialog-close {
   background: none;
   border: none;
-  font-size: 20px;
-  color: #8a8e99;
+  font-size: 22px;
+  color: var(--c-text-3);
   cursor: pointer;
-  padding: 0 4px;
+  padding: 0 var(--space-xs);
   line-height: 1;
+  transition: color 120ms ease-out;
 }
 
 .dialog-close:hover {
-  color: #191919;
+  color: var(--c-text);
 }
 
 .dialog-body {
-  padding: 0 24px 20px;
+  padding: 0 var(--space-xl) var(--space-lg);
+  font-size: 14px;
+  color: var(--c-text-2);
+  line-height: 1.6;
 }
 
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 16px 24px;
-  border-top: 1px solid #e8e8e8;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-xl) var(--space-xl);
 }
 
 .confirm-text {
   font-size: 14px;
-  color: #333;
+  color: var(--c-text);
   line-height: 1.6;
+}
+
+@keyframes dialog-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dialog-scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog-overlay, .dialog-box { animation: none; }
 }
 
 /* ============================
    Form
    ============================ */
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-lg);
 }
 
 .form-group:last-child {
@@ -464,60 +710,86 @@ body {
 
 .form-label {
   display: block;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--c-text-2);
-  margin-bottom: 8px;
-  font-weight: 400;
+  margin-bottom: var(--space-xs);
+  font-weight: 500;
 }
 
 .required {
-  color: #e6393d;
+  color: var(--cs-severe);
+  margin-left: 4px;
 }
 
 .form-input,
-.form-select {
+.form-select,
+.form-textarea {
   width: 100%;
-  height: 32px;
-  border: 1px solid #c2c6cc;
+  height: 34px;
+  border: 1px solid var(--c-border);
   border-radius: 4px;
-  padding: 0 12px;
-  font-size: 14px;
+  padding: 0 var(--space-md);
+  font-family: var(--font-sans);
+  font-size: 13px;
   color: var(--c-text);
-  outline: none;
-  transition: border-color 0.2s;
   background: #fff;
+  outline: none;
+  transition: border-color 160ms ease-out, box-shadow 160ms ease-out;
+}
+
+.form-textarea {
+  height: auto;
+  min-height: 84px;
+  padding: var(--space-sm) var(--space-md);
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.form-input:hover,
+.form-select:hover,
+.form-textarea:hover {
+  border-color: var(--c-text-3);
 }
 
 .form-input:focus,
-.form-select:focus {
+.form-select:focus,
+.form-textarea:focus {
   border-color: var(--c-accent);
-  box-shadow: 0 0 0 2px rgba(198, 125, 58, 0.1);
+  box-shadow: 0 0 0 3px rgb(from var(--c-accent) r g b / 0.15);
 }
 
-.form-input::placeholder {
-  color: #adb0b8;
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--c-text-3);
 }
 
 /* ============================
-   Search Input (华为云搜索栏)
+   Search Input
    ============================ */
 .search-input {
-  height: 32px;
-  border: 1px solid #c2c6cc;
+  height: 34px;
+  border: 1px solid var(--c-border);
   border-radius: 4px;
-  padding: 0 12px;
-  font-size: 14px;
+  padding: 0 var(--space-md);
+  font-family: var(--font-sans);
+  font-size: 13px;
   color: var(--c-text);
+  background: #fff;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 160ms ease-out, box-shadow 160ms ease-out;
+}
+
+.search-input:hover {
+  border-color: var(--c-text-3);
 }
 
 .search-input:focus {
   border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px rgb(from var(--c-accent) r g b / 0.15);
 }
 
 .search-input::placeholder {
-  color: #adb0b8;
+  color: var(--c-text-3);
 }
 
 /* ============================
@@ -525,50 +797,54 @@ body {
    ============================ */
 .copy-btn {
   background: none;
-  border: 1px solid #c2c6cc;
+  border: 1px solid var(--c-border);
   border-radius: 4px;
-  padding: 2px 10px;
-  font-size: 12px;
-  color: var(--c-accent-text);
+  padding: 2px var(--space-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--c-text-2);
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.2s;
+  transition: all 160ms ease-out;
 }
 
 .copy-btn:hover {
   border-color: var(--c-accent);
+  color: var(--c-accent-text);
   background-color: var(--c-accent-light);
 }
 
 /* ============================
-   Pagination (华为云分页)
+   Pagination
    ============================ */
 .pagination {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 16px;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-top: 1px solid var(--c-border-light);
 }
 
 .page-btn {
   background: #fff;
-  border: 1px solid #c2c6cc;
+  border: 1px solid var(--c-border);
   border-radius: 4px;
-  padding: 4px 10px;
+  padding: 4px var(--space-md);
   font-size: 12px;
-  color: #575d6c;
+  color: var(--c-text-2);
   cursor: pointer;
   min-width: 28px;
   height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 160ms ease-out;
+  font-variant-numeric: tabular-nums;
 }
 
 .page-btn:hover:not(:disabled) {
-  border-color: var(--c-accent-text);
+  border-color: var(--c-accent);
   color: var(--c-accent-text);
 }
 
@@ -579,121 +855,176 @@ body {
 
 .page-info {
   font-size: 12px;
-  color: #575d6c;
+  color: var(--c-text-3);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ============================
    Breadcrumb
    ============================ */
 .breadcrumb {
-  margin-bottom: 16px;
-  font-size: 14px;
-  color: #8a8e99;
+  margin-bottom: var(--space-lg);
+  font-size: 13px;
+  color: var(--c-text-3);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
 }
 
 .breadcrumb-link {
-  color: var(--c-accent-text);
+  color: var(--c-text-2);
   text-decoration: none;
+  transition: color 160ms ease-out;
 }
 
 .breadcrumb-link:hover {
+  color: var(--c-accent-text);
   text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .breadcrumb-sep {
-  margin: 0 8px;
-  color: #c2c6cc;
+  margin: 0 2px;
+  color: var(--c-border);
 }
 
 .breadcrumb-item.active {
-  color: #575d6c;
+  color: var(--c-text-2);
+  font-weight: 500;
 }
 
 /* ============================
-   Misc
+   Misc utility
    ============================ */
-.text-muted {
-  color: #c2c6cc;
+.text-muted { color: var(--c-text-3); }
+.text-primary { color: var(--c-primary); }
+.text-accent { color: var(--c-accent-text); }
+.text-danger { color: var(--cs-severe); }
+
+.duration-fast { color: var(--cs-normal); }
+.duration-medium { color: var(--cs-warn); }
+.duration-slow { color: var(--cs-severe); }
+
+.mono { font-family: var(--font-mono); }
+.display { font-family: var(--font-display); }
+.tabular { font-variant-numeric: tabular-nums; }
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--c-border-light);
+  margin: var(--space-xl) 0;
 }
 
-.duration-fast { color: #52c41a; }
-.duration-medium { color: #fa8c16; }
-.duration-slow { color: #e6393d; }
+/* ============================
+   Scrollbar
+   ============================ */
+.console-main::-webkit-scrollbar,
+.table-wrapper::-webkit-scrollbar,
+.dialog-body::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.console-main::-webkit-scrollbar-thumb,
+.table-wrapper::-webkit-scrollbar-thumb,
+.dialog-body::-webkit-scrollbar-thumb {
+  background: var(--c-border);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.console-main::-webkit-scrollbar-thumb:hover,
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--c-text-3);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+.console-main::-webkit-scrollbar-track,
+.table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
 
 /* ============================
-   Mobile Responsive
+   Mobile responsive
    ============================ */
 @media (max-width: 768px) {
   .page-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: var(--space-md);
+  }
+
+  .page-title {
+    font-size: 24px;
   }
 
   .page-header-actions {
     width: 100%;
-    gap: 12px;
-  }
-
-  .page-title {
-    font-size: 18px;
+    flex-wrap: wrap;
   }
 
   .status-bar {
     flex-wrap: wrap;
-    gap: 12px 20px;
-    padding: 12px 0;
+    gap: var(--space-md) var(--space-lg);
   }
 
-  .data-table th,
-  .data-table td {
-    padding: 10px 12px;
-    font-size: 13px;
+  .action-toolbar {
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  .action-toolbar .search-input {
+    width: 100% !important;
+  }
+
+  .data-table thead th,
+  .data-table tbody td {
+    padding: var(--space-md);
+    font-size: 12px;
   }
 
   .btn {
     height: 36px;
-    padding: 0 14px;
-    font-size: 14px;
   }
 
   .btn-small {
     height: 32px;
-    padding: 0 10px;
+  }
+
+  .form-input,
+  .form-select,
+  .form-textarea,
+  .search-input {
+    height: 36px;
   }
 
   .dialog-box {
     width: 92vw;
-    max-width: 92vw;
-  }
-
-  .dialog-confirm {
-    width: 92vw;
   }
 
   .dialog-header {
-    padding: 16px 16px 12px;
+    padding: var(--space-lg) var(--space-lg) var(--space-sm);
   }
 
   .dialog-body {
-    padding: 0 16px 16px;
+    padding: 0 var(--space-lg) var(--space-md);
   }
 
   .dialog-footer {
-    padding: 12px 16px;
+    padding: var(--space-md) var(--space-lg) var(--space-lg);
   }
 
-  .form-input,
-  .form-select {
-    height: 36px;
-    font-size: 15px;
+  .pagination {
+    flex-wrap: wrap;
+    justify-content: center;
   }
+}
 
-  .empty-state {
-    padding: 32px 16px;
-  }
-
-  .breadcrumb {
-    font-size: 13px;
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 22px;
   }
 }
