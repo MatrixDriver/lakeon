@@ -205,6 +205,84 @@ async def test_curate_allows_delete_page():
     assert result["status"] == "success"
 
 
+@pytest.mark.asyncio
+async def test_llm_max_tokens_is_treated_as_error_not_success():
+    llm = MagicMock()
+    llm.chat = AsyncMock(
+        return_value=_llm_response(
+            content="truncated partial answer", tool_calls=None, finish_reason="length"
+        )
+    )
+    api = _mock_api()
+
+    runner = AgentRunner(llm=llm, api=api, max_rounds=5)
+    result = await runner.run_ingest(
+        RunRequest(tenant_id="t1", kb_id="kb1", run_id="run_len", source="test", document_id="d1")
+    )
+
+    assert result["status"] == "error"
+    assert "max_tokens" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_done_with_sibling_tool_calls_runs_both():
+    llm = MagicMock()
+    llm.chat = AsyncMock(
+        return_value=_llm_response(
+            tool_calls=[
+                _tc("create_page", {"title": "Auth", "content": "body"}, call_id="c1"),
+                _tc("done", {"summary": "created + done in one response"}, call_id="c2"),
+            ]
+        )
+    )
+    api = _mock_api()
+
+    runner = AgentRunner(llm=llm, api=api, max_rounds=5)
+    result = await runner.run_ingest(
+        RunRequest(tenant_id="t1", kb_id="kb1", run_id="run_dc", source="test", document_id="d1")
+    )
+
+    # Both calls should be executed even though they're in the same response
+    api.create_page.assert_awaited_once_with("t1", "kb1", "Auth", "body", [])
+    assert result["pages_created"] == 1
+    assert result["status"] == "success"
+    assert result["summary"] == "created + done in one response"
+
+
+@pytest.mark.asyncio
+async def test_counts_are_unique_titles_not_events():
+    llm = MagicMock()
+    llm.chat = AsyncMock(
+        side_effect=[
+            _llm_response(
+                tool_calls=[
+                    _tc("update_page", {"title": "Auth", "old_text": "x", "new_text": "y"}, call_id="c1")
+                ]
+            ),
+            _llm_response(
+                tool_calls=[
+                    _tc("update_page", {"title": "Auth", "old_text": "y", "new_text": "z"}, call_id="c2")
+                ]
+            ),
+            _llm_response(
+                tool_calls=[
+                    _tc("update_page", {"title": "Sharding", "old_text": "a", "new_text": "b"}, call_id="c3")
+                ]
+            ),
+            _llm_response(tool_calls=[_tc("done", {"summary": "ok"})]),
+        ]
+    )
+    api = _mock_api()
+
+    runner = AgentRunner(llm=llm, api=api, max_rounds=10)
+    result = await runner.run_ingest(
+        RunRequest(tenant_id="t1", kb_id="kb1", run_id="run_u", source="test", document_id="d1")
+    )
+
+    # Auth updated twice, Sharding once → 2 unique pages, not 3 events
+    assert result["pages_updated"] == 2
+
+
 def test_new_run_id_is_unique():
     a = new_run_id()
     b = new_run_id()

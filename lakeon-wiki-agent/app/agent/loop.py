@@ -4,10 +4,11 @@ The runner is stateless; you construct it once with an LlmClient + LakeonApiClie
 and then call `run_ingest` / `run_curate` / `run_lint` per request. Each call
 handles its own run log write so the caller just needs to interpret the result.
 """
+import dataclasses
 import json
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from ulid import ULID
@@ -30,19 +31,32 @@ class RunRequest:
     source: str                    # queue | mcp | manual | curate-auto
     document_id: str | None = None
     run_type: str = "ingest"       # ingest | curate | lint
+    # TODO(task-2.8): used by the /v1/wiki/* API routes to POST completion callback
     callback_url: str | None = None
 
 
 @dataclass
 class RunResult:
     status: str = "running"        # running | success | max_rounds_exceeded | error
-    pages_created: int = 0
-    pages_updated: int = 0
-    pages_deleted: int = 0
+    created_titles: set[str] = field(default_factory=set)
+    updated_titles: set[str] = field(default_factory=set)
+    deleted_titles: set[str] = field(default_factory=set)
     tool_calls_count: int = 0
     token_count: int = 0
     error: str | None = None
     summary: str | None = None
+
+    @property
+    def pages_created(self) -> int:
+        return len(self.created_titles)
+
+    @property
+    def pages_updated(self) -> int:
+        return len(self.updated_titles)
+
+    @property
+    def pages_deleted(self) -> int:
+        return len(self.deleted_titles)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -101,6 +115,11 @@ LINT_SYSTEM_PROMPT = """你是一个 wiki lint agent。
 3. 逐页 read_page，识别问题。
 4. 用 update_page / delete_page 修复。
 5. log_note 总结，done。
+
+硬性规则：
+- 每次 lint 最多变更 ~10 页；避免大刀阔斧重写整个 wiki。
+- 只修可证明的问题（死链、格式、空页），不做主观"这页写得不够好"的改写。
+- 所有页面正文使用简体中文。
 """
 
 
@@ -123,15 +142,18 @@ class AgentRunner:
         self._max_tool_result_chars = max_tool_result_chars
 
     async def run_ingest(self, req: RunRequest) -> dict[str, Any]:
-        req.run_type = "ingest"
+        if req.run_type != "ingest":
+            req = dataclasses.replace(req, run_type="ingest")
         return await self._run(req, INGEST_SYSTEM_PROMPT, forbid=INGEST_FORBIDDEN)
 
     async def run_curate(self, req: RunRequest) -> dict[str, Any]:
-        req.run_type = "curate"
+        if req.run_type != "curate":
+            req = dataclasses.replace(req, run_type="curate")
         return await self._run(req, CURATE_SYSTEM_PROMPT, forbid=set())
 
     async def run_lint(self, req: RunRequest) -> dict[str, Any]:
-        req.run_type = "lint"
+        if req.run_type != "lint":
+            req = dataclasses.replace(req, run_type="lint")
         return await self._run(req, LINT_SYSTEM_PROMPT, forbid=set())
 
     async def _run(
@@ -156,6 +178,11 @@ class AgentRunner:
                 tool_calls = msg.get("tool_calls") or []
 
                 if not tool_calls:
+                    finish_reason = llm_resp.get("finish_reason")
+                    if finish_reason == "length":
+                        result.status = "error"
+                        result.error = "llm hit max_tokens without calling done()"
+                        break
                     # Plain content response — treat as implicit done
                     result.status = "success"
                     result.summary = msg.get("content") or ""
@@ -163,22 +190,30 @@ class AgentRunner:
 
                 messages.append(msg)
 
+                # Separate done from other tools so we can execute real work first
+                done_call = None
+                regular_calls = []
                 for tc in tool_calls:
+                    if tc["function"]["name"] == "done":
+                        done_call = tc
+                    else:
+                        regular_calls.append(tc)
+
+                for tc in regular_calls:
                     name = tc["function"]["name"]
                     try:
                         args = json.loads(tc["function"]["arguments"] or "{}")
-                    except json.JSONDecodeError:
-                        args = {}
-                    result.tool_calls_count += 1
-
-                    if name == "done":
-                        result.status = "success"
-                        result.summary = args.get("summary", "")
+                    except json.JSONDecodeError as e:
                         messages.append(
-                            self._tool_message(tc["id"], {"ok": True, "acknowledged": True})
+                            self._tool_message(
+                                tc["id"],
+                                {"ok": False, "error": f"invalid JSON in arguments: {e}"},
+                            )
                         )
-                        should_stop = True
-                        break
+                        result.tool_calls_count += 1
+                        continue
+
+                    result.tool_calls_count += 1
 
                     if name in forbid:
                         log.warning(
@@ -196,8 +231,21 @@ class AgentRunner:
                         continue
 
                     tool_result = await self._execute_tool(req, name, args)
-                    self._track_counts(result, name, tool_result)
+                    self._track_counts(result, name, args, tool_result)
                     messages.append(self._tool_message(tc["id"], tool_result))
+
+                if done_call is not None:
+                    try:
+                        done_args = json.loads(done_call["function"]["arguments"] or "{}")
+                    except json.JSONDecodeError:
+                        done_args = {}
+                    result.tool_calls_count += 1
+                    result.status = "success"
+                    result.summary = done_args.get("summary", "")
+                    messages.append(
+                        self._tool_message(done_call["id"], {"ok": True, "acknowledged": True})
+                    )
+                    should_stop = True
 
                 if should_stop:
                     break
@@ -251,17 +299,21 @@ class AgentRunner:
             "content": content,
         }
 
-    def _track_counts(self, result: RunResult, name: str, tool_result: Any) -> None:
-        if not isinstance(tool_result, dict):
+    def _track_counts(
+        self, result: RunResult, name: str, args: dict, tool_result: Any
+    ) -> None:
+        """Track unique pages touched (not event count)."""
+        if not isinstance(tool_result, dict) or not tool_result.get("ok"):
             return
-        if not tool_result.get("ok"):
+        title = args.get("title", "")
+        if not title:
             return
         if name == "create_page":
-            result.pages_created += 1
+            result.created_titles.add(title)
         elif name in ("update_page", "append_page"):
-            result.pages_updated += 1
+            result.updated_titles.add(title)
         elif name == "delete_page":
-            result.pages_deleted += 1
+            result.deleted_titles.add(title)
 
     async def _execute_tool(
         self, req: RunRequest, name: str, args: dict[str, Any]
