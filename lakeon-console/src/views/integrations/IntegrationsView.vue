@@ -14,8 +14,8 @@
 
         <p class="ppage-manifesto-lede">
           {{ t(
-            '装上 dbay-cli，用一行命令把 MCP 注册到你正在用的 Agent，创建一个记忆库 — 从此 Claude Code / Cursor / Cline / Gemini CLI / Claude Desktop 都可以读写同一套 DBay 记忆和知识。',
-            'Install dbay-cli, register the MCP with the agent you already use, create a memory base — and from that point on, Claude Code, Cursor, Cline, Gemini CLI, and Claude Desktop all read and write the same DBay memory and knowledge.'
+            '装上 dbay-cli，用一行命令把 MCP 注册到你正在用的 Agent，创建一个记忆库 —— 从此 Claude Code / Cursor / Cline / Gemini CLI / OpenClaw 都可以读写同一套 DBay 记忆和知识。无论你接的是哪一家 Agent，数据都在你这边，不在任何一家 Agent 厂家那边。',
+            'Install dbay-cli, register the MCP with the agent you already use, create a memory base — and from that point on, Claude Code, Cursor, Cline, Gemini CLI, and OpenClaw all read and write the same DBay memory and knowledge. Whichever agent you plug in, the data stays on your side, not on any vendor\'s.'
           ) }}
         </p>
       </div>

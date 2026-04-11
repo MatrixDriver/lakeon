@@ -6,15 +6,19 @@
     <section class="screen screen-01">
       <div class="screen-inner">
         <h1 class="hero-title">
-          <span class="hero-line-1">{{ t('Agent 的数据层', 'The data layer for agents') }}</span>
-          <span class="hero-line-2">{{ t('不应该是四个产品的拼图。', "shouldn't be a jigsaw of four products.") }}</span>
+          <span class="hero-line-1">{{ t('你的 Agent 越来越懂你。', 'Your agent is getting to know you.') }}</span>
+          <span class="hero-line-2">{{ t('这份"懂"，应该归你自己。', 'That knowing should belong to you.') }}</span>
         </h1>
 
         <p class="hero-lede">
           {{ t(
-            '过去你要找 4 个组件，自己拼装 Agent 的状态库、知识库、记忆库，还得自己做数据库到数据湖之间的数据同步和加工，把一堆数据工具粘在一起。DBay 让这四件事发生在同一套基础设施上 — 弹性秒级扩缩、完全托管免运维，Agent 可以大胆探索试错，也能从任意断点恢复继续执行。',
-            'The old way to build a real agent: you stitch together four components — a state store, a knowledge store, a memory layer — and you also build your own pipeline from the database into a data lake so batch jobs can process it. DBay runs all four on the same foundation: elastic scaling, fully managed, zero ops. Agents can explore and try things freely, and resume from any checkpoint.'
+            'OpenClaw 有一份 Memory，Claude 有一份 Projects，Cursor 有一份 context —— 你每换一个 Agent，都得从零开始。DBay 反过来：它是你自己的记忆库和知识库，任何 Agent 都可以接上，但数据始终属于你。',
+            'OpenClaw has its own Memory. Claude has its own Projects. Cursor has its own context. Every time you switch agents, you start over. DBay flips it: your memory and knowledge live in your own place, any agent can plug in, and the data always belongs to you.'
           ) }}
+        </p>
+
+        <p class="hero-refrain">
+          <em>{{ t('在你这边。', 'On your side.') }}</em>
         </p>
 
         <div class="hero-ctas">
@@ -31,6 +35,59 @@
           <router-link to="/integrations" class="shortcut-link">
             Claude Code · Cursor · Cline · Gemini CLI — {{ t('集成指引', 'integration guide') }} →
           </router-link>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════
+         Screen "Ownership" · 在你这边
+         ══════════════════════════════════════════ -->
+    <section class="screen screen-ownership">
+      <div class="screen-inner">
+        <div class="own-header">
+          <span class="own-eyebrow">{{ t('立场', 'Our stance') }}</span>
+          <h2 class="own-title">{{ t('在你这边。', 'On your side.') }}</h2>
+          <p class="own-lede">
+            {{ t(
+              'Agent 厂家越来越大，他们在你身上学到的也越来越多。这些"学到的"应该在哪一边？DBay 选一边。',
+              'Agent vendors keep getting bigger, and they keep learning more about you. Which side should all of that live on? DBay picked a side.'
+            ) }}
+          </p>
+        </div>
+
+        <div class="own-cards">
+          <article class="own-card">
+            <div class="own-card-num">01</div>
+            <h3 class="own-card-title">{{ t('钥匙在你手里', 'You hold the key') }}</h3>
+            <p class="own-card-body">
+              {{ t(
+                '你的记忆在离开你电脑之前就加密好了（基于公私钥的信封加密），私钥只在你手里。DBay 的服务器只看到一堆密文——就算数据库被人搬走，也还原不了。',
+                "Your memory is encrypted before it ever leaves your machine (envelope encryption with a public/private key pair). The private key stays with you. DBay's servers only see ciphertext — a stolen database reveals nothing."
+              ) }}
+            </p>
+          </article>
+
+          <article class="own-card">
+            <div class="own-card-num">02</div>
+            <h3 class="own-card-title">{{ t('你的知识，不是我们的语料', 'Your knowledge is not our training data') }}</h3>
+            <p class="own-card-body">
+              {{ t(
+                '你上传的文档、沉淀的 wiki、积累的记忆，都是你个人的东西。我们不拿去训模型，不跨账户汇总，不给第三方（你的数据存在你自己的隔离数据库里）。',
+                'The documents you upload, the wiki you settle into, the memory you accumulate — they are yours alone. We do not train models on them, do not aggregate across accounts, do not share with third parties. Your data lives in its own isolated database.'
+              ) }}
+            </p>
+          </article>
+
+          <article class="own-card">
+            <div class="own-card-num">03</div>
+            <h3 class="own-card-title">{{ t('接谁由你决定', 'You decide which agents plug in') }}</h3>
+            <p class="own-card-body">
+              {{ t(
+                'DBay 通过 MCP 被任何 Agent 接上 —— Claude Code · Cursor · Cline · OpenClaw。换 Agent 不丢数据，因为数据从来就不在 Agent 那边。',
+                'DBay connects to any agent over MCP — Claude Code, Cursor, Cline, OpenClaw. Switch agents without losing anything, because the data was never on the agent side to begin with.'
+              ) }}
+            </p>
+          </article>
         </div>
       </div>
     </section>
@@ -433,8 +490,8 @@
           </h2>
           <p class="section-prose">
             {{ t(
-              'Memory 和 Knowledge 只是 DBay 四种能力中的两种。全部四种，长在同一套底座上。',
-              'Memory and Knowledge are two of DBay\'s four capabilities. All four sit on the same foundation.'
+              'Memory 和 Knowledge 只是 DBay 四种能力中的两种。全部四种，长在同一套底座上——而这套底座属于你自己。',
+              'Memory and Knowledge are two of DBay\'s four capabilities. All four sit on the same foundation — and that foundation is yours.'
             ) }}
           </p>
         </div>
@@ -653,28 +710,49 @@ async function startTrial() {
   position: relative;
 }
 
-.hero-line-2 {
-  white-space: nowrap;
-}
-
 .hero-line-1,
 .hero-line-2 {
   display: block;
 }
 
 .hero-line-2 {
-  color: var(--c-text);
+  color: var(--c-accent-text);
 }
 
 .hero-lede {
   font-family: var(--font-display);
   font-weight: 400;
   font-size: clamp(18px, 2vw, 26px);
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--c-text-2);
-  margin: 0 0 clamp(32px, 4vw, 56px);
+  margin: 0 0 clamp(20px, 2.5vw, 32px);
   max-width: 62ch;
   position: relative;
+}
+
+.hero-refrain {
+  font-family: var(--font-display);
+  font-size: clamp(15px, 1.5vw, 18px);
+  line-height: 1;
+  color: var(--c-accent-text);
+  margin: 0 0 clamp(32px, 4vw, 56px);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.hero-refrain::before {
+  content: '';
+  width: clamp(24px, 3vw, 40px);
+  height: 1px;
+  background: var(--c-accent);
+}
+
+.hero-refrain em {
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0.02em;
 }
 
 .hero-ctas {
@@ -774,6 +852,93 @@ async function startTrial() {
 
 .shortcut-link:hover {
   color: var(--c-accent-hover);
+}
+
+/* ══════════════════════════════════════════
+   Screen Ownership · 在你这边
+   ══════════════════════════════════════════ */
+.screen-ownership {
+  background: #fff;
+}
+
+.screen-ownership .screen-inner {
+  max-width: 1200px;
+}
+
+.own-header {
+  max-width: 720px;
+  margin: 0 0 clamp(56px, 7vw, 96px);
+}
+
+.own-eyebrow {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--c-accent-text);
+  margin-bottom: var(--space-lg);
+}
+
+.own-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(40px, 5vw, 72px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--c-primary);
+  margin: 0 0 var(--space-xl);
+}
+
+.own-lede {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(18px, 2vw, 24px);
+  line-height: 1.55;
+  color: var(--c-text-2);
+  max-width: 62ch;
+  margin: 0;
+}
+
+.own-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(24px, 3vw, 48px);
+}
+
+.own-card {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(28px, 3vw, 40px) 0 0;
+  border-top: 1px solid var(--c-border);
+}
+
+.own-card-num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--c-accent-text);
+  margin-bottom: var(--space-lg);
+}
+
+.own-card-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(22px, 2.2vw, 28px);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--c-primary);
+  margin: 0 0 var(--space-md);
+}
+
+.own-card-body {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--c-text-2);
+  margin: 0;
 }
 
 /* ══════════════════════════════════════════
@@ -1484,6 +1649,10 @@ async function startTrial() {
    Responsive
    ══════════════════════════════════════════ */
 @media (max-width: 900px) {
+  .own-cards {
+    grid-template-columns: 1fr;
+  }
+
   .working-learning-diagram {
     grid-template-columns: 1fr;
   }

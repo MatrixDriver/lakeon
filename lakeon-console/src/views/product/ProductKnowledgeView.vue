@@ -14,8 +14,8 @@
 
         <p class="ppage-manifesto-lede">
           {{ t(
-            'LLM 擅长读 wiki 条目，不擅长拼 chunk。DBay Knowledge 把你的源文档提炼成一本结构化 wiki：Agent 读条目不读片段，用户问问题顺便反哺新条目，知识只增不减。',
-            'LLMs are good at reading wiki entries and bad at stitching chunks. DBay Knowledge distills your source documents into a structured wiki: agents read entries, not fragments. Users ask questions; the answers become new entries. Knowledge only grows.'
+            'LLM 擅长读 wiki 条目，不擅长拼 chunk。DBay Knowledge 把你的源文档提炼成一本结构化 wiki：Agent 读条目不读片段，用户问问题顺便反哺新条目，知识只增不减。你的文档进来是你的 wiki——不是我们的训练语料。',
+            'LLMs are good at reading wiki entries and bad at stitching chunks. DBay Knowledge distills your source documents into a structured wiki: agents read entries, not fragments. Users ask questions; the answers become new entries. Knowledge only grows. Documents you upload become your wiki — not our training data.'
           ) }}
         </p>
       </div>

@@ -13,8 +13,8 @@
 
         <p class="ppage-manifesto-lede">
           {{ t(
-            '不是一个被动的 KV 存储。DBay Memory 每晚 digest 最近的对话，抽出你的开发偏好、架构倾向、决策风格。几天后打开 Memory 面板，你会看到它自动积累出的"你是谁"。跨 Agent 共享，本地加密，即使数据库被拖走也无法还原。',
-            "Not a passive KV store. DBay Memory digests your conversations every night, extracts your coding preferences, architectural leanings, and decision style. A few days in, open the Memory panel and you'll see it's quietly written down who you are. Shared across agents, locally encrypted — even a full database leak stays unreadable."
+            '不是一个被动的 KV 存储。DBay Memory 每晚 digest 最近的对话，提炼出你的开发偏好、架构倾向、决策风格。几天后打开 Memory 面板，你会看到它自动积累出的"你是谁"。跨 Agent 共享——但这份"你是谁"只属于你。钥匙在你手里，服务器只看得到密文。',
+            "Not a passive KV store. DBay Memory digests your conversations every night and distills your coding preferences, architectural leanings, and decision style. A few days in, open the Memory panel and you'll see it's quietly written down who you are. Shared across agents — but this picture of who you are belongs only to you. You hold the key. The server only sees ciphertext."
           ) }}
         </p>
       </div>

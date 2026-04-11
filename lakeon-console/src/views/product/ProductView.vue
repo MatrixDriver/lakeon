@@ -7,14 +7,14 @@
         <div class="ppage-eyebrow">{{ t('产品介绍', 'Products') }}</div>
 
         <h1 class="ppage-manifesto-title">
-          <span class="po-title-a">{{ t('四件事，', 'Four things,') }}</span>
-          <span class="po-title-b">{{ t('一套基础设施。', 'one foundation.') }}</span>
+          <span class="po-title-a">{{ t('四件事，一套底座。', 'Four things, one foundation.') }}</span>
+          <span class="po-title-b">{{ t('全部属于你自己。', 'All of it yours.') }}</span>
         </h1>
 
         <p class="ppage-manifesto-lede">
           {{ t(
-            'DBay 是 Agent 工作态和学习态的数据基础设施。Agent 运行时读写事务、召回记忆、搜索知识；Agent 学习时反刍对话、跑批处理、沉淀新知。这四件事，DBay 让它们发生在同一套底座上。',
-            "DBay is the data foundation for the agent runtime and the learning phase. At runtime your agent reads transactions, recalls memory, searches knowledge. Between runs it digests conversations, runs batch jobs, and lays down new knowledge. All four on a single foundation."
+            'DBay 是 Agent 工作态和学习态的数据底座。运行时读写事务、召回记忆、搜索知识；学习时提炼对话、跑批处理、沉淀新知。这四件事长在同一套底座上——而这套底座属于你，不属于任何一家 Agent 厂家。',
+            "DBay is the data foundation for both the agent runtime and the learning phase. At runtime your agent reads transactions, recalls memory, searches knowledge. Between runs it digests conversations, runs batch jobs, and settles new knowledge. All four on the same foundation — and that foundation belongs to you, not to any agent vendor."
           ) }}
         </p>
       </div>

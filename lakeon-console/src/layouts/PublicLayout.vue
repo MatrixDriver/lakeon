@@ -32,6 +32,14 @@
     </nav>
 
     <router-view />
+
+    <div class="pub-signature">
+      <div class="pub-signature-inner">
+        <span class="pub-signature-mark" aria-hidden="true"></span>
+        <span class="pub-signature-refrain">{{ t('在你这边。', 'On your side.') }}</span>
+        <span class="pub-signature-sub">{{ t('你的记忆，你的知识，你的选择。', 'Your memory. Your knowledge. Yours.') }}</span>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -218,5 +226,42 @@ async function handleNavTrial() {
   .pub-nav-links { display: none; }
   .hamburger { display: flex; }
   .pub-brand-tag { display: none; }
+}
+
+.pub-signature {
+  background: #fff;
+  border-top: 1px solid var(--c-border-light);
+  padding: clamp(48px, 6vw, 80px) clamp(20px, 3vw, 40px);
+}
+.pub-signature-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: clamp(16px, 2.5vw, 28px);
+  flex-wrap: wrap;
+}
+.pub-signature-mark {
+  display: inline-block;
+  width: clamp(40px, 5vw, 64px);
+  height: 1px;
+  background: var(--c-accent);
+}
+.pub-signature-refrain {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(20px, 2vw, 28px);
+  letter-spacing: 0.01em;
+  color: var(--c-accent-text);
+}
+.pub-signature-sub {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--c-text-3);
+  letter-spacing: 0.02em;
+}
+@media (max-width: 600px) {
+  .pub-signature-sub { flex-basis: 100%; }
 }
 </style>
