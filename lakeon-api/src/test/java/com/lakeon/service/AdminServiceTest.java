@@ -1,6 +1,9 @@
 package com.lakeon.service;
 
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.knowledge.DocumentRepository;
+import com.lakeon.knowledge.KnowledgeBaseRepository;
+import com.lakeon.memory.MemoryBaseRepository;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.OperationLogEntity;
 import com.lakeon.model.entity.TenantEntity;
@@ -45,6 +48,9 @@ class AdminServiceTest {
     @Mock private UsageMeteringService usageMeteringService;
     @Mock private KubernetesClient kubernetesClient;
     @Mock private CbcBillingService cbcBillingService;
+    @Mock private KnowledgeBaseRepository knowledgeBaseRepository;
+    @Mock private DocumentRepository documentRepository;
+    @Mock private MemoryBaseRepository memoryBaseRepository;
 
     private MeterRegistry meterRegistry;
     private LakeonProperties props;
@@ -77,7 +83,8 @@ class AdminServiceTest {
         adminService = new AdminService(
                 tenantRepository, databaseRepository, branchRepository,
                 operationLogRepository, neonApiClient, props, dataSource, usageMeteringService,
-                meterRegistry, kubernetesClient, cbcBillingService);
+                meterRegistry, kubernetesClient, cbcBillingService,
+                knowledgeBaseRepository, documentRepository, memoryBaseRepository);
     }
 
     @Nested
