@@ -70,3 +70,4 @@ KUBECONFIG=~/.kube/cce-lakeon-config kubectl rollout restart deployment/lakeon-a
 - **测试租户**: E2E 测试创建临时租户，测试后自动清理
 - **不做抛弃型方案**: 瞄准目标方案分阶段做
 - **设计偏好**: 优雅舒适暖色调 (港湾风格)，不要 emoji 和通用 AI 模板风格
+- **Design Context**: 前端设计的详细规范（品牌气质、字体、色彩、禁区、双端一致性）见项目根目录 `.impeccable.md`。任何界面工作前必须先读取该文件。

@@ -30,7 +30,11 @@
       "mcp__dbay-sre-mcp__log_errors",
       "mcp__dbay-sre-mcp__log_stats",
       "WebFetch(domain:gist.github.com)",
-      "WebFetch(domain:louiswang524.github.io)"
+      "WebFetch(domain:louiswang524.github.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "mcp__plugin_playwright_playwright__browser_resize",
+      "mcp__plugin_playwright_playwright__browser_close",
+      "mcp__plugin_playwright_playwright__browser_console_messages"
     ]
   }
 }
