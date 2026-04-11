@@ -48,6 +48,7 @@ public class KbWriteQueue {
     private final JobService jobService;
     private final SummaryService summaryService;
     private final WikiService wikiService;
+    private final WikiAgentClient wikiAgentClient;
     private final LakeonProperties props;
     private final ObjectMapper objectMapper;
     @org.springframework.beans.factory.annotation.Value("${lakeon.job.callback-base-url:}")
@@ -76,6 +77,7 @@ public class KbWriteQueue {
                          @Lazy JobService jobService,
                          SummaryService summaryService,
                          @Lazy WikiService wikiService,
+                         WikiAgentClient wikiAgentClient,
                          LakeonProperties props,
                          ObjectMapper objectMapper) {
         this.taskRepository = taskRepository;
@@ -87,6 +89,7 @@ public class KbWriteQueue {
         this.jobService = jobService;
         this.summaryService = summaryService;
         this.wikiService = wikiService;
+        this.wikiAgentClient = wikiAgentClient;
         this.props = props;
         this.objectMapper = objectMapper;
     }
@@ -954,7 +957,16 @@ public class KbWriteQueue {
         String tenantId = (String) params.get("tenant_id");
         String kbId = (String) params.get("kb_id");
         String documentId = (String) params.get("document_id");
-        wikiService.processIngest(tenantId, kbId, documentId);
+        String taskId = wikiAgentClient.triggerIngest(tenantId, kbId, documentId);
+        if (taskId == null) {
+            // Agent unreachable / returned error — do NOT throw. One outage should
+            // not jam the queue. WikiAgentClient already logged the reason at WARN.
+            log.warn("Wiki agent rejected ingest for doc {} in KB {}; skipping this task",
+                    documentId, kbId);
+        } else {
+            log.info("Dispatched wiki agent ingest task={} for doc {} in KB {}",
+                    taskId, documentId, kbId);
+        }
     }
 
     @SuppressWarnings("unchecked")
