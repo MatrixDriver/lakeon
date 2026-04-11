@@ -160,4 +160,151 @@ public class WikiToolService {
         }
         return s;
     }
+
+    // ── Write tools ─────────────────────────────────────────────
+
+    /**
+     * Create a new wiki page. Refuses if a page with the same (case-insensitive) title exists.
+     * The first non-blank line of content is stored as metadata["summary"] so listPages can
+     * surface it without reading the full body.
+     */
+    public Map<String, Object> createPage(String tenantId, String kbId, String title,
+                                          String content, List<String> tags) {
+        if (title == null || title.isBlank() || content == null || content.isBlank()) {
+            return Map.of("ok", false, "error", "title and content are required");
+        }
+        String filename = WikiService.titleToFilename(title);
+        if (RESERVED_FILENAMES.contains(filename)) {
+            return Map.of("ok", false, "error", "reserved filename: " + filename);
+        }
+        if (wikiService.readWikiPage(tenantId, kbId, filename) != null) {
+            return Map.of("ok", false, "error", "page already exists: " + title);
+        }
+        wikiService.writeWikiDocument(tenantId, kbId, filename, title, content);
+        // Store a short summary in metadata so listPages/searchPages can surface it
+        storeSummary(tenantId, kbId, filename, firstNonBlankLine(content, 200));
+        log.info("Agent created wiki page {} in KB {}", title, kbId);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("ok", true);
+        result.put("filename", filename);
+        return result;
+    }
+
+    /**
+     * Update a wiki page by exact substring replacement. old_text must match exactly once.
+     */
+    public Map<String, Object> updatePage(String tenantId, String kbId, String title,
+                                          String oldText, String newText) {
+        if (title == null || title.isBlank() || oldText == null || oldText.isEmpty()) {
+            return Map.of("ok", false, "error", "title and old_text are required");
+        }
+        String filename = WikiService.titleToFilename(title);
+        String current = wikiService.readWikiPage(tenantId, kbId, filename);
+        if (current == null) {
+            return Map.of("ok", false, "error", "page not found: " + title);
+        }
+        int occurrences = countOccurrences(current, oldText);
+        if (occurrences == 0) {
+            return Map.of("ok", false, "error", "old_text not found in " + title);
+        }
+        if (occurrences > 1) {
+            return Map.of("ok", false, "error",
+                    "old_text matches " + occurrences + " places; add more context");
+        }
+        String updated = current.replace(oldText, newText == null ? "" : newText);
+        wikiService.writeWikiDocument(tenantId, kbId, filename, title, updated);
+        log.info("Agent updated wiki page {} in KB {}", title, kbId);
+        return Map.of("ok", true);
+    }
+
+    /**
+     * Append content to the end of an existing wiki page.
+     */
+    public Map<String, Object> appendPage(String tenantId, String kbId, String title, String content) {
+        if (title == null || title.isBlank() || content == null || content.isBlank()) {
+            return Map.of("ok", false, "error", "title and content are required");
+        }
+        String filename = WikiService.titleToFilename(title);
+        String current = wikiService.readWikiPage(tenantId, kbId, filename);
+        if (current == null) {
+            return Map.of("ok", false, "error", "page not found: " + title);
+        }
+        String updated = current + "\n\n" + content;
+        wikiService.writeWikiDocument(tenantId, kbId, filename, title, updated);
+        log.info("Agent appended to wiki page {} in KB {}", title, kbId);
+        return Map.of("ok", true);
+    }
+
+    /**
+     * Delete a wiki page. Refuses to delete reserved files (schema.md, index.md, log.md).
+     */
+    public Map<String, Object> deletePage(String tenantId, String kbId, String title) {
+        if (title == null || title.isBlank()) {
+            return Map.of("ok", false, "error", "title is required");
+        }
+        String filename = WikiService.titleToFilename(title);
+        if (RESERVED_FILENAMES.contains(filename)) {
+            return Map.of("ok", false, "error", "cannot delete reserved file: " + filename);
+        }
+        Optional<DocumentEntity> docOpt = documentRepository.findByTypeAndFilename(
+                tenantId, kbId, DOC_TYPE_WIKI, filename);
+        if (docOpt.isEmpty()) {
+            return Map.of("ok", false, "error", "page not found: " + title);
+        }
+        documentRepository.delete(docOpt.get());
+        log.info("Agent deleted wiki page {} in KB {}", title, kbId);
+        return Map.of("ok", true);
+    }
+
+    /**
+     * Append a line to the KB's log.md.
+     */
+    public Map<String, Object> logNote(String tenantId, String kbId, String message) {
+        if (message == null || message.isBlank()) {
+            return Map.of("ok", false, "error", "message is required");
+        }
+        wikiService.appendToLog(tenantId, kbId, message);
+        return Map.of("ok", true);
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────
+
+    private static int countOccurrences(String haystack, String needle) {
+        if (haystack == null || needle == null || needle.isEmpty()) return 0;
+        int count = 0, idx = 0;
+        while ((idx = haystack.indexOf(needle, idx)) != -1) {
+            count++;
+            idx += needle.length();
+        }
+        return count;
+    }
+
+    private static String firstNonBlankLine(String content, int max) {
+        if (content == null) return "";
+        for (String line : content.split("\\R")) {
+            String trimmed = line.strip();
+            if (trimmed.isBlank()) continue;
+            // Strip leading markdown heading markers
+            trimmed = trimmed.replaceAll("^#+\\s*", "");
+            if (trimmed.isBlank()) continue;
+            return trimmed.length() > max ? trimmed.substring(0, max) : trimmed;
+        }
+        return "";
+    }
+
+    private void storeSummary(String tenantId, String kbId, String filename, String summary) {
+        try {
+            Optional<DocumentEntity> docOpt = documentRepository.findByTypeAndFilename(
+                    tenantId, kbId, DOC_TYPE_WIKI, filename);
+            docOpt.ifPresent(doc -> {
+                if (doc.getMetadata() == null) {
+                    doc.setMetadata(new LinkedHashMap<>());
+                }
+                doc.getMetadata().put("summary", summary);
+                documentRepository.save(doc);
+            });
+        } catch (Exception e) {
+            log.warn("Failed to store summary for {}: {}", filename, e.getMessage());
+        }
+    }
 }

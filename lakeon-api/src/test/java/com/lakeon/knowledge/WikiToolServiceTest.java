@@ -11,6 +11,9 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class WikiToolServiceTest {
@@ -162,6 +165,94 @@ class WikiToolServiceTest {
         when(wikiService.readWikiPage("t1", "kb1", "schema.md")).thenReturn("# Schema\n\nFoo");
 
         assertEquals("# Schema\n\nFoo", tool.getSchema("t1", "kb1"));
+    }
+
+    @Test
+    void createPageRejectsDuplicate() {
+        when(wikiService.readWikiPage("t1", "kb1", "auth.md")).thenReturn("existing body");
+
+        Map<String, Object> r = tool.createPage("t1", "kb1", "auth", "new body", List.of());
+
+        assertEquals(false, r.get("ok"));
+        verify(wikiService, never()).writeWikiDocument(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void createPageRejectsReserved() {
+        Map<String, Object> r = tool.createPage("t1", "kb1", "schema", "body", List.of());
+        assertEquals(false, r.get("ok"));
+        verify(wikiService, never()).writeWikiDocument(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void createPageWritesWhenNew() {
+        when(wikiService.readWikiPage("t1", "kb1", "sharding.md")).thenReturn(null);
+        when(documentRepository.findByTypeAndFilename("t1", "kb1", "wiki", "sharding.md"))
+            .thenReturn(Optional.empty());
+
+        Map<String, Object> r = tool.createPage("t1", "kb1", "Sharding",
+                "# Database Sharding\n\nSharding splits data across multiple databases.",
+                List.of());
+
+        assertEquals(true, r.get("ok"));
+        verify(wikiService).writeWikiDocument(eq("t1"), eq("kb1"), eq("sharding.md"),
+                                              eq("Sharding"), anyString());
+    }
+
+    @Test
+    void updatePageRefusesAmbiguousMatch() {
+        when(wikiService.readWikiPage("t1", "kb1", "auth.md")).thenReturn("foo x foo y foo z");
+
+        Map<String, Object> r = tool.updatePage("t1", "kb1", "auth", "foo", "bar");
+
+        assertEquals(false, r.get("ok"));
+        assertTrue(((String) r.get("error")).contains("matches 3"));
+        verify(wikiService, never()).writeWikiDocument(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void updatePageReplacesUniqueMatch() {
+        when(wikiService.readWikiPage("t1", "kb1", "auth.md")).thenReturn("x foo y");
+
+        Map<String, Object> r = tool.updatePage("t1", "kb1", "auth", "foo", "bar");
+
+        assertEquals(true, r.get("ok"));
+        verify(wikiService).writeWikiDocument("t1", "kb1", "auth.md", "auth", "x bar y");
+    }
+
+    @Test
+    void updatePageRefusesWhenPageMissing() {
+        when(wikiService.readWikiPage("t1", "kb1", "ghost.md")).thenReturn(null);
+
+        Map<String, Object> r = tool.updatePage("t1", "kb1", "ghost", "foo", "bar");
+
+        assertEquals(false, r.get("ok"));
+        assertTrue(((String) r.get("error")).contains("not found"));
+    }
+
+    @Test
+    void deletePageRefusesReserved() {
+        Map<String, Object> r = tool.deletePage("t1", "kb1", "schema");
+        assertEquals(false, r.get("ok"));
+        verify(documentRepository, never()).delete(any());
+    }
+
+    @Test
+    void deletePageDeletesWhenFound() {
+        DocumentEntity doc = newWikiDoc("sharding.md", "summary");
+        when(documentRepository.findByTypeAndFilename("t1", "kb1", "wiki", "sharding.md"))
+            .thenReturn(Optional.of(doc));
+
+        Map<String, Object> r = tool.deletePage("t1", "kb1", "sharding");
+        assertEquals(true, r.get("ok"));
+        verify(documentRepository).delete(doc);
+    }
+
+    @Test
+    void logNoteDelegatesToWikiService() {
+        Map<String, Object> r = tool.logNote("t1", "kb1", "Ingested doc X");
+        assertEquals(true, r.get("ok"));
+        verify(wikiService).appendToLog("t1", "kb1", "Ingested doc X");
     }
 
     private DocumentEntity newWikiDoc(String filename, String summary) {
