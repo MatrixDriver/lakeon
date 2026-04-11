@@ -434,6 +434,59 @@ public class WikiService {
     }
 
     /**
+     * Create a new raw-text "source" document in the KB and return its id.
+     *
+     * <p>Used by the compat /knowledge/wiki/ingest-text endpoint (and the
+     * MCP {@code knowledge_wiki_ingest} tool): the caller provides already
+     * extracted markdown/plain text, we persist it as a READY source doc and
+     * upload both the source file and {@code fulltext.md} to OBS so the wiki
+     * agent can read it directly. The caller is then expected to dispatch a
+     * wiki agent ingest task for the returned document id.
+     */
+    public String ingestRawText(String tenantId, String kbId, String content, String source) {
+        KnowledgeBaseEntity kbAccess = kbAccessService.getKbWithAccess(kbId, tenantId);
+        tenantId = kbAccess.getTenantId();
+        String databaseId = kbAccess.getDatabaseId();
+
+        String safeSource = (source == null || source.isBlank()) ? "text-ingest" : source;
+        String timestamp = DateTimeFormatter
+                .ofPattern("yyyyMMddHHmmss")
+                .withZone(ZoneId.of("Asia/Shanghai"))
+                .format(Instant.now());
+        String filename = safeSource.replaceAll("[/\\\\:*?\"<>|]", "_") + "-" + timestamp + ".md";
+        String docId = "doc_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+
+        DocumentEntity doc = new DocumentEntity();
+        doc.setId(docId);
+        doc.setTenantId(tenantId);
+        doc.setKbId(kbId);
+        doc.setDatabaseId(databaseId);
+        doc.setFilename(filename);
+        doc.setDocType("raw");
+        doc.setFormat("MARKDOWN");
+        doc.setStatus(DocumentStatus.READY);
+        doc.setTags(List.of("text-ingest"));
+        doc.setMetadata(new LinkedHashMap<>(Map.of(
+                "ingest_source", safeSource,
+                "ingest_kind", "text")));
+
+        byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+        String obsKey = "knowledge/" + tenantId + "/" + kbId + "/" + docId + "/" + filename;
+        doc.setObsKey(obsKey);
+        doc.setSizeBytes((long) bytes.length);
+        documentRepository.save(doc);
+
+        // Upload source file + fulltext.md so the wiki agent can read it.
+        uploadToObs(obsKey, bytes, "text/markdown; charset=utf-8");
+        String fulltextKey = "knowledge/" + tenantId + "/" + kbId + "/" + docId + "/fulltext.md";
+        uploadToObs(fulltextKey, bytes, "text/markdown; charset=utf-8");
+
+        log.info("Text ingested into KB {}: doc {} ({} bytes, source={})",
+                kbId, docId, bytes.length, safeSource);
+        return docId;
+    }
+
+    /**
      * Fetch a URL and extract title + plain text from the HTML response.
      * Returns String[2]: [0]=title, [1]=plain text
      */

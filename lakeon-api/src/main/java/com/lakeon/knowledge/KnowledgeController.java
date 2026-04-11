@@ -1075,6 +1075,44 @@ public class KnowledgeController {
         return ResponseEntity.ok(Map.of("status", "ok", "count", count));
     }
 
+    /**
+     * Compat shim for dbay-mcp's {@code knowledge_wiki_ingest} tool: take a
+     * block of already-extracted text, persist it as a raw source document,
+     * and dispatch a wiki agent ingest task against it. Replaces the legacy
+     * one-shot LLM ingestText path that was removed in 9e325f5c.
+     */
+    @PostMapping("/wiki/ingest-text")
+    public ResponseEntity<?> ingestWikiText(HttpServletRequest req,
+                                            @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        String kbId = (String) body.get("kb_id");
+        String content = (String) body.get("content");
+        String source = (String) body.getOrDefault("source", "text-ingest");
+        if (kbId == null || kbId.isBlank()) {
+            throw new BadRequestException("kb_id is required");
+        }
+        if (content == null || content.isBlank()) {
+            throw new BadRequestException("content is required");
+        }
+        KnowledgeBaseEntity kb = kbAccessService.getKbWithAccess(kbId, tenant.getId());
+
+        // Persist the text as a source document + fulltext.md in OBS.
+        String documentId = wikiService.ingestRawText(kb.getTenantId(), kbId, content, source);
+
+        // Hand off to the wiki agent — it will read the fulltext from OBS itself.
+        String taskId = wikiAgentClient.triggerIngest(kb.getTenantId(), kbId, documentId);
+        if (taskId == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("status", "error",
+                            "error", "wiki agent unavailable",
+                            "document_id", documentId));
+        }
+        return ResponseEntity.ok(Map.of(
+                "status", "accepted",
+                "document_id", documentId,
+                "task_id", taskId));
+    }
+
     @PostMapping("/wiki/curate")
     public ResponseEntity<?> curateWiki(HttpServletRequest req,
                                         @RequestBody Map<String, Object> body) {
