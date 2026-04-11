@@ -1060,7 +1060,7 @@ public class WikiService {
     /**
      * Write or update a wiki document entity and upload content to OBS.
      */
-    private void writeWikiDocument(String tenantId, String kbId, String filename,
+    public void writeWikiDocument(String tenantId, String kbId, String filename,
                                     String title, String content) {
         KnowledgeBaseEntity kb = knowledgeBaseRepository.findById(kbId).orElse(null);
         if (kb == null) {
@@ -1197,7 +1197,7 @@ public class WikiService {
     /**
      * Append an entry to log.md.
      */
-    private void appendToLog(String tenantId, String kbId, String entry) {
+    public void appendToLog(String tenantId, String kbId, String entry) {
         String currentLog = readWikiPage(tenantId, kbId, "log.md");
         if (currentLog == null) {
             currentLog = "# Wiki Change Log\n\n";
@@ -1212,7 +1212,7 @@ public class WikiService {
     /**
      * Read a wiki page content from OBS by filename.
      */
-    private String readWikiPage(String tenantId, String kbId, String filename) {
+    public String readWikiPage(String tenantId, String kbId, String filename) {
         Optional<DocumentEntity> docOpt = documentRepository.findByTypeAndFilename(
                 tenantId, kbId, DOC_TYPE_WIKI, filename);
         if (docOpt.isEmpty()) return null;
@@ -1931,7 +1931,7 @@ public class WikiService {
     /**
      * Convert a wiki page title to a filename: "Database Sharding" -> "database-sharding.md"
      */
-    static String titleToFilename(String title) {
+    public static String titleToFilename(String title) {
         return title.toLowerCase()
                 .replaceAll("[^a-z0-9\\u4e00-\\u9fff]+", "-")
                 .replaceAll("^-+|-+$", "")
@@ -1947,7 +1947,7 @@ public class WikiService {
         return title.toLowerCase().replaceAll("[\\s_]+", "-").replaceAll("[（()）]", "").trim();
     }
 
-    static String filenameToTitle(String filename) {
+    public static String filenameToTitle(String filename) {
         if (filename.endsWith(".md")) {
             return filename.substring(0, filename.length() - 3);
         }
