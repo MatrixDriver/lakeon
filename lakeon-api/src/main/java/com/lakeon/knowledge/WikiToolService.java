@@ -182,6 +182,7 @@ public class WikiToolService {
         }
         wikiService.writeWikiDocument(tenantId, kbId, filename, title, content);
         // Store a short summary in metadata so listPages/searchPages can surface it
+        // TODO(perf): extend writeWikiDocument to accept a summary so we don't re-fetch+save here.
         storeSummary(tenantId, kbId, filename, firstNonBlankLine(content, 200));
         log.info("Agent created wiki page {} in KB {}", title, kbId);
         Map<String, Object> result = new LinkedHashMap<>();
@@ -199,17 +200,23 @@ public class WikiToolService {
             return Map.of("ok", false, "error", "title and old_text are required");
         }
         String filename = WikiService.titleToFilename(title);
+        if (RESERVED_FILENAMES.contains(filename)) {
+            return Map.of("ok", false,
+                "error", "cannot edit reserved file: " + filename + " (use logNote for log entries)");
+        }
         String current = wikiService.readWikiPage(tenantId, kbId, filename);
         if (current == null) {
             return Map.of("ok", false, "error", "page not found: " + title);
         }
         int occurrences = countOccurrences(current, oldText);
         if (occurrences == 0) {
-            return Map.of("ok", false, "error", "old_text not found in " + title);
+            return Map.of("ok", false, "error",
+                    "old_text not found in " + title + "; use list_pages to see available titles or read_page to inspect this page's content");
         }
         if (occurrences > 1) {
             return Map.of("ok", false, "error",
-                    "old_text matches " + occurrences + " places; add more context");
+                    "old_text matches " + occurrences + " places in " + title +
+                    "; expand old_text with surrounding lines until it uniquely identifies the target, or use append_page to add new content at the end");
         }
         String updated = current.replace(oldText, newText == null ? "" : newText);
         wikiService.writeWikiDocument(tenantId, kbId, filename, title, updated);
@@ -225,6 +232,10 @@ public class WikiToolService {
             return Map.of("ok", false, "error", "title and content are required");
         }
         String filename = WikiService.titleToFilename(title);
+        if (RESERVED_FILENAMES.contains(filename)) {
+            return Map.of("ok", false,
+                "error", "cannot edit reserved file: " + filename + " (use logNote for log entries)");
+        }
         String current = wikiService.readWikiPage(tenantId, kbId, filename);
         if (current == null) {
             return Map.of("ok", false, "error", "page not found: " + title);

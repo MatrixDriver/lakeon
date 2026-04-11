@@ -177,11 +177,38 @@ class WikiToolServiceTest {
         verify(wikiService, never()).writeWikiDocument(any(), any(), any(), any(), any());
     }
 
-    @Test
-    void createPageRejectsReserved() {
-        Map<String, Object> r = tool.createPage("t1", "kb1", "schema", "body", List.of());
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"schema", "index", "log"})
+    void createPageRejectsAllReservedNames(String reservedName) {
+        Map<String, Object> r = tool.createPage("t1", "kb1", reservedName, "body", List.of());
         assertEquals(false, r.get("ok"));
         verify(wikiService, never()).writeWikiDocument(any(), any(), any(), any(), any());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"schema", "index", "log"})
+    void updatePageRejectsAllReservedNames(String reservedName) {
+        Map<String, Object> r = tool.updatePage("t1", "kb1", reservedName, "foo", "bar");
+        assertEquals(false, r.get("ok"));
+        assertTrue(((String) r.get("error")).contains("reserved"));
+        verify(wikiService, never()).writeWikiDocument(any(), any(), any(), any(), any());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"schema", "index", "log"})
+    void appendPageRejectsAllReservedNames(String reservedName) {
+        Map<String, Object> r = tool.appendPage("t1", "kb1", reservedName, "more");
+        assertEquals(false, r.get("ok"));
+        assertTrue(((String) r.get("error")).contains("reserved"));
+        verify(wikiService, never()).writeWikiDocument(any(), any(), any(), any(), any());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"schema", "index", "log"})
+    void deletePageRejectsAllReservedNames(String reservedName) {
+        Map<String, Object> r = tool.deletePage("t1", "kb1", reservedName);
+        assertEquals(false, r.get("ok"));
+        verify(documentRepository, never()).delete(any());
     }
 
     @Test
@@ -206,7 +233,7 @@ class WikiToolServiceTest {
         Map<String, Object> r = tool.updatePage("t1", "kb1", "auth", "foo", "bar");
 
         assertEquals(false, r.get("ok"));
-        assertTrue(((String) r.get("error")).contains("matches 3"));
+        assertTrue(((String) r.get("error")).contains("matches 3 places"));
         verify(wikiService, never()).writeWikiDocument(any(), any(), any(), any(), any());
     }
 
@@ -231,13 +258,6 @@ class WikiToolServiceTest {
     }
 
     @Test
-    void deletePageRefusesReserved() {
-        Map<String, Object> r = tool.deletePage("t1", "kb1", "schema");
-        assertEquals(false, r.get("ok"));
-        verify(documentRepository, never()).delete(any());
-    }
-
-    @Test
     void deletePageDeletesWhenFound() {
         DocumentEntity doc = newWikiDoc("sharding.md", "summary");
         when(documentRepository.findByTypeAndFilename("t1", "kb1", "wiki", "sharding.md"))
@@ -253,6 +273,54 @@ class WikiToolServiceTest {
         Map<String, Object> r = tool.logNote("t1", "kb1", "Ingested doc X");
         assertEquals(true, r.get("ok"));
         verify(wikiService).appendToLog("t1", "kb1", "Ingested doc X");
+    }
+
+    @Test
+    void logNoteRejectsBlankMessage() {
+        Map<String, Object> r = tool.logNote("t1", "kb1", "   ");
+        assertEquals(false, r.get("ok"));
+        verify(wikiService, never()).appendToLog(any(), any(), any());
+    }
+
+    @Test
+    void createPageStoresSummaryInMetadata() {
+        when(wikiService.readWikiPage("t1", "kb1", "sharding.md")).thenReturn(null);
+
+        DocumentEntity saved = new DocumentEntity();
+        saved.setFilename("sharding.md");
+        saved.setMetadata(new java.util.LinkedHashMap<>());
+        when(documentRepository.findByTypeAndFilename("t1", "kb1", "wiki", "sharding.md"))
+            .thenReturn(java.util.Optional.of(saved));
+
+        Map<String, Object> r = tool.createPage("t1", "kb1", "Sharding",
+                "# Database Sharding\n\nSharding splits data across multiple databases.",
+                java.util.List.of());
+
+        assertEquals(true, r.get("ok"));
+        verify(documentRepository).save(saved);
+        assertEquals("Database Sharding", saved.getMetadata().get("summary"));
+    }
+
+    @Test
+    void appendPageAppendsToExistingContent() {
+        when(wikiService.readWikiPage("t1", "kb1", "auth.md")).thenReturn("original body");
+
+        Map<String, Object> r = tool.appendPage("t1", "kb1", "auth", "new paragraph");
+
+        assertEquals(true, r.get("ok"));
+        verify(wikiService).writeWikiDocument("t1", "kb1", "auth.md", "auth",
+                                              "original body\n\nnew paragraph");
+    }
+
+    @Test
+    void appendPageRefusesWhenMissing() {
+        when(wikiService.readWikiPage("t1", "kb1", "ghost.md")).thenReturn(null);
+
+        Map<String, Object> r = tool.appendPage("t1", "kb1", "ghost", "stuff");
+
+        assertEquals(false, r.get("ok"));
+        assertTrue(((String) r.get("error")).contains("not found"));
+        verify(wikiService, never()).writeWikiDocument(any(), any(), any(), any(), any());
     }
 
     private DocumentEntity newWikiDoc(String filename, String summary) {
