@@ -696,36 +696,32 @@ onMounted(() => {
 
 <style scoped>
 /* ══════════════════════════════════════════
-   Page shell
+   Page shell — no extra padding, console-main already provides it
    ══════════════════════════════════════════ */
 .db-page {
-  padding: var(--space-3xl) var(--space-2xl) var(--space-4xl);
-  max-width: 1560px;
-  margin: 0 auto;
-  background: var(--c-bg-alt);
-  min-height: 100%;
   color: var(--c-text);
 }
 
 .db-page-header {
-  margin-bottom: var(--space-xl);
+  margin-bottom: var(--space-md);
 }
 
 .db-title {
   font-family: var(--font-display);
   font-weight: 500;
-  font-size: 34px;
-  line-height: 1.1;
+  font-size: 30px;
+  line-height: 1.15;
   color: var(--c-primary);
   letter-spacing: -0.01em;
   margin: 0 0 var(--space-xs);
 }
 
 .db-subtitle {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--c-text-2);
   margin: 0;
-  max-width: 56ch;
+  max-width: 64ch;
+  line-height: 1.5;
 }
 
 /* ══════════════════════════════════════════
@@ -735,8 +731,8 @@ onMounted(() => {
   display: flex;
   gap: var(--space-2xl);
   border-bottom: 1px solid var(--c-border);
-  margin-top: var(--space-xl);
-  margin-bottom: var(--space-2xl);
+  margin-top: var(--space-md);
+  margin-bottom: var(--space-xl);
 }
 
 .db-tab {
@@ -793,9 +789,9 @@ onMounted(() => {
   display: grid;
   grid-template-columns: auto 1fr auto;
   column-gap: var(--space-3xl);
-  row-gap: var(--space-xl);
+  row-gap: var(--space-lg);
   align-items: start;
-  padding: var(--space-2xl) 0 var(--space-3xl);
+  padding: var(--space-md) 0 var(--space-2xl);
   border-bottom: 1px solid var(--c-border-light);
 }
 
