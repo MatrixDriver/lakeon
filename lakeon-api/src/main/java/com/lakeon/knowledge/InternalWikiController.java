@@ -108,33 +108,32 @@ public class InternalWikiController {
 
     @PostMapping("/runlog")
     public ResponseEntity<Void> writeRunLog(@RequestBody WikiRunLogRequest req) {
-        WikiRunLogEntity e = new WikiRunLogEntity();
-        // Match WikiService.writeRunLog id style: 32-char UUID hex.
-        e.setId(UUID.randomUUID().toString().replace("-", "").substring(0, 32));
-        e.setTenantId(req.tenantId);
-        e.setKbId(req.kbId);
-        e.setRunId(req.runId);
-        e.setRunType(req.runType);
-        e.setTriggerDoc(req.triggerDoc);
-        e.setPagesCreated(req.pagesCreated);
-        e.setPagesUpdated(req.pagesUpdated);
-        e.setPagesDeleted(req.pagesDeleted);
-        e.setDurationMs(req.durationMs);
-        e.setStatus(req.status);
-        // error_message column is length=1024 — clamp to avoid DB write failure.
-        if (req.errorMessage != null && req.errorMessage.length() > 1024) {
-            e.setErrorMessage(req.errorMessage.substring(0, 1024));
-        } else {
-            e.setErrorMessage(req.errorMessage);
+        try {
+            WikiRunLogEntity e = new WikiRunLogEntity();
+            // Match WikiService.writeRunLog id style: 32-char UUID hex.
+            e.setId(UUID.randomUUID().toString().replace("-", "").substring(0, 32));
+            e.setTenantId(req.tenantId);
+            e.setKbId(req.kbId);
+            e.setRunId(req.runId);
+            e.setRunType(req.runType);
+            e.setTriggerDoc(clampTriggerDoc(req.triggerDoc));
+            e.setPagesCreated(req.pagesCreated);
+            e.setPagesUpdated(req.pagesUpdated);
+            e.setPagesDeleted(req.pagesDeleted);
+            e.setDurationMs(req.durationMs);
+            e.setStatus(req.status);
+            e.setErrorMessage(clampErrorMessage(req.errorMessage));
+            e.setToolCallsCount(req.toolCallsCount);
+            e.setTokenCount(req.tokenCount);
+            e.setSource(req.source);
+            e.setCreatedAt(Instant.now());
+            runLogRepository.save(e);
+            log.info("Wiki agent run log recorded: run_id={} kb={} status={} created={} updated={} deleted={}",
+                    req.runId, req.kbId, req.status,
+                    req.pagesCreated, req.pagesUpdated, req.pagesDeleted);
+        } catch (Exception e) {
+            log.warn("Failed to persist wiki run log for run_id={}: {}", req.runId, e.getMessage());
         }
-        e.setToolCallsCount(req.toolCallsCount);
-        e.setTokenCount(req.tokenCount);
-        e.setSource(req.source);
-        e.setCreatedAt(Instant.now());
-        runLogRepository.save(e);
-        log.info("Wiki agent run log recorded: run_id={} kb={} status={} created={} updated={} deleted={}",
-                req.runId, req.kbId, req.status,
-                req.pagesCreated, req.pagesUpdated, req.pagesDeleted);
         return ResponseEntity.accepted().build();
     }
 
@@ -144,6 +143,16 @@ public class InternalWikiController {
         // For Phase 1: just log. Later phases may poll task state via this signal.
         log.info("Wiki agent callback: task={} body={}", taskId, body);
         return ResponseEntity.accepted().build();
+    }
+
+    private static String clampErrorMessage(String message) {
+        if (message == null) return null;
+        return message.length() > 1024 ? message.substring(0, 1021) + "..." : message;
+    }
+
+    private static String clampTriggerDoc(String trigger) {
+        if (trigger == null) return null;
+        return trigger.length() > 256 ? trigger.substring(0, 253) + "..." : trigger;
     }
 
     /**
