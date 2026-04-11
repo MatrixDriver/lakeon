@@ -99,15 +99,15 @@ function mountPlotly(el: HTMLElement | null, data: any) {
 
 <style scoped>
 .nb-cell { border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
-.nb-cell.active { border-color: #2563eb; border-width: 2px; }
-.nb-cell.running { border-color: #f59e0b; }
+.nb-cell.active { border-color: #2a4d6a; border-width: 2px; }
+.nb-cell.running { border-color: #9a5b25; }
 .nb-cell-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 4px 12px; background: #f8fafc; border-bottom: 1px solid #e5e7eb;
 }
-.nb-cell.active .nb-cell-header { background: #eff6ff; border-color: #bfdbfe; }
+.nb-cell.active .nb-cell-header { background: color-mix(in oklch, var(--c-primary) 8%, #fff); border-color: #bfdbfe; }
 .nb-cell-label { font-family: monospace; font-size: 11px; color: #6b7280; }
-.nb-cell.active .nb-cell-label { color: #2563eb; }
+.nb-cell.active .nb-cell-label { color: #2a4d6a; }
 .nb-cell-actions { display: flex; align-items: center; gap: 6px; }
 .nb-cell-time { font-size: 10px; color: #9ca3af; }
 .nb-cell-btn {
@@ -119,15 +119,15 @@ function mountPlotly(el: HTMLElement | null, data: any) {
 .nb-cell-editor { min-height: 40px; }
 .nb-cell-output { border-top: 1px solid #e5e7eb; background: #f9fafb; padding: 8px 14px; }
 .nb-out-text { margin: 0; font-family: monospace; font-size: 12px; color: #334155; white-space: pre-wrap; }
-.nb-out-text.stderr { color: #d97706; }
-.nb-out-error { margin: 0; font-family: monospace; font-size: 12px; color: #ef4444; white-space: pre-wrap; background: #fef2f2; padding: 8px; border-radius: 4px; }
+.nb-out-text.stderr { color: #9a5b25; }
+.nb-out-error { margin: 0; font-family: monospace; font-size: 12px; color: #c6333a; white-space: pre-wrap; background: color-mix(in oklch, var(--cs-severe) 8%, #fff); padding: 8px; border-radius: 4px; }
 .nb-out-html { overflow-x: auto; font-size: 12px; }
 .nb-out-html :deep(table) { border-collapse: collapse; font-size: 12px; }
 .nb-out-html :deep(th), .nb-out-html :deep(td) { padding: 3px 10px; border: 1px solid #e5e7eb; }
 .nb-out-html :deep(th) { background: #f1f5f9; font-weight: 600; }
 .nb-out-plotly { min-height: 300px; }
 .nb-out-image { max-width: 100%; border-radius: 4px; }
-.nb-cell-running-hint { padding: 8px 14px; font-size: 12px; color: #a16207; background: #fffbeb; border-top: 1px solid #fde68a; display: flex; align-items: center; gap: 6px; }
+.nb-cell-running-hint { padding: 8px 14px; font-size: 12px; color: #9a5b25; background: #fffbeb; border-top: 1px solid #fde68a; display: flex; align-items: center; gap: 6px; }
 .nb-spinner { width: 12px; height: 12px; border: 2px solid #fbbf24; border-top-color: transparent; border-radius: 50%; animation: nb-spin 0.6s linear infinite; display: inline-block; }
 @keyframes nb-spin { to { transform: rotate(360deg); } }
 .nb-out-markdown { padding: 8px 14px; line-height: 1.6; font-size: 14px; }

@@ -146,7 +146,7 @@ function handleDone() {
 .password-success-msg {
   font-size: 14px;
   font-weight: 600;
-  color: #52c41a;
+  color: #386b47;
   margin-bottom: 16px;
 }
 
@@ -179,7 +179,7 @@ function handleDone() {
 .password-warning {
   margin-top: 12px;
   padding: 8px 12px;
-  background: #fff7e6;
+  background: color-mix(in oklch, var(--cs-warn) 10%, #fff);
   border: 1px solid #ffd591;
   border-radius: 4px;
   color: #d46b08;
@@ -193,8 +193,8 @@ function handleDone() {
 }
 
 .copy-btn-ok {
-  background: #f6ffed !important;
-  border-color: #52c41a !important;
-  color: #52c41a !important;
+  background: color-mix(in oklch, var(--c-success) 12%, #fff) !important;
+  border-color: #386b47 !important;
+  color: #386b47 !important;
 }
 </style>

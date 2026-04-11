@@ -205,7 +205,7 @@ onMounted(fetchNotebooks)
 <style scoped>
 .nb-link {
   cursor: pointer;
-  color: #2563eb;
+  color: #2a4d6a;
   text-decoration: none;
   font-weight: 500;
 }
@@ -237,7 +237,7 @@ onMounted(fetchNotebooks)
   box-sizing: border-box;
 }
 .form-input:focus {
-  border-color: #2563eb;
+  border-color: #2a4d6a;
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
 }
 .image-cards {
@@ -261,9 +261,9 @@ onMounted(fetchNotebooks)
   border-color: #93c5fd;
 }
 .image-card-selected {
-  border-color: #2563eb;
+  border-color: #2a4d6a;
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
-  background: #f0f5ff;
+  background: color-mix(in oklch, var(--c-primary) 8%, #fff);
 }
 .image-card-name {
   font-size: 14px;
@@ -278,9 +278,9 @@ onMounted(fetchNotebooks)
 .page-tips {
   margin-top: 48px;
   padding: 16px 20px;
-  background: #faf8f5;
+  background: color-mix(in oklch, var(--c-accent) 8%, #fff);
   border-radius: 6px;
-  border-left: 3px solid #c67d3a;
+  border: 1px solid var(--c-border-light);
 }
 .page-tips-title {
   font-size: 13px;

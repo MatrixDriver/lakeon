@@ -400,7 +400,7 @@ onMounted(async () => {
 .task-status-chip.tag-green { background: #e6f9ed; color: #1a9e3f; }
 .task-status-chip.tag-blue { background: #fdf5ed; color: #9a5b25; }
 .task-status-chip.tag-red { background: #fff0f0; color: #e63e3e; }
-.task-status-chip.tag-orange { background: #fff7e6; color: #d48806; }
+.task-status-chip.tag-orange { background: color-mix(in oklch, var(--cs-warn) 10%, #fff); color: #9a5b25; }
 .task-status-chip.tag-gray { background: #f5f5f5; color: #8a8e99; }
 .task-status-chip.tag-cyan { background: #e6fffb; color: #13c2c2; }
 
@@ -439,7 +439,7 @@ onMounted(async () => {
 
 /* Status tags */
 .tag-blue { background: #fdf5ed; color: #9a5b25; }
-.tag-orange { background: #fff7e6; color: #d48806; }
+.tag-orange { background: color-mix(in oklch, var(--cs-warn) 10%, #fff); color: #9a5b25; }
 .tag-gray { background: #f5f5f5; color: #8a8e99; }
 .tag-cyan { background: #e6fffb; color: #13c2c2; }
 .sync-lag { font-size: 13px; color: #64748b; }

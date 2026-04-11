@@ -126,7 +126,7 @@
           <div v-if="form.mode !== 'SYNC' && form.conflictStrategy === 'REPLACE'" class="warning-box">
             覆盖模式将删除目标表后重新创建，已有数据将丢失。
           </div>
-          <div v-if="form.mode === 'SYNC'" class="warning-box" style="border-color: #91d5ff; background: #fdf5ed; color: #096dd9;">
+          <div v-if="form.mode === 'SYNC'" class="warning-box" style="border-color: #91d5ff; background: #fdf5ed; color: #2a4d6a;">
             持续同步将通过 PostgreSQL 逻辑复制实时同步数据变更。初始数据将自动复制，之后增量同步。
           </div>
           <div class="confirm-summary">
@@ -337,7 +337,7 @@ async function handleCreate() {
   font-size: 13px;
 }
 .wizard-step.active { color: #9a5b25; font-weight: 600; }
-.wizard-step.done { color: #52c41a; }
+.wizard-step.done { color: #386b47; }
 .step-num {
   width: 22px; height: 22px;
   border-radius: 50%;
@@ -347,7 +347,7 @@ async function handleCreate() {
   flex-shrink: 0;
 }
 .wizard-step.active .step-num { border-color: #c67d3a; background: #9a5b25; color: #fff; }
-.wizard-step.done .step-num { border-color: #52c41a; background: #52c41a; color: #fff; }
+.wizard-step.done .step-num { border-color: #386b47; background: #386b47; color: #fff; }
 .dialog-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
 .dialog-footer {
   padding: 12px 24px;
@@ -367,7 +367,7 @@ async function handleCreate() {
 }
 .required { color: #d4380d; }
 .test-conn-row { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
-.text-success { color: #52c41a; font-size: 13px; }
+.text-success { color: #386b47; font-size: 13px; }
 .text-error { color: #d4380d; font-size: 13px; }
 .conn-version { color: #8a8e99; font-size: 12px; }
 .radio-group { display: flex; gap: 20px; margin-top: 4px; }
@@ -382,7 +382,7 @@ async function handleCreate() {
 .hint-text { color: #8a8e99; font-size: 12px; margin-top: 6px; }
 .radio-item.disabled { color: #c2c6cc; cursor: not-allowed; }
 .warning-box {
-  padding: 8px 12px; background: #fff7e6; border: 1px solid #ffd591;
+  padding: 8px 12px; background: color-mix(in oklch, var(--cs-warn) 10%, #fff); border: 1px solid #ffd591;
   border-radius: 4px; color: #d46b08; font-size: 13px; margin-bottom: 14px;
 }
 .confirm-summary { border: 1px solid #dfe1e6; border-radius: 4px; padding: 16px; }

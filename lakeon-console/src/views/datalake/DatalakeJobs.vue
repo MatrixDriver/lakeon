@@ -330,9 +330,9 @@ onUnmounted(() => {
   vertical-align: middle;
 }
 
-.dot-green { background-color: #52c41a; }
-.dot-blue { background-color: #1890ff; }
-.dot-red { background-color: #e6393d; }
+.dot-green { background-color: #386b47; }
+.dot-blue { background-color: #2a4d6a; }
+.dot-red { background-color: #c6333a; }
 .dot-gray { background-color: #d9d9d9; }
 
 .type-tag {
@@ -344,8 +344,8 @@ onUnmounted(() => {
 }
 
 .type-tag-python {
-  background: #fff7e6;
-  color: #d48806;
+  background: color-mix(in oklch, var(--cs-warn) 10%, #fff);
+  color: #9a5b25;
   border: 1px solid #ffe58f;
 }
 
@@ -356,8 +356,8 @@ onUnmounted(() => {
 }
 
 .type-tag-finetune {
-  background: #f9f0ff;
-  color: #722ed1;
+  background: color-mix(in oklch, var(--c-accent) 10%, #fff);
+  color: #9a5b25;
   border: 1px solid #d3adf7;
 }
 

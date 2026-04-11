@@ -130,15 +130,15 @@ onMounted(load)
 .data-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; }
 .db-name { font-weight: 500; color: #1e293b; }
 
-.days-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; background: #f0f5ff; color: #3b82f6; }
-.days-urgent { background: #fef2f2; color: #ef4444; font-weight: 600; }
+.days-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; background: color-mix(in oklch, var(--c-primary) 8%, #fff); color: #2a4d6a; }
+.days-urgent { background: color-mix(in oklch, var(--cs-severe) 8%, #fff); color: #c6333a; font-weight: 600; }
 
 .actions { display: flex; gap: 8px; }
 .btn { border: none; border-radius: 6px; padding: 5px 12px; font-size: 12px; cursor: pointer; transition: all 0.15s; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-primary { background: #9a5b25; color: #fff; }
 .btn-primary:hover:not(:disabled) { background: #7d4a1e; }
-.btn-danger-outline { background: #fff; color: #e53e3e; border: 1px solid #fed7d7; }
-.btn-danger-outline:hover:not(:disabled) { background: #fef2f2; }
+.btn-danger-outline { background: #fff; color: #c6333a; border: 1px solid #fed7d7; }
+.btn-danger-outline:hover:not(:disabled) { background: color-mix(in oklch, var(--cs-severe) 8%, #fff); }
 .btn-small { padding: 4px 10px; }
 </style>

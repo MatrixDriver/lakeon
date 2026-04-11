@@ -419,7 +419,7 @@
             />
             <button class="btn btn-primary" :disabled="!newIp.trim()" @click="addIp">添加</button>
           </div>
-          <div v-if="ipError" style="color: #e6393d; font-size: 13px; margin-bottom: 12px;">{{ ipError }}</div>
+          <div v-if="ipError" style="color: #c6333a; font-size: 13px; margin-bottom: 12px;">{{ ipError }}</div>
           <div v-if="allowedIps.length === 0" class="empty-state" style="padding: 24px;">
             <p>未配置 IP 白名单（允许所有 IP 连接）</p>
           </div>
@@ -1303,9 +1303,9 @@ onUnmounted(() => {
 }
 
 .copy-btn-ok {
-  background: #f6ffed !important;
-  border-color: #52c41a !important;
-  color: #52c41a !important;
+  background: color-mix(in oklch, var(--c-success) 12%, #fff) !important;
+  border-color: #386b47 !important;
+  color: #386b47 !important;
 }
 
 .password-masked {
@@ -1320,7 +1320,7 @@ onUnmounted(() => {
 .password-warning {
   margin-top: 12px;
   padding: 8px 12px;
-  background: #fff7e6;
+  background: color-mix(in oklch, var(--cs-warn) 10%, #fff);
   border: 1px solid #ffd591;
   border-radius: 4px;
   color: #d46b08;
@@ -1342,13 +1342,13 @@ onUnmounted(() => {
   padding: 1px 8px;
   border-radius: 4px;
   font-size: 12px;
-  background-color: #f6ffed;
-  color: #52c41a;
+  background-color: color-mix(in oklch, var(--c-success) 12%, #fff);
+  color: #386b47;
   margin-left: 6px;
 }
 
 .row-highlight {
-  background-color: #f0f5ff !important;
+  background-color: color-mix(in oklch, var(--c-primary) 8%, #fff) !important;
 }
 
 .mono-text {
@@ -1366,7 +1366,7 @@ onUnmounted(() => {
 .clickable-row { cursor: pointer; }
 .clickable-row:hover { background: #f5f5f5; }
 .tag-blue { background-color: #fdf5ed; color: #9a5b25; }
-.tag-orange { background-color: #fff7e6; color: #d46b08; }
+.tag-orange { background-color: color-mix(in oklch, var(--cs-warn) 10%, #fff); color: #d46b08; }
 .tag-gray { background-color: #f0f0f0; color: #8a8e99; }
 
 /* Audit tab */
@@ -1482,7 +1482,7 @@ onUnmounted(() => {
 
 .toolbar-icon-btn:hover:not(:disabled) {
   color: #9a5b25;
-  background: #f0f5ff;
+  background: color-mix(in oklch, var(--c-primary) 8%, #fff);
 }
 
 .toolbar-icon-btn:disabled {
@@ -1583,7 +1583,7 @@ onUnmounted(() => {
 }
 
 .action-danger {
-  color: #e6393d;
+  color: #c6333a;
 }
 
 .action-none {
@@ -1638,7 +1638,7 @@ onUnmounted(() => {
 
 .ext-card.installed {
   border-color: #b7eb8f;
-  background: #f6ffed;
+  background: color-mix(in oklch, var(--c-success) 12%, #fff);
 }
 
 .ext-card-header {
@@ -1656,7 +1656,7 @@ onUnmounted(() => {
 
 .ext-version {
   font-size: 12px;
-  color: #52c41a;
+  color: #386b47;
   font-weight: 500;
 }
 
@@ -1683,7 +1683,7 @@ onUnmounted(() => {
 
 .ext-card.installed .ext-category-badge {
   background: #d9f7be;
-  color: #389e0d;
+  color: #386b47;
 }
 
 /* Parameters tab */
@@ -1744,9 +1744,9 @@ onUnmounted(() => {
   font-weight: 500;
 }
 
-.conn-active { background: #f0faf0; color: #52c41a; }
+.conn-active { background: #f0faf0; color: #386b47; }
 .conn-idle { background: #f5f5f5; color: #999; }
-.conn-idle\ in\ transaction { background: #fff7e6; color: #e37318; }
+.conn-idle\ in\ transaction { background: color-mix(in oklch, var(--cs-warn) 10%, #fff); color: #9a5b25; }
 .conn-unknown { background: #f5f5f5; color: #ccc; }
 
 .td-query {
@@ -2079,11 +2079,11 @@ onUnmounted(() => {
 /* Squash mode */
 .squash-hint {
   padding: 8px 16px;
-  background: #fffbe6;
+  background: color-mix(in oklch, var(--cs-warn) 8%, #fff);
   border: 1px solid #ffe58f;
   border-radius: 4px;
   font-size: 13px;
-  color: #d48806;
+  color: #9a5b25;
   margin-bottom: 12px;
 }
 
@@ -2092,7 +2092,7 @@ onUnmounted(() => {
 }
 
 .version-item-squash-range .version-content {
-  background: #fff1f0;
+  background: color-mix(in oklch, var(--cs-severe) 8%, #fff);
   border-radius: 4px;
   margin: -4px -8px;
   padding: 4px 8px 24px;
@@ -2113,7 +2113,7 @@ onUnmounted(() => {
 .squash-confirm-bar {
   margin-top: 16px;
   padding: 12px 16px;
-  background: #fffbe6;
+  background: color-mix(in oklch, var(--cs-warn) 8%, #fff);
   border: 1px solid #ffe58f;
   border-radius: 4px;
   display: flex;
@@ -2124,7 +2124,7 @@ onUnmounted(() => {
 
 .squash-confirm-text {
   font-size: 13px;
-  color: #d48806;
+  color: #9a5b25;
 }
 
 .squash-confirm-actions {

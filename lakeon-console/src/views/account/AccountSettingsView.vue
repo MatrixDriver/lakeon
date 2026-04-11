@@ -284,13 +284,13 @@ onMounted(fetchProfile)
 }
 
 .error-msg {
-  color: #e6393d;
+  color: #c6333a;
   font-size: 13px;
   margin-bottom: 12px;
 }
 
 .success-msg {
-  color: #52c41a;
+  color: #386b47;
   font-size: 13px;
   margin-bottom: 12px;
 }

@@ -12,7 +12,6 @@
       <div v-for="group in filteredGroups" :key="group.category" class="comp-group">
         <div
           class="group-header"
-          :style="{ borderLeftColor: groupColor(group.category) }"
           @click="toggleGroup(group.category)"
         >
           <svg class="group-icon-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" :stroke="groupColor(group.category)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path :d="groupIconPath(group.category)" /></svg>
@@ -126,7 +125,7 @@ function onDragStart(event: DragEvent, comp: PipelineComponent) {
 
 .group-header {
   display: flex; align-items: center; gap: 6px; padding: 6px 12px;
-  cursor: pointer; border-left: 3px solid; font-size: 12px;
+  cursor: pointer; font-size: 12px;
   transition: background 0.12s;
 }
 .group-header:hover { background: #f8f5f1; }

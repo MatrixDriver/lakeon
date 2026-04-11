@@ -250,7 +250,6 @@ function stepBranches(step: DagStep): string[] {
 .step-card {
   width: 100%;
   border: 1px solid #e8e4df;
-  border-left: 3px solid #d1ccc4;
   border-radius: 6px;
   background: #fff;
   overflow: hidden;
@@ -297,14 +296,14 @@ function stepBranches(step: DagStep): string[] {
 }
 
 .badge-review {
-  background: #fdf4ff;
-  color: #a855f7;
+  background: color-mix(in oklch, var(--c-accent) 10%, #fff);
+  color: #9a5b25;
   border: 1px solid #e9d5ff;
 }
 
 .badge-checkpoint {
   background: #eef6fe;
-  color: #3b82f6;
+  color: #2a4d6a;
   border: 1px solid #bfdbfe;
 }
 

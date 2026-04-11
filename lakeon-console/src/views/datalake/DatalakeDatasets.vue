@@ -293,9 +293,9 @@ onUnmounted(() => {
   vertical-align: middle;
 }
 
-.dot-green { background-color: #52c41a; }
-.dot-blue { background-color: #1890ff; }
-.dot-red { background-color: #e6393d; }
+.dot-green { background-color: var(--c-success); }
+.dot-blue { background-color: var(--c-primary); }
+.dot-red { background-color: var(--cs-severe); }
 .dot-gray { background-color: #d9d9d9; }
 
 .card-grid {

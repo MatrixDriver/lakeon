@@ -273,7 +273,7 @@ async function handleGenerate() {
 code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 11px; }
 .source-tabs { display: flex; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; width: fit-content; margin-bottom: 12px; }
 .source-tab { padding: 7px 16px; font-size: 12px; font-weight: 600; color: #64748b; cursor: pointer; background: #f8fafc; border: none; }
-.source-tab.active { background: #fff; color: #2563eb; border-bottom: 2px solid #2563eb; }
+.source-tab.active { background: #fff; color: #2a4d6a; border-bottom: 2px solid #2a4d6a; }
 .editor-wrap { border: 1px solid #334155; border-radius: 8px; overflow: hidden; }
 .editor-toolbar { background: #334155; padding: 6px 12px; }
 .editor-filename { font-size: 11px; color: #94a3b8; font-family: monospace; }
@@ -286,7 +286,7 @@ code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 11p
 .req-label { font-size: 12px; font-weight: 600; color: #374151; display: block; margin-bottom: 4px; }
 .req-hint { font-weight: 400; color: #94a3b8; font-size: 11px; }
 .req-input { width: 100%; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-family: monospace; color: #334155; outline: none; }
-.req-input:focus { border-color: #2563eb; }
+.req-input:focus { border-color: #2a4d6a; }
 .ai-panel { margin-top: 12px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
 .ai-panel.expanded { border-color: rgba(99,102,241,.3); }
 .ai-toggle { display: flex; align-items: center; gap: 8px; padding: 10px 14px; font-size: 12px; color: #6366f1; cursor: pointer; background: rgba(99,102,241,.04); }
@@ -302,5 +302,5 @@ code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 11p
 .ai-btn { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none; padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
 .ai-btn:disabled { opacity: 0.5; cursor: default; }
 .ai-tokens { font-size: 11px; color: #94a3b8; }
-.ai-error { margin-top: 8px; font-size: 11px; color: #ef4444; }
+.ai-error { margin-top: 8px; font-size: 11px; color: #c6333a; }
 </style>

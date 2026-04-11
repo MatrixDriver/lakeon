@@ -30,7 +30,7 @@ const path = computed(() => getBezierPath({
 }))
 
 const edgeStyle = computed(() => ({
-  stroke: props.data?.animated ? '#3b82f6' : '#b0aaA0',
+  stroke: props.data?.animated ? '#2a4d6a' : '#b0aaA0',
   strokeWidth: 2,
 }))
 </script>

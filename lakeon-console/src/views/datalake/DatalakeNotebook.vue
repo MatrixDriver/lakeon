@@ -414,21 +414,21 @@ onUnmounted(() => { socket?.disconnect(); window.removeEventListener('keydown', 
 .nb-toolbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .nb-title { font-size: 16px; font-weight: 700; color: #1e293b; }
 .nb-status { font-size: 11px; padding: 2px 10px; border-radius: 10px; background: #f1f5f9; color: #64748b; }
-.nb-status.running { background: #dcfce7; color: #16a34a; }
-.nb-status.starting { background: #fef9c3; color: #a16207; }
-.nb-status.disconnected { background: #fee2e2; color: #dc2626; }
-.nb-select { font-size: 12px; padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 4px; color: #374151; }
-.nb-btn { font-size: 12px; padding: 5px 14px; border-radius: 6px; border: 1px solid #e5e7eb; background: white; color: #374151; cursor: pointer; }
-.nb-btn:hover { background: #f9fafb; }
-.nb-btn-primary { background: #2563eb; color: white; border: none; }
-.nb-btn-primary:hover { background: #1d4ed8; }
-.nb-btn-primary:disabled { background: #93c5fd; cursor: default; }
-.nb-btn-danger { color: #ef4444; border-color: #fecaca; }
-.nb-btn-danger:hover { background: #fef2f2; }
+.nb-status.running { background: color-mix(in oklch, var(--c-success) 12%, #fff); color: #386b47; }
+.nb-status.starting { background: color-mix(in oklch, var(--cs-warn) 10%, #fff); color: var(--cs-warn); }
+.nb-status.disconnected { background: color-mix(in oklch, var(--cs-severe) 8%, #fff); color: var(--cs-severe); }
+.nb-select { font-size: 12px; padding: 5px 8px; border: 1px solid var(--c-border); border-radius: 4px; color: var(--c-text); }
+.nb-btn { font-size: 12px; padding: 5px 14px; border-radius: 6px; border: 1px solid var(--c-border); background: white; color: var(--c-text-2); cursor: pointer; }
+.nb-btn:hover { background: var(--c-hover); }
+.nb-btn-primary { background: var(--c-accent); color: white; border: none; }
+.nb-btn-primary:hover { background: var(--c-accent-hover); }
+.nb-btn-primary:disabled { background: color-mix(in oklch, var(--c-accent) 40%, #fff); cursor: default; }
+.nb-btn-danger { color: var(--cs-severe); border-color: color-mix(in oklch, var(--cs-severe) 30%, var(--c-border-light)); }
+.nb-btn-danger:hover { background: color-mix(in oklch, var(--cs-severe) 8%, #fff); }
 .nb-body { display: flex; gap: 16px; align-items: flex-start; }
 .nb-cells { flex: 1; min-width: 0; max-width: 960px; }
 .nb-add-btn { display: block; width: 100%; padding: 10px; margin-top: 4px; background: none; border: 2px dashed #e5e7eb; border-radius: 8px; color: #9ca3af; font-size: 13px; cursor: pointer; text-align: center; }
-.nb-add-btn:hover { border-color: #2563eb; color: #2563eb; }
+.nb-add-btn:hover { border-color: var(--c-accent); color: var(--c-accent-text); }
 .nb-vars-panel { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; margin-bottom: 16px; background: #f9fafb; max-height: 200px; overflow-y: auto; }
 .nb-vars-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .nb-vars-table th { text-align: left; padding: 4px 10px; color: #6b7280; border-bottom: 1px solid #e5e7eb; font-weight: 600; }
@@ -455,13 +455,13 @@ onUnmounted(() => { socket?.disconnect(); window.removeEventListener('keydown', 
 
 /* Save status */
 .nb-save-status { font-size: 11px; padding: 2px 8px; border-radius: 4px; }
-.nb-save-status.saving { color: #a16207; background: #fef9c3; }
-.nb-save-status.saved { color: #16a34a; background: #dcfce7; }
-.nb-save-status.error { color: #dc2626; background: #fee2e2; }
+.nb-save-status.saving { color: var(--cs-warn); background: color-mix(in oklch, var(--cs-warn) 10%, #fff); }
+.nb-save-status.saved { color: #386b47; background: color-mix(in oklch, var(--c-success) 12%, #fff); }
+.nb-save-status.error { color: var(--cs-severe); background: color-mix(in oklch, var(--cs-severe) 8%, #fff); }
 
 /* Back link */
-.nb-back { cursor: pointer; color: #6b7280; font-size: 18px; text-decoration: none; margin-right: 4px; }
-.nb-back:hover { color: #2563eb; }
+.nb-back { cursor: pointer; color: var(--c-text-3); font-size: 18px; text-decoration: none; margin-right: 4px; }
+.nb-back:hover { color: var(--c-accent-text); }
 
 /* History panel */
 .nb-history-panel { width: 240px; position: sticky; top: 16px; flex-shrink: 0; padding: 14px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 12px; max-height: 80vh; overflow-y: auto; }

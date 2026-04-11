@@ -23,7 +23,7 @@
           <button
             v-if="canCancel"
             class="btn btn-default"
-            style="color: #e6393d; border-color: #e6393d;"
+            style="color: #c6333a; border-color: #c6333a;"
             @click="handleCancel"
           >取消作业</button>
           <button
@@ -92,7 +92,7 @@
             <button v-if="!streaming && canStream" class="btn btn-small btn-default" @click="startStream">
               实时日志
             </button>
-            <button v-if="streaming" class="btn btn-small btn-default" @click="stopStream" style="color:#e6393d;">
+            <button v-if="streaming" class="btn btn-small btn-default" @click="stopStream" style="color:#c6333a;">
               停止
             </button>
             <label class="auto-scroll-label">
@@ -413,10 +413,10 @@ onUnmounted(() => {
 
 .error-banner {
   padding: 12px 16px;
-  background: #fff2f0;
+  background: color-mix(in oklch, var(--cs-severe) 8%, #fff);
   border: 1px solid #ffccc7;
   border-radius: 6px;
-  color: #a8071a;
+  color: #c6333a;
   font-size: 13px;
   margin-bottom: 24px;
   word-break: break-all;
@@ -513,9 +513,9 @@ onUnmounted(() => {
   vertical-align: middle;
 }
 
-.dot-green { background-color: #52c41a; }
-.dot-blue { background-color: #1890ff; }
-.dot-red { background-color: #e6393d; }
+.dot-green { background-color: #386b47; }
+.dot-blue { background-color: #2a4d6a; }
+.dot-red { background-color: #c6333a; }
 .dot-gray { background-color: #d9d9d9; }
 
 .type-tag {
@@ -527,8 +527,8 @@ onUnmounted(() => {
 }
 
 .type-tag-python {
-  background: #fff7e6;
-  color: #d48806;
+  background: color-mix(in oklch, var(--cs-warn) 10%, #fff);
+  color: #9a5b25;
   border: 1px solid #ffe58f;
 }
 
@@ -539,8 +539,8 @@ onUnmounted(() => {
 }
 
 .type-tag-finetune {
-  background: #f9f0ff;
-  color: #722ed1;
+  background: color-mix(in oklch, var(--c-accent) 10%, #fff);
+  color: #9a5b25;
   border: 1px solid #d3adf7;
 }
 </style>

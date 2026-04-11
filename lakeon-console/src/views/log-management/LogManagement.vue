@@ -479,14 +479,14 @@ onMounted(() => {
 }
 
 .op-create { background: #fdf5ed; color: #9a5b25; }
-.op-resume { background: #f6ffed; color: #389e0d; }
+.op-resume { background: color-mix(in oklch, var(--c-success) 12%, #fff); color: #386b47; }
 .op-suspend { background: #f5f5f5; color: #8a8e99; }
-.op-delete { background: #fff1f0; color: #cf1322; }
-.op-import { background: #f9f0ff; color: #722ed1; }
-.op-update { background: #fff7e6; color: #d48806; }
+.op-delete { background: color-mix(in oklch, var(--cs-severe) 8%, #fff); color: #c6333a; }
+.op-import { background: color-mix(in oklch, var(--c-accent) 10%, #fff); color: #9a5b25; }
+.op-update { background: color-mix(in oklch, var(--cs-warn) 10%, #fff); color: #9a5b25; }
 
 .row-error { background: #fff8f8; }
-.error-text { color: #cf1322; font-size: 12px; }
+.error-text { color: #c6333a; font-size: 12px; }
 
 .resume-type-tag {
   display: inline-block;
@@ -495,7 +495,7 @@ onMounted(() => {
   border-radius: 3px;
   font-size: 11px;
 }
-.rt-warm { background: #f6ffed; color: #389e0d; }
+.rt-warm { background: color-mix(in oklch, var(--c-success) 12%, #fff); color: #386b47; }
 .rt-cold { background: #fdf5ed; color: #9a5b25; }
 
 /* SQL Audit */
@@ -507,8 +507,8 @@ onMounted(() => {
   font-weight: 500;
 }
 
-.stmt-ddl { background: #f6ffed; color: #389e0d; }
-.stmt-dml { background: #fff7e6; color: #d48806; }
+.stmt-ddl { background: color-mix(in oklch, var(--c-success) 12%, #fff); color: #386b47; }
+.stmt-dml { background: color-mix(in oklch, var(--cs-warn) 10%, #fff); color: #9a5b25; }
 .stmt-select { background: #fdf5ed; color: #9a5b25; }
 
 .sql-text {
@@ -524,10 +524,10 @@ onMounted(() => {
 
 .audit-tip {
   padding: 12px 16px;
-  background: #fffbe6;
+  background: color-mix(in oklch, var(--cs-warn) 8%, #fff);
   border-bottom: 1px solid #ffe58f;
   font-size: 13px;
-  color: #d48806;
+  color: #9a5b25;
 }
 
 /* Error logs */
@@ -539,8 +539,8 @@ onMounted(() => {
   font-weight: 600;
 }
 
-.level-error { color: #cf1322; background: #fff1f0; }
-.level-warning { color: #d48806; background: #fff7e6; }
+.level-error { color: #c6333a; background: color-mix(in oklch, var(--cs-severe) 8%, #fff); }
+.level-warning { color: #9a5b25; background: color-mix(in oklch, var(--cs-warn) 10%, #fff); }
 .level-log { color: #64748b; background: #f5f5f5; }
 .level-statement { color: #9a5b25; background: #fdf5ed; text-decoration: underline; }
 .level-info { color: #64748b; background: #f5f5f5; }

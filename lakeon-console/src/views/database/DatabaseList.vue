@@ -437,6 +437,6 @@ onUnmounted(() => {
 }
 
 .text-error {
-  color: #e53e3e;
+  color: #c6333a;
 }
 </style>

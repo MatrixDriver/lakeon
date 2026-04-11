@@ -203,7 +203,7 @@ function toggleCheckpoint(checked: boolean) {
   background: none; border: none; cursor: pointer; color: #999; padding: 2px;
   border-radius: 3px; transition: all 0.12s;
 }
-.panel-close:hover { background: #fef2f2; color: #ef4444; }
+.panel-close:hover { background: color-mix(in oklch, var(--cs-severe) 8%, #fff); color: #c6333a; }
 
 .panel-section { padding: 10px 14px; border-bottom: 1px solid #f5f3f0; }
 .section-title { font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 6px; text-transform: uppercase; }

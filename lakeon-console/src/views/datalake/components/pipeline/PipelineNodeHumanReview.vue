@@ -22,13 +22,13 @@ const isPaused = computed(() => props.data.runStatus === 'PAUSED')
 
 <style scoped>
 .review-node {
-  border: 2px solid #a855f7; background: #fdf4ff; border-radius: 8px;
+  border: 2px solid #9a5b25; background: color-mix(in oklch, var(--c-accent) 10%, #fff); border-radius: 8px;
   padding: 10px 14px; min-width: 180px; font-size: 12px; position: relative;
 }
 .review-node.selected { box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.25); }
 .review-node.paused { animation: pulse-border 2s infinite; }
 @keyframes pulse-border {
-  0%, 100% { border-color: #a855f7; }
+  0%, 100% { border-color: #9a5b25; }
   50% { border-color: #eab308; box-shadow: 0 0 8px rgba(234, 179, 8, 0.3); }
 }
 .node-header { display: flex; align-items: center; gap: 6px; font-weight: 600; color: #6b21a8; }
@@ -40,7 +40,7 @@ const isPaused = computed(() => props.data.runStatus === 'PAUSED')
   padding: 2px 6px; border-radius: 4px;
 }
 .review-node :deep(.vue-flow__handle) { width: 12px; height: 12px; background: #b0bec5; border: 2px solid #fff; border-radius: 50%; transition: all 0.15s; }
-.review-node :deep(.vue-flow__handle:hover) { width: 16px; height: 16px; background: #a855f7; box-shadow: 0 0 0 4px rgba(168,85,247,0.2); cursor: crosshair; }
+.review-node :deep(.vue-flow__handle:hover) { width: 16px; height: 16px; background: #9a5b25; box-shadow: 0 0 0 4px rgba(168,85,247,0.2); cursor: crosshair; }
 .review-node :deep(.vue-flow__handle-top) { top: -6px; }
 .review-node :deep(.vue-flow__handle-bottom) { bottom: -6px; }
 </style>

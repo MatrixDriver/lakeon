@@ -80,14 +80,14 @@ code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 11p
 .field-label { display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 6px; }
 .optional { font-weight: 400; color: #94a3b8; font-size: 11px; }
 .field-input { width: 100%; max-width: 480px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; font-size: 13px; color: #1e293b; outline: none; }
-.field-input:focus { border-color: #2563eb; }
+.field-input:focus { border-color: #2a4d6a; }
 .field-hint { font-size: 11px; color: #94a3b8; margin-top: 5px; }
-.inject-hint { font-size: 11px; color: #15803d; margin-top: 5px; }
+.inject-hint { font-size: 11px; color: #386b47; margin-top: 5px; }
 .dataset-list { border: 1px solid #e2e8f0; border-radius: 8px; max-height: 200px; overflow-y: auto; max-width: 480px; }
 .dataset-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
 .dataset-item:last-child { border-bottom: none; }
 .dataset-item:hover { background: #f8fafc; }
-.dataset-item.selected { background: #eff6ff; }
+.dataset-item.selected { background: color-mix(in oklch, var(--c-primary) 8%, #fff); }
 .dataset-name { font-weight: 600; color: #1e293b; }
 .dataset-meta { color: #94a3b8; font-size: 11px; margin-left: auto; }
 </style>

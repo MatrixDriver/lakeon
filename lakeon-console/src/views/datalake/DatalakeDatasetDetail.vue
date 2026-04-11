@@ -33,7 +33,7 @@
           >下载数据集</a>
           <button
             class="btn btn-default"
-            style="color: #e6393d; border-color: #e6393d;"
+            style="color: #c6333a; border-color: #c6333a;"
             @click="handleDelete"
           >删除</button>
         </div>
@@ -72,7 +72,7 @@
         <div class="info-card" v-if="dataset.job_id">
           <div class="info-label">生成作业</div>
           <div class="info-value">
-            <router-link :to="'/datalake/jobs/' + dataset.job_id" style="color: #2563eb; text-decoration: none;">
+            <router-link :to="'/datalake/jobs/' + dataset.job_id" style="color: #2a4d6a; text-decoration: none;">
               {{ dataset.job_id }}
             </router-link>
           </div>
@@ -80,7 +80,7 @@
         <div class="info-card" v-if="dataset.database_id">
           <div class="info-label">源数据库</div>
           <div class="info-value">
-            <router-link :to="'/databases/' + dataset.database_id" style="color: #2563eb; text-decoration: none;">
+            <router-link :to="'/databases/' + dataset.database_id" style="color: #2a4d6a; text-decoration: none;">
               {{ dataset.database_id }}
             </router-link>
           </div>
@@ -195,10 +195,10 @@
                 <td>{{ v.row_count != null ? v.row_count.toLocaleString() : '-' }}</td>
                 <td>{{ v.file_size != null ? formatSize(v.file_size) : '-' }}</td>
                 <td>
-                  <router-link v-if="v.source_pipeline_run_id" :to="'/datalake/pipelines/runs/' + v.source_pipeline_run_id" style="color: #2563eb; text-decoration: none; font-size: 12px; font-family: monospace;">
+                  <router-link v-if="v.source_pipeline_run_id" :to="'/datalake/pipelines/runs/' + v.source_pipeline_run_id" style="color: #2a4d6a; text-decoration: none; font-size: 12px; font-family: monospace;">
                     pipeline {{ v.source_pipeline_run_id.substring(0, 12) }}...
                   </router-link>
-                  <router-link v-else-if="v.source_job_id" :to="'/datalake/jobs/' + v.source_job_id" style="color: #2563eb; text-decoration: none; font-size: 12px; font-family: monospace;">
+                  <router-link v-else-if="v.source_job_id" :to="'/datalake/jobs/' + v.source_job_id" style="color: #2a4d6a; text-decoration: none; font-size: 12px; font-family: monospace;">
                     job {{ v.source_job_id.substring(0, 12) }}...
                   </router-link>
                   <span v-else style="color: #999;">-</span>
@@ -434,8 +434,8 @@ onUnmounted(() => {
 
 .badge-gray { background: #f0f0f0; color: #888; }
 .badge-blue { background: #e8f3ff; color: #9a5b25; }
-.badge-green { background: #f6ffed; color: #389e0d; }
-.badge-red { background: #fff2f0; color: #cf1322; }
+.badge-green { background: color-mix(in oklch, var(--c-success) 12%, #fff); color: #386b47; }
+.badge-red { background: color-mix(in oklch, var(--cs-severe) 8%, #fff); color: #c6333a; }
 
 .info-grid {
   display: grid;
@@ -491,7 +491,7 @@ onUnmounted(() => {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #1890ff;
+  background: #2a4d6a;
   animation: pulse 1.5s ease-in-out infinite;
   flex-shrink: 0;
 }
@@ -503,10 +503,10 @@ onUnmounted(() => {
 
 .error-banner {
   padding: 12px 16px;
-  background: #fff2f0;
+  background: color-mix(in oklch, var(--cs-severe) 8%, #fff);
   border: 1px solid #ffccc7;
   border-radius: 6px;
-  color: #a8071a;
+  color: #c6333a;
   font-size: 13px;
   margin-bottom: 24px;
   word-break: break-all;

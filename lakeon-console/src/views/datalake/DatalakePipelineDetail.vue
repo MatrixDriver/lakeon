@@ -496,8 +496,8 @@ onBeforeUnmount(destroyCodeEditor)
 .empty-hint { text-align: center; color: #ccc; padding: 32px 0; font-size: 13px; }
 .version-status { font-size: 11px; padding: 2px 8px; border-radius: 3px; }
 .version-status.draft { background: #f5f3f0; color: #94a3b8; }
-.version-status.published { background: #ecfdf5; color: #16a34a; }
-.version-status.deprecated { background: #fef2f2; color: #ef4444; }
+.version-status.published { background: color-mix(in oklch, var(--c-success) 8%, #fff); color: #386b47; }
+.version-status.deprecated { background: color-mix(in oklch, var(--cs-severe) 8%, #fff); color: #c6333a; }
 
 /* 弹窗 */
 .dialog-overlay {

@@ -23,7 +23,7 @@
           <span v-if="item.meta" class="preview-meta">{{ item.meta }}</span>
         </div>
         <div class="preview-check">
-          <svg v-if="selectedItems.has(idx)" viewBox="0 0 16 16" width="14" height="14" fill="#22c55e">
+          <svg v-if="selectedItems.has(idx)" viewBox="0 0 16 16" width="14" height="14" fill="#386b47">
             <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/>
           </svg>
         </div>
@@ -132,7 +132,7 @@ onMounted(() => {
   border: 2px solid #e8e4df; border-radius: 6px; padding: 4px;
   cursor: pointer; transition: all 0.12s; position: relative;
 }
-.preview-item.selected { border-color: #22c55e; background: #f0fdf4; }
+.preview-item.selected { border-color: #386b47; background: #f0fdf4; }
 .preview-item:hover { border-color: #2a4d6a; }
 .preview-thumb { width: 100%; aspect-ratio: 1; overflow: hidden; border-radius: 4px; }
 .preview-thumb img { width: 100%; height: 100%; object-fit: cover; }
@@ -152,10 +152,10 @@ onMounted(() => {
 .review-actions { display: flex; gap: 8px; margin-top: 10px; }
 .review-actions .btn { flex: 1; }
 .btn-danger {
-  background: #fef2f2; color: #ef4444; border: 1px solid #fca5a5;
+  background: color-mix(in oklch, var(--cs-severe) 8%, #fff); color: #c6333a; border: 1px solid #fca5a5;
   padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;
 }
-.btn-danger:hover { background: #fee2e2; }
+.btn-danger:hover { background: color-mix(in oklch, var(--cs-severe) 12%, #fff); }
 
 .review-note { font-size: 11px; color: #999; margin-top: 8px; }
 </style>

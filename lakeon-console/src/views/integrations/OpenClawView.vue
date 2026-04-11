@@ -334,7 +334,7 @@ const values = computed(() => [
 
 const roleColors: Record<string, string> = {
   family: '#c67d3a', work: '#2a4d6a', coding: '#2d6a4f',
-  content: '#7c3aed', trading: '#0369a1', coach: '#9a5b25', custom: '#64748b',
+  content: '#9a5b25', trading: '#0369a1', coach: '#9a5b25', custom: '#64748b',
 }
 
 const roles = computed(() => [
@@ -435,9 +435,9 @@ const capabilities = computed(() => [
 .pain-hd p { font-size: 13px; color: var(--pub-text-2); line-height: 1.6; margin: 0; }
 .pain-layers { margin: 8px 0 0; display: flex; flex-direction: column; gap: 2px; }
 .pain-solution { display: flex; gap: 10px; align-items: flex-start; padding-top: 12px; border-top: 1px solid var(--pub-border); }
-.pain-solution p { font-size: 13px; color: #16a34a; margin: 0; line-height: 1.6; }
-.icon-x { color: #dc2626; flex-shrink: 0; font-weight: 700; margin-top: 2px; }
-.icon-check { color: #16a34a; flex-shrink: 0; font-weight: 700; margin-top: 2px; }
+.pain-solution p { font-size: 13px; color: #386b47; margin: 0; line-height: 1.6; }
+.icon-x { color: #c6333a; flex-shrink: 0; font-weight: 700; margin-top: 2px; }
+.icon-check { color: #386b47; flex-shrink: 0; font-weight: 700; margin-top: 2px; }
 
 /* Value */
 .value-list { display: flex; flex-direction: column; gap: 16px; }
@@ -469,7 +469,7 @@ const capabilities = computed(() => [
 .scenario-card { background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 8px; padding: 16px; }
 .scenario-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
 .scenario-card p { font-size: 13px; color: var(--pub-text-2); margin: 0 0 8px; line-height: 1.5; }
-.scenario-why { font-size: 12px; color: #16a34a !important; margin: 0 !important; }
+.scenario-why { font-size: 12px; color: #386b47 !important; margin: 0 !important; }
 
 /* Why */
 .why-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -497,13 +497,13 @@ const capabilities = computed(() => [
 .one-llm-box { background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 8px; padding: 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .mono-lg { font-family: monospace; font-size: 15px; font-weight: 600; }
 .mono-gray { font-family: monospace; font-size: 13px; color: var(--pub-text-3); }
-.mono-green { font-family: monospace; font-size: 14px; font-weight: 700; color: #16a34a; }
+.mono-green { font-family: monospace; font-size: 14px; font-weight: 700; color: #386b47; }
 .arrow { font-size: 16px; color: var(--pub-text-4); }
 
 /* Tools */
 .tools-list { display: flex; flex-direction: column; gap: 8px; }
 .tool-row { display: flex; gap: 16px; align-items: flex-start; background: var(--pub-surface); border: 1px solid var(--pub-border); border-radius: 8px; padding: 12px 16px; }
-.tool-row code { font-size: 13px; color: #16a34a; font-family: monospace; flex-shrink: 0; width: 140px; }
+.tool-row code { font-size: 13px; color: #386b47; font-family: monospace; flex-shrink: 0; width: 140px; }
 .tool-row p { font-size: 13px; color: var(--pub-text-2); margin: 0; line-height: 1.5; }
 
 /* Config */
@@ -511,7 +511,7 @@ const capabilities = computed(() => [
 .config-row { display: grid; grid-template-columns: 150px 80px 140px 1fr; gap: 1px; background: var(--pub-border); }
 .config-row.header > * { background: var(--pub-hover); color: var(--pub-text-4); font-size: 11px; font-weight: 600; text-transform: uppercase; }
 .config-row > * { background: var(--pub-surface); padding: 9px 12px; }
-.config-row code { font-family: monospace; color: #16a34a; background: var(--pub-surface); padding: 9px 12px; }
+.config-row code { font-family: monospace; color: #386b47; background: var(--pub-surface); padding: 9px 12px; }
 .type-text { font-family: monospace; color: var(--pub-text-4); }
 
 /* Capabilities */

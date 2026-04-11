@@ -22,7 +22,7 @@ defineProps<{
 
 <style scoped>
 .input-node {
-  border: 2px solid #22c55e;
+  border: 2px solid #386b47;
   border-radius: 8px;
   padding: 10px 14px;
   min-width: 160px;
@@ -59,7 +59,7 @@ defineProps<{
 .input-node :deep(.vue-flow__handle) {
   width: 12px;
   height: 12px;
-  background: #22c55e;
+  background: #386b47;
   border: 2px solid #fff;
   border-radius: 50%;
   transition: all 0.15s ease;
@@ -67,7 +67,7 @@ defineProps<{
 .input-node :deep(.vue-flow__handle:hover) {
   width: 16px;
   height: 16px;
-  background: #16a34a;
+  background: #386b47;
   box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
   cursor: crosshair;
 }

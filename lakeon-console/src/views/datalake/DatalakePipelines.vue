@@ -260,6 +260,6 @@ onMounted(loadData)
   justify-content: center; color: #777; transition: all 0.12s;
 }
 .card-action-btn:hover { background: #f5f3f0; color: #2a4d6a; border-color: #c5bfb5; }
-.run-btn:hover { color: #16a34a; border-color: #86efac; background: #f0fdf4; }
-.del-btn:hover { color: #dc2626; border-color: #fca5a5; background: #fef2f2; }
+.run-btn:hover { color: #386b47; border-color: var(--c-border-light); background: color-mix(in oklch, var(--c-success) 10%, #fff); }
+.del-btn:hover { color: #c6333a; border-color: var(--c-border-light); background: color-mix(in oklch, var(--cs-severe) 8%, #fff); }
 </style>

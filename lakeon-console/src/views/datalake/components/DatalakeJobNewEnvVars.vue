@@ -70,12 +70,12 @@ function emitUpdate() {
 .env-cell:last-child { border-right: none; }
 .env-header .env-cell { background: #f8fafc; font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; }
 .env-auto .env-cell { background: #f0fdf4; }
-.env-auto .env-key { color: #15803d; font-weight: 700; font-family: monospace; }
+.env-auto .env-key { color: #386b47; font-weight: 700; font-family: monospace; }
 .env-auto .env-del { color: #bbf7d0; cursor: default; display: flex; align-items: center; justify-content: center; }
 .env-key { font-family: monospace; color: #6d28d9; font-weight: 600; }
 .env-del { color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-.env-del:hover { color: #ef4444; }
+.env-del:hover { color: #c6333a; }
 .env-input { background: none; border: none; outline: none; font-size: 12px; font-family: monospace; width: 100%; color: #334155; }
-.env-add { padding: 8px 12px; font-size: 12px; color: #2563eb; cursor: pointer; background: #fff; border-top: 1px solid #f1f5f9; }
+.env-add { padding: 8px 12px; font-size: 12px; color: #2a4d6a; cursor: pointer; background: #fff; border-top: 1px solid #f1f5f9; }
 .env-add:hover { background: #f8fafc; }
 </style>

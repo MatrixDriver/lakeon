@@ -165,11 +165,11 @@ onMounted(loadData)
 .mono { font-family: monospace; }
 .text-muted { color: #cbd5e1; }
 
-.pool-badge { display: inline-block; background: #eff6ff; color: #2563eb; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: monospace; white-space: nowrap; }
+.pool-badge { display: inline-block; background: color-mix(in oklch, var(--c-primary) 8%, #fff); color: #2a4d6a; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: monospace; white-space: nowrap; }
 
-.speed-fast { color: #16a34a; }
-.speed-medium { color: #d97706; }
-.speed-slow { color: #dc2626; }
+.speed-fast { color: #386b47; }
+.speed-medium { color: #9a5b25; }
+.speed-slow { color: #c6333a; }
 
 .chart-section { margin-top: 8px; }
 .section-title { font-size: 15px; font-weight: 700; color: #1e293b; margin: 0 0 16px; }
@@ -185,5 +185,5 @@ onMounted(loadData)
 .bar-value { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 600; color: #374151; font-family: monospace; }
 
 .loading-text { color: #6b7280; font-size: 14px; padding: 40px 0; text-align: center; }
-.error-text { color: #dc2626; font-size: 14px; padding: 40px 0; text-align: center; }
+.error-text { color: #c6333a; font-size: 14px; padding: 40px 0; text-align: center; }
 </style>

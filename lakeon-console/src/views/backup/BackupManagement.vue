@@ -362,7 +362,7 @@ onMounted(loadData)
   font-size: 14px;
   color: #64748b;
   margin-bottom: 20px;
-  background: #fffbe6;
+  background: color-mix(in oklch, var(--cs-warn) 8%, #fff);
   border: 1px solid #ffe58f;
   border-radius: 4px;
   padding: 10px 16px;
@@ -455,9 +455,9 @@ onMounted(loadData)
   font-size: 12px;
   font-weight: 500;
 }
-.tag-green { background: #f6ffed; color: #389e0d; }
-.tag-red { background: #fff1f0; color: #e6393d; }
-.tag-blue { background: #fdf5ed; color: #096dd9; }
+.tag-green { background: color-mix(in oklch, var(--c-success) 12%, #fff); color: #386b47; }
+.tag-red { background: color-mix(in oklch, var(--cs-severe) 8%, #fff); color: #c6333a; }
+.tag-blue { background: #fdf5ed; color: #2a4d6a; }
 
 .table-footer {
   display: flex;
@@ -519,7 +519,7 @@ onMounted(loadData)
 .restore-hint { font-size: 14px; color: #64748b; margin-bottom: 16px; }
 .form-group { margin-bottom: 16px; }
 .form-label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; }
-.required { color: #e6393d; }
+.required { color: #c6333a; }
 .form-input {
   width: 100%;
   height: 36px;
@@ -540,7 +540,7 @@ onMounted(loadData)
 .btn-text:hover { text-decoration: underline; }
 .btn-text:disabled { color: #ccc; text-decoration: none; }
 .btn-danger-text { color: #94a3b8; }
-.btn-danger-text:hover { color: #e6393d; }
+.btn-danger-text:hover { color: #c6333a; }
 
 @media (max-width: 768px) {
   .summary-row { flex-wrap: wrap; gap: 12px; }

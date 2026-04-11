@@ -136,10 +136,10 @@ async function loadLogs() {
 }
 .panel-title { font-size: 13px; font-weight: 600; color: #2c3e50; }
 .step-status { font-size: 11px; padding: 2px 8px; border-radius: 3px; }
-.status-running { background: #e8f4fd; color: #3b82f6; }
-.status-succeeded { background: #ecfdf5; color: #22c55e; }
-.status-failed { background: #fef2f2; color: #ef4444; }
-.status-paused { background: #fef9c3; color: #eab308; }
+.status-running { background: #e8f4fd; color: #2a4d6a; }
+.status-succeeded { background: color-mix(in oklch, var(--c-success) 8%, #fff); color: #386b47; }
+.status-failed { background: color-mix(in oklch, var(--cs-severe) 8%, #fff); color: #c6333a; }
+.status-paused { background: color-mix(in oklch, var(--cs-warn) 10%, #fff); color: #eab308; }
 .status-pending { background: #f5f3f0; color: #94a3b8; }
 .status-skipped { background: #f5f3f0; color: #94a3b8; }
 
@@ -157,8 +157,8 @@ async function loadLogs() {
 .time-row { display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0; }
 .time-label { color: #999; }
 
-.error-section { background: #fef2f2; }
-.error-text { font-size: 11px; color: #ef4444; white-space: pre-wrap; word-break: break-all; margin: 0; }
+.error-section { background: color-mix(in oklch, var(--cs-severe) 8%, #fff); }
+.error-text { font-size: 11px; color: #c6333a; white-space: pre-wrap; word-break: break-all; margin: 0; }
 
 .checkpoint-path { font-size: 11px; color: #666; font-family: monospace; word-break: break-all; }
 

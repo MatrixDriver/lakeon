@@ -59,12 +59,12 @@ const typeHints: Record<DatalakeJobType, string> = {
 .section-desc { font-size: 12px; color: #64748b; margin-bottom: 20px; line-height: 1.5; }
 .field-group { margin-bottom: 18px; }
 .field-label { display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 6px; }
-.required { color: #ef4444; }
+.required { color: #c6333a; }
 .field-input { width: 100%; max-width: 400px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; font-size: 13px; color: #1e293b; outline: none; }
-.field-input:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.1); }
+.field-input:focus { border-color: #2a4d6a; box-shadow: 0 0 0 2px rgba(37,99,235,.1); }
 .type-pills { display: flex; gap: 8px; flex-wrap: wrap; }
 .type-pill { padding: 7px 16px; border: 2px solid #e2e8f0; border-radius: 20px; font-size: 12px; font-weight: 600; color: #64748b; cursor: pointer; background: #fff; transition: all .15s; }
 .type-pill:hover { border-color: #94a3b8; color: #1e293b; }
-.type-pill.active { border-color: #2563eb; background: #eff6ff; color: #2563eb; }
+.type-pill.active { border-color: #2a4d6a; background: color-mix(in oklch, var(--c-primary) 8%, #fff); color: #2a4d6a; }
 .field-hint { font-size: 11px; color: #94a3b8; margin-top: 6px; line-height: 1.5; }
 </style>

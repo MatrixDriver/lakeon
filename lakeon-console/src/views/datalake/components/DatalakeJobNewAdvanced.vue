@@ -44,6 +44,6 @@ defineEmits<{ 'update:timeoutSeconds': [v: number]; 'update:retryCount': [v: num
 .field-group { display: flex; flex-direction: column; gap: 6px; }
 .field-label { font-size: 12px; font-weight: 600; color: #374151; }
 .field-input { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; font-size: 13px; color: #1e293b; width: 140px; outline: none; }
-.field-input:focus { border-color: #2563eb; }
+.field-input:focus { border-color: #2a4d6a; }
 .field-hint { font-size: 11px; color: #94a3b8; }
 </style>

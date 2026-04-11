@@ -703,10 +703,10 @@ onMounted(async () => {
 
 .error-banner {
   padding: 10px 14px;
-  background: #fff2f0;
+  background: color-mix(in oklch, var(--cs-severe) 8%, #fff);
   border: 1px solid #ffccc7;
   border-radius: 4px;
-  color: #a8071a;
+  color: #c6333a;
   font-size: 13px;
   margin-bottom: 16px;
   word-break: break-all;
@@ -811,7 +811,7 @@ onMounted(async () => {
 }
 
 .file-remove:hover {
-  color: #e6393d;
+  color: #c6333a;
 }
 
 /* Progress bar */

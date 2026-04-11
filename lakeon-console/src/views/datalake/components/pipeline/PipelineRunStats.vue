@@ -68,9 +68,9 @@ const retentionRate = computed(() => {
 .stat-item { display: flex; flex-direction: column; }
 .stat-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; }
 .stat-value { font-size: 14px; font-weight: 600; color: #2c3e50; margin-top: 2px; }
-.status-running { color: #3b82f6; }
-.status-succeeded { color: #22c55e; }
-.status-failed { color: #ef4444; }
+.status-running { color: #2a4d6a; }
+.status-succeeded { color: #386b47; }
+.status-failed { color: #c6333a; }
 .status-paused { color: #eab308; }
 .status-pending { color: #94a3b8; }
 .status-cancelled { color: #94a3b8; }

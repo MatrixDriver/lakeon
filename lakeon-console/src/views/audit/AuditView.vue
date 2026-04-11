@@ -189,14 +189,14 @@ onMounted(() => fetchOps())
 }
 
 .op-create { background: #fdf5ed; color: #9a5b25; }
-.op-resume { background: #f6ffed; color: #389e0d; }
+.op-resume { background: color-mix(in oklch, var(--c-success) 12%, #fff); color: #386b47; }
 .op-suspend { background: #f5f5f5; color: #8a8e99; }
-.op-delete { background: #fff1f0; color: #cf1322; }
-.op-import { background: #f9f0ff; color: #722ed1; }
-.op-update { background: #fff7e6; color: #d48806; }
+.op-delete { background: color-mix(in oklch, var(--cs-severe) 8%, #fff); color: #c6333a; }
+.op-import { background: color-mix(in oklch, var(--c-accent) 10%, #fff); color: #9a5b25; }
+.op-update { background: color-mix(in oklch, var(--cs-warn) 10%, #fff); color: #9a5b25; }
 
 .error-text {
-  color: #cf1322;
+  color: #c6333a;
   font-size: 12px;
 }
 
@@ -209,8 +209,8 @@ onMounted(() => fetchOps())
 }
 
 .rt-warm {
-  background: #f6ffed;
-  color: #389e0d;
+  background: color-mix(in oklch, var(--c-success) 12%, #fff);
+  color: #386b47;
 }
 
 .rt-cold {

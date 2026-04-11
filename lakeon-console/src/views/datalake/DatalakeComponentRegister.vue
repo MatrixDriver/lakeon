@@ -221,7 +221,7 @@ async function handleSubmit() {
 
 .form-row { margin-bottom: 12px; }
 .form-row label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
-.required { color: #ef4444; }
+.required { color: #c6333a; }
 .form-row input, .form-row select, .form-row textarea {
   width: 100%; padding: 6px 10px; border: 1px solid #e8e4df; border-radius: 4px;
   font-size: 13px; outline: none; background: #fff;
