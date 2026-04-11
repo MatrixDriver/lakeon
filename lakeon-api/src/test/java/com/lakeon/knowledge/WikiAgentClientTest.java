@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -136,5 +137,37 @@ class WikiAgentClientTest {
         String taskId = newClient().triggerIngest("t1", "kb1", "doc1");
 
         assertNull(taskId);
+    }
+
+    @Test
+    void getTaskStatusReturnsSnapshot() throws Exception {
+        server.createContext("/v1/wiki/tasks/task_abc", ex -> {
+            String json = "{\"task_id\":\"task_abc\",\"status\":\"completed\","
+                    + "\"result\":{\"pages_created\":2}}";
+            byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+            ex.getResponseHeaders().add("Content-Type", "application/json");
+            ex.sendResponseHeaders(200, bytes.length);
+            ex.getResponseBody().write(bytes);
+            ex.close();
+        });
+        server.start();
+
+        Map<String, Object> snap = newClient().getTaskStatus("task_abc");
+
+        assertEquals("completed", snap.get("status"));
+        assertEquals("task_abc", snap.get("task_id"));
+    }
+
+    @Test
+    void getTaskStatus404() throws Exception {
+        server.createContext("/v1/wiki/tasks/missing", ex -> {
+            ex.sendResponseHeaders(404, -1);
+            ex.close();
+        });
+        server.start();
+
+        Map<String, Object> snap = newClient().getTaskStatus("missing");
+
+        assertEquals("not_found", snap.get("status"));
     }
 }

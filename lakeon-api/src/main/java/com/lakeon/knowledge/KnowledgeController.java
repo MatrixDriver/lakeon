@@ -39,6 +39,8 @@ public class KnowledgeController {
     private final TenantRepository tenantRepository;
     private final ChunkService chunkService;
     private final com.lakeon.repository.DatabaseRepository databaseRepository;
+    private final WikiAgentClient wikiAgentClient;
+    private final WikiToolService wikiToolService;
 
     public KnowledgeController(KnowledgeService knowledgeService,
                                DocumentRepository documentRepository,
@@ -52,7 +54,9 @@ public class KnowledgeController {
                                KbShareRepository kbShareRepository,
                                TenantRepository tenantRepository,
                                ChunkService chunkService,
-                               com.lakeon.repository.DatabaseRepository databaseRepository) {
+                               com.lakeon.repository.DatabaseRepository databaseRepository,
+                               WikiAgentClient wikiAgentClient,
+                               WikiToolService wikiToolService) {
         this.knowledgeService = knowledgeService;
         this.documentRepository = documentRepository;
         this.kbWriteQueue = kbWriteQueue;
@@ -66,6 +70,8 @@ public class KnowledgeController {
         this.tenantRepository = tenantRepository;
         this.chunkService = chunkService;
         this.databaseRepository = databaseRepository;
+        this.wikiAgentClient = wikiAgentClient;
+        this.wikiToolService = wikiToolService;
     }
 
     // ── Knowledge Base endpoints ─────────────────────────────────────
@@ -731,6 +737,100 @@ public class KnowledgeController {
         TenantEntity tenant = getTenant(req);
         String content = knowledgeService.getWikiPageContent(tenant.getId(), kbId, docId);
         return ResponseEntity.ok(Map.of("content", content != null ? content : ""));
+    }
+
+    // ── Wiki Agent dispatch endpoints (user-facing) ───────────
+
+    @PostMapping("/bases/{kbId}/wiki/agent/ingest")
+    public Map<String, Object> triggerWikiAgentIngest(
+            HttpServletRequest req,
+            @PathVariable String kbId,
+            @RequestBody Map<String, String> body) {
+        TenantEntity tenant = getTenant(req);
+        kbAccessService.getKbWithAccess(kbId, tenant.getId());
+        String documentId = body.get("document_id");
+        if (documentId == null || documentId.isBlank()) {
+            throw new com.lakeon.service.exception.BadRequestException("document_id is required");
+        }
+        String taskId = wikiAgentClient.triggerIngest(tenant.getId(), kbId, documentId);
+        if (taskId == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE, "Wiki agent is unavailable");
+        }
+        return Map.of("task_id", taskId, "run_id", taskId, "status", "accepted");
+    }
+
+    @PostMapping("/bases/{kbId}/wiki/agent/curate")
+    public Map<String, Object> triggerWikiAgentCurate(
+            HttpServletRequest req,
+            @PathVariable String kbId) {
+        TenantEntity tenant = getTenant(req);
+        kbAccessService.getKbWithAccess(kbId, tenant.getId());
+        String taskId = wikiAgentClient.triggerCurate(tenant.getId(), kbId);
+        if (taskId == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE, "Wiki agent is unavailable");
+        }
+        return Map.of("task_id", taskId, "status", "accepted");
+    }
+
+    @PostMapping("/bases/{kbId}/wiki/agent/lint")
+    public Map<String, Object> triggerWikiAgentLint(
+            HttpServletRequest req,
+            @PathVariable String kbId) {
+        TenantEntity tenant = getTenant(req);
+        kbAccessService.getKbWithAccess(kbId, tenant.getId());
+        String taskId = wikiAgentClient.triggerLint(tenant.getId(), kbId);
+        if (taskId == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE, "Wiki agent is unavailable");
+        }
+        return Map.of("task_id", taskId, "status", "accepted");
+    }
+
+    @GetMapping("/bases/{kbId}/wiki/agent/tasks/{taskId}")
+    public Map<String, Object> getWikiAgentTaskStatus(
+            HttpServletRequest req,
+            @PathVariable String kbId,
+            @PathVariable String taskId) {
+        TenantEntity tenant = getTenant(req);
+        kbAccessService.getKbWithAccess(kbId, tenant.getId());
+        return wikiAgentClient.getTaskStatus(taskId);
+    }
+
+    // ── Wiki read helpers for MCP consumption (user-facing) ────
+
+    @GetMapping("/bases/{kbId}/wiki/page-by-title")
+    public Map<String, Object> readWikiPageByTitle(
+            HttpServletRequest req,
+            @PathVariable String kbId,
+            @RequestParam("title") String title) {
+        TenantEntity tenant = getTenant(req);
+        kbAccessService.getKbWithAccess(kbId, tenant.getId());
+        String filename = WikiService.titleToFilename(title);
+        String content = wikiService.readWikiPage(tenant.getId(), kbId, filename);
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        if (content == null) {
+            result.put("found", false);
+            result.put("title", title);
+            return result;
+        }
+        result.put("found", true);
+        result.put("title", title);
+        result.put("filename", filename);
+        result.put("content", content);
+        return result;
+    }
+
+    @GetMapping("/bases/{kbId}/wiki/search")
+    public List<Map<String, Object>> searchWikiPages(
+            HttpServletRequest req,
+            @PathVariable String kbId,
+            @RequestParam("query") String query,
+            @RequestParam(value = "top_k", defaultValue = "5") int topK) {
+        TenantEntity tenant = getTenant(req);
+        kbAccessService.getKbWithAccess(kbId, tenant.getId());
+        return wikiToolService.searchPages(tenant.getId(), kbId, query, topK);
     }
 
     @DeleteMapping("/wiki/pages/{docId}")

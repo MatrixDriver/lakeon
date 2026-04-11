@@ -54,6 +54,45 @@ public class WikiAgentClient {
     }
 
     /**
+     * Fetch the status snapshot of a wiki agent task by its ID.
+     * Returns a map with keys like task_id, status, result, error.
+     * Returns a minimal error map if the agent is unreachable — never throws.
+     */
+    public Map<String, Object> getTaskStatus(String taskId) {
+        String baseUrl = props.getWiki().getAgent().getUrl();
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return Map.of("status", "error", "error", "wiki agent not configured");
+        }
+        String url = baseUrl + "/v1/wiki/tasks/" + taskId;
+        String token = props.getWiki().getAgent().getInternalToken();
+        try {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("Authorization", "Bearer " + token)
+                    .timeout(Duration.ofSeconds(10))
+                    .GET()
+                    .build();
+            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() == 404) {
+                return Map.of("status", "not_found", "task_id", taskId);
+            }
+            if (resp.statusCode() != 200) {
+                log.warn("Wiki agent /v1/wiki/tasks/{} returned {}: {}",
+                        taskId, resp.statusCode(), resp.body());
+                return Map.of("status", "error",
+                        "error", "wiki agent returned " + resp.statusCode());
+            }
+            Map<?, ?> result = objectMapper.readValue(resp.body(), Map.class);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> typed = (Map<String, Object>) result;
+            return typed;
+        } catch (Exception e) {
+            log.warn("Wiki agent /v1/wiki/tasks/{} call failed: {}", taskId, e.toString());
+            return Map.of("status", "error", "error", e.toString());
+        }
+    }
+
+    /**
      * Returns null when the agent is unreachable/misconfigured. Callers should
      * log and continue — agent availability must not fail queue draining.
      *
