@@ -6,8 +6,10 @@ import org.mockito.Mockito;
 import java.lang.reflect.Method;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 class KbWriteQueueWikiAgentTest {
 
@@ -32,10 +34,27 @@ class KbWriteQueueWikiAgentTest {
         KbWriteQueue queue = buildQueueWithMockAgent(agent);
 
         // Should not throw even though agent returned null
-        invokeExecuteWikiUpdate(queue, Map.of(
-                "tenant_id", "t1", "kb_id", "kb1", "document_id", "doc1"));
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() ->
+            invokeExecuteWikiUpdate(queue, Map.of(
+                "tenant_id", "t1", "kb_id", "kb1", "document_id", "doc1"))
+        );
 
         verify(agent).triggerIngest("t1", "kb1", "doc1");
+    }
+
+    @Test
+    void executeWikiUpdateThrowsOnMissingParams() throws Exception {
+        WikiAgentClient agent = mock(WikiAgentClient.class);
+        KbWriteQueue queue = buildQueueWithMockAgent(agent);
+
+        // Missing document_id
+        IllegalArgumentException ex = org.junit.jupiter.api.Assertions.assertThrows(
+            IllegalArgumentException.class,
+            () -> invokeExecuteWikiUpdate(queue, Map.of("tenant_id", "t1", "kb_id", "kb1"))
+        );
+        assertTrue(ex.getMessage().contains("missing required params"));
+
+        verifyNoInteractions(agent);
     }
 
     /**
@@ -74,6 +93,14 @@ class KbWriteQueueWikiAgentTest {
     private void invokeExecuteWikiUpdate(KbWriteQueue queue, Map<String, Object> params) throws Exception {
         Method m = KbWriteQueue.class.getDeclaredMethod("executeWikiUpdate", Map.class);
         m.setAccessible(true);
-        m.invoke(queue, params);
+        try {
+            m.invoke(queue, params);
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            // Unwrap so tests see the real exception, not the reflection wrapper
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException) throw (RuntimeException) cause;
+            if (cause instanceof Exception) throw (Exception) cause;
+            throw new RuntimeException(cause);
+        }
     }
 }

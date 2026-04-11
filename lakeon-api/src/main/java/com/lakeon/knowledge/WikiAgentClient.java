@@ -57,9 +57,11 @@ public class WikiAgentClient {
      * Returns null when the agent is unreachable/misconfigured. Callers should
      * log and continue — agent availability must not fail queue draining.
      *
-     * No retry here — KbWriteQueue handles retry at the dispatch layer.
-     * Adding client-level retry would multiply retry counts and amplify
-     * transient failures into thundering herds.
+     * <p>No retry at either layer (KbWriteQueue.executeWikiUpdate logs and skips).
+     * Rationale: wiki ingestion is best-effort background enrichment; a transient
+     * agent outage should not pile up retries or block document parse/summarize.
+     * See {@link com.lakeon.knowledge.KbWriteQueue#executeWikiUpdate} for the
+     * authoritative decision and the TODO for a future reconciliation job.
      */
     private String post(String path, Map<String, Object> body) {
         String baseUrl = props.getWiki().getAgent().getUrl();
