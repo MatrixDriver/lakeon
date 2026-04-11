@@ -29,7 +29,10 @@ public class WikiAgentClient {
     public WikiAgentClient(LakeonProperties props, ObjectMapper objectMapper) {
         this.props = props;
         this.objectMapper = objectMapper;
+        // Force HTTP/1.1 — uvicorn does not support HTTP/2 h2c upgrade from
+        // plain-text "Upgrade: h2c" headers (Java HttpClient's default probe).
         this.httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();
     }
