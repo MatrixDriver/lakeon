@@ -27,8 +27,10 @@
         </div>
 
         <div class="hero-shortcut">
-          <span class="shortcut-label">{{ t('也可以直接把 MCP 加进 Claude Code', 'Or drop the MCP into Claude Code directly') }}</span>
-          <code class="shortcut-code">$ claude mcp add --scope user dbay -- python -m dbay_mcp</code>
+          <span class="shortcut-label">{{ t('也可以直接接入你正在用的 Agent', 'Or plug it into the agent you already use') }}</span>
+          <router-link to="/integrations" class="shortcut-link">
+            Claude Code · Cursor · Cline · Gemini CLI — {{ t('集成指引', 'integration guide') }} →
+          </router-link>
         </div>
       </div>
     </section>
@@ -255,10 +257,14 @@
           </p>
         </div>
 
-        <!-- Shell install -->
+        <!-- Shell install + full guide link -->
         <div class="cc-shell">
           <code class="shortcut-code">$ claude mcp add --scope user dbay -- python -m dbay_mcp</code>
           <p class="cc-shell-note">
+            {{ t('需要先装 dbay-cli。', 'Requires dbay-cli first.') }}
+            <router-link to="/integrations" class="cc-shell-link">{{ t('查看完整接入指引', 'See the full integration guide') }} →</router-link>
+          </p>
+          <p class="cc-shell-note cc-shell-note-tiny">
             {{ t('以 Claude Code 为例。同样支持任何 MCP 兼容的 Agent。', 'Claude Code shown here. Any MCP-compatible agent works the same way.') }}
           </p>
         </div>
@@ -284,7 +290,7 @@
 
         <div class="capabilities-grid">
           <!-- Lakebase -->
-          <div class="cap">
+          <router-link to="/product/lakebase" class="cap">
             <h3 class="cap-name">Lakebase</h3>
             <ul class="cap-list">
               <li>{{ t('在数据湖上跑的 serverless PostgreSQL', 'Serverless PostgreSQL running on a data lake') }}</li>
@@ -294,11 +300,11 @@
             <p class="cap-reveal">
               {{ t('不是 wrapper。我们在 Neon PageServer 里加了 BM25 索引。', 'Not a wrapper. We added BM25 indexing inside the Neon PageServer.') }}
             </p>
-            <code class="cap-code">psql ${LAKEBASE_URL}</code>
-          </div>
+            <span class="cap-more">{{ t('继续读 Lakebase', 'Read more') }} →</span>
+          </router-link>
 
           <!-- Knowledge -->
-          <div class="cap">
+          <router-link to="/product/knowledge" class="cap">
             <h3 class="cap-name">Knowledge</h3>
             <ul class="cap-list">
               <li>{{ t('Agent 自己维护的活 wiki', 'A living wiki the agent maintains itself') }}</li>
@@ -308,11 +314,11 @@
             <p class="cap-reveal">
               {{ t('Agent 读 wiki 条目，不是 chunk。底层四路融合检索。', 'Agents read wiki entries, not chunks. Four-way hybrid retrieval underneath.') }}
             </p>
-            <code class="cap-code">dbay knowledge ask "..."</code>
-          </div>
+            <span class="cap-more">{{ t('继续读 Knowledge', 'Read more') }} →</span>
+          </router-link>
 
           <!-- Memory -->
-          <div class="cap">
+          <router-link to="/product/memory" class="cap">
             <h3 class="cap-name">Memory</h3>
             <ul class="cap-list">
               <li>{{ t('同内核融合检索 · LoCoMo 82%', 'Same kernel fusion retrieval · LoCoMo 82%') }}</li>
@@ -322,11 +328,11 @@
             <p class="cap-reveal">
               {{ t('每晚 digest 反刍对话，几天后自己抽出你的开发模式。', 'Nightly digest walks the conversation; a few days in it knows your patterns.') }}
             </p>
-            <code class="cap-code">memory.recall("...")</code>
-          </div>
+            <span class="cap-more">{{ t('继续读 Memory', 'Read more') }} →</span>
+          </router-link>
 
           <!-- Datalake -->
-          <div class="cap">
+          <router-link to="/product/datalake" class="cap">
             <h3 class="cap-name">Datalake</h3>
             <ul class="cap-list">
               <li>{{ t('多模态算子库 · DAG 编排', 'Multi-modal operators · DAG orchestration') }}</li>
@@ -336,8 +342,8 @@
             <p class="cap-reveal">
               {{ t('DAG 编译成分布式 Python，算子间 shared memory 不落地。', 'The DAG compiles into a single distributed Python program; operators pass through shared memory, never disk.') }}
             </p>
-            <code class="cap-code">ray.submit(job)</code>
-          </div>
+            <span class="cap-more">{{ t('继续读 Datalake', 'Read more') }} →</span>
+          </router-link>
         </div>
       </div>
     </section>
@@ -673,6 +679,22 @@ async function startTrial() {
   border-radius: 4px;
   padding: 8px 14px;
   user-select: all;
+}
+
+.shortcut-link {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--c-accent-text);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 2px;
+  transition: color 160ms ease-out;
+}
+
+.shortcut-link:hover {
+  color: var(--c-accent-hover);
 }
 
 /* ══════════════════════════════════════════
@@ -1133,10 +1155,29 @@ async function startTrial() {
 
 .cc-shell-note {
   font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--c-text-2);
+  margin: var(--space-md) 0 0;
+  letter-spacing: 0.02em;
+}
+
+.cc-shell-note-tiny {
   font-size: 11px;
   color: var(--c-text-3);
-  margin: var(--space-sm) 0 0;
-  letter-spacing: 0.02em;
+  margin-top: var(--space-xs);
+}
+
+.cc-shell-link {
+  color: var(--c-accent-text);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 1px;
+  margin-left: 4px;
+  transition: color 160ms ease-out;
+}
+
+.cc-shell-link:hover {
+  color: var(--c-accent-hover);
 }
 
 /* ══════════════════════════════════════════
@@ -1164,6 +1205,21 @@ async function startTrial() {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  text-decoration: none;
+  color: inherit;
+  padding: var(--space-lg) var(--space-md);
+  margin: calc(var(--space-lg) * -1) calc(var(--space-md) * -1);
+  border-radius: 6px;
+  transition: background 160ms ease-out, transform 160ms ease-out;
+}
+
+.cap:hover {
+  background: #fff;
+}
+
+.cap:hover .cap-more {
+  color: var(--c-accent-hover);
+  transform: translateX(2px);
 }
 
 .cap-name {
@@ -1203,17 +1259,18 @@ async function startTrial() {
   padding-top: var(--space-md);
   border-top: 1px solid var(--c-border-light);
   max-width: none;
+  flex: 1;
 }
 
-.cap-code {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: 11px;
+.cap-more {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
   color: var(--c-accent-text);
-  background: transparent;
-  padding: 0;
-  margin: 0;
-  letter-spacing: -0.01em;
+  margin-top: var(--space-sm);
+  transition: color 160ms ease-out, transform 160ms ease-out;
 }
 
 /* ══════════════════════════════════════════
