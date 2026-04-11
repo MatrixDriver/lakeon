@@ -6,7 +6,8 @@ import java.time.Instant;
 @Entity
 @Table(name = "wiki_run_logs", indexes = {
     @Index(name = "idx_wiki_run_logs_kb_id", columnList = "kb_id"),
-    @Index(name = "idx_wiki_run_logs_created_at", columnList = "created_at")
+    @Index(name = "idx_wiki_run_logs_created_at", columnList = "created_at"),
+    @Index(name = "idx_wiki_run_logs_run_id", columnList = "run_id")
 })
 public class WikiRunLogEntity {
     @Id

@@ -1,4 +1,4 @@
--- V2026_04_11__wiki_run_log_agent.sql
+-- V35__wiki_run_log_agent.sql
 ALTER TABLE wiki_run_logs
     ADD COLUMN IF NOT EXISTS run_id VARCHAR(64),
     ADD COLUMN IF NOT EXISTS tool_calls_count INT DEFAULT 0,
