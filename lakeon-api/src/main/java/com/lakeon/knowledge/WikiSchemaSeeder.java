@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -29,7 +30,7 @@ public class WikiSchemaSeeder {
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onKnowledgeBaseCreated(KnowledgeBaseCreatedEvent event) {
         if (DEFAULT_SCHEMA_CONTENT.isEmpty()) {
             log.warn("Skipping schema seed for KB {} because default-schema.md is missing from classpath",
