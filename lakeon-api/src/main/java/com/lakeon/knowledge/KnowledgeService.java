@@ -201,7 +201,10 @@ public class KnowledgeService {
         t.setDaemon(true);
         t.start();
 
-        eventPublisher.publishEvent(new KnowledgeBaseCreatedEvent(kb.getTenantId(), kb.getId()));
+        // For DOCUMENT-type KBs, the schema-seed event is published from the
+        // background provisioning thread after databaseId is set (see provisionKbDatabase).
+        // Publishing here would fire the event before the Neon db_id exists, causing
+        // the wiki document insert to fail the NOT NULL constraint on database_id.
         return kb;
     }
 
@@ -242,13 +245,28 @@ public class KnowledgeService {
                 if (dbEntity == null) break;
                 lastStatus = dbEntity.getStatus();
                 if (lastStatus == DatabaseStatus.RUNNING) {
-                    knowledgeBaseRepository.findById(kbId).ifPresent(kb -> {
-                        kb.setDatabaseId(dbId);
-                        kb.setStatus(KnowledgeBaseStatus.READY);
-                        knowledgeBaseRepository.save(kb);
-                    });
+                    String tenantIdForEvent = knowledgeBaseRepository.findById(kbId)
+                            .map(kb -> {
+                                kb.setDatabaseId(dbId);
+                                kb.setStatus(KnowledgeBaseStatus.READY);
+                                knowledgeBaseRepository.save(kb);
+                                return kb.getTenantId();
+                            })
+                            .orElse(null);
                     log.info("Knowledge base {} is READY (database {} host={} user={})",
                              kbId, dbId, dbEntity.getComputeHost(), dbEntity.getDbUser());
+                    // Publish seed event now that databaseId is populated and the outer
+                    // save has committed. The WikiSchemaSeeder AFTER_COMMIT listener
+                    // runs in its own REQUIRES_NEW transaction and can now insert a
+                    // document row with a valid database_id.
+                    if (tenantIdForEvent != null) {
+                        try {
+                            eventPublisher.publishEvent(
+                                    new KnowledgeBaseCreatedEvent(tenantIdForEvent, kbId));
+                        } catch (Exception e) {
+                            log.warn("Failed to publish KB-ready event for {}: {}", kbId, e.getMessage());
+                        }
+                    }
                     return;
                 }
                 if (lastStatus == DatabaseStatus.ERROR) break;

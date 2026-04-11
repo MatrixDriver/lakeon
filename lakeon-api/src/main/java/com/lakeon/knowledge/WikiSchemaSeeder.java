@@ -5,11 +5,10 @@ import java.nio.charset.StandardCharsets;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
  * Seeds a default {@code schema.md} wiki page into every newly-created knowledge base.
@@ -29,7 +28,7 @@ public class WikiSchemaSeeder {
         this.wikiService = wikiService;
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onKnowledgeBaseCreated(KnowledgeBaseCreatedEvent event) {
         if (DEFAULT_SCHEMA_CONTENT.isEmpty()) {
