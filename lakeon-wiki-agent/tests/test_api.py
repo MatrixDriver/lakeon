@@ -137,6 +137,33 @@ def test_task_status_requires_auth(client):
     assert r.status_code == 403
 
 
+def test_curate_rejects_missing_kb_id(client):
+    r = client.post(
+        "/v1/wiki/curate",
+        json={"tenant_id": "t"},
+        headers=_auth_headers(),
+    )
+    assert r.status_code == 422
+
+
+def test_lint_rejects_missing_tenant_id(client):
+    r = client.post(
+        "/v1/wiki/lint",
+        json={"kb_id": "k"},
+        headers=_auth_headers(),
+    )
+    assert r.status_code == 422
+
+
+def test_ingest_rejects_empty_tenant_id(client):
+    r = client.post(
+        "/v1/wiki/ingest",
+        json={"tenant_id": "", "kb_id": "k", "document_id": "d"},
+        headers=_auth_headers(),
+    )
+    assert r.status_code == 422
+
+
 def test_ingest_dispatches_correct_run_type(client):
     fake_reg = app.dependency_overrides[get_registry]()
     client.post(

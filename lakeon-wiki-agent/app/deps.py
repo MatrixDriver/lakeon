@@ -1,13 +1,17 @@
 """Shared singletons and request-level dependencies."""
+import hmac
+import logging
 from functools import lru_cache
 
-from fastapi import Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 
 from app.agent.llm import LlmClient
 from app.agent.loop import AgentRunner
 from app.clients.lakeon_api import LakeonApiClient
 from app.config import settings
 from app.tasks import TaskRegistry
+
+log = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
@@ -35,20 +39,23 @@ def get_registry() -> TaskRegistry:
     return TaskRegistry(max_concurrent=settings.max_concurrent_agents)
 
 
-@lru_cache(maxsize=1)
-def get_runner() -> AgentRunner:
+def get_runner(
+    llm: LlmClient = Depends(get_llm),
+    api: LakeonApiClient = Depends(get_api),
+) -> AgentRunner:
     return AgentRunner(
-        llm=get_llm(),
-        api=get_api(),
+        llm=llm,
+        api=api,
         max_rounds=settings.max_tool_rounds,
         max_tool_result_chars=settings.max_tool_result_chars,
     )
 
 
 async def require_token(authorization: str | None = Header(None)) -> None:
-    """Enforce bearer-token auth for internal routes."""
+    """Enforce bearer-token auth for internal routes. Uses constant-time comparison."""
     expected = f"Bearer {settings.wiki_agent_internal_token}"
-    if authorization != expected:
+    if authorization is None or not hmac.compare_digest(authorization, expected):
+        log.warning("wiki-agent auth failed")
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
             detail="invalid wiki agent token",

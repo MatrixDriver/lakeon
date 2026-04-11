@@ -35,8 +35,9 @@ async def _evict_sweeper() -> None:
         try:
             await asyncio.sleep(EVICT_INTERVAL_SECONDS)
             evicted = registry.evict_older_than(TASK_RETENTION_SECONDS)
-            if evicted:
-                log.debug("evicted %d stale task snapshots", evicted)
+            log.info(
+                "task-registry sweeper iteration: evicted %d snapshot(s)", evicted
+            )
         except asyncio.CancelledError:
             break
         except Exception as e:

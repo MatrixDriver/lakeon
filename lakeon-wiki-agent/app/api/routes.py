@@ -9,41 +9,41 @@ Three run types (ingest, curate, lint) each map to a POST endpoint that:
 Progress is polled via GET /v1/wiki/tasks/{task_id}.
 """
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from app.agent.loop import RunRequest, new_run_id
+from app.agent.loop import AgentRunner, RunRequest, new_run_id
 from app.deps import get_registry, get_runner, require_token
 from app.tasks import TaskRegistry
 
-router = APIRouter()
+router = APIRouter(tags=["wiki-agent"])
 
 
 class IngestRequest(BaseModel):
-    tenant_id: str
-    kb_id: str
-    document_id: str
-    source: str = "queue"
+    tenant_id: str = Field(..., min_length=1)
+    kb_id: str = Field(..., min_length=1)
+    document_id: str = Field(..., min_length=1)
+    source: str = Field("queue", min_length=1)
     callback_url: str | None = None
 
 
 class CurateRequest(BaseModel):
-    tenant_id: str
-    kb_id: str
-    source: str = "manual"
+    tenant_id: str = Field(..., min_length=1)
+    kb_id: str = Field(..., min_length=1)
+    source: str = Field("manual", min_length=1)
     callback_url: str | None = None
 
 
 class LintRequest(BaseModel):
-    tenant_id: str
-    kb_id: str
-    source: str = "manual"
+    tenant_id: str = Field(..., min_length=1)
+    kb_id: str = Field(..., min_length=1)
+    source: str = Field("manual", min_length=1)
     callback_url: str | None = None
 
 
 # ── Public (no auth) ───────────────────────────────────────────
 
 
-@router.get("/health")
+@router.get("/health", summary="Liveness probe")
 def health() -> dict:
     return {"status": "ok"}
 
@@ -51,11 +51,16 @@ def health() -> dict:
 # ── Authenticated run endpoints ────────────────────────────────
 
 
-@router.post("/v1/wiki/ingest", status_code=202, dependencies=[Depends(require_token)])
+@router.post(
+    "/v1/wiki/ingest",
+    status_code=202,
+    dependencies=[Depends(require_token)],
+    summary="Dispatch a wiki ingest run for a single document",
+)
 async def ingest(
     req: IngestRequest,
     registry: TaskRegistry = Depends(get_registry),
-    runner=Depends(get_runner),
+    runner: AgentRunner = Depends(get_runner),
 ) -> dict:
     run_req = RunRequest(
         tenant_id=req.tenant_id,
@@ -74,11 +79,16 @@ async def ingest(
     }
 
 
-@router.post("/v1/wiki/curate", status_code=202, dependencies=[Depends(require_token)])
+@router.post(
+    "/v1/wiki/curate",
+    status_code=202,
+    dependencies=[Depends(require_token)],
+    summary="Dispatch a wiki curate run",
+)
 async def curate(
     req: CurateRequest,
     registry: TaskRegistry = Depends(get_registry),
-    runner=Depends(get_runner),
+    runner: AgentRunner = Depends(get_runner),
 ) -> dict:
     run_req = RunRequest(
         tenant_id=req.tenant_id,
@@ -96,11 +106,16 @@ async def curate(
     }
 
 
-@router.post("/v1/wiki/lint", status_code=202, dependencies=[Depends(require_token)])
+@router.post(
+    "/v1/wiki/lint",
+    status_code=202,
+    dependencies=[Depends(require_token)],
+    summary="Dispatch a wiki lint run",
+)
 async def lint(
     req: LintRequest,
     registry: TaskRegistry = Depends(get_registry),
-    runner=Depends(get_runner),
+    runner: AgentRunner = Depends(get_runner),
 ) -> dict:
     run_req = RunRequest(
         tenant_id=req.tenant_id,
@@ -118,7 +133,11 @@ async def lint(
     }
 
 
-@router.get("/v1/wiki/tasks/{task_id}", dependencies=[Depends(require_token)])
+@router.get(
+    "/v1/wiki/tasks/{task_id}",
+    dependencies=[Depends(require_token)],
+    summary="Poll the status of a wiki agent run",
+)
 def task_status(
     task_id: str,
     registry: TaskRegistry = Depends(get_registry),
