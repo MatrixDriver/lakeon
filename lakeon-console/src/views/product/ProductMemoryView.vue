@@ -19,37 +19,37 @@
         </p>
         <p class="ppage-manifesto-lede">
           {{ t(
-            '反思成立的前提是服务端能读你的对话——这件事我们不绕着说。想让 DBay 读不到的那部分，标记为"私密"：客户端加密、服务端只看到密文、不参与 digest。秘钥、密码、以及你说"记住一件私事"的内容会自动走这条路。选择权是你的。',
-            "For reflection to work, the server has to read your conversations — we don't dance around that. The parts you don't want DBay to read, you mark as \"private\": encrypted on your device, ciphertext-only on the server, left out of the digest. Keys, passwords, and anything you say \"remember this privately\" about take that path automatically. The choice is yours."
+            '反思成立的前提是服务端能读你的对话——这件事我们不绕着说。不想让 DBay 读到？在创建记忆库时勾选"私密"——整个库基于公私钥的信封加密，钥匙只在你手里，服务端从头到尾只看得到密文。代价是私密记忆库不参与 digest：要端到端的绝对私密，还是要反思洞察，选择权是你的。',
+            "For reflection to work, the server has to read your conversations — we don't dance around that. Don't want DBay to read them? When you create a memory base, tick \"private\" — the whole base is envelope-encrypted with a public/private key pair, the key stays on your device, and the server only ever sees ciphertext. The trade-off: a private base doesn't get a digest. Absolute privacy or reflection insights — the choice is yours."
           ) }}
         </p>
       </div>
     </section>
 
-    <!-- 02 · Two kinds of memory -->
+    <!-- 02 · Two kinds of memory base -->
     <section class="ppage-section">
       <div class="ppage-inner">
-        <h2 class="ppage-section-title">{{ t('两种记忆', 'Two kinds of memory') }}</h2>
+        <h2 class="ppage-section-title">{{ t('两种记忆库', 'Two kinds of memory base') }}</h2>
 
         <div class="mm-dual">
           <article class="mm-dual-card">
             <div class="mm-dual-num">01</div>
-            <h3 class="mm-dual-title">{{ t('你和 DBay 都知道的', "The ones you and DBay both know") }}</h3>
+            <h3 class="mm-dual-title">{{ t('反思型记忆库', 'The reflective base') }}</h3>
             <p class="mm-dual-body">
               {{ t(
-                '大部分记忆。DBay 每晚读它、整合它、提炼你的思维方式。存在你的隔离数据库里，不跨账户聚合，不做训练素材，不向第三方分发——但 DBay 能读到它，这是反思成立的前提。',
-                "Most memories. DBay reads them every night, weaves them together, and distills how you think. They live in your isolated database — never aggregated across accounts, never used for training, never shared with third parties — but DBay can read them. That's what makes reflection possible."
+                '创建时不勾选"私密"。内容明文存在你的隔离数据库里，DBay 每晚读它、整合它、提炼你的思维方式——几天后"你是谁"会浮现在反思洞察面板里。不跨账户聚合，不做训练素材，不向第三方分发——但 DBay 能读到它。这是反思成立的前提。',
+                'Create a base without ticking "private." Content is stored plaintext in your isolated database; DBay reads it every night, weaves it together, and distills how you think — a few days in, "who you are" surfaces in the reflection panel. Never aggregated across accounts, never used for training, never shared with third parties — but DBay can read it. That is the precondition for reflection.'
               ) }}
             </p>
           </article>
 
           <article class="mm-dual-card">
             <div class="mm-dual-num">02</div>
-            <h3 class="mm-dual-title">{{ t('你一个人知道的', 'The ones only you know') }}</h3>
+            <h3 class="mm-dual-title">{{ t('私密记忆库', 'The private base') }}</h3>
             <p class="mm-dual-body">
               {{ t(
-                '标记为"私密"的条目。客户端基于公私钥的信封加密，服务端只看到密文。embedding 在你本地算好一起上传，所以这些条目依然能被语义搜索，但服务端无法阅读内容，也不参与 digest。即便数据库被整库拖走，也还原不了。',
-                'Entries marked "private." Encrypted on your device with envelope encryption over a public/private key pair — the server only ever sees ciphertext. Embeddings are computed locally and uploaded alongside, so private entries still show up in semantic search, but the server can\'t read their content and they don\'t participate in the digest. Even a full database exfiltration reveals nothing.'
+                '创建时勾选"私密"。每一条内容在离开你电脑之前就被加密——基于 RSA-4096 公私钥的信封加密，私钥用 PBKDF2 从你的密码派生。embedding 在你本地算好一起上传，所以私密记忆库依然能做语义搜索；但服务端从头到尾只看得到密文，digest 读不到、反思洞察跑不起来。即便数据库被整库拖走，也还原不了。',
+                'Create a base with "private" ticked. Every entry is encrypted before it ever leaves your machine — envelope encryption over an RSA-4096 public/private key pair, with the private key derived from your password via PBKDF2. Embeddings are computed locally and uploaded alongside, so the private base still supports semantic search — but the server only ever sees ciphertext. The digest can\'t read it and reflection insights don\'t run. Even a full database exfiltration reveals nothing.'
               ) }}
             </p>
           </article>
@@ -57,14 +57,14 @@
 
         <p class="mm-dual-note">
           {{ t(
-            'dbay-mcp 会自动把秘钥类内容（API key · token · password · private key）识别为私密。你在对话里说"记住一件私事"也会触发——Agent 的 LLM 看到这类意图会主动带上私密标记。',
-            'dbay-mcp automatically flags secrets (API keys, tokens, passwords, private keys) as private. Saying "remember this privately" in conversation also triggers it — the agent\'s LLM sees that intent and marks the entry on its way in.'
+            '两种库可以同时存在。把秘钥、token、私事放进一个私密库，把开发偏好和团队约定放进一个反思库——DBay 的 MCP 工具可以同时接上两个，Agent 会根据场景写到合适的那个。',
+            'You can keep both kinds side by side. Drop secrets, tokens, and private notes into a private base; keep coding preferences and team conventions in a reflective base. dbay-mcp can connect to both at once, and the agent writes to whichever one fits the context.'
           ) }}
         </p>
         <p class="mm-dual-note mm-dual-tradeoff">
           <em>{{ t(
-            'trade-off 明说：私密条目不进 digest。如果你把所有东西都标为私密，反思洞察会稀疏——选一个和自己的安全边界相匹配的比例。',
-            "A trade-off we won't hide: private entries don't feed the digest. If you mark everything private, the reflections will be thin — pick a ratio that matches your own threshold."
+            'trade-off 明说：私密记忆库不进 digest，没有反思洞察。要反思就得让 DBay 读，要绝对私密就放弃反思——这是机制的边界，我们不假装它不存在。',
+            "A trade-off we won't hide: a private base doesn't get a digest, so no reflection insights. Reflection requires DBay to read; absolute privacy means giving up the reflection. That's where the mechanism draws the line, and we're not pretending otherwise."
           ) }}</em>
         </p>
       </div>
@@ -121,7 +121,7 @@
               <li>{{ t('几天后自动出现"反思洞察" · 你是谁', 'A few days in, "reflection insights" appear — who you are') }}</li>
               <li>{{ t('召回时带回条目，不是整段历史 · token 成本 50–70% ↓', 'Recall returns entries, not raw history — token cost drops 50–70%') }}</li>
               <li>{{ t('跨 Agent · 跨 session · 跨机器 · 跨项目', 'Across agents, sessions, machines, projects') }}</li>
-              <li>{{ t('分级存储 · 私密条目客户端加密，服务端看不见', 'Tiered store · private entries are client-encrypted, invisible to the server') }}</li>
+              <li>{{ t('私密记忆库 · 整库客户端加密 · 服务端看不见（代价是不做 digest）', 'Private base · whole-base client encryption · invisible to the server (at the cost of no digest)') }}</li>
             </ul>
           </div>
         </div>
@@ -146,8 +146,8 @@
             </div>
             <div class="ppage-stack-line">↓</div>
             <div class="ppage-stack-layer">
-              <span class="ppage-stack-name">{{ t('③ 分级存储 · tiered', '③ Tiered store') }}</span>
-              <span class="ppage-stack-note">{{ t('普通明文 · 私密客户端加密', 'Plain or client-encrypted') }}</span>
+              <span class="ppage-stack-name">{{ t('③ 存储', '③ Store') }}</span>
+              <span class="ppage-stack-note">{{ t('反思型明文 · 私密库客户端加密', 'Reflective plaintext or private ciphertext') }}</span>
             </div>
             <div class="ppage-stack-line">↓</div>
             <div class="ppage-stack-layer">
@@ -175,15 +175,15 @@
             </p>
             <p>
               {{ t('③', '③') }}
-              <strong>{{ t('分级存储', 'Tiered store') }}</strong>
+              <strong>{{ t('存储', 'Store') }}</strong>
               {{ t(
-                '。普通条目以明文进入你的隔离数据库——服务端读它、embed 它、每晚 digest 它。标记为',
-                '. Normal entries land in your isolated database in plaintext — the server reads them, embeds them, and digests them every night. Entries marked'
+                '。反思型记忆库的内容以明文进入你的隔离数据库——服务端读它、embed 它、每晚 digest 它。',
+                ". A reflective base stores content in plaintext in your isolated database — the server reads it, embeds it, and digests it every night. "
               ) }}
-              <strong>{{ t('私密', 'private') }}</strong>
+              <strong>{{ t('私密记忆库', 'A private base') }}</strong>
               {{ t(
-                '的条目走另一条路：基于公私钥的信封加密在你的设备上完成，服务端只看到密文，不阅读内容，不参与 digest。客户端在加密前算好 embedding 一起上传，所以私密条目依然能被语义搜索。秘钥类内容会被 dbay-mcp 自动识别为私密——这就是为什么你敢把 OPENAI_API_KEY 写进记忆层，它从头到尾没以明文的形态出现在服务端。',
-                " take a different path: envelope encryption with a public/private key pair happens on your device. The server only ever sees ciphertext, can't read the content, and doesn't digest them. Embeddings are computed locally before encryption, so private entries still work in semantic search. dbay-mcp automatically marks secrets as private — which is why you can drop OPENAI_API_KEY into the memory layer without flinching. It never appears as plaintext on the server, start to finish."
+                '走另一条路：基于 RSA-4096 公私钥的信封加密在你的设备上完成，服务端只看到密文，不阅读内容，不参与 digest。embedding 在本地算好一起上传，私密库依然能做语义搜索，但反思洞察不再跑——这是绝对私密的代价。你敢把 OPENAI_API_KEY 写进一个私密记忆库，因为它从头到尾没以明文出现在服务端。',
+                "takes a different path: envelope encryption with an RSA-4096 public/private key pair happens on your device. The server only sees ciphertext, can't read it, doesn't digest it. Embeddings are computed locally and uploaded alongside, so the private base still supports semantic search — but reflection insights are off. That's the price of absolute privacy. You can drop OPENAI_API_KEY into a private base because it never appears as plaintext on the server, start to finish."
               ) }}
             </p>
           </div>
@@ -230,12 +230,13 @@
 
             <p>
               {{ t(
-                '你也可以把秘钥写进去。API key、数据库连接串、token —— dbay-mcp 自动识别为私密，客户端加密，服务端只看到密文：',
-                "You can also drop secrets in. API keys, database URLs, tokens — dbay-mcp auto-marks them as private, encrypts them on your device, and the server only sees ciphertext:"
+                '秘钥类数据请单独开一个私密记忆库。API key、数据库连接串、token —— 用一条命令创建，整库端到端加密，服务端只看到密文：',
+                "For secrets, create a private base. API keys, database URLs, tokens — one command, end-to-end encryption across the whole base, ciphertext-only on the server:"
               ) }}
             </p>
-            <code class="ppage-code">$ dbay memory set OPENAI_API_KEY sk-...
-Marked private. Encrypted locally. Server stored ciphertext only.</code>
+            <code class="ppage-code">$ dbay memory create secrets --private
+$ dbay memory set OPENAI_API_KEY sk-... --base secrets
+Encrypted locally. Server stored ciphertext only.</code>
           </div>
 
           <p class="ppage-today-aside">
@@ -270,7 +271,7 @@ Marked private. Encrypted locally. Server stored ciphertext only.</code>
           </div>
           <div class="ppage-num">
             <div class="ppage-num-val">3<span class="ppage-num-unit">{{ t(' 因素', '-factor') }}</span></div>
-            <div class="ppage-num-label">{{ t('私密条目密钥', 'private-entry key') }}</div>
+            <div class="ppage-num-label">{{ t('私密库密钥', 'private-base key') }}</div>
             <p class="ppage-num-note">
               {{ t('密码 + device salt + base salt，客户端派生。服务端拿不到。', 'Password + device salt + base salt, derived on your device. The server never has it.') }}
             </p>
