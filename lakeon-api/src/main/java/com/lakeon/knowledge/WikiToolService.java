@@ -20,6 +20,9 @@ public class WikiToolService {
     private static final Logger log = LoggerFactory.getLogger(WikiToolService.class);
     private static final String DOC_TYPE_WIKI = "wiki";
     private static final int READ_PAGE_MAX_CHARS = 32_000;
+    private static final String TRUNCATION_MARKER = "\n\n[... truncated ...]";
+    private static final java.util.Set<String> RESERVED_FILENAMES =
+            java.util.Set.of("index.md", "log.md", "schema.md");
 
     private final WikiService wikiService;
     private final DocumentRepository documentRepository;
@@ -45,8 +48,8 @@ public class WikiToolService {
     public List<Map<String, Object>> listPages(String tenantId, String kbId) {
         List<DocumentEntity> docs = documentRepository.findByTenantIdAndKbIdAndDocType(
                 tenantId, kbId, DOC_TYPE_WIKI);
-        return docs.stream()
-                .filter(d -> !"index.md".equals(d.getFilename()) && !"log.md".equals(d.getFilename()))
+        List<Map<String, Object>> pages = docs.stream()
+                .filter(d -> !RESERVED_FILENAMES.contains(d.getFilename()))
                 .map(d -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("title", WikiService.filenameToTitle(d.getFilename()));
@@ -56,6 +59,8 @@ public class WikiToolService {
                     return m;
                 })
                 .collect(Collectors.toList());
+        log.debug("listPages tenant={} kb={} count={}", tenantId, kbId, pages.size());
+        return pages;
     }
 
     /** Read the full markdown body of a single wiki page. */
@@ -63,13 +68,12 @@ public class WikiToolService {
         String filename = WikiService.titleToFilename(title);
         String content = wikiService.readWikiPage(tenantId, kbId, filename);
         if (content == null) {
-            Map<String, Object> r = new LinkedHashMap<>();
-            r.put("found", false);
-            r.put("title", title);
-            return r;
+            log.warn("readPage not found: tenant={} kb={} title={}", tenantId, kbId, title);
+            return Map.of("found", false, "title", title);
         }
         if (content.length() > READ_PAGE_MAX_CHARS) {
-            content = content.substring(0, READ_PAGE_MAX_CHARS) + "\n\n[... truncated ...]";
+            content = content.substring(0, READ_PAGE_MAX_CHARS - TRUNCATION_MARKER.length())
+                    + TRUNCATION_MARKER;
         }
         Map<String, Object> r = new LinkedHashMap<>();
         r.put("found", true);
@@ -84,8 +88,8 @@ public class WikiToolService {
         String q = query == null ? "" : query.toLowerCase();
         List<DocumentEntity> docs = documentRepository.findByTenantIdAndKbIdAndDocType(
                 tenantId, kbId, DOC_TYPE_WIKI);
-        return docs.stream()
-                .filter(d -> !"index.md".equals(d.getFilename()) && !"log.md".equals(d.getFilename()))
+        List<Map<String, Object>> results = docs.stream()
+                .filter(d -> !RESERVED_FILENAMES.contains(d.getFilename()))
                 .map(d -> {
                     String title = WikiService.filenameToTitle(d.getFilename());
                     String summary = extractSummary(d);
@@ -102,12 +106,15 @@ public class WikiToolService {
                 .sorted((a, b) -> Integer.compare((Integer) b.get("score"), (Integer) a.get("score")))
                 .limit(topK)
                 .collect(Collectors.toList());
+        log.debug("searchPages tenant={} kb={} query={} hits={}", tenantId, kbId, query, results.size());
+        return results;
     }
 
     /** Read the source document's fulltext (for agent's initial read). */
     public Map<String, Object> readSource(String tenantId, String kbId, String documentId) {
         String fulltext = chunkService.getFulltext(tenantId, kbId, documentId);
         if (fulltext == null) {
+            log.warn("readSource not found: tenant={} kb={} doc={}", tenantId, kbId, documentId);
             Map<String, Object> r = new LinkedHashMap<>();
             r.put("found", false);
             return r;
@@ -125,9 +132,14 @@ public class WikiToolService {
     /** Read the KB schema document — seeded on KB creation, co-evolved by the agent. */
     public String getSchema(String tenantId, String kbId) {
         String schema = wikiService.readWikiPage(tenantId, kbId, "schema.md");
+        if (schema == null) {
+            log.debug("getSchema missing for tenant={} kb={}", tenantId, kbId);
+        }
         return schema != null ? schema : "";
     }
 
+    // TODO(follow-up): DocumentEntity has no dedicated summary column; we read from metadata["summary"].
+    //  Consider adding a proper summary column and migrating existing data so searchPages can filter at the DB layer.
     /**
      * Extract a one-line summary from the document. {@link DocumentEntity} has no
      * dedicated summary column — the wiki agent stores it in the metadata map under

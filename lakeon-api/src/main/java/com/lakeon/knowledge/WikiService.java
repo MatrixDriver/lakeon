@@ -1060,7 +1060,7 @@ public class WikiService {
     /**
      * Write or update a wiki document entity and upload content to OBS.
      */
-    public void writeWikiDocument(String tenantId, String kbId, String filename,
+    void writeWikiDocument(String tenantId, String kbId, String filename,
                                     String title, String content) {
         KnowledgeBaseEntity kb = knowledgeBaseRepository.findById(kbId).orElse(null);
         if (kb == null) {
@@ -1197,7 +1197,7 @@ public class WikiService {
     /**
      * Append an entry to log.md.
      */
-    public void appendToLog(String tenantId, String kbId, String entry) {
+    void appendToLog(String tenantId, String kbId, String entry) {
         String currentLog = readWikiPage(tenantId, kbId, "log.md");
         if (currentLog == null) {
             currentLog = "# Wiki Change Log\n\n";
@@ -1209,10 +1209,12 @@ public class WikiService {
         writeWikiDocument(tenantId, kbId, "log.md", "Wiki Change Log", newLog);
     }
 
+    // TODO(task-5.1): after WikiService shrinks, extract {readWikiPage, writeWikiDocument, appendToLog}
+    //  into a dedicated WikiPageIO helper so visibility can become truly private.
     /**
      * Read a wiki page content from OBS by filename.
      */
-    public String readWikiPage(String tenantId, String kbId, String filename) {
+    String readWikiPage(String tenantId, String kbId, String filename) {
         Optional<DocumentEntity> docOpt = documentRepository.findByTypeAndFilename(
                 tenantId, kbId, DOC_TYPE_WIKI, filename);
         if (docOpt.isEmpty()) return null;

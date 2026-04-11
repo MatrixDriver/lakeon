@@ -48,6 +48,21 @@ class WikiToolServiceTest {
     }
 
     @Test
+    void listPagesExcludesSchemaAndIndexAndLog() {
+        DocumentEntity real = newWikiDoc("database-sharding.md", "Real page");
+        DocumentEntity schema = newWikiDoc("schema.md", "");
+        DocumentEntity index = newWikiDoc("index.md", "");
+        DocumentEntity logDoc = newWikiDoc("log.md", "");
+        when(documentRepository.findByTenantIdAndKbIdAndDocType("t1", "kb1", "wiki"))
+                .thenReturn(List.of(real, schema, index, logDoc));
+
+        List<Map<String, Object>> pages = tool.listPages("t1", "kb1");
+
+        assertEquals(1, pages.size());
+        assertEquals("database-sharding.md", pages.get(0).get("filename"));
+    }
+
+    @Test
     void readPageReturnsFoundFalseWhenMissing() {
         // titleToFilename is static and pure: "Ghost" -> "ghost.md"
         when(wikiService.readWikiPage("t1", "kb1", "ghost.md")).thenReturn(null);
@@ -67,7 +82,7 @@ class WikiToolServiceTest {
 
         assertEquals(true, result.get("found"));
         String content = (String) result.get("content");
-        assertTrue(content.length() < 40_000, "expected truncation, was " + content.length());
+        assertTrue(content.length() <= 32_000, "expected truncation, was " + content.length());
         assertTrue(content.endsWith("[... truncated ...]"));
     }
 
