@@ -829,6 +829,47 @@ public class KnowledgeController {
         return wikiToolService.searchPages(tenant.getId(), kbId, query, topK);
     }
 
+    /**
+     * User-facing wiki agent run log. Returns the most recent wiki_run_logs
+     * rows for the given KB, scoped to the caller's tenant. Used by the E2E
+     * test suite to assert agent runs completed successfully and touched the
+     * expected number of pages.
+     */
+    @GetMapping("/bases/{kbId}/wiki/runlog")
+    public List<Map<String, Object>> listWikiRunLogs(
+            HttpServletRequest req,
+            @PathVariable String kbId,
+            @RequestParam(value = "limit", defaultValue = "50") int limit) {
+        TenantEntity tenant = getTenant(req);
+        kbAccessService.getKbWithAccess(kbId, tenant.getId());
+        org.springframework.data.domain.Pageable pageable = PageRequest.of(
+                0, Math.min(Math.max(limit, 1), 200),
+                Sort.by("createdAt").descending());
+        List<WikiRunLogEntity> logs = wikiRunLogRepository
+                .findByKbIdOrderByCreatedAtDesc(kbId, pageable);
+        return logs.stream()
+                .filter(l -> tenant.getId().equals(l.getTenantId()))
+                .map(l -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("id", l.getId());
+                    m.put("run_id", l.getRunId());
+                    m.put("run_type", l.getRunType());
+                    m.put("trigger_doc", l.getTriggerDoc());
+                    m.put("status", l.getStatus());
+                    m.put("error_message", l.getErrorMessage());
+                    m.put("pages_created", l.getPagesCreated());
+                    m.put("pages_updated", l.getPagesUpdated());
+                    m.put("pages_deleted", l.getPagesDeleted());
+                    m.put("tool_calls_count", l.getToolCallsCount());
+                    m.put("token_count", l.getTokenCount());
+                    m.put("duration_ms", l.getDurationMs());
+                    m.put("source", l.getSource());
+                    m.put("created_at", l.getCreatedAt());
+                    return m;
+                })
+                .toList();
+    }
+
     @DeleteMapping("/wiki/pages/{docId}")
     public ResponseEntity<?> deleteWikiPage(HttpServletRequest req,
                                             @PathVariable String docId,
