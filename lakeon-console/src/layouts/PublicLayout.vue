@@ -4,105 +4,21 @@
       <div class="pub-nav-inner">
         <!-- Brand -->
         <router-link to="/" class="pub-brand">
-          DBay <span class="pub-brand-dot"></span><span class="pub-tagline">{{ t('数据港湾', 'Data Harbor') }}</span>
+          <span class="pub-brand-name">DBay</span>
+          <span class="pub-brand-tag">{{ t('数据港湾', 'Data Harbor') }}</span>
         </router-link>
 
-        <!-- Desktop nav -->
+        <!-- Desktop nav · 4 items -->
         <div class="pub-nav-links">
-          <!-- 产品 dropdown -->
-          <NavDropdown :label="t('产品', 'Products')">
-            <div class="nav-product-grid">
-              <router-link to="/product#lakebase" class="nav-item nav-item-grid">
-                <span class="nav-dot nav-dot-lakebase"></span>
-                <div>
-                  <div class="nav-item-title">Lakebase</div>
-                  <div class="nav-item-desc">Serverless PostgreSQL</div>
-                </div>
-              </router-link>
-              <router-link to="/product#knowledge" class="nav-item nav-item-grid">
-                <span class="nav-dot nav-dot-knowledge"></span>
-                <div>
-                  <div class="nav-item-title">{{ t('知识库', 'Knowledge Base') }}</div>
-                  <div class="nav-item-desc">{{ t('文档 + 向量搜索', 'Docs + Vector Search') }}</div>
-                </div>
-              </router-link>
-              <router-link to="/product#memory" class="nav-item nav-item-grid">
-                <span class="nav-dot nav-dot-memory"></span>
-                <div>
-                  <div class="nav-item-title">{{ t('记忆库', 'Memory Store') }}</div>
-                  <div class="nav-item-desc">{{ t('Agent 长期记忆', 'Agent Long-term Memory') }}</div>
-                </div>
-              </router-link>
-              <router-link to="/product#datalake" class="nav-item nav-item-grid">
-                <span class="nav-dot nav-dot-datalake"></span>
-                <div>
-                  <div class="nav-item-title">{{ t('数据湖', 'Data Lake') }}</div>
-                  <div class="nav-item-desc">{{ t('数据处理 + 训练', 'Processing + Training') }}</div>
-                </div>
-              </router-link>
-            </div>
-          </NavDropdown>
-
-          <!-- 集成 dropdown -->
-          <NavDropdown :label="t('集成', 'Integrations')">
-            <router-link to="/integrations/openclaw" class="nav-item nav-item-row">
-              <span class="nav-dot nav-dot-knowledge"></span>
-              <span class="nav-item-title">OpenClaw</span>
-            </router-link>
-            <router-link to="/integrations#claude-code" class="nav-item nav-item-row">
-              <span class="nav-dot nav-dot-lakebase"></span>
-              <span class="nav-item-title">Claude Code</span>
-            </router-link>
-            <router-link to="/integrations#cursor" class="nav-item nav-item-row">
-              <span class="nav-dot nav-dot-memory"></span>
-              <span class="nav-item-title">Cursor</span>
-            </router-link>
-            <router-link to="/integrations#gemini-cli" class="nav-item nav-item-row">
-              <span class="nav-dot nav-dot-datalake"></span>
-              <span class="nav-item-title">Gemini CLI</span>
-            </router-link>
-            <div class="nav-divider"></div>
-            <router-link to="/integrations" class="nav-item">
-              <span class="nav-item-title" style="color: var(--pub-text-2)">{{ t('查看全部', 'View all') }} →</span>
-            </router-link>
-            <router-link to="/docs/rest-api" class="nav-item">
-              <span class="nav-item-title" style="color: var(--pub-primary)">{{ t('API 文档', 'API Docs') }}</span>
-            </router-link>
-          </NavDropdown>
-
-          <!-- 博客 direct link -->
-          <router-link to="/blog" class="pub-nav-link">{{ t('博客', 'Blog') }}</router-link>
-
-          <!-- 文档 dropdown -->
-          <NavDropdown :label="t('文档', 'Docs')">
-            <router-link to="/docs" class="nav-item">
-              <span class="nav-item-title">{{ t('快速开始', 'Quick Start') }}</span>
-              <span class="nav-item-desc">{{ t('5 分钟接入 DBay', '5 min integration guide') }}</span>
-            </router-link>
-            <router-link to="/docs/rest-api" class="nav-item">
-              <span class="nav-item-title">REST API</span>
-              <span class="nav-item-desc">{{ t('完整 API 参考', 'Full API reference') }}</span>
-            </router-link>
-            <router-link to="/docs/python-sdk" class="nav-item">
-              <span class="nav-item-title">Python SDK</span>
-              <span class="nav-item-desc">{{ t('dbay Python 客户端', 'dbay Python client') }}</span>
-            </router-link>
-            <router-link to="/docs/deploy" class="nav-item">
-              <span class="nav-item-title">{{ t('部署指南', 'Deploy Guide') }}</span>
-              <span class="nav-item-desc">{{ t('自托管部署', 'Self-hosted deployment') }}</span>
-            </router-link>
-            <router-link to="/docs/mcp" class="nav-item">
-              <span class="nav-item-title">MCP {{ t('接入', 'Integration') }}</span>
-              <span class="nav-item-desc">{{ t('dbay-mcp 配置指南', 'dbay-mcp setup guide') }}</span>
-            </router-link>
-          </NavDropdown>
+          <router-link to="/architecture" class="pub-nav-link">{{ t('架构', 'Architecture') }}</router-link>
+          <router-link to="/docs" class="pub-nav-link">{{ t('文档', 'Docs') }}</router-link>
         </div>
 
         <!-- Right side -->
         <div class="pub-nav-right">
           <button class="lang-btn" @click="toggleLocale">{{ locale === 'zh' ? 'EN' : '中' }}</button>
-          <router-link to="/login" class="btn-signin">{{ t('登录', 'Sign In') }}</router-link>
-          <a href="#" class="btn-trial" @click.prevent="handleNavTrial">{{ t('立即试用', 'Try Now') }}</a>
+          <router-link to="/login" class="btn-signin">{{ t('登录', 'Sign in') }}</router-link>
+          <a href="#" class="btn-start" @click.prevent="handleNavTrial">{{ t('开始使用', 'Get started') }}</a>
           <!-- Mobile hamburger -->
           <button class="hamburger" @click="mobileOpen = !mobileOpen" aria-label="Menu">
             <span></span><span></span><span></span>
@@ -124,7 +40,6 @@ import { useRouter } from 'vue-router'
 import { useLocale } from '../stores/locale'
 import { useAuthStore } from '../stores/auth'
 import client from '../api/client'
-import NavDropdown from '../components/public/NavDropdown.vue'
 import MobileNav from '../components/public/MobileNav.vue'
 
 const { locale, setLocale, t } = useLocale()
@@ -147,7 +62,7 @@ async function handleNavTrial() {
     authStore.setTrialState(true, data.expires_at)
     router.push('/dashboard')
   } catch {
-    router.push('/login')
+    router.push('/login?register=1')
   }
 }
 </script>
@@ -157,91 +72,131 @@ async function handleNavTrial() {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(255, 255, 255, 0.85);
+  background: color-mix(in oklch, #fff 92%, var(--c-bg-alt));
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--pub-border);
+  border-bottom: 1px solid var(--c-border-light);
 }
 .pub-nav-inner {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 24px;
-  height: 56px;
+  padding: 0 clamp(20px, 3vw, 40px);
+  height: 64px;
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: clamp(16px, 3vw, 32px);
 }
 .pub-brand {
-  font-weight: 700;
-  font-size: 17px;
-  color: var(--pub-text);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
   text-decoration: none;
   white-space: nowrap;
-  margin-right: 8px;
 }
-.pub-brand-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--pub-primary);
-  margin: 0 6px;
-  vertical-align: middle;
+.pub-brand-name {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 22px;
+  color: var(--c-primary);
+  letter-spacing: -0.01em;
+  line-height: 1;
 }
-.pub-tagline {
-  font-weight: 400;
-  font-size: 12px;
-  color: var(--pub-text-4);
+.pub-brand-tag {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--c-accent-text);
 }
 .pub-nav-links {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-xl);
   flex: 1;
+  margin-left: var(--space-xl);
 }
 .pub-nav-link {
-  font-size: 13px;
+  font-family: var(--font-sans);
+  font-size: 14px;
   font-weight: 500;
-  color: var(--pub-text-2);
-  padding: 6px 12px;
-  border-radius: 6px;
+  color: var(--c-text-2);
+  padding: 6px 0;
+  border-radius: 0;
   text-decoration: none;
-  transition: color 0.25s ease, background 0.25s ease;
+  transition: color 160ms ease-out;
+  position: relative;
 }
 .pub-nav-link:hover {
-  color: var(--pub-text);
-  background: var(--pub-hover);
+  color: var(--c-primary);
+}
+.pub-nav-link.router-link-active {
+  color: var(--c-primary);
+}
+.pub-nav-link.router-link-active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 2px;
+  background: var(--c-accent);
+  border-radius: 1px;
 }
 .pub-nav-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-md);
   margin-left: auto;
 }
 .lang-btn {
   background: none;
   border: none;
-  color: var(--pub-text-2);
-  font-size: 13px;
+  color: var(--c-text-3);
+  font-family: var(--font-sans);
+  font-size: 12px;
   font-weight: 500;
+  letter-spacing: 0.04em;
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 4px;
-  transition: color 0.25s ease, background 0.25s ease;
+  transition: color 160ms ease-out;
 }
-.lang-btn:hover { color: var(--pub-text); background: var(--pub-hover); }
+.lang-btn:hover {
+  color: var(--c-accent-text);
+}
 .btn-signin {
   background: transparent;
-  color: var(--pub-text);
+  color: var(--c-text-2);
+  font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 500;
-  padding: 6px 16px;
-  border-radius: 24px;
-  border: 1px solid var(--pub-border);
+  padding: 8px 0;
   text-decoration: none;
-  transition: background 0.25s ease, border-color 0.25s ease;
+  transition: color 160ms ease-out;
 }
-.btn-signin:hover { background: var(--pub-hover); border-color: var(--pub-text-3); }
+.btn-signin:hover {
+  color: var(--c-primary);
+}
+.btn-start {
+  background: var(--c-accent);
+  color: #fff !important;
+  padding: 9px 20px;
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  transition: background 160ms ease-out;
+}
+.btn-start:hover {
+  background: var(--c-accent-hover);
+}
+.btn-start:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
 .hamburger {
   display: none;
   flex-direction: column;
@@ -255,91 +210,12 @@ async function handleNavTrial() {
   display: block;
   width: 20px;
   height: 2px;
-  background: var(--pub-text-2);
+  background: var(--c-text-2);
   border-radius: 1px;
-}
-.badge-new {
-  font-size: 10px;
-  background: #7c3aed;
-  color: #fff;
-  padding: 1px 5px;
-  border-radius: 3px;
-  margin-left: 5px;
-  vertical-align: middle;
-}
-.badge-featured {
-  font-size: 10px;
-  background: #7c3aed15;
-  color: #7c3aed;
-  padding: 1px 5px;
-  border-radius: 3px;
-  margin-left: 5px;
-  vertical-align: middle;
-}
-.nav-item {
-  display: flex;
-  flex-direction: column;
-  padding: 8px 10px;
-  border-radius: 6px;
-  text-decoration: none;
-  transition: background 0.25s ease;
-}
-.nav-item:hover { background: var(--pub-hover); }
-.nav-item-row {
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-}
-.nav-item-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--pub-text);
-}
-.nav-item-desc {
-  font-size: 11px;
-  color: var(--pub-text-3);
-  margin-top: 1px;
-}
-.nav-product-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-}
-.nav-item-grid {
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-}
-.nav-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.nav-dot-lakebase { background: #0073e6; }
-.nav-dot-knowledge { background: #4caf50; }
-.nav-dot-memory { background: #ff9800; }
-.nav-dot-datalake { background: #7b1fa2; }
-.nav-divider {
-  height: 1px;
-  background: var(--pub-border);
-  margin: 4px 0;
-}
-.btn-trial {
-  background: var(--pub-primary, #0073e6);
-  color: #fff !important;
-  padding: 6px 16px;
-  border-radius: 24px;
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-  transition: opacity 0.25s ease;
-}
-.btn-trial:hover {
-  opacity: 0.9;
 }
 @media (max-width: 768px) {
   .pub-nav-links { display: none; }
   .hamburger { display: flex; }
+  .pub-brand-tag { display: none; }
 }
 </style>
