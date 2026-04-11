@@ -9,7 +9,6 @@
       <div class="tab-item" :class="{ active: activeTab === 'bases' }" @click="activeTab = 'bases'">知识库列表</div>
       <div class="tab-item" :class="{ active: activeTab === 'tasks' }" @click="activeTab = 'tasks'; loadTasks()">写入任务队列</div>
       <div class="tab-item" :class="{ active: activeTab === 'pipeline' }" @click="activeTab = 'pipeline'; loadPipeline()">流水线监控</div>
-      <div class="tab-item" :class="{ active: activeTab === 'wiki-agent' }" @click="activeTab = 'wiki-agent'">Wiki Agent</div>
     </div>
 
     <!-- KB List Tab -->
@@ -385,125 +384,11 @@
       </div>
     </template>
 
-    <!-- Wiki Agent Config Tab -->
-    <div v-if="activeTab === 'wiki-agent'" style="padding: 20px;">
-      <h3 style="font-size: 16px; margin-bottom: 16px;">Wiki Agent 配置</h3>
-
-      <!-- LLM Config -->
-      <div style="background: #f9f9f9; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px; margin-bottom: 20px; max-width: 600px;">
-        <div style="font-weight: 600; margin-bottom: 12px;">LLM 配置</div>
-        <div style="display: grid; grid-template-columns: 100px 1fr; gap: 10px; align-items: center; font-size: 13px;">
-          <span style="color: #666;">Model</span>
-          <input v-model="wikiConfig.model" placeholder="deepseek-chat" style="padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; max-width: 300px;" />
-          <span style="color: #666;">Base URL</span>
-          <input v-model="wikiConfig.base_url" placeholder="https://api.deepseek.com/v1" style="padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; max-width: 400px;" />
-        </div>
-        <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
-          <button @click="testConnection" :disabled="testingConnection"
-            style="padding: 5px 12px; font-size: 12px; border: 1px solid #d9d9d9; border-radius: 4px; cursor: pointer; background: #fff;">
-            {{ testingConnection ? '测试中...' : '测试连接' }}
-          </button>
-          <span v-if="connectionResult" :style="{ fontSize: '12px', color: connectionResult.success ? '#386b47' : 'var(--cs-severe)' }">
-            {{ connectionResult.success ? `连接成功 (${connectionResult.latency_ms}ms)` : `失败: ${connectionResult.error}` }}
-          </span>
-        </div>
-      </div>
-
-      <!-- Prompt Tabs -->
-      <div style="margin-bottom: 20px;">
-        <div style="display: flex; gap: 0; margin-bottom: 8px;">
-          <span v-for="pt in [
-            { key: 'ingest', label: 'Ingest Prompt' },
-            { key: 'routing', label: 'Chat Routing' },
-            { key: 'answer', label: 'Chat Answer' },
-          ]" :key="pt.key"
-            style="padding: 6px 14px; font-size: 12px; cursor: pointer; border: 1px solid #e0d8ce;"
-            :style="{
-              background: promptTab === pt.key ? '#c25a3c' : '#fff',
-              color: promptTab === pt.key ? '#fff' : '#5a4a3a',
-              borderRadius: pt.key === 'ingest' ? '4px 0 0 4px' : pt.key === 'answer' ? '0 4px 4px 0' : '0',
-            }"
-            @click="promptTab = pt.key as any">{{ pt.label }}</span>
-        </div>
-        <div style="font-size: 11px; color: #999; margin-bottom: 6px;">
-          {{ promptTab === 'ingest' ? '文档导入后生成/更新 Wiki 页面的系统提示词' :
-             promptTab === 'routing' ? 'Query Router 路由策略：判断问题深度和相关页面' :
-             '回答生成的系统提示词：控制回答风格和格式' }}
-        </div>
-        <textarea v-model="wikiConfig[promptTab === 'ingest' ? 'ingest_prompt' : promptTab === 'routing' ? 'chat_routing_prompt' : 'chat_answer_prompt']"
-          placeholder="（使用内置默认 prompt）"
-          style="width: 100%; height: 300px; font-family: 'SF Mono', Monaco, Menlo, monospace; font-size: 12px; padding: 12px; border: 1px solid #d9d9d9; border-radius: 6px; resize: vertical; line-height: 1.6;" />
-      </div>
-
-      <!-- Curate Prompt -->
-      <div style="margin-bottom: 20px;">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-          <span style="font-weight: 600;">Curate Prompt</span>
-          <span style="font-size: 12px; color: #999;">定期整理/重组 Wiki 知识库的系统提示词</span>
-        </div>
-        <textarea v-model="wikiConfig.curate_prompt"
-          placeholder="（使用内置默认 prompt）"
-          style="width: 100%; height: 300px; font-family: 'SF Mono', Monaco, Menlo, monospace; font-size: 12px; padding: 12px; border: 1px solid #d9d9d9; border-radius: 6px; resize: vertical; line-height: 1.6;"
-        ></textarea>
-      </div>
-
-      <div style="display: flex; gap: 8px; margin-bottom: 32px;">
-        <button class="btn btn-primary" :disabled="wikiConfigSaving" @click="saveWikiConfig">
-          {{ wikiConfigSaving ? '保存中...' : '保存配置' }}
-        </button>
-        <button class="btn" @click="loadWikiConfig">重新加载</button>
-      </div>
-
-      <!-- Wiki Files Viewer -->
-      <h3 style="font-size: 16px; margin-bottom: 16px; border-top: 1px solid #e5e5e5; padding-top: 20px;">Wiki 文件查看</h3>
-
-      <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
-        <label style="font-size: 13px; color: #666;">选择知识库</label>
-        <select v-model="wikiViewKbId" @change="loadWikiFiles" style="padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; min-width: 200px;">
-          <option value="">-- 请选择 --</option>
-          <option v-for="kb in kbs" :key="kb.id" :value="kb.id">{{ kb.name }} ({{ kb.tenant_id }})</option>
-        </select>
-        <button v-if="wikiViewKbId" class="btn btn-small" @click="loadWikiFiles">刷新</button>
-      </div>
-
-      <div v-if="wikiFiles.length > 0" style="display: flex; gap: 16px;">
-        <!-- File list -->
-        <div style="width: 220px; border: 1px solid #e5e5e5; border-radius: 6px; overflow: hidden;">
-          <div style="padding: 8px 12px; background: #f5f5f5; font-size: 12px; font-weight: 600; color: #666; border-bottom: 1px solid #e5e5e5;">
-            Wiki 文件 ({{ wikiFiles.length }})
-          </div>
-          <div v-for="f in wikiFiles" :key="f.id"
-            @click="loadWikiFileContent(f)"
-            :style="{
-              padding: '8px 12px', cursor: 'pointer', fontSize: '13px',
-              borderBottom: '1px solid #f0f0f0',
-              background: wikiActiveFile?.id === f.id ? '#e6f0ff' : 'transparent',
-              fontWeight: f.filename === 'index.md' || f.filename === 'log.md' ? '600' : '400'
-            }">
-            {{ f.filename }}
-          </div>
-        </div>
-
-        <!-- File content -->
-        <div style="flex: 1; border: 1px solid #e5e5e5; border-radius: 6px; overflow: hidden;">
-          <div style="padding: 8px 12px; background: #f5f5f5; font-size: 12px; font-weight: 600; color: #666; border-bottom: 1px solid #e5e5e5;">
-            {{ wikiActiveFile?.filename || '请选择文件' }}
-          </div>
-          <pre v-if="wikiFileContent" style="padding: 12px; margin: 0; font-size: 12px; font-family: 'SF Mono', Monaco, Menlo, monospace; line-height: 1.6; white-space: pre-wrap; max-height: 500px; overflow-y: auto;">{{ wikiFileContent }}</pre>
-          <div v-else style="padding: 24px; text-align: center; color: #999; font-size: 13px;">
-            {{ wikiViewKbId ? '点击左侧文件查看内容' : '请先选择知识库' }}
-          </div>
-        </div>
-      </div>
-      <div v-else-if="wikiViewKbId && !wikiFilesLoading" style="padding: 16px; color: #999; font-size: 13px;">
-        该知识库暂无 Wiki 文件
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { adminApi } from '../../api/admin'
 import { formatDate } from '../../utils/format'
 import { useTenantStore } from '../../stores/tenants'
@@ -781,24 +666,6 @@ function taskStatusClass(status: string) {
   return { 'status-green': status === 'SUCCEEDED', 'status-blue': status === 'RUNNING', 'status-red': status === 'FAILED', 'status-grey': status === 'QUEUED' }
 }
 
-// Wiki Agent Config
-const promptTab = ref<'ingest' | 'routing' | 'answer'>('ingest')
-const testingConnection = ref(false)
-const connectionResult = ref<{ success: boolean; latency_ms: number; error?: string } | null>(null)
-
-async function testConnection() {
-  testingConnection.value = true
-  connectionResult.value = null
-  try {
-    const { data } = await adminApi.testLlmConnection()
-    connectionResult.value = data
-  } catch (e: any) {
-    connectionResult.value = { success: false, latency_ms: 0, error: e.message }
-  } finally {
-    testingConnection.value = false
-  }
-}
-
 // Wiki page management in KB expansion
 const wikiPagesMap = ref<Record<string, any[]>>({})
 
@@ -835,96 +702,10 @@ async function handleRebuildWiki(kbId: string) {
   }
 }
 
-const wikiConfig = ref<Record<string, string>>({
-  ingest_prompt: '', chat_routing_prompt: '', chat_answer_prompt: '',
-  model: '', base_url: '', curate_prompt: ''
-})
-const wikiConfigSaving = ref(false)
-
-async function loadWikiConfig() {
-  try {
-    const { data } = await adminApi.getWikiConfig()
-    wikiConfig.value = {
-      ingest_prompt: data.ingest_prompt || '',
-      chat_routing_prompt: data.chat_routing_prompt || '',
-      chat_answer_prompt: data.chat_answer_prompt || '',
-      curate_prompt: data.curate_prompt || '',
-      model: data.model || '',
-      base_url: data.base_url || ''
-    }
-  } catch (e: any) {
-    console.warn('Failed to load wiki config', e)
-  }
-}
-
-async function saveWikiConfig() {
-  wikiConfigSaving.value = true
-  try {
-    await adminApi.updateWikiConfig(wikiConfig.value)
-    alert('配置已保存')
-  } catch (e: any) {
-    alert('保存失败: ' + (e?.response?.data?.error || e.message || '未知错误'))
-  } finally {
-    wikiConfigSaving.value = false
-  }
-}
-
-// Wiki Files Viewer
-const wikiViewKbId = ref('')
-const wikiFiles = ref<any[]>([])
-const wikiFilesLoading = ref(false)
-const wikiActiveFile = ref<any>(null)
-const wikiFileContent = ref('')
-
-async function loadWikiFiles() {
-  if (!wikiViewKbId.value) { wikiFiles.value = []; return }
-  wikiFilesLoading.value = true
-  try {
-    // Load both wiki and index type docs
-    const [wikiRes, indexRes] = await Promise.all([
-      adminApi.listWikiPages(wikiViewKbId.value, 'wiki'),
-      adminApi.listWikiPages(wikiViewKbId.value, 'index')
-    ])
-    const indexFiles = (indexRes.data || []).sort((a: any, b: any) => {
-      // index.md first, then log.md
-      if (a.filename === 'index.md') return -1
-      if (b.filename === 'index.md') return 1
-      if (a.filename === 'log.md') return -1
-      if (b.filename === 'log.md') return 1
-      return 0
-    })
-    wikiFiles.value = [...indexFiles, ...(wikiRes.data || [])]
-    wikiActiveFile.value = null
-    wikiFileContent.value = ''
-  } catch (e: any) {
-    console.warn('Failed to load wiki files', e)
-    wikiFiles.value = []
-  } finally {
-    wikiFilesLoading.value = false
-  }
-}
-
-async function loadWikiFileContent(file: any) {
-  wikiActiveFile.value = file
-  wikiFileContent.value = '加载中...'
-  try {
-    const { data } = await adminApi.getWikiPageContent(wikiViewKbId.value, file.id)
-    wikiFileContent.value = data.content || '（空内容）'
-  } catch (e: any) {
-    wikiFileContent.value = '加载失败: ' + (e?.message || '未知错误')
-  }
-}
-
 onMounted(() => {
   tenantStore.load()
   loadStats()
   loadKbs()
-})
-
-watch(activeTab, (tab) => {
-  if (tab === 'wiki-agent') {
-    loadWikiConfig()
-  }
 })
 </script>
 
