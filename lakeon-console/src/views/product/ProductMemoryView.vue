@@ -13,14 +13,64 @@
 
         <p class="ppage-manifesto-lede">
           {{ t(
-            '不是一个被动的 KV 存储。DBay Memory 每晚 digest 最近的对话，提炼出你的开发偏好、架构倾向、决策风格。几天后打开 Memory 面板，你会看到它自动积累出的"你是谁"。跨 Agent 共享——但这份"你是谁"只属于你。钥匙在你手里，服务器只看得到密文。',
-            "Not a passive KV store. DBay Memory digests your conversations every night and distills your coding preferences, architectural leanings, and decision style. A few days in, open the Memory panel and you'll see it's quietly written down who you are. Shared across agents — but this picture of who you are belongs only to you. You hold the key. The server only sees ciphertext."
+            '不是一个被动的 KV 存储。DBay Memory 每晚 digest 最近的对话，提炼出你的开发偏好、架构倾向、决策风格。几天后打开 Memory 面板，你会看到它自动积累出的"你是谁"。跨 Agent 共享——无论你换到哪个 Agent，它都还记得。',
+            "Not a passive KV store. DBay Memory digests your conversations every night and distills your coding preferences, architectural leanings, and decision style. A few days in, open the Memory panel and you'll see it's quietly written down who you are. Shared across agents — whichever one you switch to, it still knows you."
+          ) }}
+        </p>
+        <p class="ppage-manifesto-lede">
+          {{ t(
+            '反思成立的前提是服务端能读你的对话——这件事我们不绕着说。想让 DBay 读不到的那部分，标记为"私密"：客户端加密、服务端只看到密文、不参与 digest。秘钥、密码、以及你说"记住一件私事"的内容会自动走这条路。选择权是你的。',
+            "For reflection to work, the server has to read your conversations — we don't dance around that. The parts you don't want DBay to read, you mark as \"private\": encrypted on your device, ciphertext-only on the server, left out of the digest. Keys, passwords, and anything you say \"remember this privately\" about take that path automatically. The choice is yours."
           ) }}
         </p>
       </div>
     </section>
 
-    <!-- 02 · Scene -->
+    <!-- 02 · Two kinds of memory -->
+    <section class="ppage-section">
+      <div class="ppage-inner">
+        <h2 class="ppage-section-title">{{ t('两种记忆', 'Two kinds of memory') }}</h2>
+
+        <div class="mm-dual">
+          <article class="mm-dual-card">
+            <div class="mm-dual-num">01</div>
+            <h3 class="mm-dual-title">{{ t('你和 DBay 都知道的', "The ones you and DBay both know") }}</h3>
+            <p class="mm-dual-body">
+              {{ t(
+                '大部分记忆。DBay 每晚读它、整合它、提炼你的思维方式。存在你的隔离数据库里，不跨账户聚合，不做训练素材，不向第三方分发——但 DBay 能读到它，这是反思成立的前提。',
+                "Most memories. DBay reads them every night, weaves them together, and distills how you think. They live in your isolated database — never aggregated across accounts, never used for training, never shared with third parties — but DBay can read them. That's what makes reflection possible."
+              ) }}
+            </p>
+          </article>
+
+          <article class="mm-dual-card">
+            <div class="mm-dual-num">02</div>
+            <h3 class="mm-dual-title">{{ t('你一个人知道的', 'The ones only you know') }}</h3>
+            <p class="mm-dual-body">
+              {{ t(
+                '标记为"私密"的条目。客户端基于公私钥的信封加密，服务端只看到密文。embedding 在你本地算好一起上传，所以这些条目依然能被语义搜索，但服务端无法阅读内容，也不参与 digest。即便数据库被整库拖走，也还原不了。',
+                'Entries marked "private." Encrypted on your device with envelope encryption over a public/private key pair — the server only ever sees ciphertext. Embeddings are computed locally and uploaded alongside, so private entries still show up in semantic search, but the server can\'t read their content and they don\'t participate in the digest. Even a full database exfiltration reveals nothing.'
+              ) }}
+            </p>
+          </article>
+        </div>
+
+        <p class="mm-dual-note">
+          {{ t(
+            'dbay-mcp 会自动把秘钥类内容（API key · token · password · private key）识别为私密。你在对话里说"记住一件私事"也会触发——Agent 的 LLM 看到这类意图会主动带上私密标记。',
+            'dbay-mcp automatically flags secrets (API keys, tokens, passwords, private keys) as private. Saying "remember this privately" in conversation also triggers it — the agent\'s LLM sees that intent and marks the entry on its way in.'
+          ) }}
+        </p>
+        <p class="mm-dual-note mm-dual-tradeoff">
+          <em>{{ t(
+            'trade-off 明说：私密条目不进 digest。如果你把所有东西都标为私密，反思洞察会稀疏——选一个和自己的安全边界相匹配的比例。',
+            "A trade-off we won't hide: private entries don't feed the digest. If you mark everything private, the reflections will be thin — pick a ratio that matches your own threshold."
+          ) }}</em>
+        </p>
+      </div>
+    </section>
+
+    <!-- 03 · Scene -->
     <section class="ppage-section">
       <div class="ppage-inner">
         <h2 class="ppage-section-title">{{ t('一个场景', 'The situation') }}</h2>
@@ -67,11 +117,11 @@
           <div class="ppage-contrast-col is-accent">
             <h3>DBay Memory</h3>
             <ul>
-              <li>{{ t('每晚 digest 反刍最近对话 · 抽出 traits', 'Nightly digest walks recent conversations and extracts traits') }}</li>
+              <li>{{ t('每晚 digest 整合最近对话 · 抽出 traits', 'Nightly digest weaves recent conversations together and extracts traits') }}</li>
               <li>{{ t('几天后自动出现"反思洞察" · 你是谁', 'A few days in, "reflection insights" appear — who you are') }}</li>
               <li>{{ t('召回时带回条目，不是整段历史 · token 成本 50–70% ↓', 'Recall returns entries, not raw history — token cost drops 50–70%') }}</li>
               <li>{{ t('跨 Agent · 跨 session · 跨机器 · 跨项目', 'Across agents, sessions, machines, projects') }}</li>
-              <li>{{ t('本地加密 · 三因素密钥 · 服务端永远拿不到明文', 'Locally encrypted · three-factor keys · ciphertext-only on the server') }}</li>
+              <li>{{ t('分级存储 · 私密条目客户端加密，服务端看不见', 'Tiered store · private entries are client-encrypted, invisible to the server') }}</li>
             </ul>
           </div>
         </div>
@@ -96,8 +146,8 @@
             </div>
             <div class="ppage-stack-line">↓</div>
             <div class="ppage-stack-layer">
-              <span class="ppage-stack-name">{{ t('③ 加密存储 · encrypted', '③ Encrypted store') }}</span>
-              <span class="ppage-stack-note">{{ t('三因素密钥 · PBKDF2', 'Three-factor keys · PBKDF2') }}</span>
+              <span class="ppage-stack-name">{{ t('③ 分级存储 · tiered', '③ Tiered store') }}</span>
+              <span class="ppage-stack-note">{{ t('普通明文 · 私密客户端加密', 'Plain or client-encrypted') }}</span>
             </div>
             <div class="ppage-stack-line">↓</div>
             <div class="ppage-stack-layer">
@@ -125,15 +175,15 @@
             </p>
             <p>
               {{ t('③', '③') }}
-              <strong>{{ t('加密存储', 'Encrypted store') }}</strong>
+              <strong>{{ t('分级存储', 'Tiered store') }}</strong>
               {{ t(
-                '。所有记忆条目在',
-                '. Every memory entry is encrypted'
+                '。普通条目以明文进入你的隔离数据库——服务端读它、embed 它、每晚 digest 它。标记为',
+                '. Normal entries land in your isolated database in plaintext — the server reads them, embeds them, and digests them every night. Entries marked'
               ) }}
-              <strong>{{ t('本地', ' locally') }}</strong>
+              <strong>{{ t('私密', 'private') }}</strong>
               {{ t(
-                '加密后才写入 DBay。密钥通过三因素派生 (密码 + device salt + base salt) + PBKDF2 得到，服务端永远只存密文。即便数据库被整库拖走，也无法在没有原始三因素的情况下还原出明文。这就是为什么你敢把 OPENAI_API_KEY 写进记忆层。',
-                ' before it\'s written. The key is derived from three factors (password + device salt + base salt) through PBKDF2. The server never sees plaintext. Even a full database exfiltration stays unreadable without the original three factors. That\'s why you can store OPENAI_API_KEY in the memory layer without flinching.'
+                '的条目走另一条路：基于公私钥的信封加密在你的设备上完成，服务端只看到密文，不阅读内容，不参与 digest。客户端在加密前算好 embedding 一起上传，所以私密条目依然能被语义搜索。秘钥类内容会被 dbay-mcp 自动识别为私密——这就是为什么你敢把 OPENAI_API_KEY 写进记忆层，它从头到尾没以明文的形态出现在服务端。',
+                " take a different path: envelope encryption with a public/private key pair happens on your device. The server only ever sees ciphertext, can't read the content, and doesn't digest them. Embeddings are computed locally before encryption, so private entries still work in semantic search. dbay-mcp automatically marks secrets as private — which is why you can drop OPENAI_API_KEY into the memory layer without flinching. It never appears as plaintext on the server, start to finish."
               ) }}
             </p>
           </div>
@@ -180,12 +230,12 @@
 
             <p>
               {{ t(
-                '你也可以把秘钥写进去。API key、数据库连接串、token —— 三因素密钥派生，本地加密，服务端永远只看到密文：',
-                'You can also drop secrets in. API keys, database URLs, tokens — three-factor key derivation, local encryption, ciphertext on the server:'
+                '你也可以把秘钥写进去。API key、数据库连接串、token —— dbay-mcp 自动识别为私密，客户端加密，服务端只看到密文：',
+                "You can also drop secrets in. API keys, database URLs, tokens — dbay-mcp auto-marks them as private, encrypts them on your device, and the server only sees ciphertext:"
               ) }}
             </p>
             <code class="ppage-code">$ dbay memory set OPENAI_API_KEY sk-...
-Encrypted locally. Server stored ciphertext only.</code>
+Marked private. Encrypted locally. Server stored ciphertext only.</code>
           </div>
 
           <p class="ppage-today-aside">
@@ -220,9 +270,9 @@ Encrypted locally. Server stored ciphertext only.</code>
           </div>
           <div class="ppage-num">
             <div class="ppage-num-val">3<span class="ppage-num-unit">{{ t(' 因素', '-factor') }}</span></div>
-            <div class="ppage-num-label">{{ t('密钥派生', 'key derivation') }}</div>
+            <div class="ppage-num-label">{{ t('私密条目密钥', 'private-entry key') }}</div>
             <p class="ppage-num-note">
-              {{ t('密码 + device salt + base salt，PBKDF2 本地派生。', 'Password + device salt + base salt, PBKDF2 locally.') }}
+              {{ t('密码 + device salt + base salt，客户端派生。服务端拿不到。', 'Password + device salt + base salt, derived on your device. The server never has it.') }}
             </p>
           </div>
         </div>
@@ -265,6 +315,70 @@ const { t } = useLocale()
 
 .mm-title-b {
   color: var(--c-accent-text);
+}
+
+.mm-dual {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(24px, 3vw, 48px);
+  margin-bottom: clamp(24px, 3vw, 40px);
+}
+
+.mm-dual-card {
+  padding: clamp(28px, 3vw, 40px) 0 0;
+  border-top: 1px solid var(--c-border);
+}
+
+.mm-dual-num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--c-accent-text);
+  margin-bottom: var(--space-lg);
+}
+
+.mm-dual-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(22px, 2.2vw, 28px);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--c-primary);
+  margin: 0 0 var(--space-md);
+}
+
+.mm-dual-body {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--c-text-2);
+  margin: 0;
+}
+
+.mm-dual-note {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--c-text-2);
+  max-width: 72ch;
+  margin: 0 0 var(--space-md);
+}
+
+.mm-dual-tradeoff {
+  color: var(--c-text-3);
+  font-size: 13px;
+}
+
+.mm-dual-tradeoff em {
+  font-style: italic;
+  font-family: var(--font-display);
+}
+
+@media (max-width: 900px) {
+  .mm-dual {
+    grid-template-columns: 1fr;
+  }
 }
 
 .ppage-num-unit {
