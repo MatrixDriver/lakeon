@@ -47,7 +47,7 @@ public class KbWriteQueue {
     private final DocumentRepository documentRepository;
     private final JobService jobService;
     private final SummaryService summaryService;
-    private final WikiService wikiService;
+    private final WikiAgentClient wikiAgentClient;
     private final LakeonProperties props;
     private final ObjectMapper objectMapper;
     @org.springframework.beans.factory.annotation.Value("${lakeon.job.callback-base-url:}")
@@ -75,7 +75,7 @@ public class KbWriteQueue {
                          DocumentRepository documentRepository,
                          @Lazy JobService jobService,
                          SummaryService summaryService,
-                         @Lazy WikiService wikiService,
+                         WikiAgentClient wikiAgentClient,
                          LakeonProperties props,
                          ObjectMapper objectMapper) {
         this.taskRepository = taskRepository;
@@ -86,7 +86,7 @@ public class KbWriteQueue {
         this.documentRepository = documentRepository;
         this.jobService = jobService;
         this.summaryService = summaryService;
-        this.wikiService = wikiService;
+        this.wikiAgentClient = wikiAgentClient;
         this.props = props;
         this.objectMapper = objectMapper;
     }
@@ -950,11 +950,47 @@ public class KbWriteQueue {
         summaryService.summarizeKb(conn, tenantId, kbId);
     }
 
+    /**
+     * Dispatch a WIKI_UPDATE task by calling the lakeon-wiki-agent Python service.
+     *
+     * <p><b>Deliberately non-throwing on agent failure.</b> Unlike other {@code execute*}
+     * methods in this class (which throw to trigger queue retry), this method logs
+     * and returns normally even when the agent is unreachable. Rationale:
+     *
+     * <ul>
+     *   <li>Wiki ingestion is a best-effort background enrichment; document parse
+     *       and summarization must not be blocked by a wiki-agent outage.</li>
+     *   <li>The agent dispatch is itself fire-and-forget — the agent returns 202
+     *       immediately and runs asynchronously, so "success" here only means the
+     *       dispatch was accepted, not that the wiki was updated.</li>
+     *   <li>Queue-level retry would pile up the same transient failure across
+     *       thousands of queued tasks during an outage.</li>
+     * </ul>
+     *
+     * <p>The cost of this decision: a transient agent outage silently drops the
+     * WIKI_UPDATE for affected documents. TODO(wiki-agent-reconcile): add a
+     * periodic reconciliation job that re-enqueues WIKI_UPDATE for documents
+     * whose wiki_processed_at is older than their updated_at.
+     */
     private void executeWikiUpdate(Map<String, Object> params) {
         String tenantId = (String) params.get("tenant_id");
         String kbId = (String) params.get("kb_id");
         String documentId = (String) params.get("document_id");
-        wikiService.processIngest(tenantId, kbId, documentId);
+        if (tenantId == null || kbId == null || documentId == null) {
+            throw new IllegalArgumentException(
+                "WIKI_UPDATE missing required params: tenant_id=" + tenantId
+                + " kb_id=" + kbId + " document_id=" + documentId);
+        }
+        String taskId = wikiAgentClient.triggerIngest(tenantId, kbId, documentId);
+        if (taskId == null) {
+            // Agent unreachable / returned error — do NOT throw. One outage should
+            // not jam the queue. WikiAgentClient already logged the reason at WARN.
+            log.warn("Wiki agent unavailable for doc {} in KB {} (see prior WARN for cause); wiki page may be stale until next update",
+                    documentId, kbId);
+        } else {
+            log.info("Dispatched wiki agent ingest task={} for doc {} in KB {}",
+                    taskId, documentId, kbId);
+        }
     }
 
     @SuppressWarnings("unchecked")

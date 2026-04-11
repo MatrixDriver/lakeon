@@ -633,6 +633,114 @@ def memory_delete(
     return f"Memory {memory_id} deleted."
 
 
+# ---------------------------------------------------------------------------
+# Wiki — Karpathy-style wiki agent (Phase 2+ rewrite)
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(description=_desc("wiki_list_pages"))
+def wiki_list_pages(kb_name_or_id: str | None = None) -> str:
+    kb_id = _resolve_kb_id(kb_name_or_id)
+    pages = _api("GET", "/knowledge/bases/" + kb_id + "/wiki/pages",
+                 params={"kb_id": kb_id})
+    if not pages:
+        return f"No wiki pages in KB {kb_id}."
+    lines = [f"Wiki pages in KB {kb_id} ({len(pages)} total):"]
+    for p in pages:
+        title = p.get("title") or p.get("filename", "(untitled)")
+        summary = (p.get("summary") or "")[:80]
+        lines.append(f"- **{title}** — {summary}")
+    return "\n".join(lines)
+
+
+@mcp.tool(description=_desc("wiki_read_page"))
+def wiki_read_page(title: str, kb_name_or_id: str | None = None) -> str:
+    kb_id = _resolve_kb_id(kb_name_or_id)
+    r = _api("GET", "/knowledge/bases/" + kb_id + "/wiki/page-by-title",
+             params={"title": title})
+    if not r.get("found"):
+        return f"Page '{title}' not found in KB {kb_id}."
+    return r.get("content", "")
+
+
+@mcp.tool(description=_desc("wiki_search_pages"))
+def wiki_search_pages(query: str, kb_name_or_id: str | None = None, top_k: int = 5) -> str:
+    kb_id = _resolve_kb_id(kb_name_or_id)
+    hits = _api("GET", "/knowledge/bases/" + kb_id + "/wiki/search",
+                params={"query": query, "top_k": top_k})
+    if not hits:
+        return f"No matches for '{query}' in KB {kb_id}."
+    lines = [f"Top {len(hits)} matches for '{query}':"]
+    for h in hits:
+        title = h.get("title", "(untitled)")
+        score = h.get("score", 0)
+        summary = (h.get("summary") or "")[:80]
+        lines.append(f"- **{title}** (score={score}) — {summary}")
+    return "\n".join(lines)
+
+
+@mcp.tool(description=_desc("wiki_get_schema"))
+def wiki_get_schema(kb_name_or_id: str | None = None) -> str:
+    kb_id = _resolve_kb_id(kb_name_or_id)
+    r = _api("GET", "/knowledge/bases/" + kb_id + "/wiki/page-by-title",
+             params={"title": "KB Schema"})
+    if not r.get("found"):
+        return "(no schema page found — agent will use default Karpathy schema on first run)"
+    return r.get("content", "")
+
+
+@mcp.tool(description=_desc("wiki_ingest"))
+def wiki_ingest(document_id: str, kb_name_or_id: str | None = None) -> str:
+    kb_id = _resolve_kb_id(kb_name_or_id)
+    r = _api("POST", "/knowledge/bases/" + kb_id + "/wiki/agent/ingest",
+             json={"document_id": document_id})
+    task_id = r.get("task_id")
+    run_id = r.get("run_id", task_id)
+    return (
+        f"Wiki agent accepted ingest for doc {document_id}.\n"
+        f"task_id: {task_id}\n"
+        f"run_id: {run_id}\n"
+        f"Poll wiki_task_status({task_id!r}) to watch progress."
+    )
+
+
+@mcp.tool(description=_desc("wiki_curate"))
+def wiki_curate(kb_name_or_id: str | None = None) -> str:
+    kb_id = _resolve_kb_id(kb_name_or_id)
+    r = _api("POST", "/knowledge/bases/" + kb_id + "/wiki/agent/curate", json={})
+    task_id = r.get("task_id")
+    return f"Curate task {task_id} accepted. Poll wiki_task_status({task_id!r}) to watch."
+
+
+@mcp.tool(description=_desc("wiki_lint"))
+def wiki_lint(kb_name_or_id: str | None = None) -> str:
+    kb_id = _resolve_kb_id(kb_name_or_id)
+    r = _api("POST", "/knowledge/bases/" + kb_id + "/wiki/agent/lint", json={})
+    task_id = r.get("task_id")
+    return f"Lint task {task_id} accepted. Poll wiki_task_status({task_id!r}) to watch."
+
+
+@mcp.tool(description=_desc("wiki_task_status"))
+def wiki_task_status(task_id: str, kb_name_or_id: str | None = None) -> str:
+    kb_id = _resolve_kb_id(kb_name_or_id)
+    r = _api("GET", "/knowledge/bases/" + kb_id + "/wiki/agent/tasks/" + task_id)
+    status = r.get("status", "unknown")
+    if status == "completed":
+        result = r.get("result") or {}
+        return (
+            f"Task {task_id}: completed\n"
+            f"- created: {result.get('pages_created', 0)}\n"
+            f"- updated: {result.get('pages_updated', 0)}\n"
+            f"- deleted: {result.get('pages_deleted', 0)}\n"
+            f"- summary: {result.get('summary','')}"
+        )
+    if status == "error":
+        return f"Task {task_id}: ERROR — {r.get('error','unknown')}"
+    if status == "not_found":
+        return f"Task {task_id}: not found (agent may have restarted or task was purged)"
+    return f"Task {task_id}: still running..."
+
+
 def _guess_content_type(filename: str) -> str:
     ext = Path(filename).suffix.lower()
     return {

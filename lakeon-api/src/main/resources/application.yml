@@ -71,6 +71,11 @@ lakeon:
     api-key: ${LAKEON_AI_API_KEY:}
     base-url: ${LAKEON_AI_BASE_URL:https://api.modelarts-maas.com/openai/v1}
     model: ${LAKEON_AI_MODEL:deepseek-v3.2}
+  wiki:
+    agent:
+      url: ${WIKI_AGENT_URL:http://localhost:8090}
+      internal-token: ${WIKI_AGENT_INTERNAL_TOKEN:lakeon-wiki-agent-2026}
+      timeout-seconds: ${WIKI_AGENT_TIMEOUT_SECONDS:300}
   invite-required: ${LAKEON_INVITE_REQUIRED:false}
   suspend:
     pod-retain-minutes: ${LAKEON_SUSPEND_POD_RETAIN_MINUTES:30}

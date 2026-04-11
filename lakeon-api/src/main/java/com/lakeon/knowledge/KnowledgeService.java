@@ -18,6 +18,7 @@ import com.lakeon.service.exception.ForbiddenException;
 import com.lakeon.service.exception.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -64,6 +65,7 @@ public class KnowledgeService {
     private final ChunkService chunkService;
     private final KbAccessService kbAccessService;
     private final KbShareRepository kbShareRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public KnowledgeService(DocumentRepository documentRepository,
                             KnowledgeBaseRepository knowledgeBaseRepository,
@@ -79,7 +81,8 @@ public class KnowledgeService {
                             KbWriteQueue kbWriteQueue,
                             ChunkService chunkService,
                             KbAccessService kbAccessService,
-                            KbShareRepository kbShareRepository) {
+                            KbShareRepository kbShareRepository,
+                            ApplicationEventPublisher eventPublisher) {
         this.documentRepository = documentRepository;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.jobService = jobService;
@@ -95,6 +98,7 @@ public class KnowledgeService {
         this.chunkService = chunkService;
         this.kbAccessService = kbAccessService;
         this.kbShareRepository = kbShareRepository;
+        this.eventPublisher = eventPublisher;
         this.restTemplate = new RestTemplate();
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
@@ -181,6 +185,7 @@ public class KnowledgeService {
             kb.setTableNames(tableNames);
             kb.setStatus(KnowledgeBaseStatus.READY);
             knowledgeBaseRepository.save(kb);
+            eventPublisher.publishEvent(new KnowledgeBaseCreatedEvent(kb.getTenantId(), kb.getId()));
             return kb;
         }
 
@@ -196,6 +201,7 @@ public class KnowledgeService {
         t.setDaemon(true);
         t.start();
 
+        eventPublisher.publishEvent(new KnowledgeBaseCreatedEvent(kb.getTenantId(), kb.getId()));
         return kb;
     }
 

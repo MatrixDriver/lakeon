@@ -108,6 +108,73 @@ tools:
       memory_id: The ID of the memory to delete
       memory_base: "DO NOT set this parameter unless the user explicitly asks to use a different memory base. The server auto-detects the default."
 
+  # ---------------------------------------------------------------------------
+  # Wiki
+  # ---------------------------------------------------------------------------
+  wiki_list_pages:
+    description: |
+      List all wiki pages in a knowledge base with their title, filename, and one-line summary.
+      Call this before creating a new wiki page to avoid duplicates. If kb_name_or_id is omitted,
+      uses the user's current default KB.
+    args:
+      kb_name_or_id: Knowledge base name or ID (optional, uses default if omitted)
+
+  wiki_read_page:
+    description: |
+      Read the full markdown content of a single wiki page by title. Use this when deciding whether
+      to update or create a page during wiki ingestion.
+    args:
+      title: Wiki page title (required)
+      kb_name_or_id: Knowledge base name or ID (optional, uses default if omitted)
+
+  wiki_search_pages:
+    description: |
+      Keyword-search wiki pages by title and summary. Returns top_k matches with scores.
+      Use to find relevant existing pages before creating a new one.
+    args:
+      query: Search query in natural language (required)
+      kb_name_or_id: Knowledge base name or ID (optional, uses default if omitted)
+      top_k: Number of results to return (default 5)
+
+  wiki_get_schema:
+    description: |
+      Read the /schema.md document of a KB — the Karpathy-style schema that describes how the wiki
+      should be maintained. Read this at the start of every ingest/curate/lint session to understand
+      the KB's scope, page budget, and conventions.
+    args:
+      kb_name_or_id: Knowledge base name or ID (optional, uses default if omitted)
+
+  wiki_ingest:
+    description: |
+      Trigger the wiki agent to integrate a source document into the KB wiki. The agent runs
+      asynchronously; this tool returns a task_id immediately. Poll wiki_task_status to watch
+      progress. Requires the document to already be uploaded to the KB via knowledge_upload.
+    args:
+      document_id: ID of the document to ingest into the wiki (required)
+      kb_name_or_id: Knowledge base name or ID (optional, uses default if omitted)
+
+  wiki_curate:
+    description: |
+      Trigger the wiki curate agent, which merges duplicate pages, removes generic content,
+      and reorganizes the wiki. Returns task_id. Use when the wiki has grown bloated.
+    args:
+      kb_name_or_id: Knowledge base name or ID (optional, uses default if omitted)
+
+  wiki_lint:
+    description: |
+      Trigger the wiki lint agent, which finds dead links, orphan pages, format errors,
+      and proposes fixes. Returns task_id.
+    args:
+      kb_name_or_id: Knowledge base name or ID (optional, uses default if omitted)
+
+  wiki_task_status:
+    description: |
+      Query the status of a wiki agent task (from wiki_ingest/curate/lint). Returns
+      status=running|completed|error and any result or error details.
+    args:
+      task_id: Task ID returned by wiki_ingest/wiki_curate/wiki_lint (required)
+      kb_name_or_id: Knowledge base name or ID (optional, uses default if omitted)
+
 # ---------------------------------------------------------------------------
 # Agent instruction injection (`dbay setup <agent>`)
 # ---------------------------------------------------------------------------
