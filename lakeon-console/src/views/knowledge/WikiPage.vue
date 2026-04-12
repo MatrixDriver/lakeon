@@ -1,20 +1,82 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
-import { listWikiPages, getWikiPageContent, deleteWikiPage, type WikiPageItem } from '@/api/knowledge'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { listWikiPages, getWikiPageContent, deleteWikiPage, getWikiSchema, updateWikiSchema, type WikiPageItem } from '@/api/knowledge'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 
 const props = defineProps<{ kbId: string }>()
-const emit = defineEmits<{ (e: 'select', title: string): void }>()
+const emit = defineEmits<{
+  (e: 'select', title: string): void
+  (e: 'lint'): void
+  (e: 'curate'): void
+  (e: 'toggle-graph'): void
+}>()
 
 const pages = ref<WikiPageItem[]>([])
 const selectedPage = ref<WikiPageItem | null>(null)
 const content = ref('')
 const loading = ref(false)
 
-// Filter out internal pages (index, log)
+// Filter out internal pages (index, log, schema)
 const displayPages = computed(() =>
-  pages.value.filter(p => p.filename !== 'index.md' && p.filename !== 'log.md')
+  pages.value.filter(p => p.filename !== 'index.md' && p.filename !== 'log.md' && p.filename !== 'schema.md')
 )
+
+// Gear menu
+const showGearMenu = ref(false)
+const gearMenuRef = ref<HTMLElement>()
+
+function closeGearMenu(e: MouseEvent) {
+  if (gearMenuRef.value && !gearMenuRef.value.contains(e.target as Node)) {
+    showGearMenu.value = false
+  }
+}
+onMounted(() => document.addEventListener('click', closeGearMenu))
+onUnmounted(() => document.removeEventListener('click', closeGearMenu))
+
+// Schema drawer
+const showSchema = ref(false)
+const schemaContent = ref('')
+const schemaLoading = ref(false)
+const schemaSaving = ref(false)
+const schemaEditing = ref(false)
+const schemaEditContent = ref('')
+
+async function openSchemaDrawer() {
+  showGearMenu.value = false
+  showSchema.value = true
+  if (schemaContent.value) return
+  schemaLoading.value = true
+  try {
+    const resp = await getWikiSchema(props.kbId)
+    schemaContent.value = resp.data.content || ''
+  } catch {
+    schemaContent.value = ''
+  } finally {
+    schemaLoading.value = false
+  }
+}
+
+function startSchemaEdit() {
+  schemaEditContent.value = schemaContent.value
+  schemaEditing.value = true
+}
+
+async function saveSchema() {
+  schemaSaving.value = true
+  try {
+    await updateWikiSchema(props.kbId, schemaEditContent.value)
+    schemaContent.value = schemaEditContent.value
+    schemaEditing.value = false
+  } catch (e) {
+    console.error('Failed to save schema:', e)
+  } finally {
+    schemaSaving.value = false
+  }
+}
+
+function cancelSchemaEdit() {
+  schemaEditing.value = false
+}
 
 // Log drawer
 const showLog = ref(false)
@@ -164,9 +226,23 @@ defineExpose({ navigateToTitle })
   <div style="display: flex; gap: 16px; min-height: 400px; height: 100%;">
     <!-- Sidebar -->
     <div style="width: 160px; flex-shrink: 0; border-right: 1px solid #e8e0d8; padding-right: 12px; overflow-y: auto;">
-      <div style="margin: 0 0 12px; color: #8c7a68; font-size: 13px; font-weight: 500; display: flex; align-items: center; justify-content: space-between;">
-        <span>Wiki 页面 ({{ displayPages.length }})</span>
+      <div style="margin: 0 0 12px; color: #8c7a68; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px;">
+        <span style="flex: 1;">Wiki 页面 ({{ displayPages.length }})</span>
         <span style="cursor: pointer; font-size: 12px; color: #bbb;" title="查看日志" @click="openLogDrawer">日志</span>
+        <span ref="gearMenuRef" style="position: relative;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#bbb" stroke-width="2"
+               style="cursor: pointer; display: block;" title="Wiki 工具"
+               @click.stop="showGearMenu = !showGearMenu">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <div v-if="showGearMenu" style="position: absolute; right: 0; top: 20px; background: #fff; border: 1px solid #e0d8ce; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 20; min-width: 120px; padding: 4px 0; font-size: 12px; color: #5a4a3a;">
+            <div class="gear-menu-item" @click="openSchemaDrawer">Schema</div>
+            <div class="gear-menu-item" @click="showGearMenu = false; emit('lint')">健康检查</div>
+            <div class="gear-menu-item" @click="showGearMenu = false; emit('curate')">整理 Wiki</div>
+            <div style="border-top: 1px solid #f0ebe4; margin: 4px 0;"></div>
+            <div class="gear-menu-item" @click="showGearMenu = false; emit('toggle-graph')">图谱</div>
+          </div>
+        </span>
       </div>
       <div v-for="page in displayPages" :key="page.id"
            :class="['wiki-page-item', { active: selectedPage?.id === page.id }]"
@@ -198,6 +274,29 @@ defineExpose({ navigateToTitle })
       </div>
       <div v-else style="color: #b0a090; padding: 40px; text-align: center;">
         选择左侧的 wiki 页面查看内容
+      </div>
+    </div>
+
+    <!-- Schema Drawer -->
+    <div v-if="showSchema" style="position: fixed; inset: 0; z-index: 999;" @click.self="showSchema = false">
+      <div style="position: absolute; right: 0; top: 0; bottom: 0; width: 520px; background: #fff; box-shadow: -4px 0 16px rgba(0,0,0,0.1); display: flex; flex-direction: column;">
+        <div style="padding: 14px 18px; border-bottom: 1px solid #f0ebe4; display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 14px; font-weight: 600; color: #3d3d3d;">Wiki Schema</span>
+          <span style="flex: 1;"></span>
+          <template v-if="schemaEditing">
+            <button class="schema-btn" @click="saveSchema" :disabled="schemaSaving">{{ schemaSaving ? '保存中...' : '保存' }}</button>
+            <button class="schema-btn schema-btn-cancel" @click="cancelSchemaEdit">取消</button>
+          </template>
+          <button v-else class="schema-btn" @click="startSchemaEdit">编辑</button>
+          <span style="cursor: pointer; color: #bbb; font-size: 18px;" @click="showSchema = false">&times;</span>
+        </div>
+        <div style="flex: 1; overflow-y: auto; padding: 16px 18px;">
+          <div v-if="schemaLoading" style="color: #b0a090; padding: 20px;">加载中...</div>
+          <textarea v-else-if="schemaEditing" v-model="schemaEditContent"
+            style="width: 100%; height: 100%; border: 1px solid #e0d8ce; border-radius: 6px; padding: 12px; font-size: 13px; font-family: 'SF Mono', 'Fira Code', monospace; line-height: 1.6; resize: none; color: #3d3d3d; background: #fdfbf8; box-sizing: border-box;"
+          />
+          <MarkdownRenderer v-else :content="schemaContent || '暂无 Schema'" :kb-id="kbId" @navigate="navigateToTitle" />
+        </div>
       </div>
     </div>
 
@@ -297,6 +396,26 @@ defineExpose({ navigateToTitle })
   background: #faf5f0;
   color: #5a4a3a;
 }
+.gear-menu-item {
+  padding: 6px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.gear-menu-item:hover {
+  background: #faf5f0;
+}
+.schema-btn {
+  padding: 4px 12px;
+  font-size: 12px;
+  border: 1px solid #e0d8ce;
+  border-radius: 4px;
+  background: #fff;
+  color: #8c7a68;
+  cursor: pointer;
+}
+.schema-btn:hover { background: #faf5f0; }
+.schema-btn:disabled { opacity: 0.5; cursor: default; }
+.schema-btn-cancel { color: #bbb; }
 .fullscreen-overlay {
   position: fixed;
   inset: 0;

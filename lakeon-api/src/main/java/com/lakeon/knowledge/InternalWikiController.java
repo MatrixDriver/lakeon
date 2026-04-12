@@ -25,11 +25,14 @@ public class InternalWikiController {
 
     private final WikiToolService toolService;
     private final WikiRunLogRepository runLogRepository;
+    private final DocumentRepository documentRepository;
 
     public InternalWikiController(WikiToolService toolService,
-                                  WikiRunLogRepository runLogRepository) {
+                                  WikiRunLogRepository runLogRepository,
+                                  DocumentRepository documentRepository) {
         this.toolService = toolService;
         this.runLogRepository = runLogRepository;
+        this.documentRepository = documentRepository;
     }
 
     // ── Read tools ─────────────────────────────────────────────
@@ -131,6 +134,14 @@ public class InternalWikiController {
             log.info("Wiki agent run log recorded: run_id={} kb={} status={} created={} updated={} deleted={}",
                     req.runId, req.kbId, req.status,
                     req.pagesCreated, req.pagesUpdated, req.pagesDeleted);
+
+            // Update trigger document's wiki_processed_at on successful ingest
+            if ("success".equals(req.status) && "ingest".equals(req.runType)
+                    && req.triggerDoc != null && !req.triggerDoc.isBlank()) {
+                updateWikiProcessedAt(req.tenantId, req.triggerDoc);
+                // Backfill other docs in same KB that have run logs but missing wiki_processed_at
+                backfillWikiProcessedAt(req.tenantId, req.kbId);
+            }
         } catch (Exception e) {
             log.warn("Failed to persist wiki run log for run_id={}: {}", req.runId, e.getMessage());
         }
@@ -153,6 +164,69 @@ public class InternalWikiController {
     private static String clampTriggerDoc(String trigger) {
         if (trigger == null) return null;
         return trigger.length() > 256 ? trigger.substring(0, 253) + "..." : trigger;
+    }
+
+    /**
+     * Mark the source document's wiki_processed_at metadata so the frontend shows "Wiki 已生成".
+     */
+    private void updateWikiProcessedAt(String tenantId, String documentId) {
+        try {
+            var optDoc = documentRepository.findByIdAndTenantId(documentId, tenantId);
+            if (optDoc.isEmpty()) {
+                log.debug("updateWikiProcessedAt: doc {} not found for tenant {}", documentId, tenantId);
+                return;
+            }
+            var doc = optDoc.get();
+            setWikiProcessedAtIfMissing(doc);
+        } catch (Exception e) {
+            log.warn("Failed to set wiki_processed_at for doc {}: {}", documentId, e.getMessage());
+        }
+    }
+
+    /**
+     * Backfill wiki_processed_at for documents in a KB that have successful run logs
+     * but are missing the metadata field (from before the fix was deployed).
+     */
+    private void backfillWikiProcessedAt(String tenantId, String kbId) {
+        try {
+            var logs = runLogRepository.findByKbIdOrderByCreatedAtDesc(kbId,
+                    org.springframework.data.domain.Pageable.unpaged());
+            var processedDocIds = logs.stream()
+                    .filter(l -> "success".equals(l.getStatus()) && "ingest".equals(l.getRunType())
+                            && l.getTriggerDoc() != null && !l.getTriggerDoc().isBlank())
+                    .map(WikiRunLogEntity::getTriggerDoc)
+                    .collect(java.util.stream.Collectors.toSet());
+            int count = 0;
+            for (String docId : processedDocIds) {
+                var optDoc = documentRepository.findByIdAndTenantId(docId, tenantId);
+                if (optDoc.isPresent()) {
+                    var doc = optDoc.get();
+                    var meta = doc.getMetadata();
+                    if (meta == null || !meta.containsKey("wiki_processed_at")) {
+                        setWikiProcessedAtIfMissing(doc);
+                        count++;
+                    }
+                }
+            }
+            if (count > 0) {
+                log.info("Backfilled wiki_processed_at for {} docs in KB {}", count, kbId);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to backfill wiki_processed_at for KB {}: {}", kbId, e.getMessage());
+        }
+    }
+
+    private void setWikiProcessedAtIfMissing(DocumentEntity doc) {
+        var meta = doc.getMetadata();
+        if (meta == null) {
+            meta = new java.util.LinkedHashMap<>();
+        }
+        if (!meta.containsKey("wiki_processed_at")) {
+            meta.put("wiki_processed_at", Instant.now().toString());
+            doc.setMetadata(meta);
+            documentRepository.save(doc);
+            log.info("Set wiki_processed_at for doc {}", doc.getId());
+        }
     }
 
     /**

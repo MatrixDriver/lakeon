@@ -702,9 +702,20 @@ public class KnowledgeController {
         @SuppressWarnings("unchecked")
         int graphEdges = ((List<?>) graph.get("edges")).size();
 
-        // Count source docs (raw type)
+        // Count source docs (raw type) and backfill wiki_processed_at if needed
         List<DocumentEntity> rawDocs = documentRepository.findByTenantIdAndKbIdAndDocType(tenant.getId(), kbId, "raw");
         int sourceDocCount = rawDocs.size();
+
+        // One-time backfill: if wiki pages exist but raw docs lack wiki_processed_at,
+        // check run logs to set it. Becomes a no-op once all docs are fixed.
+        if (wikiPageCount > 0) {
+            boolean needsBackfill = rawDocs.stream().anyMatch(d ->
+                    (d.getStatus() == DocumentStatus.READY || d.getStatus() == DocumentStatus.WIKI_PENDING)
+                    && (d.getMetadata() == null || !d.getMetadata().containsKey("wiki_processed_at")));
+            if (needsBackfill) {
+                backfillWikiProcessedAtFromRunLogs(tenant.getId(), kbId);
+            }
+        }
 
         Map<String, Object> stats = new LinkedHashMap<>();
         stats.put("document_count", kb.getDocumentCount() != null ? kb.getDocumentCount() : 0);
@@ -733,6 +744,31 @@ public class KnowledgeController {
         TenantEntity tenant = getTenant(req);
         String content = knowledgeService.getWikiPageContent(tenant.getId(), kbId, docId);
         return ResponseEntity.ok(Map.of("content", content != null ? content : ""));
+    }
+
+    // ── Wiki Schema (user-facing) ────────────────────────────
+
+    @GetMapping("/wiki/schema")
+    public ResponseEntity<?> getWikiSchema(HttpServletRequest req,
+                                           @RequestParam("kb_id") String kbId) {
+        TenantEntity tenant = getTenant(req);
+        kbAccessService.getKbWithAccess(kbId, tenant.getId());
+        String content = wikiService.readWikiPage(tenant.getId(), kbId, "schema.md");
+        return ResponseEntity.ok(Map.of("content", content != null ? content : ""));
+    }
+
+    @PutMapping("/wiki/schema")
+    public ResponseEntity<?> updateWikiSchema(HttpServletRequest req,
+                                              @RequestBody Map<String, String> body) {
+        String kbId = body.get("kb_id");
+        String content = body.get("content");
+        if (kbId == null || content == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "kb_id and content are required"));
+        }
+        TenantEntity tenant = getTenant(req);
+        kbAccessService.getKbWithAccess(kbId, tenant.getId());
+        wikiService.writeWikiDocument(tenant.getId(), kbId, "schema.md", "schema", content);
+        return ResponseEntity.ok(Map.of("ok", true));
     }
 
     // ── Wiki Agent dispatch endpoints (user-facing) ───────────
@@ -1203,6 +1239,39 @@ public class KnowledgeController {
     }
 
     // ── Helpers ──────────────────────────────────────────────────────
+
+    private void backfillWikiProcessedAtFromRunLogs(String tenantId, String kbId) {
+        try {
+            var logs = wikiRunLogRepository.findByKbIdOrderByCreatedAtDesc(kbId,
+                    org.springframework.data.domain.Pageable.unpaged());
+            var processedDocIds = logs.stream()
+                    .filter(l -> "success".equals(l.getStatus()) && "ingest".equals(l.getRunType())
+                            && l.getTriggerDoc() != null && !l.getTriggerDoc().isBlank())
+                    .map(WikiRunLogEntity::getTriggerDoc)
+                    .collect(java.util.stream.Collectors.toSet());
+            int count = 0;
+            String now = java.time.Instant.now().toString();
+            for (String docId : processedDocIds) {
+                var optDoc = documentRepository.findByIdAndTenantId(docId, tenantId);
+                if (optDoc.isPresent()) {
+                    var doc = optDoc.get();
+                    var meta = doc.getMetadata();
+                    if (meta == null || !meta.containsKey("wiki_processed_at")) {
+                        if (meta == null) meta = new java.util.LinkedHashMap<>();
+                        meta.put("wiki_processed_at", now);
+                        doc.setMetadata(meta);
+                        documentRepository.save(doc);
+                        count++;
+                    }
+                }
+            }
+            if (count > 0) {
+                log.info("Backfilled wiki_processed_at for {} docs in KB {}", count, kbId);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to backfill wiki_processed_at for KB {}: {}", kbId, e.getMessage());
+        }
+    }
 
     private void validateAdminToken(String token) {
         String expected = lakeonProperties.getAdmin() != null ? lakeonProperties.getAdmin().getToken() : null;

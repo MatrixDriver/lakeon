@@ -272,16 +272,18 @@ public class WikiService {
         List<Map<String, String>> nodes = new ArrayList<>();
         List<Map<String, String>> edges = new ArrayList<>();
         Set<String> nodeIds = new HashSet<>();
+        // Map from normalized nodeId → canonical label (prefer wiki page title over wikilink text)
+        Map<String, String> canonicalLabels = new LinkedHashMap<>();
 
         for (DocumentEntity doc : wikiDocs) {
-            // Skip index and log — they connect to everything and add noise
+            // Skip index, log, schema — they connect to everything and add noise
             String fn = doc.getFilename();
-            if ("index.md".equals(fn) || "log.md".equals(fn)) continue;
+            if ("index.md".equals(fn) || "log.md".equals(fn) || "schema.md".equals(fn)) continue;
 
             String title = filenameToTitle(fn);
-            String nodeId = title.toLowerCase();
+            String nodeId = normalizeNodeId(title);
             if (nodeIds.add(nodeId)) {
-                nodes.add(Map.of("id", nodeId, "label", title));
+                canonicalLabels.put(nodeId, title);
             }
 
             // Parse wikilinks from content
@@ -289,19 +291,35 @@ public class WikiService {
             if (content != null) {
                 List<String> links = extractWikilinks(content);
                 for (String link : links) {
-                    String targetId = link.toLowerCase();
+                    String targetId = normalizeNodeId(link);
                     if (nodeIds.add(targetId)) {
-                        nodes.add(Map.of("id", targetId, "label", link));
+                        canonicalLabels.put(targetId, link);
                     }
-                    edges.add(Map.of("source", nodeId, "target", targetId));
+                    if (!targetId.equals(nodeId)) { // skip self-links
+                        edges.add(Map.of("source", nodeId, "target", targetId));
+                    }
                 }
             }
+        }
+
+        // Build node list using canonical labels
+        for (var entry : canonicalLabels.entrySet()) {
+            nodes.add(Map.of("id", entry.getKey(), "label", entry.getValue()));
         }
 
         Map<String, Object> graph = new LinkedHashMap<>();
         graph.put("nodes", nodes);
         graph.put("edges", edges);
         return graph;
+    }
+
+    /**
+     * Normalize a label to a stable node ID: lowercase, collapse whitespace/underscores/hyphens
+     * to a single hyphen. This ensures "OpenClaw 插件系统", "OpenClaw-插件系统", and
+     * "openclaw_插件系统" all map to the same node.
+     */
+    static String normalizeNodeId(String label) {
+        return label.toLowerCase().replaceAll("[\\s_-]+", "-").replaceAll("^-|-$", "");
     }
 
     /**

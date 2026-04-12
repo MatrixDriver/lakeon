@@ -78,24 +78,9 @@
 
     <!-- Wiki Tab -->
     <div v-if="activeTab === 'wiki'" style="margin-top: 12px;">
-      <!-- Wiki toolbar -->
-      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 8px;">
-        <button style="padding: 4px 10px; font-size: 11px; border: 1px solid #e0d8ce; border-radius: 4px; background: #fff; color: #8c7a68; cursor: pointer;"
-                @click="handleLint" :disabled="lintLoading">
-          {{ lintLoading ? '检查中...' : '健康检查' }}
-        </button>
-        <button style="padding: 4px 10px; font-size: 11px; border: 1px solid #e0d8ce; border-radius: 4px; background: #fff; color: #8c7a68; cursor: pointer;"
-                @click="handleCurate" :disabled="curateLoading">
-          {{ curateLoading ? '整理中...' : '整理 Wiki' }}
-        </button>
-        <button style="padding: 4px 10px; font-size: 11px; border: 1px solid #e0d8ce; border-radius: 4px; background: #fff; color: #8c7a68; cursor: pointer;"
-                @click="showGraph = !showGraph">
-          {{ showGraph ? '收起图谱' : '图谱' }}
-        </button>
-      </div>
-      <div style="display: flex; height: calc(100vh - 232px); position: relative;">
+      <div style="display: flex; height: calc(100vh - 210px); position: relative;">
       <div style="flex: 1; min-width: 0; overflow: hidden;">
-        <WikiPage ref="wikiPageRef" :kb-id="(route.params.kbId as string)" @select="handlePageSelect" />
+        <WikiPage ref="wikiPageRef" :kb-id="(route.params.kbId as string)" @select="handlePageSelect" @lint="handleLint" @curate="handleCurate" @toggle-graph="showGraph = !showGraph" />
       </div>
       <!-- Resizable graph panel -->
       <div v-if="showGraph" :style="graphWidth ? { width: graphWidth + 'px', flexShrink: '0', borderLeft: '1px solid #e8e0d8', display: 'flex', flexDirection: 'column', position: 'relative' } : { width: 'calc(50% - 80px)', flexShrink: '0', borderLeft: '1px solid #e8e0d8', display: 'flex', flexDirection: 'column', position: 'relative' }">

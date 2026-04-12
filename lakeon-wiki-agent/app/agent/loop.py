@@ -82,6 +82,9 @@ INGEST_SYSTEM_PROMPT = """你是一个 wiki 编译 agent，工作在一个 Karpa
 - 创建新页前**必须**先 list_pages 或 search_pages 确认不重复。
 - update_page 的 old_text 必须在页面中唯一匹配，否则先 read_page 扩大上下文再试。
 - 所有页面正文使用简体中文。
+- [[wikilink]] 必须使用已有 wiki 页面的精确标题（即 create_page/update_page 的 title 参数）。
+  禁止使用别名、缩写或不同措辞——如页面标题是"插件系统"，链接必须写 [[插件系统]]，
+  不能写 [[Plugin系统]] 或 [[插件]]。链接前先 list_pages 确认标题。
 """
 
 
@@ -102,6 +105,7 @@ CURATE_SYSTEM_PROMPT = """你是一个 wiki 整理 agent。
 硬性规则：
 - 只保留对本 KB 领域有价值的页面。
 - 每次 curate 最多变更 ~15 页；避免大刀阔斧重写整个 wiki。
+- [[wikilink]] 必须使用已有 wiki 页面的精确标题，禁止别名或缩写。
 """
 
 
@@ -120,6 +124,7 @@ LINT_SYSTEM_PROMPT = """你是一个 wiki lint agent。
 - 每次 lint 最多变更 ~10 页；避免大刀阔斧重写整个 wiki。
 - 只修可证明的问题（死链、格式、空页），不做主观"这页写得不够好"的改写。
 - 所有页面正文使用简体中文。
+- [[wikilink]] 必须使用已有 wiki 页面的精确标题，禁止别名或缩写。
 """
 
 

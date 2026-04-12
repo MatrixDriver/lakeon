@@ -365,6 +365,14 @@ export function listWikiPages(kbId: string) {
   return api.get<WikiPageItem[]>('/knowledge/wiki/pages', { params: { kb_id: kbId } })
 }
 
+export function getWikiSchema(kbId: string) {
+  return api.get<{ content: string }>('/knowledge/wiki/schema', { params: { kb_id: kbId } })
+}
+
+export function updateWikiSchema(kbId: string, content: string) {
+  return api.put('/knowledge/wiki/schema', { kb_id: kbId, content })
+}
+
 export function getWikiPageContent(kbId: string, docId: string) {
   return api.get<{ content: string }>(`/knowledge/wiki/pages/${docId}/content`, {
     params: { kb_id: kbId }
