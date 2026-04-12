@@ -410,6 +410,18 @@ export function wikiChatStream(kbId: string, question: string, history: { role: 
   })
 }
 
+export function wikiAgentChatStream(kbId: string, question: string, history: { role: string; content: string }[] = []) {
+  const apiKey = localStorage.getItem('lakeon_api_key') || ''
+  return fetch(`${api.defaults.baseURL}/knowledge/wiki/chat/agent`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ kb_id: kbId, question, history }),
+  })
+}
+
 export function saveWikiResponse(kbId: string, title: string, content: string) {
   return api.post('/knowledge/wiki/save-response', { kb_id: kbId, title, content })
 }
