@@ -334,6 +334,15 @@ public class WikiService {
                                           String prefetchedTitle, String prefetchedContent) {
         KnowledgeBaseEntity kbAccess = kbAccessService.getKbWithAccess(kbId, tenantId);
         tenantId = kbAccess.getTenantId();
+
+        // Deduplicate: reject if a document with the same source_url already exists in this KB
+        List<String> existing = documentRepository.findIdsByKbIdAndTenantIdAndMetadataContaining(
+                kbId, tenantId, "{\"source_url\":\"" + url.replace("\"", "\\\"") + "\"}");
+        if (!existing.isEmpty()) {
+            return Map.of("document_id", existing.get(0), "filename", "", "status", "duplicate",
+                    "message", "This URL has already been imported into this knowledge base.");
+        }
+
         String text;
         String title;
 
