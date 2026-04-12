@@ -179,6 +179,19 @@ class AgentRunner:
             req = dataclasses.replace(req, run_type="lint")
         return await self._run(req, LINT_SYSTEM_PROMPT, forbid=set())
 
+    async def run_chat(self, req: RunRequest, question: str, history: list[dict[str, str]]):
+        """Async generator that yields SSE event dicts for a chat session."""
+        from app.agent.tools import CHAT_TOOL_SCHEMAS
+
+        messages: list[dict[str, Any]] = [
+            {"role": "system", "content": CHAT_SYSTEM_PROMPT},
+        ]
+        for h in history:
+            messages.append({"role": h["role"], "content": h["content"]})
+        messages.append({"role": "user", "content": question})
+        async for event in self._run_stream(req, messages, CHAT_TOOL_SCHEMAS, forbid=set()):
+            yield event
+
     async def _run(
         self,
         req: RunRequest,
@@ -297,6 +310,130 @@ class AgentRunner:
             "duration_ms": duration_ms,
         }
 
+    async def _run_stream(
+        self,
+        req: RunRequest,
+        messages: list[dict[str, Any]],
+        tools: list[dict],
+        forbid: set[str],
+    ):
+        """Async generator — same loop as _run() but yields SSE event dicts."""
+        start = time.time()
+        result = RunResult()
+
+        try:
+            should_stop = False
+            for round_idx in range(self._max_rounds):
+                llm_resp = await self._llm.chat(messages=messages, tools=tools)
+                result.token_count += llm_resp["usage"]["total"]
+                msg = llm_resp["message"]
+                tool_calls = msg.get("tool_calls") or []
+
+                # -- text content (no tool calls) → final answer --
+                if not tool_calls:
+                    finish_reason = llm_resp.get("finish_reason")
+                    text = msg.get("content") or ""
+                    if finish_reason == "length":
+                        result.status = "error"
+                        result.error = "llm hit max_tokens without finishing"
+                        yield {"type": "error", "message": result.error}
+                        break
+                    result.status = "success"
+                    result.summary = text
+                    if text:
+                        yield {"type": "content", "content": text}
+                    break
+
+                # -- text alongside tool calls → thinking --
+                text_content = msg.get("content") or ""
+                if text_content:
+                    yield {"type": "thinking", "content": text_content}
+
+                messages.append(msg)
+
+                # Separate done from regular tools
+                done_call = None
+                regular_calls = []
+                for tc in tool_calls:
+                    if tc["function"]["name"] == "done":
+                        done_call = tc
+                    else:
+                        regular_calls.append(tc)
+
+                for tc in regular_calls:
+                    name = tc["function"]["name"]
+                    try:
+                        args = json.loads(tc["function"]["arguments"] or "{}")
+                    except json.JSONDecodeError as e:
+                        err_result = {"ok": False, "error": f"invalid JSON in arguments: {e}"}
+                        messages.append(self._tool_message(tc["id"], err_result))
+                        result.tool_calls_count += 1
+                        yield {"type": "tool_result", "tool": name, "ok": False,
+                               "summary": f"invalid JSON: {e}"}
+                        continue
+
+                    result.tool_calls_count += 1
+
+                    if name in forbid:
+                        log.warning("Tool %s forbidden in chat run %s", name, req.run_id)
+                        messages.append(
+                            self._tool_message(
+                                tc["id"],
+                                {"ok": False, "error": f"tool {name} is not allowed"},
+                            )
+                        )
+                        yield {"type": "tool_result", "tool": name, "ok": False,
+                               "summary": f"forbidden: {name}"}
+                        continue
+
+                    yield {"type": "tool_call", "tool": name,
+                           "args": _summarize_args(name, args)}
+
+                    tool_result = await self._execute_tool(req, name, args)
+                    self._track_counts(result, name, args, tool_result)
+                    messages.append(self._tool_message(tc["id"], tool_result))
+
+                    ok = isinstance(tool_result, dict) and tool_result.get("ok", True)
+                    yield {"type": "tool_result", "tool": name, "ok": ok,
+                           "summary": _summarize_result(name, tool_result)}
+
+                if done_call is not None:
+                    try:
+                        done_args = json.loads(done_call["function"]["arguments"] or "{}")
+                    except json.JSONDecodeError:
+                        done_args = {}
+                    result.tool_calls_count += 1
+                    result.status = "success"
+                    result.summary = done_args.get("summary", "")
+                    messages.append(
+                        self._tool_message(done_call["id"], {"ok": True, "acknowledged": True})
+                    )
+                    should_stop = True
+
+                if should_stop:
+                    break
+            else:
+                result.status = "max_rounds_exceeded"
+                result.error = f"agent did not finish within {self._max_rounds} rounds"
+
+        except Exception as e:
+            log.exception("chat stream run %s failed: %s", req.run_id, e)
+            result.status = "error"
+            result.error = f"{type(e).__name__}: {e}"
+            yield {"type": "error", "message": result.error}
+
+        duration_ms = int((time.time() - start) * 1000)
+        # No runlog for chat Q&A sessions
+        yield {
+            "type": "done",
+            "status": result.status,
+            "summary": result.summary,
+            "pages_created": result.pages_created,
+            "pages_updated": result.pages_updated,
+            "tool_calls_count": result.tool_calls_count,
+            "duration_ms": duration_ms,
+        }
+
     # ── helpers ──────────────────────────────────────────────
 
     def _user_message(self, req: RunRequest) -> str:
@@ -404,3 +541,50 @@ class AgentRunner:
 
 def new_run_id() -> str:
     return f"run_{ULID()}"
+
+
+# ──────────────────────────────────────────────────────────────
+# SSE summarisation helpers
+# ──────────────────────────────────────────────────────────────
+
+
+def _summarize_args(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+    """Return a compact version of tool args suitable for SSE events."""
+    out: dict[str, Any] = {}
+    for k, v in args.items():
+        if tool_name in ("create_page", "update_page", "append_page") and k == "content":
+            out["content_length"] = len(v) if isinstance(v, str) else 0
+        elif k in ("old_text", "new_text"):
+            s = str(v)
+            out[k] = s[:80] + "..." if len(s) > 80 else s
+        else:
+            out[k] = v
+    return out
+
+
+def _summarize_result(tool_name: str, result: Any) -> str:
+    """Return a short human-readable summary of a tool result."""
+    if isinstance(result, dict):
+        if not result.get("ok", True):
+            return f"error: {result.get('error', 'unknown')}"
+        if tool_name == "list_pages":
+            pages = result.get("pages") or result.get("items") or []
+            return f"{len(pages)} pages"
+        if tool_name == "search_pages":
+            hits = result.get("results") or result.get("items") or []
+            return f"{len(hits)} results"
+        if tool_name == "read_page":
+            content = result.get("content", "")
+            return content[:100] + "..." if len(content) > 100 else content
+        if tool_name in ("create_page", "update_page", "append_page", "delete_page"):
+            return "ok"
+        if tool_name == "get_schema":
+            return "schema loaded"
+        if tool_name == "read_source":
+            content = result.get("content", "")
+            return f"{len(content)} chars" if content else "empty"
+        if tool_name == "log_note":
+            return "noted"
+    if isinstance(result, str):
+        return result[:100] + "..." if len(result) > 100 else result
+    return str(result)[:100]
