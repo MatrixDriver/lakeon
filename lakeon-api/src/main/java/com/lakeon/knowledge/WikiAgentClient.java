@@ -96,6 +96,46 @@ public class WikiAgentClient {
     }
 
     /**
+     * Open an SSE stream to the wiki-agent /v1/wiki/chat endpoint.
+     * Returns an InputStream the caller reads line-by-line, or null if unreachable.
+     */
+    public java.io.InputStream streamChat(String tenantId, String kbId, String question,
+                                           java.util.List<Map<String, String>> history) {
+        String baseUrl = props.getWiki().getAgent().getUrl();
+        if (baseUrl == null || baseUrl.isBlank()) {
+            log.warn("Wiki agent URL not configured; cannot stream chat");
+            return null;
+        }
+        try {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("tenant_id", tenantId);
+            body.put("kb_id", kbId);
+            body.put("question", question);
+            body.put("history", history);
+            String json = objectMapper.writeValueAsString(body);
+            String token = props.getWiki().getAgent().getInternalToken();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/v1/wiki/chat"))
+                    .header("Authorization", "Bearer " + token)
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "text/event-stream")
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .timeout(Duration.ofSeconds(300))
+                    .build();
+            HttpResponse<java.io.InputStream> resp = httpClient.send(
+                    request, HttpResponse.BodyHandlers.ofInputStream());
+            if (resp.statusCode() != 200) {
+                log.warn("Wiki agent chat returned HTTP {}", resp.statusCode());
+                return null;
+            }
+            return resp.body();
+        } catch (Exception e) {
+            log.warn("Wiki agent chat failed: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Returns null when the agent is unreachable/misconfigured. Callers should
      * log and continue — agent availability must not fail queue draining.
      *
