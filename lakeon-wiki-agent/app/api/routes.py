@@ -7,8 +7,12 @@ Three run types (ingest, curate, lint) each map to a POST endpoint that:
 4. Returns 202 Accepted with `{task_id, run_id, status: "accepted"}`
 
 Progress is polled via GET /v1/wiki/tasks/{task_id}.
+Interactive chat is available via POST /v1/wiki/chat (SSE streaming).
 """
+import json as _json
+
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.agent.loop import AgentRunner, RunRequest, new_run_id
@@ -146,3 +150,42 @@ def task_status(
     if snap is None:
         raise HTTPException(404, detail="task not found")
     return snap
+
+
+# ── Interactive chat (SSE) ────────────────────────────────────
+
+
+class ChatRequest(BaseModel):
+    tenant_id: str = Field(..., min_length=1)
+    kb_id: str = Field(..., min_length=1)
+    question: str = Field(..., min_length=1)
+    history: list[dict[str, str]] = Field(default_factory=list)
+
+
+@router.post(
+    "/v1/wiki/chat",
+    dependencies=[Depends(require_token)],
+    summary="Interactive wiki chat with SSE streaming",
+)
+async def chat_stream(
+    req: ChatRequest,
+    runner: AgentRunner = Depends(get_runner),
+) -> StreamingResponse:
+    run_req = RunRequest(
+        tenant_id=req.tenant_id,
+        kb_id=req.kb_id,
+        run_id=new_run_id(),
+        source="chat",
+        run_type="chat",
+    )
+
+    async def event_generator():
+        async for event in runner.run_chat(run_req, req.question, req.history):
+            yield f"data: {_json.dumps(event, ensure_ascii=False)}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
