@@ -1,16 +1,32 @@
 <script setup lang="ts">
 import { ref, nextTick, onMounted } from 'vue'
-import { wikiChatStream, saveWikiResponse } from '@/api/knowledge'
+import { wikiAgentChatStream, saveWikiResponse } from '@/api/knowledge'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 
 const props = defineProps<{ kbId: string }>()
 const emit = defineEmits<{ (e: 'navigate', title: string): void }>()
 
+interface AgentEvent {
+  type: 'thinking' | 'tool_call' | 'tool_result' | 'content' | 'done' | 'error'
+  content?: string
+  tool?: string
+  args?: Record<string, any>
+  ok?: boolean
+  summary?: string
+  message?: string
+  status?: string
+  pages_created?: number
+  pages_updated?: number
+  tool_calls_count?: number
+  duration_ms?: number
+}
+
 interface Message {
   role: 'user' | 'assistant'
   content: string
-  depth?: string
-  sources?: string[]
+  events?: AgentEvent[]
+  depth?: string      // legacy: from old direct-LLM fallback
+  sources?: string[]  // legacy: from old direct-LLM fallback
   saved?: boolean
   saving?: boolean
 }
@@ -63,6 +79,7 @@ async function send() {
   const assistantMsg: Message = {
     role: 'assistant',
     content: '',
+    events: [],
     saved: false,
     saving: false,
   }
@@ -73,7 +90,7 @@ async function send() {
       role: m.role, content: m.content
     }))
 
-    const response = await wikiChatStream(props.kbId, question, history)
+    const response = await wikiAgentChatStream(props.kbId, question, history)
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
     const reader = response.body!.getReader()
@@ -89,24 +106,31 @@ async function send() {
       buffer = lines.pop() || ''
 
       for (const line of lines) {
-        // SSE format: "data:" prefix
         if (!line.startsWith('data:')) continue
         const data = line.slice(5).trim()
         if (data === '[DONE]' || !data) continue
 
         try {
-          const parsed = JSON.parse(data)
-          if (parsed.type === 'meta') {
-            assistantMsg.depth = parsed.depth
-            assistantMsg.sources = parsed.sources
-          } else if (parsed.type === 'chunk') {
-            assistantMsg.content += parsed.content
-            if (assistantMsg.content.length % 50 < 5) {
-              await scrollToBottom()
-            }
-          } else if (parsed.type === 'error') {
-            assistantMsg.content = '抱歉，出错了: ' + parsed.message
+          const event = JSON.parse(data) as AgentEvent
+
+          // Legacy fallback: old API sends {type: "chunk"} and {type: "meta"}
+          if ((event as any).type === 'chunk') {
+            assistantMsg.content += (event as any).content || ''
+            if (assistantMsg.content.length % 50 < 5) await scrollToBottom()
+            continue
           }
+          if ((event as any).type === 'meta') continue
+
+          // New agent events
+          assistantMsg.events!.push(event)
+
+          if (event.type === 'content') {
+            assistantMsg.content += event.content || ''
+          } else if (event.type === 'error') {
+            assistantMsg.content = '抱歉，出错了: ' + (event.message || '')
+          }
+
+          await scrollToBottom()
         } catch { /* skip malformed */ }
       }
     }
@@ -181,14 +205,52 @@ async function scrollToBottom() {
           {{ msg.content }}
         </div>
         <div v-else>
-          <!-- Show content bubble only when there's content, otherwise show thinking indicator -->
+          <!-- Agent events -->
+          <div v-if="msg.events?.length" style="margin-bottom: 8px;">
+            <template v-for="(ev, ei) in msg.events" :key="ei">
+              <!-- Thinking -->
+              <details v-if="ev.type === 'thinking'" class="agent-event">
+                <summary class="agent-event-summary" style="color: #b0a090;">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -1px; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                  思考中...
+                </summary>
+                <div class="agent-event-body">{{ ev.content }}</div>
+              </details>
+
+              <!-- Tool call -->
+              <div v-else-if="ev.type === 'tool_call'" class="agent-tool-call">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#c19a6b" stroke-width="2" style="flex-shrink: 0;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                <span>{{ ev.tool }}</span>
+                <span v-if="ev.args?.title" style="color: #bbb;">&middot; {{ ev.args.title }}</span>
+                <span v-else-if="ev.args?.query" style="color: #bbb;">&middot; "{{ ev.args.query }}"</span>
+              </div>
+
+              <!-- Tool result -->
+              <details v-else-if="ev.type === 'tool_result'" class="agent-event">
+                <summary class="agent-event-summary" :style="{ color: ev.ok !== false ? '#7a9e5a' : '#c25a3c' }">
+                  <span v-if="ev.ok !== false">&#10003;</span><span v-else>&#10007;</span>
+                  {{ ev.tool }} &middot; {{ ev.summary?.substring(0, 60) }}{{ (ev.summary?.length || 0) > 60 ? '...' : '' }}
+                </summary>
+                <div class="agent-event-body" style="white-space: pre-wrap; max-height: 200px; overflow-y: auto;">{{ ev.summary }}</div>
+              </details>
+
+              <!-- Done -->
+              <div v-else-if="ev.type === 'done' && ev.status === 'success' && (ev.pages_created || ev.pages_updated)" style="margin-bottom: 4px; font-size: 12px; color: #7a9e5a;">
+                &#10003; 完成
+                <span v-if="ev.pages_created">&middot; 创建 {{ ev.pages_created }} 页</span>
+                <span v-if="ev.pages_updated">&middot; 更新 {{ ev.pages_updated }} 页</span>
+              </div>
+            </template>
+          </div>
+
+          <!-- Content bubble -->
           <div v-if="msg.content" style="background: #fff; border: 1px solid #e8e0d8; padding: 12px 16px; border-radius: 8px;">
             <MarkdownRenderer :content="msg.content" :kb-id="kbId" @navigate="(t) => emit('navigate', t)" />
           </div>
-          <div v-else-if="loading && i === messages.length - 1" style="color: #b0a090; padding: 8px;">
+          <div v-else-if="loading && i === messages.length - 1 && !msg.events?.length" style="color: #b0a090; padding: 8px;">
             思考中...
           </div>
-          <!-- Show save button only when content is complete (not loading) -->
+          <!-- Save button -->
           <div v-if="msg.content && !loading && !msg.saved" style="margin-top: 6px;">
             <button :disabled="msg.saving"
                     style="font-size: 12px; color: #8b6914; background: none; border: 1px solid #8b6914; border-radius: 4px; padding: 3px 10px; cursor: pointer;"
@@ -227,3 +289,41 @@ async function scrollToBottom() {
     </div>
   </div>
 </template>
+
+<style scoped>
+.agent-event { margin-bottom: 4px; }
+.agent-event summary {
+  font-size: 12px;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.agent-event summary::-webkit-details-marker { display: none; }
+.agent-event-summary::before {
+  content: '\25b6';
+  font-size: 8px;
+  color: #ccc;
+  transition: transform 0.15s;
+  margin-right: 4px;
+}
+.agent-event[open] .agent-event-summary::before {
+  transform: rotate(90deg);
+}
+.agent-event-body {
+  padding: 6px 12px;
+  margin: 4px 0;
+  color: #999;
+  font-size: 12px;
+  border-left: 2px solid #e8e0d8;
+}
+.agent-tool-call {
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #8c7a68;
+}
+</style>
