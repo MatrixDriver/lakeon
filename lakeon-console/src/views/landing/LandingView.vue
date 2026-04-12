@@ -26,7 +26,7 @@
             {{ trialLoading ? t('创建中…', 'Creating…') : t('开始使用', 'Get started') }}
           </button>
           <router-link to="/product" class="cta-ghost">
-            {{ t('了解产品', 'Explore the products') }} →
+            {{ t('了解方案', 'Explore the solution') }} →
           </router-link>
         </div>
 
