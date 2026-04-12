@@ -7,6 +7,7 @@ import com.lakeon.repository.TenantRepository;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -1003,7 +1004,11 @@ public class KnowledgeController {
      */
     @PostMapping("/wiki/chat/agent")
     public SseEmitter wikiAgentChatStream(HttpServletRequest req,
+                                           HttpServletResponse response,
                                            @RequestBody Map<String, Object> body) {
+        // Disable buffering at all proxy layers for real-time SSE
+        response.setHeader("X-Accel-Buffering", "no");
+        response.setHeader("Cache-Control", "no-cache, no-transform");
         TenantEntity tenant = getTenant(req);
         String kbId = (String) body.get("kb_id");
         String question = (String) body.get("question");

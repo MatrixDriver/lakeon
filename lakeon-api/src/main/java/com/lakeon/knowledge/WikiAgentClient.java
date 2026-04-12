@@ -97,7 +97,10 @@ public class WikiAgentClient {
 
     /**
      * Open an SSE stream to the wiki-agent /v1/wiki/chat endpoint.
+     * Uses HttpURLConnection instead of HttpClient for reliable chunked streaming
+     * (HttpClient may buffer the entire response before exposing the InputStream).
      * Returns an InputStream the caller reads line-by-line, or null if unreachable.
+     * Caller is responsible for closing the stream.
      */
     public java.io.InputStream streamChat(String tenantId, String kbId, String question,
                                            java.util.List<Map<String, String>> history) {
@@ -114,21 +117,31 @@ public class WikiAgentClient {
             body.put("history", history);
             String json = objectMapper.writeValueAsString(body);
             String token = props.getWiki().getAgent().getInternalToken();
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl + "/v1/wiki/chat"))
-                    .header("Authorization", "Bearer " + token)
-                    .header("Content-Type", "application/json")
-                    .header("Accept", "text/event-stream")
-                    .POST(HttpRequest.BodyPublishers.ofString(json))
-                    .timeout(Duration.ofSeconds(300))
-                    .build();
-            HttpResponse<java.io.InputStream> resp = httpClient.send(
-                    request, HttpResponse.BodyHandlers.ofInputStream());
-            if (resp.statusCode() != 200) {
-                log.warn("Wiki agent chat returned HTTP {}", resp.statusCode());
+
+            var url = new java.net.URL(baseUrl + "/v1/wiki/chat");
+            var conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Authorization", "Bearer " + token);
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Accept", "text/event-stream");
+            conn.setConnectTimeout(10_000);
+            conn.setReadTimeout(300_000);
+            // Disable buffering so we get data as it arrives
+            conn.setChunkedStreamingMode(0);
+
+            try (var out = conn.getOutputStream()) {
+                out.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                out.flush();
+            }
+
+            int status = conn.getResponseCode();
+            if (status != 200) {
+                log.warn("Wiki agent chat returned HTTP {}", status);
+                conn.disconnect();
                 return null;
             }
-            return resp.body();
+            return conn.getInputStream();
         } catch (Exception e) {
             log.warn("Wiki agent chat failed: {}", e.getMessage());
             return null;
