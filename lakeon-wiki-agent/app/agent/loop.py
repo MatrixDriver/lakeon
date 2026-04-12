@@ -344,8 +344,8 @@ class AgentRunner:
                         yield {"type": "content", "content": text}
                     break
 
-                # -- text alongside tool calls → thinking --
-                text_content = msg.get("content") or ""
+                # -- text alongside tool calls → thinking (skip if whitespace-only) --
+                text_content = (msg.get("content") or "").strip()
                 if text_content:
                     yield {"type": "thinking", "content": text_content}
 
@@ -393,7 +393,10 @@ class AgentRunner:
                     self._track_counts(result, name, args, tool_result)
                     messages.append(self._tool_message(tc["id"], tool_result))
 
-                    ok = isinstance(tool_result, dict) and tool_result.get("ok", True)
+                    # list_pages/search_pages return a list, not a dict — treat as ok
+                    ok = True
+                    if isinstance(tool_result, dict) and tool_result.get("ok") is False:
+                        ok = False
                     yield {"type": "tool_result", "tool": name, "ok": ok,
                            "summary": _summarize_result(name, tool_result)}
 
@@ -564,15 +567,19 @@ def _summarize_args(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
 
 def _summarize_result(tool_name: str, result: Any) -> str:
     """Return a short human-readable summary of a tool result."""
-    if isinstance(result, dict):
-        if not result.get("ok", True):
-            return f"error: {result.get('error', 'unknown')}"
+    # list_pages / search_pages return a list directly
+    if isinstance(result, list):
         if tool_name == "list_pages":
-            pages = result.get("pages") or result.get("items") or []
-            return f"{len(pages)} pages"
+            titles = [p.get("title", "?") for p in result[:5] if isinstance(p, dict)]
+            suffix = f" ... (+{len(result) - 5})" if len(result) > 5 else ""
+            return f"{len(result)} pages: {', '.join(titles)}{suffix}"
         if tool_name == "search_pages":
-            hits = result.get("results") or result.get("items") or []
-            return f"{len(hits)} results"
+            titles = [p.get("title", "?") for p in result[:3] if isinstance(p, dict)]
+            return f"{len(result)} results: {', '.join(titles)}" if titles else "0 results"
+        return f"{len(result)} items"
+    if isinstance(result, dict):
+        if result.get("ok") is False:
+            return f"error: {result.get('error', 'unknown')}"
         if tool_name == "read_page":
             content = result.get("content", "")
             return content[:100] + "..." if len(content) > 100 else content

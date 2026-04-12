@@ -1000,15 +1000,14 @@ public class KnowledgeController {
 
     /**
      * Interactive wiki chat via wiki-agent SSE proxy.
+     * Uses raw servlet async + explicit flush() for real-time SSE delivery
+     * (SseEmitter + Tomcat buffer causes events to batch at the end).
      * Falls back to legacy direct-LLM chat if agent is unavailable.
      */
     @PostMapping("/wiki/chat/agent")
-    public SseEmitter wikiAgentChatStream(HttpServletRequest req,
-                                           HttpServletResponse response,
-                                           @RequestBody Map<String, Object> body) {
-        // Disable buffering at all proxy layers for real-time SSE
-        response.setHeader("X-Accel-Buffering", "no");
-        response.setHeader("Cache-Control", "no-cache, no-transform");
+    public void wikiAgentChatStream(HttpServletRequest req,
+                                     HttpServletResponse response,
+                                     @RequestBody Map<String, Object> body) {
         TenantEntity tenant = getTenant(req);
         String kbId = (String) body.get("kb_id");
         String question = (String) body.get("question");
@@ -1020,48 +1019,59 @@ public class KnowledgeController {
         @SuppressWarnings("unchecked")
         var history = (java.util.List<Map<String, String>>) body.getOrDefault("history", List.of());
 
-        var emitter = new SseEmitter(300_000L);  // 5-minute timeout for agent interactions
+        // Set SSE headers and flush immediately so the browser opens the stream
+        response.setContentType("text/event-stream;charset=UTF-8");
+        response.setHeader("X-Accel-Buffering", "no");
+        response.setHeader("Cache-Control", "no-cache, no-transform");
+
+        var asyncCtx = req.startAsync();
+        asyncCtx.setTimeout(300_000);  // 5 minutes
 
         new Thread(() -> {
-            try (var stream = wikiAgentClient.streamChat(tenant.getId(), kbId, question, history)) {
-                if (stream == null) {
-                    // Fallback: wiki-agent unavailable, use legacy direct LLM chat
-                    wikiService.chatStream(tenant.getId(), kbId, question, history, event -> {
-                        try { emitter.send(SseEmitter.event().data(event)); }
-                        catch (Exception ignored) {}
-                    });
-                    emitter.send(SseEmitter.event().data("[DONE]"));
-                    emitter.complete();
-                    return;
-                }
-                var reader = new java.io.BufferedReader(
-                        new java.io.InputStreamReader(stream, java.nio.charset.StandardCharsets.UTF_8));
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (line.startsWith("data:")) {
-                        emitter.send(SseEmitter.event().data(line.substring(5).trim()));
+            try {
+                var resp = (HttpServletResponse) asyncCtx.getResponse();
+                var writer = resp.getWriter();
+
+                try (var stream = wikiAgentClient.streamChat(tenant.getId(), kbId, question, history)) {
+                    if (stream == null) {
+                        // Fallback: wiki-agent unavailable, use legacy direct LLM chat
+                        wikiService.chatStream(tenant.getId(), kbId, question, history, event -> {
+                            writer.write("data: " + event + "\n\n");
+                            writer.flush();
+                        });
+                    } else {
+                        var reader = new java.io.BufferedReader(
+                                new java.io.InputStreamReader(stream, java.nio.charset.StandardCharsets.UTF_8));
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            if (line.startsWith("data:")) {
+                                writer.write("data:" + line.substring(5) + "\n\n");
+                                writer.flush();  // flush after each event for real-time delivery
+                            }
+                        }
                     }
                 }
-                emitter.complete();
+                writer.write("data: [DONE]\n\n");
+                writer.flush();
             } catch (Exception e) {
                 log.warn("Wiki agent chat stream error: {}", e.getMessage());
                 try {
-                    emitter.send(SseEmitter.event().data(
-                        "{\"type\":\"error\",\"message\":\"" + e.getMessage().replace("\"", "'") + "\"}"));
-                    emitter.complete();
+                    var writer = ((HttpServletResponse) asyncCtx.getResponse()).getWriter();
+                    writer.write("data: {\"type\":\"error\",\"message\":\"" +
+                            e.getMessage().replace("\"", "'") + "\"}\n\n");
+                    writer.flush();
                 } catch (Exception ignored) {}
+            } finally {
+                // Update chat count
+                try {
+                    knowledgeBaseRepository.findById(kbId).ifPresent(kb -> {
+                        kb.setChatCount((kb.getChatCount() != null ? kb.getChatCount() : 0) + 1);
+                        knowledgeBaseRepository.save(kb);
+                    });
+                } catch (Exception ignored) {}
+                asyncCtx.complete();
             }
-
-            // Update chat count
-            try {
-                knowledgeBaseRepository.findById(kbId).ifPresent(kb -> {
-                    kb.setChatCount((kb.getChatCount() != null ? kb.getChatCount() : 0) + 1);
-                    knowledgeBaseRepository.save(kb);
-                });
-            } catch (Exception ignored) {}
         }).start();
-
-        return emitter;
     }
 
     @PostMapping("/wiki/save-response")
