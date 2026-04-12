@@ -754,6 +754,13 @@ public class KnowledgeController {
         TenantEntity tenant = getTenant(req);
         kbAccessService.getKbWithAccess(kbId, tenant.getId());
         String content = wikiService.readWikiPage(tenant.getId(), kbId, "schema.md");
+        if (content == null || content.isBlank()) {
+            // Auto-seed default schema for existing KBs that predate the seeder
+            content = WikiSchemaSeeder.getDefaultSchemaContent();
+            if (!content.isEmpty()) {
+                wikiService.writeWikiDocument(tenant.getId(), kbId, "schema.md", "KB Schema", content);
+            }
+        }
         return ResponseEntity.ok(Map.of("content", content != null ? content : ""));
     }
 

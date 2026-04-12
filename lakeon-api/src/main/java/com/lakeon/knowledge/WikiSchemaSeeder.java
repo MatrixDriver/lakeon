@@ -28,6 +28,11 @@ public class WikiSchemaSeeder {
         this.wikiService = wikiService;
     }
 
+    /** Return the default schema content for use by other components (e.g. auto-seed on first read). */
+    public static String getDefaultSchemaContent() {
+        return DEFAULT_SCHEMA_CONTENT;
+    }
+
     @EventListener
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onKnowledgeBaseCreated(KnowledgeBaseCreatedEvent event) {
