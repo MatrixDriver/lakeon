@@ -1066,7 +1066,22 @@ public class KbWriteQueue {
             throw new RuntimeException("Failed to serialize task params", e);
         }
         taskRepository.save(task);
-        executor.submit(() -> drain(databaseId));
+        // Defer drain until after the current transaction commits. Otherwise the
+        // drain's SELECT runs on a different connection that cannot see our
+        // uncommitted INSERT (PG READ COMMITTED), silently dropping the task.
+        if (org.springframework.transaction.support.TransactionSynchronizationManager
+                .isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager
+                    .registerSynchronization(
+                            new org.springframework.transaction.support.TransactionSynchronization() {
+                                @Override
+                                public void afterCommit() {
+                                    executor.submit(() -> drain(databaseId));
+                                }
+                            });
+        } else {
+            executor.submit(() -> drain(databaseId));
+        }
     }
 
     @jakarta.annotation.PreDestroy
