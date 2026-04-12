@@ -208,3 +208,9 @@ TOOL_NAMES: set[str] = {t["function"]["name"] for t in TOOL_SCHEMAS}
 # Tools the agent MUST NOT call during ingest runs.
 # (curate / lint may use them.)
 INGEST_FORBIDDEN: set[str] = {"delete_page"}
+
+# Read-only tools for chat mode (no create/update/delete/log_note/done)
+_CHAT_TOOL_NAMES = {"list_pages", "read_page", "search_pages", "read_source", "get_schema"}
+CHAT_TOOL_SCHEMAS: list[dict] = [
+    t for t in TOOL_SCHEMAS if t["function"]["name"] in _CHAT_TOOL_NAMES
+]
