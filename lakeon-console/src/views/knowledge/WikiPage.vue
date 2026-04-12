@@ -239,8 +239,6 @@ defineExpose({ navigateToTitle })
             <div class="gear-menu-item" @click="openSchemaDrawer">Schema</div>
             <div class="gear-menu-item" @click="showGearMenu = false; emit('lint')">健康检查</div>
             <div class="gear-menu-item" @click="showGearMenu = false; emit('curate')">整理 Wiki</div>
-            <div style="border-top: 1px solid #f0ebe4; margin: 4px 0;"></div>
-            <div class="gear-menu-item" @click="showGearMenu = false; emit('toggle-graph')">图谱</div>
           </div>
         </span>
       </div>
