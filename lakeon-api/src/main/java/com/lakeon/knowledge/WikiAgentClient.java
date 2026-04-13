@@ -103,7 +103,8 @@ public class WikiAgentClient {
      * Caller is responsible for closing the stream.
      */
     public java.io.InputStream streamChat(String tenantId, String kbId, String question,
-                                           java.util.List<Map<String, String>> history) {
+                                           java.util.List<Map<String, String>> history,
+                                           String mode, String documentId) {
         String baseUrl = props.getWiki().getAgent().getUrl();
         if (baseUrl == null || baseUrl.isBlank()) {
             log.warn("Wiki agent URL not configured; cannot stream chat");
@@ -115,6 +116,8 @@ public class WikiAgentClient {
             body.put("kb_id", kbId);
             body.put("question", question);
             body.put("history", history);
+            if (mode != null) body.put("mode", mode);
+            if (documentId != null) body.put("document_id", documentId);
             String json = objectMapper.writeValueAsString(body);
             String token = props.getWiki().getAgent().getInternalToken();
 

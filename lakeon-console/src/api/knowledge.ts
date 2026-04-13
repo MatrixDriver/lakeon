@@ -411,15 +411,22 @@ export function wikiChatStream(kbId: string, question: string, history: { role: 
   })
 }
 
-export function wikiAgentChatStream(kbId: string, question: string, history: { role: string; content: string }[] = []) {
+export function wikiAgentChatStream(
+  kbId: string, question: string,
+  history: { role: string; content: string }[] = [],
+  opts?: { mode?: 'chat' | 'review'; documentId?: string }
+) {
   const apiKey = localStorage.getItem('lakeon_api_key') || ''
+  const body: Record<string, any> = { kb_id: kbId, question, history }
+  if (opts?.mode) body.mode = opts.mode
+  if (opts?.documentId) body.document_id = opts.documentId
   return fetch(`${api.defaults.baseURL}/knowledge/wiki/chat/agent`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ kb_id: kbId, question, history }),
+    body: JSON.stringify(body),
   })
 }
 

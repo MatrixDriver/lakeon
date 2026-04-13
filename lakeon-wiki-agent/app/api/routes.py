@@ -160,6 +160,8 @@ class ChatRequest(BaseModel):
     kb_id: str = Field(..., min_length=1)
     question: str = Field(..., min_length=1)
     history: list[dict[str, str]] = Field(default_factory=list)
+    mode: str = Field("chat", pattern="^(chat|review)$")  # chat = Q&A, review = wiki editing
+    document_id: str | None = None  # required for review mode
 
 
 @router.post(
@@ -176,11 +178,16 @@ async def chat_stream(
         kb_id=req.kb_id,
         run_id=new_run_id(),
         source="chat",
-        run_type="chat",
+        document_id=req.document_id,
+        run_type=req.mode,
     )
 
     async def event_generator():
-        async for event in runner.run_chat(run_req, req.question, req.history):
+        if req.mode == "review":
+            gen = runner.run_review(run_req, req.question, req.history)
+        else:
+            gen = runner.run_chat(run_req, req.question, req.history)
+        async for event in gen:
             yield f"data: {_json.dumps(event, ensure_ascii=False)}\n\n"
         yield "data: [DONE]\n\n"
 

@@ -61,10 +61,25 @@ const input = ref('')
 const loading = ref(false)
 const messagesEl = ref<HTMLDivElement>()
 
+// Review mode state
+const reviewMode = ref(false)
+const reviewDocId = ref<string | null>(null)
+
 onMounted(() => {
   messages.value = loadMessages()
   scrollToBottom()
 })
+
+function startReview(docId: string, filename: string) {
+  reviewMode.value = true
+  reviewDocId.value = docId
+  // Auto-send a review prompt
+  const name = filename.replace(/\.md$/, '')
+  input.value = `请审核新文档「${name}」(document_id=${docId})，阅读后告诉我你打算如何更新 wiki，等我确认后再执行修改。`
+  nextTick(() => send())
+}
+
+defineExpose({ startReview })
 
 async function send() {
   const question = input.value.trim()
@@ -90,7 +105,8 @@ async function send() {
       role: m.role, content: m.content
     }))
 
-    const response = await wikiAgentChatStream(props.kbId, question, history)
+    const response = await wikiAgentChatStream(props.kbId, question, history,
+      reviewMode.value ? { mode: 'review', documentId: reviewDocId.value || undefined } : undefined)
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
     const reader = response.body!.getReader()

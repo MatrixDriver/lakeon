@@ -1058,6 +1058,8 @@ public class KnowledgeController {
 
         @SuppressWarnings("unchecked")
         var history = (java.util.List<Map<String, String>>) body.getOrDefault("history", List.of());
+        String mode = (String) body.getOrDefault("mode", "chat");
+        String documentId = (String) body.get("document_id");
 
         // Set SSE headers and flush immediately so the browser opens the stream
         response.setContentType("text/event-stream;charset=UTF-8");
@@ -1070,10 +1072,9 @@ public class KnowledgeController {
         new Thread(() -> {
             try {
                 var resp = (HttpServletResponse) asyncCtx.getResponse();
-                // Use raw OutputStream + resp.flushBuffer() to bypass Tomcat's PrintWriter buffer
                 var out = resp.getOutputStream();
 
-                try (var stream = wikiAgentClient.streamChat(tenant.getId(), kbId, question, history)) {
+                try (var stream = wikiAgentClient.streamChat(tenant.getId(), kbId, question, history, mode, documentId)) {
                     if (stream == null) {
                         // Fallback: wiki-agent unavailable, use legacy direct LLM chat
                         wikiService.chatStream(tenant.getId(), kbId, question, history, event -> {

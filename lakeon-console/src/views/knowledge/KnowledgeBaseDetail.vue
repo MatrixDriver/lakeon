@@ -117,7 +117,7 @@
 
     <!-- Chat Tab (v-show to preserve state across tab switches) -->
     <div v-show="activeTab === 'chat'" style="height: calc(100vh - 196px); margin-top: 12px;">
-      <WikiChat :kb-id="(route.params.kbId as string)" @navigate="handleGraphNavigate" />
+      <WikiChat ref="wikiChatRef" :kb-id="(route.params.kbId as string)" @navigate="handleGraphNavigate" />
     </div>
 
     <!-- Share Tab -->
@@ -668,6 +668,7 @@ async function handleUrlIngest() {
 
 const wikiPageRef = ref()
 const wikiGraphRef = ref()
+const wikiChatRef = ref<InstanceType<typeof WikiChat>>()
 
 async function handleGraphNavigate(title: string) {
   activeTab.value = 'wiki'
@@ -1176,9 +1177,12 @@ async function handleAutoIngestOne(doc: Document) {
   await Promise.all([loadDocuments(), loadStats()])
 }
 
-function navigateToWikiChat(_doc: Document) {
-  // Switch to Wiki tab → Chat sub-tab
+function navigateToWikiChat(doc: Document) {
   activeTab.value = 'chat'
+  // Wait for chat component to mount, then start review
+  nextTick(() => {
+    wikiChatRef.value?.startReview(doc.id, doc.filename)
+  })
 }
 
 async function handleDeleteDoc(doc: Document) {

@@ -192,6 +192,17 @@ class AgentRunner:
         async for event in self._run_stream(req, messages, CHAT_TOOL_SCHEMAS, forbid=set()):
             yield event
 
+    async def run_review(self, req: RunRequest, question: str, history: list[dict[str, str]]):
+        """Async generator for interactive wiki review — agent has full read+write tools."""
+        messages: list[dict[str, Any]] = [
+            {"role": "system", "content": INGEST_SYSTEM_PROMPT},
+        ]
+        for h in history:
+            messages.append({"role": h["role"], "content": h["content"]})
+        messages.append({"role": "user", "content": question})
+        async for event in self._run_stream(req, messages, TOOL_SCHEMAS, forbid=INGEST_FORBIDDEN):
+            yield event
+
     async def _run(
         self,
         req: RunRequest,
