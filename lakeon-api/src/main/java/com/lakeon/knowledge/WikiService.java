@@ -978,6 +978,33 @@ public class WikiService {
         return "https://api.modelarts-maas.com/openai/v1";
     }
 
+    // ── Chat history persistence (OBS-backed, no DB entity) ────
+
+    private String chatHistoryObsKey(String tenantId, String kbId) {
+        return "knowledge/" + tenantId + "/" + kbId + "/_chat-history.json";
+    }
+
+    public String readChatHistory(String tenantId, String kbId) {
+        String obsKey = chatHistoryObsKey(tenantId, kbId);
+        try (S3Client s3 = buildS3Client()) {
+            var resp = s3.getObjectAsBytes(GetObjectRequest.builder()
+                    .bucket(props.getObs().getBucket())
+                    .key(obsKey)
+                    .build());
+            return new String(resp.asByteArray(), StandardCharsets.UTF_8);
+        } catch (NoSuchKeyException e) {
+            return "[]";
+        } catch (Exception e) {
+            log.warn("Failed to read chat history from OBS: {}", e.getMessage());
+            return "[]";
+        }
+    }
+
+    public void writeChatHistory(String tenantId, String kbId, String json) {
+        String obsKey = chatHistoryObsKey(tenantId, kbId);
+        uploadToObs(obsKey, json.getBytes(StandardCharsets.UTF_8), "application/json");
+    }
+
     /**
      * Upload content bytes to OBS.
      */

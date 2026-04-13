@@ -1121,6 +1121,39 @@ public class KnowledgeController {
         }).start();
     }
 
+    // ── Chat history persistence ────────────────────────────
+
+    @GetMapping("/wiki/chat/history")
+    public ResponseEntity<?> getChatHistory(HttpServletRequest req,
+                                             @RequestParam("kb_id") String kbId) {
+        TenantEntity tenant = getTenant(req);
+        kbAccessService.getKbWithAccess(kbId, tenant.getId());
+        String json = wikiService.readChatHistory(tenant.getId(), kbId);
+        return ResponseEntity.ok(json);
+    }
+
+    @PutMapping("/wiki/chat/history")
+    public ResponseEntity<?> saveChatHistory(HttpServletRequest req,
+                                              @RequestBody String json) {
+        // Parse to extract kb_id, then save the raw JSON
+        try {
+            var parsed = objectMapper.readValue(json, Map.class);
+            String kbId = (String) parsed.get("kb_id");
+            if (kbId == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "kb_id required"));
+            }
+            TenantEntity tenant = getTenant(req);
+            kbAccessService.getKbWithAccess(kbId, tenant.getId());
+            // Save the messages array
+            Object messages = parsed.get("messages");
+            String messagesJson = objectMapper.writeValueAsString(messages != null ? messages : List.of());
+            wikiService.writeChatHistory(tenant.getId(), kbId, messagesJson);
+            return ResponseEntity.ok(Map.of("ok", true));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PostMapping("/wiki/save-response")
     public ResponseEntity<?> saveWikiResponse(HttpServletRequest req,
                                               @RequestBody Map<String, Object> body) {

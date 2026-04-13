@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, nextTick, onMounted } from 'vue'
-import { wikiAgentChatStream, saveWikiResponse } from '@/api/knowledge'
+import { wikiAgentChatStream, getChatHistory, saveChatHistory } from '@/api/knowledge'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 
 const props = defineProps<{ kbId: string }>()
@@ -31,29 +31,24 @@ interface Message {
   saving?: boolean
 }
 
-const STORAGE_KEY_PREFIX = 'wiki_chat_'
-function storageKey() { return STORAGE_KEY_PREFIX + props.kbId }
-
-function loadMessages(): Message[] {
+async function loadMessagesFromServer(): Promise<Message[]> {
   try {
-    const raw = localStorage.getItem(storageKey())
-    if (!raw) return []
-    return JSON.parse(raw)
+    const resp = await getChatHistory(props.kbId)
+    const data = resp.data
+    if (Array.isArray(data)) return data
+    return []
   } catch { return [] }
 }
 
 function saveMessages() {
   if (!messages.value.length) {
-    localStorage.removeItem(storageKey())
+    saveChatHistory(props.kbId, []).catch(() => {})
     return
   }
-  // Only persist completed messages (skip if assistant is still streaming)
   const toSave = messages.value
     .filter(m => m.content)
-    .map(({ role, content, depth, sources, saved }) => ({ role, content, depth, sources, saved }))
-  try {
-    localStorage.setItem(storageKey(), JSON.stringify(toSave))
-  } catch { /* quota exceeded — silently ignore */ }
+    .map(({ role, content, events, saved }) => ({ role, content, events, saved }))
+  saveChatHistory(props.kbId, toSave).catch(() => {})
 }
 
 const messages = ref<Message[]>([])
@@ -65,8 +60,8 @@ const messagesEl = ref<HTMLDivElement>()
 const reviewMode = ref(false)
 const reviewDocId = ref<string | null>(null)
 
-onMounted(() => {
-  messages.value = loadMessages()
+onMounted(async () => {
+  messages.value = await loadMessagesFromServer()
   scrollToBottom()
 })
 
@@ -161,25 +156,27 @@ async function send() {
   }
 }
 
-async function saveToWiki(msg: Message) {
-  if (msg.saving || msg.saved) return
-  msg.saving = true
-  try {
-    const title = (msg.sources?.length ? msg.sources[0] : undefined) ?? '对话沉淀'
-    await saveWikiResponse(props.kbId, title, msg.content)
-    msg.saved = true
-    saveMessages()
-  } catch (e: any) {
-    alert('保存失败: ' + (e.message || e))
-  } finally {
-    msg.saving = false
-  }
-}
 
 function clearChat() {
+  if (!confirm('确认清空对话历史？')) return
   messages.value = []
+  reviewMode.value = false
+  reviewDocId.value = null
   saveMessages()
 }
+
+function copyChat() {
+  const text = messages.value
+    .filter(m => m.content)
+    .map(m => `### ${m.role === 'user' ? '用户' : 'Wiki Agent'}\n\n${m.content}`)
+    .join('\n\n---\n\n')
+  navigator.clipboard.writeText(text).then(() => {
+    copiedToast.value = true
+    setTimeout(() => { copiedToast.value = false }, 2000)
+  })
+}
+
+const copiedToast = ref(false)
 
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Enter' && !e.shiftKey) {
@@ -203,9 +200,12 @@ async function scrollToBottom() {
       <div v-if="messages.length === 0" style="color: #b0a090; text-align: center; padding: 40px 0;">
         基于知识库 Wiki 提问，获得智能回答
       </div>
-      <div v-else style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
-        <button @click="clearChat" style="font-size: 11px; color: #b0a090; background: none; border: 1px solid #e0d8ce; border-radius: 4px; padding: 2px 8px; cursor: pointer;">清空对话</button>
+      <div v-else style="display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 8px;">
+        <span v-if="reviewMode" style="font-size: 11px; color: #c19a6b; border: 1px solid #c19a6b; border-radius: 4px; padding: 2px 8px; margin-right: auto;">审核模式</span>
+        <button @click="copyChat" style="font-size: 11px; color: #b0a090; background: none; border: 1px solid #e0d8ce; border-radius: 4px; padding: 2px 8px; cursor: pointer;">复制对话</button>
+        <button @click="clearChat" style="font-size: 11px; color: #b0a090; background: none; border: 1px solid #e0d8ce; border-radius: 4px; padding: 2px 8px; cursor: pointer;">清空</button>
       </div>
+      <div v-if="copiedToast" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #386b47; color: #fff; padding: 6px 16px; border-radius: 6px; font-size: 13px; z-index: 999;">已复制</div>
       <div v-for="(msg, i) in messages" :key="i" style="margin-bottom: 16px;">
         <div style="font-size: 12px; color: #b0a090; margin-bottom: 4px;">
           {{ msg.role === 'user' ? '你' : 'Wiki Agent' }}
@@ -266,17 +266,7 @@ async function scrollToBottom() {
           <div v-else-if="loading && i === messages.length - 1 && !msg.events?.length" style="color: #b0a090; padding: 8px;">
             思考中...
           </div>
-          <!-- Save button -->
-          <div v-if="msg.content && !loading && !msg.saved" style="margin-top: 6px;">
-            <button :disabled="msg.saving"
-                    style="font-size: 12px; color: #8b6914; background: none; border: 1px solid #8b6914; border-radius: 4px; padding: 3px 10px; cursor: pointer;"
-                    @click="saveToWiki(msg)">
-              {{ msg.saving ? '保存中...' : '沉淀到知识库' }}
-            </button>
-          </div>
-          <span v-if="msg.saved" style="margin-top: 6px; font-size: 12px; color: #7a9e5a; display: inline-block;">
-            已沉淀
-          </span>
+          <!-- Done stats (pages created/updated) shown inline above -->
         </div>
       </div>
     </div>

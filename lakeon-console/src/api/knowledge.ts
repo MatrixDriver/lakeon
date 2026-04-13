@@ -473,6 +473,14 @@ export function getWikiStats(kbId: string) {
 
 // ── KB Sharing API ──
 
+export function getChatHistory(kbId: string) {
+  return api.get<any[]>('/knowledge/wiki/chat/history', { params: { kb_id: kbId } })
+}
+
+export function saveChatHistory(kbId: string, messages: any[]) {
+  return api.put('/knowledge/wiki/chat/history', { kb_id: kbId, messages })
+}
+
 export function batchAutoIngest(kbId: string, documentIds: string[]) {
   return api.post<{ enqueued: number }>('/knowledge/wiki/batch-ingest', {
     kb_id: kbId, document_ids: documentIds
