@@ -80,6 +80,7 @@ const routes = [
       { path: 'apikey', name: 'ApiKey', component: () => import('../views/apikey/ApiKeyView.vue') },
       { path: 'usage', name: 'Usage', component: () => import('../views/usage/UsageBillingView.vue') },
       { path: 'account', name: 'Account', component: () => import('../views/account/AccountSettingsView.vue') },
+      { path: 'account/activity', name: 'DataActivity', component: () => import('../views/account/DataActivityView.vue') },
       { path: 'recycle-bin', name: 'RecycleBin', component: () => import('../views/account/RecycleBin.vue') },
       { path: 'help', name: 'Docs', component: () => import('../views/docs/DocsView.vue') },
       // Datalake
