@@ -69,6 +69,7 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, String
           AND (:kbId IS NULL OR kb_id = :kbId)
           AND (:status IS NULL OR status = :status)
           AND (:folder IS NULL OR folder = :folder)
+          AND (doc_type IS NULL OR doc_type NOT IN ('wiki', 'index'))
         ORDER BY
           CASE WHEN :sortBy = 'upload_time' AND :sortOrder = 'asc' THEN created_at END ASC,
           CASE WHEN :sortBy = 'upload_time' AND :sortOrder = 'desc' THEN created_at END DESC,
@@ -97,6 +98,7 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, String
           AND (:kbId IS NULL OR kb_id = :kbId)
           AND (:status IS NULL OR status = :status)
           AND (:folder IS NULL OR folder = :folder)
+          AND (doc_type IS NULL OR doc_type NOT IN ('wiki', 'index'))
         """, nativeQuery = true)
     long countDocuments(
         @Param("tenantId") String tenantId,
@@ -133,6 +135,7 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, String
     @Query(value = """
         SELECT status, COUNT(*) as cnt FROM documents
         WHERE tenant_id = :tenantId AND kb_id = :kbId
+          AND (doc_type IS NULL OR doc_type NOT IN ('wiki', 'index'))
         GROUP BY status
         """, nativeQuery = true)
     List<Object[]> countByStatusGrouped(

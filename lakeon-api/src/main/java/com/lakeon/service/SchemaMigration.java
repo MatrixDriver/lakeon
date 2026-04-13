@@ -1,6 +1,7 @@
 package com.lakeon.service;
 
 import com.lakeon.dataset.DatasetSourceType;
+import com.lakeon.knowledge.DocumentStatus;
 import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.enums.ComputeStatus;
@@ -72,6 +73,23 @@ public class SchemaMigration {
             log.info("Synced kb_write_tasks CHECK constraint with KbWriteTaskType enum: {}", values);
         } catch (Exception e) {
             log.warn("Failed to sync kb_write_tasks type CHECK constraint: {}", e.getMessage());
+        }
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void syncDocumentStatusConstraint() {
+        String values = Arrays.stream(DocumentStatus.values())
+                .map(e -> "'" + e.name() + "'")
+                .collect(Collectors.joining(","));
+
+        try (Connection conn = dataSource.getConnection();
+             Statement st = conn.createStatement()) {
+            st.execute("ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_status_check");
+            st.execute("ALTER TABLE documents ADD CONSTRAINT documents_status_check " +
+                    "CHECK (status::text = ANY(ARRAY[" + values + "]))");
+            log.info("Synced documents CHECK constraint with DocumentStatus enum: {}", values);
+        } catch (Exception e) {
+            log.warn("Failed to sync documents status CHECK constraint: {}", e.getMessage());
         }
     }
 

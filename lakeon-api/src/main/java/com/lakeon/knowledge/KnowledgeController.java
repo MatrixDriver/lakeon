@@ -1317,6 +1317,34 @@ public class KnowledgeController {
     }
 
     /**
+     * Backfill: move READY source docs (no wiki_processed_at) into WIKI_REVIEW
+     * so they show up in the "待入 Wiki" tab. Used to recover docs whose
+     * post-parse summarize ran before the documents_status_check constraint
+     * was migrated to include WIKI_REVIEW.
+     */
+    @PostMapping("/documents/backfill-wiki-review")
+    public ResponseEntity<?> backfillWikiReview(HttpServletRequest req,
+                                                @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        String kbId = (String) body.get("kb_id");
+        if (kbId == null || kbId.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "kb_id is required"));
+        }
+        kbAccessService.getKbWithAccess(kbId, tenant.getId());
+        List<DocumentEntity> docs = documentRepository.findAllByKbIdAndStatus(kbId, DocumentStatus.READY);
+        int count = 0;
+        for (DocumentEntity doc : docs) {
+            if ("wiki".equals(doc.getDocType()) || "index".equals(doc.getDocType())) continue;
+            var meta = doc.getMetadata();
+            if (meta != null && meta.get("wiki_processed_at") != null) continue;
+            doc.setStatus(DocumentStatus.WIKI_REVIEW);
+            documentRepository.save(doc);
+            count++;
+        }
+        return ResponseEntity.ok(Map.of("status", "ok", "count", count));
+    }
+
+    /**
      * Compat shim for dbay-mcp's {@code knowledge_wiki_ingest} tool: take a
      * block of already-extracted text, persist it as a raw source document,
      * and dispatch a wiki agent ingest task against it. Replaces the legacy
