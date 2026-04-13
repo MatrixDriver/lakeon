@@ -2,7 +2,7 @@ import typer
 
 app = typer.Typer(name="dbay", help="DBay Serverless PostgreSQL CLI")
 
-from dbay_cli.commands import auth, db, branch, version, user, kb, datalake, mem, setup, pipeline
+from dbay_cli.commands import auth, db, branch, version, user, kb, datalake, mem, setup, pipeline, export
 
 app.add_typer(auth.app, name="config", help="CLI configuration")
 app.add_typer(db.app, name="db", help="Database management")
@@ -14,6 +14,7 @@ app.add_typer(datalake.app, name="datalake", help="Data lake job management")
 app.add_typer(mem.app, name="mem", help="Memory base management")
 app.add_typer(setup.app, name="setup", help="Setup AI agent integration")
 app.add_typer(pipeline.app, name="pipeline", help="Pipeline management")
+app.add_typer(export.app, name="export", help="Export all your data (memory + knowledge) to local files")
 
 def _oauth_login(provider: str, endpoint: str) -> dict:
     """Open browser for OAuth login, wait for callback with API key."""

@@ -1030,14 +1030,18 @@ public class KnowledgeController {
         new Thread(() -> {
             try {
                 var resp = (HttpServletResponse) asyncCtx.getResponse();
-                var writer = resp.getWriter();
+                // Use raw OutputStream + resp.flushBuffer() to bypass Tomcat's PrintWriter buffer
+                var out = resp.getOutputStream();
 
                 try (var stream = wikiAgentClient.streamChat(tenant.getId(), kbId, question, history)) {
                     if (stream == null) {
                         // Fallback: wiki-agent unavailable, use legacy direct LLM chat
                         wikiService.chatStream(tenant.getId(), kbId, question, history, event -> {
-                            writer.write("data: " + event + "\n\n");
-                            writer.flush();
+                            try {
+                                out.write(("data: " + event + "\n\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                                out.flush();
+                                resp.flushBuffer();
+                            } catch (Exception ignored) {}
                         });
                     } else {
                         var reader = new java.io.BufferedReader(
@@ -1045,21 +1049,23 @@ public class KnowledgeController {
                         String line;
                         while ((line = reader.readLine()) != null) {
                             if (line.startsWith("data:")) {
-                                writer.write("data:" + line.substring(5) + "\n\n");
-                                writer.flush();  // flush after each event for real-time delivery
+                                out.write(("data:" + line.substring(5) + "\n\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                                out.flush();
+                                resp.flushBuffer();  // force Tomcat to push bytes to the socket
                             }
                         }
                     }
                 }
-                writer.write("data: [DONE]\n\n");
-                writer.flush();
+                out.write("data: [DONE]\n\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                out.flush();
+                resp.flushBuffer();
             } catch (Exception e) {
                 log.warn("Wiki agent chat stream error: {}", e.getMessage());
                 try {
-                    var writer = ((HttpServletResponse) asyncCtx.getResponse()).getWriter();
-                    writer.write("data: {\"type\":\"error\",\"message\":\"" +
-                            e.getMessage().replace("\"", "'") + "\"}\n\n");
-                    writer.flush();
+                    var out = ((HttpServletResponse) asyncCtx.getResponse()).getOutputStream();
+                    out.write(("data: {\"type\":\"error\",\"message\":\"" +
+                            e.getMessage().replace("\"", "'") + "\"}\n\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    out.flush();
                 } catch (Exception ignored) {}
             } finally {
                 // Update chat count

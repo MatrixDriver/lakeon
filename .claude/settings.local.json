@@ -34,7 +34,8 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "mcp__plugin_playwright_playwright__browser_resize",
       "mcp__plugin_playwright_playwright__browser_close",
-      "mcp__plugin_playwright_playwright__browser_console_messages"
+      "mcp__plugin_playwright_playwright__browser_console_messages",
+      "WebFetch(domain:blog.starmorph.com)"
     ]
   }
 }
