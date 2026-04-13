@@ -918,17 +918,15 @@ public class KbWriteQueue {
         String documentId = (String) params.get("document_id");
         summaryService.summarizeDocument(conn, tenantId, kbId, documentId);
 
-        // Trigger wiki update after summarize
+        // Set document to WIKI_REVIEW so the user can choose auto-ingest or interactive review
         try {
-            Map<String, Object> wikiParams = new LinkedHashMap<>();
-            wikiParams.put("tenant_id", tenantId);
-            wikiParams.put("kb_id", kbId);
-            wikiParams.put("document_id", documentId);
-            wikiParams.put("database_id", params.get("database_id"));
-            enqueueTask((String) params.get("database_id"), KbWriteTaskType.WIKI_UPDATE, wikiParams);
-            log.info("Enqueued WIKI_UPDATE for doc {} in KB {}", documentId, kbId);
+            documentRepository.findById(documentId).ifPresent(doc -> {
+                doc.setStatus(DocumentStatus.WIKI_REVIEW);
+                documentRepository.save(doc);
+                log.info("Set doc {} to WIKI_REVIEW (awaiting user decision)", documentId);
+            });
         } catch (Exception e) {
-            log.warn("Failed to enqueue WIKI_UPDATE after summarize: {}", e.getMessage());
+            log.warn("Failed to set WIKI_REVIEW for doc {}: {}", documentId, e.getMessage());
         }
 
         // Check if all documents now have L1 → enqueue KB_SUMMARIZE

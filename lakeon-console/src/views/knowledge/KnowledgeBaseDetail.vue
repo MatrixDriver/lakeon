@@ -189,6 +189,7 @@
           { key: undefined, label: '全部', count: docStats.total },
           { key: 'PROCESSING', label: '处理中', count: docStats.processing },
           { key: 'READY', label: '已就绪', count: docStats.ready },
+          { key: 'WIKI_REVIEW', label: '待入 Wiki', count: docStats.wiki_review },
           { key: 'FAILED', label: '失败', count: docStats.failed },
         ]" :key="tab.label"
           style="padding: 8px 16px; font-size: 13px; cursor: pointer; transition: color 0.2s;"
@@ -202,6 +203,11 @@
         </div>
         <div style="flex: 1;"></div>
         <div style="display: flex; align-items: center; gap: 6px; padding: 4px 0;">
+          <button v-if="selectedDocIds.size > 0 && docStatusFilter === 'WIKI_REVIEW'"
+                  class="btn btn-small" style="background: #c19a6b; color: #fff; border: none;"
+                  :disabled="batchIngesting" @click="handleBatchAutoIngest">
+            {{ batchIngesting ? '入库中...' : `自动入库 (${selectedDocIds.size})` }}
+          </button>
           <button v-if="docStats.failed > 0" class="btn btn-text btn-small" style="color: #c19a6b;" :disabled="retryingFailed" @click="handleRetryAllFailed">
             {{ retryingFailed ? '重试中...' : `重试失败 (${docStats.failed})` }}
           </button>
@@ -294,6 +300,9 @@
                     <template v-if="(doc.status === 'READY' || doc.status === 'WIKI_PENDING') && doc.metadata?.wiki_processed_at">
                       <span style="color: #386b47;" :title="'Wiki 生成于 ' + new Date(doc.metadata.wiki_processed_at).toLocaleString('zh-CN')">就绪 · Wiki 已生成</span>
                     </template>
+                    <template v-else-if="doc.status === 'WIKI_REVIEW'">
+                      <span style="color: #c19a6b;">待入 Wiki</span>
+                    </template>
                     <template v-else-if="doc.status === 'READY' || doc.status === 'WIKI_PENDING'">
                       <span>就绪 · <span style="color: var(--cs-warn);">Wiki 待生成</span></span>
                     </template>
@@ -322,6 +331,8 @@
               </td>
               <td style="color: #999;">{{ doc.created_at ? new Date(doc.created_at).toLocaleString('zh-CN') : '-' }}</td>
               <td @click.stop>
+                <button v-if="doc.status === 'WIKI_REVIEW'" class="btn btn-text btn-small" style="color: #c19a6b;" @click="handleAutoIngestOne(doc)">自动入库</button>
+                <span v-if="doc.status === 'WIKI_REVIEW'" class="btn btn-text btn-small" style="color: #9a5b25; cursor: pointer;" @click="navigateToWikiChat(doc)">审核入 Wiki</span>
                 <button v-if="doc.status === 'FAILED'" class="btn btn-text btn-small" style="color: #c19a6b;" @click="handleRetryDoc(doc)">重试</button>
                 <router-link v-if="doc.status === 'READY' || doc.status === 'WIKI_PENDING'" :to="{ name: 'DocumentDetail', params: { kbId: route.params.kbId, docId: doc.id } }" class="btn btn-text btn-small" style="color: #9a5b25;" @click.stop>切片</router-link>
                 <button v-if="isAdmin" class="btn btn-text btn-small btn-danger-text" style="font-size: 11px;" @click="handleDeleteDoc(doc)">删除</button>
@@ -521,7 +532,7 @@ import WikiGraph from './WikiGraph.vue'
 import WikiChat from './WikiChat.vue'
 import KbSharePanel from './KbSharePanel.vue'
 import WikiLintPanel from '@/components/knowledge/WikiLintPanel.vue'
-import { runWikiLint, curateWiki, type LintIssue } from '@/api/knowledge'
+import { runWikiLint, curateWiki, batchAutoIngest, type LintIssue } from '@/api/knowledge'
 // WikiChat moved to standalone page /knowledge/chat
 import { formatSize } from '../../utils/format'
 import { marked } from 'marked'
@@ -572,7 +583,7 @@ const docTotal = ref(0)
 const docStatusFilter = ref<string | undefined>(undefined)
 const docSortBy = ref('upload_time')
 const docSortOrder = ref<'asc' | 'desc'>('desc')
-const docStats = ref<DocumentStats>({ total: 0, processing: 0, ready: 0, failed: 0, pending: 0, wiki_pending: 0 })
+const docStats = ref<DocumentStats>({ total: 0, processing: 0, ready: 0, failed: 0, pending: 0, wiki_pending: 0, wiki_review: 0 })
 const embeddingCount = computed(() =>
   documents.value.filter(d => d.status === 'PROCESSING' && d.progress_message && /embedding/i.test(d.progress_message)).length
 )
@@ -807,13 +818,14 @@ async function handleGetCredentials(dsId: string) {
 
 function docStatusColor(s: string) {
   if (s === 'READY' || s === 'WIKI_PENDING') return '#386b47'
+  if (s === 'WIKI_REVIEW') return '#c19a6b'
   if (s === 'PROCESSING') return '#2a4d6a'
   if (s === 'FAILED') return '#c6333a'
   return '#c2c6cc'
 }
 
 function docStatusText(s: string) {
-  const map: Record<string, string> = { PENDING: '等待中', PROCESSING: '处理中', READY: '就绪', WIKI_PENDING: '就绪', FAILED: '失败' }
+  const map: Record<string, string> = { PENDING: '等待中', PROCESSING: '处理中', READY: '就绪', WIKI_PENDING: '就绪', WIKI_REVIEW: '待入 Wiki', FAILED: '失败' }
   return map[s] || s
 }
 
@@ -1141,6 +1153,32 @@ async function handleRetryAllFailed() {
   } finally {
     retryingFailed.value = false
   }
+}
+
+// ── Wiki review batch actions ──
+const batchIngesting = ref(false)
+
+async function handleBatchAutoIngest() {
+  const ids = [...selectedDocIds.value]
+  if (!ids.length) return
+  batchIngesting.value = true
+  try {
+    await batchAutoIngest(route.params.kbId as string, ids)
+    selectedDocIds.value.clear()
+    await Promise.all([loadDocuments(), loadStats()])
+  } finally {
+    batchIngesting.value = false
+  }
+}
+
+async function handleAutoIngestOne(doc: Document) {
+  await batchAutoIngest(route.params.kbId as string, [doc.id])
+  await Promise.all([loadDocuments(), loadStats()])
+}
+
+function navigateToWikiChat(_doc: Document) {
+  // Switch to Wiki tab → Chat sub-tab
+  activeTab.value = 'chat'
 }
 
 async function handleDeleteDoc(doc: Document) {

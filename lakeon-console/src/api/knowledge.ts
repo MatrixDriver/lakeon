@@ -60,6 +60,7 @@ export interface DocumentStats {
   failed: number
   pending: number
   wiki_pending: number
+  wiki_review: number
 }
 
 export interface Folder {
@@ -464,6 +465,12 @@ export function getWikiStats(kbId: string) {
 }
 
 // ── KB Sharing API ──
+
+export function batchAutoIngest(kbId: string, documentIds: string[]) {
+  return api.post<{ enqueued: number }>('/knowledge/wiki/batch-ingest', {
+    kb_id: kbId, document_ids: documentIds
+  })
+}
 
 export interface KbShare {
   id: string

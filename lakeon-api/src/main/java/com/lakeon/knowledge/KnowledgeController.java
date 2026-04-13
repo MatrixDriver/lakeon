@@ -313,7 +313,7 @@ public class KnowledgeController {
                                              @RequestParam("kb_id") String kbId) {
         TenantEntity tenant = getTenant(req);
         List<Object[]> rows = documentRepository.countByStatusGrouped(tenant.getId(), kbId);
-        long total = 0, processing = 0, ready = 0, failed = 0, pending = 0, wikiPending = 0;
+        long total = 0, processing = 0, ready = 0, failed = 0, pending = 0, wikiPending = 0, wikiReview = 0;
         for (Object[] row : rows) {
             String s = (String) row[0];
             long count = ((Number) row[1]).longValue();
@@ -324,6 +324,7 @@ public class KnowledgeController {
                 case "FAILED" -> failed = count;
                 case "PENDING" -> pending = count;
                 case "WIKI_PENDING" -> wikiPending = count;
+                case "WIKI_REVIEW" -> wikiReview = count;
             }
         }
         Map<String, Object> stats = new LinkedHashMap<>();
@@ -333,6 +334,7 @@ public class KnowledgeController {
         stats.put("failed", failed);
         stats.put("pending", pending);
         stats.put("wiki_pending", wikiPending);
+        stats.put("wiki_review", wikiReview);
         return stats;
     }
 
@@ -777,6 +779,44 @@ public class KnowledgeController {
         kbAccessService.getKbWithAccess(kbId, tenant.getId());
         wikiService.writeWikiDocument(tenant.getId(), kbId, "schema.md", "schema", content);
         return ResponseEntity.ok(Map.of("ok", true));
+    }
+
+    // ── Wiki batch ingest (user-facing) ─────────────────────
+
+    /**
+     * Auto-ingest selected WIKI_REVIEW documents: enqueue WIKI_UPDATE for each,
+     * transitioning them to WIKI_PENDING (fire-and-forget wiki agent).
+     */
+    @PostMapping("/wiki/batch-ingest")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> batchAutoIngest(HttpServletRequest req,
+                                              @RequestBody Map<String, Object> body) {
+        TenantEntity tenant = getTenant(req);
+        String kbId = (String) body.get("kb_id");
+        var docIds = (java.util.List<String>) body.get("document_ids");
+        if (kbId == null || docIds == null || docIds.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "kb_id and document_ids required"));
+        }
+        kbAccessService.getKbWithAccess(kbId, tenant.getId());
+
+        int enqueued = 0;
+        for (String docId : docIds) {
+            var optDoc = documentRepository.findByIdAndTenantId(docId, tenant.getId());
+            if (optDoc.isEmpty()) continue;
+            var doc = optDoc.get();
+            if (doc.getStatus() != DocumentStatus.WIKI_REVIEW) continue;
+
+            // Transition to WIKI_PENDING and fire wiki agent
+            doc.setStatus(DocumentStatus.WIKI_PENDING);
+            documentRepository.save(doc);
+
+            String taskId = wikiAgentClient.triggerIngest(tenant.getId(), kbId, docId);
+            if (taskId != null) {
+                enqueued++;
+                log.info("Batch auto-ingest: dispatched wiki agent for doc {} (task {})", docId, taskId);
+            }
+        }
+        return ResponseEntity.ok(Map.of("enqueued", enqueued));
     }
 
     // ── Wiki Agent dispatch endpoints (user-facing) ───────────

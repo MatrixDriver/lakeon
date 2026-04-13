@@ -5,5 +5,6 @@ public enum DocumentStatus {
     PROCESSING,
     READY,
     FAILED,
-    WIKI_PENDING
+    WIKI_PENDING,
+    WIKI_REVIEW
 }
