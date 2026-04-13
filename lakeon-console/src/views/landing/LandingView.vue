@@ -93,6 +93,66 @@
     </section>
 
     <!-- ══════════════════════════════════════════
+         Screen "Team" · 拥有 → 分享
+         ══════════════════════════════════════════ -->
+    <section class="screen screen-team">
+      <div class="screen-inner">
+        <div class="team-header">
+          <span class="team-eyebrow">{{ t('团队协作', 'For teams') }}</span>
+          <h2 class="team-title">
+            <span class="team-title-a">{{ t('拥有。', 'Ownership.') }}</span>
+            <span class="team-title-b">{{ t('所以可以分享。', 'Which means sharing.') }}</span>
+          </h2>
+          <p class="team-lede">
+            {{ t(
+              '因为记忆和知识属于你，所以你来决定谁能看。把一个知识库分享给团队——团队里每个人的 Agent 都能读到同一本 wiki。把记忆库分享给销售团队——所有 Agent 召回同一份客户洞察。',
+              "Because your memory and knowledge belong to you, you decide who else sees them. Share a knowledge base with the team — every teammate's agent reads the same wiki. Share a memory base with sales — every agent recalls the same customer insights."
+            ) }}
+          </p>
+        </div>
+
+        <div class="team-rows">
+          <div class="team-row">
+            <div class="team-row-num">01</div>
+            <div class="team-row-body">
+              <h3 class="team-row-title">{{ t('一次点击，不是一次集成', 'One click, not one integration') }}</h3>
+              <p>{{ t(
+                '在 Console 里选一个库，填人或团队的邮箱，确认。对方的 Agent 下一次 recall 就能读到。没有 webhook、没有 API key 交换、没有跨租户复制。',
+                "Pick a base in the Console, type their email, confirm. Their agent reads it on the next recall. No webhooks, no API key exchange, no cross-tenant copies."
+              ) }}</p>
+            </div>
+          </div>
+
+          <div class="team-row">
+            <div class="team-row-num">02</div>
+            <div class="team-row-body">
+              <h3 class="team-row-title">{{ t('权限分级 · 只读 / 可写 / 管理', 'Granular roles — read, write, admin') }}</h3>
+              <p>{{ t(
+                '把客户洞察开给 sales 只读、给 CSM 可写、给 manager 管理；把架构约定开给整个工程部可写。每一份库是独立的权限域，不会互相串。',
+                "Hand customer insights to sales as read-only, to CSMs as write, to managers as admin; open engineering conventions to the whole team for write. Every base is its own permission domain, no cross-leaks."
+              ) }}</p>
+            </div>
+          </div>
+
+          <div class="team-row">
+            <div class="team-row-num">03</div>
+            <div class="team-row-body">
+              <h3 class="team-row-title">{{ t('撤销也一次点击。人走了，数据不走', 'Revoke in one click. People leave, data stays') }}</h3>
+              <p>{{ t(
+                '员工离职 → 踢出团队库 → 他的 Agent 下一次 recall 就读不到了。团队成员写入的条目保留在团队库里，个人的那份记忆跟着个人走——他换公司，他的 Agent 还记得他是谁。',
+                'An employee leaves → remove them from the team base → their agent stops recalling it on the next call. Entries they wrote stay in the team base; their own memory base travels with them — they switch companies, their agent still knows who they are.'
+              ) }}</p>
+            </div>
+          </div>
+        </div>
+
+        <p class="team-refrain">
+          <em>{{ t('你拥有，你分享，你决定谁看。', 'You own it. You share it. You decide who sees it.') }}</em>
+        </p>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════
          Screen 02 · Working state / Learning state
          ══════════════════════════════════════════ -->
     <section class="screen screen-02">
@@ -942,10 +1002,136 @@ async function startTrial() {
 }
 
 /* ══════════════════════════════════════════
+   Screen Team · 拥有 → 分享
+   ══════════════════════════════════════════ */
+.screen-team {
+  background: var(--c-bg-alt);
+}
+
+.screen-team .screen-inner {
+  max-width: 1080px;
+}
+
+.team-header {
+  max-width: 720px;
+  margin: 0 0 clamp(56px, 7vw, 96px);
+}
+
+.team-eyebrow {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--c-accent-text);
+  margin-bottom: var(--space-lg);
+}
+
+.team-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(40px, 5vw, 72px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--c-primary);
+  margin: 0 0 var(--space-xl);
+}
+
+.team-title-a,
+.team-title-b {
+  display: block;
+}
+
+.team-title-b {
+  color: var(--c-accent-text);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.team-lede {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(18px, 2vw, 24px);
+  line-height: 1.55;
+  color: var(--c-text-2);
+  max-width: 62ch;
+  margin: 0;
+}
+
+.team-rows {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(32px, 4vw, 56px);
+  margin-bottom: clamp(40px, 5vw, 64px);
+}
+
+.team-row {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: clamp(16px, 2vw, 32px);
+  align-items: baseline;
+}
+
+.team-row-num {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--c-accent-text);
+}
+
+.team-row-body {
+  border-top: 1px solid var(--c-border);
+  padding-top: var(--space-md);
+}
+
+.team-row-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(20px, 2vw, 24px);
+  line-height: 1.25;
+  color: var(--c-primary);
+  letter-spacing: -0.01em;
+  margin: 0 0 var(--space-sm);
+}
+
+.team-row-body p {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--c-text-2);
+  max-width: 72ch;
+  margin: 0;
+}
+
+.team-refrain {
+  font-family: var(--font-display);
+  font-size: clamp(18px, 2vw, 22px);
+  color: var(--c-accent-text);
+  margin: 0;
+  padding-top: var(--space-xl);
+  border-top: 1px solid var(--c-border-light);
+}
+
+.team-refrain em {
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+@media (max-width: 900px) {
+  .team-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-sm);
+  }
+}
+
+/* ══════════════════════════════════════════
    Screen 02 · Working / Learning state
    ══════════════════════════════════════════ */
 .screen-02 {
-  background: var(--c-bg-alt);
+  background: #fff;
 }
 
 .screen-02-inner {
