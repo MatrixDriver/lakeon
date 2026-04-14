@@ -59,8 +59,11 @@ CREATE TABLE IF NOT EXISTS raw_messages (
     content     TEXT NOT NULL,
     role        VARCHAR(20) NOT NULL DEFAULT 'user',
     source      VARCHAR(50),
+    op          VARCHAR(30),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE raw_messages ADD COLUMN IF NOT EXISTS op VARCHAR(30);
+CREATE INDEX IF NOT EXISTS idx_raw_messages_created_at ON raw_messages(created_at DESC);
 
 CREATE TABLE IF NOT EXISTS reflection_watermark (
     id              SERIAL PRIMARY KEY,

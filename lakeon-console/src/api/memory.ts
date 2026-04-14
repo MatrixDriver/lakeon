@@ -123,6 +123,7 @@ export interface RawMessage {
   content_preview: string
   role: string
   source: string | null
+  op: string | null
   created_at: string
 }
 
@@ -138,7 +139,7 @@ export interface RawMessageDetail {
   }[]
 }
 
-export function listRawMessages(memId: string, options?: { offset?: number; limit?: number }) {
+export function listRawMessages(memId: string, options?: { offset?: number; limit?: number; op?: string }) {
   return api.get<{ messages: RawMessage[]; total: number }>(`/memory/bases/${memId}/raw_messages`, { params: options })
 }
 

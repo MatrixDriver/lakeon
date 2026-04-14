@@ -23,6 +23,9 @@ async def ingest(req: IngestRequest, x_database_connstr: str = Header(...),
         if not req.memory_type:
             raise HTTPException(400, "memory_type is required when signal='memory'")
         metadata = {"source": req.source} if req.source else {}
+        # Audit log: record raw interaction for debugging (7-day TTL)
+        asyncio.create_task(engine.store_raw_message(
+            x_database_connstr, req.content, req.role, req.source, op="ingest_memory"))
         mem = await engine.ingest(x_database_connstr, req.content, req.role,
                                   req.memory_type, req.importance, metadata,
                                   embedding=req.embedding)
@@ -30,7 +33,8 @@ async def ingest(req: IngestRequest, x_database_connstr: str = Header(...),
 
     elif req.signal == "conversation":
         # Raw conversation — server extracts memories automatically
-        message_id = await engine.store_raw_message(x_database_connstr, req.content, req.role, req.source)
+        message_id = await engine.store_raw_message(
+            x_database_connstr, req.content, req.role, req.source, op="ingest_conversation")
         asyncio.create_task(engine.background_extract(x_database_connstr, message_id, req.content, x_scene))
         return {"message_id": message_id, "status": "extracting"}
 
@@ -124,8 +128,12 @@ async def list_raw_messages(
     x_database_connstr: str = Header(...),
     offset: int = 0,
     limit: int = 20,
+    op: Optional[str] = None,
 ):
-    result = await engine.list_raw_messages(x_database_connstr, offset, limit)
+    # Lazy TTL cleanup: on first page fetch, purge entries older than 7 days
+    if offset == 0:
+        asyncio.create_task(engine.purge_old_raw_messages(x_database_connstr, days=7))
+    result = await engine.list_raw_messages(x_database_connstr, offset, limit, op=op)
     return result
 
 

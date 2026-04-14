@@ -30,17 +30,34 @@ async def ingest(connstr: str, content: str, role: str, memory_type: str,
         conn.close()
 
 
-async def store_raw_message(connstr: str, content: str, role: str, source: str = None) -> str:
+async def store_raw_message(connstr: str, content: str, role: str, source: str = None,
+                             op: str = None) -> str:
     """Store raw message and return its UUID."""
     conn = _connect(connstr)
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                INSERT INTO raw_messages (content, role, source) VALUES (%s, %s, %s) RETURNING id
-            """, (content, role, source))
+                INSERT INTO raw_messages (content, role, source, op)
+                VALUES (%s, %s, %s, %s) RETURNING id
+            """, (content, role, source, op))
             row = cur.fetchone()
             conn.commit()
             return str(row["id"])
+    finally:
+        conn.close()
+
+
+async def purge_old_raw_messages(connstr: str, days: int = 7) -> int:
+    """Delete raw_messages older than `days`. Returns deleted count."""
+    conn = _connect(connstr)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM raw_messages WHERE created_at < now() - (%s || ' days')::interval",
+                (days,))
+            deleted = cur.rowcount
+            conn.commit()
+            return deleted
     finally:
         conn.close()
 
@@ -364,17 +381,27 @@ async def get_graph(connstr: str) -> dict:
         conn.close()
 
 
-async def list_raw_messages(connstr: str, offset: int, limit: int) -> dict:
+async def list_raw_messages(connstr: str, offset: int, limit: int,
+                             op: Optional[str] = None) -> dict:
     conn = _connect(connstr)
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("SELECT count(*) as total FROM raw_messages")
-            total = cur.fetchone()["total"]
-            cur.execute("""
-                SELECT id, content, role, source, created_at
-                FROM raw_messages ORDER BY created_at DESC
-                LIMIT %s OFFSET %s
-            """, (limit, offset))
+            if op:
+                cur.execute("SELECT count(*) as total FROM raw_messages WHERE op = %s", (op,))
+                total = cur.fetchone()["total"]
+                cur.execute("""
+                    SELECT id, content, role, source, op, created_at
+                    FROM raw_messages WHERE op = %s
+                    ORDER BY created_at DESC LIMIT %s OFFSET %s
+                """, (op, limit, offset))
+            else:
+                cur.execute("SELECT count(*) as total FROM raw_messages")
+                total = cur.fetchone()["total"]
+                cur.execute("""
+                    SELECT id, content, role, source, op, created_at
+                    FROM raw_messages ORDER BY created_at DESC
+                    LIMIT %s OFFSET %s
+                """, (limit, offset))
             rows = cur.fetchall()
             for r in rows:
                 r["id"] = str(r["id"])

@@ -7,6 +7,16 @@
     <MemoryBaseSelector @change="onBaseChange" />
 
     <div v-if="baseId" style="margin-top: 20px;">
+      <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
+        <label style="font-size: 13px; color: #666;">类型</label>
+        <select v-model="opFilter" @change="currentPage = 1; load()"
+                style="padding: 4px 10px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 13px;">
+          <option value="">全部</option>
+          <option value="ingest_memory">记忆写入</option>
+          <option value="ingest_conversation">会话写入</option>
+        </select>
+        <span style="color: #999; font-size: 13px;">共 {{ total }} 条（保留 7 天）</span>
+      </div>
       <p v-if="loading" style="text-align: center; color: #999; padding: 40px 0;">加载中...</p>
       <p v-else-if="messages.length === 0" style="text-align: center; color: #999; padding: 40px 0;">暂无消息</p>
 
@@ -15,6 +25,7 @@
           <thead>
             <tr>
               <th style="width: 160px;">时间</th>
+              <th style="width: 100px;">类型</th>
               <th style="width: 80px;">角色</th>
               <th style="width: 80px;">来源</th>
               <th>内容</th>
@@ -24,6 +35,12 @@
           <tbody>
             <tr v-for="msg in messages" :key="msg.id" style="cursor: pointer;" @click="openDetail(msg.id)">
               <td style="color: #999; font-size: 13px;">{{ new Date(msg.created_at).toLocaleString('zh-CN') }}</td>
+              <td>
+                <span v-if="msg.op" style="display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; background: color-mix(in oklch, var(--c-accent) 10%, #fff); color: var(--c-accent-text);">
+                  {{ opLabel(msg.op) }}
+                </span>
+                <span v-else style="color: #ccc;">-</span>
+              </td>
               <td>
                 <span style="display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px;"
                       :style="msg.role === 'user' ? 'background: color-mix(in oklch, var(--c-primary) 10%, #fff); color: var(--c-primary);' : 'background: color-mix(in oklch, var(--c-accent) 12%, #fff); color: var(--c-accent-text);'">
@@ -131,6 +148,13 @@ const messages = ref<RawMessage[]>([])
 const total = ref(0)
 const currentPage = ref(1)
 const loading = ref(false)
+const opFilter = ref('')
+
+function opLabel(op: string): string {
+  return op === 'ingest_memory' ? '记忆写入'
+    : op === 'ingest_conversation' ? '会话写入'
+    : op
+}
 
 const detailVisible = ref(false)
 const detailLoading = ref(false)
@@ -149,6 +173,7 @@ async function load() {
     const { data } = await listRawMessages(baseId.value, {
       offset: (currentPage.value - 1) * PAGE_SIZE,
       limit: PAGE_SIZE,
+      ...(opFilter.value ? { op: opFilter.value } : {}),
     })
     messages.value = data.messages
     total.value = data.total

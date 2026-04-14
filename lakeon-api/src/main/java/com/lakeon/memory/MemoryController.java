@@ -143,11 +143,13 @@ public class MemoryController {
     @GetMapping("/bases/{id}/raw_messages")
     public Object listRawMessages(HttpServletRequest req, @PathVariable String id,
             @RequestParam(defaultValue = "0") String offset,
-            @RequestParam(defaultValue = "20") String limit) {
+            @RequestParam(defaultValue = "20") String limit,
+            @RequestParam(required = false) String op) {
         TenantEntity tenant = getTenant(req);
         Map<String, String> params = new HashMap<>();
         params.put("offset", offset);
         params.put("limit", limit);
+        if (op != null && !op.isEmpty()) params.put("op", op);
         return memoryService.proxyGet(tenant.getId(), id, "/raw_messages", params);
     }
 
