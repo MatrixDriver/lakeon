@@ -170,14 +170,60 @@ const scanning = ref(false)
 const cleaningUp = ref<string | null>(null)
 const confirmDialog = ref<{ tenantId: string; count: number; bytes: number } | null>(null)
 
+function normalizeTenant(t: any): TenantStorage {
+  const items: StorageItem[] = []
+  for (const db of t.databases ?? []) {
+    items.push({
+      type: 'database', id: db.id, name: db.name,
+      status: db.status ?? '-',
+      dbBytes: db.logical_size ?? 0, kbDocBytes: 0, memoryBytes: 0,
+    })
+  }
+  for (const kb of t.knowledge_bases ?? []) {
+    items.push({
+      type: 'knowledge', id: kb.id, name: kb.name,
+      status: kb.status ?? '-',
+      dbBytes: 0, kbDocBytes: kb.obs_size ?? 0, memoryBytes: 0,
+    })
+  }
+  for (const mb of t.memory_bases ?? []) {
+    items.push({
+      type: 'memory', id: mb.id, name: mb.name,
+      status: mb.status ?? '-',
+      dbBytes: 0, kbDocBytes: 0, memoryBytes: mb.db_logical_size ?? 0,
+    })
+  }
+  return {
+    tenantId: t.tenant_id,
+    tenantName: t.tenant_name,
+    status: t.status ?? 'active',
+    dbBytes: t.db_total_size ?? 0,
+    kbDocBytes: t.kb_total_obs_size ?? 0,
+    memoryBytes: t.mem_total_size ?? 0,
+    totalBytes: t.total_size ?? 0,
+    items,
+  }
+}
+
 async function loadData() {
   loading.value = true
   try {
     const res = await adminApi.storageSummary()
-    const data = res.data as StorageSummary
-    summary.value = data
-    tenants.value = data.tenants ?? []
-    orphans.value = data.orphans ?? []
+    const raw = res.data as any
+    summary.value = {
+      totalObsBytes: raw.total_doc_obs_size ?? 0,
+      totalDbBytes: (raw.total_db_size ?? 0) + (raw.total_mem_size ?? 0),
+      totalKbDocBytes: raw.total_doc_obs_size ?? 0,
+      orphanBytes: raw.orphan_bytes ?? 0,
+      tenants: [],
+      orphans: raw.orphans ?? [],
+      lastScanTime: raw.last_scan_time ?? null,
+    }
+    tenants.value = (raw.tenants ?? []).map(normalizeTenant)
+    orphans.value = (raw.orphans ?? []).map((o: any) => ({
+      tenantId: o.tenant_id ?? o.tenantId,
+      bytes: o.bytes ?? 0,
+    }))
   } catch (e) {
     console.error('Failed to load storage summary', e)
   } finally {
