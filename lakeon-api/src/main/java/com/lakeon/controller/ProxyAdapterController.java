@@ -182,7 +182,7 @@ public class ProxyAdapterController {
                 db.getName(), branch.getName(), branch.getId());
 
         String address = computePodManager.createComputePodForBranch(db, branch);
-        computePodManager.waitForPodReady(branch.getComputePodName(), 180_000);
+        computePodManager.waitForPodReady(branch.getComputePodName(), 360_000);
 
         // Refresh pod IP after pod is ready
         String podIp = computePodManager.getPodIp(branch.getComputePodName());

@@ -535,9 +535,9 @@ public class DatabaseService {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
             if (!warmWake) {
-                // Cold path: create new Pod (outside transaction, may block up to 180s for elastic scaling)
+                // Cold path: create new Pod (outside transaction, may block up to 360s for elastic scaling)
                 computePodManager.createComputePod(entity);
-                computePodManager.waitForPodReady(entity.getComputePodName(), 180_000);
+                computePodManager.waitForPodReady(entity.getComputePodName(), 360_000);
             }
             sample.stop(Timer.builder("lakeon_compute_wakeup_seconds")
                 .description("Compute wakeup duration")
@@ -609,7 +609,7 @@ public class DatabaseService {
         try {
             String address = computePodManager.createComputePod(entity);
             if (entity.getComputePodName() != null) {
-                boolean ready = computePodManager.waitForPodReady(entity.getComputePodName(), 120_000L);
+                boolean ready = computePodManager.waitForPodReady(entity.getComputePodName(), 360_000L);
                 if (!ready) {
                     throw new RuntimeException("Compute pod not ready for database: " + entity.getName());
                 }

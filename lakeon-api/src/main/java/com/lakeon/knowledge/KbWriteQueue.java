@@ -626,7 +626,7 @@ public class KbWriteQueue {
         // Derive pod name from database ID (same convention as ComputePodManager)
         String podName = "compute-" + dbId.replace("_", "-");
         // Wait for pod to be ready (wakeCompute may still be initializing)
-        if (!computePodManager.waitForPodReady(podName, 120_000)) {
+        if (!computePodManager.waitForPodReady(podName, 360_000)) {
             throw new RuntimeException("Compute pod not ready: " + podName);
         }
         String podIp = computePodManager.getPodIp(podName);

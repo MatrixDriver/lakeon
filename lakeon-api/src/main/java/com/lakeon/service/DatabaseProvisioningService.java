@@ -51,9 +51,9 @@ public class DatabaseProvisioningService {
             computePodManager.createComputePod(entity);
             // Persist compute info (podName/host/port) immediately so other paths can find it
             databaseRepository.save(entity);
-            boolean ready = computePodManager.waitForPodReady(entity.getComputePodName(), 300_000);
+            boolean ready = computePodManager.waitForPodReady(entity.getComputePodName(), 360_000);
             if (!ready) {
-                throw new RuntimeException("计算节点启动超时(300s)，可能需要等待弹性节点扩容或镜像拉取");
+                throw new RuntimeException("计算节点启动超时(360s)，可能需要等待弹性节点扩容或镜像拉取");
             }
 
             // Step 2: Enable extensions

@@ -137,7 +137,7 @@ public class KnowledgeDbHelper {
 
         // Get direct pod IP
         String podName = "compute-" + databaseId.replace("_", "-");
-        if (!computePodManager.waitForPodReady(podName, 120_000)) {
+        if (!computePodManager.waitForPodReady(podName, 360_000)) {
             throw new RuntimeException("Compute pod not ready: " + podName);
         }
         String podIp = computePodManager.getPodIp(podName);

@@ -118,7 +118,7 @@ public class BranchService {
                         // Cold-start the parent branch compute
                         try {
                             computePodManager.createComputePodForBranch(dbEntity, parentBranch);
-                            computePodManager.waitForPodReady(parentBranch.getComputePodName(), 120_000);
+                            computePodManager.waitForPodReady(parentBranch.getComputePodName(), 360_000);
                             targetPodName = parentBranch.getComputePodName();
                             branchRepository.save(parentBranch);
                         } catch (Exception e) {

@@ -28,7 +28,7 @@ import java.util.concurrent.locks.ReentrantLock;
 @Service
 public class ComputeLifecycleService {
     private static final Logger log = LoggerFactory.getLogger(ComputeLifecycleService.class);
-    private static final long DEFAULT_WAKE_TIMEOUT_MS = 300_000L;
+    private static final long DEFAULT_WAKE_TIMEOUT_MS = 360_000L;
     private final ReentrantLock suspendLock = new ReentrantLock();
 
     private final DatabaseRepository databaseRepository;
