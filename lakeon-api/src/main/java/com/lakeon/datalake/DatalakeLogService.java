@@ -20,6 +20,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -170,5 +171,70 @@ public class DatalakeLogService {
 
     private void sendLine(SseEmitter emitter, String line) throws Exception {
         emitter.send(SseEmitter.event().data(line));
+    }
+
+    /**
+     * Fetch the last `tail` log lines as a plain list (no SSE).
+     * For Ray jobs aggregates head + worker pods; falls back to OBS persisted logs.
+     */
+    public List<String> tailLogs(String tenantId, String jobId, int tail) {
+        DatalakeJobEntity job = repository.findById(jobId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Job not found: " + jobId));
+        if (!tenantId.equals(job.getTenantId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+        }
+
+        List<String> all = new ArrayList<>();
+        try {
+            if (job.getCciNamespace() != null) {
+                String labelKey = job.getType() == DatalakeJobType.PYTHON ? "job-name" : "lakeon.io/job-id";
+                String labelVal = job.getType() == DatalakeJobType.PYTHON ? job.getK8sJobName() : job.getId();
+                if (labelVal != null) {
+                    List<Pod> pods = k8sClient.pods().inNamespace(job.getCciNamespace())
+                        .withLabel(labelKey, labelVal).list().getItems();
+                    for (Pod pod : pods) {
+                        String podName = pod.getMetadata().getName();
+                        try {
+                            String text = k8sClient.pods().inNamespace(job.getCciNamespace())
+                                .withName(podName).getLog();
+                            if (text != null) {
+                                for (String line : text.split("\n")) all.add(line);
+                            }
+                        } catch (Exception e) {
+                            all.add("[error reading " + podName + ": " + e.getMessage() + "]");
+                        }
+                    }
+                }
+            }
+            if (all.isEmpty() && job.getLogObsPath() != null) {
+                fetchObsLogsInto(job, all);
+            }
+        } catch (Exception e) {
+            log.warn("tailLogs failed for job {}: {}", jobId, e.getMessage());
+        }
+
+        if (tail > 0 && all.size() > tail) {
+            return all.subList(all.size() - tail, all.size());
+        }
+        return all;
+    }
+
+    private void fetchObsLogsInto(DatalakeJobEntity job, List<String> sink) {
+        String ak = props.getObs().getAccessKey();
+        String sk = props.getObs().getSecretKey();
+        if (ak == null || ak.isBlank()) return;
+        try (S3Client s3 = S3Client.builder()
+                .endpointOverride(URI.create(props.getObs().getEndpoint()))
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(ak, sk)))
+                .region(Region.of(props.getObs().getRegion() != null ? props.getObs().getRegion() : "cn-north-4"))
+                .build()) {
+            var response = s3.getObject(GetObjectRequest.builder()
+                    .bucket(props.getObs().getBucket())
+                    .key(job.getLogObsPath()).build());
+            String content = new String(response.readAllBytes(), StandardCharsets.UTF_8);
+            for (String line : content.split("\n")) sink.add(line);
+        } catch (Exception e) {
+            log.warn("OBS log fetch failed for job {}: {}", job.getId(), e.getMessage());
+        }
     }
 }
