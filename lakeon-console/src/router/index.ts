@@ -119,6 +119,8 @@ const routes = [
       { path: 'memory/messages', redirect: '/memory' },
       { path: 'memory/stats', redirect: '/memory' },
       { path: 'memory/:memId', name: 'MemoryBaseDetail', component: () => import('../views/memory/MemoryBaseDetail.vue') },
+      // Agent 文件 (AgentFS)
+      { path: 'agentfs', name: 'AgentFSBrowse', component: () => import('../views/agentfs/AgentFSBrowse.vue') },
     ],
   },
 ]
