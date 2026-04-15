@@ -26,8 +26,20 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
+use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+
+/// Lightweight fsync via libc — bypasses Rust std's `sync_all`/`sync_data`
+/// which on macOS issue `F_FULLFSYNC` (~11ms p50, ~19ms p95). We accept OS
+/// buffer durability (data lives in kernel page cache, typically <5s lag
+/// before disk) in exchange for ~200x latency improvement. State files in
+/// the passthrough dir are also subject to OS buffer; a daemon crash without
+/// OS panic loses nothing because writes are already queued to disk.
+fn fsync_lite(f: &File) -> std::io::Result<()> {
+    let r = unsafe { libc::fsync(f.as_raw_fd()) };
+    if r == 0 { Ok(()) } else { Err(std::io::Error::last_os_error()) }
+}
 
 const LOG_FILE: &str = "pending.log";
 const BLOBS_DIR: &str = "blobs";
@@ -138,7 +150,7 @@ impl Outbox {
         let mut line = serde_json::to_string(&entry)?;
         line.push('\n');
         inner.log.write_all(line.as_bytes())?;
-        inner.log.sync_data()?;
+        fsync_lite(&inner.log)?;
         inner.live.insert(seq, entry);
         Ok(seq)
     }
@@ -156,7 +168,7 @@ impl Outbox {
         let mut line = serde_json::to_string(&entry)?;
         line.push('\n');
         inner.log.write_all(line.as_bytes())?;
-        inner.log.sync_data()?;
+        fsync_lite(&inner.log)?;
         inner.live.remove(&seq);
         Ok(())
     }
@@ -182,7 +194,7 @@ impl Outbox {
         }
         let log_path = self.dir.join(LOG_FILE);
         inner.log.set_len(0)?;
-        inner.log.sync_all()?;
+        fsync_lite(&inner.log)?;
         inner.next_seq = 1;
         tracing::info!(log = %log_path.display(), "outbox compacted");
 
@@ -217,7 +229,7 @@ pub fn write_blob(blobs_dir: &Path, bytes: &[u8]) -> Result<String> {
     {
         let mut f = File::create(&tmp)?;
         f.write_all(bytes)?;
-        f.sync_all()?;
+        fsync_lite(&f)?;
     }
     std::fs::rename(&tmp, &final_path)?;
     Ok(sha)

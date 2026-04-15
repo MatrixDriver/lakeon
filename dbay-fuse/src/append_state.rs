@@ -63,6 +63,16 @@ pub fn note_write_to_size(map: &AppendMap, rel: &Path, new_size: u64, is_append_
     st.current_size = new_size;
 }
 
+/// Notify of a size change from setattr (truncate/extend). Always invalidates
+/// pure-append tracking — the next flush must do a full Put so the cloud
+/// reflects the new size (smaller or larger).
+pub fn note_truncate(map: &AppendMap, rel: &Path, new_size: u64) {
+    let mut m = map.lock().unwrap();
+    let st = m.entry(rel.to_path_buf()).or_default();
+    st.is_pure_append = false;
+    st.current_size = new_size;
+}
+
 /// On rename, move the state under the new key.
 pub fn rename(map: &AppendMap, old: &Path, new: &Path) {
     let mut m = map.lock().unwrap();
@@ -101,8 +111,8 @@ pub fn plan_flush(map: &AppendMap, rel: &Path) -> FlushMode {
     } else {
         FlushMode::Put
     };
-    tracing::info!(?rel, uploaded=st.uploaded_offset, current=st.current_size,
-                   pure_append=st.is_pure_append, mode=?mode, "plan_flush");
+    tracing::debug!(?rel, uploaded=st.uploaded_offset, current=st.current_size,
+                    pure_append=st.is_pure_append, mode=?mode, "plan_flush");
     mode
 }
 

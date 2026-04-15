@@ -72,32 +72,69 @@ pub fn mount(agent: &str, mount_point: &Path, state_dir: &Path, outbox_dir: &Pat
 }
 
 /// Flush a dirty path to outbox — delta append when possible, else full put.
-/// Used by watchdog AND release handler.
+/// Used by watchdog AND release handler. Emits per-step timing trace.
 fn flush_path(state_dir: &Path, rel: &Path, outbox: &Outbox, append_map: &AppendMap) -> Result<()> {
+    use std::time::Instant;
+    let total = Instant::now();
     let real = state_dir.join(rel);
+    let t = Instant::now();
     let meta = fs::symlink_metadata(&real).context("stat for flush")?;
+    let t_stat = t.elapsed();
     if meta.is_dir() {
         return Ok(());
     }
     let virt_path = to_virt_path(rel);
-    match append_state::plan_flush(append_map, rel) {
+    let t = Instant::now();
+    let plan = append_state::plan_flush(append_map, rel);
+    let t_plan = t.elapsed();
+    match plan {
         FlushMode::Nothing => Ok(()),
         FlushMode::Append { from, to } => {
             use std::io::{Read, Seek, SeekFrom};
+            let t = Instant::now();
             let mut f = fs::File::open(&real).context("open for append delta")?;
             f.seek(SeekFrom::Start(from))?;
             let mut delta = vec![0u8; (to - from) as usize];
             f.read_exact(&mut delta)?;
+            let t_read = t.elapsed();
+            let t = Instant::now();
             let sha = outbox::write_blob(&outbox.blobs_dir(), &delta)?;
+            let t_blob = t.elapsed();
+            let t = Instant::now();
             outbox.enqueue(Op::Append { path: virt_path, blob: sha })?;
+            let t_enq = t.elapsed();
             append_state::mark_flushed(append_map, rel);
+            tracing::info!(
+                stat_us=t_stat.as_micros() as u64,
+                plan_us=t_plan.as_micros() as u64,
+                read_us=t_read.as_micros() as u64,
+                blob_us=t_blob.as_micros() as u64,
+                enq_us=t_enq.as_micros() as u64,
+                total_us=total.elapsed().as_micros() as u64,
+                "flush_path APPEND"
+            );
             Ok(())
         }
         FlushMode::Put => {
+            let t = Instant::now();
             let data = fs::read(&real).context("read for put")?;
+            let t_read = t.elapsed();
+            let t = Instant::now();
             let sha = outbox::write_blob(&outbox.blobs_dir(), &data)?;
+            let t_blob = t.elapsed();
+            let t = Instant::now();
             outbox.enqueue(Op::Put { path: virt_path, blob: sha, properties: None })?;
+            let t_enq = t.elapsed();
             append_state::mark_flushed(append_map, rel);
+            tracing::info!(
+                stat_us=t_stat.as_micros() as u64,
+                plan_us=t_plan.as_micros() as u64,
+                read_us=t_read.as_micros() as u64,
+                blob_us=t_blob.as_micros() as u64,
+                enq_us=t_enq.as_micros() as u64,
+                total_us=total.elapsed().as_micros() as u64,
+                "flush_path PUT"
+            );
             Ok(())
         }
     }
@@ -219,9 +256,10 @@ impl PassthroughFS {
 
     fn flush_fh(&mut self, fh: u64) -> Result<()> {
         let Some(f) = self.files.get_mut(&fh) else { return Ok(()); };
-        if !f.dirty {
-            return Ok(());
-        }
+        // Always check append_state — even if this fd wasn't dirtied directly
+        // (e.g. setattr-truncate from a separate setattr op), the file may
+        // have pending changes that need to flush before release tells the
+        // watchdog to drop tracking.
         if let Some(rel) = relative_to_root(&self.root, &f.real_path) {
             flush_path(&self.root, &rel, &self.outbox, &self.append_map)?;
         }
@@ -308,8 +346,8 @@ impl Filesystem for PassthroughFS {
             if let Ok(f) = OpenOptions::new().write(true).open(&path) {
                 let _ = f.set_len(new_size);
             }
-            // Enqueue flush
             if let Some(rel) = relative_to_root(&self.root, &path) {
+                append_state::note_truncate(&self.append_map, &rel, new_size);
                 let _ = self.flush_tx.send(FlushCmd::Wrote {
                     path: rel,
                     bytes: new_size,
@@ -372,17 +410,24 @@ impl Filesystem for PassthroughFS {
         opts.custom_flags(flags);
         match opts.open(&path) {
             Ok(f) => {
-                // Seed append state with current disk size if not already tracked
+                // Seed / refresh append state. If O_TRUNC was used, file was just
+                // truncated to 0 — invalidate pure_append AND mark dirty so that
+                // a subsequent close (even with no write) still triggers flush.
+                let truncated = flags & libc::O_TRUNC != 0;
                 if let Some(rel) = relative_to_root(&self.root, &path) {
                     let size = f.metadata().map(|m| m.len()).unwrap_or(0);
-                    append_state::ensure_entry(&self.append_map, &rel, size);
+                    if truncated {
+                        append_state::note_truncate(&self.append_map, &rel, size);
+                    } else {
+                        append_state::ensure_entry(&self.append_map, &rel, size);
+                    }
                 }
                 let fh = self.next_fh;
                 self.next_fh += 1;
                 self.files.insert(fh, OpenFh {
                     file: f,
                     real_path: path,
-                    dirty: false,
+                    dirty: truncated,
                     dirty_bytes: 0,
                     opened_at: Instant::now(),
                     opened_with_append: flags & libc::O_APPEND != 0,

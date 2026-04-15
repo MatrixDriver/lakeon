@@ -18,7 +18,8 @@ use anyhow::{Context, Result};
 use crate::dbay_api::DbayClient;
 use crate::outbox::{self, Entry, Op, Outbox};
 
-const POLL_INTERVAL: Duration = Duration::from_secs(2);
+const POLL_INTERVAL: Duration = Duration::from_millis(100);
+const MAX_BATCH: usize = 50;
 
 pub fn spawn(agent: &str, outbox: Arc<Outbox>) -> Result<()> {
     let agent = agent.to_string();
@@ -45,13 +46,21 @@ fn run(_agent: String, outbox: Arc<Outbox>, client: Option<DbayClient>) -> Resul
         }
         let batch = coalesce(&pending);
         if let Some(cli) = client.as_ref() {
-            for entry in &batch {
-                match send_one(cli, &outbox, entry) {
+            // Process in chunks of up to MAX_BATCH using /agentfs/batch
+            let mut idx = 0;
+            while idx < batch.len() {
+                let end = (idx + MAX_BATCH).min(batch.len());
+                let chunk = &batch[idx..end];
+                match send_batch(cli, &outbox, chunk) {
                     Ok(_) => {
-                        let _ = outbox.ack(entry.seq);
+                        for entry in chunk {
+                            let _ = outbox.ack(entry.seq);
+                        }
+                        idx = end;
                     }
                     Err(e) => {
-                        tracing::warn!(seq = entry.seq, ?e, "uplink failed, will retry");
+                        tracing::warn!(seq_start = chunk[0].seq, n = chunk.len(),
+                                       ?e, "batch uplink failed, will retry");
                         thread::sleep(Duration::from_secs(5));
                         break;
                     }
@@ -99,6 +108,53 @@ fn coalesce(entries: &[Entry]) -> Vec<Entry> {
     out
 }
 
+/// Build the batch payload and POST it. Single HTTP round-trip for the whole
+/// chunk. Server runs all ops in one Postgres tx (atomic).
+fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry]) -> Result<()> {
+    use base64::Engine as _;
+    let blobs_dir = outbox.blobs_dir();
+    let mut ops: Vec<serde_json::Value> = Vec::with_capacity(entries.len());
+    for entry in entries {
+        let op_json = match &entry.op {
+            Op::Put { path, blob, properties } => {
+                let bytes = outbox::read_blob(&blobs_dir, blob)
+                    .context("read blob for put")?;
+                let mut obj = serde_json::json!({
+                    "op": "put",
+                    "path": path,
+                    "data_base64": base64::engine::general_purpose::STANDARD.encode(&bytes),
+                });
+                if let Some(p) = properties {
+                    obj["properties"] = p.clone();
+                }
+                obj
+            }
+            Op::Append { path, blob } => {
+                let bytes = outbox::read_blob(&blobs_dir, blob)
+                    .context("read blob for append")?;
+                serde_json::json!({
+                    "op": "append",
+                    "path": path,
+                    "data_base64": base64::engine::general_purpose::STANDARD.encode(&bytes),
+                })
+            }
+            Op::Delete { path } => serde_json::json!({"op":"delete","path":path}),
+            Op::Rename { path, new_path } => serde_json::json!({
+                "op":"rename","from":path,"to":new_path,"overwrite":true
+            }),
+            Op::Mkdir { path } => serde_json::json!({"op":"mkdir","path":path}),
+            Op::Ack { .. } => continue,
+        };
+        ops.push(op_json);
+    }
+    if ops.is_empty() {
+        return Ok(());
+    }
+    cli.agentfs_batch(ops)?;
+    Ok(())
+}
+
+#[allow(dead_code)]
 fn send_one(cli: &DbayClient, outbox: &Outbox, entry: &Entry) -> Result<()> {
     match &entry.op {
         Op::Put { path, blob, properties } => {

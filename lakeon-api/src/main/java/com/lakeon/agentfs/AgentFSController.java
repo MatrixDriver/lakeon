@@ -160,8 +160,20 @@ public class AgentFSController {
                 }
                 case "delete" -> {
                     String p = reqStr(op, "path");
-                    svc.delete(tenantId, p, (String) op.get("if_match"));
-                    results.add(Map.of("op", kind, "path", p, "status", "ok"));
+                    // Batch delete is idempotent (rm -f semantics) — succeed if path
+                    // already absent. Single-call /files/delete keeps strict 404.
+                    try {
+                        svc.delete(tenantId, p, (String) op.get("if_match"));
+                        results.add(Map.of("op", kind, "path", p, "status", "ok"));
+                    } catch (com.lakeon.service.exception.NotFoundException ignored) {
+                        results.add(Map.of("op", kind, "path", p, "status", "ok_absent"));
+                    }
+                }
+                case "append" -> {
+                    String p = reqStr(op, "path");
+                    byte[] data = decodeData(op.get("data_base64"));
+                    AgentFileEntity e = svc.append(tenantId, p, data);
+                    results.add(Map.of("op", kind, "path", p, "status", "ok", "etag", e.getEtag()));
                 }
                 case "rename" -> {
                     svc.rename(tenantId,

@@ -268,6 +268,24 @@ impl DbayClient {
         Ok(())
     }
 
+    /// POST /agentfs/batch — atomic multi-op transaction.
+    pub fn agentfs_batch(&self, ops: Vec<serde_json::Value>) -> Result<()> {
+        let body = serde_json::json!({ "ops": ops });
+        let resp = self
+            .http
+            .post(self.agentfs_url("/batch"))
+            .bearer_auth(&self.api_key)
+            .json(&body)
+            .send()
+            .context("agentfs batch http")?;
+        if !resp.status().is_success() {
+            let s = resp.status();
+            let t = resp.text().unwrap_or_default();
+            bail!("agentfs batch failed: {s} {t}");
+        }
+        Ok(())
+    }
+
     pub fn ingest(
         &self,
         content: &str,
