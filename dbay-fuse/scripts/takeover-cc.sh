@@ -68,9 +68,13 @@ fi
 # ── preflight ────────────────────────────────────────────────────────────
 info "preflight checks"
 if [[ $SKIP_PREFLIGHT -eq 0 ]]; then
-  if pgrep -if "claude" | grep -vi "$(basename "$0")" | grep -v "chrome" | grep -q .; then
-    ps aux | grep -iE "[c]laude" | head -5
-    die "Claude Code / claude CLI seems to be running — quit it first"
+  # Match argv[0] basename == "claude" exactly; skip helpers/children.
+  if ps -Ao pid=,command= | awk '{
+      argv0=$2; n=split(argv0,parts,"/"); base=parts[n];
+      rest=""; for(i=3;i<=NF;i++) rest=rest" "$i;
+      if (base == "claude" && rest !~ /chrome-native-host/) { print; found=1 }
+    } END { exit !found }'; then
+    die "Claude Code seems to be running — quit it first"
   fi
   mount | grep -q "on $MNT_DIR " || die "FUSE not mounted at $MNT_DIR (run dbay-fuse first)"
 fi

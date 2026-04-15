@@ -17,7 +17,11 @@ ok() { echo "✓ $*"; }
 [[ $# -eq 0 ]] && die "usage: $0 <TS> [paths...]   OR   $0 --tarball FILE"
 
 if [[ $SKIP_PREFLIGHT -eq 0 ]]; then
-  if pgrep -if "claude" | grep -vi "$(basename "$0")" | grep -v "chrome" | grep -q .; then
+  if ps -Ao pid=,command= | awk '{
+      argv0=$2; n=split(argv0,parts,"/"); base=parts[n];
+      rest=""; for(i=3;i<=NF;i++) rest=rest" "$i;
+      if (base == "claude" && rest !~ /chrome-native-host/) { print; found=1 }
+    } END { exit !found }'; then
     die "Claude Code running — quit it first"
   fi
 fi
