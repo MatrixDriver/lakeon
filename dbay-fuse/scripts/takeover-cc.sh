@@ -9,10 +9,11 @@
 #   ./takeover-cc.sh --list
 set -euo pipefail
 
-CC_DIR="$HOME/.claude"
-MNT_DIR="$HOME/.dbay/mnt/claude"
-STATE_DIR="$HOME/.dbay/state/claude"
-BACKUP_DIR="$HOME/.dbay/takeover-backups"
+: "${CC_DIR:=$HOME/.claude}"
+: "${MNT_DIR:=$HOME/.dbay/mnt/claude}"
+: "${STATE_DIR:=$HOME/.dbay/state/claude}"
+: "${BACKUP_DIR:=$HOME/.dbay/takeover-backups}"
+: "${SKIP_PREFLIGHT:=0}"
 
 # Candidate paths (dir or file). Already-taken-over items skipped automatically.
 ALL_PATHS=(
@@ -66,12 +67,13 @@ fi
 
 # ── preflight ────────────────────────────────────────────────────────────
 info "preflight checks"
-if pgrep -if "claude" | grep -vi "$(basename "$0")" | grep -v "chrome" | grep -q .; then
-  ps aux | grep -iE "[c]laude" | head -5
-  die "Claude Code / claude CLI seems to be running — quit it first"
+if [[ $SKIP_PREFLIGHT -eq 0 ]]; then
+  if pgrep -if "claude" | grep -vi "$(basename "$0")" | grep -v "chrome" | grep -q .; then
+    ps aux | grep -iE "[c]laude" | head -5
+    die "Claude Code / claude CLI seems to be running — quit it first"
+  fi
+  mount | grep -q "on $MNT_DIR " || die "FUSE not mounted at $MNT_DIR (run dbay-fuse first)"
 fi
-
-mount | grep -q "on $MNT_DIR " || die "FUSE not mounted at $MNT_DIR (run dbay-fuse first)"
 [[ -d "$STATE_DIR" ]] || die "state dir missing: $STATE_DIR"
 
 mkdir -p "$BACKUP_DIR"
@@ -83,16 +85,17 @@ if [[ $DRY -eq 1 ]]; then
   info "[dry-run] would tar -czf $TARBALL ~/.claude  (excluding caches)"
 else
   info "snapshot → $TARBALL"
+  CC_PARENT=$(dirname "$CC_DIR"); CC_BASE=$(basename "$CC_DIR")
   tar -czf "$TARBALL" \
-    --exclude='.claude/plugins/cache' \
-    --exclude='.claude/chrome' \
-    --exclude='.claude/image-cache' \
-    --exclude='.claude/paste-cache' \
-    --exclude='.claude/.search_cache' \
-    --exclude='.claude/statsig' \
-    --exclude='.claude/telemetry' \
-    --exclude='.claude/shell-snapshots' \
-    -C "$HOME" .claude
+    --exclude="$CC_BASE/plugins/cache" \
+    --exclude="$CC_BASE/chrome" \
+    --exclude="$CC_BASE/image-cache" \
+    --exclude="$CC_BASE/paste-cache" \
+    --exclude="$CC_BASE/.search_cache" \
+    --exclude="$CC_BASE/statsig" \
+    --exclude="$CC_BASE/telemetry" \
+    --exclude="$CC_BASE/shell-snapshots" \
+    -C "$CC_PARENT" "$CC_BASE"
   ok "snapshot size: $(du -h "$TARBALL" | cut -f1)"
 fi
 
@@ -153,7 +156,7 @@ done
 # ── summary ──────────────────────────────────────────────────────────────
 echo
 ok "done"
-[[ $DRY -eq 0 ]] && {
+if [[ $DRY -eq 0 ]]; then
   echo "Tarball: $TARBALL"
   echo "Rollback:  $(dirname "$0")/rollback-cc.sh $TS  [paths...]"
-}
+fi

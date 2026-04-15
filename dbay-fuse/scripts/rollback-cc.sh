@@ -7,7 +7,8 @@
 #   ./rollback-cc.sh --tarball FILE    nuke ~/.claude and extract tarball
 set -euo pipefail
 
-CC_DIR="$HOME/.claude"
+: "${CC_DIR:=$HOME/.claude}"
+: "${SKIP_PREFLIGHT:=0}"
 
 die() { echo "❌ $*" >&2; exit 1; }
 info() { echo "→ $*"; }
@@ -15,17 +16,19 @@ ok() { echo "✓ $*"; }
 
 [[ $# -eq 0 ]] && die "usage: $0 <TS> [paths...]   OR   $0 --tarball FILE"
 
-if pgrep -if "claude" | grep -vi "$(basename "$0")" | grep -v "chrome" | grep -q .; then
-  die "Claude Code running — quit it first"
+if [[ $SKIP_PREFLIGHT -eq 0 ]]; then
+  if pgrep -if "claude" | grep -vi "$(basename "$0")" | grep -v "chrome" | grep -q .; then
+    die "Claude Code running — quit it first"
+  fi
 fi
 
 if [[ "$1" == "--tarball" ]]; then
   tar="${2:?tarball path required}"
   [[ -f "$tar" ]] || die "tarball not found: $tar"
-  info "moving current ~/.claude aside → ~/.claude.rolled-$$"
+  info "moving current $CC_DIR aside → $CC_DIR.rolled-$$"
   mv "$CC_DIR" "$CC_DIR.rolled-$$"
   info "extracting $tar"
-  tar -xzf "$tar" -C "$HOME"
+  tar -xzf "$tar" -C "$(dirname "$CC_DIR")"
   ok "restored from tarball. Old state preserved at $CC_DIR.rolled-$$"
   exit 0
 fi
