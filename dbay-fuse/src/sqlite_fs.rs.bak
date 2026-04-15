@@ -1,0 +1,910 @@
+//! SQLite-backed FUSE filesystem.
+//!
+//! Source of truth is `~/.dbay/db/<agent>.sqlite`. Every file op reads/writes
+//! rows in the `files` table. Mutations also insert into `uplink_queue` which
+//! a background thread (see [`crate::uplink`]) drains to Lakebase.
+//!
+//! First-time bootstrap: if DB is empty and a passthrough state dir exists
+//! at `~/.dbay/state/<agent>/`, we import all files into SQLite before
+//! serving the mount.
+
+use anyhow::Result;
+#[allow(unused_imports)]
+use anyhow::Context;
+use fuser::{
+    FileAttr, FileType, Filesystem, MountOption, ReplyAttr, ReplyCreate, ReplyData,
+    ReplyDirectory, ReplyEmpty, ReplyEntry, ReplyOpen, ReplyWrite, Request, TimeOrNow,
+};
+use libc::{EIO, ENOENT, ENOTEMPTY};
+use rusqlite::{params, Connection, OptionalExtension};
+use std::collections::HashMap;
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use crate::uplink::Uplink;
+
+const TTL: Duration = Duration::from_secs(1);
+const ROOT_INO: u64 = 1;
+const CHUNK_SIZE: usize = 64 * 1024;
+
+fn assemble_chunks(conn: &Connection, path: &str) -> Vec<u8> {
+    let mut buf = Vec::new();
+    let mut stmt = match conn.prepare(
+        "SELECT data FROM file_chunks WHERE path = ?1 ORDER BY chunk_idx",
+    ) {
+        Ok(s) => s,
+        Err(_) => return buf,
+    };
+    let rows = stmt.query_map([path], |r| r.get::<_, Vec<u8>>(0));
+    if let Ok(it) = rows {
+        for row in it.flatten() {
+            buf.extend_from_slice(&row);
+        }
+    }
+    buf
+}
+
+fn write_chunks(conn: &Connection, path: &str, data: &[u8]) -> rusqlite::Result<()> {
+    // Compute new chunk count and existing chunk count;
+    // replace changed or new chunks, delete excess.
+    let new_n = if data.is_empty() { 0 } else { (data.len() + CHUNK_SIZE - 1) / CHUNK_SIZE };
+    let existing_n: i64 = conn.query_row(
+        "SELECT COALESCE(MAX(chunk_idx) + 1, 0) FROM file_chunks WHERE path = ?1",
+        [path],
+        |r| r.get(0),
+    ).unwrap_or(0);
+    for i in 0..new_n {
+        let start = i * CHUNK_SIZE;
+        let end = (start + CHUNK_SIZE).min(data.len());
+        let chunk = &data[start..end];
+        // Fetch existing chunk for diff
+        let existing: Option<Vec<u8>> = conn.query_row(
+            "SELECT data FROM file_chunks WHERE path = ?1 AND chunk_idx = ?2",
+            params![path, i as i64],
+            |r| r.get(0),
+        ).optional()?;
+        if existing.as_deref() == Some(chunk) {
+            continue; // unchanged
+        }
+        conn.execute(
+            "INSERT INTO file_chunks(path, chunk_idx, data) VALUES(?1, ?2, ?3)
+             ON CONFLICT(path, chunk_idx) DO UPDATE SET data = excluded.data",
+            params![path, i as i64, chunk],
+        )?;
+    }
+    if existing_n as usize > new_n {
+        conn.execute(
+            "DELETE FROM file_chunks WHERE path = ?1 AND chunk_idx >= ?2",
+            params![path, new_n as i64],
+        )?;
+    }
+    Ok(())
+}
+
+fn delete_chunks(conn: &Connection, path: &str) {
+    let _ = conn.execute("DELETE FROM file_chunks WHERE path = ?1", [path]);
+}
+
+/// #2 — Virtual file composer.
+/// Map FUSE path → `memory_items.source_path` (what we stored on ingest).
+fn virtual_source(path: &str) -> Option<&'static str> {
+    match path {
+        "/CLAUDE.md" => Some("CLAUDE.md"),
+        _ => None,
+    }
+}
+
+/// Compose a virtual file from `memory_items` rows. Returns None when the
+/// table has no rows for this source (→ caller falls back to chunks).
+fn compose_virtual(conn: &Connection, path: &str) -> Option<Vec<u8>> {
+    let source = virtual_source(path)?;
+    let mut stmt = conn.prepare(
+        "SELECT content FROM memory_items WHERE source_path = ?1 ORDER BY id",
+    ).ok()?;
+    let rows = stmt.query_map([source], |r| r.get::<_, String>(0)).ok()?;
+    let items: Vec<String> = rows.flatten().collect();
+    if items.is_empty() { return None; }
+    let joined = items.join("\n\n");
+    Some(joined.into_bytes())
+}
+
+/// #3 — Cache-miss downlink (gated behind `DBAY_FETCH_ON_MISS=1` env flag).
+/// Queries DBay with the file's basename as a semantic recall query and, if
+/// anything comes back, inserts rows into `memory_items` so subsequent reads
+/// can compose a virtual file. Does not populate `file_chunks`.
+fn try_downlink_on_miss(conn: &Connection, path: &str) -> bool {
+    if std::env::var("DBAY_FETCH_ON_MISS").ok().as_deref() != Some("1") {
+        return false;
+    }
+    let Some(source) = virtual_source(path) else { return false; };
+    let client = match crate::dbay_api::DbayClient::from_env() {
+        Ok(Some(c)) => c,
+        _ => return false,
+    };
+    let query = source;
+    let resp = match client.recall(query, 20) {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!(?e, %path, "downlink recall failed");
+            return false;
+        }
+    };
+    if resp.memories.is_empty() { return false; }
+    let now = now_ns();
+    for m in resp.memories {
+        let _ = conn.execute(
+            "INSERT INTO memory_items(source_path, anchor, type, scope, origin, content, updated_ns)
+             VALUES(?1, NULL, ?2, 'global', 'system_authored', ?3, ?4)",
+            params![
+                source,
+                m.memory_type.clone().unwrap_or_else(|| "factual".into()),
+                m.content,
+                now
+            ],
+        );
+    }
+    true
+}
+
+fn rename_chunks(conn: &Connection, old: &str, new: &str) -> rusqlite::Result<()> {
+    conn.execute(
+        "UPDATE file_chunks SET path = ?1 WHERE path = ?2",
+        params![new, old],
+    )?;
+    Ok(())
+}
+
+pub fn mount(agent: &str, mount_point: &Path, db_path: &Path, import_from: Option<&Path>) -> Result<()> {
+    if let Some(parent) = db_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let conn = Connection::open(db_path)?;
+    init_schema(&conn)?;
+
+    // Bootstrap from passthrough state dir if DB is empty
+    let row_count: i64 = conn.query_row("SELECT COUNT(*) FROM files", [], |r| r.get(0))?;
+    if row_count <= 1 {
+        if let Some(src) = import_from {
+            if src.exists() {
+                tracing::info!(?src, "bootstrapping SQLite from state dir");
+                import_tree(&conn, src)?;
+            }
+        }
+    }
+
+    let uplink = Uplink::start(db_path.to_path_buf())?;
+
+    let fs = SqliteFS::new(conn, uplink);
+    let opts = vec![
+        MountOption::FSName(format!("dbay-{agent}")),
+        MountOption::AutoUnmount,
+        MountOption::DefaultPermissions,
+    ];
+    tracing::info!(?mount_point, ?db_path, "sqlite fuse mount starting");
+    fuser::mount2(fs, mount_point, &opts)?;
+    Ok(())
+}
+
+fn now_ns() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos() as i64)
+        .unwrap_or(0)
+}
+
+fn init_schema(conn: &Connection) -> Result<()> {
+    conn.execute_batch(
+        r#"
+        PRAGMA journal_mode = WAL;
+        PRAGMA synchronous = NORMAL;
+
+        CREATE TABLE IF NOT EXISTS files (
+          path      TEXT PRIMARY KEY,
+          parent    TEXT,
+          name      TEXT NOT NULL,
+          kind      TEXT NOT NULL,   -- 'dir' | 'file'
+          mode      INTEGER NOT NULL,
+          uid       INTEGER NOT NULL,
+          gid       INTEGER NOT NULL,
+          size      INTEGER NOT NULL,
+          mtime_ns  INTEGER NOT NULL,
+          atime_ns  INTEGER NOT NULL,
+          ctime_ns  INTEGER NOT NULL,
+          data      BLOB
+        );
+        CREATE INDEX IF NOT EXISTS files_parent ON files(parent);
+
+        CREATE TABLE IF NOT EXISTS uplink_queue (
+          id           INTEGER PRIMARY KEY AUTOINCREMENT,
+          op           TEXT NOT NULL,
+          path         TEXT NOT NULL,
+          new_path     TEXT,
+          payload      BLOB,
+          enqueued_ns  INTEGER NOT NULL,
+          attempts     INTEGER NOT NULL DEFAULT 0,
+          status       TEXT NOT NULL DEFAULT 'pending'
+        );
+        CREATE INDEX IF NOT EXISTS uplink_status ON uplink_queue(status, id);
+
+        CREATE TABLE IF NOT EXISTS file_chunks (
+          path       TEXT NOT NULL,
+          chunk_idx  INTEGER NOT NULL,
+          data       BLOB NOT NULL,
+          PRIMARY KEY (path, chunk_idx)
+        );
+
+        -- memory_items: schema for virtual CLAUDE.md composition
+        -- (scaffold for adapter work; not yet fully wired)
+        CREATE TABLE IF NOT EXISTS memory_items (
+          id           INTEGER PRIMARY KEY AUTOINCREMENT,
+          source_path  TEXT NOT NULL,
+          anchor       TEXT,
+          type         TEXT,
+          scope        TEXT,
+          origin       TEXT,
+          content      TEXT NOT NULL,
+          updated_ns   INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS memory_items_src ON memory_items(source_path);
+        "#,
+    )?;
+    // Ensure root
+    let has_root: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM files WHERE path = '/'",
+        [],
+        |r| r.get(0),
+    )?;
+    if has_root == 0 {
+        let now = now_ns();
+        conn.execute(
+            "INSERT INTO files(path, parent, name, kind, mode, uid, gid, size, mtime_ns, atime_ns, ctime_ns, data)
+             VALUES('/', NULL, '', 'dir', ?1, ?2, ?3, 0, ?4, ?4, ?4, NULL)",
+            params![0o755u32, unsafe { libc::getuid() } as i64, unsafe { libc::getgid() } as i64, now],
+        )?;
+    }
+    Ok(())
+}
+
+fn import_tree(conn: &Connection, src: &Path) -> Result<()> {
+    let uid = unsafe { libc::getuid() } as i64;
+    let gid = unsafe { libc::getgid() } as i64;
+    let now = now_ns();
+    let mut count = 0u64;
+    import_recurse(conn, src, Path::new("/"), uid, gid, now, &mut count)?;
+    tracing::info!(imported = count, "state import complete");
+    Ok(())
+}
+
+fn import_recurse(
+    conn: &Connection,
+    fs_src: &Path,
+    virt_dir: &Path,
+    uid: i64,
+    gid: i64,
+    now: i64,
+    count: &mut u64,
+) -> Result<()> {
+    let entries = std::fs::read_dir(fs_src)?;
+    for e in entries.flatten() {
+        let meta = match e.metadata() {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        let name = e.file_name();
+        let name_str = name.to_string_lossy().into_owned();
+        let virt_path = join_virt(virt_dir, &name_str);
+        let parent = virt_dir.to_string_lossy().into_owned();
+        let mode = mode_from_meta(&meta);
+        if meta.is_dir() {
+            conn.execute(
+                "INSERT OR REPLACE INTO files(path, parent, name, kind, mode, uid, gid, size, mtime_ns, atime_ns, ctime_ns, data)
+                 VALUES(?1, ?2, ?3, 'dir', ?4, ?5, ?6, 0, ?7, ?7, ?7, NULL)",
+                params![virt_path, parent, name_str, mode, uid, gid, now],
+            )?;
+            *count += 1;
+            import_recurse(conn, &e.path(), Path::new(&virt_path), uid, gid, now, count)?;
+        } else if meta.is_file() {
+            let data = std::fs::read(e.path()).unwrap_or_default();
+            let size = data.len() as i64;
+            conn.execute(
+                "INSERT OR REPLACE INTO files(path, parent, name, kind, mode, uid, gid, size, mtime_ns, atime_ns, ctime_ns, data)
+                 VALUES(?1, ?2, ?3, 'file', ?4, ?5, ?6, ?7, ?8, ?8, ?8, NULL)",
+                params![virt_path, parent, name_str, mode, uid, gid, size, now],
+            )?;
+            write_chunks(conn, &virt_path, &data).ok();
+            *count += 1;
+        }
+    }
+    Ok(())
+}
+
+fn mode_from_meta(meta: &std::fs::Metadata) -> u32 {
+    use std::os::unix::fs::PermissionsExt;
+    meta.permissions().mode() & 0o7777
+}
+
+fn join_virt(dir: &Path, name: &str) -> String {
+    let s = dir.to_string_lossy();
+    if s == "/" {
+        format!("/{name}")
+    } else {
+        format!("{s}/{name}")
+    }
+}
+
+struct SqliteFS {
+    conn: Connection,
+    uplink: Uplink,
+    inodes: HashMap<u64, String>,   // ino -> virt path
+    paths: HashMap<String, u64>,    // virt path -> ino
+    next_ino: u64,
+    /// file handles → (virt path, buffered data)  — simplistic; full read/write on close
+    files: HashMap<u64, OpenFile>,
+    next_fh: u64,
+}
+
+struct OpenFile {
+    path: String,
+    buf: Vec<u8>,
+    dirty: bool,
+}
+
+impl SqliteFS {
+    fn new(conn: Connection, uplink: Uplink) -> Self {
+        let mut inodes = HashMap::new();
+        let mut paths = HashMap::new();
+        inodes.insert(ROOT_INO, "/".to_string());
+        paths.insert("/".to_string(), ROOT_INO);
+        Self {
+            conn,
+            uplink,
+            inodes,
+            paths,
+            next_ino: 2,
+            files: HashMap::new(),
+            next_fh: 1,
+        }
+    }
+
+    fn intern(&mut self, path: &str) -> u64 {
+        if let Some(&i) = self.paths.get(path) {
+            return i;
+        }
+        let i = self.next_ino;
+        self.next_ino += 1;
+        self.inodes.insert(i, path.to_string());
+        self.paths.insert(path.to_string(), i);
+        i
+    }
+
+    fn virt_path(&self, ino: u64) -> Option<String> {
+        self.inodes.get(&ino).cloned()
+    }
+
+    fn child_path(parent: &str, name: &str) -> String {
+        if parent == "/" {
+            format!("/{name}")
+        } else {
+            format!("{parent}/{name}")
+        }
+    }
+
+    fn load_attr(&self, ino: u64, path: &str) -> Option<FileAttr> {
+        self.conn
+            .query_row(
+                "SELECT kind, mode, uid, gid, size, mtime_ns, atime_ns, ctime_ns FROM files WHERE path = ?1",
+                params![path],
+                |r| {
+                    let kind: String = r.get(0)?;
+                    let mode: u32 = r.get(1)?;
+                    let uid: i64 = r.get(2)?;
+                    let gid: i64 = r.get(3)?;
+                    let size: i64 = r.get(4)?;
+                    let mtime_ns: i64 = r.get(5)?;
+                    let atime_ns: i64 = r.get(6)?;
+                    let ctime_ns: i64 = r.get(7)?;
+                    let ft = if kind == "dir" { FileType::Directory } else { FileType::RegularFile };
+                    let atime = ns_to_systime(atime_ns);
+                    let mtime = ns_to_systime(mtime_ns);
+                    let ctime = ns_to_systime(ctime_ns);
+                    Ok(FileAttr {
+                        ino,
+                        size: size as u64,
+                        blocks: ((size as u64) + 511) / 512,
+                        atime,
+                        mtime,
+                        ctime,
+                        crtime: ctime,
+                        kind: ft,
+                        perm: mode as u16,
+                        nlink: 1,
+                        uid: uid as u32,
+                        gid: gid as u32,
+                        rdev: 0,
+                        blksize: 4096,
+                        flags: 0,
+                    })
+                },
+            )
+            .optional()
+            .unwrap_or(None)
+    }
+
+    fn enqueue(&self, op: &str, path: &str, new_path: Option<&str>, payload: Option<&[u8]>) {
+        let now = now_ns();
+        let _ = self.conn.execute(
+            "INSERT INTO uplink_queue(op, path, new_path, payload, enqueued_ns, status)
+             VALUES(?1, ?2, ?3, ?4, ?5, 'pending')",
+            params![op, path, new_path, payload, now],
+        );
+        self.uplink.wake();
+    }
+}
+
+fn ns_to_systime(ns: i64) -> SystemTime {
+    if ns <= 0 { UNIX_EPOCH } else { UNIX_EPOCH + Duration::from_nanos(ns as u64) }
+}
+
+impl Filesystem for SqliteFS {
+    fn lookup(&mut self, _req: &Request, parent: u64, name: &OsStr, reply: ReplyEntry) {
+        let Some(parent_path) = self.virt_path(parent) else {
+            return reply.error(ENOENT);
+        };
+        let name_s = name.to_string_lossy();
+        let child = Self::child_path(&parent_path, &name_s);
+        let attr = match self.load_attr(0, &child) {
+            Some(a) => a,
+            None => {
+                // #3 — cache miss; try downlink if enabled.
+                if try_downlink_on_miss(&self.conn, &child) {
+                    let now = now_ns();
+                    let _ = self.conn.execute(
+                        "INSERT OR IGNORE INTO files(path, parent, name, kind, mode, uid, gid, size, mtime_ns, atime_ns, ctime_ns, data)
+                         VALUES(?1, ?2, ?3, 'file', 0o644, 0, 0, 0, ?4, ?4, ?4, NULL)",
+                        params![child, parent_path, name_s.as_ref(), now],
+                    );
+                    match self.load_attr(0, &child) {
+                        Some(a) => a,
+                        None => return reply.error(ENOENT),
+                    }
+                } else {
+                    return reply.error(ENOENT);
+                }
+            }
+        };
+        let ino = self.intern(&child);
+        let mut a = attr;
+        a.ino = ino;
+        reply.entry(&TTL, &a, 0);
+    }
+
+    fn getattr(&mut self, _req: &Request, ino: u64, reply: ReplyAttr) {
+        let Some(path) = self.virt_path(ino) else {
+            return reply.error(ENOENT);
+        };
+        let Some(attr) = self.load_attr(ino, &path) else {
+            return reply.error(ENOENT);
+        };
+        reply.attr(&TTL, &attr);
+    }
+
+    fn setattr(
+        &mut self,
+        _req: &Request,
+        ino: u64,
+        mode: Option<u32>,
+        _uid: Option<u32>,
+        _gid: Option<u32>,
+        size: Option<u64>,
+        _atime: Option<TimeOrNow>,
+        _mtime: Option<TimeOrNow>,
+        _ctime: Option<SystemTime>,
+        _fh: Option<u64>,
+        _crtime: Option<SystemTime>,
+        _chgtime: Option<SystemTime>,
+        _bkuptime: Option<SystemTime>,
+        _flags: Option<u32>,
+        reply: ReplyAttr,
+    ) {
+        let Some(path) = self.virt_path(ino) else {
+            return reply.error(ENOENT);
+        };
+        let now = now_ns();
+        if let Some(m) = mode {
+            let _ = self.conn.execute(
+                "UPDATE files SET mode = ?1, ctime_ns = ?2 WHERE path = ?3",
+                params![m & 0o7777, now, path],
+            );
+        }
+        if let Some(new_size) = size {
+            // Truncate: resize chunked data and clear legacy blob
+            let mut data = assemble_chunks(&self.conn, &path);
+            if data.is_empty() {
+                // fall back to legacy blob
+                if let Ok(Some(legacy)) = self
+                    .conn
+                    .query_row(
+                        "SELECT data FROM files WHERE path = ?1",
+                        params![path],
+                        |r| r.get::<_, Option<Vec<u8>>>(0),
+                    )
+                    .optional()
+                    .map(|o| o.flatten())
+                    .map(Some)
+                {
+                    if let Some(b) = legacy { data = b; }
+                }
+            }
+            data.resize(new_size as usize, 0);
+            let _ = write_chunks(&self.conn, &path, &data);
+            let _ = self.conn.execute(
+                "UPDATE files SET data = NULL, size = ?1, mtime_ns = ?2, ctime_ns = ?2 WHERE path = ?3",
+                params![new_size as i64, now, path],
+            );
+            self.enqueue("put", &path, None, None);
+        }
+        if let Some(attr) = self.load_attr(ino, &path) {
+            reply.attr(&TTL, &attr);
+        } else {
+            reply.error(EIO);
+        }
+    }
+
+    fn readdir(
+        &mut self,
+        _req: &Request,
+        ino: u64,
+        _fh: u64,
+        offset: i64,
+        mut reply: ReplyDirectory,
+    ) {
+        let Some(path) = self.virt_path(ino) else {
+            return reply.error(ENOENT);
+        };
+        let mut stmt = match self
+            .conn
+            .prepare("SELECT path, name, kind FROM files WHERE parent = ?1 ORDER BY name")
+        {
+            Ok(s) => s,
+            Err(_) => return reply.error(EIO),
+        };
+        let rows = stmt
+            .query_map(params![path], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?))
+            })
+            .and_then(|it| it.collect::<Result<Vec<_>, _>>());
+        let rows = match rows {
+            Ok(r) => r,
+            Err(_) => return reply.error(EIO),
+        };
+        drop(stmt);
+
+        let mut all: Vec<(String, FileType, u64)> = Vec::new();
+        all.push((".".into(), FileType::Directory, ino));
+        all.push(("..".into(), FileType::Directory, ino));
+        for (child_path, name, kind) in rows {
+            let ft = if kind == "dir" { FileType::Directory } else { FileType::RegularFile };
+            let cino = self.intern(&child_path);
+            all.push((name, ft, cino));
+        }
+        for (i, (name, kind, cino)) in all.into_iter().enumerate().skip(offset as usize) {
+            if reply.add(cino, (i + 1) as i64, kind, name) {
+                break;
+            }
+        }
+        reply.ok();
+    }
+
+    fn open(&mut self, _req: &Request, ino: u64, _flags: i32, reply: ReplyOpen) {
+        let Some(path) = self.virt_path(ino) else {
+            return reply.error(ENOENT);
+        };
+        // #2 — try virtual composition from memory_items first.
+        let mut buf = compose_virtual(&self.conn, &path).unwrap_or_default();
+        // Prefer chunked storage; fall back to legacy files.data column.
+        if buf.is_empty() {
+            buf = assemble_chunks(&self.conn, &path);
+        }
+        if buf.is_empty() {
+            if let Ok(Some(legacy)) = self
+                .conn
+                .query_row(
+                    "SELECT data FROM files WHERE path = ?1 AND kind = 'file'",
+                    params![path],
+                    |r| r.get::<_, Option<Vec<u8>>>(0),
+                )
+                .optional()
+                .map(|o| o.flatten())
+                .map(Some)
+            {
+                if let Some(legacy) = legacy {
+                    buf = legacy;
+                }
+            }
+        }
+        let fh = self.next_fh;
+        self.next_fh += 1;
+        self.files.insert(fh, OpenFile { path, buf, dirty: false });
+        reply.opened(fh, 0);
+    }
+
+    fn read(
+        &mut self,
+        _req: &Request,
+        _ino: u64,
+        fh: u64,
+        offset: i64,
+        size: u32,
+        _flags: i32,
+        _lock_owner: Option<u64>,
+        reply: ReplyData,
+    ) {
+        let Some(f) = self.files.get(&fh) else {
+            return reply.error(EIO);
+        };
+        let start = offset.max(0) as usize;
+        if start >= f.buf.len() {
+            return reply.data(&[]);
+        }
+        let end = (start + size as usize).min(f.buf.len());
+        reply.data(&f.buf[start..end]);
+    }
+
+    fn write(
+        &mut self,
+        _req: &Request,
+        _ino: u64,
+        fh: u64,
+        offset: i64,
+        data: &[u8],
+        _write_flags: u32,
+        _flags: i32,
+        _lock_owner: Option<u64>,
+        reply: ReplyWrite,
+    ) {
+        let Some(f) = self.files.get_mut(&fh) else {
+            return reply.error(EIO);
+        };
+        let start = offset.max(0) as usize;
+        let need = start + data.len();
+        if need > f.buf.len() {
+            f.buf.resize(need, 0);
+        }
+        f.buf[start..need].copy_from_slice(data);
+        f.dirty = true;
+        reply.written(data.len() as u32);
+    }
+
+    fn release(
+        &mut self,
+        _req: &Request,
+        _ino: u64,
+        fh: u64,
+        _flags: i32,
+        _lock_owner: Option<u64>,
+        _flush: bool,
+        reply: ReplyEmpty,
+    ) {
+        if let Some(f) = self.files.remove(&fh) {
+            if f.dirty {
+                let now = now_ns();
+                // chunked write (only changed chunks) + clear legacy blob
+                let _ = write_chunks(&self.conn, &f.path, &f.buf);
+                let _ = self.conn.execute(
+                    "UPDATE files SET data = NULL, size = ?1, mtime_ns = ?2, ctime_ns = ?2 WHERE path = ?3",
+                    params![f.buf.len() as i64, now, f.path],
+                );
+                self.enqueue("put", &f.path, None, None);
+            }
+        }
+        reply.ok();
+    }
+
+    fn create(
+        &mut self,
+        _req: &Request,
+        parent: u64,
+        name: &OsStr,
+        mode: u32,
+        _umask: u32,
+        _flags: i32,
+        reply: ReplyCreate,
+    ) {
+        let Some(parent_path) = self.virt_path(parent) else {
+            return reply.error(ENOENT);
+        };
+        let name_s = name.to_string_lossy().into_owned();
+        let child = Self::child_path(&parent_path, &name_s);
+        let now = now_ns();
+        let uid = unsafe { libc::getuid() } as i64;
+        let gid = unsafe { libc::getgid() } as i64;
+        if self
+            .conn
+            .execute(
+                "INSERT INTO files(path, parent, name, kind, mode, uid, gid, size, mtime_ns, atime_ns, ctime_ns, data)
+                 VALUES(?1, ?2, ?3, 'file', ?4, ?5, ?6, 0, ?7, ?7, ?7, NULL)",
+                params![child, parent_path, name_s, mode & 0o7777, uid, gid, now],
+            )
+            .is_err()
+        {
+            return reply.error(EIO);
+        }
+        let ino = self.intern(&child);
+        let Some(attr) = self.load_attr(ino, &child) else {
+            return reply.error(EIO);
+        };
+        let fh = self.next_fh;
+        self.next_fh += 1;
+        self.files.insert(fh, OpenFile { path: child.clone(), buf: Vec::new(), dirty: false });
+        // no uplink until first write
+        reply.created(&TTL, &attr, 0, fh, 0);
+    }
+
+    fn mkdir(
+        &mut self,
+        _req: &Request,
+        parent: u64,
+        name: &OsStr,
+        mode: u32,
+        _umask: u32,
+        reply: ReplyEntry,
+    ) {
+        let Some(parent_path) = self.virt_path(parent) else {
+            return reply.error(ENOENT);
+        };
+        let name_s = name.to_string_lossy().into_owned();
+        let child = Self::child_path(&parent_path, &name_s);
+        let now = now_ns();
+        let uid = unsafe { libc::getuid() } as i64;
+        let gid = unsafe { libc::getgid() } as i64;
+        if self
+            .conn
+            .execute(
+                "INSERT INTO files(path, parent, name, kind, mode, uid, gid, size, mtime_ns, atime_ns, ctime_ns, data)
+                 VALUES(?1, ?2, ?3, 'dir', ?4, ?5, ?6, 0, ?7, ?7, ?7, NULL)",
+                params![child, parent_path, name_s, mode & 0o7777, uid, gid, now],
+            )
+            .is_err()
+        {
+            return reply.error(EIO);
+        }
+        let ino = self.intern(&child);
+        let Some(attr) = self.load_attr(ino, &child) else {
+            return reply.error(EIO);
+        };
+        self.enqueue("mkdir", &child, None, None);
+        reply.entry(&TTL, &attr, 0);
+    }
+
+    fn unlink(&mut self, _req: &Request, parent: u64, name: &OsStr, reply: ReplyEmpty) {
+        let Some(parent_path) = self.virt_path(parent) else {
+            return reply.error(ENOENT);
+        };
+        let child = Self::child_path(&parent_path, &name.to_string_lossy());
+        let n = self
+            .conn
+            .execute("DELETE FROM files WHERE path = ?1 AND kind = 'file'", params![child])
+            .unwrap_or(0);
+        if n == 0 {
+            return reply.error(ENOENT);
+        }
+        delete_chunks(&self.conn, &child);
+        self.paths.remove(&child);
+        self.enqueue("delete", &child, None, None);
+        reply.ok();
+    }
+
+    fn rmdir(&mut self, _req: &Request, parent: u64, name: &OsStr, reply: ReplyEmpty) {
+        let Some(parent_path) = self.virt_path(parent) else {
+            return reply.error(ENOENT);
+        };
+        let child = Self::child_path(&parent_path, &name.to_string_lossy());
+        let child_count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM files WHERE parent = ?1", params![child], |r| r.get(0))
+            .unwrap_or(0);
+        if child_count > 0 {
+            return reply.error(ENOTEMPTY);
+        }
+        let n = self
+            .conn
+            .execute("DELETE FROM files WHERE path = ?1 AND kind = 'dir'", params![child])
+            .unwrap_or(0);
+        if n == 0 {
+            return reply.error(ENOENT);
+        }
+        self.paths.remove(&child);
+        self.enqueue("rmdir", &child, None, None);
+        reply.ok();
+    }
+
+    fn rename(
+        &mut self,
+        _req: &Request,
+        parent: u64,
+        name: &OsStr,
+        newparent: u64,
+        newname: &OsStr,
+        _flags: u32,
+        reply: ReplyEmpty,
+    ) {
+        let Some(parent_path) = self.virt_path(parent) else {
+            return reply.error(ENOENT);
+        };
+        let Some(newparent_path) = self.virt_path(newparent) else {
+            return reply.error(ENOENT);
+        };
+        let old = Self::child_path(&parent_path, &name.to_string_lossy());
+        let new = Self::child_path(&newparent_path, &newname.to_string_lossy());
+        // Rename row + all descendants (path prefix update)
+        let tx = match self.conn.transaction() {
+            Ok(t) => t,
+            Err(_) => return reply.error(EIO),
+        };
+        if tx
+            .execute(
+                "UPDATE files SET path = ?1, parent = ?2, name = ?3 WHERE path = ?4",
+                params![new, newparent_path, newname.to_string_lossy(), old],
+            )
+            .is_err()
+        {
+            let _ = tx.rollback();
+            return reply.error(EIO);
+        }
+        // Descendants: path starting with old + '/'
+        let old_prefix = format!("{old}/");
+        let new_prefix = format!("{new}/");
+        if tx
+            .execute(
+                "UPDATE files SET path = ?1 || substr(path, ?2), parent = ?1 || substr(parent, ?2)
+                 WHERE path LIKE ?3 || '%'",
+                params![new_prefix, old_prefix.len() as i64 + 1, old_prefix],
+            )
+            .is_err()
+        {
+            let _ = tx.rollback();
+            return reply.error(EIO);
+        }
+        if tx.commit().is_err() {
+            return reply.error(EIO);
+        }
+        // Move chunks and descendants
+        let _ = rename_chunks(&self.conn, &old, &new);
+        let _ = self.conn.execute(
+            "UPDATE file_chunks SET path = ?1 || substr(path, ?2)
+             WHERE path LIKE ?3 || '%'",
+            params![new_prefix, old_prefix.len() as i64 + 1, old_prefix],
+        );
+        // Invalidate inode cache entries for moved paths
+        self.paths.retain(|p, _| !p.starts_with(&old_prefix) && p != &old);
+        self.enqueue("rename", &old, Some(&new), None);
+        reply.ok();
+    }
+
+    fn fsync(
+        &mut self,
+        _req: &Request,
+        _ino: u64,
+        _fh: u64,
+        _datasync: bool,
+        reply: ReplyEmpty,
+    ) {
+        reply.ok();
+    }
+}
+
+/// Helper: invoke sanity migration at daemon start.
+pub fn pre_mount_import(db_path: &Path, state_dir: &Path) -> Result<()> {
+    if let Some(parent) = db_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let conn = Connection::open(db_path).context("open sqlite")?;
+    init_schema(&conn)?;
+    let count: i64 = conn.query_row("SELECT COUNT(*) FROM files", [], |r| r.get(0))?;
+    if count <= 1 && state_dir.exists() {
+        tracing::info!(?state_dir, "importing state dir into sqlite");
+        import_tree(&conn, state_dir)?;
+    }
+    Ok(())
+}

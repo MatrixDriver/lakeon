@@ -1,0 +1,23 @@
+[package]
+name = "dbay-fuse"
+version = "0.1.0"
+edition = "2021"
+description = "DBay FUSE filesystem — takes over agent workspace dirs and backs them with Lakebase"
+authors = ["Jacky"]
+
+[[bin]]
+name = "dbay-fuse"
+path = "src/main.rs"
+
+[dependencies]
+fuser = "0.14"
+libc = "0.2"
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+base64 = "0.22"

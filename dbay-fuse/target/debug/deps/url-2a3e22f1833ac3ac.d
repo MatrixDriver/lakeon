@@ -1,0 +1,13 @@
+/Users/jacky/code/lakeon/dbay-fuse/target/debug/deps/url-2a3e22f1833ac3ac.d: /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/lib.rs /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/host.rs /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/origin.rs /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/parser.rs /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/path_segments.rs /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/slicing.rs /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/quirks.rs
+
+/Users/jacky/code/lakeon/dbay-fuse/target/debug/deps/liburl-2a3e22f1833ac3ac.rlib: /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/lib.rs /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/host.rs /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/origin.rs /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/parser.rs /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/path_segments.rs /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/slicing.rs /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/quirks.rs
+
+/Users/jacky/code/lakeon/dbay-fuse/target/debug/deps/liburl-2a3e22f1833ac3ac.rmeta: /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/lib.rs /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/host.rs /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/origin.rs /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/parser.rs /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/path_segments.rs /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/slicing.rs /Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/quirks.rs
+
+/Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/lib.rs:
+/Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/host.rs:
+/Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/origin.rs:
+/Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/parser.rs:
+/Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/path_segments.rs:
+/Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/slicing.rs:
+/Users/jacky/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/url-2.5.8/src/quirks.rs:

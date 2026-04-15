@@ -1,0 +1,367 @@
+openapi: 3.0.3
+info:
+  title: DBay AgentFS API
+  version: 0.2.0
+  description: |
+    Storage for AI agent working directories. One store per user (identified
+    by the caller's API key). Presents a POSIX-like path hierarchy.
+
+    AgentFS stores raw bytes + properties; it does NOT run embeddings, BM25,
+    or any semantic analysis. Semantic Memory is a separate layer derived
+    asynchronously from AgentFS changes.
+
+    Design principles (v0.2 after red-blue review):
+    - Paths go in request body (not URL), avoiding URL length / encoding issues
+    - GET endpoints use base64url query for cache-friendly reads
+    - Server-side `append` endpoint for concurrent writers (e.g. multiple
+      CC windows appending the same session.jsonl)
+    - Batch endpoint for atomic multi-file writes
+
+    Design goals:
+    - p95 write  ≤ 100ms (Postgres upsert + network RTT)
+    - p95 read   ≤ 100ms
+    - No embedding in the hot path
+
+servers:
+  - url: https://api.dbay.cloud:8443/api/v1
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ---------- READ PATH (GET for cache-friendliness) ----------
+
+  /agentfs/files:
+    get:
+      summary: Read file content
+      description: |
+        `path` is base64url-encoded to avoid URL path issues. Returns raw bytes.
+        Supports `If-None-Match` for cache revalidation.
+      parameters:
+        - in: query
+          name: path
+          required: true
+          schema: { type: string }
+          description: base64url-encoded virtual path (e.g. `L0NMQVVERS5tZA` for `/CLAUDE.md`)
+        - in: header
+          name: If-None-Match
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag: { schema: { type: string } }
+            X-AgentFS-Size: { schema: { type: integer, format: int64 } }
+            X-AgentFS-Mtime: { schema: { type: integer, format: int64 } }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "304": { description: Not Modified }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /agentfs/files/head:
+    get:
+      summary: Stat a file (attrs only, no body)
+      parameters:
+        - in: query
+          name: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Entry" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /agentfs/list:
+    get:
+      summary: List entries under a directory prefix
+      parameters:
+        - in: query
+          name: prefix
+          schema: { type: string, default: "" }
+          description: base64url-encoded directory prefix (empty → root)
+        - in: query
+          name: recursive
+          schema: { type: boolean, default: false }
+        - in: query
+          name: cursor
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 200, maximum: 1000 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items: { $ref: "#/components/schemas/Entry" }
+                  next_cursor: { type: string, nullable: true }
+
+  /agentfs/stats:
+    get:
+      summary: Store-wide counters (file count, bytes, last-write)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  file_count: { type: integer }
+                  total_bytes: { type: integer }
+                  last_write_ns: { type: integer, format: int64 }
+
+  # ---------- WRITE PATH (POST, path in body) ----------
+
+  /agentfs/files/put:
+    post:
+      summary: Create or overwrite file atomically
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path, data_base64]
+              properties:
+                path:        { type: string }
+                data_base64: { type: string, description: base64-encoded file bytes }
+                properties:  { type: object, additionalProperties: true, nullable: true }
+                if_match:    { type: string, nullable: true }
+                if_none_match: { type: string, nullable: true, description: "Set to '*' to require create-only" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  etag: { type: string }
+                  created: { type: boolean }
+        "412": { description: Precondition failed }
+
+  /agentfs/files/append:
+    post:
+      summary: Server-side append (concurrency-safe)
+      description: |
+        Appends `data_base64` to the file atomically on the server. Multiple
+        writers (e.g. two CC windows) can call this without ETag coordination.
+        Idempotency via optional `client_seq` header.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path, data_base64]
+              properties:
+                path:        { type: string }
+                data_base64: { type: string }
+                client_seq:  { type: string, nullable: true }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  new_size: { type: integer, format: int64 }
+                  etag:     { type: string }
+
+  /agentfs/files/delete:
+    post:
+      summary: Delete file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              properties:
+                path:     { type: string }
+                if_match: { type: string, nullable: true }
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /agentfs/files/properties:
+    post:
+      summary: Merge-update properties on a file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path, properties]
+              properties:
+                path:       { type: string }
+                properties: { type: object, additionalProperties: true }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+
+  /agentfs/mkdir:
+    post:
+      summary: Create a directory (idempotent)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              properties:
+                path:       { type: string }
+                properties: { type: object, additionalProperties: true, nullable: true }
+      responses:
+        "201": { description: Created }
+        "200": { description: Already existed }
+
+  /agentfs/rename:
+    post:
+      summary: Atomic rename
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from, to]
+              properties:
+                from:      { type: string }
+                to:        { type: string }
+                overwrite: { type: boolean, default: false }
+      responses:
+        "204": { description: OK }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: Target exists and overwrite=false }
+
+  /agentfs/batch:
+    post:
+      summary: Atomic batch of filesystem ops (one Postgres transaction)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ops]
+              properties:
+                ops:
+                  type: array
+                  items:
+                    oneOf:
+                      - $ref: "#/components/schemas/BatchPut"
+                      - $ref: "#/components/schemas/BatchDelete"
+                      - $ref: "#/components/schemas/BatchRename"
+                      - $ref: "#/components/schemas/BatchMkdir"
+                      - $ref: "#/components/schemas/BatchProps"
+      responses:
+        "200":
+          description: All succeeded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items: { $ref: "#/components/schemas/BatchResult" }
+        "409":
+          description: Any op conflicted; nothing applied.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key (lk_...)
+
+  responses:
+    NotFound:
+      description: Path does not exist in this store
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: { type: string, example: not_found }
+              path:  { type: string }
+
+  schemas:
+    Entry:
+      type: object
+      properties:
+        path:       { type: string }
+        kind:       { type: string, enum: [file, dir] }
+        size:       { type: integer, format: int64 }
+        mtime_ns:   { type: integer, format: int64 }
+        etag:       { type: string }
+        properties: { type: object, additionalProperties: true }
+
+    BatchPut:
+      type: object
+      required: [op, path, data_base64]
+      properties:
+        op:   { type: string, enum: [put] }
+        path: { type: string }
+        data_base64: { type: string }
+        properties:  { type: object, additionalProperties: true }
+        if_match:    { type: string, nullable: true }
+
+    BatchDelete:
+      type: object
+      required: [op, path]
+      properties:
+        op:       { type: string, enum: [delete] }
+        path:     { type: string }
+        if_match: { type: string, nullable: true }
+
+    BatchRename:
+      type: object
+      required: [op, from, to]
+      properties:
+        op:        { type: string, enum: [rename] }
+        from:      { type: string }
+        to:        { type: string }
+        overwrite: { type: boolean, default: false }
+
+    BatchMkdir:
+      type: object
+      required: [op, path]
+      properties:
+        op:         { type: string, enum: [mkdir] }
+        path:       { type: string }
+        properties: { type: object, additionalProperties: true }
+
+    BatchProps:
+      type: object
+      required: [op, path, properties]
+      properties:
+        op:         { type: string, enum: [set_properties] }
+        path:       { type: string }
+        properties: { type: object, additionalProperties: true }
+
+    BatchResult:
+      type: object
+      properties:
+        op:     { type: string }
+        path:   { type: string }
+        status: { type: string, enum: [ok] }
+        etag:   { type: string, nullable: true }

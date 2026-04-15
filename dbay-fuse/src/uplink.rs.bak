@@ -1,0 +1,229 @@
+//! Async uplink to DBay API.
+//!
+//! Drains `uplink_queue` and calls memory.ingest for paths under `/CLAUDE.md`
+//! or `/memory/`. Session paths (`/projects/*`) are kept local for now.
+//!
+//! Auth via env:
+//!   DBAY_API_KEY   (required to enable real uplink; else runs in log-only mode)
+//!   DBAY_BASE_ID   (required when key is set)
+//!   DBAY_BASE_URL  (optional override)
+
+use std::path::PathBuf;
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::thread::{self, JoinHandle};
+use std::time::Duration;
+
+use anyhow::Result;
+use rusqlite::{params, Connection, OptionalExtension};
+
+use crate::dbay_api::DbayClient;
+
+#[derive(Debug)]
+pub enum UplinkEvent {
+    Wake,
+    Shutdown,
+}
+
+pub struct Uplink {
+    tx: Sender<UplinkEvent>,
+    handle: Option<JoinHandle<()>>,
+}
+
+impl Uplink {
+    pub fn start(db_path: PathBuf) -> Result<Self> {
+        let (tx, rx) = channel();
+        let client = DbayClient::from_env()?;
+        if client.is_none() {
+            tracing::warn!("DBAY_API_KEY not set — uplink runs in log-only mode");
+        }
+        let handle = thread::spawn(move || {
+            if let Err(e) = run(db_path, rx, client) {
+                tracing::error!(?e, "uplink worker crashed");
+            }
+        });
+        Ok(Self { tx, handle: Some(handle) })
+    }
+
+    pub fn wake(&self) {
+        let _ = self.tx.send(UplinkEvent::Wake);
+    }
+}
+
+impl Drop for Uplink {
+    fn drop(&mut self) {
+        let _ = self.tx.send(UplinkEvent::Shutdown);
+        if let Some(h) = self.handle.take() {
+            let _ = h.join();
+        }
+    }
+}
+
+fn run(db_path: PathBuf, rx: Receiver<UplinkEvent>, client: Option<DbayClient>) -> Result<()> {
+    let conn = Connection::open(&db_path)?;
+    tracing::info!(?db_path, has_client = client.is_some(), "uplink worker started");
+    loop {
+        let evt = match rx.recv_timeout(Duration::from_secs(5)) {
+            Ok(e) => e,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => UplinkEvent::Wake,
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+        };
+        if matches!(evt, UplinkEvent::Shutdown) { break; }
+        // Drain coalesced wakes
+        while let Ok(e) = rx.try_recv() {
+            if matches!(e, UplinkEvent::Shutdown) { return Ok(()); }
+        }
+        if let Err(e) = drain_once(&conn, client.as_ref()) {
+            tracing::warn!(?e, "uplink drain error");
+        }
+    }
+    tracing::info!("uplink worker shutdown");
+    Ok(())
+}
+
+/// Decide if a path is eligible for memory ingest.
+/// Memory-class paths: `/CLAUDE.md`, `/memory/*` (global items).
+/// Future: per-project memory under `/projects/*/memory/*`.
+fn uplink_target(path: &str) -> Option<&'static str> {
+    if path == "/CLAUDE.md" {
+        Some("preference")
+    } else if path.starts_with("/memory/") {
+        // crude guess by file name prefix (see spec §3.1)
+        let name = path.rsplit('/').next().unwrap_or("");
+        if name.starts_with("feedback_") { Some("preference") }
+        else if name.starts_with("project_") { Some("episodic") }
+        else if name.starts_with("reference_") { Some("factual") }
+        else if name.starts_with("user_") { Some("factual") }
+        else { Some("factual") }
+    } else {
+        None
+    }
+}
+
+fn drain_once(conn: &Connection, client: Option<&DbayClient>) -> Result<()> {
+    let mut stmt = conn.prepare(
+        "SELECT id, op, path, new_path, attempts FROM uplink_queue
+         WHERE status = 'pending' ORDER BY id LIMIT 50",
+    )?;
+    let rows = stmt.query_map([], |r| {
+        Ok((
+            r.get::<_, i64>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, String>(2)?,
+            r.get::<_, Option<String>>(3)?,
+            r.get::<_, i64>(4)?,
+        ))
+    })?;
+    let items: Vec<_> = rows.collect::<Result<Vec<_>, _>>()?;
+    drop(stmt);
+    if items.is_empty() { return Ok(()); }
+
+    for (id, op, path, new_path, attempts) in items {
+        let result = handle_event(conn, client, &op, &path, new_path.as_deref());
+        match result {
+            Ok(note) => {
+                conn.execute(
+                    "UPDATE uplink_queue SET status = 'done', attempts = attempts + 1 WHERE id = ?1",
+                    [id],
+                )?;
+                tracing::info!(id, %op, %path, %note, "uplinked");
+            }
+            Err(e) => {
+                let new_status = if attempts + 1 >= 5 { "failed" } else { "pending" };
+                conn.execute(
+                    "UPDATE uplink_queue SET attempts = attempts + 1, status = ?1 WHERE id = ?2",
+                    params![new_status, id],
+                )?;
+                tracing::warn!(id, %op, %path, ?e, attempts = attempts + 1, %new_status, "uplink event failed");
+            }
+        }
+    }
+    Ok(())
+}
+
+fn handle_event(
+    conn: &Connection,
+    client: Option<&DbayClient>,
+    op: &str,
+    path: &str,
+    _new_path: Option<&str>,
+) -> Result<String> {
+    let Some(memory_type) = uplink_target(path) else {
+        return Ok(format!("skipped (path not memory-class)"));
+    };
+    let Some(client) = client else {
+        return Ok(format!("[log-only] {memory_type} {path}"));
+    };
+    match op {
+        "put" => {
+            // Read current blob for path; for small files the `data` column
+            // is source of truth, for chunked files we'd assemble here.
+            let content: Option<Vec<u8>> = conn
+                .query_row(
+                    "SELECT data FROM files WHERE path = ?1",
+                    [path],
+                    |r| r.get::<_, Option<Vec<u8>>>(0),
+                )
+                .optional()?
+                .flatten();
+            let Some(bytes) = content else {
+                return Ok("file deleted before uplink".to_string());
+            };
+            if bytes.is_empty() {
+                return Ok("empty file skipped".to_string());
+            }
+            let text = String::from_utf8_lossy(&bytes).into_owned();
+            // Chunk by top-level headings so one ingest = one semantic memory.
+            let chunks = split_by_heading(&text);
+            let mut memory_ids = Vec::new();
+            for (heading, body) in chunks {
+                let content = if heading.is_empty() {
+                    body.trim().to_string()
+                } else {
+                    format!("{heading}\n{body}").trim().to_string()
+                };
+                if content.is_empty() { continue; }
+                let metadata = serde_json::json!({
+                    "source_ref": { "path": path },
+                    "agent": "claude",
+                });
+                let resp = client.ingest(&content, memory_type, metadata)?;
+                if let Some(id) = resp.memory_id.or(resp.id) {
+                    memory_ids.push(id);
+                }
+            }
+            Ok(format!("ingested {} chunk(s)", memory_ids.len()))
+        }
+        "delete" | "rmdir" | "rename" | "mkdir" => {
+            // Not yet mapped to memory API. Log and succeed.
+            Ok(format!("{op} not wired to DBay API yet"))
+        }
+        _ => Ok(format!("unknown op {op}")),
+    }
+}
+
+/// Split a markdown document into (heading, body) sections by `#`/`##` lines.
+/// Preamble (before the first heading) returns as ("", preamble).
+fn split_by_heading(md: &str) -> Vec<(String, String)> {
+    let mut sections: Vec<(String, String)> = Vec::new();
+    let mut cur_heading = String::new();
+    let mut cur_body = String::new();
+    for line in md.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("# ") || trimmed.starts_with("## ") {
+            if !cur_body.is_empty() || !cur_heading.is_empty() {
+                sections.push((
+                    std::mem::take(&mut cur_heading),
+                    std::mem::take(&mut cur_body),
+                ));
+            }
+            cur_heading = trimmed.to_string();
+        } else {
+            cur_body.push_str(line);
+            cur_body.push('\n');
+        }
+    }
+    if !cur_body.is_empty() || !cur_heading.is_empty() {
+        sections.push((cur_heading, cur_body));
+    }
+    sections
+}

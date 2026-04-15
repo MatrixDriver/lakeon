@@ -30,6 +30,8 @@ helm upgrade --install lakeon "$SCRIPT_DIR/../helm/lakeon" \
   --set obs.accessKey=$HWCLOUD_AK --set obs.secretKey=$HWCLOUD_SK \
   --set metadataDb.host=$RDS_PRIVATE_IP --set metadataDb.password=$RDS_PASSWORD \
   ${AI_API_KEY:+--set api.aiApiKey=$AI_API_KEY} \
+  --take-ownership \
+  --server-side=false \
   -n lakeon --create-namespace --timeout 5m --no-hooks 2>&1
 
 # ── 等待服务就绪 ──
