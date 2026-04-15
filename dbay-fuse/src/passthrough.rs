@@ -27,6 +27,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use crate::append_state::{self, AppendMap, FlushMode};
 use crate::flush_watchdog::{FlushCmd, FlushWatchdog};
 use crate::outbox::{self, Op, Outbox};
 
@@ -35,6 +36,7 @@ const ROOT_INO: u64 = 1;
 
 pub fn mount(agent: &str, mount_point: &Path, state_dir: &Path, outbox_dir: &Path) -> Result<()> {
     let outbox = Arc::new(Outbox::open(outbox_dir)?);
+    let append_map = append_state::new_map();
 
     // Start uplink worker (reads outbox, POSTs to AgentFS)
     crate::uplink_worker::spawn(agent, outbox.clone())?;
@@ -46,13 +48,15 @@ pub fn mount(agent: &str, mount_point: &Path, state_dir: &Path, outbox_dir: &Pat
         state_dir.to_path_buf(),
         outbox.clone(),
         watchdog.tx(),
+        append_map.clone(),
     );
 
-    // Wire watchdog → flush callback
+    // Wire watchdog → flush callback (uses delta upload when possible)
     let state_clone = state_dir.to_path_buf();
     let outbox_clone = outbox.clone();
+    let map_clone = append_map.clone();
     watchdog.install_flush(move |path: PathBuf| {
-        if let Err(e) = flush_path(&state_clone, &path, &outbox_clone) {
+        if let Err(e) = flush_path(&state_clone, &path, &outbox_clone, &map_clone) {
             tracing::warn!(?e, ?path, "watchdog flush failed");
         }
     });
@@ -67,19 +71,36 @@ pub fn mount(agent: &str, mount_point: &Path, state_dir: &Path, outbox_dir: &Pat
     Ok(())
 }
 
-/// Read current content of a path from state_dir, enqueue a Put into outbox.
-/// Used by watchdog and explicit flush.
-fn flush_path(state_dir: &Path, rel: &Path, outbox: &Outbox) -> Result<()> {
+/// Flush a dirty path to outbox — delta append when possible, else full put.
+/// Used by watchdog AND release handler.
+fn flush_path(state_dir: &Path, rel: &Path, outbox: &Outbox, append_map: &AppendMap) -> Result<()> {
     let real = state_dir.join(rel);
     let meta = fs::symlink_metadata(&real).context("stat for flush")?;
     if meta.is_dir() {
         return Ok(());
     }
-    let data = fs::read(&real).context("read for flush")?;
-    let sha = outbox::write_blob(&outbox.blobs_dir(), &data)?;
     let virt_path = to_virt_path(rel);
-    outbox.enqueue(Op::Put { path: virt_path, blob: sha, properties: None })?;
-    Ok(())
+    match append_state::plan_flush(append_map, rel) {
+        FlushMode::Nothing => Ok(()),
+        FlushMode::Append { from, to } => {
+            use std::io::{Read, Seek, SeekFrom};
+            let mut f = fs::File::open(&real).context("open for append delta")?;
+            f.seek(SeekFrom::Start(from))?;
+            let mut delta = vec![0u8; (to - from) as usize];
+            f.read_exact(&mut delta)?;
+            let sha = outbox::write_blob(&outbox.blobs_dir(), &delta)?;
+            outbox.enqueue(Op::Append { path: virt_path, blob: sha })?;
+            append_state::mark_flushed(append_map, rel);
+            Ok(())
+        }
+        FlushMode::Put => {
+            let data = fs::read(&real).context("read for put")?;
+            let sha = outbox::write_blob(&outbox.blobs_dir(), &data)?;
+            outbox.enqueue(Op::Put { path: virt_path, blob: sha, properties: None })?;
+            append_state::mark_flushed(append_map, rel);
+            Ok(())
+        }
+    }
 }
 
 /// Convert a state-relative path (e.g. `memory/user.md`) to the virtual path
@@ -101,6 +122,7 @@ struct PassthroughFS {
     root: PathBuf,
     outbox: Arc<Outbox>,
     flush_tx: mpsc::Sender<FlushCmd>,
+    append_map: AppendMap,
 
     inodes: HashMap<u64, PathBuf>,
     paths: HashMap<PathBuf, u64>,
@@ -117,10 +139,11 @@ struct OpenFh {
     /// Bytes written since last flush (for size-threshold trigger).
     dirty_bytes: u64,
     opened_at: Instant,
+    opened_with_append: bool,
 }
 
 impl PassthroughFS {
-    fn new(root: PathBuf, outbox: Arc<Outbox>, flush_tx: mpsc::Sender<FlushCmd>) -> Self {
+    fn new(root: PathBuf, outbox: Arc<Outbox>, flush_tx: mpsc::Sender<FlushCmd>, append_map: AppendMap) -> Self {
         let mut inodes = HashMap::new();
         let mut paths = HashMap::new();
         inodes.insert(ROOT_INO, root.clone());
@@ -129,6 +152,7 @@ impl PassthroughFS {
             root,
             outbox,
             flush_tx,
+            append_map,
             inodes,
             paths,
             next_ino: 2,
@@ -198,12 +222,8 @@ impl PassthroughFS {
         if !f.dirty {
             return Ok(());
         }
-        // Read current file from state dir
-        let data = fs::read(&f.real_path).context("read for flush")?;
-        let sha = outbox::write_blob(&self.outbox.blobs_dir(), &data)?;
         if let Some(rel) = relative_to_root(&self.root, &f.real_path) {
-            let virt = to_virt_path(&rel);
-            self.outbox.enqueue(Op::Put { path: virt, blob: sha, properties: None })?;
+            flush_path(&self.root, &rel, &self.outbox, &self.append_map)?;
         }
         f.dirty = false;
         f.dirty_bytes = 0;
@@ -352,6 +372,11 @@ impl Filesystem for PassthroughFS {
         opts.custom_flags(flags);
         match opts.open(&path) {
             Ok(f) => {
+                // Seed append state with current disk size if not already tracked
+                if let Some(rel) = relative_to_root(&self.root, &path) {
+                    let size = f.metadata().map(|m| m.len()).unwrap_or(0);
+                    append_state::ensure_entry(&self.append_map, &rel, size);
+                }
                 let fh = self.next_fh;
                 self.next_fh += 1;
                 self.files.insert(fh, OpenFh {
@@ -360,6 +385,7 @@ impl Filesystem for PassthroughFS {
                     dirty: false,
                     dirty_bytes: 0,
                     opened_at: Instant::now(),
+                    opened_with_append: flags & libc::O_APPEND != 0,
                 });
                 reply.opened(fh, 0);
             }
@@ -400,12 +426,20 @@ impl Filesystem for PassthroughFS {
         offset: i64,
         data: &[u8],
         _write_flags: u32,
-        _flags: i32,
+        flags: i32,
         _lock_owner: Option<u64>,
         reply: ReplyWrite,
     ) {
         let Some(f) = self.files.get_mut(&fh) else { return reply.error(EIO); };
-        if f.file.seek(SeekFrom::Start(offset as u64)).is_err() {
+        let is_append_mode = flags & libc::O_APPEND != 0 || f.opened_with_append;
+        // For O_APPEND opens macFUSE may pass offset=0; honor real append by
+        // seeking to End instead.
+        let seek_target = if is_append_mode {
+            SeekFrom::End(0)
+        } else {
+            SeekFrom::Start(offset as u64)
+        };
+        if f.file.seek(seek_target).is_err() {
             return reply.error(EIO);
         }
         let rel = relative_to_root(&self.root, &f.real_path);
@@ -413,6 +447,12 @@ impl Filesystem for PassthroughFS {
             Ok(n) => {
                 f.dirty = true;
                 f.dirty_bytes += n as u64;
+                if let Some(r) = &rel {
+                    // Read actual file size after write — robust against
+                    // O_APPEND / sparse / kernel-vs-FUSE offset quirks.
+                    let new_size = f.file.metadata().map(|m| m.len()).unwrap_or(0);
+                    append_state::note_write_to_size(&self.append_map, r, new_size, is_append_mode);
+                }
                 // notify watchdog
                 if let Some(r) = rel {
                     let _ = self.flush_tx.send(FlushCmd::Wrote {
@@ -499,6 +539,9 @@ impl Filesystem for PassthroughFS {
                     Ok(m) => m,
                     Err(_) => return reply.error(EIO),
                 };
+                if let Some(rel) = relative_to_root(&self.root, &path) {
+                    append_state::ensure_entry(&self.append_map, &rel, 0);
+                }
                 let fh = self.next_fh;
                 self.next_fh += 1;
                 self.files.insert(fh, OpenFh {
@@ -507,6 +550,7 @@ impl Filesystem for PassthroughFS {
                     dirty: true,  // fresh file counts as dirty so release → flush
                     dirty_bytes: 0,
                     opened_at: Instant::now(),
+                    opened_with_append: flags & libc::O_APPEND != 0,
                 });
                 reply.created(&TTL, &attr_from_meta(ino, &meta), 0, fh, 0);
             }
@@ -543,6 +587,9 @@ impl Filesystem for PassthroughFS {
         match fs::remove_file(&path) {
             Ok(_) => {
                 self.enqueue_delete(&path);
+                if let Some(rel) = relative_to_root(&self.root, &path) {
+                    append_state::forget(&self.append_map, &rel);
+                }
                 self.forget_path(&path);
                 reply.ok();
             }
@@ -580,6 +627,11 @@ impl Filesystem for PassthroughFS {
         match fs::rename(&src, &dst) {
             Ok(_) => {
                 self.enqueue_rename(&src, &dst);
+                let rel_src = relative_to_root(&self.root, &src);
+                let rel_dst = relative_to_root(&self.root, &dst);
+                if let (Some(s), Some(d)) = (rel_src, rel_dst) {
+                    append_state::rename(&self.append_map, &s, &d);
+                }
                 self.forget_path(&src);
                 reply.ok();
             }

@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 720" font-family="-apple-system, system-ui, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrAccent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0ea5e9"/>
+    </marker>
+    <marker id="arrSlow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#e11d48"/>
+    </marker>
+  </defs>
+
+  <style>
+    .label  { font-size: 13px; fill: #0f172a; }
+    .h1     { font-size: 18px; font-weight: 600; fill: #0f172a; }
+    .h2     { font-size: 14px; font-weight: 600; fill: #334155; }
+    .small  { font-size: 11px; fill: #64748b; }
+    .lat    { font-size: 12px; font-weight: 600; fill: #0ea5e9; }
+    .latslow{ font-size: 12px; font-weight: 600; fill: #e11d48; }
+    .latok  { font-size: 12px; font-weight: 600; fill: #16a34a; }
+    .box    { stroke: #cbd5e1; stroke-width: 1; fill: white; }
+    .group  { stroke: #cbd5e1; stroke-width: 1; fill: #f8fafc; }
+    .axisl  { stroke: #cbd5e1; stroke-width: 1; stroke-dasharray: 4 3; }
+  </style>
+
+  <!-- title -->
+  <text x="40" y="36" class="h1">DBay AgentFS · 单次 append 40B 的端到端时延（B 实现 · append-delta upload）</text>
+  <text x="40" y="55" class="small">用户态 CC 写入 → FUSE → outbox → uplink → DBay Postgres 持久化。所有时间单位 ms。</text>
+
+  <!-- ========== Left swim lane: USER-VISIBLE PATH (synchronous) ========== -->
+  <rect x="40"  y="80"  width="640" height="290" rx="6" class="group"/>
+  <text x="60"  y="105" class="h2">用户可见路径（同步阻塞 ~ 20.8 ms）</text>
+  <text x="60"  y="123" class="small">CC 的 write() 系统调用从这里返回。不包含网络。</text>
+
+  <!-- CC -->
+  <rect x="60"  y="145" width="100" height="50" rx="4" class="box"/>
+  <text x="110" y="170" text-anchor="middle" class="label">Claude Code</text>
+  <text x="110" y="184" text-anchor="middle" class="small">user process</text>
+
+  <!-- FUSE kernel -->
+  <rect x="200" y="145" width="120" height="50" rx="4" class="box"/>
+  <text x="260" y="170" text-anchor="middle" class="label">macFUSE 内核</text>
+  <text x="260" y="184" text-anchor="middle" class="small">syscall trap</text>
+
+  <!-- daemon FS -->
+  <rect x="360" y="145" width="140" height="50" rx="4" class="box"/>
+  <text x="430" y="170" text-anchor="middle" class="label">dbay-fuse FS</text>
+  <text x="430" y="184" text-anchor="middle" class="small">passthrough write</text>
+
+  <!-- state dir -->
+  <rect x="540" y="145" width="120" height="50" rx="4" class="box"/>
+  <text x="600" y="170" text-anchor="middle" class="label">state/ APFS</text>
+  <text x="600" y="184" text-anchor="middle" class="small">本地真源</text>
+
+  <!-- arrows row 1 -->
+  <line x1="160" y1="170" x2="200" y2="170" stroke="#475569" marker-end="url(#arr)"/>
+  <line x1="320" y1="170" x2="360" y2="170" stroke="#475569" marker-end="url(#arr)"/>
+  <line x1="500" y1="170" x2="540" y2="170" stroke="#475569" marker-end="url(#arr)"/>
+
+  <text x="180" y="160" class="lat">~1ms</text>
+  <text x="340" y="160" class="lat">~1ms</text>
+  <text x="520" y="160" class="lat">~1ms</text>
+
+  <!-- on close: flush_path -->
+  <rect x="60" y="225" width="120" height="50" rx="4" class="box"/>
+  <text x="120" y="248" text-anchor="middle" class="label">close()</text>
+  <text x="120" y="262" text-anchor="middle" class="small">FUSE release</text>
+
+  <rect x="200" y="225" width="180" height="50" rx="4" class="box"/>
+  <text x="290" y="248" text-anchor="middle" class="label">flush_path()</text>
+  <text x="290" y="262" text-anchor="middle" class="small">plan → Append 8B</text>
+
+  <rect x="400" y="225" width="120" height="50" rx="4" class="box"/>
+  <text x="460" y="248" text-anchor="middle" class="label">write_blob</text>
+  <text x="460" y="262" text-anchor="middle" class="small">create + fsync + rename</text>
+
+  <rect x="540" y="225" width="120" height="50" rx="4" class="box"/>
+  <text x="600" y="248" text-anchor="middle" class="label">outbox enqueue</text>
+  <text x="600" y="262" text-anchor="middle" class="small">append + sync_data</text>
+
+  <line x1="180" y1="250" x2="200" y2="250" stroke="#475569" marker-end="url(#arr)"/>
+  <line x1="380" y1="250" x2="400" y2="250" stroke="#475569" marker-end="url(#arr)"/>
+  <line x1="520" y1="250" x2="540" y2="250" stroke="#475569" marker-end="url(#arr)"/>
+
+  <text x="290" y="217" class="lat">~1ms</text>
+  <text x="460" y="217" class="latslow">~5ms (fsync)</text>
+  <text x="600" y="217" class="latslow">~5ms (fsync)</text>
+
+  <!-- return arrow -->
+  <line x1="600" y1="280" x2="600" y2="320" stroke="#475569" marker-end="url(#arr)"/>
+  <line x1="600" y1="320" x2="120" y2="320" stroke="#475569"/>
+  <line x1="120" y1="320" x2="120" y2="275" stroke="#475569" marker-end="url(#arr)"/>
+  <text x="350" y="335" text-anchor="middle" class="lat">syscall 返回 — 累计 ~20.8ms（与 native 0.09ms 比 ≈ 230×）</text>
+
+  <text x="60" y="362" class="small">瓶颈：两次 fsync 各 ~5ms（write_blob 的 SecureFile + outbox 的 pending.log）。</text>
+
+  <!-- ========== Right swim lane: ASYNC UPLINK ========== -->
+  <rect x="40"  y="395" width="640" height="290" rx="6" class="group"/>
+  <text x="60"  y="420" class="h2">异步上云路径（用户感知不到 ~ 53 ms/op 摊销）</text>
+  <text x="60"  y="438" class="small">独立线程从 outbox 拉取，POST 到 DBay。失败重试 + 顺序保序。</text>
+
+  <rect x="60"  y="465" width="140" height="50" rx="4" class="box"/>
+  <text x="130" y="488" text-anchor="middle" class="label">uplink_worker</text>
+  <text x="130" y="503" text-anchor="middle" class="small">poll 2s · drain 50</text>
+
+  <rect x="220" y="465" width="160" height="50" rx="4" class="box"/>
+  <text x="300" y="488" text-anchor="middle" class="label">读 outbox + blob</text>
+  <text x="300" y="503" text-anchor="middle" class="small">8 字节 delta</text>
+
+  <rect x="400" y="465" width="120" height="50" rx="4" class="box"/>
+  <text x="460" y="488" text-anchor="middle" class="label">HTTPS POST</text>
+  <text x="460" y="503" text-anchor="middle" class="small">/agentfs/files/append</text>
+
+  <rect x="540" y="465" width="120" height="50" rx="4" class="box"/>
+  <text x="600" y="488" text-anchor="middle" class="label">DBay Java</text>
+  <text x="600" y="503" text-anchor="middle" class="small">tenant scoped</text>
+
+  <line x1="200" y1="490" x2="220" y2="490" stroke="#475569" marker-end="url(#arr)"/>
+  <line x1="380" y1="490" x2="400" y2="490" stroke="#475569" marker-end="url(#arr)"/>
+  <line x1="520" y1="490" x2="540" y2="490" stroke="#0ea5e9" marker-end="url(#arrAccent)" stroke-width="2"/>
+
+  <text x="300" y="457" class="lat">&lt;1ms</text>
+  <text x="460" y="457" class="latslow">~50ms (TLS+RTT)</text>
+
+  <!-- to postgres -->
+  <rect x="380" y="555" width="160" height="50" rx="4" class="box"/>
+  <text x="460" y="578" text-anchor="middle" class="label">Postgres UPSERT</text>
+  <text x="460" y="593" text-anchor="middle" class="small">agent_files (BYTEA append)</text>
+
+  <line x1="600" y1="515" x2="600" y2="540" stroke="#475569"/>
+  <line x1="600" y1="540" x2="460" y2="540" stroke="#475569"/>
+  <line x1="460" y1="540" x2="460" y2="555" stroke="#475569" marker-end="url(#arr)"/>
+  <text x="540" y="535" class="lat">~3ms</text>
+
+  <line x1="380" y1="580" x2="60" y2="580" stroke="#0ea5e9" stroke-dasharray="4 3"/>
+  <text x="220" y="605" class="latok" text-anchor="middle">回报客户端：outbox.ack(seq) — 30 次 append 总计 1576ms（~53ms 摊销）</text>
+  <text x="220" y="625" class="small" text-anchor="middle">瓶颈：每次 HTTP 串行，TLS handshake 大头</text>
+
+  <!-- ========== Right column: comparison numbers ========== -->
+  <rect x="700" y="80" width="380" height="605" rx="6" class="group"/>
+  <text x="720" y="105" class="h2">三类对比数字</text>
+
+  <!-- header row -->
+  <text x="720" y="140" class="small" font-weight="600">操作</text>
+  <text x="850" y="140" class="small" font-weight="600">native FS</text>
+  <text x="940" y="140" class="small" font-weight="600">user-visible</text>
+  <text x="1040" y="140" class="small" font-weight="600">e2e cloud</text>
+  <line x1="720" y1="148" x2="1080" y2="148" class="axisl"/>
+
+  <!-- row 1: append -->
+  <text x="720" y="170" class="label">append 40B</text>
+  <text x="850" y="170" class="latok">0.09 ms</text>
+  <text x="940" y="170" class="latslow">20.8 ms</text>
+  <text x="1040" y="170" class="lat">1576 ms</text>
+
+  <text x="720" y="186" class="small">×30 次 (session.jsonl growing)</text>
+  <text x="850" y="186" class="small">基线</text>
+  <text x="940" y="186" class="small">230× 慢</text>
+  <text x="1040" y="186" class="small">~53ms 摊销/op</text>
+
+  <line x1="720" y1="200" x2="1080" y2="200" class="axisl"/>
+
+  <!-- row 2: create -->
+  <text x="720" y="220" class="label">create 2KB md</text>
+  <text x="850" y="220" class="latok">0.21 ms</text>
+  <text x="940" y="220" class="latslow">10.8 ms</text>
+  <text x="1040" y="220" class="lat">1009 ms</text>
+
+  <text x="720" y="236" class="small">×30 次 (一次性 Put)</text>
+  <text x="850" y="236" class="small">基线</text>
+  <text x="940" y="236" class="small">51× 慢</text>
+  <text x="1040" y="236" class="small">~34ms 摊销/op</text>
+
+  <line x1="720" y1="250" x2="1080" y2="250" class="axisl"/>
+
+  <!-- row 3: read -->
+  <text x="720" y="270" class="label">read</text>
+  <text x="850" y="270" class="latok">0.04 ms</text>
+  <text x="940" y="270" class="latok">0.23 ms</text>
+  <text x="1040" y="270" class="small">本地命中</text>
+
+  <text x="720" y="286" class="small">本地命中 (state dir)</text>
+  <text x="940" y="286" class="small">FUSE 透传 6×</text>
+
+  <line x1="720" y1="300" x2="1080" y2="300" class="axisl"/>
+
+  <text x="720" y="325" class="h2">A vs B 对比 (优化前后)</text>
+  <text x="720" y="348" class="label">每次 append 上传量：</text>
+  <text x="720" y="364" class="small">  A (full Put)  : ~800 字节 (全文件)</text>
+  <text x="720" y="380" class="small">  B (delta Append): 8 字节</text>
+  <text x="720" y="396" class="latok">  → 网络流量节省 100×</text>
+
+  <text x="720" y="424" class="label">user-visible 时延：</text>
+  <text x="720" y="440" class="small">  A: 27 ms  →  B: 21 ms  (改善 25%)</text>
+  <text x="720" y="456" class="small">  瓶颈是 fsync 不是文件大小</text>
+
+  <text x="720" y="484" class="h2">瓶颈分析</text>
+  <text x="720" y="506" class="latslow">1. 本地 fsync × 2：~10 ms</text>
+  <text x="720" y="522" class="small">   write_blob (SHA256 file + rename) + outbox sync</text>
+  <text x="720" y="544" class="latslow">2. HTTP 串行 + TLS：~50 ms / op</text>
+  <text x="720" y="560" class="small">   /agentfs/batch 端点存在但客户端未用</text>
+  <text x="720" y="582" class="latslow">3. FUSE 4 次内核穿越：~4 ms</text>
+  <text x="720" y="598" class="small">   open + write + flush + release</text>
+
+  <text x="720" y="630" class="h2">下一步优化（B+）</text>
+  <text x="720" y="650" class="small">• 小 delta 内联到 pending.log（省 blob fsync）</text>
+  <text x="720" y="666" class="small">• Group fsync per N writes（牺牲 crash 窗口）</text>
+  <text x="720" y="682" class="small">• 改用 /agentfs/batch 一次 HTTP 多 op</text>
+</svg>

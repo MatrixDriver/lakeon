@@ -17,6 +17,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
 
+mod append_state;
 mod config;
 mod dbay_api;
 mod flush_watchdog;
