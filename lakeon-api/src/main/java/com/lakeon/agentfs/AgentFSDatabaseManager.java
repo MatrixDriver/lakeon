@@ -73,6 +73,9 @@ public class AgentFSDatabaseManager {
      */
     public Connection openConnection(TenantEntity tenant) throws SQLException {
         DatabaseEntity db = ensureProvisioned(tenant);
+        // Wake compute pod if suspended, then reload for fresh computeHost/Port.
+        databaseService.ensureRunning(tenant, db.getId());
+        db = databaseRepository.findById(db.getId()).orElseThrow();
         return openAdmin(db);
     }
 
@@ -135,7 +138,8 @@ public class AgentFSDatabaseManager {
     }
 
     private void initSchemaAndMarkReady(AgentFSAssignmentEntity asg, DatabaseEntity db) {
-        try (Connection conn = openAdmin(db);
+        DatabaseEntity fresh = databaseRepository.findById(db.getId()).orElse(db);
+        try (Connection conn = openAdmin(fresh);
              Statement st = conn.createStatement()) {
             for (String stmt : FILES_SCHEMA.split(";")) {
                 String s = stmt.trim();
@@ -156,11 +160,13 @@ public class AgentFSDatabaseManager {
 
     /** Direct connection to the per-tenant AgentFS database with admin creds. */
     private Connection openAdmin(DatabaseEntity entity) throws SQLException {
-        String host = entity.getComputeHost() != null ? entity.getComputeHost() : "proxy.lakeon.svc.cluster.local";
-        int port = entity.getComputePort() != 0 ? entity.getComputePort() : 55433;
-        boolean directPod = entity.getComputeHost() != null;
-        String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + entity.getName()
-                + (directPod ? "" : "?options=endpoint%3D" + entity.getName());
+        String host = entity.getComputeHost();
+        if (host == null) {
+            throw new SQLException("compute host not available for db " + entity.getName()
+                    + " (status=" + entity.getStatus() + ")");
+        }
+        int port = entity.getComputePort() != null ? entity.getComputePort() : 55433;
+        String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + entity.getName() + "?sslmode=disable";
         return DriverManager.getConnection(jdbcUrl, "cloud_admin", "cloud-admin-internal");
     }
 }
