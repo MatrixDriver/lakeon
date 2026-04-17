@@ -10,8 +10,7 @@ data:
     listen_pg_addr = '0.0.0.0:{{ .Values.pageserver.pgPort }}'
     listen_http_addr = '0.0.0.0:{{ .Values.pageserver.httpPort }}'
     broker_endpoint = 'http://storage-broker:{{ .Values.storageBroker.port }}'
-    control_plane_api = 'http://lakeon-api:{{ .Values.api.port }}'
-    control_plane_emergency_mode = true
+    control_plane_api = 'http://storage-controller:1234/upcall/v1'
     pg_distrib_dir = '/usr/local'
 
     [remote_storage]
