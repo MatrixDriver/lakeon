@@ -322,6 +322,61 @@
         </div>
       </div>
 
+      <!-- Tenant 挂靠健康 -->
+      <div class="section-card" style="margin-bottom: 16px;">
+        <div class="section-header">
+          <h3>Tenant 挂靠状态</h3>
+          <button class="action-btn" :disabled="reconcileLoading" @click="triggerReconcile">
+            {{ reconcileLoading ? '修复中...' : '检查并修复' }}
+          </button>
+        </div>
+        <div v-if="tenantHealthLoading" class="empty-text">加载中...</div>
+        <template v-else-if="tenantHealth">
+          <div class="stats-row" style="margin-bottom: 12px;">
+            <div class="stat-card">
+              <div class="stat-value" :style="{ color: tenantHealth.health === 'HEALTHY' ? 'var(--cs-normal)' : tenantHealth.health === 'DEGRADED' ? 'var(--cs-severe)' : '#94a3b8' }">
+                {{ tenantHealth.health === 'HEALTHY' ? '正常' : tenantHealth.health === 'DEGRADED' ? '异常' : '不可达' }}
+              </div>
+              <div class="stat-label">健康状态</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">{{ tenantHealth.expected_tenants }}</div>
+              <div class="stat-label">控制面 DB 数</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">{{ tenantHealth.attached_tenants }}</div>
+              <div class="stat-label">已挂靠</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" :style="{ color: tenantHealth.missing_count > 0 ? 'var(--cs-severe)' : 'var(--cs-normal)' }">
+                {{ tenantHealth.missing_count }}
+              </div>
+              <div class="stat-label">缺失</div>
+            </div>
+          </div>
+          <div v-if="tenantHealth.missing.length > 0">
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead><tr><th>数据库</th><th>Neon Tenant ID</th><th>DB 状态</th></tr></thead>
+                <tbody>
+                  <tr v-for="m in tenantHealth.missing" :key="m.db_id">
+                    <td>{{ m.db_name }}</td>
+                    <td class="pod-name">{{ m.neon_tenant_id.substring(0, 16) }}...</td>
+                    <td><span class="phase-badge" :class="dbStatusBadge(m.status.toLowerCase())">{{ m.status }}</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div v-if="tenantHealth.last_reconcile" style="margin-top: 8px; font-size: 12px; color: #94a3b8;">
+            上次 reconcile: {{ new Date(tenantHealth.last_reconcile.timestamp).toLocaleString() }}
+            <template v-if="tenantHealth.last_reconcile.reattached > 0">
+              &mdash; 修复 {{ tenantHealth.last_reconcile.reattached }} 个
+            </template>
+          </div>
+        </template>
+      </div>
+
       <div class="section-card">
         <div class="section-header"><h3>Neon 组件 Pod</h3></div>
         <div v-if="!neonPods.length" class="empty-text">暂无数据</div>
@@ -669,6 +724,52 @@ const psCachePercent = computed(() => {
   if (!max_bytes) return 0
   return Math.round(current_bytes / max_bytes * 100)
 })
+interface TenantHealthData {
+  health: 'HEALTHY' | 'DEGRADED' | 'UNREACHABLE'
+  expected_tenants: number
+  attached_tenants: number
+  missing_count: number
+  missing: { db_name: string; db_id: string; neon_tenant_id: string; status: string }[]
+  pageserver_reachable: boolean
+  last_reconcile?: { timestamp: string; reattached: number; failed: number }
+}
+
+const tenantHealth = ref<TenantHealthData | null>(null)
+const tenantHealthLoading = ref(false)
+const reconcileLoading = ref(false)
+
+async function loadTenantHealth() {
+  tenantHealthLoading.value = true
+  try {
+    const res = await adminApi.tenantHealth()
+    tenantHealth.value = res.data
+  } catch (e) { console.error('Failed to load tenant health', e) }
+  finally { tenantHealthLoading.value = false }
+}
+
+async function triggerReconcile() {
+  if (!confirm('确定手动触发 tenant reconcile？\n将检查并修复 pageserver 上缺失的 tenant 挂靠。')) return
+  reconcileLoading.value = true
+  try {
+    const res = await adminApi.triggerReconcile()
+    const d = res.data
+    if (d.success) {
+      const msg = d.reattached > 0
+        ? `修复完成：重新挂靠 ${d.reattached} 个 tenant` + (d.failed > 0 ? `，失败 ${d.failed} 个` : '')
+        : `检查完成：所有 ${d.expected} 个 tenant 均已挂靠`
+      alert(msg)
+    } else {
+      alert('Reconcile 失败: ' + d.error)
+    }
+    await loadTenantHealth()
+  } catch (e) {
+    alert('请求失败')
+    console.error(e)
+  } finally {
+    reconcileLoading.value = false
+  }
+}
+
 function progressColorVal(pct: number): string {
   if (pct < 60) return '#2a4d6a'
   if (pct < 80) return '#9a5b25'
@@ -702,7 +803,7 @@ function recordSnapshot() {
 }
 
 async function pollData() {
-  await Promise.allSettled([loadData(), loadComputeSummary()])
+  await Promise.allSettled([loadData(), loadComputeSummary(), loadTenantHealth()])
   recordSnapshot()
 }
 
@@ -891,7 +992,7 @@ async function loadMetrics() {
 }
 
 onMounted(async () => {
-  await Promise.allSettled([loadData(), loadComputeSummary(), loadMetrics()])
+  await Promise.allSettled([loadData(), loadComputeSummary(), loadMetrics(), loadTenantHealth()])
   recordSnapshot()
   pollTimer = setInterval(pollData, 30000)
 })
