@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storage-controller
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: storage-controller
+    {{- include "lakeon.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: storage-controller
+  template:
+    metadata:
+      labels:
+        app: storage-controller
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: storage-controller
+          image: "{{ .Values.neon.image.repository }}:{{ .Values.neon.image.tag }}"
+          imagePullPolicy: {{ .Values.neon.image.pullPolicy }}
+          command: ["storage_controller"]
+          args:
+            - "--dev"
+            - "--listen"
+            - "0.0.0.0:1234"
+            - "--database-url"
+            - "$(DATABASE_URL)"
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://lakeon:Admin@2026@metadata-db:5432/lakeon"
+          ports:
+            - containerPort: 1234
+              name: http
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
