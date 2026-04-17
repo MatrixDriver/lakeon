@@ -14,6 +14,8 @@ import com.lakeon.repository.OperationLogRepository;
 import com.lakeon.repository.TenantRepository;
 import com.lakeon.service.AdminService;
 import com.lakeon.service.AlertService;
+import com.lakeon.service.TenantReconcileService;
+import com.lakeon.neon.NeonApiClient;
 import com.lakeon.service.AuditService;
 import com.lakeon.service.LogQueryService;
 import com.lakeon.model.entity.InviteCodeEntity;
@@ -88,6 +90,8 @@ public class AdminController {
     private final PipelineStepRunRepository pipelineStepRunRepository;
     private final PipelineComponentRepository pipelineComponentRepository;
     private final com.lakeon.knowledge.WikiService wikiService;
+    private final TenantReconcileService tenantReconcileService;
+    private final NeonApiClient neonApiClient;
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AdminController.class);
 
@@ -123,7 +127,9 @@ public class AdminController {
                            PipelineRunRepository pipelineRunRepository,
                            PipelineStepRunRepository pipelineStepRunRepository,
                            PipelineComponentRepository pipelineComponentRepository,
-                           com.lakeon.knowledge.WikiService wikiService) {
+                           com.lakeon.knowledge.WikiService wikiService,
+                           TenantReconcileService tenantReconcileService,
+                           NeonApiClient neonApiClient) {
         this.tenantService = tenantService;
         this.adminService = adminService;
         this.databaseService = databaseService;
@@ -157,6 +163,8 @@ public class AdminController {
         this.pipelineStepRunRepository = pipelineStepRunRepository;
         this.pipelineComponentRepository = pipelineComponentRepository;
         this.wikiService = wikiService;
+        this.tenantReconcileService = tenantReconcileService;
+        this.neonApiClient = neonApiClient;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────
@@ -631,6 +639,81 @@ public class AdminController {
     @GetMapping("/pageserver/metrics")
     public Map<String, Object> getPageserverMetrics() {
         return adminService.getPageserverMetrics();
+    }
+
+    @GetMapping("/pageserver/tenant-health")
+    public Map<String, Object> getTenantHealth() {
+        var dbs = databaseRepository.findAllActiveWithNeonTenant();
+        var expected = dbs.stream()
+            .map(db -> db.getNeonTenantId())
+            .collect(java.util.stream.Collectors.toSet());
+
+        java.util.Set<String> attached = java.util.Set.of();
+        boolean pageserverReachable = true;
+        try {
+            var tenants = neonApiClient.listTenants();
+            attached = tenants.stream()
+                .map(t -> (String) t.get("id"))
+                .collect(java.util.stream.Collectors.toSet());
+        } catch (Exception e) {
+            pageserverReachable = false;
+        }
+
+        int missingCount = 0;
+        var missingList = new java.util.ArrayList<Map<String, String>>();
+        if (pageserverReachable) {
+            for (var db : dbs) {
+                if (!attached.contains(db.getNeonTenantId())) {
+                    missingCount++;
+                    missingList.add(Map.of(
+                        "db_name", db.getName(),
+                        "db_id", db.getId(),
+                        "neon_tenant_id", db.getNeonTenantId(),
+                        "status", db.getStatus().name()
+                    ));
+                }
+            }
+        }
+
+        String health = !pageserverReachable ? "UNREACHABLE"
+            : missingCount == 0 ? "HEALTHY"
+            : "DEGRADED";
+
+        var response = new LinkedHashMap<String, Object>();
+        response.put("health", health);
+        response.put("expected_tenants", expected.size());
+        response.put("attached_tenants", attached.size());
+        response.put("missing_count", missingCount);
+        response.put("missing", missingList);
+        response.put("pageserver_reachable", pageserverReachable);
+
+        var lastResult = tenantReconcileService.getLastResult();
+        if (lastResult != null) {
+            response.put("last_reconcile", Map.of(
+                "timestamp", lastResult.timestamp().toString(),
+                "reattached", lastResult.reattachedCount(),
+                "failed", lastResult.failedCount()
+            ));
+        }
+        return response;
+    }
+
+    @PostMapping("/pageserver/tenant-reconcile")
+    public Map<String, Object> triggerReconcile() {
+        var result = tenantReconcileService.doReconcile(true);
+        if (result == null) {
+            return Map.of("success", false, "error", "Pageserver unreachable");
+        }
+        return Map.of(
+            "success", true,
+            "expected", result.expectedCount(),
+            "attached", result.attachedCount(),
+            "missing", result.missingCount(),
+            "reattached", result.reattachedCount(),
+            "failed", result.failedCount(),
+            "reattached_databases", result.reattachedDatabases(),
+            "failed_databases", result.failedDatabases()
+        );
     }
 
     // ── Infrastructure ──────────────────────────────────────────
