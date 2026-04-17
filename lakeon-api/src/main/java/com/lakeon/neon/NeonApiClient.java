@@ -303,9 +303,28 @@ public class NeonApiClient {
     }
 
     /**
-     * Get tenant info.
-     * GET /v1/tenant/{tenant_id}
+     * List all tenants currently attached on pageserver.
+     * GET /v1/tenant
      */
+    public List<Map<String, Object>> listTenants() {
+        try {
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/v1/tenant"))
+                .GET()
+                .timeout(Duration.ofSeconds(15))
+                .build();
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() >= 400) {
+                throw new NeonApiException("Failed to list tenants: HTTP " + response.statusCode(), response.statusCode());
+            }
+            return objectMapper.readValue(response.body(), new TypeReference<>() {});
+        } catch (NeonApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new NeonApiException("Failed to list tenants: " + e.getMessage(), e);
+        }
+    }
+
     /**
      * Check pageserver status.
      * GET /v1/status

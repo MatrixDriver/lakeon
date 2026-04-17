@@ -26,4 +26,7 @@ public interface DatabaseRepository extends JpaRepository<DatabaseEntity, String
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT d FROM DatabaseEntity d WHERE d.id = :id AND d.tenantId = :tenantId")
     Optional<DatabaseEntity> findByIdAndTenantIdForUpdate(@Param("id") String id, @Param("tenantId") String tenantId);
+
+    @Query("SELECT d FROM DatabaseEntity d WHERE d.deletedAt IS NULL AND d.neonTenantId IS NOT NULL")
+    List<DatabaseEntity> findAllActiveWithNeonTenant();
 }
