@@ -297,10 +297,18 @@ class AgentRunner:
                 if should_stop:
                     break
             else:
-                result.status = "max_rounds_exceeded"
-                result.error = (
-                    f"agent did not call done() within {self._max_rounds} rounds"
-                )
+                if result.pages_created + result.pages_updated + result.pages_deleted > 0:
+                    result.status = "success_incomplete"
+                    result.error = (
+                        f"agent did not call done() within {self._max_rounds} rounds "
+                        f"(pages changed anyway: +{result.pages_created} "
+                        f"~{result.pages_updated} -{result.pages_deleted})"
+                    )
+                else:
+                    result.status = "max_rounds_exceeded"
+                    result.error = (
+                        f"agent did not call done() within {self._max_rounds} rounds"
+                    )
         except Exception as e:
             log.exception("agent run %s failed: %s", req.run_id, e)
             result.status = "error"
@@ -427,8 +435,16 @@ class AgentRunner:
                 if should_stop:
                     break
             else:
-                result.status = "max_rounds_exceeded"
-                result.error = f"agent did not finish within {self._max_rounds} rounds"
+                if result.pages_created + result.pages_updated + result.pages_deleted > 0:
+                    result.status = "success_incomplete"
+                    result.error = (
+                        f"agent did not finish within {self._max_rounds} rounds "
+                        f"(pages changed anyway: +{result.pages_created} "
+                        f"~{result.pages_updated} -{result.pages_deleted})"
+                    )
+                else:
+                    result.status = "max_rounds_exceeded"
+                    result.error = f"agent did not finish within {self._max_rounds} rounds"
 
         except Exception as e:
             log.exception("chat stream run %s failed: %s", req.run_id, e)
@@ -540,7 +556,7 @@ class AgentRunner:
             "pagesUpdated": result.pages_updated,
             "pagesDeleted": result.pages_deleted,
             "durationMs": duration_ms,
-            "status": "success" if result.status == "success" else "error",
+            "status": "success" if result.status in ("success", "success_incomplete") else "error",
             "errorMessage": result.error,
             "toolCallsCount": result.tool_calls_count,
             "tokenCount": result.token_count,

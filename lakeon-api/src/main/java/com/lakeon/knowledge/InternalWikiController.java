@@ -135,8 +135,14 @@ public class InternalWikiController {
                     req.runId, req.kbId, req.status,
                     req.pagesCreated, req.pagesUpdated, req.pagesDeleted);
 
-            // Update trigger document's wiki_processed_at on successful ingest
-            if ("success".equals(req.status) && "ingest".equals(req.runType)
+            // Update trigger document's wiki_processed_at when the ingest actually
+            // touched wiki pages — even if the agent hit max_rounds without calling
+            // done(). Some LLMs (e.g. DeepSeek) do the work but skip the final done
+            // tool call, which historically produced status=error despite real page
+            // changes. Treat any run with positive page deltas as effectively done.
+            boolean statusOk = "success".equals(req.status);
+            boolean touchedPages = (req.pagesCreated + req.pagesUpdated + req.pagesDeleted) > 0;
+            if ((statusOk || touchedPages) && "ingest".equals(req.runType)
                     && req.triggerDoc != null && !req.triggerDoc.isBlank()) {
                 updateWikiProcessedAt(req.tenantId, req.triggerDoc);
                 // Backfill other docs in same KB that have run logs but missing wiki_processed_at

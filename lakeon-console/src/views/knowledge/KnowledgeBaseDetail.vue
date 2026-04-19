@@ -140,13 +140,6 @@
         </label>
         <button class="btn" style="border: 1px solid #d4c4b0; background: #fff; color: #5a4a3a; border-radius: 6px;" @click="showUrlDialog = true" :disabled="kb?.status !== 'READY'">导入 URL</button>
         <button class="btn" style="border: 1px solid #d4c4b0; background: #fff; color: #5a4a3a; border-radius: 6px;" @click="handleObsDataSource" :disabled="kb?.status !== 'READY'">OBS 数据源</button>
-        <span style="flex: 1;"></span>
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <input v-model="docSearch" placeholder="搜索文件名..." style="padding: 6px 12px; border: 1px solid #e0d8ce; border-radius: 4px; font-size: 12px; width: 180px; outline: none;" />
-          <button class="btn btn-text" style="padding: 6px;" @click="loadDocuments" title="刷新文档列表">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-          </button>
-        </div>
       </div>
 
       <span v-if="kb?.status === 'CREATING'" style="color: #c87a20; font-size: 13px; display: block; margin-bottom: 12px;">知识库正在创建中，请稍候...</span>
@@ -215,6 +208,10 @@
             删除选中 ({{ selectedDocIds.size }})
           </button>
           <button v-if="isAdmin && documents.length > 0" class="btn btn-text btn-small" style="color: #999;" @click="handleClearAll">清空</button>
+          <input v-model="docSearch" placeholder="搜索文件名..." style="padding: 6px 12px; border: 1px solid #e0d8ce; border-radius: 4px; font-size: 12px; width: 180px; outline: none; margin-left: 8px;" />
+          <button class="btn btn-text" style="padding: 6px;" :disabled="docLoading" @click="refreshDocTable" :title="docLoading ? '刷新中…' : '刷新文档列表'">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" :style="docLoading ? 'animation: rotate 1s linear infinite;' : ''"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          </button>
         </div>
       </div>
       <!-- Breadcrumb navigation -->
@@ -897,6 +894,12 @@ async function loadDocuments() {
   }
 }
 
+async function refreshDocTable() {
+  // Refresh both the document list and the tab counters (stats) + folders,
+  // so every UI surface the user can see updates in one click.
+  await Promise.all([loadDocuments(), loadStats(), loadFolders()])
+}
+
 async function loadStats() {
   const kbId = route.params.kbId as string
   try {
@@ -1319,6 +1322,10 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 .guide-step {
   flex: 1;
   background: #faf8f5;
