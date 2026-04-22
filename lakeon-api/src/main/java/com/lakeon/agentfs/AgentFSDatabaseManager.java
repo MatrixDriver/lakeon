@@ -37,7 +37,11 @@ public class AgentFSDatabaseManager {
 
     private static final Logger log = LoggerFactory.getLogger(AgentFSDatabaseManager.class);
 
-    /** Schema applied to each new AgentFS database (NOT the metadata DB). */
+    /** Schema applied to each new AgentFS database (NOT the metadata DB).
+     *  Includes per-tenant CDC: agentfs_events table + trigger fired on files
+     *  inserts/updates/deletes. Executed as a single multi-statement blob
+     *  because the plpgsql function body contains semicolons inside $$...$$
+     *  and cannot be safely split on ';'. */
     private static final String FILES_SCHEMA = """
         CREATE TABLE IF NOT EXISTS files (
             path        TEXT PRIMARY KEY,
@@ -52,6 +56,41 @@ public class AgentFSDatabaseManager {
         );
         CREATE INDEX IF NOT EXISTS files_path_pattern ON files(path text_pattern_ops);
         CREATE INDEX IF NOT EXISTS files_kind ON files(kind);
+
+        CREATE TABLE IF NOT EXISTS agentfs_events (
+            id          BIGSERIAL PRIMARY KEY,
+            path        TEXT NOT NULL,
+            etag        VARCHAR(64),
+            event_type  VARCHAR(16) NOT NULL,
+            status      VARCHAR(16) NOT NULL DEFAULT 'pending',
+            retry_count INT NOT NULL DEFAULT 0,
+            last_error  TEXT,
+            created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+            processed_at TIMESTAMPTZ
+        );
+        CREATE INDEX IF NOT EXISTS idx_agentfs_events_pending
+            ON agentfs_events(status, id) WHERE status = 'pending';
+
+        CREATE OR REPLACE FUNCTION agentfs_files_event_fn() RETURNS TRIGGER AS $$
+        BEGIN
+          IF (TG_OP = 'INSERT') THEN
+            INSERT INTO agentfs_events(path, etag, event_type)
+              VALUES (NEW.path, NEW.etag, 'create');
+          ELSIF (TG_OP = 'UPDATE') THEN
+            INSERT INTO agentfs_events(path, etag, event_type)
+              VALUES (NEW.path, NEW.etag, 'update');
+          ELSIF (TG_OP = 'DELETE') THEN
+            INSERT INTO agentfs_events(path, etag, event_type)
+              VALUES (OLD.path, OLD.etag, 'delete');
+          END IF;
+          RETURN NULL;
+        END;
+        $$ LANGUAGE plpgsql;
+
+        DROP TRIGGER IF EXISTS agentfs_files_event_trg ON files;
+        CREATE TRIGGER agentfs_files_event_trg
+          AFTER INSERT OR UPDATE OR DELETE ON files
+          FOR EACH ROW EXECUTE FUNCTION agentfs_files_event_fn();
         """;
 
     private final AgentFSAssignmentRepository assignmentRepo;
@@ -141,10 +180,11 @@ public class AgentFSDatabaseManager {
         DatabaseEntity fresh = databaseRepository.findById(db.getId()).orElse(db);
         try (Connection conn = openAdmin(fresh);
              Statement st = conn.createStatement()) {
-            for (String stmt : FILES_SCHEMA.split(";")) {
-                String s = stmt.trim();
-                if (!s.isEmpty()) st.execute(s);
-            }
+            // Execute the schema as a single multi-statement blob.
+            // Naive split on ';' is unsafe because the plpgsql trigger function
+            // body contains semicolons inside its $$...$$ quoted body. The
+            // Postgres JDBC driver handles multi-statement execute() natively.
+            st.execute(FILES_SCHEMA);
             asg.setStatus("READY");
             asg.setReadyAt(Instant.now());
             assignmentRepo.save(asg);
