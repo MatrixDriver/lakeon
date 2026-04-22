@@ -186,11 +186,13 @@ public class AgentFSEventForwarder {
     }
 
     /** Seed one-off backfill events for files already present when the trigger
-     *  was installed. Skipped on subsequent ticks because the events table
-     *  will have at least one row. */
+     *  was installed. Runs once per tenant's lifetime, gated by presence of any
+     *  {@code event_type='backfill'} row (survives operator truncation of other
+     *  event types — e.g. after a poison storm cleanup we won't re-derive every
+     *  already-processed file). */
     private void seedBackfillIfEmpty(Connection c) throws SQLException {
         try (PreparedStatement check = c.prepareStatement(
-                "SELECT 1 FROM agentfs_events LIMIT 1");
+                "SELECT 1 FROM agentfs_events WHERE event_type='backfill' LIMIT 1");
              ResultSet rs = check.executeQuery()) {
             if (rs.next()) return;
         }
@@ -198,7 +200,7 @@ public class AgentFSEventForwarder {
             "INSERT INTO agentfs_events(path, etag, event_type) " +
             "SELECT path, etag, 'backfill' FROM files WHERE kind='file'")) {
             int n = seed.executeUpdate();
-            if (n > 0) log.info("forwarder: seeded {} backfill events", n);
+            if (n > 0) log.info("seeded backfill events count={}", n);
         }
     }
 
