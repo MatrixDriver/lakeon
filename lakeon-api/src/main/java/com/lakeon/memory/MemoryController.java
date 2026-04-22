@@ -12,25 +12,36 @@ public class MemoryController {
 
     private final MemoryService memoryService;
     private final com.lakeon.repository.DatabaseRepository databaseRepository;
+    private final com.lakeon.agentfs.AgentFSMemoryTargetRepository agentfsTargetRepository;
 
     public MemoryController(MemoryService memoryService,
-                            com.lakeon.repository.DatabaseRepository databaseRepository) {
+                            com.lakeon.repository.DatabaseRepository databaseRepository,
+                            com.lakeon.agentfs.AgentFSMemoryTargetRepository agentfsTargetRepository) {
         this.memoryService = memoryService;
         this.databaseRepository = databaseRepository;
+        this.agentfsTargetRepository = agentfsTargetRepository;
     }
 
     @GetMapping("/bases")
     public List<Map<String, Object>> listBases(HttpServletRequest req) {
         TenantEntity tenant = getTenant(req);
+        Optional<com.lakeon.agentfs.AgentFSMemoryTargetEntity> target =
+                agentfsTargetRepository.findByTenantId(tenant.getId());
+        String targetBaseId = target.map(com.lakeon.agentfs.AgentFSMemoryTargetEntity::getMemoryBaseId).orElse(null);
+        boolean targetAutoCreated = target.map(t -> Boolean.TRUE.equals(t.getAutoCreated())).orElse(false);
         return memoryService.listBases(tenant.getId()).stream()
-                .map(this::toMemResponse)
+                .map(mem -> toMemResponse(mem, targetBaseId, targetAutoCreated))
                 .toList();
     }
 
     @GetMapping("/bases/{id}")
     public Map<String, Object> getBase(HttpServletRequest req, @PathVariable String id) {
         TenantEntity tenant = getTenant(req);
-        return toMemResponse(memoryService.getBase(tenant.getId(), id));
+        Optional<com.lakeon.agentfs.AgentFSMemoryTargetEntity> target =
+                agentfsTargetRepository.findByTenantId(tenant.getId());
+        String targetBaseId = target.map(com.lakeon.agentfs.AgentFSMemoryTargetEntity::getMemoryBaseId).orElse(null);
+        boolean targetAutoCreated = target.map(t -> Boolean.TRUE.equals(t.getAutoCreated())).orElse(false);
+        return toMemResponse(memoryService.getBase(tenant.getId(), id), targetBaseId, targetAutoCreated);
     }
 
     @PostMapping("/bases")
@@ -46,6 +57,10 @@ public class MemoryController {
         String kdfSalt = (String) body.get("kdf_salt");
         Integer embeddingDim = body.get("embedding_dim") != null
                 ? ((Number) body.get("embedding_dim")).intValue() : null;
+        Optional<com.lakeon.agentfs.AgentFSMemoryTargetEntity> target =
+                agentfsTargetRepository.findByTenantId(tenant.getId());
+        String targetBaseId = target.map(com.lakeon.agentfs.AgentFSMemoryTargetEntity::getMemoryBaseId).orElse(null);
+        boolean targetAutoCreated = target.map(t -> Boolean.TRUE.equals(t.getAutoCreated())).orElse(false);
         return toMemResponse(memoryService.createBase(
             tenant,
             (String) body.get("name"),
@@ -58,7 +73,7 @@ public class MemoryController {
             encryptedDek,
             kdfSalt,
             embeddingDim
-        ));
+        ), targetBaseId, targetAutoCreated);
     }
 
     @DeleteMapping("/bases/{id}")
@@ -182,6 +197,10 @@ public class MemoryController {
     }
 
     private Map<String, Object> toMemResponse(MemoryBaseEntity mem) {
+        return toMemResponse(mem, null, false);
+    }
+
+    private Map<String, Object> toMemResponse(MemoryBaseEntity mem, String targetBaseId, boolean targetAutoCreated) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", mem.getId());
         map.put("tenant_id", mem.getTenantId());
@@ -202,6 +221,9 @@ public class MemoryController {
         map.put("embedding_dim", mem.getEmbeddingDim());
         map.put("created_at", mem.getCreatedAt() != null ? mem.getCreatedAt().toString() : null);
         map.put("updated_at", mem.getUpdatedAt() != null ? mem.getUpdatedAt().toString() : null);
+        boolean isTarget = mem.getId() != null && mem.getId().equals(targetBaseId);
+        map.put("is_agentfs_target", isTarget);
+        map.put("auto_created", isTarget && targetAutoCreated);
         if (mem.getDatabaseId() != null) {
             databaseRepository.findById(mem.getDatabaseId()).ifPresent(db ->
                     map.put("database_status", db.getStatus().name()));
