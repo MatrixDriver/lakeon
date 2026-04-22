@@ -72,6 +72,9 @@ CREATE TABLE IF NOT EXISTS reflection_watermark (
 
 CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(memory_type);
 CREATE INDEX IF NOT EXISTS idx_memories_embedding ON memories USING hnsw (embedding vector_cosine_ops);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_source_idempotent
+    ON memories ((metadata->>'source_path'), (metadata->>'source_etag'))
+    WHERE metadata ? 'source_path';
 CREATE INDEX IF NOT EXISTS idx_traits_stage ON traits(trait_stage);
 CREATE INDEX IF NOT EXISTS idx_graph_edges_source ON graph_edges(source_type, source_id);
 CREATE INDEX IF NOT EXISTS idx_graph_edges_target ON graph_edges(target_type, target_id);
