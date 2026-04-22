@@ -3,7 +3,7 @@ from typing import Optional
 import asyncio
 import schema
 import engine
-from models import IngestRequest, IngestExtractedRequest, DigestExtractedRequest, RecallRequest
+from models import IngestRequest, IngestExtractedRequest, DigestExtractedRequest, RecallRequest, DeriveRequest
 
 app = FastAPI(title="DBay Memory Service")
 
@@ -37,6 +37,39 @@ async def ingest(req: IngestRequest, x_database_connstr: str = Header(...),
             x_database_connstr, req.content, req.role, req.source, op="ingest_conversation")
         asyncio.create_task(engine.background_extract(x_database_connstr, message_id, req.content, x_scene))
         return {"message_id": message_id, "status": "extracting"}
+
+
+@app.post("/agentfs/derive")
+async def agentfs_derive(req: DeriveRequest,
+                          x_database_connstr: str = Header(...)):
+    """Phase 2 hook: lakeon-api AgentFSEventForwarder forwards per-tenant
+    events here. Idempotent via ingest_idempotent on (source_path, source_etag)
+    UNIQUE index; delete via delete_by_source_path.
+    """
+    metadata = {
+        "source_system": "agentfs",
+        "source_path": req.path,
+        "source_etag": req.source_etag,
+        "source_agent": req.source_agent,
+    }
+    if req.source_frontmatter:
+        metadata["source_frontmatter"] = req.source_frontmatter
+
+    if req.op == "delete":
+        n = await engine.delete_by_source_path(x_database_connstr, req.path)
+        return {"status": "deleted", "rows_deleted": n}
+
+    # create / update / backfill
+    if req.content is None or req.memory_type is None:
+        raise HTTPException(400, f"content and memory_type required for op={req.op}")
+
+    mem = await engine.ingest_idempotent(
+        x_database_connstr, req.content, req.memory_type, 0.5, metadata,
+        embedding=None,  # let the engine compute
+    )
+    if mem is None:
+        return {"status": "idempotent_noop", "memory_id": None}
+    return {"status": "ingested", "memory_id": mem.id}
 
 
 @app.post("/ingest_extracted")
