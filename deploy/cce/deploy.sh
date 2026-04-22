@@ -8,9 +8,9 @@
 
 set -e
 
-# Disable proxy for Helm/kubectl/SWR access
-export no_proxy="*"
-export NO_PROXY="*"
+# Respect caller's proxy settings — some dev environments need a proxy
+# to reach the CCE API endpoint over public internet. If you need to
+# bypass proxy, set NO_PROXY="*" in your own shell before invoking.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/site.sh"

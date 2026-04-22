@@ -310,13 +310,20 @@ public class AgentFSService {
 
     private void upsertFile(Connection c, String path, String kind, long size,
                              long mtimeNs, String etag, String propsJson, byte[] data) throws SQLException {
+        // Idempotency: skip the UPDATE when nothing meaningful changed.
+        // Without this, every PUT re-stamps mtime_ns/updated_at even for
+        // identical content, which would trigger spurious CDC events for
+        // downstream consumers (Phase 2 memory derivation worker).
         try (PreparedStatement st = c.prepareStatement(
             "INSERT INTO files(path, kind, size, mtime_ns, etag, properties, data, updated_at) " +
             "VALUES(?, ?, ?, ?, ?, ?::jsonb, ?, now()) " +
             "ON CONFLICT(path) DO UPDATE SET " +
             "  kind = EXCLUDED.kind, size = EXCLUDED.size, mtime_ns = EXCLUDED.mtime_ns, " +
             "  etag = EXCLUDED.etag, properties = EXCLUDED.properties, " +
-            "  data = EXCLUDED.data, updated_at = now()")) {
+            "  data = EXCLUDED.data, updated_at = now() " +
+            "WHERE files.etag IS DISTINCT FROM EXCLUDED.etag " +
+            "   OR files.kind IS DISTINCT FROM EXCLUDED.kind " +
+            "   OR files.properties IS DISTINCT FROM EXCLUDED.properties")) {
             st.setString(1, path);
             st.setString(2, kind);
             st.setLong(3, size);
