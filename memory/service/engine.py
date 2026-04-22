@@ -30,6 +30,40 @@ async def ingest(connstr: str, content: str, role: str, memory_type: str,
         conn.close()
 
 
+async def ingest_idempotent(connstr: str, content: str, memory_type: str,
+                            importance: float, metadata: dict,
+                            embedding: list[float] | None = None) -> Memory | None:
+    """Insert a memory with idempotent semantics keyed on (source_path, source_etag).
+
+    Returns the new Memory if inserted, None if the (source_path, source_etag)
+    pair already exists (i.e., retry / duplicate). Caller must populate
+    metadata['source_path'] and metadata['source_etag'].
+
+    Relies on the partial UNIQUE INDEX idx_memories_source_idempotent defined in
+    schema.py (on (metadata->>'source_path', metadata->>'source_etag') WHERE
+    metadata ? 'source_path'). Uses ON CONFLICT index-inference rather than a
+    named constraint because partial unique indexes aren't true constraints.
+    """
+    if embedding is None:
+        embedding = await get_embedding(content)
+    conn = _connect(connstr)
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                INSERT INTO memories (content, memory_type, importance, embedding, metadata, created_at)
+                VALUES (%s, %s, %s, %s::vector, %s, now())
+                ON CONFLICT ((metadata->>'source_path'), (metadata->>'source_etag'))
+                    WHERE metadata ? 'source_path'
+                    DO NOTHING
+                RETURNING id, content, memory_type, importance, access_count, last_accessed_at, metadata, event_time, created_at
+            """, (content, memory_type, importance, json.dumps(embedding), json.dumps(metadata)))
+            row = cur.fetchone()
+            conn.commit()
+            return Memory(**row) if row else None
+    finally:
+        conn.close()
+
+
 async def store_raw_message(connstr: str, content: str, role: str, source: str = None,
                              op: str = None) -> str:
     """Store raw message and return its UUID."""
