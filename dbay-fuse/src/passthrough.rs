@@ -39,7 +39,7 @@ pub fn mount(agent: &str, mount_point: &Path, state_dir: &Path, outbox_dir: &Pat
     let append_map = append_state::new_map();
 
     // Start uplink worker (reads outbox, POSTs to AgentFS)
-    crate::uplink_worker::spawn(agent, outbox.clone())?;
+    crate::uplink_worker::spawn(agent, outbox.clone(), state_dir, outbox_dir)?;
 
     // Start flush watchdog (idle + size triggers)
     let watchdog = FlushWatchdog::spawn();

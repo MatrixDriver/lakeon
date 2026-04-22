@@ -22,7 +22,8 @@ use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{default_mount, default_state, home};
+use crate::state_scan;
+use crate::{default_mount, default_outbox, default_state, home};
 
 pub struct Node {
     /// Relative path under agent home, e.g. "projects" or "CLAUDE.md"
@@ -267,6 +268,15 @@ pub fn execute(agent: &str, plan: &Plan, dry_run: bool) -> Result<()> {
     // Write record
     let rec = serde_record(agent, plan, &backup_root);
     fs::write(backup_root.join("takeover.json"), rec)?;
+
+    // Signal the running daemon to re-scan state/ so freshly-imported
+    // content propagates to AgentFS. Without this the server never
+    // sees the takeover's rsynced files (existing files are only
+    // flushed via FUSE write ops, which takeover doesn't generate).
+    let outbox_dir = default_outbox(agent)?;
+    let trigger = state_scan::write_rescan_trigger(&outbox_dir)
+        .context("signal rescan to daemon")?;
+    tracing::info!(?trigger, "rescan trigger written; daemon will sync state/ on next poll");
 
     println!("✓ takeover complete. Backup at: {}", backup_root.display());
     println!("  To reverse:  dbay-fuse release --agent {}", agent);

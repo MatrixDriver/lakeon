@@ -23,6 +23,7 @@ mod dbay_api;
 mod flush_watchdog;
 mod outbox;
 mod passthrough;
+mod state_scan;
 mod takeover;
 mod uplink_worker;
 

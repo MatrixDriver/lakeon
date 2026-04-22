@@ -9,6 +9,7 @@
 //! If no api_key, runs in log-only mode (useful for dev/tests).
 
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -17,27 +18,46 @@ use anyhow::{Context, Result};
 
 use crate::dbay_api::DbayClient;
 use crate::outbox::{self, Entry, Op, Outbox};
+use crate::state_scan;
 
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
 const MAX_BATCH: usize = 50;
 
-pub fn spawn(agent: &str, outbox: Arc<Outbox>) -> Result<()> {
+pub fn spawn(agent: &str, outbox: Arc<Outbox>, state_dir: &Path, outbox_dir: &Path) -> Result<()> {
     let agent = agent.to_string();
+    let state_dir = state_dir.to_path_buf();
+    let outbox_dir = outbox_dir.to_path_buf();
     let client = DbayClient::for_agent(&agent)?;
     if client.is_none() {
         tracing::warn!("DBay not configured — uplink runs in log-only mode");
     }
     thread::spawn(move || {
-        if let Err(e) = run(agent, outbox, client) {
+        if let Err(e) = run(agent, outbox, client, state_dir, outbox_dir) {
             tracing::error!(?e, "uplink worker crashed");
         }
     });
     Ok(())
 }
 
-fn run(_agent: String, outbox: Arc<Outbox>, client: Option<DbayClient>) -> Result<()> {
+fn run(
+    _agent: String,
+    outbox: Arc<Outbox>,
+    client: Option<DbayClient>,
+    state_dir: PathBuf,
+    outbox_dir: PathBuf,
+) -> Result<()> {
     tracing::info!(has_client = client.is_some(), "uplink worker started");
+    let trigger_path = state_scan::rescan_trigger_path(&outbox_dir);
     loop {
+        // takeover (and future CLI tools) can signal a rescan by
+        // creating the trigger file. Consume before the pending
+        // check so the new ops join this iteration's batch.
+        match state_scan::consume_rescan_trigger(&state_dir, &outbox, &trigger_path) {
+            Ok(0) => {}
+            Ok(n) => tracing::info!(enqueued = n, "rescan trigger consumed"),
+            Err(e) => tracing::warn!(?e, "rescan trigger consumption failed, will retry"),
+        }
+
         let pending = outbox.pending();
         if pending.is_empty() {
             let _ = outbox.maybe_compact();
