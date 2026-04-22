@@ -7,13 +7,18 @@
 #
 # Reads agentfs_assignments + database_instances to discover each tenant's
 # agentfs DB, connects via the compute IP:port with cloud_admin, applies schema.
+#
+# NOTE: This script passes cloud_admin credentials via `kubectl run --env=...`,
+# which exposes the password in kubectl audit logs. Acceptable for a one-shot
+# migration, but do NOT adapt this pattern for recurring/automated jobs —
+# use a Secret-mounted Job manifest instead.
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/site.sh"
 
 SQL_FILE=$(mktemp)
-trap "rm -f $SQL_FILE" EXIT
+trap 'rm -f "$SQL_FILE"' EXIT
 cat > "$SQL_FILE" <<'SQL'
 CREATE TABLE IF NOT EXISTS agentfs_events (
     id          BIGSERIAL PRIMARY KEY,
@@ -59,12 +64,24 @@ TENANTS=$(KUBECONFIG=$SITE_KUBECONFIG kubectl -n lakeon run psql-probe --rm -i -
      FROM agentfs_assignments a JOIN database_instances di ON di.id = a.database_id
     WHERE a.status='READY' AND di.status IN ('RUNNING','SUSPENDED');")
 
-echo "$TENANTS" | while IFS='|' read -r tenant_id db_name host port; do
+total=0
+ok_count=0
+fail_count=0
+while IFS='|' read -r tenant_id db_name host port; do
   [ -z "$tenant_id" ] && continue
+  total=$((total+1))
   port=${port:-55433}
-  echo ">>> $tenant_id → $db_name @ $host:$port"
-  KUBECONFIG=$SITE_KUBECONFIG kubectl -n lakeon run psql-migrate-$RANDOM \
+  pod_name="psql-migrate-${tenant_id}-$(date +%s)"
+  echo ">>> $tenant_id → $db_name @ $host:$port (pod=$pod_name)"
+  if KUBECONFIG=$SITE_KUBECONFIG kubectl -n lakeon run "$pod_name" \
     --rm -i --restart=Never --image=postgres:16 \
     --env="PGPASSWORD=cloud-admin-internal" -- \
-    psql -h "$host" -p "$port" -U cloud_admin -d "$db_name" < "$SQL_FILE"
-done
+    psql -h "$host" -p "$port" -U cloud_admin -d "$db_name" < "$SQL_FILE"; then
+    ok_count=$((ok_count+1))
+  else
+    echo "!!! FAILED: $tenant_id"
+    fail_count=$((fail_count+1))
+  fi
+done < <(echo "$TENANTS")
+echo "=== summary: total=$total ok=$ok_count fail=$fail_count ==="
+[ "$fail_count" -gt 0 ] && exit 1 || exit 0
