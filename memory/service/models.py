@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Literal
 from datetime import datetime
 
@@ -120,3 +120,20 @@ class DigestExtractedData(BaseModel):
 
 class DigestExtractedRequest(BaseModel):
     data: DigestExtractedData
+
+
+class DeriveRequest(BaseModel):
+    """Request body for POST /agentfs/derive.
+
+    Caller (lakeon-api AgentFSEventForwarder) provides the target base
+    connstr via x-database-connstr header; this body specifies what to
+    do to that base's memories table.
+    """
+    tenant_id: str
+    op: str = Field(..., pattern=r"^(create|update|delete|backfill)$")
+    path: str
+    content: Optional[str] = None         # required for create/update/backfill; None for delete
+    memory_type: Optional[str] = None     # required for create/update/backfill; None for delete
+    source_etag: str
+    source_agent: str
+    source_frontmatter: Optional[dict] = None
