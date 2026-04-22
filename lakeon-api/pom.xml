@@ -80,6 +80,12 @@
             <artifactId>caffeine</artifactId>
         </dependency>
 
+        <!-- Jackson YAML (for Agent-FS frontmatter parsing) -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+        </dependency>
+
         <!-- WebSocket -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
