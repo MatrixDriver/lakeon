@@ -79,3 +79,29 @@ async def test_ingest_idempotent_different_etag_inserts_new(test_connstr):
     m2 = await ingest_idempotent(test_connstr, "v2", "fact", 0.5, meta2, embedding=[0.1]*1024)
     assert m1 is not None and m2 is not None
     assert m1.id != m2.id
+
+
+@pytest.mark.asyncio
+async def test_delete_by_source_path_removes_matching(test_connstr):
+    from engine import delete_by_source_path
+    meta = {"source_path": "/memory/gone.md", "source_etag": "E1"}
+    await ingest_idempotent(test_connstr, "body", "fact", 0.5, meta, embedding=[0.1]*1024)
+    n = await delete_by_source_path(test_connstr, "/memory/gone.md")
+    assert n == 1
+    # deleting again returns 0 (no match)
+    n2 = await delete_by_source_path(test_connstr, "/memory/gone.md")
+    assert n2 == 0
+
+
+@pytest.mark.asyncio
+async def test_delete_by_source_path_leaves_other_paths(test_connstr):
+    from engine import delete_by_source_path
+    meta_a = {"source_path": "/memory/a.md", "source_etag": "E1"}
+    meta_b = {"source_path": "/memory/b.md", "source_etag": "E1"}
+    await ingest_idempotent(test_connstr, "a", "fact", 0.5, meta_a, embedding=[0.1]*1024)
+    await ingest_idempotent(test_connstr, "b", "fact", 0.5, meta_b, embedding=[0.1]*1024)
+    n = await delete_by_source_path(test_connstr, "/memory/a.md")
+    assert n == 1
+    # b.md still present
+    n2 = await delete_by_source_path(test_connstr, "/memory/b.md")
+    assert n2 == 1

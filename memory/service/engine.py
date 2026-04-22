@@ -64,6 +64,26 @@ async def ingest_idempotent(connstr: str, content: str, memory_type: str,
         conn.close()
 
 
+async def delete_by_source_path(connstr: str, source_path: str) -> int:
+    """Delete memories whose metadata->>'source_path' matches.
+
+    Returns the count of rows deleted. Used by /agentfs/derive op=delete
+    to propagate AgentFS file deletions into the memories table.
+    """
+    conn = _connect(connstr)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM memories WHERE metadata->>'source_path' = %s",
+                (source_path,),
+            )
+            n = cur.rowcount
+            conn.commit()
+            return n
+    finally:
+        conn.close()
+
+
 async def store_raw_message(connstr: str, content: str, role: str, source: str = None,
                              op: str = None) -> str:
     """Store raw message and return its UUID."""
