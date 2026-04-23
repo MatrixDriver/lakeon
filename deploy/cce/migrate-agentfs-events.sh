@@ -56,13 +56,21 @@ CREATE TRIGGER agentfs_files_event_trg
   FOR EACH ROW EXECUTE FUNCTION agentfs_files_event_fn();
 SQL
 
-# Discover READY tenant DBs via psql to metadata
-TENANTS=$(KUBECONFIG=$SITE_KUBECONFIG kubectl -n lakeon run psql-probe --rm -i --restart=Never --image=postgres:16 \
+# Discover READY tenant DBs via psql to metadata. Suppress --rm's
+# "pod deleted" message to stderr so it doesn't pollute the tenant list.
+# Filter query output: each valid row must start with 'tn_'.
+TENANTS=$(KUBECONFIG=$SITE_KUBECONFIG kubectl -n lakeon run psql-probe-$(date +%s) --rm -i --restart=Never --image=postgres:16 \
   --env="PGPASSWORD=$RDS_PASSWORD" -- \
   psql -h "$RDS_PRIVATE_IP" -U lakeon -d lakeon -t -A -c \
   "SELECT a.tenant_id, di.name, di.compute_host, di.compute_port
      FROM agentfs_assignments a JOIN database_instances di ON di.id = a.database_id
-    WHERE a.status='READY' AND di.status IN ('RUNNING','SUSPENDED');")
+    WHERE a.status='READY' AND di.status IN ('RUNNING','SUSPENDED');" 2>/dev/null | grep -E '^tn_')
+
+# Sanitize tenant_id for K8s pod name: replace underscores with dashes,
+# keep only lowercase alphanumerics + dashes, truncate to 30 chars.
+sanitize_for_pod() {
+  echo "$1" | tr '_' '-' | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9-' | cut -c1-30
+}
 
 total=0
 ok_count=0
@@ -71,7 +79,7 @@ while IFS='|' read -r tenant_id db_name host port; do
   [ -z "$tenant_id" ] && continue
   total=$((total+1))
   port=${port:-55433}
-  pod_name="psql-migrate-${tenant_id}-$(date +%s)"
+  pod_name="psql-migrate-$(sanitize_for_pod "$tenant_id")-$(date +%s)"
   echo ">>> $tenant_id → $db_name @ $host:$port (pod=$pod_name)"
   if KUBECONFIG=$SITE_KUBECONFIG kubectl -n lakeon run "$pod_name" \
     --rm -i --restart=Never --image=postgres:16 \

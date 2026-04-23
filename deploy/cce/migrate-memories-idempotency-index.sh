@@ -18,19 +18,26 @@ SQL="CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_source_idempotent
        ON memories ((metadata->>'source_path'), (metadata->>'source_etag'))
        WHERE metadata ? 'source_path';"
 
-BASES=$(KUBECONFIG=$SITE_KUBECONFIG kubectl -n lakeon run psql-probe --rm -i --restart=Never --image=postgres:16 \
+BASES=$(KUBECONFIG=$SITE_KUBECONFIG kubectl -n lakeon run psql-probe-$(date +%s) --rm -i --restart=Never --image=postgres:16 \
   --env="PGPASSWORD=$RDS_PASSWORD" -- \
   psql -h "$RDS_PRIVATE_IP" -U lakeon -d lakeon -t -A -c \
   "SELECT mb.id, di.name, di.compute_host, di.compute_port
      FROM memory_bases mb JOIN database_instances di ON di.id = mb.database_id
-    WHERE mb.status='READY';")
+    WHERE mb.status='READY'
+      AND di.status='RUNNING'
+      AND di.compute_host IS NOT NULL
+      AND di.compute_host != '';" 2>/dev/null | grep -E '^mem_')
+
+sanitize_for_pod() {
+  echo "$1" | tr '_' '-' | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9-' | cut -c1-30
+}
 
 total=0; ok_count=0; fail_count=0
 while IFS='|' read -r base_id db_name host port; do
   [ -z "$base_id" ] && continue
   total=$((total+1))
   port=${port:-55433}
-  pod_name="psql-idx-${base_id}-$(date +%s)"
+  pod_name="psql-idx-$(sanitize_for_pod "$base_id")-$(date +%s)"
   echo ">>> base $base_id → $db_name @ $host:$port (pod=$pod_name)"
   if KUBECONFIG=$SITE_KUBECONFIG kubectl -n lakeon run "$pod_name" \
     --rm -i --restart=Never --image=postgres:16 \
