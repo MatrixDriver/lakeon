@@ -41,3 +41,11 @@ export async function readAgentFile(path: string): Promise<string> {
   const resp = await api.get(`/agentfs/files?path=${p}`, { responseType: 'text' })
   return resp.data as string
 }
+
+export interface AgentFSMemoryTarget {
+  base_id: string | null
+}
+
+export function setAgentFSMemoryTarget(baseId: string) {
+  return api.post<AgentFSMemoryTarget>('/agentfs/memory-target', { base_id: baseId })
+}
