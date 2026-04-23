@@ -160,10 +160,15 @@ public class AgentFSDatabaseManager {
         asg.setStatus("PROVISIONING");
         assignmentRepo.save(asg);
 
-        // Block briefly waiting for READY (most provisions complete in a few seconds).
-        DatabaseEntity db = waitReady(resp.getId(), 30);
+        // Block waiting for READY. Cold start involves compute pod creation
+        // (~30s warm, up to 120s cold if node pool scale-up is needed), plus
+        // Neon tenant/timeline init. 120s covers the typical worst case
+        // without being so long clients give up. If the client-side retry
+        // loop extends beyond this we'll surface "retry shortly" and the
+        // next poll should hit the READY branch above.
+        DatabaseEntity db = waitReady(resp.getId(), 120);
         if (db.getStatus() != DatabaseStatus.RUNNING) {
-            throw new ServiceException("AgentFS database not READY after 30s; retry shortly");
+            throw new ServiceException("AgentFS database not READY after 120s; retry shortly");
         }
         initSchemaAndMarkReady(asg, db);
         return db;
