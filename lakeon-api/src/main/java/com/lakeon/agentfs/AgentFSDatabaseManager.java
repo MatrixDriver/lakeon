@@ -5,6 +5,7 @@ import com.lakeon.model.dto.DatabaseResponse;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.model.enums.DatabaseStatus;
+import com.lakeon.k8s.ComputePodManager;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.DatabaseService;
 import com.lakeon.service.exception.ServiceException;
@@ -96,14 +97,17 @@ public class AgentFSDatabaseManager {
     private final AgentFSAssignmentRepository assignmentRepo;
     private final DatabaseService databaseService;
     private final DatabaseRepository databaseRepository;
+    private final ComputePodManager computePodManager;
 
     @Autowired
     public AgentFSDatabaseManager(AgentFSAssignmentRepository assignmentRepo,
                                   @Lazy DatabaseService databaseService,
-                                  DatabaseRepository databaseRepository) {
+                                  DatabaseRepository databaseRepository,
+                                  ComputePodManager computePodManager) {
         this.assignmentRepo = assignmentRepo;
         this.databaseService = databaseService;
         this.databaseRepository = databaseRepository;
+        this.computePodManager = computePodManager;
     }
 
     /**
@@ -198,8 +202,39 @@ public class AgentFSDatabaseManager {
         }
     }
 
-    /** Direct connection to the per-tenant AgentFS database with admin creds. */
+    /**
+     * Open an admin JDBC connection to the per-tenant AgentFS database.
+     * <p>If the first attempt fails with a stale-host signature (e.g. compute
+     * pod IP drifted and we landed on another tenant's pod — "database does
+     * not exist"; or the pod is gone — "connection refused"), we ask
+     * {@link ComputePodManager#reconcileComputeHost} to repair the row and
+     * retry exactly once with the refreshed entity. Anything else surfaces
+     * immediately.
+     */
     private Connection openAdmin(DatabaseEntity entity) throws SQLException {
+        try {
+            return openAdminDirect(entity);
+        } catch (SQLException e) {
+            if (!isStaleHostError(e)) throw e;
+            log.warn("openAdmin failed for db {} (likely stale host): {}; reconciling",
+                    entity.getId(), e.getMessage());
+            boolean recovered = computePodManager.reconcileComputeHost(entity);
+            if (!recovered) {
+                log.warn("reconcile could not repair db {} (pod gone); surfacing original error",
+                        entity.getId());
+                throw e;
+            }
+            DatabaseEntity fresh = databaseRepository.findById(entity.getId())
+                    .orElseThrow(() -> new SQLException(
+                            "DB row vanished after reconcile: " + entity.getId()));
+            log.info("retrying openAdmin for db {} with reconciled host {}",
+                    fresh.getId(), fresh.getComputeHost());
+            return openAdminDirect(fresh);
+        }
+    }
+
+    /** Single connect attempt against the current entity state — no retry. */
+    private Connection openAdminDirect(DatabaseEntity entity) throws SQLException {
         String host = entity.getComputeHost();
         if (host == null) {
             throw new SQLException("compute host not available for db " + entity.getName()
@@ -208,5 +243,15 @@ public class AgentFSDatabaseManager {
         int port = entity.getComputePort() != null ? entity.getComputePort() : 55433;
         String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + entity.getName() + "?sslmode=disable";
         return DriverManager.getConnection(jdbcUrl, "cloud_admin", "cloud-admin-internal");
+    }
+
+    /** Heuristic: does this SQLException look like a stale compute host?
+     *  Package-private for unit testing. */
+    static boolean isStaleHostError(SQLException e) {
+        String msg = e.getMessage() == null ? "" : e.getMessage().toLowerCase();
+        return msg.contains("does not exist")
+                || msg.contains("connection refused")
+                || msg.contains("could not translate")
+                || msg.contains("no route to host");
     }
 }
