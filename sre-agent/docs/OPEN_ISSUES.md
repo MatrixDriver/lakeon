@@ -4,21 +4,27 @@ These must be resolved (or scope-adjusted) before a meaningful Railway deploy.
 
 ## 1. Hermes skill contract is unresolved
 
-**Status:** BLOCKER for live deploy.
+**Status:** RESOLVED — 2026-04-23
 
-Our `Watcher`, `diagnose()`, and `OutcomeChecker` classes are ready to execute but nothing currently invokes them from hermes's runtime. The SKILL.md manifests exist but we haven't confirmed how hermes actually dispatches skill code at the scheduled cron time.
+**Finding:** Hermes skills are prompt-only. `SKILL.md` files are markdown
+instructions injected into an LLM's context; the cron scheduler
+(`cron/scheduler.py:run_job()`) calls `AIAgent.run_conversation(prompt)` and
+never invokes Python code from skill directories. Our `triggers.cron` frontmatter
+was silently ignored.
 
-**Research needed:**
-- Read `/Users/jacky/code/hermes-agent/hermes/` skill loader source
-- Find an example skill (e.g., one of the built-in ones in `hermes-agent/skills/` or `optional-skills/`) and confirm the Python callable contract hermes expects
-- Options:
-  - (a) Register our classes as Python skills via whatever decorator / import hook hermes uses
-  - (b) Write a standalone `main.py` that uses hermes ONLY for feishu gateway and runs our own croniter loop
-  - (c) Register our skills via hermes config file if that's supported
+**Resolution:** Implemented approach (b) — explicit `croniter` loop in
+`sre-agent/main.py`. The loop runs our Python watcher/checker classes directly on
+schedule. Hermes is retained only for the feishu bidirectional gateway
+(started as a subprocess). Feishu DM push uses the Feishu REST API directly.
 
-**Risk if ignored:** Railway deploy succeeds, hermes starts, feishu bot responds to DMs, but the cron never fires the watcher. First cold start happens silently. Nothing in the commit log. False success signal.
+**Files changed:**
+- `sre-agent/main.py` — new: croniter loop, SREMCPAdapter, DeepseekLLMClient
+- `sre-agent/entrypoint.sh` — updated: runs `main.py` instead of `hermes gateway start`
+- `sre-agent/pyproject.toml` — added `croniter>=2.0` dependency
+- `sre-agent/tests/test_main.py` — new: 4 dispatch-logic tests (all pass)
+- `sre-agent/docs/HERMES_SKILL_DISPATCH.md` — investigation notes with file:line evidence
 
-**Recommended action:** Jacky spends ~2 hours reading hermes source code with one of the approved CC subagents before Step 22.1. If that research is blocked, fall back to approach (b) — explicit croniter loop is the safest Phase 0a choice because it doesn't depend on hermes skill discovery semantics.
+**See:** `sre-agent/docs/HERMES_SKILL_DISPATCH.md` for full investigation.
 
 ## 2. LLM retry is coarse
 
