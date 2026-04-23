@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +21,7 @@ import java.util.Set;
  */
 @Component
 @Order(2)
+@ConditionalOnProperty(name = "lakeon.trial-demo.enabled", havingValue = "true", matchIfMissing = true)
 public class TrialDemoFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(TrialDemoFilter.class);
 
