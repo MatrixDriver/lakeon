@@ -35,28 +35,39 @@
     </div>
 
     <!-- Directory listing -->
-    <div class="card" style="padding: 0; overflow: hidden;">
+    <div class="card listing-card" style="padding: 0; overflow: hidden; position: relative;">
+      <div v-if="loading" class="loading-bar" aria-hidden="true"></div>
       <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
         <thead>
           <tr style="background: var(--c-bg-soft); text-align: left;">
-            <th style="padding: 10px 16px; font-weight: 600;">名称</th>
-            <th style="padding: 10px 16px; font-weight: 600; width: 80px;">类型</th>
-            <th style="padding: 10px 16px; font-weight: 600; width: 120px;">大小</th>
-            <th style="padding: 10px 16px; font-weight: 600; width: 180px;">最后修改</th>
-            <th style="padding: 10px 16px; font-weight: 600; width: 140px;">ETag</th>
+            <th class="th-sortable" @click="setSort('name')">
+              <span>名称</span><span class="sort-indicator">{{ sortIcon('name') }}</span>
+            </th>
+            <th class="th-sortable" style="width: 80px;" @click="setSort('kind')">
+              <span>类型</span><span class="sort-indicator">{{ sortIcon('kind') }}</span>
+            </th>
+            <th class="th-sortable" style="width: 120px;" @click="setSort('size')">
+              <span>大小</span><span class="sort-indicator">{{ sortIcon('size') }}</span>
+            </th>
+            <th class="th-sortable" style="width: 180px;" @click="setSort('mtime_ns')">
+              <span>最后修改</span><span class="sort-indicator">{{ sortIcon('mtime_ns') }}</span>
+            </th>
+            <th class="th-sortable" style="width: 140px;" @click="setSort('etag')">
+              <span>ETag</span><span class="sort-indicator">{{ sortIcon('etag') }}</span>
+            </th>
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading">
+          <tr v-if="loading && entries.length === 0">
             <td colspan="5" style="padding: 30px; text-align: center; color: #999;">加载中...</td>
           </tr>
-          <tr v-else-if="entries.length === 0">
+          <tr v-else-if="!loading && entries.length === 0">
             <td colspan="5" style="padding: 30px; text-align: center; color: #999;">
               空目录。FUSE 客户端写入后这里会显示文件。参见
               <a href="https://github.com/MatrixDriver/lakeon/blob/main/docs/agentfs-user-guide.md" target="_blank" style="color: var(--c-primary);">使用指南</a>。
             </td>
           </tr>
-          <tr v-for="e in entries" :key="e.path"
+          <tr v-for="e in sortedEntries" :key="e.path"
               @click="onRowClick(e)"
               :style="{cursor: 'pointer'}"
               class="file-row">
@@ -99,12 +110,17 @@ import { ref, computed, onMounted } from 'vue'
 import { getAgentFSStats, listAgentFiles, readAgentFile,
          type AgentFileEntry, type AgentFSStats } from '@/api/agentfs'
 
+type SortKey = 'name' | 'kind' | 'size' | 'mtime_ns' | 'etag'
+
 const stats = ref<AgentFSStats | null>(null)
 const entries = ref<AgentFileEntry[]>([])
 const loading = ref(false)
 const currentPath = ref('/')
 const previewFile = ref<AgentFileEntry | null>(null)
 const previewContent = ref<string | null>(null)
+const sortKey = ref<SortKey>('name')
+const sortDir = ref<'asc' | 'desc'>('asc')
+let listSeq = 0
 
 const breadcrumbs = computed(() => {
   return currentPath.value.split('/').filter(Boolean)
@@ -141,16 +157,71 @@ async function loadStats() {
 }
 
 async function loadList(path: string) {
+  const seq = ++listSeq
   loading.value = true
   try {
     const { data } = await listAgentFiles(path, false)
+    if (seq !== listSeq) return
     entries.value = data.entries
   } catch (e) {
+    if (seq !== listSeq) return
     console.error('load list failed', e)
     entries.value = []
   } finally {
-    loading.value = false
+    if (seq === listSeq) loading.value = false
   }
+}
+
+const sortedEntries = computed(() => {
+  const arr = entries.value.slice()
+  const dir = sortDir.value === 'asc' ? 1 : -1
+  const key = sortKey.value
+  arr.sort((a, b) => {
+    let av: string | number
+    let bv: string | number
+    switch (key) {
+      case 'name':
+        av = basename(a.path).toLowerCase()
+        bv = basename(b.path).toLowerCase()
+        break
+      case 'kind':
+        av = a.kind
+        bv = b.kind
+        break
+      case 'size':
+        av = a.kind === 'dir' ? -1 : a.size
+        bv = b.kind === 'dir' ? -1 : b.size
+        break
+      case 'mtime_ns':
+        av = a.mtime_ns
+        bv = b.mtime_ns
+        break
+      case 'etag':
+        av = a.etag
+        bv = b.etag
+        break
+    }
+    if (av < bv) return -1 * dir
+    if (av > bv) return 1 * dir
+    const an = basename(a.path).toLowerCase()
+    const bn = basename(b.path).toLowerCase()
+    return an < bn ? -1 : an > bn ? 1 : 0
+  })
+  return arr
+})
+
+function setSort(key: SortKey) {
+  if (sortKey.value === key) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortKey.value = key
+    sortDir.value = key === 'mtime_ns' || key === 'size' ? 'desc' : 'asc'
+  }
+}
+
+function sortIcon(key: SortKey): string {
+  if (sortKey.value !== key) return ''
+  return sortDir.value === 'asc' ? '↑' : '↓'
 }
 
 function goTo(path: string) {
@@ -188,5 +259,39 @@ onMounted(() => {
 }
 .file-row td {
   border-top: 1px solid var(--c-border);
+}
+.th-sortable {
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.th-sortable:hover {
+  background: var(--c-bg-mute, rgba(0, 0, 0, 0.04));
+}
+.sort-indicator {
+  display: inline-block;
+  width: 12px;
+  margin-left: 4px;
+  color: var(--c-primary);
+  font-size: 11px;
+}
+.listing-card .loading-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--c-primary) 50%, transparent 100%);
+  background-size: 50% 100%;
+  background-repeat: no-repeat;
+  animation: loading-slide 1.1s ease-in-out infinite;
+  z-index: 1;
+  pointer-events: none;
+}
+@keyframes loading-slide {
+  0%   { background-position: -50% 0; }
+  100% { background-position: 150% 0; }
 }
 </style>
