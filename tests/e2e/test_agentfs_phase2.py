@@ -94,14 +94,33 @@ def _query_memories(endpoint, api_key, base_id, source_path):
 def _warm_up_agentfs(endpoint, api_key):
     """First PUT for a fresh tenant triggers AgentFS DB provision (~30s).
     Absorb that here so subsequent tests run on a warm DB."""
-    for attempt in range(12):  # 12 x 5s = 60s
+    for attempt in range(24):  # 24 x 5s = 120s (provision can take up to 90s)
         try:
             _agentfs_put(endpoint, api_key, "/memory/__warmup__.md", b"warmup")
             return
         except Exception:
-            if attempt == 11:
+            if attempt == 23:
                 raise
             time.sleep(5)
+
+
+def _safe_recall(endpoint, api_key, base_id, query, top_k=3):
+    """Recall that tolerates transient 400/404 while base provisioning.
+    Returns None on transient error, dict on success."""
+    try:
+        r = requests.post(
+            f"{endpoint}/api/v1/memory/bases/{base_id}/recall",
+            json={"query": query, "top_k": top_k},
+            headers={"Authorization": f"Bearer {api_key}"},
+            verify=False,
+            timeout=60,
+        )
+        if r.status_code >= 500 or r.status_code == 400 or r.status_code == 404:
+            return None
+        r.raise_for_status()
+        return r.json()
+    except Exception:
+        return None
 
 
 # --- Test cases ---------------------------------------------------------
@@ -120,7 +139,9 @@ def test_phase2_create_derives_memory(e2e_client):
         target = _memory_target(ep, key)
         if not target.get("base_id"):
             return False
-        r = _memory_recall(ep, key, target["base_id"], "emoji")
+        r = _safe_recall(ep, key, target["base_id"], "emoji")
+        if r is None:
+            return False  # base not yet ready
         return any(
             "no emoji" in (m.get("content") or "").lower()
             for m in r.get("memories", [])
