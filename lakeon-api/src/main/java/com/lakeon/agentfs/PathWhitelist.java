@@ -19,10 +19,17 @@ public class PathWhitelist {
     }
 
     public static String frontmatterTypeToMemoryType(String frontmatterType) {
+        // memories.memory_type ∈ {fact, episode, procedural, decision, rejection, convention}
+        // (V32 CHECK constraint in memory-svc schema)
+        //
+        // feedback_*.md — user preferences and conventions ("don't use emoji",
+        //   "deploy via hwstaff") → convention
+        // project_*.md  — architectural decisions, benchmark facts → decision
+        // reference_*.md, user_*.md — static facts / identity → fact
         if (frontmatterType == null) return "fact";
         return switch (frontmatterType) {
-            case "feedback" -> "procedural";
-            case "project"  -> "episode";
+            case "feedback" -> "convention";
+            case "project"  -> "decision";
             case "reference", "user" -> "fact";
             default -> "fact";
         };

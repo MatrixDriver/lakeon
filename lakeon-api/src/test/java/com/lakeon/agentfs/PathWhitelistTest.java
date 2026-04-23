@@ -34,8 +34,8 @@ class PathWhitelistTest {
 
     @Test
     void maps_frontmatter_type_to_memory_type() {
-        assertEquals("procedural", PathWhitelist.frontmatterTypeToMemoryType("feedback"));
-        assertEquals("episode",    PathWhitelist.frontmatterTypeToMemoryType("project"));
+        assertEquals("convention", PathWhitelist.frontmatterTypeToMemoryType("feedback"));
+        assertEquals("decision",   PathWhitelist.frontmatterTypeToMemoryType("project"));
         assertEquals("fact",       PathWhitelist.frontmatterTypeToMemoryType("reference"));
         assertEquals("fact",       PathWhitelist.frontmatterTypeToMemoryType("user"));
         assertEquals("fact",       PathWhitelist.frontmatterTypeToMemoryType(null));
