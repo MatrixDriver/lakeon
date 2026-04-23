@@ -21,6 +21,8 @@ export interface MemoryBase {
   error: string | null
   created_at: string
   updated_at: string
+  is_agentfs_target?: boolean
+  auto_created?: boolean
 }
 
 export function listMemoryBases() {

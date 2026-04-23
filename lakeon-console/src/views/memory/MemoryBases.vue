@@ -199,6 +199,7 @@
             <th>记忆数</th>
             <th>特征数</th>
             <th>状态</th>
+            <th>AgentFS 目标</th>
             <th>创建时间</th>
             <th>操作</th>
           </tr>
@@ -207,6 +208,11 @@
           <tr v-for="item in memoryBases" :key="item.id" style="cursor: pointer;" @click="handleRowClick(item)">
             <td style="font-weight: 500; color: #9a5b25;">
               {{ item.name }}
+              <span
+                v-if="item.is_agentfs_target && item.auto_created"
+                class="badge-auto"
+                title="系统自动创建（AgentFS 派生库）"
+              >[auto]</span>
               <span v-if="item.scene" style="font-size: 11px; padding: 1px 6px; border-radius: 3px; margin-left: 8px;"
                     :style="item.scene === 'DEVELOPER_TOOL' ? 'background:#e8f5e9;color:#2e7d32' : 'background:#fdf5ed;color:#1565c0'">
                 {{ item.scene === 'DEVELOPER_TOOL' ? '开发者工具' : '对话助理' }}
@@ -227,6 +233,13 @@
               <span class="status-tag" :class="item.status === 'READY' ? (item.database_status === 'RUNNING' ? 'tag-green' : 'tag-gray') : item.status === 'FAILED' ? 'tag-red' : 'tag-gray'">
                 {{ statusText(item.status) }}
               </span>
+            </td>
+            <td @click.stop>
+              <AgentFSTargetToggle
+                :base-id="item.id"
+                :current-target-base-id="currentTargetId"
+                @changed="onTargetChanged"
+              />
             </td>
             <td style="color: #999;">{{ formatTime(item.created_at) }}</td>
             <td @click.stop>
@@ -263,12 +276,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { listMemoryBases, createMemoryBase, deleteMemoryBase, type MemoryBase } from '../../api/memory'
 import ViewToggle from '../../components/ViewToggle.vue'
 import ResourceCard from '../../components/ResourceCard.vue'
 import CardMenu from '../../components/CardMenu.vue'
+import AgentFSTargetToggle from '../../components/memory/AgentFSTargetToggle.vue'
 
 const router = useRouter()
 const viewMode = ref<'card' | 'table'>('card')
@@ -292,6 +306,15 @@ const createForm = ref({
   password: '',
   passwordConfirm: '',
 })
+
+const currentTargetId = computed(() => {
+  const match = memoryBases.value.find(b => b.is_agentfs_target)
+  return match ? match.id : null
+})
+
+function onTargetChanged() {
+  loadMemoryBases()
+}
 
 function statusText(status: string) {
   const map: Record<string, string> = { READY: '就绪', CREATING: '创建中', FAILED: '失败' }
@@ -592,5 +615,14 @@ onMounted(loadMemoryBases)
 .card-create:hover { border-color: #94a3b8; }
 @media (max-width: 768px) {
   .card-grid { grid-template-columns: 1fr; }
+}
+.badge-auto {
+  margin-left: 0.35rem;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  color: var(--color-warm-accent, #c97b3f);
+  background-color: var(--color-warm-accent-soft, #f3eae0);
+  vertical-align: middle;
 }
 </style>
