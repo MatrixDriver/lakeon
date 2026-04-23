@@ -16,3 +16,7 @@ See spec: ../docs/superpowers/specs/2026-04-23-agent-commit-log-phase0-design.md
     cd sre-agent
     uv sync --all-extras
     uv run pytest
+
+## Deploy
+
+See [docs/DEPLOY_RUNBOOK.md](docs/DEPLOY_RUNBOOK.md) for the Phase 0a Railway deploy + validation runbook.
