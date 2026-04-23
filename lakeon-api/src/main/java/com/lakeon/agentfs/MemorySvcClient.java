@@ -22,7 +22,7 @@ public class MemorySvcClient {
     private final RestClient client;
 
     public MemorySvcClient(
-            @Value("${lakeon.memory-svc.baseUrl:http://memory-svc.lakeon.svc:8080}")
+            @Value("${lakeon.memory-svc.baseUrl:http://memory-svc.lakeon.svc:8001}")
             String baseUrl) {
         this.client = RestClient.builder()
             .baseUrl(baseUrl)
