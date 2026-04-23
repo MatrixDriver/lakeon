@@ -20,3 +20,14 @@ See spec: ../docs/superpowers/specs/2026-04-23-agent-commit-log-phase0-design.md
 ## Deploy
 
 See [docs/DEPLOY_RUNBOOK.md](docs/DEPLOY_RUNBOOK.md) for the Phase 0a Railway deploy + validation runbook.
+
+## Feishu setup (one command)
+
+```bash
+# Requires: hermes-agent cloned to ~/code/hermes-agent, railway CLI installed + linked
+uv run python scripts/onboard_feishu.py
+```
+
+This opens a QR code in your terminal. Scan with Feishu mobile app -> approve -> credentials are automatically created and pushed to Railway. Takes ~30 seconds.
+
+If you need a different hermes location: `HERMES_AGENT_PATH=~/other/path uv run python scripts/onboard_feishu.py`

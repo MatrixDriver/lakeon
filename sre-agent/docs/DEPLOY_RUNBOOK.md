@@ -4,13 +4,14 @@ End-to-end steps for the human user to take the code from this branch to a live 
 
 ## Prerequisites (do in advance — 30 min)
 
-1. **Feishu self-built app**
-   - Open feishu.cn developer console → new self-built application
-   - Note: `app_id`, `app_secret`, `verification_token`, `encrypt_key`
-   - Enable WebSocket long-connect transport (feishu developer console → event subscriptions → long-connect mode)
-   - Subscribe bot to required events: `im.message.receive_v1` (DM), `im.message.reaction.created_v1` (card button replies)
-   - Add the bot to a private feishu group OR enable DM with Jacky's account
-   - Get Jacky's feishu `open_id` (call `/open-apis/contact/v3/users/batch_get_id` with his email or phone)
+1. **Feishu self-built app** — one command from your Mac:
+   ```bash
+   cd /Users/jacky/code/lakeon/sre-agent
+   uv run python scripts/onboard_feishu.py
+   ```
+   Scan the QR code with feishu mobile app → approve. App is created, credentials pushed to Railway, allowed users set to your feishu account.
+
+   Manual fallback (if the above fails): go to https://open.feishu.cn/ → create a self-built app → enable Bot capability → copy app_id / app_secret / verification_token / encrypt_key → paste into Railway env vars manually.
 2. **DBAY_LOGS_DSN** — Postgres connection string for `dbay-logs`. Format: `postgresql://user:pass@host:5432/dbay-logs`.
 3. **OBS bucket** — create `dbay-agent-log` in Huawei Cloud OBS (region `cn-north-4` per existing deploy convention). Note access key / secret / endpoint.
 4. **Deepseek API key** — from `~/.dbay/tokens.json` or memory.
