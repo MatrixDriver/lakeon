@@ -1,0 +1,19 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "sre-agent/Dockerfile"
+# Only rebuild when our code or dbay-sre-mcp changes
+watchPatterns = [
+  "sre-agent/**",
+  "dbay-sre-mcp/**",
+]
+
+[deploy]
+startCommand = "/app/entrypoint.sh"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 5
+
+[volumes]
+HERMES_DATA = "/data/hermes"
+
+# No healthcheckPath — hermes gateway is a WebSocket client, not an HTTP server.
+# Railway will consider the service healthy if the process stays alive.
