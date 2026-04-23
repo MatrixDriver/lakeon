@@ -43,6 +43,7 @@ class InternalWikiControllerTest {
 
     @MockBean private WikiToolService toolService;
     @MockBean private WikiRunLogRepository runLogRepository;
+    @MockBean private DocumentRepository documentRepository;
     @MockBean private TenantService tenantService;
     @MockBean private TenantRepository tenantRepository;
     @MockBean private LakeonProperties lakeonProperties;
