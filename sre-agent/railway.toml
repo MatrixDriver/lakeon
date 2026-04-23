@@ -12,8 +12,9 @@ startCommand = "/app/entrypoint.sh"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 5
 
-[volumes]
-HERMES_DATA = "/data/hermes"
-
 # No healthcheckPath — hermes gateway is a WebSocket client, not an HTTP server.
 # Railway will consider the service healthy if the process stays alive.
+
+# IMPORTANT: The hermes data volume must be provisioned in the Railway dashboard
+# (Service → Settings → Volumes) with mount path /data/hermes. Without this,
+# session data is lost on every redeploy. See docs/DEPLOY_RUNBOOK.md.

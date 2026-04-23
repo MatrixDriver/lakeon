@@ -128,3 +128,29 @@ def test_diagnose_fills_conclusion_and_closes(tmp_log_root: Path, mock_mcp):
     # At least one branch was resolved
     decisions = (log.store.session_dir(sids[0]) / "branch-decisions.jsonl")
     assert decisions.exists() and decisions.read_text().strip()
+
+
+def test_diagnose_closes_abandoned_on_llm_failure(tmp_log_root: Path, mock_mcp):
+    from unittest.mock import patch
+    from skills.sre.cold_start_watcher.watcher import Watcher
+    from skills.sre.cold_start_watcher.diagnose import diagnose
+    from agent_session_log import LogStore
+
+    class FailingLLM:
+        def complete(self, **kwargs):
+            raise RuntimeError("rate limited")
+
+    mock_mcp.responses["compute started in"] = [
+        {"msg": "compute started in 8000ms for tenant=t db=d", "tenant_id": "t", "db_id": "d"},
+    ]
+    log = LogStore(tmp_log_root)
+    w = Watcher(log=log, mcp=mock_mcp)
+    sid = w.scan_once()[0]
+    session = log.get_session(sid)
+
+    # Patch time.sleep so retry backoff doesn't slow down the test suite
+    with patch("time.sleep"), pytest.raises(RuntimeError, match="rate limited"):
+        diagnose(session, llm=FailingLLM(), mcp=mock_mcp)
+
+    m = log.store.read_manifest(sid)
+    assert m.status == "abandoned"

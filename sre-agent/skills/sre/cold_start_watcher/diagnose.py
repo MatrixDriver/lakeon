@@ -23,8 +23,20 @@ class MCPClient(Protocol):
     def log_search(self, **kwargs: Any) -> list[dict]: ...
     def log_trace(self, request_id: str) -> list[dict]: ...
 
-
 PROMPT_TEMPLATE = (Path(__file__).parent / "diagnose_prompt.md").read_text()
+
+
+def _llm_with_retry(llm: LLMClient, *, system: str, user: str, attempts: int = 3, sleep_sec: int = 5) -> dict:
+    last_exc: BaseException | None = None
+    for i in range(attempts):
+        try:
+            return llm.complete(system=system, user=user)
+        except Exception as exc:
+            last_exc = exc
+            if i < attempts - 1:
+                import time as _time
+                _time.sleep(sleep_sec * (2 ** i))  # 5, 10 (cap at 2 retries for Phase 0a)
+    raise last_exc  # type: ignore[misc]
 
 
 def diagnose(
@@ -35,6 +47,33 @@ def diagnose(
     max_hypothesis_branches: int = 3,
 ) -> None:
     """Run diagnosis in-place. Writes conclusion on session and closes it."""
+    try:
+        _diagnose_inner(session, llm=llm, mcp=mcp, max_hypothesis_branches=max_hypothesis_branches)
+    except Exception as exc:
+        session.append_turn(
+            type="thought",
+            content=f"diagnose aborted: {type(exc).__name__}: {exc!s}",
+        )
+        # Best-effort: write the exception as conclusion and close abandoned
+        try:
+            session.conclude(f"# Diagnosis aborted\n\nError: `{type(exc).__name__}`: {exc!s}")
+        except Exception:
+            pass
+        try:
+            session.close(status="abandoned")
+        except Exception:
+            pass
+        raise
+
+
+def _diagnose_inner(
+    session: Session,
+    *,
+    llm: LLMClient,
+    mcp: MCPClient,
+    max_hypothesis_branches: int = 3,
+) -> None:
+    """Inner diagnosis logic (called from diagnose wrapper)."""
     trigger = session._store.read_manifest(session.id).trigger
     ms = _extract_ms(trigger.get("alert", ""))
     prompt = PROMPT_TEMPLATE.format(
@@ -47,7 +86,7 @@ def diagnose(
 
     # Round 1: LLM proposes hypotheses
     session.append_turn(type="thought", content="starting diagnosis; proposing hypotheses")
-    out = llm.complete(system="You are a careful SRE.", user=prompt)
+    out = _llm_with_retry(llm, system="You are a careful SRE.", user=prompt)
     session.append_turn(
         type="llm_completion",
         model=out.get("model"),
@@ -102,7 +141,7 @@ def diagnose(
         "root cause and write the final markdown conclusion per the earlier format.\n\n"
         + summary
     )
-    final = llm.complete(system="You are a careful SRE.", user=decision_prompt)
+    final = _llm_with_retry(llm, system="You are a careful SRE.", user=decision_prompt)
     session.append_turn(
         type="llm_completion",
         model=final.get("model"),

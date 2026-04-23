@@ -1,12 +1,28 @@
 """OutcomeChecker: Re-check incident sessions 24h after close to verify suggested fixes worked."""
 from __future__ import annotations
 
+import re as _re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from agent_session_log import LogStore
 from agent_session_log.skill_ledger import SkillLedger
+
+_MS_RE = _re.compile(r"compute started in (\d+)ms")
+
+
+def _p95_from_rows(rows: list[dict]) -> int | None:
+    samples: list[int] = []
+    for row in rows:
+        m = _MS_RE.search(row.get("msg", ""))
+        if m:
+            samples.append(int(m.group(1)))
+    if not samples:
+        return None
+    samples.sort()
+    idx = max(0, int(round(len(samples) * 0.95)) - 1)
+    return samples[idx]
 
 
 @dataclass
@@ -39,9 +55,15 @@ class OutcomeChecker:
             if not tenant or not db:
                 continue
 
-            stats = self.mcp.log_stats(since="24h")
-            p95_map = stats.get("cold_start_p95_by_db", {})
-            current_p95 = p95_map.get(f"{tenant}/{db}")
+            rows = self.mcp.log_search(
+                component="lakeon-api",
+                keyword="compute started in",
+                since="24h",
+                tenant_id=tenant,
+                db_id=db,
+                limit=500,
+            )
+            current_p95 = _p95_from_rows(rows)
             original_ms = _extract_ms(manifest.trigger.get("alert", ""))
 
             did_work = self._classify(current_p95=current_p95, original_ms=original_ms)

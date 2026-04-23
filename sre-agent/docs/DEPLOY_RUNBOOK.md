@@ -56,7 +56,7 @@ Expected: one or more rows within 10 minutes of your trigger.
 2. Connect to the lakeon GitHub repo
 3. Branch: `feat/sre-agent-phase-0a`
 4. Root directory: `sre-agent/` (the `railway.toml` takes over from here)
-5. Attach a persistent volume 10 GB mounted at `/data/hermes`
+5. **Add persistent volume**: In Railway dashboard → Service → Settings → Volumes → add new volume with mount path `/data/hermes`, size 10 GB. This step is **mandatory** — session logs, skill ledger, and OBS sync state are all stored here; without a volume they are lost on every redeploy. The `railway.toml` `[volumes]` block is intentionally omitted (Railway does not support declarative volume config); you must do this in the dashboard.
 6. Environment variables (copy from `sre-agent/.env.example` and paste secrets):
    - `DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL=https://api.deepseek.com`
    - `DBAY_LOGS_DSN`

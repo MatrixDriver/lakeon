@@ -78,13 +78,30 @@ class Session:
         manifest = store.read_manifest(session_id)
         events = store.read_events(session_id, "main")
         next_turn = max((e.get("turn", -1) for e in events), default=-1) + 1
-        return cls(
+
+        # Reconstruct branches from disk
+        branches: dict[str, "Branch"] = {}
+        branches_dir = store.session_dir(session_id) / "branches"
+        if branches_dir.exists():
+            for bf in branches_dir.glob("*.jsonl"):
+                name = bf.stem
+                events_b = store.read_events(session_id, name)
+                next_t = max((e.get("turn", -1) for e in events_b), default=-1) + 1
+                # Create Branch without _session; will be patched below
+                branches[name] = Branch(_session=None, name=name, _next_turn=next_t)  # type: ignore[arg-type]
+
+        sess = cls(
             id=manifest.id,
             type=manifest.type,
             status=manifest.status,
             _store=store,
             _next_turn=next_turn,
         )
+        # Patch _session references now that sess exists
+        for b in branches.values():
+            b._session = sess
+        sess._branches = branches
+        return sess
 
     # ---- writes ----
 
@@ -104,7 +121,9 @@ class Session:
             return self._branches[name]
         existing = self._store.read_events(self.id, name)
         next_turn = max((e.get("turn", -1) for e in existing), default=-1) + 1
-        self.append_turn(type="branch_open", branch=name)
+        if not existing:
+            # Fresh branch: record the branch_open in main
+            self.append_turn(type="branch_open", branch=name)
         b = Branch(_session=self, name=name, _next_turn=next_turn)
         self._branches[name] = b
         return b

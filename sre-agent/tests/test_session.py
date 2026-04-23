@@ -130,3 +130,22 @@ def test_session_record_outcome_still_works_after_close(tmp_log_root: Path):
     s.close()
     s.record_outcome(did_work=True, notes="after close is fine")
     assert store.read_outcome(s.id) is not None
+
+
+def test_session_load_reconstructs_branches_without_duplicate_open(tmp_log_root: Path):
+    store = FilesystemStore(tmp_log_root)
+    s1 = Session.new(store=store, type="incident", trigger={}, tags=[])
+    b = s1.branch("h1")
+    b.append_turn(type="thought", content="a")
+    sid = s1.id
+
+    s2 = Session.load(store=store, session_id=sid)
+    # Branch was reconstructed
+    assert "h1" in s2._branches
+    # Re-asking for the branch returns the reconstructed one (no new branch_open)
+    b2 = s2.branch("h1")
+    b2.append_turn(type="thought", content="b")
+
+    # Main should have exactly ONE branch_open event (from s1's original call)
+    main_events = store.read_events(sid, "main")
+    assert sum(1 for e in main_events if e.get("type") == "branch_open" and e.get("branch") == "h1") == 1
