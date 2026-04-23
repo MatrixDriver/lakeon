@@ -91,6 +91,7 @@ public class ComputeLifecycleService {
         }
 
         // Cold path: ensure pageserver has tenant attached before creating Pod
+        long coldStartBegin = System.currentTimeMillis();
         OperationLogEntity coldOp = operationLogService.startOperation(
                 entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME, "COLD");
 
@@ -140,6 +141,8 @@ public class ComputeLifecycleService {
                 e.setLastActiveAt(Instant.now());
                 databaseRepository.save(e);
             });
+            long coldStartMs = System.currentTimeMillis() - coldStartBegin;
+            log.info("compute started in {}ms for tenant={} db={}", coldStartMs, entity.getTenantId(), dbId);
             operationLogService.completeOperation(coldOp, null);
             return address;
         } else {
