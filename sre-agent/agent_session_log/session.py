@@ -89,6 +89,8 @@ class Session:
     # ---- writes ----
 
     def append_turn(self, type: str, **kwargs: Any) -> int:
+        if self.status in {"closed", "abandoned"}:
+            raise RuntimeError(f"cannot append turn to {self.status} session {self.id}")
         tid = self._next_turn
         self._next_turn += 1
         event = {"turn": tid, "t": utc_now_iso(), "type": type, **kwargs}
@@ -100,8 +102,10 @@ class Session:
             raise ValueError("'main' is reserved; use append_turn for main branch")
         if name in self._branches:
             return self._branches[name]
+        existing = self._store.read_events(self.id, name)
+        next_turn = max((e.get("turn", -1) for e in existing), default=-1) + 1
         self.append_turn(type="branch_open", branch=name)
-        b = Branch(_session=self, name=name)
+        b = Branch(_session=self, name=name, _next_turn=next_turn)
         self._branches[name] = b
         return b
 
@@ -145,6 +149,8 @@ class Session:
         self._store.write_outcome(self.id, existing + body)
 
     def close(self, status: str = "closed") -> None:
+        if self.status in {"closed", "abandoned"}:
+            raise RuntimeError(f"session {self.id} is already {self.status}")
         if status not in {"closed", "abandoned"}:
             raise ValueError(status)
         m = self._store.read_manifest(self.id)

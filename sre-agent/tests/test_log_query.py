@@ -57,3 +57,12 @@ def test_replay_at_turn(tmp_log_root: Path):
     snapshot = log.replay(s.id, at_turn=2)
     # snapshot returns list of turns up to and including turn 2
     assert [t["turn"] for t in snapshot] == [0, 1, 2]
+
+
+def test_similar_raises_not_implemented(tmp_log_root: Path):
+    import pytest
+    log = LogStore(tmp_log_root)
+    s = log.new_session(type="incident", trigger={}, tags=[])
+    s.close()
+    with pytest.raises(NotImplementedError, match="Phase 0b"):
+        log.similar(s.id)

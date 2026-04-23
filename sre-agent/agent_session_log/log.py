@@ -79,6 +79,18 @@ class LogStore:
                     break
         return out
 
+    def similar(self, session_id: str, k: int = 5) -> list[dict[str, Any]]:
+        """Return sessions semantically similar to the given session.
+
+        Deferred to Phase 0b — requires embeddings. In Phase 0a, use search_text()
+        with extracted key phrases as a substitute.
+        """
+        raise NotImplementedError(
+            "log.similar() requires embedding index; implement in Phase 0b. "
+            "Phase 0a callers should use search_text() with key phrases extracted "
+            "from the session's trigger or conclusion."
+        )
+
     def replay(self, session_id: str, at_turn: int, branch: str = "main") -> list[dict[str, Any]]:
         """Return all events up to and including at_turn on the given branch."""
         events = self._store.read_events(session_id, branch)

@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from agent_session_log.evidence import Blob
-from agent_session_log.session import Session
+from agent_session_log.session import Branch, Session
 from agent_session_log.store import FilesystemStore
 
 
@@ -84,3 +84,49 @@ def test_session_load_roundtrip(tmp_log_root: Path):
     s2 = Session.load(store=store, session_id=sid)
     assert s2.id == sid
     assert s2.next_turn_id == 1  # we appended one turn
+
+
+def test_session_resumes_branch_turn_counter(tmp_log_root: Path):
+    """When loading a session with existing branch events, branch() resumes from the right turn id."""
+    store = FilesystemStore(tmp_log_root)
+    s1 = Session.new(store=store, type="incident", trigger={}, tags=[])
+    b1 = s1.branch("h1")
+    b1.append_turn(type="thought", content="a")
+    b1.append_turn(type="thought", content="b")
+    sid = s1.id
+
+    s2 = Session.load(store=store, session_id=sid)
+    b1_again = s2.branch("h1")
+    tid = b1_again.append_turn(type="thought", content="c")
+    assert tid == 2  # picks up after the existing two turns
+
+    events = store.read_events(sid, "h1")
+    turn_ids = [e["turn"] for e in events]
+    assert turn_ids == [0, 1, 2]  # no duplicates
+
+
+def test_session_append_after_close_raises(tmp_log_root: Path):
+    store = FilesystemStore(tmp_log_root)
+    s = Session.new(store=store, type="incident", trigger={}, tags=[])
+    s.conclude("x")
+    s.close()
+    with pytest.raises(RuntimeError, match="closed"):
+        s.append_turn(type="thought", content="late")
+
+
+def test_session_double_close_raises(tmp_log_root: Path):
+    store = FilesystemStore(tmp_log_root)
+    s = Session.new(store=store, type="incident", trigger={}, tags=[])
+    s.close()
+    with pytest.raises(RuntimeError, match="already closed"):
+        s.close()
+
+
+def test_session_record_outcome_still_works_after_close(tmp_log_root: Path):
+    """record_outcome must work post-close; that's its whole purpose (24h later)."""
+    store = FilesystemStore(tmp_log_root)
+    s = Session.new(store=store, type="incident", trigger={}, tags=[])
+    s.conclude("x")
+    s.close()
+    s.record_outcome(did_work=True, notes="after close is fine")
+    assert store.read_outcome(s.id) is not None
