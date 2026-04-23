@@ -3,6 +3,7 @@ from agent_session_log.evidence import Blob, hash_bytes
 from agent_session_log.ids import new_session_id, utc_now_iso
 from agent_session_log.log import LogStore
 from agent_session_log.session import Branch, Session
+from agent_session_log.skill_ledger import SkillLedger
 from agent_session_log.store import FilesystemStore
 from agent_session_log.types import (
     BlobRef,
@@ -22,6 +23,7 @@ __all__ = [
     "SessionManifest",
     "SessionStatus",
     "SessionType",
+    "SkillLedger",
     "TurnType",
     "hash_bytes",
     "new_session_id",
