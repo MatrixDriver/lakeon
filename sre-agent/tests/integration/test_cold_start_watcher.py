@@ -88,3 +88,43 @@ def test_watcher_dedupes_same_pair_within_window(tmp_log_root: Path, mock_mcp):
     w = Watcher(log=log, mcp=mock_mcp, threshold_ms=5000, dedupe_window_sec=600)
     incidents = w.scan_once()
     assert len(incidents) == 1  # second one deduped
+
+
+def test_diagnose_fills_conclusion_and_closes(tmp_log_root: Path, mock_mcp):
+    from skills.sre.cold_start_watcher.watcher import Watcher
+    from skills.sre.cold_start_watcher.diagnose import diagnose
+    from agent_session_log import LogStore
+
+    class FakeLLM:
+        calls = 0
+        def complete(self, *, system, user, tools=None):
+            FakeLLM.calls += 1
+            if FakeLLM.calls == 1:
+                return {"text": "I'll check pageserver-reattach first.",
+                        "model": "deepseek-chat", "tokens_in": 100, "tokens_out": 50,
+                        "cost_usd": 0.001}
+            return {"text": "# Root cause (confidence 0.72)\n"
+                            "pageserver-reattach gap observed for tenant t_abc.\n",
+                    "model": "deepseek-chat", "tokens_in": 200, "tokens_out": 80,
+                    "cost_usd": 0.002}
+
+    mock_mcp.responses["compute started in"] = [
+        {"ts": "2026-04-23T09:12:34Z",
+         "msg": "compute started in 8234ms for tenant=t_abc db=db_xyz",
+         "tenant_id": "t_abc", "db_id": "db_xyz"},
+    ]
+    log = LogStore(tmp_log_root)
+    w = Watcher(log=log, mcp=mock_mcp)
+    sids = w.scan_once()
+    assert len(sids) == 1
+    session = log.get_session(sids[0])
+    diagnose(session, llm=FakeLLM(), mcp=mock_mcp)
+
+    # Session is closed with conclusion
+    m = log.store.read_manifest(sids[0])
+    assert m.status == "closed"
+    concl = log.store.read_conclusion(sids[0])
+    assert "pageserver" in concl.lower()
+    # At least one branch was resolved
+    decisions = (log.store.session_dir(sids[0]) / "branch-decisions.jsonl")
+    assert decisions.exists() and decisions.read_text().strip()
