@@ -82,3 +82,27 @@ class ObsSync:
             if len(uploaded) >= limit:
                 break
         return uploaded
+
+
+# ---- Real OBS adapter (requires esdk-obs-python) ----
+
+
+class HuaweiObsAdapter:
+    """Wrap esdk-obs-python ObsClient to match ObsClientLike.
+
+    Import lazily so tests don't need the SDK.
+    """
+
+    def __init__(self, access_key: str, secret_key: str, endpoint: str) -> None:
+        from obs import ObsClient  # noqa: PLC0415
+
+        self._client = ObsClient(
+            access_key_id=access_key,
+            secret_access_key=secret_key,
+            server=endpoint,
+        )
+
+    def put_object(self, bucket: str, key: str, data: bytes) -> None:
+        resp = self._client.putObject(bucket, key, content=data)
+        if resp.status >= 300:
+            raise RuntimeError(f"OBS put failed {resp.status}: {resp.errorMessage}")
