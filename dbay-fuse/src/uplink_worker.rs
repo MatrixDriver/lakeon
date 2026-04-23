@@ -130,33 +130,53 @@ fn coalesce(entries: &[Entry]) -> Vec<Entry> {
 
 /// Build the batch payload and POST it. Single HTTP round-trip for the whole
 /// chunk. Server runs all ops in one Postgres tx (atomic).
+///
+/// Entries whose blobs are missing on disk (past compaction or outbox corruption)
+/// are skipped + ACK'd in place rather than failing the whole batch — without
+/// the blob we cannot recover the payload anyway, and holding the queue on
+/// them would starve every subsequent write.
 fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry]) -> Result<()> {
     use base64::Engine as _;
     let blobs_dir = outbox.blobs_dir();
     let mut ops: Vec<serde_json::Value> = Vec::with_capacity(entries.len());
+    let mut skipped_seqs: Vec<u64> = Vec::new();
     for entry in entries {
         let op_json = match &entry.op {
             Op::Put { path, blob, properties } => {
-                let bytes = outbox::read_blob(&blobs_dir, blob)
-                    .context("read blob for put")?;
-                let mut obj = serde_json::json!({
-                    "op": "put",
-                    "path": path,
-                    "data_base64": base64::engine::general_purpose::STANDARD.encode(&bytes),
-                });
-                if let Some(p) = properties {
-                    obj["properties"] = p.clone();
+                match outbox::read_blob(&blobs_dir, blob) {
+                    Ok(bytes) => {
+                        let mut obj = serde_json::json!({
+                            "op": "put",
+                            "path": path,
+                            "data_base64": base64::engine::general_purpose::STANDARD.encode(&bytes),
+                        });
+                        if let Some(p) = properties {
+                            obj["properties"] = p.clone();
+                        }
+                        obj
+                    }
+                    Err(e) => {
+                        tracing::warn!(seq = entry.seq, %path, blob = %blob,
+                            ?e, "blob missing for PUT; skipping (unrecoverable)");
+                        skipped_seqs.push(entry.seq);
+                        continue;
+                    }
                 }
-                obj
             }
             Op::Append { path, blob } => {
-                let bytes = outbox::read_blob(&blobs_dir, blob)
-                    .context("read blob for append")?;
-                serde_json::json!({
-                    "op": "append",
-                    "path": path,
-                    "data_base64": base64::engine::general_purpose::STANDARD.encode(&bytes),
-                })
+                match outbox::read_blob(&blobs_dir, blob) {
+                    Ok(bytes) => serde_json::json!({
+                        "op": "append",
+                        "path": path,
+                        "data_base64": base64::engine::general_purpose::STANDARD.encode(&bytes),
+                    }),
+                    Err(e) => {
+                        tracing::warn!(seq = entry.seq, %path, blob = %blob,
+                            ?e, "blob missing for APPEND; skipping (unrecoverable)");
+                        skipped_seqs.push(entry.seq);
+                        continue;
+                    }
+                }
             }
             Op::Delete { path } => serde_json::json!({"op":"delete","path":path}),
             Op::Rename { path, new_path } => serde_json::json!({
@@ -166,6 +186,10 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry]) -> Result<()
             Op::Ack { .. } => continue,
         };
         ops.push(op_json);
+    }
+    // ACK skipped entries before sending so they don't come back next poll.
+    for seq in skipped_seqs {
+        let _ = outbox.ack(seq);
     }
     if ops.is_empty() {
         return Ok(());
