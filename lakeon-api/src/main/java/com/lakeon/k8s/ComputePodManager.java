@@ -5,6 +5,7 @@ import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.enums.ComputeSize;
+import com.lakeon.repository.DatabaseRepository;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -29,17 +30,46 @@ public class ComputePodManager {
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
     private final ComputeSpecBuilder specBuilder;
+    private final DatabaseRepository databaseRepository;
 
     public ComputePodManager(KubernetesClient k8sClient, LakeonProperties props, ObjectMapper objectMapper,
-                             MeterRegistry meterRegistry) {
+                             MeterRegistry meterRegistry, DatabaseRepository databaseRepository) {
         this.k8sClient = k8sClient;
         this.props = props;
         this.objectMapper = objectMapper;
         this.meterRegistry = meterRegistry;
         this.specBuilder = new ComputeSpecBuilder(props, objectMapper);
+        this.databaseRepository = databaseRepository;
         Gauge.builder("lakeon_compute_pods_active", this, ComputePodManager::countActivePods)
             .description("Number of active compute pods")
             .register(meterRegistry);
+    }
+
+    /**
+     * Reconcile the entity's computeHost with the actual pod IP from K8s.
+     * If the pod is missing returns false and leaves entity untouched (caller
+     * should trigger cold re-provision). If the IP has drifted, updates and
+     * saves the entity, returning true. If already matches, returns true.
+     *
+     * Addresses the "stale compute_host after pod restart" class of failures
+     * observed 2026-04-23 when AgentFS PUT started returning "database does
+     * not exist" because the recorded host was pointed at a different pod.
+     */
+    public boolean reconcileComputeHost(DatabaseEntity entity) {
+        if (entity.getComputePodName() == null) return false;
+        String actualIp = getPodIp(entity.getComputePodName());
+        if (actualIp == null) {
+            log.warn("pod {} missing for db {}, marking stale",
+                     entity.getComputePodName(), entity.getId());
+            return false;
+        }
+        if (!actualIp.equals(entity.getComputeHost())) {
+            log.info("pod {} IP drifted (db_compute_host={} -> actual={}); reconciling",
+                     entity.getComputePodName(), entity.getComputeHost(), actualIp);
+            entity.setComputeHost(actualIp);
+            databaseRepository.save(entity);
+        }
+        return true;
     }
 
     public double countActivePods() {
