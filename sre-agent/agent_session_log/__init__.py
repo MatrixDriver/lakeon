@@ -1,4 +1,5 @@
 """Agent commit log: LLM-native session/reasoning/skill data layer."""
+from agent_session_log.evidence import Blob, hash_bytes
 from agent_session_log.ids import new_session_id, utc_now_iso
 from agent_session_log.types import (
     BlobRef,
@@ -9,11 +10,13 @@ from agent_session_log.types import (
 )
 
 __all__ = [
+    "Blob",
     "BlobRef",
     "SessionManifest",
     "SessionStatus",
     "SessionType",
     "TurnType",
+    "hash_bytes",
     "new_session_id",
     "utc_now_iso",
 ]
