@@ -487,7 +487,13 @@ public class DatabaseService {
         boolean podReady = entity.getComputePodName() != null
                 && computePodManager.isPodReady(entity.getComputePodName());
         if (entity.getStatus() == DatabaseStatus.RUNNING && podReady) {
-            return; // Truly running
+            // Pod IP may have drifted since last write — sync before returning.
+            if (computePodManager.reconcileComputeHost(entity)) {
+                return;
+            }
+            log.warn("Database {} pod {} reported ready but pod-IP missing; forcing SUSPENDED",
+                     dbId, entity.getComputePodName());
+            // fall through to status-fix branch below
         }
         if (entity.getStatus() == DatabaseStatus.RUNNING && !podReady) {
             // Status says RUNNING but pod is gone — fix the status first
@@ -538,6 +544,14 @@ public class DatabaseService {
                 // Cold path: create new Pod (outside transaction, may block up to 360s for elastic scaling)
                 computePodManager.createComputePod(entity);
                 computePodManager.waitForPodReady(entity.getComputePodName(), 360_000);
+            } else {
+                // Warm path: verify pod IP still matches what we stored.
+                if (!computePodManager.reconcileComputeHost(entity)) {
+                    log.warn("Warm wake for {}: pod disappeared, falling back to cold",
+                             entity.getId());
+                    computePodManager.createComputePod(entity);
+                    computePodManager.waitForPodReady(entity.getComputePodName(), 360_000);
+                }
             }
             sample.stop(Timer.builder("lakeon_compute_wakeup_seconds")
                 .description("Compute wakeup duration")
@@ -579,7 +593,20 @@ public class DatabaseService {
                 databaseRepository.save(entity);
                 // Fall through to cold path below
             } else {
-                return entity.getComputeHost() + ":" + entity.getComputePort();
+                // Reconcile before returning — pod may have restarted with a different IP.
+                if (!computePodManager.reconcileComputeHost(entity)) {
+                    // Pod gone; fall through to cold path by marking SUSPENDED
+                    log.warn("Database {} pod {} reconcile returned missing; falling to cold path",
+                             entity.getId(), entity.getComputePodName());
+                    entity.setStatus(DatabaseStatus.SUSPENDED);
+                    entity.setComputeHost(null);
+                    entity.setComputePort(null);
+                    entity.setComputePodName(null);
+                    databaseRepository.save(entity);
+                    // fall through to the warm-or-cold logic below
+                } else {
+                    return entity.getComputeHost() + ":" + entity.getComputePort();
+                }
             }
         }
 
