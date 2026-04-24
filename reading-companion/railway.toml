@@ -1,0 +1,17 @@
+# reading-companion/railway.toml
+[build]
+builder = "DOCKERFILE"
+# Build context is repo root (Railway dashboard → Settings → Source → Root Directory = /).
+dockerfilePath = "reading-companion/Dockerfile"
+watchPatterns = [
+  "reading-companion/**",
+  "packages/**",
+]
+
+[deploy]
+startCommand = "/app/entrypoint.sh"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 5
+
+# Volume must be provisioned in Railway dashboard (Service → Settings → Volumes,
+# mount path /data/hermes). Do NOT share Volume with sre-agent service.
