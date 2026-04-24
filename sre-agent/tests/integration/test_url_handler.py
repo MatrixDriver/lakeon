@@ -94,3 +94,55 @@ def test_fetch_url_empty_body_raises():
     http = StaticHttpClient({"https://x": (200, "<html><body><script>x=1</script></body></html>")})
     with pytest.raises(FetchError, match="extract"):
         fetch_url("https://x", client=http)
+
+
+# ────────── extract.py tests ──────────
+
+def test_extract_parses_llm_json():
+    from skills.reading.url_handler.extract import extract
+
+    llm = FakeLLM([{
+        "text": json.dumps({
+            "title": "On Commit Logs",
+            "key_points": ["a", "b", "c"],
+            "keywords": ["commit log", "agent"],
+            "quotes": [{"text": "...", "context": "..."}],
+        }),
+        "model": "deepseek-chat",
+        "tokens_in": 1000,
+        "tokens_out": 200,
+        "cost_usd": None,
+    }])
+
+    out = extract(url="https://x.com", body="body text", llm=llm)
+
+    assert out.title == "On Commit Logs"
+    assert out.key_points == ["a", "b", "c"]
+    assert out.keywords == ["commit log", "agent"]
+    assert out.quotes[0]["text"] == "..."
+    assert out.parse_ok is True
+    assert out.llm_meta.model == "deepseek-chat"
+
+
+def test_extract_strips_markdown_fence():
+    from skills.reading.url_handler.extract import extract
+
+    text_with_fence = "```json\n" + json.dumps({
+        "title": "T", "key_points": ["x"], "keywords": ["k"], "quotes": []
+    }) + "\n```"
+    llm = FakeLLM([{"text": text_with_fence, "model": "x",
+                    "tokens_in": 1, "tokens_out": 1, "cost_usd": None}])
+    out = extract(url="https://x", body="b", llm=llm)
+    assert out.title == "T"
+    assert out.parse_ok is True
+
+
+def test_extract_handles_invalid_json_with_fallback():
+    from skills.reading.url_handler.extract import extract
+
+    llm = FakeLLM([{"text": "this is not JSON", "model": "x",
+                    "tokens_in": 1, "tokens_out": 1, "cost_usd": None}])
+    out = extract(url="https://x.com", body="First sentence here.\nMore text.", llm=llm)
+    assert out.title  # fallback
+    assert out.key_points == []
+    assert out.parse_ok is False
