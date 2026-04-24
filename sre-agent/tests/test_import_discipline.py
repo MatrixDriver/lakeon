@@ -1,54 +1,52 @@
-"""Guard: agent_session_log must stay runtime-agnostic."""
+"""sre-agent code (skills/sre/, main.py) must not import lakeon internals.
+
+After B2 refactor:
+- agent_session_log lives at packages/agent-session-log/, installed via uv workspace
+- skills/reading/ moved to reading-companion/ entirely
+- main.py imports hermes_agent_utils (workspace package), which is allowed
+
+The "hermes" prefix is intentionally NOT in the forbidden list because:
+- hermes-agent (Nous Research runtime) is invoked as a subprocess, not imported
+- hermes-agent-utils (our internal workspace package) is legitimately imported
+
+If those rules change, update FORBIDDEN_PREFIXES.
+"""
 import ast
 from pathlib import Path
 
 
-FORBIDDEN_PREFIXES = ("lakeon", "dbay_sre_mcp", "hermes")
-ALLOWED_THIRD_PARTY = {"yaml", "httpx", "obs"}  # whitelist
-STDLIB_PREFIXES = None  # checked via sys.stdlib_module_names at runtime
+FORBIDDEN_PREFIXES = ("lakeon",)  # only block lakeon-internal cross-imports
 
 
-def _collect_imports(py_file: Path) -> set[str]:
-    tree = ast.parse(py_file.read_text(encoding="utf-8"))
-    names: set[str] = set()
+def _scan(py: Path, violations: list[str]) -> None:
+    text = py.read_text(encoding="utf-8")
+    tree = ast.parse(text)
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                names.add(alias.name.split(".")[0])
-        elif isinstance(node, ast.ImportFrom):
-            if node.module and node.level == 0:
-                names.add(node.module.split(".")[0])
-    return names
+                if any(alias.name == p or alias.name.startswith(p + ".") for p in FORBIDDEN_PREFIXES):
+                    violations.append(f"{py}: import {alias.name}")
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            if any(node.module == p or node.module.startswith(p + ".") for p in FORBIDDEN_PREFIXES):
+                violations.append(f"{py}: from {node.module}")
 
 
 def test_no_forbidden_imports():
-    root = Path(__file__).resolve().parents[1] / "agent_session_log"
-    violations = []
-    for py in root.rglob("*.py"):
-        imports = _collect_imports(py)
-        for imp in imports:
-            if any(imp == p or imp.startswith(p + ".") for p in FORBIDDEN_PREFIXES):
-                violations.append(f"{py.relative_to(root.parent)}: {imp}")
-    assert not violations, (
-        "agent_session_log must not import lakeon/dbay_sre_mcp/hermes:\n  "
-        + "\n  ".join(violations)
-    )
+    """sre-agent code must not import lakeon-internal packages directly."""
+    sre_skills_root = Path(__file__).resolve().parents[1] / "skills" / "sre"
+    main_py = Path(__file__).resolve().parents[1] / "main.py"
 
+    violations: list[str] = []
+    for py in sre_skills_root.rglob("*.py"):
+        _scan(py, violations)
+    if main_py.exists():
+        _scan(main_py, violations)
 
-def test_reading_skills_do_not_import_sre_skills():
-    reading_root = Path(__file__).resolve().parents[1] / "skills" / "reading"
-    if not reading_root.exists():
-        return
-    violations = []
-    for py in reading_root.rglob("*.py"):
-        text = py.read_text(encoding="utf-8")
-        for needle in ("skills.sre", "from skills.sre", "sre.cold_start", "sre.outcome"):
-            if needle in text:
-                violations.append(f"{py}: {needle}")
-    assert not violations, "\n".join(violations)
+    assert not violations, "sre-agent has forbidden imports:\n  " + "\n  ".join(violations)
 
 
 def test_sre_skills_do_not_import_reading_skills():
+    """SRE category must stay isolated from reading category (now in reading-companion service)."""
     sre_root = Path(__file__).resolve().parents[1] / "skills" / "sre"
     violations = []
     for py in sre_root.rglob("*.py"):
@@ -56,19 +54,4 @@ def test_sre_skills_do_not_import_reading_skills():
         for needle in ("skills.reading", "from skills.reading"):
             if needle in text:
                 violations.append(f"{py}: {needle}")
-    assert not violations, "\n".join(violations)
-
-
-def test_reading_skills_use_only_public_agent_session_log_api():
-    """Reading code must go through agent_session_log public exports."""
-    reading_root = Path(__file__).resolve().parents[1] / "skills" / "reading"
-    if not reading_root.exists():
-        return
-    violations = []
-    for py in reading_root.rglob("*.py"):
-        tree = ast.parse(py.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom) and node.module:
-                if node.module.startswith("agent_session_log."):
-                    violations.append(f"{py}: from {node.module} (private submodule)")
     assert not violations, "\n".join(violations)

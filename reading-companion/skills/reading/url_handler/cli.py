@@ -16,7 +16,7 @@ import httpx
 
 # Allow running both `python -m skills.reading.url_handler.cli` and direct script.
 _HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_HERE.parents[2]))  # sre-agent/
+sys.path.insert(0, str(_HERE.parents[2]))  # reading-companion/
 
 from agent_session_log import LogStore
 
@@ -37,7 +37,7 @@ def _real_http():
 
 def _real_llm():
     # Import lazily so tests can monkeypatch without needing DEEPSEEK_API_KEY.
-    from main import DeepseekLLMClient  # type: ignore[import-not-found]
+    from hermes_agent_utils import DeepseekLLMClient  # type: ignore[import-not-found]
     return DeepseekLLMClient()
 
 
@@ -79,7 +79,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.no_push and open_id:
         try:
-            from main import feishu_send_dm  # type: ignore[import-not-found]
+            from hermes_agent_utils import feishu_send_dm  # type: ignore[import-not-found]
             feishu_send_dm(open_id, result.feishu_reply)
             log.info("[cli] feishu DM sent to %s", open_id)
         except Exception as exc:  # noqa: BLE001

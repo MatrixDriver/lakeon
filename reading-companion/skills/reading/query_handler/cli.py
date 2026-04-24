@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_HERE.parents[2]))  # sre-agent/
+sys.path.insert(0, str(_HERE.parents[2]))  # reading-companion/
 
 from agent_session_log import LogStore
 
@@ -19,7 +19,7 @@ _TEST_LLM = None
 
 
 def _real_llm():
-    from main import DeepseekLLMClient  # type: ignore[import-not-found]
+    from hermes_agent_utils import DeepseekLLMClient  # type: ignore[import-not-found]
     return DeepseekLLMClient()
 
 
@@ -42,7 +42,7 @@ def main(argv: list[str] | None = None) -> int:
         parts = [u.strip() for u in users.split(",") if u.strip()]
         if parts:
             try:
-                from main import feishu_send_dm  # type: ignore[import-not-found]
+                from hermes_agent_utils import feishu_send_dm  # type: ignore[import-not-found]
                 feishu_send_dm(parts[0], answer)
             except Exception as exc:  # noqa: BLE001
                 print(f"warning: feishu DM failed: {exc}", file=sys.stderr)
