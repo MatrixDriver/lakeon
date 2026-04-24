@@ -5,10 +5,15 @@ import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Protocol
 
 
 _PROMPT = (Path(__file__).parent / "extract_prompt.md").read_text(encoding="utf-8")
+
+# Hard cap on body chars passed to LLM — bounds prompt cost on long articles.
+# Plan says "long articles lose tail; record in friction log if it bites."
+# (See docs/superpowers/plans/2026-04-23-sre-agent-phase-0b-plan.md OPEN_ISSUES #5.)
+MAX_BODY_CHARS = 12_000
 
 
 class LLMClient(Protocol):
@@ -33,6 +38,12 @@ class Extraction:
     llm_meta: LLMMeta | None = None
 
     def as_json(self) -> str:
+        """Serialize the *content* fields only.
+
+        ``llm_meta`` is deliberately omitted: it is recorded separately as
+        the ``llm_completion`` turn in the session log, not duplicated into
+        the evidence blob.
+        """
         return json.dumps(
             {
                 "title": self.title,
@@ -54,6 +65,14 @@ def _first_nonempty_line(text: str) -> str:
     return "(untitled)"
 
 
+_PLACEHOLDER_RE = re.compile(r"\{(url|body)\}")
+
+
+def _render_prompt(url: str, body: str) -> str:
+    values = {"url": url, "body": body[:MAX_BODY_CHARS]}
+    return _PLACEHOLDER_RE.sub(lambda m: values[m.group(1)], _PROMPT)
+
+
 def _strip_json_fence(s: str) -> str:
     m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", s, re.DOTALL)
     if m:
@@ -62,7 +81,7 @@ def _strip_json_fence(s: str) -> str:
 
 
 def extract(*, url: str, body: str, llm: LLMClient) -> Extraction:
-    prompt = _PROMPT.replace("{url}", url).replace("{body}", body[:12000])
+    prompt = _render_prompt(url, body)
     resp = llm.complete(system="你是精确的阅读助手。", user=prompt)
     meta = LLMMeta(
         model=resp.get("model", ""),

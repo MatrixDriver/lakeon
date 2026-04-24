@@ -146,3 +146,23 @@ def test_extract_handles_invalid_json_with_fallback():
     assert out.title  # fallback
     assert out.key_points == []
     assert out.parse_ok is False
+
+
+def test_extract_url_substring_collision():
+    """Regression: URL containing the literal '{body}' must not corrupt body substitution."""
+    from skills.reading.url_handler.extract import extract
+
+    weird_url = "https://x.com/path/{body}/page"
+    llm = FakeLLM([{"text": json.dumps({
+        "title": "T", "key_points": ["p"], "keywords": ["k"], "quotes": []
+    }), "model": "x", "tokens_in": 1, "tokens_out": 1, "cost_usd": None}])
+
+    extract(url=weird_url, body="real body content", llm=llm)
+
+    # The user prompt must contain the original URL exactly once and the body exactly once.
+    assert len(llm.calls) == 1
+    rendered = llm.calls[0]["user"]
+    assert weird_url in rendered
+    assert "real body content" in rendered
+    # The literal '{body}' from the URL must NOT have been replaced
+    assert "{body}" in rendered
