@@ -10,14 +10,12 @@ dependencies = [
   "esdk-obs-python>=3.24",
   "trafilatura>=1.6",
   "agent-session-log",
-  # TODO(B2-Task-5): re-enable after Task 4 creates the package
-  # "hermes-agent-utils",
+  "hermes-agent-utils",
 ]
 
 [tool.uv.sources]
 agent-session-log = { workspace = true }
-# TODO(B2-Task-5): re-enable after Task 4 creates the package
-# hermes-agent-utils = { workspace = true }
+hermes-agent-utils = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

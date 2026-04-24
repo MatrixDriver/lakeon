@@ -32,8 +32,7 @@ RUN uv pip install --system "dbay-sre-mcp==${DBAY_SRE_MCP_VERSION}"
 COPY pyproject.toml /app/pyproject.toml
 COPY packages /app/packages
 RUN uv pip install --system /app/packages/agent-session-log
-# TODO(B2-Task-5): re-enable hermes-agent-utils install after Task 4 creates it
-# RUN uv pip install --system /app/packages/hermes-agent-utils
+RUN uv pip install --system /app/packages/hermes-agent-utils
 
 # Install sre-agent itself (skills package).
 # Use --no-deps to skip workspace-source resolution for agent-session-log
