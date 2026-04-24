@@ -1,5 +1,5 @@
 ---
-name: cold-start-watcher
+name: cold_start_watcher
 description: "[ACTIVE, 每 2 分钟 tick] 监控 dbay.cloud compute 冷启动 > 5s，自动开诊断 session。真正执行体在 main.py croniter 里，不是此 SKILL.md。"
 version: v0.1
 personality: sre
