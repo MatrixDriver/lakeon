@@ -319,3 +319,24 @@ def find_database(name: str = "", db_id: str = "") -> str:
 def find_tenant(name: str = "", tenant_id: str = "", include_databases: bool = True) -> str:
     return find_tenant_impl(name=name or None, tenant_id=tenant_id or None,
                             include_databases=include_databases)
+
+
+from dbay_sre_mcp.tools.database_status import database_status_impl
+
+
+@mcp.tool(
+    description=(
+        "Comprehensive snapshot of a database — current status + last 1h cold-start metrics "
+        "+ recent lifecycle events. One call replaces 'find_database + log_search + log_stats' sequence.\n\n"
+        "USE WHEN: User asks 'what's the state of <db>', 'is <db> healthy', 'why is <db> slow'; "
+        "first step in any database-specific incident triage.\n\n"
+        "DO NOT USE WHEN: You need raw log lines — use log_search; "
+        "asking about a cross-database trend — use log_stats.\n\n"
+        "PARAMETERS: name_or_id — database name OR id (auto-detected via heuristic).\n\n"
+        "RETURNS JSON: database={id, name, tenant_id, status, compute_host}; "
+        "cold_start_1h={p50_ms, p95_ms, count, max_ms}; "
+        "recent_events_1h=[{ts, type, outcome, duration_ms}, ...] (max 20)."
+    )
+)
+def database_status(name_or_id: str) -> str:
+    return database_status_impl(name_or_id=name_or_id)
