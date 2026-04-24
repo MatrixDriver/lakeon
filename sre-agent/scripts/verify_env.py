@@ -16,12 +16,16 @@ REQUIRED = [
     "FEISHU_APP_ID", "FEISHU_APP_SECRET",
     "FEISHU_ALLOWED_USERS",
     "OBS_ACCESS_KEY", "OBS_SECRET_KEY", "OBS_BUCKET", "OBS_ENDPOINT",
+    # dbay-sre-mcp 0.2.0 — admin API + lakeon_api DB access
+    "LAKEON_ADMIN_TOKEN",
+    "LAKEON_DB_DSN",
 ]
 
 OPTIONAL = [
     ("FEISHU_VERIFICATION_TOKEN", "only required if FEISHU_CONNECTION_MODE=webhook"),
     ("FEISHU_ENCRYPT_KEY", "only required if FEISHU_CONNECTION_MODE=webhook"),
     ("OBS_PREFIX", "defaults to 'agent-log/'"),
+    ("LAKEON_API_BASE_URL", "defaults to https://api.dbay.cloud:8443/api/v1 if unset"),
 ]
 
 

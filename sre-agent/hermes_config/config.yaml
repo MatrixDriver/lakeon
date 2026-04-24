@@ -103,5 +103,8 @@ mcp_servers:
     # os.environ via hermes _interpolate_env_vars (mcp_tool.py:1591).
     env:
       LOG_DB_DSN: "${DBAY_LOGS_DSN}"
+      LAKEON_ADMIN_TOKEN: "${LAKEON_ADMIN_TOKEN}"
+      LAKEON_DB_DSN: "${LAKEON_DB_DSN}"
+      LAKEON_API_BASE_URL: "${LAKEON_API_BASE_URL}"
     timeout: 60
     connect_timeout: 30
