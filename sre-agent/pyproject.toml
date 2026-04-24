@@ -1,7 +1,7 @@
 [project]
 name = "sre-agent"
 version = "0.0.1"
-description = "dbay.cloud SRE agent + agent_session_log"
+description = "dbay.cloud SRE agent — incident detection + diagnosis + outcome tracking"
 requires-python = ">=3.11"
 dependencies = [
   "pyyaml>=6.0",
@@ -9,17 +9,15 @@ dependencies = [
   "croniter>=2.0",
   "esdk-obs-python>=3.24",
   "trafilatura>=1.6",
+  "agent-session-log",
+  # TODO(B2-Task-5): re-enable after Task 4 creates the package
+  # "hermes-agent-utils",
 ]
 
-[project.optional-dependencies]
-dev = [
-  "pytest>=8.0",
-  "pytest-asyncio>=0.23",
-  "pytest-cov>=5.0",
-  "mypy>=1.10",
-  "ruff>=0.5",
-  "psycopg2-binary>=2.9",
-]
+[tool.uv.sources]
+agent-session-log = { workspace = true }
+# TODO(B2-Task-5): re-enable after Task 4 creates the package
+# hermes-agent-utils = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -33,5 +31,15 @@ target-version = "py311"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
+  "pytest-asyncio>=0.23",
+  "pytest-cov>=5.0",
+  "mypy>=1.10",
+  "ruff>=0.5",
+  "psycopg2-binary>=2.9",
+]
+
 [tool.hatch.build.targets.wheel]
-packages = ["agent_session_log", "skills"]
+packages = ["skills"]

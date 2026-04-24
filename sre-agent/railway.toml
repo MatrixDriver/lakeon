@@ -1,8 +1,14 @@
+# sre-agent/railway.toml
+# OPERATOR NOTE: Set Railway dashboard `Service → Settings → Source → Root Directory`
+# to `/` (not `/sre-agent`) so the build context includes `packages/`.
+
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
+# Build context is repo root (rootDirectory=/) so workspace packages are visible.
+dockerfilePath = "sre-agent/Dockerfile"
 watchPatterns = [
-  "**",
+  "sre-agent/**",
+  "packages/**",
 ]
 
 [deploy]
