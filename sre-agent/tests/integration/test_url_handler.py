@@ -166,3 +166,67 @@ def test_extract_url_substring_collision():
     assert "real body content" in rendered
     # The literal '{body}' from the URL must NOT have been replaced
     assert "{body}" in rendered
+
+
+# ────────── related.py tests ──────────
+
+def test_find_related_by_keywords(tmp_log_root):
+    from skills.reading.url_handler.related import find_related
+
+    log = LogStore(tmp_log_root)
+
+    past_a = log.new_session(type="reading", trigger={"url": "https://a.com", "source": "cli"}, tags=[])
+    past_a.conclude(
+        "# Git for Agents\n\nURL: https://a.com\n\n## 要点\n- agent commit log 是 LLM-native 数据层\n"
+    )
+    past_a.close()
+
+    past_b = log.new_session(type="reading", trigger={"url": "https://b.com"}, tags=[])
+    past_b.conclude("# Cooking Pasta\n\n## 要点\n- boil water first\n")
+    past_b.close()
+
+    related = find_related(
+        log=log,
+        keywords=["agent commit log", "LLM-native"],
+        since="30d",
+        limit=5,
+        exclude_session_id=None,
+    )
+
+    assert len(related) == 1
+    hit = related[0]
+    assert hit["id"] == past_a.id
+    assert hit["title"] == "Git for Agents"
+    assert "agent commit log" in hit["matched_keywords"]
+
+
+def test_find_related_excludes_self(tmp_log_root):
+    from skills.reading.url_handler.related import find_related
+
+    log = LogStore(tmp_log_root)
+    s = log.new_session(type="reading", trigger={}, tags=[])
+    s.conclude("# Self\n\n## 要点\n- agent commit log\n")
+    s.close()
+
+    out = find_related(log=log, keywords=["agent commit log"], since="30d",
+                      limit=5, exclude_session_id=s.id)
+    assert out == []
+
+
+def test_find_related_respects_since(tmp_log_root):
+    from datetime import datetime, timedelta, timezone
+    from skills.reading.url_handler.related import find_related
+
+    log = LogStore(tmp_log_root)
+    old = log.new_session(type="reading", trigger={}, tags=[])
+    old.conclude("# Old\n\n## 要点\n- agent commit log\n")
+    old.close()
+    m = log.store.read_manifest(old.id)
+    m.created_at = (datetime.now(timezone.utc) - timedelta(days=60)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    log.store.write_manifest(m)
+
+    assert find_related(log=log, keywords=["agent commit log"], since="30d",
+                        limit=5, exclude_session_id=None) == []
+    recent = find_related(log=log, keywords=["agent commit log"], since="90d",
+                          limit=5, exclude_session_id=None)
+    assert len(recent) == 1
