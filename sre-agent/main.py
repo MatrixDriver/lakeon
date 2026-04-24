@@ -53,6 +53,12 @@ from croniter import croniter
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE))
 
+# ─── env bridges ──────────────────────────────────────────────────────────────
+# dbay-sre-mcp reads LOG_DB_DSN; our runbook/Railway uses DBAY_LOGS_DSN. Bridge
+# the two names so operators don't have to set both.
+if not os.environ.get("LOG_DB_DSN") and os.environ.get("DBAY_LOGS_DSN"):
+    os.environ["LOG_DB_DSN"] = os.environ["DBAY_LOGS_DSN"]
+
 # ─── logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
