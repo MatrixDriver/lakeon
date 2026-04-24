@@ -364,3 +364,25 @@ from dbay_sre_mcp.tools.data_consistency_check import data_consistency_check_imp
 )
 def data_consistency_check(rule: str, threshold_minutes: int = 10) -> str:
     return data_consistency_check_impl(rule=rule, threshold_minutes=threshold_minutes)
+
+
+from dbay_sre_mcp.tools.stuck_task_query import stuck_task_query_impl
+
+
+@mcp.tool(
+    description=(
+        "Find async tasks stuck in_progress beyond a threshold across known task tables "
+        "(wiki_run_logs, agentfs_jobs, kb_processing_tasks).\n\n"
+        "USE WHEN: Investigating 'task X never completes'; periodic sweep for stuck tasks "
+        "(e.g. WIKI_UPDATE was using 30-min recovery instead of 5-min — bug b742634d); "
+        "detecting agent loop hangs (DeepSeek skips done() call — bug 5f9e1fc9).\n\n"
+        "DO NOT USE WHEN: Asking about completed task error rates — use log_errors with "
+        "the task component.\n\n"
+        "PARAMETERS: threshold_minutes (how long is 'too long', default 10); "
+        "type (filter by task_type e.g. 'WIKI_UPDATE', 'FUSE_BACKFILL'; empty = all types).\n\n"
+        "RETURNS JSON: count; tasks=[{task_id, kb_id, task_type, status, started_at, age_sec, source}]; "
+        "warnings=[...] if some task tables don't exist in this DB schema variant."
+    )
+)
+def stuck_task_query(threshold_minutes: int = 10, type: str = "") -> str:
+    return stuck_task_query_impl(threshold_minutes=threshold_minutes, type=type or None)
