@@ -1,0 +1,20 @@
+# lakeon/pyproject.toml
+# uv workspace root — declares member packages and shared tool config.
+# This file is NOT a distributable project; it has no [project] table.
+# See https://docs.astral.sh/uv/concepts/workspaces/
+
+[tool.uv.workspace]
+members = [
+  "packages/agent-session-log",
+  "packages/hermes-agent-utils",
+  "sre-agent",
+  "reading-companion",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+# Default test discovery — each package overrides via its own pyproject.toml.
+asyncio_mode = "auto"
