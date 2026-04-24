@@ -1,11 +1,33 @@
 """Top-level LogStore — create + query sessions."""
 from __future__ import annotations
 
+import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 from agent_session_log.session import Session
 from agent_session_log.store import FilesystemStore
+
+
+_SINCE_RE = re.compile(r"^(\d+)(s|m|h|d)$")
+
+
+def _parse_since(since: str | None) -> datetime | None:
+    """Parse since spec like '60s' '5m' '1h' '30d'. None => no filter."""
+    if since is None:
+        return None
+    m = _SINCE_RE.match(since.strip())
+    if not m:
+        raise ValueError(f"invalid since format {since!r}; use e.g. '30d' or '5m'")
+    n, unit = int(m.group(1)), m.group(2)
+    delta = {
+        "s": timedelta(seconds=n),
+        "m": timedelta(minutes=n),
+        "h": timedelta(hours=n),
+        "d": timedelta(days=n),
+    }[unit]
+    return datetime.now(timezone.utc) - delta
 
 
 class LogStore:
@@ -26,12 +48,17 @@ class LogStore:
         self,
         type: str | None = None,
         tags: list[str] | None = None,
+        since: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
-        """Return list of manifests (as dicts), newest first, optionally filtered."""
+        """Return list of manifests (as dicts), newest first, optionally filtered.
+
+        since: relative cutoff like "30d", "1h", "5m", "60s". None = no cutoff.
+        """
+        cutoff = _parse_since(since)
         ids = self._store.iter_session_ids()
         out: list[dict[str, Any]] = []
-        for sid in reversed(ids):  # newest first
+        for sid in reversed(ids):
             try:
                 m = self._store.read_manifest(sid)
             except FileNotFoundError:
@@ -40,6 +67,10 @@ class LogStore:
                 continue
             if tags and not all(tag in m.tags for tag in tags):
                 continue
+            if cutoff is not None:
+                created = datetime.fromisoformat(m.created_at.replace("Z", "+00:00"))
+                if created < cutoff:
+                    continue
             out.append({
                 "id": m.id,
                 "type": m.type,
