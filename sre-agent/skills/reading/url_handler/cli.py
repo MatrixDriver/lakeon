@@ -16,7 +16,7 @@ import httpx
 
 # Allow running both `python -m skills.reading.url_handler.cli` and direct script.
 _HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_HERE.parents[3]))  # sre-agent/
+sys.path.insert(0, str(_HERE.parents[2]))  # sre-agent/
 
 from agent_session_log import LogStore
 
