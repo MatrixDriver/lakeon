@@ -249,12 +249,25 @@ def run_cold_start_watcher() -> None:
             open_id = _jacky_open_id()
             if open_id:
                 try:
-                    session_obj = log_store.get_session(sid)
-                    feishu_send_dm(
-                        open_id,
-                        f"[SRE] 冷启动告警已诊断，session={sid}\n"
-                        f"请查看 {_hermes_home()}/data/{sid}/conclusion.md",
+                    # Build rich message: trigger summary + full conclusion.md
+                    manifest = log_store.store.read_manifest(sid)
+                    trig = manifest.trigger or {}
+                    alert = trig.get("alert", "cold start")
+                    tenant = trig.get("tenant_id", "?")
+                    db = trig.get("db_id", "?")
+                    concl = log_store.store.read_conclusion(sid) or "(no conclusion)"
+                    # Trim overly long conclusions to fit feishu message limits (~30KB)
+                    if len(concl) > 4000:
+                        concl = concl[:4000] + "\n...(truncated)"
+                    dm_text = (
+                        f"🔥 [SRE] {alert} — {tenant}/{db}\n"
+                        f"session={sid}\n"
+                        f"{'─' * 20}\n"
+                        f"{concl}\n"
+                        f"{'─' * 20}\n"
+                        f"路径: {_hermes_home()}/data/sessions/<YYYY/MM/DD>/{sid}/"
                     )
+                    feishu_send_dm(open_id, dm_text)
                 except Exception as dm_exc:
                     log.warning("[watcher] feishu DM failed for %s: %s", sid, dm_exc)
         except Exception as exc:
