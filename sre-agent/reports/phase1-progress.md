@@ -31,3 +31,40 @@ Briefings planned:
 
 Domain glossary:
 - skills/sre/domain_glossary/SKILL.md — dbay 对象模型 + 症状映射 + 标准 5 步诊断 (prompt-only)
+
+## Plan B (DONE)
+
+### Watchers (5)
+
+- [x] pod_create_failure_watcher (*/2 min) — category-based, no LLM
+- [x] fuse_queue_health_watcher (*/5 min) — retry pattern, no LLM
+- [x] stuck_task_watcher (*/5 min) — grouped alert, no LLM
+- [x] data_consistency_watcher (*/15 min) — 4 rules + LLM hypothesis
+- [x] multi_tenant_blast_radius_watcher (*/5 min) — LLM fault-domain guess
+
+### Briefings (3)
+
+- [x] morning 9:00 Asia/Shanghai
+- [x] evening 22:00 Asia/Shanghai
+- [x] weekly Monday 9:00 Asia/Shanghai
+
+### Prompt-only skills (1)
+
+- [x] domain_glossary — dbay 对象模型 + 症状映射 + 标准 5 步诊断
+
+### Shared infrastructure
+
+- [x] WatcherBase — dedupe + session-open + ledger (剥出 5 个 watcher 共用)
+- [x] SREMCPAdapter extended — 7 methods wrapping dbay-sre-mcp 0.2.0 tools
+- [x] BriefingRunner — 3 briefing variants sharing same shape
+- [x] cron_loop keys iterators by INDEX (was bug: same expr collapsed into one)
+
+## Validation after deploy
+
+1. Wait 2 min → check Railway logs: expect `[pod_create_failure_watcher] no new incidents`
+2. Wait 15 min → `[data_consistency_watcher]` line
+3. Wait until 9:00 Asia/Shanghai → DM 早报
+4. Wait until 22:00 Asia/Shanghai → DM 晚报
+5. Wait until next Monday 9:00 → DM 周报
+6. Test domain_glossary: DM agent "为什么 tcph-bench 数据库唤醒失败" — agent
+   should use find_database + database_status per glossary guidance.

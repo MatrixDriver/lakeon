@@ -20,3 +20,13 @@ def test_cron_loop_signature():
     import inspect
     sig = inspect.signature(cron_loop)
     assert list(sig.parameters) == ["tasks"]
+
+
+def test_cron_loop_handles_duplicate_expressions():
+    """Two tasks sharing the same cron expression both fire (don't collapse into one)."""
+    from hermes_agent_utils.runner import cron_loop
+    import inspect
+    src = inspect.getsource(cron_loop)
+    # Static check: must NOT key iters dict by expression
+    assert "iters[expr]" not in src, "cron_loop must key on index, not expression"
+    assert "next_runs[expr]" not in src, "next_runs must key on index, not expression"

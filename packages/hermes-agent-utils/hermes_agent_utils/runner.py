@@ -50,24 +50,28 @@ def cron_loop(tasks: list[tuple[str, Callable[[], None]]]) -> None:
     tasks: list of (cron_expr_in_UTC, callable). Cron expressions are evaluated
     against UTC time; convert wall-clock requirements (e.g. 22:00 Asia/Shanghai
     → 14:00 UTC) at the call site.
+
+    Iterators are keyed by INDEX (not expression), so multiple tasks sharing the
+    same cron expression all fire independently.
     """
-    iters = {expr: croniter(expr, datetime.now(timezone.utc)) for expr, _ in tasks}
-    next_runs = {expr: iters[expr].get_next(datetime) for expr, _ in tasks}
+    now0 = datetime.now(timezone.utc)
+    iters = [croniter(expr, now0) for expr, _ in tasks]
+    next_runs = [it.get_next(datetime) for it in iters]
 
     _log.info("[cron] loop started with %d task(s)", len(tasks))
 
     while True:
         now = datetime.now(timezone.utc)
-        for expr, task in tasks:
-            if now >= next_runs[expr]:
+        for idx, (expr, task) in enumerate(tasks):
+            if now >= next_runs[idx]:
                 _log.info("[cron] firing %s → %s", expr, task.__name__)
                 try:
                     task()
                 except Exception as exc:
                     _log.exception("[cron] task %s raised: %s", task.__name__, exc)
-                next_runs[expr] = iters[expr].get_next(datetime)
+                next_runs[idx] = iters[idx].get_next(datetime)
 
-        soonest = min(next_runs.values())
+        soonest = min(next_runs)
         sleep_secs = max(
             0.0,
             min(60.0, (soonest - datetime.now(timezone.utc)).total_seconds()),

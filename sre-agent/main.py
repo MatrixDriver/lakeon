@@ -190,9 +190,160 @@ def run_outcome_checker() -> None:
             log.warning("[outcome_checker] feishu DM failed for %s: %s", sid, exc)
 
 
+# ─── Phase 1 watchers & briefings ────────────────────────────────────────────
+
+def run_pod_create_failure_watcher() -> None:
+    from skills.sre.pod_create_failure_watcher.watcher import PodCreateFailureWatcher
+
+    log.info("[pod_create_failure_watcher] scan_once starting")
+    log_store = make_log_store()
+    mcp = SREMCPAdapter()
+    w = PodCreateFailureWatcher(log=log_store, mcp=mcp,
+                                skill_name="pod-create-failure-watcher")
+    try:
+        sids = w.scan_once()
+    except Exception as exc:
+        log.error("[pod_create_failure_watcher] failed: %s", exc)
+        return
+    _dm_for_incidents("pod-create-failure", sids, log_store)
+
+
+def run_fuse_queue_health_watcher() -> None:
+    from skills.sre.fuse_queue_health_watcher.watcher import FuseQueueHealthWatcher
+
+    log.info("[fuse_queue_health_watcher] scan_once starting")
+    log_store = make_log_store()
+    mcp = SREMCPAdapter()
+    w = FuseQueueHealthWatcher(log=log_store, mcp=mcp,
+                               skill_name="fuse-queue-health-watcher")
+    try:
+        sids = w.scan_once()
+    except Exception as exc:
+        log.error("[fuse_queue_health_watcher] failed: %s", exc)
+        return
+    _dm_for_incidents("fuse-queue-health", sids, log_store)
+
+
+def run_stuck_task_watcher() -> None:
+    from skills.sre.stuck_task_watcher.watcher import StuckTaskWatcher
+
+    log.info("[stuck_task_watcher] scan_once starting")
+    log_store = make_log_store()
+    mcp = SREMCPAdapter()
+    w = StuckTaskWatcher(log=log_store, mcp=mcp,
+                         skill_name="stuck-task-watcher")
+    try:
+        sids = w.scan_once()
+    except Exception as exc:
+        log.error("[stuck_task_watcher] failed: %s", exc)
+        return
+    _dm_for_incidents("stuck-task", sids, log_store)
+
+
+def run_data_consistency_watcher() -> None:
+    from skills.sre.data_consistency_watcher.watcher import DataConsistencyWatcher
+
+    log.info("[data_consistency_watcher] scan_once starting")
+    log_store = make_log_store()
+    mcp = SREMCPAdapter()
+    llm_client = DeepseekLLMClient()
+    w = DataConsistencyWatcher(log=log_store, mcp=mcp, llm=llm_client,
+                               skill_name="data-consistency-watcher")
+    try:
+        sids = w.scan_once()
+    except Exception as exc:
+        log.error("[data_consistency_watcher] failed: %s", exc)
+        return
+    _dm_for_incidents("data-consistency", sids, log_store)
+
+
+def run_multi_tenant_blast_radius_watcher() -> None:
+    from skills.sre.multi_tenant_blast_radius_watcher.watcher import MultiTenantBlastRadiusWatcher
+
+    log.info("[multi_tenant_blast_radius_watcher] scan_once starting")
+    log_store = make_log_store()
+    mcp = SREMCPAdapter()
+    llm_client = DeepseekLLMClient()
+    w = MultiTenantBlastRadiusWatcher(log=log_store, mcp=mcp, llm=llm_client,
+                                      skill_name="multi-tenant-blast-radius-watcher")
+    try:
+        sids = w.scan_once()
+    except Exception as exc:
+        log.error("[multi_tenant_blast_radius_watcher] failed: %s", exc)
+        return
+    _dm_for_incidents("blast-radius", sids, log_store)
+
+
+def _dm_for_incidents(kind: str, sids: list[str], log_store) -> None:
+    """Shared helper: DM Jacky a short summary for each new incident."""
+    if not sids:
+        log.info("[%s] no new incidents", kind)
+        return
+    log.info("[%s] opened %d incident(s): %s", kind, len(sids), sids)
+    open_id = jacky_open_id()
+    if not open_id:
+        return
+    for sid in sids:
+        try:
+            m = log_store.store.read_manifest(sid)
+            alert = (m.trigger or {}).get("alert", "?")
+            feishu_send_dm(
+                open_id,
+                f"[SRE/{kind}] {alert}\nsession={sid}\n"
+                f"details: {hermes_home()}/data/{sid}/conclusion.md",
+            )
+        except Exception as dm_exc:
+            log.warning("[%s] feishu DM failed for %s: %s", kind, sid, dm_exc)
+
+
+def _run_briefing(kind: str) -> None:
+    from skills.sre.daily_briefing.runner import BriefingRunner
+
+    log.info("[daily_briefing:%s] starting", kind)
+    log_store = make_log_store()
+    llm_client = DeepseekLLMClient()
+    runner = BriefingRunner(log=log_store, llm=llm_client)
+    try:
+        result = runner.run(kind=kind)
+    except Exception as exc:
+        log.error("[daily_briefing:%s] failed: %s", kind, exc)
+        return
+
+    log.info("[daily_briefing:%s] wrote session %s", kind, result.session_id)
+    open_id = jacky_open_id()
+    if open_id and result.text:
+        try:
+            feishu_send_dm(open_id, f"[SRE] {kind} 报\n\n{result.text}")
+        except Exception as exc:
+            log.warning("[daily_briefing:%s] feishu DM failed: %s", kind, exc)
+
+
+def run_morning_briefing() -> None:
+    _run_briefing("morning")
+
+
+def run_evening_briefing() -> None:
+    _run_briefing("evening")
+
+
+def run_weekly_briefing() -> None:
+    _run_briefing("weekly")
+
+
 _CRON_TASKS = [
+    # Phase 0a
     ("*/2 * * * *", run_cold_start_watcher),
     ("0 9 * * *",   run_outcome_checker),
+    # Phase 1 watchers
+    ("*/2 * * * *", run_pod_create_failure_watcher),
+    ("*/5 * * * *", run_fuse_queue_health_watcher),
+    ("*/5 * * * *", run_stuck_task_watcher),
+    ("*/15 * * * *", run_data_consistency_watcher),
+    ("*/5 * * * *", run_multi_tenant_blast_radius_watcher),
+    # Phase 1 briefings (UTC → Asia/Shanghai: +8h)
+    ("0 1 * * *",   run_morning_briefing),    # 9:00 CST
+    ("0 14 * * *",  run_evening_briefing),    # 22:00 CST
+    ("0 1 * * 1",   run_weekly_briefing),     # Monday 9:00 CST
 ]
 
 
