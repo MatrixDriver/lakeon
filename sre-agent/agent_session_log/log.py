@@ -58,7 +58,7 @@ class LogStore:
         cutoff = _parse_since(since)
         ids = self._store.iter_session_ids()
         out: list[dict[str, Any]] = []
-        for sid in reversed(ids):
+        for sid in reversed(ids):  # newest first
             try:
                 m = self._store.read_manifest(sid)
             except FileNotFoundError:

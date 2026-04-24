@@ -1,4 +1,6 @@
+import pytest
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from agent_session_log.log import LogStore
@@ -60,16 +62,11 @@ def test_replay_at_turn(tmp_log_root: Path):
 
 
 def test_similar_raises_not_implemented(tmp_log_root: Path):
-    import pytest
     log = LogStore(tmp_log_root)
     s = log.new_session(type="incident", trigger={}, tags=[])
     s.close()
     with pytest.raises(NotImplementedError, match="Phase 0b"):
         log.similar(s.id)
-
-
-import pytest
-from datetime import datetime, timedelta, timezone
 
 
 def test_list_sessions_since_filters_old(tmp_log_root):
