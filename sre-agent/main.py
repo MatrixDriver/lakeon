@@ -350,7 +350,7 @@ def _shutdown_children(signum: int, frame: object) -> None:
 _CRON_TASKS = [
     ("*/2 * * * *", run_cold_start_watcher),
     ("0 9 * * *",   run_outcome_checker),
-    ("0 22 * * *",  run_daily_reflection),
+    ("0 14 * * *",  run_daily_reflection),  # 14:00 UTC = 22:00 Asia/Shanghai
 ]
 
 
