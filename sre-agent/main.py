@@ -373,8 +373,10 @@ def main() -> None:
     if not hermes_config_dst.exists() and Path(hermes_config_src).exists():
         shutil.copy2(hermes_config_src, hermes_config_dst)
         log.info("[main] seeded hermes config → %s", hermes_config_dst)
+    # Use `hermes gateway run` (foreground mode) not `start` (background/systemd);
+    # in Docker we want the subprocess to stay attached.
     _start_subprocess(
-        ["hermes", "gateway", "start"],
+        ["hermes", "gateway", "run"],
         "hermes_gateway",
     )
 
