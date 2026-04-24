@@ -1,6 +1,6 @@
 ---
 name: outcome-checker
-description: incident session 关闭 24 小时后回查，验证修复建议是否生效
+description: "[ACTIVE, 每天 09:00 tick] 回查 24 小时前关闭的 incident session 修复是否生效。真正执行体在 main.py croniter 里，不是此 SKILL.md。"
 version: v0.1
 personality: sre
 ---
