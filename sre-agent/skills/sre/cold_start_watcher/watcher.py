@@ -35,7 +35,10 @@ class Watcher:
     def scan_once(self) -> list[str]:
         """Fetch recent logs, open sessions for slow starts. Return opened session ids."""
         rows = self.mcp.log_search(
-            component="lakeon-api",
+            # Don't filter by component — fluentbit tags most lakeon-api logs
+            # as "unknown" due to a Path_Key/source_file extraction issue.
+            # The regex on msg is unique enough to identify our lines.
+            component="",
             keyword="compute started in",
             since="3m",
             limit=200,
