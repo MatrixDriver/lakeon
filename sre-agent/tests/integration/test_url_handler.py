@@ -406,10 +406,10 @@ def test_cli_main_writes_session_and_optionally_pushes(tmp_log_root, monkeypatch
     # Pre-arm fake http + LLM
     pages = {"https://x/post": (200,
         "<html><body><article><h1>T</h1><p>agent commit log content here.</p></article></body></html>")}
-    cli._TEST_HTTP = StaticHttpClient(pages)
-    cli._TEST_LLM = FakeLLM([{"text": json.dumps({
+    monkeypatch.setattr(cli, "_TEST_HTTP", StaticHttpClient(pages))
+    monkeypatch.setattr(cli, "_TEST_LLM", FakeLLM([{"text": json.dumps({
         "title": "T", "key_points": ["a"], "keywords": ["k"], "quotes": []
-    }), "model": "x", "tokens_in": 1, "tokens_out": 1, "cost_usd": None}])
+    }), "model": "x", "tokens_in": 1, "tokens_out": 1, "cost_usd": None}]))
 
     # Force LogStore root to tmp
     monkeypatch.setenv("HERMES_HOME", str(tmp_log_root.parent))
