@@ -36,9 +36,10 @@ COPY agent_session_log /app/agent_session_log
 COPY skills /app/skills
 RUN uv pip install --system /app
 
-# Copy runtime assets (config, scripts, entrypoint).
+# Copy runtime assets (config, scripts, main.py, entrypoint).
 COPY hermes_config /app/hermes_config
 COPY scripts /app/scripts
+COPY main.py /app/main.py
 COPY entrypoint.sh /app/entrypoint.sh
 
 ENV HERMES_HOME=/data/hermes
