@@ -5,8 +5,16 @@ that the watcher should catch within ~2 minutes.
 
 Requires:
     pip install psycopg2-binary httpx
-    DBAY_ADMIN_TOKEN env var (e.g. lakeon-sre-2026 for test envs)
+    DBAY_ADMIN_TOKEN env var (e.g. lakeon-sre-2026 for test envs) —
+        Used as Bearer token against /api/v1/admin/*
     DBAY_API_URL env var (default https://api.dbay.cloud:8443/api/v1)
+
+Flow:
+    1. Create a throwaway tenant via admin API.
+    2. Create a DB under it (fresh compute spin-up).
+    3. Wait for auto-suspend (default 10 min).
+    4. Reconnect → cold start.
+    5. Print duration so the operator can compare against the 5s threshold.
 """
 from __future__ import annotations
 
@@ -18,48 +26,109 @@ import httpx
 import psycopg2
 
 
+def _admin_headers(token: str) -> dict:
+    return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+
 def main() -> int:
     api = os.environ.get("DBAY_API_URL", "https://api.dbay.cloud:8443/api/v1")
     token = os.environ.get("DBAY_ADMIN_TOKEN", "lakeon-sre-2026")
 
-    print(f"[simulate] creating tenant + db on {api}")
-    t = httpx.post(
-        f"{api}/admin/tenants",
-        headers={"Admin-Token": token},
-        json={"name": f"coldstart-test-{int(time.time())}"},
-        timeout=30,
-    ).json()
-    tenant_id = t["id"]
-    d = httpx.post(
-        f"{api}/admin/databases",
-        headers={"Admin-Token": token},
-        json={"tenant_id": tenant_id, "name": "test"},
-        timeout=120,
-    ).json()
-    db_id = d["id"]
-    dsn = d.get("dsn")
-    if not dsn:
-        print(f"FAIL: no dsn returned: {d}")
-        return 1
-    print(f"[simulate] created tenant={tenant_id} db={db_id}")
+    tenant_name = f"coldstart-test-{int(time.time())}"
+    print(f"[simulate] creating tenant '{tenant_name}' on {api}")
 
-    # Wait for idle auto-suspend (actual window depends on deploy config;
-    # the default ComputeLifecycleService idle timeout may be 5-10 min)
+    # --- create tenant via admin API -------------------------------------
+    t_resp = httpx.post(
+        f"{api}/admin/tenants",
+        headers=_admin_headers(token),
+        json={"name": tenant_name},
+        timeout=30,
+        verify=False,
+    )
+    if t_resp.status_code >= 300:
+        print(f"FAIL: admin create tenant: HTTP {t_resp.status_code}: {t_resp.text}")
+        return 1
+    t_json = t_resp.json()
+    tenant_id = t_json.get("id")
+    tenant_api_key = t_json.get("api_key")
+    if not tenant_id or not tenant_api_key:
+        print(f"FAIL: unexpected tenant response: {t_json}")
+        return 1
+    print(f"[simulate] tenant created: id={tenant_id}")
+
+    # --- create DB via regular user API using this tenant's api_key ------
+    # (admin /databases is for listing; regular /databases POST is the create path)
+    d_resp = httpx.post(
+        f"{api}/databases",
+        headers={
+            "Authorization": f"Bearer {tenant_api_key}",
+            "Content-Type": "application/json",
+        },
+        json={"name": "coldstarttest", "compute_size": "1cu"},
+        timeout=180,
+        verify=False,
+    )
+    if d_resp.status_code >= 300:
+        print(f"FAIL: create db: HTTP {d_resp.status_code}: {d_resp.text}")
+        return 1
+    d_json = d_resp.json()
+    db_id = d_json.get("id")
+    password = d_json.get("password")
+    if not db_id:
+        print(f"FAIL: unexpected db response: {d_json}")
+        return 1
+
+    # wait for RUNNING + fetch dsn
+    for i in range(30):
+        time.sleep(3)
+        g = httpx.get(
+            f"{api}/databases/{db_id}",
+            headers={"Authorization": f"Bearer {tenant_api_key}"},
+            timeout=15,
+            verify=False,
+        ).json()
+        if g.get("status") == "RUNNING":
+            dsn_tpl = g.get("connection_uri")
+            break
+    else:
+        print(f"FAIL: db never became RUNNING: last status={g.get('status')}")
+        return 1
+
+    # inject password into dsn
+    if "postgres://" in dsn_tpl and "@" in dsn_tpl:
+        dsn = dsn_tpl.replace("@", f":{password}@", 1) + "&sslmode=require"
+    else:
+        print(f"FAIL: unexpected dsn: {dsn_tpl}")
+        return 1
+    print(f"[simulate] db={db_id} ready; dsn built")
+
+    # --- sanity first connect (should be fast; compute already running) --
+    t0 = time.time()
+    conn = psycopg2.connect(dsn, connect_timeout=30)
+    conn.close()
+    first = int((time.time() - t0) * 1000)
+    print(f"[simulate] first connect (warm compute) took {first}ms")
+
+    # --- wait for auto-suspend ------------------------------------------
     idle_wait = int(os.environ.get("SIMULATE_IDLE_WAIT_SEC", "600"))
     print(f"[simulate] waiting {idle_wait}s for auto-suspend...")
     time.sleep(idle_wait)
 
-    print("[simulate] connecting (first connect = cold start)...")
+    # --- reconnect → cold start -----------------------------------------
+    print("[simulate] reconnecting (this should trigger a real cold start)...")
     t0 = time.time()
     conn = psycopg2.connect(dsn, connect_timeout=120)
     dt = int((time.time() - t0) * 1000)
     conn.close()
-    print(f"[simulate] cold start took {dt}ms (watcher should pick up if >5000)")
+    print(f"[simulate] cold start took {dt}ms (watcher threshold = 5000ms)")
 
     if dt > 5000:
         print("[simulate] SUCCESS — watcher should fire within 2 min")
-        return 0
-    print("[simulate] cold start was fast; watcher will correctly NOT fire")
+    else:
+        print("[simulate] NOTE: cold start was <5s; watcher will correctly NOT fire")
+        print("           (could mean compute re-warmed too quickly; try rerunning)")
+
+    print(f"[simulate] cleanup: tenant={tenant_id} db={db_id} (purge via admin API if desired)")
     return 0
 
 
