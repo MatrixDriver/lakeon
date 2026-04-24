@@ -371,7 +371,10 @@ def main() -> None:
     hermes_home = Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes")))
     hermes_home.mkdir(parents=True, exist_ok=True)
     hermes_config_dst = hermes_home / "config.yaml"
-    if not hermes_config_dst.exists() and Path(hermes_config_src).exists():
+    if Path(hermes_config_src).exists():
+        # Always overwrite — packaged config is the source of truth; Jacky's
+        # runtime edits should be done via Railway env vars, not by hand on
+        # the volume.
         shutil.copy2(hermes_config_src, hermes_config_dst)
         log.info("[main] seeded hermes config → %s", hermes_config_dst)
 
