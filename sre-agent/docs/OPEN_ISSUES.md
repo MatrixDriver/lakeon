@@ -146,3 +146,56 @@ Phase 0b 必须使用这套 API，**不允许破坏性改动**。新增方法 OK
 ### P-0a-4. Branch reload 并发时可能重复 branch_open
 
 边缘场景：并行两次 Session.load + branch() 可能写第二条 branch_open 到 main。单进程假设下不触发。Phase 1 加文件锁。
+
+---
+
+## Part 4 — 2026-04-24 首个真·端到端闭环暴露的 bug（已全部修复）
+
+Phase 0a 代码级 bug 全修完后，第一次拉通"cold-start alert → watcher → LLM 诊断 → 飞书推送"。这一轮又踩到 6 个 bug——全部是**基础设施/埋点/用户体验**层面，单跑 watcher 测不出来。
+
+### Bug 15: `dbay-logs` PG pipeline 静默中断 3 天
+- **症状**：`log_search` MCP 不管查什么 component 都是 `rows=0`，但 lakeon-api 里 `log.info` 在跑
+- **根因**：`dbay-logs` 这个 PG 数据库里 pageserver 和 safekeeper 的 WAL consensus 3 天前就断了（具体原因见 `project_pageserver_reattach_gap.md`），所有 insert 早就 fail 了，fluentbit 堆在本地不 flush
+- **教训**：SRE agent 依赖的观测管道必须自带健康探针；2 分钟 cron 能查 agent 自己的 session 数据，但不能查 fluentbit 是否在丢数据
+- **修复**：`POST /admin/infra/purge-database/db_logs` → 重建 db_logs；fluentbit 收集恢复正常
+
+### Bug 16: fluentbit DaemonSet SA 被删 8 天，所有节点的日志都没采
+- **症状**：`kubectl get pods -n lakeon -l app=lakeon-fluentbit` → 0 pods，所有 Node 的 container stdout 全都没进 dbay-logs
+- **根因**：`ServiceAccount lakeon-fluentbit` 不知道何时被删，DaemonSet 持续 CreateContainerError 但没有告警
+- **教训**：K8s Daemon 的 SA 依赖必须有 `kubectl get sa` 的健康探测；这次靠肉眼 `kubectl describe ds` 才看出来
+- **修复**：`kubectl apply -f fluentbit-sa.yaml`，DaemonSet 当场恢复
+
+### Bug 17: lakeon-api 0.9.224 冷启动埋点写错位置
+- **症状**：生产跑了 `ComputeLifecycleService.ensureCompute` 里的 `"compute started in ..."` 日志，但这条日志从来没出现过
+- **根因**：实际冷启动路径是 `ProxyAdapterController.coldStartBranch` → 直接调 `ComputePodManager.createComputePodForBranch`，**根本没走 ensureCompute**。最早的埋点是加错了位置
+- **教训**：埋点放哪个方法要看 call graph，不能凭方法名猜；compute 冷启的入口是 Proxy adapter，不是 lifecycle service
+- **修复**：`ProxyAdapterController.coldStartBranch` 里补 `log.info("compute started in {}ms ...")`，lakeon-api 重建为 0.9.239
+
+### Bug 18: lakeon-api 回滚到 0.9.224 丢失 0.9.238 修复
+- **症状**：埋点补好打成 0.9.238 后，集群 rollout 把老版本 0.9.224 又拉回来一次，埋点丢了
+- **根因**：`deploy/cce/helm/values.yaml` 上层 `defaultImageTag` 没更新；`kubectl set image` 只改了 current pod，deploy spec 仍指向 0.9.224
+- **教训**：用 helm values 管镜像版本时，`set image` 和 `helm upgrade` 不能混着用；要么全走 `helm upgrade --set image.tag=X`，要么全走 `set image`
+- **修复**：重新 `build-and-push-api.sh` 打 0.9.239，`kubectl set image deployment/lakeon-api lakeon-api=...:0.9.239`，观察 30min 确认稳定
+
+### Bug 19: `simulate_cold_start.py` 走 suspend 路径，compute 没被真销毁
+- **症状**：脚本打印 "cold start took 315ms (watcher threshold = 5000ms)"——因为 compute 根本没被销毁，第二次连接是复用 warm pod
+- **根因**：`POST /admin/databases/{id}/suspend` 只改 DB 状态位，Pool 里的 compute pod 仍在；第二次连接直接命中 warm 池子
+- **教训**：想测冷启动必须真的删掉 compute pod；suspend 是 app-level 状态切换，不等于资源销毁
+- **修复**：脚本改用 `POST /admin/infra/restart-pod/{compute_pod_name}`（用 admin API 拿到 `compute_pod_name`，硬删 pod）
+
+### Bug 20: 飞书推送只有文件路径，用户要 SSH 进 Railway 才能看到诊断
+- **症状**：用户截图 feishu DM："`[SRE] 冷启动告警已诊断，session=... 请查看 /data/hermes/data/<sid>/conclusion.md`"——问"这就是 agent 的建议吗？"
+- **根因**：`run_cold_start_watcher` 的 DM 内容只拼了 session_id + 文件路径，没读 conclusion.md 内容
+- **教训**：推送是 SRE agent 的用户界面，不能让操作者再跳一层去看诊断；DM 正文就应该是 root cause + 建议
+- **修复**：`main.py` 读 manifest.trigger + read_conclusion(sid)，拼成："🔥 [SRE] <alert> — <tenant>/<db>\nsession=...\n────\n<conclusion.md body, 4000 字符内>\n────\n路径: ..."，超过 4000 字符截断（飞书消息上限 ~30KB，留余量）
+- **Commit**: `6dbd0d67`
+
+---
+
+### Bug 15-20 的共同教训
+
+这 6 个 bug 加起来花了一个下午定位。共同点：**watcher 的业务逻辑在单测/集测里都是绿的，真实环境里一路踩雷**。防御措施：
+1. **每个依赖组件做 health probe**——fluentbit、pageserver、safekeeper、lakeon-api 埋点点位、simulate 脚本的清理路径
+2. **飞书 DM 正文 = 最终用户界面**——内容必须自带，不能让人跳两层
+3. **生产部署工具链统一**——helm values + rollout 不能混用
+
