@@ -386,3 +386,25 @@ from dbay_sre_mcp.tools.stuck_task_query import stuck_task_query_impl
 )
 def stuck_task_query(threshold_minutes: int = 10, type: str = "") -> str:
     return stuck_task_query_impl(threshold_minutes=threshold_minutes, type=type or None)
+
+
+from dbay_sre_mcp.tools.pod_create_failures import pod_create_failures_impl
+
+
+@mcp.tool(
+    description=(
+        "Aggregate k8s pod creation failures by category over a time window. Sources from "
+        "lakeon-api /admin/operations endpoint (no kubectl needed).\n\n"
+        "USE WHEN: User reports 'X tenant can't deploy' / 'compute won't start'; periodic sweep "
+        "for pod-spec issues (e.g. sanitize bug 00a65ec0 caused InvalidName); investigating "
+        "multi-tenant deploy failures.\n\n"
+        "DO NOT USE WHEN: You want raw events — use admin /admin/operations directly via your "
+        "own caller; asking about runtime crashes after pod started — use log_errors.\n\n"
+        "PARAMETERS: since (time window, default 1h, examples: 30m, 6h, 1d).\n\n"
+        "RETURNS JSON: count; by_category={InvalidName, CrashLoopBackOff, ImagePullBackOff, "
+        "FailedScheduling, ContainerCreating, DuplicateName, Other: N}; "
+        "failures=[{ts, tenant_id, db_id, error, category}, ...] (max 50)."
+    )
+)
+def pod_create_failures(since: str = "1h") -> str:
+    return pod_create_failures_impl(since=since)
