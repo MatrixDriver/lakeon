@@ -178,6 +178,7 @@ public class ProxyAdapterController {
      * Cold-start a compute pod for a branch: create pod, wait for ready, update branch fields.
      */
     private String coldStartBranch(DatabaseEntity db, BranchEntity branch) {
+        long coldStartBegin = System.currentTimeMillis();
         log.info("Cold-starting compute for database {} branch {} ({})",
                 db.getName(), branch.getName(), branch.getId());
 
@@ -196,6 +197,10 @@ public class ProxyAdapterController {
         branch.setSuspendedAt(null);
         branch.setLastActiveAt(Instant.now());
         branchRepo.save(branch);
+
+        long coldStartMs = System.currentTimeMillis() - coldStartBegin;
+        log.info("compute started in {}ms for tenant={} db={}",
+                coldStartMs, db.getTenantId(), db.getId());
 
         return address;
     }
