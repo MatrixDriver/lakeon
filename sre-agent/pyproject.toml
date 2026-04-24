@@ -8,6 +8,7 @@ dependencies = [
   "httpx>=0.27",
   "croniter>=2.0",
   "esdk-obs-python>=3.24",
+  "trafilatura>=1.6",
 ]
 
 [project.optional-dependencies]
