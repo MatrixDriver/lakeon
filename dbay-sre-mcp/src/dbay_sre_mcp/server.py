@@ -277,3 +277,45 @@ def log_stats(since: str = "24h") -> str:
     """Log volume stats by component/level + slowest operations."""
     from dbay_sre_mcp.log_db import log_stats_impl
     return log_stats_impl(since=since)
+
+
+from dbay_sre_mcp.tools.find_database import find_database_impl
+from dbay_sre_mcp.tools.find_tenant import find_tenant_impl
+
+
+@mcp.tool(
+    description=(
+        "Resolve a human-readable database name to its internal id, tenant_id, status, "
+        "and current compute host.\n\n"
+        "USE WHEN: User mentions a database by name (e.g. 'tcph-bench', 'perf-test'); "
+        "you need db_id or tenant_id before calling other tools (log_search, database_status); "
+        "disambiguating between databases with similar names.\n\n"
+        "DO NOT USE WHEN: You already have the db_id (UUID-like string) — call other tools "
+        "directly; the user is asking about logs/errors/metrics — use log_search/log_errors instead.\n\n"
+        "PARAMETERS: name (string match, returns multiple if ambiguous) OR db_id (preferred if known); "
+        "provide either name OR db_id, not both.\n\n"
+        "RETURNS JSON: found=true with database={id, name, tenant_id, status, compute_host, created_at}; "
+        "or found=false with message; or multiple=true with matches=[...] when name was ambiguous."
+    )
+)
+def find_database(name: str = "", db_id: str = "") -> str:
+    return find_database_impl(name=name or None, db_id=db_id or None)
+
+
+@mcp.tool(
+    description=(
+        "Resolve a tenant name to id, status, quota, and (by default) list of held databases.\n\n"
+        "USE WHEN: User mentions a tenant by name and you need tenant_id for downstream queries; "
+        "you want to enumerate which databases a tenant owns; diagnosing 'is this tenant healthy' — "
+        "combine with database_status per db.\n\n"
+        "DO NOT USE WHEN: You only need a single database — use find_database directly; "
+        "asking about cross-tenant patterns — use multi_tenant_blast_radius.\n\n"
+        "PARAMETERS: name (tenant name) OR tenant_id (preferred if known); "
+        "include_databases (default True; set False for tenant metadata only).\n\n"
+        "RETURNS JSON: tenant={id, name, status, quota, created_at}; "
+        "databases=[{id, name, status}, ...] (if include_databases=True)."
+    )
+)
+def find_tenant(name: str = "", tenant_id: str = "", include_databases: bool = True) -> str:
+    return find_tenant_impl(name=name or None, tenant_id=tenant_id or None,
+                            include_databases=include_databases)
