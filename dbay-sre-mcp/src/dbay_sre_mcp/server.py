@@ -231,7 +231,8 @@ def log_search(
     limit: int = 100,
 ) -> str:
     """Flexible log search with optional filters."""
-    sql, params = _build_search_query(
+    from dbay_sre_mcp.log_db import log_search_impl
+    return log_search_impl(
         component=component,
         level=level,
         keyword=keyword,
@@ -240,8 +241,6 @@ def log_search(
         since=since,
         limit=limit,
     )
-    rows = _query(sql, params)
-    return json.dumps(rows, default=str)
 
 
 @mcp.tool(
@@ -252,9 +251,8 @@ def log_search(
 )
 def log_trace(request_id: str) -> str:
     """Retrieve all log entries for a given request_id, ordered by ts."""
-    sql, params = _build_trace_query(request_id)
-    rows = _query(sql, params)
-    return json.dumps(rows, default=str)
+    from dbay_sre_mcp.log_db import log_trace_impl
+    return log_trace_impl(request_id=request_id)
 
 
 @mcp.tool(
@@ -265,9 +263,8 @@ def log_trace(request_id: str) -> str:
 )
 def log_errors(since: str = "1h", component: str = "") -> str:
     """Recent ERROR/WARN entries, newest first."""
-    sql, params = _build_errors_query(since=since, component=component)
-    rows = _query(sql, params)
-    return json.dumps(rows, default=str)
+    from dbay_sre_mcp.log_db import log_errors_impl
+    return log_errors_impl(since=since, component=component)
 
 
 @mcp.tool(
@@ -278,28 +275,5 @@ def log_errors(since: str = "1h", component: str = "") -> str:
 )
 def log_stats(since: str = "24h") -> str:
     """Log volume stats by component/level + slowest operations."""
-    interval = _parse_interval(since)
-
-    # Counts query
-    counts_sql = (
-        "SELECT component, level, COUNT(*) AS count "
-        "FROM logs "
-        "WHERE ts >= NOW() - INTERVAL %s "
-        "GROUP BY component, level "
-        "ORDER BY component, level"
-    )
-    counts = _query(counts_sql, [interval])
-
-    # Slow ops query
-    slow_sql = (
-        "SELECT id, ts, component, msg, duration_ms "
-        "FROM logs "
-        "WHERE ts >= NOW() - INTERVAL %s "
-        "AND duration_ms IS NOT NULL "
-        "ORDER BY duration_ms DESC "
-        "LIMIT 10"
-    )
-    slow_ops = _query(slow_sql, [interval])
-
-    result = {"counts_by_component_level": counts, "slow_ops_top10": slow_ops}
-    return json.dumps(result, default=str)
+    from dbay_sre_mcp.log_db import log_stats_impl
+    return log_stats_impl(since=since)
