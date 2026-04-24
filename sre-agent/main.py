@@ -293,6 +293,34 @@ def run_outcome_checker() -> None:
             log.warning("[outcome_checker] feishu DM failed for %s: %s", sid, exc)
 
 
+def run_daily_reflection() -> None:
+    """0 22 * * * cron task — review today's reading, push reflection to Jacky."""
+    from skills.reading.daily_reflection.reflect import reflect_today
+
+    log.info("[daily_reflection] reflect_today starting")
+    log_store = _make_log_store()
+    llm = DeepseekLLMClient()
+    try:
+        result = reflect_today(log=log_store, llm=llm)
+    except Exception as exc:
+        log.error("[daily_reflection] reflect_today failed: %s", exc)
+        return
+
+    if result.skipped_reason:
+        log.info("[daily_reflection] skipped: %s", result.skipped_reason)
+        return
+
+    log.info("[daily_reflection] wrote session %s", result.session_id)
+
+    open_id = _jacky_open_id()
+    if open_id and result.reflection_text:
+        try:
+            feishu_send_dm(open_id, f"📖 今日反思\n\n{result.reflection_text}")
+            log.info("[daily_reflection] feishu DM sent to %s", open_id)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("[daily_reflection] feishu DM failed: %s", exc)
+
+
 # ─── subprocess management ────────────────────────────────────────────────────
 
 _CHILD_PROCS: list[subprocess.Popen] = []
@@ -322,6 +350,7 @@ def _shutdown_children(signum: int, frame: object) -> None:
 _CRON_TASKS = [
     ("*/2 * * * *", run_cold_start_watcher),
     ("0 9 * * *",   run_outcome_checker),
+    ("0 22 * * *",  run_daily_reflection),
 ]
 
 
