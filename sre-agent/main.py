@@ -38,6 +38,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -356,9 +357,18 @@ def main() -> None:
         log.warning("[main] obs sync script not found at %s — skipping", obs_script)
 
     # 2. Hermes gateway (background subprocess — feishu bidirectional bot)
-    hermes_config = _hermes_config()
+    # Hermes reads config.yaml from $HERMES_HOME/config.yaml automatically
+    # (no --config flag on `hermes gateway start`). Seed the hermes home with
+    # our packaged config if not already present.
+    hermes_config_src = _hermes_config()
+    hermes_home = Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes")))
+    hermes_home.mkdir(parents=True, exist_ok=True)
+    hermes_config_dst = hermes_home / "config.yaml"
+    if not hermes_config_dst.exists() and Path(hermes_config_src).exists():
+        shutil.copy2(hermes_config_src, hermes_config_dst)
+        log.info("[main] seeded hermes config → %s", hermes_config_dst)
     _start_subprocess(
-        ["hermes", "gateway", "start", "--config", hermes_config],
+        ["hermes", "gateway", "start"],
         "hermes_gateway",
     )
 
