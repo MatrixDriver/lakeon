@@ -54,3 +54,28 @@ def test_query_handler_does_not_open_session(tmp_log_root: Path):
     answer_question(log=log, llm=llm, question="anything")
     after = len(log.list_sessions())
     assert before == after
+
+
+def test_query_handler_question_with_brace_substring(tmp_log_root: Path):
+    """Regression: question containing '{hits}' must not corrupt rendering."""
+    from skills.reading.query_handler.handler import answer_question
+
+    log = LogStore(tmp_log_root)
+    s = log.new_session(type="reading", trigger={"url": "https://x"}, tags=[])
+    s.conclude("# Decoy\n\n## 要点\n- a\n")
+    s.close()
+
+    captured: dict[str, str] = {}
+
+    class CaptureLLM:
+        def complete(self, *, system, user, tools=None):
+            captured["user"] = user
+            return {"text": "ok", "model": "x", "tokens_in": 1, "tokens_out": 1, "cost_usd": None}
+
+    weird_question = "what about {hits} pattern"
+    answer_question(log=log, llm=CaptureLLM(), question=weird_question)
+
+    rendered = captured["user"]
+    # The literal '{hits}' from the question must NOT have been replaced
+    assert weird_question in rendered
+    assert rendered.count("{hits}") == 1  # only the user's literal copy survives

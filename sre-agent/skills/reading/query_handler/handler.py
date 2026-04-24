@@ -16,6 +16,13 @@ _STOPWORDS = {
     "a", "an", "the", "of", "about", "recent", "any", "something", "on",
 }
 
+_PLACEHOLDER_RE = re.compile(r"\{(question|hits)\}")
+
+
+def _render_prompt(question: str, hits_json: str) -> str:
+    values = {"question": question, "hits": hits_json}
+    return _PLACEHOLDER_RE.sub(lambda m: values[m.group(1)], _PROMPT)
+
 
 class LLMClient(Protocol):
     def complete(self, *, system: str, user: str, tools: list[dict] | None = None) -> dict: ...
@@ -70,8 +77,9 @@ def _hits_for_prompt(log: LogStore, terms: list[str], limit: int = 10) -> list[d
 def answer_question(*, log: LogStore, llm: LLMClient, question: str) -> str:
     terms = _extract_terms(question)
     hits = _hits_for_prompt(log, terms)
-    prompt = _PROMPT.replace("{question}", question).replace(
-        "{hits}", json.dumps(hits, ensure_ascii=False, indent=2)
+    prompt = _render_prompt(
+        question=question,
+        hits_json=json.dumps(hits, ensure_ascii=False, indent=2),
     )
     resp = llm.complete(system="你是 Jacky 的阅读伙伴,简短准确。", user=prompt)
     return (resp.get("text") or "").strip()
