@@ -5,6 +5,8 @@
 
 [tool.uv.workspace]
 members = [
+  # NOTE: not-yet-existing members are silently skipped by uv 0.9.x. Once a member dir is
+  # created, it MUST contain a valid pyproject.toml or `uv sync` will fail.
   "packages/agent-session-log",
   "packages/hermes-agent-utils",
   "sre-agent",
@@ -14,7 +16,3 @@ members = [
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-
-[tool.pytest.ini_options]
-# Default test discovery — each package overrides via its own pyproject.toml.
-asyncio_mode = "auto"
