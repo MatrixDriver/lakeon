@@ -83,3 +83,20 @@ platforms:
     enabled: true
     extra:
       connection_mode: "websocket"
+
+# ---------------------------------------------------------------------------
+# MCP servers (exposed to the hermes LLM as tools)
+# ---------------------------------------------------------------------------
+# dbay-sre-mcp is installed as a pip package with a `dbay-sre-mcp` entry point.
+# It reads LOG_DB_DSN from env (already bridged from DBAY_LOGS_DSN in main.py).
+# Starting it as a stdio subprocess gives the LLM access to log_search /
+# log_trace / log_errors / log_stats tools — so Jacky can ask ad-hoc
+# diagnostic questions like "今天 dbay.cloud 的冷启动 p95 是多少" and the
+# agent can answer by querying dbay-logs directly.
+mcp_servers:
+  dbay_sre:
+    command: "dbay-sre-mcp"
+    args: []
+    env: {}
+    timeout: 60
+    connect_timeout: 30
