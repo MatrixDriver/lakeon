@@ -10,6 +10,7 @@ resolution-markers = [
 members = [
     "agent-session-log",
     "hermes-agent-utils",
+    "reading-companion",
     "sre-agent",
 ]
 
@@ -926,6 +927,36 @@ wheels = [
 ]
 
 [[package]]
+name = "reading-companion"
+version = "0.0.1"
+source = { editable = "reading-companion" }
+dependencies = [
+    { name = "agent-session-log" },
+    { name = "hermes-agent-utils" },
+    { name = "httpx" },
+    { name = "trafilatura" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "agent-session-log", editable = "packages/agent-session-log" },
+    { name = "hermes-agent-utils", editable = "packages/hermes-agent-utils" },
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5" },
+    { name = "trafilatura", specifier = ">=1.6" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "regex"
 version = "2026.4.4"
 source = { registry = "https://pypi.org/simple" }
@@ -1086,6 +1117,7 @@ dependencies = [
     { name = "agent-session-log" },
     { name = "croniter" },
     { name = "esdk-obs-python" },
+    { name = "hermes-agent-utils" },
     { name = "httpx" },
     { name = "pyyaml" },
     { name = "trafilatura" },
@@ -1106,6 +1138,7 @@ requires-dist = [
     { name = "agent-session-log", editable = "packages/agent-session-log" },
     { name = "croniter", specifier = ">=2.0" },
     { name = "esdk-obs-python", specifier = ">=3.24" },
+    { name = "hermes-agent-utils", editable = "packages/hermes-agent-utils" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "trafilatura", specifier = ">=1.6" },
