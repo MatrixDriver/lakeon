@@ -39,6 +39,7 @@ def main() -> int:
     # `system` tenant which already exists and has its api_key available
     # via admin list. Override with DBAY_SIMULATE_TENANT_API_KEY if you
     # prefer a different tenant.
+    suffix = int(time.time())
     tenant_api_key = os.environ.get("DBAY_SIMULATE_TENANT_API_KEY")
     if not tenant_api_key:
         print("[simulate] fetching system tenant api_key via admin API")
@@ -66,7 +67,7 @@ def main() -> int:
             "Authorization": f"Bearer {tenant_api_key}",
             "Content-Type": "application/json",
         },
-        json={"name": "coldstarttest", "compute_size": "1cu"},
+        json={"name": f"coldstarttest{suffix}", "compute_size": "1cu"},
         timeout=180,
         verify=False,
     )
@@ -111,10 +112,34 @@ def main() -> int:
     first = int((time.time() - t0) * 1000)
     print(f"[simulate] first connect (warm compute) took {first}ms")
 
-    # --- wait for auto-suspend ------------------------------------------
-    idle_wait = int(os.environ.get("SIMULATE_IDLE_WAIT_SEC", "600"))
-    print(f"[simulate] waiting {idle_wait}s for auto-suspend...")
-    time.sleep(idle_wait)
+    # --- force cold start by deleting the compute pod via admin API ----
+    #     /suspend alone keeps the pod warm in the pool; we need an actual
+    #     pod teardown so the next connect has to go through compute_ctl
+    #     sync-safekeepers + full PG startup.
+    # Admin API exposes compute_pod_name; user API doesn't.
+    ad = httpx.get(
+        f"{api}/admin/databases/{db_id}",
+        headers=_admin_headers(token),
+        timeout=15,
+        verify=False,
+    ).json()
+    pod_name = ad.get("compute_pod_name")
+    if not pod_name:
+        print(f"FAIL: admin response missing compute_pod_name: {ad}")
+        return 1
+    print(f"[simulate] POST /admin/infra/restart-pod/{pod_name} to force teardown")
+    rresp = httpx.post(
+        f"{api}/admin/infra/restart-pod/{pod_name}",
+        headers=_admin_headers(token),
+        timeout=30,
+        verify=False,
+    )
+    if rresp.status_code >= 300:
+        print(f"FAIL: restart-pod: HTTP {rresp.status_code}: {rresp.text}")
+        return 1
+    settle_wait = int(os.environ.get("SIMULATE_SUSPEND_SETTLE_SEC", "15"))
+    print(f"[simulate] waiting {settle_wait}s for pod termination...")
+    time.sleep(settle_wait)
 
     # --- reconnect → cold start -----------------------------------------
     print("[simulate] reconnecting (this should trigger a real cold start)...")
