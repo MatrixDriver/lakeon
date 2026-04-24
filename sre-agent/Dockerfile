@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir uv==0.4.18
 # Install hermes-agent from public GitHub repo.
 ARG HERMES_REF=main
 ENV HERMES_REF=${HERMES_REF}
-RUN uv pip install --system "hermes-agent @ git+https://github.com/NousResearch/hermes-agent@${HERMES_REF}"
+RUN uv pip install --system "hermes-agent[feishu] @ git+https://github.com/NousResearch/hermes-agent@${HERMES_REF}"
 
 # Install dbay-sre-mcp from PyPI. Package published from lakeon/dbay-sre-mcp/.
 # Pin a specific version to keep builds reproducible.
