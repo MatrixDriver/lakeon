@@ -340,3 +340,27 @@ from dbay_sre_mcp.tools.database_status import database_status_impl
 )
 def database_status(name_or_id: str) -> str:
     return database_status_impl(name_or_id=name_or_id)
+
+
+from dbay_sre_mcp.tools.data_consistency_check import data_consistency_check_impl
+
+
+@mcp.tool(
+    description=(
+        "Run a named invariant check against the lakeon-api production DB. Read-only.\n"
+        "Use this to detect data anomalies caused by event-timing / tx-ordering / listener bugs.\n\n"
+        "USE WHEN: User reports 'X created but Y can't find it' (cross-table consistency); "
+        "you suspect a tx-commit timing bug; periodic cron sweep for orphans / undrained queues.\n\n"
+        "DO NOT USE WHEN: Looking at runtime errors — use log_errors; "
+        "asking about cold-start performance — use database_status.\n\n"
+        "PARAMETERS: rule (name of the invariant to check; pass '__list__' to see all available); "
+        "threshold_minutes (for time-based rules e.g. enqueued_implies_drained, default 10).\n\n"
+        "AVAILABLE RULES: kb_implies_db_id (KB marked READY but db_id is NULL); "
+        "enqueued_implies_drained (writes enqueued but not drained > threshold); "
+        "db_ready_implies_pod_running (DB marked READY but no compute_host); "
+        "schema_seeded (wiki-enabled KB missing its schema row).\n\n"
+        "RETURNS JSON: ok=true (no violations) or ok=false with count + violations=[...]."
+    )
+)
+def data_consistency_check(rule: str, threshold_minutes: int = 10) -> str:
+    return data_consistency_check_impl(rule=rule, threshold_minutes=threshold_minutes)
