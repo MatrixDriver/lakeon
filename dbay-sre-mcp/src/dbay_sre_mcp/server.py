@@ -212,13 +212,16 @@ mcp = FastMCP(
 
 @mcp.tool(
     description=(
-        "Search logs with flexible filters: component, log level, full-text keyword, "
-        "tenant_id, db_id, time window (since e.g. '1h','30m','2d'), and row limit.\n"
-        "IMPORTANT: keyword uses PostgreSQL full-text search (simple tokenizer, no stemming). "
-        "Use exact words that appear in the log message. If you don't know what words the logs "
-        "contain, first search WITHOUT keyword (filter by component/level/time only) to see "
-        "actual log messages, then refine with keyword. "
-        "Avoid guessing keywords like function names or camelCase identifiers."
+        "Flexible keyword search over dbay-logs. Returns up to `limit` matching log lines as JSON.\n\n"
+        "USE WHEN: You have an exact keyword / phrase that should appear in log message text; "
+        "filtering by component (lakeon-api, pageserver, etc.) and time window; "
+        "looking up by tenant_id or db_id when those fields are populated.\n\n"
+        "DO NOT USE WHEN: You only know a database name (use find_database first to get db_id); "
+        "you only know a tenant name (use find_tenant first); asking about cold-start performance "
+        "(use database_status); cross-tenant pattern detection (use multi_tenant_blast_radius).\n\n"
+        "PARAMETERS: component (e.g. lakeon-api, pageserver); keyword (PG full-text simple tokenizer); "
+        "since (1h, 30m, 2d); limit (default 100); tenant_id; db_id.\n\n"
+        "RETURNS: JSON array of log rows with ts, component, level, msg, tenant_id, db_id."
     )
 )
 def log_search(
@@ -245,8 +248,13 @@ def log_search(
 
 @mcp.tool(
     description=(
-        "Fetch the full call chain for a single request_id, ordered by timestamp ascending. "
-        "Useful for tracing request flows across components."
+        "Follow a request_id chain — pull all log entries with the given request_id across components.\n\n"
+        "USE WHEN: You have a specific request_id from an error or alert and want the full call chain; "
+        "investigating 'why did THIS specific request fail / take so long'.\n\n"
+        "DO NOT USE WHEN: You don't have a request_id (use log_search first to find one); "
+        "looking for patterns across many requests (use log_stats or log_errors).\n\n"
+        "PARAMETERS: request_id (the unique ID present in correlated log lines).\n\n"
+        "RETURNS: JSON array of log rows for the chain, ordered by ts."
     )
 )
 def log_trace(request_id: str) -> str:
@@ -257,8 +265,13 @@ def log_trace(request_id: str) -> str:
 
 @mcp.tool(
     description=(
-        "List recent ERROR and WARN log entries. "
-        "Filter by component and time window (since e.g. '1h','2d'). Returns up to 200 rows."
+        "Recent error-level log lines with optional component filter, auto-aggregated by message.\n\n"
+        "USE WHEN: 'What's broken right now' triage; periodic sweep for new error spikes; "
+        "after a deploy to verify error rate didn't climb.\n\n"
+        "DO NOT USE WHEN: You want errors for a specific tenant/db (use log_search with tenant_id/db_id); "
+        "looking for cross-tenant patterns (use multi_tenant_blast_radius).\n\n"
+        "PARAMETERS: since (default 1h); component (filter to one component, default all).\n\n"
+        "RETURNS: JSON with grouped error signatures and their counts."
     )
 )
 def log_errors(since: str = "1h", component: str = "") -> str:
@@ -269,8 +282,13 @@ def log_errors(since: str = "1h", component: str = "") -> str:
 
 @mcp.tool(
     description=(
-        "Get log statistics for a time window (since e.g. '24h'): "
-        "counts grouped by component+level, plus slow operations Top 10 by duration_ms."
+        "Activity overview by component / level over a time window — high-level health pulse.\n\n"
+        "USE WHEN: Daily / weekly health snapshot; quick sanity check 'is the system alive'; "
+        "detecting overall log volume anomalies.\n\n"
+        "DO NOT USE WHEN: You need specific log lines (use log_search); "
+        "investigating a single tenant (use find_tenant + database_status per db).\n\n"
+        "PARAMETERS: since (default 24h, examples: 1h, 7d).\n\n"
+        "RETURNS: JSON with counts per (component, level)."
     )
 )
 def log_stats(since: str = "24h") -> str:
@@ -408,3 +426,26 @@ from dbay_sre_mcp.tools.pod_create_failures import pod_create_failures_impl
 )
 def pod_create_failures(since: str = "1h") -> str:
     return pod_create_failures_impl(since=since)
+
+
+from dbay_sre_mcp.tools.multi_tenant_blast_radius import multi_tenant_blast_radius_impl
+
+
+@mcp.tool(
+    description=(
+        "Detect a single error pattern that is simultaneously affecting multiple tenants "
+        "— blast-radius assessment for cross-tenant incidents.\n\n"
+        "USE WHEN: Investigating whether an error is isolated to one tenant or is a systemic "
+        "incident; after a deploy to check if new errors are appearing across many tenants; "
+        "on-call triage 'how many tenants are affected by this error'.\n\n"
+        "DO NOT USE WHEN: You already know the incident is single-tenant (use log_search with "
+        "tenant_id); looking for a specific request chain (use log_trace); "
+        "asking about pod scheduling failures (use pod_create_failures).\n\n"
+        "PARAMETERS: window (time window, default 15m, examples: 5m, 1h); "
+        "min_tenant_count (minimum distinct tenants to report, default 3).\n\n"
+        "RETURNS JSON: window; min_tenant_count; count; "
+        "incidents=[{component, error_signature, distinct_tenant_count, total_occurrences}, ...]."
+    )
+)
+def multi_tenant_blast_radius(window: str = "15m", min_tenant_count: int = 3) -> str:
+    return multi_tenant_blast_radius_impl(window=window, min_tenant_count=min_tenant_count)
