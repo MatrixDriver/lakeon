@@ -230,3 +230,116 @@ def test_find_related_respects_since(tmp_log_root):
     recent = find_related(log=log, keywords=["agent commit log"], since="90d",
                           limit=5, exclude_session_id=None)
     assert len(recent) == 1
+
+
+# ────────── reply.py tests ──────────
+
+def test_build_reply_from_closed_session(tmp_log_root):
+    from skills.reading.url_handler.reply import build_reply
+
+    log = LogStore(tmp_log_root)
+    s = log.new_session(
+        type="reading",
+        trigger={"url": "https://x.com", "source": "cli"},
+        tags=["source:cli"],
+    )
+    s.conclude(
+        "# On Commit Logs\n\n"
+        "URL: https://x.com\n\n"
+        "## 要点\n- LLM-native data layer\n- file-based\n- OBS synced\n\n"
+        "## 相关阅读\n"
+        "- sess_prev_id: [《Git for Agents》](https://a.com) — 关键词 commit log\n"
+    )
+    s.close()
+    card = build_reply(log, s.id)
+    assert "📖" in card
+    assert "On Commit Logs" in card
+    assert "https://x.com" in card
+    assert "LLM-native data layer" in card
+    assert s.id in card
+
+
+def test_url_handler_full_flow(tmp_log_root):
+    """End-to-end with fakes: open → fetch → extract → relate → conclude → close."""
+    from skills.reading.url_handler.handler import handle_url
+
+    log = LogStore(tmp_log_root)
+
+    past = log.new_session(type="reading", trigger={"url": "https://a.com"}, tags=[])
+    past.conclude("# Git for Agents\n\n## 要点\n- agent commit log 是 LLM-native 层\n")
+    past.close()
+
+    http = StaticHttpClient({
+        "https://x.com/post": (200, "<html><body><article>"
+                                    "<h1>On Commit Logs</h1>"
+                                    "<p>Body about agent commit log being LLM-native.</p>"
+                                    "</article></body></html>"),
+    })
+    llm = FakeLLM([{
+        "text": json.dumps({
+            "title": "On Commit Logs",
+            "key_points": ["LLM-native data layer", "file-based", "OBS synced"],
+            "keywords": ["agent commit log", "OBS", "LLM-native"],
+            "quotes": [{"text": "一个 LLM-native 数据层", "context": "开篇"}],
+        }),
+        "model": "deepseek-chat",
+        "tokens_in": 1200,
+        "tokens_out": 260,
+        "cost_usd": None,
+    }])
+
+    result = handle_url(
+        log=log,
+        http=http,
+        llm=llm,
+        url="https://x.com/post",
+        user_open_id="ou_jacky",
+        received_at="2026-04-24T10:00:00Z",
+        source="cli",
+    )
+
+    m = log.store.read_manifest(result.session_id)
+    assert m.type == "reading"
+    assert m.status == "closed"
+    assert m.trigger["url"] == "https://x.com/post"
+    assert m.trigger["user_open_id"] == "ou_jacky"
+    assert m.trigger["source"] == "cli"
+    assert "source:cli" in m.tags
+
+    # http called
+    assert http.calls == ["https://x.com/post"]
+
+    concl = log.store.read_conclusion(result.session_id)
+    assert "On Commit Logs" in concl
+    assert "LLM-native data layer" in concl
+    assert past.id in concl  # related cited
+
+    # Evidence: raw_html blob + extraction JSON blob
+    events = log.store.read_events(result.session_id, "main")
+    tool_results = [e for e in events if e.get("type") == "tool_result"]
+    assert tool_results
+    assert any(e.get("evidence") for e in tool_results)
+
+    # Reply shaped
+    assert "📖" in result.feishu_reply
+    assert "On Commit Logs" in result.feishu_reply
+    assert result.status == "closed"
+
+
+def test_url_handler_handles_fetch_failure(tmp_log_root):
+    """If fetch raises FetchError, session is closed status=abandoned."""
+    from skills.reading.url_handler.handler import handle_url
+
+    log = LogStore(tmp_log_root)
+    http = StaticHttpClient({})  # 404
+    llm = FakeLLM([])
+
+    result = handle_url(
+        log=log, http=http, llm=llm,
+        url="https://broken.example", user_open_id="ou_jacky",
+        received_at="2026-04-24T10:00:00Z", source="cli",
+    )
+    m = log.store.read_manifest(result.session_id)
+    assert m.status == "abandoned"
+    assert "fetch failed" in (log.store.read_conclusion(result.session_id) or "").lower()
+    assert result.status == "abandoned"
