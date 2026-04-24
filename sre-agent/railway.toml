@@ -1,0 +1,17 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+watchPatterns = [
+  "**",
+]
+
+[deploy]
+startCommand = "/app/entrypoint.sh"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 5
+
+# No healthcheckPath — hermes gateway is a WebSocket client, not an HTTP server.
+# Railway will consider the service healthy if the process stays alive.
+
+# Volume must be provisioned in Railway dashboard (Service → Settings → Volumes,
+# mount path /data/hermes). Without it, sessions lost on redeploy.
