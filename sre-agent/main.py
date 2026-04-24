@@ -81,6 +81,39 @@ class SREMCPAdapter:
         from dbay_sre_mcp.server import log_stats as _log_stats
         return json.loads(_log_stats(since))
 
+    # ─── dbay-sre-mcp 0.2.0 additions ─────────────────────────────────────────
+
+    def find_database(self, *, name: str = "", db_id: str = "") -> dict:
+        from dbay_sre_mcp.server import find_database as _find_database
+        return json.loads(_find_database(name=name, db_id=db_id))
+
+    def find_tenant(self, *, name: str = "", tenant_id: str = "",
+                    include_databases: bool = True) -> dict:
+        from dbay_sre_mcp.server import find_tenant as _find_tenant
+        return json.loads(_find_tenant(name=name, tenant_id=tenant_id,
+                                       include_databases=include_databases))
+
+    def database_status(self, *, name_or_id: str) -> dict:
+        from dbay_sre_mcp.server import database_status as _database_status
+        return json.loads(_database_status(name_or_id=name_or_id))
+
+    def data_consistency_check(self, *, rule: str, threshold_minutes: int = 10) -> dict:
+        from dbay_sre_mcp.server import data_consistency_check as _dcc
+        return json.loads(_dcc(rule=rule, threshold_minutes=threshold_minutes))
+
+    def stuck_task_query(self, *, threshold_minutes: int = 10, type: str = "") -> dict:
+        from dbay_sre_mcp.server import stuck_task_query as _stq
+        return json.loads(_stq(threshold_minutes=threshold_minutes, type=type))
+
+    def pod_create_failures(self, *, since: str = "1h") -> dict:
+        from dbay_sre_mcp.server import pod_create_failures as _pcf
+        return json.loads(_pcf(since=since))
+
+    def multi_tenant_blast_radius(self, *, window: str = "15m",
+                                   min_tenant_count: int = 3) -> dict:
+        from dbay_sre_mcp.server import multi_tenant_blast_radius as _mtbr
+        return json.loads(_mtbr(window=window, min_tenant_count=min_tenant_count))
+
 
 # ─── cron tasks ───────────────────────────────────────────────────────────────
 
