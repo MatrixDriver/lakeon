@@ -1,16 +1,45 @@
 [project]
 name = "dbay-sre-mcp"
 version = "0.1.0"
-description = "DBay SRE diagnostic MCP server — log search, trace, errors, stats"
+description = "MCP server exposing SRE-style log diagnostics (search, trace, errors, stats) over a Postgres-backed log store"
+readme = "README.md"
+license = { text = "Apache-2.0" }
 requires-python = ">=3.10"
-dependencies = ["fastmcp>=2.0", "psycopg2-binary>=2.9"]
-
-[project.scripts]
-dbay-sre-mcp = "dbay_sre_mcp.__main__:main"
+authors = [
+  { name = "Jacky Li", email = "jackylk@apache.org" },
+]
+keywords = ["mcp", "sre", "logs", "postgres", "agent", "llm"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: System :: Monitoring",
+]
+dependencies = [
+  "fastmcp>=2.0",
+  "psycopg2-binary>=2.9",
+]
 
 [project.optional-dependencies]
 test = ["pytest>=7.0"]
 
+[project.scripts]
+dbay-sre-mcp = "dbay_sre_mcp.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/MatrixDriver/lakeon/tree/main/dbay-sre-mcp"
+Repository = "https://github.com/MatrixDriver/lakeon"
+Issues = "https://github.com/MatrixDriver/lakeon/issues"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dbay_sre_mcp"]

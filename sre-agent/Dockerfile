@@ -24,12 +24,10 @@ ARG HERMES_REF=main
 ENV HERMES_REF=${HERMES_REF}
 RUN uv pip install --system "hermes-agent @ git+https://github.com/NousResearch/hermes-agent@${HERMES_REF}"
 
-# Install dbay-sre-mcp from the lakeon GitHub repo (subdirectory install).
-# DBAY_SRE_MCP_REF defaults to "main"; pin to a commit SHA for reproducibility.
-ARG DBAY_SRE_MCP_REF=main
-ENV DBAY_SRE_MCP_REF=${DBAY_SRE_MCP_REF}
-RUN uv pip install --system \
-    "dbay-sre-mcp @ git+https://github.com/MatrixDriver/lakeon.git@${DBAY_SRE_MCP_REF}#subdirectory=dbay-sre-mcp"
+# Install dbay-sre-mcp from PyPI. Package published from lakeon/dbay-sre-mcp/.
+# Pin a specific version to keep builds reproducible.
+ARG DBAY_SRE_MCP_VERSION=0.1.0
+RUN uv pip install --system "dbay-sre-mcp==${DBAY_SRE_MCP_VERSION}"
 
 # Install our agent_session_log package + its deps.
 # Context is sre-agent/ so paths are relative — no sre-agent/ prefix.
