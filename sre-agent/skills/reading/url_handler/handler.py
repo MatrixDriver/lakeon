@@ -48,15 +48,19 @@ def handle_url(
         },
         tags=[f"source:{source}", "type:web"],
         model="deepseek-chat",
-        runtime="hermes@phase0a",
+        runtime="hermes@0.10.0",
     )
 
     # ---- Fetch ----
-    session.append_turn(type="thought", content=f"fetching {url}")
+    fetch_call_t = session.append_turn(
+        type="tool_call", tool="httpx.get", args={"url": url}
+    )
     try:
         doc = fetch_url(url, client=http)
     except FetchError as exc:
-        session.append_turn(type="tool_result", ref_turn=0, error=f"fetch failed: {exc}")
+        session.append_turn(
+            type="tool_result", ref_turn=fetch_call_t, error=f"fetch failed: {exc}"
+        )
         session.conclude(
             f"# (fetch failed)\n\nURL: {url}\n\n## 错误\n- fetch failed: {exc}\n"
         )
@@ -70,9 +74,8 @@ def handle_url(
     raw_blob = session.attach_evidence(
         doc.raw_html.encode("utf-8"), mime="text/plain", source=f"httpx.get({url})"
     )
-    session.append_turn(type="tool_call", tool="httpx.get", args={"url": url})
     session.append_turn(
-        type="tool_result", ref_turn=1,
+        type="tool_result", ref_turn=fetch_call_t,
         evidence=[raw_blob.sha256],
         truncated=(len(doc.raw_html) > 200000),
     )
@@ -98,6 +101,11 @@ def handle_url(
         )
 
     # ---- Relate ----
+    related_call_t = session.append_turn(
+        type="tool_call",
+        tool="agent_session_log.list_sessions+search",
+        args={"keywords": extraction.keywords, "since": "30d"},
+    )
     related = find_related(
         log=log,
         keywords=extraction.keywords,
@@ -106,12 +114,7 @@ def handle_url(
         exclude_session_id=session.id,
     )
     session.append_turn(
-        type="tool_call",
-        tool="agent_session_log.list_sessions+search",
-        args={"keywords": extraction.keywords, "since": "30d"},
-    )
-    session.append_turn(
-        type="tool_result", ref_turn=3,
+        type="tool_result", ref_turn=related_call_t,
         content=[{"id": r["id"], "title": r["title"], "matched": r["matched_keywords"]} for r in related],
     )
 

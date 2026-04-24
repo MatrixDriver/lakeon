@@ -343,3 +343,57 @@ def test_url_handler_handles_fetch_failure(tmp_log_root):
     assert m.status == "abandoned"
     assert "fetch failed" in (log.store.read_conclusion(result.session_id) or "").lower()
     assert result.status == "abandoned"
+
+
+def test_url_handler_ref_turn_invariant(tmp_log_root):
+    """Every tool_result.ref_turn must point at a tool_call turn."""
+    from skills.reading.url_handler.handler import handle_url
+
+    log = LogStore(tmp_log_root)
+    http = StaticHttpClient({
+        "https://x.com/post": (200, "<html><body><article>"
+                                    "<h1>T</h1><p>real body content here</p>"
+                                    "</article></body></html>"),
+    })
+    llm = FakeLLM([{
+        "text": json.dumps({
+            "title": "T", "key_points": ["a"], "keywords": ["k"], "quotes": []
+        }),
+        "model": "x", "tokens_in": 1, "tokens_out": 1, "cost_usd": None,
+    }])
+
+    result = handle_url(
+        log=log, http=http, llm=llm,
+        url="https://x.com/post", user_open_id=None,
+        received_at="2026-04-24T10:00:00Z", source="cli",
+    )
+
+    events = log.store.read_events(result.session_id, "main")
+    by_turn = {e["turn"]: e for e in events}
+    for e in events:
+        if e.get("type") == "tool_result":
+            ref = e.get("ref_turn")
+            assert ref is not None, f"tool_result missing ref_turn: {e}"
+            assert ref in by_turn, f"ref_turn={ref} not in events: {e}"
+            assert by_turn[ref].get("type") == "tool_call", \
+                f"tool_result ref_turn={ref} points at {by_turn[ref].get('type')}, not tool_call: {e}"
+
+
+def test_build_reply_handles_braces_in_url(tmp_log_root):
+    """Regression: build_reply must not crash on URL with literal '{' or '}'."""
+    from skills.reading.url_handler.reply import build_reply
+
+    log = LogStore(tmp_log_root)
+    s = log.new_session(
+        type="reading",
+        trigger={"url": "https://x.com/path/{a}/page", "source": "cli"},
+        tags=["source:cli"],
+    )
+    s.conclude(
+        "# T\n\n## 要点\n- a {literal} b\n\n## 相关阅读\n- (none)\n"
+    )
+    s.close()
+
+    card = build_reply(log, s.id)  # must not raise
+    assert "https://x.com/path/{a}/page" in card
+    assert "{literal}" in card

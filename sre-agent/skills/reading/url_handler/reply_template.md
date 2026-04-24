@@ -1,11 +1,11 @@
-📖 **{title}**
+📖 **$title**
 
-URL: {url}
+URL: $url
 
 **要点**
-{key_points}
+$key_points
 
 **相关阅读**
-{related}
+$related
 
-_session: `{session_id}`_
+_session: `$session_id`_

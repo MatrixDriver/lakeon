@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from string import Template
 
 from agent_session_log import LogStore
 
 
-_TEMPLATE = (Path(__file__).parent / "reply_template.md").read_text(encoding="utf-8")
+_TEMPLATE = Template((Path(__file__).parent / "reply_template.md").read_text(encoding="utf-8"))
 _TITLE_RE = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
 _KEY_POINTS_SECTION_RE = re.compile(r"##\s+要点\s*\n(.*?)(?=\n##\s|\Z)", re.DOTALL)
 _RELATED_SECTION_RE = re.compile(r"##\s+相关阅读\s*\n(.*?)(?=\n##\s|\Z)", re.DOTALL)
@@ -26,7 +27,7 @@ def build_reply(log: LogStore, session_id: str) -> str:
     rel_m = _RELATED_SECTION_RE.search(concl)
     related = rel_m.group(1).strip() if rel_m else "- (首次读到这个主题)"
 
-    return _TEMPLATE.format(
+    return _TEMPLATE.safe_substitute(
         title=title,
         url=m.trigger.get("url", ""),
         key_points=key_points,
