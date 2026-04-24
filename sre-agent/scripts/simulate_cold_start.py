@@ -34,27 +34,29 @@ def main() -> int:
     api = os.environ.get("DBAY_API_URL", "https://api.dbay.cloud:8443/api/v1")
     token = os.environ.get("DBAY_ADMIN_TOKEN", "lakeon-sre-2026")
 
-    tenant_name = f"coldstart-test-{int(time.time())}"
-    print(f"[simulate] creating tenant '{tenant_name}' on {api}")
-
-    # --- create tenant via admin API -------------------------------------
-    t_resp = httpx.post(
-        f"{api}/admin/tenants",
-        headers=_admin_headers(token),
-        json={"name": tenant_name},
-        timeout=30,
-        verify=False,
-    )
-    if t_resp.status_code >= 300:
-        print(f"FAIL: admin create tenant: HTTP {t_resp.status_code}: {t_resp.text}")
-        return 1
-    t_json = t_resp.json()
-    tenant_id = t_json.get("id")
-    tenant_api_key = t_json.get("api_key")
-    if not tenant_id or not tenant_api_key:
-        print(f"FAIL: unexpected tenant response: {t_json}")
-        return 1
-    print(f"[simulate] tenant created: id={tenant_id}")
+    # Reuse an existing tenant rather than signing up a new one (sign-up
+    # requires invite codes + pollutes the tenant table). We pick the
+    # `system` tenant which already exists and has its api_key available
+    # via admin list. Override with DBAY_SIMULATE_TENANT_API_KEY if you
+    # prefer a different tenant.
+    tenant_api_key = os.environ.get("DBAY_SIMULATE_TENANT_API_KEY")
+    if not tenant_api_key:
+        print("[simulate] fetching system tenant api_key via admin API")
+        ts = httpx.get(
+            f"{api}/admin/tenants",
+            headers=_admin_headers(token),
+            timeout=15,
+            verify=False,
+        ).json()
+        sys_tenant = next((t for t in ts if t.get("name") == "system"), None)
+        if not sys_tenant or not sys_tenant.get("api_key"):
+            print(f"FAIL: could not find system tenant (or api_key missing)")
+            return 1
+        tenant_api_key = sys_tenant["api_key"]
+        tenant_id = sys_tenant["id"]
+    else:
+        tenant_id = "(via env override)"
+    print(f"[simulate] using tenant: id={tenant_id}")
 
     # --- create DB via regular user API using this tenant's api_key ------
     # (admin /databases is for listing; regular /databases POST is the create path)
