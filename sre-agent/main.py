@@ -363,9 +363,8 @@ def main() -> None:
         log.warning("[main] obs sync script not found at %s — skipping", obs_script)
 
     # 2. Hermes gateway (background subprocess — feishu bidirectional bot)
-    # Hermes reads config.yaml from $HERMES_HOME/config.yaml automatically
-    # (no --config flag on `hermes gateway start`). Seed the hermes home with
-    # our packaged config if not already present.
+    # Hermes reads config.yaml + skills from $HERMES_HOME automatically.
+    # Seed them from our baked-in paths so the LLM can `skill_view` etc.
     hermes_config_src = _hermes_config()
     hermes_home = Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes")))
     hermes_home.mkdir(parents=True, exist_ok=True)
@@ -373,6 +372,15 @@ def main() -> None:
     if not hermes_config_dst.exists() and Path(hermes_config_src).exists():
         shutil.copy2(hermes_config_src, hermes_config_dst)
         log.info("[main] seeded hermes config → %s", hermes_config_dst)
+
+    # Seed skills (always overwrite — packaged skills are the source of truth)
+    skills_src = _HERE / "skills"
+    skills_dst = hermes_home / "skills"
+    if skills_src.exists():
+        if skills_dst.exists():
+            shutil.rmtree(skills_dst)
+        shutil.copytree(skills_src, skills_dst)
+        log.info("[main] seeded hermes skills → %s", skills_dst)
     # Use `hermes gateway run` (foreground mode) not `start` (background/systemd);
     # in Docker we want the subprocess to stay attached.
     _start_subprocess(
