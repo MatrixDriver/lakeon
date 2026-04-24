@@ -1,12 +1,12 @@
 """Tests for reading/url_handler — fetch, extract, related, full flow."""
 from __future__ import annotations
 
-import json
-from pathlib import Path
+import json  # noqa: F401  reused by tests in Tasks 3-7
+from pathlib import Path  # noqa: F401  reused by tests in Tasks 4-7
 
 import pytest
 
-from agent_session_log import LogStore
+from agent_session_log import LogStore  # noqa: F401  reused by tests in Tasks 4-7
 
 
 # ────────── Fakes shared across tests ──────────

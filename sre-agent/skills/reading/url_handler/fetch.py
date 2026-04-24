@@ -65,6 +65,5 @@ def fetch_url(url: str, *, client: HttpClient, timeout: float = 30.0) -> Fetched
         raise FetchError(f"could not extract main text from {url}")
 
     title = _fallback_title(html, url)
-    # trafilatura sometimes returns markdown-ish; strip leading H1 if it duplicates title
     body = body.strip()
     return FetchedDoc(url=url, title=title, body=body, raw_html=html)
