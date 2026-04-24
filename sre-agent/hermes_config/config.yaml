@@ -97,6 +97,11 @@ mcp_servers:
   dbay_sre:
     command: "dbay-sre-mcp"
     args: []
-    env: {}
+    # Hermes MCP client filters env vars by default (_build_safe_env) — only
+    # PATH/HOME/XDG_* pass through. We must explicitly declare LOG_DB_DSN here
+    # so dbay-sre-mcp can find the Postgres. ${DBAY_LOGS_DSN} is resolved from
+    # os.environ via hermes _interpolate_env_vars (mcp_tool.py:1591).
+    env:
+      LOG_DB_DSN: "${DBAY_LOGS_DSN}"
     timeout: 60
     connect_timeout: 30
