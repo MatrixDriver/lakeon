@@ -300,7 +300,9 @@ _CHILD_PROCS: list[subprocess.Popen] = []
 
 def _start_subprocess(cmd: list[str], label: str) -> subprocess.Popen:
     log.info("[main] starting %s: %s", label, " ".join(cmd))
-    proc = subprocess.Popen(cmd)
+    # Force unbuffered I/O so subprocess logs appear in Railway logs immediately
+    env = {**os.environ, "PYTHONUNBUFFERED": "1"}
+    proc = subprocess.Popen(cmd, env=env)
     _CHILD_PROCS.append(proc)
     return proc
 
