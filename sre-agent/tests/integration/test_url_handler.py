@@ -397,3 +397,26 @@ def test_build_reply_handles_braces_in_url(tmp_log_root):
     card = build_reply(log, s.id)  # must not raise
     assert "https://x.com/path/{a}/page" in card
     assert "{literal}" in card
+
+
+def test_cli_main_writes_session_and_optionally_pushes(tmp_log_root, monkeypatch):
+    """CLI smoke test: --no-push avoids feishu, uses fake http+LLM via env-injected hooks."""
+    from skills.reading.url_handler import cli
+
+    # Pre-arm fake http + LLM
+    pages = {"https://x/post": (200,
+        "<html><body><article><h1>T</h1><p>agent commit log content here.</p></article></body></html>")}
+    cli._TEST_HTTP = StaticHttpClient(pages)
+    cli._TEST_LLM = FakeLLM([{"text": json.dumps({
+        "title": "T", "key_points": ["a"], "keywords": ["k"], "quotes": []
+    }), "model": "x", "tokens_in": 1, "tokens_out": 1, "cost_usd": None}])
+
+    # Force LogStore root to tmp
+    monkeypatch.setenv("HERMES_HOME", str(tmp_log_root.parent))
+
+    rc = cli.main(["--url", "https://x/post", "--no-push"])
+    assert rc == 0
+
+    log = LogStore(tmp_log_root.parent / "data")
+    metas = log.list_sessions(type="reading")
+    assert len(metas) == 1
