@@ -541,7 +541,17 @@ public class DatabaseService {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
             if (!warmWake) {
-                // Cold path: create new Pod (outside transaction, may block up to 360s for elastic scaling)
+                // Persist deterministic podName + RUNNING status BEFORE creating the pod,
+                // otherwise the orphan-cleanup scheduler (every 30s) sees the pod with no
+                // owning DB row and deletes it mid-wake. See ComputeLifecycleService.wakeCompute.
+                String podName = "compute-" + entity.getId().replace("_", "-");
+                txTemplate.executeWithoutResult(status -> {
+                    DatabaseEntity e = databaseRepository.findById(entity.getId()).orElseThrow();
+                    e.setStatus(DatabaseStatus.RUNNING);
+                    e.setSuspendedAt(null);
+                    e.setComputePodName(podName);
+                    databaseRepository.save(e);
+                });
                 computePodManager.createComputePod(entity);
                 computePodManager.waitForPodReady(entity.getComputePodName(), 360_000);
             } else {
@@ -549,6 +559,14 @@ public class DatabaseService {
                 if (!computePodManager.reconcileComputeHost(entity)) {
                     log.warn("Warm wake for {}: pod disappeared, falling back to cold",
                              entity.getId());
+                    String podName = "compute-" + entity.getId().replace("_", "-");
+                    txTemplate.executeWithoutResult(status -> {
+                        DatabaseEntity e = databaseRepository.findById(entity.getId()).orElseThrow();
+                        e.setStatus(DatabaseStatus.RUNNING);
+                        e.setSuspendedAt(null);
+                        e.setComputePodName(podName);
+                        databaseRepository.save(e);
+                    });
                     computePodManager.createComputePod(entity);
                     computePodManager.waitForPodReady(entity.getComputePodName(), 360_000);
                 }
@@ -634,6 +652,16 @@ public class DatabaseService {
         OperationLogEntity opLog = operationLogService.startOperation(
                 entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME, "COLD");
         try {
+            // Persist deterministic podName + RUNNING status BEFORE creating the pod,
+            // otherwise the orphan-cleanup scheduler races in and deletes the fresh pod.
+            String prePodName = "compute-" + entity.getId().replace("_", "-");
+            txTemplate.executeWithoutResult(status -> {
+                DatabaseEntity e = databaseRepository.findById(entity.getId()).orElseThrow();
+                e.setStatus(DatabaseStatus.RUNNING);
+                e.setSuspendedAt(null);
+                e.setComputePodName(prePodName);
+                databaseRepository.save(e);
+            });
             String address = computePodManager.createComputePod(entity);
             if (entity.getComputePodName() != null) {
                 boolean ready = computePodManager.waitForPodReady(entity.getComputePodName(), 360_000L);
