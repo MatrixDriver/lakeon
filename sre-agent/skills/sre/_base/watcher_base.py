@@ -19,7 +19,7 @@ class WatcherBase:
     log: LogStore
     skill_name: str
     skill_version: str = "v0.1"
-    dedupe_window_sec: int = 600
+    dedupe_window_sec: int = 86400  # 24h — same signal won't burn LLM/Feishu twice in a day
     ledger: Optional[SkillLedger] = None
 
     def __post_init__(self) -> None:

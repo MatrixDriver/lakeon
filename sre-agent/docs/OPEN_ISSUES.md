@@ -189,6 +189,7 @@ Phase 0a 代码级 bug 全修完后，第一次拉通"cold-start alert → watch
 - **教训**：推送是 SRE agent 的用户界面，不能让操作者再跳一层去看诊断；DM 正文就应该是 root cause + 建议
 - **修复**：`main.py` 读 manifest.trigger + read_conclusion(sid)，拼成："🔥 [SRE] <alert> — <tenant>/<db>\nsession=...\n────\n<conclusion.md body, 4000 字符内>\n────\n路径: ..."，超过 4000 字符截断（飞书消息上限 ~30KB，留余量）
 - **Commit**: `6dbd0d67`
+- **复发 (2026-04-25)**：`71d8bd7a` 重构 main.py 抽 `_dm_for_incidents` helper 时丢了正文，又退回到只发文件路径。复修：把 `_dm_for_incidents` 重新加上 `read_conclusion(sid)`，并让 `run_cold_start_watcher` 复用同一个 helper 而不是自己拼 DM；同时把 `WatcherBase.dedupe_window_sec` 默认值从 600s 提到 86400s，单条违规一天只烧一次 LLM/飞书。**保护**：`_dm_for_incidents` 是飞书的唯一出口，重构时不能让它退化成"只发路径"。
 
 ---
 

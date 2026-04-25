@@ -139,24 +139,17 @@ def run_cold_start_watcher() -> None:
     log.info("[watcher] opened %d incident session(s): %s",
              len(session_ids), session_ids)
     llm = DeepseekLLMClient()
+    diagnosed: list[str] = []
     for sid in session_ids:
         log.info("[watcher] diagnosing session %s", sid)
         try:
             session = log_store.get_session(sid)
             diagnose(session, llm=llm, mcp=mcp)
             log.info("[watcher] diagnosis complete for %s", sid)
-            open_id = jacky_open_id()
-            if open_id:
-                try:
-                    feishu_send_dm(
-                        open_id,
-                        f"[SRE] 冷启动告警已诊断, session={sid}\n"
-                        f"请查看 {hermes_home()}/data/{sid}/conclusion.md",
-                    )
-                except Exception as dm_exc:
-                    log.warning("[watcher] feishu DM failed for %s: %s", sid, dm_exc)
+            diagnosed.append(sid)
         except Exception as exc:
             log.error("[watcher] diagnosis failed for session %s: %s", sid, exc)
+    _dm_for_incidents("cold-start", diagnosed, log_store)
 
 
 def run_outcome_checker() -> None:
@@ -292,8 +285,16 @@ def run_multi_tenant_blast_radius_watcher() -> None:
     _dm_for_incidents("blast-radius", sids, log_store)
 
 
+_DM_CONCLUSION_LIMIT = 4000
+
+
 def _dm_for_incidents(kind: str, sids: list[str], log_store) -> None:
-    """Shared helper: DM Jacky a short summary for each new incident."""
+    """Shared helper: DM Jacky each new incident's full conclusion.
+
+    Includes the LLM root-cause hypothesis from conclusion.md so the operator
+    doesn't have to SSH into Railway to read it. Truncates to 4000 chars
+    (Feishu cap is ~30KB but readability degrades long before that).
+    """
     if not sids:
         log.info("[%s] no new incidents", kind)
         return
@@ -305,11 +306,18 @@ def _dm_for_incidents(kind: str, sids: list[str], log_store) -> None:
         try:
             m = log_store.store.read_manifest(sid)
             alert = (m.trigger or {}).get("alert", "?")
-            feishu_send_dm(
-                open_id,
-                f"[SRE/{kind}] {alert}\nsession={sid}\n"
-                f"details: {hermes_home()}/data/{sid}/conclusion.md",
+            conclusion = (log_store.store.read_conclusion(sid) or "").strip()
+            if len(conclusion) > _DM_CONCLUSION_LIMIT:
+                conclusion = conclusion[:_DM_CONCLUSION_LIMIT] + "\n…(truncated)"
+            body = (
+                f"[SRE/{kind}] {alert}\n"
+                f"session={sid}\n"
+                f"────\n"
+                f"{conclusion or '(no conclusion written)'}\n"
+                f"────\n"
+                f"path: {hermes_home()}/data/{sid}/conclusion.md"
             )
+            feishu_send_dm(open_id, body)
         except Exception as dm_exc:
             log.warning("[%s] feishu DM failed for %s: %s", kind, sid, dm_exc)
 

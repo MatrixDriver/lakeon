@@ -24,7 +24,7 @@ class Watcher:
     log: LogStore
     mcp: Any
     threshold_ms: int = 5000
-    dedupe_window_sec: int = 600
+    dedupe_window_sec: int = 86400  # 24h — same tenant/db won't burn LLM twice in a day
     ledger: SkillLedger | None = None
     skill_version: str = "v0.1"
 
