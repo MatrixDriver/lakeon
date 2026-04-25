@@ -104,23 +104,26 @@ public class ComputeLifecycleService {
             }
         }
 
-        // Mark as STARTING before creating pod — prevents cleanup scheduler from
-        // deleting the pod while it's still initializing (race with doCleanupExpiredPods)
+        // Pre-compute the pod name (deterministic: see ComputePodManager.createComputePod).
+        // We MUST persist it BEFORE the pod is created, otherwise the orphan-cleanup
+        // scheduler can race in (every 30-60s, age >= 60s) and delete the freshly
+        // created pod because dbByPod still has computePodName=null for this row.
+        // That race caused tpch-bench wakes to hit the 6-min wake timeout repeatedly.
+        String podName = "compute-" + dbId.replace("_", "-");
         txTemplate.executeWithoutResult(status -> {
             DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
             e.setStatus(DatabaseStatus.RUNNING);
             e.setSuspendedAt(null);
+            e.setComputePodName(podName);
             databaseRepository.save(e);
         });
 
         // Create new Pod (outside transaction, may block 120s)
         String address = computePodManager.createComputePod(entity);
-        String podName = entity.getComputePodName();
 
-        // Persist pod name immediately so the orphan-cleanup scheduler won't delete it
+        // Persist host/port now that the pod has been scheduled
         txTemplate.executeWithoutResult(status -> {
             DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
-            e.setComputePodName(podName);
             e.setComputeHost(entity.getComputeHost());
             e.setComputePort(entity.getComputePort());
             databaseRepository.save(e);
@@ -378,10 +381,14 @@ public class ComputeLifecycleService {
                 continue;
             }
 
-            // Orphan cleanup: pod has no owning entity
+            // Orphan cleanup: pod has no owning entity.
+            // Protect for longer than DEFAULT_WAKE_TIMEOUT_MS (360s) so a wake that
+            // takes the full timeout cannot have its pod deleted mid-flight even if
+            // the DB row is somehow inconsistent. Defense-in-depth on top of the
+            // pre-write-podName fix in wakeCompute.
             if (!owned) {
-                if (computePodManager.getPodAgeSeconds(pod.name()) < 60) {
-                    log.debug("Skipping orphan check for young pod: {} (age < 60s)", pod.name());
+                if (computePodManager.getPodAgeSeconds(pod.name()) < 420) {
+                    log.debug("Skipping orphan check for young pod: {} (age < 420s)", pod.name());
                     continue;
                 }
                 log.warn("Cleaning up orphaned compute pod: {}", pod.name());
