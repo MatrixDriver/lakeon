@@ -2,7 +2,7 @@
 
 MCP (Model Context Protocol) server exposing SRE-style log diagnostics over a Postgres-backed log store. Designed for use by LLM agents that need to query structured application logs.
 
-## Tools (0.2.0)
+## Tools (0.2.1)
 
 ### Log queries (PG-backed dbay-logs)
 
@@ -21,12 +21,12 @@ MCP (Model Context Protocol) server exposing SRE-style log diagnostics over a Po
 | `find_tenant` | Resolve tenant name → id + held databases |
 | `database_status` | Comprehensive DB snapshot + last 1h cold-start + events |
 
-### Consistency & queues (lakeon-api production PG, read-only)
+### Consistency & queues (admin REST)
 
 | Tool | Purpose |
 |---|---|
-| `data_consistency_check` | Run named invariant rule (KB↔db_id, enqueued↔drained, etc.) |
-| `stuck_task_query` | Async tasks in_progress beyond threshold across known tables |
+| `data_consistency_check` | Run named invariant rule (KB↔db_id, enqueued↔drained, etc.) via admin REST |
+| `stuck_task_query` | Async tasks in_progress beyond threshold via admin REST |
 
 ### Cluster signals (admin REST + dbay-logs)
 
@@ -40,8 +40,7 @@ MCP (Model Context Protocol) server exposing SRE-style log diagnostics over a Po
 | Variable | Used by | Notes |
 |---|---|---|
 | `LOG_DB_DSN` | log_*, multi_tenant_blast_radius | dbay-logs Postgres connection string |
-| `LAKEON_DB_DSN` | data_consistency_check, stuck_task_query | lakeon-api production Postgres (read-only role recommended) |
-| `LAKEON_ADMIN_TOKEN` | find_*, database_status, pod_create_failures | Admin token for `/admin/*` endpoints |
+| `LAKEON_ADMIN_TOKEN` | find_*, database_status, pod_create_failures, data_consistency_check, stuck_task_query | Admin token for `/admin/*` endpoints |
 | `LAKEON_API_BASE_URL` | (above) | default `https://api.dbay.cloud:8443/api/v1` |
 
 ## Install

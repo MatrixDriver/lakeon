@@ -31,7 +31,7 @@ RUN uv pip install --system "mcp>=1.2.0,<2" "lark-oapi>=1.5.3,<2" "qrcode>=7.0,<
 
 # Install dbay-sre-mcp from PyPI. Package published from lakeon/dbay-sre-mcp/.
 # Pin a specific version to keep builds reproducible.
-ARG DBAY_SRE_MCP_VERSION=0.2.0
+ARG DBAY_SRE_MCP_VERSION=0.2.1
 RUN uv pip install --system "dbay-sre-mcp==${DBAY_SRE_MCP_VERSION}"
 
 # Install workspace packages (agent-session-log + hermes-agent-utils).

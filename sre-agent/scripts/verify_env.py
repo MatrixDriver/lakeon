@@ -25,9 +25,6 @@ OPTIONAL = [
     ("FEISHU_ENCRYPT_KEY", "only required if FEISHU_CONNECTION_MODE=webhook"),
     ("OBS_PREFIX", "defaults to 'agent-log/'"),
     ("LAKEON_API_BASE_URL", "defaults to https://api.dbay.cloud:8443/api/v1 if unset"),
-    ("LAKEON_DB_DSN",
-     "needed only by data_consistency_check + stuck_task_query tools "
-     "(other 5 new tools work without it)"),
 ]
 
 
