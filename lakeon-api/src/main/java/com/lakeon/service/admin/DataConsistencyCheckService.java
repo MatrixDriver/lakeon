@@ -27,45 +27,38 @@ public class DataConsistencyCheckService {
 
     private static final Map<String, RuleSpec> RULES = Map.of(
             "kb_implies_db_id", new RuleSpec(
-                    "Knowledge bases marked READY but with NULL db_id (event timing bug)",
+                    "Knowledge bases marked READY but with NULL database_id (event timing bug)",
                     """
-                    SELECT id, name, tenant_id, db_id
-                    FROM knowledge_base
-                    WHERE status = 'READY' AND db_id IS NULL
+                    SELECT id, name, tenant_id, database_id
+                    FROM knowledge_bases
+                    WHERE status = 'READY' AND database_id IS NULL
                     """,
                     List.of("kb_id", "name", "tenant_id", "db_id"),
                     List.of()),
             "enqueued_implies_drained", new RuleSpec(
-                    "Writes enqueued but not drained beyond threshold (tx commit ordering bug)",
+                    "kb_write_tasks queued/running beyond threshold (tx commit ordering or worker stall)",
                     """
-                    SELECT id, kb_id, enqueued_at,
-                           EXTRACT(EPOCH FROM (NOW() - enqueued_at))::int AS age_sec
-                    FROM kb_write_queue
-                    WHERE drained_at IS NULL
-                      AND enqueued_at < NOW() - (:threshold_minutes || ' minutes')::interval
-                    ORDER BY enqueued_at ASC
+                    SELECT id, kb_id, status, created_at,
+                           EXTRACT(EPOCH FROM (NOW() - created_at))::int AS age_sec
+                    FROM kb_write_tasks
+                    WHERE status IN ('QUEUED', 'RUNNING')
+                      AND created_at < NOW() - (:threshold_minutes || ' minutes')::interval
+                    ORDER BY created_at ASC
                     """,
-                    List.of("write_id", "kb_id", "enqueued_at", "age_sec"),
+                    List.of("write_id", "kb_id", "status", "created_at", "age_sec"),
                     List.of("threshold_minutes")),
             "db_ready_implies_pod_running", new RuleSpec(
-                    "Databases marked READY but compute_host is unknown / pod missing",
+                    "Databases marked RUNNING but compute_host is unknown / pod missing",
                     """
                     SELECT id, name, tenant_id, status, compute_host
-                    FROM database
-                    WHERE status = 'READY' AND (compute_host IS NULL OR compute_host = '')
+                    FROM database_instances
+                    WHERE status = 'RUNNING' AND (compute_host IS NULL OR compute_host = '')
                     """,
                     List.of("db_id", "name", "tenant_id", "status", "compute_host"),
-                    List.of()),
-            "schema_seeded", new RuleSpec(
-                    "Wiki-enabled KBs missing their wiki_schema row (seeder listener bug)",
-                    """
-                    SELECT kb.id, kb.name, kb.tenant_id
-                    FROM knowledge_base kb
-                    LEFT JOIN wiki_schema ws ON ws.kb_id = kb.id
-                    WHERE kb.wiki_enabled = true AND ws.id IS NULL
-                    """,
-                    List.of("kb_id", "name", "tenant_id"),
                     List.of()));
+    // Note: the original 'schema_seeded' rule was dropped — wiki seed pages live in OBS,
+    // not in a SQL table, so there is no pure-SQL invariant to check. `WikiSchemaSeeder`
+    // failures show up in lakeon-api logs (search for "schema seeder" / "wiki seed").
 
     public List<String> availableRules() {
         return new ArrayList<>(RULES.keySet());

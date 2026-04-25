@@ -17,7 +17,7 @@
 | KB 标 READY 但 db_id NULL | `data_consistency_check(rule="kb_implies_db_id")` |
 | 写入 enqueued 但 drain 超时 | `data_consistency_check(rule="enqueued_implies_drained")` |
 | DB 标 READY 但 compute_host 空 | `data_consistency_check(rule="db_ready_implies_pod_running")` |
-| Wiki KB 缺 schema | `data_consistency_check(rule="schema_seeded")` |
+| Wiki KB 缺 schema | `log_search(component="lakeon-api", keyword="schema seeder")` — 没有 SQL 不变式,看 lakeon-api 的 seeder 日志 |
 
 ## 多 tenant 同时出事
 

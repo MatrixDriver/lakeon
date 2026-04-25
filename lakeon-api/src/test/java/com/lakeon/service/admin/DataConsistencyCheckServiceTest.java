@@ -35,7 +35,8 @@ class DataConsistencyCheckServiceTest {
         @SuppressWarnings("unchecked")
         List<String> rules = (List<String>) result.get("rules");
         assertThat(rules).contains("kb_implies_db_id", "enqueued_implies_drained",
-                "db_ready_implies_pod_running", "schema_seeded");
+                "db_ready_implies_pod_running");
+        assertThat(rules).doesNotContain("schema_seeded");
     }
 
     @Test
@@ -75,10 +76,14 @@ class DataConsistencyCheckServiceTest {
     @Test
     void enqueuedImpliesDrainedUsesThresholdParam() {
         when(query.getResultList()).thenReturn(List.of(
-                new Object[]{"write_42", "kb_abc", java.sql.Timestamp.valueOf("2026-04-25 10:00:00"), 600}
+                new Object[]{"write_42", "kb_abc", "RUNNING",
+                        java.sql.Timestamp.valueOf("2026-04-25 10:00:00"), 600}
         ));
         Map<String, Object> result = service.run("enqueued_implies_drained", 5);
         verify(query).setParameter("threshold_minutes", 5);
         assertThat(result.get("count")).isEqualTo(1);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> violations = (List<Map<String, Object>>) result.get("violations");
+        assertThat(violations.get(0).get("status")).isEqualTo("RUNNING");
     }
 }

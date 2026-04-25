@@ -13,7 +13,9 @@ _RULES = [
     "kb_implies_db_id",
     "enqueued_implies_drained",
     "db_ready_implies_pod_running",
-    "schema_seeded",
+    # 'schema_seeded' was dropped — wiki seed pages live in OBS, not in a SQL
+    # table, so there is no pure-SQL invariant to check. WikiSchemaSeeder
+    # failures show up in lakeon-api logs (search for "schema seeder").
 ]
 
 _PROMPT = (Path(__file__).parent / "diagnose_prompt.md").read_text(encoding="utf-8")
