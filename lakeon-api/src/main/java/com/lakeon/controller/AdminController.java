@@ -1,5 +1,7 @@
 package com.lakeon.controller;
 
+import com.lakeon.service.admin.DataConsistencyCheckService;
+import com.lakeon.service.admin.StuckTaskQueryService;
 import com.lakeon.model.dto.DatabaseUsageSummary;
 import com.lakeon.model.dto.TenantResponse;
 import com.lakeon.model.dto.TenantUsageSummary;
@@ -92,6 +94,8 @@ public class AdminController {
     private final com.lakeon.knowledge.WikiService wikiService;
     private final TenantReconcileService tenantReconcileService;
     private final NeonApiClient neonApiClient;
+    private final DataConsistencyCheckService dataConsistencyCheckService;
+    private final StuckTaskQueryService stuckTaskQueryService;
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AdminController.class);
 
@@ -129,7 +133,9 @@ public class AdminController {
                            PipelineComponentRepository pipelineComponentRepository,
                            com.lakeon.knowledge.WikiService wikiService,
                            TenantReconcileService tenantReconcileService,
-                           NeonApiClient neonApiClient) {
+                           NeonApiClient neonApiClient,
+                           DataConsistencyCheckService dataConsistencyCheckService,
+                           StuckTaskQueryService stuckTaskQueryService) {
         this.tenantService = tenantService;
         this.adminService = adminService;
         this.databaseService = databaseService;
@@ -165,6 +171,8 @@ public class AdminController {
         this.wikiService = wikiService;
         this.tenantReconcileService = tenantReconcileService;
         this.neonApiClient = neonApiClient;
+        this.dataConsistencyCheckService = dataConsistencyCheckService;
+        this.stuckTaskQueryService = stuckTaskQueryService;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────
@@ -529,6 +537,24 @@ public class AdminController {
         response.put("page", result.getNumber());
         response.put("total_pages", result.getTotalPages());
         return response;
+    }
+
+    // ── SRE: Data consistency invariants ───────────────────────────
+
+    @GetMapping("/data-consistency/{rule}")
+    public Map<String, Object> dataConsistencyCheck(
+            @PathVariable String rule,
+            @RequestParam(name = "threshold_minutes", defaultValue = "10") int thresholdMinutes) {
+        return dataConsistencyCheckService.run(rule, thresholdMinutes);
+    }
+
+    // ── SRE: Stuck async tasks ─────────────────────────────────────
+
+    @GetMapping("/stuck-tasks")
+    public Map<String, Object> stuckTaskQuery(
+            @RequestParam(name = "threshold_minutes", defaultValue = "10") int thresholdMinutes,
+            @RequestParam(required = false, defaultValue = "") String type) {
+        return stuckTaskQueryService.run(thresholdMinutes, type);
     }
 
     // ── Cost ───────────────────────────────────────────────────────

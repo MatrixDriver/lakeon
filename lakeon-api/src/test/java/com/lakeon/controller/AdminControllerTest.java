@@ -30,6 +30,8 @@ import com.lakeon.repository.OperationLogRepository;
 import com.lakeon.repository.SystemConfigRepository;
 import com.lakeon.repository.TenantRepository;
 import com.lakeon.service.*;
+import com.lakeon.service.admin.DataConsistencyCheckService;
+import com.lakeon.service.admin.StuckTaskQueryService;
 import com.lakeon.service.exception.NotFoundException;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -96,6 +98,8 @@ class AdminControllerTest {
     @MockBean private WikiService wikiService;
     @MockBean private TenantReconcileService tenantReconcileService;
     @MockBean private NeonApiClient neonApiClient;
+    @MockBean private DataConsistencyCheckService dataConsistencyCheckService;
+    @MockBean private StuckTaskQueryService stuckTaskQueryService;
 
     private static final String ADMIN_TOKEN = "Bearer test-admin-token";
 
