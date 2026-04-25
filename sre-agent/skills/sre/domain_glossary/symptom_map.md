@@ -34,6 +34,12 @@
 | wiki/agentfs/kb 任务 in_progress 超时 | `stuck_task_query(threshold_minutes=10)` |
 | 特定类型任务 | `stuck_task_query(type="WIKI_UPDATE")` |
 
+## 日志噪音 / 已删除 tenant 残留订阅
+
+| 症状 | 工具 |
+|---|---|
+| `c.l.agentfs.AgentFSEventForwarder` WARN "forwarder: tenant tn_X not found" 周期性刷屏 | watcher 已自动捕获(`agentfs_forwarder_orphan_watcher`,每 15 分钟扫一次)。手动核查:`log_search(component="lakeon-api", keyword="forwarder", since="30m")` |
+
 ## Cost / Usage 异常
 
 目前还没做成 SRE 工具 — 如果用户问成本问题,回复"暂时没接 cost 工具,建议去 admin console / dashboard 看"。

@@ -257,6 +257,24 @@ def run_data_consistency_watcher() -> None:
     _dm_for_incidents("data-consistency", sids, log_store)
 
 
+def run_agentfs_forwarder_orphan_watcher() -> None:
+    from skills.sre.agentfs_forwarder_orphan_watcher.watcher import (
+        AgentFSForwarderOrphanWatcher,
+    )
+
+    log.info("[agentfs_forwarder_orphan_watcher] scan_once starting")
+    log_store = make_log_store()
+    mcp = SREMCPAdapter()
+    w = AgentFSForwarderOrphanWatcher(log=log_store, mcp=mcp,
+                                      skill_name="agentfs-forwarder-orphan-watcher")
+    try:
+        sids = w.scan_once()
+    except Exception as exc:
+        log.error("[agentfs_forwarder_orphan_watcher] failed: %s", exc)
+        return
+    _dm_for_incidents("agentfs-forwarder-orphan", sids, log_store)
+
+
 def run_multi_tenant_blast_radius_watcher() -> None:
     from skills.sre.multi_tenant_blast_radius_watcher.watcher import MultiTenantBlastRadiusWatcher
 
@@ -339,6 +357,7 @@ _CRON_TASKS = [
     ("*/5 * * * *", run_fuse_queue_health_watcher),
     ("*/5 * * * *", run_stuck_task_watcher),
     ("*/15 * * * *", run_data_consistency_watcher),
+    ("*/15 * * * *", run_agentfs_forwarder_orphan_watcher),
     ("*/5 * * * *", run_multi_tenant_blast_radius_watcher),
     # Phase 1 briefings (UTC → Asia/Shanghai: +8h)
     ("0 1 * * *",   run_morning_briefing),    # 9:00 CST
