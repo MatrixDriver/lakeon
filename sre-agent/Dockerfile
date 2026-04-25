@@ -15,7 +15,14 @@ WORKDIR /app
 RUN pip install --no-cache-dir uv==0.4.18
 
 # Install hermes-agent from public GitHub.
-ARG HERMES_REF=main
+#
+# Pinned to 13038dc7 (2026-04-24 main HEAD) which includes 93a2d6b3
+# "fix: add DeepSeek reasoning_content echo for tool-call messages" —
+# required for DeepSeek V4 thinking-mode models (e.g. deepseek-v4-flash).
+# Without it, replaying any tool-call turn (and SRE agent calls
+# log_search/log_trace/etc constantly) triggers HTTP 400:
+#   "The reasoning_content in the thinking mode must be passed back to the API."
+ARG HERMES_REF=13038dc7
 ENV HERMES_REF=${HERMES_REF}
 RUN uv pip install --system "hermes-agent[feishu,mcp] @ git+https://github.com/NousResearch/hermes-agent@${HERMES_REF}"
 # Explicit install of mcp + lark-oapi as safety net — uv extras parsing with
