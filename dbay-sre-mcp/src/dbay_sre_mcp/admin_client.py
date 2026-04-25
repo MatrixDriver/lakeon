@@ -99,3 +99,21 @@ class LakeonAdminClient:
         if component:
             return self._get(f"/admin/system/health/{component}") or {}
         return self._get("/admin/system/health") or {}
+
+    # ---- SRE-only ----
+
+    def data_consistency_check(self, *, rule: str, threshold_minutes: int = 10) -> dict:
+        """GET /admin/data-consistency/{rule}?threshold_minutes=N"""
+        body = self._get(
+            f"/admin/data-consistency/{rule}",
+            params={"threshold_minutes": threshold_minutes},
+        )
+        return body or {"ok": False, "message": "no response from admin endpoint"}
+
+    def stuck_task_query(self, *, threshold_minutes: int = 10, type: str = "") -> dict:
+        """GET /admin/stuck-tasks?threshold_minutes=N&type=X"""
+        params: dict = {"threshold_minutes": threshold_minutes}
+        if type:
+            params["type"] = type
+        body = self._get("/admin/stuck-tasks", params=params)
+        return body or {"count": 0, "tasks": []}

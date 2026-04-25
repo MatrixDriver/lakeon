@@ -98,3 +98,25 @@ def test_404_returns_none():
         c = LakeonAdminClient(base_url="https://x/api/v1", token="t")
         out = c.get_database(db_id="nonexistent")
         assert out is None
+
+
+def test_data_consistency_check_calls_endpoint(monkeypatch):
+    fake = _FakeHttp({
+        ("GET", "https://x/api/v1/admin/data-consistency/kb_implies_db_id"):
+            {"ok": False, "count": 2, "violations": [{"kb_id": "k1"}]},
+    })
+    monkeypatch.setattr(httpx, "Client", lambda *a, **kw: fake)
+    c = LakeonAdminClient(base_url="https://x/api/v1", token="t")
+    out = c.data_consistency_check(rule="kb_implies_db_id")
+    assert out["count"] == 2
+
+
+def test_stuck_task_query_calls_endpoint(monkeypatch):
+    fake = _FakeHttp({
+        ("GET", "https://x/api/v1/admin/stuck-tasks"):
+            {"count": 1, "tasks": [{"task_id": "t_42"}]},
+    })
+    monkeypatch.setattr(httpx, "Client", lambda *a, **kw: fake)
+    c = LakeonAdminClient(base_url="https://x/api/v1", token="t")
+    out = c.stuck_task_query(threshold_minutes=5)
+    assert out["count"] == 1
