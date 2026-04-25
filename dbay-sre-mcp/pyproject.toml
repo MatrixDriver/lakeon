@@ -1,6 +1,6 @@
 [project]
 name = "dbay-sre-mcp"
-version = "0.2.0"
+version = "0.2.1"
 description = "MCP server exposing SRE-style log diagnostics (search, trace, errors, stats) over a Postgres-backed log store"
 readme = "README.md"
 license = { text = "Apache-2.0" }

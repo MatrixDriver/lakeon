@@ -85,7 +85,8 @@ def test_admin_token_in_header(monkeypatch):
     monkeypatch.setattr(httpx, "Client", lambda *a, **kw: fake)
     c = LakeonAdminClient(base_url="https://x/api/v1", token="my-secret-token")
     c.get_database(db_id="d1")
-    assert captured["headers"]["Admin-Token"] == "my-secret-token"
+    assert captured["headers"]["Authorization"] == "Bearer my-secret-token"
+    assert "Admin-Token" not in captured["headers"]
 
 
 def test_404_returns_none():

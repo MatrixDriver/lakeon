@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.2.1 (2026-04-25) — hotfix + REST cleanup
+
+### Fixed (CRITICAL)
+
+- `LakeonAdminClient` was sending `Admin-Token: <token>` header but lakeon-api
+  expects `Authorization: Bearer <token>` (per `ApiKeyFilter.java:111`). All
+  7 admin-REST-based tools (`find_database`, `find_tenant`, `database_status`,
+  `data_consistency_check`, `stuck_task_query`, `pod_create_failures`,
+  `multi_tenant_blast_radius` indirectly) returned 403 in production until
+  this fix. Header is now `Authorization: Bearer ...`.
+
+### Changed
+
+- `data_consistency_check` and `stuck_task_query` now go through lakeon-api
+  admin REST endpoints (`/admin/data-consistency/{rule}` and `/admin/stuck-tasks`)
+  instead of direct PG (`LAKEON_DB_DSN`). Reasons:
+  - lakeon-api PG is on CCE internal network (192.168.x.x), unreachable from
+    Railway-hosted sre-agent.
+  - Aligns with the "all admin tools go via REST" principle established for
+    the other 5 new tools.
+  - Removes `LAKEON_DB_DSN` env requirement entirely.
+
+### Removed
+
+- `dbay_sre_mcp/lakeon_db.py` (no longer needed).
+- `LAKEON_DB_DSN` env var support — `data_consistency_check` and
+  `stuck_task_query` no longer connect to PG directly.
+
 ## 0.2.0 (2026-04-24)
 
 ### Added (7 new tools)

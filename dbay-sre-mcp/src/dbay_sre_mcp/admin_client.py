@@ -3,7 +3,7 @@
 All new dbay-sre-mcp tools (find_database, database_status, etc.) go through this
 client so token handling, base URL, timeouts are centralised.
 
-Auth header convention: `Admin-Token: <token>` (matches lakeon-api AdminController).
+Auth header convention: `Authorization: Bearer <token>` (per ApiKeyFilter.java:111).
 """
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ class LakeonAdminClient:
         with httpx.Client(timeout=self._timeout) as client:
             resp = client.get(
                 url,
-                headers={"Admin-Token": self._token},
+                headers={"Authorization": f"Bearer {self._token}"},
                 params=params,
                 timeout=self._timeout,
             )
