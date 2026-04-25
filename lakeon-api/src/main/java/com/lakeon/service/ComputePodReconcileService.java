@@ -78,6 +78,16 @@ public class ComputePodReconcileService {
             if (db.getComputePodName() == null) continue;
             String actual = computePodManager.getPodIp(db.getComputePodName());
             if (actual == null) {
+                // Young pod: IP not yet assigned, or still being scheduled. Don't
+                // touch the row — wakeCompute owns it and will set the IP when
+                // waitForPodReady returns. Without this guard we race against the
+                // wake path: clearing computePodName makes doCleanupAndRecoverPods
+                // treat the fresh pod as orphan and delete it.
+                if (computePodManager.getPodAgeSeconds(db.getComputePodName()) < 420) {
+                    log.debug("reconcile: skipping young pod {} for db {} (age < 420s)",
+                              db.getComputePodName(), db.getId());
+                    continue;
+                }
                 // Pod gone - mark stale so next ensureRunning does cold re-provision
                 log.warn("reconcile: pod {} missing for db {} ({}); marking SUSPENDED",
                          db.getComputePodName(), db.getId(), db.getName());
