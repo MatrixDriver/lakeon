@@ -268,7 +268,7 @@ const opPage = ref(1)
 
 const filteredOps = computed(() => {
   let ops = allOps.value
-  if (opDbFilter.value) ops = ops.filter(op => op.databaseId === opDbFilter.value)
+  // db filter is server-side (different endpoint), so no client filter on databaseId here
   if (opTypeFilter.value) ops = ops.filter(op => op.operationType === opTypeFilter.value)
   if (opStatusFilter.value) ops = ops.filter(op => op.status === opStatusFilter.value)
   const q = opSearch.value.toLowerCase()
@@ -287,13 +287,19 @@ const pagedOps = computed(() => {
   return filteredOps.value.slice(start, start + opPageSize.value)
 })
 
-watch([opSearch, opDbFilter, opTypeFilter, opStatusFilter, opPageSize], () => { opPage.value = 1 })
+watch([opSearch, opTypeFilter, opStatusFilter, opPageSize], () => { opPage.value = 1 })
+watch(opDbFilter, () => { opPage.value = 1; fetchOps() })
 
 async function fetchOps() {
   opLoading.value = true
   try {
-    const res = await operationApi.getRecent()
-    allOps.value = res.data
+    if (opDbFilter.value) {
+      const res = await operationApi.getByDatabase(opDbFilter.value, { size: 200 })
+      allOps.value = res.data.content
+    } else {
+      const res = await operationApi.getRecent(200)
+      allOps.value = res.data
+    }
   } catch (e) { console.error('Failed to load operations', e) }
   finally { opLoading.value = false }
 }

@@ -33,9 +33,11 @@ public class OperationLogController {
     }
 
     @GetMapping("/operations/recent")
-    public List<OperationLogResponse> getRecentOperations(HttpServletRequest req) {
+    public List<OperationLogResponse> getRecentOperations(
+            HttpServletRequest req,
+            @RequestParam(defaultValue = "200") int limit) {
         TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
-        return operationLogService.getRecent(tenant.getId()).stream()
+        return operationLogService.getRecent(tenant.getId(), limit).stream()
                 .map(OperationLogResponse::from)
                 .toList();
     }

@@ -77,8 +77,10 @@ public class OperationLogService {
                 databaseId, tenantId, pageable);
     }
 
-    public List<OperationLogEntity> getRecent(String tenantId) {
-        return repository.findTop10ByTenantIdOrderByStartedAtDesc(tenantId);
+    public List<OperationLogEntity> getRecent(String tenantId, int limit) {
+        int capped = Math.min(Math.max(limit, 1), 500);
+        return repository.findByTenantIdOrderByStartedAtDesc(
+                tenantId, PageRequest.of(0, capped)).getContent();
     }
 
     public void failInProgressOperations(String databaseId, String errorMessage) {

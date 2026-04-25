@@ -21,6 +21,8 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.hamcrest.Matchers.*;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -78,7 +80,7 @@ class OperationLogControllerTest {
     @Test
     @DisplayName("GET /api/v1/operations/recent returns 200 with correct JSON fields")
     void getRecentOperations_returns200() throws Exception {
-        when(operationLogService.getRecent("tn_test1"))
+        when(operationLogService.getRecent(eq("tn_test1"), anyInt()))
                 .thenReturn(List.of(mockLog()));
 
         mockMvc.perform(get("/api/v1/operations/recent")

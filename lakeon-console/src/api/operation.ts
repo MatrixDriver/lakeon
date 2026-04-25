@@ -24,5 +24,6 @@ export interface PageResponse<T> {
 export const operationApi = {
   getByDatabase: (dbId: string, params?: { type?: string; page?: number; size?: number }) =>
     client.get<PageResponse<OperationLog>>(`/databases/${dbId}/operations`, { params }),
-  getRecent: () => client.get<OperationLog[]>('/operations/recent'),
+  getRecent: (limit = 200) =>
+    client.get<OperationLog[]>('/operations/recent', { params: { limit } }),
 }
