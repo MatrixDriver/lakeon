@@ -21,6 +21,7 @@ mod append_state;
 mod config;
 mod dbay_api;
 mod flush_watchdog;
+mod inmem;
 mod outbox;
 mod passthrough;
 mod state_scan;
@@ -46,6 +47,12 @@ enum Cmd {
         state: Option<PathBuf>,
         #[arg(long)]
         foreground: bool,
+        /// Experimental: in-memory backend, no local disk passthrough.
+        /// Writes buffer in RAM until flush/release, then PUT to AgentFS
+        /// in a single tx. Daemon crash before flush = no commit (rollback).
+        /// Default false: keep proven disk-passthrough + outbox model.
+        #[arg(long)]
+        in_memory: bool,
     },
     /// Unmount
     Umount {
@@ -117,15 +124,20 @@ fn main() -> Result<()> {
 
     let cli = Cli::parse();
     match cli.cmd {
-        Cmd::Mount { agent, mount, state, foreground: _ } => {
+        Cmd::Mount { agent, mount, state, foreground: _, in_memory } => {
             let mount = mount.unwrap_or(default_mount(&agent)?);
-            let state = state.unwrap_or(default_state(&agent)?);
-            let outbox_dir = default_outbox(&agent)?;
             std::fs::create_dir_all(&mount)?;
-            std::fs::create_dir_all(&state)?;
-            std::fs::create_dir_all(&outbox_dir)?;
-            tracing::info!(?agent, ?mount, ?state, ?outbox_dir, "mounting");
-            passthrough::mount(&agent, &mount, &state, &outbox_dir)?;
+            if in_memory {
+                tracing::info!(?agent, ?mount, "mounting (in-memory backend)");
+                inmem::mount(&agent, &mount)?;
+            } else {
+                let state = state.unwrap_or(default_state(&agent)?);
+                let outbox_dir = default_outbox(&agent)?;
+                std::fs::create_dir_all(&state)?;
+                std::fs::create_dir_all(&outbox_dir)?;
+                tracing::info!(?agent, ?mount, ?state, ?outbox_dir, "mounting (disk passthrough)");
+                passthrough::mount(&agent, &mount, &state, &outbox_dir)?;
+            }
         }
         Cmd::Umount { agent, mount } => {
             let mount = mount.unwrap_or(default_mount(&agent)?);
