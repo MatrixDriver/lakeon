@@ -418,7 +418,7 @@ const createForm = reactive({
   storage_limit_gb: 10,
 })
 
-let pollTimer: ReturnType<typeof setInterval> | null = null
+let pollTimer: ReturnType<typeof setTimeout> | null = null
 
 const STATUS_ORDER: Record<string, number> = { RUNNING: 0, CREATING: 1, ERROR: 2, SUSPENDED: 3, DELETED: 4 }
 
@@ -546,6 +546,7 @@ async function handleResume(db: Database) {
     db.status = 'STARTING'
     updateStats()
     toast.success(`数据库 "${db.name}" 正在唤醒`)
+    fetchData(false)
     pollUntilReady(db.id)
   } catch (e) {
     toast.error(`唤醒 "${db.name}" 失败`)
@@ -573,13 +574,27 @@ function handleDelete() {
   })
 }
 
-onMounted(() => {
-  fetchData()
-  pollTimer = setInterval(() => fetchData(false), 15000)
+const STABLE_STATUSES = ['RUNNING', 'SUSPENDED', 'ERROR']
+const STABLE_INTERVAL = 60000
+const TRANSITIONAL_INTERVAL = 5000
+
+function scheduleNextPoll() {
+  if (pollTimer) clearTimeout(pollTimer)
+  const hasTransitional = databases.value.some(d => !STABLE_STATUSES.includes(d.status))
+  const delay = hasTransitional ? TRANSITIONAL_INTERVAL : STABLE_INTERVAL
+  pollTimer = setTimeout(async () => {
+    await fetchData(false)
+    scheduleNextPoll()
+  }, delay)
+}
+
+onMounted(async () => {
+  await fetchData()
+  scheduleNextPoll()
 })
 
 onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer)
+  if (pollTimer) clearTimeout(pollTimer)
 })
 </script>
 
