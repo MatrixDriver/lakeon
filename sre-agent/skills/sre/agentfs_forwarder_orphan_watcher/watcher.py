@@ -50,8 +50,8 @@ class AgentFSForwarderOrphanWatcher(WatcherBase):
             sid = self.open_incident(
                 trigger={
                     "alert": (
-                        f"AgentFS forwarder pushing to deleted tenant {tid} "
-                        f"({count} WARN in {self.since})"
+                        f"AgentFS forwarder 向已删除的租户 {tid} 推送事件 "
+                        f"（{self.since} 内 {count} 条 WARN）"
                     ),
                     "signal_id": signal_id,
                     "tenant_id": tid,
@@ -65,13 +65,13 @@ class AgentFSForwarderOrphanWatcher(WatcherBase):
                 ],
             )
             conclusion = (
-                f"# AgentFS forwarder orphan: {tid}\n\n"
-                f"**WARN count**: {count} within {self.since}\n"
-                f"**Source**: lakeon-api `c.l.agentfs.AgentFSEventForwarder` (scheduling-1 thread)\n\n"
-                f"**Cause**: tenant `{tid}` was deleted but its AgentFS forwarder subscription was not "
-                f"cleaned up. Each scheduled push fails with 'not found' and emits this WARN.\n\n"
-                f"**Fix (lakeon-api side)**: on tenant delete, drop the AgentFS forwarder subscription; "
-                f"OR auto-unsubscribe forwarder when push receives 'not found'. SRE watcher only reports.\n"
+                f"# AgentFS forwarder 孤儿订阅：{tid}\n\n"
+                f"**WARN 次数**：{self.since} 内 {count} 条\n"
+                f"**来源**：lakeon-api `c.l.agentfs.AgentFSEventForwarder`（scheduling-1 线程）\n\n"
+                f"**原因**：租户 `{tid}` 已被删除，但 AgentFS forwarder 订阅记录"
+                f"（`agentfs_assignments` 表）残留未清理，每次定时推送都会因找不到 tenant 报 WARN。\n\n"
+                f"**修复**：新版 lakeon-api 已让 forwarder 在遇到 not-found 时自动清理孤儿订阅。"
+                f"如告警仍持续，说明部署还未更新到含修复的版本。SRE watcher 仅做汇报。\n"
             )
             self.conclude_and_close(sid, conclusion)
             opened.append(sid)
