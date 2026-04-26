@@ -157,6 +157,18 @@ for p in "${SELECTED[@]}"; do
   migrate_one "$p"
 done
 
+# ── trigger uplink rescan ────────────────────────────────────────────────
+# cp into state/ doesn't go through FUSE, so the daemon's outbox stays
+# empty and nothing uploads. Drop a rescan trigger so uplink_worker walks
+# state/ on its next poll and enqueues Mkdir/Put for everything we just
+# migrated. (No-op on dry-run.)
+TRIGGER_PATH="$HOME/.dbay/outbox/claude/rescan.trigger"
+if [[ $DRY -eq 0 ]]; then
+  mkdir -p "$(dirname "$TRIGGER_PATH")"
+  : > "$TRIGGER_PATH"
+  ok "rescan trigger dropped → daemon will upload state/ on next poll"
+fi
+
 # ── summary ──────────────────────────────────────────────────────────────
 echo
 ok "done"
