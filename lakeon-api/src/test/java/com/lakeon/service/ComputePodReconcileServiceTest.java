@@ -7,6 +7,7 @@ import com.lakeon.repository.DatabaseRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -66,6 +67,8 @@ class ComputePodReconcileServiceTest {
         var e = db("db_3", "pod-3", "10.0.0.3");
         when(repo.findAllByStatus(DatabaseStatus.RUNNING)).thenReturn(List.of(e));
         when(pods.getPodIp("pod-3")).thenReturn(null);
+        // Pod past the 420s young-pod grace window — treat as truly missing.
+        when(pods.getPodAgeSeconds("pod-3")).thenReturn(500L);
 
         var r = svc.reconcile(false);
         assertEquals(1, r.markedSuspended());
@@ -77,15 +80,37 @@ class ComputePodReconcileServiceTest {
     }
 
     @Test
-    void skips_rows_without_pod_name() {
+    void skips_young_orphan_pod_name_null() {
+        // RUNNING + pod_name=null but row was just updated — could be a cold
+        // start in flight. Don't disturb it.
         var e = db("db_4", null, null);
+        e.setUpdatedAt(Instant.now().minusSeconds(60));
         when(repo.findAllByStatus(DatabaseStatus.RUNNING)).thenReturn(List.of(e));
 
         var r = svc.reconcile(false);
         assertEquals(1, r.scanned());
-        assertEquals(0, r.drifted());
         assertEquals(0, r.markedSuspended());
         verify(repo, never()).save(any());
+        verify(pods, never()).getPodIp(any());
+    }
+
+    @Test
+    void old_orphan_pod_name_null_flips_to_suspended() {
+        // RUNNING + pod_name=null + updated_at older than the 7-min grace
+        // window means cold start aborted long ago. Reproduces the
+        // mem_97baf5eb 78-hour stuck-RUNNING incident.
+        var e = db("db_orphan", null, null);
+        e.setUpdatedAt(Instant.now().minusSeconds(600));
+        when(repo.findAllByStatus(DatabaseStatus.RUNNING)).thenReturn(List.of(e));
+
+        var r = svc.reconcile(false);
+        assertEquals(1, r.markedSuspended());
+        assertEquals(DatabaseStatus.SUSPENDED, e.getStatus());
+        assertNull(e.getComputeHost());
+        assertNull(e.getComputePort());
+        assertTrue(r.suspendedIds().contains("db_orphan"));
+        verify(repo, times(1)).save(e);
+        // Must not call getPodIp since we never had a pod_name to look up.
         verify(pods, never()).getPodIp(any());
     }
 
@@ -98,6 +123,7 @@ class ComputePodReconcileServiceTest {
         when(pods.getPodIp("pod-ok")).thenReturn("10.0.0.1");
         when(pods.getPodIp("pod-drift")).thenReturn("10.0.0.2");
         when(pods.getPodIp("pod-gone")).thenReturn(null);
+        when(pods.getPodAgeSeconds("pod-gone")).thenReturn(500L);
 
         var r = svc.reconcile(false);
         assertEquals(3, r.scanned());

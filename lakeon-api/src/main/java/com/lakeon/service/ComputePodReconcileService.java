@@ -69,13 +69,41 @@ public class ComputePodReconcileService {
         }
     }
 
+    /** Skip rows updated within this window so an in-flight cold start isn't disturbed. */
+    private static final long YOUNG_ROW_GRACE_SECONDS = 420;
+
     public ReconcileResult reconcile(boolean manualTrigger) {
         List<DatabaseEntity> running = databaseRepository.findAllByStatus(DatabaseStatus.RUNNING);
         List<String> drifted = new ArrayList<>();
         List<String> suspended = new ArrayList<>();
 
         for (DatabaseEntity db : running) {
-            if (db.getComputePodName() == null) continue;
+            if (db.getComputePodName() == null) {
+                // Orphan: status=RUNNING but no pod recorded. Causes seen in
+                // production: cold-start aborted after status flipped to RUNNING
+                // but before pod_name was persisted; or an external path cleared
+                // pod_name without updating status. L3 used to skip these rows
+                // entirely (`continue`), so they sat as RUNNING+null forever
+                // (e.g. mem_97baf5eb went 3+ days unhealed).
+                //
+                // Skip very young rows in case wakeCompute is mid-flight; older
+                // rows are real orphans — flip to SUSPENDED so the next access
+                // does a clean cold re-provision.
+                if (db.getUpdatedAt() != null
+                    && Instant.now().minusSeconds(YOUNG_ROW_GRACE_SECONDS).isBefore(db.getUpdatedAt())) {
+                    log.debug("reconcile: skipping young orphan db {} (updated_at within grace window)",
+                              db.getId());
+                    continue;
+                }
+                log.warn("reconcile: orphan db {} ({}) RUNNING with no pod_name; marking SUSPENDED",
+                         db.getId(), db.getName());
+                db.setStatus(DatabaseStatus.SUSPENDED);
+                db.setComputeHost(null);
+                db.setComputePort(null);
+                databaseRepository.save(db);
+                suspended.add(db.getId());
+                continue;
+            }
             String actual = computePodManager.getPodIp(db.getComputePodName());
             if (actual == null) {
                 // Young pod: IP not yet assigned, or still being scheduled. Don't
