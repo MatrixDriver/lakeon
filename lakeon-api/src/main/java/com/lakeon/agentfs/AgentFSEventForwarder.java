@@ -116,7 +116,13 @@ public class AgentFSEventForwarder {
     private void processTenant(AgentFSAssignmentEntity a) throws SQLException {
         TenantEntity tenant = tenantRepo.findById(a.getTenantId()).orElse(null);
         if (tenant == null) {
-            log.warn("forwarder: tenant {} not found", a.getTenantId());
+            try {
+                asgRepo.delete(a);
+                log.info("forwarder: removed orphan assignment for deleted tenant {}", a.getTenantId());
+            } catch (Exception e) {
+                log.warn("forwarder: failed to remove orphan assignment for tenant {}: {}",
+                        a.getTenantId(), e.getMessage());
+            }
             return;
         }
         try (Connection c = dbm.openConnection(tenant)) {
