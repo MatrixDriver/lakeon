@@ -187,9 +187,15 @@ impl Outbox {
     }
 
     /// Compact: if all entries are ack'd, truncate the log and sweep blob dir.
+    /// No-op when log is already empty — without this guard the uplink worker's
+    /// 100ms idle loop spams a truncate + readdir + INFO log every tick.
     pub fn maybe_compact(&self) -> Result<()> {
         let mut inner = self.inner.lock().unwrap();
         if !inner.live.is_empty() {
+            return Ok(());
+        }
+        let cur_len = inner.log.metadata().map(|m| m.len()).unwrap_or(0);
+        if cur_len == 0 && inner.next_seq == 1 {
             return Ok(());
         }
         let log_path = self.dir.join(LOG_FILE);
