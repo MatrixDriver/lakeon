@@ -256,20 +256,21 @@ public class DatabaseService {
     }
 
     public List<DatabaseResponse> list(TenantEntity tenant) {
-        return databaseRepository.findAllByTenantIdAndStatusNot(tenant.getId(), DatabaseStatus.DELETED).stream()
-            .map(entity -> {
-                List<BranchEntity> branches = branchRepository.findAllByDatabaseId(entity.getId());
-                return toResponse(entity, branches);
-            })
-            .toList();
+        return listInternal(databaseRepository.findAllByTenantIdAndStatusNot(tenant.getId(), DatabaseStatus.DELETED));
     }
 
     public List<DatabaseResponse> listDeleted(TenantEntity tenant) {
-        return databaseRepository.findAllByTenantIdAndStatus(tenant.getId(), DatabaseStatus.DELETED).stream()
-            .map(entity -> {
-                List<BranchEntity> branches = branchRepository.findAllByDatabaseId(entity.getId());
-                return toResponse(entity, branches);
-            })
+        return listInternal(databaseRepository.findAllByTenantIdAndStatus(tenant.getId(), DatabaseStatus.DELETED));
+    }
+
+    private List<DatabaseResponse> listInternal(List<DatabaseEntity> dbs) {
+        if (dbs.isEmpty()) return List.of();
+        List<String> dbIds = dbs.stream().map(DatabaseEntity::getId).toList();
+        Map<String, List<BranchEntity>> branchesByDb = branchRepository
+            .findAllByDatabaseIdIn(dbIds).stream()
+            .collect(java.util.stream.Collectors.groupingBy(BranchEntity::getDatabaseId));
+        return dbs.stream()
+            .map(entity -> toResponse(entity, branchesByDb.getOrDefault(entity.getId(), List.of())))
             .toList();
     }
 

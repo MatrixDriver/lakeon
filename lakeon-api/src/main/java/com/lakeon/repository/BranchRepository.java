@@ -8,6 +8,7 @@ import java.util.Optional;
 
 public interface BranchRepository extends JpaRepository<BranchEntity, String> {
     List<BranchEntity> findAllByDatabaseId(String databaseId);
+    List<BranchEntity> findAllByDatabaseIdIn(java.util.Collection<String> databaseIds);
     Optional<BranchEntity> findByIdAndDatabaseId(String id, String databaseId);
     Optional<BranchEntity> findByDatabaseIdAndName(String databaseId, String name);
     Optional<BranchEntity> findByDatabaseIdAndIsDefaultTrue(String databaseId);
