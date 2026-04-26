@@ -15,6 +15,7 @@ import httpx
 import pytest
 
 from conftest import ENDPOINT, ADMIN_TOKEN, poll_until, _create_tenant_with_invite
+from dbay_cli.client import DbayClient
 
 
 SCRIPT = b'''
@@ -37,6 +38,12 @@ def tenant_key():
         ENDPOINT, ADMIN_TOKEN, username, password, name
     )
     yield tenant["api_key"]
+
+    try:
+        admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+        admin.admin_batch_delete_tenants([tenant["id"]])
+    except Exception as e:
+        print(f"tenant teardown failed: {e}")
 
 
 def test_submit_ray_job_and_get_status(tenant_key):
