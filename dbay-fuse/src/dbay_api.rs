@@ -59,6 +59,45 @@ pub struct RecallResp {
     pub memories: Vec<RecalledMemory>,
 }
 
+/// AgentFS list/head entry. Used by the in-memory FUSE backend.
+#[derive(Debug, Clone)]
+pub struct AgentFSEntry {
+    pub path: String,
+    pub kind: String, // "file" | "dir"
+    pub size: u64,
+    pub mtime_ns: u64,
+    pub etag: String,
+}
+
+impl AgentFSEntry {
+    pub fn from_json(v: &serde_json::Value) -> Self {
+        Self {
+            path: v.get("path").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+            kind: v.get("kind").and_then(|x| x.as_str()).unwrap_or("file").to_string(),
+            size: v.get("size").and_then(|x| x.as_u64()).unwrap_or(0),
+            mtime_ns: v.get("mtime_ns").and_then(|x| x.as_u64()).unwrap_or(0),
+            etag: v.get("etag").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum AgentFSPutError {
+    PreconditionFailed,
+    Other(anyhow::Error),
+}
+
+impl std::fmt::Display for AgentFSPutError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::PreconditionFailed => write!(f, "precondition failed (etag mismatch)"),
+            Self::Other(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+impl std::error::Error for AgentFSPutError {}
+
 #[derive(Deserialize, Debug)]
 pub struct RecalledMemory {
     #[serde(default)]
@@ -312,6 +351,128 @@ impl DbayClient {
             bail!("ingest failed: {status} {text}");
         }
         Ok(resp.json().context("ingest decode")?)
+    }
+
+    // ───────── AgentFS strict / read-side methods (used by inmem backend) ─────────
+
+    /// GET /agentfs/files — returns (bytes, etag, mtime_ns).
+    pub fn agentfs_get(&self, path: &str) -> Result<(Vec<u8>, String, u64)> {
+        use base64::Engine;
+        let p_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(path.as_bytes());
+        let resp = self.http
+            .get(self.agentfs_url("/files"))
+            .query(&[("path", &p_b64)])
+            .bearer_auth(&self.api_key)
+            .send()
+            .context("agentfs get http")?;
+        if !resp.status().is_success() {
+            bail!("agentfs get failed: {} {}", resp.status(), resp.text().unwrap_or_default());
+        }
+        let etag = resp.headers().get("ETag")
+            .and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
+        let mtime_ns = resp.headers().get("X-AgentFS-Mtime")
+            .and_then(|v| v.to_str().ok()).and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+        let bytes = resp.bytes().context("agentfs get body")?.to_vec();
+        Ok((bytes, etag, mtime_ns))
+    }
+
+    /// GET /agentfs/files/head — metadata only. None on 404.
+    pub fn agentfs_head(&self, path: &str) -> Result<Option<AgentFSEntry>> {
+        use base64::Engine;
+        let p_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(path.as_bytes());
+        let resp = self.http
+            .get(self.agentfs_url("/files/head"))
+            .query(&[("path", &p_b64)])
+            .bearer_auth(&self.api_key)
+            .send()
+            .context("agentfs head http")?;
+        let status = resp.status();
+        if status.as_u16() == 404 {
+            return Ok(None);
+        }
+        let text = resp.text().unwrap_or_default();
+        if !status.is_success() {
+            // 404 may surface as a 400 with NotFoundException → string match.
+            if text.contains("not_found") || text.contains("NotFound") {
+                return Ok(None);
+            }
+            bail!("agentfs head failed: {status} {text}");
+        }
+        let v: serde_json::Value = serde_json::from_str(&text).context("head decode")?;
+        Ok(Some(AgentFSEntry::from_json(&v)))
+    }
+
+    /// GET /agentfs/list — returns directory entries.
+    pub fn agentfs_list(&self, prefix: &str, recursive: bool) -> Result<Vec<AgentFSEntry>> {
+        use base64::Engine;
+        let p_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(prefix.as_bytes());
+        let resp = self.http
+            .get(self.agentfs_url("/list"))
+            .query(&[("prefix", p_b64.as_str()), ("recursive", if recursive {"true"} else {"false"})])
+            .bearer_auth(&self.api_key)
+            .send()
+            .context("agentfs list http")?;
+        let status = resp.status();
+        let text = resp.text().unwrap_or_default();
+        if !status.is_success() {
+            bail!("agentfs list failed: {status} {text}");
+        }
+        let v: serde_json::Value = serde_json::from_str(&text).context("list decode")?;
+        let arr = v.get("entries").cloned().unwrap_or(serde_json::json!([]));
+        Ok(arr.as_array().map(|a| a.iter().map(AgentFSEntry::from_json).collect()).unwrap_or_default())
+    }
+
+    /// POST /agentfs/files/put with optional If-Match / If-None-Match. Returns
+    /// the new etag on success. PreconditionFailed surfaces as a typed variant
+    /// so the caller can distinguish concurrent modification from real errors.
+    pub fn agentfs_put_strict(
+        &self,
+        path: &str,
+        data: &[u8],
+        if_match: Option<&str>,
+        if_none_match: Option<&str>,
+    ) -> std::result::Result<String, AgentFSPutError> {
+        use base64::Engine;
+        let mut body = serde_json::json!({
+            "path": path,
+            "data_base64": base64::engine::general_purpose::STANDARD.encode(data),
+        });
+        if let Some(m) = if_match { body["if_match"] = serde_json::json!(m); }
+        if let Some(m) = if_none_match { body["if_none_match"] = serde_json::json!(m); }
+        let resp = self.http
+            .post(self.agentfs_url("/files/put"))
+            .bearer_auth(&self.api_key)
+            .json(&body)
+            .send()
+            .map_err(|e| AgentFSPutError::Other(anyhow::anyhow!("put http: {e}")))?;
+        let status = resp.status();
+        let text = resp.text().unwrap_or_default();
+        if status.is_success() {
+            let v: serde_json::Value = serde_json::from_str(&text)
+                .map_err(|e| AgentFSPutError::Other(anyhow::anyhow!("put decode: {e}")))?;
+            let etag = v.get("etag").and_then(|x| x.as_str()).unwrap_or_default().to_string();
+            return Ok(etag);
+        }
+        if text.contains("precondition_failed") {
+            return Err(AgentFSPutError::PreconditionFailed);
+        }
+        Err(AgentFSPutError::Other(anyhow::anyhow!("agentfs put failed: {status} {text}")))
+    }
+
+    /// POST /agentfs/files/delete with optional If-Match.
+    pub fn agentfs_delete_strict(&self, path: &str, if_match: Option<&str>) -> Result<()> {
+        let mut body = serde_json::json!({ "path": path });
+        if let Some(m) = if_match { body["if_match"] = serde_json::json!(m); }
+        let resp = self.http
+            .post(self.agentfs_url("/files/delete"))
+            .bearer_auth(&self.api_key)
+            .json(&body)
+            .send()
+            .context("agentfs delete http")?;
+        if !resp.status().is_success() {
+            bail!("agentfs delete failed: {} {}", resp.status(), resp.text().unwrap_or_default());
+        }
+        Ok(())
     }
 
     pub fn recall(&self, query: &str, top_k: u32) -> Result<RecallResp> {
