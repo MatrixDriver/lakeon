@@ -206,7 +206,7 @@ const deleteTarget = ref<Database | null>(null)
 const deleteLoading = ref(false)
 const actionLoading = reactive<Record<string, boolean>>({})
 
-let pollTimer: ReturnType<typeof setInterval> | null = null
+let pollTimer: ReturnType<typeof setTimeout> | null = null
 
 const createForm = reactive({
   name: '',
@@ -360,13 +360,27 @@ async function handleDelete() {
   }
 }
 
-onMounted(() => {
-  fetchDatabases()
-  pollTimer = setInterval(fetchDatabases, 15000)
+const STABLE_STATUSES = ['RUNNING', 'SUSPENDED', 'ERROR']
+const STABLE_INTERVAL = 60000
+const TRANSITIONAL_INTERVAL = 5000
+
+function scheduleNextPoll() {
+  if (pollTimer) clearTimeout(pollTimer)
+  const hasTransitional = databases.value.some(d => !STABLE_STATUSES.includes(d.status))
+  const delay = hasTransitional ? TRANSITIONAL_INTERVAL : STABLE_INTERVAL
+  pollTimer = setTimeout(async () => {
+    await fetchDatabases()
+    scheduleNextPoll()
+  }, delay)
+}
+
+onMounted(async () => {
+  await fetchDatabases()
+  scheduleNextPoll()
 })
 
 onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer)
+  if (pollTimer) clearTimeout(pollTimer)
 })
 </script>
 

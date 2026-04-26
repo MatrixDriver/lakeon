@@ -522,7 +522,7 @@ const dbId = computed(() => route.params.id as string)
 const database = ref<Database | null>(null)
 const loadError = ref(false)
 const actionLoading = ref(false)
-let pollTimer: ReturnType<typeof setInterval> | null = null
+let pollTimer: ReturnType<typeof setTimeout> | null = null
 
 const newPassword = ref<string | null>(null)
 const resettingPassword = ref(false)
@@ -999,13 +999,27 @@ watch(activeTab, (tab) => {
   if (tab === 'backups' && backups.value.length === 0) loadBackups()
 })
 
-onMounted(() => {
-  fetchDatabase()
-  pollTimer = setInterval(fetchDatabase, 15000)
+const STABLE_STATUSES = ['RUNNING', 'SUSPENDED', 'ERROR']
+const STABLE_INTERVAL = 60000
+const TRANSITIONAL_INTERVAL = 5000
+
+function scheduleNextPoll() {
+  if (pollTimer) clearTimeout(pollTimer)
+  const status = database.value?.status
+  const delay = status && STABLE_STATUSES.includes(status) ? STABLE_INTERVAL : TRANSITIONAL_INTERVAL
+  pollTimer = setTimeout(async () => {
+    await fetchDatabase()
+    scheduleNextPoll()
+  }, delay)
+}
+
+onMounted(async () => {
+  await fetchDatabase()
+  scheduleNextPoll()
 })
 
 onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer)
+  if (pollTimer) clearTimeout(pollTimer)
 })
 </script>
 
