@@ -541,13 +541,16 @@ public class DatabaseService {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
             if (!warmWake) {
-                // Persist deterministic podName + RUNNING status BEFORE creating the pod,
-                // otherwise the orphan-cleanup scheduler (every 30s) sees the pod with no
-                // owning DB row and deletes it mid-wake. See ComputeLifecycleService.wakeCompute.
+                // Pre-write computePodName + clear suspendedAt so the three cleanup
+                // schedulers don't race-delete the fresh pod:
+                //   - orphan-cleanup matches by computePodName -> sees pod as owned
+                //   - cleanup-expired skips rows with suspendedAt==null
+                //   - reconcile only scans RUNNING rows, so SUSPENDED stays untouched
+                // Status stays SUSPENDED until the pod is actually ready, so the UI
+                // doesn't lie about "运行中" while the pod is still ContainerCreating.
                 String podName = "compute-" + entity.getId().replace("_", "-");
                 txTemplate.executeWithoutResult(status -> {
                     DatabaseEntity e = databaseRepository.findById(entity.getId()).orElseThrow();
-                    e.setStatus(DatabaseStatus.RUNNING);
                     e.setSuspendedAt(null);
                     e.setComputePodName(podName);
                     databaseRepository.save(e);
@@ -562,7 +565,6 @@ public class DatabaseService {
                     String podName = "compute-" + entity.getId().replace("_", "-");
                     txTemplate.executeWithoutResult(status -> {
                         DatabaseEntity e = databaseRepository.findById(entity.getId()).orElseThrow();
-                        e.setStatus(DatabaseStatus.RUNNING);
                         e.setSuspendedAt(null);
                         e.setComputePodName(podName);
                         databaseRepository.save(e);
@@ -652,12 +654,12 @@ public class DatabaseService {
         OperationLogEntity opLog = operationLogService.startOperation(
                 entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME, "COLD");
         try {
-            // Persist deterministic podName + RUNNING status BEFORE creating the pod,
-            // otherwise the orphan-cleanup scheduler races in and deletes the fresh pod.
+            // Pre-write computePodName + clear suspendedAt so cleanup schedulers
+            // don't race-delete the fresh pod. Status stays SUSPENDED until ready
+            // so the UI doesn't show 运行中 while the pod is still ContainerCreating.
             String prePodName = "compute-" + entity.getId().replace("_", "-");
             txTemplate.executeWithoutResult(status -> {
                 DatabaseEntity e = databaseRepository.findById(entity.getId()).orElseThrow();
-                e.setStatus(DatabaseStatus.RUNNING);
                 e.setSuspendedAt(null);
                 e.setComputePodName(prePodName);
                 databaseRepository.save(e);

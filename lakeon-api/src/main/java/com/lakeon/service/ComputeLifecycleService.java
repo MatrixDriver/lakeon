@@ -104,15 +104,13 @@ public class ComputeLifecycleService {
             }
         }
 
-        // Pre-compute the pod name (deterministic: see ComputePodManager.createComputePod).
-        // We MUST persist it BEFORE the pod is created, otherwise the orphan-cleanup
-        // scheduler can race in (every 30-60s, age >= 60s) and delete the freshly
-        // created pod because dbByPod still has computePodName=null for this row.
-        // That race caused tpch-bench wakes to hit the 6-min wake timeout repeatedly.
+        // Pre-write computePodName + clear suspendedAt so the cleanup schedulers
+        // don't race-delete the fresh pod. Status stays SUSPENDED until ready so
+        // the UI doesn't show 运行中 while the pod is still ContainerCreating.
+        // (Set status=RUNNING in the post-waitForPodReady tx below.)
         String podName = "compute-" + dbId.replace("_", "-");
         txTemplate.executeWithoutResult(status -> {
             DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
-            e.setStatus(DatabaseStatus.RUNNING);
             e.setSuspendedAt(null);
             e.setComputePodName(podName);
             databaseRepository.save(e);
