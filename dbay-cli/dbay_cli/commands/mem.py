@@ -261,21 +261,31 @@ def delete(mem_id: str = typer.Argument(None), yes: bool = typer.Option(False, "
 @app.command("ingest")
 def ingest(content: str, mem_id: str = typer.Option(None, "--base"),
            role: str = typer.Option("user", "--role"),
-           no_extract: bool = typer.Option(False, "--no-extract")):
+           memory_type: str = typer.Option("fact", "--type",
+               help="One of: fact, decision, rejection, convention, procedural, episode."),
+           source: str = typer.Option("cli", "--source",
+               help="Origin tag stored on the memory (e.g. cli, claude-code, hermes-agent)."),
+           raw: bool = typer.Option(False, "--raw",
+               help="Treat content as raw conversation; let server extract memories. "
+                    "Default stores content as a structured memory directly.")):
     """Ingest content into memory base. Uses default base if --base omitted."""
     mid = _default_mem_id(mem_id)
+    signal = "conversation" if raw else "memory"
     if _is_encrypted(mid):
         info = _get_base_info(mid)
         encrypted_content, embedding = _encrypt_for_ingest(mid, content, info)
         result = _client()._request("POST", f"/memory/bases/{mid}/ingest", json={
             "content": encrypted_content,
-            "signal": "memory",
-            "memory_type": "fact",
+            "signal": signal,
+            "memory_type": memory_type,
+            "source": source,
             "embedding": embedding,
         })
     else:
-        auto_extract = False if no_extract else None
-        result = _client().mem_ingest(mid, content, role, auto_extract)
+        result = _client().mem_ingest(mid, content, role,
+                                      signal=signal,
+                                      memory_type=memory_type,
+                                      source=source)
     typer.echo(json.dumps(result, indent=2, default=str))
 
 
