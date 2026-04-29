@@ -1,7 +1,12 @@
 import json
+import os
 import typer
 
 app = typer.Typer()
+
+# Honor DBAY_SOURCE env var (set by each agent's MCP config) so the CLI
+# attributes memories to the same agent identity as the MCP tool layer.
+_DEFAULT_SOURCE = os.environ.get("DBAY_SOURCE", "cli")
 
 
 def _client():
@@ -263,8 +268,9 @@ def ingest(content: str, mem_id: str = typer.Option(None, "--base"),
            role: str = typer.Option("user", "--role"),
            memory_type: str = typer.Option("fact", "--type",
                help="One of: fact, decision, rejection, convention, procedural, episode."),
-           source: str = typer.Option("cli", "--source",
-               help="Origin tag stored on the memory (e.g. cli, claude-code, hermes-agent)."),
+           source: str = typer.Option(_DEFAULT_SOURCE, "--source",
+               help="Origin tag stored on the memory. Defaults to env DBAY_SOURCE "
+                    "or 'cli' (e.g. cli, claude-code, openclaw, hermes-agent)."),
            raw: bool = typer.Option(False, "--raw",
                help="Treat content as raw conversation; let server extract memories. "
                     "Default stores content as a structured memory directly.")):

@@ -65,6 +65,12 @@ def _get_api_key() -> str | None:
     return os.environ.get("DBAY_API_KEY") or _load_config().get("api_key")
 
 
+# Per-agent default for the `source` field on memory writes. Each agent should
+# launch dbay-mcp with `DBAY_SOURCE=claude-code|openclaw|hermes-agent` so that
+# memories ingested without an explicit `source` are still attributed correctly.
+_DEFAULT_SOURCE = os.environ.get("DBAY_SOURCE", "claude-code")
+
+
 # ---------------------------------------------------------------------------
 # HTTP client
 # ---------------------------------------------------------------------------
@@ -532,7 +538,7 @@ def memory_ingest(
     content: str,
     memory_type: str = "fact",
     importance: float = 0.5,
-    source: str = "claude-code",
+    source: str = _DEFAULT_SOURCE,
     memory_base: str | None = None,
 ) -> str:
     """Store a memory to the user's persistent cross-project memory.
@@ -541,7 +547,9 @@ def memory_ingest(
         content: The memory content — concise, structured, self-contained
         memory_type: REQUIRED. One of: fact, decision, rejection, convention, procedural, episode
         importance: 0.0-1.0. Use 0.8+ for credentials, critical decisions, painful lessons
-        source: Client identifier (default "claude-code")
+        source: Client identifier. Defaults to env var DBAY_SOURCE (or "claude-code").
+                Each agent's MCP config should set DBAY_SOURCE so memories are
+                attributed correctly across CC / OpenClaw / Hermes.
         memory_base: Memory base name or ID (optional, auto-detected)
     """
     mem_id = _resolve_mem_id(memory_base)
