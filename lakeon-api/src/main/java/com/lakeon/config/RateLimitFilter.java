@@ -15,7 +15,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * Runs before ApiKeyFilter to block abusive traffic early.
  *
  * Rules:
- *   POST /api/v1/tenants    — 10 req/hour per IP  (registration)
+ *   POST /api/v1/tenants    — 3 req/hour per IP   (registration; tightened after invite gate removed)
  *   POST /api/v1/auth/login — 10 req/min  per IP  (login)
  *   Other authenticated API — 200 req/min per API Key
  */
@@ -113,7 +113,7 @@ public class RateLimitFilter implements Filter {
     }
 
     private enum RateRule {
-        REGISTER("reg", true, 10, 3600_000L),       // 10/hour per IP
+        REGISTER("reg", true, 3, 3600_000L),        // 3/hour per IP (open registration: bot abuse cap)
         LOGIN("login", true, 10, 60_000L),           // 10/min per IP
         OAUTH("oauth", true, 20, 60_000L),           // 20/min per IP
         API("api", false, 200, 60_000L);             // 200/min per key
