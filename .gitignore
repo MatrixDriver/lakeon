@@ -41,3 +41,6 @@ tests/e2e/fixtures/text/
 .claude/worktrees/
 .worktrees/
 .model-cache/
+
+# Superpowers brainstorming sessions
+.superpowers/
