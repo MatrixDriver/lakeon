@@ -87,6 +87,82 @@ class SQLiteDriver:
             return None
         return _row_to_memory(row)
 
+    def recall(
+        self,
+        query_embedding: list[float],
+        query_text: str,
+        k: int = 10,
+        agent_id: str | None = None,
+    ) -> list[RecallHit]:
+        from sqlite_vec import serialize_float32
+
+        # 阶段 1：向量召回 candidate
+        vec_rows = self.con.execute(
+            """
+            SELECT v.memory_id, v.distance
+            FROM (
+              SELECT memory_id, distance FROM memory_vec
+              WHERE embedding MATCH ?
+              ORDER BY distance LIMIT ?
+            ) v
+            """,
+            (serialize_float32(query_embedding), max(k * 4, 16)),
+        ).fetchall()
+
+        # 阶段 2：FTS 召回 candidate（如有 query_text）
+        fts_rows: list[tuple[str, float]] = []
+        if query_text and query_text.strip():
+            fts_rows = self.con.execute(
+                """
+                SELECT memory_id, bm25(memory_fts) AS rank
+                FROM memory_fts
+                WHERE memory_fts MATCH ?
+                ORDER BY rank LIMIT ?
+                """,
+                (query_text, max(k * 4, 16)),
+            ).fetchall()
+
+        # 阶段 3：Reciprocal Rank Fusion
+        rrf_k = 60
+        scores: dict[str, float] = {}
+        for rank, (mid, _dist) in enumerate(vec_rows):
+            scores[mid] = scores.get(mid, 0.0) + 1.0 / (rrf_k + rank + 1)
+        for rank, (mid, _bm) in enumerate(fts_rows):
+            scores[mid] = scores.get(mid, 0.0) + 1.0 / (rrf_k + rank + 1)
+
+        if not scores:
+            return []
+
+        # 阶段 4：拉真实 memory；过滤 agent / soft-deleted
+        ids = list(scores.keys())
+        placeholders = ",".join(["?"] * len(ids))
+        params: list[Any] = list(ids)
+        sql = (
+            "SELECT id, agent_id, source_kind, source_ref, text, meta "
+            "FROM memory "
+            f"WHERE id IN ({placeholders}) AND deleted_at IS NULL"
+        )
+        if agent_id is not None:
+            sql += " AND agent_id = ?"
+            params.append(agent_id)
+        rows = self.con.execute(sql, params).fetchall()
+
+        results: list[RecallHit] = []
+        for row in rows:
+            mid = row[0]
+            results.append(
+                RecallHit(
+                    memory_id=mid,
+                    text=row[4],
+                    score=scores[mid],
+                    source_kind=row[2],
+                    source_ref=row[3],
+                    meta=json.loads(row[5]) if row[5] else None,
+                )
+            )
+        results.sort(key=lambda h: h.score, reverse=True)
+        return results[:k]
+
     def close(self) -> None:
         self.con.close()
 
