@@ -44,3 +44,10 @@ tests/e2e/fixtures/text/
 
 # Superpowers brainstorming sessions
 .superpowers/
+
+# echomem
+echomem/.venv/
+echomem/.pytest_cache/
+echomem/**/__pycache__/
+echomem/*.egg-info/
+echomem/src/*.egg-info/
