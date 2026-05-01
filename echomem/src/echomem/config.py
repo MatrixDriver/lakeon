@@ -17,12 +17,20 @@ def default_config_path() -> Path:
 
 def _pick_port() -> int:
     env = os.environ.get("ECHOMEM_PORT")
-    return int(env) if env else 8473  # echomem 默认端口
+    if not env:
+        return 8473  # echomem 默认端口
+    try:
+        port = int(env)
+    except ValueError:
+        raise ValueError(f"ECHOMEM_PORT must be an integer, got {env!r}") from None
+    if not 1 <= port <= 65535:
+        raise ValueError(f"ECHOMEM_PORT out of range (1..65535), got {port}")
+    return port
 
 
 class EchomemConfig(BaseModel):
     host: str = "127.0.0.1"
-    port: int = Field(default_factory=_pick_port)
+    port: int = Field(default_factory=_pick_port, ge=1, le=65535)
     data_dir: Path = Field(default_factory=default_data_dir)
     ollama_url: str = "http://localhost:11434"
     embedding_model: str = "qwen3-embedding:0.6b"

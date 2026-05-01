@@ -1,17 +1,31 @@
 from pathlib import Path
+import pytest
 import tomli_w
-from echomem.config import EchomemConfig, load_config, default_config_path
+from echomem.config import EchomemConfig, _pick_port, load_config, default_config_path
 
 
 def test_default_when_no_file(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("ECHOMEM_PORT", raising=False)
     cfg = load_config()
     assert cfg.host == "127.0.0.1"
-    assert 1024 <= cfg.port <= 65535
+    assert cfg.port == 8473
     assert cfg.data_dir == tmp_path / ".echomem"
     assert cfg.ollama_url == "http://localhost:11434"
     assert cfg.embedding_model == "qwen3-embedding:0.6b"
     assert cfg.embedding_dim == 1024
+
+
+def test_invalid_port_raises(monkeypatch):
+    monkeypatch.setenv("ECHOMEM_PORT", "not-a-number")
+    with pytest.raises(ValueError, match="ECHOMEM_PORT must be an integer"):
+        _pick_port()
+
+
+def test_out_of_range_port_raises(monkeypatch):
+    monkeypatch.setenv("ECHOMEM_PORT", "999999")
+    with pytest.raises(ValueError, match="out of range"):
+        _pick_port()
 
 
 def test_load_from_file(tmp_path, monkeypatch):
