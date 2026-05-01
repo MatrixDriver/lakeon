@@ -129,3 +129,55 @@ def test_recall_filter_by_agent(driver):
     for h in hits:
         got = driver.get_memory(h.memory_id)
         assert got.agent_id == "cc"
+
+
+def test_list_returns_recent_first(driver):
+    for i in range(3):
+        m = Memory(
+            id=f"01HXLST{i:020d}",
+            agent_id="cc",
+            source_kind="explicit",
+            source_ref=None,
+            text=f"item {i}",
+            meta=None,
+            created_at=i * 1000,
+            updated_at=i * 1000,
+            deleted_at=None,
+            embedding=_emb(i),
+        )
+        driver.upsert_memory(m)
+
+    items = driver.list_memories(limit=10)
+    assert [m.text for m in items] == ["item 2", "item 1", "item 0"]
+
+
+def test_list_filter_by_agent(driver):
+    for i, agent in enumerate(["cc", "openclaw", "cc"]):
+        m = Memory(
+            id=f"01HXLSA{i:020d}",
+            agent_id=agent,
+            source_kind="explicit",
+            source_ref=None,
+            text=f"t{i}",
+            meta=None,
+            created_at=i,
+            updated_at=i,
+            deleted_at=None,
+            embedding=_emb(i),
+        )
+        driver.upsert_memory(m)
+    items = driver.list_memories(agent_id="cc")
+    assert {m.text for m in items} == {"t0", "t2"}
+
+
+def test_delete_marks_soft_deleted_then_recall_skips(driver):
+    m = _make_mem(mid="01HXDEL000000000000000001")
+    driver.upsert_memory(m)
+    assert driver.delete_memory(m.id) is True
+    assert driver.get_memory(m.id) is None
+    hits = driver.recall([0.0] * 1024, query_text="hello", k=10)
+    assert all(h.memory_id != m.id for h in hits)
+
+
+def test_delete_returns_false_when_missing(driver):
+    assert driver.delete_memory("01HXNOPENOPENOPENOPENOPENN") is False

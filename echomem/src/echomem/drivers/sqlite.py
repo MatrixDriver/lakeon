@@ -163,6 +163,36 @@ class SQLiteDriver:
         results.sort(key=lambda h: h.score, reverse=True)
         return results[:k]
 
+    def list_memories(
+        self,
+        agent_id: str | None = None,
+        limit: int = 50,
+        before: int | None = None,
+    ) -> list[Memory]:
+        sql = (
+            "SELECT id, agent_id, source_kind, source_ref, text, meta, created_at, updated_at, deleted_at "
+            "FROM memory WHERE deleted_at IS NULL"
+        )
+        params: list[Any] = []
+        if agent_id is not None:
+            sql += " AND agent_id = ?"
+            params.append(agent_id)
+        if before is not None:
+            sql += " AND created_at < ?"
+            params.append(before)
+        sql += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+        return [_row_to_memory(r) for r in self.con.execute(sql, params).fetchall()]
+
+    def delete_memory(self, memory_id: str) -> bool:
+        cur = self.con.execute(
+            "UPDATE memory SET deleted_at = strftime('%s','now') * 1000 "
+            "WHERE id = ? AND deleted_at IS NULL",
+            (memory_id,),
+        )
+        self.con.commit()
+        return cur.rowcount > 0
+
     def close(self) -> None:
         self.con.close()
 
