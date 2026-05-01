@@ -7,6 +7,7 @@ from echomem.config import EchomemConfig
 from echomem.drivers.sqlite import SQLiteDriver
 from echomem.ollama_client import OllamaClient
 from echomem.api.health import router as health_router
+from echomem.api.memory import router as memory_router
 
 
 @asynccontextmanager
@@ -28,4 +29,5 @@ def create_app(config: EchomemConfig) -> FastAPI:
     app = FastAPI(title="echomem", version="0.1.0", lifespan=_lifespan)
     app.state.config = config
     app.include_router(health_router)
+    app.include_router(memory_router)
     return app
