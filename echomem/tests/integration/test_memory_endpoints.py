@@ -37,3 +37,37 @@ async def test_ingest_returns_id_and_persists(client):
 async def test_ingest_validates_required_fields(client):
     r = await client.post("/memory/ingest", json={"agent_id": "cc"})
     assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_recall_after_ingest(client):
+    await client.post(
+        "/memory/ingest", json={"text": "alpha bravo", "agent_id": "cc"}
+    )
+    await client.post(
+        "/memory/ingest", json={"text": "echo foxtrot", "agent_id": "openclaw"}
+    )
+
+    r = await client.post(
+        "/memory/recall", json={"query": "alpha", "k": 5}
+    )
+    assert r.status_code == 200
+    hits = r.json()["hits"]
+    assert any(h["text"] == "alpha bravo" for h in hits)
+
+
+@pytest.mark.asyncio
+async def test_recall_filter_by_agent(client):
+    await client.post(
+        "/memory/ingest", json={"text": "secret cc", "agent_id": "cc"}
+    )
+    await client.post(
+        "/memory/ingest", json={"text": "secret hermes", "agent_id": "hermes"}
+    )
+
+    r = await client.post(
+        "/memory/recall", json={"query": "secret", "k": 5, "agent_id": "hermes"}
+    )
+    hits = r.json()["hits"]
+    assert all(h["text"] != "secret cc" for h in hits)
+    assert any(h["text"] == "secret hermes" for h in hits)
