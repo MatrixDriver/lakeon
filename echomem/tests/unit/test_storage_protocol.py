@@ -7,6 +7,7 @@ def test_protocol_has_required_methods():
     assert hasattr(StorageDriver, "list_memories")
     assert hasattr(StorageDriver, "delete_memory")
     assert hasattr(StorageDriver, "recall")
+    assert hasattr(StorageDriver, "close")
 
 
 def test_memory_dataclass_round_trip():
