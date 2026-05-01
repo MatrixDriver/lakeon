@@ -31,3 +31,10 @@ def create_app(config: EchomemConfig) -> FastAPI:
     app.include_router(health_router)
     app.include_router(memory_router)
     return app
+
+
+def make_default_app() -> FastAPI:
+    """uvicorn entry point: load config from disk."""
+    from echomem.config import load_config
+
+    return create_app(load_config())
