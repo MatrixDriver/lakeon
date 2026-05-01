@@ -71,3 +71,37 @@ async def test_recall_filter_by_agent(client):
     hits = r.json()["hits"]
     assert all(h["text"] != "secret cc" for h in hits)
     assert any(h["text"] == "secret hermes" for h in hits)
+
+
+@pytest.mark.asyncio
+async def test_list_recent_first(client):
+    for txt in ["one", "two", "three"]:
+        await client.post("/memory/ingest", json={"text": txt, "agent_id": "cc"})
+    r = await client.get("/memory/list?limit=10")
+    items = r.json()["items"]
+    assert [i["text"] for i in items] == ["three", "two", "one"]
+
+
+@pytest.mark.asyncio
+async def test_get_returns_memory(client):
+    r = await client.post("/memory/ingest", json={"text": "x", "agent_id": "cc"})
+    mid = r.json()["id"]
+    r2 = await client.get(f"/memory/{mid}")
+    assert r2.status_code == 200
+    assert r2.json()["text"] == "x"
+
+
+@pytest.mark.asyncio
+async def test_get_404_when_missing(client):
+    r = await client.get("/memory/01HXMISSINGMISSINGMISSINGM")
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_then_get_404(client):
+    r = await client.post("/memory/ingest", json={"text": "del", "agent_id": "cc"})
+    mid = r.json()["id"]
+    r2 = await client.delete(f"/memory/{mid}")
+    assert r2.status_code == 200
+    r3 = await client.get(f"/memory/{mid}")
+    assert r3.status_code == 404

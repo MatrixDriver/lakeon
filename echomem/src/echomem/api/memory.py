@@ -70,3 +70,56 @@ async def recall(req: RecallRequest, request: Request) -> RecallResponse:
             for h in hits
         ]
     )
+
+
+@router.get("/list", response_model=ListResponse)
+async def list_memories(
+    request: Request,
+    agent_id: str | None = None,
+    limit: int = 50,
+    before: int | None = None,
+) -> ListResponse:
+    driver = request.app.state.driver
+    items = driver.list_memories(agent_id=agent_id, limit=limit, before=before)
+    return ListResponse(
+        items=[
+            MemoryOut(
+                id=m.id,
+                agent_id=m.agent_id,
+                source_kind=m.source_kind,
+                source_ref=m.source_ref,
+                text=m.text,
+                meta=m.meta,
+                created_at=m.created_at,
+                updated_at=m.updated_at,
+            )
+            for m in items
+        ]
+    )
+
+
+@router.get("/{memory_id}", response_model=MemoryOut)
+async def get_memory(memory_id: str, request: Request) -> MemoryOut:
+    driver = request.app.state.driver
+    m = driver.get_memory(memory_id)
+    if m is None:
+        raise HTTPException(status_code=404, detail="memory not found")
+    return MemoryOut(
+        id=m.id,
+        agent_id=m.agent_id,
+        source_kind=m.source_kind,
+        source_ref=m.source_ref,
+        text=m.text,
+        meta=m.meta,
+        created_at=m.created_at,
+        updated_at=m.updated_at,
+    )
+
+
+@router.delete("/{memory_id}")
+async def delete_memory(memory_id: str, request: Request) -> dict:
+    driver = request.app.state.driver
+    ok = driver.delete_memory(memory_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="memory not found")
+    return {"id": memory_id, "deleted": True}
