@@ -97,3 +97,82 @@ def status() -> None:
     except Exception:
         pass
     console.print(f"[red]down[/] (daemon at {url} not reachable)")
+
+
+mem_app = typer.Typer(help="memory subcommands")
+app.add_typer(mem_app, name="mem")
+
+
+def _base_url() -> str:
+    cfg = load_config()
+    return f"http://{cfg.host}:{cfg.port}"
+
+
+@mem_app.command("ingest")
+def mem_ingest(
+    text: str = typer.Argument(..., help="memory text"),
+    agent: str = typer.Option("cli", "--agent", "-a"),
+    source_kind: str = typer.Option("explicit", "--kind"),
+) -> None:
+    with httpx.Client(timeout=30.0) as c:
+        r = c.post(
+            f"{_base_url()}/memory/ingest",
+            json={"text": text, "agent_id": agent, "source_kind": source_kind},
+        )
+        r.raise_for_status()
+        body = r.json()
+        console.print(f"[green]✓[/] {body['id']}  agent={body['agent_id']}")
+
+
+@mem_app.command("recall")
+def mem_recall(
+    query: str = typer.Argument(...),
+    k: int = typer.Option(5, "--k"),
+    agent: str | None = typer.Option(None, "--agent"),
+) -> None:
+    payload: dict = {"query": query, "k": k}
+    if agent:
+        payload["agent_id"] = agent
+    with httpx.Client(timeout=30.0) as c:
+        r = c.post(f"{_base_url()}/memory/recall", json=payload)
+        r.raise_for_status()
+        for h in r.json()["hits"]:
+            console.print(f"[cyan]{h['score']:.3f}[/]  {h['id'][:8]}…  {h['text']}")
+
+
+@mem_app.command("list")
+def mem_list(
+    agent: str | None = typer.Option(None, "--agent"),
+    limit: int = typer.Option(50, "--limit"),
+) -> None:
+    params: dict = {"limit": limit}
+    if agent:
+        params["agent_id"] = agent
+    with httpx.Client(timeout=10.0) as c:
+        r = c.get(f"{_base_url()}/memory/list", params=params)
+        r.raise_for_status()
+        for m in r.json()["items"]:
+            console.print(f"  {m['id'][:8]}…  [dim]{m['agent_id']}[/]  {m['text'][:80]}")
+
+
+@mem_app.command("get")
+def mem_get(memory_id: str) -> None:
+    with httpx.Client(timeout=10.0) as c:
+        r = c.get(f"{_base_url()}/memory/{memory_id}")
+        if r.status_code == 404:
+            console.print("[red]not found[/]")
+            raise typer.Exit(1)
+        r.raise_for_status()
+        m = r.json()
+        console.print(m)
+
+
+@mem_app.command("delete")
+def mem_delete(memory_id: str) -> None:
+    with httpx.Client(timeout=10.0) as c:
+        r = c.delete(f"{_base_url()}/memory/{memory_id}")
+        if r.status_code == 404:
+            console.print("[red]not found[/]")
+            raise typer.Exit(1)
+        r.raise_for_status()
+        console.print(f"[green]✓[/] deleted {memory_id}")
