@@ -23,12 +23,11 @@ async def _lifespan(app: FastAPI):
     app.state.driver = driver
     app.state.ollama = ollama
 
-    # T12 will refactor to read generation model from config; hardcode for now.
     orchestrator = Orchestrator(
         driver,
         ollama,
-        summary_model="gemma4:e4b",
-        extract_model="gemma4:e4b",
+        summary_model=cfg.generate_model,
+        extract_model=cfg.generate_model,
         embedding_model=cfg.embedding_model,
     )
     await orchestrator.start()

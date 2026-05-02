@@ -35,6 +35,7 @@ class EchomemConfig(BaseModel):
     ollama_url: str = "http://localhost:11434"
     embedding_model: str = "qwen3-embedding:0.6b"
     embedding_dim: int = 1024
+    generate_model: str = "gemma4:e4b"
     log_level: str = "INFO"
 
 
@@ -54,6 +55,7 @@ def load_config(path: Path | None = None) -> EchomemConfig:
         ollama_url=ollama.get("url", "http://localhost:11434"),
         embedding_model=ollama.get("embedding_model", "qwen3-embedding:0.6b"),
         embedding_dim=ollama.get("embedding_dim", 1024),
+        generate_model=ollama.get("generate_model", "gemma4:e4b"),
         log_level=log.get("level", "INFO"),
     )
 
@@ -69,6 +71,7 @@ def write_config(cfg: EchomemConfig, path: Path | None = None) -> Path:
             "url": cfg.ollama_url,
             "embedding_model": cfg.embedding_model,
             "embedding_dim": cfg.embedding_dim,
+            "generate_model": cfg.generate_model,
         },
         "storage": {"data_dir": str(cfg.data_dir)},
         "log": {"level": cfg.log_level},

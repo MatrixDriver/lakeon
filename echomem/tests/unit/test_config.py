@@ -50,3 +50,21 @@ def test_load_from_file(tmp_path, monkeypatch):
 def test_default_config_path(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
     assert default_config_path() == tmp_path / ".echomem" / "config.toml"
+
+
+def test_default_generate_model(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("ECHOMEM_PORT", raising=False)
+    cfg = load_config()
+    assert cfg.generate_model == "gemma4:e4b"
+
+
+def test_load_generate_model_from_file(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cfg_dir = tmp_path / ".echomem"
+    cfg_dir.mkdir()
+    (cfg_dir / "config.toml").write_bytes(
+        tomli_w.dumps({"ollama": {"generate_model": "llama3:8b"}}).encode()
+    )
+    cfg = load_config()
+    assert cfg.generate_model == "llama3:8b"
