@@ -49,3 +49,63 @@ class MemoryOut(BaseModel):
 
 class ListResponse(BaseModel):
     items: list[MemoryOut]
+
+
+class TimelineEventOut(BaseModel):
+    id: str
+    window_start: int
+    window_end: int
+    agent_id: str
+    title: str
+    summary: str | None
+    member_memory_ids: list[str]
+    rationale: str | None
+
+
+class TimelineResponse(BaseModel):
+    events: list[TimelineEventOut]
+
+
+class TreeNodeOut(BaseModel):
+    id: str
+    level: int
+    parent_id: str | None
+    text: str
+    token_estimate: int | None
+    rationale: str | None
+
+
+class TreeResponse(BaseModel):
+    levels: list[TreeNodeOut]
+
+
+class GraphNodeOut(BaseModel):
+    id: str
+    name: str
+    kind: str | None
+
+
+class GraphEdgeOut(BaseModel):
+    subject_id: str
+    object_id: str
+    predicate: str
+    confidence: float
+
+
+class GraphResponse(BaseModel):
+    nodes: list[GraphNodeOut]
+    edges: list[GraphEdgeOut]
+
+
+class SkillOut(BaseModel):
+    id: str
+    name: str
+    trigger_pattern: str
+    steps: list[str]
+    source: str
+    observed_count: int
+    success_count: int
+
+
+class SkillsResponse(BaseModel):
+    skills: list[SkillOut]

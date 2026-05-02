@@ -8,6 +8,8 @@ from echomem.drivers.sqlite import SQLiteDriver
 from echomem.ollama_client import OllamaClient
 from echomem.api.health import router as health_router
 from echomem.api.memory import router as memory_router
+from echomem.api.derivatives import router as derivatives_router
+from echomem.api.skills import router as skills_router
 
 
 @asynccontextmanager
@@ -45,6 +47,8 @@ def create_app(config: EchomemConfig) -> FastAPI:
     app.state.config = config
     app.include_router(health_router)
     app.include_router(memory_router)
+    app.include_router(derivatives_router)
+    app.include_router(skills_router)
     return app
 
 
