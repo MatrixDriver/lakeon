@@ -7,7 +7,7 @@ from typing import Any
 
 import sqlite_vec
 
-from echomem.drivers.base import Memory, RecallHit
+from echomem.drivers.base import Memory, RecallHit, Summary, Entity, Triple, Event, Skill, Subgraph
 from echomem.drivers.migrations import apply_all
 
 
@@ -195,6 +195,229 @@ class SQLiteDriver:
 
     def close(self) -> None:
         self.con.close()
+
+    # ───────────────── SUMMARY ─────────────────
+    def upsert_summary(self, s: Summary) -> str:
+        self.con.execute(
+            """
+            INSERT INTO derivative_summary(id, source_kind, source_ref, level, parent_id,
+                                           text, token_estimate, created_at, rationale)
+            VALUES(:id, :sk, :sr, :lv, :pid, :tx, :te, :ca, :ra)
+            ON CONFLICT(id) DO UPDATE SET
+              level = excluded.level, parent_id = excluded.parent_id,
+              text = excluded.text, token_estimate = excluded.token_estimate,
+              rationale = excluded.rationale
+            """,
+            {"id": s.id, "sk": s.source_kind, "sr": s.source_ref, "lv": s.level,
+             "pid": s.parent_id, "tx": s.text, "te": s.token_estimate,
+             "ca": s.created_at, "ra": s.rationale},
+        )
+        self.con.commit()
+        return s.id
+
+    def query_tree(self, source_kind: str, source_ref: str) -> list[Summary]:
+        rows = self.con.execute(
+            "SELECT id, source_kind, source_ref, level, parent_id, text, token_estimate, created_at, rationale "
+            "FROM derivative_summary WHERE source_kind = ? AND source_ref = ? ORDER BY level ASC",
+            (source_kind, source_ref),
+        ).fetchall()
+        return [Summary(*r) for r in rows]
+
+    # ───────────────── ENTITY / TRIPLE ─────────────────
+    def upsert_entity(self, e: Entity) -> str:
+        meta = json.dumps(e.meta) if e.meta is not None else None
+        self.con.execute(
+            """
+            INSERT INTO derivative_entity(id, name, kind, meta, first_seen_at, last_seen_at)
+            VALUES(:id, :name, :kind, :meta, :fs, :ls)
+            ON CONFLICT(id) DO UPDATE SET
+              name = excluded.name, kind = excluded.kind, meta = excluded.meta,
+              last_seen_at = excluded.last_seen_at
+            """,
+            {"id": e.id, "name": e.name, "kind": e.kind, "meta": meta,
+             "fs": e.first_seen_at, "ls": e.last_seen_at},
+        )
+        self.con.commit()
+        return e.id
+
+    def upsert_triple(self, t: Triple) -> str:
+        self.con.execute(
+            """
+            INSERT OR REPLACE INTO derivative_triple
+            (id, subject_id, predicate, object_id, source_memory_id, confidence, created_at)
+            VALUES(?, ?, ?, ?, ?, ?, ?)
+            """,
+            (t.id, t.subject_id, t.predicate, t.object_id, t.source_memory_id, t.confidence, t.created_at),
+        )
+        self.con.commit()
+        return t.id
+
+    def upsert_pending_triple(self, *, id, subject_text, predicate, object_text,
+                              source_memory_id, confidence, created_at):
+        self.con.execute(
+            "INSERT OR REPLACE INTO derivative_triple_pending"
+            "(id, subject_text, predicate, object_text, source_memory_id, confidence, created_at) "
+            "VALUES(?, ?, ?, ?, ?, ?, ?)",
+            (id, subject_text, predicate, object_text, source_memory_id, confidence, created_at),
+        )
+        self.con.commit()
+        return id
+
+    def list_pending_triples(self, limit: int = 100) -> list[dict]:
+        rows = self.con.execute(
+            "SELECT id, subject_text, predicate, object_text, source_memory_id, confidence, created_at "
+            "FROM derivative_triple_pending ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        keys = ["id", "subject_text", "predicate", "object_text", "source_memory_id", "confidence", "created_at"]
+        return [dict(zip(keys, r)) for r in rows]
+
+    def query_subgraph(self, seed_id: str, hops: int = 2) -> Subgraph:
+        # BFS over derivative_triple
+        visited: set[str] = set()
+        frontier: set[str] = {seed_id}
+        edges: list[tuple[str, str, dict]] = []
+        for _ in range(hops):
+            if not frontier:
+                break
+            placeholders = ",".join("?" * len(frontier))
+            params = list(frontier) + list(frontier)
+            rows = self.con.execute(
+                f"SELECT subject_id, predicate, object_id, confidence "
+                f"FROM derivative_triple "
+                f"WHERE subject_id IN ({placeholders}) OR object_id IN ({placeholders})",
+                params,
+            ).fetchall()
+            visited |= frontier
+            new_frontier: set[str] = set()
+            for s, p, o, conf in rows:
+                edges.append((s, o, {"predicate": p, "confidence": conf}))
+                for nid in (s, o):
+                    if nid not in visited:
+                        new_frontier.add(nid)
+            frontier = new_frontier
+        visited |= frontier  # include last frontier so all touched nodes are fetched
+        # fetch entity nodes
+        if not visited:
+            return Subgraph(nodes=[], edges=[])
+        ph = ",".join("?" * len(visited))
+        node_rows = self.con.execute(
+            f"SELECT id, name, kind, meta, first_seen_at, last_seen_at "
+            f"FROM derivative_entity WHERE id IN ({ph})",
+            list(visited),
+        ).fetchall()
+        nodes = [
+            Entity(id=r[0], name=r[1], kind=r[2],
+                   meta=json.loads(r[3]) if r[3] else None,
+                   first_seen_at=r[4], last_seen_at=r[5])
+            for r in node_rows
+        ]
+        return Subgraph(nodes=nodes, edges=edges)
+
+    # ───────────────── EVENT (timeline) ─────────────────
+    def upsert_event(self, e: Event) -> str:
+        self.con.execute(
+            """
+            INSERT INTO derivative_event(id, window_start, window_end, agent_id, title, summary,
+                                          member_memory_ids, created_at, rationale)
+            VALUES(:id, :ws, :we, :ag, :t, :s, :mm, :ca, :ra)
+            ON CONFLICT(id) DO UPDATE SET
+              window_end = excluded.window_end, title = excluded.title,
+              summary = excluded.summary, member_memory_ids = excluded.member_memory_ids,
+              rationale = excluded.rationale
+            """,
+            {"id": e.id, "ws": e.window_start, "we": e.window_end, "ag": e.agent_id,
+             "t": e.title, "s": e.summary,
+             "mm": json.dumps(e.member_memory_ids), "ca": e.created_at, "ra": e.rationale},
+        )
+        self.con.commit()
+        return e.id
+
+    def query_timeline(self, start_ms: int, end_ms: int, agent_id: str | None = None) -> list[Event]:
+        sql = ("SELECT id, window_start, window_end, agent_id, title, summary, member_memory_ids, "
+               "created_at, rationale FROM derivative_event "
+               "WHERE window_start >= ? AND window_start < ?")
+        params: list[Any] = [start_ms, end_ms]
+        if agent_id is not None:
+            sql += " AND agent_id = ?"
+            params.append(agent_id)
+        sql += " ORDER BY window_start DESC"
+        rows = self.con.execute(sql, params).fetchall()
+        return [
+            Event(id=r[0], window_start=r[1], window_end=r[2], agent_id=r[3],
+                  title=r[4], summary=r[5],
+                  member_memory_ids=json.loads(r[6]) if r[6] else [],
+                  created_at=r[7], rationale=r[8])
+            for r in rows
+        ]
+
+    # ───────────────── SKILL ─────────────────
+    def upsert_skill(self, s: Skill) -> str:
+        from sqlite_vec import serialize_float32
+
+        self.con.execute(
+            """
+            INSERT INTO derivative_skill(id, name, trigger_pattern, trigger_emb, steps,
+                                         agent_scope, source, observed_count, success_count,
+                                         last_used_at, created_at, rationale)
+            VALUES(:id, :name, :tp, :te, :st, :sc, :sr, :oc, :sk, :lu, :ca, :ra)
+            ON CONFLICT(id) DO UPDATE SET
+              name = excluded.name, trigger_pattern = excluded.trigger_pattern,
+              trigger_emb = excluded.trigger_emb, steps = excluded.steps,
+              agent_scope = excluded.agent_scope, source = excluded.source,
+              observed_count = excluded.observed_count, success_count = excluded.success_count,
+              last_used_at = excluded.last_used_at, rationale = excluded.rationale
+            """,
+            {"id": s.id, "name": s.name, "tp": s.trigger_pattern,
+             "te": serialize_float32(s.trigger_emb) if s.trigger_emb else None,
+             "st": json.dumps(s.steps), "sc": s.agent_scope, "sr": s.source,
+             "oc": s.observed_count, "sk": s.success_count,
+             "lu": s.last_used_at, "ca": s.created_at, "ra": s.rationale},
+        )
+        # skill_vec sync
+        if s.trigger_emb is not None:
+            if len(s.trigger_emb) != self.embedding_dim:
+                raise ValueError(
+                    f"skill trigger_emb dim {len(s.trigger_emb)} != configured {self.embedding_dim}"
+                )
+            self.con.execute("DELETE FROM skill_vec WHERE skill_id = ?", (s.id,))
+            self.con.execute(
+                "INSERT INTO skill_vec(skill_id, embedding) VALUES(?, ?)",
+                (s.id, serialize_float32(s.trigger_emb)),
+            )
+        self.con.commit()
+        return s.id
+
+    def query_skills(self, query_emb: list[float], k: int = 5) -> list[Skill]:
+        from sqlite_vec import serialize_float32
+
+        vec_rows = self.con.execute(
+            "SELECT skill_id, distance FROM skill_vec WHERE embedding MATCH ? "
+            "ORDER BY distance LIMIT ?",
+            (serialize_float32(query_emb), max(k * 2, 8)),
+        ).fetchall()
+        if not vec_rows:
+            return []
+        ids = [r[0] for r in vec_rows]
+        ph = ",".join("?" * len(ids))
+        rows = self.con.execute(
+            f"SELECT id, name, trigger_pattern, steps, agent_scope, source, "
+            f"observed_count, success_count, last_used_at, created_at, rationale "
+            f"FROM derivative_skill WHERE id IN ({ph})",
+            ids,
+        ).fetchall()
+        order = {sid: i for i, sid in enumerate(ids)}
+        rows.sort(key=lambda r: order.get(r[0], 1_000_000))
+        return [
+            Skill(
+                id=r[0], name=r[1], trigger_pattern=r[2], trigger_emb=None,
+                steps=json.loads(r[3]) if r[3] else [],
+                agent_scope=r[4], source=r[5],
+                observed_count=r[6], success_count=r[7],
+                last_used_at=r[8], created_at=r[9], rationale=r[10],
+            )
+            for r in rows[:k]
+        ]
 
 
 def _row_to_memory(row: tuple[Any, ...]) -> Memory:
