@@ -3,10 +3,11 @@ from __future__ import annotations
 import sqlite3
 from typing import Callable
 
-from echomem.drivers.migrations import m001_initial
+from echomem.drivers.migrations import m001_initial, m002_derivatives
 
 MIGRATIONS: dict[int, Callable[[sqlite3.Connection], None]] = {
     1: m001_initial.up,
+    2: m002_derivatives.up,
 }
 
 
