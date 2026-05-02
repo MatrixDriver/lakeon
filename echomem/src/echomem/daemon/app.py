@@ -12,15 +12,30 @@ from echomem.api.memory import router as memory_router
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
+    from echomem.pipeline.orchestrator import Orchestrator
+
     cfg: EchomemConfig = app.state.config
     cfg.data_dir.mkdir(parents=True, exist_ok=True)
     driver = SQLiteDriver(cfg.data_dir / "db.sqlite", embedding_dim=cfg.embedding_dim)
     ollama = OllamaClient(cfg.ollama_url)
     app.state.driver = driver
     app.state.ollama = ollama
+
+    # T12 will refactor to read generation model from config; hardcode for now.
+    orchestrator = Orchestrator(
+        driver,
+        ollama,
+        summary_model="gemma4:e4b",
+        extract_model="gemma4:e4b",
+        embedding_model=cfg.embedding_model,
+    )
+    await orchestrator.start()
+    app.state.orchestrator = orchestrator
+
     try:
         yield
     finally:
+        await orchestrator.stop()
         await ollama.aclose()
         driver.close()
 

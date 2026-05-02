@@ -13,6 +13,13 @@ async def client(tmp_path, httpx_mock):
         is_reusable=True,
         is_optional=True,
     )
+    httpx_mock.add_response(
+        method="POST",
+        url="http://localhost:11434/api/generate",
+        json={"response": "mock summary"},
+        is_reusable=True,
+        is_optional=True,
+    )
     cfg = EchomemConfig(data_dir=tmp_path)
     app = create_app(cfg)
     transport = ASGITransport(app=app)
@@ -105,3 +112,20 @@ async def test_delete_then_get_404(client):
     assert r2.status_code == 200
     r3 = await client.get(f"/memory/{mid}")
     assert r3.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_ingest_triggers_pipeline(client):
+    r = await client.post("/memory/ingest", json={"text": "hello pipeline", "agent_id": "cc"})
+    assert r.status_code == 200
+    mid = r.json()["id"]
+
+    # Drain background pipeline (test harness exposes orchestrator on app.state)
+    app = client._transport.app  # type: ignore[attr-defined]
+    await app.state.orchestrator.drain()
+
+    rows = app.state.driver.con.execute(
+        "SELECT kind FROM derivative_task WHERE memory_id = ? ORDER BY kind", (mid,)
+    ).fetchall()
+    kinds = {r[0] for r in rows}
+    assert {"aggregate_timeline", "extract_entity", "summarize"}.issubset(kinds)

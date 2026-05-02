@@ -41,6 +41,7 @@ async def ingest(req: IngestRequest, request: Request) -> IngestResponse:
         embedding=embedding,
     )
     driver.upsert_memory(mem)
+    await request.app.state.orchestrator.on_memory_ingested(mid)
     return IngestResponse(id=mid, agent_id=req.agent_id, created_at=now)
 
 
