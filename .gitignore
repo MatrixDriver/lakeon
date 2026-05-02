@@ -51,3 +51,5 @@ echomem/.pytest_cache/
 echomem/**/__pycache__/
 echomem/*.egg-info/
 echomem/src/*.egg-info/
+echomem/dist/
+echomem/build/
