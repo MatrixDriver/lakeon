@@ -4,7 +4,7 @@ import httpx
 
 
 class OllamaClient:
-    def __init__(self, base_url: str, timeout: float = 60.0):
+    def __init__(self, base_url: str, timeout: float = 300.0):
         self.base_url = base_url.rstrip("/")
         # trust_env=False: do NOT read HTTP_PROXY / HTTPS_PROXY / ALL_PROXY env vars.
         # Ollama is always a local service; routing it through a system proxy

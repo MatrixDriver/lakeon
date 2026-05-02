@@ -32,6 +32,10 @@ class Orchestrator:
         self.timeline = TimelineWorker(driver)
         self.embedding_model = embedding_model
 
+        # concurrency=1: CPU-only Ollama can't run gemma in parallel without
+        # massive RAM and per-request slowdown. Serialize the LLM-heavy workers
+        # at the pool level. Throughput is acceptable: ~35s/gemma call × 2 calls
+        # per ingest (summarize + extract) ≈ 70s end-to-end.
         self.pool = WorkerPool(
             driver,
             handlers={
@@ -39,6 +43,7 @@ class Orchestrator:
                 TaskKind.EXTRACT_ENTITY: self.extractor.handle,
                 TaskKind.AGGREGATE_TIMELINE: self._timeline_async,
             },
+            concurrency=1,
         )
 
     async def _timeline_async(self, memory_id: str) -> None:
