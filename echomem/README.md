@@ -56,9 +56,40 @@ pytest -v                     # unit + integration (mocks Ollama)
 ECHOMEM_E2E=1 pytest -v -s    # full loop (requires real Ollama)
 ```
 
+## Derivatives (Plan 2)
+
+After ingest, three async workers run in the background:
+
+- **Summarizer** — gemma generates L0 (≤100 tokens) and L1 (≤500 tokens) summaries; L2 is the original chunk
+- **EntityExtractor** — gemma extracts (subject, predicate, object) triples; confidence ≥ 0.7 enters the graph, < 0.7 enters `derivative_triple_pending` for review
+- **TimelineWorker** — pure-Python: same agent + within 30 min + cosine ≥ 0.7 → joins same Episodic event; otherwise opens a new event
+
+A fourth worker (**Reflector**) runs periodic stats — placeholder until P1.
+
+Skill (the 4th derivative organization) is populated via:
+
+```bash
+echomem skill import ~/.claude/skills              # imports superpowers / impeccable / etc.
+```
+
+### Query
+
+```bash
+curl http://127.0.0.1:8473/derivatives/timeline?agent=cc
+curl "http://127.0.0.1:8473/derivatives/tree?source_kind=memory&source_ref=01HXM..."
+curl "http://127.0.0.1:8473/derivatives/graph?seed=ent:jacky&hops=2"
+curl "http://127.0.0.1:8473/derivatives/skills?ctx=writing+a+test"
+```
+
+### Inspect dead letters
+
+```bash
+sqlite3 ~/.echomem/db.sqlite "SELECT kind, error, created_at FROM dead_letter ORDER BY created_at DESC LIMIT 10"
+```
+
 ## What's next
 
-- Plan 2: derivatives pipeline (timeline / hierarchical / graph / procedural)
 - Plan 3: Context API + FS blobs (add_url / ls / read / write / mv)
-- Plan 4: Dashboard
-- Plan 5: Onboarding + openclaw / hermes wiring
+- Plan 4: Vue 3 Dashboard SPA
+- Plan 5: Onboarding install.sh + openclaw / hermes wiring
+- Insight Track (research): output-length prediction
