@@ -68,17 +68,21 @@ class SummarizerWorker:
         )
         self.driver.upsert_summary(l0)
 
-        # L1: ≤ 500 tokens (~2000 chars). Always written.
-        l1_text, l1_rationale = await self._gen_or_truncate(
-            m.text, L1_PROMPT, L1_MAX_TOKENS * CHARS_PER_TOKEN, "L1"
-        )
-        l1 = Summary(
-            id=new_id(), source_kind="memory", source_ref=m.id, level=1,
-            parent_id=l0.id, text=l1_text,
-            token_estimate=len(l1_text) // CHARS_PER_TOKEN,
-            created_at=now, rationale=l1_rationale,
-        )
-        self.driver.upsert_summary(l1)
+        # L1: ≤ 500 tokens (~2000 chars). Skip when original text is already
+        # shorter than the L1 budget — generating L1 would just echo the source
+        # at the cost of a 1-3 min CPU-only gemma call. The L0 + L2 pair is
+        # already enough for short memories.
+        if len(m.text) > L1_MAX_TOKENS * CHARS_PER_TOKEN:
+            l1_text, l1_rationale = await self._gen_or_truncate(
+                m.text, L1_PROMPT, L1_MAX_TOKENS * CHARS_PER_TOKEN, "L1"
+            )
+            l1 = Summary(
+                id=new_id(), source_kind="memory", source_ref=m.id, level=1,
+                parent_id=l0.id, text=l1_text,
+                token_estimate=len(l1_text) // CHARS_PER_TOKEN,
+                created_at=now, rationale=l1_rationale,
+            )
+            self.driver.upsert_summary(l1)
 
         log.info("summarized", memory_id=m.id)
 
@@ -88,5 +92,6 @@ class SummarizerWorker:
             out = await self.ollama.generate(prompt, model=self.model)
             return out.strip(), f"{tier} from gemma"
         except Exception as e:
-            log.warning("summarizer.fallback", tier=tier, err=str(e))
+            kind = type(e).__name__
+            log.warning("summarizer.fallback", tier=tier, err_type=kind, err=str(e) or "<empty>")
             return _truncate(text, max_chars), f"{tier} fallback (truncate-prefix)"

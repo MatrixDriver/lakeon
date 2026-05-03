@@ -55,7 +55,9 @@ class EntityExtractorWorker:
                 EXTRACT_PROMPT.format(text=m.text), model=self.model
             )
         except Exception as e:
-            log.warning("extractor.llm_failed", memory_id=memory_id, err=str(e))
+            kind = type(e).__name__
+            log.warning("extractor.llm_failed", memory_id=memory_id,
+                        err_type=kind, err=str(e) or "<empty>")
             return
 
         triples = self._parse_triples(raw)

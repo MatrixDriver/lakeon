@@ -26,8 +26,12 @@ def _seed_memory(driver, text="A long original chunk of text covering many sente
 
 @pytest.mark.asyncio
 async def test_summarizer_writes_three_levels(tmp_path, httpx_mock, driver):
-    m = _seed_memory(driver)
-    # gemma will be called 2 times (L0, L1); L2 is the original chunk (no LLM call)
+    # Long text (> L1 budget = ~2000 chars) so L1 is generated, not skipped.
+    long_text = (
+        "This is a long text. " * 200  # ~4400 chars
+    )
+    m = _seed_memory(driver, text=long_text)
+    # gemma called 2 times (L0, L1); L2 is the original chunk (no LLM call)
     httpx_mock.add_response(
         method="POST",
         url="http://ol:11434/api/generate",
@@ -45,6 +49,21 @@ async def test_summarizer_writes_three_levels(tmp_path, httpx_mock, driver):
     tree = driver.query_tree(source_kind="memory", source_ref=m.id)
     levels = sorted(s.level for s in tree)
     assert levels == [0, 1, 2]
+
+
+@pytest.mark.asyncio
+async def test_summarizer_skips_l1_for_short_text(tmp_path, httpx_mock, driver):
+    # Short text (< L1 budget) → only L0 + L2, no L1 (avoids wasted gemma call)
+    m = _seed_memory(driver, text="Short text covering one idea only.")
+    httpx_mock.add_response(method="POST", url="http://ol:11434/api/generate",
+                            json={"response": "Short summary."})
+    async with OllamaClient("http://ol:11434") as ol:
+        worker = SummarizerWorker(driver, ol, model="gemma4:e4b")
+        await worker.handle(m.id)
+
+    tree = driver.query_tree(source_kind="memory", source_ref=m.id)
+    levels = sorted(s.level for s in tree)
+    assert levels == [0, 2]
 
 
 @pytest.mark.asyncio
