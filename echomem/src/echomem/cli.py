@@ -176,3 +176,78 @@ def mem_delete(memory_id: str) -> None:
             raise typer.Exit(1)
         r.raise_for_status()
         console.print(f"[green]✓[/] deleted {memory_id}")
+
+
+ctx_app = typer.Typer(help="context (blob) subcommands")
+app.add_typer(ctx_app, name="ctx")
+
+
+@ctx_app.command("add-url")
+def ctx_add_url(
+    url: str = typer.Argument(...),
+    path: str | None = typer.Option(None, "--path"),
+) -> None:
+    payload = {"url": url}
+    if path:
+        payload["path"] = path
+    with httpx.Client(timeout=120.0) as c:
+        r = c.post(f"{_base_url()}/context/add_url", json=payload)
+        r.raise_for_status()
+        b = r.json()
+        console.print(f"[green]✓[/] {b['sha256'][:16]}…  mime={b['mime']}  bytes={b['byte_size']}")
+
+
+@ctx_app.command("ls")
+def ctx_ls(
+    prefix: str | None = typer.Option(None, "--prefix"),
+    limit: int = typer.Option(100, "--limit"),
+) -> None:
+    params: dict = {"limit": limit}
+    if prefix:
+        params["prefix"] = prefix
+    with httpx.Client(timeout=10.0) as c:
+        r = c.get(f"{_base_url()}/context/ls", params=params)
+        r.raise_for_status()
+        for item in r.json()["items"]:
+            path = item.get("path") or "-"
+            console.print(f"  {item['sha256'][:8]}…  [dim]{item['mime']}[/]  {path}")
+
+
+@ctx_app.command("read")
+def ctx_read(
+    path_or_sha: str = typer.Argument(...),
+) -> None:
+    is_sha = len(path_or_sha) == 64 and all(c in "0123456789abcdef" for c in path_or_sha)
+    params = {"sha256": path_or_sha} if is_sha else {"path": path_or_sha}
+    with httpx.Client(timeout=10.0) as c:
+        r = c.get(f"{_base_url()}/context/read", params=params)
+        if r.status_code == 404:
+            console.print("[red]not found[/]")
+            raise typer.Exit(1)
+        r.raise_for_status()
+        console.print(r.json()["content"])
+
+
+@ctx_app.command("write")
+def ctx_write(
+    path: str = typer.Argument(...),
+    content: str = typer.Argument(...),
+    mime: str = typer.Option("text/plain", "--mime"),
+) -> None:
+    with httpx.Client(timeout=30.0) as c:
+        r = c.post(f"{_base_url()}/context/write",
+                   json={"path": path, "content": content, "mime": mime})
+        r.raise_for_status()
+        b = r.json()
+        console.print(f"[green]✓[/] {b['sha256'][:16]}…  → {b['path']}")
+
+
+@ctx_app.command("mv")
+def ctx_mv(old: str, new: str) -> None:
+    with httpx.Client(timeout=10.0) as c:
+        r = c.post(f"{_base_url()}/context/mv", json={"old": old, "new": new})
+        if r.status_code == 404:
+            console.print("[red]not found[/]")
+            raise typer.Exit(1)
+        r.raise_for_status()
+        console.print(f"[green]✓[/] {old} → {new}")
