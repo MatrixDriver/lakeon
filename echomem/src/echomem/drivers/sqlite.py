@@ -7,7 +7,7 @@ from typing import Any
 
 import sqlite_vec
 
-from echomem.drivers.base import Memory, RecallHit, Summary, Entity, Triple, Event, Skill, Subgraph
+from echomem.drivers.base import Memory, RecallHit, Summary, Entity, Triple, Event, Skill, Subgraph, BlobRef
 from echomem.drivers.migrations import apply_all
 
 
@@ -424,6 +424,75 @@ class SQLiteDriver:
             )
             for r in rows[:k]
         ]
+
+
+    # ───────────────── BLOB / PATH ─────────────────
+    def upsert_blob_ref(self, b: BlobRef) -> str:
+        meta = json.dumps(b.meta) if b.meta is not None else None
+        self.con.execute(
+            "INSERT INTO blob_ref(sha256, mime, byte_size, origin_url, meta, created_at) "
+            "VALUES(?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(sha256) DO UPDATE SET mime=excluded.mime, byte_size=excluded.byte_size, "
+            "origin_url=excluded.origin_url, meta=excluded.meta",
+            (b.sha256, b.mime, b.byte_size, b.origin_url, meta, b.created_at),
+        )
+        self.con.commit()
+        return b.sha256
+
+    def get_blob_ref(self, sha256: str) -> BlobRef | None:
+        row = self.con.execute(
+            "SELECT sha256, mime, byte_size, origin_url, meta, created_at FROM blob_ref WHERE sha256 = ?",
+            (sha256,),
+        ).fetchone()
+        if row is None:
+            return None
+        return BlobRef(
+            sha256=row[0], mime=row[1], byte_size=row[2], origin_url=row[3],
+            meta=json.loads(row[4]) if row[4] else None, created_at=row[5],
+        )
+
+    def list_blob_refs(self, *, origin_prefix: str | None = None, limit: int = 100) -> list[BlobRef]:
+        sql = "SELECT sha256, mime, byte_size, origin_url, meta, created_at FROM blob_ref"
+        params: list[Any] = []
+        if origin_prefix is not None:
+            sql += " WHERE origin_url LIKE ?"
+            params.append(origin_prefix + "%")
+        sql += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+        return [
+            BlobRef(sha256=r[0], mime=r[1], byte_size=r[2], origin_url=r[3],
+                    meta=json.loads(r[4]) if r[4] else None, created_at=r[5])
+            for r in self.con.execute(sql, params).fetchall()
+        ]
+
+    def set_path_alias(self, path: str, sha256: str, created_at: int) -> None:
+        self.con.execute(
+            "INSERT OR REPLACE INTO path_alias(path, sha256, created_at) VALUES(?, ?, ?)",
+            (path, sha256, created_at),
+        )
+        self.con.commit()
+
+    def resolve_path(self, path: str) -> str | None:
+        row = self.con.execute("SELECT sha256 FROM path_alias WHERE path = ?", (path,)).fetchone()
+        return row[0] if row else None
+
+    def move_path_alias(self, *, old: str, new: str) -> bool:
+        cur = self.con.execute("UPDATE path_alias SET path = ? WHERE path = ?", (new, old))
+        self.con.commit()
+        return cur.rowcount > 0
+
+    def list_paths(self, prefix: str | None = None, limit: int = 100) -> list[dict]:
+        sql = "SELECT p.path, p.sha256, p.created_at, b.mime, b.byte_size, b.origin_url "
+        sql += "FROM path_alias p LEFT JOIN blob_ref b ON p.sha256 = b.sha256"
+        params: list[Any] = []
+        if prefix is not None:
+            sql += " WHERE p.path LIKE ?"
+            params.append(prefix + "%")
+        sql += " ORDER BY p.path ASC LIMIT ?"
+        params.append(limit)
+        rows = self.con.execute(sql, params).fetchall()
+        keys = ["path", "sha256", "created_at", "mime", "byte_size", "origin_url"]
+        return [dict(zip(keys, r)) for r in rows]
 
 
 def _row_to_memory(row: tuple[Any, ...]) -> Memory:
