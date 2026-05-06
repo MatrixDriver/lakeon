@@ -109,3 +109,32 @@ class SkillOut(BaseModel):
 
 class SkillsResponse(BaseModel):
     skills: list[SkillOut]
+
+
+class AddUrlRequest(BaseModel):
+    url: str
+    path: str | None = None  # optional path_alias to set
+
+
+class BlobOut(BaseModel):
+    sha256: str
+    mime: str
+    byte_size: int
+    origin_url: str | None
+    path: str | None = None
+    created_at: int
+
+
+class WriteRequest(BaseModel):
+    path: str
+    content: str
+    mime: str = "text/plain"
+
+
+class MoveRequest(BaseModel):
+    old: str
+    new: str
+
+
+class LsResponse(BaseModel):
+    items: list[dict]

@@ -10,6 +10,8 @@ from echomem.api.health import router as health_router
 from echomem.api.memory import router as memory_router
 from echomem.api.derivatives import router as derivatives_router
 from echomem.api.skills import router as skills_router
+from echomem.api.context import router as context_router
+from echomem.context.blob_store import BlobStore
 
 
 @asynccontextmanager
@@ -22,6 +24,8 @@ async def _lifespan(app: FastAPI):
     ollama = OllamaClient(cfg.ollama_url)
     app.state.driver = driver
     app.state.ollama = ollama
+    blob_store = BlobStore(cfg.data_dir)
+    app.state.blob_store = blob_store
 
     orchestrator = Orchestrator(
         driver,
@@ -29,6 +33,7 @@ async def _lifespan(app: FastAPI):
         summary_model=cfg.generate_model,
         extract_model=cfg.generate_model,
         embedding_model=cfg.embedding_model,
+        blob_store=blob_store,
     )
     await orchestrator.start()
     app.state.orchestrator = orchestrator
@@ -48,6 +53,7 @@ def create_app(config: EchomemConfig) -> FastAPI:
     app.include_router(memory_router)
     app.include_router(derivatives_router)
     app.include_router(skills_router)
+    app.include_router(context_router)
     return app
 
 
