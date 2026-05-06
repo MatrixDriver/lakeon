@@ -426,6 +426,28 @@ class SQLiteDriver:
         ]
 
 
+    # ───────────────── DIAGNOSTIC HELPERS ─────────────────
+    def count_memories(self) -> int:
+        row = self.con.execute(
+            "SELECT COUNT(*) FROM memory WHERE deleted_at IS NULL"
+        ).fetchone()
+        return int(row[0])
+
+    def count_cognitions(self) -> int:
+        """Sum of timeline events + summary nodes + skill rows."""
+        timeline = self.con.execute("SELECT COUNT(*) FROM derivative_event").fetchone()[0]
+        summary = self.con.execute("SELECT COUNT(*) FROM derivative_summary").fetchone()[0]
+        skill = self.con.execute("SELECT COUNT(*) FROM derivative_skill").fetchone()[0]
+        return int(timeline) + int(summary) + int(skill)
+
+    def count_entities(self) -> int:
+        row = self.con.execute("SELECT COUNT(*) FROM derivative_entity").fetchone()
+        return int(row[0])
+
+    def count_skills(self) -> int:
+        row = self.con.execute("SELECT COUNT(*) FROM derivative_skill").fetchone()
+        return int(row[0])
+
     # ───────────────── BLOB / PATH ─────────────────
     def upsert_blob_ref(self, b: BlobRef) -> str:
         meta = json.dumps(b.meta) if b.meta is not None else None
