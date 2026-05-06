@@ -15,15 +15,25 @@ client.interceptors.request.use((config) => {
 
 // Use localStorage directly instead of Pinia store to avoid circular dependency
 // (auth store imports client, client cannot import auth store)
+const PUBLIC_PATH_PREFIXES = ['/login', '/ext-login', '/ext-callback', '/oauth', '/integrations', '/blog', '/docs', '/product']
+
 client.interceptors.response.use(
   (response) => response,
   (error) => {
-    const publicPaths = ['/login', '/landing', '/ext-login', '/ext-callback', '/oauth', '/integrations', '/blog', '/docs', '/product']
-    if (error.response?.status === 401 && !publicPaths.some(p => window.location.pathname.startsWith(p))) {
+    if (error.response?.status === 401) {
+      const path = window.location.pathname
+      const isPublic = path === '/' || PUBLIC_PATH_PREFIXES.some(p => path.startsWith(p))
+      // Clear stale auth regardless of where we are
       localStorage.removeItem('lakeon_api_key')
       localStorage.removeItem('lakeon_tenant_id')
       localStorage.removeItem('lakeon_tenant_name')
-      window.location.href = '/login'
+      // Bounce non-public pages back to landing — users with expired tokens
+      // should land on the marketing page (with localStorage cleared so the
+      // router guard no longer auto-redirects to /dashboard), not be forced
+      // into the login form.
+      if (!isPublic) {
+        window.location.href = '/'
+      }
     }
     // API offline (503 from nginx proxy or network error)
     if (error.response?.status === 503 || !error.response) {
