@@ -3,6 +3,14 @@
 > Local-first agent memory hub for Claude Code / openclaw / hermes.
 > Phase 1 backbone — see `docs/superpowers/specs/2026-04-30-echomem-design.md` for the full design.
 
+**Public docs site** (architecture / roadmap / phase plans, shareable with colleagues):
+source in `docs/`, deployed as an independent Railway service (Caddy + docsify).
+Local preview:
+```bash
+cd docs && docker build -t echomem-docs:dev . && docker run --rm -p 8080:8080 echomem-docs:dev
+# open http://localhost:8080/  (use --noproxy '*' with curl if a system HTTP proxy is set)
+```
+
 ## Status
 
 Phase 1 / Backbone — Memory API only. No derivatives, no Dashboard, no Context API yet.

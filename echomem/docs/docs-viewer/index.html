@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<meta charset="UTF-8">
+	<title>echomem · 文档中心</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="description" content="echomem · 本地优先的 Agent 记忆中枢 — 文档中心">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify@4/themes/vue.css">
+	<style>
+		:root {
+			--theme-color: #c08552;
+		}
+		body {
+			background: #fbf6ee;
+		}
+		.markdown-section {
+			max-width: 920px;
+		}
+		.markdown-section h1, .markdown-section h2, .markdown-section h3 {
+			font-family: 'Fraunces', 'Source Han Serif SC', 'Songti SC', Georgia, serif;
+			font-weight: 500;
+			letter-spacing: -0.012em;
+		}
+		.markdown-section h1 { font-weight: 400; }
+		.sidebar {
+			border-right: 1px solid rgba(58, 48, 42, 0.10);
+			background: #f5ede0;
+		}
+		.sidebar-nav > ul > li > p,
+		.sidebar-nav > ul > li > strong {
+			color: #1a1a1a;
+			font-weight: 600;
+			margin-top: 16px;
+		}
+		.app-name-link {
+			color: #c08552 !important;
+			font-weight: 600 !important;
+			font-family: 'Fraunces', serif;
+		}
+		.markdown-section pre > code {
+			font-family: 'JetBrains Mono', 'SF Mono', 'PingFang SC', monospace;
+		}
+		.markdown-section code {
+			background: rgba(192, 133, 82, 0.10);
+			color: #8c5c2f;
+			border-radius: 3px;
+			padding: 2px 6px;
+		}
+		.markdown-section blockquote {
+			border-left: 3px solid #c08552;
+			background: rgba(192, 133, 82, 0.06);
+			color: #5a4632;
+			padding: 12px 18px;
+		}
+		/* echomem 全站 header */
+		.gh {
+			position: sticky; top: 0; z-index: 1000;
+			background: #1c1815; border-bottom: 1px solid #3a302a;
+			font-family: 'Inter', 'PingFang SC', sans-serif;
+		}
+		.gh-inner {
+			max-width: 1400px; margin: 0 auto;
+			height: 60px; padding: 0 28px;
+			display: flex; align-items: center; gap: 28px;
+		}
+		.gh-brand { text-decoration: none; display: flex; align-items: baseline; gap: 12px; }
+		.gh-mark {
+			width: 22px; height: 22px;
+			background: linear-gradient(135deg, #c08552 0%, #b06246 100%);
+			border-radius: 4px;
+			transform: translateY(2px);
+		}
+		.gh-name { font-family: 'Fraunces', serif; font-size: 19px; font-weight: 500; color: #f4ede4; }
+		.gh-tag { font-size: 10.5px; color: #8a7a6b; letter-spacing: 0.14em; font-weight: 500; text-transform: uppercase; }
+		.gh-nav { display: flex; gap: 4px; flex: 1; margin-left: 24px; }
+		.gh-tab {
+			padding: 8px 16px; color: #c8b9a8; text-decoration: none;
+			font-size: 13.5px; font-weight: 450; border-radius: 5px;
+			transition: all 140ms;
+		}
+		.gh-tab:hover { color: #f4ede4; background: rgba(244,237,228,0.04); }
+		.gh-tab.active { color: #c08552; background: rgba(192,133,82,0.12); }
+		.gh-meta { font-size: 12px; color: #8a7a6b; font-family: 'JetBrains Mono', monospace; }
+		body, .sidebar, .content { padding-top: 0; }
+		main.content { margin-top: 0 !important; }
+	</style>
+	<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+	<header class="gh">
+		<div class="gh-inner">
+			<a href="/" class="gh-brand">
+				<span class="gh-mark"></span>
+				<span class="gh-name">echomem</span>
+				<span class="gh-tag">Local-first agent memory</span>
+			</a>
+			<nav class="gh-nav">
+				<a href="/architecture/" class="gh-tab">架构</a>
+				<a href="/roadmap/" class="gh-tab">路线图</a>
+				<a href="/docs-viewer/" class="gh-tab active">文档中心</a>
+			</nav>
+			<span class="gh-meta">v0 · Phase 2 已交付</span>
+		</div>
+	</header>
+	<div id="app">加载中...</div>
+	<script>
+		window.$docsify = {
+			name: 'echomem',
+			repo: '',
+			basePath: '/',
+			homepage: 'docs-viewer/README.md',
+			loadSidebar: 'docs-viewer/_sidebar.md',
+			loadNavbar: 'docs-viewer/_navbar.md',
+			subMaxLevel: 3,
+			auto2top: true,
+			search: {
+				placeholder: '搜索文档...',
+				noData: '没找到结果',
+				depth: 6,
+			},
+			pagination: {
+				previousText: '上一篇',
+				nextText: '下一篇',
+				crossChapter: true,
+				crossChapterText: true,
+			},
+			themeColor: '#c08552',
+			notFoundPage: true,
+			alias: {
+				'/.*/_sidebar.md': '/docs-viewer/_sidebar.md',
+				'/.*/_navbar.md': '/docs-viewer/_navbar.md',
+			},
+		}
+	</script>
+	<script src="https://cdn.jsdelivr.net/npm/docsify@4"></script>
+	<script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/docsify-pagination@2/dist/docsify-pagination.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/docsify-copy-code@2"></script>
+	<script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-python.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-json.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-toml.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-markdown.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-docker.min.js"></script>
+</body>
+</html>
