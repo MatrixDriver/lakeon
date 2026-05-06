@@ -8,6 +8,9 @@ FROM caddy:2.10-alpine
 
 WORKDIR /srv
 
+# 痛点页（首页）
+COPY pain-points/ /srv/pain-points/
+
 # 站点首页 + 概览
 COPY overview/ /srv/overview/
 
@@ -16,6 +19,9 @@ COPY architecture/ /srv/architecture/
 
 # Roadmap (手写 HTML + 甘特/现状卡片)
 COPY roadmap/ /srv/roadmap/
+
+# 怎么用（快速上手 + API 文档）
+COPY how-to-use/ /srv/how-to-use/
 
 # 改写后的对外版 phase plan
 COPY plans/ /srv/plans/

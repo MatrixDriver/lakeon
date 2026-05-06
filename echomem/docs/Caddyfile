@@ -6,8 +6,8 @@
 	encode gzip zstd
 	file_server
 
-	# 入口 redirect: / → architecture (最直观的入口页)
-	redir / /architecture/ 302
+	# 入口 redirect: / → 痛点（首页）
+	redir / /pain-points/ 302
 
 	# Markdown 文件 Content-Type
 	@md path *.md
