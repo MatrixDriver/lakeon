@@ -8,6 +8,13 @@ metadata:
     app: lakeon-embedding
 spec:
   replicas: 1
+  # Recreate (not RollingUpdate): single-replica + scarce GPU. Default
+  # RollingUpdate's maxSurge requires a 2nd GPU during the rollout, which
+  # this cluster doesn't have, leaving rollouts stuck (we burned 12 days
+  # on this once already). Recreate trades 30-60s of downtime for actually
+  # being able to upgrade.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: lakeon-embedding
