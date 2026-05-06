@@ -61,7 +61,7 @@ api:
     limits:
       cpu: "2"
       memory: "4Gi"
-  logDbDsn: "postgres://user_7c471136:FRUPz8sew9fb8DP8IKXmX2M0@pg.dbay.cloud:4432/dbay-logs?options=endpoint%3Ddbay-logs&sslmode=require"
+  logDbDsn: ""  # 不要把密码提交进 git。deploy.sh 从 sites/<SITE>/.env 加载 LOG_DB_DSN 并通过 --set 注入
   inviteRequired: false  # 开放注册：不需要邀请码（滥用防护由 RateLimitFilter 兜底：3/hour per IP）
   aiApiKey: ""          # injected from secret api-credentials/ai-api-key
   ai:

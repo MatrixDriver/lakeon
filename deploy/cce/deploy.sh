@@ -16,7 +16,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/site.sh"
 
 # 校验必填变量
-for var in HWCLOUD_AK HWCLOUD_SK RDS_PRIVATE_IP RDS_PASSWORD; do
+# LOG_DB_DSN 不在 git，必须从 sites/<SITE>/.env 加载（避免把数据库密码提交到仓库）。
+# 历史上 logDbDsn 的明文密码污染过 values.yaml 的 git 历史，所以这里强制要求。
+for var in HWCLOUD_AK HWCLOUD_SK RDS_PRIVATE_IP RDS_PASSWORD LOG_DB_DSN; do
   if [ -z "${!var}" ]; then
     echo "❌ 环境变量 $var 未设置，请检查 $SITE_DIR/.env"
     exit 1
@@ -39,6 +41,7 @@ helm upgrade --install lakeon "$SCRIPT_DIR/../helm/lakeon" \
   -f "$SITE_VALUES" \
   --set obs.accessKey=$HWCLOUD_AK --set obs.secretKey=$HWCLOUD_SK \
   --set metadataDb.host=$RDS_PRIVATE_IP --set metadataDb.password=$RDS_PASSWORD \
+  --set api.logDbDsn="$LOG_DB_DSN" \
   ${AI_API_KEY:+--set api.aiApiKey=$AI_API_KEY} \
   --take-ownership \
   --server-side=false \

@@ -29,7 +29,7 @@ spec:
               name: http
           env:
             - name: LOG_DB_DSN
-              value: {{ .Values.api.logDbDsn | quote }}
+              value: {{ required "api.logDbDsn must be set — deploy.sh injects this via --set from sites/<SITE>/.env" .Values.api.logDbDsn | quote }}
           resources:
             requests:
               cpu: "50m"
