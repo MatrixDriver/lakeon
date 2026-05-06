@@ -161,7 +161,11 @@ async def _call_tool(msg_id: Any, params: dict, base_url: str) -> dict:
     name = params.get("name")
     args = params.get("arguments") or {}
     try:
-        async with httpx.AsyncClient(base_url=base_url, timeout=60.0) as client:
+        # trust_env=False: daemon is always at localhost. Reading HTTP_PROXY /
+        # ALL_PROXY env vars (set by Claude Code's parent shell) routes us
+        # through the system proxy (e.g. Clash on :7890) which can't reach
+        # 127.0.0.1:8473. Bypass env entirely; talk directly to the daemon.
+        async with httpx.AsyncClient(base_url=base_url, timeout=60.0, trust_env=False) as client:
             if name == "memory_ingest":
                 r = await client.post("/memory/ingest", json=args)
                 r.raise_for_status()
