@@ -23,12 +23,15 @@ class Orchestrator:
         extract_model: str,
         embedding_model: str,
         confidence_threshold: float = 0.7,
+        blob_store=None,
     ):
         self.driver = driver
         self.ollama = ollama
-        self.summarizer = SummarizerWorker(driver, ollama, model=summary_model)
+        self.summarizer = SummarizerWorker(driver, ollama, model=summary_model,
+                                           blob_store=blob_store)
         self.extractor = EntityExtractorWorker(driver, ollama, model=extract_model,
-                                               confidence_threshold=confidence_threshold)
+                                               confidence_threshold=confidence_threshold,
+                                               blob_store=blob_store)
         self.timeline = TimelineWorker(driver)
         self.embedding_model = embedding_model
 
@@ -39,12 +42,26 @@ class Orchestrator:
         self.pool = WorkerPool(
             driver,
             handlers={
-                TaskKind.SUMMARIZE: self.summarizer.handle,
-                TaskKind.EXTRACT_ENTITY: self.extractor.handle,
+                TaskKind.SUMMARIZE: self._summarize_memory,
+                TaskKind.EXTRACT_ENTITY: self._extract_memory,
                 TaskKind.AGGREGATE_TIMELINE: self._timeline_async,
+                TaskKind.SUMMARIZE_BLOB: self._summarize_blob,
+                TaskKind.EXTRACT_BLOB: self._extract_blob,
             },
             concurrency=1,
         )
+
+    async def _summarize_memory(self, ref: str) -> None:
+        await self.summarizer.handle("memory", ref)
+
+    async def _extract_memory(self, ref: str) -> None:
+        await self.extractor.handle("memory", ref)
+
+    async def _summarize_blob(self, ref: str) -> None:
+        await self.summarizer.handle("blob", ref)
+
+    async def _extract_blob(self, ref: str) -> None:
+        await self.extractor.handle("blob", ref)
 
     async def _timeline_async(self, memory_id: str) -> None:
         # TimelineWorker.handle is sync; wrap so the queue can await it
@@ -63,3 +80,7 @@ class Orchestrator:
         await self.pool.enqueue(TaskKind.SUMMARIZE, memory_id=memory_id)
         await self.pool.enqueue(TaskKind.EXTRACT_ENTITY, memory_id=memory_id)
         await self.pool.enqueue(TaskKind.AGGREGATE_TIMELINE, memory_id=memory_id)
+
+    async def on_blob_ingested(self, sha256: str) -> None:
+        await self.pool.enqueue(TaskKind.SUMMARIZE_BLOB, memory_id=sha256)
+        await self.pool.enqueue(TaskKind.EXTRACT_BLOB, memory_id=sha256)

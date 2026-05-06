@@ -18,6 +18,8 @@ class TaskKind(str, Enum):
     EXTRACT_ENTITY = "extract_entity"
     AGGREGATE_TIMELINE = "aggregate_timeline"
     REFLECT = "reflect"
+    SUMMARIZE_BLOB = "summarize_blob"
+    EXTRACT_BLOB = "extract_blob"
 
 
 Handler = Callable[[str], Awaitable[None]]

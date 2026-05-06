@@ -37,7 +37,7 @@ async def test_extracts_high_confidence_triple_into_main_table(tmp_path, httpx_m
     )
     async with OllamaClient("http://ol:11434") as ol:
         worker = EntityExtractorWorker(driver, ol, model="gemma4:e4b", confidence_threshold=0.7)
-        await worker.handle(m.id)
+        await worker.handle("memory", m.id)
 
     sub = driver.query_subgraph(seed_id=worker._entity_id("Jacky"), hops=1)
     assert any(e.name == "Jacky" for e in sub.nodes)
@@ -60,7 +60,7 @@ async def test_low_confidence_routes_to_pending(tmp_path, httpx_mock, driver):
     )
     async with OllamaClient("http://ol:11434") as ol:
         worker = EntityExtractorWorker(driver, ol, model="gemma4:e4b")
-        await worker.handle(m.id)
+        await worker.handle("memory", m.id)
 
     pending = driver.list_pending_triples()
     assert len(pending) == 1
@@ -81,5 +81,5 @@ async def test_malformed_llm_response_does_not_crash(tmp_path, httpx_mock, drive
     async with OllamaClient("http://ol:11434") as ol:
         worker = EntityExtractorWorker(driver, ol, model="gemma4:e4b")
         # should not raise
-        await worker.handle(m.id)
+        await worker.handle("memory", m.id)
     assert driver.list_pending_triples() == []

@@ -1,9 +1,10 @@
 import time
 import pytest
 from echomem.drivers.sqlite import SQLiteDriver
-from echomem.drivers.base import Memory
+from echomem.drivers.base import Memory, BlobRef
 from echomem.ollama_client import OllamaClient
 from echomem.workers.summarizer import SummarizerWorker
+from echomem.context.blob_store import BlobStore
 
 
 @pytest.fixture
@@ -44,7 +45,7 @@ async def test_summarizer_writes_three_levels(tmp_path, httpx_mock, driver):
     )
     async with OllamaClient("http://ol:11434") as ol:
         worker = SummarizerWorker(driver, ol, model="gemma4:e4b")
-        await worker.handle(m.id)
+        await worker.handle("memory", m.id)
 
     tree = driver.query_tree(source_kind="memory", source_ref=m.id)
     levels = sorted(s.level for s in tree)
@@ -59,7 +60,7 @@ async def test_summarizer_skips_l1_for_short_text(tmp_path, httpx_mock, driver):
                             json={"response": "Short summary."})
     async with OllamaClient("http://ol:11434") as ol:
         worker = SummarizerWorker(driver, ol, model="gemma4:e4b")
-        await worker.handle(m.id)
+        await worker.handle("memory", m.id)
 
     tree = driver.query_tree(source_kind="memory", source_ref=m.id)
     levels = sorted(s.level for s in tree)
@@ -74,7 +75,7 @@ async def test_summarizer_falls_back_when_llm_fails(tmp_path, httpx_mock, driver
                             status_code=500, json={"error": "boom"}, is_reusable=True)
     async with OllamaClient("http://ol:11434") as ol:
         worker = SummarizerWorker(driver, ol, model="gemma4:e4b")
-        await worker.handle(m.id)
+        await worker.handle("memory", m.id)
 
     tree = driver.query_tree(source_kind="memory", source_ref=m.id)
     # L2 always present (original chunk, no LLM)
@@ -83,3 +84,22 @@ async def test_summarizer_falls_back_when_llm_fails(tmp_path, httpx_mock, driver
     l0 = [s for s in tree if s.level == 0]
     assert len(l0) == 1
     assert "fallback" in (l0[0].rationale or "").lower()
+
+
+@pytest.mark.asyncio
+async def test_summarizer_handles_blob_source(tmp_path, httpx_mock, driver):
+    store = BlobStore(tmp_path)
+    sha = store.write(b"a long text" * 500)  # > L1 budget (~5500 chars)
+    driver.upsert_blob_ref(BlobRef(sha256=sha, mime="text/plain", byte_size=11 * 500,
+                                   origin_url=None, meta=None, created_at=int(time.time() * 1000)))
+
+    httpx_mock.add_response(method="POST", url="http://ol:11434/api/generate",
+                            json={"response": "blob L0"}, is_reusable=True)
+
+    async with OllamaClient("http://ol:11434") as ol:
+        worker = SummarizerWorker(driver, ol, model="gemma4:e4b", blob_store=store)
+        await worker.handle("blob", sha)
+
+    tree = driver.query_tree(source_kind="blob", source_ref=sha)
+    levels = sorted(s.level for s in tree)
+    assert levels == [0, 1, 2]

@@ -33,36 +33,55 @@ class EntityExtractorWorker:
         *,
         model: str,
         confidence_threshold: float = 0.7,
+        blob_store=None,
     ):
         self.driver = driver
         self.ollama = ollama
         self.model = model
         self.threshold = confidence_threshold
+        self.blob_store = blob_store
 
     @staticmethod
     def _entity_id(name: str) -> str:
         slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
         return f"ent:{slug}" if slug else f"ent:{new_id()}"
 
-    async def handle(self, memory_id: str) -> None:
-        m = self.driver.get_memory(memory_id)
-        if m is None:
+    def _load_text(self, source_kind: str, source_ref: str) -> str | None:
+        if source_kind == "memory":
+            m = self.driver.get_memory(source_ref)
+            return m.text if m else None
+        if source_kind == "blob":
+            if self.blob_store is None:
+                log.warning("extractor.no_blob_store")
+                return None
+            try:
+                return self.blob_store.read(source_ref).decode("utf-8", errors="replace")
+            except FileNotFoundError:
+                return None
+        log.warning("extractor.unknown_kind", source_kind=source_kind)
+        return None
+
+    async def handle(self, source_kind: str, source_ref: str) -> None:
+        # NOTE: derivative_triple.source_memory_id is a plain TEXT column (no FK),
+        # so blob sha256 values are valid there when source_kind="blob".
+        text = self._load_text(source_kind, source_ref)
+        if text is None:
             return
 
         now = int(time.time() * 1000)
         try:
             raw = await self.ollama.generate(
-                EXTRACT_PROMPT.format(text=m.text), model=self.model
+                EXTRACT_PROMPT.format(text=text), model=self.model
             )
         except Exception as e:
             kind = type(e).__name__
-            log.warning("extractor.llm_failed", memory_id=memory_id,
+            log.warning("extractor.llm_failed", source_kind=source_kind, source_ref=source_ref,
                         err_type=kind, err=str(e) or "<empty>")
             return
 
         triples = self._parse_triples(raw)
         if not triples:
-            log.info("extractor.no_triples", memory_id=memory_id)
+            log.info("extractor.no_triples", source_kind=source_kind, source_ref=source_ref)
             return
 
         for t in triples:
@@ -76,7 +95,7 @@ class EntityExtractorWorker:
             if conf < self.threshold:
                 self.driver.upsert_pending_triple(
                     id=new_id(), subject_text=sub, predicate=pred, object_text=obj,
-                    source_memory_id=memory_id, confidence=conf, created_at=now,
+                    source_memory_id=source_ref, confidence=conf, created_at=now,
                 )
                 continue
 
@@ -87,10 +106,11 @@ class EntityExtractorWorker:
             self.driver.upsert_entity(Entity(id=oid, name=obj, kind=None, meta=None,
                                              first_seen_at=now, last_seen_at=now))
             self.driver.upsert_triple(Triple(id=new_id(), subject_id=sid, predicate=pred,
-                                             object_id=oid, source_memory_id=memory_id,
+                                             object_id=oid, source_memory_id=source_ref,
                                              confidence=conf, created_at=now))
 
-        log.info("extractor.done", memory_id=memory_id, triples=len(triples))
+        log.info("extractor.done", source_kind=source_kind, source_ref=source_ref,
+                 triples=len(triples))
 
     def _parse_triples(self, raw: str) -> list[dict]:
         # Try to find JSON object in response (gemma sometimes wraps with ``` or extra text)
