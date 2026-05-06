@@ -321,6 +321,34 @@
 </section>
 
 <section class="section">
+  <span class="section-tag">目标</span>
+  <h2 class="section-title">三个量化目标</h2>
+  <p class="section-sub">以下目标依赖 <strong>本地 memory + 本地小模型推理</strong>——不假设云端 GPU、不依赖外部 API。</p>
+
+  <div class="grid-3" style="margin-top: 32px;">
+    <div class="card">
+      <span class="num">01</span>
+      <h3>跨 Agent 记忆共享</h3>
+      <p>OpenClaw · Hermes Agent · OfficeClaw · ClaudeCode 等多个 Agent 通过统一 API 读写同一份记忆池，切换工具不丢上下文。</p>
+    </div>
+    <div class="card">
+      <span class="num">02</span>
+      <h3>长程记忆评测领先</h3>
+      <p>LoCoMo 任务得分达到 90%，LongMemEval 和 EvolvingEvents 基准处于业界前列。用本地模型追上云端方案的表现。</p>
+    </div>
+    <div class="card">
+      <span class="num">03</span>
+      <h3>TTFT 降低 2 倍</h3>
+      <p>OpenClaw 多轮交互的首 Token 延迟（TTFT）降低 2 倍。记忆缓存命中时跳过远端 embedding 调用，本地直接返回上下文。</p>
+    </div>
+  </div>
+
+  <div class="pull">
+    <p>"不是又一个 memory benchmark 刷分工具。而是在真实多 Agent 工作流里，用本地小模型做到云端级别的记忆体验。"</p>
+  </div>
+</section>
+
+<section class="section">
   <span class="section-tag">设计原则</span>
   <h2 class="section-title">六条不动摇的取舍</h2>
 

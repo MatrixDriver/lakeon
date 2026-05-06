@@ -1,4 +1,5 @@
 FROM caddy:2.10-alpine
+# v3 — goals section added
 
 # echomem docs site - Build context = echomem/docs/
 # Railway service 配置: Root Directory = echomem/docs/
