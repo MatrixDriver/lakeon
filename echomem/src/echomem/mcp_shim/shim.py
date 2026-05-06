@@ -63,6 +63,65 @@ TOOLS: list[dict[str, Any]] = [
             "required": ["id"],
         },
     },
+    {
+        "name": "context_add_url",
+        "description": "Fetch a URL (HTML/PDF/text), persist as blob, trigger pipeline.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string"},
+                "path": {"type": "string"},
+            },
+            "required": ["url"],
+        },
+    },
+    {
+        "name": "context_ls",
+        "description": "List paths or blobs.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "prefix": {"type": "string"},
+                "limit": {"type": "integer", "default": 100},
+            },
+        },
+    },
+    {
+        "name": "context_read",
+        "description": "Read blob content by path or sha256.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string"},
+                "sha256": {"type": "string"},
+            },
+        },
+    },
+    {
+        "name": "context_write",
+        "description": "Write content to a path; persists as blob and triggers pipeline.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string"},
+                "content": {"type": "string"},
+                "mime": {"type": "string", "default": "text/plain"},
+            },
+            "required": ["path", "content"],
+        },
+    },
+    {
+        "name": "context_mv",
+        "description": "Rename a path alias (blob unchanged).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "old": {"type": "string"},
+                "new": {"type": "string"},
+            },
+            "required": ["old", "new"],
+        },
+    },
 ]
 
 
@@ -121,6 +180,26 @@ async def _call_tool(msg_id: Any, params: dict, base_url: str) -> dict:
                 content = json.dumps(r.json(), ensure_ascii=False)
             elif name == "memory_delete":
                 r = await client.delete(f"/memory/{args['id']}")
+                r.raise_for_status()
+                content = json.dumps(r.json(), ensure_ascii=False)
+            elif name == "context_add_url":
+                r = await client.post("/context/add_url", json=args)
+                r.raise_for_status()
+                content = json.dumps(r.json(), ensure_ascii=False)
+            elif name == "context_ls":
+                r = await client.get("/context/ls", params=args)
+                r.raise_for_status()
+                content = json.dumps(r.json(), ensure_ascii=False)
+            elif name == "context_read":
+                r = await client.get("/context/read", params=args)
+                r.raise_for_status()
+                content = json.dumps(r.json(), ensure_ascii=False)
+            elif name == "context_write":
+                r = await client.post("/context/write", json=args)
+                r.raise_for_status()
+                content = json.dumps(r.json(), ensure_ascii=False)
+            elif name == "context_mv":
+                r = await client.post("/context/mv", json=args)
                 r.raise_for_status()
                 content = json.dumps(r.json(), ensure_ascii=False)
             else:
