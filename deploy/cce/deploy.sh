@@ -23,6 +23,16 @@ for var in HWCLOUD_AK HWCLOUD_SK RDS_PRIVATE_IP RDS_PASSWORD; do
   fi
 done
 
+# ── 同步开发机 IP 到 CCE master SG 5443 白名单 ──
+# 出门换网络后开发机公网 IP 经常变，导致 helm 连不上 CCE。
+# 这一步幂等：IP 没变就 no-op，几百毫秒。失败则中止部署，避免之后陷入 helm timeout。
+echo "── 同步 CCE master 白名单 ──"
+NO_PROXY="*" no_proxy="*" python3 "$SCRIPT_DIR/update-cce-acl.py" || {
+  echo "❌ ACL 同步失败 — 中止部署"
+  exit 1
+}
+echo ""
+
 # ── Helm 部署 ──
 echo "── Helm 部署 ──"
 helm upgrade --install lakeon "$SCRIPT_DIR/../helm/lakeon" \
