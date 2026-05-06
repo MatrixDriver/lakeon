@@ -169,6 +169,6 @@ ECHOMEM_E2E_REQUIRE_OLLAMA=1 npm run test:e2e:full   # full demo path
 
 ## What's next
 
-- Plan 4: Vue 3 Dashboard SPA
+- Plan 4 (done): Vue 3 Dashboard SPA — see `docs/superpowers/specs/2026-05-06-echomem-dashboard-spa-design.md`
 - Plan 5: Onboarding install.sh + openclaw / hermes wiring
 - Insight Track (research): output-length prediction
