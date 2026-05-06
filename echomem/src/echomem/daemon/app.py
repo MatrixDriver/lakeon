@@ -54,6 +54,21 @@ def create_app(config: EchomemConfig) -> FastAPI:
     app.include_router(derivatives_router)
     app.include_router(skills_router)
     app.include_router(context_router)
+
+    from importlib.resources import files
+    from fastapi.staticfiles import StaticFiles
+
+    dist_path = files("echomem").joinpath("_dashboard_dist")
+    try:
+        if dist_path.is_dir():
+            app.mount(
+                "/dashboard",
+                StaticFiles(directory=str(dist_path), html=True),
+                name="dashboard",
+            )
+    except (FileNotFoundError, NotADirectoryError):
+        pass
+
     return app
 
 
