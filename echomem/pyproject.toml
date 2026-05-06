@@ -16,6 +16,8 @@ dependencies = [
     "python-ulid>=3.0.0",
     "structlog>=24.4.0",
     "tomli-w>=1.0.0",
+    "trafilatura>=2.0",
+    "pypdf>=5.0",
 ]
 
 [project.optional-dependencies]
