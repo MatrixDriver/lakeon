@@ -273,8 +273,11 @@ class SQLiteDriver:
         return [dict(zip(keys, r)) for r in rows]
 
     def query_subgraph(self, seed_id: str, hops: int = 2) -> Subgraph:
-        # BFS over derivative_triple
+        # BFS over derivative_triple. De-duplicate edges by (subject, predicate, object)
+        # because a triple matches both legs of `subject IN frontier OR object IN frontier`
+        # in successive hops once its endpoints enter the frontier.
         visited: set[str] = set()
+        seen_edges: set[tuple[str, str, str]] = set()
         frontier: set[str] = {seed_id}
         edges: list[tuple[str, str, dict]] = []
         for _ in range(hops):
@@ -291,7 +294,10 @@ class SQLiteDriver:
             visited |= frontier
             new_frontier: set[str] = set()
             for s, p, o, conf in rows:
-                edges.append((s, o, {"predicate": p, "confidence": conf}))
+                key = (s, p, o)
+                if key not in seen_edges:
+                    seen_edges.add(key)
+                    edges.append((s, o, {"predicate": p, "confidence": conf}))
                 for nid in (s, o):
                     if nid not in visited:
                         new_frontier.add(nid)
