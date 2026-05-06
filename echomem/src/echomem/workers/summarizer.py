@@ -106,7 +106,13 @@ class SummarizerWorker:
     async def _gen_or_truncate(self, text: str, prompt_tpl: str, max_chars: int, tier: str):
         try:
             prompt = prompt_tpl.format(max_chars=max_chars, text=text)
-            out = await self.ollama.generate(prompt, model=self.model)
+            # num_predict caps gemma output so it can't blow past httpx timeout on
+            # mixed-language prompts where the model fails to emit EOS naturally.
+            # Token budget ≈ max_chars / 4 + headroom.
+            num_predict = max(max_chars // 3, 128)
+            out = await self.ollama.generate(
+                prompt, model=self.model, options={"num_predict": num_predict}
+            )
             return out.strip(), f"{tier} from gemma"
         except Exception as e:
             kind = type(e).__name__

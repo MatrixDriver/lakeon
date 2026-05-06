@@ -70,8 +70,12 @@ class EntityExtractorWorker:
 
         now = int(time.time() * 1000)
         try:
+            # Cap output: typical extraction yields ≤10 triples × ~30 tokens each,
+            # plus JSON overhead. 1024 tokens is generous and prevents runaway
+            # generation on mixed-language inputs.
             raw = await self.ollama.generate(
-                EXTRACT_PROMPT.format(text=text), model=self.model
+                EXTRACT_PROMPT.format(text=text), model=self.model,
+                options={"num_predict": 1024},
             )
         except Exception as e:
             kind = type(e).__name__
