@@ -87,9 +87,45 @@ curl "http://127.0.0.1:8473/derivatives/skills?ctx=writing+a+test"
 sqlite3 ~/.echomem/db.sqlite "SELECT kind, error, created_at FROM dead_letter ORDER BY created_at DESC LIMIT 10"
 ```
 
+## Context API (Plan 3)
+
+Long documents (URLs / PDFs / written content) live in a content-addressable
+blob store at `~/.echomem/blobs/<sha256[:2]>/<sha256>` with a mutable path
+alias table for `mv`.
+
+### CLI
+
+```bash
+echomem ctx add-url https://example.com/post                 # fetch + ingest
+echomem ctx add-url https://example.com/post --path web/post.html
+echomem ctx write notes/today.md "things I learned today"
+echomem ctx ls --prefix notes/
+echomem ctx read notes/today.md
+echomem ctx mv notes/today.md archive/2026-05-06.md
+```
+
+### HTTP
+
+```bash
+curl -X POST -d '{"url":"https://x.com/y"}' http://127.0.0.1:8473/context/add_url
+curl    "http://127.0.0.1:8473/context/ls?prefix=notes/"
+curl    "http://127.0.0.1:8473/context/read?path=notes/today.md"
+curl -X POST -d '{"path":"a","content":"hi"}'  http://127.0.0.1:8473/context/write
+curl -X POST -d '{"old":"a","new":"b"}'        http://127.0.0.1:8473/context/mv
+```
+
+### What gets indexed
+
+- Blob written → `blob_ref(sha256, mime, byte_size, origin_url, created_at)`
+- Optional path alias → `path_alias(path, sha256, created_at)` (mv mutates path, not sha)
+- If extracted text is non-empty → triggers pipeline:
+  - SummarizerWorker writes L0/L1/L2 with `source_kind='blob'`, `source_ref=sha256`
+  - EntityExtractorWorker extracts triples, source_memory_id=sha256
+- Query the result via `/derivatives/tree?source_kind=blob&source_ref=<sha>` and
+  `/derivatives/graph?seed=ent:<entity>`
+
 ## What's next
 
-- Plan 3: Context API + FS blobs (add_url / ls / read / write / mv)
 - Plan 4: Vue 3 Dashboard SPA
 - Plan 5: Onboarding install.sh + openclaw / hermes wiring
 - Insight Track (research): output-length prediction
