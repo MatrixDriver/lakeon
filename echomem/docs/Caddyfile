@@ -3,7 +3,7 @@
 
 :{$PORT:8080} {
 	basicauth {
-		echomem $2a$14$MUrpwzm3x2vml/iVRfQ7PuXYZdi33MkXWsBfWrMTuqAx1f2oERRyi
+		echomem $2a$14$r1oIAqQsMqPd/rSwEAP0H.zsoNakou5YSoOOVBDLRXCxBUI/msJ7.
 	}
 
 	root * /srv
