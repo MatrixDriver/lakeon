@@ -448,6 +448,62 @@ class SQLiteDriver:
         row = self.con.execute("SELECT COUNT(*) FROM derivative_skill").fetchone()
         return int(row[0])
 
+    KNOWN_TASK_KINDS = (
+        "summarize", "extract_entity", "aggregate_timeline",
+        "reflect", "summarize_blob", "extract_blob",
+    )
+
+    def worker_stats(self) -> dict[str, dict]:
+        """Per-task-kind {queue_depth, last_run_at, processed_total, throttle}.
+
+        queue_depth = pending OR running.
+        processed_total = done.
+        last_run_at = max(updated_at) where status in ('running','done').
+        throttle = None until P5+.
+        """
+        out: dict[str, dict] = {
+            kind: {"queue_depth": 0, "last_run_at": None,
+                   "processed_total": 0, "throttle": None}
+            for kind in self.KNOWN_TASK_KINDS
+        }
+
+        rows = self.con.execute(
+            "SELECT kind, status, COUNT(*) AS c, MAX(updated_at) AS last "
+            "FROM derivative_task GROUP BY kind, status"
+        ).fetchall()
+
+        for kind, status, count, last in rows:
+            bucket = out.setdefault(
+                kind, {"queue_depth": 0, "last_run_at": None,
+                       "processed_total": 0, "throttle": None}
+            )
+            if status in ("pending", "running"):
+                bucket["queue_depth"] += int(count)
+            if status == "done":
+                bucket["processed_total"] = int(count)
+            if status in ("running", "done"):
+                current = bucket["last_run_at"] or 0
+                bucket["last_run_at"] = max(current, int(last) if last else 0) or None
+        return out
+
+    def list_dead_letters(self, *, limit: int = 20) -> list[dict]:
+        rows = self.con.execute(
+            "SELECT memory_id, kind, error, created_at "
+            "FROM dead_letter ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [
+            {
+                "mem_id": mem_id,
+                "worker": kind,
+                "kind": "worker_error",
+                "retries": 0,
+                "at": int(at),
+                "traceback": err,
+            }
+            for (mem_id, kind, err, at) in rows
+        ]
+
     # ───────────────── BLOB / PATH ─────────────────
     def upsert_blob_ref(self, b: BlobRef) -> str:
         meta = json.dumps(b.meta) if b.meta is not None else None
