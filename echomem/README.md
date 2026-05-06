@@ -132,6 +132,41 @@ curl -X POST -d '{"old":"a","new":"b"}'        http://127.0.0.1:8473/context/mv
 - Query the result via `/derivatives/tree?source_kind=blob&source_ref=<sha>` and
   `/derivatives/graph?seed=ent:<entity>`
 
+## Dashboard
+
+A Vue 3 SPA shipped inside the daemon's wheel. Hub-and-Spoke layout: 总览 / 记忆 / 认知 / 状态.
+Lineage drawer slides in from the right when you click any cognition.
+
+### Local development
+
+```bash
+# terminal 1: daemon
+echomem start
+
+# terminal 2: dashboard dev server (proxies API to 8473)
+cd dashboard
+npm install
+npm run dev
+# open http://localhost:5173
+```
+
+### Production build (one command)
+
+```bash
+bash scripts/build_dashboard.sh
+echomem start
+# open http://127.0.0.1:8473/dashboard
+```
+
+### Testing
+
+```bash
+cd dashboard
+npm test              # vitest unit tests
+npm run test:e2e      # playwright (requires daemon running)
+ECHOMEM_E2E_REQUIRE_OLLAMA=1 npm run test:e2e:full   # full demo path
+```
+
 ## What's next
 
 - Plan 4: Vue 3 Dashboard SPA
