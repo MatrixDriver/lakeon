@@ -53,3 +53,6 @@ echomem/*.egg-info/
 echomem/src/*.egg-info/
 echomem/dist/
 echomem/build/
+
+# Project MCP config — contains absolute paths, local-only
+.mcp.json
