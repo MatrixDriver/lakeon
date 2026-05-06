@@ -43,8 +43,17 @@ class EntityExtractorWorker:
 
     @staticmethod
     def _entity_id(name: str) -> str:
-        slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
-        return f"ent:{slug}" if slug else f"ent:{new_id()}"
+        # Latin/ASCII slug for English entity names (jacky → ent:jacky).
+        ascii_slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+        if ascii_slug:
+            return f"ent:{ascii_slug}"
+        # CJK / Unicode names: hash the original to get a stable, name-derived id.
+        # Avoids using a fresh ULID (which made identical names produce different
+        # entities on every extract). 12 hex chars = 48 bits, enough collision
+        # resistance for entity-graph scale.
+        import hashlib
+        digest = hashlib.sha256(name.encode("utf-8")).hexdigest()[:12]
+        return f"ent:u_{digest}"
 
     def _load_text(self, source_kind: str, source_ref: str) -> str | None:
         if source_kind == "memory":
