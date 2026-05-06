@@ -39,6 +39,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/echomem"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"src/echomem/_dashboard_dist" = "echomem/_dashboard_dist"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
