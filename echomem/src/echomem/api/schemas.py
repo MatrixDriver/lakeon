@@ -138,3 +138,49 @@ class MoveRequest(BaseModel):
 
 class LsResponse(BaseModel):
     items: list[dict]
+
+
+class DaemonHealth(BaseModel):
+    status: str
+    version: str
+    data_dir: str
+    db_size_bytes: int
+
+
+class OllamaHealth(BaseModel):
+    status: str  # "ok" | "unreachable" | "timeout"
+    latency_ms: int | None
+    generate_model: str
+    embedding_model: str
+    embedding_dim: int
+
+
+class WorkerStatus(BaseModel):
+    queue_depth: int
+    last_run_at: int | None
+    processed_total: int
+    throttle: str | None
+
+
+class DiagnosticCounts(BaseModel):
+    memories: int
+    cognitions: int
+    entities: int
+    skills: int
+
+
+class DeadLetterEntry(BaseModel):
+    mem_id: str | None
+    worker: str
+    kind: str
+    retries: int
+    at: int
+    traceback: str | None
+
+
+class DiagnosticResponse(BaseModel):
+    daemon: DaemonHealth
+    ollama: OllamaHealth
+    workers: dict[str, WorkerStatus]
+    counts: DiagnosticCounts
+    dead_letter: list[DeadLetterEntry]
