@@ -5,7 +5,7 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "healthcheckPath": "/pain-points/",
+    "healthcheckPath": "/healthz",
     "healthcheckTimeout": 60,
     "healthcheckTimeout": 30,
     "restartPolicyType": "ON_FAILURE",
