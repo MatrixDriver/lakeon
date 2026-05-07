@@ -1,9 +1,0 @@
-# Build context = echomem/docs/
-# Dockerfile 已用白名单 COPY，此处只是双重保险
-
-.DS_Store
-*.swp
-*.swo
-**/.DS_Store
-**/Thumbs.db
-**/.git
