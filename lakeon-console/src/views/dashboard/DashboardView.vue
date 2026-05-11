@@ -278,7 +278,7 @@
                     {{ op.status === 'SUCCESS' ? '成功' : op.status === 'IN_PROGRESS' ? '进行中' : '失败' }}
                   </span>
                 </td>
-                <td>{{ formatDuration(op.durationMs) }}</td>
+                <td>{{ formatOperationDuration(op, now) }}</td>
                 <td>{{ formatDate(op.startedAt) }}</td>
                 <td v-if="op.errorMessage" class="error-text" :title="op.errorMessage">{{ op.errorMessage.length > 40 ? op.errorMessage.slice(0, 40) + '...' : op.errorMessage }}</td>
                 <td v-else></td>
@@ -372,7 +372,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { databaseApi, type Database } from '../../api/database'
 import { operationApi, type OperationLog } from '../../api/operation'
-import { formatDuration, formatDate } from '../../utils/format'
+import { formatOperationDuration, formatDate } from '../../utils/format'
 import { useToast } from '../../composables/useToast'
 import TableFooter from '../../components/TableFooter.vue'
 import ViewToggle from '../../components/ViewToggle.vue'
@@ -588,13 +588,19 @@ function scheduleNextPoll() {
   }, delay)
 }
 
+// Tick every second so IN_PROGRESS rows show a live elapsed-time counter.
+const now = ref(Date.now())
+let nowTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(async () => {
   await fetchData()
   scheduleNextPoll()
+  nowTimer = setInterval(() => { now.value = Date.now() }, 1000)
 })
 
 onUnmounted(() => {
   if (pollTimer) clearTimeout(pollTimer)
+  if (nowTimer) clearInterval(nowTimer)
 })
 </script>
 

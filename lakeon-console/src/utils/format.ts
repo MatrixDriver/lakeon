@@ -5,6 +5,21 @@ export function formatDuration(ms: number | null): string {
   return `${(ms / 1000).toFixed(1)}s`
 }
 
+// IN_PROGRESS rows have no durationMs yet; show live elapsed time from startedAt
+// so users can see how long a cold start has been running instead of a bare "-".
+export function formatOperationDuration(
+  op: { status?: string | null; durationMs?: number | null; startedAt?: string | null },
+  nowMs: number = Date.now(),
+): string {
+  if (op.status === 'IN_PROGRESS') {
+    if (!op.startedAt) return '-'
+    const started = new Date(op.startedAt).getTime()
+    if (!Number.isFinite(started)) return '-'
+    return formatDuration(Math.max(0, nowMs - started))
+  }
+  return formatDuration(op.durationMs ?? null)
+}
+
 export function formatSize(bytes: number | null | undefined): string {
   if (bytes == null || bytes === 0) return '-'
   if (bytes < 1024) return bytes + ' B'

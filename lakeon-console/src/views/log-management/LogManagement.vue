@@ -69,7 +69,7 @@
                     {{ statusLabel(op.status) }}
                   </span>
                 </td>
-                <td>{{ formatDuration(op.durationMs) }}</td>
+                <td>{{ formatOperationDuration(op, now) }}</td>
                 <td>{{ formatDate(op.startedAt) }}</td>
                 <td>
                   <span v-if="op.errorMessage" class="error-text" :title="op.errorMessage">
@@ -212,12 +212,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { databaseApi, type Database } from '../../api/database'
 import { operationApi, type OperationLog } from '../../api/operation'
 import { auditApi, type AuditLog } from '../../api/audit'
-import { formatDuration, formatDate } from '../../utils/format'
+import { formatOperationDuration, formatDate } from '../../utils/format'
 import TableToolbar from '../../components/TableToolbar.vue'
 import TableFooter from '../../components/TableFooter.vue'
 
@@ -384,9 +384,18 @@ async function fetchDatabases() {
   } catch (e) { /* ignore */ }
 }
 
+// Ticks every second to drive live elapsed-time display for IN_PROGRESS rows.
+const now = ref(Date.now())
+let nowTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   fetchOps()
   fetchDatabases()
+  nowTimer = setInterval(() => { now.value = Date.now() }, 1000)
+})
+
+onBeforeUnmount(() => {
+  if (nowTimer) clearInterval(nowTimer)
 })
 </script>
 

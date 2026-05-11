@@ -159,18 +159,18 @@
               <tr v-for="op in wakeupOps.slice(0, 20)" :key="op.id">
                 <td>{{ op.databaseName }}</td>
                 <td>
-                  <span class="wake-type-tag" :class="op.durationMs != null && op.durationMs < 3000 ? 'tag-warm' : 'tag-cold'">
-                    {{ op.durationMs != null && op.durationMs < 3000 ? '热启动' : '冷启动' }}
+                  <span class="wake-type-tag" :class="wakeTypeClass(op)">
+                    {{ wakeTypeLabel(op) }}
                   </span>
                 </td>
                 <td>
                   <span :class="latencyColorClass(op.durationMs)">
-                    {{ formatDuration(op.durationMs) }}
+                    {{ formatOperationDuration(op, now) }}
                   </span>
                 </td>
                 <td>
-                  <span class="status-tag" :class="op.status === 'SUCCESS' ? 'tag-green' : 'tag-red'">
-                    {{ op.status === 'SUCCESS' ? '成功' : '失败' }}
+                  <span class="status-tag" :class="op.status === 'SUCCESS' ? 'tag-green' : op.status === 'IN_PROGRESS' ? 'tag-blue' : 'tag-red'">
+                    {{ op.status === 'SUCCESS' ? '成功' : op.status === 'IN_PROGRESS' ? '进行中' : '失败' }}
                   </span>
                 </td>
                 <td>{{ formatDate(op.startedAt) }}</td>
@@ -307,11 +307,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { databaseApi, type Database } from '../../api/database'
 import { branchApi } from '../../api/branch'
 import { operationApi, type OperationLog } from '../../api/operation'
-import { formatDuration, formatDate, formatSize } from '../../utils/format'
+import { formatDuration, formatOperationDuration, formatDate, formatSize } from '../../utils/format'
 import PerformanceMonitor from '../../components/PerformanceMonitor.vue'
 
 const _validTabs = ['overview', 'wakeup', 'performance', 'usage']
@@ -506,6 +506,20 @@ function latencyColorClass(ms: number | null): string {
   return 'latency-bad'
 }
 
+// Prefer the authoritative resumeType (set when the op starts) over a duration
+// threshold, so IN_PROGRESS rows show 冷启动/热启动 correctly instead of always
+// defaulting to 冷启动 just because durationMs is still null.
+function wakeTypeLabel(op: OperationLog): string {
+  if (op.resumeType === 'WARM') return '热启动'
+  if (op.resumeType === 'COLD') return '冷启动'
+  if (op.durationMs != null) return op.durationMs < 3000 ? '热启动' : '冷启动'
+  return '冷启动'
+}
+
+function wakeTypeClass(op: OperationLog): string {
+  return wakeTypeLabel(op) === '热启动' ? 'tag-warm' : 'tag-cold'
+}
+
 
 async function fetchAll() {
   loading.value = true
@@ -533,7 +547,18 @@ watch(activeTab, (tab) => {
   }
 })
 
-onMounted(() => fetchAll())
+// Ticks every second so IN_PROGRESS wake rows show a live elapsed-time counter.
+const now = ref(Date.now())
+let nowTimer: ReturnType<typeof setInterval> | null = null
+
+onMounted(() => {
+  fetchAll()
+  nowTimer = setInterval(() => { now.value = Date.now() }, 1000)
+})
+
+onBeforeUnmount(() => {
+  if (nowTimer) clearInterval(nowTimer)
+})
 </script>
 
 <style scoped>
