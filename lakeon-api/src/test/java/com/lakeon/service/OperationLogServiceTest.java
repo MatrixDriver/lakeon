@@ -99,4 +99,46 @@ class OperationLogServiceTest {
         assertThat(log.getCompletedAt()).isNotNull();
         assertThat(log.getDurationMs()).isNotNull().isGreaterThanOrEqualTo(0L);
     }
+
+    @Test
+    @DisplayName("failStaleInProgressOperations — 把超阈值的 IN_PROGRESS 操作标记为 FAILED")
+    void failStaleInProgressOperations_marksOldEntriesFailed() {
+        // Given: 一个超过 10 分钟的 IN_PROGRESS 操作（典型的 lakeon-api 重启遗留）
+        var stale = new OperationLogEntity();
+        stale.setStartedAt(java.time.Instant.now().minus(java.time.Duration.ofMinutes(15)));
+        stale.setStatus(OperationStatus.IN_PROGRESS);
+        stale.setOperationType(OperationType.RESUME);
+        when(repository.findByStatusAndStartedAtBefore(
+                org.mockito.ArgumentMatchers.eq(OperationStatus.IN_PROGRESS),
+                any(java.time.Instant.class)))
+                .thenReturn(java.util.List.of(stale));
+        when(repository.save(any(OperationLogEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        int count = operationLogService.failStaleInProgressOperations(java.time.Duration.ofMinutes(10));
+
+        // Then
+        assertThat(count).isEqualTo(1);
+        assertThat(stale.getStatus()).isEqualTo(OperationStatus.FAILED);
+        assertThat(stale.getErrorMessage()).contains("timeout");
+        assertThat(stale.getCompletedAt()).isNotNull();
+        assertThat(stale.getDurationMs()).isNotNull().isGreaterThan(0L);
+    }
+
+    @Test
+    @DisplayName("failStaleInProgressOperations — 没有过期操作时不报错并返回 0")
+    void failStaleInProgressOperations_emptyResultReturnsZero() {
+        // Given
+        when(repository.findByStatusAndStartedAtBefore(
+                org.mockito.ArgumentMatchers.eq(OperationStatus.IN_PROGRESS),
+                any(java.time.Instant.class)))
+                .thenReturn(java.util.List.of());
+
+        // When
+        int count = operationLogService.failStaleInProgressOperations(java.time.Duration.ofMinutes(10));
+
+        // Then
+        assertThat(count).isZero();
+    }
 }

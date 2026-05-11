@@ -23,6 +23,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Service
@@ -30,6 +32,10 @@ public class ComputeLifecycleService {
     private static final Logger log = LoggerFactory.getLogger(ComputeLifecycleService.class);
     private static final long DEFAULT_WAKE_TIMEOUT_MS = 360_000L;
     private final ReentrantLock suspendLock = new ReentrantLock();
+    // Per-DB lock so concurrent callers (agentfs/memory/knowledge MCP all hitting the
+    // same database) serialize on wake. The second caller will see status=RUNNING +
+    // pod ready and return immediately instead of logging a duplicate cold start.
+    private final ConcurrentMap<String, ReentrantLock> wakeLocks = new ConcurrentHashMap<>();
 
     private final DatabaseRepository databaseRepository;
     private final BranchRepository branchRepository;
@@ -59,8 +65,21 @@ public class ComputeLifecycleService {
      * Wake compute for a database instance.
      * Warm path: if Pod still exists and is ready, returns immediately (~100ms).
      * Cold path: creates a new Pod and waits for it to become ready (~10s).
+     *
+     * Serialized per dbId so concurrent callers don't each log a separate cold start
+     * for the same database.
      */
     public String wakeCompute(String dbId) {
+        ReentrantLock lock = wakeLocks.computeIfAbsent(dbId, k -> new ReentrantLock());
+        lock.lock();
+        try {
+            return doWakeCompute(dbId);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private String doWakeCompute(String dbId) {
         // Transaction 1: read entity
         DatabaseEntity entity = txTemplate.execute(status ->
             databaseRepository.findById(dbId)
@@ -79,74 +98,82 @@ public class ComputeLifecycleService {
             log.info("Warm wake for database {} — Pod {} still running", dbId, entity.getComputePodName());
             OperationLogEntity warmOp = operationLogService.startOperation(
                     entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME, "WARM");
-            txTemplate.executeWithoutResult(status -> {
-                DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
-                e.setStatus(DatabaseStatus.RUNNING);
-                e.setSuspendedAt(null);
-                e.setLastActiveAt(Instant.now());
-                databaseRepository.save(e);
-            });
-            operationLogService.completeOperation(warmOp, null);
-            return entity.getComputeHost() + ":" + entity.getComputePort();
+            try {
+                txTemplate.executeWithoutResult(status -> {
+                    DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
+                    e.setStatus(DatabaseStatus.RUNNING);
+                    e.setSuspendedAt(null);
+                    e.setLastActiveAt(Instant.now());
+                    databaseRepository.save(e);
+                });
+                operationLogService.completeOperation(warmOp, null);
+                return entity.getComputeHost() + ":" + entity.getComputePort();
+            } catch (RuntimeException e) {
+                operationLogService.completeOperation(warmOp, e.getMessage());
+                throw e;
+            }
         }
 
-        // Cold path: ensure pageserver has tenant attached before creating Pod
+        // Cold path: ensure pageserver has tenant attached before creating Pod.
+        // Wrap everything between startOperation and completeOperation in try/catch so
+        // any failure (k8s API, pageserver, etc.) closes out the OperationLog row
+        // instead of leaving it as IN_PROGRESS forever.
         long coldStartBegin = System.currentTimeMillis();
         OperationLogEntity coldOp = operationLogService.startOperation(
                 entity.getId(), entity.getTenantId(), entity.getName(), OperationType.RESUME, "COLD");
 
-        if (entity.getNeonTenantId() != null) {
-            try {
-                log.info("Ensuring tenant {} is active on pageserver before cold start", entity.getNeonTenantId());
-                neonApiClient.waitForTenantActive(entity.getNeonTenantId(), 30);
-            } catch (Exception e) {
-                log.warn("Failed to ensure tenant active (will proceed anyway): {}", e.getMessage());
+        try {
+            if (entity.getNeonTenantId() != null) {
+                try {
+                    log.info("Ensuring tenant {} is active on pageserver before cold start", entity.getNeonTenantId());
+                    neonApiClient.waitForTenantActive(entity.getNeonTenantId(), 30);
+                } catch (Exception e) {
+                    log.warn("Failed to ensure tenant active (will proceed anyway): {}", e.getMessage());
+                }
             }
-        }
 
-        // Pre-write computePodName + clear suspendedAt so the cleanup schedulers
-        // don't race-delete the fresh pod. Status stays SUSPENDED until ready so
-        // the UI doesn't show 运行中 while the pod is still ContainerCreating.
-        // (Set status=RUNNING in the post-waitForPodReady tx below.)
-        String podName = "compute-" + dbId.replace("_", "-");
-        txTemplate.executeWithoutResult(status -> {
-            DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
-            e.setSuspendedAt(null);
-            e.setComputePodName(podName);
-            databaseRepository.save(e);
-        });
-
-        // Create new Pod (outside transaction, may block 120s)
-        String address = computePodManager.createComputePod(entity);
-
-        // Persist host/port now that the pod has been scheduled
-        txTemplate.executeWithoutResult(status -> {
-            DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
-            e.setComputeHost(entity.getComputeHost());
-            e.setComputePort(entity.getComputePort());
-            databaseRepository.save(e);
-        });
-
-        boolean ready = computePodManager.waitForPodReady(podName, DEFAULT_WAKE_TIMEOUT_MS);
-
-        // Transaction 2: update status + ensure computeHost is set (pod IP may not have been ready earlier)
-        if (ready) {
-            String actualPodIp = computePodManager.getPodIp(podName);
+            // Pre-write computePodName + clear suspendedAt so the cleanup schedulers
+            // don't race-delete the fresh pod. Status stays SUSPENDED until ready so
+            // the UI doesn't show 运行中 while the pod is still ContainerCreating.
+            String podName = "compute-" + dbId.replace("_", "-");
             txTemplate.executeWithoutResult(status -> {
                 DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
-                if (actualPodIp != null) {
-                    e.setComputeHost(actualPodIp);
-                }
-                e.setStatus(DatabaseStatus.RUNNING);
                 e.setSuspendedAt(null);
-                e.setLastActiveAt(Instant.now());
+                e.setComputePodName(podName);
                 databaseRepository.save(e);
             });
-            long coldStartMs = System.currentTimeMillis() - coldStartBegin;
-            log.info("compute started in {}ms for tenant={} db={}", coldStartMs, entity.getTenantId(), dbId);
-            operationLogService.completeOperation(coldOp, null);
-            return address;
-        } else {
+
+            // Create new Pod (outside transaction, may block 120s)
+            String address = computePodManager.createComputePod(entity);
+
+            // Persist host/port now that the pod has been scheduled
+            txTemplate.executeWithoutResult(status -> {
+                DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
+                e.setComputeHost(entity.getComputeHost());
+                e.setComputePort(entity.getComputePort());
+                databaseRepository.save(e);
+            });
+
+            boolean ready = computePodManager.waitForPodReady(podName, DEFAULT_WAKE_TIMEOUT_MS);
+
+            if (ready) {
+                String actualPodIp = computePodManager.getPodIp(podName);
+                txTemplate.executeWithoutResult(status -> {
+                    DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
+                    if (actualPodIp != null) {
+                        e.setComputeHost(actualPodIp);
+                    }
+                    e.setStatus(DatabaseStatus.RUNNING);
+                    e.setSuspendedAt(null);
+                    e.setLastActiveAt(Instant.now());
+                    databaseRepository.save(e);
+                });
+                long coldStartMs = System.currentTimeMillis() - coldStartBegin;
+                log.info("compute started in {}ms for tenant={} db={}", coldStartMs, entity.getTenantId(), dbId);
+                operationLogService.completeOperation(coldOp, null);
+                return address;
+            }
+
             txTemplate.executeWithoutResult(status -> {
                 DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
                 e.setStatus(DatabaseStatus.ERROR);
@@ -154,6 +181,12 @@ public class ComputeLifecycleService {
             });
             operationLogService.completeOperation(coldOp, "Compute wake timeout");
             throw new WakeComputeTimeoutException("Compute wake timeout for database: " + dbId);
+        } catch (WakeComputeTimeoutException e) {
+            throw e; // already completed above
+        } catch (RuntimeException e) {
+            log.error("Cold start failed for database {}: {}", dbId, e.getMessage());
+            operationLogService.completeOperation(coldOp, e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+            throw e;
         }
     }
 

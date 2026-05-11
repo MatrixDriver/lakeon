@@ -16,6 +16,10 @@ public interface OperationLogRepository extends JpaRepository<OperationLogEntity
             String databaseId, String tenantId, OperationType type, Pageable pageable);
     List<OperationLogEntity> findByDatabaseIdAndStatus(String databaseId, OperationStatus status);
 
+    // Scan for stale IN_PROGRESS rows left behind by API restarts so the periodic
+    // sweeper can mark them FAILED instead of letting the UI show them forever.
+    List<OperationLogEntity> findByStatusAndStartedAtBefore(OperationStatus status, Instant cutoff);
+
     // Admin: global operations with filters
     Page<OperationLogEntity> findAllByOrderByStartedAtDesc(Pageable pageable);
     Page<OperationLogEntity> findByTenantIdOrderByStartedAtDesc(String tenantId, Pageable pageable);

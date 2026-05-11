@@ -193,6 +193,35 @@ class ComputeLifecycleServiceTest {
     }
 
     @Test
+    @DisplayName("wake_compute — createComputePod 抛异常时仍调用 completeOperation 收尾，防止 IN_PROGRESS 悬空")
+    void wakeCompute_createPodThrows_completesOperationAsFailed() {
+        var dbEntity = new DatabaseEntity();
+        dbEntity.setId("db_throw001");
+        dbEntity.setTenantId("tn_t");
+        dbEntity.setName("throw-db");
+        dbEntity.setStatus(DatabaseStatus.SUSPENDED);
+        dbEntity.setComputeSize("1cu");
+
+        when(databaseRepository.findById("db_throw001"))
+                .thenReturn(Optional.of(dbEntity));
+        var coldOp = new com.lakeon.model.entity.OperationLogEntity();
+        coldOp.setId("op_throw001");
+        when(operationLogService.startOperation(
+                eq("db_throw001"), anyString(), anyString(),
+                eq(com.lakeon.model.enums.OperationType.RESUME), eq("COLD")))
+                .thenReturn(coldOp);
+        when(computePodManager.createComputePod(any()))
+                .thenThrow(new RuntimeException("k8s API unreachable"));
+
+        assertThatThrownBy(() -> computeLifecycleService.wakeCompute("db_throw001"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("k8s API unreachable");
+
+        // The IN_PROGRESS operation MUST be closed so it doesn't linger as "进行中" forever
+        verify(operationLogService).completeOperation(eq(coldOp), anyString());
+    }
+
+    @Test
     @DisplayName("UT-SVC-CL-005: expired Pod cleanup deletes Pod after retain period")
     void cleanupExpiredPods_deletesOldPods() {
         props.getSuspend().setPodRetainMinutes(30);
