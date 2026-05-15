@@ -236,13 +236,17 @@ public class ComputePodManager {
         log.info("Created compute Pod: {}/{}", namespace, podName);
 
         // Pod IP is typically assigned by CNI within 100-300ms after PodScheduled.
-        // Poll at 100ms so we catch it without burning a full second on the first miss.
-        // Same shape as waitForPodReadyTimed below.
+        // Cap at 200ms: enough headroom for normal CCE CNI; on the rare miss the
+        // returned host is null and callers fall back to refetching after Ready.
+        // Several callers (DiffService, DatabaseService warm/cold paths) still
+        // assume host is populated on return — until they're refactored to fetch
+        // post-Ready, this loop bridges the gap without burning ~1s on the first
+        // sleep tick.
         String podIp = null;
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 4; i++) {
             podIp = getPodIp(podName);
             if (podIp != null) break;
-            try { Thread.sleep(100); } catch (InterruptedException ie) {
+            try { Thread.sleep(50); } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
                 break;
             }
