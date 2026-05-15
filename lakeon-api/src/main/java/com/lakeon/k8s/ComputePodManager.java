@@ -235,12 +235,14 @@ public class ComputePodManager {
         k8sClient.pods().inNamespace(namespace).resource(pod).create();
         log.info("Created compute Pod: {}/{}", namespace, podName);
 
-        // Wait for pod IP assignment (usually available within a few seconds)
+        // Pod IP is typically assigned by CNI within 100-300ms after PodScheduled.
+        // Poll at 100ms so we catch it without burning a full second on the first miss.
+        // Same shape as waitForPodReadyTimed below.
         String podIp = null;
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 100; i++) {
             podIp = getPodIp(podName);
             if (podIp != null) break;
-            try { Thread.sleep(1000); } catch (InterruptedException ie) {
+            try { Thread.sleep(100); } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
                 break;
             }
