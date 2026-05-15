@@ -440,17 +440,62 @@ public class ComputePodManager {
      * Wait for a Pod to become ready (up to timeoutMs milliseconds).
      */
     public boolean waitForPodReady(String podName, long timeoutMs) {
-        long deadline = System.currentTimeMillis() + timeoutMs;
+        return waitForPodReadyTimed(podName, timeoutMs).ready();
+    }
+
+    /**
+     * Wake-time pod condition transitions. Each field is "millis since wait began"
+     * when that condition first turned True; -1 if never seen before timeout/ready.
+     * Used by cold-start phase instrumentation.
+     */
+    public record PodReadyPhases(
+        long scheduledMs,
+        long initializedMs,
+        long containersReadyMs,
+        long readyMs,
+        boolean ready
+    ) {
+        public static PodReadyPhases timeout(long scheduledMs, long initializedMs, long containersReadyMs) {
+            return new PodReadyPhases(scheduledMs, initializedMs, containersReadyMs, -1, false);
+        }
+    }
+
+    /**
+     * Wait for a Pod to become ready, returning the timing of each condition
+     * transition (PodScheduled, Initialized, ContainersReady, Ready) relative
+     * to the start of this call. Polls at 200ms for tighter resolution.
+     */
+    public PodReadyPhases waitForPodReadyTimed(String podName, long timeoutMs) {
+        String namespace = props.getK8s().getNamespace();
+        long start = System.currentTimeMillis();
+        long deadline = start + timeoutMs;
+        long scheduledMs = -1, initializedMs = -1, containersReadyMs = -1, readyMs = -1;
         while (System.currentTimeMillis() < deadline) {
-            if (isPodReady(podName)) return true;
+            Pod pod = k8sClient.pods().inNamespace(namespace).withName(podName).get();
+            if (pod != null && pod.getStatus() != null && pod.getStatus().getConditions() != null) {
+                long now = System.currentTimeMillis() - start;
+                for (PodCondition c : pod.getStatus().getConditions()) {
+                    if (!"True".equals(c.getStatus())) continue;
+                    switch (c.getType()) {
+                        case "PodScheduled":    if (scheduledMs       < 0) scheduledMs       = now; break;
+                        case "Initialized":     if (initializedMs     < 0) initializedMs     = now; break;
+                        case "ContainersReady": if (containersReadyMs < 0) containersReadyMs = now; break;
+                        case "Ready":           if (readyMs           < 0) readyMs           = now; break;
+                        default: break;
+                    }
+                }
+                if (readyMs >= 0) {
+                    return new PodReadyPhases(scheduledMs, initializedMs, containersReadyMs, readyMs, true);
+                }
+            }
             try {
-                Thread.sleep(1000);
+                Thread.sleep(200);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                return false;
+                return PodReadyPhases.timeout(scheduledMs, initializedMs, containersReadyMs);
             }
         }
-        return false;
+        return PodReadyPhases.timeout(scheduledMs, initializedMs, containersReadyMs);
     }
 
     /**

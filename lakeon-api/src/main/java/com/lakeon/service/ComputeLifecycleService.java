@@ -131,6 +131,7 @@ public class ComputeLifecycleService {
                     log.warn("Failed to ensure tenant active (will proceed anyway): {}", e.getMessage());
                 }
             }
+            long tPageserverDone = System.currentTimeMillis();
 
             // Pre-write computePodName + clear suspendedAt so the cleanup schedulers
             // don't race-delete the fresh pod. Status stays SUSPENDED until ready so
@@ -142,9 +143,11 @@ public class ComputeLifecycleService {
                 e.setComputePodName(podName);
                 databaseRepository.save(e);
             });
+            long tPreWriteDone = System.currentTimeMillis();
 
             // Create new Pod (outside transaction, may block 120s)
             String address = computePodManager.createComputePod(entity);
+            long tPodCreateDone = System.currentTimeMillis();
 
             // Persist host/port now that the pod has been scheduled
             txTemplate.executeWithoutResult(status -> {
@@ -154,9 +157,11 @@ public class ComputeLifecycleService {
                 databaseRepository.save(e);
             });
 
-            boolean ready = computePodManager.waitForPodReady(podName, DEFAULT_WAKE_TIMEOUT_MS);
+            ComputePodManager.PodReadyPhases phases =
+                    computePodManager.waitForPodReadyTimed(podName, DEFAULT_WAKE_TIMEOUT_MS);
+            long tReadyDone = System.currentTimeMillis();
 
-            if (ready) {
+            if (phases.ready()) {
                 String actualPodIp = computePodManager.getPodIp(podName);
                 txTemplate.executeWithoutResult(status -> {
                     DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();
@@ -168,11 +173,36 @@ public class ComputeLifecycleService {
                     e.setLastActiveAt(Instant.now());
                     databaseRepository.save(e);
                 });
-                long coldStartMs = System.currentTimeMillis() - coldStartBegin;
+                long tFinalSaveDone = System.currentTimeMillis();
+                long coldStartMs = tFinalSaveDone - coldStartBegin;
                 log.info("compute started in {}ms for tenant={} db={}", coldStartMs, entity.getTenantId(), dbId);
+                // Phase breakdown so we can attribute the cold-start budget without re-instrumenting.
+                log.info(
+                    "wake breakdown ms tenant={} db={} pod={} total={} pageserverWait={} preWrite={} podCreate={} podScheduled={} podInitialized={} containersReady={} podReady={} finalSave={}",
+                    entity.getTenantId(), dbId, podName, coldStartMs,
+                    tPageserverDone - coldStartBegin,
+                    tPreWriteDone - tPageserverDone,
+                    tPodCreateDone - tPreWriteDone,
+                    phases.scheduledMs(),
+                    phases.initializedMs(),
+                    phases.containersReadyMs(),
+                    phases.readyMs(),
+                    tFinalSaveDone - tReadyDone
+                );
                 operationLogService.completeOperation(coldOp, null);
                 return address;
             }
+            log.warn(
+                "wake breakdown ms tenant={} db={} pod={} status=timeout pageserverWait={} preWrite={} podCreate={} podScheduled={} podInitialized={} containersReady={} elapsed={}",
+                entity.getTenantId(), dbId, podName,
+                tPageserverDone - coldStartBegin,
+                tPreWriteDone - tPageserverDone,
+                tPodCreateDone - tPreWriteDone,
+                phases.scheduledMs(),
+                phases.initializedMs(),
+                phases.containersReadyMs(),
+                tReadyDone - coldStartBegin
+            );
 
             txTemplate.executeWithoutResult(status -> {
                 DatabaseEntity e = databaseRepository.findById(dbId).orElseThrow();

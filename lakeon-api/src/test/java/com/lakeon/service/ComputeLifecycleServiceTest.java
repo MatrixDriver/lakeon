@@ -77,14 +77,14 @@ class ComputeLifecycleServiceTest {
                     entity.setComputePodName("compute-db-wake001");
                     return "10.0.1.50:5432";
                 });
-        when(computePodManager.waitForPodReady(eq("compute-db-wake001"), anyLong()))
-                .thenReturn(true);
+        when(computePodManager.waitForPodReadyTimed(eq("compute-db-wake001"), anyLong()))
+                .thenReturn(new ComputePodManager.PodReadyPhases(50, 80, 100, 120, true));
 
         var address = computeLifecycleService.wakeCompute("db_wake001");
 
         assertThat(address).isEqualTo("10.0.1.50:5432");
         verify(computePodManager).createComputePod(any());
-        verify(computePodManager).waitForPodReady(anyString(), anyLong());
+        verify(computePodManager).waitForPodReadyTimed(anyString(), anyLong());
 
         // save() called twice: once to persist pod name, once to set RUNNING status
         ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
@@ -112,8 +112,8 @@ class ComputeLifecycleServiceTest {
                     entity.setComputePodName("compute-db-wake002");
                     return "10.0.1.51:5432";
                 });
-        when(computePodManager.waitForPodReady(eq("compute-db-wake002"), anyLong()))
-                .thenReturn(false);
+        when(computePodManager.waitForPodReadyTimed(eq("compute-db-wake002"), anyLong()))
+                .thenReturn(ComputePodManager.PodReadyPhases.timeout(-1, -1, -1));
 
         assertThatThrownBy(() ->
                 computeLifecycleService.wakeCompute("db_wake002"))
@@ -148,7 +148,7 @@ class ComputeLifecycleServiceTest {
         assertThat(address).isEqualTo("10.0.1.60:55433");
         // Should NOT create a new Pod
         verify(computePodManager, never()).createComputePod(any());
-        verify(computePodManager, never()).waitForPodReady(anyString(), anyLong());
+        verify(computePodManager, never()).waitForPodReadyTimed(anyString(), anyLong());
 
         ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
         verify(databaseRepository).save(captor.capture());
