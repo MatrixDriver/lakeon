@@ -519,7 +519,11 @@ public class LakeonProperties {
         private String mockTenantId = "";
         private String mockTimelineId = "";
         private String image = "";  // empty = use default compute image
-        private int reconfigureTimeoutMs = 1500;
+        // 5s budget. First production warm-claim test (2026-05-16) showed real-tenant
+        // reconfigure took ~1607ms — bigger than mock-tenant cold-init (382ms) because
+        // /configure does basebackup + PG restart + apply spec for the new catalog.
+        // 1.5s forced fallback to cold path; 5s gives 3x headroom.
+        private int reconfigureTimeoutMs = 5000;
         /**
          * Port compute_ctl listens on inside each compute pod. Per Neon
          * convention this is 3080; only overridden in tests that target a
