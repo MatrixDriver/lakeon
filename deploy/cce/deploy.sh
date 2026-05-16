@@ -42,9 +42,9 @@ helm upgrade --install lakeon "$SCRIPT_DIR/../helm/lakeon" \
   --set obs.accessKey=$HWCLOUD_AK --set obs.secretKey=$HWCLOUD_SK \
   --set metadataDb.host=$RDS_PRIVATE_IP --set metadataDb.password=$RDS_PASSWORD \
   --set api.logDbDsn="$LOG_DB_DSN" \
-  --set computeJwt.privateKey="$COMPUTE_JWT_PRIVATE_KEY" \
-  --set computeJwt.publicJwk="$COMPUTE_JWT_PUBLIC_JWK" \
-  --set computeJwt.kid="$COMPUTE_JWT_KID" \
+  --set-string computeJwt.privateKey="$COMPUTE_JWT_PRIVATE_KEY" \
+  --set-string computeJwt.publicJwk="$COMPUTE_JWT_PUBLIC_JWK" \
+  ${COMPUTE_JWT_KID:+--set computeJwt.kid="$COMPUTE_JWT_KID"} \
   ${AI_API_KEY:+--set api.aiApiKey=$AI_API_KEY} \
   --take-ownership \
   --server-side=false \
