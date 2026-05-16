@@ -57,9 +57,20 @@ public class ComputeSpecBuilder {
         cluster.put("settings", getDefaultPgSettings(entity));
         spec.put("cluster", cluster);
 
+        List<Map<String, Object>> jwksKeys = new ArrayList<>();
+        String publicJwk = props.getComputeJwt().getPublicJwk();
+        if (publicJwk != null && !publicJwk.isBlank()) {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> jwk = objectMapper.readValue(publicJwk, Map.class);
+                jwksKeys.add(jwk);
+            } catch (Exception ex) {
+                throw new RuntimeException("Invalid COMPUTE_JWT_PUBLIC_JWK: " + ex.getMessage(), ex);
+            }
+        }
         Map<String, Object> config = Map.of(
             "spec", spec,
-            "compute_ctl_config", Map.of("jwks", Map.of("keys", List.of()))
+            "compute_ctl_config", Map.of("jwks", Map.of("keys", jwksKeys))
         );
         try {
             return objectMapper.writeValueAsString(config);
