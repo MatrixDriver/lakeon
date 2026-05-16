@@ -1,6 +1,7 @@
 package com.lakeon.compute;
 
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.k8s.ComputePodManager;
 import com.lakeon.k8s.ComputeSpecBuilder;
 import com.lakeon.model.entity.DatabaseEntity;
 import io.fabric8.kubernetes.api.model.ConfigMap;
@@ -68,6 +69,7 @@ class ComputeWarmPoolManagerTest {
     private LakeonProperties props;
     private ComputeSpecBuilder specBuilder;
     private ComputeReconfigureClient reconfigureClient;
+    private ComputePodManager computePodManager;
     private MeterRegistry meterRegistry;
     private ComputeWarmPoolManager manager;
 
@@ -90,6 +92,7 @@ class ComputeWarmPoolManagerTest {
         k8sClient = mock(KubernetesClient.class);
         specBuilder = mock(ComputeSpecBuilder.class);
         reconfigureClient = mock(ComputeReconfigureClient.class);
+        computePodManager = mock(ComputePodManager.class);
         props = new LakeonProperties();
         props.getK8s().setComputeImage("default/compute:test");
         props.getComputeWarmPool().setEnabled(true);
@@ -99,6 +102,16 @@ class ComputeWarmPoolManagerTest {
 
         lenient().when(specBuilder.generateComputeConfig(any(), anyInt()))
             .thenReturn("{\"spec\":\"mock\"}");
+
+        // ComputePodManager builder helpers — return real (empty-ish) resource
+        // objects so the downstream k8sClient.configMaps()/pods().resource(...)
+        // chain in createIdlePod can run. We don't assert on the contents of
+        // these objects here; ComputePodManager's own unit/integration coverage
+        // proves the spec is correct, and B1's deploy validated the prod path.
+        lenient().when(computePodManager.buildPodConfigMap(any(), anyString(), anyString(), any()))
+            .thenReturn(new ConfigMap());
+        lenient().when(computePodManager.buildPodSpec(any(), anyString(), any(), anyString(), anyInt(), any()))
+            .thenReturn(new Pod());
 
         // Pods fluent chain
         podsOp = mock(MixedOperation.class);
@@ -117,7 +130,7 @@ class ComputeWarmPoolManagerTest {
 
         meterRegistry = new SimpleMeterRegistry();
 
-        manager = new ComputeWarmPoolManager(k8sClient, props, specBuilder, reconfigureClient, meterRegistry);
+        manager = new ComputeWarmPoolManager(k8sClient, props, specBuilder, reconfigureClient, meterRegistry, computePodManager);
     }
 
     // ── 1. disabled → no k8s calls ─────────────────────────────────────────

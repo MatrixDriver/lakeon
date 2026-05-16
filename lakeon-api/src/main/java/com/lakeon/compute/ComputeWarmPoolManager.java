@@ -1,15 +1,12 @@
 package com.lakeon.compute;
 
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.k8s.ComputePodManager;
 import com.lakeon.k8s.ComputeSpecBuilder;
 import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.model.enums.ComputeSize;
 import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.PodBuilder;
-import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.api.model.TolerationBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.micrometer.core.instrument.Counter;
@@ -80,6 +77,7 @@ public class ComputeWarmPoolManager {
     private final LakeonProperties props;
     private final ComputeSpecBuilder specBuilder;
     private final ComputeReconfigureClient reconfigureClient;
+    private final ComputePodManager computePodManager;
     private final Counter hits;
     private final Counter misses;
     private final Timer reconfigureTimer;
@@ -88,11 +86,13 @@ public class ComputeWarmPoolManager {
                                   LakeonProperties props,
                                   ComputeSpecBuilder specBuilder,
                                   ComputeReconfigureClient reconfigureClient,
-                                  MeterRegistry meterRegistry) {
+                                  MeterRegistry meterRegistry,
+                                  ComputePodManager computePodManager) {
         this.k8sClient = k8sClient;
         this.props = props;
         this.specBuilder = specBuilder;
         this.reconfigureClient = reconfigureClient;
+        this.computePodManager = computePodManager;
         Gauge.builder("lakeon_warm_pool_size", this, ComputeWarmPoolManager::idlePodCount)
             .description("Idle warm pool compute pods currently available for claim")
             .register(meterRegistry);
@@ -362,7 +362,6 @@ public class ComputeWarmPoolManager {
         }
 
         String podName = "warm-pool-" + UUID.randomUUID().toString().substring(0, 8);
-        String configMapName = podName + "-config";
         String image = (cfg.getImage() != null && !cfg.getImage().isBlank())
             ? cfg.getImage()
             : props.getK8s().getComputeImage();
@@ -389,112 +388,18 @@ public class ComputeWarmPoolManager {
             return;
         }
 
-        ConfigMap configMap = new ConfigMapBuilder()
-            .withNewMetadata()
-                .withName(configMapName)
-                .withNamespace(NAMESPACE)
-                .withLabels(Map.of(
-                    "app", "lakeon-compute",
-                    "lakeon.io/pool", "warm",
-                    "lakeon.io/instance-id", podName
-                ))
-            .endMetadata()
-            .addToData("config.json", configJson)
-            .build();
-
-        Pod pod = new PodBuilder()
-            .withNewMetadata()
-                .withName(podName)
-                .withNamespace(NAMESPACE)
-                .withLabels(Map.of(
-                    "app", "lakeon-compute",
-                    "lakeon.io/pool", "warm",
-                    "lakeon.io/status", "idle",
-                    "lakeon.io/instance-id", podName
-                ))
-            .endMetadata()
-            .withNewSpec()
-                .withImagePullSecrets(
-                    props.getK8s().getImagePullSecrets().stream()
-                        .filter(n -> n != null && !n.isBlank())
-                        .map(n -> new LocalObjectReferenceBuilder().withName(n).build())
-                        .toList()
-                )
-                .withTerminationGracePeriodSeconds(60L)
-                .withNodeSelector(
-                    props.getK8s().getComputeNodeSelector().isEmpty()
-                        ? null
-                        : new LinkedHashMap<>(props.getK8s().getComputeNodeSelector())
-                )
-                .withTolerations(new TolerationBuilder()
-                    .withKey("lakeon/compute-only")
-                    .withOperator("Exists")
-                    .withEffect("NoSchedule")
-                    .build())
-                .addNewContainer()
-                    .withName("compute")
-                    .withImage(image)
-                    .withCommand("/usr/local/bin/compute_ctl")
-                    .withArgs(
-                        "--pgdata", "/var/db/postgres/compute",
-                        "-C", "postgresql://cloud_admin@localhost:55433/postgres",
-                        "-b", "/usr/local/bin/postgres",
-                        "--compute-id", podName,
-                        "--config", "/config/config.json",
-                        "--dev"
-                    )
-                    .addNewPort()
-                        .withContainerPort(55433)
-                        .withName("pg")
-                    .endPort()
-                    .addNewPort()
-                        .withContainerPort(3080)
-                        .withName("http")
-                    .endPort()
-                    // MUST match ComputeSize.CU_1 — see ComputePodManager.resolveComputeCpu/Memory.
-                    // The pod advertises setComputeSize("1cu"), so when B2.5's claim() binds a
-                    // tenant here the runtime must already match CU_1's CPU/memory or the tenant
-                    // gets memory-starved (1Gi instead of 2Gi). ComputePodManager sets requests
-                    // == limits to the size's values; we mirror that exactly. B2.5 will dedupe.
-                    .withNewResources()
-                        .withRequests(Map.of(
-                            "cpu", new Quantity("1"),
-                            "memory", new Quantity("2Gi")
-                        ))
-                        .withLimits(Map.of(
-                            "cpu", new Quantity("1"),
-                            "memory", new Quantity("2Gi")
-                        ))
-                    .endResources()
-                    .addNewVolumeMount()
-                        .withName("config-volume")
-                        .withMountPath("/config")
-                        .withReadOnly(true)
-                    .endVolumeMount()
-                    .withNewStartupProbe()
-                        .withNewTcpSocket()
-                            .withNewPort(55433)
-                        .endTcpSocket()
-                        .withInitialDelaySeconds(1)
-                        .withPeriodSeconds(1)
-                        .withFailureThreshold(180)
-                    .endStartupProbe()
-                    .withNewReadinessProbe()
-                        .withNewTcpSocket()
-                            .withNewPort(55433)
-                        .endTcpSocket()
-                        .withPeriodSeconds(1)
-                        .withFailureThreshold(3)
-                    .endReadinessProbe()
-                .endContainer()
-                .addNewVolume()
-                    .withName("config-volume")
-                    .withNewConfigMap()
-                        .withName(configMapName)
-                    .endConfigMap()
-                .endVolume()
-            .endSpec()
-            .build();
+        // Pool labels merged into the shared Pod/ConfigMap shape via the
+        // ComputePodManager helpers. MUST match ComputeSize.CU_1 because the
+        // proxy advertises setComputeSize("1cu"): when claim() binds a tenant,
+        // the runtime must already match CU_1's CPU/memory or the tenant gets
+        // memory-starved. See ComputePodManager.resolveComputeCpu/Memory.
+        Map<String, String> poolLabels = Map.of(
+            "lakeon.io/pool", "warm",
+            "lakeon.io/status", "idle"
+        );
+        ConfigMap configMap = computePodManager.buildPodConfigMap(proxy, podName, configJson, poolLabels);
+        Pod pod = computePodManager.buildPodSpec(
+            proxy, podName, poolLabels, image, IDLE_SUSPEND_TIMEOUT_SECONDS, ComputeSize.CU_1);
 
         try {
             k8sClient.configMaps().inNamespace(NAMESPACE).resource(configMap).serverSideApply();

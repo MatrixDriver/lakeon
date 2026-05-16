@@ -92,24 +92,13 @@ public class ComputePodManager {
      */
     public String createComputePod(DatabaseEntity entity) {
         String podName = "compute-" + entity.getId().replace("_", "-");
-        String configMapName = podName + "-config";
         String namespace = props.getK8s().getNamespace();
         ComputeSize size = ComputeSize.fromLabel(entity.getComputeSize());
 
         String configJson = specBuilder.generateComputeConfig(entity, 600);
 
         // Create ConfigMap with compute spec (safe: no shell interpretation)
-        ConfigMap configMap = new ConfigMapBuilder()
-            .withNewMetadata()
-                .withName(configMapName)
-                .withNamespace(namespace)
-                .withLabels(Map.of(
-                    "app", "lakeon-compute",
-                    "lakeon.io/instance-id", entity.getId()
-                ))
-            .endMetadata()
-            .addToData("config.json", configJson)
-            .build();
+        ConfigMap configMap = buildPodConfigMap(entity, podName, configJson, Map.of());
         // Check if pod already exists (idempotent wake)
         Pod existingPod = k8sClient.pods().inNamespace(namespace).withName(podName).get();
         if (existingPod != null) {
@@ -136,15 +125,101 @@ public class ComputePodManager {
 
         k8sClient.configMaps().inNamespace(namespace).resource(configMap).serverSideApply();
 
-        Pod pod = new PodBuilder()
+        Pod pod = buildPodSpec(entity, podName, Map.of(), props.getK8s().getComputeImage(), 600, size);
+
+        k8sClient.pods().inNamespace(namespace).resource(pod).create();
+        log.info("Created compute Pod: {}/{}", namespace, podName);
+
+        // Pod IP is typically assigned by CNI within 100-300ms after PodScheduled.
+        // Cap at 200ms: enough headroom for normal CCE CNI; on the rare miss the
+        // returned host is null and callers fall back to refetching after Ready.
+        // Several callers (DiffService, DatabaseService warm/cold paths) still
+        // assume host is populated on return — until they're refactored to fetch
+        // post-Ready, this loop bridges the gap without burning ~1s on the first
+        // sleep tick.
+        String podIp = null;
+        for (int i = 0; i < 4; i++) {
+            podIp = getPodIp(podName);
+            if (podIp != null) break;
+            try { Thread.sleep(50); } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        entity.setComputePodName(podName);
+        entity.setComputeHost(podIp);
+        entity.setComputePort(55433);
+
+        return (podIp != null ? podIp : podName + "." + namespace) + ":55433";
+    }
+
+    /**
+     * Build a {@link ConfigMap} object containing the compute spec for the given
+     * pod. Pure builder — caller is responsible for applying it to the cluster.
+     *
+     * <p>Base labels: {@code app=lakeon-compute}, {@code lakeon.io/instance-id=<entity.id>}.
+     * Any {@code extraLabels} entries override / extend the base set, in iteration
+     * order, so callers can add pool-specific labels (e.g. {@code lakeon.io/pool=warm}).
+     *
+     * <p>The ConfigMap name is {@code <podName>-config}. The {@code config.json}
+     * data field carries {@code configJson} verbatim.
+     */
+    public ConfigMap buildPodConfigMap(DatabaseEntity entity, String podName, String configJson,
+                                       Map<String, String> extraLabels) {
+        String namespace = props.getK8s().getNamespace();
+        Map<String, String> labels = new LinkedHashMap<>();
+        labels.put("app", "lakeon-compute");
+        labels.put("lakeon.io/instance-id", entity.getId());
+        if (extraLabels != null) {
+            labels.putAll(extraLabels);
+        }
+        return new ConfigMapBuilder()
+            .withNewMetadata()
+                .withName(podName + "-config")
+                .withNamespace(namespace)
+                .withLabels(labels)
+            .endMetadata()
+            .addToData("config.json", configJson)
+            .build();
+    }
+
+    /**
+     * Build a compute {@link Pod} resource. Pure builder — caller is responsible
+     * for creating it in the cluster (and for applying the ConfigMap first).
+     *
+     * <p>This is the single source of truth for the compute Pod shape used by both
+     * cold-start ({@link #createComputePod}) and warm-pool idle pods
+     * ({@code ComputeWarmPoolManager.createIdlePod}). Probes, container args, ports,
+     * lifecycle preStop, volumes, tolerations, nodeSelector, and resources from
+     * {@code size} are all preserved exactly; pool callers parametrize only the
+     * label set, image, and {@code suspendTimeoutSeconds} via this method's args
+     * (note: the timeout is consumed inside the spec generator before reaching
+     * this builder — it's accepted here as documentation for callers).
+     *
+     * <p>Base labels: {@code app=lakeon-compute}, {@code lakeon.io/instance-id=<entity.id>},
+     * and (when non-null) {@code lakeon.io/tenant-id=<entity.tenantId>}. Extra labels
+     * (e.g. {@code lakeon.io/pool=warm}, {@code lakeon.io/status=idle}) merge in.
+     */
+    public Pod buildPodSpec(DatabaseEntity entity, String podName, Map<String, String> extraLabels,
+                            String image, int suspendTimeoutSeconds, ComputeSize size) {
+        String namespace = props.getK8s().getNamespace();
+        String configMapName = podName + "-config";
+
+        Map<String, String> labels = new LinkedHashMap<>();
+        labels.put("app", "lakeon-compute");
+        labels.put("lakeon.io/instance-id", entity.getId());
+        if (entity.getTenantId() != null) {
+            labels.put("lakeon.io/tenant-id", entity.getTenantId());
+        }
+        if (extraLabels != null) {
+            labels.putAll(extraLabels);
+        }
+
+        return new PodBuilder()
             .withNewMetadata()
                 .withName(podName)
                 .withNamespace(namespace)
-                .withLabels(Map.of(
-                    "app", "lakeon-compute",
-                    "lakeon.io/instance-id", entity.getId(),
-                    "lakeon.io/tenant-id", entity.getTenantId()
-                ))
+                .withLabels(labels)
             .endMetadata()
             .withNewSpec()
                 .withImagePullSecrets(
@@ -166,7 +241,7 @@ public class ComputePodManager {
                     .build())
                 .addNewContainer()
                     .withName("compute")
-                    .withImage(props.getK8s().getComputeImage())
+                    .withImage(image)
                     .withCommand("/usr/local/bin/compute_ctl")
                     .withArgs(
                         "--pgdata", "/var/db/postgres/compute",
@@ -231,31 +306,6 @@ public class ComputePodManager {
                 .endVolume()
             .endSpec()
             .build();
-
-        k8sClient.pods().inNamespace(namespace).resource(pod).create();
-        log.info("Created compute Pod: {}/{}", namespace, podName);
-
-        // Pod IP is typically assigned by CNI within 100-300ms after PodScheduled.
-        // Cap at 200ms: enough headroom for normal CCE CNI; on the rare miss the
-        // returned host is null and callers fall back to refetching after Ready.
-        // Several callers (DiffService, DatabaseService warm/cold paths) still
-        // assume host is populated on return — until they're refactored to fetch
-        // post-Ready, this loop bridges the gap without burning ~1s on the first
-        // sleep tick.
-        String podIp = null;
-        for (int i = 0; i < 4; i++) {
-            podIp = getPodIp(podName);
-            if (podIp != null) break;
-            try { Thread.sleep(50); } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        }
-        entity.setComputePodName(podName);
-        entity.setComputeHost(podIp);
-        entity.setComputePort(55433);
-
-        return (podIp != null ? podIp : podName + "." + namespace) + ":55433";
     }
 
     /**
