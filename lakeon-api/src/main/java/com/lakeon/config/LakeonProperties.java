@@ -32,6 +32,7 @@ public class LakeonProperties {
     private HwcloudConfig hwcloud = new HwcloudConfig();
     private WikiConfig wiki = new WikiConfig();
     private OAuthConfig oauth = new OAuthConfig();
+    private ComputeJwtConfig computeJwt = new ComputeJwtConfig();
 
     public NeonConfig getNeon() { return neon; }
     public void setNeon(NeonConfig neon) { this.neon = neon; }
@@ -77,6 +78,8 @@ public class LakeonProperties {
     public void setWiki(WikiConfig wiki) { this.wiki = wiki; }
     public OAuthConfig getOauth() { return oauth; }
     public void setOauth(OAuthConfig oauth) { this.oauth = oauth; }
+    public ComputeJwtConfig getComputeJwt() { return computeJwt; }
+    public void setComputeJwt(ComputeJwtConfig computeJwt) { this.computeJwt = computeJwt; }
 
     public static class NeonConfig {
         private String pageserverUrl;
@@ -466,6 +469,30 @@ public class LakeonProperties {
         public void setClientId(String clientId) { this.clientId = clientId; }
         public String getClientSecret() { return clientSecret; }
         public void setClientSecret(String clientSecret) { this.clientSecret = clientSecret; }
+    }
+
+    public static class ComputeJwtConfig {
+        /** PEM-encoded RSA private key (newlines may be `\n`-escaped when sourced from env). */
+        private String privateKey = "";
+        /** JWK JSON of the public key (single line). */
+        private String publicJwk = "";
+        /** Key ID embedded in the JWT header and JWKS entry. */
+        private String kid = "lakeon-compute-1";
+        /** Optional issuer claim. */
+        private String issuer = "lakeon-api";
+        /** Token TTL in seconds. */
+        private int ttlSeconds = 300;
+
+        public String getPrivateKey() { return privateKey; }
+        public void setPrivateKey(String privateKey) { this.privateKey = privateKey; }
+        public String getPublicJwk() { return publicJwk; }
+        public void setPublicJwk(String publicJwk) { this.publicJwk = publicJwk; }
+        public String getKid() { return kid; }
+        public void setKid(String kid) { this.kid = kid; }
+        public String getIssuer() { return issuer; }
+        public void setIssuer(String issuer) { this.issuer = issuer; }
+        public int getTtlSeconds() { return ttlSeconds; }
+        public void setTtlSeconds(int ttlSeconds) { this.ttlSeconds = ttlSeconds; }
     }
 
     public static class DatalakeConfig {

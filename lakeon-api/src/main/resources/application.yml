@@ -148,6 +148,10 @@ lakeon:
   warm-pool-idle-timeout-minutes: "${LAKEON_DATALAKE_WARM_POOL_IDLE_TIMEOUT:30}"
   log:
     db-dsn: "${LOG_DB_DSN:}"
+  compute-jwt:
+    private-key: ${COMPUTE_JWT_PRIVATE_KEY:}
+    public-jwk: ${COMPUTE_JWT_PUBLIC_JWK:}
+    kid: ${COMPUTE_JWT_KID:lakeon-compute-1}
   oauth:
     callback-base-url: ${LAKEON_OAUTH_CALLBACK_BASE_URL:http://localhost:8080}
     relay-base-url: ${LAKEON_OAUTH_RELAY_BASE_URL:}

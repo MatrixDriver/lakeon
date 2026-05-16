@@ -203,6 +203,11 @@ logCollector:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/log-collector
     tag: "0.1.4"
 
+computeJwt:
+  privateKey: ""
+  publicJwk: ""
+  kid: "lakeon-compute-1"
+
 wikiAgent:
   enabled: true
   replicas: 1

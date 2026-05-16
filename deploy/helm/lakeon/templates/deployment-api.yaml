@@ -103,6 +103,12 @@ spec:
                   name: obs-credentials
                   key: secret-key
             {{- end }}
+            - name: COMPUTE_JWT_PRIVATE_KEY
+              valueFrom: { secretKeyRef: { name: lakeon-compute-jwt, key: private-key } }
+            - name: COMPUTE_JWT_PUBLIC_JWK
+              valueFrom: { secretKeyRef: { name: lakeon-compute-jwt, key: public-jwk } }
+            - name: COMPUTE_JWT_KID
+              valueFrom: { secretKeyRef: { name: lakeon-compute-jwt, key: kid } }
           volumeMounts:
             - name: cloud-resources
               mountPath: /app/data/cloud-resources.json
