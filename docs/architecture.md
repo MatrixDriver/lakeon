@@ -451,7 +451,38 @@ psql postgres://user@proxy:4432/mydb
    Compute Pod 处理 SQL ←→ Pageserver (读页面) ←→ Safekeeper (写 WAL)
 ```
 
-### 4.3 自动休眠
+**冷启动阶段分解**（`ComputeLifecycleService.doWakeCompute` 输出结构化 `wake breakdown` 日志，自 commit `22c66c5d` 起常驻生产）：
+
+| 阶段 | 含义 | 实测 ms |
+|------|------|---------|
+| `pageserverWait` | 确保 pageserver tenant 已 attach | 6-24 |
+| `preWrite` | DB 预写 podName + 清 suspendedAt | 2-12 |
+| `podCreate` | fabric8 `pods().create()` 同步阻塞（含 ConfigMap apply + IP poll） | 247-273 |
+| `podScheduled` | K8s scheduler 绑 node | 3-7 |
+| `podInitialized` | Init containers 完成 | 3-7 |
+| `containersReady` | 容器 runtime + image mount + CNI + compute_ctl init + PG ready | 1024-2849 |
+| `podReady` | Ready condition 翻转（≈ containersReady） | 同上 |
+| `finalSave` | 最终 DB 写回 RUNNING | 5-9 |
+
+`containersReady` 是大头。`compute_ctl` 自身在容器内输出 `ComputeMetrics`（`total_startup_ms`），实测 ~382ms（其中 `config_ms` apply SQL spec 占 314ms）。差额 ~640ms 是容器 runtime + image mount + CNI 等 K8s/OS 层成本——这正是 Warm Pool 规划要跳过的部分。
+
+### 4.3 冷启动优化路径
+
+**已实施**（2026-05-15 ~ 16）：
+- `wake breakdown` 结构化日志（commit `22c66c5d`）
+- `ComputePodManager.waitForPodReady` 轮询 1s → 200ms（commit `22c66c5d`）
+- `createComputePod` 内 Pod IP 轮询 1s → 100ms → 4×50ms cap（commit `a650b78d`, `7bd16458`）
+- 产线 cold start：~2.1s → ~2.0s（podCreate 阶段大幅缩短，但 K8s 后端并行做容器拉起，net wall-clock 改善有限）
+
+**规划中（Compute Warm Pool）**：
+详细 plan 见 `docs/superpowers/plans/2026-05-16-compute-warm-pool.md`。核心思想：预热 N 个 idle compute pod，租户来时 claim 一个 → POST `compute_ctl /configure` 推真 spec → 复用 OS 层容器但**重跑 compute_ctl init**（basebackup + PG 启动 + apply spec SQL）。
+
+- 预估 warm-claim cold start：**~500-600ms**（小 DB），1-3s（GB+ DB）
+- 隔离策略：claim-once-then-delete，pod 用完即销毁，不复用给下个租户（消除内存/PGDATA/log 残留风险）
+- 关键依赖：compute_ctl 的 `POST /configure` HTTP API + JWT RS256 鉴权
+- 工程阶段：B1 JWT auth → B2 ComputeWarmPoolManager → B3 集成 → B4 可观测 → B5 灰度
+
+### 4.4 自动休眠
 
 ```
 ComputeLifecycleService (@Scheduled, 每 30 秒)
@@ -471,7 +502,7 @@ ComputeLifecycleService (@Scheduled, 每 30 秒)
         └── ReentrantLock 防止并发执行
 ```
 
-### 4.4 数据库分支
+### 4.5 数据库分支
 
 分支利用 Neon 的 timeline 机制实现 copy-on-write 快照：
 
@@ -711,6 +742,14 @@ Neon 仅使用 5 个 S3 API，与 OBS 完全兼容：
 ### 7.4 唤醒延迟统计
 
 从 operation_logs 中筛选 RESUME/CREATE 类型的成功操作，计算 P50/P90/P99 延迟。API 在 `createComputePod` 后等待 Pod Ready（最长 60s）才记录 `completeOperation`，确保 duration_ms 反映真实的 compute 启动耗时。
+
+**Phase 阶段日志**：自 commit `22c66c5d` 起，每次冷启动 `ComputeLifecycleService` 输出一行结构化 `wake breakdown` 日志，字段包含 `pageserverWait / preWrite / podCreate / podScheduled / podInitialized / containersReady / podReady / finalSave`（详见 §4.2）。生产排查：
+
+```bash
+KUBECONFIG=~/.kube/cce-lakeon-config kubectl logs -n lakeon -l app=lakeon-api --tail=2000 | grep "wake breakdown"
+```
+
+或通过 `dbay-sre-mcp` 的 `log_search keyword="wake breakdown"` 查最近样本。Warm Pool 上线后日志会增加 `path=warm|cold` 和 `reconfigure_ms` 字段。
 
 ---
 
