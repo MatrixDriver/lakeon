@@ -15,6 +15,8 @@ import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -66,6 +68,7 @@ class ComputeWarmPoolManagerTest {
     private LakeonProperties props;
     private ComputeSpecBuilder specBuilder;
     private ComputeReconfigureClient reconfigureClient;
+    private MeterRegistry meterRegistry;
     private ComputeWarmPoolManager manager;
 
     // Fabric8 fluent chain stubs (kept on the instance so tests can stub
@@ -112,7 +115,9 @@ class ComputeWarmPoolManagerTest {
         lenient().when(k8sClient.configMaps()).thenReturn(cmOp);
         lenient().when(cmOp.inNamespace("lakeon-compute")).thenReturn(cmNs);
 
-        manager = new ComputeWarmPoolManager(k8sClient, props, specBuilder, reconfigureClient);
+        meterRegistry = new SimpleMeterRegistry();
+
+        manager = new ComputeWarmPoolManager(k8sClient, props, specBuilder, reconfigureClient, meterRegistry);
     }
 
     // ── 1. disabled → no k8s calls ─────────────────────────────────────────
@@ -265,6 +270,8 @@ class ComputeWarmPoolManagerTest {
         assertThat(result).isEmpty();
         verify(k8sClient, never()).pods();
         verify(reconfigureClient, never()).reconfigure(anyString(), anyString(), anyString());
+        assertThat(meterRegistry.counter("lakeon_warm_pool_misses").count()).isGreaterThanOrEqualTo(1.0);
+        assertThat(meterRegistry.counter("lakeon_warm_pool_hits").count()).isEqualTo(0.0);
     }
 
     // ── 9. no idle pods → empty, no reconfigure ────────────────────────────
@@ -278,6 +285,8 @@ class ComputeWarmPoolManagerTest {
 
         assertThat(result).isEmpty();
         verify(reconfigureClient, never()).reconfigure(anyString(), anyString(), anyString());
+        assertThat(meterRegistry.counter("lakeon_warm_pool_misses").count()).isGreaterThanOrEqualTo(1.0);
+        assertThat(meterRegistry.counter("lakeon_warm_pool_hits").count()).isEqualTo(0.0);
     }
 
     // ── 10. happy path: swap + reconfigure succeed ─────────────────────────
@@ -315,6 +324,11 @@ class ComputeWarmPoolManagerTest {
 
         // One edit() — the claiming swap. No "failed" relabel.
         verify(podByName, times(1)).edit(any(UnaryOperator.class));
+
+        // Metrics: one successful claim, one timer sample, no misses.
+        assertThat(meterRegistry.counter("lakeon_warm_pool_hits").count()).isEqualTo(1.0);
+        assertThat(meterRegistry.counter("lakeon_warm_pool_misses").count()).isEqualTo(0.0);
+        assertThat(meterRegistry.timer("lakeon_warm_pool_reconfigure_seconds").count()).isEqualTo(1L);
     }
 
     // ── 11. reconfigure fails → pod marked failed, returns empty ───────────
@@ -340,6 +354,11 @@ class ComputeWarmPoolManagerTest {
         assertThat(result).isEmpty();
         // Two edit() calls: claiming swap + failed relabel
         verify(podByName, times(2)).edit(any(UnaryOperator.class));
+
+        // Metrics: reconfigure failure → miss counter incremented, no hits, no timer sample.
+        assertThat(meterRegistry.counter("lakeon_warm_pool_misses").count()).isGreaterThanOrEqualTo(1.0);
+        assertThat(meterRegistry.counter("lakeon_warm_pool_hits").count()).isEqualTo(0.0);
+        assertThat(meterRegistry.timer("lakeon_warm_pool_reconfigure_seconds").count()).isEqualTo(0L);
     }
 
     // ── 12. race lost on first pod → falls through to second ───────────────
@@ -399,6 +418,10 @@ class ComputeWarmPoolManagerTest {
 
         assertThat(result).isEmpty();
         verify(reconfigureClient, never()).reconfigure(anyString(), anyString(), anyString());
+
+        // Metrics: all races lost → exactly one miss for the claim call.
+        assertThat(meterRegistry.counter("lakeon_warm_pool_misses").count()).isGreaterThanOrEqualTo(1.0);
+        assertThat(meterRegistry.counter("lakeon_warm_pool_hits").count()).isEqualTo(0.0);
     }
 
     // ── 14. release deletes pod + ConfigMap ────────────────────────────────
@@ -493,6 +516,10 @@ class ComputeWarmPoolManagerTest {
             // Exactly one reconfigure call — the loser never reaches /configure.
             verify(reconfigureClient, times(1))
                 .reconfigure(eq("warm-pool-x"), eq("10.0.0.5"), anyString());
+
+            // Metrics: one winner → 1 hit, one loser → at least 1 miss.
+            assertThat(meterRegistry.counter("lakeon_warm_pool_hits").count()).isEqualTo(1.0);
+            assertThat(meterRegistry.counter("lakeon_warm_pool_misses").count()).isGreaterThanOrEqualTo(1.0);
         } finally {
             exec.shutdownNow();
         }
@@ -602,6 +629,23 @@ class ComputeWarmPoolManagerTest {
         assertThat(r2).isEmpty();
         // Still exactly one reconfigure (from the first claim) — second call never reached it.
         verify(reconfigureClient, times(1)).reconfigure(anyString(), anyString(), anyString());
+    }
+
+    // ── 19. lakeon_warm_pool_size gauge reflects live idle count ───────────
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void metrics_size_reflectsIdleCount() {
+        PodList list = new PodList();
+        list.setItems(List.of(
+            idleRunningPod("warm-pool-m1"),
+            idleRunningPod("warm-pool-m2"),
+            idleRunningPod("warm-pool-m3")
+        ));
+        when(podsFiltered.list()).thenReturn(list);
+
+        // Gauge drives off idlePodCount() — every read re-lists pool pods.
+        assertThat(meterRegistry.find("lakeon_warm_pool_size").gauge()).isNotNull();
+        assertThat(meterRegistry.find("lakeon_warm_pool_size").gauge().value()).isEqualTo(3.0);
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

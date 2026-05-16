@@ -12,6 +12,10 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.TolerationBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -24,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Maintains a warm pool of pre-started compute pods in the
@@ -75,15 +80,31 @@ public class ComputeWarmPoolManager {
     private final LakeonProperties props;
     private final ComputeSpecBuilder specBuilder;
     private final ComputeReconfigureClient reconfigureClient;
+    private final Counter hits;
+    private final Counter misses;
+    private final Timer reconfigureTimer;
 
     public ComputeWarmPoolManager(KubernetesClient k8sClient,
                                   LakeonProperties props,
                                   ComputeSpecBuilder specBuilder,
-                                  ComputeReconfigureClient reconfigureClient) {
+                                  ComputeReconfigureClient reconfigureClient,
+                                  MeterRegistry meterRegistry) {
         this.k8sClient = k8sClient;
         this.props = props;
         this.specBuilder = specBuilder;
         this.reconfigureClient = reconfigureClient;
+        Gauge.builder("lakeon_warm_pool_size", this, ComputeWarmPoolManager::idlePodCount)
+            .description("Idle warm pool compute pods currently available for claim")
+            .register(meterRegistry);
+        this.hits = Counter.builder("lakeon_warm_pool_hits")
+            .description("Successful warm pool claims")
+            .register(meterRegistry);
+        this.misses = Counter.builder("lakeon_warm_pool_misses")
+            .description("Failed warm pool claims (any reason — pool empty, race, reconfigure failure, etc.)")
+            .register(meterRegistry);
+        this.reconfigureTimer = Timer.builder("lakeon_warm_pool_reconfigure_seconds")
+            .description("Latency of compute_ctl /configure call during claim")
+            .register(meterRegistry);
     }
 
     /**
@@ -191,6 +212,7 @@ public class ComputeWarmPoolManager {
      */
     public Optional<ClaimedPod> claim(DatabaseEntity entity) {
         if (!props.getComputeWarmPool().isEnabled()) {
+            misses.increment();
             return Optional.empty();
         }
 
@@ -242,10 +264,12 @@ public class ComputeWarmPoolManager {
         } catch (Exception e) {
             log.warn("warm-pool claim: error selecting candidate for tenantId={} dbId={} error={}",
                      entity.getTenantId(), entity.getId(), e.toString());
+            misses.increment();
             return Optional.empty();
         }
 
         if (claimed == null) {
+            misses.increment();
             return Optional.empty();
         }
 
@@ -263,6 +287,7 @@ public class ComputeWarmPoolManager {
                 log.warn("warm-pool claim: spec generation failed podName={} dbId={} error={}",
                          podName, entity.getId(), e.toString());
                 markPodFailed(podName);
+                misses.increment();
                 return Optional.empty();
             }
 
@@ -272,17 +297,21 @@ public class ComputeWarmPoolManager {
             if (result.success()) {
                 log.info("warm-pool claim succeeded podName={} podIp={} tenantId={} dbId={} elapsedMs={}",
                          podName, podIp, entity.getTenantId(), entity.getId(), result.elapsedMs());
+                reconfigureTimer.record(result.elapsedMs(), TimeUnit.MILLISECONDS);
+                hits.increment();
                 return Optional.of(new ClaimedPod(podName, podIp));
             }
 
             log.warn("warm-pool reconfigure failed podName={} statusCode={} error={} — marking pod failed",
                      podName, result.statusCode(), result.errorMessage());
             markPodFailed(podName);
+            misses.increment();
             return Optional.empty();
         } catch (Exception e) {
             log.warn("warm-pool claim: unexpected error after swap podName={} error={}",
                      podName, e.toString());
             markPodFailed(podName);
+            misses.increment();
             return Optional.empty();
         }
     }
