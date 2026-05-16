@@ -1,5 +1,6 @@
 package com.lakeon.service;
 
+import com.lakeon.compute.ComputeWarmPoolManager;
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.k8s.ComputePodManager;
 import com.lakeon.model.entity.DatabaseEntity;
@@ -47,6 +48,9 @@ class ComputeLifecycleServiceTest {
     @Mock
     private com.lakeon.neon.NeonApiClient neonApiClient;
 
+    @Mock
+    private ComputeWarmPoolManager warmPoolManager;
+
     private LakeonProperties props;
     private ComputeLifecycleService computeLifecycleService;
 
@@ -56,7 +60,10 @@ class ComputeLifecycleServiceTest {
         computeLifecycleService = new ComputeLifecycleService(
                 databaseRepository, branchRepository, computePodManager,
                 operationLogService, neonApiClient, props,
-                TestTransactionTemplate.create());
+                TestTransactionTemplate.create(), warmPoolManager);
+        // Default: warm pool returns empty so existing cold-path tests exercise
+        // the unchanged createComputePod flow. Warm-path tests override this.
+        lenient().when(warmPoolManager.claim(any())).thenReturn(Optional.empty());
     }
 
     @Test
@@ -125,6 +132,80 @@ class ComputeLifecycleServiceTest {
         // Last save should set status to ERROR
         var lastSaved = captor.getAllValues().get(captor.getAllValues().size() - 1);
         assertThat(lastSaved.getStatus()).isEqualTo(DatabaseStatus.ERROR);
+    }
+
+    @Test
+    @DisplayName("UT-SVC-CL-006: wake_compute — warm pool hit, skips createComputePod entirely")
+    void wakeCompute_warmPoolHit_success() {
+        var dbEntity = new DatabaseEntity();
+        dbEntity.setId("db_pool001");
+        dbEntity.setTenantId("tn_pool");
+        dbEntity.setName("pool-db");
+        dbEntity.setStatus(DatabaseStatus.SUSPENDED);
+        dbEntity.setNeonTenantId("neon-tenant-pool");
+        dbEntity.setNeonTimelineId("neon-timeline-pool");
+        dbEntity.setComputeSize("1cu");
+
+        when(databaseRepository.findById("db_pool001"))
+                .thenReturn(Optional.of(dbEntity));
+        // Warm-pool claim succeeds — pod is already running on 10.0.0.99 and
+        // /configure has finished (reconfigureMs=420).
+        when(warmPoolManager.claim(any()))
+                .thenReturn(Optional.of(new ComputeWarmPoolManager.ClaimedPod(
+                    "compute-pool-1", "10.0.0.99", 420L)));
+
+        var address = computeLifecycleService.wakeCompute("db_pool001");
+
+        // Warm path returns the claimed pod's address — no createComputePod, no IP polling.
+        assertThat(address).isEqualTo("10.0.0.99:55433");
+        verify(computePodManager, never()).createComputePod(any());
+        verify(computePodManager, never()).waitForPodReadyTimed(anyString(), anyLong());
+
+        ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
+        verify(databaseRepository, atLeastOnce()).save(captor.capture());
+        var lastSaved = captor.getAllValues().get(captor.getAllValues().size() - 1);
+        assertThat(lastSaved.getComputeHost()).isEqualTo("10.0.0.99");
+        assertThat(lastSaved.getComputePodName()).isEqualTo("compute-pool-1");
+        assertThat(lastSaved.getComputePort()).isEqualTo(55433);
+        assertThat(lastSaved.getStatus()).isEqualTo(DatabaseStatus.RUNNING);
+        assertThat(lastSaved.getSuspendedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("UT-SVC-CL-007: wake_compute — warm pool miss falls back to cold path")
+    void wakeCompute_warmPoolMiss_fallsBackToColdPath() {
+        var dbEntity = new DatabaseEntity();
+        dbEntity.setId("db_miss001");
+        dbEntity.setStatus(DatabaseStatus.SUSPENDED);
+        dbEntity.setNeonTenantId("neon-tenant-miss");
+        dbEntity.setNeonTimelineId("neon-timeline-miss");
+        dbEntity.setComputeSize("1cu");
+
+        when(databaseRepository.findById("db_miss001"))
+                .thenReturn(Optional.of(dbEntity));
+        // Explicit empty (the @BeforeEach default also does this, but spelling
+        // it out makes the test intent obvious).
+        when(warmPoolManager.claim(any())).thenReturn(Optional.empty());
+        when(computePodManager.createComputePod(any()))
+                .thenAnswer(inv -> {
+                    DatabaseEntity entity = inv.getArgument(0);
+                    entity.setComputePodName("compute-db-miss001");
+                    return "10.0.1.55:5432";
+                });
+        when(computePodManager.waitForPodReadyTimed(eq("compute-db-miss001"), anyLong()))
+                .thenReturn(new ComputePodManager.PodReadyPhases(50, 80, 100, 120, true));
+
+        var address = computeLifecycleService.wakeCompute("db_miss001");
+
+        assertThat(address).isEqualTo("10.0.1.55:5432");
+        // Pool miss → cold path is exercised exactly as it was pre-B3.
+        verify(computePodManager).createComputePod(any());
+        verify(computePodManager).waitForPodReadyTimed(anyString(), anyLong());
+
+        ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
+        verify(databaseRepository, atLeast(2)).save(captor.capture());
+        var lastSaved = captor.getAllValues().get(captor.getAllValues().size() - 1);
+        assertThat(lastSaved.getStatus()).isEqualTo(DatabaseStatus.RUNNING);
     }
 
     @Test

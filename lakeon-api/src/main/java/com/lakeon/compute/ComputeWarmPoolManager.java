@@ -70,8 +70,14 @@ public class ComputeWarmPoolManager {
      *  to freshly created ones after the bind. */
     private static final int REAL_TENANT_SUSPEND_TIMEOUT_SECONDS = 600;
 
-    /** Result of a successful claim. */
-    public record ClaimedPod(String podName, String podIp) {}
+    /** Result of a successful claim.
+     *
+     * <p>{@code reconfigureMs} is the elapsed time of the {@code /configure}
+     * call to compute_ctl. Carried out of {@link #claim(DatabaseEntity)} so the
+     * cold-start breakdown log in {@code ComputeLifecycleService} can attribute
+     * the warm-path latency budget without re-instrumenting.
+     */
+    public record ClaimedPod(String podName, String podIp, long reconfigureMs) {}
 
     private final KubernetesClient k8sClient;
     private final LakeonProperties props;
@@ -299,7 +305,7 @@ public class ComputeWarmPoolManager {
                          podName, podIp, entity.getTenantId(), entity.getId(), result.elapsedMs());
                 reconfigureTimer.record(result.elapsedMs(), TimeUnit.MILLISECONDS);
                 hits.increment();
-                return Optional.of(new ClaimedPod(podName, podIp));
+                return Optional.of(new ClaimedPod(podName, podIp, result.elapsedMs()));
             }
 
             log.warn("warm-pool reconfigure failed podName={} statusCode={} error={} — marking pod failed",

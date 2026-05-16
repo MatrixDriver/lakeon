@@ -328,6 +328,9 @@ class ComputeWarmPoolManagerTest {
         assertThat(result).isPresent();
         assertThat(result.get().podName()).isEqualTo("warm-pool-aaa");
         assertThat(result.get().podIp()).isEqualTo("10.0.0.42");
+        // reconfigureMs is carried through from the Result.elapsedMs() so
+        // ComputeLifecycleService's wake-breakdown log can report it.
+        assertThat(result.get().reconfigureMs()).isEqualTo(400L);
 
         // Verify specBuilder was called with the right entity + 600s timeout
         ArgumentCaptor<DatabaseEntity> entityCap = ArgumentCaptor.forClass(DatabaseEntity.class);
