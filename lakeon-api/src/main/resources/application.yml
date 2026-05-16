@@ -160,6 +160,7 @@ lakeon:
     mock-timeline-id: ${COMPUTE_WARM_POOL_MOCK_TIMELINE_ID:}
     image: ${COMPUTE_WARM_POOL_IMAGE:}
     reconfigure-timeout-ms: 1500
+    compute-ctl-port: 3080
   oauth:
     callback-base-url: ${LAKEON_OAUTH_CALLBACK_BASE_URL:http://localhost:8080}
     relay-base-url: ${LAKEON_OAUTH_RELAY_BASE_URL:}

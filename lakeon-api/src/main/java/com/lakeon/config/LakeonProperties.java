@@ -520,6 +520,12 @@ public class LakeonProperties {
         private String mockTimelineId = "";
         private String image = "";  // empty = use default compute image
         private int reconfigureTimeoutMs = 1500;
+        /**
+         * Port compute_ctl listens on inside each compute pod. Per Neon
+         * convention this is 3080; only overridden in tests that target a
+         * local HttpServer mock on a random port.
+         */
+        private int computeCtlPort = 3080;
 
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -535,6 +541,8 @@ public class LakeonProperties {
         public void setImage(String v) { this.image = v; }
         public int getReconfigureTimeoutMs() { return reconfigureTimeoutMs; }
         public void setReconfigureTimeoutMs(int v) { this.reconfigureTimeoutMs = v; }
+        public int getComputeCtlPort() { return computeCtlPort; }
+        public void setComputeCtlPort(int v) { this.computeCtlPort = v; }
     }
 
     public static class DatalakeConfig {
