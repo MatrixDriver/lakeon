@@ -4,12 +4,18 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.DatabaseEntity;
+import org.springframework.stereotype.Component;
 
 import java.util.*;
 
 /**
  * Shared utility for generating Neon compute_ctl config JSON.
+ *
+ * Registered as a {@link Component} so warm-pool code can inject it
+ * directly; {@code ComputePodManager} still constructs one inline for
+ * backwards compatibility (the constructor is unchanged).
  */
+@Component
 public class ComputeSpecBuilder {
 
     private final LakeonProperties props;
