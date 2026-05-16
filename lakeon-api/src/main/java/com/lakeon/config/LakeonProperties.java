@@ -33,6 +33,7 @@ public class LakeonProperties {
     private WikiConfig wiki = new WikiConfig();
     private OAuthConfig oauth = new OAuthConfig();
     private ComputeJwtConfig computeJwt = new ComputeJwtConfig();
+    private ComputeWarmPoolConfig computeWarmPool = new ComputeWarmPoolConfig();
 
     public NeonConfig getNeon() { return neon; }
     public void setNeon(NeonConfig neon) { this.neon = neon; }
@@ -80,6 +81,8 @@ public class LakeonProperties {
     public void setOauth(OAuthConfig oauth) { this.oauth = oauth; }
     public ComputeJwtConfig getComputeJwt() { return computeJwt; }
     public void setComputeJwt(ComputeJwtConfig computeJwt) { this.computeJwt = computeJwt; }
+    public ComputeWarmPoolConfig getComputeWarmPool() { return computeWarmPool; }
+    public void setComputeWarmPool(ComputeWarmPoolConfig v) { this.computeWarmPool = v; }
 
     public static class NeonConfig {
         private String pageserverUrl;
@@ -500,6 +503,38 @@ public class LakeonProperties {
         public void setIssuer(String issuer) { this.issuer = issuer; }
         public int getTtlSeconds() { return ttlSeconds; }
         public void setTtlSeconds(int ttlSeconds) { this.ttlSeconds = ttlSeconds; }
+    }
+
+    /**
+     * Warm pool configuration. When enabled, lakeon-api maintains N idle
+     * compute pods labeled `lakeon.io/pool=warm` in the lakeon-compute
+     * namespace. Cold starts try to claim one (POST /configure with the
+     * real spec, ~500ms reconfigure) before falling back to creating a
+     * fresh Pod (~2s). Plan: docs/superpowers/plans/2026-05-16-compute-warm-pool.md
+     */
+    public static class ComputeWarmPoolConfig {
+        private boolean enabled = false;
+        private int size = 2;
+        private String podLabelValue = "warm";
+        private String mockTenantId = "";
+        private String mockTimelineId = "";
+        private String image = "";  // empty = use default compute image
+        private int reconfigureTimeoutMs = 1500;
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public int getSize() { return size; }
+        public void setSize(int size) { this.size = size; }
+        public String getPodLabelValue() { return podLabelValue; }
+        public void setPodLabelValue(String v) { this.podLabelValue = v; }
+        public String getMockTenantId() { return mockTenantId; }
+        public void setMockTenantId(String v) { this.mockTenantId = v; }
+        public String getMockTimelineId() { return mockTimelineId; }
+        public void setMockTimelineId(String v) { this.mockTimelineId = v; }
+        public String getImage() { return image; }
+        public void setImage(String v) { this.image = v; }
+        public int getReconfigureTimeoutMs() { return reconfigureTimeoutMs; }
+        public void setReconfigureTimeoutMs(int v) { this.reconfigureTimeoutMs = v; }
     }
 
     public static class DatalakeConfig {

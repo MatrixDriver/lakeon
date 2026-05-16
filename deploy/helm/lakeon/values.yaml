@@ -208,6 +208,13 @@ computeJwt:
   publicJwk: ""
   kid: "lakeon-compute-1"
 
+computeWarmPool:
+  enabled: false
+  size: 2
+  mockTenantId: ""
+  mockTimelineId: ""
+  image: ""
+
 wikiAgent:
   enabled: true
   replicas: 1

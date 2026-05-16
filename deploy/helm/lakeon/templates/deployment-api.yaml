@@ -109,6 +109,16 @@ spec:
               valueFrom: { secretKeyRef: { name: lakeon-compute-jwt, key: public-jwk } }
             - name: COMPUTE_JWT_KID
               valueFrom: { secretKeyRef: { name: lakeon-compute-jwt, key: kid } }
+            - name: COMPUTE_WARM_POOL_ENABLED
+              value: {{ .Values.computeWarmPool.enabled | quote }}
+            - name: COMPUTE_WARM_POOL_SIZE
+              value: {{ .Values.computeWarmPool.size | quote }}
+            - name: COMPUTE_WARM_POOL_MOCK_TENANT_ID
+              value: {{ .Values.computeWarmPool.mockTenantId | quote }}
+            - name: COMPUTE_WARM_POOL_MOCK_TIMELINE_ID
+              value: {{ .Values.computeWarmPool.mockTimelineId | quote }}
+            - name: COMPUTE_WARM_POOL_IMAGE
+              value: {{ .Values.computeWarmPool.image | quote }}
           volumeMounts:
             - name: cloud-resources
               mountPath: /app/data/cloud-resources.json
