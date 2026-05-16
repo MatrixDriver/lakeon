@@ -61,8 +61,12 @@ public class ComputeWarmPoolManager {
     private static final long IDLE_POD_MAX_AGE_SECONDS = 3600;
 
     /** Suspend timeout in seconds passed to {@code compute_ctl} for idle pods.
-     *  0 = never auto-suspend (idle pods must stay alive until claimed/aged-out). */
-    private static final int IDLE_SUSPEND_TIMEOUT_SECONDS = 0;
+     *  Set to 24h because compute_ctl interprets 0 as "auto-suspend immediately"
+     *  rather than "never" — observed in production 2026-05-16: idle pods exited
+     *  ~500ms after PG init when this was 0. The reconcile loop's 1h
+     *  {@code IDLE_POD_MAX_AGE_SECONDS} cutoff is the real life-limit for unclaimed
+     *  pods; this just needs to be comfortably larger than that. */
+    private static final int IDLE_SUSPEND_TIMEOUT_SECONDS = 86400;
 
     /** Suspend timeout passed to {@code compute_ctl} when reconfiguring a claimed
      *  warm pod for a real tenant. Matches the default in the cold-start path
