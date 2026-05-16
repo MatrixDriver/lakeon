@@ -214,6 +214,9 @@ public class ComputeWarmPoolManager {
                             p.getMetadata().setLabels(new LinkedHashMap<>());
                         }
                         Map<String, String> labels = p.getMetadata().getLabels();
+                        // status=claiming is terminal for the pool's POV — reconcile()
+                        // only operates on idle/failed. Ownership transfers to caller;
+                        // we don't relabel to "claimed" because the pool no longer manages it.
                         labels.put("lakeon.io/status", "claiming");
                         labels.put("lakeon.io/tenant-id", entity.getTenantId());
                         labels.put("lakeon.io/instance-id", entity.getId());
@@ -224,8 +227,16 @@ public class ComputeWarmPoolManager {
                     claimed = swapped != null ? swapped : pod;
                     break;
                 } catch (KubernetesClientException e) {
-                    log.info("warm-pool claim race lost for podName={} — trying next candidate ({})",
-                             podName, e.getMessage());
+                    // 409 = resourceVersion conflict = another claimer won the race. Expected, INFO.
+                    // Anything else (RBAC, apiserver outage, 404 = pod just deleted) is unusual;
+                    // break out so we don't hammer the apiserver looping over remaining candidates.
+                    if (e.getCode() == 409) {
+                        log.info("warm-pool claim race lost for podName={} — trying next candidate", podName);
+                    } else {
+                        log.warn("warm-pool claim k8s error podName={} code={} msg={} — aborting",
+                                 podName, e.getCode(), e.getMessage());
+                        break;
+                    }
                 }
             }
         } catch (Exception e) {

@@ -353,7 +353,7 @@ class ComputeWarmPoolManagerTest {
         when(podsNs.withName("warm-pool-first")).thenReturn(firstRes);
         when(podsNs.withName("warm-pool-second")).thenReturn(secondRes);
         when(firstRes.edit(any(UnaryOperator.class)))
-            .thenThrow(new KubernetesClientException("conflict: object has been modified"));
+            .thenThrow(new KubernetesClientException("conflict: object has been modified", 409, null));
         when(secondRes.edit(any(UnaryOperator.class))).thenReturn(second);
 
         when(reconfigureClient.reconfigure("warm-pool-second", "10.0.0.2", "{\"spec\":\"mock\"}"))
@@ -384,9 +384,9 @@ class ComputeWarmPoolManagerTest {
         when(podsNs.withName("warm-pool-a")).thenReturn(aRes);
         when(podsNs.withName("warm-pool-b")).thenReturn(bRes);
         when(aRes.edit(any(UnaryOperator.class)))
-            .thenThrow(new KubernetesClientException("conflict"));
+            .thenThrow(new KubernetesClientException("conflict", 409, null));
         when(bRes.edit(any(UnaryOperator.class)))
-            .thenThrow(new KubernetesClientException("conflict"));
+            .thenThrow(new KubernetesClientException("conflict", 409, null));
 
         DatabaseEntity entity = newEntity("db-3", "tenant-3");
         Optional<ComputeWarmPoolManager.ClaimedPod> result = manager.claim(entity);
