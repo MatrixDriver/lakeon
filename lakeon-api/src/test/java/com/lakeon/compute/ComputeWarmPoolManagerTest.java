@@ -207,6 +207,39 @@ class ComputeWarmPoolManagerTest {
         assertThat(manager.idlePodCount()).isEqualTo(3);
     }
 
+    // ── 7. terminating pods (deletionTimestamp set) do not count toward target ─
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void reconcileNow_terminatingPodsNotCountedTowardTarget() {
+        // Two pods both labeled idle+Running, but one has deletionTimestamp set
+        // (just `kubectl delete`d — still phase=Running for several seconds).
+        // Pool size=2 → terminating pod is excluded → idleRunning=1 → deficit=1.
+        Pod alive = idleRunningPod("warm-pool-alive");
+        Pod terminating = idleRunningPod("warm-pool-terminating");
+        terminating.getMetadata().setDeletionTimestamp(Instant.now().toString());
+
+        PodList list = new PodList();
+        list.setItems(List.of(alive, terminating));
+        when(podsFiltered.list()).thenReturn(list);
+
+        PodResource podRes = mock(PodResource.class);
+        when(podsNs.resource(any(Pod.class))).thenReturn(podRes);
+        when(podRes.create()).thenReturn(null);
+
+        Resource cmRes = mock(Resource.class);
+        when(cmNs.resource(any(ConfigMap.class))).thenReturn(cmRes);
+        when(cmRes.serverSideApply()).thenReturn(null);
+
+        manager.reconcileNow();
+
+        // Exactly 1 new pod created (target 2 - 1 alive counted = deficit 1)
+        verify(podsNs, times(1)).resource(any(Pod.class));
+        verify(podRes, times(1)).create();
+
+        // And idlePodCount agrees — terminating pod is invisible there too
+        assertThat(manager.idlePodCount()).isEqualTo(1);
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
     private Pod idleRunningPod(String name) {
         Pod p = new Pod();

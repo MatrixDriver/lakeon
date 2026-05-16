@@ -97,6 +97,12 @@ public class ComputeWarmPoolManager {
             String phase = phaseOf(pod);
             String status = statusLabelOf(pod);
             String name = pod.getMetadata().getName();
+            // After kubectl/fabric8 delete, a pod stays phase=Running with its
+            // labels intact for several seconds while the kubelet drains it.
+            // Without this guard such pods would inflate idleRunning and the
+            // next reconcile would skip replenishment. Mirrors the pattern in
+            // ComputePodManager (countActivePods / listAllPods / hasAbnormalPods).
+            boolean terminating = pod.getMetadata().getDeletionTimestamp() != null;
 
             // 1) Clean up Failed/Error pods regardless of label
             if ("Failed".equals(phase) || "Error".equals(phase)) {
@@ -113,8 +119,8 @@ public class ComputeWarmPoolManager {
                 continue;
             }
 
-            // 3) Count toward target
-            if ("idle".equals(status) && "Running".equals(phase)) {
+            // 3) Count toward target — only Running idle pods that are NOT terminating
+            if ("idle".equals(status) && "Running".equals(phase) && !terminating) {
                 idleRunning++;
             }
         }
@@ -137,7 +143,10 @@ public class ComputeWarmPoolManager {
     public int idlePodCount() {
         int count = 0;
         for (Pod pod : listPoolPods()) {
-            if ("idle".equals(statusLabelOf(pod)) && "Running".equals(phaseOf(pod))) {
+            // Terminating pods (deletionTimestamp set) still report phase=Running
+            // for several seconds — must not be counted as available capacity.
+            boolean terminating = pod.getMetadata().getDeletionTimestamp() != null;
+            if ("idle".equals(statusLabelOf(pod)) && "Running".equals(phaseOf(pod)) && !terminating) {
                 count++;
             }
         }
@@ -247,14 +256,19 @@ public class ComputeWarmPoolManager {
                         .withContainerPort(3080)
                         .withName("http")
                     .endPort()
+                    // MUST match ComputeSize.CU_1 — see ComputePodManager.resolveComputeCpu/Memory.
+                    // The pod advertises setComputeSize("1cu"), so when B2.5's claim() binds a
+                    // tenant here the runtime must already match CU_1's CPU/memory or the tenant
+                    // gets memory-starved (1Gi instead of 2Gi). ComputePodManager sets requests
+                    // == limits to the size's values; we mirror that exactly. B2.5 will dedupe.
                     .withNewResources()
                         .withRequests(Map.of(
-                            "cpu", new Quantity("250m"),
-                            "memory", new Quantity("512Mi")
+                            "cpu", new Quantity("1"),
+                            "memory", new Quantity("2Gi")
                         ))
                         .withLimits(Map.of(
                             "cpu", new Quantity("1"),
-                            "memory", new Quantity("1Gi")
+                            "memory", new Quantity("2Gi")
                         ))
                     .endResources()
                     .addNewVolumeMount()
