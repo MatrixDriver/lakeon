@@ -169,7 +169,12 @@ class ComputeReconfigureClientTest {
         assertThat(r.success()).isFalse();
         assertThat(r.statusCode()).isEqualTo(-1);
         assertThat(r.errorMessage()).containsIgnoringCase("timeout");
-        // Should time out near 200ms, not wait the full 2000ms.
+        // Timer fires somewhere between the configured 200ms and the 2000ms server sleep.
+        // Loose upper bound (1500ms) because java.net.http.HttpClient's timer wakes at
+        // coarse intervals on some JDKs — observed 553/686/810ms locally. The crucial
+        // guarantee is `<< 2000ms` (server sleep): below that, the timer DID fire
+        // before the server would have responded. Tighter bounds risk flaking on slow
+        // CI runners without buying more regression catching power.
         assertThat(r.elapsedMs()).isGreaterThanOrEqualTo(150).isLessThan(1500);
     }
 }
