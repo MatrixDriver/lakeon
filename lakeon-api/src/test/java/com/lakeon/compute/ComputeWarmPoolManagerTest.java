@@ -25,6 +25,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.UnaryOperator;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -435,6 +441,167 @@ class ComputeWarmPoolManagerTest {
         // Both attempts were made even though pod delete threw
         verify(podByName).delete();
         verify(cmByName).delete();
+    }
+
+    // ── 16. concurrent claim race: two threads, one idle pod, one winner ──
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void claim_concurrentTwoCallers_onlyOneWinsSamePod() throws Exception {
+        Pod pod = idleRunningPod("warm-pool-x");
+        pod.getStatus().setPodIP("10.0.0.5");
+        PodList list = new PodList();
+        list.setItems(List.of(pod));
+        when(podsFiltered.list()).thenReturn(list);
+
+        PodResource podRes = mock(PodResource.class);
+        when(podsNs.withName("warm-pool-x")).thenReturn(podRes);
+        // First edit() wins the resourceVersion lock; the second 409s as
+        // a real apiserver would. Mockito's chain replays in invocation order,
+        // so whichever thread hits edit() first becomes "the winner".
+        when(podRes.edit(any(UnaryOperator.class)))
+            .thenReturn(pod)
+            .thenThrow(new KubernetesClientException("conflict", 409, null));
+
+        when(reconfigureClient.reconfigure(anyString(), anyString(), anyString()))
+            .thenReturn(new ComputeReconfigureClient.Result(true, 200, null, 100));
+
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService exec = Executors.newFixedThreadPool(2);
+        try {
+            Callable<Optional<ComputeWarmPoolManager.ClaimedPod>> task = () -> {
+                start.await();
+                return manager.claim(newEntity("db-x", "tenant-x"));
+            };
+            Future<Optional<ComputeWarmPoolManager.ClaimedPod>> f1 = exec.submit(task);
+            Future<Optional<ComputeWarmPoolManager.ClaimedPod>> f2 = exec.submit(task);
+            // Release both threads at once to maximise the chance of overlap.
+            start.countDown();
+
+            Optional<ComputeWarmPoolManager.ClaimedPod> r1 = f1.get(5, TimeUnit.SECONDS);
+            Optional<ComputeWarmPoolManager.ClaimedPod> r2 = f2.get(5, TimeUnit.SECONDS);
+
+            long winners = (r1.isPresent() ? 1 : 0) + (r2.isPresent() ? 1 : 0);
+            long losers = (r1.isEmpty() ? 1 : 0) + (r2.isEmpty() ? 1 : 0);
+            assertThat(winners).isEqualTo(1);
+            assertThat(losers).isEqualTo(1);
+
+            // The winning result, whichever it is, must reflect the swapped pod.
+            Optional<ComputeWarmPoolManager.ClaimedPod> winner = r1.isPresent() ? r1 : r2;
+            assertThat(winner.get().podName()).isEqualTo("warm-pool-x");
+            assertThat(winner.get().podIp()).isEqualTo("10.0.0.5");
+
+            // Exactly one reconfigure call — the loser never reaches /configure.
+            verify(reconfigureClient, times(1))
+                .reconfigure(eq("warm-pool-x"), eq("10.0.0.5"), anyString());
+        } finally {
+            exec.shutdownNow();
+        }
+    }
+
+    // ── 17. reconcile after claim replenishes pool back to target ──────────
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void reconcileAfterClaim_replenishesPool() {
+        // Pool starts at target (2 idle pods).
+        Pod a = idleRunningPod("warm-pool-a");
+        a.getStatus().setPodIP("10.0.0.10");
+        Pod b = idleRunningPod("warm-pool-b");
+        b.getStatus().setPodIP("10.0.0.11");
+
+        PodList listBeforeClaim = new PodList();
+        listBeforeClaim.setItems(List.of(a, b));
+
+        // After claim: pod 'a' is no longer in the warm pool (status=claiming).
+        // Production code doesn't mutate our local 'a' copy — it sends an edit()
+        // patch — so we model the post-claim state explicitly with a fresh list.
+        Pod aClaiming = idleRunningPod("warm-pool-a");
+        aClaiming.getMetadata().getLabels().put("lakeon.io/status", "claiming");
+        PodList listAfterClaim = new PodList();
+        listAfterClaim.setItems(List.of(aClaiming, b));
+
+        // Sequence list() responses: first call (claim) sees both idle; second
+        // call (reconcileNow) sees one idle + one claiming → deficit=1.
+        when(podsFiltered.list()).thenReturn(listBeforeClaim).thenReturn(listAfterClaim);
+
+        PodResource aRes = mock(PodResource.class);
+        when(podsNs.withName("warm-pool-a")).thenReturn(aRes);
+        when(aRes.edit(any(UnaryOperator.class))).thenReturn(a);
+
+        when(reconfigureClient.reconfigure(anyString(), anyString(), anyString()))
+            .thenReturn(new ComputeReconfigureClient.Result(true, 200, null, 100));
+
+        // Stubs for reconcile's create path
+        PodResource createRes = mock(PodResource.class);
+        when(podsNs.resource(any(Pod.class))).thenReturn(createRes);
+        when(createRes.create()).thenReturn(null);
+        Resource cmRes = mock(Resource.class);
+        when(cmNs.resource(any(ConfigMap.class))).thenReturn(cmRes);
+        when(cmRes.serverSideApply()).thenReturn(null);
+
+        // 1) Claim succeeds → pool drops to 1 idle.
+        Optional<ComputeWarmPoolManager.ClaimedPod> claim = manager.claim(newEntity("db-c", "tenant-c"));
+        assertThat(claim).isPresent();
+        assertThat(claim.get().podName()).isEqualTo("warm-pool-a");
+
+        // 2) Reconcile sees 1 idle (b) + 1 claiming (a doesn't count) → creates 1.
+        manager.reconcileNow();
+
+        verify(podsNs, times(1)).resource(any(Pod.class));
+        verify(createRes, times(1)).create();
+        verify(cmNs, times(1)).resource(any(ConfigMap.class));
+        verify(cmRes, times(1)).serverSideApply();
+    }
+
+    // ── 18. every reconfigure fails → all pods marked failed, then empty ──
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void claim_allReconfigureFails_returnsEmpty_marksAllFailed() {
+        Pod a = idleRunningPod("warm-pool-a");
+        a.getStatus().setPodIP("10.0.0.20");
+        Pod b = idleRunningPod("warm-pool-b");
+        b.getStatus().setPodIP("10.0.0.21");
+
+        PodList listWithIdle = new PodList();
+        listWithIdle.setItems(List.of(a, b));
+
+        // After claim #1 marks 'a' failed: the next claim sees a non-idle pod.
+        // claim() iterates and skips anything not labeled idle, so we model
+        // the post-failure state with a fresh list (a=failed, b=failed) so the
+        // second claim returns empty without touching reconfigure.
+        Pod aFailed = idleRunningPod("warm-pool-a");
+        aFailed.getMetadata().getLabels().put("lakeon.io/status", "failed");
+        Pod bFailed = idleRunningPod("warm-pool-b");
+        bFailed.getMetadata().getLabels().put("lakeon.io/status", "failed");
+        PodList listAllFailed = new PodList();
+        listAllFailed.setItems(List.of(aFailed, bFailed));
+
+        // First claim consumes one list response (both idle). Inside that
+        // claim, listPoolPods() is called once. The second claim() call gets
+        // the all-failed list and short-circuits without an edit().
+        when(podsFiltered.list()).thenReturn(listWithIdle).thenReturn(listAllFailed);
+
+        PodResource aRes = mock(PodResource.class);
+        when(podsNs.withName("warm-pool-a")).thenReturn(aRes);
+        when(aRes.edit(any(UnaryOperator.class))).thenReturn(a);
+
+        // Reconfigure always 4xx — claim should markPodFailed and return empty.
+        when(reconfigureClient.reconfigure(anyString(), anyString(), anyString()))
+            .thenReturn(new ComputeReconfigureClient.Result(false, 403, "denied", 50));
+
+        // First claim: edit (claiming swap) succeeds, reconfigure fails,
+        // edit (failed relabel) is called → empty.
+        Optional<ComputeWarmPoolManager.ClaimedPod> r1 = manager.claim(newEntity("db-1", "tenant-1"));
+        assertThat(r1).isEmpty();
+        // Two edits on pod 'a': claiming swap + failed relabel
+        verify(aRes, times(2)).edit(any(UnaryOperator.class));
+        verify(reconfigureClient, times(1)).reconfigure(eq("warm-pool-a"), anyString(), anyString());
+
+        // Second claim with pool now exhausted (all labeled 'failed') → empty,
+        // no reconfigure attempted, no edits.
+        Optional<ComputeWarmPoolManager.ClaimedPod> r2 = manager.claim(newEntity("db-2", "tenant-2"));
+        assertThat(r2).isEmpty();
+        // Still exactly one reconfigure (from the first claim) — second call never reached it.
+        verify(reconfigureClient, times(1)).reconfigure(anyString(), anyString(), anyString());
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
