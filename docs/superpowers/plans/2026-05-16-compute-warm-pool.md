@@ -171,22 +171,24 @@ COMPUTE_JWT_KID=lakeon-compute-1
 shred -u /tmp/compute-jwt-private.pem /tmp/compute-jwt-public.pem /tmp/compute-jwt-public.jwk.json
 ```
 
-- [ ] **Step 5: Add example template to repo**
+- [ ] **Step 5: Update local `.env.example` (NOT committed)**
 
-Create `deploy/cce/sites/hwstaff/.env.example` (or update if exists):
+Repo convention (`.gitignore`): `.env.*` is fully ignored — including `.env.example`. Templates live locally for reference only. Append to `deploy/cce/sites/hwstaff/.env.example`:
 
 ```bash
-COMPUTE_JWT_PRIVATE_KEY="<RSA 2048 PEM with \n-escaped newlines>"
+# Compute warm pool JWT keys (Phase B1)
+# Generate locally with: openssl genrsa -out priv.pem 2048 && openssl rsa -in priv.pem -pubout -out pub.pem
+# Convert priv PEM to inline: awk '{printf "%s\\n", $0}' priv.pem
+# Build JWK from pub PEM with the python helper in Step 2 above.
+# Never commit real values — this file is template only and stays gitignored.
+COMPUTE_JWT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...PEM with \\n-escaped newlines...\n-----END PRIVATE KEY-----\n"
 COMPUTE_JWT_PUBLIC_JWK='{"kty":"RSA","use":"sig","alg":"RS256","kid":"lakeon-compute-1","n":"...","e":"AQAB"}'
 COMPUTE_JWT_KID=lakeon-compute-1
 ```
 
-- [ ] **Step 6: Commit only the example**
+- [ ] **Step 6: No commit for B1.1**
 
-```bash
-git add deploy/cce/sites/hwstaff/.env.example
-git commit -m "chore(deploy): add example env entries for compute JWT keys"
-```
+`.env` and `.env.example` are both gitignored. The visible commits for B1 start in B1.2 (LakeonProperties + helm Secret template).
 
 ### Task B1.2: Wire env into lakeon-api config
 
