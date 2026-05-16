@@ -31,9 +31,21 @@ Cold-start total = 1981ms (after our podCreate fix from 2147ms)
 
 **Predicted warm-claim cold start: ~500-600ms** (no container setup + Java/HTTP overhead 100ms + compute_ctl reconfigure 400ms). Above target for small/medium DBs; **degrades to 1-3s for GB-scale DBs** because basebackup_ms scales with data size.
 
-## Decision Points (resolve BEFORE Phase B1 starts)
+## Decisions (resolved 2026-05-16)
 
-These five decisions shape downstream code. Hash them out in the next session with the user before writing B1 code.
+All five original decision points + 2 implicit ones surfaced during B1 are now resolved. Reasoning preserved below for future reference.
+
+| # | Decision | Rationale |
+|---|---|---|
+| 1 | JWT algorithm: **RS256** (locked in B1) | Private key never leaves lakeon-api; public JWK in spec matches Neon upstream design |
+| 2 | Pool namespace: **reuse `lakeon-compute`** + `lakeon.io/pool=warm` label | No new RBAC/quota; compute pods stay grouped for SRE; existing `lakeon_compute_pods_active` gauge gets a label-selector exclusion for pool pods |
+| 3 | Multi-image pool: **single pool, dominant image** + `lakeon_warm_pool_miss_by_image` counter | 4× pools is 4× resource cost; revisit after B5 week-1 data |
+| 4 | Dummy spec: **mock tenant `warm-pool-tenant`** | compute_ctl requires `--config` at startup, no "wait for spec" mode; one shared mock tenant on pageserver is cheap (~KB data) |
+| 5 | Pool-miss: **fallback to `createComputePod`** | Zero behavioral regression; queueing adds tail-latency risk |
+| 6 | Claim policy: **claim-once-then-delete** | Pod consumed by one tenant then destroyed; reconcile replenishes. Preserves today's per-pod isolation; avoids audit of "what gets left behind" |
+| 7 | Reconfigure timeout: **1.5s ceiling**, then fallback to `createComputePod` | Cold-init measured 382ms; 1.5s = 4× headroom for GB-scale basebackup |
+
+## Original Decision Reasoning (for context)
 
 1. **JWT signing algorithm**
    - `RS256` (RSA, asymmetric): public key in spec, private key in secret. More moving parts, but private key never leaves lakeon-api.
@@ -679,33 +691,167 @@ git push origin main
 
 ## Phase B2: `ComputeWarmPoolManager`
 
-**Goal:** Maintain N idle compute pods in `lakeon-compute` namespace. Expose `claim(DatabaseEntity)` that picks an idle pod, POSTs the real spec to its `/configure`, returns the claimed pod address.
+**Goal:** Maintain N idle compute pods in `lakeon-compute` namespace (label `lakeon.io/pool=warm`). Expose `claim(DatabaseEntity)` that picks an idle pod, POSTs the real spec to its `/configure`, returns the claimed pod address. Pool replenishes via 10s `@Scheduled` reconcile.
 
 **Why second:** Builds directly on B1's JWT signer + spec injection.
 
 **Estimate:** 1-2 weeks.
 
-**File structure (preview — detailed bite-sized tasks deferred to a B2-specific plan after B1 ships):**
-- `lakeon-api/src/main/java/com/lakeon/compute/ComputeWarmPoolManager.java` — `claim`, `release`, `@Scheduled reconcile()`, `createIdlePod`
-- `lakeon-api/src/main/java/com/lakeon/compute/ComputeReconfigureClient.java` — HTTP client wrapping `POST /configure` with JWT auth and a timeout
-- `lakeon-api/src/main/java/com/lakeon/config/LakeonProperties.java` — add `WarmPoolConfig { enabled, size, namespace, mockTenantId, mockTimelineId, image }`
-- `lakeon-api/src/main/java/com/lakeon/k8s/ComputePodManager.java` — extract a `buildPodSpec(DatabaseEntity, String poolLabel)` helper so both warm and cold paths share Pod construction
+**Resolved design choices** (see "Decisions" at top of doc):
+- Pool in `lakeon-compute` ns, label `lakeon.io/pool=warm`.
+- Single pool, dominant image; misses fallback to `createComputePod`. Track misses by required image.
+- Dummy spec uses a real mock tenant `warm-pool-tenant` provisioned once (B2.2).
+- `claim()` blocks on `/configure` (synchronous matches cold path semantics).
+- `claim()` enforces 1.5s timeout — beyond that, delete pod and fallback.
+- Claimed pods are NEVER reused — deleted after claim, reconcile replenishes.
 
-**High-level task outline:**
-1. Add `WarmPoolConfig` to `LakeonProperties`.
-2. Write `ComputeReconfigureClient` + test (mocked HTTP server using OkHttp's MockWebServer).
-3. Write `ComputeWarmPoolManager`:
-   - `reconcile()` (every 10s `@Scheduled`): list pods by label `lakeon.io/pool=warm`, count idle Running pods, create deficit up to `size`. Mirrors `notebook.WarmPoolManager.reconcile()` shape.
-   - `createIdlePod()`: similar to `createComputePod` but uses the mock tenant spec and labels `lakeon.io/pool=warm`, `lakeon.io/status=idle`.
-   - `claim(DatabaseEntity)`: find idle pod → optimistic label swap to `claimed` → POST `/configure` with the real spec → return `ClaimedPod{podName, podIp}`. On any failure, mark the pod for deletion and return empty.
-4. Test claim under concurrency (two callers race on the same pod — only one wins).
-5. Test pool exhaustion (returns empty when no idle pods).
-6. Test reconcile replenishes after claim.
+**File structure:**
+```
+lakeon-api/src/main/java/com/lakeon/
+├── compute/
+│   ├── ComputeReconfigureClient.java       # B2.3 — HTTP client for compute_ctl /configure
+│   ├── ComputeReconfigureClient$Result.java # nested record (success/timeout/error)
+│   ├── ComputeWarmPoolManager.java         # B2.4-B2.7 — pool maintenance + claim/release
+│   └── (ComputeJwtSigner.java)             # exists from B1
+├── config/
+│   └── LakeonProperties.java               # B2.1 — WarmPoolConfig nested class
+└── k8s/
+    └── ComputePodManager.java              # B2.5 — extract buildPodSpec helper
+```
 
-**Open questions to resolve during B2:**
-- Should `claim()` block waiting for `/configure` to finish (~400ms), or fire-and-forget and return immediately? The current cold path is synchronous; matching that means blocking.
-- How to handle reconfigure failures? Spec rejected, network error, compute_ctl stuck. → Probably: delete pod, replenish pool, fall through to `createComputePod`.
-- TLS or HTTP for `/configure`? Inside the cluster Pod-to-Pod is currently plain HTTP. Upstream Neon may serve TLS — check.
+### Sub-task breakdown
+
+| Task | What | Estimate |
+|---|---|---|
+| **B2.1** | `WarmPoolConfig` in LakeonProperties + helm values + application.yml | 1 day |
+| **B2.2** | Provision `warm-pool-tenant` mock tenant on pageserver (operational, scripted) | 0.5 day |
+| **B2.3** | `ComputeReconfigureClient` with JWT auth + 1.5s timeout (TDD with MockWebServer) | 2 days |
+| **B2.4** | `ComputeWarmPoolManager` skeleton: `@Scheduled reconcile()` maintains N idle pods, `createIdlePod()` uses mock tenant spec | 2 days |
+| **B2.5** | `claim(DatabaseEntity)`: optimistic label swap → POST /configure → return ClaimedPod; refactor `ComputePodManager.createComputePod` to share Pod construction via `buildPodSpec` | 3 days |
+| **B2.6** | `release(podName)`: delete pod + ConfigMap; reconcile picks up the gap | 1 day |
+| **B2.7** | Concurrency + edge case tests: two callers racing on same pod, pool exhaustion, reconcile replenishment | 2 days |
+| **B2.8** | Metrics: `lakeon_warm_pool_size`, `_hits`, `_misses`, `_miss_by_image`, `_reconfigure_seconds` (B3 wires the reconfigure_ms phase into wake breakdown log) | 1 day |
+
+---
+
+### Task B2.1: `WarmPoolConfig` in LakeonProperties + helm values
+
+**Files:**
+- Modify: `lakeon-api/src/main/java/com/lakeon/config/LakeonProperties.java`
+- Modify: `lakeon-api/src/main/resources/application.yml`
+- Modify: `deploy/helm/lakeon/values.yaml`
+
+**No helm secret needed** — warm pool config is non-sensitive (size, namespace label, mock tenant id, image, enabled flag).
+
+- [ ] **Step 1: Add `ComputeWarmPoolConfig` nested class to LakeonProperties**
+
+Follow the existing nested class style (manual getters/setters, like `ComputeJwtConfig`). After the existing `ComputeJwtConfig` class:
+
+```java
+/**
+ * Warm pool configuration. When enabled, lakeon-api maintains N idle
+ * compute pods labeled `lakeon.io/pool=warm` in the lakeon-compute
+ * namespace. Cold starts try to claim one (POST /configure with the
+ * real spec, ~500ms reconfigure) before falling back to creating a
+ * fresh Pod (~2s). Plan: docs/superpowers/plans/2026-05-16-compute-warm-pool.md
+ */
+public static class ComputeWarmPoolConfig {
+    private boolean enabled = false;
+    private int size = 2;
+    private String podLabelValue = "warm";
+    private String mockTenantId = "";
+    private String mockTimelineId = "";
+    private String image = "";  // empty = use default compute image
+    private int reconfigureTimeoutMs = 1500;
+
+    public boolean isEnabled() { return enabled; }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
+    public int getSize() { return size; }
+    public void setSize(int size) { this.size = size; }
+    public String getPodLabelValue() { return podLabelValue; }
+    public void setPodLabelValue(String v) { this.podLabelValue = v; }
+    public String getMockTenantId() { return mockTenantId; }
+    public void setMockTenantId(String v) { this.mockTenantId = v; }
+    public String getMockTimelineId() { return mockTimelineId; }
+    public void setMockTimelineId(String v) { this.mockTimelineId = v; }
+    public String getImage() { return image; }
+    public void setImage(String v) { this.image = v; }
+    public int getReconfigureTimeoutMs() { return reconfigureTimeoutMs; }
+    public void setReconfigureTimeoutMs(int v) { this.reconfigureTimeoutMs = v; }
+}
+
+private ComputeWarmPoolConfig computeWarmPool = new ComputeWarmPoolConfig();
+
+public ComputeWarmPoolConfig getComputeWarmPool() { return computeWarmPool; }
+public void setComputeWarmPool(ComputeWarmPoolConfig v) { this.computeWarmPool = v; }
+```
+
+- [ ] **Step 2: Bind in `application.yml`**
+
+Under the existing `lakeon:` section:
+
+```yaml
+lakeon:
+  compute-warm-pool:
+    enabled: ${COMPUTE_WARM_POOL_ENABLED:false}
+    size: ${COMPUTE_WARM_POOL_SIZE:2}
+    pod-label-value: warm
+    mock-tenant-id: ${COMPUTE_WARM_POOL_MOCK_TENANT_ID:}
+    mock-timeline-id: ${COMPUTE_WARM_POOL_MOCK_TIMELINE_ID:}
+    image: ${COMPUTE_WARM_POOL_IMAGE:}
+    reconfigure-timeout-ms: 1500
+```
+
+- [ ] **Step 3: Update `deploy/helm/lakeon/values.yaml`**
+
+Add top-level:
+
+```yaml
+computeWarmPool:
+  enabled: false
+  size: 2
+  mockTenantId: ""
+  mockTimelineId: ""
+  image: ""
+```
+
+- [ ] **Step 4: Wire helm → pod env**
+
+In `deploy/helm/lakeon/templates/deployment-api.yaml`, find the api container's `env:` and add (after the existing `COMPUTE_JWT_*` entries from B1):
+
+```yaml
+- name: COMPUTE_WARM_POOL_ENABLED
+  value: {{ .Values.computeWarmPool.enabled | quote }}
+- name: COMPUTE_WARM_POOL_SIZE
+  value: {{ .Values.computeWarmPool.size | quote }}
+- name: COMPUTE_WARM_POOL_MOCK_TENANT_ID
+  value: {{ .Values.computeWarmPool.mockTenantId | quote }}
+- name: COMPUTE_WARM_POOL_MOCK_TIMELINE_ID
+  value: {{ .Values.computeWarmPool.mockTimelineId | quote }}
+- name: COMPUTE_WARM_POOL_IMAGE
+  value: {{ .Values.computeWarmPool.image | quote }}
+```
+
+(Match the multi-line block style used by the OBS env entries — not flow style — per the code review feedback from B1.2.)
+
+- [ ] **Step 5: Compile sanity**
+
+```bash
+cd /Users/jacky/code/lakeon/lakeon-api && mvn -DskipTests compile
+```
+Expected: BUILD SUCCESS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lakeon-api/src/main/java/com/lakeon/config/LakeonProperties.java \
+       lakeon-api/src/main/resources/application.yml \
+       deploy/helm/lakeon/values.yaml \
+       deploy/helm/lakeon/templates/deployment-api.yaml
+git commit -m "chore(api): wire COMPUTE_WARM_POOL_* config (B2.1, disabled by default)"
+```
+
+**Tasks B2.2–B2.8 detailed when each starts.** Same pattern as B1: write the next task's bite-sized steps right before dispatching.
 
 ---
 
