@@ -104,4 +104,13 @@ class ComputeJwtSignerTest {
         ComputeJwtSigner s = new ComputeJwtSigner(empty);
         assertThat(s.isConfigured()).isFalse();
     }
+
+    @Test
+    void constructor_throwsOnMalformedPem() {
+        LakeonProperties bad = new LakeonProperties();
+        bad.getComputeJwt().setPrivateKey("not-a-pem-just-garbage");
+        assertThatThrownBy(() -> new ComputeJwtSigner(bad))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("COMPUTE_JWT_PRIVATE_KEY");
+    }
 }

@@ -472,7 +472,14 @@ public class LakeonProperties {
     }
 
     public static class ComputeJwtConfig {
-        /** PEM-encoded RSA private key (newlines may be `\n`-escaped when sourced from env). */
+        /**
+         * PEM-encoded RSA private key in PKCS#8 format. Newlines may be `\n`-escaped
+         * when sourced from env (e.g., via helm Secret stringData). Keys produced by
+         * {@code openssl genpkey -algorithm RSA -out priv.pem -pkeyopt rsa_keygen_bits:2048}
+         * are PKCS#8 by default (header "BEGIN PRIVATE KEY"). Older {@code openssl genrsa}
+         * produces PKCS#1 (header "BEGIN RSA PRIVATE KEY") which is NOT supported —
+         * convert with {@code openssl pkcs8 -topk8 -nocrypt -in pkcs1.pem -out pkcs8.pem}.
+         */
         private String privateKey = "";
         /** JWK JSON of the public key (single line). */
         private String publicJwk = "";
