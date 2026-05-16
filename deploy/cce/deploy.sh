@@ -44,7 +44,7 @@ helm upgrade --install lakeon "$SCRIPT_DIR/../helm/lakeon" \
   --set api.logDbDsn="$LOG_DB_DSN" \
   --set-file computeJwt.privateKey=<(printf '%s' "$COMPUTE_JWT_PRIVATE_KEY") \
   --set-file computeJwt.publicJwk=<(printf '%s' "$COMPUTE_JWT_PUBLIC_JWK") \
-  ${COMPUTE_JWT_KID:+--set computeJwt.kid="$COMPUTE_JWT_KID"} \
+  ${COMPUTE_JWT_KID:+--set} ${COMPUTE_JWT_KID:+computeJwt.kid=$COMPUTE_JWT_KID} \
   ${AI_API_KEY:+--set api.aiApiKey=$AI_API_KEY} \
   --take-ownership \
   --server-side=false \
