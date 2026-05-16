@@ -1,5 +1,6 @@
 package com.lakeon.k8s;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.DatabaseEntity;
@@ -64,7 +65,7 @@ public class ComputeSpecBuilder {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> jwk = objectMapper.readValue(publicJwk, Map.class);
                 jwksKeys.add(jwk);
-            } catch (Exception ex) {
+            } catch (JsonProcessingException ex) {
                 throw new RuntimeException("Invalid COMPUTE_JWT_PUBLIC_JWK: " + ex.getMessage(), ex);
             }
         }
