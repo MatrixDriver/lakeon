@@ -308,6 +308,17 @@ public class ComputeWarmPoolManager {
         }
     }
 
+    /**
+     * Release a previously-claimed warm pod: delete it + its ConfigMap.
+     * Idempotent and best-effort — k8s exceptions are logged WARN and
+     * swallowed. Called by B3 when a caller is done with the pod (tenant
+     * disconnected, wake retried with a fresh pod, etc.). The reconcile
+     * loop sees the gap and replenishes on the next tick.
+     */
+    public void release(String podName) {
+        deletePodAndConfigMap(podName);
+    }
+
     // ── Pod construction ───────────────────────────────────────────────────
 
     private void createIdlePod() {

@@ -395,6 +395,48 @@ class ComputeWarmPoolManagerTest {
         verify(reconfigureClient, never()).reconfigure(anyString(), anyString(), anyString());
     }
 
+    // ── 14. release deletes pod + ConfigMap ────────────────────────────────
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void release_deletesPodAndConfigMap() {
+        PodResource podByName = mock(PodResource.class);
+        when(podsNs.withName("warm-pool-x")).thenReturn(podByName);
+        when(podByName.delete()).thenReturn(List.of());
+
+        Resource cmByName = mock(Resource.class);
+        when(cmNs.withName("warm-pool-x-config")).thenReturn(cmByName);
+        when(cmByName.delete()).thenReturn(List.of());
+
+        manager.release("warm-pool-x");
+
+        verify(podsNs).withName("warm-pool-x");
+        verify(podByName).delete();
+        verify(cmNs).withName("warm-pool-x-config");
+        verify(cmByName).delete();
+    }
+
+    // ── 15. release swallows k8s exceptions ────────────────────────────────
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void release_swallowsExceptions_doesNotThrow() {
+        PodResource podByName = mock(PodResource.class);
+        when(podsNs.withName("warm-pool-boom")).thenReturn(podByName);
+        when(podByName.delete())
+            .thenThrow(new KubernetesClientException("api down", 500, null));
+
+        Resource cmByName = mock(Resource.class);
+        when(cmNs.withName("warm-pool-boom-config")).thenReturn(cmByName);
+        when(cmByName.delete())
+            .thenThrow(new KubernetesClientException("api down", 500, null));
+
+        // Must not propagate — release is best-effort cleanup
+        manager.release("warm-pool-boom");
+
+        // Both attempts were made even though pod delete threw
+        verify(podByName).delete();
+        verify(cmByName).delete();
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
     private DatabaseEntity newEntity(String id, String tenantId) {
         DatabaseEntity e = new DatabaseEntity();
