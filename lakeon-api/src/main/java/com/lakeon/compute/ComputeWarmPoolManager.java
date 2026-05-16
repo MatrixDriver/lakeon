@@ -11,6 +11,7 @@ import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.TolerationBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -21,6 +22,7 @@ import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -60,16 +62,28 @@ public class ComputeWarmPoolManager {
      *  0 = never auto-suspend (idle pods must stay alive until claimed/aged-out). */
     private static final int IDLE_SUSPEND_TIMEOUT_SECONDS = 0;
 
+    /** Suspend timeout passed to {@code compute_ctl} when reconfiguring a claimed
+     *  warm pod for a real tenant. Matches the default in the cold-start path
+     *  (ComputePodManager.createComputePod) so claimed pods behave identically
+     *  to freshly created ones after the bind. */
+    private static final int REAL_TENANT_SUSPEND_TIMEOUT_SECONDS = 600;
+
+    /** Result of a successful claim. */
+    public record ClaimedPod(String podName, String podIp) {}
+
     private final KubernetesClient k8sClient;
     private final LakeonProperties props;
     private final ComputeSpecBuilder specBuilder;
+    private final ComputeReconfigureClient reconfigureClient;
 
     public ComputeWarmPoolManager(KubernetesClient k8sClient,
                                   LakeonProperties props,
-                                  ComputeSpecBuilder specBuilder) {
+                                  ComputeSpecBuilder specBuilder,
+                                  ComputeReconfigureClient reconfigureClient) {
         this.k8sClient = k8sClient;
         this.props = props;
         this.specBuilder = specBuilder;
+        this.reconfigureClient = reconfigureClient;
     }
 
     /**
@@ -151,6 +165,136 @@ public class ComputeWarmPoolManager {
             }
         }
         return count;
+    }
+
+    // ── Claim flow (B2.5a) ─────────────────────────────────────────────────
+
+    /**
+     * Try to claim a warm idle pod for the given database tenant.
+     *
+     * <p>Returns {@link Optional#empty()} when:
+     * <ul>
+     *   <li>warm pool is disabled,</li>
+     *   <li>no idle pod is currently available (pool exhausted),</li>
+     *   <li>the optimistic label swap loses a race to another claimer
+     *       on every candidate,</li>
+     *   <li>the {@code /configure} call fails (timeout, 4xx/5xx, IO error),</li>
+     *   <li>or the spec couldn't be generated.</li>
+     * </ul>
+     *
+     * <p>On any failure after a label swap was made, the pod is relabeled
+     * {@code lakeon.io/status=failed} so the {@link #reconcile()} loop will
+     * delete it and replenish on the next cycle.
+     *
+     * <p>Caller (B3 — ComputeLifecycleService) falls back to the
+     * cold-start createComputePod path when this returns empty.
+     */
+    public Optional<ClaimedPod> claim(DatabaseEntity entity) {
+        if (!props.getComputeWarmPool().isEnabled()) {
+            return Optional.empty();
+        }
+
+        // 1) Find an idle Running, non-terminating pool pod and atomically
+        //    swap its labels via fabric8's resource-version-locked edit().
+        //    On race loss, KubernetesClientException is thrown and we move
+        //    on to the next candidate.
+        Pod claimed = null;
+        try {
+            for (Pod pod : listPoolPods()) {
+                if (pod.getMetadata() == null) continue;
+                String podName = pod.getMetadata().getName();
+                if (podName == null) continue;
+                if (!"Running".equals(phaseOf(pod))) continue;
+                if (!"idle".equals(statusLabelOf(pod))) continue;
+                if (pod.getMetadata().getDeletionTimestamp() != null) continue;
+
+                try {
+                    Pod swapped = k8sClient.pods().inNamespace(NAMESPACE).withName(podName).edit(p -> {
+                        if (p.getMetadata().getLabels() == null) {
+                            p.getMetadata().setLabels(new LinkedHashMap<>());
+                        }
+                        Map<String, String> labels = p.getMetadata().getLabels();
+                        labels.put("lakeon.io/status", "claiming");
+                        labels.put("lakeon.io/tenant-id", entity.getTenantId());
+                        labels.put("lakeon.io/instance-id", entity.getId());
+                        return p;
+                    });
+                    // edit() returns the updated pod (with refreshed status
+                    // including podIP). Prefer it over the stale list copy.
+                    claimed = swapped != null ? swapped : pod;
+                    break;
+                } catch (KubernetesClientException e) {
+                    log.info("warm-pool claim race lost for podName={} — trying next candidate ({})",
+                             podName, e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("warm-pool claim: error selecting candidate for tenantId={} dbId={} error={}",
+                     entity.getTenantId(), entity.getId(), e.toString());
+            return Optional.empty();
+        }
+
+        if (claimed == null) {
+            return Optional.empty();
+        }
+
+        String podName = claimed.getMetadata().getName();
+        String podIp = claimed.getStatus() != null ? claimed.getStatus().getPodIP() : null;
+
+        // 2) Generate the real tenant spec + POST to compute_ctl. Any
+        //    failure past this point requires us to mark the pod failed
+        //    so the reconcile loop replenishes.
+        try {
+            String specJson;
+            try {
+                specJson = specBuilder.generateComputeConfig(entity, REAL_TENANT_SUSPEND_TIMEOUT_SECONDS);
+            } catch (Exception e) {
+                log.warn("warm-pool claim: spec generation failed podName={} dbId={} error={}",
+                         podName, entity.getId(), e.toString());
+                markPodFailed(podName);
+                return Optional.empty();
+            }
+
+            ComputeReconfigureClient.Result result =
+                reconfigureClient.reconfigure(podName, podIp, specJson);
+
+            if (result.success()) {
+                log.info("warm-pool claim succeeded podName={} podIp={} tenantId={} dbId={} elapsedMs={}",
+                         podName, podIp, entity.getTenantId(), entity.getId(), result.elapsedMs());
+                return Optional.of(new ClaimedPod(podName, podIp));
+            }
+
+            log.warn("warm-pool reconfigure failed podName={} statusCode={} error={} — marking pod failed",
+                     podName, result.statusCode(), result.errorMessage());
+            markPodFailed(podName);
+            return Optional.empty();
+        } catch (Exception e) {
+            log.warn("warm-pool claim: unexpected error after swap podName={} error={}",
+                     podName, e.toString());
+            markPodFailed(podName);
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Relabel a claimed pod {@code lakeon.io/status=failed} so the
+     * {@link #reconcile()} loop's Failed-cleanup branch deletes it on
+     * the next cycle. Swallows exceptions: the reconcile loop also has
+     * its own aging-out fallback, so a transient failure here is recoverable.
+     */
+    private void markPodFailed(String podName) {
+        try {
+            k8sClient.pods().inNamespace(NAMESPACE).withName(podName).edit(p -> {
+                if (p.getMetadata().getLabels() == null) {
+                    p.getMetadata().setLabels(new LinkedHashMap<>());
+                }
+                p.getMetadata().getLabels().put("lakeon.io/status", "failed");
+                return p;
+            });
+        } catch (Exception e) {
+            log.warn("warm-pool: failed to mark pod failed podName={} error={}",
+                     podName, e.toString());
+        }
     }
 
     // ── Pod construction ───────────────────────────────────────────────────

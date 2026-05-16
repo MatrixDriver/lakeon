@@ -2,12 +2,14 @@ package com.lakeon.compute;
 
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.k8s.ComputeSpecBuilder;
+import com.lakeon.model.entity.DatabaseEntity;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.PodStatus;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
@@ -15,17 +17,21 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.UnaryOperator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -53,6 +59,7 @@ class ComputeWarmPoolManagerTest {
     private KubernetesClient k8sClient;
     private LakeonProperties props;
     private ComputeSpecBuilder specBuilder;
+    private ComputeReconfigureClient reconfigureClient;
     private ComputeWarmPoolManager manager;
 
     // Fabric8 fluent chain stubs (kept on the instance so tests can stub
@@ -73,6 +80,7 @@ class ComputeWarmPoolManagerTest {
     void setup() {
         k8sClient = mock(KubernetesClient.class);
         specBuilder = mock(ComputeSpecBuilder.class);
+        reconfigureClient = mock(ComputeReconfigureClient.class);
         props = new LakeonProperties();
         props.getK8s().setComputeImage("default/compute:test");
         props.getComputeWarmPool().setEnabled(true);
@@ -98,7 +106,7 @@ class ComputeWarmPoolManagerTest {
         lenient().when(k8sClient.configMaps()).thenReturn(cmOp);
         lenient().when(cmOp.inNamespace("lakeon-compute")).thenReturn(cmNs);
 
-        manager = new ComputeWarmPoolManager(k8sClient, props, specBuilder);
+        manager = new ComputeWarmPoolManager(k8sClient, props, specBuilder, reconfigureClient);
     }
 
     // ── 1. disabled → no k8s calls ─────────────────────────────────────────
@@ -240,7 +248,168 @@ class ComputeWarmPoolManagerTest {
         assertThat(manager.idlePodCount()).isEqualTo(1);
     }
 
+    // ── 8. claim disabled → empty, no k8s calls ────────────────────────────
+    @Test
+    void claim_disabled_returnsEmpty() {
+        props.getComputeWarmPool().setEnabled(false);
+        DatabaseEntity entity = newEntity("db-1", "tenant-1");
+
+        Optional<ComputeWarmPoolManager.ClaimedPod> result = manager.claim(entity);
+
+        assertThat(result).isEmpty();
+        verify(k8sClient, never()).pods();
+        verify(reconfigureClient, never()).reconfigure(anyString(), anyString(), anyString());
+    }
+
+    // ── 9. no idle pods → empty, no reconfigure ────────────────────────────
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void claim_noIdlePods_returnsEmpty() {
+        when(podsFiltered.list()).thenReturn(new PodList());
+        DatabaseEntity entity = newEntity("db-1", "tenant-1");
+
+        Optional<ComputeWarmPoolManager.ClaimedPod> result = manager.claim(entity);
+
+        assertThat(result).isEmpty();
+        verify(reconfigureClient, never()).reconfigure(anyString(), anyString(), anyString());
+    }
+
+    // ── 10. happy path: swap + reconfigure succeed ─────────────────────────
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void claim_happyPath_returnsPodInfo() {
+        Pod pod = idleRunningPod("warm-pool-aaa");
+        pod.getStatus().setPodIP("10.0.0.42");
+        PodList list = new PodList();
+        list.setItems(List.of(pod));
+        when(podsFiltered.list()).thenReturn(list);
+
+        PodResource podByName = mock(PodResource.class);
+        when(podsNs.withName("warm-pool-aaa")).thenReturn(podByName);
+        // edit() returns the edited pod — return our pod so podIP read works
+        when(podByName.edit(any(UnaryOperator.class))).thenReturn(pod);
+
+        when(specBuilder.generateComputeConfig(any(DatabaseEntity.class), eq(600)))
+            .thenReturn("{\"real\":\"spec\"}");
+        when(reconfigureClient.reconfigure("warm-pool-aaa", "10.0.0.42", "{\"real\":\"spec\"}"))
+            .thenReturn(new ComputeReconfigureClient.Result(true, 200, null, 400));
+
+        DatabaseEntity entity = newEntity("db-1", "tenant-1");
+        Optional<ComputeWarmPoolManager.ClaimedPod> result = manager.claim(entity);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().podName()).isEqualTo("warm-pool-aaa");
+        assertThat(result.get().podIp()).isEqualTo("10.0.0.42");
+
+        // Verify specBuilder was called with the right entity + 600s timeout
+        ArgumentCaptor<DatabaseEntity> entityCap = ArgumentCaptor.forClass(DatabaseEntity.class);
+        verify(specBuilder).generateComputeConfig(entityCap.capture(), eq(600));
+        assertThat(entityCap.getValue().getId()).isEqualTo("db-1");
+        assertThat(entityCap.getValue().getTenantId()).isEqualTo("tenant-1");
+
+        // One edit() — the claiming swap. No "failed" relabel.
+        verify(podByName, times(1)).edit(any(UnaryOperator.class));
+    }
+
+    // ── 11. reconfigure fails → pod marked failed, returns empty ───────────
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void claim_reconfigureFails_marksPodFailed_returnsEmpty() {
+        Pod pod = idleRunningPod("warm-pool-bbb");
+        pod.getStatus().setPodIP("10.0.0.43");
+        PodList list = new PodList();
+        list.setItems(List.of(pod));
+        when(podsFiltered.list()).thenReturn(list);
+
+        PodResource podByName = mock(PodResource.class);
+        when(podsNs.withName("warm-pool-bbb")).thenReturn(podByName);
+        when(podByName.edit(any(UnaryOperator.class))).thenReturn(pod);
+
+        when(reconfigureClient.reconfigure(anyString(), anyString(), anyString()))
+            .thenReturn(new ComputeReconfigureClient.Result(false, 403, "missing compute_id", 50));
+
+        DatabaseEntity entity = newEntity("db-1", "tenant-1");
+        Optional<ComputeWarmPoolManager.ClaimedPod> result = manager.claim(entity);
+
+        assertThat(result).isEmpty();
+        // Two edit() calls: claiming swap + failed relabel
+        verify(podByName, times(2)).edit(any(UnaryOperator.class));
+    }
+
+    // ── 12. race lost on first pod → falls through to second ───────────────
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void claim_labelSwapRaceLost_continuesToNextCandidate() {
+        Pod first = idleRunningPod("warm-pool-first");
+        first.getStatus().setPodIP("10.0.0.1");
+        Pod second = idleRunningPod("warm-pool-second");
+        second.getStatus().setPodIP("10.0.0.2");
+        PodList list = new PodList();
+        list.setItems(List.of(first, second));
+        when(podsFiltered.list()).thenReturn(list);
+
+        PodResource firstRes = mock(PodResource.class);
+        PodResource secondRes = mock(PodResource.class);
+        when(podsNs.withName("warm-pool-first")).thenReturn(firstRes);
+        when(podsNs.withName("warm-pool-second")).thenReturn(secondRes);
+        when(firstRes.edit(any(UnaryOperator.class)))
+            .thenThrow(new KubernetesClientException("conflict: object has been modified"));
+        when(secondRes.edit(any(UnaryOperator.class))).thenReturn(second);
+
+        when(reconfigureClient.reconfigure("warm-pool-second", "10.0.0.2", "{\"spec\":\"mock\"}"))
+            .thenReturn(new ComputeReconfigureClient.Result(true, 200, null, 100));
+
+        DatabaseEntity entity = newEntity("db-2", "tenant-2");
+        Optional<ComputeWarmPoolManager.ClaimedPod> result = manager.claim(entity);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().podName()).isEqualTo("warm-pool-second");
+        assertThat(result.get().podIp()).isEqualTo("10.0.0.2");
+    }
+
+    // ── 13. all races lost → empty ─────────────────────────────────────────
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void claim_allRacesLost_returnsEmpty() {
+        Pod a = idleRunningPod("warm-pool-a");
+        a.getStatus().setPodIP("10.0.0.10");
+        Pod b = idleRunningPod("warm-pool-b");
+        b.getStatus().setPodIP("10.0.0.11");
+        PodList list = new PodList();
+        list.setItems(List.of(a, b));
+        when(podsFiltered.list()).thenReturn(list);
+
+        PodResource aRes = mock(PodResource.class);
+        PodResource bRes = mock(PodResource.class);
+        when(podsNs.withName("warm-pool-a")).thenReturn(aRes);
+        when(podsNs.withName("warm-pool-b")).thenReturn(bRes);
+        when(aRes.edit(any(UnaryOperator.class)))
+            .thenThrow(new KubernetesClientException("conflict"));
+        when(bRes.edit(any(UnaryOperator.class)))
+            .thenThrow(new KubernetesClientException("conflict"));
+
+        DatabaseEntity entity = newEntity("db-3", "tenant-3");
+        Optional<ComputeWarmPoolManager.ClaimedPod> result = manager.claim(entity);
+
+        assertThat(result).isEmpty();
+        verify(reconfigureClient, never()).reconfigure(anyString(), anyString(), anyString());
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
+    private DatabaseEntity newEntity(String id, String tenantId) {
+        DatabaseEntity e = new DatabaseEntity();
+        e.setId(id);
+        e.setTenantId(tenantId);
+        e.setName("test-db");
+        e.setNeonTenantId("neon-t");
+        e.setNeonTimelineId("neon-tl");
+        e.setDbUser("lakeon");
+        e.setDbPassword("");
+        e.setComputeSize("1cu");
+        e.setSuspendTimeout("600s");
+        return e;
+    }
+
     private Pod idleRunningPod(String name) {
         Pod p = new Pod();
         ObjectMeta meta = new ObjectMeta();
