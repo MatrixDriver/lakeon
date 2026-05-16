@@ -49,7 +49,9 @@ public class ComputeJwtSigner {
 
     /**
      * Generate a JWT for compute_ctl HTTP API authentication.
-     * Subject is the database / compute id. Issuer/TTL come from config.
+     * Subject is the database / compute id. The "compute_id" custom claim
+     * is required by upstream compute_ctl's authorize middleware (it matches
+     * against the pod's own --compute-id arg). Issuer/TTL come from config.
      */
     public String signComputeCtlToken(String computeId) {
         if (privateKey == null) {
@@ -60,6 +62,7 @@ public class ComputeJwtSigner {
         return Jwts.builder()
             .header().keyId(props.getComputeJwt().getKid()).and()
             .subject(computeId)
+            .claim("compute_id", computeId)
             .issuer(props.getComputeJwt().getIssuer())
             .issuedAt(Date.from(now))
             .expiration(Date.from(now.plusSeconds(props.getComputeJwt().getTtlSeconds())))

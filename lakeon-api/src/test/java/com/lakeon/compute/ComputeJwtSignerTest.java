@@ -81,6 +81,7 @@ class ComputeJwtSignerTest {
             .parseSignedClaims(token).getPayload();
         assertThat(claims.getSubject()).isEqualTo("db_abc");
         assertThat(claims.getIssuer()).isEqualTo("lakeon-api");
+        assertThat(claims.get("compute_id", String.class)).isEqualTo("db_abc");
     }
 
     @Test
