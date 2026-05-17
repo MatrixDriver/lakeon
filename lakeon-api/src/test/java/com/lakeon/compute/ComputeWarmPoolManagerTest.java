@@ -102,6 +102,8 @@ class ComputeWarmPoolManagerTest {
 
         lenient().when(specBuilder.generateComputeConfig(any(), anyInt()))
             .thenReturn("{\"spec\":\"mock\"}");
+        lenient().when(specBuilder.generateComputeConfig(any(), anyInt(), anyString()))
+            .thenReturn("{\"spec\":\"mock-replica\"}");
 
         // ComputePodManager builder helpers — return real (empty-ish) resource
         // objects so the downstream k8sClient.configMaps()/pods().resource(...)

@@ -391,7 +391,10 @@ public class ComputeWarmPoolManager {
 
         String configJson;
         try {
-            configJson = specBuilder.generateComputeConfig(proxy, IDLE_SUSPEND_TIMEOUT_SECONDS);
+            // mode=Replica so multiple idle pods can share the same mock tenant
+            // without fighting on the safekeeper primary lock. claim()'s
+            // POST /configure later switches to mode=Primary with the real tenant.
+            configJson = specBuilder.generateComputeConfig(proxy, IDLE_SUSPEND_TIMEOUT_SECONDS, "Replica");
         } catch (Exception e) {
             log.warn("failed to generate compute config for warm-pool pod podName={} error={}",
                      podName, e.getMessage());

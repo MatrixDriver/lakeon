@@ -27,11 +27,22 @@ public class ComputeSpecBuilder {
     }
 
     /**
-     * Generate compute config JSON for a Neon compute_ctl instance.
+     * Generate compute config JSON for a Neon compute_ctl instance in Primary mode.
      * @param entity database entity with tenant/timeline IDs
      * @param suspendTimeoutSeconds suspend timeout in seconds (0 = never auto-suspend)
      */
     public String generateComputeConfig(DatabaseEntity entity, int suspendTimeoutSeconds) {
+        return generateComputeConfig(entity, suspendTimeoutSeconds, "Primary");
+    }
+
+    /**
+     * Generate compute config JSON with explicit mode.
+     * Replica mode is used by warm-pool idle pods so multiple can share the
+     * same mock tenant without fighting on the safekeeper primary lock.
+     * @param mode one of "Primary", "Replica", or "Static" (with LSN). Neon's
+     *             ComputeMode enum — see libs/compute_api/src/spec.rs upstream.
+     */
+    public String generateComputeConfig(DatabaseEntity entity, int suspendTimeoutSeconds, String mode) {
         Map<String, Object> spec = new LinkedHashMap<>();
         spec.put("format_version", 2);
         spec.put("operation_uuid", UUID.randomUUID().toString());
@@ -40,7 +51,7 @@ public class ComputeSpecBuilder {
         String pageserverFqdn = extractPageserverHost() + ".lakeon.svc.cluster.local";
         spec.put("pageserver_connstring", "postgresql://" + pageserverFqdn + ":6400");
         spec.put("safekeeper_connstrings", parseSafekeeperUrls());
-        spec.put("mode", "Primary");
+        spec.put("mode", mode);
         spec.put("suspend_timeout_seconds", suspendTimeoutSeconds);
 
         Map<String, Object> cluster = new LinkedHashMap<>();
