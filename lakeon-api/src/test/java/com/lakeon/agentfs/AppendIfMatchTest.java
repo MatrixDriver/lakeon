@@ -2,11 +2,8 @@ package com.lakeon.agentfs;
 
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.service.exception.BadRequestException;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -39,11 +36,9 @@ import static org.mockito.Mockito.when;
  * by hand.
  */
 @Testcontainers
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AppendIfMatchTest {
 
     @Container
-    @SuppressWarnings("resource")
     private static final PostgreSQLContainer<?> PG = new PostgreSQLContainer<>("postgres:16-alpine")
             .withDatabaseName("agentfs_append_test")
             .withUsername("test")
@@ -52,16 +47,6 @@ class AppendIfMatchTest {
     private AgentFSDatabaseManager dbm;
     private AgentFSService svc;
     private TenantEntity tenant;
-
-    @BeforeAll
-    void startContainer() {
-        PG.start();
-    }
-
-    @AfterAll
-    void stopContainer() {
-        PG.stop();
-    }
 
     @BeforeEach
     void setup() throws SQLException {

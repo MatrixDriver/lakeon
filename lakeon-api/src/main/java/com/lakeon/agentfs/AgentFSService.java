@@ -166,7 +166,7 @@ public class AgentFSService {
                 Optional<FileRow> existing = loadRow(c, norm);
                 if (ifMatch != null && !ifMatch.isEmpty()) {
                     if (existing.isEmpty() || !ifMatch.equals(existing.get().etag)) {
-                        throw bad("precondition_failed");
+                        throw bad("precondition_failed: if-match mismatch");
                     }
                 }
                 byte[] base = existing.map(r -> r.data == null ? new byte[0] : r.data).orElse(new byte[0]);
