@@ -9,6 +9,8 @@
 //! If no api_key, runs in log-only mode (useful for dev/tests).
 
 use std::collections::HashMap;
+use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::thread;
@@ -265,10 +267,100 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry], ledger: &Led
     Ok(seqs_to_ack)
 }
 
-// Implemented in Task 9.
-fn handle_conflict(_cli: &DbayClient, _ledger: &Ledger, path: &str) -> Result<()> {
-    tracing::warn!(%path, "etag conflict detected — T9 will implement sidecar handling");
+/// On 412 (`status:"precondition_failed"`): download remote, save as a sidecar
+/// file under `~/.dbay/conflicts/`, append a line to the conflicts log, then
+/// forget the ledger entry so the next retry sends WITHOUT `if_match` —
+/// effectively making the local version the new baseline (local wins).
+fn handle_conflict(cli: &DbayClient, ledger: &Ledger, path: &str) -> Result<()> {
+    let (remote_bytes, remote_etag, _mtime) = cli
+        .agentfs_get(path)
+        .with_context(|| format!("download remote for conflict path {path}"))?;
+    let host = hostname_or_unknown();
+    let ts = local_filename_timestamp();
+    let conflict_local = conflict_sidecar_path(path, &host, &ts);
+    if let Some(parent) = conflict_local.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    fs::write(&conflict_local, &remote_bytes).with_context(|| {
+        format!("write conflict file {}", conflict_local.display())
+    })?;
+    append_conflict_log(path, &remote_etag, &host, &ts, &conflict_local);
+    let _ = ledger.forget(path);
+    tracing::warn!(
+        %path,
+        %remote_etag,
+        conflict_file = %conflict_local.display(),
+        "etag conflict: saved remote sidecar, dropped ledger entry (local wins)"
+    );
     Ok(())
+}
+
+fn hostname_or_unknown() -> String {
+    std::env::var("HOSTNAME").ok()
+        .or_else(|| {
+            std::process::Command::new("hostname").output().ok()
+                .and_then(|o| String::from_utf8(o.stdout).ok())
+                .map(|s| s.trim().to_string())
+        })
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "unknown".into())
+}
+
+/// Filename-safe local-time stamp: 2026-05-20T13-42-07
+fn local_filename_timestamp() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    // SAFETY: libc::localtime returns a pointer into a static buffer; we copy out
+    // the fields immediately. This is sound for read-only access from a single
+    // thread; the uplink worker is the only thread that calls this.
+    let tm = unsafe {
+        let t = secs as libc::time_t;
+        *libc::localtime(&t)
+    };
+    format!(
+        "{:04}-{:02}-{:02}T{:02}-{:02}-{:02}",
+        tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+        tm.tm_hour, tm.tm_min, tm.tm_sec
+    )
+}
+
+/// Map virtual `/projects/x/y.md` → `~/.dbay/conflicts/projects/x/y.md.conflict-from-<host>-<ts>`.
+fn conflict_sidecar_path(virt_path: &str, host: &str, ts: &str) -> PathBuf {
+    let stripped = virt_path.trim_start_matches('/');
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default();
+    home.join(".dbay")
+        .join("conflicts")
+        .join(format!("{stripped}.conflict-from-{host}-{ts}"))
+}
+
+fn append_conflict_log(
+    virt_path: &str,
+    remote_etag: &str,
+    host: &str,
+    ts: &str,
+    saved_to: &std::path::Path,
+) {
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default();
+    let log_dir = home.join(".dbay").join("conflicts");
+    let _ = fs::create_dir_all(&log_dir);
+    let log_file = log_dir.join("conflicts.log");
+    let line = serde_json::json!({
+        "ts": ts,
+        "path": virt_path,
+        "remote_etag": remote_etag,
+        "hostname": host,
+        "saved_to": saved_to.display().to_string(),
+    })
+    .to_string();
+    if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(log_file) {
+        let _ = writeln!(f, "{line}");
+    }
 }
 
 #[allow(dead_code)]
