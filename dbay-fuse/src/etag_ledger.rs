@@ -3,13 +3,13 @@
 //! Used by uplink to populate `if_match` on PUT/APPEND/batch ops and by
 //! pull to skip already-synced files.
 //!
-//! Single-writer model (one Ledger handle per process). SQLite WAL mode
-//! makes concurrent readers safe but we don't expose that — just lock
-//! the connection behind &mut self.
+//! Single-writer model: one `Ledger` handle per process. `rusqlite::Connection`
+//! is `!Sync`, so the type system already enforces single-threaded access — we
+//! don't add a separate lock.
 
 use anyhow::{Context, Result};
 use rusqlite::{params, Connection, OptionalExtension};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,8 +21,6 @@ pub struct EtagEntry {
 
 pub struct Ledger {
     conn: Connection,
-    #[allow(dead_code)]
-    path: PathBuf,
 }
 
 impl Ledger {
@@ -66,7 +64,7 @@ impl Ledger {
                 updated_at_ms INTEGER NOT NULL
             );
         "#).context("init schema")?;
-        Ok(Self { conn, path: path.to_path_buf() })
+        Ok(Self { conn })
     }
 
     pub fn get(&self, path: &str) -> Result<Option<EtagEntry>> {
