@@ -80,9 +80,9 @@ fn run(
                 let end = (idx + MAX_BATCH).min(batch.len());
                 let chunk = &batch[idx..end];
                 match send_batch(cli, &outbox, chunk, &ledger) {
-                    Ok(_) => {
-                        for entry in chunk {
-                            let _ = outbox.ack(entry.seq);
+                    Ok(seqs_to_ack) => {
+                        for seq in seqs_to_ack {
+                            let _ = outbox.ack(seq);
                         }
                         idx = end;
                     }
@@ -143,12 +143,13 @@ fn coalesce(entries: &[Entry]) -> Vec<Entry> {
 /// are skipped + ACK'd in place rather than failing the whole batch — without
 /// the blob we cannot recover the payload anyway, and holding the queue on
 /// them would starve every subsequent write.
-fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry], ledger: &Ledger) -> Result<()> {
+fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry], ledger: &Ledger) -> Result<Vec<u64>> {
     use base64::Engine as _;
     let blobs_dir = outbox.blobs_dir();
     let mut ops: Vec<serde_json::Value> = Vec::with_capacity(entries.len());
     let mut paths_in_order: Vec<Option<String>> = Vec::with_capacity(entries.len());
     let mut sizes_in_order: Vec<i64> = Vec::with_capacity(entries.len());
+    let mut seqs_in_order: Vec<u64> = Vec::with_capacity(entries.len());
     let mut skipped_seqs: Vec<u64> = Vec::new();
     for entry in entries {
         let (op_json, path_opt, sz) = match &entry.op {
@@ -161,6 +162,9 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry], ledger: &Led
                             "data_base64": base64::engine::general_purpose::STANDARD.encode(&bytes),
                         });
                         if let Some(p) = properties { obj["properties"] = p.clone(); }
+                        if let Ok(Some(e)) = ledger.get(path) {
+                            obj["if_match"] = serde_json::json!(e.etag);
+                        }
                         (obj, Some(path.clone()), bytes.len() as i64)
                     }
                     Err(e) => {
@@ -174,11 +178,14 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry], ledger: &Led
             Op::Append { path, blob } => {
                 match outbox::read_blob(&blobs_dir, blob) {
                     Ok(bytes) => {
-                        let obj = serde_json::json!({
+                        let mut obj = serde_json::json!({
                             "op": "append",
                             "path": path,
                             "data_base64": base64::engine::general_purpose::STANDARD.encode(&bytes),
                         });
+                        if let Ok(Some(e)) = ledger.get(path) {
+                            obj["if_match"] = serde_json::json!(e.etag);
+                        }
                         // size=0 placeholder: payload here is the delta, not full file.
                         // Pull will refresh the real size later if needed.
                         (obj, Some(path.clone()), 0i64)
@@ -210,14 +217,17 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry], ledger: &Led
         ops.push(op_json);
         paths_in_order.push(path_opt);
         sizes_in_order.push(sz);
+        seqs_in_order.push(entry.seq);
     }
     // ACK skipped entries before sending so they don't come back next poll.
     for seq in skipped_seqs { let _ = outbox.ack(seq); }
-    if ops.is_empty() { return Ok(()); }
+    if ops.is_empty() { return Ok(Vec::new()); }
     let results = cli.agentfs_batch(ops)?;
     // Update ledger from per-op results. Results should be 1:1 with our paths_in_order.
+    let mut seqs_to_ack: Vec<u64> = Vec::with_capacity(results.len());
     for (i, r) in results.iter().enumerate() {
         let p_opt = paths_in_order.get(i).and_then(|p| p.as_ref());
+        let seq = seqs_in_order.get(i).copied();
         match r.status.as_str() {
             "ok" => {
                 if let (Some(path), Some(etag)) = (p_opt, r.etag.as_ref()) {
@@ -226,20 +236,38 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry], ledger: &Led
                         tracing::warn!(?e, %path, "ledger upsert failed (non-fatal)");
                     }
                 }
+                if let Some(s) = seq { seqs_to_ack.push(s); }
             }
             "ok_absent" => {
                 if let Some(path) = p_opt { let _ = ledger.forget(path); }
+                if let Some(s) = seq { seqs_to_ack.push(s); }
             }
             "precondition_failed" => {
-                // T7: noop. T8 will handle conflict + retry.
+                // Invoke conflict handler (T9 will implement the sidecar
+                // sync). Do NOT ACK this seq — it stays in the outbox for
+                // T9 / the next loop iteration to retry.
+                if let Some(path) = p_opt {
+                    if let Err(e) = handle_conflict(cli, ledger, path) {
+                        tracing::warn!(?e, %path, "handle_conflict failed (non-fatal)");
+                    }
+                }
             }
-            _ => {}
+            _ => {
+                // Unknown / future status: ACK to avoid wedging the queue.
+                if let Some(s) = seq { seqs_to_ack.push(s); }
+            }
         }
         // For a successful delete op, also forget the ledger entry.
         if r.op == "delete" && r.status == "ok" {
             if let Some(path) = p_opt { let _ = ledger.forget(path); }
         }
     }
+    Ok(seqs_to_ack)
+}
+
+// Implemented in Task 9.
+fn handle_conflict(_cli: &DbayClient, _ledger: &Ledger, path: &str) -> Result<()> {
+    tracing::warn!(%path, "etag conflict detected — T9 will implement sidecar handling");
     Ok(())
 }
 
