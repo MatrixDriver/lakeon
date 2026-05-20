@@ -5,6 +5,10 @@ edition = "2021"
 description = "DBay FUSE filesystem — takes over agent workspace dirs and backs them with Lakebase"
 authors = ["Jacky"]
 
+[lib]
+name = "dbay_fuse"
+path = "src/lib.rs"
+
 [[bin]]
 name = "dbay-fuse"
 path = "src/main.rs"

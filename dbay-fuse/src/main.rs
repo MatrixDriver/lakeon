@@ -20,6 +20,7 @@ use std::path::{Path, PathBuf};
 mod append_state;
 mod config;
 mod dbay_api;
+mod etag_ledger;
 mod flush_watchdog;
 mod inmem;
 mod outbox;
