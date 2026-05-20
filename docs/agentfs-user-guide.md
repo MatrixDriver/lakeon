@@ -125,6 +125,21 @@ outbox 会一直积压，再连上就自动消费。期间 agent 仍可读写本
 ./target/release/dbay-fuse mount --agent claude &
 ```
 
+### 6.4 冲突文件处理
+
+冲突文件位于：
+- `~/.dbay/conflicts/<原路径>.conflict-from-<host>-<ts>` —— uplink 时触发的冲突（其他机器把同一文件改了，本地版本胜出，远端版本作为副本保存）
+- `<state-dir>/<原路径>.conflict-pull-<host>-<ts>` —— `dbay-fuse pull` 时触发的冲突（远端有新版本，但本地的 ledger 记录与远端不一致，远端版本作为副本写入 state 目录）
+- `~/.dbay/conflicts/conflicts.log` —— 所有 uplink 冲突的 JSONL 日志
+
+排查：
+```bash
+tail ~/.dbay/conflicts/conflicts.log
+ls -la ~/.dbay/conflicts/
+```
+
+处理：手动 diff、merge、删除副本即可。后续会加 `dbay-fuse conflicts list/clean` 子命令。
+
 ## 7. 目录布局
 
 ```
@@ -152,8 +167,11 @@ outbox 会一直积压，再连上就自动消费。期间 agent 仍可读写本
 ## 9. 约束与已知问题
 
 1. **单用户一个 store**：同一 API key 下所有 agent 写入到同一个 `agent_files` 命名空间（按 path prefix 区分）
-2. **不保证跨设备严格一致**：两台机器同时写同一文件会走 last-write-wins；极少数场景可能丢。下次发版会加 ETag 冲突检测。
-3. **多窗口并发 append**：同一 session.jsonl 两个 CC 窗口同时写，本地 state 用 OS 文件锁 OK，但上云的 ETag 版本会冲突 → 现阶段行为：后 push 的覆盖前 push。`/agentfs/files/append` 服务端端点已实现，但客户端还没对 session.jsonl 走 append 路径。
+2. **跨设备 ETag 冲突检测已启用**：两台机器同时改同一文件时，uplink 通过本地 etag ledger 带 `if_match` 给服务端；不匹配会触发"本地胜、远端版本另存为副本"：
+   - 远端的版本下载到 `~/.dbay/conflicts/<原路径>.conflict-from-<host>-<ts>`
+   - 本地版本作为新基线 PUT 上去
+   - 每次冲突在 `~/.dbay/conflicts/conflicts.log` 追加一行 JSON
+3. **多窗口并发 append**：客户端 `append_state` 已对 pure-append 文件（如 session.jsonl）走 delta append 路径（`Op::Append` + `/files/append`，仅上传新增字节），并且和 PUT 一样走 if_match 冲突检测；并发 append 的冲突也会触发副本机制。
 4. **Memory 索引有延迟**：文件写进 AgentFS 后，Memory 系统（memory_ingest）不会立即看到——需要独立的派生 worker 消费（**还没实装**）。
 5. **takeover projects/ 前务必退出 CC**：正在写的 session 被换底盘会导致 append 失败或数据截断。
 
@@ -192,4 +210,4 @@ kubectl -n lakeon logs -l app=lakeon-api --tail=50 | grep -i agentfs
 - ⏳ Phase 2：Memory 派生 worker（CDC → memory_ingest），让 `feedback_*.md` 等文件自动进 recall 索引
 - ⏳ Phase 3：虚拟 CLAUDE.md（从 memory_items 实时拼装）
 - ⏳ Phase 4：OpenClaw adapter（workspace/ 映射）
-- ⏳ Phase 5：Cache-miss 下行拉取（离线切换到新机器时自动 sync）
+- ✅ Phase 5：下行拉取（`dbay-fuse pull` + mount/takeover 自动调用）
