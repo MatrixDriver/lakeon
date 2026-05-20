@@ -194,9 +194,9 @@ public class AgentFSController {
                 }
             } catch (BadRequestException be) {
                 String msg = be.getMessage() == null ? "" : be.getMessage();
-                if (msg.contains("precondition_failed")) {
+                if (msg.startsWith("precondition_failed")) {
                     Object p = op.get("path");
-                    java.util.Map<String, Object> r = new java.util.LinkedHashMap<>();
+                    Map<String, Object> r = new LinkedHashMap<>();
                     r.put("op", kind);
                     if (p != null) r.put("path", p.toString());
                     r.put("status", "precondition_failed");
