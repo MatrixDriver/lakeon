@@ -223,7 +223,7 @@ pub fn execute(agent: &str, plan: &Plan, dry_run: bool) -> Result<()> {
     // Note: state_dir here MUST match plan.state_dir (the same path the
     // per-node copy_tree below writes into via node.state = state_dir/rel).
     fs::create_dir_all(&plan.state_dir).ok();
-    match crate::dbay_api::DbayClient::for_agent(agent) {
+    match crate::dbay_api::DbayClient::for_agent_no_base(agent) {
         Ok(Some(cli)) => {
             let ledger_path = home()
                 .map(|h| h.join(".dbay").join("sync-ledger").join(agent).join("etags.db"))

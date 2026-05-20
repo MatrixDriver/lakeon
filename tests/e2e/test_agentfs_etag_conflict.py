@@ -23,19 +23,26 @@ def _b64url(s: bytes) -> str:
     return base64.urlsafe_b64encode(s).rstrip(b"=").decode()
 
 
-def _put(endpoint, key, path, data, if_match=None, retries=10, delay=4):
-    """POST /files/put; first call on a fresh tenant retries while base provisions."""
+def _put(endpoint, key, path, data, if_match=None, retries=20, delay=6):
+    """POST /files/put; first call on a fresh tenant retries while AgentFS DB
+    provisions (which can take several minutes — the server may time-out
+    while creating per-tenant Postgres, surfacing as requests.ReadTimeout)."""
     last_err = None
     for _ in range(retries):
         body = {"path": path, "data_base64": _b64(data)}
         if if_match is not None:
             body["if_match"] = if_match
-        r = requests.post(
-            f"{endpoint}/api/v1/agentfs/files/put",
-            json=body,
-            headers={"Authorization": f"Bearer {key}"},
-            verify=False, timeout=120,
-        )
+        try:
+            r = requests.post(
+                f"{endpoint}/api/v1/agentfs/files/put",
+                json=body,
+                headers={"Authorization": f"Bearer {key}"},
+                verify=False, timeout=30,
+            )
+        except (requests.ReadTimeout, requests.ConnectionError) as e:
+            last_err = ("network", str(e)[:200])
+            time.sleep(delay)
+            continue
         if r.status_code in (200, 400):
             return r
         last_err = (r.status_code, r.text[:200])

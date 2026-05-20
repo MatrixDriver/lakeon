@@ -157,7 +157,7 @@ fn main() -> Result<()> {
                 std::fs::create_dir_all(&outbox_dir)?;
 
                 if !skip_pull {
-                    match dbay_api::DbayClient::for_agent(&agent)? {
+                    match dbay_api::DbayClient::for_agent_no_base(&agent)? {
                         Some(cli) => {
                             let ledger_path = home()?
                                 .join(".dbay")
@@ -254,7 +254,7 @@ fn main() -> Result<()> {
             outbox::print_status(&outbox_dir)?;
         }
         Cmd::Pull { agent, prefix, include_large, dry_run, state } => {
-            let cli = dbay_api::DbayClient::for_agent(&agent)?
+            let cli = dbay_api::DbayClient::for_agent_no_base(&agent)?
                 .ok_or_else(|| anyhow!("DBay not configured: see ~/.dbay/config.json"))?;
             let state_dir = state.unwrap_or(default_state(&agent)?);
             std::fs::create_dir_all(&state_dir).ok();

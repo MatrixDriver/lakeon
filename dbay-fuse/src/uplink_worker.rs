@@ -29,7 +29,7 @@ pub fn spawn(agent: &str, outbox: Arc<Outbox>, state_dir: &Path, outbox_dir: &Pa
     let agent = agent.to_string();
     let state_dir = state_dir.to_path_buf();
     let outbox_dir = outbox_dir.to_path_buf();
-    let client = DbayClient::for_agent(&agent)?;
+    let client = DbayClient::for_agent_no_base(&agent)?;
     if client.is_none() {
         tracing::warn!("DBay not configured — uplink runs in log-only mode");
     }

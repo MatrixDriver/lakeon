@@ -26,15 +26,20 @@ def _b64(b: bytes) -> str:
     return base64.b64encode(b).decode()
 
 
-def _put(endpoint, key, path, data, retries=10, delay=4):
+def _put(endpoint, key, path, data, retries=20, delay=6):
     last = None
     for _ in range(retries):
-        r = requests.post(
-            f"{endpoint}/api/v1/agentfs/files/put",
-            json={"path": path, "data_base64": _b64(data)},
-            headers={"Authorization": f"Bearer {key}"},
-            verify=False, timeout=120,
-        )
+        try:
+            r = requests.post(
+                f"{endpoint}/api/v1/agentfs/files/put",
+                json={"path": path, "data_base64": _b64(data)},
+                headers={"Authorization": f"Bearer {key}"},
+                verify=False, timeout=30,
+            )
+        except (requests.ReadTimeout, requests.ConnectionError) as e:
+            last = ("network", str(e)[:200])
+            time.sleep(delay)
+            continue
         if r.status_code == 200:
             return r.json()
         last = (r.status_code, r.text[:200])

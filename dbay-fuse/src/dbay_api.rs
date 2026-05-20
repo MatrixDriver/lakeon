@@ -142,6 +142,25 @@ impl DbayClient {
         Ok(Some(client))
     }
 
+    /// Like `for_agent` but skips memory-base resolution. Use for paths that
+    /// only call AgentFS endpoints (`/agentfs/*`) which are tenant-scoped, not
+    /// base-scoped — `pull`, `mount` startup-pull, takeover pre-pull. Avoids
+    /// the "No memory bases on this account" failure on fresh tenants.
+    pub fn for_agent_no_base(agent: &str) -> Result<Option<Self>> {
+        let Some(r) = config::resolve_for_agent(agent)? else { return Ok(None); };
+        let http = Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .context("build http client")?;
+        Ok(Some(Self {
+            http,
+            base_url: r.base_url,
+            api_key: r.api_key,
+            base_id: String::new(),
+            base_name: String::new(),
+        }))
+    }
+
     pub fn from_env() -> Result<Option<Self>> {
         // Back-compat shim: prefer for_agent("claude") but still support raw env.
         Self::for_agent("claude")
@@ -388,8 +407,14 @@ impl DbayClient {
         if !resp.status().is_success() {
             bail!("agentfs get failed: {} {}", resp.status(), resp.text().unwrap_or_default());
         }
+        // HTTP ETag headers may be wrapped in double-quotes per RFC 7232; strip
+        // them so the value compares equal to the bare-string etag returned by
+        // /list and /head (those go through JSON, no header quoting).
         let etag = resp.headers().get("ETag")
-            .and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .trim_matches('"')
+            .to_string();
         let mtime_ns = resp.headers().get("X-AgentFS-Mtime")
             .and_then(|v| v.to_str().ok()).and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
         let bytes = resp.bytes().context("agentfs get body")?.to_vec();

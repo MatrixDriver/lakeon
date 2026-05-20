@@ -19,14 +19,25 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DBAY_FUSE_BIN = os.path.join(REPO_ROOT, "dbay-fuse", "target", "release", "dbay-fuse")
 
 
-def _put(endpoint, key, path, data):
-    r = requests.post(
-        f"{endpoint}/api/v1/agentfs/files/put",
-        json={"path": path, "data_base64": base64.b64encode(data).decode()},
-        headers={"Authorization": f"Bearer {key}"},
-        verify=False, timeout=120,
-    )
-    assert r.status_code == 200, r.text
+def _put(endpoint, key, path, data, retries=20, delay=6):
+    last = None
+    for _ in range(retries):
+        try:
+            r = requests.post(
+                f"{endpoint}/api/v1/agentfs/files/put",
+                json={"path": path, "data_base64": base64.b64encode(data).decode()},
+                headers={"Authorization": f"Bearer {key}"},
+                verify=False, timeout=30,
+            )
+        except (requests.ReadTimeout, requests.ConnectionError) as e:
+            last = ("network", str(e)[:200])
+            import time as _t; _t.sleep(delay)
+            continue
+        if r.status_code == 200:
+            return
+        last = (r.status_code, r.text[:200])
+        import time as _t; _t.sleep(delay)
+    raise AssertionError(f"PUT failed: {last}")
 
 
 def test_pull_recovers_remote_state_to_empty_local(e2e_client, tmp_path):
