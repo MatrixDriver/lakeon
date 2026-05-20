@@ -215,6 +215,36 @@ pub fn execute(agent: &str, plan: &Plan, dry_run: bool) -> Result<()> {
         return Ok(());
     }
 
+    // Pre-takeover: pull remote files into state_dir so the subsequent
+    // per-node rsync from real → state overlays local-new on top of
+    // remote state. Best-effort — any failure logs a warning and we
+    // continue with takeover.
+    //
+    // Note: state_dir here MUST match plan.state_dir (the same path the
+    // per-node copy_tree below writes into via node.state = state_dir/rel).
+    fs::create_dir_all(&plan.state_dir).ok();
+    match crate::dbay_api::DbayClient::for_agent(agent) {
+        Ok(Some(cli)) => {
+            let ledger_path = home()
+                .map(|h| h.join(".dbay").join("sync-ledger").join(agent).join("etags.db"))
+                .unwrap_or_else(|_| PathBuf::from("./etags.db"));
+            if let Some(parent) = ledger_path.parent() {
+                fs::create_dir_all(parent).ok();
+            }
+            match crate::etag_ledger::Ledger::open(&ledger_path) {
+                Ok(ledger) => {
+                    match crate::pull::pull(&cli, &ledger, &plan.state_dir, "/", false, false) {
+                        Ok(s) => tracing::info!(?s, "pre-takeover pull complete"),
+                        Err(e) => tracing::warn!(?e, "pre-takeover pull failed; continuing"),
+                    }
+                }
+                Err(e) => tracing::warn!(?e, "pre-takeover ledger open failed; continuing"),
+            }
+        }
+        Ok(None) => tracing::warn!("DBay not configured — skipping pre-takeover pull"),
+        Err(e) => tracing::warn!(?e, "pre-takeover DbayClient init failed; continuing"),
+    }
+
     // Execute for real
     fs::create_dir_all(&backup_root)?;
 

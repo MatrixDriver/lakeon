@@ -9,6 +9,8 @@
 //! If no api_key, runs in log-only mode (useful for dev/tests).
 
 use std::collections::HashMap;
+use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::thread;
@@ -17,6 +19,7 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 
 use crate::dbay_api::DbayClient;
+use crate::etag_ledger::Ledger;
 use crate::outbox::{self, Entry, Op, Outbox};
 use crate::state_scan;
 
@@ -31,8 +34,14 @@ pub fn spawn(agent: &str, outbox: Arc<Outbox>, state_dir: &Path, outbox_dir: &Pa
     if client.is_none() {
         tracing::warn!("DBay not configured — uplink runs in log-only mode");
     }
+    let ledger_path = std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .ok_or_else(|| anyhow::anyhow!("HOME not set"))?
+        .join(".dbay").join("sync-ledger").join(&agent).join("etags.db");
+    let ledger = Ledger::open(&ledger_path)
+        .with_context(|| format!("open ledger {}", ledger_path.display()))?;
     thread::spawn(move || {
-        if let Err(e) = run(agent, outbox, client, state_dir, outbox_dir) {
+        if let Err(e) = run(agent, outbox, client, state_dir, outbox_dir, ledger) {
             tracing::error!(?e, "uplink worker crashed");
         }
     });
@@ -45,6 +54,7 @@ fn run(
     client: Option<DbayClient>,
     state_dir: PathBuf,
     outbox_dir: PathBuf,
+    ledger: Ledger,
 ) -> Result<()> {
     tracing::info!(has_client = client.is_some(), "uplink worker started");
     let trigger_path = state_scan::rescan_trigger_path(&outbox_dir);
@@ -71,10 +81,10 @@ fn run(
             while idx < batch.len() {
                 let end = (idx + MAX_BATCH).min(batch.len());
                 let chunk = &batch[idx..end];
-                match send_batch(cli, &outbox, chunk) {
-                    Ok(_) => {
-                        for entry in chunk {
-                            let _ = outbox.ack(entry.seq);
+                match send_batch(cli, &outbox, chunk, &ledger) {
+                    Ok(seqs_to_ack) => {
+                        for seq in seqs_to_ack {
+                            let _ = outbox.ack(seq);
                         }
                         idx = end;
                     }
@@ -135,13 +145,16 @@ fn coalesce(entries: &[Entry]) -> Vec<Entry> {
 /// are skipped + ACK'd in place rather than failing the whole batch — without
 /// the blob we cannot recover the payload anyway, and holding the queue on
 /// them would starve every subsequent write.
-fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry]) -> Result<()> {
+fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry], ledger: &Ledger) -> Result<Vec<u64>> {
     use base64::Engine as _;
     let blobs_dir = outbox.blobs_dir();
     let mut ops: Vec<serde_json::Value> = Vec::with_capacity(entries.len());
+    let mut paths_in_order: Vec<Option<String>> = Vec::with_capacity(entries.len());
+    let mut sizes_in_order: Vec<i64> = Vec::with_capacity(entries.len());
+    let mut seqs_in_order: Vec<u64> = Vec::with_capacity(entries.len());
     let mut skipped_seqs: Vec<u64> = Vec::new();
     for entry in entries {
-        let op_json = match &entry.op {
+        let (op_json, path_opt, sz) = match &entry.op {
             Op::Put { path, blob, properties } => {
                 match outbox::read_blob(&blobs_dir, blob) {
                     Ok(bytes) => {
@@ -150,14 +163,15 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry]) -> Result<()
                             "path": path,
                             "data_base64": base64::engine::general_purpose::STANDARD.encode(&bytes),
                         });
-                        if let Some(p) = properties {
-                            obj["properties"] = p.clone();
+                        if let Some(p) = properties { obj["properties"] = p.clone(); }
+                        if let Ok(Some(e)) = ledger.get(path) {
+                            obj["if_match"] = serde_json::json!(e.etag);
                         }
-                        obj
+                        (obj, Some(path.clone()), bytes.len() as i64)
                     }
                     Err(e) => {
-                        tracing::warn!(seq = entry.seq, %path, blob = %blob,
-                            ?e, "blob missing for PUT; skipping (unrecoverable)");
+                        tracing::warn!(seq = entry.seq, %path, blob = %blob, ?e,
+                            "blob missing for PUT; skipping (unrecoverable)");
                         skipped_seqs.push(entry.seq);
                         continue;
                     }
@@ -165,37 +179,188 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry]) -> Result<()
             }
             Op::Append { path, blob } => {
                 match outbox::read_blob(&blobs_dir, blob) {
-                    Ok(bytes) => serde_json::json!({
-                        "op": "append",
-                        "path": path,
-                        "data_base64": base64::engine::general_purpose::STANDARD.encode(&bytes),
-                    }),
+                    Ok(bytes) => {
+                        let mut obj = serde_json::json!({
+                            "op": "append",
+                            "path": path,
+                            "data_base64": base64::engine::general_purpose::STANDARD.encode(&bytes),
+                        });
+                        if let Ok(Some(e)) = ledger.get(path) {
+                            obj["if_match"] = serde_json::json!(e.etag);
+                        }
+                        // size=0 placeholder: payload here is the delta, not full file.
+                        // Pull will refresh the real size later if needed.
+                        (obj, Some(path.clone()), 0i64)
+                    }
                     Err(e) => {
-                        tracing::warn!(seq = entry.seq, %path, blob = %blob,
-                            ?e, "blob missing for APPEND; skipping (unrecoverable)");
+                        tracing::warn!(seq = entry.seq, %path, blob = %blob, ?e,
+                            "blob missing for APPEND; skipping (unrecoverable)");
                         skipped_seqs.push(entry.seq);
                         continue;
                     }
                 }
             }
-            Op::Delete { path } => serde_json::json!({"op":"delete","path":path}),
-            Op::Rename { path, new_path } => serde_json::json!({
-                "op":"rename","from":path,"to":new_path,"overwrite":true
-            }),
-            Op::Mkdir { path } => serde_json::json!({"op":"mkdir","path":path}),
+            Op::Delete { path } => (
+                serde_json::json!({"op":"delete","path":path}),
+                Some(path.clone()), 0,
+            ),
+            Op::Rename { path, new_path } => (
+                serde_json::json!({
+                    "op":"rename","from":path,"to":new_path,"overwrite":true
+                }),
+                None, 0,
+            ),
+            Op::Mkdir { path } => (
+                serde_json::json!({"op":"mkdir","path":path}),
+                Some(path.clone()), 0,
+            ),
             Op::Ack { .. } => continue,
         };
         ops.push(op_json);
+        paths_in_order.push(path_opt);
+        sizes_in_order.push(sz);
+        seqs_in_order.push(entry.seq);
     }
     // ACK skipped entries before sending so they don't come back next poll.
-    for seq in skipped_seqs {
-        let _ = outbox.ack(seq);
+    for seq in skipped_seqs { let _ = outbox.ack(seq); }
+    if ops.is_empty() { return Ok(Vec::new()); }
+    let results = cli.agentfs_batch(ops)?;
+    // Update ledger from per-op results. Results should be 1:1 with our paths_in_order.
+    let mut seqs_to_ack: Vec<u64> = Vec::with_capacity(results.len());
+    for (i, r) in results.iter().enumerate() {
+        let p_opt = paths_in_order.get(i).and_then(|p| p.as_ref());
+        let seq = seqs_in_order.get(i).copied();
+        match r.status.as_str() {
+            "ok" => {
+                if let (Some(path), Some(etag)) = (p_opt, r.etag.as_ref()) {
+                    let size = sizes_in_order.get(i).copied().unwrap_or(0);
+                    if let Err(e) = ledger.upsert(path, etag, size) {
+                        tracing::warn!(?e, %path, "ledger upsert failed (non-fatal)");
+                    }
+                }
+                if let Some(s) = seq { seqs_to_ack.push(s); }
+            }
+            "ok_absent" => {
+                if let Some(path) = p_opt { let _ = ledger.forget(path); }
+                if let Some(s) = seq { seqs_to_ack.push(s); }
+            }
+            "precondition_failed" => {
+                // Invoke conflict handler (T9 will implement the sidecar
+                // sync). Do NOT ACK this seq — it stays in the outbox for
+                // T9 / the next loop iteration to retry.
+                if let Some(path) = p_opt {
+                    if let Err(e) = handle_conflict(cli, ledger, path) {
+                        tracing::warn!(?e, %path, "handle_conflict failed (non-fatal)");
+                    }
+                }
+            }
+            _ => {
+                // Unknown / future status: ACK to avoid wedging the queue.
+                if let Some(s) = seq { seqs_to_ack.push(s); }
+            }
+        }
+        // For a successful delete op, also forget the ledger entry.
+        if r.op == "delete" && r.status == "ok" {
+            if let Some(path) = p_opt { let _ = ledger.forget(path); }
+        }
     }
-    if ops.is_empty() {
-        return Ok(());
+    Ok(seqs_to_ack)
+}
+
+/// On 412 (`status:"precondition_failed"`): download remote, save as a sidecar
+/// file under `~/.dbay/conflicts/`, append a line to the conflicts log, then
+/// forget the ledger entry so the next retry sends WITHOUT `if_match` —
+/// effectively making the local version the new baseline (local wins).
+fn handle_conflict(cli: &DbayClient, ledger: &Ledger, path: &str) -> Result<()> {
+    let (remote_bytes, remote_etag, _mtime) = cli
+        .agentfs_get(path)
+        .with_context(|| format!("download remote for conflict path {path}"))?;
+    let host = hostname_or_unknown();
+    let ts = local_filename_timestamp();
+    let conflict_local = conflict_sidecar_path(path, &host, &ts);
+    if let Some(parent) = conflict_local.parent() {
+        let _ = fs::create_dir_all(parent);
     }
-    cli.agentfs_batch(ops)?;
+    fs::write(&conflict_local, &remote_bytes).with_context(|| {
+        format!("write conflict file {}", conflict_local.display())
+    })?;
+    append_conflict_log(path, &remote_etag, &host, &ts, &conflict_local);
+    let _ = ledger.forget(path);
+    tracing::warn!(
+        %path,
+        %remote_etag,
+        conflict_file = %conflict_local.display(),
+        "etag conflict: saved remote sidecar, dropped ledger entry (local wins)"
+    );
     Ok(())
+}
+
+fn hostname_or_unknown() -> String {
+    std::env::var("HOSTNAME").ok()
+        .or_else(|| {
+            std::process::Command::new("hostname").output().ok()
+                .and_then(|o| String::from_utf8(o.stdout).ok())
+                .map(|s| s.trim().to_string())
+        })
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "unknown".into())
+}
+
+/// Filename-safe local-time stamp: 2026-05-20T13-42-07
+fn local_filename_timestamp() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    // SAFETY: libc::localtime returns a pointer into a static buffer; we copy out
+    // the fields immediately. This is sound for read-only access from a single
+    // thread; the uplink worker is the only thread that calls this.
+    let tm = unsafe {
+        let t = secs as libc::time_t;
+        *libc::localtime(&t)
+    };
+    format!(
+        "{:04}-{:02}-{:02}T{:02}-{:02}-{:02}",
+        tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+        tm.tm_hour, tm.tm_min, tm.tm_sec
+    )
+}
+
+/// Map virtual `/projects/x/y.md` → `~/.dbay/conflicts/projects/x/y.md.conflict-from-<host>-<ts>`.
+fn conflict_sidecar_path(virt_path: &str, host: &str, ts: &str) -> PathBuf {
+    let stripped = virt_path.trim_start_matches('/');
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default();
+    home.join(".dbay")
+        .join("conflicts")
+        .join(format!("{stripped}.conflict-from-{host}-{ts}"))
+}
+
+fn append_conflict_log(
+    virt_path: &str,
+    remote_etag: &str,
+    host: &str,
+    ts: &str,
+    saved_to: &std::path::Path,
+) {
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default();
+    let log_dir = home.join(".dbay").join("conflicts");
+    let _ = fs::create_dir_all(&log_dir);
+    let log_file = log_dir.join("conflicts.log");
+    let line = serde_json::json!({
+        "ts": ts,
+        "path": virt_path,
+        "remote_etag": remote_etag,
+        "hostname": host,
+        "saved_to": saved_to.display().to_string(),
+    })
+    .to_string();
+    if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(log_file) {
+        let _ = writeln!(f, "{line}");
+    }
 }
 
 #[allow(dead_code)]

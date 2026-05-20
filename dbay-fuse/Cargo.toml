@@ -5,6 +5,10 @@ edition = "2021"
 description = "DBay FUSE filesystem — takes over agent workspace dirs and backs them with Lakebase"
 authors = ["Jacky"]
 
+[lib]
+name = "dbay_fuse"
+path = "src/lib.rs"
+
 [[bin]]
 name = "dbay-fuse"
 path = "src/main.rs"
@@ -21,6 +25,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 base64 = "0.22"
+rusqlite = { version = "0.31", features = ["bundled"] }
 
 [dev-dependencies]
 tempfile = "3"

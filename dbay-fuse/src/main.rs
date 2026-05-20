@@ -20,10 +20,12 @@ use std::path::{Path, PathBuf};
 mod append_state;
 mod config;
 mod dbay_api;
+mod etag_ledger;
 mod flush_watchdog;
 mod inmem;
 mod outbox;
 mod passthrough;
+mod pull;
 mod state_scan;
 mod takeover;
 mod uplink_worker;
@@ -53,6 +55,9 @@ enum Cmd {
         /// Default false: keep proven disk-passthrough + outbox model.
         #[arg(long)]
         in_memory: bool,
+        /// Skip the automatic remote→local pull on startup.
+        #[arg(long)]
+        skip_pull: bool,
     },
     /// Unmount
     Umount {
@@ -94,6 +99,19 @@ enum Cmd {
         #[arg(long)]
         agent: String,
     },
+    /// Sync remote AgentFS down to local state directory (one-shot).
+    Pull {
+        #[arg(long)]
+        agent: String,
+        #[arg(long, default_value = "/")]
+        prefix: String,
+        #[arg(long)]
+        include_large: bool,
+        #[arg(long)]
+        dry_run: bool,
+        #[arg(long)]
+        state: Option<PathBuf>,
+    },
 }
 
 fn home() -> Result<PathBuf> {
@@ -124,7 +142,7 @@ fn main() -> Result<()> {
 
     let cli = Cli::parse();
     match cli.cmd {
-        Cmd::Mount { agent, mount, state, foreground: _, in_memory } => {
+        Cmd::Mount { agent, mount, state, foreground: _, in_memory, skip_pull } => {
             let mount = mount.unwrap_or(default_mount(&agent)?);
             std::fs::create_dir_all(&mount)?;
             if in_memory {
@@ -135,6 +153,45 @@ fn main() -> Result<()> {
                 let outbox_dir = default_outbox(&agent)?;
                 std::fs::create_dir_all(&state)?;
                 std::fs::create_dir_all(&outbox_dir)?;
+
+                if !skip_pull {
+                    match dbay_api::DbayClient::for_agent(&agent)? {
+                        Some(cli) => {
+                            let ledger_path = home()?
+                                .join(".dbay")
+                                .join("sync-ledger")
+                                .join(&agent)
+                                .join("etags.db");
+                            if let Some(parent) = ledger_path.parent() {
+                                std::fs::create_dir_all(parent).ok();
+                            }
+                            match etag_ledger::Ledger::open(&ledger_path) {
+                                Ok(ledger) => {
+                                    tracing::info!("running startup pull (skip with --skip-pull)");
+                                    match pull::pull(&cli, &ledger, &state, "/", false, false) {
+                                        Ok(s) => tracing::info!(
+                                            synced = s.synced,
+                                            skipped = s.skipped,
+                                            conflicts = s.conflicts,
+                                            errors = s.errors,
+                                            "startup pull complete"
+                                        ),
+                                        Err(e) => tracing::warn!(
+                                            ?e,
+                                            "startup pull failed — continuing with cached local state"
+                                        ),
+                                    }
+                                }
+                                Err(e) => tracing::warn!(
+                                    ?e,
+                                    "ledger open failed — skipping startup pull"
+                                ),
+                            }
+                        }
+                        None => tracing::warn!("DBay not configured — skipping startup pull"),
+                    }
+                }
+
                 tracing::info!(?agent, ?mount, ?state, ?outbox_dir, "mounting (disk passthrough)");
                 passthrough::mount(&agent, &mount, &state, &outbox_dir)?;
             }
@@ -193,6 +250,34 @@ fn main() -> Result<()> {
         Cmd::OutboxStatus { agent } => {
             let outbox_dir = default_outbox(&agent)?;
             outbox::print_status(&outbox_dir)?;
+        }
+        Cmd::Pull { agent, prefix, include_large, dry_run, state } => {
+            let cli = dbay_api::DbayClient::for_agent(&agent)?
+                .ok_or_else(|| anyhow!("DBay not configured: see ~/.dbay/config.json"))?;
+            let state_dir = state.unwrap_or(default_state(&agent)?);
+            std::fs::create_dir_all(&state_dir).ok();
+            let ledger_path = home()?
+                .join(".dbay")
+                .join("sync-ledger")
+                .join(&agent)
+                .join("etags.db");
+            if let Some(parent) = ledger_path.parent() {
+                std::fs::create_dir_all(parent).ok();
+            }
+            let ledger = etag_ledger::Ledger::open(&ledger_path)
+                .with_context(|| format!("open ledger {}", ledger_path.display()))?;
+            let summary = pull::pull(&cli, &ledger, &state_dir, &prefix, include_large, dry_run)?;
+            println!(
+                "pull complete: synced={} skipped={} conflicts={} skipped_large={} errors={}",
+                summary.synced,
+                summary.skipped,
+                summary.conflicts,
+                summary.skipped_large,
+                summary.errors
+            );
+            if summary.errors > 0 {
+                std::process::exit(2);
+            }
         }
     }
     Ok(())
