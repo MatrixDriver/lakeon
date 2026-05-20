@@ -96,6 +96,19 @@ enum Cmd {
         #[arg(long)]
         agent: String,
     },
+    /// Sync remote AgentFS down to local state directory (one-shot).
+    Pull {
+        #[arg(long)]
+        agent: String,
+        #[arg(long, default_value = "/")]
+        prefix: String,
+        #[arg(long)]
+        include_large: bool,
+        #[arg(long)]
+        dry_run: bool,
+        #[arg(long)]
+        state: Option<PathBuf>,
+    },
 }
 
 fn home() -> Result<PathBuf> {
@@ -195,6 +208,34 @@ fn main() -> Result<()> {
         Cmd::OutboxStatus { agent } => {
             let outbox_dir = default_outbox(&agent)?;
             outbox::print_status(&outbox_dir)?;
+        }
+        Cmd::Pull { agent, prefix, include_large, dry_run, state } => {
+            let cli = dbay_api::DbayClient::for_agent(&agent)?
+                .ok_or_else(|| anyhow!("DBay not configured: see ~/.dbay/config.json"))?;
+            let state_dir = state.unwrap_or(default_state(&agent)?);
+            std::fs::create_dir_all(&state_dir).ok();
+            let ledger_path = home()?
+                .join(".dbay")
+                .join("sync-ledger")
+                .join(&agent)
+                .join("etags.db");
+            if let Some(parent) = ledger_path.parent() {
+                std::fs::create_dir_all(parent).ok();
+            }
+            let ledger = etag_ledger::Ledger::open(&ledger_path)
+                .with_context(|| format!("open ledger {}", ledger_path.display()))?;
+            let summary = pull::pull(&cli, &ledger, &state_dir, &prefix, include_large, dry_run)?;
+            println!(
+                "pull complete: synced={} skipped={} conflicts={} skipped_large={} errors={}",
+                summary.synced,
+                summary.skipped,
+                summary.conflicts,
+                summary.skipped_large,
+                summary.errors
+            );
+            if summary.errors > 0 {
+                std::process::exit(2);
+            }
         }
     }
     Ok(())
