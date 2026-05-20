@@ -25,6 +25,7 @@ mod flush_watchdog;
 mod inmem;
 mod outbox;
 mod passthrough;
+mod pull;
 mod state_scan;
 mod takeover;
 mod uplink_worker;
