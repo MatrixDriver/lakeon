@@ -161,7 +161,7 @@ fn download_and_write(
     }
     let target = match action {
         PullAction::Conflict => {
-            let host = std::env::var("HOSTNAME").unwrap_or_else(|_| "unknown".into());
+            let host = crate::hostname::hostname_or_unknown();
             let ts = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_secs())

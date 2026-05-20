@@ -22,6 +22,7 @@ mod config;
 mod dbay_api;
 mod etag_ledger;
 mod flush_watchdog;
+mod hostname;
 mod inmem;
 mod outbox;
 mod passthrough;

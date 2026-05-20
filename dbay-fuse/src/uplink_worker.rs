@@ -149,12 +149,11 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry], ledger: &Led
     use base64::Engine as _;
     let blobs_dir = outbox.blobs_dir();
     let mut ops: Vec<serde_json::Value> = Vec::with_capacity(entries.len());
-    let mut paths_in_order: Vec<Option<String>> = Vec::with_capacity(entries.len());
     let mut sizes_in_order: Vec<i64> = Vec::with_capacity(entries.len());
     let mut seqs_in_order: Vec<u64> = Vec::with_capacity(entries.len());
     let mut skipped_seqs: Vec<u64> = Vec::new();
     for entry in entries {
-        let (op_json, path_opt, sz) = match &entry.op {
+        let (op_json, sz) = match &entry.op {
             Op::Put { path, blob, properties } => {
                 match outbox::read_blob(&blobs_dir, blob) {
                     Ok(bytes) => {
@@ -167,7 +166,7 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry], ledger: &Led
                         if let Ok(Some(e)) = ledger.get(path) {
                             obj["if_match"] = serde_json::json!(e.etag);
                         }
-                        (obj, Some(path.clone()), bytes.len() as i64)
+                        (obj, bytes.len() as i64)
                     }
                     Err(e) => {
                         tracing::warn!(seq = entry.seq, %path, blob = %blob, ?e,
@@ -190,7 +189,7 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry], ledger: &Led
                         }
                         // size=0 placeholder: payload here is the delta, not full file.
                         // Pull will refresh the real size later if needed.
-                        (obj, Some(path.clone()), 0i64)
+                        (obj, 0i64)
                     }
                     Err(e) => {
                         tracing::warn!(seq = entry.seq, %path, blob = %blob, ?e,
@@ -202,22 +201,21 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry], ledger: &Led
             }
             Op::Delete { path } => (
                 serde_json::json!({"op":"delete","path":path}),
-                Some(path.clone()), 0,
+                0,
             ),
             Op::Rename { path, new_path } => (
                 serde_json::json!({
                     "op":"rename","from":path,"to":new_path,"overwrite":true
                 }),
-                None, 0,
+                0,
             ),
             Op::Mkdir { path } => (
                 serde_json::json!({"op":"mkdir","path":path}),
-                Some(path.clone()), 0,
+                0,
             ),
             Op::Ack { .. } => continue,
         };
         ops.push(op_json);
-        paths_in_order.push(path_opt);
         sizes_in_order.push(sz);
         seqs_in_order.push(entry.seq);
     }
@@ -225,10 +223,11 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry], ledger: &Led
     for seq in skipped_seqs { let _ = outbox.ack(seq); }
     if ops.is_empty() { return Ok(Vec::new()); }
     let results = cli.agentfs_batch(ops)?;
-    // Update ledger from per-op results. Results should be 1:1 with our paths_in_order.
+    // Update ledger from per-op results. Server echoes each op's path back in
+    // BatchOpResult.path — read it directly instead of carrying a parallel Vec.
     let mut seqs_to_ack: Vec<u64> = Vec::with_capacity(results.len());
     for (i, r) in results.iter().enumerate() {
-        let p_opt = paths_in_order.get(i).and_then(|p| p.as_ref());
+        let p_opt = r.path.as_deref();
         let seq = seqs_in_order.get(i).copied();
         match r.status.as_str() {
             "ok" => {
@@ -275,7 +274,7 @@ fn handle_conflict(cli: &DbayClient, ledger: &Ledger, path: &str) -> Result<()> 
     let (remote_bytes, remote_etag, _mtime) = cli
         .agentfs_get(path)
         .with_context(|| format!("download remote for conflict path {path}"))?;
-    let host = hostname_or_unknown();
+    let host = crate::hostname::hostname_or_unknown();
     let ts = local_filename_timestamp();
     let conflict_local = conflict_sidecar_path(path, &host, &ts);
     if let Some(parent) = conflict_local.parent() {
@@ -293,17 +292,6 @@ fn handle_conflict(cli: &DbayClient, ledger: &Ledger, path: &str) -> Result<()> 
         "etag conflict: saved remote sidecar, dropped ledger entry (local wins)"
     );
     Ok(())
-}
-
-fn hostname_or_unknown() -> String {
-    std::env::var("HOSTNAME").ok()
-        .or_else(|| {
-            std::process::Command::new("hostname").output().ok()
-                .and_then(|o| String::from_utf8(o.stdout).ok())
-                .map(|s| s.trim().to_string())
-        })
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "unknown".into())
 }
 
 /// Filename-safe local-time stamp: 2026-05-20T13-42-07
