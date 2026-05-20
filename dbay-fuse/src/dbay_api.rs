@@ -111,6 +111,14 @@ pub struct RecalledMemory {
     pub metadata: Option<serde_json::Value>,
 }
 
+#[derive(Debug, Clone)]
+pub struct BatchOpResult {
+    pub op: String,
+    pub path: Option<String>,
+    pub status: String,            // "ok" | "ok_absent" | "precondition_failed"
+    pub etag: Option<String>,
+}
+
 impl DbayClient {
     /// Build a client for a specific agent using `config.json` + env overrides.
     /// Returns `Ok(None)` when the user isn't logged in yet (no api key anywhere).
@@ -307,8 +315,10 @@ impl DbayClient {
         Ok(())
     }
 
-    /// POST /agentfs/batch — atomic multi-op transaction.
-    pub fn agentfs_batch(&self, ops: Vec<serde_json::Value>) -> Result<()> {
+    /// POST /agentfs/batch — multi-op call. Returns one BatchOpResult per input op.
+    /// Non-2xx surfaces as Err; a 2xx with per-op status="precondition_failed"
+    /// is returned in the Vec so the caller can take per-op action.
+    pub fn agentfs_batch(&self, ops: Vec<serde_json::Value>) -> Result<Vec<BatchOpResult>> {
         let body = serde_json::json!({ "ops": ops });
         let resp = self
             .http
@@ -322,7 +332,17 @@ impl DbayClient {
             let t = resp.text().unwrap_or_default();
             bail!("agentfs batch failed: {s} {t}");
         }
-        Ok(())
+        let text = resp.text().unwrap_or_default();
+        let v: serde_json::Value = serde_json::from_str(&text).context("batch decode")?;
+        let results = v.get("results").and_then(|x| x.as_array()).cloned()
+            .unwrap_or_default();
+        let out = results.into_iter().map(|r| BatchOpResult {
+            op: r.get("op").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+            path: r.get("path").and_then(|x| x.as_str()).map(String::from),
+            status: r.get("status").and_then(|x| x.as_str()).unwrap_or("ok").to_string(),
+            etag: r.get("etag").and_then(|x| x.as_str()).map(String::from),
+        }).collect();
+        Ok(out)
     }
 
     pub fn ingest(

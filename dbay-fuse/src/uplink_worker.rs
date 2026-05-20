@@ -194,7 +194,7 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry]) -> Result<()
     if ops.is_empty() {
         return Ok(());
     }
-    cli.agentfs_batch(ops)?;
+    let _results = cli.agentfs_batch(ops)?;
     Ok(())
 }
 
