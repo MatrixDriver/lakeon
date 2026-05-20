@@ -148,48 +148,62 @@ public class AgentFSController {
             @SuppressWarnings("unchecked")
             Map<String, Object> op = (Map<String, Object>) rawOp;
             String kind = reqStr(op, "op");
-            switch (kind) {
-                case "put" -> {
-                    String p = reqStr(op, "path");
-                    byte[] data = decodeData(op.get("data_base64"));
-                    JsonNode props = bodyAsJson(op.get("properties"));
-                    AgentFSService.FileRow e = svc.put(tenant, p, data, props,
-                            (String) op.get("if_match"), (String) op.get("if_none_match"));
-                    results.add(Map.of("op", kind, "path", p, "status", "ok", "etag", e.etag));
-                }
-                case "delete" -> {
-                    String p = reqStr(op, "path");
-                    try {
-                        svc.delete(tenant, p, (String) op.get("if_match"));
-                        results.add(Map.of("op", kind, "path", p, "status", "ok"));
-                    } catch (com.lakeon.service.exception.NotFoundException ignored) {
-                        results.add(Map.of("op", kind, "path", p, "status", "ok_absent"));
+            try {
+                switch (kind) {
+                    case "put" -> {
+                        String p = reqStr(op, "path");
+                        byte[] data = decodeData(op.get("data_base64"));
+                        JsonNode props = bodyAsJson(op.get("properties"));
+                        AgentFSService.FileRow e = svc.put(tenant, p, data, props,
+                                (String) op.get("if_match"), (String) op.get("if_none_match"));
+                        results.add(Map.of("op", kind, "path", p, "status", "ok", "etag", e.etag));
                     }
+                    case "delete" -> {
+                        String p = reqStr(op, "path");
+                        try {
+                            svc.delete(tenant, p, (String) op.get("if_match"));
+                            results.add(Map.of("op", kind, "path", p, "status", "ok"));
+                        } catch (com.lakeon.service.exception.NotFoundException ignored) {
+                            results.add(Map.of("op", kind, "path", p, "status", "ok_absent"));
+                        }
+                    }
+                    case "append" -> {
+                        String p = reqStr(op, "path");
+                        byte[] data = decodeData(op.get("data_base64"));
+                        AgentFSService.FileRow e = svc.append(tenant, p, data, (String) op.get("if_match"));
+                        results.add(Map.of("op", kind, "path", p, "status", "ok", "etag", e.etag));
+                    }
+                    case "rename" -> {
+                        svc.rename(tenant,
+                                reqStr(op, "from"),
+                                reqStr(op, "to"),
+                                Boolean.TRUE.equals(op.get("overwrite")));
+                        results.add(Map.of("op", kind, "status", "ok"));
+                    }
+                    case "mkdir" -> {
+                        String p = reqStr(op, "path");
+                        AgentFSService.FileRow e = svc.mkdir(tenant, p, bodyAsJson(op.get("properties")));
+                        results.add(Map.of("op", kind, "path", p, "status", "ok", "etag", e.etag));
+                    }
+                    case "set_properties" -> {
+                        String p = reqStr(op, "path");
+                        AgentFSService.FileRow e = svc.setProperties(tenant, p, bodyAsJson(op.get("properties")));
+                        results.add(Map.of("op", kind, "path", p, "status", "ok", "etag", e.etag));
+                    }
+                    default -> throw new BadRequestException("unknown op: " + kind);
                 }
-                case "append" -> {
-                    String p = reqStr(op, "path");
-                    byte[] data = decodeData(op.get("data_base64"));
-                    AgentFSService.FileRow e = svc.append(tenant, p, data, (String) op.get("if_match"));
-                    results.add(Map.of("op", kind, "path", p, "status", "ok", "etag", e.etag));
+            } catch (BadRequestException be) {
+                String msg = be.getMessage() == null ? "" : be.getMessage();
+                if (msg.contains("precondition_failed")) {
+                    Object p = op.get("path");
+                    java.util.Map<String, Object> r = new java.util.LinkedHashMap<>();
+                    r.put("op", kind);
+                    if (p != null) r.put("path", p.toString());
+                    r.put("status", "precondition_failed");
+                    results.add(r);
+                } else {
+                    throw be;
                 }
-                case "rename" -> {
-                    svc.rename(tenant,
-                            reqStr(op, "from"),
-                            reqStr(op, "to"),
-                            Boolean.TRUE.equals(op.get("overwrite")));
-                    results.add(Map.of("op", kind, "status", "ok"));
-                }
-                case "mkdir" -> {
-                    String p = reqStr(op, "path");
-                    AgentFSService.FileRow e = svc.mkdir(tenant, p, bodyAsJson(op.get("properties")));
-                    results.add(Map.of("op", kind, "path", p, "status", "ok", "etag", e.etag));
-                }
-                case "set_properties" -> {
-                    String p = reqStr(op, "path");
-                    AgentFSService.FileRow e = svc.setProperties(tenant, p, bodyAsJson(op.get("properties")));
-                    results.add(Map.of("op", kind, "path", p, "status", "ok", "etag", e.etag));
-                }
-                default -> throw new BadRequestException("unknown op: " + kind);
             }
         }
         return Map.of("results", results);
