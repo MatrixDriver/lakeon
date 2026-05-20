@@ -95,7 +95,8 @@ public class AgentFSController {
         TenantEntity tenant = getTenant(req);
         String path = reqStr(body, "path");
         byte[] data = decodeData(body.get("data_base64"));
-        AgentFSService.FileRow e = svc.append(tenant, path, data);
+        String ifMatch = (String) body.get("if_match");
+        AgentFSService.FileRow e = svc.append(tenant, path, data, ifMatch);
         return Map.of("new_size", e.size, "etag", e.etag);
     }
 
@@ -168,7 +169,7 @@ public class AgentFSController {
                 case "append" -> {
                     String p = reqStr(op, "path");
                     byte[] data = decodeData(op.get("data_base64"));
-                    AgentFSService.FileRow e = svc.append(tenant, p, data);
+                    AgentFSService.FileRow e = svc.append(tenant, p, data, (String) op.get("if_match"));
                     results.add(Map.of("op", kind, "path", p, "status", "ok", "etag", e.etag));
                 }
                 case "rename" -> {
