@@ -10,7 +10,6 @@
 
 use std::collections::HashMap;
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::thread;
@@ -275,15 +274,19 @@ fn handle_conflict(cli: &DbayClient, ledger: &Ledger, path: &str) -> Result<()> 
         .agentfs_get(path)
         .with_context(|| format!("download remote for conflict path {path}"))?;
     let host = crate::hostname::hostname_or_unknown();
-    let ts = local_filename_timestamp();
-    let conflict_local = conflict_sidecar_path(path, &host, &ts);
+    let ts = crate::conflict::local_filename_timestamp();
+    let conflicts_root = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default()
+        .join(".dbay").join("conflicts");
+    let conflict_local = crate::conflict::conflict_sidecar_path(&conflicts_root, path, &host, &ts);
     if let Some(parent) = conflict_local.parent() {
         let _ = fs::create_dir_all(parent);
     }
     fs::write(&conflict_local, &remote_bytes).with_context(|| {
         format!("write conflict file {}", conflict_local.display())
     })?;
-    append_conflict_log(path, &remote_etag, &host, &ts, &conflict_local);
+    crate::conflict::append_conflict_log(&conflicts_root, path, &remote_etag, &host, &ts, &conflict_local);
     let _ = ledger.forget(path);
     tracing::warn!(
         %path,
@@ -292,63 +295,6 @@ fn handle_conflict(cli: &DbayClient, ledger: &Ledger, path: &str) -> Result<()> 
         "etag conflict: saved remote sidecar, dropped ledger entry (local wins)"
     );
     Ok(())
-}
-
-/// Filename-safe local-time stamp: 2026-05-20T13-42-07
-fn local_filename_timestamp() -> String {
-    let secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    // SAFETY: libc::localtime returns a pointer into a static buffer; we copy out
-    // the fields immediately. This is sound for read-only access from a single
-    // thread; the uplink worker is the only thread that calls this.
-    let tm = unsafe {
-        let t = secs as libc::time_t;
-        *libc::localtime(&t)
-    };
-    format!(
-        "{:04}-{:02}-{:02}T{:02}-{:02}-{:02}",
-        tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-        tm.tm_hour, tm.tm_min, tm.tm_sec
-    )
-}
-
-/// Map virtual `/projects/x/y.md` → `~/.dbay/conflicts/projects/x/y.md.conflict-from-<host>-<ts>`.
-fn conflict_sidecar_path(virt_path: &str, host: &str, ts: &str) -> PathBuf {
-    let stripped = virt_path.trim_start_matches('/');
-    let home = std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_default();
-    home.join(".dbay")
-        .join("conflicts")
-        .join(format!("{stripped}.conflict-from-{host}-{ts}"))
-}
-
-fn append_conflict_log(
-    virt_path: &str,
-    remote_etag: &str,
-    host: &str,
-    ts: &str,
-    saved_to: &std::path::Path,
-) {
-    let home = std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_default();
-    let log_dir = home.join(".dbay").join("conflicts");
-    let _ = fs::create_dir_all(&log_dir);
-    let log_file = log_dir.join("conflicts.log");
-    let line = serde_json::json!({
-        "ts": ts,
-        "path": virt_path,
-        "remote_etag": remote_etag,
-        "hostname": host,
-        "saved_to": saved_to.display().to_string(),
-    })
-    .to_string();
-    if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(log_file) {
-        let _ = writeln!(f, "{line}");
-    }
 }
 
 #[allow(dead_code)]
