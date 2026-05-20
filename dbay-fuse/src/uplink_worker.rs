@@ -17,6 +17,7 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 
 use crate::dbay_api::DbayClient;
+use crate::etag_ledger::Ledger;
 use crate::outbox::{self, Entry, Op, Outbox};
 use crate::state_scan;
 
@@ -31,8 +32,14 @@ pub fn spawn(agent: &str, outbox: Arc<Outbox>, state_dir: &Path, outbox_dir: &Pa
     if client.is_none() {
         tracing::warn!("DBay not configured — uplink runs in log-only mode");
     }
+    let ledger_path = std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .ok_or_else(|| anyhow::anyhow!("HOME not set"))?
+        .join(".dbay").join("sync-ledger").join(&agent).join("etags.db");
+    let ledger = Ledger::open(&ledger_path)
+        .with_context(|| format!("open ledger {}", ledger_path.display()))?;
     thread::spawn(move || {
-        if let Err(e) = run(agent, outbox, client, state_dir, outbox_dir) {
+        if let Err(e) = run(agent, outbox, client, state_dir, outbox_dir, ledger) {
             tracing::error!(?e, "uplink worker crashed");
         }
     });
@@ -45,6 +52,7 @@ fn run(
     client: Option<DbayClient>,
     state_dir: PathBuf,
     outbox_dir: PathBuf,
+    ledger: Ledger,
 ) -> Result<()> {
     tracing::info!(has_client = client.is_some(), "uplink worker started");
     let trigger_path = state_scan::rescan_trigger_path(&outbox_dir);
@@ -71,7 +79,7 @@ fn run(
             while idx < batch.len() {
                 let end = (idx + MAX_BATCH).min(batch.len());
                 let chunk = &batch[idx..end];
-                match send_batch(cli, &outbox, chunk) {
+                match send_batch(cli, &outbox, chunk, &ledger) {
                     Ok(_) => {
                         for entry in chunk {
                             let _ = outbox.ack(entry.seq);
@@ -135,13 +143,15 @@ fn coalesce(entries: &[Entry]) -> Vec<Entry> {
 /// are skipped + ACK'd in place rather than failing the whole batch — without
 /// the blob we cannot recover the payload anyway, and holding the queue on
 /// them would starve every subsequent write.
-fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry]) -> Result<()> {
+fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry], ledger: &Ledger) -> Result<()> {
     use base64::Engine as _;
     let blobs_dir = outbox.blobs_dir();
     let mut ops: Vec<serde_json::Value> = Vec::with_capacity(entries.len());
+    let mut paths_in_order: Vec<Option<String>> = Vec::with_capacity(entries.len());
+    let mut sizes_in_order: Vec<i64> = Vec::with_capacity(entries.len());
     let mut skipped_seqs: Vec<u64> = Vec::new();
     for entry in entries {
-        let op_json = match &entry.op {
+        let (op_json, path_opt, sz) = match &entry.op {
             Op::Put { path, blob, properties } => {
                 match outbox::read_blob(&blobs_dir, blob) {
                     Ok(bytes) => {
@@ -150,14 +160,12 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry]) -> Result<()
                             "path": path,
                             "data_base64": base64::engine::general_purpose::STANDARD.encode(&bytes),
                         });
-                        if let Some(p) = properties {
-                            obj["properties"] = p.clone();
-                        }
-                        obj
+                        if let Some(p) = properties { obj["properties"] = p.clone(); }
+                        (obj, Some(path.clone()), bytes.len() as i64)
                     }
                     Err(e) => {
-                        tracing::warn!(seq = entry.seq, %path, blob = %blob,
-                            ?e, "blob missing for PUT; skipping (unrecoverable)");
+                        tracing::warn!(seq = entry.seq, %path, blob = %blob, ?e,
+                            "blob missing for PUT; skipping (unrecoverable)");
                         skipped_seqs.push(entry.seq);
                         continue;
                     }
@@ -165,36 +173,73 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry]) -> Result<()
             }
             Op::Append { path, blob } => {
                 match outbox::read_blob(&blobs_dir, blob) {
-                    Ok(bytes) => serde_json::json!({
-                        "op": "append",
-                        "path": path,
-                        "data_base64": base64::engine::general_purpose::STANDARD.encode(&bytes),
-                    }),
+                    Ok(bytes) => {
+                        let obj = serde_json::json!({
+                            "op": "append",
+                            "path": path,
+                            "data_base64": base64::engine::general_purpose::STANDARD.encode(&bytes),
+                        });
+                        // size=0 placeholder: payload here is the delta, not full file.
+                        // Pull will refresh the real size later if needed.
+                        (obj, Some(path.clone()), 0i64)
+                    }
                     Err(e) => {
-                        tracing::warn!(seq = entry.seq, %path, blob = %blob,
-                            ?e, "blob missing for APPEND; skipping (unrecoverable)");
+                        tracing::warn!(seq = entry.seq, %path, blob = %blob, ?e,
+                            "blob missing for APPEND; skipping (unrecoverable)");
                         skipped_seqs.push(entry.seq);
                         continue;
                     }
                 }
             }
-            Op::Delete { path } => serde_json::json!({"op":"delete","path":path}),
-            Op::Rename { path, new_path } => serde_json::json!({
-                "op":"rename","from":path,"to":new_path,"overwrite":true
-            }),
-            Op::Mkdir { path } => serde_json::json!({"op":"mkdir","path":path}),
+            Op::Delete { path } => (
+                serde_json::json!({"op":"delete","path":path}),
+                Some(path.clone()), 0,
+            ),
+            Op::Rename { path, new_path } => (
+                serde_json::json!({
+                    "op":"rename","from":path,"to":new_path,"overwrite":true
+                }),
+                None, 0,
+            ),
+            Op::Mkdir { path } => (
+                serde_json::json!({"op":"mkdir","path":path}),
+                Some(path.clone()), 0,
+            ),
             Op::Ack { .. } => continue,
         };
         ops.push(op_json);
+        paths_in_order.push(path_opt);
+        sizes_in_order.push(sz);
     }
     // ACK skipped entries before sending so they don't come back next poll.
-    for seq in skipped_seqs {
-        let _ = outbox.ack(seq);
+    for seq in skipped_seqs { let _ = outbox.ack(seq); }
+    if ops.is_empty() { return Ok(()); }
+    let results = cli.agentfs_batch(ops)?;
+    // Update ledger from per-op results. Results should be 1:1 with our paths_in_order.
+    for (i, r) in results.iter().enumerate() {
+        let p_opt = paths_in_order.get(i).and_then(|p| p.as_ref());
+        match r.status.as_str() {
+            "ok" => {
+                if let (Some(path), Some(etag)) = (p_opt, r.etag.as_ref()) {
+                    let size = sizes_in_order.get(i).copied().unwrap_or(0);
+                    if let Err(e) = ledger.upsert(path, etag, size) {
+                        tracing::warn!(?e, %path, "ledger upsert failed (non-fatal)");
+                    }
+                }
+            }
+            "ok_absent" => {
+                if let Some(path) = p_opt { let _ = ledger.forget(path); }
+            }
+            "precondition_failed" => {
+                // T7: noop. T8 will handle conflict + retry.
+            }
+            _ => {}
+        }
+        // For a successful delete op, also forget the ledger entry.
+        if r.op == "delete" && r.status == "ok" {
+            if let Some(path) = p_opt { let _ = ledger.forget(path); }
+        }
     }
-    if ops.is_empty() {
-        return Ok(());
-    }
-    let _results = cli.agentfs_batch(ops)?;
     Ok(())
 }
 
