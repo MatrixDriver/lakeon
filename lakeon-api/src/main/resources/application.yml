@@ -30,6 +30,8 @@ lakeon:
     region: ${LAKEON_OBS_REGION:cn-north-4}
     access-key: ${LAKEON_OBS_ACCESS_KEY:}
     secret-key: ${LAKEON_OBS_SECRET_KEY:}
+  manifest:
+    retry-fixed-delay-ms: ${LAKEON_MANIFEST_RETRY_FIXED_DELAY_MS:60000}
   proxy:
     internal-token: ${LAKEON_PROXY_INTERNAL_TOKEN:}
     external-host: ${LAKEON_PROXY_EXTERNAL_HOST:}
