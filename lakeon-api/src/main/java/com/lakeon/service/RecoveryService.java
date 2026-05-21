@@ -5,6 +5,7 @@ import com.lakeon.model.dto.PitrResponse;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.neon.NeonApiClient;
 import com.lakeon.repository.DatabaseRepository;
+import com.lakeon.service.exception.NotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -24,7 +25,7 @@ import java.util.UUID;
 public class RecoveryService {
 
     private static final DateTimeFormatter RESTORED_SUFFIX_FMT =
-        DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneOffset.UTC);
+        DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS").withZone(ZoneOffset.UTC);
 
     private final DatabaseRepository databaseRepository;
     private final NeonApiClient neonApiClient;
@@ -48,7 +49,7 @@ public class RecoveryService {
      */
     public PitrResponse pitr(String dbId, PitrRequest request) {
         DatabaseEntity src = databaseRepository.findById(dbId)
-            .orElseThrow(() -> new IllegalArgumentException("database not found: " + dbId));
+            .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
 
         String lsn = neonApiClient.getLsnByTimestamp(
             src.getNeonTenantId(), src.getNeonTimelineId(), request.targetTime());
@@ -64,7 +65,7 @@ public class RecoveryService {
             : src.getName() + "_restored_" + RESTORED_SUFFIX_FMT.format(Instant.now());
 
         DatabaseEntity recovered = databaseService.registerRecoveredDatabase(
-            src.getTenantId(), branch.timelineId(), newDbName);
+            src.getTenantId(), src.getNeonTenantId(), branch.timelineId(), newDbName);
 
         return new PitrResponse(
             recovered.getId(),

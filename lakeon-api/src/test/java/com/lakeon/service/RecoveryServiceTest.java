@@ -5,6 +5,7 @@ import com.lakeon.model.dto.PitrResponse;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.neon.NeonApiClient;
 import com.lakeon.repository.DatabaseRepository;
+import com.lakeon.service.exception.NotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -44,7 +45,7 @@ class RecoveryServiceTest {
         DatabaseEntity newDb = new DatabaseEntity();
         newDb.setId("db_new");
         newDb.setName("mydb_restored_20260521");
-        when(databaseService.registerRecoveredDatabase(eq("tn1"), eq("tl_new"), eq("mydb_restored_20260521")))
+        when(databaseService.registerRecoveredDatabase(eq("tn1"), eq("nt1"), eq("tl_new"), eq("mydb_restored_20260521")))
             .thenReturn(newDb);
 
         RecoveryService svc = new RecoveryService(databaseRepository, neonApiClient, databaseService);
@@ -65,7 +66,7 @@ class RecoveryServiceTest {
         RecoveryService svc = new RecoveryService(databaseRepository, neonApiClient, databaseService);
         assertThatThrownBy(() -> svc.pitr("nope",
                 new PitrRequest(Instant.now(), null)))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("database not found");
+            .isInstanceOf(NotFoundException.class)
+            .hasMessageContaining("Database not found");
     }
 }

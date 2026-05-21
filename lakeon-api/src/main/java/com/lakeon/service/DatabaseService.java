@@ -22,6 +22,8 @@ import com.lakeon.service.exception.NotFoundException;
 import com.lakeon.service.exception.QuotaExceededException;
 import com.lakeon.service.exception.ServiceException;
 import com.lakeon.util.ScramUtils;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -37,6 +39,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class DatabaseService {
@@ -52,6 +58,25 @@ public class DatabaseService {
     private final TransactionTemplate txTemplate;
     private final DatabaseProvisioningService provisioningService;
     private final Counter wakeupFailureCounter;
+
+    // Caches for the two external IO calls in toResponse(). Without these,
+    // listInternal() does 2 sync calls per database (Neon pageserver + k8s exec).
+    // Front-end polls /databases every 60s and on every action, so a slow/hung
+    // call leaves the page stuck in "loading". TTLs are small enough that the
+    // displayed values stay live, big enough that a poll round usually hits cache.
+    private final Cache<String, Double> storageUsedCache = Caffeine.newBuilder()
+        .expireAfterWrite(30, TimeUnit.SECONDS)
+        .maximumSize(2048)
+        .build();
+    private final Cache<String, Integer> activeConnectionsCache = Caffeine.newBuilder()
+        .expireAfterWrite(5, TimeUnit.SECONDS)
+        .maximumSize(2048)
+        .build();
+    private final ExecutorService listIoExecutor = Executors.newFixedThreadPool(8, r -> {
+        Thread t = new Thread(r, "db-list-io");
+        t.setDaemon(true);
+        return t;
+    });
 
     public DatabaseService(DatabaseRepository databaseRepository,
                            BranchRepository branchRepository,
@@ -269,9 +294,15 @@ public class DatabaseService {
         Map<String, List<BranchEntity>> branchesByDb = branchRepository
             .findAllByDatabaseIdIn(dbIds).stream()
             .collect(java.util.stream.Collectors.groupingBy(BranchEntity::getDatabaseId));
-        return dbs.stream()
-            .map(entity -> toResponse(entity, branchesByDb.getOrDefault(entity.getId(), List.of())))
+        // Fan out the per-entity IO (Neon storage size + k8s exec for active connections).
+        // Serial execution was making the dashboard hang when any one db's external call
+        // was slow — N dbs * up-to-5s each easily exceeded the front-end's tolerance.
+        List<CompletableFuture<DatabaseResponse>> futures = dbs.stream()
+            .map(entity -> CompletableFuture.supplyAsync(
+                () -> toResponse(entity, branchesByDb.getOrDefault(entity.getId(), List.of())),
+                listIoExecutor))
             .toList();
+        return futures.stream().map(CompletableFuture::join).toList();
     }
 
     @Transactional
@@ -323,23 +354,19 @@ public class DatabaseService {
      * {@link DatabaseStatus#SUSPENDED}, mirroring how soft-deleted-then-restored DBs behave).
      *
      * @param tenantId Lakeon tenant ID (owns the new row)
+     * @param neonTenantId Neon tenant ID of the source database (branches share the parent tenant)
      * @param timelineId Neon timeline ID of the branch (from {@code createBranch})
      * @param name database name for the new row (caller pre-computes any "_restored_..." suffix)
      */
-    public DatabaseEntity registerRecoveredDatabase(String tenantId, String timelineId, String name) {
-        // Resolve the originating database to inherit Neon tenant + sizing defaults. We
-        // look it up by tenant + Neon-timeline-ancestor when present; otherwise fall back
-        // to global defaults so the row is still well-formed.
+    @Transactional
+    public DatabaseEntity registerRecoveredDatabase(String tenantId, String neonTenantId, String timelineId, String name) {
         DatabaseEntity db = new DatabaseEntity();
         db.setId("db_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
         db.setTenantId(tenantId);
         db.setName(name);
         db.setNeonTimelineId(timelineId);
-        // Branches share the parent's Neon tenant. Look up any sibling DB in the same
-        // tenant to inherit neonTenantId; if none, leave null (caller may set later).
-        databaseRepository.findAllByTenantId(tenantId).stream()
-            .findFirst()
-            .ifPresent(sibling -> db.setNeonTenantId(sibling.getNeonTenantId()));
+        // Branches share the parent's Neon tenant — passed in by caller from the source DB.
+        db.setNeonTenantId(neonTenantId);
         db.setStatus(DatabaseStatus.SUSPENDED);
         db.setComputeSize(props.getDefaults().getComputeSize());
         db.setSuspendTimeout(props.getDefaults().getSuspendTimeout());
@@ -764,7 +791,8 @@ public class DatabaseService {
         // Query active connections if Pod exists (even when SUSPENDED, Pod may still be retained)
         if (entity.getComputePodName() != null) {
             try {
-                int count = computePodManager.getActiveConnectionCount(entity.getComputePodName());
+                int count = activeConnectionsCache.get(
+                    entity.getComputePodName(), computePodManager::getActiveConnectionCount);
                 response.setActiveConnections(count);
             } catch (Exception e) {
                 response.setActiveConnections(0);
@@ -780,17 +808,20 @@ public class DatabaseService {
         if (entity.getNeonTenantId() == null || entity.getNeonTimelineId() == null) {
             return 0.0;
         }
-        try {
-            NeonTimeline timeline = neonApiClient.getTimeline(
-                entity.getNeonTenantId(), entity.getNeonTimelineId());
-            Long sizeBytes = timeline.getCurrentLogicalSize();
-            if (sizeBytes != null && sizeBytes > 0) {
-                return Math.round(sizeBytes / (1024.0 * 1024 * 1024) * 100.0) / 100.0;
+        String cacheKey = entity.getNeonTenantId() + ":" + entity.getNeonTimelineId();
+        return storageUsedCache.get(cacheKey, k -> {
+            try {
+                NeonTimeline timeline = neonApiClient.getTimeline(
+                    entity.getNeonTenantId(), entity.getNeonTimelineId());
+                Long sizeBytes = timeline.getCurrentLogicalSize();
+                if (sizeBytes != null && sizeBytes > 0) {
+                    return Math.round(sizeBytes / (1024.0 * 1024 * 1024) * 100.0) / 100.0;
+                }
+            } catch (Exception e) {
+                log.debug("Failed to fetch storage size for database {}: {}", entity.getId(), e.getMessage());
             }
-        } catch (Exception e) {
-            log.debug("Failed to fetch storage size for database {}: {}", entity.getId(), e.getMessage());
-        }
-        return 0.0;
+            return 0.0;
+        });
     }
 
     private String generateHexId() {
