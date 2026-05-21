@@ -1,9 +1,40 @@
+import re
+from datetime import datetime, timezone, timedelta
+
 import typer
 from dbay_cli.client import DbayClient
 from dbay_cli.config import get_endpoint, get_api_key
 from dbay_cli.output import print_table, print_item, console
 
 app = typer.Typer()
+
+
+def _parse_time(s: str) -> str:
+    """Parse '5min ago' / ISO 8601 -> ISO 8601 UTC string (e.g. 2026-05-21T14:30:00Z)."""
+    s = s.strip()
+    m = re.fullmatch(r"(\d+)\s*(min|minutes?|h|hours?|d|days?|s|sec|seconds?)\s*ago", s, re.I)
+    if m:
+        n = int(m.group(1))
+        unit = m.group(2).lower()
+        if unit.startswith("min"):
+            delta = timedelta(minutes=n)
+        elif unit.startswith("h"):
+            delta = timedelta(hours=n)
+        elif unit.startswith("d"):
+            delta = timedelta(days=n)
+        elif unit.startswith("s"):
+            delta = timedelta(seconds=n)
+        else:
+            raise typer.BadParameter(f"unknown time unit: {unit}")
+        return (datetime.now(timezone.utc) - delta).strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        return (
+            datetime.fromisoformat(s.replace("Z", "+00:00"))
+            .astimezone(timezone.utc)
+            .strftime("%Y-%m-%dT%H:%M:%SZ")
+        )
+    except ValueError as e:
+        raise typer.BadParameter(f"invalid time: {s!r} ({e})")
 
 def _client() -> DbayClient:
     return DbayClient(endpoint=get_endpoint(), api_key=get_api_key())
@@ -85,3 +116,36 @@ def db_delete(name: str, yes: bool = typer.Option(False, "--yes", "-y")):
         raise typer.Exit(1)
     c.delete_database(db["id"])
     console.print(f"Deleted {name}")
+
+
+@app.command("pitr")
+def db_pitr(
+    db_id: str = typer.Argument(..., help="Database ID"),
+    time: str = typer.Option(
+        ..., "--time", "-t",
+        help="Target time: ISO 8601 (e.g. 2026-05-21T14:30:00Z) or relative ('5min ago', '2h ago', '1d ago')",
+    ),
+    new_name: str = typer.Option(
+        None, "--new-name",
+        help="Name of the restored database (auto-generated if omitted)",
+    ),
+):
+    """Point-in-time restore a database to a new branch. The original database is unchanged."""
+    client = DbayClient(endpoint=get_endpoint(), api_key=get_api_key())
+    iso_time = _parse_time(time)
+    payload: dict = {"target_time": iso_time}
+    if new_name:
+        payload["new_db_name"] = new_name
+    resp = client.post(f"/databases/{db_id}/pitr", json=payload)
+    if resp.status_code != 200:
+        text = ""
+        try:
+            text = resp.text
+        except Exception:
+            pass
+        typer.echo(f"PITR failed: {resp.status_code} {text}", err=True)
+        raise typer.Exit(1)
+    body = resp.json()
+    typer.echo(f"Restored to new database: {body['new_db_id']}")
+    typer.echo(f"  LSN: {body['lsn']}")
+    typer.echo(f"  Status: {body['status']}")

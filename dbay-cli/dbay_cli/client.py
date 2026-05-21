@@ -50,6 +50,14 @@ class DbayClient:
         """Returns raw response without raising exceptions. For tests to check status codes."""
         return self.http.request(method, self._url(path), headers=self._headers(), **kwargs)
 
+    def post(self, path: str, **kwargs) -> httpx.Response:
+        """Raw POST returning the underlying httpx.Response (no exception on non-2xx)."""
+        return self._request_raw("POST", path, **kwargs)
+
+    def get(self, path: str, **kwargs) -> httpx.Response:
+        """Raw GET returning the underlying httpx.Response (no exception on non-2xx)."""
+        return self._request_raw("GET", path, **kwargs)
+
     # -- Admin --
     def admin_create_invite_code(self, max_uses: int = 1) -> dict:
         return self._request("POST", "/admin/invite-codes", json={"max_uses": max_uses})
