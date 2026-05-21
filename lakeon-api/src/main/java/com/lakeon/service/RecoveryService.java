@@ -87,8 +87,10 @@ public class RecoveryService {
      * iteration we ignore it and use createdAt as the lower bound.)
      *
      * <p>{@code latest} is now (wall clock) and {@code latestLsn} is the timeline's
-     * head LSN ({@code last_record_lsn}). {@code earliestLsn} is left {@code null}
-     * pending a future LSN→time mapping.
+     * head LSN ({@code last_record_lsn}). {@code earliestLsn} is the timeline's
+     * {@code latest_gc_cutoff_lsn} — the earliest LSN that can still be queried;
+     * PITR earlier than this point would fail because pageserver data has been
+     * garbage-collected.
      */
     public PitrWindow getPitrWindow(String dbId) {
         DatabaseEntity db = databaseRepository.findById(dbId)
@@ -100,7 +102,7 @@ public class RecoveryService {
         return new PitrWindow(
             db.getCreatedAt(),
             Instant.now(),
-            null,
+            info.latestGcCutoffLsn(),
             info.lastRecordLsn()
         );
     }

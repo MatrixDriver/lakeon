@@ -88,8 +88,8 @@ class RecoveryServiceTest {
 
         assertThat(window.earliest()).isEqualTo(Instant.parse("2026-04-01T00:00:00Z"));
         assertThat(window.latestLsn()).isEqualTo("0/FFFF");
-        // earliestLsn left null for now (not derivable without LSN→time mapping)
-        assertThat(window.earliestLsn()).isNull();
+        // earliestLsn is the timeline's latest_gc_cutoff_lsn (earliest queryable LSN)
+        assertThat(window.earliestLsn()).isEqualTo("0/AAAA");
     }
 
     @Test
