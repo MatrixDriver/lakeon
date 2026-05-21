@@ -9,8 +9,12 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
@@ -26,6 +30,41 @@ class NeonApiClientTest {
     @BeforeEach
     void setUp(WireMockRuntimeInfo wmRuntimeInfo) {
         neonApiClient = new NeonApiClient(wmRuntimeInfo.getHttpBaseUrl());
+    }
+
+    @Test
+    @DisplayName("createBranch 发送正确的 POST body 并返回 CreateBranchResponse")
+    void createBranch_postsCorrectBody() {
+        // Given — pageserver accepts the branch-creation timeline POST and returns the new timeline
+        stubFor(post(urlPathEqualTo("/v1/tenant/tn1/timeline"))
+                .willReturn(aResponse()
+                        .withStatus(201)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {
+                                  "timeline_id": "new-tl-2",
+                                  "tenant_id": "tn1",
+                                  "ancestor_timeline_id": "tl1",
+                                  "ancestor_lsn": "0/A1B2C3D4",
+                                  "last_record_lsn": "0/A1B2C3D4"
+                                }
+                                """)));
+
+        // When
+        NeonApiClient.CreateBranchRequest req = new NeonApiClient.CreateBranchRequest(
+                "tl1", "0/A1B2C3D4", "new-tl-2");
+        NeonApiClient.CreateBranchResponse resp = neonApiClient.createBranch("tn1", req);
+
+        // Then — response carries new timeline id and lsn
+        assertThat(resp).isNotNull();
+        assertThat(resp.timelineId()).isEqualTo("new-tl-2");
+        assertThat(resp.lsn()).isEqualTo("0/A1B2C3D4");
+
+        // And — request hit POST /v1/tenant/tn1/timeline with snake_case body fields
+        verify(postRequestedFor(urlEqualTo("/v1/tenant/tn1/timeline"))
+                .withRequestBody(matchingJsonPath("$.ancestor_timeline_id", equalTo("tl1")))
+                .withRequestBody(matchingJsonPath("$.ancestor_start_lsn", equalTo("0/A1B2C3D4")))
+                .withRequestBody(matchingJsonPath("$.new_timeline_id", equalTo("new-tl-2"))));
     }
 
     @Test

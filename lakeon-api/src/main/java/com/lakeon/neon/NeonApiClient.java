@@ -1,5 +1,6 @@
 package com.lakeon.neon;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
@@ -209,6 +210,38 @@ public class NeonApiClient {
         } catch (Exception e) {
             throw new NeonApiException("Failed to create timeline: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Request body for {@link #createBranch(String, CreateBranchRequest)}.
+     * Serialised to snake_case via {@link JsonProperty} for the Neon pageserver API.
+     */
+    public record CreateBranchRequest(
+            @JsonProperty("ancestor_timeline_id") String ancestorTimelineId,
+            @JsonProperty("ancestor_start_lsn") String ancestorStartLsn,
+            @JsonProperty("new_timeline_id") String newTimelineId) {}
+
+    /**
+     * Response from {@link #createBranch(String, CreateBranchRequest)}.
+     * {@code lsn} is the LSN at which the new branch begins (mirrors the timeline's
+     * {@code last_record_lsn}, which equals the ancestor branch point for a fresh branch).
+     */
+    public record CreateBranchResponse(String timelineId, String lsn) {}
+
+    /**
+     * Create a branch timeline from an ancestor at a specific LSN.
+     * POST /v1/tenant/{tenant_id}/timeline with
+     * {ancestor_timeline_id, ancestor_start_lsn, new_timeline_id}.
+     * Delegates to {@link #createTimeline(String, CreateTimelineRequest)} to keep
+     * HTTP/error-handling logic DRY.
+     */
+    public CreateBranchResponse createBranch(String tenantId, CreateBranchRequest request) {
+        CreateTimelineRequest timelineRequest = CreateTimelineRequest.forBranchAtLsn(
+                request.newTimelineId(),
+                request.ancestorTimelineId(),
+                request.ancestorStartLsn());
+        NeonTimeline timeline = createTimeline(tenantId, timelineRequest);
+        return new CreateBranchResponse(timeline.getTimelineId(), timeline.getLastRecordLsn());
     }
 
     /**
