@@ -223,8 +223,11 @@ public class NeonApiClient {
 
     /**
      * Response from {@link #createBranch(String, CreateBranchRequest)}.
-     * {@code lsn} is the LSN at which the new branch begins (mirrors the timeline's
-     * {@code last_record_lsn}, which equals the ancestor branch point for a fresh branch).
+     * {@code lsn} is the LSN at which the new branch begins. It is sourced from the
+     * timeline's {@code last_record_lsn} (which equals the ancestor branch point for a
+     * fresh branch). If the pageserver response omits {@code last_record_lsn},
+     * {@link #createBranch(String, CreateBranchRequest)} falls back to the
+     * {@code ancestor_start_lsn} from the request so callers never observe a null LSN.
      */
     public record CreateBranchResponse(String timelineId, String lsn) {}
 
@@ -241,7 +244,10 @@ public class NeonApiClient {
                 request.ancestorTimelineId(),
                 request.ancestorStartLsn());
         NeonTimeline timeline = createTimeline(tenantId, timelineRequest);
-        return new CreateBranchResponse(timeline.getTimelineId(), timeline.getLastRecordLsn());
+        String resolvedLsn = timeline.getLastRecordLsn() != null
+                ? timeline.getLastRecordLsn()
+                : request.ancestorStartLsn();
+        return new CreateBranchResponse(timeline.getTimelineId(), resolvedLsn);
     }
 
     /**

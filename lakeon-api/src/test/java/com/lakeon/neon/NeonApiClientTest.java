@@ -45,17 +45,17 @@ class NeonApiClientTest {
                                   "timeline_id": "new-tl-2",
                                   "tenant_id": "tn1",
                                   "ancestor_timeline_id": "tl1",
-                                  "ancestor_lsn": "0/A1B2C3D4",
+                                  "ancestor_lsn": "0/A1B2C3D0",
                                   "last_record_lsn": "0/A1B2C3D4"
                                 }
                                 """)));
 
         // When
         NeonApiClient.CreateBranchRequest req = new NeonApiClient.CreateBranchRequest(
-                "tl1", "0/A1B2C3D4", "new-tl-2");
+                "tl1", "0/A1B2C3D0", "new-tl-2");
         NeonApiClient.CreateBranchResponse resp = neonApiClient.createBranch("tn1", req);
 
-        // Then — response carries new timeline id and lsn
+        // Then — response carries new timeline id and the last_record_lsn (not ancestor_lsn)
         assertThat(resp).isNotNull();
         assertThat(resp.timelineId()).isEqualTo("new-tl-2");
         assertThat(resp.lsn()).isEqualTo("0/A1B2C3D4");
@@ -63,7 +63,7 @@ class NeonApiClientTest {
         // And — request hit POST /v1/tenant/tn1/timeline with snake_case body fields
         verify(postRequestedFor(urlEqualTo("/v1/tenant/tn1/timeline"))
                 .withRequestBody(matchingJsonPath("$.ancestor_timeline_id", equalTo("tl1")))
-                .withRequestBody(matchingJsonPath("$.ancestor_start_lsn", equalTo("0/A1B2C3D4")))
+                .withRequestBody(matchingJsonPath("$.ancestor_start_lsn", equalTo("0/A1B2C3D0")))
                 .withRequestBody(matchingJsonPath("$.new_timeline_id", equalTo("new-tl-2"))));
     }
 
