@@ -54,11 +54,8 @@ public class RecoveryService {
      * owned by other tenants).
      */
     public PitrResponse pitr(TenantEntity tenant, String dbId, PitrRequest request) {
-        DatabaseEntity src = databaseRepository.findById(dbId)
+        DatabaseEntity src = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
             .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
-        if (!src.getTenantId().equals(tenant.getId())) {
-            throw new NotFoundException("Database not found: " + dbId);
-        }
 
         String lsn = neonApiClient.getLsnByTimestamp(
             src.getNeonTenantId(), src.getNeonTimelineId(), request.targetTime());
@@ -104,11 +101,8 @@ public class RecoveryService {
      * {@link NotFoundException} is thrown.
      */
     public PitrWindow getPitrWindow(TenantEntity tenant, String dbId) {
-        DatabaseEntity db = databaseRepository.findById(dbId)
+        DatabaseEntity db = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
             .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
-        if (!db.getTenantId().equals(tenant.getId())) {
-            throw new NotFoundException("Database not found: " + dbId);
-        }
 
         NeonApiClient.TimelineInfo info = neonApiClient.getTimelineInfo(
             db.getNeonTenantId(), db.getNeonTimelineId());

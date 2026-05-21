@@ -46,7 +46,7 @@ class RecoveryServiceTest {
         src.setTenantId("tn1");
         src.setNeonTenantId("nt1");
         src.setNeonTimelineId("tl_old");
-        when(databaseRepository.findById("db_old")).thenReturn(Optional.of(src));
+        when(databaseRepository.findByIdAndTenantId("db_old", "tn1")).thenReturn(Optional.of(src));
         when(neonApiClient.getLsnByTimestamp(eq("nt1"), eq("tl_old"), any()))
             .thenReturn("0/AB12");
         when(neonApiClient.createBranch(eq("nt1"), any()))
@@ -72,7 +72,7 @@ class RecoveryServiceTest {
     @Test
     void pitr_throwsWhenDatabaseNotFound() {
         TenantEntity tenant = tenant("tn1");
-        when(databaseRepository.findById("nope")).thenReturn(Optional.empty());
+        when(databaseRepository.findByIdAndTenantId("nope", "tn1")).thenReturn(Optional.empty());
         RecoveryService svc = new RecoveryService(databaseRepository, neonApiClient, databaseService);
         assertThatThrownBy(() -> svc.pitr(tenant, "nope",
                 new PitrRequest(Instant.now(), null)))
@@ -83,13 +83,7 @@ class RecoveryServiceTest {
     @Test
     void pitr_throwsNotFoundWhenDbBelongsToAnotherTenant() {
         TenantEntity caller = tenant("tn2");
-        DatabaseEntity src = new DatabaseEntity();
-        src.setId("db_old");
-        src.setName("mydb");
-        src.setTenantId("tn1");
-        src.setNeonTenantId("nt1");
-        src.setNeonTimelineId("tl_old");
-        when(databaseRepository.findById("db_old")).thenReturn(Optional.of(src));
+        when(databaseRepository.findByIdAndTenantId("db_old", "tn2")).thenReturn(Optional.empty());
 
         RecoveryService svc = new RecoveryService(databaseRepository, neonApiClient, databaseService);
         assertThatThrownBy(() -> svc.pitr(caller, "db_old",
@@ -107,7 +101,7 @@ class RecoveryServiceTest {
         db.setNeonTenantId("nt1");
         db.setNeonTimelineId("tl1");
         db.setCreatedAt(Instant.parse("2026-04-01T00:00:00Z"));
-        when(databaseRepository.findById("db1")).thenReturn(Optional.of(db));
+        when(databaseRepository.findByIdAndTenantId("db1", "tn1")).thenReturn(Optional.of(db));
         when(neonApiClient.getTimelineInfo("nt1", "tl1"))
             .thenReturn(new NeonApiClient.TimelineInfo("tl1", "0/FFFF", "0/FFFE", "0/AAAA"));
 
@@ -123,7 +117,7 @@ class RecoveryServiceTest {
     @Test
     void getPitrWindow_throwsNotFoundWhenDatabaseMissing() {
         TenantEntity tenant = tenant("tn1");
-        when(databaseRepository.findById("nope")).thenReturn(Optional.empty());
+        when(databaseRepository.findByIdAndTenantId("nope", "tn1")).thenReturn(Optional.empty());
         RecoveryService svc = new RecoveryService(databaseRepository, neonApiClient, databaseService);
         assertThatThrownBy(() -> svc.getPitrWindow(tenant, "nope"))
             .isInstanceOf(NotFoundException.class);
