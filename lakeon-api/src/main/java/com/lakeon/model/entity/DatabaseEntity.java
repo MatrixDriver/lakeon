@@ -75,6 +75,9 @@ public class DatabaseEntity {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    @Column(name = "recovered_from_pitr", nullable = false)
+    private boolean recoveredFromPitr;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -266,5 +269,13 @@ public class DatabaseEntity {
 
     public void setDeletedAt(Instant deletedAt) {
         this.deletedAt = deletedAt;
+    }
+
+    public boolean isRecoveredFromPitr() {
+        return recoveredFromPitr;
+    }
+
+    public void setRecoveredFromPitr(boolean recoveredFromPitr) {
+        this.recoveredFromPitr = recoveredFromPitr;
     }
 }

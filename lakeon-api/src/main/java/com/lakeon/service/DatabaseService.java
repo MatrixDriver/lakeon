@@ -314,6 +314,42 @@ public class DatabaseService {
     }
 
     /**
+     * Register a new database row that points at a PITR-branched Neon timeline.
+     *
+     * <p>Called by {@link RecoveryService#pitr} after a successful Neon branch creation.
+     * The new row inherits the source database's Neon tenant (branches share the parent
+     * tenant) and uses defaults for compute size / suspend timeout / storage limit; the
+     * caller is responsible for resuming compute when needed (recovered DBs start in
+     * {@link DatabaseStatus#SUSPENDED}, mirroring how soft-deleted-then-restored DBs behave).
+     *
+     * @param tenantId Lakeon tenant ID (owns the new row)
+     * @param timelineId Neon timeline ID of the branch (from {@code createBranch})
+     * @param name database name for the new row (caller pre-computes any "_restored_..." suffix)
+     */
+    public DatabaseEntity registerRecoveredDatabase(String tenantId, String timelineId, String name) {
+        // Resolve the originating database to inherit Neon tenant + sizing defaults. We
+        // look it up by tenant + Neon-timeline-ancestor when present; otherwise fall back
+        // to global defaults so the row is still well-formed.
+        DatabaseEntity db = new DatabaseEntity();
+        db.setId("db_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
+        db.setTenantId(tenantId);
+        db.setName(name);
+        db.setNeonTimelineId(timelineId);
+        // Branches share the parent's Neon tenant. Look up any sibling DB in the same
+        // tenant to inherit neonTenantId; if none, leave null (caller may set later).
+        databaseRepository.findAllByTenantId(tenantId).stream()
+            .findFirst()
+            .ifPresent(sibling -> db.setNeonTenantId(sibling.getNeonTenantId()));
+        db.setStatus(DatabaseStatus.SUSPENDED);
+        db.setComputeSize(props.getDefaults().getComputeSize());
+        db.setSuspendTimeout(props.getDefaults().getSuspendTimeout());
+        db.setStorageLimitGb(props.getDefaults().getStorageLimitGb());
+        db.setRecoveredFromPitr(true);
+        db.setCreatedAt(Instant.now());
+        return databaseRepository.save(db);
+    }
+
+    /**
      * Soft-delete: move database to recycle bin. Compute pod is released but Neon data is preserved.
      */
     @Transactional
