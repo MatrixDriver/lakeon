@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.ApiKeyFilter;
 import com.lakeon.model.dto.PitrResponse;
 import com.lakeon.model.dto.PitrWindow;
+import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.service.RecoveryService;
 import com.lakeon.service.exception.NotFoundException;
 
@@ -46,13 +47,21 @@ class RecoveryControllerTest {
     @MockBean
     private RecoveryService recoveryService;
 
+    private static TenantEntity tenant() {
+        TenantEntity t = new TenantEntity();
+        t.setId("tn_test001");
+        t.setName("test-tenant");
+        return t;
+    }
+
     @Test
     @DisplayName("POST /databases/{id}/pitr — 正常，返回 200 + 响应体（snake_case）")
     void pitr_returns200WithResponseBody() throws Exception {
-        when(recoveryService.pitr(eq("db1"), any()))
+        when(recoveryService.pitr(any(TenantEntity.class), eq("db1"), any()))
             .thenReturn(new PitrResponse("db_new", "tl_new", "0/AB12", null, "ready"));
 
         mvc.perform(post("/api/v1/databases/db1/pitr")
+                .requestAttr("tenant", tenant())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"target_time": "2026-05-21T14:30:00Z", "new_db_name": "restored"}
@@ -67,13 +76,14 @@ class RecoveryControllerTest {
     @Test
     @DisplayName("GET /databases/{id}/pitr-window — 正常，返回 200")
     void pitrWindow_returns200() throws Exception {
-        when(recoveryService.getPitrWindow("db1"))
+        when(recoveryService.getPitrWindow(any(TenantEntity.class), eq("db1")))
             .thenReturn(new PitrWindow(
                 Instant.parse("2026-04-01T00:00:00Z"),
                 Instant.parse("2026-05-21T15:00:00Z"),
                 "0/AAAA", "0/FFFF"));
 
-        mvc.perform(get("/api/v1/databases/db1/pitr-window"))
+        mvc.perform(get("/api/v1/databases/db1/pitr-window")
+                .requestAttr("tenant", tenant()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.earliest_lsn").value("0/AAAA"))
             .andExpect(jsonPath("$.latest_lsn").value("0/FFFF"));
@@ -82,10 +92,11 @@ class RecoveryControllerTest {
     @Test
     @DisplayName("POST /databases/{id}/pitr — 数据库不存在，返回 404")
     void pitr_returns404OnDatabaseNotFound() throws Exception {
-        when(recoveryService.pitr(eq("db1"), any()))
+        when(recoveryService.pitr(any(TenantEntity.class), eq("db1"), any()))
             .thenThrow(new NotFoundException("Database not found: db1"));
 
         mvc.perform(post("/api/v1/databases/db1/pitr")
+                .requestAttr("tenant", tenant())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"target_time": "2026-05-21T14:30:00Z"}

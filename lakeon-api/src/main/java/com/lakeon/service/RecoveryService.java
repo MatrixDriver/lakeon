@@ -4,6 +4,7 @@ import com.lakeon.model.dto.PitrRequest;
 import com.lakeon.model.dto.PitrResponse;
 import com.lakeon.model.dto.PitrWindow;
 import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.neon.NeonApiClient;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.exception.NotFoundException;
@@ -47,10 +48,17 @@ public class RecoveryService {
      *
      * <p>The Neon pageserver APIs ({@code getLsnByTimestamp} / {@code createBranch})
      * operate on the Neon tenant ID, not the Lakeon tenant ID.
+     *
+     * <p>The source database must belong to {@code tenant}; otherwise a
+     * {@link NotFoundException} is thrown (we do not leak existence of databases
+     * owned by other tenants).
      */
-    public PitrResponse pitr(String dbId, PitrRequest request) {
+    public PitrResponse pitr(TenantEntity tenant, String dbId, PitrRequest request) {
         DatabaseEntity src = databaseRepository.findById(dbId)
             .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+        if (!src.getTenantId().equals(tenant.getId())) {
+            throw new NotFoundException("Database not found: " + dbId);
+        }
 
         String lsn = neonApiClient.getLsnByTimestamp(
             src.getNeonTenantId(), src.getNeonTimelineId(), request.targetTime());
@@ -91,10 +99,16 @@ public class RecoveryService {
      * {@code latest_gc_cutoff_lsn} — the earliest LSN that can still be queried;
      * PITR earlier than this point would fail because pageserver data has been
      * garbage-collected.
+     *
+     * <p>The database must belong to {@code tenant}; otherwise a
+     * {@link NotFoundException} is thrown.
      */
-    public PitrWindow getPitrWindow(String dbId) {
+    public PitrWindow getPitrWindow(TenantEntity tenant, String dbId) {
         DatabaseEntity db = databaseRepository.findById(dbId)
             .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+        if (!db.getTenantId().equals(tenant.getId())) {
+            throw new NotFoundException("Database not found: " + dbId);
+        }
 
         NeonApiClient.TimelineInfo info = neonApiClient.getTimelineInfo(
             db.getNeonTenantId(), db.getNeonTimelineId());

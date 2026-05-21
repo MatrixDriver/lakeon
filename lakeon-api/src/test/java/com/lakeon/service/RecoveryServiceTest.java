@@ -4,6 +4,7 @@ import com.lakeon.model.dto.PitrRequest;
 import com.lakeon.model.dto.PitrResponse;
 import com.lakeon.model.dto.PitrWindow;
 import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.neon.NeonApiClient;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.exception.NotFoundException;
@@ -30,8 +31,15 @@ class RecoveryServiceTest {
     @Mock NeonApiClient neonApiClient;
     @Mock DatabaseService databaseService;
 
+    private static TenantEntity tenant(String id) {
+        TenantEntity t = new TenantEntity();
+        t.setId(id);
+        return t;
+    }
+
     @Test
     void pitr_createsNewBranchAndDatabase() {
+        TenantEntity tenant = tenant("tn1");
         DatabaseEntity src = new DatabaseEntity();
         src.setId("db_old");
         src.setName("mydb");
@@ -50,7 +58,7 @@ class RecoveryServiceTest {
             .thenReturn(newDb);
 
         RecoveryService svc = new RecoveryService(databaseRepository, neonApiClient, databaseService);
-        PitrResponse resp = svc.pitr("db_old",
+        PitrResponse resp = svc.pitr(tenant, "db_old",
             new PitrRequest(Instant.parse("2026-05-21T14:30:00Z"), "mydb_restored_20260521"));
 
         assertThat(resp.newDbId()).isEqualTo("db_new");
@@ -63,16 +71,36 @@ class RecoveryServiceTest {
 
     @Test
     void pitr_throwsWhenDatabaseNotFound() {
+        TenantEntity tenant = tenant("tn1");
         when(databaseRepository.findById("nope")).thenReturn(Optional.empty());
         RecoveryService svc = new RecoveryService(databaseRepository, neonApiClient, databaseService);
-        assertThatThrownBy(() -> svc.pitr("nope",
+        assertThatThrownBy(() -> svc.pitr(tenant, "nope",
                 new PitrRequest(Instant.now(), null)))
             .isInstanceOf(NotFoundException.class)
             .hasMessageContaining("Database not found");
     }
 
     @Test
+    void pitr_throwsNotFoundWhenDbBelongsToAnotherTenant() {
+        TenantEntity caller = tenant("tn2");
+        DatabaseEntity src = new DatabaseEntity();
+        src.setId("db_old");
+        src.setName("mydb");
+        src.setTenantId("tn1");
+        src.setNeonTenantId("nt1");
+        src.setNeonTimelineId("tl_old");
+        when(databaseRepository.findById("db_old")).thenReturn(Optional.of(src));
+
+        RecoveryService svc = new RecoveryService(databaseRepository, neonApiClient, databaseService);
+        assertThatThrownBy(() -> svc.pitr(caller, "db_old",
+                new PitrRequest(Instant.parse("2026-05-21T14:30:00Z"), null)))
+            .isInstanceOf(NotFoundException.class)
+            .hasMessage("Database not found: db_old");
+    }
+
+    @Test
     void getPitrWindow_returnsCreatedAtAndLatestLsn() {
+        TenantEntity tenant = tenant("tn1");
         DatabaseEntity db = new DatabaseEntity();
         db.setId("db1");
         db.setTenantId("tn1");
@@ -84,7 +112,7 @@ class RecoveryServiceTest {
             .thenReturn(new NeonApiClient.TimelineInfo("tl1", "0/FFFF", "0/FFFE", "0/AAAA"));
 
         RecoveryService svc = new RecoveryService(databaseRepository, neonApiClient, databaseService);
-        PitrWindow window = svc.getPitrWindow("db1");
+        PitrWindow window = svc.getPitrWindow(tenant, "db1");
 
         assertThat(window.earliest()).isEqualTo(Instant.parse("2026-04-01T00:00:00Z"));
         assertThat(window.latestLsn()).isEqualTo("0/FFFF");
@@ -94,9 +122,10 @@ class RecoveryServiceTest {
 
     @Test
     void getPitrWindow_throwsNotFoundWhenDatabaseMissing() {
+        TenantEntity tenant = tenant("tn1");
         when(databaseRepository.findById("nope")).thenReturn(Optional.empty());
         RecoveryService svc = new RecoveryService(databaseRepository, neonApiClient, databaseService);
-        assertThatThrownBy(() -> svc.getPitrWindow("nope"))
+        assertThatThrownBy(() -> svc.getPitrWindow(tenant, "nope"))
             .isInstanceOf(NotFoundException.class);
     }
 }

@@ -3,7 +3,9 @@ package com.lakeon.controller;
 import com.lakeon.model.dto.PitrRequest;
 import com.lakeon.model.dto.PitrResponse;
 import com.lakeon.model.dto.PitrWindow;
+import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.service.RecoveryService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,13 +36,17 @@ public class RecoveryController {
     }
 
     @PostMapping("/{dbId}/pitr")
-    public ResponseEntity<PitrResponse> pitr(@PathVariable String dbId,
+    public ResponseEntity<PitrResponse> pitr(HttpServletRequest req,
+                                             @PathVariable String dbId,
                                              @Valid @RequestBody PitrRequest request) {
-        return ResponseEntity.ok(recoveryService.pitr(dbId, request));
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return ResponseEntity.ok(recoveryService.pitr(tenant, dbId, request));
     }
 
     @GetMapping("/{dbId}/pitr-window")
-    public ResponseEntity<PitrWindow> pitrWindow(@PathVariable String dbId) {
-        return ResponseEntity.ok(recoveryService.getPitrWindow(dbId));
+    public ResponseEntity<PitrWindow> pitrWindow(HttpServletRequest req,
+                                                 @PathVariable String dbId) {
+        TenantEntity tenant = (TenantEntity) req.getAttribute("tenant");
+        return ResponseEntity.ok(recoveryService.getPitrWindow(tenant, dbId));
     }
 }
