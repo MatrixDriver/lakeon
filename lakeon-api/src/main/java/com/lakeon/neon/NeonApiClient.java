@@ -362,10 +362,11 @@ public class NeonApiClient {
     public String getLsnByTimestamp(String tenantId, String timelineId, Instant timestamp) {
         try {
             String iso = DateTimeFormatter.ISO_INSTANT.format(timestamp);
+            String encodedIso = URLEncoder.encode(iso, StandardCharsets.UTF_8);
             String url = baseUrl
                 + "/v1/tenant/" + encodePathSegment(tenantId)
                 + "/timeline/" + encodePathSegment(timelineId)
-                + "/get_lsn_by_timestamp?timestamp=" + iso;
+                + "/get_lsn_by_timestamp?timestamp=" + encodedIso;
             HttpRequest httpRequest = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .GET()

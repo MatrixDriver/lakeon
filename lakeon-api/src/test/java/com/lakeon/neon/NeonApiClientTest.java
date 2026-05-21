@@ -47,6 +47,6 @@ class NeonApiClientTest {
         // Then
         assertThat(lsn).isEqualTo("0/A1B2C3D4");
         verify(getRequestedFor(urlEqualTo(
-                "/v1/tenant/tn1/timeline/tl1/get_lsn_by_timestamp?timestamp=2026-05-21T14:30:00Z")));
+                "/v1/tenant/tn1/timeline/tl1/get_lsn_by_timestamp?timestamp=2026-05-21T14%3A30%3A00Z")));
     }
 }
