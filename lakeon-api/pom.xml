@@ -74,6 +74,13 @@
             <version>2.29.0</version>
         </dependency>
 
+        <!-- Huawei Cloud OBS Java SDK (for direct PUT/GET/LIST used by ManifestWriter) -->
+        <dependency>
+            <groupId>com.huaweicloud</groupId>
+            <artifactId>esdk-obs-java</artifactId>
+            <version>3.24.3</version>
+        </dependency>
+
         <!-- Caffeine cache -->
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
