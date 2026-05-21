@@ -20,6 +20,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -345,6 +347,43 @@ public class NeonApiClient {
             throw e;
         } catch (Exception e) {
             throw new NeonApiException("Pageserver unreachable: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Response from GET /v1/tenant/{tenant_id}/timeline/{timeline_id}/get_lsn_by_timestamp.
+     */
+    public record LsnByTimestampResponse(String lsn) {}
+
+    /**
+     * Look up the LSN that corresponds to a wall-clock timestamp on a timeline.
+     * GET /v1/tenant/{tenant_id}/timeline/{timeline_id}/get_lsn_by_timestamp?timestamp=&lt;RFC3339&gt;
+     */
+    public String getLsnByTimestamp(String tenantId, String timelineId, Instant timestamp) {
+        try {
+            String iso = DateTimeFormatter.ISO_INSTANT.format(timestamp);
+            String url = baseUrl
+                + "/v1/tenant/" + encodePathSegment(tenantId)
+                + "/timeline/" + encodePathSegment(timelineId)
+                + "/get_lsn_by_timestamp?timestamp=" + iso;
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .GET()
+                .timeout(REQUEST_TIMEOUT)
+                .build();
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() >= 400) {
+                throw new NeonApiException("Failed to get LSN by timestamp: HTTP " + response.statusCode() + " - " + response.body(), response.statusCode());
+            }
+            LsnByTimestampResponse body = objectMapper.readValue(response.body(), LsnByTimestampResponse.class);
+            if (body == null || body.lsn() == null) {
+                throw new NeonApiException("Empty response from pageserver for get_lsn_by_timestamp");
+            }
+            return body.lsn();
+        } catch (NeonApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new NeonApiException("Failed to get LSN by timestamp: " + e.getMessage(), e);
         }
     }
 
