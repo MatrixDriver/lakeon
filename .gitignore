@@ -65,3 +65,4 @@ src/echomem/_dashboard_dist/
 
 # dbay-rescue Go binary build artifact
 dbay-rescue/dbay-rescue
+dbay-rescue/dist/
