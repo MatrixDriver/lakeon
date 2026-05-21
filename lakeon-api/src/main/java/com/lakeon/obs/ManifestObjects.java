@@ -19,6 +19,7 @@ public final class ManifestObjects {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record DatabaseEntry(
         @JsonProperty("db_id") String dbId,
+        @JsonProperty("neon_tenant_id") String neonTenantId,
         @JsonProperty("name") String name,
         @JsonProperty("timeline_id") String timelineId,
         @JsonProperty("created_at") Instant createdAt,

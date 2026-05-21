@@ -118,6 +118,7 @@ public class ManifestWriter {
                     .collect(Collectors.toList());
             return new ManifestObjects.DatabaseEntry(
                     db.getId(),
+                    db.getNeonTenantId(),
                     db.getName(),
                     db.getNeonTimelineId(),
                     db.getCreatedAt(),

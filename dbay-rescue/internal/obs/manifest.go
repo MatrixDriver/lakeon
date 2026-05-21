@@ -15,12 +15,13 @@ type BranchEntry struct {
 
 // DatabaseEntry mirrors ManifestObjects.DatabaseEntry.
 type DatabaseEntry struct {
-	DBID       string        `json:"db_id"`
-	Name       string        `json:"name"`
-	TimelineID string        `json:"timeline_id"`
-	CreatedAt  time.Time     `json:"created_at"`
-	DeletedAt  *time.Time    `json:"deleted_at,omitempty"`
-	Branches   []BranchEntry `json:"branches,omitempty"`
+	DBID         string        `json:"db_id"`
+	NeonTenantID string        `json:"neon_tenant_id,omitempty"`
+	Name         string        `json:"name"`
+	TimelineID   string        `json:"timeline_id"`
+	CreatedAt    time.Time     `json:"created_at"`
+	DeletedAt    *time.Time    `json:"deleted_at,omitempty"`
+	Branches     []BranchEntry `json:"branches,omitempty"`
 }
 
 // TenantManifest mirrors ManifestObjects.TenantManifest.

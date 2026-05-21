@@ -50,6 +50,7 @@ class ManifestWriterTest {
         db.setId("db1");
         db.setName("mydb");
         db.setTenantId("tn1");
+        db.setNeonTenantId("neon-tn1");
         db.setNeonTimelineId("tl1");
         db.setCreatedAt(Instant.parse("2026-04-05T10:00:00Z"));
         when(dbRepo.findAllByTenantId("tn1")).thenReturn(List.of(db));
@@ -72,6 +73,8 @@ class ManifestWriterTest {
         assertThat(written.ownerEmail()).isEqualTo("alice@example.com");
         assertThat(written.databases()).hasSize(1);
         assertThat(written.databases().get(0).dbId()).isEqualTo("db1");
+        assertThat(written.databases().get(0).neonTenantId()).isEqualTo("neon-tn1");
+        assertThat(written.databases().get(0).timelineId()).isEqualTo("tl1");
     }
 
     @Test
