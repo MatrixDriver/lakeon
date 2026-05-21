@@ -68,6 +68,35 @@ class NeonApiClientTest {
     }
 
     @Test
+    @DisplayName("getTimelineInfo 调用正确的 endpoint 并返回 TimelineInfo")
+    void getTimelineInfo_callsCorrectEndpoint() {
+        // Given — pageserver returns timeline metadata for GET /v1/tenant/{tn}/timeline/{tl}
+        stubFor(get(urlPathEqualTo("/v1/tenant/tn1/timeline/tl1"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {
+                                  "timeline_id": "tl1",
+                                  "last_record_lsn": "0/FF",
+                                  "disk_consistent_lsn": "0/FE",
+                                  "latest_gc_cutoff_lsn": "0/AA"
+                                }
+                                """)));
+
+        // When
+        NeonApiClient.TimelineInfo info = neonApiClient.getTimelineInfo("tn1", "tl1");
+
+        // Then
+        assertThat(info).isNotNull();
+        assertThat(info.timelineId()).isEqualTo("tl1");
+        assertThat(info.lastRecordLsn()).isEqualTo("0/FF");
+        assertThat(info.diskConsistentLsn()).isEqualTo("0/FE");
+        assertThat(info.latestGcCutoffLsn()).isEqualTo("0/AA");
+        verify(getRequestedFor(urlEqualTo("/v1/tenant/tn1/timeline/tl1")));
+    }
+
+    @Test
     @DisplayName("getLsnByTimestamp 调用正确的 endpoint 并返回 LSN")
     void getLsnByTimestamp_callsCorrectEndpoint() {
         // Given — Pageserver returns the LSN for a given RFC3339 timestamp

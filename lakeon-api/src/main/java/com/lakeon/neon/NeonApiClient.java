@@ -427,6 +427,48 @@ public class NeonApiClient {
         }
     }
 
+    /**
+     * Timeline metadata returned by {@link #getTimelineInfo(String, String)}.
+     *
+     * <p>{@code latestGcCutoffLsn} is the LSN below which the pageserver has GC'd WAL/layer
+     * data — i.e. the earliest LSN you can still PITR to. It is an LSN, not a timestamp;
+     * Neon does not expose a timestamp form of the GC horizon. {@code lastRecordLsn} is
+     * the head of the timeline (i.e. the latest LSN to which you can restore).
+     */
+    public record TimelineInfo(
+        @JsonProperty("timeline_id") String timelineId,
+        @JsonProperty("last_record_lsn") String lastRecordLsn,
+        @JsonProperty("disk_consistent_lsn") String diskConsistentLsn,
+        @JsonProperty("latest_gc_cutoff_lsn") String latestGcCutoffLsn
+    ) {}
+
+    /**
+     * Get full timeline metadata including head LSN and GC cutoff LSN.
+     * GET /v1/tenant/{tenant_id}/timeline/{timeline_id}
+     *
+     * <p>Distinct from {@link #getTimeline(String, String)} which returns the
+     * {@link com.lakeon.neon.dto.NeonTimeline} branch-creation view; this returns the
+     * richer {@link TimelineInfo} record used by recovery flows (PITR window discovery).
+     */
+    public TimelineInfo getTimelineInfo(String tenantId, String timelineId) {
+        try {
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/v1/tenant/" + encodePathSegment(tenantId) + "/timeline/" + encodePathSegment(timelineId)))
+                .GET()
+                .timeout(REQUEST_TIMEOUT)
+                .build();
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() >= 400) {
+                throw new NeonApiException("Failed to get timeline info: HTTP " + response.statusCode() + " - " + response.body(), response.statusCode());
+            }
+            return objectMapper.readValue(response.body(), TimelineInfo.class);
+        } catch (NeonApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new NeonApiException("Failed to get timeline info: " + e.getMessage(), e);
+        }
+    }
+
     public NeonTenant getTenant(String tenantId) {
         try {
             HttpRequest httpRequest = HttpRequest.newBuilder()

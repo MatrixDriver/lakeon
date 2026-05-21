@@ -2,6 +2,7 @@ package com.lakeon.service;
 
 import com.lakeon.model.dto.PitrRequest;
 import com.lakeon.model.dto.PitrResponse;
+import com.lakeon.model.dto.PitrWindow;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.neon.NeonApiClient;
 import com.lakeon.repository.DatabaseRepository;
@@ -73,6 +74,34 @@ public class RecoveryService {
             branch.lsn(),
             null,
             "ready"
+        );
+    }
+
+    /**
+     * Return the PITR window in which a database can be restored.
+     *
+     * <p>{@code earliest} is the database's {@code createdAt} — a database cannot be
+     * restored to a point before it existed. (Neon also has a GC cutoff LSN below which
+     * pageserver data is unavailable, but Neon does not expose an LSN→timestamp mapping
+     * so we cannot translate that LSN into a wall-clock instant; for the first
+     * iteration we ignore it and use createdAt as the lower bound.)
+     *
+     * <p>{@code latest} is now (wall clock) and {@code latestLsn} is the timeline's
+     * head LSN ({@code last_record_lsn}). {@code earliestLsn} is left {@code null}
+     * pending a future LSN→time mapping.
+     */
+    public PitrWindow getPitrWindow(String dbId) {
+        DatabaseEntity db = databaseRepository.findById(dbId)
+            .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
+
+        NeonApiClient.TimelineInfo info = neonApiClient.getTimelineInfo(
+            db.getNeonTenantId(), db.getNeonTimelineId());
+
+        return new PitrWindow(
+            db.getCreatedAt(),
+            Instant.now(),
+            null,
+            info.lastRecordLsn()
         );
     }
 }

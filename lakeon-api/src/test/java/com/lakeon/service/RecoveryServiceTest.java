@@ -2,6 +2,7 @@ package com.lakeon.service;
 
 import com.lakeon.model.dto.PitrRequest;
 import com.lakeon.model.dto.PitrResponse;
+import com.lakeon.model.dto.PitrWindow;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.neon.NeonApiClient;
 import com.lakeon.repository.DatabaseRepository;
@@ -68,5 +69,34 @@ class RecoveryServiceTest {
                 new PitrRequest(Instant.now(), null)))
             .isInstanceOf(NotFoundException.class)
             .hasMessageContaining("Database not found");
+    }
+
+    @Test
+    void getPitrWindow_returnsCreatedAtAndLatestLsn() {
+        DatabaseEntity db = new DatabaseEntity();
+        db.setId("db1");
+        db.setTenantId("tn1");
+        db.setNeonTenantId("nt1");
+        db.setNeonTimelineId("tl1");
+        db.setCreatedAt(Instant.parse("2026-04-01T00:00:00Z"));
+        when(databaseRepository.findById("db1")).thenReturn(Optional.of(db));
+        when(neonApiClient.getTimelineInfo("nt1", "tl1"))
+            .thenReturn(new NeonApiClient.TimelineInfo("tl1", "0/FFFF", "0/FFFE", "0/AAAA"));
+
+        RecoveryService svc = new RecoveryService(databaseRepository, neonApiClient, databaseService);
+        PitrWindow window = svc.getPitrWindow("db1");
+
+        assertThat(window.earliest()).isEqualTo(Instant.parse("2026-04-01T00:00:00Z"));
+        assertThat(window.latestLsn()).isEqualTo("0/FFFF");
+        // earliestLsn left null for now (not derivable without LSN→time mapping)
+        assertThat(window.earliestLsn()).isNull();
+    }
+
+    @Test
+    void getPitrWindow_throwsNotFoundWhenDatabaseMissing() {
+        when(databaseRepository.findById("nope")).thenReturn(Optional.empty());
+        RecoveryService svc = new RecoveryService(databaseRepository, neonApiClient, databaseService);
+        assertThatThrownBy(() -> svc.getPitrWindow("nope"))
+            .isInstanceOf(NotFoundException.class);
     }
 }
