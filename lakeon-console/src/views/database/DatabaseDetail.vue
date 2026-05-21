@@ -29,6 +29,11 @@
             class="btn btn-primary"
           >管理数据库</router-link>
           <button
+            class="btn btn-default"
+            data-testid="open-restore-dialog"
+            @click="restoreDialogVisible = true"
+          >恢复到时间点</button>
+          <button
             v-if="database.status === 'RUNNING'"
             class="btn btn-default"
             :disabled="actionLoading"
@@ -494,6 +499,15 @@
         </div>
       </div>
     </div>
+
+    <RestoreDialog
+      v-if="database"
+      :db-id="database.id"
+      :db-name="database.name"
+      :visible="restoreDialogVisible"
+      @close="restoreDialogVisible = false"
+      @restored="onRestored"
+    />
   </div>
 
   <!-- Loading -->
@@ -504,11 +518,12 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { databaseApi, type Database, type ConnectionsData } from '../../api/database'
 // branch management moved to TimeTravelView
 import { dbuserApi, type DatabaseUser } from '../../api/dbuser'
 import CreateUserDialog from './CreateUserDialog.vue'
+import RestoreDialog from '../../components/database/RestoreDialog.vue'
 // TableToolbar, TableFooter removed (backups tab moved)
 import { extensionApi, type ExtensionInfo, type ParameterInfo } from '../../api/extension'
 import { backupApi, type Backup } from '../../api/backup'
@@ -517,7 +532,14 @@ import { formatDate } from '../../utils/format'
 import { useToast } from '../../composables/useToast'
 
 const route = useRoute()
+const router = useRouter()
 const dbId = computed(() => route.params.id as string)
+
+const restoreDialogVisible = ref(false)
+
+function onRestored(newDbId: string) {
+  router.push(`/databases/${newDbId}`)
+}
 
 const database = ref<Database | null>(null)
 const loadError = ref(false)
