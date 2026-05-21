@@ -30,6 +30,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
@@ -68,6 +69,9 @@ class DatabaseServiceTest {
     @Mock
     private DatabaseProvisioningService provisioningService;
 
+    @Mock
+    private ApplicationEventPublisher events;
+
     private final MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     private DatabaseService databaseService;
@@ -78,7 +82,7 @@ class DatabaseServiceTest {
     void setUp() {
         TransactionTemplate txTemplate = TestTransactionTemplate.create();
         databaseService = new DatabaseService(databaseRepository, branchRepository,
-                neonApiClient, computePodManager, props, operationLogService, meterRegistry, txTemplate, provisioningService);
+                neonApiClient, computePodManager, props, operationLogService, meterRegistry, txTemplate, provisioningService, events);
 
         testTenant = new TenantEntity();
         testTenant.setId("tn_test001");

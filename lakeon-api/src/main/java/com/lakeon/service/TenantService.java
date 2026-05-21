@@ -7,6 +7,7 @@ import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.ApiKeyEntity;
 import com.lakeon.model.entity.InviteCodeEntity;
 import com.lakeon.model.entity.TenantEntity;
+import com.lakeon.model.event.TenantChangedEvent;
 import com.lakeon.repository.ApiKeyRepository;
 import com.lakeon.repository.InviteCodeRepository;
 import com.lakeon.repository.TenantRepository;
@@ -14,6 +15,7 @@ import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.ConflictException;
 import com.lakeon.service.exception.NotFoundException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,16 +33,18 @@ public class TenantService {
     private final ApiKeyRepository apiKeyRepository;
     private final InviteCodeRepository inviteCodeRepository;
     private final LakeonProperties props;
+    private final ApplicationEventPublisher events;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public TenantService(TenantRepository tenantRepository, DatabaseRepository databaseRepository,
                          ApiKeyRepository apiKeyRepository, InviteCodeRepository inviteCodeRepository,
-                         LakeonProperties props) {
+                         LakeonProperties props, ApplicationEventPublisher events) {
         this.tenantRepository = tenantRepository;
         this.databaseRepository = databaseRepository;
         this.apiKeyRepository = apiKeyRepository;
         this.inviteCodeRepository = inviteCodeRepository;
         this.props = props;
+        this.events = events;
     }
 
     public boolean isUsernameAvailable(String username) {
@@ -94,6 +98,7 @@ public class TenantService {
             inviteCodeRepository.save(inviteCode);
         }
 
+        events.publishEvent(new TenantChangedEvent(entity.getId(), TenantChangedEvent.ChangeType.CREATED));
         return toResponse(entity);
     }
 
@@ -211,6 +216,7 @@ public class TenantService {
         entity.setDisabledAt(java.time.Instant.now());
         entity = tenantRepository.save(entity);
         int dbCount = databaseRepository.findAllByTenantId(tenantId).size();
+        events.publishEvent(new TenantChangedEvent(tenantId, TenantChangedEvent.ChangeType.UPDATED));
         return toResponseWithDisabled(entity, dbCount);
     }
 
@@ -222,6 +228,7 @@ public class TenantService {
         entity.setDisabledAt(null);
         entity = tenantRepository.save(entity);
         int dbCount = databaseRepository.findAllByTenantId(tenantId).size();
+        events.publishEvent(new TenantChangedEvent(tenantId, TenantChangedEvent.ChangeType.UPDATED));
         return toResponseWithDisabled(entity, dbCount);
     }
 
@@ -234,6 +241,7 @@ public class TenantService {
         if (maxComputeCu != null) entity.setMaxComputeCu(maxComputeCu);
         entity = tenantRepository.save(entity);
         int dbCount = databaseRepository.findAllByTenantId(tenantId).size();
+        events.publishEvent(new TenantChangedEvent(tenantId, TenantChangedEvent.ChangeType.UPDATED));
         return toResponseWithDisabled(entity, dbCount);
     }
 
@@ -259,6 +267,7 @@ public class TenantService {
             entity.setName(name.trim());
         }
         entity = tenantRepository.save(entity);
+        events.publishEvent(new TenantChangedEvent(tenantId, TenantChangedEvent.ChangeType.UPDATED));
         return toResponse(entity);
     }
 

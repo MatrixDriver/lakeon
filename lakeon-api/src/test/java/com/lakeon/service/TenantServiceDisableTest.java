@@ -13,6 +13,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +33,9 @@ class TenantServiceDisableTest {
 
     @Mock
     private DatabaseRepository databaseRepository;
+
+    @Mock
+    private ApplicationEventPublisher events;
 
     @InjectMocks
     private TenantService tenantService;

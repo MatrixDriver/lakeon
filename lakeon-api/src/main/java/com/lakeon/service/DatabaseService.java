@@ -10,6 +10,7 @@ import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.model.enums.ComputeSize;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.model.enums.OperationType;
+import com.lakeon.model.event.DatabaseChangedEvent;
 import com.lakeon.neon.NeonApiClient;
 import com.lakeon.neon.dto.NeonTenant;
 import com.lakeon.neon.dto.NeonTimeline;
@@ -29,6 +30,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,6 +59,7 @@ public class DatabaseService {
     private final MeterRegistry meterRegistry;
     private final TransactionTemplate txTemplate;
     private final DatabaseProvisioningService provisioningService;
+    private final ApplicationEventPublisher events;
     private final Counter wakeupFailureCounter;
 
     // Caches for the two external IO calls in toResponse(). Without these,
@@ -86,7 +89,8 @@ public class DatabaseService {
                            OperationLogService operationLogService,
                            MeterRegistry meterRegistry,
                            TransactionTemplate txTemplate,
-                           @org.springframework.context.annotation.Lazy DatabaseProvisioningService provisioningService) {
+                           @org.springframework.context.annotation.Lazy DatabaseProvisioningService provisioningService,
+                           ApplicationEventPublisher events) {
         this.databaseRepository = databaseRepository;
         this.branchRepository = branchRepository;
         this.neonApiClient = neonApiClient;
@@ -96,6 +100,7 @@ public class DatabaseService {
         this.meterRegistry = meterRegistry;
         this.txTemplate = txTemplate;
         this.provisioningService = provisioningService;
+        this.events = events;
         this.wakeupFailureCounter = Counter.builder("lakeon_compute_wakeup_failures_total")
             .description("Total number of compute wakeup failures")
             .register(meterRegistry);
@@ -187,6 +192,8 @@ public class DatabaseService {
             entity.setComputePort(props.getProxy().getExternalPort());
 
             DatabaseEntity saved = databaseRepository.save(entity);
+            events.publishEvent(new DatabaseChangedEvent(
+                saved.getTenantId(), saved.getId(), DatabaseChangedEvent.ChangeType.CREATED));
             return new CreateResult(saved, neonTimeline);
         });
 
@@ -337,6 +344,8 @@ public class DatabaseService {
             entity = databaseRepository.save(entity);
             List<BranchEntity> branches = branchRepository.findAllByDatabaseId(dbId);
             operationLogService.completeOperation(opLog, null);
+            events.publishEvent(new DatabaseChangedEvent(
+                entity.getTenantId(), entity.getId(), DatabaseChangedEvent.ChangeType.UPDATED));
             return toResponse(entity, branches);
         } catch (Exception e) {
             operationLogService.completeOperation(opLog, e.getMessage());
@@ -373,7 +382,10 @@ public class DatabaseService {
         db.setStorageLimitGb(props.getDefaults().getStorageLimitGb());
         db.setRecoveredFromPitr(true);
         db.setCreatedAt(Instant.now());
-        return databaseRepository.save(db);
+        DatabaseEntity saved = databaseRepository.save(db);
+        events.publishEvent(new DatabaseChangedEvent(
+            saved.getTenantId(), saved.getId(), DatabaseChangedEvent.ChangeType.CREATED));
+        return saved;
     }
 
     /**
@@ -418,6 +430,8 @@ public class DatabaseService {
             entity.setDeletedAt(Instant.now());
             databaseRepository.save(entity);
             operationLogService.completeOperation(opLog, null);
+            events.publishEvent(new DatabaseChangedEvent(
+                entity.getTenantId(), entity.getId(), DatabaseChangedEvent.ChangeType.UPDATED));
             log.info("Soft-deleted database {} ({}), will be purged after 7 days", entity.getName(), dbId);
         } catch (Exception e) {
             operationLogService.completeOperation(opLog, e.getMessage());
@@ -438,6 +452,8 @@ public class DatabaseService {
         entity.setStatus(DatabaseStatus.SUSPENDED);
         entity.setDeletedAt(null);
         databaseRepository.save(entity);
+        events.publishEvent(new DatabaseChangedEvent(
+            entity.getTenantId(), entity.getId(), DatabaseChangedEvent.ChangeType.UPDATED));
         log.info("Restored database {} ({}) from recycle bin", entity.getName(), dbId);
         List<BranchEntity> branches = branchRepository.findAllByDatabaseId(dbId);
         return toResponse(entity, branches);
@@ -488,6 +504,8 @@ public class DatabaseService {
             log.warn("Failed to delete Neon tenant for database {}: {}", dbId, e.getMessage());
         }
         databaseRepository.delete(entity);
+        events.publishEvent(new DatabaseChangedEvent(
+            entity.getTenantId(), entity.getId(), DatabaseChangedEvent.ChangeType.DELETED));
         log.info("Permanently deleted database {} ({})", entity.getName(), dbId);
     }
 

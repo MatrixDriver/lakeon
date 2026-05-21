@@ -13,6 +13,7 @@ import com.lakeon.model.entity.VersionEntity;
 import com.lakeon.model.enums.BranchStatus;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.model.enums.BranchType;
+import com.lakeon.model.event.BranchChangedEvent;
 import com.lakeon.neon.NeonApiClient;
 import com.lakeon.neon.dto.CreateTimelineRequest;
 import com.lakeon.neon.dto.NeonTimeline;
@@ -25,6 +26,7 @@ import com.lakeon.service.exception.NotFoundException;
 import com.lakeon.util.LsnUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,19 +48,22 @@ public class BranchService {
     private final NeonApiClient neonApiClient;
     private final ComputePodManager computePodManager;
     private final OperationLogService operationLogService;
+    private final ApplicationEventPublisher events;
 
     public BranchService(DatabaseRepository databaseRepository,
                          BranchRepository branchRepository,
                          VersionRepository versionRepository,
                          NeonApiClient neonApiClient,
                          ComputePodManager computePodManager,
-                         OperationLogService operationLogService) {
+                         OperationLogService operationLogService,
+                         ApplicationEventPublisher events) {
         this.databaseRepository = databaseRepository;
         this.branchRepository = branchRepository;
         this.versionRepository = versionRepository;
         this.neonApiClient = neonApiClient;
         this.computePodManager = computePodManager;
         this.operationLogService = operationLogService;
+        this.events = events;
     }
 
     @Transactional
@@ -200,6 +205,8 @@ public class BranchService {
         }
 
         branch = branchRepository.save(branch);
+        events.publishEvent(new BranchChangedEvent(
+            tenant.getId(), dbId, branch.getId(), BranchChangedEvent.ChangeType.CREATED));
         return toResponse(branch);
     }
 
@@ -286,6 +293,8 @@ public class BranchService {
         }
 
         branchRepository.delete(branch);
+        events.publishEvent(new BranchChangedEvent(
+            tenant.getId(), dbId, branchId, BranchChangedEvent.ChangeType.DELETED));
     }
 
     public BranchTreeResponse getTree(TenantEntity tenant, String dbId) {
@@ -390,6 +399,10 @@ public class BranchService {
         }
         databaseRepository.save(db);
 
+        events.publishEvent(new BranchChangedEvent(
+            tenant.getId(), dbId, currentDefault.getId(), BranchChangedEvent.ChangeType.UPDATED));
+        events.publishEvent(new BranchChangedEvent(
+            tenant.getId(), dbId, branchId, BranchChangedEvent.ChangeType.UPDATED));
         return toResponse(target);
     }
 
@@ -489,6 +502,10 @@ public class BranchService {
             branchRepository.save(branch);
         }
 
+        events.publishEvent(new BranchChangedEvent(
+            tenant.getId(), dbId, backup.getId(), BranchChangedEvent.ChangeType.CREATED));
+        events.publishEvent(new BranchChangedEvent(
+            tenant.getId(), dbId, branchId, BranchChangedEvent.ChangeType.UPDATED));
         return toResponse(branch);
     }
 
