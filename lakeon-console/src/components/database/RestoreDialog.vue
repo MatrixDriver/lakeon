@@ -31,7 +31,7 @@
 
         <div class="form-group">
           <label class="form-label">
-            目标时间 (UTC) <span class="required">*</span>
+            目标时间 (本地时区) <span class="required">*</span>
           </label>
           <input
             v-model="targetTime"
@@ -102,22 +102,24 @@ const loadingWindow = ref(false)
 const error = ref<string | null>(null)
 
 // Convert API ISO string (e.g. "2026-04-23T10:15:30.123Z") to the format
-// expected by <input type="datetime-local">: "YYYY-MM-DDTHH:mm:ss"
+// expected by <input type="datetime-local">: "YYYY-MM-DDTHH:mm:ss" in local time.
 function isoToLocalInput(iso: string): string {
   if (!iso) return ''
-  // Strip trailing Z and fractional seconds; keep date + time portion
-  const stripped = iso.replace(/Z$/, '').replace(/\.\d+$/, '')
-  // Truncate to seconds if needed
-  // "2026-04-23T10:15:30" already fits; "2026-04-23T10:15:30.123" was handled above
-  return stripped.slice(0, 19)
+  // Convert UTC ISO → local-time string for datetime-local input
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  // Format: YYYY-MM-DDTHH:mm:ss in local time
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
-// Convert "YYYY-MM-DDTHH:mm" or "YYYY-MM-DDTHH:mm:ss" to "YYYY-MM-DDTHH:mm:ssZ"
+// Convert local-time picker value ("YYYY-MM-DDTHH:mm" or "YYYY-MM-DDTHH:mm:ss")
+// to a UTC ISO string suitable for the PITR API.
 function localInputToIso(local: string): string {
   if (!local) return ''
-  // Pad to seconds if input omits them
-  const withSeconds = local.length === 16 ? `${local}:00` : local
-  return `${withSeconds}Z`
+  // datetime-local returns "2026-05-21T10:00" or "2026-05-21T10:00:30" (no Z)
+  // new Date() parses this as local time, then toISOString() converts to UTC
+  return new Date(local).toISOString()
 }
 
 function formatDisplay(iso: string): string {
