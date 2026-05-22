@@ -692,7 +692,11 @@ public class DatabaseService {
                 e.setStatus(DatabaseStatus.RUNNING);
                 e.setSuspendedAt(null);
                 e.setLastActiveAt(Instant.now());
-                e.setConnectionUri(buildConnectionUri(e.getDbUser(), e.getName()));
+                // PITR-recovered DBs have a custom connection_uri (PG database name != lakeon name);
+                // don't overwrite it.
+                if (!e.isRecoveredFromPitr()) {
+                    e.setConnectionUri(buildConnectionUri(e.getDbUser(), e.getName()));
+                }
                 databaseRepository.save(e);
             });
             operationLogService.completeOperation(opLog, null);
@@ -786,7 +790,11 @@ public class DatabaseService {
             entity.setStatus(DatabaseStatus.RUNNING);
             entity.setSuspendedAt(null);
             entity.setLastActiveAt(Instant.now());
-            entity.setConnectionUri(buildConnectionUri(entity.getDbUser(), entity.getName()));
+            // PITR-recovered DBs have a custom connection_uri (PG database name != lakeon name);
+            // don't overwrite it.
+            if (!entity.isRecoveredFromPitr()) {
+                entity.setConnectionUri(buildConnectionUri(entity.getDbUser(), entity.getName()));
+            }
             databaseRepository.save(entity);
             operationLogService.completeOperation(opLog, null);
             coldSample.stop(Timer.builder("lakeon_compute_wakeup_seconds")
