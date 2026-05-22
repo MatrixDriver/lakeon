@@ -13,6 +13,7 @@ import com.obs.services.model.S3Object;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;
@@ -51,6 +52,7 @@ public class LakeonObsClient {
     private final ObsClient obs;
     private final String bucket;
 
+    @Autowired
     public LakeonObsClient(ObjectProvider<ObsClient> obsProvider, LakeonProperties props) {
         this(obsProvider.getIfAvailable(), props.getObs().getBucket());
     }
