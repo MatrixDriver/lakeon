@@ -60,7 +60,7 @@ public class RecoveryService {
         String lsn = neonApiClient.getLsnByTimestamp(
             src.getNeonTenantId(), src.getNeonTimelineId(), request.targetTime());
 
-        String newTimelineId = "tl_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        String newTimelineId = UUID.randomUUID().toString().replace("-", "");
         NeonApiClient.CreateBranchResponse branch = neonApiClient.createBranch(
             src.getNeonTenantId(),
             new NeonApiClient.CreateBranchRequest(src.getNeonTimelineId(), lsn, newTimelineId)
