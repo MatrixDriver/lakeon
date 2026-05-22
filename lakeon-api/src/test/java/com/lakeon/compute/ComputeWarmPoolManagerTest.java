@@ -670,6 +670,28 @@ class ComputeWarmPoolManagerTest {
 
     // ── 20. withCciBurst adds virtual-kubelet nodeSelector + tolerations ──
     @Test
+    void withCciBurst_replacesExistingNodeSelectorWithVirtualKubelet() {
+        // Realistic case: ComputePodManager.buildPodSpec sets a base nodeSelector
+        // like {lakeon/pool: database}. virtual-kubelet nodes don't have that
+        // label so withCciBurst must drop it (full replace, not merge).
+        Pod base = new PodBuilder()
+            .withNewMetadata().withName("p").endMetadata()
+            .withNewSpec()
+                .withNodeSelector(Map.of("lakeon/pool", "database"))
+            .endSpec()
+            .build();
+
+        Pod result = ComputeWarmPoolManager.withCciBurst(base);
+
+        // nodeSelector is exactly {type: virtual-kubelet} — the lakeon/pool
+        // selector is intentionally dropped because the CCI virtual-kubelet
+        // node has no lakeon/pool label.
+        assertThat(result.getSpec().getNodeSelector())
+            .containsEntry("type", "virtual-kubelet")
+            .doesNotContainKey("lakeon/pool");
+    }
+
+    @Test
     void withCciBurst_addsVirtualKubeletNodeSelectorAndTolerations() {
         Pod base = new PodBuilder()
             .withNewMetadata().withName("p").endMetadata()

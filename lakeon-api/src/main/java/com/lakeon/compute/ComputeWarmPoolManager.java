@@ -448,9 +448,17 @@ public class ComputeWarmPoolManager {
      * scale onto CCI without competing with the real-tenant compute pool.
      */
     static Pod withCciBurst(Pod pod) {
+        // Replace nodeSelector entirely with {type: virtual-kubelet}. The base
+        // ComputePodManager.buildPodSpec sets {lakeon/pool: database} which is
+        // a CCE-pool selector — virtual-kubelet nodes don't have that label, so
+        // keeping it would prevent scheduling to CCI. fabric8's addToNodeSelector
+        // empirically merged but the merge didn't end up in the rendered Pod
+        // spec; using withNewNodeSelector replace is reliable.
+        java.util.Map<String, String> nodeSelector = new java.util.LinkedHashMap<>();
+        nodeSelector.put("type", "virtual-kubelet");
         return new PodBuilder(pod)
             .editSpec()
-                .addToNodeSelector("type", "virtual-kubelet")
+                .withNodeSelector(nodeSelector)
                 .addNewToleration()
                     .withKey("virtual-kubelet.io/provider")
                     .withOperator("Equal")
