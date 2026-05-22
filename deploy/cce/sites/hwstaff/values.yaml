@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.9.244-429c1cc8-dirty"
+    tag: "0.9.244-5869b264-dirty"
   jobCallbackBaseUrl: "http://10.247.156.79:8088"  # CCI job pods use ClusterIP (no external access)
   jobNamespace: "lakeon-jobs"
   resources:
@@ -333,3 +333,14 @@ datalake:
 # ── Demo 租户 (体验模式) ──────────────────────────────────────────
 demo:
   tenantId: "demo"
+
+# Warm pool: maintain N idle compute pods on CCI (virtual-kubelet burst) to skip
+# cold-start. Idle pods run with Replica mode against a mock tenant; on user
+# wake, ComputeLifecycleService claims one and POST /configure swaps to real spec.
+# Mock tenant must exist on pageserver (db_9016ab57, tenant tn_31b044ae).
+computeWarmPool:
+  enabled: true
+  size: 1
+  mockTenantId: "c91d2a8be488a6c07fe98234b47e57bd"
+  mockTimelineId: "a3219680414c3e639631257219365324"
+  useCciBurst: true
