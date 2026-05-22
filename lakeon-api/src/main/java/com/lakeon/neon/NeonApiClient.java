@@ -1,5 +1,6 @@
 package com.lakeon.neon;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -435,6 +436,7 @@ public class NeonApiClient {
      * Neon does not expose a timestamp form of the GC horizon. {@code lastRecordLsn} is
      * the head of the timeline (i.e. the latest LSN to which you can restore).
      */
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public record TimelineInfo(
         @JsonProperty("timeline_id") String timelineId,
         @JsonProperty("last_record_lsn") String lastRecordLsn,
