@@ -368,7 +368,8 @@ public class DatabaseService {
      * @param name database name for the new row (caller pre-computes any "_restored_..." suffix)
      */
     @Transactional
-    public DatabaseEntity registerRecoveredDatabase(String tenantId, String neonTenantId, String timelineId, String name) {
+    public DatabaseEntity registerRecoveredDatabase(String tenantId, String neonTenantId, String timelineId,
+                                                    String name, String dbUser, String dbPassword) {
         DatabaseEntity db = new DatabaseEntity();
         db.setId("db_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
         db.setTenantId(tenantId);
@@ -376,6 +377,10 @@ public class DatabaseService {
         db.setNeonTimelineId(timelineId);
         // Branches share the parent's Neon tenant — passed in by caller from the source DB.
         db.setNeonTenantId(neonTenantId);
+        // Inherit auth from source so existing client can connect to the recovered branch.
+        db.setDbUser(dbUser);
+        db.setDbPassword(dbPassword);
+        db.setConnectionUri(buildConnectionUri(dbUser, name));
         db.setStatus(DatabaseStatus.SUSPENDED);
         db.setComputeSize(props.getDefaults().getComputeSize());
         db.setSuspendTimeout(props.getDefaults().getSuspendTimeout());

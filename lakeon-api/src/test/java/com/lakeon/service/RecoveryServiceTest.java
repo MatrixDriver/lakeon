@@ -46,6 +46,9 @@ class RecoveryServiceTest {
         src.setTenantId("tn1");
         src.setNeonTenantId("nt1");
         src.setNeonTimelineId("tl_old");
+        src.setDbUser("user_old");
+        src.setDbPassword("pw_old");
+        src.setCreatedAt(Instant.parse("2026-01-01T00:00:00Z"));
         when(databaseRepository.findByIdAndTenantId("db_old", "tn1")).thenReturn(Optional.of(src));
         when(neonApiClient.getLsnByTimestamp(eq("nt1"), eq("tl_old"), any()))
             .thenReturn("0/AB12");
@@ -54,7 +57,8 @@ class RecoveryServiceTest {
         DatabaseEntity newDb = new DatabaseEntity();
         newDb.setId("db_new");
         newDb.setName("mydb_restored_20260521");
-        when(databaseService.registerRecoveredDatabase(eq("tn1"), eq("nt1"), eq("tl_new"), eq("mydb_restored_20260521")))
+        when(databaseService.registerRecoveredDatabase(eq("tn1"), eq("nt1"), eq("tl_new"),
+                eq("mydb_restored_20260521"), eq("user_old"), eq("pw_old")))
             .thenReturn(newDb);
 
         RecoveryService svc = new RecoveryService(databaseRepository, neonApiClient, databaseService);

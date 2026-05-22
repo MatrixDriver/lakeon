@@ -7,6 +7,7 @@ import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.neon.NeonApiClient;
 import com.lakeon.repository.DatabaseRepository;
+import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
 import org.springframework.stereotype.Service;
 
@@ -57,8 +58,21 @@ public class RecoveryService {
         DatabaseEntity src = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
             .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
 
+        // Enforce window: target_time must be within [createdAt, now]. Neon's
+        // get_lsn_by_timestamp silently clamps out-of-range targets to the earliest
+        // available LSN, which would silently restore "earlier than creation".
+        Instant target = request.targetTime();
+        Instant now = Instant.now();
+        if (src.getCreatedAt() != null && target.isBefore(src.getCreatedAt())) {
+            throw new BadRequestException("target_time " + target
+                + " is before database created_at " + src.getCreatedAt());
+        }
+        if (target.isAfter(now.plusSeconds(5))) {
+            throw new BadRequestException("target_time " + target + " is in the future");
+        }
+
         String lsn = neonApiClient.getLsnByTimestamp(
-            src.getNeonTenantId(), src.getNeonTimelineId(), request.targetTime());
+            src.getNeonTenantId(), src.getNeonTimelineId(), target);
 
         String newTimelineId = UUID.randomUUID().toString().replace("-", "");
         NeonApiClient.CreateBranchResponse branch = neonApiClient.createBranch(
@@ -71,7 +85,8 @@ public class RecoveryService {
             : src.getName() + "_restored_" + RESTORED_SUFFIX_FMT.format(Instant.now());
 
         DatabaseEntity recovered = databaseService.registerRecoveredDatabase(
-            src.getTenantId(), src.getNeonTenantId(), branch.timelineId(), newDbName);
+            src.getTenantId(), src.getNeonTenantId(), branch.timelineId(), newDbName,
+            src.getDbUser(), src.getDbPassword());
 
         return new PitrResponse(
             recovered.getId(),
