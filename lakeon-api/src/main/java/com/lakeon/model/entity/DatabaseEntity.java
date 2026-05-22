@@ -75,7 +75,7 @@ public class DatabaseEntity {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
-    @Column(name = "recovered_from_pitr", nullable = false)
+    @Column(name = "recovered_from_pitr", nullable = false, columnDefinition = "boolean not null default false")
     private boolean recoveredFromPitr;
 
     @Column(name = "created_at", nullable = false)
