@@ -89,14 +89,21 @@ class TestPitr:
         main_br = next(b for b in branches if b.get("is_default"))
         e2e_client.create_version(db_id, main_br["id"], name="pre-midpoint-snap")
 
-        # Give the pageserver time to ingest the WAL upload before midpoint.
-        # Pageserver WAL upload from safekeeper is async; the test needs enough
-        # buffer so that CREATE TABLE + INSERT are durably ingested before
-        # midpoint is captured (otherwise get_lsn_by_timestamp returns an LSN
-        # earlier than CREATE TABLE).
-        time.sleep(20)
+        # Wait until pageserver's latest_lsn stabilizes (WAL upload from safekeeper
+        # is async; without this poll, get_lsn_by_timestamp(midpoint) may return
+        # an LSN earlier than CREATE TABLE since the WAL hasn't been ingested yet).
+        def _stable_lsn():
+            seen = []
+            for _ in range(30):  # up to 60s
+                w = e2e_client._request("GET", f"/databases/{db_id}/pitr-window")
+                seen.append(w["latest_lsn"])
+                if len(seen) >= 3 and seen[-1] == seen[-2] == seen[-3]:
+                    return seen[-1]
+                time.sleep(2)
+            return seen[-1] if seen else None
+        _stable_lsn()
         midpoint = datetime.now(timezone.utc)
-        time.sleep(20)
+        time.sleep(5)
 
         # Second row (should NOT be visible after PITR to midpoint)
         psql_with_retry(
@@ -105,7 +112,8 @@ class TestPitr:
             password,
         )
         e2e_client.create_version(db_id, main_br["id"], name="post-midpoint-snap")
-        time.sleep(10)
+        # Wait for second INSERT to also stabilize on pageserver
+        _stable_lsn()
 
         # Trigger PITR to midpoint — snake_case wire format
         target_time = _iso_z(midpoint)
