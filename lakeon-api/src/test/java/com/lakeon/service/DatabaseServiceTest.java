@@ -39,6 +39,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -342,13 +343,15 @@ class DatabaseServiceTest {
         }
 
         @Test
-        @DisplayName("UT-SVC-DB-008: 列出实例 — 仅返回当前租户的实例")
+        @DisplayName("UT-SVC-DB-008: 列出实例 — 仅返回当前租户的非 DELETED 实例")
         void listDatabases_tenantIsolation() {
-            // Given
+            // Given — list() excludes DELETED (those live in the recycle bin via listDeleted())
             var db1 = createTestDatabaseEntity("db_list001", "db-a", DatabaseStatus.RUNNING);
             var db2 = createTestDatabaseEntity("db_list002", "db-b", DatabaseStatus.SUSPENDED);
-            when(databaseRepository.findAllByTenantId(testTenant.getId()))
+            when(databaseRepository.findAllByTenantIdAndStatusNot(testTenant.getId(), DatabaseStatus.DELETED))
                     .thenReturn(List.of(db1, db2));
+            when(branchRepository.findAllByDatabaseIdIn(anyList()))
+                    .thenReturn(List.of());
 
             // When
             var result = databaseService.list(testTenant);
