@@ -375,9 +375,13 @@ class DatabaseServiceTest {
 
             // Then
             verify(computePodManager).createComputePod(any());
+            // Cold path saves twice: (1) pre-write podName/clear suspendedAt so cleanup
+            // schedulers don't race-delete the fresh pod, (2) flip status to RUNNING
+            // after the pod is ready. The final save carries the RUNNING status.
             ArgumentCaptor<DatabaseEntity> captor = ArgumentCaptor.forClass(DatabaseEntity.class);
-            verify(databaseRepository).save(captor.capture());
-            assertThat(captor.getValue().getStatus()).isEqualTo(DatabaseStatus.RUNNING);
+            verify(databaseRepository, times(2)).save(captor.capture());
+            assertThat(captor.getAllValues()).last()
+                    .extracting(DatabaseEntity::getStatus).isEqualTo(DatabaseStatus.RUNNING);
         }
 
         @Test
