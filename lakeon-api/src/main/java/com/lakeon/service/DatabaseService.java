@@ -7,7 +7,9 @@ import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.OperationLogEntity;
 import com.lakeon.model.entity.TenantEntity;
+import com.lakeon.model.enums.BranchStatus;
 import com.lakeon.model.enums.ComputeSize;
+import com.lakeon.model.enums.ComputeStatus;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.model.enums.OperationType;
 import com.lakeon.model.event.DatabaseChangedEvent;
@@ -388,6 +390,20 @@ public class DatabaseService {
         db.setRecoveredFromPitr(true);
         db.setCreatedAt(Instant.now());
         DatabaseEntity saved = databaseRepository.save(db);
+
+        // Create default main branch — PG proxy resolves connections via the default branch.
+        // Without this, getEndpointAccessControl throws "No default branch for database".
+        BranchEntity mainBranch = new BranchEntity();
+        mainBranch.setName("main");
+        mainBranch.setDatabaseId(saved.getId());
+        mainBranch.setNeonTimelineId(timelineId);
+        mainBranch.setIsDefault(true);
+        mainBranch.setStatus(BranchStatus.ACTIVE);
+        mainBranch.setComputeStatus(ComputeStatus.SUSPENDED);
+        mainBranch.setSuspendTimeout(saved.getSuspendTimeout());
+        mainBranch.setLastActiveAt(Instant.now());
+        branchRepository.save(mainBranch);
+
         events.publishEvent(new DatabaseChangedEvent(
             saved.getTenantId(), saved.getId(), DatabaseChangedEvent.ChangeType.CREATED));
         return saved;
