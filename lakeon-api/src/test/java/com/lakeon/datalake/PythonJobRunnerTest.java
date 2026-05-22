@@ -146,7 +146,7 @@ class PythonJobRunnerTest {
             .filteredOn(e -> "OUTPUT_PATH".equals(e.getName()))
             .singleElement()
             .extracting(io.fabric8.kubernetes.api.model.EnvVar::getValue)
-            .isEqualTo("s3://lakeon-storage/tenant-t1/jobs/job-003/output/");
+            .isEqualTo("obs://lakeon-storage/tenant-t1/jobs/job-003/output/data.parquet");
     }
 
     @Test
