@@ -371,7 +371,8 @@ public class DatabaseService {
      */
     @Transactional
     public DatabaseEntity registerRecoveredDatabase(String tenantId, String neonTenantId, String timelineId,
-                                                    String name, String dbUser, String dbPassword) {
+                                                    String name, String dbUser, String dbPassword,
+                                                    String srcPgDbName) {
         DatabaseEntity db = new DatabaseEntity();
         db.setId("db_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
         db.setTenantId(tenantId);
@@ -382,7 +383,11 @@ public class DatabaseService {
         // Inherit auth from source so existing client can connect to the recovered branch.
         db.setDbUser(dbUser);
         db.setDbPassword(dbPassword);
-        db.setConnectionUri(buildConnectionUri(dbUser, name));
+        // PG database name MUST match the source's — the branched timeline carries the
+        // source PG cluster verbatim, so its PG databases are the source's, not the new
+        // lakeon display name. The Neon endpoint name (in connection options) still uses
+        // the new lakeon name, which is how proxy routes to the new compute.
+        db.setConnectionUri(buildConnectionUri(dbUser, srcPgDbName, name));
         db.setStatus(DatabaseStatus.SUSPENDED);
         db.setComputeSize(props.getDefaults().getComputeSize());
         db.setSuspendTimeout(props.getDefaults().getSuspendTimeout());
@@ -970,16 +975,21 @@ public class DatabaseService {
     }
 
     public String buildConnectionUri(String dbUser, String dbName) {
+        return buildConnectionUri(dbUser, dbName, dbName);
+    }
+
+    /** Build connection URI when PG database name differs from Neon endpoint name (PITR case). */
+    public String buildConnectionUri(String dbUser, String pgDbName, String endpointName) {
         String host = props.getProxy().getExternalHost();
         int port = props.getProxy().getExternalPort();
         String base;
         if (host != null && !host.isBlank()) {
-            base = "postgres://" + dbUser + "@" + host + ":" + port + "/" + dbName;
+            base = "postgres://" + dbUser + "@" + host + ":" + port + "/" + pgDbName;
         } else {
-            base = "postgres://" + dbUser + "@proxy.lakeon.svc.cluster.local:" + port + "/" + dbName;
+            base = "postgres://" + dbUser + "@proxy.lakeon.svc.cluster.local:" + port + "/" + pgDbName;
         }
         // Append endpoint option for Neon proxy routing (required when connecting via IP without SNI)
-        base += "?options=endpoint%3D" + dbName;
+        base += "?options=endpoint%3D" + endpointName;
         return base;
     }
 

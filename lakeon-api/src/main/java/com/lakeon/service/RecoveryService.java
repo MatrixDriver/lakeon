@@ -86,7 +86,7 @@ public class RecoveryService {
 
         DatabaseEntity recovered = databaseService.registerRecoveredDatabase(
             src.getTenantId(), src.getNeonTenantId(), branch.timelineId(), newDbName,
-            src.getDbUser(), src.getDbPassword());
+            src.getDbUser(), src.getDbPassword(), src.getName());
 
         return new PitrResponse(
             recovered.getId(),
