@@ -254,7 +254,7 @@ class DatabaseServiceTest {
     class DeleteDatabase {
 
         @Test
-        @DisplayName("UT-SVC-DB-005: 正常流程 — 销毁 Pod，删除 Neon tenant，清除元数据")
+        @DisplayName("UT-SVC-DB-005: 软删除 — 释放 Pod，保留 Neon 数据，状态置为 DELETED")
         void deleteDatabase_success() {
             // Given
             var dbEntity = createTestDatabaseEntity("db_del001", "to-delete", DatabaseStatus.RUNNING);
@@ -266,10 +266,12 @@ class DatabaseServiceTest {
             // When
             databaseService.delete(testTenant, "db_del001");
 
-            // Then
-            verify(computePodManager).deleteComputePod(dbEntity.getComputePodName());
-            verify(neonApiClient).deleteTenant(dbEntity.getNeonTenantId());
-            verify(databaseRepository).delete(dbEntity);
+            // Then — soft delete: release compute pod, but preserve Neon data for recovery
+            verify(computePodManager).deleteComputePod(eq("compute-db_del001"));
+            verify(neonApiClient, never()).deleteTenant(anyString());
+            verify(databaseRepository).save(dbEntity);
+            assertThat(dbEntity.getStatus()).isEqualTo(DatabaseStatus.DELETED);
+            assertThat(dbEntity.getDeletedAt()).isNotNull();
         }
 
         @Test
