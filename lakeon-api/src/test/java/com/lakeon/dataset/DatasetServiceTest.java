@@ -404,9 +404,8 @@ class DatasetServiceTest {
 
         @SuppressWarnings("unchecked")
         Map<String, String> snippets = (Map<String, String>) result.get("code_snippets");
-        assertThat(snippets).containsKeys("pandas", "ray", "duckdb");
+        assertThat(snippets).containsKeys("pandas", "job");
         assertThat(snippets.get("pandas")).contains("read_parquet");
-        assertThat(snippets.get("ray")).contains("ray.data.read_parquet");
-        assertThat(snippets.get("duckdb")).contains("duckdb");
+        assertThat(snippets.get("job")).contains("DATASET_PATH");
     }
 }
