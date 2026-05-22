@@ -230,6 +230,7 @@ public class NeonApiClient {
      * {@link #createBranch(String, CreateBranchRequest)} falls back to the
      * {@code ancestor_start_lsn} from the request so callers never observe a null LSN.
      */
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public record CreateBranchResponse(String timelineId, String lsn) {}
 
     /**
@@ -393,6 +394,7 @@ public class NeonApiClient {
     /**
      * Response from GET /v1/tenant/{tenant_id}/timeline/{timeline_id}/get_lsn_by_timestamp.
      */
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public record LsnByTimestampResponse(String lsn) {}
 
     /**
