@@ -275,7 +275,7 @@ class DatabaseServiceTest {
         }
 
         @Test
-        @DisplayName("UT-SVC-DB-005a: 删除带分支的实例 — 所有分支也被清理")
+        @DisplayName("UT-SVC-DB-005a: 软删除带分支的实例 — 释放所有 Pod，保留分支记录与 Neon 数据")
         void deleteDatabase_withBranches_allCleaned() {
             // Given
             var dbEntity = createTestDatabaseEntity("db_del002", "with-branches", DatabaseStatus.RUNNING);
@@ -291,13 +291,18 @@ class DatabaseServiceTest {
             // When
             databaseService.delete(testTenant, "db_del002");
 
-            // Then
+            // Then — soft delete: pods released, but Neon timelines/tenant preserved
+            // for recovery. Branch rows are kept (pod handle cleared) so the row can
+            // be restored alongside the parent database.
             verify(computePodManager).deleteComputePod("pod-branch");
-            verify(neonApiClient).deleteTimeline(dbEntity.getNeonTenantId(), "timeline-branch");
-            verify(branchRepository).delete(branch);
-            verify(computePodManager).deleteComputePod(dbEntity.getComputePodName());
-            verify(neonApiClient).deleteTenant(dbEntity.getNeonTenantId());
-            verify(databaseRepository).delete(dbEntity);
+            verify(computePodManager).deleteComputePod("compute-db_del002");
+            verify(neonApiClient, never()).deleteTimeline(anyString(), anyString());
+            verify(neonApiClient, never()).deleteTenant(anyString());
+            verify(branchRepository, never()).delete(any(BranchEntity.class));
+            verify(branchRepository).save(branch);
+            assertThat(branch.getComputePodName()).isNull();
+            verify(databaseRepository).save(dbEntity);
+            assertThat(dbEntity.getStatus()).isEqualTo(DatabaseStatus.DELETED);
         }
 
         @Test
