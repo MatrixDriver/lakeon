@@ -7,6 +7,7 @@ import com.lakeon.k8s.ComputePodManager;
 import com.lakeon.model.dto.DatabaseResponse;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.TenantEntity;
+import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.AiSqlService;
 import com.lakeon.service.DatabaseService;
@@ -20,6 +21,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -86,23 +89,36 @@ class KnowledgeServiceSchemaSeedTest {
         when(defaults.getStorageLimitGb()).thenReturn(10);
         when(props.getDefaults()).thenReturn(defaults);
 
-        // Stub databaseService.create(...) so the kb-provision background thread exits cleanly
-        // (returning a synthetic response that won't match any DB lookup, terminating the poll loop).
+        // Stub databaseService.create(...) so the kb-provision background thread can proceed.
+        // Return a synthetic db id we control; the poll loop will see this db in RUNNING state
+        // (via the databaseRepository.findById stub below) and publish the seed event.
         DatabaseResponse dbResp = mock(DatabaseResponse.class);
         when(dbResp.getId()).thenReturn("db-noop");
         when(dbResp.getPassword()).thenReturn("");
         when(databaseService.create(any(TenantEntity.class), any())).thenReturn(dbResp);
-        // Return empty so both the tag-kb-id block and the poll loop exit immediately.
-        when(databaseRepository.findById(anyString())).thenReturn(Optional.empty());
 
-        // Simulate JPA assigning an id on save so the seeded schema can reference it.
+        // Provide a RUNNING DatabaseEntity for the synthetic db id so the background
+        // provisioning thread completes successfully and publishes the seed event.
+        // Any other id (e.g. src-db-1 used by the TABLE test) returns empty by default.
+        DatabaseEntity provisionedDb = new DatabaseEntity();
+        provisionedDb.setId("db-noop");
+        provisionedDb.setStatus(DatabaseStatus.RUNNING);
+        when(databaseRepository.findById("db-noop")).thenReturn(Optional.of(provisionedDb));
+
+        // Simulate JPA assigning an id on save so the seeded schema can reference it,
+        // and track saved KBs so findById can return them (the background thread calls
+        // findById to flip status to READY and to read tenantId for the event).
+        ConcurrentMap<String, KnowledgeBaseEntity> kbStore = new ConcurrentHashMap<>();
         when(knowledgeBaseRepository.save(any(KnowledgeBaseEntity.class))).thenAnswer(inv -> {
             KnowledgeBaseEntity entity = inv.getArgument(0);
             if (entity.getId() == null) {
                 entity.setId("kb-test-seed-" + System.nanoTime());
             }
+            kbStore.put(entity.getId(), entity);
             return entity;
         });
+        when(knowledgeBaseRepository.findById(anyString())).thenAnswer(inv ->
+                Optional.ofNullable(kbStore.get(inv.<String>getArgument(0))));
 
         knowledgeService = new KnowledgeService(
                 documentRepository, knowledgeBaseRepository, jobService, props,
@@ -124,9 +140,13 @@ class KnowledgeServiceSchemaSeedTest {
         assertNotNull(kb);
         assertNotNull(kb.getId());
 
+        // For DOCUMENT-type KBs the schema-seed event is published asynchronously
+        // from the kb-provision background thread, AFTER the synthetic database
+        // is observed in RUNNING state (see KnowledgeService#provisionKbDatabase).
+        // Wait up to 5s for the background publish before asserting payload.
         ArgumentCaptor<KnowledgeBaseCreatedEvent> captor =
                 ArgumentCaptor.forClass(KnowledgeBaseCreatedEvent.class);
-        verify(eventPublisher).publishEvent(captor.capture());
+        verify(eventPublisher, timeout(5000)).publishEvent(captor.capture());
         assertEquals(tenant.getId(), captor.getValue().getTenantId());
         assertEquals(kb.getId(), captor.getValue().getKbId());
     }
