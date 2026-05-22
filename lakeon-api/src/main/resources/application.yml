@@ -163,6 +163,7 @@ lakeon:
     image: ${COMPUTE_WARM_POOL_IMAGE:}
     reconfigure-timeout-ms: 5000
     compute-ctl-port: 3080
+    use-cci-burst: ${COMPUTE_WARM_POOL_USE_CCI:true}
   oauth:
     callback-base-url: ${LAKEON_OAUTH_CALLBACK_BASE_URL:http://localhost:8080}
     relay-base-url: ${LAKEON_OAUTH_RELAY_BASE_URL:}

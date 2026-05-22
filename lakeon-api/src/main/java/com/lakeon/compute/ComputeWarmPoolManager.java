@@ -7,6 +7,7 @@ import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.enums.ComputeSize;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.micrometer.core.instrument.Counter;
@@ -414,6 +415,16 @@ public class ComputeWarmPoolManager {
         Pod pod = computePodManager.buildPodSpec(
             proxy, podName, poolLabels, image, IDLE_SUSPEND_TIMEOUT_SECONDS, ComputeSize.CU_1);
 
+        // Burst idle pods to Huawei CCI via virtual-kubelet when configured.
+        // The CCE cluster has a virtual-kubelet node labeled type=virtual-kubelet
+        // and tainted with virtual-kubelet.io/provider=huawei (NoSchedule) and
+        // virtual-kubelet.io/huawei=cci (PreferNoSchedule). Adding the matching
+        // nodeSelector + tolerations is the standard CCI-burst pattern (same
+        // approach as the datalake warm pool).
+        if (cfg.isUseCciBurst()) {
+            pod = withCciBurst(pod);
+        }
+
         try {
             k8sClient.configMaps().inNamespace(NAMESPACE).resource(configMap).serverSideApply();
             k8sClient.pods().inNamespace(NAMESPACE).resource(pod).create();
@@ -427,6 +438,34 @@ public class ComputeWarmPoolManager {
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
+
+    /**
+     * Decorate a Pod spec with the virtual-kubelet nodeSelector + tolerations
+     * required for Huawei CCI burst scheduling. Visible-for-test.
+     *
+     * The CCE virtual-kubelet provider taints its synthetic node so that only
+     * pods explicitly tolerating it land there; this lets warm pool capacity
+     * scale onto CCI without competing with the real-tenant compute pool.
+     */
+    static Pod withCciBurst(Pod pod) {
+        return new PodBuilder(pod)
+            .editSpec()
+                .addToNodeSelector("type", "virtual-kubelet")
+                .addNewToleration()
+                    .withKey("virtual-kubelet.io/provider")
+                    .withOperator("Equal")
+                    .withValue("huawei")
+                    .withEffect("NoSchedule")
+                .endToleration()
+                .addNewToleration()
+                    .withKey("virtual-kubelet.io/huawei")
+                    .withOperator("Equal")
+                    .withValue("cci")
+                    .withEffect("PreferNoSchedule")
+                .endToleration()
+            .endSpec()
+            .build();
+    }
 
     private List<Pod> listPoolPods() {
         return k8sClient.pods().inNamespace(NAMESPACE)
