@@ -1,19 +1,14 @@
 package com.lakeon.obs;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.hwcloud.HuaweiIamCredentialClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -31,18 +26,22 @@ public class ObsStsService {
     public record StsCredentials(String accessKey, String secretKey, String sessionToken, Instant expiresAt) {}
 
     private final LakeonProperties props;
-    private final ObjectMapper objectMapper;
-    private final HttpClient httpClient;
+    private final HuaweiIamCredentialClient iamCredentialClient;
     private final Cache<String, StsCredentials> cache;
 
-    public ObsStsService(LakeonProperties props, ObjectMapper objectMapper) {
+    public ObsStsService(LakeonProperties props,
+                         ObjectMapper objectMapper,
+                         HuaweiIamCredentialClient iamCredentialClient) {
         this.props = props;
-        this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newHttpClient();
+        this.iamCredentialClient = iamCredentialClient;
         this.cache = Caffeine.newBuilder()
                 .expireAfterWrite(100, TimeUnit.MINUTES)
                 .maximumSize(1000)
                 .build();
+    }
+
+    ObsStsService(LakeonProperties props, ObjectMapper objectMapper) {
+        this(props, objectMapper, null);
     }
 
     /**
@@ -99,9 +98,8 @@ public class ObsStsService {
     }
 
     /**
-     * Two-step IAM call:
-     * 1. AK/SK → IAM token (POST /v3/auth/tokens with hw_ak_sk method)
-     * 2. IAM token + policy → STS credentials (POST /v3.0/OS-CREDENTIAL/securitytokens)
+     * Uses Huawei Cloud IAM SDK AK/SK signing directly. This avoids the older
+     * AK/SK -> IAM token -> STS token exchange and lets the SDK generate Authorization.
      */
     private StsCredentials fetchFromIam(String tenantId) {
         String ak = props.getObs().getAccessKey();
@@ -111,75 +109,22 @@ public class ObsStsService {
             log.debug("ObsStsService: AK/SK not configured (local dev), cannot fetch STS credentials for tenant '{}'", tenantId);
             throw new IllegalStateException("OBS AK/SK not configured; cannot fetch STS credentials");
         }
-
-        String region = props.getObs().getRegion();
+        if (iamCredentialClient == null) {
+            throw new IllegalStateException("Huawei IAM credential client not configured");
+        }
 
         try {
-            // Step 1: Get IAM token using AK/SK
-            String iamBody = String.format(
-                    "{\"auth\":{\"identity\":{\"methods\":[\"hw_ak_sk\"]," +
-                    "\"hw_ak_sk\":{\"access\":{\"key\":\"%s\"},\"secret\":{\"key\":\"%s\"}}}," +
-                    "\"scope\":{\"project\":{\"name\":\"%s\"}}}}", ak, sk, region);
-
-            HttpRequest iamRequest = HttpRequest.newBuilder()
-                    .uri(URI.create("https://iam." + region + ".myhuaweicloud.com/v3/auth/tokens"))
-                    .header("Content-Type", "application/json")
-                    .timeout(Duration.ofSeconds(30))
-                    .POST(HttpRequest.BodyPublishers.ofString(iamBody))
-                    .build();
-
-            HttpResponse<String> iamResponse = httpClient.send(iamRequest, HttpResponse.BodyHandlers.ofString());
-            if (iamResponse.statusCode() != 201) {
-                log.error("ObsStsService: IAM token request failed HTTP {} - {}",
-                        iamResponse.statusCode(), iamResponse.body());
-                throw new RuntimeException("IAM token request failed with status " + iamResponse.statusCode());
-            }
-
-            String iamToken = iamResponse.headers().firstValue("x-subject-token").orElse(null);
-            if (iamToken == null || iamToken.isBlank()) {
-                log.error("ObsStsService: IAM response missing x-subject-token header");
-                throw new RuntimeException("IAM response missing x-subject-token header");
-            }
-            log.debug("ObsStsService: obtained IAM token (length={}) for tenant '{}'", iamToken.length(), tenantId);
-
-            // Step 2: Get STS credentials with tenant-scoped policy
             Map<String, Object> policy = buildPolicy(tenantId);
-            Map<String, Object> stsBody = Map.of(
-                    "auth", Map.of(
-                            "identity", Map.of(
-                                    "methods", List.of("token"),
-                                    "policy", policy,
-                                    "token", Map.of("duration_seconds", 7200)
-                            )
-                    )
-            );
+            HuaweiIamCredentialClient.TemporaryCredentials credential =
+                    iamCredentialClient.createTemporaryAccessKeyByToken(policy, 7200);
 
-            String stsBodyJson = objectMapper.writeValueAsString(stsBody);
-            HttpRequest stsRequest = HttpRequest.newBuilder()
-                    .uri(URI.create("https://iam." + region + ".myhuaweicloud.com/v3.0/OS-CREDENTIAL/securitytokens"))
-                    .header("Content-Type", "application/json")
-                    .header("X-Auth-Token", iamToken)
-                    .timeout(Duration.ofSeconds(30))
-                    .POST(HttpRequest.BodyPublishers.ofString(stsBodyJson))
-                    .build();
-
-            HttpResponse<String> stsResponse = httpClient.send(stsRequest, HttpResponse.BodyHandlers.ofString());
-            if (stsResponse.statusCode() != 200 && stsResponse.statusCode() != 201) {
-                log.error("ObsStsService: STS credentials request failed HTTP {} - {}",
-                        stsResponse.statusCode(), stsResponse.body());
-                throw new RuntimeException("STS credentials request failed with status " + stsResponse.statusCode());
-            }
-
-            JsonNode root = objectMapper.readTree(stsResponse.body());
-            JsonNode credential = root.path("credential");
-            String accessKey = credential.path("access").asText();
-            String secretKey = credential.path("secret").asText();
-            String sessionToken = credential.path("securitytoken").asText();
-            String expiresAtStr = credential.path("expires_at").asText();
-            Instant expiresAt = Instant.parse(expiresAtStr);
-
-            log.info("ObsStsService: fetched STS credentials for tenant '{}', expires at {}", tenantId, expiresAt);
-            return new StsCredentials(accessKey, secretKey, sessionToken, expiresAt);
+            log.info("ObsStsService: fetched STS credentials for tenant '{}', expires at {}",
+                    tenantId, credential.expiresAt());
+            return new StsCredentials(
+                    credential.accessKey(),
+                    credential.secretKey(),
+                    credential.securityToken(),
+                    credential.expiresAt());
 
         } catch (RuntimeException e) {
             throw e;

@@ -2,9 +2,11 @@ package com.lakeon.obs;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.hwcloud.HuaweiIamCredentialClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -108,5 +110,56 @@ class ObsStsServiceTest {
         List<String> resources = (List<String>) statements.get(0).get("Resource");
         assertThat(resources).noneMatch(r -> r.contains("tn_tn_"));
         assertThat(resources).allMatch(r -> r.contains("tn_myorg"));
+    }
+
+    @Test
+    void getCredentialsUsesIamSdkClientWithTenantPolicy() {
+        LakeonProperties props = new LakeonProperties();
+        props.getObs().setBucket("lakeon-storage");
+        props.getObs().setRegion("cn-north-4");
+        props.getObs().setAccessKey("ak");
+        props.getObs().setSecretKey("sk");
+        RecordingIamCredentialClient iam = new RecordingIamCredentialClient();
+        ObsStsService sdkBackedService = new ObsStsService(props, new ObjectMapper(), iam);
+
+        ObsStsService.StsCredentials credentials = sdkBackedService.getCredentials("tn_abc123");
+
+        assertThat(credentials.accessKey()).isEqualTo("tmp-ak");
+        assertThat(credentials.secretKey()).isEqualTo("tmp-sk");
+        assertThat(credentials.sessionToken()).isEqualTo("tmp-token");
+        assertThat(iam.lastDurationSeconds).isEqualTo(7200);
+        assertThat(iam.lastPolicy).isNotNull();
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> statements = (List<Map<String, Object>>) iam.lastPolicy.get("Statement");
+        @SuppressWarnings("unchecked")
+        List<String> resources = (List<String>) statements.get(0).get("Resource");
+        assertThat(resources).anyMatch(r -> r.contains("/datasets/tn_abc123/"));
+    }
+
+    private static class RecordingIamCredentialClient implements HuaweiIamCredentialClient {
+        Map<String, Object> lastPolicy;
+        int lastDurationSeconds;
+
+        @Override
+        public TemporaryCredentials createTemporaryAccessKeyByToken(Map<String, Object> policy,
+                                                                    int durationSeconds) {
+            this.lastPolicy = policy;
+            this.lastDurationSeconds = durationSeconds;
+            return new TemporaryCredentials(
+                    "tmp-ak",
+                    "tmp-sk",
+                    "tmp-token",
+                    Instant.parse("2026-01-01T00:00:00Z"));
+        }
+
+        @Override
+        public TemporaryCredentials createTemporaryAccessKeyByAgency(String domainId,
+                                                                     String domainName,
+                                                                     String agencyName,
+                                                                     int durationSeconds,
+                                                                     Map<String, Object> policy) {
+            throw new AssertionError("agency credentials should not be used for tenant-scoped DBay OBS STS");
+        }
     }
 }

@@ -81,6 +81,23 @@
             <version>3.24.3</version>
         </dependency>
 
+        <!-- Huawei Cloud Open API SDKs (AK/SK request signing, no IAM token exchange) -->
+        <dependency>
+            <groupId>com.huaweicloud.sdk</groupId>
+            <artifactId>huaweicloud-sdk-iam</artifactId>
+            <version>3.1.197</version>
+        </dependency>
+        <dependency>
+            <groupId>com.huaweicloud.sdk</groupId>
+            <artifactId>huaweicloud-sdk-bss</artifactId>
+            <version>3.1.197</version>
+        </dependency>
+        <dependency>
+            <groupId>com.huaweicloud.sdk</groupId>
+            <artifactId>huaweicloud-sdk-swr</artifactId>
+            <version>3.1.197</version>
+        </dependency>
+
         <!-- Caffeine cache -->
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>

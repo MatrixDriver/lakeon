@@ -1,8 +1,8 @@
 package com.lakeon.obs.connection;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.hwcloud.HuaweiIamCredentialClient;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
 import org.slf4j.Logger;
@@ -11,10 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 
@@ -25,16 +21,15 @@ public class ObsConnectionService {
 
     private final ObsConnectionRepository repository;
     private final LakeonProperties props;
-    private final ObjectMapper objectMapper;
-    private final HttpClient httpClient;
+    private final HuaweiIamCredentialClient iamCredentialClient;
 
     public ObsConnectionService(ObsConnectionRepository repository,
                                 LakeonProperties props,
-                                ObjectMapper objectMapper) {
+                                ObjectMapper objectMapper,
+                                HuaweiIamCredentialClient iamCredentialClient) {
         this.repository = repository;
         this.props = props;
-        this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newHttpClient();
+        this.iamCredentialClient = iamCredentialClient;
     }
 
     @Transactional
@@ -140,76 +135,29 @@ public class ObsConnectionService {
     public record AgencyCredentials(String accessKey, String secretKey, String securityToken, Instant expiresAt) {}
 
     /**
-     * Two-step process:
-     * 1. Get IAM token using DBay's AK/SK
-     * 2. Use IAM token to assume role (agency) and get temporary credentials
+     * Uses Huawei Cloud IAM SDK AK/SK signing directly to assume the user agency.
      */
     private AgencyCredentials getAgencyCredentials(ObsConnectionEntity conn) {
         String ak = props.getObs().getAccessKey();
         String sk = props.getObs().getSecretKey();
-        String region = props.getObs().getRegion();
 
         if (ak == null || ak.isBlank() || sk == null || sk.isBlank()) {
             throw new IllegalStateException("OBS AK/SK not configured; cannot fetch agency credentials");
         }
 
         try {
-            // Step 1: Get IAM token using DBay's AK/SK
-            String iamBody = String.format(
-                    "{\"auth\":{\"identity\":{\"methods\":[\"hw_ak_sk\"]," +
-                    "\"hw_ak_sk\":{\"access\":{\"key\":\"%s\"},\"secret\":{\"key\":\"%s\"}}}," +
-                    "\"scope\":{\"project\":{\"name\":\"%s\"}}}}", ak, sk, region);
-
-            HttpRequest iamRequest = HttpRequest.newBuilder()
-                    .uri(URI.create("https://iam." + region + ".myhuaweicloud.com/v3/auth/tokens"))
-                    .header("Content-Type", "application/json")
-                    .timeout(Duration.ofSeconds(30))
-                    .POST(HttpRequest.BodyPublishers.ofString(iamBody))
-                    .build();
-
-            HttpResponse<String> iamResponse = httpClient.send(iamRequest, HttpResponse.BodyHandlers.ofString());
-            if (iamResponse.statusCode() != 201) {
-                throw new RuntimeException("IAM token request failed: HTTP " + iamResponse.statusCode());
-            }
-
-            String iamToken = iamResponse.headers().firstValue("x-subject-token")
-                    .orElseThrow(() -> new RuntimeException("IAM response missing x-subject-token"));
-
-            // Step 2: Assume role via agency
-            String assumeBody = objectMapper.writeValueAsString(Map.of(
-                "auth", Map.of(
-                    "identity", Map.of(
-                        "methods", List.of("assume_role"),
-                        "assume_role", Map.of(
-                            "domain_name", conn.getDomainName(),
-                            "agency_name", conn.getAgencyName(),
-                            "duration_seconds", 3600
-                        )
-                    )
-                )
-            ));
-
-            HttpRequest assumeRequest = HttpRequest.newBuilder()
-                    .uri(URI.create("https://iam." + region + ".myhuaweicloud.com/v3.0/OS-CREDENTIAL/securitytokens"))
-                    .header("Content-Type", "application/json")
-                    .header("X-Auth-Token", iamToken)
-                    .timeout(Duration.ofSeconds(30))
-                    .POST(HttpRequest.BodyPublishers.ofString(assumeBody))
-                    .build();
-
-            HttpResponse<String> assumeResponse = httpClient.send(assumeRequest, HttpResponse.BodyHandlers.ofString());
-            if (assumeResponse.statusCode() != 200 && assumeResponse.statusCode() != 201) {
-                throw new RuntimeException("Agency assume_role failed: HTTP " + assumeResponse.statusCode()
-                        + " - " + assumeResponse.body());
-            }
-
-            JsonNode root = objectMapper.readTree(assumeResponse.body());
-            JsonNode credential = root.path("credential");
+            HuaweiIamCredentialClient.TemporaryCredentials credential =
+                    iamCredentialClient.createTemporaryAccessKeyByAgency(
+                            null,
+                            conn.getDomainName(),
+                            conn.getAgencyName(),
+                            3600,
+                            null);
             return new AgencyCredentials(
-                    credential.path("access").asText(),
-                    credential.path("secret").asText(),
-                    credential.path("securitytoken").asText(),
-                    Instant.parse(credential.path("expires_at").asText())
+                    credential.accessKey(),
+                    credential.secretKey(),
+                    credential.securityToken(),
+                    credential.expiresAt()
             );
 
         } catch (RuntimeException e) {

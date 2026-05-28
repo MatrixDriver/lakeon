@@ -1,24 +1,14 @@
 package com.lakeon.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.hwcloud.HuaweiBssBillingClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.time.Instant;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
@@ -28,9 +18,6 @@ import java.util.*;
 @Service
 public class CbcBillingService {
     private static final Logger log = LoggerFactory.getLogger(CbcBillingService.class);
-    private static final String CBC_HOST = "bss.myhuaweicloud.com";
-    private static final DateTimeFormatter ISO_BASIC = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'");
-    private static final DateTimeFormatter DATE_SHORT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     private static final Map<String, String> SERVICE_LABELS = Map.ofEntries(
         Map.entry("hws.service.type.cce", "CCE 集群"),
@@ -46,8 +33,7 @@ public class CbcBillingService {
     );
 
     private final LakeonProperties props;
-    private final HttpClient httpClient;
-    private final ObjectMapper objectMapper;
+    private final HuaweiBssBillingClient billingClient;
 
     // Cache: 5 min TTL
     private volatile String cachedBillCycle;
@@ -55,10 +41,11 @@ public class CbcBillingService {
     private volatile long cacheTime;
     private static final long CACHE_TTL_MS = 5 * 60 * 1000;
 
-    public CbcBillingService(LakeonProperties props, ObjectMapper objectMapper) {
+    public CbcBillingService(LakeonProperties props,
+                             ObjectMapper objectMapper,
+                             HuaweiBssBillingClient billingClient) {
         this.props = props;
-        this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newHttpClient();
+        this.billingClient = billingClient;
     }
 
     /**
@@ -82,10 +69,14 @@ public class CbcBillingService {
             log.warn("CBC billing: no resource IDs configured (lakeon.cloud.resource-ids), skipping");
             return null;
         }
+        if (!hasCredentials()) {
+            log.warn("CBC billing: AK/SK not configured, skipping");
+            return null;
+        }
 
         try {
             // Fetch all resource records for the billing cycle, paginated
-            List<JsonNode> allRecords = fetchAllResRecords(billCycle);
+            List<HuaweiBssBillingClient.ResourceRecord> allRecords = fetchAllResRecords(billCycle);
             if (allRecords == null) return null;
 
             // Filter by Lakeon resource IDs
@@ -105,31 +96,21 @@ public class CbcBillingService {
     /**
      * Fetch all res-records pages for a billing cycle.
      */
-    private List<JsonNode> fetchAllResRecords(String billCycle) {
-        List<JsonNode> allRecords = new ArrayList<>();
+    private List<HuaweiBssBillingClient.ResourceRecord> fetchAllResRecords(String billCycle) {
+        List<HuaweiBssBillingClient.ResourceRecord> allRecords = new ArrayList<>();
         int offset = 0;
         int limit = 100;
 
         while (true) {
-            String query = "bill_cycle=" + billCycle + "&offset=" + offset + "&limit=" + limit;
-            String raw = callCbcApi("/v2/bills/customer-bills/res-records", query);
-            if (raw == null) return allRecords.isEmpty() ? null : allRecords;
-
             try {
-                JsonNode root = objectMapper.readTree(raw);
-                JsonNode records = root.get("monthly_records");
-                if (records == null || !records.isArray() || records.isEmpty()) break;
-
-                for (JsonNode r : records) {
-                    allRecords.add(r);
-                }
-
-                int totalCount = root.has("total_count") ? root.get("total_count").asInt() : 0;
+                HuaweiBssBillingClient.Page page = billingClient.listResourceRecords(billCycle, offset, limit);
+                if (page.records() == null || page.records().isEmpty()) break;
+                allRecords.addAll(page.records());
                 offset += limit;
-                if (offset >= totalCount) break;
+                if (offset >= page.totalCount()) break;
             } catch (Exception e) {
                 log.error("Failed to parse res-records response", e);
-                break;
+                return allRecords.isEmpty() ? null : allRecords;
             }
         }
         return allRecords;
@@ -138,23 +119,25 @@ public class CbcBillingService {
     /**
      * Aggregate records filtered by resource IDs into a cost summary.
      */
-    private Map<String, Object> aggregateRecords(List<JsonNode> records, Set<String> resourceIds, String billCycle) {
+    private Map<String, Object> aggregateRecords(List<HuaweiBssBillingClient.ResourceRecord> records,
+                                                 Set<String> resourceIds,
+                                                 String billCycle) {
         double totalAmount = 0;
         Map<String, Double> byService = new LinkedHashMap<>();
         List<Map<String, Object>> details = new ArrayList<>();
 
-        for (JsonNode r : records) {
-            String resourceId = r.has("resource_id") ? r.get("resource_id").asText() : "";
+        for (HuaweiBssBillingClient.ResourceRecord r : records) {
+            String resourceId = r.resourceId() != null ? r.resourceId() : "";
             if (!resourceIds.contains(resourceId)) continue;
 
-            double amount = r.has("amount") ? r.get("amount").asDouble() : 0;
+            double amount = r.amount() != null ? r.amount().doubleValue() : 0;
             totalAmount += amount;
 
-            String serviceType = r.has("cloud_service_type") ? r.get("cloud_service_type").asText() : "unknown";
+            String serviceType = r.cloudServiceType() != null ? r.cloudServiceType() : "unknown";
             String label = SERVICE_LABELS.getOrDefault(serviceType, serviceType);
             byService.merge(label, amount, Double::sum);
 
-            String resourceName = r.has("resource_name") ? r.get("resource_name").asText() : resourceId;
+            String resourceName = r.resourceName() != null ? r.resourceName() : resourceId;
             Map<String, Object> detail = new LinkedHashMap<>();
             detail.put("resource_id", resourceId);
             detail.put("resource_name", resourceName);
@@ -187,104 +170,30 @@ public class CbcBillingService {
         return result;
     }
 
-    /**
-     * Call a CBC API endpoint with SDK-HMAC-SHA256 signing.
-     */
-    private String callCbcApi(String uri, String query) {
+    private boolean hasCredentials() {
         String ak = props.getObs().getAccessKey();
         String sk = props.getObs().getSecretKey();
-        if (ak == null || ak.isBlank() || sk == null || sk.isBlank()) {
-            log.warn("CBC billing: AK/SK not configured, skipping");
-            return null;
-        }
-
-        try {
-            Instant now = Instant.now();
-            String dateStamp = ISO_BASIC.format(now.atOffset(ZoneOffset.UTC));
-            String dateShort = DATE_SHORT.format(now.atOffset(ZoneOffset.UTC));
-
-            String signedHeaders = "host;x-sdk-date";
-            String canonicalHeaders = "host:" + CBC_HOST + "\n" + "x-sdk-date:" + dateStamp + "\n";
-            String payloadHash = sha256Hex("");
-
-            String canonicalRequest = String.join("\n",
-                    "GET", uri, query, canonicalHeaders, signedHeaders, payloadHash);
-
-            String credentialScope = dateShort + "//bss/sdk_request";
-            String stringToSign = String.join("\n",
-                    "SDK-HMAC-SHA256", dateStamp, credentialScope,
-                    sha256Hex(canonicalRequest));
-
-            byte[] kDate = hmacSha256(("SDK" + sk).getBytes(StandardCharsets.UTF_8), dateShort);
-            byte[] kRegion = hmacSha256(kDate, "");
-            byte[] kService = hmacSha256(kRegion, "bss");
-            byte[] kSigning = hmacSha256(kService, "sdk_request");
-            String signature = hexEncode(hmacSha256(kSigning, stringToSign));
-
-            String authorization = String.format(
-                    "SDK-HMAC-SHA256 Credential=%s/%s, SignedHeaders=%s, Signature=%s",
-                    ak, credentialScope, signedHeaders, signature);
-
-            String url = "https://" + CBC_HOST + uri + "?" + query;
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .header("Host", CBC_HOST)
-                    .header("X-Sdk-Date", dateStamp)
-                    .header("Authorization", authorization)
-                    .header("Content-Type", "application/json")
-                    .GET()
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            log.info("CBC API {} response: HTTP {}", uri, response.statusCode());
-            if (response.statusCode() == 200) {
-                return response.body();
-            } else {
-                log.error("CBC API error: HTTP {} - {}", response.statusCode(), response.body());
-                return null;
-            }
-        } catch (Exception e) {
-            log.error("CBC API call failed: {}", uri, e);
-            return null;
-        }
+        return ak != null && !ak.isBlank() && sk != null && !sk.isBlank();
     }
 
     /**
      * Fetch raw monthly bill summary (kept for /admin/cost/cbc endpoint).
      */
     public String fetchMonthlyBillSummary(String billCycle) {
-        return callCbcApi("/v2/bills/customer-bills/monthly-sum", "bill_cycle=" + billCycle);
+        if (!hasCredentials()) {
+            log.warn("CBC billing: AK/SK not configured, skipping");
+            return null;
+        }
+        try {
+            return billingClient.fetchMonthlyBillSummaryJson(billCycle);
+        } catch (Exception e) {
+            log.error("CBC monthly summary call failed", e);
+            return null;
+        }
     }
 
     public String getCurrentMonthBilling() {
         String cycle = YearMonth.now(ZoneOffset.UTC).toString();
         return fetchMonthlyBillSummary(cycle);
-    }
-
-    private static byte[] hmacSha256(byte[] key, String data) {
-        try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(key, "HmacSHA256"));
-            return mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static String sha256Hex(String data) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return hexEncode(digest.digest(data.getBytes(StandardCharsets.UTF_8)));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static String hexEncode(byte[] bytes) {
-        StringBuilder sb = new StringBuilder(bytes.length * 2);
-        for (byte b : bytes) {
-            sb.append(String.format("%02x", b));
-        }
-        return sb.toString();
     }
 }
