@@ -7,6 +7,7 @@ import com.lakeon.config.LakeonProperties;
 import com.lakeon.hwcloud.HuaweiIamCredentialClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -29,6 +30,7 @@ public class ObsStsService {
     private final HuaweiIamCredentialClient iamCredentialClient;
     private final Cache<String, StsCredentials> cache;
 
+    @Autowired
     public ObsStsService(LakeonProperties props,
                          ObjectMapper objectMapper,
                          HuaweiIamCredentialClient iamCredentialClient) {
