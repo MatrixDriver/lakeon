@@ -25,6 +25,7 @@ class CbcBillingServiceTest {
         Map<String, Object> result = service.getMonthlyBillParsed("2026-05");
 
         assertThat(billingClient.lastBillCycle).isEqualTo("2026-05");
+        assertThat(billingClient.requestedResourceIds).containsExactly("rds-1", "obs-1");
         assertThat(result).containsEntry("source", "cbc");
         assertThat(result).containsEntry("total", 15.75);
         assertThat(result).containsEntry("currency", "CNY");
@@ -38,15 +39,23 @@ class CbcBillingServiceTest {
 
     private static class FakeBillingClient implements HuaweiBssBillingClient {
         String lastBillCycle;
+        final java.util.ArrayList<String> requestedResourceIds = new java.util.ArrayList<>();
 
         @Override
-        public Page listResourceRecords(String billCycle, int offset, int limit) {
+        public Page listResourceRecords(String billCycle, String resourceId, int offset, int limit) {
             this.lastBillCycle = billCycle;
-            return new Page(List.of(
-                    new ResourceRecord("rds-1", "prod-rds", "hws.service.type.rds", BigDecimal.valueOf(12.50)),
-                    new ResourceRecord("obs-1", "prod-obs", "hws.service.type.obs", BigDecimal.valueOf(3.25)),
-                    new ResourceRecord("other", "ignore-me", "hws.service.type.cce", BigDecimal.valueOf(99))
-            ), 3, "CNY");
+            this.requestedResourceIds.add(resourceId);
+            if ("rds-1".equals(resourceId)) {
+                return new Page(List.of(
+                        new ResourceRecord("rds-1", "prod-rds", "hws.service.type.rds", BigDecimal.valueOf(12.50))
+                ), 1, "CNY");
+            }
+            if ("obs-1".equals(resourceId)) {
+                return new Page(List.of(
+                        new ResourceRecord("obs-1", "prod-obs", "hws.service.type.obs", BigDecimal.valueOf(3.25))
+                ), 1, "CNY");
+            }
+            return new Page(List.of(), 0, "CNY");
         }
 
         @Override

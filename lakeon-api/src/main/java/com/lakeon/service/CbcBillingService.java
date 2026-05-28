@@ -75,8 +75,7 @@ public class CbcBillingService {
         }
 
         try {
-            // Fetch all resource records for the billing cycle, paginated
-            List<HuaweiBssBillingClient.ResourceRecord> allRecords = fetchAllResRecords(billCycle);
+            List<HuaweiBssBillingClient.ResourceRecord> allRecords = fetchConfiguredResourceRecords(billCycle, resourceIds);
             if (allRecords == null) return null;
 
             // Filter by Lakeon resource IDs
@@ -96,21 +95,26 @@ public class CbcBillingService {
     /**
      * Fetch all res-records pages for a billing cycle.
      */
-    private List<HuaweiBssBillingClient.ResourceRecord> fetchAllResRecords(String billCycle) {
+    private List<HuaweiBssBillingClient.ResourceRecord> fetchConfiguredResourceRecords(String billCycle,
+                                                                                       List<String> resourceIds) {
         List<HuaweiBssBillingClient.ResourceRecord> allRecords = new ArrayList<>();
-        int offset = 0;
         int limit = 100;
 
-        while (true) {
-            try {
-                HuaweiBssBillingClient.Page page = billingClient.listResourceRecords(billCycle, offset, limit);
-                if (page.records() == null || page.records().isEmpty()) break;
-                allRecords.addAll(page.records());
-                offset += limit;
-                if (offset >= page.totalCount()) break;
-            } catch (Exception e) {
-                log.error("Failed to parse res-records response", e);
-                return allRecords.isEmpty() ? null : allRecords;
+        for (String resourceId : resourceIds) {
+            if (resourceId == null || resourceId.isBlank()) continue;
+            int offset = 0;
+            while (true) {
+                try {
+                    HuaweiBssBillingClient.Page page = billingClient.listResourceRecords(
+                            billCycle, resourceId, offset, limit);
+                    if (page.records() == null || page.records().isEmpty()) break;
+                    allRecords.addAll(page.records());
+                    offset += limit;
+                    if (offset >= page.totalCount()) break;
+                } catch (Exception e) {
+                    log.error("Failed to fetch BSS resource records for resource {}", resourceId, e);
+                    break;
+                }
             }
         }
         return allRecords;

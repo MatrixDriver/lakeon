@@ -12,7 +12,7 @@ public interface HuaweiBssBillingClient {
 
     record Page(List<ResourceRecord> records, int totalCount, String currency) {}
 
-    Page listResourceRecords(String billCycle, int offset, int limit);
+    Page listResourceRecords(String billCycle, String resourceId, int offset, int limit);
 
     String fetchMonthlyBillSummaryJson(String billCycle);
 }

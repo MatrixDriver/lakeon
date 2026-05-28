@@ -24,10 +24,11 @@ public class HuaweiSdkBssBillingClient implements HuaweiBssBillingClient {
     }
 
     @Override
-    public Page listResourceRecords(String billCycle, int offset, int limit) {
+    public Page listResourceRecords(String billCycle, String resourceId, int offset, int limit) {
         ListCustomerselfResourceRecordsResponse response = bssClient().listCustomerselfResourceRecords(
                 new ListCustomerselfResourceRecordsRequest()
                         .withCycle(billCycle)
+                        .withResourceId(resourceId)
                         .withOffset(offset)
                         .withLimit(limit));
         List<ResourceRecord> records = response.getFeeRecords() == null ? List.of()
