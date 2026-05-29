@@ -10,9 +10,15 @@ from .metrics import OperationSample, redact_secret
 
 
 class DbayApiError(RuntimeError):
-    def __init__(self, status_code: int, body: Any):
+    def __init__(
+        self,
+        status_code: int,
+        body: Any,
+        sample: OperationSample | None = None,
+    ):
         self.status_code = status_code
         self.body = body
+        self.sample = sample
         super().__init__(f"DBay API error {status_code}: {redact_secret(str(body))}")
 
 
@@ -109,10 +115,12 @@ class DbayClient:
     def delete_branch(
         self,
         db_id: str,
+        database_name: str,
         branch_id: str,
         branch_name: str,
         is_default: bool = False,
     ) -> tuple[dict, OperationSample]:
+        self._assert_benchmark_name(database_name)
         if is_default or branch_name == "main":
             raise UnsafeResourceError("Refusing to delete default branch")
         return self._request_sample(
@@ -159,7 +167,14 @@ class DbayClient:
             resource_id=version_id,
         )
 
-    def delete_version(self, db_id: str, branch_id: str, version_id: str) -> tuple[dict, OperationSample]:
+    def delete_version(
+        self,
+        db_id: str,
+        database_name: str,
+        branch_id: str,
+        version_id: str,
+    ) -> tuple[dict, OperationSample]:
+        self._assert_benchmark_name(database_name)
         return self._request_sample(
             "DELETE",
             f"/databases/{db_id}/branches/{branch_id}/versions/{version_id}",
@@ -172,10 +187,12 @@ class DbayClient:
     def squash_versions(
         self,
         db_id: str,
+        database_name: str,
         branch_id: str,
         from_version_id: str,
         to_version_id: str,
     ) -> tuple[list, OperationSample]:
+        self._assert_benchmark_name(database_name)
         body, sample = self._request_sample(
             "POST",
             f"/databases/{db_id}/branches/{branch_id}/versions/squash",
@@ -217,7 +234,7 @@ class DbayClient:
             if response.status_code >= 400:
                 sample.success = False
                 sample.error_message = redact_secret(str(body))
-                raise DbayApiError(response.status_code, body)
+                raise DbayApiError(response.status_code, body, sample=sample)
             return body, sample
         except httpx.HTTPError as exc:
             elapsed = (time.perf_counter() - start) * 1000
@@ -235,7 +252,7 @@ class DbayClient:
                 error_code=exc.__class__.__name__,
                 error_message=redact_secret(str(exc)),
             )
-            raise DbayApiError(0, {"error": {"message": sample.error_message}}) from exc
+            raise DbayApiError(0, {"error": {"message": sample.error_message}}, sample=sample) from exc
 
     @staticmethod
     def _decode_body(response: httpx.Response) -> Any:
