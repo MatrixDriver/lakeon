@@ -37,6 +37,9 @@ def load_config(path: str | Path) -> BenchmarkConfig:
     raw = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise ConfigError("Config root must be a mapping")
+    allow_large_dataset = raw.get("allow_large_dataset", False)
+    if not isinstance(allow_large_dataset, bool):
+        raise ConfigError("allow_large_dataset must be a boolean")
 
     config = BenchmarkConfig(
         profile=str(raw.get("profile", "public-comparison")),
@@ -48,7 +51,7 @@ def load_config(path: str | Path) -> BenchmarkConfig:
         request_timeout_seconds=float(raw.get("request_timeout_seconds", 60.0)),
         result_root=str(raw.get("result_root", "results")),
         datasets=tuple(raw.get("datasets", ["S", "M"])),
-        allow_large_dataset=bool(raw.get("allow_large_dataset", False)),
+        allow_large_dataset=allow_large_dataset,
         limits=dict(raw.get("limits", {})),
         scenarios=dict(raw.get("scenarios", {})),
     )

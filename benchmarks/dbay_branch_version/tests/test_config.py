@@ -26,6 +26,29 @@ scenarios: {}
         load_config(config_path)
 
 
+def test_load_config_rejects_string_large_dataset_flag(tmp_path):
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+profile: public-comparison
+resource_prefix: bench-branch-version
+api_base_url: https://api.dbay.cloud:8443/api/v1
+datasets: [L]
+allow_large_dataset: "false"
+limits:
+  max_branch_concurrency: 10
+  max_total_branches: 20
+  max_total_versions: 20
+  max_runtime_seconds: 100
+scenarios: {}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="allow_large_dataset must be a boolean"):
+        load_config(config_path)
+
+
 def test_config_builds_bench_name_with_safe_prefix():
     config = BenchmarkConfig(
         profile="public-comparison",
