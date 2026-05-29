@@ -6,7 +6,7 @@ from dataclasses import replace
 
 from dbay_branch_version.dbay_client import DbayApiError
 from dbay_branch_version.metrics import OperationSample
-from dbay_branch_version.runner import run_benchmark_with_clients
+from dbay_branch_version.runner import _resource_name, run_benchmark_with_clients
 
 
 class FakeDbay:
@@ -36,6 +36,32 @@ class FakeDbay:
             "name": name,
             "connection_uri": "postgresql://user:pass@host/main",
             "status": "running",
+            "branches": [
+                {
+                    "id": "br_main",
+                    "name": "main",
+                    "is_default": True,
+                    "status": "ACTIVE",
+                    "compute_status": "RUNNING",
+                }
+            ],
+        }, None
+
+    def get_database(self, db_id):
+        return {
+            "id": db_id,
+            "name": "bench-branch-version-test-db",
+            "connection_uri": "postgresql://user:pass@host/main",
+            "status": "running",
+            "branches": [
+                {
+                    "id": "br_main",
+                    "name": "main",
+                    "is_default": True,
+                    "status": "ACTIVE",
+                    "compute_status": "RUNNING",
+                }
+            ],
         }, None
 
     def list_branches(self, db_id):
@@ -141,6 +167,21 @@ class FakeWorkload:
         return self.markers.get((connstr, marker), 0)
 
 
+class CapturingWorkload(FakeWorkload):
+    def __init__(self):
+        super().__init__()
+        self.loaded_connstrs = []
+        self.checksum_connstrs = []
+
+    def load_dataset(self, connstr, dataset):
+        self.loaded_connstrs.append(connstr)
+        return super().load_dataset(connstr, dataset)
+
+    def fetch_checksums(self, connstr):
+        self.checksum_connstrs.append(connstr)
+        return super().fetch_checksums(connstr)
+
+
 class FailingVersionDbay(FakeDbay):
     def create_version(self, db_id, branch_id, name, description=""):
         raise DbayApiError(
@@ -193,6 +234,99 @@ class EndpointDroppingSquashDbay(FakeDbay):
 class PreflightFailDbay(FakeDbay):
     def list_databases(self):
         raise RuntimeError("token rejected")
+
+
+class DelayedMainBranchDbay(FakeDbay):
+    def __init__(self):
+        super().__init__()
+        self.branches = []
+        self.get_database_calls = 0
+
+    def get_database(self, db_id):
+        self.get_database_calls += 1
+        if self.get_database_calls >= 2:
+            self.branches = [
+                {
+                    "id": "br_main",
+                    "name": "main",
+                    "is_default": True,
+                    "connection_uri": "postgresql://user:pass@host/main",
+                }
+            ]
+            return {
+                "id": db_id,
+                "name": "bench-branch-version-test-db",
+                "connection_uri": "postgresql://user:pass@host/main",
+                "status": "running",
+                "branches": [
+                    {
+                        "id": "br_main",
+                        "name": "main",
+                        "is_default": True,
+                        "status": "ACTIVE",
+                        "compute_status": "RUNNING",
+                    }
+                ],
+            }, None
+        return {
+            "id": db_id,
+            "name": "bench-branch-version-test-db",
+            "status": "creating",
+            "branches": [],
+        }, None
+
+
+class PasswordOnlyCreateDbay(FakeDbay):
+    def create_database(self, name, compute_size):
+        self.created_database = True
+        return {
+            "id": "db_1",
+            "name": name,
+            "password": "secret-pass",
+            "status": "creating",
+            "branches": [],
+        }, None
+
+    def get_database(self, db_id):
+        return {
+            "id": db_id,
+            "name": "bench-branch-version-test-db",
+            "connection_uri": "postgres://user_abc@198.18.0.97:4432/bench?options=endpoint%3Dbench",
+            "status": "running",
+            "branches": [
+                {
+                    "id": "br_main",
+                    "name": "main",
+                    "is_default": True,
+                    "status": "ACTIVE",
+                    "compute_status": "RUNNING",
+                }
+            ],
+        }, None
+
+    def list_branches(self, db_id):
+        return [
+            {
+                "id": "br_main",
+                "name": "main",
+                "is_default": True,
+                "connection_uri": "postgres://user_abc@198.18.0.97:4432/bench?options=endpoint%3Dbench",
+            }
+        ], None
+
+    def create_branch(self, db_id, name, start_compute=False, parent_branch_id=None):
+        branch, sample = super().create_branch(
+            db_id,
+            name,
+            start_compute=start_compute,
+            parent_branch_id=parent_branch_id,
+        )
+        if start_compute:
+            branch["connection_uri"] = (
+                f"postgres://user_abc@198.18.0.97:4432/bench"
+                f"?options=endpoint%3Dbench--{name}"
+            )
+        return branch, sample
 
 
 def full_matrix_config(sample_config):
@@ -279,6 +413,82 @@ def test_run_benchmark_with_clients_exercises_configured_scenario_matrix(
     assert all(check["passed"] is not False for check in correctness["checks"])
 
 
+def test_resource_names_are_endpoint_safe_and_short():
+    name = _resource_name(
+        "bench_20260529T063415Z",
+        "S",
+        "branch_create_with_compute",
+        0,
+    )
+
+    assert name == "bv-s-bc-co-0"
+    assert "_" not in name
+    assert len(name) < 30
+
+
+def test_concurrent_and_depth_resource_names_are_distinct():
+    assert _resource_name("bench_1", "S", "branch_create_concurrent_5", 0) != (
+        _resource_name("bench_1", "S", "branch_create_concurrent_10", 0)
+    )
+    assert _resource_name("bench_1", "S", "branch_depth_1", 0) != (
+        _resource_name("bench_1", "S", "branch_depth_5", 0)
+    )
+
+
+def test_run_benchmark_waits_for_async_default_branch(
+    tmp_path, sample_config
+):
+    dbay = DelayedMainBranchDbay()
+    config = replace(
+        sample_config,
+        datasets=("S",),
+        poll_interval_seconds=0.001,
+        scenarios={"branch_create_with_compute": {"samples_per_dataset": 1}},
+    )
+
+    result = run_benchmark_with_clients(
+        config=config,
+        plan={"datasets": ["S"]},
+        result_root=tmp_path,
+        dbay=dbay,
+        workload=FakeWorkload(),
+    )
+
+    assert result["benchmark_status"] == "completed"
+    assert dbay.get_database_calls == 2
+    with (result["result_dir"] / "raw_samples.csv").open(encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    assert any(row["scenario"] == "database" and row["operation"] == "get" for row in rows)
+
+
+def test_run_benchmark_injects_create_password_into_connection_uris(
+    tmp_path, sample_config
+):
+    workload = CapturingWorkload()
+    config = replace(
+        sample_config,
+        datasets=("S",),
+        scenarios={"branch_create_with_compute": {"samples_per_dataset": 1}},
+    )
+
+    result = run_benchmark_with_clients(
+        config=config,
+        plan={"datasets": ["S"]},
+        result_root=tmp_path,
+        dbay=PasswordOnlyCreateDbay(),
+        workload=workload,
+    )
+
+    assert result["benchmark_status"] == "completed"
+    assert workload.loaded_connstrs
+    assert workload.checksum_connstrs
+    assert all(":secret-pass@" in connstr for connstr in workload.loaded_connstrs)
+    assert all(":secret-pass@" in connstr for connstr in workload.checksum_connstrs)
+    assert "secret-pass" not in (
+        result["result_dir"] / "comparison.md"
+    ).read_text(encoding="utf-8")
+
+
 def test_multi_dataset_run_loads_each_dataset_before_its_scenarios(
     tmp_path, sample_config
 ):
@@ -309,6 +519,34 @@ def test_multi_dataset_run_loads_each_dataset_before_its_scenarios(
         for check in correctness["checks"]
         if check["name"].startswith("branch_fork_checksum:")
     )
+
+
+def test_multiple_start_compute_branch_samples_do_not_repeat_mutating_correctness(
+    tmp_path, sample_config
+):
+    config = replace(
+        sample_config,
+        datasets=("S",),
+        scenarios={"branch_create_with_compute": {"samples_per_dataset": 2}},
+    )
+
+    result = run_benchmark_with_clients(
+        config=config,
+        plan={"datasets": ["S"]},
+        result_root=tmp_path,
+        dbay=FakeDbay(),
+        workload=FakeWorkload(),
+    )
+
+    correctness = json.loads(
+        (result["result_dir"] / "correctness.json").read_text(encoding="utf-8")
+    )
+    assert result["benchmark_status"] == "completed"
+    assert [
+        check["name"]
+        for check in correctness["checks"]
+        if check["name"].startswith("branch_fork_checksum:")
+    ] == ["branch_fork_checksum:S:0"]
 
 
 def test_version_read_uses_configured_sample_count_and_concurrency(

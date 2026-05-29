@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -46,6 +47,19 @@ def cleanup_benchmark_resources(client, registry: CleanupRegistry) -> dict[str, 
             {"type": failure_type, "id": resource_id, "error": redact_secret(str(exc))}
         )
 
+    def cleanup_call(callback) -> None:
+        for attempt in range(5):
+            try:
+                callback()
+                return
+            except Exception as exc:
+                if _is_not_found(exc):
+                    return
+                if _is_rate_limited(exc) and attempt < 4:
+                    time.sleep(2 * (attempt + 1))
+                    continue
+                raise
+
     if not registry.database_name.startswith(BENCHMARK_DATABASE_PREFIX):
         failures.append(
             {
@@ -61,11 +75,13 @@ def cleanup_benchmark_resources(client, registry: CleanupRegistry) -> dict[str, 
 
     for version in list(registry.versions):
         try:
-            client.delete_version(
-                registry.database_id,
-                registry.database_name,
-                version["branch_id"],
-                version["id"],
+            cleanup_call(
+                lambda version=version: client.delete_version(
+                    registry.database_id,
+                    registry.database_name,
+                    version["branch_id"],
+                    version["id"],
+                )
             )
         except Exception as exc:
             record_failure("version", version.get("id"), exc)
@@ -74,19 +90,31 @@ def cleanup_benchmark_resources(client, registry: CleanupRegistry) -> dict[str, 
         if branch.get("is_default") or branch.get("name") == "main":
             continue
         try:
-            client.delete_branch(
-                registry.database_id,
-                registry.database_name,
-                branch["id"],
-                branch.get("name", ""),
-                bool(branch.get("is_default", False)),
+            cleanup_call(
+                lambda branch=branch: client.delete_branch(
+                    registry.database_id,
+                    registry.database_name,
+                    branch["id"],
+                    branch.get("name", ""),
+                    bool(branch.get("is_default", False)),
+                )
             )
         except Exception as exc:
             record_failure("branch", branch.get("id"), exc)
 
     try:
-        client.delete_database(registry.database_id, registry.database_name)
+        cleanup_call(
+            lambda: client.delete_database(registry.database_id, registry.database_name)
+        )
     except Exception as exc:
         record_failure("database", registry.database_id, exc)
 
     return status()
+
+
+def _is_not_found(exc: Exception) -> bool:
+    return getattr(exc, "status_code", None) == 404 or "RESOURCE_NOT_FOUND" in str(exc)
+
+
+def _is_rate_limited(exc: Exception) -> bool:
+    return getattr(exc, "status_code", None) == 429 or "RATE_LIMITED" in str(exc)

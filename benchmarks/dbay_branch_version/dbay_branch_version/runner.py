@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -11,6 +12,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from typing import Sequence
+from urllib.parse import quote
+from urllib.parse import urlsplit
+from urllib.parse import urlunsplit
 
 from dbay_branch_version.cleanup import CleanupRegistry, cleanup_benchmark_resources
 from dbay_branch_version.config import BenchmarkConfig, ConfigError, load_config, validate_config
@@ -286,7 +290,24 @@ def run_benchmark_with_clients(
         database, sample = dbay.create_database(database_name, config.compute_size)
         _append_sample(samples, sample, bench_id=bench_id, scenario="database", operation="create")
         registry.database_id = database["id"]
-        connstr = database.get("connection_uri", "")
+        database_password = str(database.get("password") or "")
+        connstr = _connection_uri_with_password(
+            database.get("connection_uri", ""),
+            database_password,
+        )
+
+        database = _wait_for_database_branches(
+            config=config,
+            bench_id=bench_id,
+            dbay=dbay,
+            database_id=registry.database_id,
+            samples=samples,
+        )
+        ready_connstr = _connection_uri_with_password(
+            database.get("connection_uri", ""),
+            database_password,
+        )
+        connstr = ready_connstr or connstr
 
         branches, sample = dbay.list_branches(registry.database_id)
         _append_sample(samples, sample, bench_id=bench_id, scenario="branch", operation="list")
@@ -539,7 +560,13 @@ def _run_scenarios(
                 index,
                 start_compute=True,
             )
+            if isolation_checked:
+                continue
             branch_connstr = branch.get("connection_uri", "")
+            branch_connstr = _connection_uri_with_password(
+                branch_connstr,
+                _password_from_connection_uri(main_connstr),
+            )
             if branch_connstr:
                 branch_checksums = workload.fetch_checksums(branch_connstr)
                 _add_check(
@@ -611,6 +638,7 @@ def _run_scenarios(
                     index,
                     start_compute=False,
                     depth=depth,
+                    resource_scenario=f"branch_depth_{depth}",
                 )
                 parent_branch_id = branch.get("id")
 
@@ -709,6 +737,80 @@ def _effective_scenarios(scenarios: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _wait_for_database_branches(
+    config: BenchmarkConfig,
+    bench_id: str,
+    dbay,
+    database_id: str,
+    samples: list[OperationSample],
+) -> dict[str, Any]:
+    deadline = time.monotonic() + config.poll_timeout_seconds
+    last_database: dict[str, Any] = {}
+    while True:
+        database, sample = dbay.get_database(database_id)
+        _append_sample(
+            samples,
+            sample,
+            bench_id=bench_id,
+            scenario="database",
+            operation="get",
+            resource_type="database",
+            resource_id=database_id,
+        )
+        last_database = database
+        branches = database.get("branches")
+        if isinstance(branches, list) and branches:
+            return database
+        status = str(database.get("status", "")).upper()
+        if status == "ERROR":
+            raise RuntimeError(
+                f"DBay database entered ERROR before default branch was available: "
+                f"{database.get('status_message') or database.get('statusMessage') or ''}"
+            )
+        if time.monotonic() >= deadline:
+            raise TimeoutError(
+                "Timed out waiting for DBay database default branch; "
+                f"last_status={database.get('status')!r}, branches={branches!r}"
+            )
+        time.sleep(config.poll_interval_seconds)
+
+
+def _password_from_connection_uri(connstr: str) -> str:
+    if not connstr:
+        return ""
+    try:
+        return urlsplit(connstr).password or ""
+    except ValueError:
+        return ""
+
+
+def _connection_uri_with_password(connstr: str, password: str) -> str:
+    if not connstr or not password:
+        return connstr
+    try:
+        parsed = urlsplit(connstr)
+    except ValueError:
+        return connstr
+    if parsed.password or not parsed.username or not parsed.hostname:
+        return connstr
+    host = parsed.hostname
+    if ":" in host and not host.startswith("["):
+        host = f"[{host}]"
+    if parsed.port is not None:
+        host = f"{host}:{parsed.port}"
+    username = quote(parsed.username, safe="")
+    encoded_password = quote(password, safe="")
+    return urlunsplit(
+        (
+            parsed.scheme,
+            f"{username}:{encoded_password}@{host}",
+            parsed.path,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
+
+
 def _create_branch_sample(
     config: BenchmarkConfig,
     bench_id: str,
@@ -724,9 +826,10 @@ def _create_branch_sample(
     start_compute: bool,
     concurrency: int = 1,
     depth: int = 0,
+    resource_scenario: str | None = None,
 ) -> dict[str, Any]:
     _enforce_limits(config, counters, start_time, next_branches=1)
-    branch_name = _resource_name(bench_id, dataset, scenario, index)
+    branch_name = _resource_name(bench_id, dataset, resource_scenario or scenario, index)
     branch, sample = dbay.create_branch(
         registry.database_id,
         branch_name,
@@ -767,7 +870,12 @@ def _run_concurrent_branch_creates(
 
     def create_one(index: int) -> tuple[str, dict[str, Any], OperationSample | None]:
         dataset = datasets[index % len(datasets)] if datasets else ""
-        branch_name = _resource_name(bench_id, dataset, "branch_create_concurrent", index)
+        branch_name = _resource_name(
+            bench_id,
+            dataset,
+            f"branch_create_concurrent_{concurrency}",
+            index,
+        )
         branch, sample = dbay.create_branch(
             registry.database_id,
             branch_name,
@@ -1075,7 +1183,30 @@ def _enforce_limits(
 
 def _resource_name(bench_id: str, dataset: str, scenario: str, index: int) -> str:
     dataset_slug = dataset.lower() if dataset else "all"
-    return f"{bench_id}-{dataset_slug}-{scenario}-{index}"
+    scenario_aliases = {
+        "branch_create_without_compute": "bc-no",
+        "branch_create_with_compute": "bc-co",
+        "branch_create_concurrent": "bc-con",
+        "branch_depth": "bd",
+        "version_create": "vc",
+        "version_squash": "vs",
+    }
+    scenario_slug = scenario
+    suffix = ""
+    for full_name, alias in scenario_aliases.items():
+        if scenario == full_name:
+            scenario_slug = alias
+            break
+        if scenario.startswith(f"{full_name}_"):
+            scenario_slug = alias
+            suffix = scenario.removeprefix(f"{full_name}_")
+            break
+    parts = ["bv", dataset_slug, scenario_slug]
+    if suffix:
+        parts.append(suffix)
+    parts.append(str(index))
+    slug = re.sub(r"[^a-z0-9-]+", "-", "-".join(parts).lower())
+    return re.sub(r"-+", "-", slug).strip("-")
 
 
 def _apply_cli_overrides(

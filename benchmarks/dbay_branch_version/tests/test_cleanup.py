@@ -48,6 +48,31 @@ class FailingDatabaseDeleteClient(FakeClient):
         raise RuntimeError("database delete failed")
 
 
+class NotFoundBranchDeleteClient(FakeClient):
+    def delete_branch(
+        self, db_id, database_name, branch_id, branch_name, is_default=False
+    ):
+        self.calls.append(("branch", db_id, database_name, branch_id, branch_name))
+        exc = RuntimeError("DBay API error 404: RESOURCE_NOT_FOUND")
+        exc.status_code = 404
+        raise exc
+
+
+class RateLimitedOnceDatabaseDeleteClient(FakeClient):
+    def __init__(self):
+        super().__init__()
+        self.failed_once = False
+
+    def delete_database(self, db_id, name):
+        self.calls.append(("database", db_id, name))
+        if not self.failed_once:
+            self.failed_once = True
+            exc = RuntimeError("DBay API error 429: RATE_LIMITED")
+            exc.status_code = 429
+            raise exc
+        return {}, None
+
+
 def test_cleanup_order_versions_branches_database():
     client = FakeClient()
     registry = CleanupRegistry(
@@ -162,6 +187,41 @@ def test_cleanup_continues_after_branch_delete_failure():
     assert status["cleanup_status"] == "failed"
     assert status["failures"] == [
         {"type": "branch", "id": "br_1", "error": "branch delete failed"}
+    ]
+
+
+def test_cleanup_treats_already_deleted_branch_as_clean():
+    client = NotFoundBranchDeleteClient()
+    registry = CleanupRegistry(
+        bench_id="b1",
+        database_id="db_1",
+        database_name="bench-branch-version-x",
+        branches=[{"id": "br_1", "name": "feature", "is_default": False}],
+        versions=[],
+    )
+
+    status = cleanup_benchmark_resources(client, registry)
+
+    assert status["cleanup_status"] == "clean"
+
+
+def test_cleanup_retries_rate_limited_delete(monkeypatch):
+    client = RateLimitedOnceDatabaseDeleteClient()
+    registry = CleanupRegistry(
+        bench_id="b1",
+        database_id="db_1",
+        database_name="bench-branch-version-x",
+        branches=[],
+        versions=[],
+    )
+    monkeypatch.setattr("dbay_branch_version.cleanup.time.sleep", lambda _: None)
+
+    status = cleanup_benchmark_resources(client, registry)
+
+    assert status["cleanup_status"] == "clean"
+    assert client.calls == [
+        ("database", "db_1", "bench-branch-version-x"),
+        ("database", "db_1", "bench-branch-version-x"),
     ]
 
 

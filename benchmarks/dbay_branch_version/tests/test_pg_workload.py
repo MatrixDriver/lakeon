@@ -1,8 +1,11 @@
+import inspect
+
 from dbay_branch_version.pg_workload import (
     DATASETS,
     checksum_sql,
     dataset_row_counts,
     isolation_insert_sql,
+    load_dataset,
 )
 
 
@@ -41,3 +44,13 @@ def test_dataset_row_counts_splits_rows_across_tables():
     assert counts["bench_oltp"] == 10_000
     assert counts["bench_jsonb"] == 10_000
     assert counts["bench_events"] == 10_000
+
+
+def test_load_dataset_escapes_literal_percent_for_psycopg_params():
+    source = inspect.getsource(load_dataset)
+
+    assert "g %% 1000" in source
+    assert "g %% 10000" in source
+    assert "g %% 2" in source
+    assert "g %% 100" in source
+    assert "g %% 10" in source

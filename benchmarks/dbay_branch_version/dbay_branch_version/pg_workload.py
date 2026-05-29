@@ -68,7 +68,7 @@ def load_dataset(connstr: str, dataset: str) -> None:
             cur.execute(
                 """
                 INSERT INTO bench_oltp (id, account_id, amount, status)
-                SELECT g, g % 1000, (g % 10000) / 100.0, CASE WHEN g % 2 = 0 THEN 'open' ELSE 'closed' END
+                SELECT g, g %% 1000, (g %% 10000) / 100.0, CASE WHEN g %% 2 = 0 THEN 'open' ELSE 'closed' END
                 FROM generate_series(1, %s) AS g
                 """,
                 (scale,),
@@ -77,7 +77,7 @@ def load_dataset(connstr: str, dataset: str) -> None:
                 """
                 INSERT INTO bench_jsonb (id, payload, note)
                 SELECT g,
-                       jsonb_build_object('id', g, 'group', g % 100, 'tags', ARRAY['dbay', 'bench', (g % 10)::text]),
+                       jsonb_build_object('id', g, 'group', g %% 100, 'tags', ARRAY['dbay', 'bench', (g %% 10)::text]),
                        repeat('x', 128)
                 FROM generate_series(1, %s) AS g
                 """,
