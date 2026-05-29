@@ -45,3 +45,39 @@ def test_render_comparison_separates_claims_from_measurements():
     assert "PlanetScale" in vendor_section
     assert "https://neon.com/docs/introduction/point-in-time-restore" in vendor_section
     assert "https://planetscale.com/docs/concepts/branching" in vendor_section
+
+
+def test_render_comparison_redacts_sensitive_values():
+    markdown = render_comparison_markdown(
+        bench_id="bench_1",
+        environment={
+            "api_token": "dbay-token-123",
+            "connection_uri": "postgresql://report_user:report_pass@host/db",
+            "nested": [{"password": "plain-password"}],
+        },
+        summary={},
+        cleanup={
+            "failure": {
+                "error": "failed with Bearer abc+secret/part== postgresql://user:pass@host/db"
+            }
+        },
+    )
+
+    assert "[REDACTED]" in markdown
+    assert "dbay-token-123" not in markdown
+    assert "report_pass" not in markdown
+    assert "plain-password" not in markdown
+    assert "abc+secret/part==" not in markdown
+    assert "user:pass" not in markdown
+
+
+def test_render_comparison_links_raw_artifacts():
+    markdown = render_comparison_markdown(
+        bench_id="bench_1",
+        environment={},
+        summary={},
+        cleanup={},
+    )
+
+    assert "[raw_samples.csv](raw_samples.csv)" in markdown
+    assert "[cleanup_status.json](cleanup_status.json)" in markdown

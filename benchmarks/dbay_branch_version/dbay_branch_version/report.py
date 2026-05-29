@@ -4,6 +4,18 @@ import json
 from pathlib import Path
 from typing import Any
 
+from dbay_branch_version.metrics import redact_secret
+
+
+SENSITIVE_KEYS = {
+    "api_token",
+    "token",
+    "password",
+    "connection_uri",
+    "connstr",
+    "dsn",
+}
+
 
 VENDOR_CLAIMS = [
     {
@@ -39,6 +51,23 @@ VENDOR_CLAIMS = [
 ]
 
 
+def _redact_payload(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: "[REDACTED]" if key.lower() in SENSITIVE_KEYS else _redact_payload(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact_payload(item) for item in value]
+    if isinstance(value, str):
+        return redact_secret(value)
+    return value
+
+
+def _dump_redacted_json(payload: dict[str, Any]) -> str:
+    return json.dumps(_redact_payload(payload), indent=2)
+
+
 def render_comparison_markdown(
     bench_id: str,
     environment: dict[str, Any],
@@ -53,19 +82,19 @@ def render_comparison_markdown(
         "## Test Environment",
         "",
         "```json",
-        json.dumps(environment, indent=2),
+        _dump_redacted_json(environment),
         "```",
         "",
         "## DBay Measured Results",
         "",
         "```json",
-        json.dumps(summary, indent=2),
+        _dump_redacted_json(summary),
         "```",
         "",
         "## Correctness and Cleanup",
         "",
         "```json",
-        json.dumps(cleanup, indent=2),
+        _dump_redacted_json(cleanup),
         "```",
         "",
         "## Vendor Public Claims",
@@ -86,10 +115,10 @@ def render_comparison_markdown(
             "",
             "## Raw Artifacts",
             "",
-            "- `raw_samples.csv`",
-            "- `summary.json`",
-            "- `correctness.json`",
-            "- `cleanup_status.json`",
+            "- [raw_samples.csv](raw_samples.csv)",
+            "- [summary.json](summary.json)",
+            "- [correctness.json](correctness.json)",
+            "- [cleanup_status.json](cleanup_status.json)",
         ]
     )
     return "\n".join(lines) + "\n"
