@@ -12,9 +12,10 @@ from typing import Sequence
 
 from dbay_branch_version.cleanup import CleanupRegistry, cleanup_benchmark_resources
 from dbay_branch_version.config import BenchmarkConfig, load_config, validate_config
-from dbay_branch_version.dbay_client import DbayClient
+from dbay_branch_version.dbay_client import DbayApiError, DbayClient
 from dbay_branch_version.metrics import (
     OperationSample,
+    redact_secret,
     summarize_samples,
     write_raw_csv,
     write_summary_json,
@@ -147,13 +148,30 @@ def main(argv: Sequence[str] | None = None) -> int:
         timeout_seconds=config.request_timeout_seconds,
     )
     try:
-        result = run_benchmark_with_clients(
-            config=config,
-            plan=plan,
-            result_root=Path(config.result_root),
-            dbay=client,
-            workload=PsycopgWorkload(),
-        )
+        try:
+            result = run_benchmark_with_clients(
+                config=config,
+                plan=plan,
+                result_root=Path(config.result_root),
+                dbay=client,
+                workload=PsycopgWorkload(),
+            )
+        except Exception as exc:
+            print(
+                json.dumps(
+                    {
+                        "benchmark_status": "failed",
+                        "error": {
+                            "type": exc.__class__.__name__,
+                            "message": redact_secret(str(exc)),
+                        },
+                    },
+                    indent=2,
+                    sort_keys=True,
+                ),
+                file=sys.stderr,
+            )
+            return 2
     finally:
         client.close()
 
@@ -162,12 +180,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             {
                 "bench_id": result["bench_id"],
                 "result_dir": str(result["result_dir"]),
+                "benchmark_status": result["benchmark_status"],
                 "cleanup_status": result["cleanup_status"],
             },
             indent=2,
             sort_keys=True,
         )
     )
+    if result["benchmark_status"] != "completed":
+        return 2
     return 0 if result["cleanup_status"]["cleanup_status"] == "clean" else 2
 
 
@@ -191,7 +212,13 @@ def run_benchmark_with_clients(
     }
     result_dir = create_result_dir(result_root, bench_id, run_config)
     samples: list[OperationSample] = []
-    correctness: dict[str, Any] = {"datasets": {}}
+    benchmark_status = "completed"
+    benchmark_error: dict[str, str] | None = None
+    correctness: dict[str, Any] = {
+        "benchmark_status": benchmark_status,
+        "error": None,
+        "datasets": {},
+    }
     registry = CleanupRegistry(
         bench_id=bench_id,
         database_id="",
@@ -200,6 +227,7 @@ def run_benchmark_with_clients(
         versions=[],
     )
     cleanup_status: dict[str, Any] | None = None
+    current_dataset = ""
 
     try:
         database, sample = dbay.create_database(database_name, config.compute_size)
@@ -209,11 +237,12 @@ def run_benchmark_with_clients(
 
         branches, sample = dbay.list_branches(registry.database_id)
         _append_sample(samples, sample, bench_id=bench_id)
-        registry.branches.extend(branches)
+        registry.branches.extend(_cleanup_branch_payload(branch) for branch in branches)
         main_branch = _select_main_branch(branches)
 
         for dataset in plan.get("datasets", []):
             dataset_name = str(dataset)
+            current_dataset = dataset_name
             workload.load_dataset(connstr, dataset_name)
             base_checksums = workload.fetch_checksums(connstr)
             correctness["datasets"][dataset_name] = {"base_checksums": base_checksums}
@@ -226,7 +255,7 @@ def run_benchmark_with_clients(
                 parent_branch_id=main_branch.get("id"),
             )
             _append_sample(samples, sample, bench_id=bench_id, dataset=dataset_name)
-            registry.branches.append(branch)
+            registry.branches.append(_cleanup_branch_payload(branch))
 
             version_name = f"{bench_id}-{dataset_name.lower()}-version"
             version, sample = dbay.create_version(
@@ -236,12 +265,26 @@ def run_benchmark_with_clients(
                 description=f"{bench_id} {dataset_name} baseline",
             )
             _append_sample(samples, sample, bench_id=bench_id, dataset=dataset_name)
-            registry.versions.append({"id": version["id"], "branch_id": main_branch["id"]})
+            registry.versions.append(_cleanup_version_payload(version, main_branch["id"]))
             correctness["datasets"][dataset_name]["version_metadata_present"] = all(
                 bool(version.get(key))
                 for key in ["id", "branch_id", "lsn", "snapshot_timeline_id"]
             )
+    except DbayApiError as exc:
+        _append_sample(
+            samples,
+            exc.sample,
+            bench_id=bench_id,
+            dataset=current_dataset,
+        )
+        benchmark_status = "failed"
+        benchmark_error = _benchmark_error(exc)
+    except Exception as exc:
+        benchmark_status = "failed"
+        benchmark_error = _benchmark_error(exc)
     finally:
+        correctness["benchmark_status"] = benchmark_status
+        correctness["error"] = benchmark_error
         registry.write(result_dir / "cleanup_registry.json")
         if registry.database_id:
             cleanup_status = cleanup_benchmark_resources(dbay, registry)
@@ -279,14 +322,22 @@ def run_benchmark_with_clients(
                 "profile": config.profile,
                 "compute_size": config.compute_size,
                 "datasets": list(plan.get("datasets", [])),
+                "benchmark_status": benchmark_status,
+                "error": benchmark_error,
             },
             summary=summary,
-            cleanup=cleanup_status,
+            cleanup={
+                "benchmark_status": benchmark_status,
+                "error": benchmark_error,
+                "cleanup": cleanup_status,
+            },
         )
 
     return {
         "bench_id": bench_id,
         "result_dir": result_dir,
+        "benchmark_status": benchmark_status,
+        "error": benchmark_error,
         "cleanup_status": cleanup_status,
     }
 
@@ -324,6 +375,28 @@ def _append_sample(
     if dataset:
         sample.dataset = dataset
     samples.append(sample)
+
+
+def _cleanup_branch_payload(branch: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": branch["id"],
+        "name": branch.get("name", ""),
+        "is_default": bool(branch.get("is_default", False)),
+    }
+
+
+def _cleanup_version_payload(version: dict[str, Any], fallback_branch_id: str) -> dict[str, Any]:
+    return {
+        "id": version["id"],
+        "branch_id": version.get("branch_id") or fallback_branch_id,
+    }
+
+
+def _benchmark_error(exc: Exception) -> dict[str, str]:
+    return {
+        "type": exc.__class__.__name__,
+        "message": redact_secret(str(exc)),
+    }
 
 
 def _select_main_branch(branches: list[dict[str, Any]]) -> dict[str, Any]:

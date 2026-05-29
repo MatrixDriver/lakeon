@@ -170,3 +170,53 @@ scenarios: {}
     assert exit_code == 2
     assert "bench_missing" in captured.err
     assert "cleanup registry" in captured.err
+
+
+def test_non_dry_run_returns_2_for_failed_benchmark(tmp_path, monkeypatch, capsys):
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+profile: public-comparison
+resource_prefix: bench-branch-version
+api_base_url: https://api.dbay.cloud:8443/api/v1
+result_root: results
+datasets: [S]
+allow_large_dataset: false
+limits:
+  max_branch_concurrency: 10
+  max_total_branches: 20
+  max_total_versions: 20
+  max_runtime_seconds: 100
+scenarios: {}
+""",
+        encoding="utf-8",
+    )
+
+    class FakeClient:
+        def __init__(self, api_base_url, api_token, timeout_seconds):
+            pass
+
+        def close(self):
+            pass
+
+    def fake_run_benchmark_with_clients(config, plan, result_root, dbay, workload):
+        return {
+            "bench_id": "bench_failed",
+            "result_dir": tmp_path / "results" / "bench_failed",
+            "benchmark_status": "failed",
+            "cleanup_status": {"cleanup_status": "clean"},
+        }
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("DBAY_API_TOKEN", "token-123")
+    monkeypatch.setattr("dbay_branch_version.runner.DbayClient", FakeClient)
+    monkeypatch.setattr(
+        "dbay_branch_version.runner.run_benchmark_with_clients",
+        fake_run_benchmark_with_clients,
+    )
+
+    exit_code = main(["--config", str(config_path)])
+
+    assert exit_code == 2
+    output = json.loads(capsys.readouterr().out)
+    assert output["benchmark_status"] == "failed"
