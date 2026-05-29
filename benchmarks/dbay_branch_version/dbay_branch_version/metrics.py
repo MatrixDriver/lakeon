@@ -10,7 +10,7 @@ from typing import Iterable
 
 
 SECRET_PATTERNS = [
-    (re.compile(r"Bearer\s+[A-Za-z0-9._\-]+"), "Bearer [REDACTED]"),
+    (re.compile(r"Bearer\s+\S+"), "Bearer [REDACTED]"),
     (re.compile(r"postgres(?:ql)?://[^@\s]+:[^@\s]+@[^,\s]+"), "postgresql://[REDACTED]"),
 ]
 

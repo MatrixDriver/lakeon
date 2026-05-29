@@ -15,6 +15,16 @@ def test_redact_secret_hides_tokens_and_passwords():
     assert "postgresql://[REDACTED]" in redacted
 
 
+def test_redact_secret_hides_full_bearer_token_with_symbols():
+    text = "Authorization: Bearer abc+secret/part==~"
+
+    redacted = redact_secret(text)
+
+    assert redacted == "Authorization: Bearer [REDACTED]"
+    assert "abc" not in redacted
+    assert "+secret/part==~" not in redacted
+
+
 def test_summarize_samples_groups_by_scenario_operation():
     samples = [
         OperationSample(bench_id="b1", dataset="S", scenario="branch", operation="create", api_latency_ms=10, success=True),
