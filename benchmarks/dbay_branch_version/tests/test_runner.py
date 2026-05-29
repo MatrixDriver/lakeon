@@ -89,6 +89,34 @@ scenarios: {}
     assert plan["plan"]["datasets"] == ["L"]
 
 
+def test_dry_run_blocks_large_dataset_without_traceback(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("DBAY_API_TOKEN", raising=False)
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+profile: public-comparison
+resource_prefix: bench-branch-version
+api_base_url: https://api.dbay.cloud:8443/api/v1
+datasets: [S, M]
+allow_large_dataset: false
+limits:
+  max_branch_concurrency: 10
+  max_total_branches: 20
+  max_total_versions: 20
+  max_runtime_seconds: 100
+scenarios: {}
+""",
+        encoding="utf-8",
+    )
+
+    exit_code = main(["--config", str(config_path), "--datasets", "L", "--dry-run"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 2
+    assert "Dataset L requires" in captured.err
+    assert "Traceback" not in captured.err
+
+
 def test_cleanup_only_uses_result_registry(tmp_path, monkeypatch, sample_config, capsys):
     config_path = tmp_path / "config.yaml"
     config_path.write_text(

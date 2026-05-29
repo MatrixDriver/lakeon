@@ -11,7 +11,7 @@ from typing import Any
 from typing import Sequence
 
 from dbay_branch_version.cleanup import CleanupRegistry, cleanup_benchmark_resources
-from dbay_branch_version.config import BenchmarkConfig, load_config, validate_config
+from dbay_branch_version.config import BenchmarkConfig, ConfigError, load_config, validate_config
 from dbay_branch_version.dbay_client import DbayApiError, DbayClient
 from dbay_branch_version.metrics import (
     OperationSample,
@@ -92,11 +92,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_arg_parser()
     args = parser.parse_args(argv)
 
-    config = load_config(
-        args.config,
-        allow_large_dataset_override=args.allow_large_dataset,
-    )
-    plan = build_run_plan(config, args.datasets, args.allow_large_dataset)
+    try:
+        config = load_config(
+            args.config,
+            allow_large_dataset_override=args.allow_large_dataset,
+        )
+        plan = build_run_plan(config, args.datasets, args.allow_large_dataset)
+    except ConfigError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
 
     if args.cleanup_only:
         token = os.environ.get("DBAY_API_TOKEN")
