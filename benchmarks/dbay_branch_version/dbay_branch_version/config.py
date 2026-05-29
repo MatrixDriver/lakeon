@@ -33,13 +33,17 @@ class BenchmarkConfig:
         return name.startswith(f"{self.resource_prefix}-")
 
 
-def load_config(path: str | Path) -> BenchmarkConfig:
+def load_config(
+    path: str | Path,
+    allow_large_dataset_override: bool = False,
+) -> BenchmarkConfig:
     raw = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise ConfigError("Config root must be a mapping")
     allow_large_dataset = raw.get("allow_large_dataset", False)
     if not isinstance(allow_large_dataset, bool):
         raise ConfigError("allow_large_dataset must be a boolean")
+    allow_large_dataset = allow_large_dataset or allow_large_dataset_override
 
     config = BenchmarkConfig(
         profile=str(raw.get("profile", "public-comparison")),

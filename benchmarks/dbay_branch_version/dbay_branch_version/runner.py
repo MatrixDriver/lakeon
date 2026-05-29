@@ -74,7 +74,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_arg_parser()
     args = parser.parse_args(argv)
 
-    config = load_config(args.config)
+    config = load_config(
+        args.config,
+        allow_large_dataset_override=args.allow_large_dataset,
+    )
     plan = build_run_plan(config, args.datasets, args.allow_large_dataset)
 
     if args.cleanup_only:
@@ -83,8 +86,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             print("DBAY_API_TOKEN is required for --cleanup-only", file=sys.stderr)
             return 2
 
-        registry_path = _find_cleanup_registry(Path(config.result_root), args.cleanup_only)
-        registry = CleanupRegistry.read(registry_path)
+        try:
+            registry_path = _find_cleanup_registry(Path(config.result_root), args.cleanup_only)
+            registry = CleanupRegistry.read(registry_path)
+        except FileNotFoundError as exc:
+            print(f"Missing cleanup registry for {args.cleanup_only}: {exc}", file=sys.stderr)
+            return 2
+
         client = DbayClient(
             config.api_base_url,
             token,
