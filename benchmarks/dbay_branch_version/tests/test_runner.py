@@ -89,6 +89,7 @@ scenarios: {}
     assert exit_code == 0
     plan = json.loads(capsys.readouterr().out)
     assert plan["plan"]["datasets"] == ["L"]
+    assert plan["preflight"]["datasets"]["values"] == ["L"]
 
 
 def test_dry_run_blocks_large_dataset_without_traceback(tmp_path, monkeypatch, capsys):

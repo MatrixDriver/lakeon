@@ -98,13 +98,17 @@ def build_run_plan(
     allow_large_dataset: bool = False,
 ) -> dict[str, object]:
     updated = _apply_cli_overrides(config, datasets, allow_large_dataset)
+    return _plan_from_config(updated)
+
+
+def _plan_from_config(config: BenchmarkConfig) -> dict[str, object]:
     return {
-        "profile": updated.profile,
-        "datasets": list(updated.datasets),
-        "resource_prefix": updated.resource_prefix,
+        "profile": config.profile,
+        "datasets": list(config.datasets),
+        "resource_prefix": config.resource_prefix,
         "will_create_database": True,
         "will_cleanup_database": True,
-        "max_branch_concurrency": int(updated.limits.get("max_branch_concurrency", 10)),
+        "max_branch_concurrency": int(config.limits.get("max_branch_concurrency", 10)),
     }
 
 
@@ -128,7 +132,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.config,
             allow_large_dataset_override=args.allow_large_dataset,
         )
-        plan = build_run_plan(config, args.datasets, args.allow_large_dataset)
+        config = _apply_cli_overrides(config, args.datasets, args.allow_large_dataset)
+        plan = _plan_from_config(config)
     except ConfigError as exc:
         print(str(exc), file=sys.stderr)
         return 2
