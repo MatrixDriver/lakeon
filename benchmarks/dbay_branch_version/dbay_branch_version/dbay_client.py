@@ -244,7 +244,7 @@ class DbayClient:
         try:
             return response.json()
         except ValueError:
-            return {"text": response.text}
+            return response.text
 
     @staticmethod
     def _assert_benchmark_name(name: str) -> None:

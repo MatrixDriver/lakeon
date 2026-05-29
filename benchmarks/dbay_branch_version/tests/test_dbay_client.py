@@ -52,3 +52,23 @@ def test_api_error_captures_status_and_body():
 
     assert exc.value.status_code == 409
     assert exc.value.body["error"]["code"] == "CONFLICT"
+
+
+def test_non_json_response_falls_back_to_text_body():
+    client = DbayClient(
+        api_base_url="https://api.dbay.cloud:8443/api/v1",
+        api_token="token",
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                content=b"ok",
+                headers={"Content-Type": "text/plain"},
+            )
+        ),
+    )
+
+    body, sample = client.get_database("db_1")
+
+    assert body == "ok"
+    assert sample.success is True
+    assert sample.http_status == 200
