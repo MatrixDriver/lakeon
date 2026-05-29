@@ -1,5 +1,7 @@
 import csv
 import json
+import threading
+import time
 from dataclasses import replace
 
 from dbay_branch_version.dbay_client import DbayApiError
@@ -19,6 +21,10 @@ class FakeDbay:
             }
         ]
         self.versions = {}
+        self.get_version_calls = []
+        self.active_gets = 0
+        self.max_active_gets = 0
+        self._get_lock = threading.Lock()
 
     def list_databases(self):
         return [], None
@@ -63,9 +69,18 @@ class FakeDbay:
         return list(self.versions.get(branch_id, [])), None
 
     def get_version(self, db_id, branch_id, version_id):
-        for version in self.versions.get(branch_id, []):
-            if version["id"] == version_id:
-                return version, None
+        with self._get_lock:
+            self.get_version_calls.append(version_id)
+            self.active_gets += 1
+            self.max_active_gets = max(self.max_active_gets, self.active_gets)
+        time.sleep(0.001)
+        try:
+            for version in self.versions.get(branch_id, []):
+                if version["id"] == version_id:
+                    return version, None
+        finally:
+            with self._get_lock:
+                self.active_gets -= 1
         raise KeyError(version_id)
 
     def squash_versions(
@@ -96,15 +111,28 @@ class FakeDbay:
 class FakeWorkload:
     def __init__(self):
         self.markers = {}
+        self.current_dataset = ""
+        self.loaded_datasets = []
 
     def load_dataset(self, connstr, dataset):
+        self.current_dataset = dataset
+        self.loaded_datasets.append(dataset)
         return None
 
     def fetch_checksums(self, connstr):
-        return {"bench_oltp": "a", "bench_jsonb": "b", "bench_events": "c"}
+        suffix = self.current_dataset or "none"
+        return {
+            "bench_oltp": f"oltp-{suffix}",
+            "bench_jsonb": f"jsonb-{suffix}",
+            "bench_events": f"events-{suffix}",
+        }
 
     def fetch_row_counts(self, connstr):
-        return {"bench_oltp": 10_000, "bench_jsonb": 10_000, "bench_events": 10_000}
+        base = {"S": 10_000, "M": 100_000, "L": 1_000_000}.get(
+            self.current_dataset,
+            10_000,
+        )
+        return {"bench_oltp": base, "bench_jsonb": base, "bench_events": base}
 
     def execute_isolation_insert(self, connstr, marker):
         self.markers[(connstr, marker)] = self.markers.get((connstr, marker), 0) + 1
@@ -141,6 +169,25 @@ class MissingCreatedAtDbay(FakeDbay):
         version, sample = super().create_version(db_id, branch_id, name, description)
         version.pop("created_at", None)
         return version, sample
+
+
+class EndpointDroppingSquashDbay(FakeDbay):
+    def squash_versions(
+        self,
+        db_id,
+        database_name,
+        branch_id,
+        from_version_id,
+        to_version_id,
+    ):
+        versions = self.versions.get(branch_id, [])
+        start = next(i for i, version in enumerate(versions) if version["id"] == from_version_id)
+        end = next(i for i, version in enumerate(versions) if version["id"] == to_version_id)
+        remove_ids = {version["id"] for version in versions[start : end + 1]}
+        self.versions[branch_id] = [
+            version for version in versions if version["id"] not in remove_ids
+        ]
+        return list(self.versions[branch_id]), None
 
 
 class PreflightFailDbay(FakeDbay):
@@ -230,6 +277,101 @@ def test_run_benchmark_with_clients_exercises_configured_scenario_matrix(
     assert correctness["datasets"]["S"]["base_checksums"]
     assert correctness["checks"]
     assert all(check["passed"] is not False for check in correctness["checks"])
+
+
+def test_multi_dataset_run_loads_each_dataset_before_its_scenarios(
+    tmp_path, sample_config
+):
+    config = replace(
+        sample_config,
+        datasets=("S", "M"),
+        scenarios={"branch_create_with_compute": {"samples_per_dataset": 1}},
+    )
+    workload = FakeWorkload()
+
+    result = run_benchmark_with_clients(
+        config=config,
+        plan={"datasets": ["S", "M"]},
+        result_root=tmp_path,
+        dbay=FakeDbay(),
+        workload=workload,
+    )
+
+    correctness = json.loads(
+        (result["result_dir"] / "correctness.json").read_text(encoding="utf-8")
+    )
+    assert result["benchmark_status"] == "completed"
+    assert workload.loaded_datasets == ["S", "M"]
+    assert correctness["datasets"]["S"]["base_checksums"]["bench_oltp"] == "oltp-S"
+    assert correctness["datasets"]["M"]["base_checksums"]["bench_oltp"] == "oltp-M"
+    assert all(
+        check["passed"] is not False
+        for check in correctness["checks"]
+        if check["name"].startswith("branch_fork_checksum:")
+    )
+
+
+def test_version_read_uses_configured_sample_count_and_concurrency(
+    tmp_path, sample_config
+):
+    dbay = FakeDbay()
+    config = replace(
+        sample_config,
+        datasets=("S",),
+        limits={**sample_config.limits, "max_total_versions": 10},
+        scenarios={
+            "version_create": {"samples_per_dataset": 2},
+            "version_read": {"samples": 5, "concurrency": 3},
+        },
+    )
+
+    result = run_benchmark_with_clients(
+        config=config,
+        plan={"datasets": ["S"]},
+        result_root=tmp_path,
+        dbay=dbay,
+        workload=FakeWorkload(),
+    )
+
+    assert result["benchmark_status"] == "completed"
+    with (result["result_dir"] / "raw_samples.csv").open(encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    get_rows = [
+        row
+        for row in rows
+        if row["scenario"] == "version_read" and row["operation"] == "get"
+    ]
+    assert len(get_rows) == 5
+    assert {row["concurrency"] for row in get_rows} == {"3"}
+    assert len(dbay.get_version_calls) == 5
+    assert dbay.max_active_gets > 1
+
+
+def test_squash_correctness_fails_when_endpoint_versions_are_missing(
+    tmp_path, sample_config
+):
+    config = replace(
+        sample_config,
+        datasets=("S",),
+        scenarios={"version_squash": {"groups": 1, "versions_per_group": 3}},
+    )
+
+    result = run_benchmark_with_clients(
+        config=config,
+        plan={"datasets": ["S"]},
+        result_root=tmp_path,
+        dbay=EndpointDroppingSquashDbay(),
+        workload=FakeWorkload(),
+    )
+
+    correctness = json.loads(
+        (result["result_dir"] / "correctness.json").read_text(encoding="utf-8")
+    )
+    assert result["benchmark_status"] == "failed"
+    assert any(
+        check["name"] == "version_squash:0" and check["passed"] is False
+        for check in correctness["checks"]
+    )
 
 
 def test_missing_version_created_at_fails_correctness_gate(tmp_path, sample_config):

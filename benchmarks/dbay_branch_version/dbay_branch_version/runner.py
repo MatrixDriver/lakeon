@@ -326,21 +326,21 @@ def run_benchmark_with_clients(
                 },
             )
 
-        _run_scenarios(
-            config=config,
-            plan=plan,
-            bench_id=bench_id,
-            dbay=dbay,
-            workload=workload,
-            registry=registry,
-            main_branch=main_branch,
-            main_connstr=connstr,
-            samples=samples,
-            correctness=correctness,
-            counters=counters,
-            start_time=start_time,
-            created_versions_by_branch=created_versions_by_branch,
-        )
+            _run_scenarios(
+                config=config,
+                plan={**plan, "datasets": [dataset_name]},
+                bench_id=bench_id,
+                dbay=dbay,
+                workload=workload,
+                registry=registry,
+                main_branch=main_branch,
+                main_connstr=connstr,
+                samples=samples,
+                correctness=correctness,
+                counters=counters,
+                start_time=start_time,
+                created_versions_by_branch=created_versions_by_branch,
+            )
     except DbayApiError as exc:
         _append_sample(
             samples,
@@ -615,6 +615,7 @@ def _run_scenarios(
                 parent_branch_id = branch.get("id")
 
     version_create = scenarios.get("version_create", {})
+    read_versions: list[dict[str, Any]] = []
     for dataset in datasets:
         for index in range(int(version_create.get("samples_per_dataset", 0))):
             version = _create_version_sample(
@@ -631,6 +632,7 @@ def _run_scenarios(
                 index,
             )
             created_versions_by_branch.setdefault(main_branch["id"], []).append(version)
+            read_versions.append(version)
             _check_version_metadata(correctness, version)
 
     version_read = scenarios.get("version_read", {})
@@ -641,8 +643,10 @@ def _run_scenarios(
         main_branch["id"],
         samples,
         correctness,
-        created_versions_by_branch.get(main_branch["id"], []),
+        read_versions,
         int(version_read.get("samples", 0)),
+        int(version_read.get("concurrency", 1)),
+        datasets[0] if len(datasets) == 1 else "",
     )
 
     version_squash = scenarios.get("version_squash", {})
@@ -853,14 +857,18 @@ def _run_version_reads(
     correctness: dict[str, Any],
     created_versions: list[dict[str, Any]],
     sample_count: int,
+    concurrency: int,
+    dataset: str,
 ) -> None:
     if sample_count <= 0:
         return
+    concurrency = max(1, concurrency)
     versions, sample = dbay.list_versions(database_id, branch_id)
     _append_sample(
         samples,
         sample,
         bench_id=bench_id,
+        dataset=dataset,
         scenario="version_read",
         operation="list",
         resource_type="version",
@@ -873,24 +881,64 @@ def _run_version_reads(
         expected_ids.issubset(listed_ids),
         {"expected_ids": sorted(expected_ids), "listed_ids": sorted(listed_ids)},
     )
-
-    for version in created_versions[:sample_count]:
-        fetched, sample = dbay.get_version(database_id, branch_id, version["id"])
-        _append_sample(
-            samples,
-            sample,
-            bench_id=bench_id,
-            scenario="version_read",
-            operation="get",
-            resource_type="version",
-            resource_id=version["id"],
-        )
+    if not created_versions:
         _add_check(
             correctness,
-            f"version_get_retrieval:{version['id']}",
-            fetched.get("id") == version["id"],
-            {"expected_id": version["id"], "fetched_id": fetched.get("id")},
+            "version_get_retrieval",
+            False,
+            {"reason": "no created versions available for version_read"},
         )
+        return
+
+    read_targets = [
+        created_versions[index % len(created_versions)] for index in range(sample_count)
+    ]
+
+    def fetch_one(target: dict[str, Any]) -> tuple[dict[str, Any], OperationSample | None, str]:
+        fetched, read_sample = dbay.get_version(database_id, branch_id, target["id"])
+        return fetched, read_sample, target["id"]
+
+    first_exception: Exception | None = None
+    with ThreadPoolExecutor(max_workers=concurrency) as executor:
+        futures = [executor.submit(fetch_one, target) for target in read_targets]
+        for future in as_completed(futures):
+            try:
+                fetched, sample, expected_id = future.result()
+            except DbayApiError as exc:
+                _append_sample(
+                    samples,
+                    exc.sample,
+                    bench_id=bench_id,
+                    dataset=dataset,
+                    scenario="version_read",
+                    operation="get",
+                    resource_type="version",
+                    concurrency=concurrency,
+                )
+                first_exception = first_exception or exc
+                continue
+            except Exception as exc:
+                first_exception = first_exception or exc
+                continue
+            _append_sample(
+                samples,
+                sample,
+                bench_id=bench_id,
+                dataset=dataset,
+                scenario="version_read",
+                operation="get",
+                resource_type="version",
+                resource_id=expected_id,
+                concurrency=concurrency,
+            )
+            _add_check(
+                correctness,
+                f"version_get_retrieval:{expected_id}",
+                fetched.get("id") == expected_id,
+                {"expected_id": expected_id, "fetched_id": fetched.get("id")},
+            )
+    if first_exception is not None:
+        raise first_exception
 
 
 def _check_version_metadata(correctness: dict[str, Any], version: dict[str, Any]) -> None:
@@ -922,11 +970,26 @@ def _check_squash_correctness(
         return
     remaining_ids = {version.get("id") for version in remaining}
     middle_ids = {version["id"] for version in group_versions[1:-1]}
+    endpoint_ids = {group_versions[0]["id"], group_versions[-1]["id"]}
+    unrelated_group_ids = {
+        version.get("id")
+        for version in registry.versions
+        if version.get("branch_id") == branch_id
+        and version.get("id") not in middle_ids
+        and version.get("id") not in endpoint_ids
+    }
     _add_check(
         correctness,
         f"version_squash:{group_index}",
-        middle_ids.isdisjoint(remaining_ids),
-        {"middle_ids": sorted(middle_ids), "remaining_ids": sorted(remaining_ids)},
+        middle_ids.isdisjoint(remaining_ids)
+        and endpoint_ids.issubset(remaining_ids)
+        and unrelated_group_ids.issubset(remaining_ids),
+        {
+            "middle_ids": sorted(middle_ids),
+            "endpoint_ids": sorted(endpoint_ids),
+            "unrelated_version_ids": sorted(unrelated_group_ids),
+            "remaining_ids": sorted(remaining_ids),
+        },
     )
     registry.versions = [
         version
