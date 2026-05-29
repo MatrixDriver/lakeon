@@ -7,10 +7,11 @@ from typing import Any
 from dbay_branch_version.metrics import redact_secret
 
 
-SENSITIVE_KEYS = {
-    "api_token",
+SENSITIVE_KEY_MARKERS = {
     "token",
     "password",
+    "secret",
+    "api_key",
     "connection_uri",
     "connstr",
     "dsn",
@@ -54,7 +55,7 @@ VENDOR_CLAIMS = [
 def _redact_payload(value: Any) -> Any:
     if isinstance(value, dict):
         return {
-            key: "[REDACTED]" if key.lower() in SENSITIVE_KEYS else _redact_payload(item)
+            key: "[REDACTED]" if _is_sensitive_key(key) else _redact_payload(item)
             for key, item in value.items()
         }
     if isinstance(value, list):
@@ -62,6 +63,11 @@ def _redact_payload(value: Any) -> Any:
     if isinstance(value, str):
         return redact_secret(value)
     return value
+
+
+def _is_sensitive_key(key: str) -> bool:
+    normalized = key.lower()
+    return any(marker == normalized or marker in normalized for marker in SENSITIVE_KEY_MARKERS)
 
 
 def _dump_redacted_json(payload: dict[str, Any]) -> str:

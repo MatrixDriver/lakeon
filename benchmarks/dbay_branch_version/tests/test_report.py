@@ -71,6 +71,26 @@ def test_render_comparison_redacts_sensitive_values():
     assert "user:pass" not in markdown
 
 
+def test_render_comparison_redacts_env_style_sensitive_keys():
+    markdown = render_comparison_markdown(
+        bench_id="bench_1",
+        environment={
+            "api_base_url": "https://api.dbay.cloud:8443/api/v1",
+            "DBAY_API_TOKEN": "token-123",
+            "LAKEON_DB_PASSWORD": "password-456",
+            "env": {"DBAY_API_TOKEN": "nested-token-789"},
+        },
+        summary={},
+        cleanup={},
+    )
+
+    assert "https://api.dbay.cloud:8443/api/v1" in markdown
+    assert "[REDACTED]" in markdown
+    assert "token-123" not in markdown
+    assert "password-456" not in markdown
+    assert "nested-token-789" not in markdown
+
+
 def test_render_comparison_links_raw_artifacts():
     markdown = render_comparison_markdown(
         bench_id="bench_1",
