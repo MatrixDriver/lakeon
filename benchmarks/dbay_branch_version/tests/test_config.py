@@ -100,3 +100,79 @@ scenarios:
 
     with pytest.raises(ConfigError, match="max_branch_concurrency"):
         load_config(config_path)
+
+
+def test_version_read_concurrency_above_limit_is_rejected(tmp_path):
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+profile: public-comparison
+resource_prefix: bench-branch-version
+api_base_url: https://api.dbay.cloud:8443/api/v1
+datasets: [S]
+allow_large_dataset: false
+limits:
+  max_branch_concurrency: 10
+  max_total_branches: 20
+  max_total_versions: 20
+  max_runtime_seconds: 100
+scenarios:
+  version_read:
+    samples: 100
+    concurrency: 11
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="version_read concurrency"):
+        load_config(config_path)
+
+
+def test_config_rejects_branch_plan_above_total_limit(tmp_path):
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+profile: public-comparison
+resource_prefix: bench-branch-version
+api_base_url: https://api.dbay.cloud:8443/api/v1
+datasets: [S, M]
+allow_large_dataset: false
+limits:
+  max_branch_concurrency: 10
+  max_total_branches: 10
+  max_total_versions: 20
+  max_runtime_seconds: 100
+scenarios:
+  branch_create_without_compute:
+    samples_per_dataset: 6
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="configured scenarios require 12 branches"):
+        load_config(config_path)
+
+
+def test_config_rejects_version_plan_above_total_limit(tmp_path):
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+profile: public-comparison
+resource_prefix: bench-branch-version
+api_base_url: https://api.dbay.cloud:8443/api/v1
+datasets: [S, M]
+allow_large_dataset: false
+limits:
+  max_branch_concurrency: 10
+  max_total_branches: 20
+  max_total_versions: 10
+  max_runtime_seconds: 100
+scenarios:
+  version_create:
+    samples_per_dataset: 6
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="configured scenarios require 12 versions"):
+        load_config(config_path)

@@ -12,7 +12,7 @@ datasets:
 allow_large_dataset: false
 limits:
   max_branch_concurrency: 10
-  max_total_branches: 600
+  max_total_branches: 800
   max_total_versions: 600
   max_runtime_seconds: 14400
 scenarios:

@@ -78,7 +78,52 @@ def validate_config(config: BenchmarkConfig) -> None:
         if int(value) > max_concurrency:
             raise ConfigError("branch_create_concurrent concurrency exceeds max_branch_concurrency")
 
-    if int(config.limits.get("max_total_branches", 0)) <= 0:
+    version_read = config.scenarios.get("version_read", {})
+    version_read_concurrency = int(version_read.get("concurrency", 1))
+    if version_read_concurrency > max_concurrency:
+        raise ConfigError("version_read concurrency exceeds max_branch_concurrency")
+
+    max_total_branches = int(config.limits.get("max_total_branches", 0))
+    max_total_versions = int(config.limits.get("max_total_versions", 0))
+    if max_total_branches <= 0:
         raise ConfigError("max_total_branches must be positive")
-    if int(config.limits.get("max_total_versions", 0)) <= 0:
+    if max_total_versions <= 0:
         raise ConfigError("max_total_versions must be positive")
+
+    branch_budget = estimate_branch_count(config)
+    if branch_budget > max_total_branches:
+        raise ConfigError(
+            f"configured scenarios require {branch_budget} branches, "
+            f"exceeding max_total_branches={max_total_branches}"
+        )
+    version_budget = estimate_version_count(config)
+    if version_budget > max_total_versions:
+        raise ConfigError(
+            f"configured scenarios require {version_budget} versions, "
+            f"exceeding max_total_versions={max_total_versions}"
+        )
+
+
+def estimate_branch_count(config: BenchmarkConfig) -> int:
+    scenario_count = len(config.datasets)
+    without_compute = config.scenarios.get("branch_create_without_compute", {})
+    with_compute = config.scenarios.get("branch_create_with_compute", {})
+    concurrent = config.scenarios.get("branch_create_concurrent", {})
+    depth = config.scenarios.get("branch_depth", {})
+    return scenario_count * (
+        int(without_compute.get("samples_per_dataset", 0))
+        + int(with_compute.get("samples_per_dataset", 0))
+        + int(concurrent.get("total_samples", 0))
+        * len(concurrent.get("concurrency", []))
+        + sum(int(value) for value in depth.get("depths", []))
+    )
+
+
+def estimate_version_count(config: BenchmarkConfig) -> int:
+    scenario_count = len(config.datasets)
+    create = config.scenarios.get("version_create", {})
+    squash = config.scenarios.get("version_squash", {})
+    return scenario_count * (
+        int(create.get("samples_per_dataset", 0))
+        + int(squash.get("groups", 0)) * int(squash.get("versions_per_group", 0))
+    )
