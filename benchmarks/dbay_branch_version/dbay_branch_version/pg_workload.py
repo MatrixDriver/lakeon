@@ -109,6 +109,27 @@ def fetch_checksums(connstr: str) -> dict[str, str]:
             }
 
 
+def fetch_row_counts(connstr: str) -> dict[str, int]:
+    with psycopg.connect(connstr) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                  (SELECT count(*) FROM bench_oltp) AS bench_oltp,
+                  (SELECT count(*) FROM bench_jsonb) AS bench_jsonb,
+                  (SELECT count(*) FROM bench_events) AS bench_events
+                """
+            )
+            row = cur.fetchone()
+            if row is None:
+                raise RuntimeError("row count query returned no rows")
+            return {
+                "bench_oltp": int(row[0]),
+                "bench_jsonb": int(row[1]),
+                "bench_events": int(row[2]),
+            }
+
+
 def checksum_sql() -> str:
     return """
     SELECT

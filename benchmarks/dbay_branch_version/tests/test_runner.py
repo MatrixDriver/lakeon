@@ -58,6 +58,8 @@ scenarios: {}
     plan = json.loads(capsys.readouterr().out)
     assert plan["bench_id"]
     assert plan["plan"]["datasets"] == ["S", "M"]
+    assert plan["preflight"]["status"] == "passed"
+    assert plan["preflight"]["api"]["status"] == "skipped_no_token"
 
 
 def test_dry_run_allows_large_dataset_with_cli_override(tmp_path, monkeypatch, capsys):
@@ -248,3 +250,55 @@ scenarios: {}
     assert exit_code == 2
     output = json.loads(capsys.readouterr().out)
     assert output["benchmark_status"] == "failed"
+
+
+def test_main_preflight_failure_returns_2_before_create_database(tmp_path, monkeypatch, capsys):
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+profile: public-comparison
+resource_prefix: bench-branch-version
+api_base_url: https://api.dbay.cloud:8443/api/v1
+result_root: results
+datasets: [S]
+allow_large_dataset: false
+limits:
+  max_branch_concurrency: 10
+  max_total_branches: 20
+  max_total_versions: 20
+  max_runtime_seconds: 100
+scenarios:
+  branch_create_without_compute:
+    samples_per_dataset: 1
+""",
+        encoding="utf-8",
+    )
+    calls = []
+
+    class FakeClient:
+        def __init__(self, api_base_url, api_token, timeout_seconds):
+            calls.append("init")
+
+        def list_databases(self):
+            calls.append("list_databases")
+            raise RuntimeError("api unreachable")
+
+        def create_database(self, name, compute_size):
+            calls.append("create_database")
+            raise AssertionError("create_database must not be called")
+
+        def close(self):
+            calls.append("closed")
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("DBAY_API_TOKEN", "token-123")
+    monkeypatch.setattr("dbay_branch_version.runner.DbayClient", FakeClient)
+
+    exit_code = main(["--config", str(config_path)])
+
+    assert exit_code == 2
+    assert "create_database" not in calls
+    assert calls == ["init", "list_databases", "closed"]
+    output = json.loads(capsys.readouterr().out)
+    assert output["benchmark_status"] == "failed"
+    assert output["error"]["type"] == "PreflightError"
