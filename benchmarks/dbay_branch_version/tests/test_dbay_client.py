@@ -54,6 +54,55 @@ def test_delete_branch_rejects_non_benchmark_database_name():
         )
 
 
+def test_delete_branch_rejects_main_branch_without_request():
+    seen = {"requests": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["requests"] += 1
+        return httpx.Response(204)
+
+    client = DbayClient(
+        api_base_url="https://api.dbay.cloud:8443/api/v1",
+        api_token="token",
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(UnsafeResourceError):
+        client.delete_branch(
+            "db_1",
+            database_name="bench-branch-version-x",
+            branch_id="br_1",
+            branch_name="main",
+        )
+
+    assert seen["requests"] == 0
+
+
+def test_delete_branch_rejects_default_branch_without_request():
+    seen = {"requests": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["requests"] += 1
+        return httpx.Response(204)
+
+    client = DbayClient(
+        api_base_url="https://api.dbay.cloud:8443/api/v1",
+        api_token="token",
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(UnsafeResourceError):
+        client.delete_branch(
+            "db_1",
+            database_name="bench-branch-version-x",
+            branch_id="br_1",
+            branch_name="feature",
+            is_default=True,
+        )
+
+    assert seen["requests"] == 0
+
+
 def test_delete_version_rejects_non_benchmark_database_name():
     client = DbayClient(
         api_base_url="https://api.dbay.cloud:8443/api/v1",
