@@ -7,11 +7,28 @@ import sys
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 from typing import Sequence
 
 from dbay_branch_version.cleanup import CleanupRegistry, cleanup_benchmark_resources
 from dbay_branch_version.config import BenchmarkConfig, load_config, validate_config
 from dbay_branch_version.dbay_client import DbayClient
+from dbay_branch_version.metrics import (
+    OperationSample,
+    summarize_samples,
+    write_raw_csv,
+    write_summary_json,
+)
+from dbay_branch_version.pg_workload import fetch_checksums, load_dataset
+from dbay_branch_version.report import write_comparison_report
+
+
+class PsycopgWorkload:
+    def load_dataset(self, connstr: str, dataset: str) -> None:
+        load_dataset(connstr, dataset)
+
+    def fetch_checksums(self, connstr: str) -> dict[str, str]:
+        return fetch_checksums(connstr)
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -119,12 +136,159 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
-    print(
-        "Full benchmark orchestration is planned for Task 8; "
-        "use --dry-run or --cleanup-only.",
-        file=sys.stderr,
+    token = os.environ.get("DBAY_API_TOKEN")
+    if not token:
+        print("DBAY_API_TOKEN is required", file=sys.stderr)
+        return 2
+
+    client = DbayClient(
+        config.api_base_url,
+        token,
+        timeout_seconds=config.request_timeout_seconds,
     )
-    return 2
+    try:
+        result = run_benchmark_with_clients(
+            config=config,
+            plan=plan,
+            result_root=Path(config.result_root),
+            dbay=client,
+            workload=PsycopgWorkload(),
+        )
+    finally:
+        client.close()
+
+    print(
+        json.dumps(
+            {
+                "bench_id": result["bench_id"],
+                "result_dir": str(result["result_dir"]),
+                "cleanup_status": result["cleanup_status"],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0 if result["cleanup_status"]["cleanup_status"] == "clean" else 2
+
+
+def run_benchmark_with_clients(
+    config: BenchmarkConfig,
+    plan: dict[str, Any],
+    result_root: str | Path,
+    dbay,
+    workload,
+) -> dict[str, Any]:
+    bench_id = _make_bench_id()
+    timestamp_slug = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    database_name = config.make_database_name(timestamp_slug, "db")
+    run_config = {
+        "bench_id": bench_id,
+        "plan": plan,
+        "profile": config.profile,
+        "resource_prefix": config.resource_prefix,
+        "api_base_url": config.api_base_url,
+        "compute_size": config.compute_size,
+    }
+    result_dir = create_result_dir(result_root, bench_id, run_config)
+    samples: list[OperationSample] = []
+    correctness: dict[str, Any] = {"datasets": {}}
+    registry = CleanupRegistry(
+        bench_id=bench_id,
+        database_id="",
+        database_name=database_name,
+        branches=[],
+        versions=[],
+    )
+    cleanup_status: dict[str, Any] | None = None
+
+    try:
+        database, sample = dbay.create_database(database_name, config.compute_size)
+        _append_sample(samples, sample, bench_id=bench_id)
+        registry.database_id = database["id"]
+        connstr = database.get("connection_uri", "")
+
+        branches, sample = dbay.list_branches(registry.database_id)
+        _append_sample(samples, sample, bench_id=bench_id)
+        registry.branches.extend(branches)
+        main_branch = _select_main_branch(branches)
+
+        for dataset in plan.get("datasets", []):
+            dataset_name = str(dataset)
+            workload.load_dataset(connstr, dataset_name)
+            base_checksums = workload.fetch_checksums(connstr)
+            correctness["datasets"][dataset_name] = {"base_checksums": base_checksums}
+
+            branch_name = f"{bench_id}-{dataset_name.lower()}-branch"
+            branch, sample = dbay.create_branch(
+                registry.database_id,
+                branch_name,
+                start_compute=True,
+                parent_branch_id=main_branch.get("id"),
+            )
+            _append_sample(samples, sample, bench_id=bench_id, dataset=dataset_name)
+            registry.branches.append(branch)
+
+            version_name = f"{bench_id}-{dataset_name.lower()}-version"
+            version, sample = dbay.create_version(
+                registry.database_id,
+                main_branch["id"],
+                version_name,
+                description=f"{bench_id} {dataset_name} baseline",
+            )
+            _append_sample(samples, sample, bench_id=bench_id, dataset=dataset_name)
+            registry.versions.append({"id": version["id"], "branch_id": main_branch["id"]})
+            correctness["datasets"][dataset_name]["version_metadata_present"] = all(
+                bool(version.get(key))
+                for key in ["id", "branch_id", "lsn", "snapshot_timeline_id"]
+            )
+    finally:
+        registry.write(result_dir / "cleanup_registry.json")
+        if registry.database_id:
+            cleanup_status = cleanup_benchmark_resources(dbay, registry)
+        else:
+            cleanup_status = {
+                "bench_id": bench_id,
+                "database_id": "",
+                "database_name": database_name,
+                "cleanup_status": "failed",
+                "failures": [
+                    {
+                        "type": "database",
+                        "id": None,
+                        "error": "no_database_created",
+                    }
+                ],
+            }
+        (result_dir / "cleanup_status.json").write_text(
+            json.dumps(cleanup_status, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+
+        write_raw_csv(result_dir / "raw_samples.csv", samples)
+        summary = summarize_samples(samples)
+        write_summary_json(result_dir / "summary.json", samples)
+        (result_dir / "correctness.json").write_text(
+            json.dumps(correctness, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        write_comparison_report(
+            result_dir / "comparison.md",
+            bench_id=bench_id,
+            environment={
+                "api_base_url": config.api_base_url,
+                "profile": config.profile,
+                "compute_size": config.compute_size,
+                "datasets": list(plan.get("datasets", [])),
+            },
+            summary=summary,
+            cleanup=cleanup_status,
+        )
+
+    return {
+        "bench_id": bench_id,
+        "result_dir": result_dir,
+        "cleanup_status": cleanup_status,
+    }
 
 
 def _apply_cli_overrides(
@@ -146,6 +310,29 @@ def _apply_cli_overrides(
 
 def _make_bench_id() -> str:
     return f"bench_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+
+
+def _append_sample(
+    samples: list[OperationSample],
+    sample: OperationSample | None,
+    bench_id: str,
+    dataset: str = "",
+) -> None:
+    if sample is None:
+        return
+    sample.bench_id = bench_id
+    if dataset:
+        sample.dataset = dataset
+    samples.append(sample)
+
+
+def _select_main_branch(branches: list[dict[str, Any]]) -> dict[str, Any]:
+    for branch in branches:
+        if branch.get("is_default") or branch.get("name") == "main":
+            return branch
+    if branches:
+        return branches[0]
+    raise RuntimeError("DBay database has no branches")
 
 
 def _find_cleanup_registry(root: Path, bench_id: str) -> Path:
