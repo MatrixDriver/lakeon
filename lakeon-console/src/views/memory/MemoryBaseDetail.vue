@@ -291,7 +291,7 @@ dbay login</pre>
                 <div class="enc-step-title">设置加密密码</div>
                 <p class="enc-step-desc">创建密码文件（与创建记忆库时设置的密码一致）：</p>
                 <div style="position: relative;">
-                  <pre class="code-block">echo "DBAY_ENCRYPTION_PASSWORD=你的密码" > ~/.dbay/secret
+                  <pre class="code-block">echo "DBAY_ENCRYPTION_PASSWORD=你的密码" &gt; ~/.dbay/secret
 chmod 600 ~/.dbay/secret</pre>
                   <button class="copy-btn" @click.stop="copyEncryptionSnippet">{{ copied === encryptionSnippet ? '已复制 ✓' : '复制' }}</button>
                 </div>
