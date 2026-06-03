@@ -56,6 +56,14 @@ public class AgentFirstController {
         return agentFirstService.forkBranch(tenantId(httpRequest), request);
     }
 
+    @PostMapping("/workspaces/branches/fork")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AgentFirstDtos.BranchResponse forkWorkspaceBranch(
+            HttpServletRequest httpRequest,
+            @Valid @RequestBody AgentFirstDtos.ForkBranchRequest request) {
+        return agentFirstService.forkBranch(tenantId(httpRequest), request);
+    }
+
     @PostMapping("/context/resolve")
     public AgentFirstDtos.ResolveContextResponse resolveContext(
             HttpServletRequest httpRequest,
@@ -87,6 +95,14 @@ public class AgentFirstController {
         return agentFirstService.appendStateCommit(tenantId(httpRequest), request);
     }
 
+    @PostMapping("/artifacts/state-commits")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AgentFirstDtos.IdResponse appendArtifactStateCommit(
+            HttpServletRequest httpRequest,
+            @Valid @RequestBody AgentFirstDtos.AppendStateCommitRequest request) {
+        return agentFirstService.appendStateCommit(tenantId(httpRequest), request);
+    }
+
     @PostMapping("/artifacts")
     @ResponseStatus(HttpStatus.CREATED)
     public AgentFirstDtos.IdResponse recordArtifact(
@@ -109,6 +125,14 @@ public class AgentFirstController {
             HttpServletRequest httpRequest,
             @Valid @RequestBody AgentFirstDtos.CreateCheckpointRequest request) {
         return agentFirstService.createCheckpoint(tenantId(httpRequest), request);
+    }
+
+    @PostMapping("/artifacts/manifests/snapshot")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AgentFirstDtos.IdResponse snapshotManifest(
+            HttpServletRequest httpRequest,
+            @Valid @RequestBody AgentFirstDtos.SnapshotManifestRequest request) {
+        return agentFirstService.snapshotManifest(tenantId(httpRequest), request);
     }
 
     @PostMapping("/checkpoints/{checkpointId}/restore")
@@ -143,6 +167,14 @@ public class AgentFirstController {
     @PostMapping("/audit-events")
     @ResponseStatus(HttpStatus.CREATED)
     public AgentFirstDtos.IdResponse appendAuditEvent(
+            HttpServletRequest httpRequest,
+            @Valid @RequestBody AgentFirstDtos.AppendAuditEventRequest request) {
+        return agentFirstService.appendAuditEvent(tenantId(httpRequest), request);
+    }
+
+    @PostMapping("/audit/events")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AgentFirstDtos.IdResponse appendAuditEventAlias(
             HttpServletRequest httpRequest,
             @Valid @RequestBody AgentFirstDtos.AppendAuditEventRequest request) {
         return agentFirstService.appendAuditEvent(tenantId(httpRequest), request);

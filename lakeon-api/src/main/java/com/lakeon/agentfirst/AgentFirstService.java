@@ -210,6 +210,21 @@ public class AgentFirstService {
         return new AgentFirstDtos.CheckpointResponse(checkpointRepository.save(checkpoint).getId());
     }
 
+    @Transactional
+    public AgentFirstDtos.IdResponse snapshotManifest(String tenantId, AgentFirstDtos.SnapshotManifestRequest request) {
+        AgentCheckpointEntity checkpoint = new AgentCheckpointEntity();
+        checkpoint.setTenantId(tenantId);
+        checkpoint.setBranchId(request.branchId());
+        checkpoint.setStageRunId(request.stageRunId());
+        checkpoint.setManifestJson(toJson(Map.of(
+                "task_run_id", request.taskRunId(),
+                "stage_run_id", request.stageRunId(),
+                "branch_id", request.branchId(),
+                "artifacts", request.artifactIds() == null ? List.of() : request.artifactIds()
+        )));
+        return new AgentFirstDtos.IdResponse(checkpointRepository.save(checkpoint).getId());
+    }
+
     public AgentFirstDtos.RestorePlanResponse restoreCheckpoint(String tenantId, String checkpointId) {
         AgentCheckpointEntity checkpoint = checkpointRepository.findByIdAndTenantId(checkpointId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Checkpoint not found: " + checkpointId));

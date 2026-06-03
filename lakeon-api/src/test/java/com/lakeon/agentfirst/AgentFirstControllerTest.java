@@ -96,6 +96,140 @@ class AgentFirstControllerTest {
     }
 
     @Test
+    @DisplayName("OpenCode DataAgent HTTP contract accepts camelCase payloads under agent-state prefix")
+    void opencodeDataAgentContract_acceptsCamelCasePayloadsAndRouteAliases() throws Exception {
+        when(agentFirstService.createTaskRun(eq(TENANT_ID), any()))
+                .thenReturn(new AgentFirstDtos.TaskRunResponse("task_001", "data", "running"));
+        when(agentFirstService.createWorkspace(eq(TENANT_ID), any()))
+                .thenReturn(new AgentFirstDtos.WorkspaceResponse("ws_001", "branch_root"));
+        when(agentFirstService.resolveContext(eq(TENANT_ID), any()))
+                .thenReturn(new AgentFirstDtos.ResolveContextResponse(List.of("schema_orders")));
+        when(agentFirstService.buildContextPack(eq(TENANT_ID), any()))
+                .thenReturn(new AgentFirstDtos.ContextPackResponse("ctx_pack_001"));
+        when(agentFirstService.checkPermission(eq(TENANT_ID), any()))
+                .thenReturn(new AgentFirstDtos.PolicyDecisionResponse(true, "allowed"));
+        when(agentFirstService.forkBranch(eq(TENANT_ID), any()))
+                .thenReturn(new AgentFirstDtos.BranchResponse("branch_001"));
+        when(agentFirstService.appendStateCommit(eq(TENANT_ID), any()))
+                .thenReturn(new AgentFirstDtos.IdResponse("commit_001"));
+        when(agentFirstService.recordArtifact(eq(TENANT_ID), any()))
+                .thenReturn(new AgentFirstDtos.IdResponse("artifact_001"));
+        when(agentFirstService.recordLineage(eq(TENANT_ID), any()))
+                .thenReturn(new AgentFirstDtos.IdResponse("lineage_001"));
+        when(agentFirstService.snapshotManifest(eq(TENANT_ID), any()))
+                .thenReturn(new AgentFirstDtos.IdResponse("manifest_001"));
+        when(agentFirstService.appendAuditEvent(eq(TENANT_ID), any()))
+                .thenReturn(new AgentFirstDtos.IdResponse("audit_001"));
+
+        mockMvc.perform(post("/api/v1/agent-state/task-runs")
+                        .header("Authorization", API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"goal": "publish daily order revenue", "harnessId": "data"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("task_001"));
+
+        mockMvc.perform(post("/api/v1/agent-state/workspaces")
+                        .header("Authorization", API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"taskRunId": "task_001"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("ws_001"))
+                .andExpect(jsonPath("$.rootBranchId").value("branch_root"));
+
+        mockMvc.perform(post("/api/v1/agent-state/context/resolve")
+                        .header("Authorization", API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"taskRunId": "task_001", "stageRunId": "stage_context", "query": "orders"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nodeIds[0]").value("schema_orders"));
+
+        mockMvc.perform(post("/api/v1/agent-state/context/packs")
+                        .header("Authorization", API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"taskRunId": "task_001", "stageRunId": "stage_context", "selectedNodeIds": ["schema_orders"]}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("ctx_pack_001"));
+
+        mockMvc.perform(post("/api/v1/agent-state/policy/check")
+                        .header("Authorization", API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "taskRunId": "task_001",
+                                  "stageRunId": "stage_sql",
+                                  "action": "validate_sql",
+                                  "riskLevel": "medium",
+                                  "branchId": "branch_001",
+                                  "intendedReadWriteSet": {"reads": ["ctx_pack_001"], "writes": ["compiled_sql"]}
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.allowed").value(true));
+
+        mockMvc.perform(post("/api/v1/agent-state/workspaces/branches/fork")
+                        .header("Authorization", API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"workspaceId": "ws_001", "stageRunId": "stage_sql", "hypothesis": "publish daily order revenue"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("branch_001"));
+
+        mockMvc.perform(post("/api/v1/agent-state/artifacts/state-commits")
+                        .header("Authorization", API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"taskRunId": "task_001", "stageRunId": "stage_sql", "branchId": "branch_001", "summary": "validated SQL fixture"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("commit_001"));
+
+        mockMvc.perform(post("/api/v1/agent-state/artifacts")
+                        .header("Authorization", API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"taskRunId": "task_001", "stageRunId": "stage_sql", "branchId": "branch_001", "kind": "compiled_sql"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("artifact_001"));
+
+        mockMvc.perform(post("/api/v1/agent-state/lineage")
+                        .header("Authorization", API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"taskRunId": "task_001", "stageRunId": "stage_sql", "branchId": "branch_001", "artifactId": "artifact_001"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("lineage_001"));
+
+        mockMvc.perform(post("/api/v1/agent-state/artifacts/manifests/snapshot")
+                        .header("Authorization", API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"taskRunId": "task_001", "stageRunId": "stage_sql", "branchId": "branch_001", "artifactIds": ["artifact_001"]}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("manifest_001"));
+
+        mockMvc.perform(post("/api/v1/agent-state/audit/events")
+                        .header("Authorization", API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"taskRunId": "task_001", "action": "publish_data_task", "result": "allowed"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("audit_001"));
+    }
+
+    @Test
     @DisplayName("Context API resolves nodes and builds context pack")
     void contextEndpoints_matchOpenCodeClientContract() throws Exception {
         when(agentFirstService.ingestContextSource(eq(TENANT_ID), any()))

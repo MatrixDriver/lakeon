@@ -1,6 +1,7 @@
 package com.lakeon.agentfirst;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
@@ -11,7 +12,7 @@ public final class AgentFirstDtos {
 
     public record CreateTaskRunRequest(
             @NotBlank String goal,
-            @JsonProperty("harness_id") @NotBlank String harnessId) {}
+            @JsonProperty("harness_id") @JsonAlias("harnessId") @NotBlank String harnessId) {}
 
     public record TaskRunResponse(
             String id,
@@ -32,15 +33,20 @@ public final class AgentFirstDtos {
             @JsonProperty("context_pack_id") String contextPackId) {}
 
     public record CreateWorkspaceRequest(
-            @JsonProperty("task_run_id") @NotBlank String taskRunId) {}
+            @JsonProperty("task_run_id") @JsonAlias("taskRunId") @NotBlank String taskRunId) {}
 
     public record WorkspaceResponse(
             String id,
-            @JsonProperty("root_branch_id") String rootBranchId) {}
+            @JsonProperty("root_branch_id") String rootBranchId) {
+        @JsonProperty("rootBranchId")
+        public String rootBranchIdCamel() {
+            return rootBranchId;
+        }
+    }
 
     public record ForkBranchRequest(
-            @JsonProperty("workspace_id") @NotBlank String workspaceId,
-            @JsonProperty("stage_run_id") String stageRunId,
+            @JsonProperty("workspace_id") @JsonAlias("workspaceId") @NotBlank String workspaceId,
+            @JsonProperty("stage_run_id") @JsonAlias("stageRunId") String stageRunId,
             String hypothesis) {}
 
     public record BranchResponse(String id) {}
@@ -56,45 +62,61 @@ public final class AgentFirstDtos {
             List<ContextNodeInput> nodes) {}
 
     public record IngestContextResponse(
-            @JsonProperty("node_ids") List<String> nodeIds) {}
+            @JsonProperty("node_ids") List<String> nodeIds) {
+        @JsonProperty("nodeIds")
+        public List<String> nodeIdsCamel() {
+            return nodeIds;
+        }
+    }
 
     public record ResolveContextRequest(
-            @JsonProperty("task_run_id") @NotBlank String taskRunId,
-            @JsonProperty("stage_run_id") @NotBlank String stageRunId,
+            @JsonProperty("task_run_id") @JsonAlias("taskRunId") @NotBlank String taskRunId,
+            @JsonProperty("stage_run_id") @JsonAlias("stageRunId") @NotBlank String stageRunId,
             String query) {}
 
     public record ResolveContextResponse(
-            @JsonProperty("node_ids") List<String> nodeIds) {}
+            @JsonProperty("node_ids") List<String> nodeIds) {
+        @JsonProperty("nodeIds")
+        public List<String> nodeIdsCamel() {
+            return nodeIds;
+        }
+    }
 
     public record BuildContextPackRequest(
-            @JsonProperty("task_run_id") @NotBlank String taskRunId,
-            @JsonProperty("stage_run_id") @NotBlank String stageRunId,
-            @JsonProperty("selected_node_ids") List<String> selectedNodeIds) {}
+            @JsonProperty("task_run_id") @JsonAlias("taskRunId") @NotBlank String taskRunId,
+            @JsonProperty("stage_run_id") @JsonAlias("stageRunId") @NotBlank String stageRunId,
+            @JsonProperty("selected_node_ids") @JsonAlias("selectedNodeIds") List<String> selectedNodeIds) {}
 
     public record ContextPackResponse(String id) {}
 
     public record AppendStateCommitRequest(
-            @JsonProperty("task_run_id") @NotBlank String taskRunId,
-            @JsonProperty("stage_run_id") @NotBlank String stageRunId,
-            @JsonProperty("branch_id") @NotBlank String branchId,
+            @JsonProperty("task_run_id") @JsonAlias("taskRunId") @NotBlank String taskRunId,
+            @JsonProperty("stage_run_id") @JsonAlias("stageRunId") @NotBlank String stageRunId,
+            @JsonProperty("branch_id") @JsonAlias("branchId") @NotBlank String branchId,
             String summary) {}
 
     public record RecordArtifactRequest(
-            @JsonProperty("task_run_id") @NotBlank String taskRunId,
-            @JsonProperty("stage_run_id") @NotBlank String stageRunId,
-            @JsonProperty("branch_id") @NotBlank String branchId,
+            @JsonProperty("task_run_id") @JsonAlias("taskRunId") @NotBlank String taskRunId,
+            @JsonProperty("stage_run_id") @JsonAlias("stageRunId") @NotBlank String stageRunId,
+            @JsonProperty("branch_id") @JsonAlias("branchId") @NotBlank String branchId,
             @NotBlank String kind) {}
 
     public record RecordLineageRequest(
-            @JsonProperty("task_run_id") @NotBlank String taskRunId,
-            @JsonProperty("stage_run_id") @NotBlank String stageRunId,
-            @JsonProperty("branch_id") @NotBlank String branchId,
-            @JsonProperty("artifact_id") @NotBlank String artifactId) {}
+            @JsonProperty("task_run_id") @JsonAlias("taskRunId") @NotBlank String taskRunId,
+            @JsonProperty("stage_run_id") @JsonAlias("stageRunId") @NotBlank String stageRunId,
+            @JsonProperty("branch_id") @JsonAlias("branchId") @NotBlank String branchId,
+            @JsonProperty("artifact_id") @JsonAlias("artifactId") @NotBlank String artifactId) {}
 
     public record CreateCheckpointRequest(
-            @JsonProperty("branch_id") @NotBlank String branchId,
-            @JsonProperty("stage_run_id") String stageRunId,
+            @JsonProperty("branch_id") @JsonAlias("branchId") @NotBlank String branchId,
+            @JsonProperty("stage_run_id") @JsonAlias("stageRunId") String stageRunId,
             Map<String, Object> manifest) {}
+
+    public record SnapshotManifestRequest(
+            @JsonProperty("task_run_id") @JsonAlias("taskRunId") @NotBlank String taskRunId,
+            @JsonProperty("stage_run_id") @JsonAlias("stageRunId") @NotBlank String stageRunId,
+            @JsonProperty("branch_id") @JsonAlias("branchId") @NotBlank String branchId,
+            @JsonProperty("artifact_ids") @JsonAlias("artifactIds") List<String> artifactIds) {}
 
     public record CheckpointResponse(String id) {}
 
@@ -105,27 +127,27 @@ public final class AgentFirstDtos {
             boolean complete) {}
 
     public record CreateEvidencePacketRequest(
-            @JsonProperty("task_run_id") @NotBlank String taskRunId,
-            @JsonProperty("branch_id") String branchId,
+            @JsonProperty("task_run_id") @JsonAlias("taskRunId") @NotBlank String taskRunId,
+            @JsonProperty("branch_id") @JsonAlias("branchId") String branchId,
             @NotBlank String claim,
-            @JsonProperty("evidence_refs") List<String> evidenceRefs) {}
+            @JsonProperty("evidence_refs") @JsonAlias("evidenceRefs") List<String> evidenceRefs) {}
 
     public record EvidencePacketResponse(String id, String status) {}
 
     public record CheckPermissionRequest(
-            @JsonProperty("task_run_id") @NotBlank String taskRunId,
+            @JsonProperty("task_run_id") @JsonAlias("taskRunId") @NotBlank String taskRunId,
             @NotBlank String action,
-            @JsonProperty("risk_level") String riskLevel,
-            @JsonProperty("branch_id") String branchId) {}
+            @JsonProperty("risk_level") @JsonAlias("riskLevel") String riskLevel,
+            @JsonProperty("branch_id") @JsonAlias("branchId") String branchId) {}
 
     public record PolicyDecisionResponse(boolean allowed, String reason) {}
 
     public record AppendAuditEventRequest(
-            @JsonProperty("task_run_id") @NotBlank String taskRunId,
+            @JsonProperty("task_run_id") @JsonAlias("taskRunId") @NotBlank String taskRunId,
             @NotBlank String action,
             @NotBlank String result,
             String reason,
-            @JsonProperty("branch_id") String branchId) {}
+            @JsonProperty("branch_id") @JsonAlias("branchId") String branchId) {}
 
     public record IdResponse(String id) {}
 }

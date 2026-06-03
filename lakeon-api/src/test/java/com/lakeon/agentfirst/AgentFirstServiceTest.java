@@ -125,6 +125,33 @@ class AgentFirstServiceTest {
     }
 
     @Test
+    @DisplayName("snapshotManifest stores OpenCode artifact ids as checkpoint manifest refs")
+    void snapshotManifest_storesArtifactRefsForRestore() {
+        AgentFirstService service = service();
+        when(checkpointRepository.save(any(AgentCheckpointEntity.class))).thenAnswer(inv -> {
+            AgentCheckpointEntity entity = inv.getArgument(0);
+            entity.prePersist();
+            return entity;
+        });
+
+        AgentFirstDtos.IdResponse response = service.snapshotManifest(
+                "tn_test001",
+                new AgentFirstDtos.SnapshotManifestRequest(
+                        "task_001",
+                        "stage_sql",
+                        "branch_001",
+                        List.of("artifact_sql_001")));
+
+        ArgumentCaptor<AgentCheckpointEntity> checkpointCaptor = ArgumentCaptor.forClass(AgentCheckpointEntity.class);
+        verify(checkpointRepository).save(checkpointCaptor.capture());
+        assertThat(response.id()).startsWith("ckpt_");
+        assertThat(checkpointCaptor.getValue().getTenantId()).isEqualTo("tn_test001");
+        assertThat(checkpointCaptor.getValue().getBranchId()).isEqualTo("branch_001");
+        assertThat(checkpointCaptor.getValue().getStageRunId()).isEqualTo("stage_sql");
+        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("artifact_sql_001");
+    }
+
+    @Test
     @DisplayName("evaluateEvidence blocks packets without evidence refs")
     void evaluateEvidence_blocksMissingEvidenceRefs() {
         AgentFirstService service = service();
