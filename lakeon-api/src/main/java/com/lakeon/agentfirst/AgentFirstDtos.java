@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
+import java.util.Map;
 
 public final class AgentFirstDtos {
     private AgentFirstDtos() {}
@@ -44,6 +45,19 @@ public final class AgentFirstDtos {
 
     public record BranchResponse(String id) {}
 
+    public record ContextNodeInput(
+            @NotBlank String id,
+            @NotBlank String type,
+            @NotBlank String name) {}
+
+    public record IngestContextSourceRequest(
+            @JsonProperty("source_type") @NotBlank String sourceType,
+            @JsonProperty("source_ref") @NotBlank String sourceRef,
+            List<ContextNodeInput> nodes) {}
+
+    public record IngestContextResponse(
+            @JsonProperty("node_ids") List<String> nodeIds) {}
+
     public record ResolveContextRequest(
             @JsonProperty("task_run_id") @NotBlank String taskRunId,
             @JsonProperty("stage_run_id") @NotBlank String stageRunId,
@@ -76,6 +90,27 @@ public final class AgentFirstDtos {
             @JsonProperty("stage_run_id") @NotBlank String stageRunId,
             @JsonProperty("branch_id") @NotBlank String branchId,
             @JsonProperty("artifact_id") @NotBlank String artifactId) {}
+
+    public record CreateCheckpointRequest(
+            @JsonProperty("branch_id") @NotBlank String branchId,
+            @JsonProperty("stage_run_id") String stageRunId,
+            Map<String, Object> manifest) {}
+
+    public record CheckpointResponse(String id) {}
+
+    public record RestorePlanResponse(
+            @JsonProperty("checkpoint_id") String checkpointId,
+            @JsonProperty("restorable_refs") List<String> restorableRefs,
+            @JsonProperty("missing_refs") List<String> missingRefs,
+            boolean complete) {}
+
+    public record CreateEvidencePacketRequest(
+            @JsonProperty("task_run_id") @NotBlank String taskRunId,
+            @JsonProperty("branch_id") String branchId,
+            @NotBlank String claim,
+            @JsonProperty("evidence_refs") List<String> evidenceRefs) {}
+
+    public record EvidencePacketResponse(String id, String status) {}
 
     public record CheckPermissionRequest(
             @JsonProperty("task_run_id") @NotBlank String taskRunId,

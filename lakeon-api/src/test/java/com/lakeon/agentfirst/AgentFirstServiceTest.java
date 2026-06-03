@@ -23,9 +23,11 @@ class AgentFirstServiceTest {
     @Mock private AgentWorkspaceBranchRepository branchRepository;
     @Mock private ContextNodeRepository contextNodeRepository;
     @Mock private ContextPackRepository contextPackRepository;
+    @Mock private AgentCheckpointRepository checkpointRepository;
     @Mock private AgentStateCommitRepository stateCommitRepository;
     @Mock private AgentArtifactRefRepository artifactRefRepository;
     @Mock private AgentLineageEdgeRepository lineageEdgeRepository;
+    @Mock private AgentEvidencePacketRepository evidencePacketRepository;
     @Mock private AgentPolicyDecisionRepository policyDecisionRepository;
     @Mock private AgentAuditEventRepository auditEventRepository;
 
@@ -78,6 +80,67 @@ class AgentFirstServiceTest {
     }
 
     @Test
+    @DisplayName("ingestContextSource persists tenant-scoped context nodes")
+    void ingestContextSource_persistsContextNodes() {
+        AgentFirstService service = service();
+        when(contextNodeRepository.save(any(ContextNodeEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        AgentFirstDtos.IngestContextResponse response = service.ingestContextSource(
+                "tn_test001",
+                new AgentFirstDtos.IngestContextSourceRequest(
+                        "dbt_manifest",
+                        "fixtures/manifest.json",
+                        List.of(new AgentFirstDtos.ContextNodeInput("schema_orders", "table", "orders"))));
+
+        assertThat(response.nodeIds()).containsExactly("schema_orders");
+        verify(contextNodeRepository).save(any(ContextNodeEntity.class));
+    }
+
+    @Test
+    @DisplayName("createCheckpoint stores manifest and restoreCheckpoint returns restorable and missing refs")
+    void checkpointRestore_returnsResumePlan() {
+        AgentFirstService service = service();
+        when(checkpointRepository.save(any(AgentCheckpointEntity.class))).thenAnswer(inv -> {
+            AgentCheckpointEntity entity = inv.getArgument(0);
+            entity.prePersist();
+            return entity;
+        });
+        AgentCheckpointEntity checkpoint = new AgentCheckpointEntity();
+        checkpoint.setId("ckpt_001");
+        checkpoint.setManifestJson("{\"artifacts\":[\"artifact_sql_001\"],\"missing\":[\"lineage_snapshot_001\"]}");
+        when(checkpointRepository.findByIdAndTenantId("ckpt_001", "tn_test001")).thenReturn(java.util.Optional.of(checkpoint));
+
+        AgentFirstDtos.CheckpointResponse checkpointResponse = service.createCheckpoint(
+                "tn_test001",
+                new AgentFirstDtos.CreateCheckpointRequest(
+                        "branch_001",
+                        "stage_sql",
+                        java.util.Map.of("artifacts", List.of("artifact_sql_001"))));
+        AgentFirstDtos.RestorePlanResponse restorePlan = service.restoreCheckpoint("tn_test001", "ckpt_001");
+
+        assertThat(checkpointResponse.id()).startsWith("ckpt_");
+        assertThat(restorePlan.restorableRefs()).containsExactly("artifact_sql_001");
+        assertThat(restorePlan.missingRefs()).containsExactly("lineage_snapshot_001");
+        assertThat(restorePlan.complete()).isFalse();
+    }
+
+    @Test
+    @DisplayName("evaluateEvidence blocks packets without evidence refs")
+    void evaluateEvidence_blocksMissingEvidenceRefs() {
+        AgentFirstService service = service();
+        AgentEvidencePacketEntity packet = new AgentEvidencePacketEntity();
+        packet.setId("evidence_001");
+        packet.setEvidenceRefsJson("[]");
+        when(evidencePacketRepository.findByIdAndTenantId("evidence_001", "tn_test001"))
+                .thenReturn(java.util.Optional.of(packet));
+
+        AgentFirstDtos.PolicyDecisionResponse response = service.evaluateEvidence("tn_test001", "evidence_001");
+
+        assertThat(response.allowed()).isFalse();
+        assertThat(response.reason()).contains("missing verified evidence");
+    }
+
+    @Test
     @DisplayName("checkPermission blocks destructive or high-risk SQL and records decision")
     void checkPermission_blocksHighRiskActionAndPersistsDecision() {
         AgentFirstService service = service();
@@ -104,9 +167,11 @@ class AgentFirstServiceTest {
                 branchRepository,
                 contextNodeRepository,
                 contextPackRepository,
+                checkpointRepository,
                 stateCommitRepository,
                 artifactRefRepository,
                 lineageEdgeRepository,
+                evidencePacketRepository,
                 policyDecisionRepository,
                 auditEventRepository);
     }

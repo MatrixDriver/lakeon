@@ -19,6 +19,8 @@ class AgentFirstRepositoryTest {
     @Autowired private AgentWorkspaceRepository workspaceRepository;
     @Autowired private AgentWorkspaceBranchRepository branchRepository;
     @Autowired private ContextNodeRepository contextNodeRepository;
+    @Autowired private AgentCheckpointRepository checkpointRepository;
+    @Autowired private AgentEvidencePacketRepository evidencePacketRepository;
 
     @Test
     @DisplayName("saves task, workspace, root branch, and tenant scoped context nodes")
@@ -52,5 +54,28 @@ class AgentFirstRepositoryTest {
         assertThat(savedWorkspace.getId()).startsWith("ws_");
         assertThat(savedRoot.getId()).startsWith("awb_");
         assertThat(nodes).extracting(ContextNodeEntity::getId).containsExactly("schema_orders");
+    }
+
+    @Test
+    @DisplayName("saves checkpoint and evidence packet with tenant lookups")
+    void saveCheckpointAndEvidencePacket_supportsTenantScopedLookup() {
+        AgentCheckpointEntity checkpoint = new AgentCheckpointEntity();
+        checkpoint.setTenantId("tn_test001");
+        checkpoint.setBranchId("branch_001");
+        checkpoint.setManifestJson("{\"artifacts\":[\"artifact_sql_001\"]}");
+        AgentCheckpointEntity savedCheckpoint = checkpointRepository.save(checkpoint);
+
+        AgentEvidencePacketEntity evidence = new AgentEvidencePacketEntity();
+        evidence.setTenantId("tn_test001");
+        evidence.setTaskRunId("task_001");
+        evidence.setBranchId("branch_001");
+        evidence.setClaim("daily revenue SQL is publishable");
+        evidence.setEvidenceRefsJson("[\"artifact_sql_001\"]");
+        AgentEvidencePacketEntity savedEvidence = evidencePacketRepository.save(evidence);
+
+        assertThat(savedCheckpoint.getId()).startsWith("ckpt_");
+        assertThat(savedEvidence.getId()).startsWith("evidence_");
+        assertThat(checkpointRepository.findByIdAndTenantId(savedCheckpoint.getId(), "tn_test001")).isPresent();
+        assertThat(evidencePacketRepository.findByIdAndTenantId(savedEvidence.getId(), "tn_test001")).isPresent();
     }
 }

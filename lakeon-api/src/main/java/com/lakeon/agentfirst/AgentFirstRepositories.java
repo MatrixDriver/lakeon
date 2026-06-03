@@ -24,6 +24,14 @@ interface AgentArtifactRefRepository extends JpaRepository<AgentArtifactRefEntit
 
 interface AgentLineageEdgeRepository extends JpaRepository<AgentLineageEdgeEntity, String> {}
 
+interface AgentCheckpointRepository extends JpaRepository<AgentCheckpointEntity, String> {
+    java.util.Optional<AgentCheckpointEntity> findByIdAndTenantId(String id, String tenantId);
+}
+
+interface AgentEvidencePacketRepository extends JpaRepository<AgentEvidencePacketEntity, String> {
+    java.util.Optional<AgentEvidencePacketEntity> findByIdAndTenantId(String id, String tenantId);
+}
+
 interface AgentPolicyDecisionRepository extends JpaRepository<AgentPolicyDecisionEntity, String> {}
 
 interface AgentAuditEventRepository extends JpaRepository<AgentAuditEventEntity, String> {

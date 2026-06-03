@@ -98,10 +98,29 @@ class AgentFirstControllerTest {
     @Test
     @DisplayName("Context API resolves nodes and builds context pack")
     void contextEndpoints_matchOpenCodeClientContract() throws Exception {
+        when(agentFirstService.ingestContextSource(eq(TENANT_ID), any()))
+                .thenReturn(new AgentFirstDtos.IngestContextResponse(List.of("schema_orders", "column_customer_email")));
         when(agentFirstService.resolveContext(eq(TENANT_ID), any()))
                 .thenReturn(new AgentFirstDtos.ResolveContextResponse(List.of("schema_orders", "column_customer_email")));
         when(agentFirstService.buildContextPack(eq(TENANT_ID), any()))
                 .thenReturn(new AgentFirstDtos.ContextPackResponse("ctx_pack_001"));
+
+        mockMvc.perform(post("/api/v1/agentfirst/context/sources")
+                        .header("Authorization", API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "source_type": "dbt_manifest",
+                                  "source_ref": "fixtures/data-agent/manifest.json",
+                                  "nodes": [
+                                    {"id": "schema_orders", "type": "table", "name": "orders"},
+                                    {"id": "column_customer_email", "type": "column", "name": "customers.email"}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.node_ids", hasSize(2)))
+                .andExpect(jsonPath("$.node_ids[0]").value("schema_orders"));
 
         mockMvc.perform(post("/api/v1/agentfirst/context/resolve")
                         .header("Authorization", API_KEY)
@@ -129,6 +148,73 @@ class AgentFirstControllerTest {
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value("ctx_pack_001"));
+    }
+
+    @Test
+    @DisplayName("Checkpoint API creates restore plan for branch resume")
+    void checkpointEndpoints_returnRestorePlan() throws Exception {
+        when(agentFirstService.createCheckpoint(eq(TENANT_ID), any()))
+                .thenReturn(new AgentFirstDtos.CheckpointResponse("ckpt_001"));
+        when(agentFirstService.restoreCheckpoint(eq(TENANT_ID), eq("ckpt_001")))
+                .thenReturn(new AgentFirstDtos.RestorePlanResponse(
+                        "ckpt_001",
+                        List.of("artifact_sql_001"),
+                        List.of("lineage_snapshot_001"),
+                        false));
+
+        mockMvc.perform(post("/api/v1/agentfirst/checkpoints")
+                        .header("Authorization", API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "branch_id": "branch_001",
+                                  "stage_run_id": "stage_sql",
+                                  "manifest": {
+                                    "artifacts": ["artifact_sql_001"],
+                                    "lineage": ["lineage_snapshot_001"]
+                                  }
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("ckpt_001"));
+
+        mockMvc.perform(post("/api/v1/agentfirst/checkpoints/ckpt_001/restore")
+                        .header("Authorization", API_KEY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.checkpoint_id").value("ckpt_001"))
+                .andExpect(jsonPath("$.restorable_refs[0]").value("artifact_sql_001"))
+                .andExpect(jsonPath("$.missing_refs[0]").value("lineage_snapshot_001"))
+                .andExpect(jsonPath("$.complete").value(false));
+    }
+
+    @Test
+    @DisplayName("Evidence API creates packet and blocks missing evidence")
+    void evidenceEndpoints_createPacketAndEvaluateGate() throws Exception {
+        when(agentFirstService.createEvidencePacket(eq(TENANT_ID), any()))
+                .thenReturn(new AgentFirstDtos.EvidencePacketResponse("evidence_001", "pending"));
+        when(agentFirstService.evaluateEvidence(eq(TENANT_ID), eq("evidence_001")))
+                .thenReturn(new AgentFirstDtos.PolicyDecisionResponse(false, "missing verified evidence"));
+
+        mockMvc.perform(post("/api/v1/agentfirst/evidence-packets")
+                        .header("Authorization", API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "task_run_id": "task_001",
+                                  "branch_id": "branch_001",
+                                  "claim": "daily revenue SQL is publishable",
+                                  "evidence_refs": []
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("evidence_001"))
+                .andExpect(jsonPath("$.status").value("pending"));
+
+        mockMvc.perform(post("/api/v1/agentfirst/evidence-packets/evidence_001/evaluate")
+                        .header("Authorization", API_KEY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.allowed").value(false))
+                .andExpect(jsonPath("$.reason").value("missing verified evidence"));
     }
 
     @Test

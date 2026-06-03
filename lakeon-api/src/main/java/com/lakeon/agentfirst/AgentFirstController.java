@@ -63,6 +63,14 @@ public class AgentFirstController {
         return agentFirstService.resolveContext(tenantId(httpRequest), request);
     }
 
+    @PostMapping("/context/sources")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AgentFirstDtos.IngestContextResponse ingestContextSource(
+            HttpServletRequest httpRequest,
+            @Valid @RequestBody AgentFirstDtos.IngestContextSourceRequest request) {
+        return agentFirstService.ingestContextSource(tenantId(httpRequest), request);
+    }
+
     @PostMapping("/context/packs")
     @ResponseStatus(HttpStatus.CREATED)
     public AgentFirstDtos.ContextPackResponse buildContextPack(
@@ -93,6 +101,36 @@ public class AgentFirstController {
             HttpServletRequest httpRequest,
             @Valid @RequestBody AgentFirstDtos.RecordLineageRequest request) {
         return agentFirstService.recordLineage(tenantId(httpRequest), request);
+    }
+
+    @PostMapping("/checkpoints")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AgentFirstDtos.CheckpointResponse createCheckpoint(
+            HttpServletRequest httpRequest,
+            @Valid @RequestBody AgentFirstDtos.CreateCheckpointRequest request) {
+        return agentFirstService.createCheckpoint(tenantId(httpRequest), request);
+    }
+
+    @PostMapping("/checkpoints/{checkpointId}/restore")
+    public AgentFirstDtos.RestorePlanResponse restoreCheckpoint(
+            HttpServletRequest httpRequest,
+            @PathVariable String checkpointId) {
+        return agentFirstService.restoreCheckpoint(tenantId(httpRequest), checkpointId);
+    }
+
+    @PostMapping("/evidence-packets")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AgentFirstDtos.EvidencePacketResponse createEvidencePacket(
+            HttpServletRequest httpRequest,
+            @Valid @RequestBody AgentFirstDtos.CreateEvidencePacketRequest request) {
+        return agentFirstService.createEvidencePacket(tenantId(httpRequest), request);
+    }
+
+    @PostMapping("/evidence-packets/{evidencePacketId}/evaluate")
+    public AgentFirstDtos.PolicyDecisionResponse evaluateEvidence(
+            HttpServletRequest httpRequest,
+            @PathVariable String evidencePacketId) {
+        return agentFirstService.evaluateEvidence(tenantId(httpRequest), evidencePacketId);
     }
 
     @PostMapping("/policy/check")

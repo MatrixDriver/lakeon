@@ -1,11 +1,14 @@
 package com.lakeon.agentfirst;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lakeon.service.exception.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class AgentFirstService {
@@ -15,9 +18,11 @@ public class AgentFirstService {
     private final AgentWorkspaceBranchRepository branchRepository;
     private final ContextNodeRepository contextNodeRepository;
     private final ContextPackRepository contextPackRepository;
+    private final AgentCheckpointRepository checkpointRepository;
     private final AgentStateCommitRepository stateCommitRepository;
     private final AgentArtifactRefRepository artifactRefRepository;
     private final AgentLineageEdgeRepository lineageEdgeRepository;
+    private final AgentEvidencePacketRepository evidencePacketRepository;
     private final AgentPolicyDecisionRepository policyDecisionRepository;
     private final AgentAuditEventRepository auditEventRepository;
     private final ObjectMapper objectMapper;
@@ -28,9 +33,11 @@ public class AgentFirstService {
                              AgentWorkspaceBranchRepository branchRepository,
                              ContextNodeRepository contextNodeRepository,
                              ContextPackRepository contextPackRepository,
+                             AgentCheckpointRepository checkpointRepository,
                              AgentStateCommitRepository stateCommitRepository,
                              AgentArtifactRefRepository artifactRefRepository,
                              AgentLineageEdgeRepository lineageEdgeRepository,
+                             AgentEvidencePacketRepository evidencePacketRepository,
                              AgentPolicyDecisionRepository policyDecisionRepository,
                              AgentAuditEventRepository auditEventRepository,
                              ObjectMapper objectMapper) {
@@ -40,9 +47,11 @@ public class AgentFirstService {
         this.branchRepository = branchRepository;
         this.contextNodeRepository = contextNodeRepository;
         this.contextPackRepository = contextPackRepository;
+        this.checkpointRepository = checkpointRepository;
         this.stateCommitRepository = stateCommitRepository;
         this.artifactRefRepository = artifactRefRepository;
         this.lineageEdgeRepository = lineageEdgeRepository;
+        this.evidencePacketRepository = evidencePacketRepository;
         this.policyDecisionRepository = policyDecisionRepository;
         this.auditEventRepository = auditEventRepository;
         this.objectMapper = objectMapper;
@@ -53,14 +62,17 @@ public class AgentFirstService {
                       AgentWorkspaceBranchRepository branchRepository,
                       ContextNodeRepository contextNodeRepository,
                       ContextPackRepository contextPackRepository,
+                      AgentCheckpointRepository checkpointRepository,
                       AgentStateCommitRepository stateCommitRepository,
                       AgentArtifactRefRepository artifactRefRepository,
                       AgentLineageEdgeRepository lineageEdgeRepository,
+                      AgentEvidencePacketRepository evidencePacketRepository,
                       AgentPolicyDecisionRepository policyDecisionRepository,
                       AgentAuditEventRepository auditEventRepository) {
         this(taskRunRepository, null, workspaceRepository, branchRepository, contextNodeRepository,
-                contextPackRepository, stateCommitRepository, artifactRefRepository, lineageEdgeRepository,
-                policyDecisionRepository, auditEventRepository, new ObjectMapper());
+                contextPackRepository, checkpointRepository, stateCommitRepository, artifactRefRepository,
+                lineageEdgeRepository, evidencePacketRepository, policyDecisionRepository, auditEventRepository,
+                new ObjectMapper());
     }
 
     @Transactional
@@ -114,6 +126,24 @@ public class AgentFirstService {
         branch.setHypothesis(request.hypothesis());
         AgentWorkspaceBranchEntity saved = branchRepository.save(branch);
         return new AgentFirstDtos.BranchResponse(saved.getId());
+    }
+
+    @Transactional
+    public AgentFirstDtos.IngestContextResponse ingestContextSource(
+            String tenantId, AgentFirstDtos.IngestContextSourceRequest request) {
+        List<String> nodeIds = (request.nodes() == null ? List.<AgentFirstDtos.ContextNodeInput>of() : request.nodes())
+                .stream()
+                .map(node -> {
+                    ContextNodeEntity entity = new ContextNodeEntity();
+                    entity.setId(node.id());
+                    entity.setTenantId(tenantId);
+                    entity.setType(node.type());
+                    entity.setName(node.name());
+                    entity.setSourceRef(request.sourceRef());
+                    return contextNodeRepository.save(entity).getId();
+                })
+                .toList();
+        return new AgentFirstDtos.IngestContextResponse(nodeIds);
     }
 
     public AgentFirstDtos.ResolveContextResponse resolveContext(
@@ -171,6 +201,49 @@ public class AgentFirstService {
     }
 
     @Transactional
+    public AgentFirstDtos.CheckpointResponse createCheckpoint(String tenantId, AgentFirstDtos.CreateCheckpointRequest request) {
+        AgentCheckpointEntity checkpoint = new AgentCheckpointEntity();
+        checkpoint.setTenantId(tenantId);
+        checkpoint.setBranchId(request.branchId());
+        checkpoint.setStageRunId(request.stageRunId());
+        checkpoint.setManifestJson(toJson(request.manifest() == null ? Map.of() : request.manifest()));
+        return new AgentFirstDtos.CheckpointResponse(checkpointRepository.save(checkpoint).getId());
+    }
+
+    public AgentFirstDtos.RestorePlanResponse restoreCheckpoint(String tenantId, String checkpointId) {
+        AgentCheckpointEntity checkpoint = checkpointRepository.findByIdAndTenantId(checkpointId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Checkpoint not found: " + checkpointId));
+        Map<String, Object> manifest = fromJsonObject(checkpoint.getManifestJson());
+        List<String> restorableRefs = stringList(manifest.get("artifacts"));
+        List<String> missingRefs = stringList(manifest.get("missing"));
+        return new AgentFirstDtos.RestorePlanResponse(
+                checkpoint.getId(), restorableRefs, missingRefs, missingRefs.isEmpty());
+    }
+
+    @Transactional
+    public AgentFirstDtos.EvidencePacketResponse createEvidencePacket(
+            String tenantId, AgentFirstDtos.CreateEvidencePacketRequest request) {
+        AgentEvidencePacketEntity packet = new AgentEvidencePacketEntity();
+        packet.setTenantId(tenantId);
+        packet.setTaskRunId(request.taskRunId());
+        packet.setBranchId(request.branchId());
+        packet.setClaim(request.claim());
+        packet.setEvidenceRefsJson(toJson(request.evidenceRefs() == null ? List.of() : request.evidenceRefs()));
+        AgentEvidencePacketEntity saved = evidencePacketRepository.save(packet);
+        return new AgentFirstDtos.EvidencePacketResponse(saved.getId(), saved.getStatus());
+    }
+
+    public AgentFirstDtos.PolicyDecisionResponse evaluateEvidence(String tenantId, String evidencePacketId) {
+        AgentEvidencePacketEntity packet = evidencePacketRepository.findByIdAndTenantId(evidencePacketId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Evidence packet not found: " + evidencePacketId));
+        List<String> evidenceRefs = fromJsonList(packet.getEvidenceRefsJson());
+        if (evidenceRefs.isEmpty()) {
+            return new AgentFirstDtos.PolicyDecisionResponse(false, "missing verified evidence");
+        }
+        return new AgentFirstDtos.PolicyDecisionResponse(true, "evidence verified");
+    }
+
+    @Transactional
     public AgentFirstDtos.PolicyDecisionResponse checkPermission(
             String tenantId, AgentFirstDtos.CheckPermissionRequest request) {
         boolean blocked = isHighRisk(request.riskLevel()) || isDestructive(request.action());
@@ -222,5 +295,34 @@ public class AgentFirstService {
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException("Invalid context pack payload", e);
         }
+    }
+
+    private Map<String, Object> fromJsonObject(String json) {
+        if (json == null || json.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<>() {});
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("Invalid checkpoint manifest", e);
+        }
+    }
+
+    private List<String> fromJsonList(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<>() {});
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("Invalid evidence refs", e);
+        }
+    }
+
+    private List<String> stringList(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream().map(String::valueOf).toList();
     }
 }

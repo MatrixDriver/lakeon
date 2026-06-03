@@ -262,6 +262,58 @@ class AgentLineageEdgeEntity extends AgentFirstEntity {
 }
 
 @Entity
+@Table(name = "agent_checkpoint")
+class AgentCheckpointEntity extends AgentFirstEntity {
+    @Column(name = "branch_id", nullable = false, length = 64)
+    private String branchId;
+
+    @Column(name = "stage_run_id", length = 64)
+    private String stageRunId;
+
+    @Column(name = "manifest_json", columnDefinition = "TEXT")
+    private String manifestJson;
+
+    @Override protected String idPrefix() { return "ckpt_"; }
+    public String getBranchId() { return branchId; }
+    public void setBranchId(String branchId) { this.branchId = branchId; }
+    public String getStageRunId() { return stageRunId; }
+    public void setStageRunId(String stageRunId) { this.stageRunId = stageRunId; }
+    public String getManifestJson() { return manifestJson; }
+    public void setManifestJson(String manifestJson) { this.manifestJson = manifestJson; }
+}
+
+@Entity
+@Table(name = "agent_evidence_packet")
+class AgentEvidencePacketEntity extends AgentFirstEntity {
+    @Column(name = "task_run_id", nullable = false, length = 64)
+    private String taskRunId;
+
+    @Column(name = "branch_id", length = 64)
+    private String branchId;
+
+    @Column(name = "claim", columnDefinition = "TEXT")
+    private String claim;
+
+    @Column(name = "status", nullable = false, length = 32)
+    private String status = "pending";
+
+    @Column(name = "evidence_refs_json", columnDefinition = "TEXT")
+    private String evidenceRefsJson;
+
+    @Override protected String idPrefix() { return "evidence_"; }
+    public String getTaskRunId() { return taskRunId; }
+    public void setTaskRunId(String taskRunId) { this.taskRunId = taskRunId; }
+    public String getBranchId() { return branchId; }
+    public void setBranchId(String branchId) { this.branchId = branchId; }
+    public String getClaim() { return claim; }
+    public void setClaim(String claim) { this.claim = claim; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public String getEvidenceRefsJson() { return evidenceRefsJson; }
+    public void setEvidenceRefsJson(String evidenceRefsJson) { this.evidenceRefsJson = evidenceRefsJson; }
+}
+
+@Entity
 @Table(name = "agent_policy_decision")
 class AgentPolicyDecisionEntity extends AgentFirstEntity {
     @Column(name = "task_run_id", nullable = false, length = 64)
