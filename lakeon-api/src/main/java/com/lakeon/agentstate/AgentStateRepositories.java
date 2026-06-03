@@ -1,4 +1,4 @@
-package com.lakeon.agentfirst;
+package com.lakeon.agentstate;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

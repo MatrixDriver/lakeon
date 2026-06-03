@@ -1,4 +1,4 @@
-package com.lakeon.agentfirst;
+package com.lakeon.agentstate;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonAlias;
@@ -7,8 +7,8 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.Map;
 
-public final class AgentFirstDtos {
-    private AgentFirstDtos() {}
+public final class AgentStateDtos {
+    private AgentStateDtos() {}
 
     public record CreateTaskRunRequest(
             @NotBlank String goal,

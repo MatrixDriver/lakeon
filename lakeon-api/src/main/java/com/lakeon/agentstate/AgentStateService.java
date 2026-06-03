@@ -1,9 +1,10 @@
-package com.lakeon.agentfirst;
+package com.lakeon.agentstate;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.service.exception.NotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-public class AgentFirstService {
+public class AgentStateService {
     private final AgentTaskRunRepository taskRunRepository;
     private final AgentStageRunRepository stageRunRepository;
     private final AgentWorkspaceRepository workspaceRepository;
@@ -27,7 +28,8 @@ public class AgentFirstService {
     private final AgentAuditEventRepository auditEventRepository;
     private final ObjectMapper objectMapper;
 
-    public AgentFirstService(AgentTaskRunRepository taskRunRepository,
+    @Autowired
+    public AgentStateService(AgentTaskRunRepository taskRunRepository,
                              AgentStageRunRepository stageRunRepository,
                              AgentWorkspaceRepository workspaceRepository,
                              AgentWorkspaceBranchRepository branchRepository,
@@ -57,7 +59,7 @@ public class AgentFirstService {
         this.objectMapper = objectMapper;
     }
 
-    AgentFirstService(AgentTaskRunRepository taskRunRepository,
+    AgentStateService(AgentTaskRunRepository taskRunRepository,
                       AgentWorkspaceRepository workspaceRepository,
                       AgentWorkspaceBranchRepository branchRepository,
                       ContextNodeRepository contextNodeRepository,
@@ -76,19 +78,19 @@ public class AgentFirstService {
     }
 
     @Transactional
-    public AgentFirstDtos.TaskRunResponse createTaskRun(String tenantId, AgentFirstDtos.CreateTaskRunRequest request) {
+    public AgentStateDtos.TaskRunResponse createTaskRun(String tenantId, AgentStateDtos.CreateTaskRunRequest request) {
         AgentTaskRunEntity entity = new AgentTaskRunEntity();
         entity.setTenantId(tenantId);
         entity.setGoal(request.goal());
         entity.setHarnessId(request.harnessId());
         entity.setStatus("running");
         AgentTaskRunEntity saved = taskRunRepository.save(entity);
-        return new AgentFirstDtos.TaskRunResponse(saved.getId(), saved.getHarnessId(), saved.getStatus());
+        return new AgentStateDtos.TaskRunResponse(saved.getId(), saved.getHarnessId(), saved.getStatus());
     }
 
     @Transactional
-    public AgentFirstDtos.StageRunResponse createStageRun(
-            String tenantId, String taskRunId, AgentFirstDtos.CreateStageRunRequest request) {
+    public AgentStateDtos.StageRunResponse createStageRun(
+            String tenantId, String taskRunId, AgentStateDtos.CreateStageRunRequest request) {
         AgentStageRunEntity entity = new AgentStageRunEntity();
         entity.setTenantId(tenantId);
         entity.setTaskRunId(taskRunId);
@@ -96,13 +98,13 @@ public class AgentFirstService {
         entity.setBranchId(request.branchId());
         entity.setContextPackId(request.contextPackId());
         AgentStageRunEntity saved = stageRunRepository.save(entity);
-        return new AgentFirstDtos.StageRunResponse(
+        return new AgentStateDtos.StageRunResponse(
                 saved.getId(), saved.getTaskRunId(), saved.getStageId(), saved.getStatus(),
                 saved.getBranchId(), saved.getContextPackId());
     }
 
     @Transactional
-    public AgentFirstDtos.WorkspaceResponse createWorkspace(String tenantId, AgentFirstDtos.CreateWorkspaceRequest request) {
+    public AgentStateDtos.WorkspaceResponse createWorkspace(String tenantId, AgentStateDtos.CreateWorkspaceRequest request) {
         AgentWorkspaceEntity workspace = new AgentWorkspaceEntity();
         workspace.setTenantId(tenantId);
         workspace.setTaskRunId(request.taskRunId());
@@ -113,11 +115,11 @@ public class AgentFirstService {
         root.setWorkspaceId(savedWorkspace.getId());
         root.setName("root");
         AgentWorkspaceBranchEntity savedRoot = branchRepository.save(root);
-        return new AgentFirstDtos.WorkspaceResponse(savedWorkspace.getId(), savedRoot.getId());
+        return new AgentStateDtos.WorkspaceResponse(savedWorkspace.getId(), savedRoot.getId());
     }
 
     @Transactional
-    public AgentFirstDtos.BranchResponse forkBranch(String tenantId, AgentFirstDtos.ForkBranchRequest request) {
+    public AgentStateDtos.BranchResponse forkBranch(String tenantId, AgentStateDtos.ForkBranchRequest request) {
         AgentWorkspaceBranchEntity branch = new AgentWorkspaceBranchEntity();
         branch.setTenantId(tenantId);
         branch.setWorkspaceId(request.workspaceId());
@@ -125,13 +127,13 @@ public class AgentFirstService {
         branch.setName("branch");
         branch.setHypothesis(request.hypothesis());
         AgentWorkspaceBranchEntity saved = branchRepository.save(branch);
-        return new AgentFirstDtos.BranchResponse(saved.getId());
+        return new AgentStateDtos.BranchResponse(saved.getId());
     }
 
     @Transactional
-    public AgentFirstDtos.IngestContextResponse ingestContextSource(
-            String tenantId, AgentFirstDtos.IngestContextSourceRequest request) {
-        List<String> nodeIds = (request.nodes() == null ? List.<AgentFirstDtos.ContextNodeInput>of() : request.nodes())
+    public AgentStateDtos.IngestContextResponse ingestContextSource(
+            String tenantId, AgentStateDtos.IngestContextSourceRequest request) {
+        List<String> nodeIds = (request.nodes() == null ? List.<AgentStateDtos.ContextNodeInput>of() : request.nodes())
                 .stream()
                 .map(node -> {
                     ContextNodeEntity entity = new ContextNodeEntity();
@@ -143,75 +145,75 @@ public class AgentFirstService {
                     return contextNodeRepository.save(entity).getId();
                 })
                 .toList();
-        return new AgentFirstDtos.IngestContextResponse(nodeIds);
+        return new AgentStateDtos.IngestContextResponse(nodeIds);
     }
 
-    public AgentFirstDtos.ResolveContextResponse resolveContext(
-            String tenantId, AgentFirstDtos.ResolveContextRequest request) {
+    public AgentStateDtos.ResolveContextResponse resolveContext(
+            String tenantId, AgentStateDtos.ResolveContextRequest request) {
         List<String> nodeIds = contextNodeRepository.findByTenantIdOrderByCreatedAtAsc(tenantId)
                 .stream()
                 .map(ContextNodeEntity::getId)
                 .toList();
-        return new AgentFirstDtos.ResolveContextResponse(nodeIds);
+        return new AgentStateDtos.ResolveContextResponse(nodeIds);
     }
 
     @Transactional
-    public AgentFirstDtos.ContextPackResponse buildContextPack(
-            String tenantId, AgentFirstDtos.BuildContextPackRequest request) {
+    public AgentStateDtos.ContextPackResponse buildContextPack(
+            String tenantId, AgentStateDtos.BuildContextPackRequest request) {
         ContextPackEntity pack = new ContextPackEntity();
         pack.setTenantId(tenantId);
         pack.setTaskRunId(request.taskRunId());
         pack.setStageRunId(request.stageRunId());
         pack.setSelectedNodesJson(toJson(request.selectedNodeIds() == null ? List.of() : request.selectedNodeIds()));
         ContextPackEntity saved = contextPackRepository.save(pack);
-        return new AgentFirstDtos.ContextPackResponse(saved.getId());
+        return new AgentStateDtos.ContextPackResponse(saved.getId());
     }
 
     @Transactional
-    public AgentFirstDtos.IdResponse appendStateCommit(String tenantId, AgentFirstDtos.AppendStateCommitRequest request) {
+    public AgentStateDtos.IdResponse appendStateCommit(String tenantId, AgentStateDtos.AppendStateCommitRequest request) {
         AgentStateCommitEntity commit = new AgentStateCommitEntity();
         commit.setTenantId(tenantId);
         commit.setTaskRunId(request.taskRunId());
         commit.setStageRunId(request.stageRunId());
         commit.setBranchId(request.branchId());
         commit.setSummary(request.summary());
-        return new AgentFirstDtos.IdResponse(stateCommitRepository.save(commit).getId());
+        return new AgentStateDtos.IdResponse(stateCommitRepository.save(commit).getId());
     }
 
     @Transactional
-    public AgentFirstDtos.IdResponse recordArtifact(String tenantId, AgentFirstDtos.RecordArtifactRequest request) {
+    public AgentStateDtos.IdResponse recordArtifact(String tenantId, AgentStateDtos.RecordArtifactRequest request) {
         AgentArtifactRefEntity artifact = new AgentArtifactRefEntity();
         artifact.setTenantId(tenantId);
         artifact.setTaskRunId(request.taskRunId());
         artifact.setStageRunId(request.stageRunId());
         artifact.setBranchId(request.branchId());
         artifact.setKind(request.kind());
-        return new AgentFirstDtos.IdResponse(artifactRefRepository.save(artifact).getId());
+        return new AgentStateDtos.IdResponse(artifactRefRepository.save(artifact).getId());
     }
 
     @Transactional
-    public AgentFirstDtos.IdResponse recordLineage(String tenantId, AgentFirstDtos.RecordLineageRequest request) {
+    public AgentStateDtos.IdResponse recordLineage(String tenantId, AgentStateDtos.RecordLineageRequest request) {
         AgentLineageEdgeEntity lineage = new AgentLineageEdgeEntity();
         lineage.setTenantId(tenantId);
         lineage.setTaskRunId(request.taskRunId());
         lineage.setStageRunId(request.stageRunId());
         lineage.setBranchId(request.branchId());
         lineage.setArtifactId(request.artifactId());
-        return new AgentFirstDtos.IdResponse(lineageEdgeRepository.save(lineage).getId());
+        return new AgentStateDtos.IdResponse(lineageEdgeRepository.save(lineage).getId());
     }
 
     @Transactional
-    public AgentFirstDtos.CheckpointResponse createCheckpoint(String tenantId, AgentFirstDtos.CreateCheckpointRequest request) {
+    public AgentStateDtos.CheckpointResponse createCheckpoint(String tenantId, AgentStateDtos.CreateCheckpointRequest request) {
         AgentCheckpointEntity checkpoint = new AgentCheckpointEntity();
         checkpoint.setTenantId(tenantId);
         checkpoint.setBranchId(request.branchId());
         checkpoint.setStageRunId(request.stageRunId());
         checkpoint.setManifestJson(toJson(request.manifest() == null ? Map.of() : request.manifest()));
-        return new AgentFirstDtos.CheckpointResponse(checkpointRepository.save(checkpoint).getId());
+        return new AgentStateDtos.CheckpointResponse(checkpointRepository.save(checkpoint).getId());
     }
 
     @Transactional
-    public AgentFirstDtos.IdResponse snapshotManifest(String tenantId, AgentFirstDtos.SnapshotManifestRequest request) {
+    public AgentStateDtos.IdResponse snapshotManifest(String tenantId, AgentStateDtos.SnapshotManifestRequest request) {
         AgentCheckpointEntity checkpoint = new AgentCheckpointEntity();
         checkpoint.setTenantId(tenantId);
         checkpoint.setBranchId(request.branchId());
@@ -222,22 +224,22 @@ public class AgentFirstService {
                 "branch_id", request.branchId(),
                 "artifacts", request.artifactIds() == null ? List.of() : request.artifactIds()
         )));
-        return new AgentFirstDtos.IdResponse(checkpointRepository.save(checkpoint).getId());
+        return new AgentStateDtos.IdResponse(checkpointRepository.save(checkpoint).getId());
     }
 
-    public AgentFirstDtos.RestorePlanResponse restoreCheckpoint(String tenantId, String checkpointId) {
+    public AgentStateDtos.RestorePlanResponse restoreCheckpoint(String tenantId, String checkpointId) {
         AgentCheckpointEntity checkpoint = checkpointRepository.findByIdAndTenantId(checkpointId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Checkpoint not found: " + checkpointId));
         Map<String, Object> manifest = fromJsonObject(checkpoint.getManifestJson());
         List<String> restorableRefs = stringList(manifest.get("artifacts"));
         List<String> missingRefs = stringList(manifest.get("missing"));
-        return new AgentFirstDtos.RestorePlanResponse(
+        return new AgentStateDtos.RestorePlanResponse(
                 checkpoint.getId(), restorableRefs, missingRefs, missingRefs.isEmpty());
     }
 
     @Transactional
-    public AgentFirstDtos.EvidencePacketResponse createEvidencePacket(
-            String tenantId, AgentFirstDtos.CreateEvidencePacketRequest request) {
+    public AgentStateDtos.EvidencePacketResponse createEvidencePacket(
+            String tenantId, AgentStateDtos.CreateEvidencePacketRequest request) {
         AgentEvidencePacketEntity packet = new AgentEvidencePacketEntity();
         packet.setTenantId(tenantId);
         packet.setTaskRunId(request.taskRunId());
@@ -245,22 +247,22 @@ public class AgentFirstService {
         packet.setClaim(request.claim());
         packet.setEvidenceRefsJson(toJson(request.evidenceRefs() == null ? List.of() : request.evidenceRefs()));
         AgentEvidencePacketEntity saved = evidencePacketRepository.save(packet);
-        return new AgentFirstDtos.EvidencePacketResponse(saved.getId(), saved.getStatus());
+        return new AgentStateDtos.EvidencePacketResponse(saved.getId(), saved.getStatus());
     }
 
-    public AgentFirstDtos.PolicyDecisionResponse evaluateEvidence(String tenantId, String evidencePacketId) {
+    public AgentStateDtos.PolicyDecisionResponse evaluateEvidence(String tenantId, String evidencePacketId) {
         AgentEvidencePacketEntity packet = evidencePacketRepository.findByIdAndTenantId(evidencePacketId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Evidence packet not found: " + evidencePacketId));
         List<String> evidenceRefs = fromJsonList(packet.getEvidenceRefsJson());
         if (evidenceRefs.isEmpty()) {
-            return new AgentFirstDtos.PolicyDecisionResponse(false, "missing verified evidence");
+            return new AgentStateDtos.PolicyDecisionResponse(false, "missing verified evidence");
         }
-        return new AgentFirstDtos.PolicyDecisionResponse(true, "evidence verified");
+        return new AgentStateDtos.PolicyDecisionResponse(true, "evidence verified");
     }
 
     @Transactional
-    public AgentFirstDtos.PolicyDecisionResponse checkPermission(
-            String tenantId, AgentFirstDtos.CheckPermissionRequest request) {
+    public AgentStateDtos.PolicyDecisionResponse checkPermission(
+            String tenantId, AgentStateDtos.CheckPermissionRequest request) {
         boolean blocked = isHighRisk(request.riskLevel()) || isDestructive(request.action());
         String reason = blocked ? "Action requires approval before runtime execution" : "allowed";
 
@@ -273,11 +275,11 @@ public class AgentFirstService {
         decision.setReason(reason);
         policyDecisionRepository.save(decision);
 
-        return new AgentFirstDtos.PolicyDecisionResponse(!blocked, reason);
+        return new AgentStateDtos.PolicyDecisionResponse(!blocked, reason);
     }
 
     @Transactional
-    public AgentFirstDtos.IdResponse appendAuditEvent(String tenantId, AgentFirstDtos.AppendAuditEventRequest request) {
+    public AgentStateDtos.IdResponse appendAuditEvent(String tenantId, AgentStateDtos.AppendAuditEventRequest request) {
         AgentAuditEventEntity event = new AgentAuditEventEntity();
         event.setTenantId(tenantId);
         event.setTaskRunId(request.taskRunId());
@@ -285,13 +287,13 @@ public class AgentFirstService {
         event.setAction(request.action());
         event.setResult(request.result());
         event.setReason(request.reason());
-        return new AgentFirstDtos.IdResponse(auditEventRepository.save(event).getId());
+        return new AgentStateDtos.IdResponse(auditEventRepository.save(event).getId());
     }
 
-    public List<AgentFirstDtos.IdResponse> listAuditEvents(String tenantId, String taskRunId) {
+    public List<AgentStateDtos.IdResponse> listAuditEvents(String tenantId, String taskRunId) {
         return auditEventRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, taskRunId)
                 .stream()
-                .map(event -> new AgentFirstDtos.IdResponse(event.getId()))
+                .map(event -> new AgentStateDtos.IdResponse(event.getId()))
                 .toList();
     }
 

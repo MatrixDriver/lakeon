@@ -1,4 +1,4 @@
-package com.lakeon.agentfirst;
+package com.lakeon.agentstate;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -11,7 +11,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @MappedSuperclass
-abstract class AgentFirstEntity {
+abstract class AgentStateEntity {
     @Id
     @Column(name = "id", length = 64)
     private String id;
@@ -44,7 +44,7 @@ abstract class AgentFirstEntity {
 
 @Entity
 @Table(name = "agent_task_run")
-class AgentTaskRunEntity extends AgentFirstEntity {
+class AgentTaskRunEntity extends AgentStateEntity {
     @Column(name = "goal", nullable = false, columnDefinition = "TEXT")
     private String goal;
 
@@ -65,7 +65,7 @@ class AgentTaskRunEntity extends AgentFirstEntity {
 
 @Entity
 @Table(name = "agent_stage_run")
-class AgentStageRunEntity extends AgentFirstEntity {
+class AgentStageRunEntity extends AgentStateEntity {
     @Column(name = "task_run_id", nullable = false, length = 64)
     private String taskRunId;
 
@@ -96,7 +96,7 @@ class AgentStageRunEntity extends AgentFirstEntity {
 
 @Entity
 @Table(name = "agent_workspace")
-class AgentWorkspaceEntity extends AgentFirstEntity {
+class AgentWorkspaceEntity extends AgentStateEntity {
     @Column(name = "task_run_id", nullable = false, length = 64)
     private String taskRunId;
 
@@ -107,7 +107,7 @@ class AgentWorkspaceEntity extends AgentFirstEntity {
 
 @Entity
 @Table(name = "agent_workspace_branch")
-class AgentWorkspaceBranchEntity extends AgentFirstEntity {
+class AgentWorkspaceBranchEntity extends AgentStateEntity {
     @Column(name = "workspace_id", nullable = false, length = 64)
     private String workspaceId;
 
@@ -143,7 +143,7 @@ class AgentWorkspaceBranchEntity extends AgentFirstEntity {
 
 @Entity
 @Table(name = "context_node")
-class ContextNodeEntity extends AgentFirstEntity {
+class ContextNodeEntity extends AgentStateEntity {
     @Column(name = "type", nullable = false, length = 64)
     private String type = "schema";
 
@@ -164,7 +164,7 @@ class ContextNodeEntity extends AgentFirstEntity {
 
 @Entity
 @Table(name = "context_pack")
-class ContextPackEntity extends AgentFirstEntity {
+class ContextPackEntity extends AgentStateEntity {
     @Column(name = "task_run_id", nullable = false, length = 64)
     private String taskRunId;
 
@@ -185,7 +185,7 @@ class ContextPackEntity extends AgentFirstEntity {
 
 @Entity
 @Table(name = "agent_state_commit")
-class AgentStateCommitEntity extends AgentFirstEntity {
+class AgentStateCommitEntity extends AgentStateEntity {
     @Column(name = "task_run_id", nullable = false, length = 64)
     private String taskRunId;
 
@@ -211,7 +211,7 @@ class AgentStateCommitEntity extends AgentFirstEntity {
 
 @Entity
 @Table(name = "agent_artifact_ref")
-class AgentArtifactRefEntity extends AgentFirstEntity {
+class AgentArtifactRefEntity extends AgentStateEntity {
     @Column(name = "task_run_id", nullable = false, length = 64)
     private String taskRunId;
 
@@ -237,7 +237,7 @@ class AgentArtifactRefEntity extends AgentFirstEntity {
 
 @Entity
 @Table(name = "agent_lineage_edge")
-class AgentLineageEdgeEntity extends AgentFirstEntity {
+class AgentLineageEdgeEntity extends AgentStateEntity {
     @Column(name = "task_run_id", nullable = false, length = 64)
     private String taskRunId;
 
@@ -263,7 +263,7 @@ class AgentLineageEdgeEntity extends AgentFirstEntity {
 
 @Entity
 @Table(name = "agent_checkpoint")
-class AgentCheckpointEntity extends AgentFirstEntity {
+class AgentCheckpointEntity extends AgentStateEntity {
     @Column(name = "branch_id", nullable = false, length = 64)
     private String branchId;
 
@@ -284,7 +284,7 @@ class AgentCheckpointEntity extends AgentFirstEntity {
 
 @Entity
 @Table(name = "agent_evidence_packet")
-class AgentEvidencePacketEntity extends AgentFirstEntity {
+class AgentEvidencePacketEntity extends AgentStateEntity {
     @Column(name = "task_run_id", nullable = false, length = 64)
     private String taskRunId;
 
@@ -315,7 +315,7 @@ class AgentEvidencePacketEntity extends AgentFirstEntity {
 
 @Entity
 @Table(name = "agent_policy_decision")
-class AgentPolicyDecisionEntity extends AgentFirstEntity {
+class AgentPolicyDecisionEntity extends AgentStateEntity {
     @Column(name = "task_run_id", nullable = false, length = 64)
     private String taskRunId;
 
@@ -346,7 +346,7 @@ class AgentPolicyDecisionEntity extends AgentFirstEntity {
 
 @Entity
 @Table(name = "agent_audit_event")
-class AgentAuditEventEntity extends AgentFirstEntity {
+class AgentAuditEventEntity extends AgentStateEntity {
     @Column(name = "task_run_id", nullable = false, length = 64)
     private String taskRunId;
 

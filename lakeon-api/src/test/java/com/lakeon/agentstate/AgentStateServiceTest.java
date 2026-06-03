@@ -1,4 +1,4 @@
-package com.lakeon.agentfirst;
+package com.lakeon.agentstate;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,8 +15,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("AgentFirstService unit tests")
-class AgentFirstServiceTest {
+@DisplayName("AgentStateService unit tests")
+class AgentStateServiceTest {
 
     @Mock private AgentTaskRunRepository taskRunRepository;
     @Mock private AgentWorkspaceRepository workspaceRepository;
@@ -34,7 +34,7 @@ class AgentFirstServiceTest {
     @Test
     @DisplayName("createWorkspace persists workspace plus root branch for a tenant task")
     void createWorkspace_persistsWorkspaceAndRootBranch() {
-        AgentFirstService service = service();
+        AgentStateService service = service();
         when(workspaceRepository.save(any(AgentWorkspaceEntity.class))).thenAnswer(inv -> {
             AgentWorkspaceEntity entity = inv.getArgument(0);
             entity.prePersist();
@@ -46,8 +46,8 @@ class AgentFirstServiceTest {
             return entity;
         });
 
-        AgentFirstDtos.WorkspaceResponse response = service.createWorkspace(
-                "tn_test001", new AgentFirstDtos.CreateWorkspaceRequest("task_001"));
+        AgentStateDtos.WorkspaceResponse response = service.createWorkspace(
+                "tn_test001", new AgentStateDtos.CreateWorkspaceRequest("task_001"));
 
         assertThat(response.id()).startsWith("ws_");
         assertThat(response.rootBranchId()).startsWith("awb_");
@@ -64,7 +64,7 @@ class AgentFirstServiceTest {
     @Test
     @DisplayName("resolveContext returns tenant scoped context node ids")
     void resolveContext_returnsTenantScopedNodeIds() {
-        AgentFirstService service = service();
+        AgentStateService service = service();
         ContextNodeEntity table = new ContextNodeEntity();
         table.setId("schema_orders");
         ContextNodeEntity column = new ContextNodeEntity();
@@ -72,9 +72,9 @@ class AgentFirstServiceTest {
         when(contextNodeRepository.findByTenantIdOrderByCreatedAtAsc("tn_test001"))
                 .thenReturn(List.of(table, column));
 
-        AgentFirstDtos.ResolveContextResponse response = service.resolveContext(
+        AgentStateDtos.ResolveContextResponse response = service.resolveContext(
                 "tn_test001",
-                new AgentFirstDtos.ResolveContextRequest("task_001", "stage_schema", "orders"));
+                new AgentStateDtos.ResolveContextRequest("task_001", "stage_schema", "orders"));
 
         assertThat(response.nodeIds()).containsExactly("schema_orders", "column_customer_email");
     }
@@ -82,15 +82,15 @@ class AgentFirstServiceTest {
     @Test
     @DisplayName("ingestContextSource persists tenant-scoped context nodes")
     void ingestContextSource_persistsContextNodes() {
-        AgentFirstService service = service();
+        AgentStateService service = service();
         when(contextNodeRepository.save(any(ContextNodeEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        AgentFirstDtos.IngestContextResponse response = service.ingestContextSource(
+        AgentStateDtos.IngestContextResponse response = service.ingestContextSource(
                 "tn_test001",
-                new AgentFirstDtos.IngestContextSourceRequest(
+                new AgentStateDtos.IngestContextSourceRequest(
                         "dbt_manifest",
                         "fixtures/manifest.json",
-                        List.of(new AgentFirstDtos.ContextNodeInput("schema_orders", "table", "orders"))));
+                        List.of(new AgentStateDtos.ContextNodeInput("schema_orders", "table", "orders"))));
 
         assertThat(response.nodeIds()).containsExactly("schema_orders");
         verify(contextNodeRepository).save(any(ContextNodeEntity.class));
@@ -99,7 +99,7 @@ class AgentFirstServiceTest {
     @Test
     @DisplayName("createCheckpoint stores manifest and restoreCheckpoint returns restorable and missing refs")
     void checkpointRestore_returnsResumePlan() {
-        AgentFirstService service = service();
+        AgentStateService service = service();
         when(checkpointRepository.save(any(AgentCheckpointEntity.class))).thenAnswer(inv -> {
             AgentCheckpointEntity entity = inv.getArgument(0);
             entity.prePersist();
@@ -110,13 +110,13 @@ class AgentFirstServiceTest {
         checkpoint.setManifestJson("{\"artifacts\":[\"artifact_sql_001\"],\"missing\":[\"lineage_snapshot_001\"]}");
         when(checkpointRepository.findByIdAndTenantId("ckpt_001", "tn_test001")).thenReturn(java.util.Optional.of(checkpoint));
 
-        AgentFirstDtos.CheckpointResponse checkpointResponse = service.createCheckpoint(
+        AgentStateDtos.CheckpointResponse checkpointResponse = service.createCheckpoint(
                 "tn_test001",
-                new AgentFirstDtos.CreateCheckpointRequest(
+                new AgentStateDtos.CreateCheckpointRequest(
                         "branch_001",
                         "stage_sql",
                         java.util.Map.of("artifacts", List.of("artifact_sql_001"))));
-        AgentFirstDtos.RestorePlanResponse restorePlan = service.restoreCheckpoint("tn_test001", "ckpt_001");
+        AgentStateDtos.RestorePlanResponse restorePlan = service.restoreCheckpoint("tn_test001", "ckpt_001");
 
         assertThat(checkpointResponse.id()).startsWith("ckpt_");
         assertThat(restorePlan.restorableRefs()).containsExactly("artifact_sql_001");
@@ -127,16 +127,16 @@ class AgentFirstServiceTest {
     @Test
     @DisplayName("snapshotManifest stores OpenCode artifact ids as checkpoint manifest refs")
     void snapshotManifest_storesArtifactRefsForRestore() {
-        AgentFirstService service = service();
+        AgentStateService service = service();
         when(checkpointRepository.save(any(AgentCheckpointEntity.class))).thenAnswer(inv -> {
             AgentCheckpointEntity entity = inv.getArgument(0);
             entity.prePersist();
             return entity;
         });
 
-        AgentFirstDtos.IdResponse response = service.snapshotManifest(
+        AgentStateDtos.IdResponse response = service.snapshotManifest(
                 "tn_test001",
-                new AgentFirstDtos.SnapshotManifestRequest(
+                new AgentStateDtos.SnapshotManifestRequest(
                         "task_001",
                         "stage_sql",
                         "branch_001",
@@ -154,14 +154,14 @@ class AgentFirstServiceTest {
     @Test
     @DisplayName("evaluateEvidence blocks packets without evidence refs")
     void evaluateEvidence_blocksMissingEvidenceRefs() {
-        AgentFirstService service = service();
+        AgentStateService service = service();
         AgentEvidencePacketEntity packet = new AgentEvidencePacketEntity();
         packet.setId("evidence_001");
         packet.setEvidenceRefsJson("[]");
         when(evidencePacketRepository.findByIdAndTenantId("evidence_001", "tn_test001"))
                 .thenReturn(java.util.Optional.of(packet));
 
-        AgentFirstDtos.PolicyDecisionResponse response = service.evaluateEvidence("tn_test001", "evidence_001");
+        AgentStateDtos.PolicyDecisionResponse response = service.evaluateEvidence("tn_test001", "evidence_001");
 
         assertThat(response.allowed()).isFalse();
         assertThat(response.reason()).contains("missing verified evidence");
@@ -170,16 +170,16 @@ class AgentFirstServiceTest {
     @Test
     @DisplayName("checkPermission blocks destructive or high-risk SQL and records decision")
     void checkPermission_blocksHighRiskActionAndPersistsDecision() {
-        AgentFirstService service = service();
+        AgentStateService service = service();
         when(policyDecisionRepository.save(any(AgentPolicyDecisionEntity.class))).thenAnswer(inv -> {
             AgentPolicyDecisionEntity entity = inv.getArgument(0);
             entity.prePersist();
             return entity;
         });
 
-        AgentFirstDtos.PolicyDecisionResponse response = service.checkPermission(
+        AgentStateDtos.PolicyDecisionResponse response = service.checkPermission(
                 "tn_test001",
-                new AgentFirstDtos.CheckPermissionRequest(
+                new AgentStateDtos.CheckPermissionRequest(
                         "task_001", "drop table customers", "high", "branch_001"));
 
         assertThat(response.allowed()).isFalse();
@@ -187,8 +187,8 @@ class AgentFirstServiceTest {
         verify(policyDecisionRepository).save(any(AgentPolicyDecisionEntity.class));
     }
 
-    private AgentFirstService service() {
-        return new AgentFirstService(
+    private AgentStateService service() {
+        return new AgentStateService(
                 taskRunRepository,
                 workspaceRepository,
                 branchRepository,

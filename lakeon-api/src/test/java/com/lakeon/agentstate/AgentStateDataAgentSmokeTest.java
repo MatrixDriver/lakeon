@@ -1,4 +1,4 @@
-package com.lakeon.agentfirst;
+package com.lakeon.agentstate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -14,8 +14,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
 @ActiveProfiles("test")
-@DisplayName("AgentFirst Data Agent smoke fixture")
-class AgentFirstDataAgentSmokeTest {
+@DisplayName("AgentState Data Agent smoke fixture")
+class AgentStateDataAgentSmokeTest {
 
     @Autowired private AgentTaskRunRepository taskRunRepository;
     @Autowired private AgentStageRunRepository stageRunRepository;
@@ -34,88 +34,88 @@ class AgentFirstDataAgentSmokeTest {
     @Test
     @DisplayName("fixture: SQL/dbt publish flow requires context, branch state, checkpoint, and evidence gate")
     void dataAgentFixture_runsStateClosure() {
-        AgentFirstService service = service();
+        AgentStateService service = service();
         String tenantId = "tn_data_agent_fixture";
 
-        AgentFirstDtos.TaskRunResponse task = service.createTaskRun(
+        AgentStateDtos.TaskRunResponse task = service.createTaskRun(
                 tenantId,
-                new AgentFirstDtos.CreateTaskRunRequest(
+                new AgentStateDtos.CreateTaskRunRequest(
                         "publish daily_revenue_by_region dbt model",
                         "data"));
-        AgentFirstDtos.StageRunResponse contextStage = service.createStageRun(
+        AgentStateDtos.StageRunResponse contextStage = service.createStageRun(
                 tenantId,
                 task.id(),
-                new AgentFirstDtos.CreateStageRunRequest("context_pack", null, null));
+                new AgentStateDtos.CreateStageRunRequest("context_pack", null, null));
 
-        AgentFirstDtos.IngestContextResponse ingested = service.ingestContextSource(
+        AgentStateDtos.IngestContextResponse ingested = service.ingestContextSource(
                 tenantId,
-                new AgentFirstDtos.IngestContextSourceRequest(
+                new AgentStateDtos.IngestContextSourceRequest(
                         "dbt_manifest",
                         "fixtures/data-agent/manifest.json",
                         List.of(
-                                new AgentFirstDtos.ContextNodeInput("schema_orders", "table", "orders"),
-                                new AgentFirstDtos.ContextNodeInput("schema_payments", "table", "payments"),
-                                new AgentFirstDtos.ContextNodeInput("column_customer_email", "column", "customers.email"))));
-        AgentFirstDtos.ResolveContextResponse resolved = service.resolveContext(
+                                new AgentStateDtos.ContextNodeInput("schema_orders", "table", "orders"),
+                                new AgentStateDtos.ContextNodeInput("schema_payments", "table", "payments"),
+                                new AgentStateDtos.ContextNodeInput("column_customer_email", "column", "customers.email"))));
+        AgentStateDtos.ResolveContextResponse resolved = service.resolveContext(
                 tenantId,
-                new AgentFirstDtos.ResolveContextRequest(task.id(), contextStage.id(), "daily revenue schema"));
-        AgentFirstDtos.ContextPackResponse contextPack = service.buildContextPack(
+                new AgentStateDtos.ResolveContextRequest(task.id(), contextStage.id(), "daily revenue schema"));
+        AgentStateDtos.ContextPackResponse contextPack = service.buildContextPack(
                 tenantId,
-                new AgentFirstDtos.BuildContextPackRequest(task.id(), contextStage.id(), resolved.nodeIds()));
+                new AgentStateDtos.BuildContextPackRequest(task.id(), contextStage.id(), resolved.nodeIds()));
 
-        AgentFirstDtos.WorkspaceResponse workspace = service.createWorkspace(
+        AgentStateDtos.WorkspaceResponse workspace = service.createWorkspace(
                 tenantId,
-                new AgentFirstDtos.CreateWorkspaceRequest(task.id()));
-        AgentFirstDtos.StageRunResponse sqlStage = service.createStageRun(
+                new AgentStateDtos.CreateWorkspaceRequest(task.id()));
+        AgentStateDtos.StageRunResponse sqlStage = service.createStageRun(
                 tenantId,
                 task.id(),
-                new AgentFirstDtos.CreateStageRunRequest("sql_validate", null, contextPack.id()));
-        AgentFirstDtos.BranchResponse branch = service.forkBranch(
+                new AgentStateDtos.CreateStageRunRequest("sql_validate", null, contextPack.id()));
+        AgentStateDtos.BranchResponse branch = service.forkBranch(
                 tenantId,
-                new AgentFirstDtos.ForkBranchRequest(
+                new AgentStateDtos.ForkBranchRequest(
                         workspace.id(),
                         sqlStage.id(),
                         "safe aggregate without PII output"));
 
-        AgentFirstDtos.IdResponse artifact = service.recordArtifact(
+        AgentStateDtos.IdResponse artifact = service.recordArtifact(
                 tenantId,
-                new AgentFirstDtos.RecordArtifactRequest(task.id(), sqlStage.id(), branch.id(), "compiled_sql"));
-        AgentFirstDtos.IdResponse lineage = service.recordLineage(
+                new AgentStateDtos.RecordArtifactRequest(task.id(), sqlStage.id(), branch.id(), "compiled_sql"));
+        AgentStateDtos.IdResponse lineage = service.recordLineage(
                 tenantId,
-                new AgentFirstDtos.RecordLineageRequest(task.id(), sqlStage.id(), branch.id(), artifact.id()));
+                new AgentStateDtos.RecordLineageRequest(task.id(), sqlStage.id(), branch.id(), artifact.id()));
         service.appendStateCommit(
                 tenantId,
-                new AgentFirstDtos.AppendStateCommitRequest(
+                new AgentStateDtos.AppendStateCommitRequest(
                         task.id(),
                         sqlStage.id(),
                         branch.id(),
                         "validated SQL with context pack " + contextPack.id()));
 
-        AgentFirstDtos.CheckpointResponse checkpoint = service.createCheckpoint(
+        AgentStateDtos.CheckpointResponse checkpoint = service.createCheckpoint(
                 tenantId,
-                new AgentFirstDtos.CreateCheckpointRequest(
+                new AgentStateDtos.CreateCheckpointRequest(
                         branch.id(),
                         sqlStage.id(),
                         Map.of("artifacts", List.of(artifact.id()), "missing", List.of())));
-        AgentFirstDtos.RestorePlanResponse restorePlan = service.restoreCheckpoint(tenantId, checkpoint.id());
+        AgentStateDtos.RestorePlanResponse restorePlan = service.restoreCheckpoint(tenantId, checkpoint.id());
 
-        AgentFirstDtos.EvidencePacketResponse missingEvidence = service.createEvidencePacket(
+        AgentStateDtos.EvidencePacketResponse missingEvidence = service.createEvidencePacket(
                 tenantId,
-                new AgentFirstDtos.CreateEvidencePacketRequest(
+                new AgentStateDtos.CreateEvidencePacketRequest(
                         task.id(),
                         branch.id(),
                         "daily_revenue_by_region is publishable",
                         List.of()));
-        AgentFirstDtos.PolicyDecisionResponse blocked = service.evaluateEvidence(tenantId, missingEvidence.id());
+        AgentStateDtos.PolicyDecisionResponse blocked = service.evaluateEvidence(tenantId, missingEvidence.id());
 
-        AgentFirstDtos.EvidencePacketResponse verifiedEvidence = service.createEvidencePacket(
+        AgentStateDtos.EvidencePacketResponse verifiedEvidence = service.createEvidencePacket(
                 tenantId,
-                new AgentFirstDtos.CreateEvidencePacketRequest(
+                new AgentStateDtos.CreateEvidencePacketRequest(
                         task.id(),
                         branch.id(),
                         "daily_revenue_by_region is publishable",
                         List.of(artifact.id(), lineage.id())));
-        AgentFirstDtos.PolicyDecisionResponse allowed = service.evaluateEvidence(tenantId, verifiedEvidence.id());
+        AgentStateDtos.PolicyDecisionResponse allowed = service.evaluateEvidence(tenantId, verifiedEvidence.id());
 
         assertThat(ingested.nodeIds()).hasSize(3);
         assertThat(contextPack.id()).startsWith("ctx_pack_");
@@ -126,8 +126,8 @@ class AgentFirstDataAgentSmokeTest {
         assertThat(allowed.allowed()).isTrue();
     }
 
-    private AgentFirstService service() {
-        return new AgentFirstService(
+    private AgentStateService service() {
+        return new AgentStateService(
                 taskRunRepository,
                 stageRunRepository,
                 workspaceRepository,

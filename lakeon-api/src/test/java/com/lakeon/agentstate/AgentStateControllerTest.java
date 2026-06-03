@@ -1,4 +1,4 @@
-package com.lakeon.agentfirst;
+package com.lakeon.agentstate;
 
 import com.lakeon.config.ApiKeyFilter;
 import com.lakeon.config.LakeonProperties;
@@ -25,16 +25,16 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(AgentFirstController.class)
+@WebMvcTest(AgentStateController.class)
 @Import(ApiKeyFilter.class)
-@DisplayName("AgentFirstController API tests")
-class AgentFirstControllerTest {
+@DisplayName("AgentStateController API tests")
+class AgentStateControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockBean
-    private AgentFirstService agentFirstService;
+    private AgentStateService agentStateService;
 
     @MockBean
     private TenantService tenantService;
@@ -58,8 +58,8 @@ class AgentFirstControllerTest {
     @Test
     @DisplayName("POST /api/v1/agent-state/task-runs creates task run")
     void createTaskRun_returnsCreatedTaskRun() throws Exception {
-        when(agentFirstService.createTaskRun(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.TaskRunResponse("task_001", "data", "running"));
+        when(agentStateService.createTaskRun(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.TaskRunResponse("task_001", "data", "running"));
 
         mockMvc.perform(post("/api/v1/agent-state/task-runs")
                         .header("Authorization", API_KEY)
@@ -79,8 +79,8 @@ class AgentFirstControllerTest {
     @Test
     @DisplayName("POST /api/v1/agent-state/workspaces creates logical workspace and root branch")
     void createWorkspace_returnsWorkspaceWithRootBranch() throws Exception {
-        when(agentFirstService.createWorkspace(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.WorkspaceResponse("ws_001", "branch_root"));
+        when(agentStateService.createWorkspace(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.WorkspaceResponse("ws_001", "branch_root"));
 
         mockMvc.perform(post("/api/v1/agent-state/workspaces")
                         .header("Authorization", API_KEY)
@@ -98,28 +98,28 @@ class AgentFirstControllerTest {
     @Test
     @DisplayName("OpenCode DataAgent HTTP contract accepts camelCase payloads under agent-state prefix")
     void opencodeDataAgentContract_acceptsCamelCasePayloadsAndRouteAliases() throws Exception {
-        when(agentFirstService.createTaskRun(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.TaskRunResponse("task_001", "data", "running"));
-        when(agentFirstService.createWorkspace(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.WorkspaceResponse("ws_001", "branch_root"));
-        when(agentFirstService.resolveContext(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.ResolveContextResponse(List.of("schema_orders")));
-        when(agentFirstService.buildContextPack(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.ContextPackResponse("ctx_pack_001"));
-        when(agentFirstService.checkPermission(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.PolicyDecisionResponse(true, "allowed"));
-        when(agentFirstService.forkBranch(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.BranchResponse("branch_001"));
-        when(agentFirstService.appendStateCommit(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.IdResponse("commit_001"));
-        when(agentFirstService.recordArtifact(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.IdResponse("artifact_001"));
-        when(agentFirstService.recordLineage(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.IdResponse("lineage_001"));
-        when(agentFirstService.snapshotManifest(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.IdResponse("manifest_001"));
-        when(agentFirstService.appendAuditEvent(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.IdResponse("audit_001"));
+        when(agentStateService.createTaskRun(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.TaskRunResponse("task_001", "data", "running"));
+        when(agentStateService.createWorkspace(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.WorkspaceResponse("ws_001", "branch_root"));
+        when(agentStateService.resolveContext(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.ResolveContextResponse(List.of("schema_orders")));
+        when(agentStateService.buildContextPack(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.ContextPackResponse("ctx_pack_001"));
+        when(agentStateService.checkPermission(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.PolicyDecisionResponse(true, "allowed"));
+        when(agentStateService.forkBranch(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.BranchResponse("branch_001"));
+        when(agentStateService.appendStateCommit(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.IdResponse("commit_001"));
+        when(agentStateService.recordArtifact(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.IdResponse("artifact_001"));
+        when(agentStateService.recordLineage(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.IdResponse("lineage_001"));
+        when(agentStateService.snapshotManifest(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.IdResponse("manifest_001"));
+        when(agentStateService.appendAuditEvent(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.IdResponse("audit_001"));
 
         mockMvc.perform(post("/api/v1/agent-state/task-runs")
                         .header("Authorization", API_KEY)
@@ -232,12 +232,12 @@ class AgentFirstControllerTest {
     @Test
     @DisplayName("Context API resolves nodes and builds context pack")
     void contextEndpoints_matchOpenCodeClientContract() throws Exception {
-        when(agentFirstService.ingestContextSource(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.IngestContextResponse(List.of("schema_orders", "column_customer_email")));
-        when(agentFirstService.resolveContext(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.ResolveContextResponse(List.of("schema_orders", "column_customer_email")));
-        when(agentFirstService.buildContextPack(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.ContextPackResponse("ctx_pack_001"));
+        when(agentStateService.ingestContextSource(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.IngestContextResponse(List.of("schema_orders", "column_customer_email")));
+        when(agentStateService.resolveContext(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.ResolveContextResponse(List.of("schema_orders", "column_customer_email")));
+        when(agentStateService.buildContextPack(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.ContextPackResponse("ctx_pack_001"));
 
         mockMvc.perform(post("/api/v1/agent-state/context/sources")
                         .header("Authorization", API_KEY)
@@ -287,10 +287,10 @@ class AgentFirstControllerTest {
     @Test
     @DisplayName("Checkpoint API creates restore plan for branch resume")
     void checkpointEndpoints_returnRestorePlan() throws Exception {
-        when(agentFirstService.createCheckpoint(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.CheckpointResponse("ckpt_001"));
-        when(agentFirstService.restoreCheckpoint(eq(TENANT_ID), eq("ckpt_001")))
-                .thenReturn(new AgentFirstDtos.RestorePlanResponse(
+        when(agentStateService.createCheckpoint(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.CheckpointResponse("ckpt_001"));
+        when(agentStateService.restoreCheckpoint(eq(TENANT_ID), eq("ckpt_001")))
+                .thenReturn(new AgentStateDtos.RestorePlanResponse(
                         "ckpt_001",
                         List.of("artifact_sql_001"),
                         List.of("lineage_snapshot_001"),
@@ -324,10 +324,10 @@ class AgentFirstControllerTest {
     @Test
     @DisplayName("Evidence API creates packet and blocks missing evidence")
     void evidenceEndpoints_createPacketAndEvaluateGate() throws Exception {
-        when(agentFirstService.createEvidencePacket(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.EvidencePacketResponse("evidence_001", "pending"));
-        when(agentFirstService.evaluateEvidence(eq(TENANT_ID), eq("evidence_001")))
-                .thenReturn(new AgentFirstDtos.PolicyDecisionResponse(false, "missing verified evidence"));
+        when(agentStateService.createEvidencePacket(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.EvidencePacketResponse("evidence_001", "pending"));
+        when(agentStateService.evaluateEvidence(eq(TENANT_ID), eq("evidence_001")))
+                .thenReturn(new AgentStateDtos.PolicyDecisionResponse(false, "missing verified evidence"));
 
         mockMvc.perform(post("/api/v1/agent-state/evidence-packets")
                         .header("Authorization", API_KEY)
@@ -354,10 +354,10 @@ class AgentFirstControllerTest {
     @Test
     @DisplayName("Policy and audit endpoints support runtime gating")
     void policyAndAuditEndpoints_matchRuntimeGatingContract() throws Exception {
-        when(agentFirstService.checkPermission(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.PolicyDecisionResponse(true, "allowed"));
-        when(agentFirstService.appendAuditEvent(eq(TENANT_ID), any()))
-                .thenReturn(new AgentFirstDtos.IdResponse("audit_001"));
+        when(agentStateService.checkPermission(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.PolicyDecisionResponse(true, "allowed"));
+        when(agentStateService.appendAuditEvent(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.IdResponse("audit_001"));
 
         mockMvc.perform(post("/api/v1/agent-state/policy/check")
                         .header("Authorization", API_KEY)

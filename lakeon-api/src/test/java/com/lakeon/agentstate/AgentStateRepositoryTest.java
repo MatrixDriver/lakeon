@@ -1,4 +1,4 @@
-package com.lakeon.agentfirst;
+package com.lakeon.agentstate;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,8 +12,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
 @ActiveProfiles("test")
-@DisplayName("AgentFirstRepository persistence tests")
-class AgentFirstRepositoryTest {
+@DisplayName("AgentStateRepository persistence tests")
+class AgentStateRepositoryTest {
 
     @Autowired private AgentTaskRunRepository taskRunRepository;
     @Autowired private AgentWorkspaceRepository workspaceRepository;
@@ -24,7 +24,7 @@ class AgentFirstRepositoryTest {
 
     @Test
     @DisplayName("saves task, workspace, root branch, and tenant scoped context nodes")
-    void saveAgentFirstState_generatesIdsAndSupportsTenantScopedContextLookup() {
+    void saveAgentStateState_generatesIdsAndSupportsTenantScopedContextLookup() {
         AgentTaskRunEntity task = new AgentTaskRunEntity();
         task.setTenantId("tn_test001");
         task.setGoal("publish dbt model");
