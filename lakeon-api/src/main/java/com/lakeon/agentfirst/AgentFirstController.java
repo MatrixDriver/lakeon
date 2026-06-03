@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/agentfirst")
+@RequestMapping("/api/v1/agent-state")
 public class AgentFirstController {
     private final AgentFirstService agentFirstService;
 

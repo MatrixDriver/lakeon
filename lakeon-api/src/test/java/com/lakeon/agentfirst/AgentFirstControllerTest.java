@@ -56,12 +56,12 @@ class AgentFirstControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/agentfirst/task-runs creates task run")
+    @DisplayName("POST /api/v1/agent-state/task-runs creates task run")
     void createTaskRun_returnsCreatedTaskRun() throws Exception {
         when(agentFirstService.createTaskRun(eq(TENANT_ID), any()))
                 .thenReturn(new AgentFirstDtos.TaskRunResponse("task_001", "data", "running"));
 
-        mockMvc.perform(post("/api/v1/agentfirst/task-runs")
+        mockMvc.perform(post("/api/v1/agent-state/task-runs")
                         .header("Authorization", API_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -77,12 +77,12 @@ class AgentFirstControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/agentfirst/workspaces creates logical workspace and root branch")
+    @DisplayName("POST /api/v1/agent-state/workspaces creates logical workspace and root branch")
     void createWorkspace_returnsWorkspaceWithRootBranch() throws Exception {
         when(agentFirstService.createWorkspace(eq(TENANT_ID), any()))
                 .thenReturn(new AgentFirstDtos.WorkspaceResponse("ws_001", "branch_root"));
 
-        mockMvc.perform(post("/api/v1/agentfirst/workspaces")
+        mockMvc.perform(post("/api/v1/agent-state/workspaces")
                         .header("Authorization", API_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -105,7 +105,7 @@ class AgentFirstControllerTest {
         when(agentFirstService.buildContextPack(eq(TENANT_ID), any()))
                 .thenReturn(new AgentFirstDtos.ContextPackResponse("ctx_pack_001"));
 
-        mockMvc.perform(post("/api/v1/agentfirst/context/sources")
+        mockMvc.perform(post("/api/v1/agent-state/context/sources")
                         .header("Authorization", API_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -122,7 +122,7 @@ class AgentFirstControllerTest {
                 .andExpect(jsonPath("$.node_ids", hasSize(2)))
                 .andExpect(jsonPath("$.node_ids[0]").value("schema_orders"));
 
-        mockMvc.perform(post("/api/v1/agentfirst/context/resolve")
+        mockMvc.perform(post("/api/v1/agent-state/context/resolve")
                         .header("Authorization", API_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -136,7 +136,7 @@ class AgentFirstControllerTest {
                 .andExpect(jsonPath("$.node_ids", hasSize(2)))
                 .andExpect(jsonPath("$.node_ids[0]").value("schema_orders"));
 
-        mockMvc.perform(post("/api/v1/agentfirst/context/packs")
+        mockMvc.perform(post("/api/v1/agent-state/context/packs")
                         .header("Authorization", API_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -162,7 +162,7 @@ class AgentFirstControllerTest {
                         List.of("lineage_snapshot_001"),
                         false));
 
-        mockMvc.perform(post("/api/v1/agentfirst/checkpoints")
+        mockMvc.perform(post("/api/v1/agent-state/checkpoints")
                         .header("Authorization", API_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -178,7 +178,7 @@ class AgentFirstControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value("ckpt_001"));
 
-        mockMvc.perform(post("/api/v1/agentfirst/checkpoints/ckpt_001/restore")
+        mockMvc.perform(post("/api/v1/agent-state/checkpoints/ckpt_001/restore")
                         .header("Authorization", API_KEY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.checkpoint_id").value("ckpt_001"))
@@ -195,7 +195,7 @@ class AgentFirstControllerTest {
         when(agentFirstService.evaluateEvidence(eq(TENANT_ID), eq("evidence_001")))
                 .thenReturn(new AgentFirstDtos.PolicyDecisionResponse(false, "missing verified evidence"));
 
-        mockMvc.perform(post("/api/v1/agentfirst/evidence-packets")
+        mockMvc.perform(post("/api/v1/agent-state/evidence-packets")
                         .header("Authorization", API_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -210,7 +210,7 @@ class AgentFirstControllerTest {
                 .andExpect(jsonPath("$.id").value("evidence_001"))
                 .andExpect(jsonPath("$.status").value("pending"));
 
-        mockMvc.perform(post("/api/v1/agentfirst/evidence-packets/evidence_001/evaluate")
+        mockMvc.perform(post("/api/v1/agent-state/evidence-packets/evidence_001/evaluate")
                         .header("Authorization", API_KEY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.allowed").value(false))
@@ -225,7 +225,7 @@ class AgentFirstControllerTest {
         when(agentFirstService.appendAuditEvent(eq(TENANT_ID), any()))
                 .thenReturn(new AgentFirstDtos.IdResponse("audit_001"));
 
-        mockMvc.perform(post("/api/v1/agentfirst/policy/check")
+        mockMvc.perform(post("/api/v1/agent-state/policy/check")
                         .header("Authorization", API_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -240,7 +240,7 @@ class AgentFirstControllerTest {
                 .andExpect(jsonPath("$.allowed").value(true))
                 .andExpect(jsonPath("$.reason").value("allowed"));
 
-        mockMvc.perform(post("/api/v1/agentfirst/audit-events")
+        mockMvc.perform(post("/api/v1/agent-state/audit-events")
                         .header("Authorization", API_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
