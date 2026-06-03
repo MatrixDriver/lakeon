@@ -1,0 +1,226 @@
+package com.lakeon.agentfirst;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Service
+public class AgentFirstService {
+    private final AgentTaskRunRepository taskRunRepository;
+    private final AgentStageRunRepository stageRunRepository;
+    private final AgentWorkspaceRepository workspaceRepository;
+    private final AgentWorkspaceBranchRepository branchRepository;
+    private final ContextNodeRepository contextNodeRepository;
+    private final ContextPackRepository contextPackRepository;
+    private final AgentStateCommitRepository stateCommitRepository;
+    private final AgentArtifactRefRepository artifactRefRepository;
+    private final AgentLineageEdgeRepository lineageEdgeRepository;
+    private final AgentPolicyDecisionRepository policyDecisionRepository;
+    private final AgentAuditEventRepository auditEventRepository;
+    private final ObjectMapper objectMapper;
+
+    public AgentFirstService(AgentTaskRunRepository taskRunRepository,
+                             AgentStageRunRepository stageRunRepository,
+                             AgentWorkspaceRepository workspaceRepository,
+                             AgentWorkspaceBranchRepository branchRepository,
+                             ContextNodeRepository contextNodeRepository,
+                             ContextPackRepository contextPackRepository,
+                             AgentStateCommitRepository stateCommitRepository,
+                             AgentArtifactRefRepository artifactRefRepository,
+                             AgentLineageEdgeRepository lineageEdgeRepository,
+                             AgentPolicyDecisionRepository policyDecisionRepository,
+                             AgentAuditEventRepository auditEventRepository,
+                             ObjectMapper objectMapper) {
+        this.taskRunRepository = taskRunRepository;
+        this.stageRunRepository = stageRunRepository;
+        this.workspaceRepository = workspaceRepository;
+        this.branchRepository = branchRepository;
+        this.contextNodeRepository = contextNodeRepository;
+        this.contextPackRepository = contextPackRepository;
+        this.stateCommitRepository = stateCommitRepository;
+        this.artifactRefRepository = artifactRefRepository;
+        this.lineageEdgeRepository = lineageEdgeRepository;
+        this.policyDecisionRepository = policyDecisionRepository;
+        this.auditEventRepository = auditEventRepository;
+        this.objectMapper = objectMapper;
+    }
+
+    AgentFirstService(AgentTaskRunRepository taskRunRepository,
+                      AgentWorkspaceRepository workspaceRepository,
+                      AgentWorkspaceBranchRepository branchRepository,
+                      ContextNodeRepository contextNodeRepository,
+                      ContextPackRepository contextPackRepository,
+                      AgentStateCommitRepository stateCommitRepository,
+                      AgentArtifactRefRepository artifactRefRepository,
+                      AgentLineageEdgeRepository lineageEdgeRepository,
+                      AgentPolicyDecisionRepository policyDecisionRepository,
+                      AgentAuditEventRepository auditEventRepository) {
+        this(taskRunRepository, null, workspaceRepository, branchRepository, contextNodeRepository,
+                contextPackRepository, stateCommitRepository, artifactRefRepository, lineageEdgeRepository,
+                policyDecisionRepository, auditEventRepository, new ObjectMapper());
+    }
+
+    @Transactional
+    public AgentFirstDtos.TaskRunResponse createTaskRun(String tenantId, AgentFirstDtos.CreateTaskRunRequest request) {
+        AgentTaskRunEntity entity = new AgentTaskRunEntity();
+        entity.setTenantId(tenantId);
+        entity.setGoal(request.goal());
+        entity.setHarnessId(request.harnessId());
+        entity.setStatus("running");
+        AgentTaskRunEntity saved = taskRunRepository.save(entity);
+        return new AgentFirstDtos.TaskRunResponse(saved.getId(), saved.getHarnessId(), saved.getStatus());
+    }
+
+    @Transactional
+    public AgentFirstDtos.StageRunResponse createStageRun(
+            String tenantId, String taskRunId, AgentFirstDtos.CreateStageRunRequest request) {
+        AgentStageRunEntity entity = new AgentStageRunEntity();
+        entity.setTenantId(tenantId);
+        entity.setTaskRunId(taskRunId);
+        entity.setStageId(request.stageId());
+        entity.setBranchId(request.branchId());
+        entity.setContextPackId(request.contextPackId());
+        AgentStageRunEntity saved = stageRunRepository.save(entity);
+        return new AgentFirstDtos.StageRunResponse(
+                saved.getId(), saved.getTaskRunId(), saved.getStageId(), saved.getStatus(),
+                saved.getBranchId(), saved.getContextPackId());
+    }
+
+    @Transactional
+    public AgentFirstDtos.WorkspaceResponse createWorkspace(String tenantId, AgentFirstDtos.CreateWorkspaceRequest request) {
+        AgentWorkspaceEntity workspace = new AgentWorkspaceEntity();
+        workspace.setTenantId(tenantId);
+        workspace.setTaskRunId(request.taskRunId());
+        AgentWorkspaceEntity savedWorkspace = workspaceRepository.save(workspace);
+
+        AgentWorkspaceBranchEntity root = new AgentWorkspaceBranchEntity();
+        root.setTenantId(tenantId);
+        root.setWorkspaceId(savedWorkspace.getId());
+        root.setName("root");
+        AgentWorkspaceBranchEntity savedRoot = branchRepository.save(root);
+        return new AgentFirstDtos.WorkspaceResponse(savedWorkspace.getId(), savedRoot.getId());
+    }
+
+    @Transactional
+    public AgentFirstDtos.BranchResponse forkBranch(String tenantId, AgentFirstDtos.ForkBranchRequest request) {
+        AgentWorkspaceBranchEntity branch = new AgentWorkspaceBranchEntity();
+        branch.setTenantId(tenantId);
+        branch.setWorkspaceId(request.workspaceId());
+        branch.setStageRunId(request.stageRunId());
+        branch.setName("branch");
+        branch.setHypothesis(request.hypothesis());
+        AgentWorkspaceBranchEntity saved = branchRepository.save(branch);
+        return new AgentFirstDtos.BranchResponse(saved.getId());
+    }
+
+    public AgentFirstDtos.ResolveContextResponse resolveContext(
+            String tenantId, AgentFirstDtos.ResolveContextRequest request) {
+        List<String> nodeIds = contextNodeRepository.findByTenantIdOrderByCreatedAtAsc(tenantId)
+                .stream()
+                .map(ContextNodeEntity::getId)
+                .toList();
+        return new AgentFirstDtos.ResolveContextResponse(nodeIds);
+    }
+
+    @Transactional
+    public AgentFirstDtos.ContextPackResponse buildContextPack(
+            String tenantId, AgentFirstDtos.BuildContextPackRequest request) {
+        ContextPackEntity pack = new ContextPackEntity();
+        pack.setTenantId(tenantId);
+        pack.setTaskRunId(request.taskRunId());
+        pack.setStageRunId(request.stageRunId());
+        pack.setSelectedNodesJson(toJson(request.selectedNodeIds() == null ? List.of() : request.selectedNodeIds()));
+        ContextPackEntity saved = contextPackRepository.save(pack);
+        return new AgentFirstDtos.ContextPackResponse(saved.getId());
+    }
+
+    @Transactional
+    public AgentFirstDtos.IdResponse appendStateCommit(String tenantId, AgentFirstDtos.AppendStateCommitRequest request) {
+        AgentStateCommitEntity commit = new AgentStateCommitEntity();
+        commit.setTenantId(tenantId);
+        commit.setTaskRunId(request.taskRunId());
+        commit.setStageRunId(request.stageRunId());
+        commit.setBranchId(request.branchId());
+        commit.setSummary(request.summary());
+        return new AgentFirstDtos.IdResponse(stateCommitRepository.save(commit).getId());
+    }
+
+    @Transactional
+    public AgentFirstDtos.IdResponse recordArtifact(String tenantId, AgentFirstDtos.RecordArtifactRequest request) {
+        AgentArtifactRefEntity artifact = new AgentArtifactRefEntity();
+        artifact.setTenantId(tenantId);
+        artifact.setTaskRunId(request.taskRunId());
+        artifact.setStageRunId(request.stageRunId());
+        artifact.setBranchId(request.branchId());
+        artifact.setKind(request.kind());
+        return new AgentFirstDtos.IdResponse(artifactRefRepository.save(artifact).getId());
+    }
+
+    @Transactional
+    public AgentFirstDtos.IdResponse recordLineage(String tenantId, AgentFirstDtos.RecordLineageRequest request) {
+        AgentLineageEdgeEntity lineage = new AgentLineageEdgeEntity();
+        lineage.setTenantId(tenantId);
+        lineage.setTaskRunId(request.taskRunId());
+        lineage.setStageRunId(request.stageRunId());
+        lineage.setBranchId(request.branchId());
+        lineage.setArtifactId(request.artifactId());
+        return new AgentFirstDtos.IdResponse(lineageEdgeRepository.save(lineage).getId());
+    }
+
+    @Transactional
+    public AgentFirstDtos.PolicyDecisionResponse checkPermission(
+            String tenantId, AgentFirstDtos.CheckPermissionRequest request) {
+        boolean blocked = isHighRisk(request.riskLevel()) || isDestructive(request.action());
+        String reason = blocked ? "Action requires approval before runtime execution" : "allowed";
+
+        AgentPolicyDecisionEntity decision = new AgentPolicyDecisionEntity();
+        decision.setTenantId(tenantId);
+        decision.setTaskRunId(request.taskRunId());
+        decision.setBranchId(request.branchId());
+        decision.setAction(request.action());
+        decision.setAllowed(!blocked);
+        decision.setReason(reason);
+        policyDecisionRepository.save(decision);
+
+        return new AgentFirstDtos.PolicyDecisionResponse(!blocked, reason);
+    }
+
+    @Transactional
+    public AgentFirstDtos.IdResponse appendAuditEvent(String tenantId, AgentFirstDtos.AppendAuditEventRequest request) {
+        AgentAuditEventEntity event = new AgentAuditEventEntity();
+        event.setTenantId(tenantId);
+        event.setTaskRunId(request.taskRunId());
+        event.setBranchId(request.branchId());
+        event.setAction(request.action());
+        event.setResult(request.result());
+        event.setReason(request.reason());
+        return new AgentFirstDtos.IdResponse(auditEventRepository.save(event).getId());
+    }
+
+    public List<AgentFirstDtos.IdResponse> listAuditEvents(String tenantId, String taskRunId) {
+        return auditEventRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, taskRunId)
+                .stream()
+                .map(event -> new AgentFirstDtos.IdResponse(event.getId()))
+                .toList();
+    }
+
+    private boolean isHighRisk(String riskLevel) {
+        return "high".equalsIgnoreCase(riskLevel);
+    }
+
+    private boolean isDestructive(String action) {
+        String normalized = action == null ? "" : action.toLowerCase();
+        return normalized.contains("drop") || normalized.contains("delete") || normalized.contains("truncate");
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("Invalid context pack payload", e);
+        }
+    }
+}
