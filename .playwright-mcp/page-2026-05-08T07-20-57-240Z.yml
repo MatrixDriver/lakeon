@@ -1,0 +1,782 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "echomem Local-first agent memory" [ref=e4] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e6]: echomem
+        - generic [ref=e7]: Local-first agent memory
+      - navigation [ref=e8]:
+        - link "目标" [ref=e9] [cursor=pointer]:
+          - /url: /goals/
+        - link "架构" [ref=e10] [cursor=pointer]:
+          - /url: /architecture/
+        - link "评测" [ref=e11] [cursor=pointer]:
+          - /url: /benchmarks/
+        - link "路线图" [ref=e12] [cursor=pointer]:
+          - /url: /roadmap/
+        - link "怎么用" [ref=e13] [cursor=pointer]:
+          - /url: /how-to-use/
+      - generic [ref=e14]: v0 · Phase 8 启动
+  - generic [ref=e15]:
+    - generic [ref=e16]: Roadmap · 6 tracks
+    - heading "按 track 走，不是按 phase 走。" [level=1] [ref=e17]:
+      - text: 按 track 走，
+      - emphasis [ref=e18]: 不是按 phase 走。
+    - paragraph [ref=e19]: 三个量化目标（G1/G2/G3）拆成 6 条能力 track。phase 是横向时间线，track 是纵向能力线——一个 track 出 KR 不靠某个 phase 一锤子，而是多 phase 累积。研究心态融在 track 里：每条 track 内部都有"准则达不到就 kill"的子里程碑，不再单独划研究通道。
+    - generic [ref=e20]:
+      - strong [ref=e21]: 当前状态（2026-05-08）：
+      - text: Phase 1-2 已交付（旧 worker 架构）；Phase 6.5 LoCoMo 基线 Walk 64.03% / Snap 41.82%；Phase 7.0 retry + DeepSeek 切换 + 并发 8 完成。
+      - strong [ref=e22]: Phase 8 正启动
+      - text: ：5 curator agent 架构（markdown 真源）替换旧 worker pool —— B1 启动，B11 业界 prompt 调研并行。
+  - generic [ref=e23]:
+    - link "A · 共享 更多 Agent 用同一份记忆 三家本地 Agent 共池读写、自动去重。 KR ↦ G1 ≥3 家 Agent 接入 + E2E 共享场景" [ref=e24] [cursor=pointer]:
+      - /url: "#track-A"
+      - text: A · 共享
+      - heading "更多 Agent 用同一份记忆" [level=3] [ref=e25]
+      - paragraph [ref=e26]: 三家本地 Agent 共池读写、自动去重。
+      - generic [ref=e27]:
+        - strong [ref=e28]: KR ↦ G1
+        - text: ≥3 家 Agent 接入 + E2E 共享场景
+    - link "B · 智力 记忆\"想得准\" 5 curator + 多 benchmark 持续衡量。 KR ↦ G2 LoCoMo ≥ 90% · LongMemEval Top-3" [ref=e29] [cursor=pointer]:
+      - /url: "#track-B"
+      - text: B · 智力
+      - heading "记忆\"想得准\"" [level=3] [ref=e30]
+      - paragraph [ref=e31]: 5 curator + 多 benchmark 持续衡量。
+      - generic [ref=e32]:
+        - strong [ref=e33]: KR ↦ G2
+        - text: LoCoMo ≥ 90% · LongMemEval Top-3
+    - link "C · 时延 TTFT 减半 缓存 · speculative · 输出长度预测。 KR ↦ G3 TTFT 中位数 ≤ 0.5× 直连" [ref=e34] [cursor=pointer]:
+      - /url: "#track-C"
+      - text: C · 时延
+      - heading "TTFT 减半" [level=3] [ref=e35]
+      - paragraph [ref=e36]: 缓存 · speculative · 输出长度预测。
+      - generic [ref=e37]:
+        - strong [ref=e38]: KR ↦ G3
+        - text: TTFT 中位数 ≤ 0.5× 直连
+    - link "D · 成本 不依赖云端 LLM 自训小 LLM + 减 LLM 调用。 KR ↦ 横切 自训 LLM ≥ DeepSeek 95% · 调用 ↓40%" [ref=e39] [cursor=pointer]:
+      - /url: "#track-D"
+      - text: D · 成本
+      - heading "不依赖云端 LLM" [level=3] [ref=e40]
+      - paragraph [ref=e41]: 自训小 LLM + 减 LLM 调用。
+      - generic [ref=e42]:
+        - strong [ref=e43]: KR ↦ 横切
+        - text: 自训 LLM ≥ DeepSeek 95% · 调用 ↓40%
+    - link "E · Dashboard 用户和记忆的关系层 看 → CRUD → 溯源 → 与 curator 对话。 KR ↦ 体验 用户能用对话沉淀知识（LLM-wiki 风）" [ref=e44] [cursor=pointer]:
+      - /url: "#track-E"
+      - text: E · Dashboard
+      - heading "用户和记忆的关系层" [level=3] [ref=e45]
+      - paragraph [ref=e46]: 看 → CRUD → 溯源 → 与 curator 对话。
+      - generic [ref=e47]:
+        - strong [ref=e48]: KR ↦ 体验
+        - text: 用户能用对话沉淀知识（LLM-wiki 风）
+    - link "F · 端云协同 上云时不丢隐私 选择性 sync · 加密 · 隔离 · 审计。 KR ↦ 上云 云挂载默认零知识 + per-agent 视图" [ref=e49] [cursor=pointer]:
+      - /url: "#track-F"
+      - text: F · 端云协同
+      - heading "上云时不丢隐私" [level=3] [ref=e50]
+      - paragraph [ref=e51]: 选择性 sync · 加密 · 隔离 · 审计。
+      - generic [ref=e52]:
+        - strong [ref=e53]: KR ↦ 上云
+        - text: 云挂载默认零知识 + per-agent 视图
+  - generic [ref=e54]:
+    - generic [ref=e55]: Phase × Track 矩阵
+    - heading "什么时候动哪条 track" [level=2] [ref=e56]
+    - paragraph [ref=e57]: 每个 phase 大约 6 周。matrix 不强求每个 phase 都动每条 track —— 容量有限时优先主线 G1/G2/G3。
+    - table [ref=e59]:
+      - rowgroup [ref=e60]:
+        - row "Track Phase 8 · 2026-Q2 Phase 9 · 2026-Q3 Phase 10 · 2026-Q4 Phase 11+" [ref=e61]:
+          - columnheader "Track" [ref=e62]
+          - columnheader "Phase 8 · 2026-Q2" [ref=e63]
+          - columnheader "Phase 9 · 2026-Q3" [ref=e64]
+          - columnheader "Phase 10 · 2026-Q4" [ref=e65]
+          - columnheader "Phase 11+" [ref=e66]
+      - rowgroup [ref=e67]:
+        - row "A共享 A2 openclaw 完整接入 A3 hermes 接入 A4 跨 Agent 去重 A5 identity 模型 + session 边界自动识别 A6 dbay 挂载（与 F 配合） A7 第三方 SDK" [ref=e68]:
+          - cell "A共享" [ref=e69]
+          - cell "A2 openclaw 完整接入 A3 hermes 接入" [ref=e70]:
+            - generic [ref=e71]: A2
+            - text: openclaw 完整接入
+            - generic [ref=e72]: A3
+            - text: hermes 接入
+          - cell "A4 跨 Agent 去重 A5 identity 模型 + session 边界自动识别" [ref=e73]:
+            - generic [ref=e74]: A4
+            - text: 跨 Agent 去重
+            - generic [ref=e75]: A5
+            - text: identity 模型
+            - generic [ref=e76]: +
+            - text: session 边界自动识别
+          - cell "A6 dbay 挂载（与 F 配合）" [ref=e77]:
+            - generic [ref=e78]: A6
+            - text: dbay 挂载（与 F 配合）
+          - cell "A7 第三方 SDK" [ref=e79]:
+            - generic [ref=e80]: A7
+            - text: 第三方 SDK
+        - row "B智力 B1 5 curator 落地 B5 代词消解三层 B11 业界 prompt 调研 B2-4 episode/entity/trait B7-8 LongMemEval + EvolvingEvents 接入 B11 出报告 · + schema_version B6 Walk 工具集打磨 B12 5 curator prompt 迭代 B9 LoCoMo 90% 攻坚 B10 Walk RL · 持续" [ref=e81]:
+          - cell "B智力" [ref=e82]
+          - cell "B1 5 curator 落地 B5 代词消解三层 B11 业界 prompt 调研" [ref=e83]:
+            - generic [ref=e84]: B1
+            - text: 5 curator 落地
+            - generic [ref=e85]: B5
+            - text: 代词消解三层
+            - generic [ref=e86]: B11
+            - text: 业界 prompt 调研
+          - cell "B2-4 episode/entity/trait B7-8 LongMemEval + EvolvingEvents 接入 B11 出报告 · + schema_version" [ref=e87]:
+            - generic [ref=e88]: B2-4
+            - text: episode/entity/trait
+            - generic [ref=e89]: B7-8
+            - text: LongMemEval + EvolvingEvents 接入
+            - generic [ref=e90]: B11
+            - text: 出报告 ·
+            - generic [ref=e91]: +
+            - text: schema_version
+          - cell "B6 Walk 工具集打磨 B12 5 curator prompt 迭代 B9 LoCoMo 90% 攻坚" [ref=e92]:
+            - generic [ref=e93]: B6
+            - text: Walk 工具集打磨
+            - generic [ref=e94]: B12
+            - text: 5 curator prompt 迭代
+            - generic [ref=e95]: B9
+            - text: LoCoMo 90% 攻坚
+          - cell "B10 Walk RL · 持续" [ref=e96]:
+            - generic [ref=e97]: B10
+            - text: Walk RL · 持续
+        - row "C时延 C1 TTFT 测量基建 C2 Snap 缓存优化 C3 Walk L0 fast-path C4 Speculative recall C5a 输出长度数据捕获 C5b/c 模型 + 集成 C5d 决策点 · C6 KR 验收" [ref=e98]:
+          - cell "C时延" [ref=e99]
+          - cell "C1 TTFT 测量基建 C2 Snap 缓存优化 C3 Walk L0 fast-path" [ref=e100]:
+            - generic [ref=e101]: C1
+            - text: TTFT 测量基建
+            - generic [ref=e102]: C2
+            - text: Snap 缓存优化
+            - generic [ref=e103]: C3
+            - text: Walk L0 fast-path
+          - cell "C4 Speculative recall C5a 输出长度数据捕获" [ref=e104]:
+            - generic [ref=e105]: C4
+            - text: Speculative recall
+            - generic [ref=e106]: C5a
+            - text: 输出长度数据捕获
+          - cell "C5b/c 模型 + 集成" [ref=e107]:
+            - generic [ref=e108]: C5b/c
+            - text: 模型 + 集成
+          - cell "C5d 决策点 · C6 KR 验收" [ref=e109]:
+            - generic [ref=e110]: C5d
+            - text: 决策点 ·
+            - generic [ref=e111]: C6
+            - text: KR 验收
+        - row "D成本 D5 markdown 去重 D6 prompt 合并 D1 训练数据集 D2 base model 微调 D3 自训 LLM 评测 D4 Ollama 部署 D7 LLM response cache" [ref=e112]:
+          - cell "D成本" [ref=e113]
+          - cell "D5 markdown 去重 D6 prompt 合并" [ref=e114]:
+            - generic [ref=e115]: D5
+            - text: markdown 去重
+            - generic [ref=e116]: D6
+            - text: prompt 合并
+          - cell "D1 训练数据集 D2 base model 微调" [ref=e117]:
+            - generic [ref=e118]: D1
+            - text: 训练数据集
+            - generic [ref=e119]: D2
+            - text: base model 微调
+          - cell "D3 自训 LLM 评测 D4 Ollama 部署" [ref=e120]:
+            - generic [ref=e121]: D3
+            - text: 自训 LLM 评测
+            - generic [ref=e122]: D4
+            - text: Ollama 部署
+          - cell "D7 LLM response cache" [ref=e123]:
+            - generic [ref=e124]: D7
+            - text: LLM response cache
+        - row "EDashboard E1 树浏览（Lv1） E2 metric 视图 E3-5 CRUD（Lv2） + markdown 反向同步 E6-9 溯源（Lv3） + meta-memory E10-12 与 curator 对话沉淀（Lv4）" [ref=e125]:
+          - cell "EDashboard" [ref=e126]
+          - cell "E1 树浏览（Lv1） E2 metric 视图" [ref=e127]:
+            - generic [ref=e128]: E1
+            - text: 树浏览（Lv1）
+            - generic [ref=e129]: E2
+            - text: metric 视图
+          - cell "E3-5 CRUD（Lv2） + markdown 反向同步" [ref=e130]:
+            - generic [ref=e131]: E3-5
+            - text: CRUD（Lv2）
+            - generic [ref=e132]: +
+            - text: markdown 反向同步
+          - cell "E6-9 溯源（Lv3） + meta-memory" [ref=e133]:
+            - generic [ref=e134]: E6-9
+            - text: 溯源（Lv3）
+            - generic [ref=e135]: +
+            - text: meta-memory
+          - cell "E10-12 与 curator 对话沉淀（Lv4）" [ref=e136]:
+            - generic [ref=e137]: E10-12
+            - text: 与 curator 对话沉淀（Lv4）
+        - row "F端云协同 — 不在本 phase F1-3 CloudDriver + 选择性 sync + 离线降级 F4-6 加密 · F7 per-agent 隔离 F8-10 审计 + right-to-forget" [ref=e138]:
+          - cell "F端云协同" [ref=e139]
+          - cell "— 不在本 phase" [ref=e140]
+          - cell "F1-3 CloudDriver + 选择性 sync + 离线降级" [ref=e141]:
+            - generic [ref=e142]: F1-3
+            - text: CloudDriver + 选择性 sync + 离线降级
+          - cell "F4-6 加密 · F7 per-agent 隔离" [ref=e143]:
+            - generic [ref=e144]: F4-6
+            - text: 加密 ·
+            - generic [ref=e145]: F7
+            - text: per-agent 隔离
+          - cell "F8-10 审计 + right-to-forget" [ref=e146]:
+            - generic [ref=e147]: F8-10
+            - text: 审计 + right-to-forget
+  - generic [ref=e148]:
+    - generic [ref=e149]:
+      - generic [ref=e150]: TRACK A
+      - heading "共享 · 更多 Agent 用同一份记忆" [level=2] [ref=e151]:
+        - text: 共享 ·
+        - emphasis [ref=e152]: 更多 Agent 用同一份记忆
+    - paragraph [ref=e153]: G1 的承载 track。让 Claude Code、openclaw、hermes（以及未来的 OfficeClaw、Devin 等）真正在同一份本地记忆池上读写，且自动去重、按 agent 隔离、按用户授权共享。
+    - generic [ref=e154]:
+      - strong [ref=e155]: KR ↦ G1 ·
+      - text: ≥ 3 家 Agent 接入并通过 E2E 共享场景测试（同事实只讲一次、跨 Agent 召回正确）
+    - table [ref=e156]:
+      - rowgroup [ref=e157]:
+        - row "M 名称 说明 状态" [ref=e158]:
+          - columnheader "M" [ref=e159]
+          - columnheader "名称" [ref=e160]
+          - columnheader "说明" [ref=e161]
+          - columnheader "状态" [ref=e162]
+      - rowgroup [ref=e163]:
+        - row "A1 Claude Code 接入（MCP shim） Phase 2 已交付，stdio MCP shim 已上线 done" [ref=e164]:
+          - cell "A1" [ref=e165]
+          - cell "Claude Code 接入（MCP shim）" [ref=e166]
+          - cell "Phase 2 已交付，stdio MCP shim 已上线" [ref=e167]
+          - cell "done" [ref=e168]:
+            - generic [ref=e169]: done
+        - row "A2 openclaw 完整接入 HTTP API 已通，缺 ingest hook 真接入与共享场景验证 active" [ref=e170]:
+          - cell "A2" [ref=e171]
+          - cell "openclaw 完整接入" [ref=e172]
+          - cell "HTTP API 已通，缺 ingest hook 真接入与共享场景验证" [ref=e173]
+          - cell "active" [ref=e174]:
+            - generic [ref=e175]: active
+        - row "A3 hermes 接入 飞书消息源接入。G1 KR 的硬瓶颈 planned" [ref=e176]:
+          - cell "A3" [ref=e177]
+          - cell "hermes 接入" [ref=e178]
+          - cell "飞书消息源接入。G1 KR 的硬瓶颈" [ref=e179]:
+            - text: 飞书消息源接入。
+            - strong [ref=e180]: G1 KR 的硬瓶颈
+          - cell "planned" [ref=e181]:
+            - generic [ref=e182]: planned
+        - row "A4 跨 Agent 去重 同事实被三家 Agent 写入时自动判同（entity + content_hash 双 key） planned" [ref=e183]:
+          - cell "A4" [ref=e184]
+          - cell "跨 Agent 去重" [ref=e185]
+          - cell "同事实被三家 Agent 写入时自动判同（entity + content_hash 双 key）" [ref=e186]:
+            - text: 同事实被三家 Agent 写入时自动判同（
+            - code [ref=e187]: entity + content_hash
+            - text: 双 key）
+          - cell "planned" [ref=e188]:
+            - generic [ref=e189]: planned
+        - row "A5 跨 Agent identity 模型 每条 memory 记 source_agent，Walk recall 能按 agent 筛 planned" [ref=e190]:
+          - cell "A5" [ref=e191]
+          - cell "跨 Agent identity 模型" [ref=e192]
+          - cell "每条 memory 记 source_agent，Walk recall 能按 agent 筛" [ref=e193]:
+            - text: 每条 memory 记
+            - code [ref=e194]: source_agent
+            - text: ，Walk recall 能按 agent 筛
+          - cell "planned" [ref=e195]:
+            - generic [ref=e196]: planned
+        - row "+ Session 边界自动识别 idle timeout / topic shift 自动 close。随 hermes 接入附带做 planned" [ref=e197]:
+          - cell "+" [ref=e198]
+          - cell "Session 边界自动识别" [ref=e199]
+          - cell "idle timeout / topic shift 自动 close。随 hermes 接入附带做" [ref=e200]
+          - cell "planned" [ref=e201]:
+            - generic [ref=e202]: planned
+        - row "A6 设备间 sync（dbay 挂载） 可选；用户主动 enable，单向上传。与 F 端云协同 配合 future" [ref=e203]:
+          - cell "A6" [ref=e204]
+          - cell "设备间 sync（dbay 挂载）" [ref=e205]
+          - cell "可选；用户主动 enable，单向上传。与 F 端云协同 配合" [ref=e206]
+          - cell "future" [ref=e207]:
+            - generic [ref=e208]: future
+        - row "A7 第三方接入 SDK 给社区/合作方写 client：python + ts，含 MCP / HTTP 双形态 future" [ref=e209]:
+          - cell "A7" [ref=e210]
+          - cell "第三方接入 SDK" [ref=e211]
+          - cell "给社区/合作方写 client：python + ts，含 MCP / HTTP 双形态" [ref=e212]
+          - cell "future" [ref=e213]:
+            - generic [ref=e214]: future
+        - row "F4' 跨 Agent 去重的真实节省 A4 上线后跑数据：去重对真实 LLM 调用节省了多少（验证假设） future" [ref=e215]:
+          - cell "F4'" [ref=e216]
+          - cell "跨 Agent 去重的真实节省" [ref=e217]
+          - cell "A4 上线后跑数据：去重对真实 LLM 调用节省了多少（验证假设）" [ref=e218]
+          - cell "future" [ref=e219]:
+            - generic [ref=e220]: future
+  - generic [ref=e221]:
+    - generic [ref=e222]:
+      - generic [ref=e223]: TRACK B
+      - heading "智力 · 记忆\"想得准\"" [level=2] [ref=e224]:
+        - text: 智力 ·
+        - emphasis [ref=e225]: 记忆"想得准"
+    - paragraph [ref=e226]:
+      - text: G2 的承载 track。包含 5 curator 架构落地、prompt 持续迭代、多 benchmark 衡量、Walk recall 工具打磨。
+      - strong [ref=e227]: 关键防线
+      - text: ：所有 prompt 改动必须在 ≥2 个 benchmark 同时提升才合并，否则视作 benchmark 过拟合。
+    - generic [ref=e228]:
+      - strong [ref=e229]: KR ↦ G2 ·
+      - text: LoCoMo ≥ 90% (本地 4B) · LongMemEval Top-3 · EvolvingEvents 进入排行榜
+    - table [ref=e230]:
+      - rowgroup [ref=e231]:
+        - row "M 名称 说明 状态" [ref=e232]:
+          - columnheader "M" [ref=e233]
+          - columnheader "名称" [ref=e234]
+          - columnheader "说明" [ref=e235]
+          - columnheader "状态" [ref=e236]
+      - rowgroup [ref=e237]:
+        - row "B1 5 curator agent 架构落地 替换旧 worker pool。markdown 真源 + SQLite 索引。Phase 8 头号事 active" [ref=e238]:
+          - cell "B1" [ref=e239]
+          - cell "5 curator agent 架构落地" [ref=e240]
+          - cell "替换旧 worker pool。markdown 真源 + SQLite 索引。Phase 8 头号事" [ref=e241]
+          - cell "active" [ref=e242]:
+            - generic [ref=e243]: active
+        - row "B2 跨 session episode references 链接 不合并、只链接。spec 已写 planned" [ref=e244]:
+          - cell "B2" [ref=e245]
+          - cell "跨 session episode references 链接" [ref=e246]
+          - cell "不合并、只链接。spec 已写" [ref=e247]
+          - cell "planned" [ref=e248]:
+            - generic [ref=e249]: planned
+        - row "B3 Entity 共指（aliases + LLM judge） \"Caroline / Carol / Caz\" 自动归一 planned" [ref=e250]:
+          - cell "B3" [ref=e251]
+          - cell "Entity 共指（aliases + LLM judge）" [ref=e252]
+          - cell "\"Caroline / Carol / Caz\" 自动归一" [ref=e253]
+          - cell "planned" [ref=e254]:
+            - generic [ref=e255]: planned
+        - row "B4 Trait 三层反思 behavior / preference / core。LoCoMo 60→80 的关键层 planned" [ref=e256]:
+          - cell "B4" [ref=e257]
+          - cell "Trait 三层反思" [ref=e258]
+          - cell "behavior / preference / core。LoCoMo 60→80 的关键层" [ref=e259]
+          - cell "planned" [ref=e260]:
+            - generic [ref=e261]: planned
+        - row "B5 代词消解三层防线 prompt 强制 + 正则校验 + 单测 CI 阻拦 active" [ref=e262]:
+          - cell "B5" [ref=e263]
+          - cell "代词消解三层防线" [ref=e264]
+          - cell "prompt 强制 + 正则校验 + 单测 CI 阻拦" [ref=e265]
+          - cell "active" [ref=e266]:
+            - generic [ref=e267]: active
+        - row "B6 Walk recall 工具集打磨 工具描述、step 上限、回退策略 planned" [ref=e268]:
+          - cell "B6" [ref=e269]
+          - cell "Walk recall 工具集打磨" [ref=e270]
+          - cell "工具描述、step 上限、回退策略" [ref=e271]
+          - cell "planned" [ref=e272]:
+            - generic [ref=e273]: planned
+        - row "B7 LongMemEval 接入 Adobe Research 2024 · 5 类长程记忆任务。B12 的硬前置 planned" [ref=e274]:
+          - cell "B7" [ref=e275]
+          - cell "LongMemEval 接入" [ref=e276]
+          - cell "Adobe Research 2024 · 5 类长程记忆任务。B12 的硬前置" [ref=e277]:
+            - text: Adobe Research 2024 · 5 类长程记忆任务。
+            - strong [ref=e278]: B12 的硬前置
+          - cell "planned" [ref=e279]:
+            - generic [ref=e280]: planned
+        - row "B8 EvolvingEvents 接入 跨时间线事件追踪。B12 的硬前置 planned" [ref=e281]:
+          - cell "B8" [ref=e282]
+          - cell "EvolvingEvents 接入" [ref=e283]
+          - cell "跨时间线事件追踪。B12 的硬前置" [ref=e284]:
+            - text: 跨时间线事件追踪。
+            - strong [ref=e285]: B12 的硬前置
+          - cell "planned" [ref=e286]:
+            - generic [ref=e287]: planned
+        - row "B9 LoCoMo 90% 攻坚 当前 64% (Walk)，需追 26 pp。综合成果指标 planned" [ref=e288]:
+          - cell "B9" [ref=e289]
+          - cell "LoCoMo 90% 攻坚" [ref=e290]
+          - cell "当前 64% (Walk)，需追 26 pp。综合成果指标" [ref=e291]
+          - cell "planned" [ref=e292]:
+            - generic [ref=e293]: planned
+        - row "B10 Walk 多 step 决策模型化 从 LLM 自由 reasoning 进化到 reward model 引导。LoCoMo 80→90 的关键 future" [ref=e294]:
+          - cell "B10" [ref=e295]
+          - cell "Walk 多 step 决策模型化" [ref=e296]
+          - cell "从 LLM 自由 reasoning 进化到 reward model 引导。LoCoMo 80→90 的关键" [ref=e297]
+          - cell "future" [ref=e298]:
+            - generic [ref=e299]: future
+        - row "B11 业界主流记忆库 prompt 调研 mem0 / MemGPT / Letta / Zep / OpenViking / MemClaw / neuromem 等。识别哪些为 benchmark 特化、哪些通用。出报告喂 B1 + B12 active" [ref=e300]:
+          - cell "B11" [ref=e301]
+          - cell "业界主流记忆库 prompt 调研" [ref=e302]
+          - cell "mem0 / MemGPT / Letta / Zep / OpenViking / MemClaw / neuromem 等。识别哪些为 benchmark 特化、哪些通用。出报告喂 B1 + B12" [ref=e303]
+          - cell "active" [ref=e304]:
+            - generic [ref=e305]: active
+        - row "B12 5 curator prompt 持续迭代 双 benchmark 闸口：每次改动必须 LoCoMo + LongMemEval 同时提升才合并。schema 命名 CI 审查。50 题 holdout planned" [ref=e306]:
+          - cell "B12" [ref=e307]
+          - cell "5 curator prompt 持续迭代" [ref=e308]
+          - cell "双 benchmark 闸口：每次改动必须 LoCoMo + LongMemEval 同时提升才合并。schema 命名 CI 审查。50 题 holdout" [ref=e309]:
+            - strong [ref=e310]: 双 benchmark 闸口
+            - text: ：每次改动必须 LoCoMo + LongMemEval 同时提升才合并。schema 命名 CI 审查。50 题 holdout
+          - cell "planned" [ref=e311]:
+            - generic [ref=e312]: planned
+        - row "+ Markdown schema 演进（schema_version） 老 profile 迁移脚本 · frontmatter 标版本 planned" [ref=e313]:
+          - cell "+" [ref=e314]
+          - cell "Markdown schema 演进（schema_version）" [ref=e315]
+          - cell "老 profile 迁移脚本 · frontmatter 标版本" [ref=e316]
+          - cell "planned" [ref=e317]:
+            - generic [ref=e318]: planned
+        - row "F3' Markdown-first vs SQLite-only A/B 假设：markdown 真源让 Walk 更稳。需对照实验验证 future" [ref=e319]:
+          - cell "F3'" [ref=e320]
+          - cell "Markdown-first vs SQLite-only A/B" [ref=e321]
+          - cell "假设：markdown 真源让 Walk 更稳。需对照实验验证" [ref=e322]
+          - cell "future" [ref=e323]:
+            - generic [ref=e324]: future
+    - paragraph [ref=e326]: "\"B12 不能在 B7/B8 完成前启动 — 只有 LoCoMo 一把尺子衡量，'这次 prompt 改动到底是真改进还是 benchmark 过拟合'根本判不了。\""
+  - generic [ref=e327]:
+    - generic [ref=e328]:
+      - generic [ref=e329]: TRACK C
+      - heading "时延 · TTFT 减半" [level=2] [ref=e330]:
+        - text: 时延 ·
+        - emphasis [ref=e331]: TTFT 减半
+    - paragraph [ref=e332]:
+      - text: G3 的承载 track。本地缓存 + Walk 命中 fast-path + 输出长度预测。
+      - strong [ref=e333]: C5 是研究性子里程碑
+      - text: ：捕获真实 LLM 输入输出对，看长度预测准确率能否达到可用门槛——达不到就 kill，不勉强。
+    - generic [ref=e334]:
+      - strong [ref=e335]: KR ↦ G3 ·
+      - text: OpenClaw 多轮交互 TTFT 中位数 ≤ 直连 LLM 基线 0.5×
+    - table [ref=e336]:
+      - rowgroup [ref=e337]:
+        - row "M 名称 说明 状态" [ref=e338]:
+          - columnheader "M" [ref=e339]
+          - columnheader "名称" [ref=e340]
+          - columnheader "说明" [ref=e341]
+          - columnheader "状态" [ref=e342]
+      - rowgroup [ref=e343]:
+        - row "C1 TTFT 测量基建 直连 LLM vs 经 echomem 两路 TTFT 持续记录。没度量就没优化 planned" [ref=e344]:
+          - cell "C1" [ref=e345]
+          - cell "TTFT 测量基建" [ref=e346]
+          - cell "直连 LLM vs 经 echomem 两路 TTFT 持续记录。没度量就没优化" [ref=e347]:
+            - text: 直连 LLM vs 经 echomem 两路 TTFT 持续记录。
+            - strong [ref=e348]: 没度量就没优化
+          - cell "planned" [ref=e349]:
+            - generic [ref=e350]: planned
+        - row "C2 Snap recall 命中缓存层 vec0 + fts5 联合还能优化；常见 query 命中本地 cache 跳过 LLM 拼装 active" [ref=e351]:
+          - cell "C2" [ref=e352]
+          - cell "Snap recall 命中缓存层" [ref=e353]
+          - cell "vec0 + fts5 联合还能优化；常见 query 命中本地 cache 跳过 LLM 拼装" [ref=e354]
+          - cell "active" [ref=e355]:
+            - generic [ref=e356]: active
+        - row "C3 Walk recall L0 fast-path 简单事实型问题让 Walk 看完 L0 brief 就能回答，跳过 L1/L2 planned" [ref=e357]:
+          - cell "C3" [ref=e358]
+          - cell "Walk recall L0 fast-path" [ref=e359]
+          - cell "简单事实型问题让 Walk 看完 L0 brief 就能回答，跳过 L1/L2" [ref=e360]
+          - cell "planned" [ref=e361]:
+            - generic [ref=e362]: planned
+        - row "C4 Speculative recall 用户问当前问题时，并行预拉相关 entity profile planned" [ref=e363]:
+          - cell "C4" [ref=e364]
+          - cell "Speculative recall" [ref=e365]
+          - cell "用户问当前问题时，并行预拉相关 entity profile" [ref=e366]
+          - cell "planned" [ref=e367]:
+            - generic [ref=e368]: planned
+        - row "C5 LLM 输出长度预测（研究性） 带 4 个子里程碑 + kill switch（详见下表） planned" [ref=e369]:
+          - cell "C5" [ref=e370]
+          - cell "LLM 输出长度预测（研究性）" [ref=e371]
+          - cell "带 4 个子里程碑 + kill switch（详见下表）" [ref=e372]
+          - cell "planned" [ref=e373]:
+            - generic [ref=e374]: planned
+        - row "C6 G3 KR 验收 所有上述子项就位后 OpenClaw 多轮端到端跑分 future" [ref=e375]:
+          - cell "C6" [ref=e376]
+          - cell "G3 KR 验收" [ref=e377]
+          - cell "所有上述子项就位后 OpenClaw 多轮端到端跑分" [ref=e378]
+          - cell "future" [ref=e379]:
+            - generic [ref=e380]: future
+    - heading "C5 子里程碑（研究性，可 kill）" [level=4] [ref=e381]
+    - table [ref=e382]:
+      - rowgroup [ref=e383]:
+        - row "M 名称 出口 状态" [ref=e384]:
+          - columnheader "M" [ref=e385]
+          - columnheader "名称" [ref=e386]
+          - columnheader "出口" [ref=e387]
+          - columnheader "状态" [ref=e388]
+      - rowgroup [ref=e389]:
+        - row "C5a 数据捕获 OpenClaw / Claude Code 真实流量里捕获 (input_tokens, output_tokens) pairs，目标 ≥ 100k planned" [ref=e390]:
+          - cell "C5a" [ref=e391]
+          - cell "数据捕获" [ref=e392]
+          - cell "OpenClaw / Claude Code 真实流量里捕获 (input_tokens, output_tokens) pairs，目标 ≥ 100k" [ref=e393]
+          - cell "planned" [ref=e394]:
+            - generic [ref=e395]: planned
+        - row "C5b baseline 模型 input_tokens + 简单 features 回归预测 output_tokens；测准确率 future" [ref=e396]:
+          - cell "C5b" [ref=e397]
+          - cell "baseline 模型" [ref=e398]
+          - cell "input_tokens + 简单 features 回归预测 output_tokens；测准确率" [ref=e399]
+          - cell "future" [ref=e400]:
+            - generic [ref=e401]: future
+        - row "C5c 引入 memory 上下文 把 echomem recall 的\"上下文复杂度\"作为 feature；看准确率提升幅度 future" [ref=e402]:
+          - cell "C5c" [ref=e403]
+          - cell "引入 memory 上下文" [ref=e404]
+          - cell "把 echomem recall 的\"上下文复杂度\"作为 feature；看准确率提升幅度" [ref=e405]
+          - cell "future" [ref=e406]:
+            - generic [ref=e407]: future
+        - row "C5d 决策点 kill switch：平均误差 ≤ 30% 才推进 MaaS 调度集成；否则关闭这个研究分支 future" [ref=e408]:
+          - cell "C5d" [ref=e409]
+          - cell "决策点" [ref=e410]
+          - cell "kill switch：平均误差 ≤ 30% 才推进 MaaS 调度集成；否则关闭这个研究分支" [ref=e411]:
+            - strong [ref=e412]: kill switch
+            - text: ：平均误差 ≤ 30% 才推进 MaaS 调度集成；否则关闭这个研究分支
+          - cell "future" [ref=e413]:
+            - generic [ref=e414]: future
+  - generic [ref=e415]:
+    - generic [ref=e416]:
+      - generic [ref=e417]: TRACK D
+      - heading "成本 · 不依赖云端 LLM" [level=2] [ref=e418]:
+        - text: 成本 ·
+        - emphasis [ref=e419]: 不依赖云端 LLM
+    - paragraph [ref=e420]: 横切 G2 / G3 的优化 track。两个方向：(1) 训一个专为 echomem curator 任务的小型 LLM，本地跑；(2) 减少每次 ingest 的 LLM 调用与重复内容。
+    - generic [ref=e421]:
+      - strong [ref=e422]: KR ↦ 横切 ·
+      - text: 自训 LLM 在 LoCoMo 跑出 ≥ DeepSeek 95% 的得分；ingest 阶段平均 LLM 调用 ↓ 40%
+    - table [ref=e423]:
+      - rowgroup [ref=e424]:
+        - row "M 名称 说明 状态" [ref=e425]:
+          - columnheader "M" [ref=e426]
+          - columnheader "名称" [ref=e427]
+          - columnheader "说明" [ref=e428]
+          - columnheader "状态" [ref=e429]
+      - rowgroup [ref=e430]:
+        - row "D1 curator 数据集构建 DeepSeek 蒸馏 + 部分人工审；目标 ~50K 条多任务样本（涵盖 5 个 curator） planned" [ref=e431]:
+          - cell "D1" [ref=e432]
+          - cell "curator 数据集构建" [ref=e433]
+          - cell "DeepSeek 蒸馏 + 部分人工审；目标 ~50K 条多任务样本（涵盖 5 个 curator）" [ref=e434]
+          - cell "planned" [ref=e435]:
+            - generic [ref=e436]: planned
+        - row "D2 base model 选型 + 微调 gemma-3-2B / qwen-2.5-3B / Llama-3.2-3B 选一；LoRA 起步 planned" [ref=e437]:
+          - cell "D2" [ref=e438]
+          - cell "base model 选型 + 微调" [ref=e439]
+          - cell "gemma-3-2B / qwen-2.5-3B / Llama-3.2-3B 选一；LoRA 起步" [ref=e440]
+          - cell "planned" [ref=e441]:
+            - generic [ref=e442]: planned
+        - row "D3 自训 LLM 评测 跑 LoCoMo 全集 + LongMemEval；目标 ≥ DeepSeek 95% future" [ref=e443]:
+          - cell "D3" [ref=e444]
+          - cell "自训 LLM 评测" [ref=e445]
+          - cell "跑 LoCoMo 全集 + LongMemEval；目标 ≥ DeepSeek 95%" [ref=e446]
+          - cell "future" [ref=e447]:
+            - generic [ref=e448]: future
+        - row "D4 部署：Ollama serving + 切换开关 配置层 backend=auto-trained；与 deepseek 一键切换 future" [ref=e449]:
+          - cell "D4" [ref=e450]
+          - cell "部署：Ollama serving + 切换开关" [ref=e451]
+          - cell "配置层 backend=auto-trained；与 deepseek 一键切换" [ref=e452]:
+            - text: 配置层
+            - code [ref=e453]: backend=auto-trained
+            - text: ；与 deepseek 一键切换
+          - cell "future" [ref=e454]:
+            - generic [ref=e455]: future
+        - row "D5 Markdown 内容去重 同 entity 在多 session 出现时复用 profile.md，不每次重写 planned" [ref=e456]:
+          - cell "D5" [ref=e457]
+          - cell "Markdown 内容去重" [ref=e458]
+          - cell "同 entity 在多 session 出现时复用 profile.md，不每次重写" [ref=e459]
+          - cell "planned" [ref=e460]:
+            - generic [ref=e461]: planned
+        - row "D6 ingest 阶段 prompt 合并 SessionSummarizer + EpisodeExtractor 输入大致重合，可合并 prompt 减一次 LLM 调用 planned" [ref=e462]:
+          - cell "D6" [ref=e463]
+          - cell "ingest 阶段 prompt 合并" [ref=e464]
+          - cell "SessionSummarizer + EpisodeExtractor 输入大致重合，可合并 prompt 减一次 LLM 调用" [ref=e465]
+          - cell "planned" [ref=e466]:
+            - generic [ref=e467]: planned
+        - row "D7 LLM response cache 同输入哈希命中缓存（curator idempotent calls） future" [ref=e468]:
+          - cell "D7" [ref=e469]
+          - cell "LLM response cache" [ref=e470]
+          - cell "同输入哈希命中缓存（curator idempotent calls）" [ref=e471]
+          - cell "future" [ref=e472]:
+            - generic [ref=e473]: future
+  - generic [ref=e474]:
+    - generic [ref=e475]:
+      - generic [ref=e476]: TRACK E
+      - heading "Dashboard · 用户和记忆的关系层" [level=2] [ref=e477]:
+        - text: Dashboard ·
+        - emphasis [ref=e478]: 用户和记忆的关系层
+    - paragraph [ref=e479]:
+      - text: 从"被动记忆系统"走向"用户主动雕琢的知识库"。四级递进：
+      - strong [ref=e480]: 看 → 增删改查 → 溯源 → 与 curator 对话沉淀
+      - text: 。终点是 Karpathy LLM-wiki 风格——用户在 dashboard 自由对话，curator 把对话凝结为 entity profile / trait 增量。
+    - generic [ref=e481]:
+      - strong [ref=e482]: KR ↦ 体验 ·
+      - text: 用户能通过 dashboard 对话沉淀知识，且 curator 能把对话内容正确归入 markdown 树
+    - generic [ref=e483]:
+      - generic [ref=e484]:
+        - text: LV 1
+        - heading "看" [level=4] [ref=e485]
+        - paragraph [ref=e486]: 左侧记忆树 + 右侧 markdown 渲染 + 全文搜索 + agent/session/entity 筛选 + 评测 metric 视图
+      - generic [ref=e487]:
+        - text: LV 2
+        - heading "增删改查" [level=4] [ref=e488]
+        - paragraph [ref=e489]:
+          - text: inline 编辑 → 写回文件；用户改动标
+          - code [ref=e490]: user_edited
+          - text: 不被覆盖；删除时显示级联影响
+      - generic [ref=e491]:
+        - text: LV 3
+        - heading "溯源" [level=4] [ref=e492]
+        - paragraph [ref=e493]: Episode → 源 message · Trait → 贡献 episodes · Entity 时间轴 · 含 echomem 自身运行轨迹（meta-memory）
+      - generic [ref=e494]:
+        - text: LV 4
+        - heading "与 curator 对话" [level=4] [ref=e495]
+        - paragraph [ref=e496]: 选中任一 entity/episode → 和 EntityCurator / TraitReflector 对话；用户提供线索 → curator 重新沉淀
+    - table [ref=e497]:
+      - rowgroup [ref=e498]:
+        - row "M 名称 说明 状态" [ref=e499]:
+          - columnheader "M" [ref=e500]
+          - columnheader "名称" [ref=e501]
+          - columnheader "说明" [ref=e502]
+          - columnheader "状态" [ref=e503]
+      - rowgroup [ref=e504]:
+        - row "E1 Markdown 树浏览 Lv1 · 左侧 agents/sessions/entities/traits 树 + 右侧 markdown 渲染 planned" [ref=e505]:
+          - cell "E1" [ref=e506]
+          - cell "Markdown 树浏览" [ref=e507]
+          - cell "Lv1 · 左侧 agents/sessions/entities/traits 树 + 右侧 markdown 渲染" [ref=e508]
+          - cell "planned" [ref=e509]:
+            - generic [ref=e510]: planned
+        - row "E2 Metric 视图 Lv1 · benchmark 历史趋势、Walk 命中率、延迟分布 planned" [ref=e511]:
+          - cell "E2" [ref=e512]
+          - cell "Metric 视图" [ref=e513]
+          - cell "Lv1 · benchmark 历史趋势、Walk 命中率、延迟分布" [ref=e514]
+          - cell "planned" [ref=e515]:
+            - generic [ref=e516]: planned
+        - row "E3 Markdown inline 编辑 Lv2 · dashboard 改 → 原子写回文件 planned" [ref=e517]:
+          - cell "E3" [ref=e518]
+          - cell "Markdown inline 编辑" [ref=e519]
+          - cell "Lv2 · dashboard 改 → 原子写回文件" [ref=e520]
+          - cell "planned" [ref=e521]:
+            - generic [ref=e522]: planned
+        - 'row "E4 用户改动 vs 系统生成分层 Lv2 · 用户编辑过的字段加 user_edited: true，curator 不再覆盖（\"反向同步\"） planned" [ref=e523]':
+          - cell "E4" [ref=e524]
+          - cell "用户改动 vs 系统生成分层" [ref=e525]
+          - 'cell "Lv2 · 用户编辑过的字段加 user_edited: true，curator 不再覆盖（\"反向同步\"）" [ref=e526]':
+            - text: Lv2 · 用户编辑过的字段加
+            - code [ref=e527]: "user_edited: true"
+            - text: ，curator 不再覆盖（"反向同步"）
+          - cell "planned" [ref=e528]:
+            - generic [ref=e529]: planned
+        - row "E5 删除与级联预览 Lv2 · 删一条 message → 显示哪些 episode/trait 会受影响 planned" [ref=e530]:
+          - cell "E5" [ref=e531]
+          - cell "删除与级联预览" [ref=e532]
+          - cell "Lv2 · 删一条 message → 显示哪些 episode/trait 会受影响" [ref=e533]
+          - cell "planned" [ref=e534]:
+            - generic [ref=e535]: planned
+        - row "E6 Episode → 源 message Lv3 · 任意一句点进去看原始消息 future" [ref=e536]:
+          - cell "E6" [ref=e537]
+          - cell "Episode → 源 message" [ref=e538]
+          - cell "Lv3 · 任意一句点进去看原始消息" [ref=e539]
+          - cell "future" [ref=e540]:
+            - generic [ref=e541]: future
+        - row "E7 Trait → 贡献 episodes Lv3 · 任一 trait 显示哪些 episode 累计形成它 future" [ref=e542]:
+          - cell "E7" [ref=e543]
+          - cell "Trait → 贡献 episodes" [ref=e544]
+          - cell "Lv3 · 任一 trait 显示哪些 episode 累计形成它" [ref=e545]
+          - cell "future" [ref=e546]:
+            - generic [ref=e547]: future
+        - row "E8 Entity 时间轴 Lv3 · profile 每次改写的 diff 历史 future" [ref=e548]:
+          - cell "E8" [ref=e549]
+          - cell "Entity 时间轴" [ref=e550]
+          - cell "Lv3 · profile 每次改写的 diff 历史" [ref=e551]
+          - cell "future" [ref=e552]:
+            - generic [ref=e553]: future
+        - row "E9 echomem 自身运行轨迹（meta-memory） Lv3 · 哪个 curator 在何时用什么模型写的它；错误率/重试统计 future" [ref=e554]:
+          - cell "E9" [ref=e555]
+          - cell "echomem 自身运行轨迹（meta-memory）" [ref=e556]
+          - cell "Lv3 · 哪个 curator 在何时用什么模型写的它；错误率/重试统计" [ref=e557]
+          - cell "future" [ref=e558]:
+            - generic [ref=e559]: future
+        - row "E10 与 curator 对话 Lv4 · 选中任一 entity/episode → 与对应 curator 聊；提供线索 → 重新沉淀 future" [ref=e560]:
+          - cell "E10" [ref=e561]
+          - cell "与 curator 对话" [ref=e562]
+          - cell "Lv4 · 选中任一 entity/episode → 与对应 curator 聊；提供线索 → 重新沉淀" [ref=e563]
+          - cell "future" [ref=e564]:
+            - generic [ref=e565]: future
+        - row "E11 wiki-style 沉淀（Karpathy 风） Lv4 · 用户自由对话，curator 凝结为 entity profile / trait 增量 future" [ref=e566]:
+          - cell "E11" [ref=e567]
+          - cell "wiki-style 沉淀（Karpathy 风）" [ref=e568]
+          - cell "Lv4 · 用户自由对话，curator 凝结为 entity profile / trait 增量" [ref=e569]
+          - cell "future" [ref=e570]:
+            - generic [ref=e571]: future
+        - row "E12 用户主导的 trait 提炼 Lv4 · \"请记住我对 X 的看法\" → TraitReflector 主动开新 trait 文件 future" [ref=e572]:
+          - cell "E12" [ref=e573]
+          - cell "用户主导的 trait 提炼" [ref=e574]
+          - cell "Lv4 · \"请记住我对 X 的看法\" → TraitReflector 主动开新 trait 文件" [ref=e575]
+          - cell "future" [ref=e576]:
+            - generic [ref=e577]: future
+    - paragraph [ref=e579]: "\"只有到 Lv4，markdown 真源的价值才彻底兑现：用户能看到、能改、能和它对话——记忆系统不再是黑盒，是用户主动雕琢的知识仓库。\""
+  - generic [ref=e580]:
+    - generic [ref=e581]:
+      - generic [ref=e582]: TRACK F
+      - heading "端云协同 · 上云时不丢隐私" [level=2] [ref=e583]:
+        - text: 端云协同 ·
+        - emphasis [ref=e584]: 上云时不丢隐私
+    - paragraph [ref=e585]:
+      - text: echomem 默认本地，但用户可能想把记忆上 dbay.cloud 做跨设备同步、长期归档。
+      - strong [ref=e586]: 上云这个动作本身就是隐私的边界事件
+      - text: ——所以端云协同与加密/隔离/审计绑在同一条 track 讨论。这条 track 不在 Phase 8 启动，等本地 5 curator 架构稳定后才进。
+    - generic [ref=e587]:
+      - strong [ref=e588]: KR ↦ 上云入场券 ·
+      - text: 默认零知识加密 · 选择性 sync · per-agent 视图 · 审计日志 · right-to-forget
+    - table [ref=e589]:
+      - rowgroup [ref=e590]:
+        - row "M 名称 说明 状态" [ref=e591]:
+          - columnheader "M" [ref=e592]
+          - columnheader "名称" [ref=e593]
+          - columnheader "说明" [ref=e594]
+          - columnheader "状态" [ref=e595]
+      - rowgroup [ref=e596]:
+        - row "F1 CloudDriver 抽象落地 已有 spec，做 Storage 层切换实现 planned" [ref=e597]:
+          - cell "F1" [ref=e598]
+          - cell "CloudDriver 抽象落地" [ref=e599]
+          - cell "已有 spec，做 Storage 层切换实现" [ref=e600]
+          - cell "planned" [ref=e601]:
+            - generic [ref=e602]: planned
+        - row "F2 选择性 sync 用户挑哪些 entity / session / agent 上云，default 不传任何东西 planned" [ref=e603]:
+          - cell "F2" [ref=e604]
+          - cell "选择性 sync" [ref=e605]
+          - cell "用户挑哪些 entity / session / agent 上云，default 不传任何东西" [ref=e606]
+          - cell "planned" [ref=e607]:
+            - generic [ref=e608]: planned
+        - row "F3 离线降级 云断时降本地，不阻塞；同步冲突默认 local-wins planned" [ref=e609]:
+          - cell "F3" [ref=e610]
+          - cell "离线降级" [ref=e611]
+          - cell "云断时降本地，不阻塞；同步冲突默认 local-wins" [ref=e612]
+          - cell "planned" [ref=e613]:
+            - generic [ref=e614]: planned
+        - row "F4 本地静态加密 age 加密 markdown + SQLite，启动时 password 解锁 future" [ref=e615]:
+          - cell "F4" [ref=e616]
+          - cell "本地静态加密" [ref=e617]
+          - cell "age 加密 markdown + SQLite，启动时 password 解锁" [ref=e618]:
+            - code [ref=e619]: age
+            - text: 加密 markdown + SQLite，启动时 password 解锁
+          - cell "future" [ref=e620]:
+            - generic [ref=e621]: future
+        - row "F5 云端 zero-knowledge 用户持密钥，云端只见密文 future" [ref=e622]:
+          - cell "F5" [ref=e623]
+          - cell "云端 zero-knowledge" [ref=e624]
+          - cell "用户持密钥，云端只见密文" [ref=e625]
+          - cell "future" [ref=e626]:
+            - generic [ref=e627]: future
+        - row "F6 传输加密 TLS 1.3 + cert pinning future" [ref=e628]:
+          - cell "F6" [ref=e629]
+          - cell "传输加密" [ref=e630]
+          - cell "TLS 1.3 + cert pinning" [ref=e631]
+          - cell "future" [ref=e632]:
+            - generic [ref=e633]: future
+        - row "F7 Per-agent 视图（隔离） Claude Code 默认看不到 hermes 的 traits；用户在 dashboard 显式授权 future" [ref=e634]:
+          - cell "F7" [ref=e635]
+          - cell "Per-agent 视图（隔离）" [ref=e636]
+          - cell "Claude Code 默认看不到 hermes 的 traits；用户在 dashboard 显式授权" [ref=e637]
+          - cell "future" [ref=e638]:
+            - generic [ref=e639]: future
+        - row "F8 审计日志 谁（哪个 agent）在何时读了哪条 entity profile future" [ref=e640]:
+          - cell "F8" [ref=e641]
+          - cell "审计日志" [ref=e642]
+          - cell "谁（哪个 agent）在何时读了哪条 entity profile" [ref=e643]
+          - cell "future" [ref=e644]:
+            - generic [ref=e645]: future
+        - row "F9 Right to forget 删一条 message → 反推下游 derivatives → 重新生成或标记缺失 future" [ref=e646]:
+          - cell "F9" [ref=e647]
+          - cell "Right to forget" [ref=e648]
+          - cell "删一条 message → 反推下游 derivatives → 重新生成或标记缺失" [ref=e649]
+          - cell "future" [ref=e650]:
+            - generic [ref=e651]: future
+        - row "F10 云端删除一致性 本地删 → 触发云端删，并在 audit log 记 future" [ref=e652]:
+          - cell "F10" [ref=e653]
+          - cell "云端删除一致性" [ref=e654]
+          - cell "本地删 → 触发云端删，并在 audit log 记" [ref=e655]
+          - cell "future" [ref=e656]:
+            - generic [ref=e657]: future
+  - contentinfo [ref=e658]:
+    - generic [ref=e659]: echomem · 路线图状态截至 2026-05-08
+    - generic [ref=e660]:
+      - link "目标" [ref=e661] [cursor=pointer]:
+        - /url: /goals/
+      - text: ·
+      - link "架构" [ref=e662] [cursor=pointer]:
+        - /url: /architecture/
+      - text: ·
+      - link "评测" [ref=e663] [cursor=pointer]:
+        - /url: /benchmarks/
+      - text: ·
+      - link "路线图" [ref=e664] [cursor=pointer]:
+        - /url: /roadmap/
+      - text: ·
+      - link "怎么用" [ref=e665] [cursor=pointer]:
+        - /url: /how-to-use/

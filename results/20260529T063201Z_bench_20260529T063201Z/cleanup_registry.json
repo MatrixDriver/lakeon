@@ -1,0 +1,13 @@
+{
+  "bench_id": "bench_20260529T063201Z",
+  "database_id": "db_0c97b0a4",
+  "database_name": "bench-branch-version-20260529T063201Z-db",
+  "branches": [
+    {
+      "id": "br_0cf410a8",
+      "name": "main",
+      "is_default": true
+    }
+  ],
+  "versions": []
+}

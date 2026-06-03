@@ -1,0 +1,13 @@
+{
+  "bench_id": "bench_20260529T091309Z",
+  "cleanup_status": "failed",
+  "database_id": "db_b1b7d514",
+  "database_name": "bench-branch-version-20260529T091309Z-db",
+  "failures": [
+    {
+      "error": "DBay API error 429: {'error': {'code': 'RATE_LIMITED', 'message': 'Too many requests. Try again later.'}}",
+      "id": "br_033ee6ff",
+      "type": "branch"
+    }
+  ]
+}

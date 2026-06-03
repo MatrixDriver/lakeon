@@ -1,0 +1,1685 @@
+{
+  "benchmark_status": "completed",
+  "checks": [
+    {
+      "details": {
+        "actual_row_counts": {
+          "bench_events": 10000,
+          "bench_jsonb": 10000,
+          "bench_oltp": 10000
+        },
+        "checksum_tables": [
+          "bench_events",
+          "bench_jsonb",
+          "bench_oltp"
+        ],
+        "expected_row_counts": {
+          "bench_events": 10000,
+          "bench_jsonb": 10000,
+          "bench_oltp": 10000
+        }
+      },
+      "name": "base_row_count_expectation:S",
+      "passed": true
+    },
+    {
+      "details": {
+        "base": {
+          "bench_events": "541599c35641e2f754621f8a51017d6d",
+          "bench_jsonb": "dfac12ec1a3af167742f76e15ee4fa72",
+          "bench_oltp": "4badbed1dfac5b2ed73cad74ef217fe7"
+        },
+        "branch": {
+          "bench_events": "541599c35641e2f754621f8a51017d6d",
+          "bench_jsonb": "dfac12ec1a3af167742f76e15ee4fa72",
+          "bench_oltp": "4badbed1dfac5b2ed73cad74ef217fe7"
+        },
+        "branch_id": "br_b6c8ef18"
+      },
+      "name": "branch_fork_checksum:S:0",
+      "passed": true
+    },
+    {
+      "details": {
+        "branch_child_count": 1,
+        "branch_parent_count": 0,
+        "main_child_count": 0,
+        "main_parent_count": 1
+      },
+      "name": "branch_isolation:S",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_28c0ccd3"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_ef4ea46a"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_998a3ca8"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_752e15b5"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_6d1ebd0e"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_8075ec67"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_f260a224"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_941ed983"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_2240bd3e"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_07d5b641"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_ids": [
+          "ver_07d5b641",
+          "ver_2240bd3e",
+          "ver_28c0ccd3",
+          "ver_6d1ebd0e",
+          "ver_752e15b5",
+          "ver_8075ec67",
+          "ver_941ed983",
+          "ver_998a3ca8",
+          "ver_ef4ea46a",
+          "ver_f260a224"
+        ],
+        "listed_ids": [
+          "ver_07d5b641",
+          "ver_2240bd3e",
+          "ver_28c0ccd3",
+          "ver_6d1ebd0e",
+          "ver_752e15b5",
+          "ver_8075ec67",
+          "ver_941ed983",
+          "ver_998a3ca8",
+          "ver_ef4ea46a",
+          "ver_f260a224"
+        ]
+      },
+      "name": "version_list_retrieval",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_ef4ea46a",
+        "fetched_id": "ver_ef4ea46a"
+      },
+      "name": "version_get_retrieval:ver_ef4ea46a",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_998a3ca8",
+        "fetched_id": "ver_998a3ca8"
+      },
+      "name": "version_get_retrieval:ver_998a3ca8",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_28c0ccd3",
+        "fetched_id": "ver_28c0ccd3"
+      },
+      "name": "version_get_retrieval:ver_28c0ccd3",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_6d1ebd0e",
+        "fetched_id": "ver_6d1ebd0e"
+      },
+      "name": "version_get_retrieval:ver_6d1ebd0e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_752e15b5",
+        "fetched_id": "ver_752e15b5"
+      },
+      "name": "version_get_retrieval:ver_752e15b5",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_8075ec67",
+        "fetched_id": "ver_8075ec67"
+      },
+      "name": "version_get_retrieval:ver_8075ec67",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_f260a224",
+        "fetched_id": "ver_f260a224"
+      },
+      "name": "version_get_retrieval:ver_f260a224",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_941ed983",
+        "fetched_id": "ver_941ed983"
+      },
+      "name": "version_get_retrieval:ver_941ed983",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_2240bd3e",
+        "fetched_id": "ver_2240bd3e"
+      },
+      "name": "version_get_retrieval:ver_2240bd3e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_07d5b641",
+        "fetched_id": "ver_07d5b641"
+      },
+      "name": "version_get_retrieval:ver_07d5b641",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_28c0ccd3",
+        "fetched_id": "ver_28c0ccd3"
+      },
+      "name": "version_get_retrieval:ver_28c0ccd3",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_ef4ea46a",
+        "fetched_id": "ver_ef4ea46a"
+      },
+      "name": "version_get_retrieval:ver_ef4ea46a",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_998a3ca8",
+        "fetched_id": "ver_998a3ca8"
+      },
+      "name": "version_get_retrieval:ver_998a3ca8",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_752e15b5",
+        "fetched_id": "ver_752e15b5"
+      },
+      "name": "version_get_retrieval:ver_752e15b5",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_6d1ebd0e",
+        "fetched_id": "ver_6d1ebd0e"
+      },
+      "name": "version_get_retrieval:ver_6d1ebd0e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_8075ec67",
+        "fetched_id": "ver_8075ec67"
+      },
+      "name": "version_get_retrieval:ver_8075ec67",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_f260a224",
+        "fetched_id": "ver_f260a224"
+      },
+      "name": "version_get_retrieval:ver_f260a224",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_941ed983",
+        "fetched_id": "ver_941ed983"
+      },
+      "name": "version_get_retrieval:ver_941ed983",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_2240bd3e",
+        "fetched_id": "ver_2240bd3e"
+      },
+      "name": "version_get_retrieval:ver_2240bd3e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_07d5b641",
+        "fetched_id": "ver_07d5b641"
+      },
+      "name": "version_get_retrieval:ver_07d5b641",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_28c0ccd3",
+        "fetched_id": "ver_28c0ccd3"
+      },
+      "name": "version_get_retrieval:ver_28c0ccd3",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_ef4ea46a",
+        "fetched_id": "ver_ef4ea46a"
+      },
+      "name": "version_get_retrieval:ver_ef4ea46a",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_998a3ca8",
+        "fetched_id": "ver_998a3ca8"
+      },
+      "name": "version_get_retrieval:ver_998a3ca8",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_752e15b5",
+        "fetched_id": "ver_752e15b5"
+      },
+      "name": "version_get_retrieval:ver_752e15b5",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_6d1ebd0e",
+        "fetched_id": "ver_6d1ebd0e"
+      },
+      "name": "version_get_retrieval:ver_6d1ebd0e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_8075ec67",
+        "fetched_id": "ver_8075ec67"
+      },
+      "name": "version_get_retrieval:ver_8075ec67",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_f260a224",
+        "fetched_id": "ver_f260a224"
+      },
+      "name": "version_get_retrieval:ver_f260a224",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_941ed983",
+        "fetched_id": "ver_941ed983"
+      },
+      "name": "version_get_retrieval:ver_941ed983",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_2240bd3e",
+        "fetched_id": "ver_2240bd3e"
+      },
+      "name": "version_get_retrieval:ver_2240bd3e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_07d5b641",
+        "fetched_id": "ver_07d5b641"
+      },
+      "name": "version_get_retrieval:ver_07d5b641",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_28c0ccd3",
+        "fetched_id": "ver_28c0ccd3"
+      },
+      "name": "version_get_retrieval:ver_28c0ccd3",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_ef4ea46a",
+        "fetched_id": "ver_ef4ea46a"
+      },
+      "name": "version_get_retrieval:ver_ef4ea46a",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_998a3ca8",
+        "fetched_id": "ver_998a3ca8"
+      },
+      "name": "version_get_retrieval:ver_998a3ca8",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_752e15b5",
+        "fetched_id": "ver_752e15b5"
+      },
+      "name": "version_get_retrieval:ver_752e15b5",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_6d1ebd0e",
+        "fetched_id": "ver_6d1ebd0e"
+      },
+      "name": "version_get_retrieval:ver_6d1ebd0e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_8075ec67",
+        "fetched_id": "ver_8075ec67"
+      },
+      "name": "version_get_retrieval:ver_8075ec67",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_f260a224",
+        "fetched_id": "ver_f260a224"
+      },
+      "name": "version_get_retrieval:ver_f260a224",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_941ed983",
+        "fetched_id": "ver_941ed983"
+      },
+      "name": "version_get_retrieval:ver_941ed983",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_2240bd3e",
+        "fetched_id": "ver_2240bd3e"
+      },
+      "name": "version_get_retrieval:ver_2240bd3e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_07d5b641",
+        "fetched_id": "ver_07d5b641"
+      },
+      "name": "version_get_retrieval:ver_07d5b641",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_28c0ccd3",
+        "fetched_id": "ver_28c0ccd3"
+      },
+      "name": "version_get_retrieval:ver_28c0ccd3",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_ef4ea46a",
+        "fetched_id": "ver_ef4ea46a"
+      },
+      "name": "version_get_retrieval:ver_ef4ea46a",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_998a3ca8",
+        "fetched_id": "ver_998a3ca8"
+      },
+      "name": "version_get_retrieval:ver_998a3ca8",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_752e15b5",
+        "fetched_id": "ver_752e15b5"
+      },
+      "name": "version_get_retrieval:ver_752e15b5",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_6d1ebd0e",
+        "fetched_id": "ver_6d1ebd0e"
+      },
+      "name": "version_get_retrieval:ver_6d1ebd0e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_8075ec67",
+        "fetched_id": "ver_8075ec67"
+      },
+      "name": "version_get_retrieval:ver_8075ec67",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_f260a224",
+        "fetched_id": "ver_f260a224"
+      },
+      "name": "version_get_retrieval:ver_f260a224",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_941ed983",
+        "fetched_id": "ver_941ed983"
+      },
+      "name": "version_get_retrieval:ver_941ed983",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_2240bd3e",
+        "fetched_id": "ver_2240bd3e"
+      },
+      "name": "version_get_retrieval:ver_2240bd3e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_07d5b641",
+        "fetched_id": "ver_07d5b641"
+      },
+      "name": "version_get_retrieval:ver_07d5b641",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_28c0ccd3",
+        "fetched_id": "ver_28c0ccd3"
+      },
+      "name": "version_get_retrieval:ver_28c0ccd3",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_ef4ea46a",
+        "fetched_id": "ver_ef4ea46a"
+      },
+      "name": "version_get_retrieval:ver_ef4ea46a",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_998a3ca8",
+        "fetched_id": "ver_998a3ca8"
+      },
+      "name": "version_get_retrieval:ver_998a3ca8",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_752e15b5",
+        "fetched_id": "ver_752e15b5"
+      },
+      "name": "version_get_retrieval:ver_752e15b5",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_6d1ebd0e",
+        "fetched_id": "ver_6d1ebd0e"
+      },
+      "name": "version_get_retrieval:ver_6d1ebd0e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_8075ec67",
+        "fetched_id": "ver_8075ec67"
+      },
+      "name": "version_get_retrieval:ver_8075ec67",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_f260a224",
+        "fetched_id": "ver_f260a224"
+      },
+      "name": "version_get_retrieval:ver_f260a224",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_941ed983",
+        "fetched_id": "ver_941ed983"
+      },
+      "name": "version_get_retrieval:ver_941ed983",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_2240bd3e",
+        "fetched_id": "ver_2240bd3e"
+      },
+      "name": "version_get_retrieval:ver_2240bd3e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_07d5b641",
+        "fetched_id": "ver_07d5b641"
+      },
+      "name": "version_get_retrieval:ver_07d5b641",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_28c0ccd3",
+        "fetched_id": "ver_28c0ccd3"
+      },
+      "name": "version_get_retrieval:ver_28c0ccd3",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_ef4ea46a",
+        "fetched_id": "ver_ef4ea46a"
+      },
+      "name": "version_get_retrieval:ver_ef4ea46a",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_998a3ca8",
+        "fetched_id": "ver_998a3ca8"
+      },
+      "name": "version_get_retrieval:ver_998a3ca8",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_752e15b5",
+        "fetched_id": "ver_752e15b5"
+      },
+      "name": "version_get_retrieval:ver_752e15b5",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_6d1ebd0e",
+        "fetched_id": "ver_6d1ebd0e"
+      },
+      "name": "version_get_retrieval:ver_6d1ebd0e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_f260a224",
+        "fetched_id": "ver_f260a224"
+      },
+      "name": "version_get_retrieval:ver_f260a224",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_8075ec67",
+        "fetched_id": "ver_8075ec67"
+      },
+      "name": "version_get_retrieval:ver_8075ec67",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_941ed983",
+        "fetched_id": "ver_941ed983"
+      },
+      "name": "version_get_retrieval:ver_941ed983",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_2240bd3e",
+        "fetched_id": "ver_2240bd3e"
+      },
+      "name": "version_get_retrieval:ver_2240bd3e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_07d5b641",
+        "fetched_id": "ver_07d5b641"
+      },
+      "name": "version_get_retrieval:ver_07d5b641",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_28c0ccd3",
+        "fetched_id": "ver_28c0ccd3"
+      },
+      "name": "version_get_retrieval:ver_28c0ccd3",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_ef4ea46a",
+        "fetched_id": "ver_ef4ea46a"
+      },
+      "name": "version_get_retrieval:ver_ef4ea46a",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_998a3ca8",
+        "fetched_id": "ver_998a3ca8"
+      },
+      "name": "version_get_retrieval:ver_998a3ca8",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_752e15b5",
+        "fetched_id": "ver_752e15b5"
+      },
+      "name": "version_get_retrieval:ver_752e15b5",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_6d1ebd0e",
+        "fetched_id": "ver_6d1ebd0e"
+      },
+      "name": "version_get_retrieval:ver_6d1ebd0e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_8075ec67",
+        "fetched_id": "ver_8075ec67"
+      },
+      "name": "version_get_retrieval:ver_8075ec67",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_f260a224",
+        "fetched_id": "ver_f260a224"
+      },
+      "name": "version_get_retrieval:ver_f260a224",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_941ed983",
+        "fetched_id": "ver_941ed983"
+      },
+      "name": "version_get_retrieval:ver_941ed983",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_2240bd3e",
+        "fetched_id": "ver_2240bd3e"
+      },
+      "name": "version_get_retrieval:ver_2240bd3e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_07d5b641",
+        "fetched_id": "ver_07d5b641"
+      },
+      "name": "version_get_retrieval:ver_07d5b641",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_28c0ccd3",
+        "fetched_id": "ver_28c0ccd3"
+      },
+      "name": "version_get_retrieval:ver_28c0ccd3",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_ef4ea46a",
+        "fetched_id": "ver_ef4ea46a"
+      },
+      "name": "version_get_retrieval:ver_ef4ea46a",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_998a3ca8",
+        "fetched_id": "ver_998a3ca8"
+      },
+      "name": "version_get_retrieval:ver_998a3ca8",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_752e15b5",
+        "fetched_id": "ver_752e15b5"
+      },
+      "name": "version_get_retrieval:ver_752e15b5",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_6d1ebd0e",
+        "fetched_id": "ver_6d1ebd0e"
+      },
+      "name": "version_get_retrieval:ver_6d1ebd0e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_8075ec67",
+        "fetched_id": "ver_8075ec67"
+      },
+      "name": "version_get_retrieval:ver_8075ec67",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_f260a224",
+        "fetched_id": "ver_f260a224"
+      },
+      "name": "version_get_retrieval:ver_f260a224",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_941ed983",
+        "fetched_id": "ver_941ed983"
+      },
+      "name": "version_get_retrieval:ver_941ed983",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_2240bd3e",
+        "fetched_id": "ver_2240bd3e"
+      },
+      "name": "version_get_retrieval:ver_2240bd3e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_07d5b641",
+        "fetched_id": "ver_07d5b641"
+      },
+      "name": "version_get_retrieval:ver_07d5b641",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_28c0ccd3",
+        "fetched_id": "ver_28c0ccd3"
+      },
+      "name": "version_get_retrieval:ver_28c0ccd3",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_ef4ea46a",
+        "fetched_id": "ver_ef4ea46a"
+      },
+      "name": "version_get_retrieval:ver_ef4ea46a",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_998a3ca8",
+        "fetched_id": "ver_998a3ca8"
+      },
+      "name": "version_get_retrieval:ver_998a3ca8",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_752e15b5",
+        "fetched_id": "ver_752e15b5"
+      },
+      "name": "version_get_retrieval:ver_752e15b5",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_6d1ebd0e",
+        "fetched_id": "ver_6d1ebd0e"
+      },
+      "name": "version_get_retrieval:ver_6d1ebd0e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_f260a224",
+        "fetched_id": "ver_f260a224"
+      },
+      "name": "version_get_retrieval:ver_f260a224",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_8075ec67",
+        "fetched_id": "ver_8075ec67"
+      },
+      "name": "version_get_retrieval:ver_8075ec67",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_941ed983",
+        "fetched_id": "ver_941ed983"
+      },
+      "name": "version_get_retrieval:ver_941ed983",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_2240bd3e",
+        "fetched_id": "ver_2240bd3e"
+      },
+      "name": "version_get_retrieval:ver_2240bd3e",
+      "passed": true
+    },
+    {
+      "details": {
+        "expected_id": "ver_07d5b641",
+        "fetched_id": "ver_07d5b641"
+      },
+      "name": "version_get_retrieval:ver_07d5b641",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_b4876fc3"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_022d6eb3"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_3b10ff4d"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_759b8a61"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_69538566"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_c804236f"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_c45259d7"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_1f110a9d"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_00011ba0"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_cac98a0e"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "endpoint_ids": [
+          "ver_b4876fc3",
+          "ver_cac98a0e"
+        ],
+        "middle_ids": [
+          "ver_00011ba0",
+          "ver_022d6eb3",
+          "ver_1f110a9d",
+          "ver_3b10ff4d",
+          "ver_69538566",
+          "ver_759b8a61",
+          "ver_c45259d7",
+          "ver_c804236f"
+        ],
+        "remaining_ids": [
+          "ver_07d5b641",
+          "ver_2240bd3e",
+          "ver_28c0ccd3",
+          "ver_6d1ebd0e",
+          "ver_752e15b5",
+          "ver_8075ec67",
+          "ver_941ed983",
+          "ver_998a3ca8",
+          "ver_b4876fc3",
+          "ver_cac98a0e",
+          "ver_ef4ea46a",
+          "ver_f260a224"
+        ],
+        "unrelated_version_ids": [
+          "ver_07d5b641",
+          "ver_2240bd3e",
+          "ver_28c0ccd3",
+          "ver_6d1ebd0e",
+          "ver_752e15b5",
+          "ver_8075ec67",
+          "ver_941ed983",
+          "ver_998a3ca8",
+          "ver_ef4ea46a",
+          "ver_f260a224"
+        ]
+      },
+      "name": "version_squash:0",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_75f38f3d"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_94f26f4b"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_70a37b13"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_bd0e72b4"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_d5b556bc"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_f4c4ab8a"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_e42f6e1c"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_c6aa798e"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_691b3249"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_bd1464fc"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "endpoint_ids": [
+          "ver_75f38f3d",
+          "ver_bd1464fc"
+        ],
+        "middle_ids": [
+          "ver_691b3249",
+          "ver_70a37b13",
+          "ver_94f26f4b",
+          "ver_bd0e72b4",
+          "ver_c6aa798e",
+          "ver_d5b556bc",
+          "ver_e42f6e1c",
+          "ver_f4c4ab8a"
+        ],
+        "remaining_ids": [
+          "ver_07d5b641",
+          "ver_2240bd3e",
+          "ver_28c0ccd3",
+          "ver_6d1ebd0e",
+          "ver_752e15b5",
+          "ver_75f38f3d",
+          "ver_8075ec67",
+          "ver_941ed983",
+          "ver_998a3ca8",
+          "ver_b4876fc3",
+          "ver_bd1464fc",
+          "ver_cac98a0e",
+          "ver_ef4ea46a",
+          "ver_f260a224"
+        ],
+        "unrelated_version_ids": [
+          "ver_07d5b641",
+          "ver_2240bd3e",
+          "ver_28c0ccd3",
+          "ver_6d1ebd0e",
+          "ver_752e15b5",
+          "ver_8075ec67",
+          "ver_941ed983",
+          "ver_998a3ca8",
+          "ver_b4876fc3",
+          "ver_cac98a0e",
+          "ver_ef4ea46a",
+          "ver_f260a224"
+        ]
+      },
+      "name": "version_squash:1",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_50f08008"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_815872c0"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_8691c58c"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_6923f598"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_1d3d046e"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_a89ccaf0"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_b7bed532"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_c7778f1f"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_c05723ad"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "missing": [],
+        "required": [
+          "id",
+          "branch_id",
+          "lsn",
+          "snapshot_timeline_id",
+          "created_at"
+        ],
+        "version_id": "ver_e367897b"
+      },
+      "name": "version_metadata",
+      "passed": true
+    },
+    {
+      "details": {
+        "endpoint_ids": [
+          "ver_50f08008",
+          "ver_e367897b"
+        ],
+        "middle_ids": [
+          "ver_1d3d046e",
+          "ver_6923f598",
+          "ver_815872c0",
+          "ver_8691c58c",
+          "ver_a89ccaf0",
+          "ver_b7bed532",
+          "ver_c05723ad",
+          "ver_c7778f1f"
+        ],
+        "remaining_ids": [
+          "ver_07d5b641",
+          "ver_2240bd3e",
+          "ver_28c0ccd3",
+          "ver_50f08008",
+          "ver_6d1ebd0e",
+          "ver_752e15b5",
+          "ver_75f38f3d",
+          "ver_8075ec67",
+          "ver_941ed983",
+          "ver_998a3ca8",
+          "ver_b4876fc3",
+          "ver_bd1464fc",
+          "ver_cac98a0e",
+          "ver_e367897b",
+          "ver_ef4ea46a",
+          "ver_f260a224"
+        ],
+        "unrelated_version_ids": [
+          "ver_07d5b641",
+          "ver_2240bd3e",
+          "ver_28c0ccd3",
+          "ver_6d1ebd0e",
+          "ver_752e15b5",
+          "ver_75f38f3d",
+          "ver_8075ec67",
+          "ver_941ed983",
+          "ver_998a3ca8",
+          "ver_b4876fc3",
+          "ver_bd1464fc",
+          "ver_cac98a0e",
+          "ver_ef4ea46a",
+          "ver_f260a224"
+        ]
+      },
+      "name": "version_squash:2",
+      "passed": true
+    },
+    {
+      "details": {
+        "bench_id": "bench_20260529T065746Z",
+        "cleanup_status": "clean",
+        "database_id": "db_85504369",
+        "database_name": "bench-branch-version-20260529T065746Z-db",
+        "failures": []
+      },
+      "name": "cleanup_status",
+      "passed": true
+    }
+  ],
+  "datasets": {
+    "S": {
+      "actual_row_counts": {
+        "bench_events": 10000,
+        "bench_jsonb": 10000,
+        "bench_oltp": 10000
+      },
+      "base_checksums": {
+        "bench_events": "541599c35641e2f754621f8a51017d6d",
+        "bench_jsonb": "dfac12ec1a3af167742f76e15ee4fa72",
+        "bench_oltp": "4badbed1dfac5b2ed73cad74ef217fe7"
+      },
+      "expected_row_counts": {
+        "bench_events": 10000,
+        "bench_jsonb": 10000,
+        "bench_oltp": 10000
+      }
+    }
+  },
+  "error": null,
+  "preflight": {
+    "api": {
+      "status": "passed"
+    },
+    "datasets": {
+      "status": "passed",
+      "values": [
+        "S"
+      ]
+    },
+    "dry_run": false,
+    "limits": {
+      "max_branch_concurrency": 10,
+      "max_runtime_seconds": 14400,
+      "max_total_branches": 100,
+      "max_total_versions": 100,
+      "status": "passed"
+    },
+    "status": "passed",
+    "timestamp": "2026-05-29T06:57:46.856922+00:00"
+  }
+}

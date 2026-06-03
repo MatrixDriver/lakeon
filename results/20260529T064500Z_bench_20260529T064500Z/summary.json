@@ -1,0 +1,93 @@
+{
+  "database/create/": {
+    "sample_count": 1,
+    "success_count": 1,
+    "error_rate": 0.0,
+    "api_latency_ms": {
+      "min": 2113.9848250022624,
+      "max": 2113.9848250022624,
+      "p50": 2113.9848250022624,
+      "p95": 2113.9848250022624,
+      "p99": 2113.9848250022624,
+      "stddev": 0.0
+    }
+  },
+  "database/get/": {
+    "sample_count": 29,
+    "success_count": 29,
+    "error_rate": 0.0,
+    "api_latency_ms": {
+      "min": 135.51538900355808,
+      "max": 411.41286402125843,
+      "p50": 138.22593601071276,
+      "p95": 211.76276460173528,
+      "p99": 361.74246533424576,
+      "stddev": 52.375588454326625
+    }
+  },
+  "branch/list/": {
+    "sample_count": 1,
+    "success_count": 1,
+    "error_rate": 0.0,
+    "api_latency_ms": {
+      "min": 136.1933549924288,
+      "max": 136.1933549924288,
+      "p50": 136.1933549924288,
+      "p95": 136.1933549924288,
+      "p99": 136.1933549924288,
+      "stddev": 0.0
+    }
+  },
+  "branch_create_without_compute/create/S": {
+    "sample_count": 100,
+    "success_count": 100,
+    "error_rate": 0.0,
+    "api_latency_ms": {
+      "min": 218.38094701524824,
+      "max": 1895.7627979980316,
+      "p50": 239.3507965025492,
+      "p95": 422.06285055144656,
+      "p99": 1128.262281465581,
+      "stddev": 204.27434129572865
+    }
+  },
+  "branch_create_with_compute/create/S": {
+    "sample_count": 50,
+    "success_count": 50,
+    "error_rate": 0.0,
+    "api_latency_ms": {
+      "min": 226.35724800056778,
+      "max": 763.7859120150097,
+      "p50": 249.48755849618465,
+      "p95": 563.6810529642388,
+      "p99": 686.9876808460682,
+      "stddev": 107.66115962444928
+    }
+  },
+  "branch_create_concurrent/create/S": {
+    "sample_count": 144,
+    "success_count": 142,
+    "error_rate": 0.013888888888888888,
+    "api_latency_ms": {
+      "min": 135.4429300117772,
+      "max": 1007.0231760037132,
+      "p50": 469.2959569947561,
+      "p95": 869.8452652053675,
+      "p99": 1005.2035704936134,
+      "stddev": 193.82933194405302
+    }
+  },
+  "branch_create_concurrent/create/": {
+    "sample_count": 57,
+    "success_count": 0,
+    "error_rate": 1.0,
+    "api_latency_ms": {
+      "min": 132.8679289727006,
+      "max": 139.12942400202155,
+      "p50": 135.0890019966755,
+      "p95": 138.8872382172849,
+      "p99": 139.05738840112463,
+      "stddev": 1.777998062132818
+    }
+  }
+}

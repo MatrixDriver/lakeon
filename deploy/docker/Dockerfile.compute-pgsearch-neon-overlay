@@ -1,0 +1,23 @@
+# Overlay: replace compute_ctl in pgsearch-neon-v2 with dbay-forked binary.
+# Fast path for iterating on compute_ctl patches without rebuilding pg_search.
+#
+# Source of truth for the full image is Dockerfile.compute-pgsearch-neon; when
+# the patched compute_ctl is stable, bake it into the v3 tag of that one and
+# retire this overlay.
+#
+# Build context: lakeon project root
+#
+# Usage:
+#   docker build -f deploy/docker/Dockerfile.compute-pgsearch-neon-overlay \
+#     -t swr.cn-north-4.myhuaweicloud.com/flex/compute-node-v17:pgsearch-neon-dbay-v1 .
+
+FROM swr.cn-north-4.myhuaweicloud.com/flex/compute-node-v17:pgsearch-neon-v2
+
+USER root
+
+COPY deploy/docker/compute_ctl-dbay /usr/local/bin/compute_ctl.orig
+RUN chmod +x /usr/local/bin/compute_ctl.orig && \
+    /usr/local/bin/compute_ctl.orig --help >/dev/null && \
+    echo "patched compute_ctl OK"
+
+USER postgres

@@ -1,0 +1,6 @@
+[    1741ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://api.dbay.cloud:8443/api/v1/agentfs/memory-target:0
+[    1745ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://api.dbay.cloud:8443/api/v1/agentfs/memory-target/pending-derivation-count:0
+[    1889ms] [WARNING] [Vue Router warn]: No match found for location with path "/architecture" @ http://localhost:5173/node_modules/.vite/deps/vue-router.js?v=a5d3ac41:206
+[    2491ms] [WARNING] [Vue Router warn]: No match found for location with path "/architecture" @ http://localhost:5173/node_modules/.vite/deps/vue-router.js?v=a5d3ac41:206
+[    2528ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://api.dbay.cloud:8443/api/v1/agentfs/memory-target:0
+[    2529ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://api.dbay.cloud:8443/api/v1/agentfs/memory-target/pending-derivation-count:0

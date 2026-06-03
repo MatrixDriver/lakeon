@@ -1,0 +1,67 @@
+{
+  "database/create/": {
+    "sample_count": 1,
+    "success_count": 1,
+    "error_rate": 0.0,
+    "api_latency_ms": {
+      "min": 2309.7558399895206,
+      "max": 2309.7558399895206,
+      "p50": 2309.7558399895206,
+      "p95": 2309.7558399895206,
+      "p99": 2309.7558399895206,
+      "stddev": 0.0
+    }
+  },
+  "database/get/": {
+    "sample_count": 29,
+    "success_count": 29,
+    "error_rate": 0.0,
+    "api_latency_ms": {
+      "min": 140.31694800360128,
+      "max": 463.8906079926528,
+      "p50": 166.40158501104452,
+      "p95": 364.5013152039605,
+      "p99": 462.73930399445817,
+      "stddev": 78.13223356634238
+    }
+  },
+  "branch/list/": {
+    "sample_count": 1,
+    "success_count": 1,
+    "error_rate": 0.0,
+    "api_latency_ms": {
+      "min": 141.15449599921703,
+      "max": 141.15449599921703,
+      "p50": 141.15449599921703,
+      "p95": 141.15449599921703,
+      "p99": 141.15449599921703,
+      "stddev": 0.0
+    }
+  },
+  "branch_create_without_compute/create/S": {
+    "sample_count": 100,
+    "success_count": 100,
+    "error_rate": 0.0,
+    "api_latency_ms": {
+      "min": 231.2585290055722,
+      "max": 657.8423469909467,
+      "p50": 298.3364394895034,
+      "p95": 503.1833287415793,
+      "p99": 609.1746815780065,
+      "stddev": 86.0153844475398
+    }
+  },
+  "branch_create_with_compute/create/S": {
+    "sample_count": 1,
+    "success_count": 1,
+    "error_rate": 0.0,
+    "api_latency_ms": {
+      "min": 515.8707650261931,
+      "max": 515.8707650261931,
+      "p50": 515.8707650261931,
+      "p95": 515.8707650261931,
+      "p99": 515.8707650261931,
+      "stddev": 0.0
+    }
+  }
+}

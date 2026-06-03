@@ -1,0 +1,109 @@
+{
+  "benchmark_status": "failed",
+  "checks": [
+    {
+      "details": {
+        "actual_row_counts": {
+          "bench_events": 10000,
+          "bench_jsonb": 10000,
+          "bench_oltp": 10000
+        },
+        "checksum_tables": [
+          "bench_events",
+          "bench_jsonb",
+          "bench_oltp"
+        ],
+        "expected_row_counts": {
+          "bench_events": 10000,
+          "bench_jsonb": 10000,
+          "bench_oltp": 10000
+        }
+      },
+      "name": "base_row_count_expectation:S",
+      "passed": true
+    },
+    {
+      "details": {
+        "base": {
+          "bench_events": "541599c35641e2f754621f8a51017d6d",
+          "bench_jsonb": "dfac12ec1a3af167742f76e15ee4fa72",
+          "bench_oltp": "4badbed1dfac5b2ed73cad74ef217fe7"
+        },
+        "branch": {
+          "bench_events": "541599c35641e2f754621f8a51017d6d",
+          "bench_jsonb": "dfac12ec1a3af167742f76e15ee4fa72",
+          "bench_oltp": "4badbed1dfac5b2ed73cad74ef217fe7"
+        },
+        "branch_id": "br_214084b2"
+      },
+      "name": "branch_fork_checksum:S:0",
+      "passed": true
+    },
+    {
+      "details": {
+        "branch_child_count": 1,
+        "branch_parent_count": 0,
+        "main_child_count": 0,
+        "main_parent_count": 1
+      },
+      "name": "branch_isolation:S",
+      "passed": true
+    },
+    {
+      "details": {
+        "bench_id": "bench_20260529T065405Z",
+        "cleanup_status": "clean",
+        "database_id": "db_2f03ee73",
+        "database_name": "bench-branch-version-20260529T065405Z-db",
+        "failures": []
+      },
+      "name": "cleanup_status",
+      "passed": true
+    }
+  ],
+  "datasets": {
+    "S": {
+      "actual_row_counts": {
+        "bench_events": 10000,
+        "bench_jsonb": 10000,
+        "bench_oltp": 10000
+      },
+      "base_checksums": {
+        "bench_events": "541599c35641e2f754621f8a51017d6d",
+        "bench_jsonb": "dfac12ec1a3af167742f76e15ee4fa72",
+        "bench_oltp": "4badbed1dfac5b2ed73cad74ef217fe7"
+      },
+      "expected_row_counts": {
+        "bench_events": 10000,
+        "bench_jsonb": 10000,
+        "bench_oltp": 10000
+      }
+    }
+  },
+  "error": {
+    "message": "DBay API error 0: {'error': {'message': 'The read operation timed out'}}",
+    "type": "DbayApiError"
+  },
+  "preflight": {
+    "api": {
+      "status": "passed"
+    },
+    "datasets": {
+      "status": "passed",
+      "values": [
+        "S",
+        "M"
+      ]
+    },
+    "dry_run": false,
+    "limits": {
+      "max_branch_concurrency": 10,
+      "max_runtime_seconds": 14400,
+      "max_total_branches": 200,
+      "max_total_versions": 200,
+      "status": "passed"
+    },
+    "status": "passed",
+    "timestamp": "2026-05-29T06:54:05.154699+00:00"
+  }
+}

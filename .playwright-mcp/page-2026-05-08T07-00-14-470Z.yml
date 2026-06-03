@@ -1,0 +1,126 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "echomem Local-first agent memory" [ref=e4] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e6]: echomem
+        - generic [ref=e7]: Local-first agent memory
+      - navigation [ref=e8]:
+        - link "目标" [ref=e9] [cursor=pointer]:
+          - /url: /goals/
+        - link "架构" [ref=e10] [cursor=pointer]:
+          - /url: /architecture/
+        - link "评测" [ref=e11] [cursor=pointer]:
+          - /url: /benchmarks/
+        - link "路线图" [ref=e12] [cursor=pointer]:
+          - /url: /roadmap/
+        - link "怎么用" [ref=e13] [cursor=pointer]:
+          - /url: /how-to-use/
+      - generic [ref=e14]: v0 · LoCoMo Phase 6.5
+  - generic [ref=e15]:
+    - generic [ref=e16]: Benchmarks
+    - heading "记忆系统的能力， 用别人的尺子量。" [level=1] [ref=e17]:
+      - text: 记忆系统的能力，
+      - emphasis [ref=e18]: 用别人的尺子量。
+    - paragraph [ref=e19]: echomem 的目标 G2（长程记忆评测领先）不能靠自己说了算——必须跑业界公认的 benchmark。这里持续放出我们在标准 dataset 上的运行结果，与替代召回模式（Walk vs Snap）的横向对比。
+  - generic [ref=e20]:
+    - generic [ref=e21]: LoCoMo · Phase 6.5
+    - heading "Walk 显著优于 Snap" [level=2] [ref=e22]
+    - paragraph [ref=e23]:
+      - text: 在 LoCoMo（Snap Research, 2024）的 1540 道长程多轮记忆问答上，
+      - strong [ref=e24]: Walk（agentic 模式）的端到端答题准确率比 Snap（one-shot 模式）高 22 个百分点
+      - text: ——这把"agentic 召回胜过传统 RAG"的判断从直觉变成了数据。
+    - generic [ref=e25]:
+      - generic [ref=e26]:
+        - text: Walk · agentic 召回 (默认)
+        - heading "主路径" [level=3] [ref=e27]
+        - generic [ref=e28]: 64.03%
+        - generic [ref=e29]: 986 / 1540 correct · LoCoMo 全集
+        - paragraph [ref=e30]: Recall agent 在 markdown 文件树上多轮漫步，每步 LLM 决定打开哪个 session/episode/entity。多次推理换来精准上下文。
+      - generic [ref=e31]:
+        - text: Snap · one-shot 召回 (备选)
+        - heading "对照组" [level=3] [ref=e32]
+        - generic [ref=e33]: 41.82%
+        - generic [ref=e34]: 644 / 1540 correct · 同集同 LLM
+        - paragraph [ref=e35]: 经典 RAG 路径：vec0 + fts5 联合检索 top-K markdown 片段，一次性送给生成 LLM。低延迟但跨 session 推理拉胯。
+    - heading "辅助指标 · 检索层（recall@K, MRR）" [level=3] [ref=e36]
+    - paragraph [ref=e37]:
+      - text: 这一组只看"是否取到了相关 chunk"，不评 LLM 能否答对。注意：Snap 在纯检索指标上
+      - emphasis [ref=e38]: 反而略高
+      - text: ——但端到端答题被 Walk 完胜。
+    - table [ref=e39]:
+      - rowgroup [ref=e40]:
+        - row "召回模式 recall@1 recall@5 recall@10 MRR QA 准确率（端到端）" [ref=e41]:
+          - columnheader "召回模式" [ref=e42]
+          - columnheader "recall@1" [ref=e43]
+          - columnheader "recall@5" [ref=e44]
+          - columnheader "recall@10" [ref=e45]
+          - columnheader "MRR" [ref=e46]
+          - columnheader "QA 准确率（端到端）" [ref=e47]
+      - rowgroup [ref=e48]:
+        - row "Walk · agentic 32.7% 59.0% 69.7% 0.448 64.03% ↑" [ref=e49]:
+          - cell "Walk · agentic" [ref=e50]
+          - cell "32.7%" [ref=e51]
+          - cell "59.0%" [ref=e52]
+          - cell "69.7%" [ref=e53]
+          - cell "0.448" [ref=e54]
+          - cell "64.03% ↑" [ref=e55]
+        - row "Snap · one-shot 37.5% 62.2% 72.7% 0.480 41.82%" [ref=e56]:
+          - cell "Snap · one-shot" [ref=e57]
+          - cell "37.5%" [ref=e58]
+          - cell "62.2%" [ref=e59]
+          - cell "72.7%" [ref=e60]
+          - cell "0.480" [ref=e61]
+          - cell "41.82%" [ref=e62]
+    - paragraph [ref=e64]: "\"检索更全 ≠ 答得更好。Walk 让 LLM 先看摘要、再深读，能在多个 episode 之间真正做 reasoning；Snap 把 top-K 一锅端，LLM 反而被噪音淹没。这是 agentic search 范式价值的硬证据。\""
+    - generic [ref=e65]:
+      - heading "跑分细节" [level=4] [ref=e66]
+      - generic [ref=e67]:
+        - term [ref=e68]: dataset
+        - definition [ref=e69]: LoCoMo (Snap Research, 2024) — 10 个长程对话场景，1540 题
+        - term [ref=e70]: 记忆系统
+        - definition [ref=e71]: echomem v0 (Phase 6.5 commit · markdown-first + 5 curator)
+        - term [ref=e72]: LLM (curator + recall)
+        - definition [ref=e73]: deepseek-v4-flash (OpenAI-compatible)
+        - term [ref=e74]: embedding
+        - definition [ref=e75]: qwen3-embedding:0.6b (Ollama, 本地)
+        - term [ref=e76]: judge
+        - definition [ref=e77]: deepseek-v4-flash · 与 OpenViking / openclaw-eval 同款 prompt
+        - term [ref=e78]: 跑期
+        - definition [ref=e79]: 2026-04-30 ingest → 2026-05-01 QA → 2026-05-01 judge
+        - term [ref=e80]: 原始结果
+        - definition [ref=e81]: "benchmarks/locomo/result/p65_*.{csv,json,log}"
+  - generic [ref=e82]:
+    - generic [ref=e83]: 下一波
+    - heading "即将加入的 benchmarks" [level=2] [ref=e84]
+    - paragraph [ref=e85]: 单一 benchmark 容易过拟合。我们正在把另外两个长程记忆评测接上同一套 runner，结果会陆续发到本页。
+    - generic [ref=e86]:
+      - generic [ref=e87]:
+        - generic [ref=e88]: Planned
+        - heading "LongMemEval" [level=4] [ref=e89]
+        - paragraph [ref=e90]: Adobe Research, 2024 · 5 类长程记忆任务（事实保持、跨会话推理、矛盾检测等）。预计 Phase 7 接入。
+      - generic [ref=e91]:
+        - generic [ref=e92]: Planned
+        - heading "EvolvingEvents" [level=4] [ref=e93]
+        - paragraph [ref=e94]: 跨时间线事件追踪：测试同一事件在多次提及中的状态演化与时序一致性。Phase 7+。
+  - generic [ref=e95]:
+    - generic [ref=e96]: 参考
+    - heading "同领域的横向对照" [level=2] [ref=e97]
+    - paragraph [ref=e98]: 完整的"echomem vs OpenViking vs MemClaw vs neuromem"横向跑分会在 LongMemEval 跑通后一并放出。在那之前，把焦点放在 Walk vs Snap 这一对——它直接决定了 echomem 自己的召回路径选型。
+  - contentinfo [ref=e99]:
+    - generic [ref=e100]: echomem · 评测数据更新于 2026-05-08
+    - generic [ref=e101]:
+      - link "目标" [ref=e102] [cursor=pointer]:
+        - /url: /goals/
+      - text: ·
+      - link "架构" [ref=e103] [cursor=pointer]:
+        - /url: /architecture/
+      - text: ·
+      - link "评测" [ref=e104] [cursor=pointer]:
+        - /url: /benchmarks/
+      - text: ·
+      - link "路线图" [ref=e105] [cursor=pointer]:
+        - /url: /roadmap/
+      - text: ·
+      - link "怎么用" [ref=e106] [cursor=pointer]:
+        - /url: /how-to-use/

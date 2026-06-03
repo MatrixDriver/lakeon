@@ -1,0 +1,1 @@
+import{d as s,o,c as t,n,J as r,_ as c}from"./index-COowpAsY.js";const l=s({__name:"Tag",props:{tone:{}},setup(a){return(e,p)=>(o(),t("span",{class:n(["tag",a.tone??"default"])},[r(e.$slots,"default",{},void 0)],2))}}),d=c(l,[["__scopeId","data-v-49f5a6b0"]]);export{d as T};

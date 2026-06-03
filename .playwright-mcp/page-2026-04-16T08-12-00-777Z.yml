@@ -1,0 +1,287 @@
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e5]:
+      - link "DBay 数据港湾" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e7]: DBay
+        - generic [ref=e8]: 数据港湾
+      - generic [ref=e9]:
+        - link "方案" [ref=e10] [cursor=pointer]:
+          - /url: /product
+        - link "集成" [ref=e11] [cursor=pointer]:
+          - /url: /integrations
+        - link "文档" [ref=e12] [cursor=pointer]:
+          - /url: /docs
+      - generic [ref=e13]:
+        - button "EN" [ref=e14] [cursor=pointer]
+        - link "登录" [ref=e15] [cursor=pointer]:
+          - /url: /login
+        - link "开始使用" [ref=e16] [cursor=pointer]:
+          - /url: "#"
+  - generic [ref=e17]:
+    - generic [ref=e19]:
+      - heading "你的 Agent 越来越懂你。 这份\"懂\"，应该归你自己。" [level=1] [ref=e20]:
+        - generic [ref=e21]: 你的 Agent 越来越懂你。
+        - generic [ref=e22]: 这份"懂"，应该归你自己。
+      - paragraph [ref=e23]: OpenClaw 有一份 Memory，Claude 有一份 Projects，Cursor 有一份 Context —— 你每换一个 Agent，都得从零开始。DBay 反过来：它是你自己的记忆库和知识库，任何 Agent 都可以接上，但数据始终属于你。
+      - paragraph [ref=e24]:
+        - emphasis [ref=e25]: 在你这边。
+      - generic [ref=e26]:
+        - button "开始使用" [ref=e27] [cursor=pointer]
+        - link "了解方案 →" [ref=e28] [cursor=pointer]:
+          - /url: /product
+      - generic [ref=e29]:
+        - generic [ref=e30]: 也可以直接接入你正在用的 Agent
+        - link "Claude Code · Cursor · Cline · Gemini CLI — 集成指引 →" [ref=e31] [cursor=pointer]:
+          - /url: /integrations
+    - generic [ref=e33]:
+      - generic [ref=e34]:
+        - generic [ref=e35]: 立场
+        - heading "在你这边。" [level=2] [ref=e36]
+        - paragraph [ref=e37]: Agent 厂家越来越大，他们在你身上学到的也越来越多。这些"学到的"应该在哪一边？DBay 选一边。
+      - generic [ref=e38]:
+        - article [ref=e39]:
+          - generic [ref=e40]: "01"
+          - heading "钥匙在你手里" [level=3] [ref=e41]
+          - paragraph [ref=e42]: 你的记忆在离开你电脑之前就加密好了（基于公私钥的信封加密），私钥只在你手里。DBay 的服务器只看到一堆密文——就算数据库被人搬走，也还原不了。
+        - article [ref=e43]:
+          - generic [ref=e44]: "02"
+          - heading "你的知识，不是我们的语料" [level=3] [ref=e45]
+          - paragraph [ref=e46]: 你上传的文档、沉淀的 wiki、积累的记忆，都是你个人的东西。我们不拿去训模型，不跨账户汇总，不给第三方（你的数据存在你自己的隔离数据库里）。
+        - article [ref=e47]:
+          - generic [ref=e48]: "03"
+          - heading "接谁由你决定" [level=3] [ref=e49]
+          - paragraph [ref=e50]: DBay 通过 MCP 被任何 Agent 接上 —— Claude Code · Cursor · Cline · OpenClaw。换 Agent 不丢数据，因为数据从来就不在 Agent 那边。
+    - generic [ref=e52]:
+      - generic [ref=e53]:
+        - generic [ref=e54]: 团队协作
+        - heading "拥有。 所以可以分享。" [level=2] [ref=e55]:
+          - generic [ref=e56]: 拥有。
+          - generic [ref=e57]: 所以可以分享。
+        - paragraph [ref=e58]: 因为记忆和知识属于你，所以你来决定谁能看。把一个知识库分享给团队——团队里每个人的 Agent 都能读到同一本 wiki。把记忆库分享给销售团队——所有 Agent 召回同一份客户洞察。
+      - generic [ref=e59]:
+        - generic [ref=e60]:
+          - generic [ref=e61]: "01"
+          - generic [ref=e62]:
+            - heading "一次点击，不是一次集成" [level=3] [ref=e63]
+            - paragraph [ref=e64]: 在 Console 里选一个库，填人或团队的邮箱，确认。对方的 Agent 下一次 recall 就能读到。没有 webhook、没有 API key 交换、没有跨租户复制。
+        - generic [ref=e65]:
+          - generic [ref=e66]: "02"
+          - generic [ref=e67]:
+            - heading "权限分级 · 只读 / 可写 / 管理" [level=3] [ref=e68]
+            - paragraph [ref=e69]: 把客户洞察开给 sales 只读、给 CSM 可写、给 manager 管理；把架构约定开给整个工程部可写。每一份库是独立的权限域，不会互相串。
+        - generic [ref=e70]:
+          - generic [ref=e71]: "03"
+          - generic [ref=e72]:
+            - heading "撤销也一次点击。人走了，数据不走" [level=3] [ref=e73]
+            - paragraph [ref=e74]: 员工离职 → 踢出团队库 → 他的 Agent 下一次 recall 就读不到了。团队成员写入的条目保留在团队库里，个人的那份记忆跟着个人走——他换公司，他的 Agent 还记得他是谁。
+      - paragraph [ref=e75]:
+        - emphasis [ref=e76]: 你拥有，你分享，你决定谁看。
+    - generic [ref=e78]:
+      - heading "工作态与学习态" [level=2] [ref=e79]
+      - generic [ref=e80]:
+        - generic [ref=e81]:
+          - generic [ref=e82]:
+            - generic [ref=e83]: "01"
+            - generic [ref=e84]: Agent 执行时
+          - generic [ref=e85]:
+            - generic [ref=e86]: Memory.recall
+            - generic [ref=e87]: Knowledge.search
+            - generic [ref=e88]: Lakebase
+          - generic [ref=e89]: 读写事务 · 召回记忆 · 检索知识
+        - generic [ref=e90]:
+          - generic [ref=e91]: 数据双向同步
+          - img [ref=e92]
+        - generic [ref=e95]:
+          - generic [ref=e96]:
+            - generic [ref=e97]: "02"
+            - generic [ref=e98]: Agent 学习时
+          - generic [ref=e99]:
+            - generic [ref=e100]: Memory.digest
+            - generic [ref=e101]: Knowledge.curate
+            - generic [ref=e102]: Datalake
+          - generic [ref=e103]: 反思记忆 · 批处理 · 沉淀知识
+      - paragraph [ref=e104]: Agent 不是无状态的 API 调用。它们在时间维度上积累认知，又在每次执行时消费这些认知。DBay 让这两件事发生在同一套底座上。
+    - generic [ref=e106]:
+      - heading "你的 Claude Code 已经在等 DBay 了。" [level=2] [ref=e107]:
+        - generic [ref=e108]: 你的 Claude Code
+        - generic [ref=e109]: 已经在等 DBay 了。
+      - paragraph [ref=e110]: 一行命令装上 dbay 的 MCP 和 Skill，Claude Code 立刻获得跨项目长期记忆和你私有知识库的搜索能力。Cursor · Cline · Continue 同样能用。30 秒，不需要改项目代码。
+      - generic [ref=e111]:
+        - img "跨项目的记忆层" [ref=e113]:
+          - generic [ref=e114]:
+            - generic [ref=e120]: project-a
+            - generic [ref=e121]: 周一
+          - generic [ref=e122]:
+            - generic [ref=e128]: project-b
+            - generic [ref=e129]: 一周后
+          - generic [ref=e130]:
+            - generic [ref=e133]: DBay memory
+            - generic [ref=e134]: camelCase · no semicolons
+          - generic [ref=e137]: ↓ save
+          - generic [ref=e138]: ↑ recall
+          - generic [ref=e139]: 一次说出口，跨项目都记得
+        - generic [ref=e140]:
+          - generic [ref=e141]: ①
+          - heading "跨项目记住你的开发习惯" [level=3] [ref=e142]
+          - paragraph [ref=e143]:
+            - emphasis [ref=e144]: "\"记住我在这个团队偏好 camelCase。\""
+          - paragraph [ref=e145]: 下次你在另一个项目打开 Claude Code，它还知道。跨机器、跨 repo、跨 session。
+      - generic [ref=e146]:
+        - img "团队共享的记忆层" [ref=e148]:
+          - generic [ref=e149]:
+            - generic [ref=e152]: 团队共享记忆
+            - generic [ref=e153]: convention · commit rules · naming
+          - generic [ref=e154]:
+            - generic [ref=e156]: J
+            - generic [ref=e157]: Jacky
+            - generic [ref=e158]: 写规范
+          - generic [ref=e159]:
+            - generic [ref=e161]: A
+            - generic [ref=e162]: Alice
+            - generic [ref=e163]: 新人
+          - generic [ref=e164]:
+            - generic [ref=e166]: B
+            - generic [ref=e167]: Bob
+            - generic [ref=e168]: 老员工
+          - generic [ref=e171]: save
+          - generic [ref=e173]: recall
+          - generic [ref=e175]: recall
+        - generic [ref=e176]:
+          - generic [ref=e177]: ②
+          - heading "团队共享一份开发约定" [level=3] [ref=e178]
+          - paragraph [ref=e179]: Git commit 规范、code review 清单、命名习惯 — 写进一次，整个团队的 Claude Code 共享。
+          - paragraph [ref=e180]: 不再有"新人头两周反复被纠正"。
+      - generic [ref=e181]:
+        - img "本地加密后才上云" [ref=e183]:
+          - generic [ref=e184]:
+            - generic [ref=e186]: 你的机器
+            - generic [ref=e187]: OPENAI_API_KEY
+            - generic [ref=e188]: sk-proj-a7f3…
+          - generic [ref=e190]:
+            - generic [ref=e197]: PBKDF2
+            - generic [ref=e198]: 3-factor
+          - generic [ref=e200]:
+            - generic [ref=e202]: DBay
+            - generic [ref=e203]: enc_v1:7a3f…9c1b
+          - generic [ref=e204]: 服务端只看到密文。
+          - generic [ref=e205]: 数据库被拖走，也还原不了。
+        - generic [ref=e206]:
+          - generic [ref=e207]: ③
+          - heading "API Key 也可以存进记忆层" [level=3] [ref=e208]
+          - paragraph [ref=e209]: OPENAI_API_KEY、DATABASE_URL 这些秘钥常常出现在你和 Agent 的对话里。写进 DBay，三因素密钥派生、PBKDF2 本地加密、服务端永远只能看到密文。数据库被拖走也无法还原。
+          - paragraph [ref=e210]: 这就是为什么你敢把秘钥交给记忆层。
+      - generic [ref=e213]: 它也在学你
+      - generic [ref=e215]:
+        - generic [ref=e217]:
+          - generic [ref=e218]:
+            - generic [ref=e219]: 反思洞察
+            - generic [ref=e220]: "4"
+          - generic [ref=e221]:
+            - paragraph [ref=e222]: 频繁使用 DBay API 进行项目访问和管理，倾向于优先保证自动化而非手动文档维护。
+            - generic [ref=e224]: 90%
+          - generic [ref=e227]:
+            - paragraph [ref=e228]: 在架构设计上倾向于先完成规划再动手，重视成本优化而非堆资源。
+            - generic [ref=e230]: 80%
+        - generic [ref=e233]:
+          - generic [ref=e234]: ④
+          - heading "它还在观察你" [level=3] [ref=e235]
+          - paragraph [ref=e236]: 三天之后，Memory 面板多了一个「反思洞察」标签。DBay 自己从对话里抽出了你的开发模式。
+          - paragraph [ref=e237]: 这些洞察不是你告诉它的。是它在每晚的 digest 里自己反思出来的。下一次你问 Claude Code 关于新项目的建议，它知道的不只是你说过什么，还有 — 你是谁。
+          - paragraph [ref=e238]: 这就是我们说的「学习态」。工作态是你读写它，学习态是它在读你。
+      - generic [ref=e240]:
+        - generic [ref=e241]:
+          - generic [ref=e242]:
+            - generic [ref=e243]: ↓
+            - generic [ref=e244]: 50–70%
+            - generic [ref=e245]: 输入 token
+          - generic [ref=e246]:
+            - generic [ref=e247]: ↑
+            - generic [ref=e248]: 82%
+            - generic [ref=e249]: 召回准确率
+        - paragraph [ref=e250]: 同一个 LoCoMo 多轮对话基准：比起把完整会话历史塞进上下文，DBay 记忆层只召回相关片段。输入 token 减少 50–70%，召回准确率 82%。少花钱，更准。
+      - generic [ref=e251]:
+        - code [ref=e252]: $ claude mcp add --scope user dbay -- python -m dbay_mcp
+        - paragraph [ref=e253]:
+          - text: 需要先装 dbay-cli。
+          - link "查看完整接入指引 →" [ref=e254] [cursor=pointer]:
+            - /url: /integrations
+        - paragraph [ref=e255]: 以 Claude Code 为例。同样支持任何 MCP 兼容的 Agent。
+    - generic [ref=e257]:
+      - generic [ref=e258]:
+        - heading "你刚看到了其中两个。" [level=2] [ref=e259]
+        - paragraph [ref=e260]: Memory 和 Knowledge 只是 DBay 四种能力中的两种。全部四种，长在同一套底座上——而这套底座属于你自己。
+      - generic [ref=e261]:
+        - link "Lakebase 在数据湖上跑的 serverless PostgreSQL Neon copy-on-write + BM25 内核增强 时间旅行 · 分支 · 版本 不是 wrapper。我们在 Neon PageServer 里加了 BM25 索引。 继续读 Lakebase →" [ref=e262] [cursor=pointer]:
+          - /url: /product/lakebase
+          - heading "Lakebase" [level=3] [ref=e263]
+          - list [ref=e264]:
+            - listitem [ref=e265]: 在数据湖上跑的 serverless PostgreSQL
+            - listitem [ref=e266]: Neon copy-on-write + BM25 内核增强
+            - listitem [ref=e267]: 时间旅行 · 分支 · 版本
+          - paragraph [ref=e268]: 不是 wrapper。我们在 Neon PageServer 里加了 BM25 索引。
+          - generic [ref=e269]: 继续读 Lakebase →
+        - link "Knowledge Agent 自己维护的活 wiki 从源文档生成 · 与 wiki 对话 知识持续沉淀，不是静态 RAG Agent 读 wiki 条目，不是 chunk。底层四路融合检索。 继续读 Knowledge →" [ref=e270] [cursor=pointer]:
+          - /url: /product/knowledge
+          - heading "Knowledge" [level=3] [ref=e271]
+          - list [ref=e272]:
+            - listitem [ref=e273]: Agent 自己维护的活 wiki
+            - listitem [ref=e274]: 从源文档生成 · 与 wiki 对话
+            - listitem [ref=e275]: 知识持续沉淀，不是静态 RAG
+          - paragraph [ref=e276]: Agent 读 wiki 条目，不是 chunk。底层四路融合检索。
+          - generic [ref=e277]: 继续读 Knowledge →
+        - link "Memory 同内核融合检索 · LoCoMo 82% 反思洞察自动抽出用户模式 跨 Agent 共享 · 本地加密存储 每晚 digest 反刍对话，几天后自己抽出你的开发模式。 继续读 Memory →" [ref=e278] [cursor=pointer]:
+          - /url: /product/memory
+          - heading "Memory" [level=3] [ref=e279]
+          - list [ref=e280]:
+            - listitem [ref=e281]: 同内核融合检索 · LoCoMo 82%
+            - listitem [ref=e282]: 反思洞察自动抽出用户模式
+            - listitem [ref=e283]: 跨 Agent 共享 · 本地加密存储
+          - paragraph [ref=e284]: 每晚 digest 反刍对话，几天后自己抽出你的开发模式。
+          - generic [ref=e285]: 继续读 Memory →
+        - link "Datalake 多模态算子库 · DAG 编排 算子间 zero-copy · shared memory 文本 · 视频 · 音频都可处理 DAG 编译成分布式 Python，算子间 shared memory 不落地。 继续读 Datalake →" [ref=e286] [cursor=pointer]:
+          - /url: /product/datalake
+          - heading "Datalake" [level=3] [ref=e287]
+          - list [ref=e288]:
+            - listitem [ref=e289]: 多模态算子库 · DAG 编排
+            - listitem [ref=e290]: 算子间 zero-copy · shared memory
+            - listitem [ref=e291]: 文本 · 视频 · 音频都可处理
+          - paragraph [ref=e292]: DAG 编译成分布式 Python，算子间 shared memory 不落地。
+          - generic [ref=e293]: 继续读 Datalake →
+    - generic [ref=e295]:
+      - heading "四个可以被验证的数字" [level=2] [ref=e296]
+      - generic [ref=e297]:
+        - generic [ref=e298]:
+          - generic [ref=e299]: <3s
+          - generic [ref=e300]: 冷启动唤醒
+          - paragraph [ref=e301]: 任意挂起的 compute pod 唤醒到可查询。
+        - generic [ref=e302]:
+          - generic [ref=e303]: 82%
+          - generic [ref=e304]: LoCoMo
+          - paragraph [ref=e305]: LoCoMo 长时记忆任务基准上的召回准确率。
+        - generic [ref=e306]:
+          - generic [ref=e307]: 4路
+          - generic [ref=e308]: 融合检索
+          - paragraph [ref=e309]: 同一次查询融合向量、全文、图、时序四种索引，内核级 BM25 增强。
+        - generic [ref=e310]:
+          - generic [ref=e311]:
+            - text: zero-
+            - text: copy
+          - generic [ref=e312]: 算子间
+          - paragraph [ref=e313]: Datalake DAG 分布式作业算子间无需磁盘落地。
+    - contentinfo [ref=e314]:
+      - generic [ref=e315]:
+        - generic [ref=e316]:
+          - generic [ref=e317]: DBay
+          - generic [ref=e318]: ·
+          - generic [ref=e319]: Agent 工作态和学习态的数据基础设施
+        - generic [ref=e320]:
+          - link "架构" [ref=e321] [cursor=pointer]:
+            - /url: /architecture
+          - link "文档" [ref=e322] [cursor=pointer]:
+            - /url: /docs
+          - link "登录" [ref=e323] [cursor=pointer]:
+            - /url: /login
+  - generic [ref=e325]:
+    - generic [ref=e327]: 在你这边。
+    - generic [ref=e328]: 你的记忆，你的知识，你的选择。

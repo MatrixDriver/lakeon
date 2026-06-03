@@ -1,0 +1,43 @@
+{
+  "benchmark_status": "failed",
+  "checks": [
+    {
+      "details": {
+        "bench_id": "bench_20260529T065313Z",
+        "cleanup_status": "clean",
+        "database_id": "db_676cd342",
+        "database_name": "bench-branch-version-20260529T065313Z-db",
+        "failures": []
+      },
+      "name": "cleanup_status",
+      "passed": true
+    }
+  ],
+  "datasets": {},
+  "error": {
+    "message": "DBay database entered ERROR before default branch was available: \u521b\u5efa\u8fc7\u7a0b\u88ab\u670d\u52a1\u91cd\u542f\u4e2d\u65ad\uff0c\u8bf7\u5220\u9664\u540e\u91cd\u65b0\u521b\u5efa",
+    "type": "RuntimeError"
+  },
+  "preflight": {
+    "api": {
+      "status": "passed"
+    },
+    "datasets": {
+      "status": "passed",
+      "values": [
+        "S",
+        "M"
+      ]
+    },
+    "dry_run": false,
+    "limits": {
+      "max_branch_concurrency": 10,
+      "max_runtime_seconds": 14400,
+      "max_total_branches": 200,
+      "max_total_versions": 200,
+      "status": "passed"
+    },
+    "status": "passed",
+    "timestamp": "2026-05-29T06:53:13.521622+00:00"
+  }
+}

@@ -1,0 +1,306 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "echomem Local-first agent memory" [ref=e4] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e6]: echomem
+        - generic [ref=e7]: Local-first agent memory
+      - navigation [ref=e8]:
+        - link "目标" [ref=e9] [cursor=pointer]:
+          - /url: /goals/
+        - link "架构" [ref=e10] [cursor=pointer]:
+          - /url: /architecture/
+        - link "评测" [ref=e11] [cursor=pointer]:
+          - /url: /benchmarks/
+        - link "路线图" [ref=e12] [cursor=pointer]:
+          - /url: /roadmap/
+        - link "怎么用" [ref=e13] [cursor=pointer]:
+          - /url: /how-to-use/
+      - generic [ref=e14]: v0 · Phase 2 已交付
+  - generic [ref=e15]:
+    - generic [ref=e16]: Architecture
+    - heading "三家本地 Agent， 共享一颗会反思的本地大脑。" [level=1] [ref=e17]:
+      - text: 三家本地 Agent，
+      - emphasis [ref=e18]: 共享一颗会反思的本地大脑。
+    - paragraph [ref=e19]: echomem 是 Claude Code、openclaw、hermes 的本地记忆与衍生物中枢。SQLite + 本地小模型，离线可跑，schema 与云端 dbay 同源——demo 不靠云、跨 Agent 不丢上下文、记忆衍生物在后台默默生成。
+  - generic [ref=e20]:
+    - generic [ref=e21]: 分层架构
+    - heading "单进程 daemon · markdown 真源 · 5 个 curator" [level=2] [ref=e22]
+    - paragraph [ref=e23]:
+      - text: FastAPI daemon 跑在 127.0.0.1:8473。MCP / HTTP / WS 三种入口共享同一份 store 抽象。
+      - strong [ref=e24]: Curator 池写 markdown，markdown 是真源，SQLite 只是索引。
+      - text: Recall agent 提供两种召回模式（详见下文 Walk vs Snap）。
+    - img [ref=e26]:
+      - generic [ref=e27]:
+        - generic [ref=e28]: CLIENTS
+        - generic [ref=e29]: TRANSPORT
+        - generic [ref=e30]: DAEMON · API
+        - generic [ref=e31]: CURATOR POOL
+        - generic [ref=e32]: STORAGE
+        - generic [ref=e33]: LLM BACKEND
+      - generic [ref=e34]:
+        - generic [ref=e36]: Claude Code
+        - generic [ref=e37]: MCP shim · stdio
+        - generic [ref=e39]: openclaw
+        - generic [ref=e40]: HTTP
+        - generic [ref=e42]: hermes
+        - generic [ref=e43]: HTTP
+        - generic [ref=e45]: Dashboard
+        - generic [ref=e46]: REST + WS
+        - generic [ref=e48]: CLI
+        - generic [ref=e49]: echomem mem ...
+      - generic [ref=e50]:
+        - generic [ref=e52]: MCP · stdio
+        - generic [ref=e54]: HTTP · OpenAPI
+        - generic [ref=e56]: REST + WebSocket
+      - generic [ref=e57]:
+        - generic [ref=e59]: echomem daemon · Python 3.11 · uvicorn
+        - generic [ref=e61]: Memory API
+        - generic [ref=e62]: /ingest /list /search
+        - generic [ref=e64]: Recall Agent
+        - generic [ref=e65]: 两种模式 · Walk (agentic) · Snap (one-shot)
+        - generic [ref=e67]: Sessions API
+        - generic [ref=e68]: Phase 5
+        - generic [ref=e70]: Context API
+        - generic [ref=e71]: URL/PDF · Phase 3
+      - generic [ref=e72]:
+        - generic [ref=e74]: 5 curator agents · asyncio queue · concurrency=8
+        - generic [ref=e76]: MessageWriter
+        - generic [ref=e77]: 代词消解 · 落 messages/
+        - generic [ref=e78]: "trigger: 每条 message"
+        - generic [ref=e80]: SessionSummarizer
+        - generic [ref=e81]: L0/L1/L2 · sessions/
+        - generic [ref=e82]: "trigger: session close"
+        - generic [ref=e84]: EpisodeExtractor
+        - generic [ref=e85]: 事件抽取 · episodes/
+        - generic [ref=e86]: "trigger: session close"
+        - generic [ref=e88]: EntityCurator
+        - generic [ref=e89]: 共指 + alias · entities/
+        - generic [ref=e90]: "trigger: 抽到 entity"
+        - generic [ref=e92]: TraitReflector
+        - generic [ref=e93]: 特质沉淀
+        - generic [ref=e94]: "trigger: N episodes"
+        - generic [ref=e95]: 硬规则 · 代词必须解析 · 实体共指 = aliases + LLM judge · 跨 session episode 用 references 链接
+        - generic [ref=e96]: retry · fail-loud · backend 可切 (Ollama 本地 / DeepSeek 云)
+      - generic [ref=e97]:
+        - generic [ref=e99]: MARKDOWN FS · 真源
+        - generic [ref=e100]: ~/.echomem/markdown/
+        - generic [ref=e101]:
+          - generic [ref=e102]: agents/<id>/sessions/<date_sid>/L0_brief · L1_summary · L2_outline · messages/ · episodes/
+          - generic [ref=e103]: agents/<id>/entities/<slug>/profile.md · triples.md · _meta.yaml (aliases)
+          - generic [ref=e104]: agents/<id>/traits/behavior · preference · core (跨 session 高阶反思)
+          - generic [ref=e105]: _index.md (人读) · _meta.yaml (机读)
+        - generic [ref=e107]: SQLITE · 索引
+        - generic [ref=e108]: echomem.db
+        - generic [ref=e109]:
+          - generic [ref=e110]: vec0 · 向量检索
+          - generic [ref=e111]: fts5 · 全文索引
+          - generic [ref=e112]: metadata · path/hash 映射
+          - generic [ref=e113]: queue · 待处理任务
+        - generic [ref=e114]: drop 不丢数据 · 可重建
+        - generic [ref=e116]: DBAY · 可选
+        - generic [ref=e117]: CloudDriver
+        - generic [ref=e118]: 用户显式启用
+        - generic [ref=e119]: 默认不连
+      - generic [ref=e120]:
+        - generic [ref=e122]: Ollama · localhost:11434 · gemma4:e4b · qwen3-embedding:0.6b
+        - generic [ref=e123]: DeepSeek · 可切
+      - generic [ref=e131]: enqueue
+      - generic [ref=e132]: writes (true source)
+      - generic [ref=e133]: indexes
+      - generic [ref=e137]: Walk
+      - generic [ref=e138]: Snap
+      - generic [ref=e139]: LLM calls
+    - table [ref=e140]:
+      - rowgroup [ref=e141]:
+        - row "层 职责 关键模块 技术选型" [ref=e142]:
+          - columnheader "层" [ref=e143]
+          - columnheader "职责" [ref=e144]
+          - columnheader "关键模块" [ref=e145]
+          - columnheader "技术选型" [ref=e146]
+      - rowgroup [ref=e147]:
+        - row "Clients 三家 Agent + Dashboard，按各自原生协议接入 Claude Code (MCP) · openclaw / hermes (HTTP) · Dashboard SPA stdio · HTTPS · WebSocket" [ref=e148]:
+          - cell "Clients" [ref=e149]
+          - cell "三家 Agent + Dashboard，按各自原生协议接入" [ref=e150]
+          - cell "Claude Code (MCP) · openclaw / hermes (HTTP) · Dashboard SPA" [ref=e151]
+          - cell "stdio · HTTPS · WebSocket" [ref=e152]
+        - row "Transport 把客户端协议转成 daemon 内部调用 MCP shim · OpenAPI router · CLI adapter FastMCP · FastAPI" [ref=e153]:
+          - cell "Transport" [ref=e154]
+          - cell "把客户端协议转成 daemon 内部调用" [ref=e155]
+          - cell "MCP shim · OpenAPI router · CLI adapter" [ref=e156]
+          - cell "FastMCP · FastAPI" [ref=e157]
+        - row "Daemon API + 5 curator agents + 双模 Recall agent Memory API · Recall Agent (Walk/Snap) · 5 curator (Message/Session/Episode/Entity/Trait) Python 3.11 · FastAPI · uvicorn · asyncio queue" [ref=e158]:
+          - cell "Daemon" [ref=e159]
+          - cell "API + 5 curator agents + 双模 Recall agent" [ref=e160]
+          - cell "Memory API · Recall Agent (Walk/Snap) · 5 curator (Message/Session/Episode/Entity/Trait)" [ref=e161]
+          - cell "Python 3.11 · FastAPI · uvicorn · asyncio queue" [ref=e162]
+        - row "Storage · 真源 所有衍生物以 markdown 落地，人/机皆可读 ~/.echomem/markdown/ 文件树 · _index.md · _meta.yaml · 原子写入 tmpfile + rename · content_hash 校验" [ref=e163]:
+          - cell "Storage · 真源" [ref=e164]
+          - cell "所有衍生物以 markdown 落地，人/机皆可读" [ref=e165]
+          - cell "~/.echomem/markdown/ 文件树 · _index.md · _meta.yaml · 原子写入" [ref=e166]
+          - cell "tmpfile + rename · content_hash 校验" [ref=e167]
+        - row "Storage · 索引 本地缓存层；drop 不丢数据，可重建 vec0 (向量) · fts5 (全文) · metadata · queue SQLite WAL · sqlite-vec" [ref=e168]:
+          - cell "Storage · 索引" [ref=e169]
+          - cell "本地缓存层；drop 不丢数据，可重建" [ref=e170]
+          - cell "vec0 (向量) · fts5 (全文) · metadata · queue" [ref=e171]
+          - cell "SQLite WAL · sqlite-vec" [ref=e172]
+        - row "LLM curator + recall 共用同一个推理后端 Ollama (本地默认) · OpenAI-compat (DeepSeek 等可切) gemma4:e4b · qwen3-embedding · deepseek-v4-flash" [ref=e173]:
+          - cell "LLM" [ref=e174]
+          - cell "curator + recall 共用同一个推理后端" [ref=e175]
+          - cell "Ollama (本地默认) · OpenAI-compat (DeepSeek 等可切)" [ref=e176]
+          - cell "gemma4:e4b · qwen3-embedding · deepseek-v4-flash" [ref=e177]
+  - generic [ref=e178]:
+    - generic [ref=e179]: 真源
+    - heading "Markdown 是真源 · SQLite 是索引" [level=2] [ref=e180]
+    - paragraph [ref=e181]: echomem 把所有记忆与衍生物都落盘成可读 markdown 文件。SQLite 仅承担向量检索、全文索引、元数据查询等加速职责。开发者用文件浏览器即可审视记忆质量。
+    - generic [ref=e182]:
+      - generic [ref=e183]:
+        - heading "为什么 markdown 第一" [level=3] [ref=e184]
+        - paragraph [ref=e185]: 记忆系统的本质是"我记得什么"——如果你看不到、改不动，就是黑盒。markdown 是人可读、可版本控制、可手工修正的；dashboard 直接渲染同一份文件；agent 调 read_markdown(path) 也是同一份文件。
+      - generic [ref=e186]:
+        - heading "SQLite 仅作加速" [level=3] [ref=e187]
+        - paragraph [ref=e188]: 把 markdown 文件的 1024-dim embedding 存进 markdown_vec，把 path 元数据存进 markdown_meta。markdown 重算可重建索引；索引坏了不影响数据；两者通过 content_hash 同步。
+  - generic [ref=e189]:
+    - generic [ref=e190]: 目录结构
+    - heading "文件树即记忆树" [level=2] [ref=e191]
+    - paragraph [ref=e192]: 每个 agent 一个独立目录。session、entity、trait 各占一支。目录名带语义（日期前缀、人名 slug），方便 ls、grep、肉眼浏览。
+    - generic [ref=e193]: "~/.echomem/markdown/ └── agents/<agent_id>/ ├── _profile.md # agent 自我介绍 ├── _meta.yaml # 全局统计 │ ├── sessions/ │ ├── _index.md # 时间倒序总览 │ └── <yyyy-mm-dd>_<sid>/ │ ├── _meta.yaml # date, msg_count, speakers │ ├── L0_brief.md # 一句话 (~30 tokens) │ ├── L1_summary.md # 段落 (~300 tokens) │ ├── L2_outline.md # 多节大纲 (~1k tokens) │ ├── messages/ # raw turn × N │ │ ├── 001_<mid>.md │ │ └── ... │ └── episodes/ # LLM 抽取的事件 │ ├── 01_<eid>.md │ └── ... │ ├── entities/ │ ├── _index.md │ └── <slug>/ # 实体名 slugified │ ├── _meta.yaml # aliases, kind, occurrence │ ├── profile.md # 跨 session 归纳 │ └── triples.md # (主, 谓, 宾) 明细 │ └── traits/ # 跨 session 高阶反思 ├── behavior/ # 行为模式 ├── preference/ # 偏好与价值观 └── core/ # 身份级核心特质"
+    - generic [ref=e194]:
+      - generic [ref=e195]:
+        - heading "_meta.yaml" [level=3] [ref=e196]
+        - paragraph [ref=e197]: 每个有意义的目录或对象都有。机读元数据：date、msg_count、aliases、confidence、merge_history 等。dashboard 读这个渲染概览。
+      - generic [ref=e198]:
+        - heading "_index.md" [level=3] [ref=e199]
+        - paragraph [ref=e200]: 每个目录都有。人读索引，列出子项。dashboard 渲染目录树时用。
+      - generic [ref=e201]:
+        - heading "原子写入" [level=3] [ref=e202]
+        - paragraph [ref=e203]: 每次 markdown 写入用 tmp + rename，避免半写文件被读到。markdown 写完才 commit SQLite，跨层强一致。
+  - generic [ref=e204]:
+    - generic [ref=e205]: Curator Agents
+    - heading "五个后台 Agent · 默默维护这棵树" [level=2] [ref=e206]
+    - paragraph [ref=e207]: echomem 后端不是被动 worker，而是五个 curator agent。每个有自己的领域、触发条件、LLM 工具集。recall agent 和 curator agent 共享 read_markdown / list_directory / update_markdown / search_memories 同一套工具——只是触发时机不同。
+    - generic [ref=e208]:
+      - generic [ref=e209]:
+        - text: "1"
+        - heading "MessageWriter" [level=3] [ref=e210]
+        - paragraph [ref=e211]: 每条 ingest 触发；纯落盘，无 LLM。写 sessions/<dir>/messages/NNN.md，更新 session 元数据。embed 全文给 search_memories 用。
+      - generic [ref=e212]:
+        - text: "2"
+        - heading "SessionSummarizer" [level=3] [ref=e213]
+        - paragraph [ref=e214]: session "close" 触发；一次 LLM 调用产出三段（L0/L1/L2 一份 prompt 一次 JSON 输出）。覆盖式写入。
+      - generic [ref=e215]:
+        - text: "3"
+        - heading "EpisodeExtractor" [level=3] [ref=e216]
+        - paragraph [ref=e217]: session close 触发，per-session 一次（不再 per-memory 重复）。从 L2_outline 抽 LLM 语义事件，含绝对时间戳、人物、地点、情感。
+      - generic [ref=e218]:
+        - text: "4"
+        - heading "EntityCurator" [level=3] [ref=e219]
+        - paragraph [ref=e220]: session close 触发；per-entity 一次 LLM 归纳。处理跨 session 别名（"Caroline" / "Carol" / "Caz" → 同一目录），用 fuzzy 匹配 + LLM 判定 + alias 列表。
+      - generic [ref=e221]:
+        - text: "5"
+        - heading "TraitReflector" [level=3] [ref=e222]
+        - paragraph [ref=e223]: 每 K episodes（默认 10）或定时 / on-demand 触发。读 episodes + entity profiles，提炼 user 跨 session 持久特质——分行为 / 偏好 / 核心三层。这是从 LOCOMO 60% 走向 80% 区间的关键层（neuromem 同款思路）。
+    - paragraph [ref=e225]: "\"workers ARE agents——curator 在后台默默写记忆树，recall 在前台帮 user 查记忆树，他们用同一套工具、读写同一份 markdown。\""
+  - generic [ref=e226]:
+    - generic [ref=e227]: 红线
+    - heading "代词必须解析 · 一条不退让的硬规则" [level=2] [ref=e228]
+    - paragraph [ref=e229]: 所有 LLM-generated markdown（episode 正文、entity profile、trait body、L0/L1/L2 summary、triples）禁止出现未解析代词："she" / "he" / "they" / "the person" 等必须替换成真实名字。
+    - generic [ref=e230]:
+      - generic [ref=e231]:
+        - heading "Prompt 层" [level=3] [ref=e232]
+        - paragraph [ref=e233]: 每个 LLM-based curator 的 system prompt 含强制规则："Use real names everywhere; replace pronouns; if cannot resolve, skip the fact."
+      - generic [ref=e234]:
+        - heading "校验层" [level=3] [ref=e235]
+        - paragraph [ref=e236]: 写 markdown 前正则扫描代词，命中则重试 LLM 一次；再失败则丢弃该字段，log warning。
+      - generic [ref=e237]:
+        - heading "测试层" [level=3] [ref=e238]
+        - paragraph [ref=e239]: 每个 worker 单测 + 集成测试都断言输出无未解析代词。这是把质量底线写进 CI 的方式。
+  - generic [ref=e240]:
+    - generic [ref=e241]: 召回模式
+    - heading "Walk vs Snap · 两种召回路径" [level=2] [ref=e242]
+    - paragraph [ref=e243]:
+      - text: 同一份 markdown 真源，echomem 给上层提供两种取记忆的方式。它们的关系类似
+      - emphasis [ref=e244]: agentic search
+      - text: 与
+      - emphasis [ref=e245]: RAG
+      - text: 。
+      - strong [ref=e246]: 初步评测（LoCoMo Phase 6.5, 1540 题）显示 Walk 显著优于 Snap：64.03% vs 41.82%
+      - text: ——所以 Walk 是默认。
+    - generic [ref=e247]:
+      - generic [ref=e248]:
+        - text: 默认 / 推荐
+        - heading "Walk · 漫步召回" [level=3] [ref=e249]
+        - paragraph [ref=e250]: Recall agent 拿着 markdown filesystem 工具集（list_directory, read_markdown, search_memories）在记忆树上一步步走。先看 _index.md 总览，再决定打开哪个 session、哪个 episode、哪个 entity profile，最后产出回答。多轮 LLM 推理，但每步看到的上下文都很精准。
+        - list [ref=e251]:
+          - listitem [ref=e252]: 多步 · 一次问题 = 3-8 次 LLM 调用
+          - listitem [ref=e253]: 渐进披露 · L0 → L1 → L2 → raw 按需深入
+          - listitem [ref=e254]: 跨 session 推理 · 自然支持（agent 自己翻多个 episode）
+      - generic [ref=e255]:
+        - text: 备选 / 低延迟
+        - heading "Snap · 直击召回" [level=3] [ref=e256]
+        - paragraph [ref=e257]: 类经典 RAG：把 query embed 一次，vec0 + fts5 联合检索 top-K，把命中的 markdown 片段拼成 context 一次性给上层 LLM。零迭代，最快返回。在简单事实型问题上够用，但在长程跨 session 推理上明显被 Walk 拉开差距。
+        - list [ref=e258]:
+          - listitem [ref=e259]: 单步 · 一次问题 = 1 次 vec query + 1 次 LLM 生成
+          - listitem [ref=e260]: 固定上下文窗 · top-K 即全部
+          - listitem [ref=e261]: 跨 session 推理 · 受限于 K 与 chunk 边界
+    - paragraph [ref=e263]:
+      - text: "\"我们认为 Walk 才是这套架构的主角——markdown 文件树本来就是为 agent 漫步而生的。Snap 留作低延迟 fallback。"
+      - link "完整评测数据 →" [ref=e264] [cursor=pointer]:
+        - /url: /benchmarks/
+      - text: "\""
+  - generic [ref=e265]:
+    - generic [ref=e266]: 设计原则
+    - heading "六条不动摇的取舍" [level=2] [ref=e267]
+    - generic [ref=e268]:
+      - generic [ref=e269]:
+        - heading "Markdown is source of truth" [level=3] [ref=e270]
+        - paragraph [ref=e271]: 所有衍生物落盘 markdown。SQLite 是索引层，可重建。开发者用文件浏览器直接审视记忆质量，不用查表。
+      - generic [ref=e272]:
+        - heading "Local-first" [level=3] [ref=e273]
+        - paragraph [ref=e274]: 本地是主战场。备份就是 cp ~/.echomem。云端是可选挂载，不是默认依赖。
+      - generic [ref=e275]:
+        - heading "Workers ARE agents" [level=3] [ref=e276]
+        - paragraph [ref=e277]: 每个 worker 是 curator agent，有 LLM、有工具、自主维护一棵 markdown 子树。recall agent 和 curator 共享工具集。
+      - generic [ref=e278]:
+        - heading "代词必须解析" [level=3] [ref=e279]
+        - paragraph [ref=e280]: LLM 生成内容里禁止 "she/he/they"；prompt 强制 + 正则校验 + 单测覆盖。质量底线写进 CI。
+      - generic [ref=e281]:
+        - heading "小模型友好" [level=3] [ref=e282]
+        - paragraph [ref=e283]: 衍生物 pipeline 对 gemma 4B 量级模型留降级路径。worker LLM 可切 OpenAI-compat（DeepSeek 等），并发与延迟自适应。
+      - generic [ref=e284]:
+        - heading "Hook 不入侵" [level=3] [ref=e285]
+        - paragraph [ref=e286]: 所有可选能力通过 Agent 框架 hook 接入，不修改 Agent 业务代码。
+    - paragraph [ref=e288]: "\"echomem 不是一个新东西。它是把 dbay 已经验证过的那些概念——记忆、衍生物、AgentFS——挪回本地，让一台 MacBook 也能体面地服务三家 Agent。\""
+  - generic [ref=e289]:
+    - generic [ref=e290]: 同事入口
+    - heading "下一步" [level=2] [ref=e291]
+    - generic [ref=e292]:
+      - link "路线图 → Phase 1/2 已交付。Phase 3 Context API 启动中。看交付清单与时间线。" [ref=e293] [cursor=pointer]:
+        - /url: /roadmap/
+        - heading "路线图 →" [level=3] [ref=e294]
+        - paragraph [ref=e295]: Phase 1/2 已交付。Phase 3 Context API 启动中。看交付清单与时间线。
+      - link "目标 → 三个量化目标，与各自要先解决的具体障碍。" [ref=e296] [cursor=pointer]:
+        - /url: /goals/
+        - heading "目标 →" [level=3] [ref=e297]
+        - paragraph [ref=e298]: 三个量化目标，与各自要先解决的具体障碍。
+      - link "怎么用 → 快速上手命令、MCP 接入 Claude Code、API 端点参考。" [ref=e299] [cursor=pointer]:
+        - /url: /how-to-use/
+        - heading "怎么用 →" [level=3] [ref=e300]
+        - paragraph [ref=e301]: 快速上手命令、MCP 接入 Claude Code、API 端点参考。
+  - contentinfo [ref=e302]:
+    - generic [ref=e303]: echomem · 本地优先的 Agent 记忆中枢 · 版本 v0
+    - generic [ref=e304]:
+      - link "目标" [ref=e305] [cursor=pointer]:
+        - /url: /goals/
+      - text: ·
+      - link "架构" [ref=e306] [cursor=pointer]:
+        - /url: /architecture/
+      - text: ·
+      - link "评测" [ref=e307] [cursor=pointer]:
+        - /url: /benchmarks/
+      - text: ·
+      - link "路线图" [ref=e308] [cursor=pointer]:
+        - /url: /roadmap/
+      - text: ·
+      - link "怎么用" [ref=e309] [cursor=pointer]:
+        - /url: /how-to-use/

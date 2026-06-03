@@ -1,0 +1,96 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "echomem Local-first agent memory" [ref=e4] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e6]: echomem
+        - generic [ref=e7]: Local-first agent memory
+      - navigation [ref=e8]:
+        - link "目标" [ref=e9] [cursor=pointer]:
+          - /url: /goals/
+        - link "架构" [ref=e10] [cursor=pointer]:
+          - /url: /architecture/
+        - link "评测" [ref=e11] [cursor=pointer]:
+          - /url: /benchmarks/
+        - link "路线图" [ref=e12] [cursor=pointer]:
+          - /url: /roadmap/
+        - link "怎么用" [ref=e13] [cursor=pointer]:
+          - /url: /how-to-use/
+      - generic [ref=e14]: v0 · Phase 2 已交付
+  - generic [ref=e15]:
+    - generic [ref=e16]: What we’re aiming at
+    - heading "echomem 想做到的 三件事。" [level=1] [ref=e17]:
+      - text: echomem 想做到的
+      - emphasis [ref=e18]: 三件事。
+    - paragraph [ref=e19]: 在本地，让多家 Agent 共享一份记忆；让小模型在长程评测追上云端方案；让多轮对话首 Token 延迟降一半。三个量化目标驱动整套设计——架构与路线图都顺着这三条线展开。
+  - generic [ref=e20]:
+    - generic [ref=e21]: 三个量化目标
+    - heading "每一条都给得出数字" [level=2] [ref=e22]
+    - paragraph [ref=e23]: 这不是模糊愿景。每个目标都有可被外部复核的指标——做不到，整套架构就该被推翻重来。
+    - generic [ref=e24]:
+      - generic [ref=e25]:
+        - text: G1 · 跨 AGENT 共享
+        - heading "同一份记忆，三家 Agent 共用" [level=3] [ref=e26]
+        - paragraph [ref=e27]: Claude Code、openclaw、hermes（及后续接入的 OfficeClaw 等）通过统一 MCP API 读写同一份本地记忆池。同一个事实只讲一次，切换工具不丢上下文。
+        - generic [ref=e28]: 指标 · 三家 Agent 真实接入并通过 E2E 共享场景测试
+      - generic [ref=e29]:
+        - text: G2 · 长程评测领先
+        - heading "本地小模型追上云端方案" [level=3] [ref=e30]
+        - paragraph [ref=e31]: 用 4B 量级本地模型，在 LoCoMo 长程多轮记忆评测达到 90% 正确率；同步在 LongMemEval / EvolvingEvents 处于业界前列。
+        - generic [ref=e32]: 指标 · LoCoMo ≥ 90% (本地 4B) · LongMemEval Top-3
+      - generic [ref=e33]:
+        - text: G3 · 延迟减半
+        - heading "首 Token 延迟 (TTFT) 降低 2×" [level=3] [ref=e34]
+        - paragraph [ref=e35]: 缓存命中时跳过远端 embedding 与检索调用，本地直接拼装上下文。多轮交互场景下，TTFT 较直连云端 LLM 降低 2 倍。
+        - generic [ref=e36]: 指标 · OpenClaw 多轮 TTFT 中位数 / 直连基线 ≤ 0.5
+    - paragraph [ref=e38]: "\"不是又一个 memory benchmark 刷分工具。在真实多 Agent 工作流里，用本地小模型做到云端级别的记忆体验。\""
+  - generic [ref=e39]:
+    - generic [ref=e40]: 阻碍
+    - heading "每个目标都要先踩平一些坑" [level=2] [ref=e41]
+    - paragraph [ref=e42]: 下面是上面三个目标各自必须先解决的具体障碍——回答了"为什么不容易、为什么需要 echomem"。
+    - generic [ref=e43]:
+      - generic [ref=e44]:
+        - text: 挡在 G1 前
+        - heading "三家 Agent 各自记笔记" [level=3] [ref=e45]
+        - paragraph [ref=e46]: Claude Code 写过的架构决策，openclaw 不知道；hermes 收到的关键信息，Claude Code 不知道。每家 Agent 都自管上下文，事实在各自的 ~/.claude / ~/.openclaw / 飞书消息里复制 N 份且互不同步。要做的是抽出一层共享记忆 API，让各家 Agent 读写同一池子。
+      - generic [ref=e47]:
+        - text: 挡在 G2 前
+        - heading "本地小模型跑不动云端 pipeline" [level=3] [ref=e48]
+        - paragraph [ref=e49]: LoCoMo 这类长程评测的强基线大多依赖 GPT-4 / Claude Opus 抽 Episode、做指代消解、维护实体图谱——本地 gemma 4B 跑这套要么超时、要么质量崩盘。echomem 把 pipeline 拆成 5 个 curator agent，每个任务足够窄、prompt 足够短，让 4B 模型也能可靠输出。
+      - generic [ref=e50]:
+        - text: 挡在 G3 前
+        - heading "每轮都打远端，对话越长越慢" [level=3] [ref=e51]
+        - paragraph [ref=e52]: 主流 RAG 方案在每轮交互都做一次 remote embedding + retrieval，对话上下文越长延迟越糟，离线场景直接歇菜。echomem 用 markdown 文件树 + SQLite 索引做本地缓存层：常见上下文命中时零远端调用，TTFT 立刻减半。
+  - generic [ref=e53]:
+    - generic [ref=e54]: 现状
+    - heading "现在到哪了" [level=2] [ref=e55]
+    - generic [ref=e56]:
+      - link "架构 → 分层架构、Markdown 是真源、5 个 curator agent、代词必须解析。看完 echomem 怎么工作。" [ref=e57] [cursor=pointer]:
+        - /url: /architecture/
+        - heading "架构 →" [level=3] [ref=e58]
+        - paragraph [ref=e59]: 分层架构、Markdown 是真源、5 个 curator agent、代词必须解析。看完 echomem 怎么工作。
+      - link "路线图 → Phase 1/2 已交付，Phase 6 LoCoMo 评测进行中。看完整交付清单与时间线。" [ref=e60] [cursor=pointer]:
+        - /url: /roadmap/
+        - heading "路线图 →" [level=3] [ref=e61]
+        - paragraph [ref=e62]: Phase 1/2 已交付，Phase 6 LoCoMo 评测进行中。看完整交付清单与时间线。
+      - link "怎么用 → 快速上手命令、MCP 接入 Claude Code、API 端点参考。" [ref=e63] [cursor=pointer]:
+        - /url: /how-to-use/
+        - heading "怎么用 →" [level=3] [ref=e64]
+        - paragraph [ref=e65]: 快速上手命令、MCP 接入 Claude Code、API 端点参考。
+  - contentinfo [ref=e66]:
+    - generic [ref=e67]: echomem · 本地优先的 Agent 记忆中枢 · 版本 v0
+    - generic [ref=e68]:
+      - link "目标" [ref=e69] [cursor=pointer]:
+        - /url: /goals/
+      - text: ·
+      - link "架构" [ref=e70] [cursor=pointer]:
+        - /url: /architecture/
+      - text: ·
+      - link "评测" [ref=e71] [cursor=pointer]:
+        - /url: /benchmarks/
+      - text: ·
+      - link "路线图" [ref=e72] [cursor=pointer]:
+        - /url: /roadmap/
+      - text: ·
+      - link "怎么用" [ref=e73] [cursor=pointer]:
+        - /url: /how-to-use/

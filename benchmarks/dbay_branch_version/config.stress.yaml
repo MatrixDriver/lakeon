@@ -1,0 +1,37 @@
+profile: public-comparison-stress
+resource_prefix: bench-branch-version
+api_base_url: https://api.dbay.cloud:8443/api/v1
+compute_size: 1cu
+poll_interval_seconds: 2.0
+poll_timeout_seconds: 600.0
+request_timeout_seconds: 180.0
+result_root: results
+datasets:
+  - S
+allow_large_dataset: false
+limits:
+  max_branch_concurrency: 10
+  max_total_branches: 160
+  max_total_versions: 160
+  max_runtime_seconds: 14400
+scenarios:
+  branch_create_without_compute:
+    samples_per_dataset: 40
+  branch_create_with_compute:
+    samples_per_dataset: 5
+  branch_create_concurrent:
+    total_samples: 40
+    concurrency:
+      - 10
+  branch_depth:
+    depths:
+      - 1
+      - 3
+  version_create:
+    samples_per_dataset: 40
+  version_read:
+    samples: 400
+    concurrency: 10
+  version_squash:
+    groups: 5
+    versions_per_group: 10

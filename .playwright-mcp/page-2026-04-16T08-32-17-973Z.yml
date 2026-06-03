@@ -1,0 +1,192 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - link "DBay 数据港湾" [ref=e6] [cursor=pointer]:
+      - /url: /
+      - text: DBay
+      - generic [ref=e7]: 数据港湾
+    - generic [ref=e8]:
+      - button "⌘K" [ref=e9] [cursor=pointer]:
+        - img [ref=e10]
+        - generic [ref=e13]: ⌘K
+      - link "文档" [ref=e14] [cursor=pointer]:
+        - /url: /docs
+      - generic [ref=e16]:
+        - generic [ref=e17]: J
+        - generic [ref=e18]: jacky
+      - button "退出" [ref=e19] [cursor=pointer]
+  - generic [ref=e20]:
+    - complementary [ref=e21]:
+      - navigation [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]: 数据库
+          - link "数据库" [ref=e25] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e26]
+            - text: 数据库
+          - link "时间旅行" [ref=e30] [cursor=pointer]:
+            - /url: /timetravel
+            - img [ref=e31]
+            - text: 时间旅行
+          - link "SQL 编辑器" [ref=e34] [cursor=pointer]:
+            - /url: /sql
+            - img [ref=e35]
+            - text: SQL 编辑器
+          - link "数据迁移" [ref=e38] [cursor=pointer]:
+            - /url: /import
+            - img [ref=e39]
+            - text: 数据迁移
+        - generic [ref=e42]:
+          - generic [ref=e43]: Agent 文件
+          - link "浏览文件" [ref=e44] [cursor=pointer]:
+            - /url: /agentfs
+            - img [ref=e45]
+            - text: 浏览文件
+        - generic [ref=e48]:
+          - generic [ref=e49]: 知识库
+          - link "知识库" [ref=e50] [cursor=pointer]:
+            - /url: /knowledge
+            - img [ref=e51]
+            - text: 知识库
+          - link "原文搜索" [ref=e54] [cursor=pointer]:
+            - /url: /knowledge/search
+            - img [ref=e55]
+            - text: 原文搜索
+          - link "Wiki 对话" [ref=e58] [cursor=pointer]:
+            - /url: /knowledge/chat
+            - img [ref=e59]
+            - text: Wiki 对话
+        - generic [ref=e61]:
+          - generic [ref=e62]: 记忆库
+          - link "记忆库" [ref=e63] [cursor=pointer]:
+            - /url: /memory
+            - img [ref=e64]
+            - text: 记忆库
+          - link "记忆浏览" [ref=e66] [cursor=pointer]:
+            - /url: /memory/browse
+            - img [ref=e67]
+            - text: 记忆浏览
+        - generic [ref=e72]:
+          - generic [ref=e73]: 数据源
+          - link "OBS 连接" [ref=e74] [cursor=pointer]:
+            - /url: /datalake/connections
+            - img [ref=e75]
+            - text: OBS 连接
+        - generic [ref=e78]:
+          - generic [ref=e79]: 数据湖
+          - link "生产线" [ref=e80] [cursor=pointer]:
+            - /url: /datalake/pipelines
+            - img [ref=e81]
+            - text: 生产线
+          - link "组件库" [ref=e86] [cursor=pointer]:
+            - /url: /datalake/components
+            - img [ref=e87]
+            - text: 组件库
+          - link "数据集" [ref=e92] [cursor=pointer]:
+            - /url: /datalake/datasets
+            - img [ref=e93]
+            - text: 数据集
+          - link "作业管理" [ref=e96] [cursor=pointer]:
+            - /url: /datalake/jobs
+            - img [ref=e97]
+            - text: 作业管理
+          - link "Notebook" [ref=e99] [cursor=pointer]:
+            - /url: /datalake/notebook
+            - img [ref=e100]
+            - text: Notebook
+        - generic [ref=e103]:
+          - link "监控面板" [ref=e104] [cursor=pointer]:
+            - /url: /monitor
+            - img [ref=e105]
+            - text: 监控面板
+          - link "日志管理" [ref=e107] [cursor=pointer]:
+            - /url: /logs
+            - img [ref=e108]
+            - text: 日志管理
+          - link "资源用量" [ref=e111] [cursor=pointer]:
+            - /url: /usage
+            - img [ref=e112]
+            - text: 资源用量
+          - link "回收站" [ref=e113] [cursor=pointer]:
+            - /url: /recycle-bin
+            - img [ref=e114]
+            - text: 回收站
+          - link "API Key" [ref=e117] [cursor=pointer]:
+            - /url: /apikey
+            - img [ref=e118]
+            - text: API Key
+          - link "账户" [ref=e120] [cursor=pointer]:
+            - /url: /account
+            - img [ref=e121]
+            - text: 账户
+          - link "数据活动" [ref=e124] [cursor=pointer]:
+            - /url: /account/activity
+            - img [ref=e125]
+            - text: 数据活动
+    - main [ref=e128]:
+      - generic [ref=e129]:
+        - generic [ref=e130]:
+          - link "数据库实例" [ref=e131] [cursor=pointer]:
+            - /url: /databases
+          - generic [ref=e132]: /
+          - link "hilobster-metadata" [ref=e166] [cursor=pointer]:
+            - /url: /databases/db_a01f1cb6
+          - generic [ref=e134]: /
+          - generic [ref=e135]: 管理
+        - generic [ref=e136]:
+          - generic [ref=e138]:
+            - generic [ref=e139]:
+              - generic [ref=e140]: 表
+              - button "↻" [ref=e141] [cursor=pointer]
+            - generic [ref=e168]:
+              - generic [ref=e169] [cursor=pointer]:
+                - generic [ref=e170]: ▶
+                - generic [ref=e171]: public
+                - generic [ref=e172]: "10"
+              - generic [ref=e173]:
+                - generic [ref=e174] [cursor=pointer]:
+                  - generic [ref=e175]: T
+                  - generic [ref=e176]: alert_history
+                - generic [ref=e177] [cursor=pointer]:
+                  - generic [ref=e178]: T
+                  - generic [ref=e179]: alert_rules
+                - generic [ref=e180] [cursor=pointer]:
+                  - generic [ref=e181]: T
+                  - generic [ref=e182]: audit_logs
+                - generic [ref=e183] [cursor=pointer]:
+                  - generic [ref=e184]: T
+                  - generic [ref=e185]: channels
+                - generic [ref=e186] [cursor=pointer]:
+                  - generic [ref=e187]: T
+                  - generic [ref=e188]: cost_daily
+                - generic [ref=e189] [cursor=pointer]:
+                  - generic [ref=e190]: T
+                  - generic [ref=e191]: invite_codes
+                - generic [ref=e192] [cursor=pointer]:
+                  - generic [ref=e193]: T
+                  - generic [ref=e194]: lobsters
+                - generic [ref=e195] [cursor=pointer]:
+                  - generic [ref=e196]: T
+                  - generic [ref=e197]: metrics_history
+                - generic [ref=e198] [cursor=pointer]:
+                  - generic [ref=e199]: T
+                  - generic [ref=e200]: models
+                - generic [ref=e201] [cursor=pointer]:
+                  - generic [ref=e202]: T
+                  - generic [ref=e203]: users
+          - generic [ref=e143]:
+            - generic [ref=e145]:
+              - generic [ref=e146]:
+                - generic [ref=e147]:
+                  - button "▶ 执行" [ref=e148] [cursor=pointer]:
+                    - generic [ref=e149]: ▶
+                    - text: 执行
+                  - generic [ref=e150]: Ctrl+Enter 执行
+                - generic [ref=e151]:
+                  - button "AI" [ref=e152] [cursor=pointer]
+                  - button "历史" [ref=e153] [cursor=pointer]
+                  - button "格式化" [ref=e154] [cursor=pointer]
+                  - button "清空" [ref=e155] [cursor=pointer]
+              - textbox [ref=e206]:
+                - generic [ref=e207]:
+                  - generic: 输入 SQL 语句...
+            - paragraph [ref=e165]: 在左侧选择表查看结构和数据，在上方编写 SQL 查询

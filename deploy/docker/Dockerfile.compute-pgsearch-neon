@@ -115,9 +115,17 @@ RUN mv /usr/local/bin/compute_ctl /usr/local/bin/compute_ctl.orig && \
     printf '#!/bin/sh\nexec env LD_PRELOAD=/usr/local/lib/setrlimit_shim.so /usr/local/bin/compute_ctl.orig "$@"\n' > /usr/local/bin/compute_ctl && \
     chmod +x /usr/local/bin/compute_ctl
 
+# Replace upstream compute_ctl.orig with dbay-forked binary (Replica→Primary patch).
+# Built from neon fork at ~/code/neon, branch dbay/custom-compute. The patch in
+# compute_tools/src/compute.rs reconfigure() detects Replica→Primary transition
+# and re-inits PG before apply_spec_sql, enabling warm pool reclaim.
+COPY compute_ctl-dbay /usr/local/bin/compute_ctl.orig
+RUN chmod +x /usr/local/bin/compute_ctl.orig
+
 # Verify
 RUN ls -la /usr/local/lib/pg_search.so \
           /usr/local/share/extension/pg_search.control \
-          /usr/local/lib/setrlimit_shim.so
+          /usr/local/lib/setrlimit_shim.so \
+          /usr/local/bin/compute_ctl.orig
 
 USER postgres

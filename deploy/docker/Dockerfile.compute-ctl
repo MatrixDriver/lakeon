@@ -31,4 +31,10 @@ RUN mv /usr/local/bin/compute_ctl /usr/local/bin/compute_ctl.orig && \
     printf '#!/bin/sh\nexec env LD_PRELOAD=/usr/local/lib/setrlimit_shim.so /usr/local/bin/compute_ctl.orig "$@"\n' > /usr/local/bin/compute_ctl && \
     chmod +x /usr/local/bin/compute_ctl
 
+# Replace upstream compute_ctl.orig with our dbay-forked binary (Replica→Primary patch).
+# Built from github.com/neondatabase/neon fork at /Users/jacky/code/neon with
+# compute_tools/src/compute.rs reconfigure() patched. See docs/superpowers/plans/.
+COPY deploy/docker/compute_ctl-dbay /usr/local/bin/compute_ctl.orig
+RUN chmod +x /usr/local/bin/compute_ctl.orig
+
 USER postgres

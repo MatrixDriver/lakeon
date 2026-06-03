@@ -1,0 +1,43 @@
+{
+  "benchmark_status": "failed",
+  "checks": [
+    {
+      "details": {
+        "bench_id": "bench_20260529T063201Z",
+        "cleanup_status": "clean",
+        "database_id": "db_0c97b0a4",
+        "database_name": "bench-branch-version-20260529T063201Z-db",
+        "failures": []
+      },
+      "name": "cleanup_status",
+      "passed": true
+    }
+  ],
+  "datasets": {},
+  "error": {
+    "message": "incomplete placeholder: '%'; if you want to use '%' as an operator you can double it up, i.e. use '%%'",
+    "type": "ProgrammingError"
+  },
+  "preflight": {
+    "api": {
+      "status": "passed"
+    },
+    "datasets": {
+      "status": "passed",
+      "values": [
+        "S",
+        "M"
+      ]
+    },
+    "dry_run": false,
+    "limits": {
+      "max_branch_concurrency": 10,
+      "max_runtime_seconds": 14400,
+      "max_total_branches": 800,
+      "max_total_versions": 600,
+      "status": "passed"
+    },
+    "status": "passed",
+    "timestamp": "2026-05-29T06:32:01.721839+00:00"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "api_base_url": "https://api.dbay.cloud:8443/api/v1",
+  "bench_id": "bench_20260529T091309Z",
+  "compute_size": "1cu",
+  "plan": {
+    "datasets": [
+      "S"
+    ],
+    "max_branch_concurrency": 10,
+    "profile": "public-comparison-stress",
+    "resource_prefix": "bench-branch-version",
+    "will_cleanup_database": true,
+    "will_create_database": true
+  },
+  "profile": "public-comparison-stress",
+  "resource_prefix": "bench-branch-version"
+}

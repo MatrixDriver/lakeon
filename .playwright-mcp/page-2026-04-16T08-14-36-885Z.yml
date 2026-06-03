@@ -1,0 +1,325 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - link "DBay 数据港湾" [ref=e6] [cursor=pointer]:
+      - /url: /
+      - text: DBay
+      - generic [ref=e7]: 数据港湾
+    - generic [ref=e8]:
+      - button "⌘K" [ref=e9] [cursor=pointer]:
+        - img [ref=e10]
+        - generic [ref=e13]: ⌘K
+      - link "文档" [ref=e14] [cursor=pointer]:
+        - /url: /docs
+      - generic [ref=e16]:
+        - generic [ref=e17]: J
+        - generic [ref=e18]: jacky
+      - button "退出" [ref=e19] [cursor=pointer]
+  - generic [ref=e20]:
+    - complementary [ref=e21]:
+      - navigation [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]: 数据库
+          - link "数据库" [ref=e25] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e26]
+            - text: 数据库
+          - link "时间旅行" [ref=e30] [cursor=pointer]:
+            - /url: /timetravel
+            - img [ref=e31]
+            - text: 时间旅行
+          - link "SQL 编辑器" [ref=e34] [cursor=pointer]:
+            - /url: /sql
+            - img [ref=e35]
+            - text: SQL 编辑器
+          - link "数据迁移" [ref=e38] [cursor=pointer]:
+            - /url: /import
+            - img [ref=e39]
+            - text: 数据迁移
+        - generic [ref=e42]:
+          - generic [ref=e43]: Agent 文件
+          - link "浏览文件" [ref=e44] [cursor=pointer]:
+            - /url: /agentfs
+            - img [ref=e45]
+            - text: 浏览文件
+        - generic [ref=e48]:
+          - generic [ref=e49]: 知识库
+          - link "知识库" [ref=e50] [cursor=pointer]:
+            - /url: /knowledge
+            - img [ref=e51]
+            - text: 知识库
+          - link "原文搜索" [ref=e54] [cursor=pointer]:
+            - /url: /knowledge/search
+            - img [ref=e55]
+            - text: 原文搜索
+          - link "Wiki 对话" [ref=e58] [cursor=pointer]:
+            - /url: /knowledge/chat
+            - img [ref=e59]
+            - text: Wiki 对话
+        - generic [ref=e61]:
+          - generic [ref=e62]: 记忆库
+          - link "记忆库" [ref=e63] [cursor=pointer]:
+            - /url: /memory
+            - img [ref=e64]
+            - text: 记忆库
+          - link "记忆浏览" [ref=e66] [cursor=pointer]:
+            - /url: /memory/browse
+            - img [ref=e67]
+            - text: 记忆浏览
+        - generic [ref=e72]:
+          - generic [ref=e73]: 数据源
+          - link "OBS 连接" [ref=e74] [cursor=pointer]:
+            - /url: /datalake/connections
+            - img [ref=e75]
+            - text: OBS 连接
+        - generic [ref=e78]:
+          - generic [ref=e79]: 数据湖
+          - link "生产线" [ref=e80] [cursor=pointer]:
+            - /url: /datalake/pipelines
+            - img [ref=e81]
+            - text: 生产线
+          - link "组件库" [ref=e86] [cursor=pointer]:
+            - /url: /datalake/components
+            - img [ref=e87]
+            - text: 组件库
+          - link "数据集" [ref=e92] [cursor=pointer]:
+            - /url: /datalake/datasets
+            - img [ref=e93]
+            - text: 数据集
+          - link "作业管理" [ref=e96] [cursor=pointer]:
+            - /url: /datalake/jobs
+            - img [ref=e97]
+            - text: 作业管理
+          - link "Notebook" [ref=e99] [cursor=pointer]:
+            - /url: /datalake/notebook
+            - img [ref=e100]
+            - text: Notebook
+        - generic [ref=e103]:
+          - link "监控面板" [ref=e104] [cursor=pointer]:
+            - /url: /monitor
+            - img [ref=e105]
+            - text: 监控面板
+          - link "日志管理" [ref=e107] [cursor=pointer]:
+            - /url: /logs
+            - img [ref=e108]
+            - text: 日志管理
+          - link "资源用量" [ref=e111] [cursor=pointer]:
+            - /url: /usage
+            - img [ref=e112]
+            - text: 资源用量
+          - link "回收站" [ref=e113] [cursor=pointer]:
+            - /url: /recycle-bin
+            - img [ref=e114]
+            - text: 回收站
+          - link "API Key" [ref=e117] [cursor=pointer]:
+            - /url: /apikey
+            - img [ref=e118]
+            - text: API Key
+          - link "账户" [ref=e120] [cursor=pointer]:
+            - /url: /account
+            - img [ref=e121]
+            - text: 账户
+          - link "数据活动" [ref=e124] [cursor=pointer]:
+            - /url: /account/activity
+            - img [ref=e125]
+            - text: 数据活动
+    - main [ref=e128]:
+      - generic [ref=e129]:
+        - generic [ref=e130]:
+          - heading "数据库" [level=1] [ref=e131]
+          - generic [ref=e134]:
+            - generic [ref=e135]:
+              - button "卡片视图" [ref=e136] [cursor=pointer]:
+                - img [ref=e137]
+              - button "表格视图" [ref=e142] [cursor=pointer]:
+                - img [ref=e143]
+            - link "使用指南" [ref=e147] [cursor=pointer]:
+              - /url: /docs
+            - button "创建数据库" [ref=e148] [cursor=pointer]
+        - generic [ref=e149]:
+          - generic [ref=e150]:
+            - generic [ref=e151]: 实例总数
+            - generic [ref=e152]: "8"
+          - generic [ref=e153]:
+            - generic [ref=e155]: 运行中
+            - generic [ref=e156]: "1"
+          - generic [ref=e157]:
+            - generic [ref=e159]: 已挂起
+            - generic [ref=e160]: "7"
+          - generic [ref=e161]:
+            - generic [ref=e163]: 异常
+            - generic [ref=e164]: "0"
+          - generic [ref=e165]:
+            - generic [ref=e166]: 存储用量
+            - generic [ref=e167]: 0.3 / 80 GB
+        - generic [ref=e168]:
+          - generic [ref=e169]:
+            - generic [ref=e170] [cursor=pointer]:
+              - generic [ref=e171]:
+                - generic [ref=e172]: kb-3460faec8008
+                - generic [ref=e173]: 运行中
+              - generic [ref=e174]:
+                - generic [ref=e175]:
+                  - generic [ref=e176]: 1cu
+                  - generic [ref=e177]: 0 连接
+                  - generic [ref=e178]: 0.0 GB
+                - button "更多操作" [ref=e182]:
+                  - img [ref=e183]
+            - generic [ref=e187] [cursor=pointer]:
+              - generic [ref=e188]:
+                - generic [ref=e189]: tpch-bench
+                - generic [ref=e190]: 已挂起
+              - generic [ref=e191]:
+                - generic [ref=e192]:
+                  - generic [ref=e193]: 2cu
+                  - generic [ref=e194]: 0 连接
+                  - generic [ref=e195]: 0.0 GB
+                - generic [ref=e197]:
+                  - button "唤醒" [ref=e198]
+                  - button "更多操作" [ref=e200]:
+                    - img [ref=e201]
+            - generic [ref=e205] [cursor=pointer]:
+              - generic [ref=e206]:
+                - generic [ref=e207]: hilobster-metadata
+                - generic [ref=e208]: 已挂起
+              - generic [ref=e209]:
+                - generic [ref=e210]:
+                  - generic [ref=e211]: 1cu
+                  - generic [ref=e212]: 0 连接
+                  - generic [ref=e213]: 0.0 GB
+                - generic [ref=e215]:
+                  - button "唤醒" [ref=e216]
+                  - button "更多操作" [ref=e218]:
+                    - img [ref=e219]
+            - generic [ref=e223] [cursor=pointer]:
+              - generic [ref=e224]:
+                - generic [ref=e225]: kb-94c074d67a03
+                - generic [ref=e226]: 已挂起
+              - generic [ref=e227]:
+                - generic [ref=e228]:
+                  - generic [ref=e229]: 1cu
+                  - generic [ref=e230]: 0 连接
+                  - generic [ref=e231]: 0.2 GB
+                - generic [ref=e233]:
+                  - button "唤醒" [ref=e234]
+                  - button "更多操作" [ref=e236]:
+                    - img [ref=e237]
+            - generic [ref=e241] [cursor=pointer]:
+              - generic [ref=e242]:
+                - generic [ref=e243]: mem_3c406438
+                - generic [ref=e244]: 已挂起
+              - generic [ref=e245]:
+                - generic [ref=e246]:
+                  - generic [ref=e247]: 1cu
+                  - generic [ref=e248]: 0 连接
+                  - generic [ref=e249]: 0.0 GB
+                - generic [ref=e251]:
+                  - button "唤醒" [ref=e252]
+                  - button "更多操作" [ref=e254]:
+                    - img [ref=e255]
+            - generic [ref=e259] [cursor=pointer]:
+              - generic [ref=e260]:
+                - generic [ref=e261]: kb-d15b96659468
+                - generic [ref=e262]: 已挂起
+              - generic [ref=e263]:
+                - generic [ref=e264]:
+                  - generic [ref=e265]: 1cu
+                  - generic [ref=e266]: 0 连接
+                  - generic [ref=e267]: 0.0 GB
+                - generic [ref=e269]:
+                  - button "唤醒" [ref=e270]
+                  - button "更多操作" [ref=e272]:
+                    - img [ref=e273]
+            - generic [ref=e277] [cursor=pointer]:
+              - generic [ref=e278]:
+                - generic [ref=e279]: agentfs_ff753a48
+                - generic [ref=e280]: 已挂起
+              - generic [ref=e281]:
+                - generic [ref=e282]:
+                  - generic [ref=e283]: 1cu
+                  - generic [ref=e284]: 0 连接
+                  - generic [ref=e285]: 0.0 GB
+                - generic [ref=e287]:
+                  - button "唤醒" [ref=e288]
+                  - button "更多操作" [ref=e290]:
+                    - img [ref=e291]
+            - generic [ref=e295] [cursor=pointer]:
+              - generic [ref=e296]:
+                - generic [ref=e297]: mem_3501c1fc
+                - generic [ref=e298]: 已挂起
+              - generic [ref=e299]:
+                - generic [ref=e300]:
+                  - generic [ref=e301]: 1cu
+                  - generic [ref=e302]: 0 连接
+                  - generic [ref=e303]: 0.0 GB
+                - generic [ref=e305]:
+                  - button "唤醒" [ref=e306]
+                  - button "更多操作" [ref=e308]:
+                    - img [ref=e309]
+            - generic [ref=e313] [cursor=pointer]: + 创建数据库
+          - generic [ref=e314]:
+            - generic [ref=e315]: 总条数：8
+            - generic [ref=e316]:
+              - combobox [ref=e317] [cursor=pointer]:
+                - option "10" [selected]
+                - option "20"
+                - option "50"
+              - button "<" [disabled] [ref=e318]
+              - button "1" [ref=e319] [cursor=pointer]
+              - button ">" [disabled] [ref=e320]
+        - generic [ref=e321]:
+          - generic [ref=e322]:
+            - heading "最近操作" [level=3] [ref=e323]
+            - link "查看全部" [ref=e324] [cursor=pointer]:
+              - /url: /logs
+          - table [ref=e326]:
+            - rowgroup [ref=e327]:
+              - row "数据库 操作类型 状态 耗时 时间 错误信息" [ref=e328]:
+                - columnheader "数据库" [ref=e329]
+                - columnheader "操作类型" [ref=e330]
+                - columnheader "状态" [ref=e331]
+                - columnheader "耗时" [ref=e332]
+                - columnheader "时间" [ref=e333]
+                - columnheader "错误信息" [ref=e334]
+            - rowgroup [ref=e335]:
+              - row "tpch-bench 挂起 成功 0ms 2026/04/16 16:09:42" [ref=e336]:
+                - cell "tpch-bench" [ref=e337]
+                - cell "挂起" [ref=e338]
+                - cell "成功" [ref=e339]:
+                  - generic [ref=e340]: 成功
+                - cell "0ms" [ref=e341]
+                - cell "2026/04/16 16:09:42" [ref=e342]
+                - cell [ref=e343]
+              - row "mem_3501c1fc 挂起 成功 0ms 2026/04/16 15:44:30" [ref=e344]:
+                - cell "mem_3501c1fc" [ref=e345]
+                - cell "挂起" [ref=e346]
+                - cell "成功" [ref=e347]:
+                  - generic [ref=e348]: 成功
+                - cell "0ms" [ref=e349]
+                - cell "2026/04/16 15:44:30" [ref=e350]
+                - cell [ref=e351]
+              - row "kb-94c074d67a03 挂起 成功 0ms 2026/04/16 15:44:30" [ref=e352]:
+                - cell "kb-94c074d67a03" [ref=e353]
+                - cell "挂起" [ref=e354]
+                - cell "成功" [ref=e355]:
+                  - generic [ref=e356]: 成功
+                - cell "0ms" [ref=e357]
+                - cell "2026/04/16 15:44:30" [ref=e358]
+                - cell [ref=e359]
+              - row "kb-94c074d67a03 挂起 成功 0ms 2026/04/16 15:44:24" [ref=e360]:
+                - cell "kb-94c074d67a03" [ref=e361]
+                - cell "挂起" [ref=e362]
+                - cell "成功" [ref=e363]:
+                  - generic [ref=e364]: 成功
+                - cell "0ms" [ref=e365]
+                - cell "2026/04/16 15:44:24" [ref=e366]
+                - cell [ref=e367]
+              - row "hilobster-metadata 唤醒 冷启动 成功 6.2 min 2026/04/16 15:42:31" [ref=e368]:
+                - cell "hilobster-metadata" [ref=e369]
+                - cell "唤醒 冷启动" [ref=e370]:
+                  - text: 唤醒
+                  - generic [ref=e371]: 冷启动
+                - cell "成功" [ref=e372]:
+                  - generic [ref=e373]: 成功
+                - cell "6.2 min" [ref=e374]
+                - cell "2026/04/16 15:42:31" [ref=e375]
+                - cell [ref=e376]
