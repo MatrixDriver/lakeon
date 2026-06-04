@@ -37,9 +37,15 @@ test.describe('Agent state workbench', () => {
   test('switches from database console to agent workbench', async ({ page }) => {
     await page.goto('/dashboard')
 
-    await page.getByRole('link', { name: 'Agent 工作台' }).click()
+    await expect(page.locator('.workspace-rail')).toBeVisible()
+    await expect(page.locator('.sidebar-nav .side-title')).toContainText('数据库工作台')
+
+    await page.locator('.workspace-rail a[href="/agent-state"]').click()
 
     await expect(page).toHaveURL(/\/agent-state$/)
+    await expect(page.locator('.sidebar-nav .side-title')).toContainText('Agent 工作台')
+    await expect(page.locator('.sidebar-nav').getByRole('link', { name: '数据库' })).toHaveCount(0)
+    await expect(page.locator('.sidebar-nav').getByRole('link', { name: '任务运行' })).toBeVisible()
     await expect(page.locator('h1.page-title')).toHaveText('Agent 工作台')
     await expect(page.getByRole('button', { name: '全部任务' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'PaperBench' })).toBeVisible()

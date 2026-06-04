@@ -46,153 +46,47 @@
       <!-- Mobile sidebar overlay -->
       <div v-if="sidebarOpen" class="sidebar-overlay" @click="sidebarOpen = false"></div>
 
-      <!-- Single Sidebar -->
+      <!-- Workspace navigation -->
       <aside class="sidebar" :class="{ open: sidebarOpen }">
-        <nav class="sidebar-nav">
-          <!-- 数据库 -->
-          <div class="nav-group">
-            <div class="nav-group-title">数据库</div>
-            <router-link to="/dashboard" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>
-              数据库
-            </router-link>
-            <router-link to="/timetravel" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              时间旅行
-            </router-link>
-            <router-link to="/sql" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-              SQL 编辑器
-            </router-link>
-            <router-link to="/import" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              数据迁移
-            </router-link>
+        <nav class="workspace-rail" aria-label="一级工作区">
+          <router-link
+            v-for="mode in workspaceModes"
+            :key="mode.id"
+            :to="mode.to"
+            class="rail-item"
+            :class="{ active: activeMode.id === mode.id }"
+            :aria-current="activeMode.id === mode.id ? 'page' : undefined"
+            @click="sidebarOpen = false"
+          >
+            <span class="rail-icon" aria-hidden="true">{{ mode.icon }}</span>
+            <span>{{ mode.shortLabel }}</span>
+          </router-link>
+        </nav>
+
+        <nav class="sidebar-nav" :aria-label="activeMode.label">
+          <div class="side-title">
+            <span class="side-title-icon" aria-hidden="true">{{ activeMode.icon }}</span>
+            <span>{{ activeMode.label }}</span>
           </div>
 
-          <!-- Agent 文件 (AgentFS) -->
-          <div class="nav-group">
-            <div class="nav-group-title">Agent 文件</div>
-            <router-link to="/agentfs" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              浏览文件
-            </router-link>
-          </div>
-
-          <!-- Agent 工作台 -->
-          <div class="nav-group">
-            <div class="nav-group-title">Agent 工作台</div>
-            <router-link to="/agent-state" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="6" width="14" height="12" rx="3"/><path d="M9 3v3M15 3v3M9 12h.01M15 12h.01M8 18v3M16 18v3"/></svg>
-              Agent 工作台
-            </router-link>
-            <router-link to="/agent-state" class="nav-item nav-sub-item" active-class="active" @click="sidebarOpen = false">
-              任务运行
-            </router-link>
-            <router-link to="/agent-state" class="nav-item nav-sub-item" active-class="active" @click="sidebarOpen = false">
-              Evidence
-            </router-link>
-            <router-link to="/agent-state" class="nav-item nav-sub-item" active-class="active" @click="sidebarOpen = false">
-              Policy & Audit
-            </router-link>
-          </div>
-
-          <!-- 知识库 -->
-          <div class="nav-group">
-            <div class="nav-group-title">知识库</div>
-            <router-link to="/knowledge" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-              知识库
-            </router-link>
-            <router-link to="/knowledge/search" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              原文搜索
-            </router-link>
-            <router-link to="/knowledge/chat" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              Wiki 对话
-            </router-link>
-          </div>
-
-          <!-- 记忆库 -->
-          <div class="nav-group">
-            <div class="nav-group-title">记忆库</div>
-            <router-link to="/memory" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/><line x1="10" y1="21" x2="14" y2="21"/></svg>
-              记忆库
-            </router-link>
-            <router-link to="/memory/browse" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-              记忆浏览
-            </router-link>
-          </div>
-
-          <!-- 数据源 -->
-          <div class="nav-group">
-            <div class="nav-group-title">数据源</div>
-            <router-link to="/datalake/connections" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-              OBS 连接
-            </router-link>
-          </div>
-
-          <!-- 数据湖 -->
-          <div class="nav-group">
-            <div class="nav-group-title">数据湖</div>
-            <router-link to="/datalake/pipelines" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="1.5" fill="currentColor"/><circle cx="14" cy="12" r="1.5" fill="currentColor"/><circle cx="10" cy="18" r="1.5" fill="currentColor"/></svg>
-              生产线
-            </router-link>
-            <router-link to="/datalake/components" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-              组件库
-            </router-link>
-            <router-link to="/datalake/datasets" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              数据集
-            </router-link>
-            <router-link to="/datalake/jobs" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              作业管理
-            </router-link>
-            <router-link to="/datalake/notebook" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-              Notebook
-            </router-link>
-          </div>
-
-          <!-- Separator -->
-          <div class="nav-separator"></div>
-
-          <!-- Settings & Monitoring -->
-          <div class="nav-group nav-group-bottom">
-            <router-link to="/monitor" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-              监控面板
-            </router-link>
-            <router-link to="/logs" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              日志管理
-            </router-link>
-            <router-link to="/usage" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
-              资源用量
-            </router-link>
-            <router-link to="/recycle-bin" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-              回收站
-            </router-link>
-            <router-link to="/apikey" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-              API Key
-            </router-link>
-            <router-link to="/account" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              账户
-            </router-link>
-            <router-link to="/account/activity" class="nav-item" active-class="active" @click="sidebarOpen = false">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
-              数据活动
+          <div v-for="group in activeMode.groups" :key="group.title" class="nav-group">
+            <div v-if="group.title" class="nav-group-title">{{ group.title }}</div>
+            <router-link
+              v-for="item in group.items"
+              :key="item.label"
+              :to="item.to"
+              custom
+              v-slot="{ href, navigate, isActive }"
+            >
+              <a
+                :href="href"
+                class="nav-item"
+                :class="{ active: isActive && !item.sub, 'nav-sub-item': item.sub }"
+                @click="(event) => { navigate(event); sidebarOpen = false }"
+              >
+                <span v-if="item.icon" class="nav-icon" aria-hidden="true">{{ item.icon }}</span>
+                {{ item.label }}
+              </a>
             </router-link>
           </div>
         </nav>
@@ -207,16 +101,172 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { tenantApi } from '../api/tenant'
 import CommandPalette from '../components/CommandPalette.vue'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const sidebarOpen = ref(false)
 const cmdOpen = ref(false)
+
+type NavItem = {
+  label: string
+  to: string
+  icon?: string
+  sub?: boolean
+}
+
+type NavGroup = {
+  title?: string
+  items: NavItem[]
+}
+
+type WorkspaceMode = {
+  id: 'database' | 'agent' | 'knowledge' | 'memory' | 'ops'
+  label: string
+  shortLabel: string
+  icon: string
+  to: string
+  match: string[]
+  groups: NavGroup[]
+}
+
+const workspaceModes: WorkspaceMode[] = [
+  {
+    id: 'database',
+    label: '数据库工作台',
+    shortLabel: 'DB',
+    icon: 'DB',
+    to: '/dashboard',
+    match: ['/dashboard', '/databases', '/timetravel', '/sql', '/import', '/datalake'],
+    groups: [
+      {
+        title: '数据库',
+        items: [
+          { label: '数据库', to: '/dashboard', icon: '▣' },
+          { label: '时间旅行', to: '/timetravel', icon: '◷' },
+          { label: 'SQL 编辑器', to: '/sql', icon: '<>' },
+          { label: '数据迁移', to: '/import', icon: '⇩' },
+        ],
+      },
+      {
+        title: '数据源',
+        items: [
+          { label: 'OBS 连接', to: '/datalake/connections', icon: '◇' },
+        ],
+      },
+      {
+        title: '数据湖',
+        items: [
+          { label: '生产线', to: '/datalake/pipelines', icon: '≡' },
+          { label: '组件库', to: '/datalake/components', icon: '▦' },
+          { label: '数据集', to: '/datalake/datasets', icon: '▤' },
+          { label: '作业管理', to: '/datalake/jobs', icon: '▶' },
+          { label: 'Notebook', to: '/datalake/notebook', icon: '▧' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'agent',
+    label: 'Agent 工作台',
+    shortLabel: 'Agent',
+    icon: 'A',
+    to: '/agent-state',
+    match: ['/agent-state', '/agentfs'],
+    groups: [
+      {
+        title: '工作状态',
+        items: [
+          { label: 'Agent 工作台', to: '/agent-state', icon: '▢' },
+          { label: '任务运行', to: '/agent-state', sub: true },
+          { label: 'Evidence', to: '/agent-state', sub: true },
+          { label: 'Policy & Audit', to: '/agent-state', sub: true },
+        ],
+      },
+      {
+        title: 'Agent 文件',
+        items: [
+          { label: '浏览文件', to: '/agentfs', icon: '□' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'knowledge',
+    label: '知识库',
+    shortLabel: 'Knowledge',
+    icon: 'K',
+    to: '/knowledge',
+    match: ['/knowledge'],
+    groups: [
+      {
+        title: '知识库',
+        items: [
+          { label: '知识库', to: '/knowledge', icon: '▤' },
+          { label: '原文搜索', to: '/knowledge/search', icon: '⌕' },
+          { label: 'Wiki 对话', to: '/knowledge/chat', icon: '□' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'memory',
+    label: '记忆库',
+    shortLabel: 'Memory',
+    icon: 'M',
+    to: '/memory',
+    match: ['/memory'],
+    groups: [
+      {
+        title: '记忆库',
+        items: [
+          { label: '记忆库', to: '/memory', icon: '◎' },
+          { label: '记忆浏览', to: '/memory/browse', icon: '▦' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'ops',
+    label: '运维与账户',
+    shortLabel: 'Ops',
+    icon: 'O',
+    to: '/monitor',
+    match: ['/monitor', '/logs', '/usage', '/recycle-bin', '/apikey', '/account'],
+    groups: [
+      {
+        title: '运维',
+        items: [
+          { label: '监控面板', to: '/monitor', icon: '◫' },
+          { label: '日志管理', to: '/logs', icon: '≡' },
+          { label: '资源用量', to: '/usage', icon: '▥' },
+          { label: '回收站', to: '/recycle-bin', icon: '⌫' },
+        ],
+      },
+      {
+        title: '账户',
+        items: [
+          { label: 'API Key', to: '/apikey', icon: '⚿' },
+          { label: '账户', to: '/account', icon: '◉' },
+          { label: '数据活动', to: '/account/activity', icon: '◷' },
+        ],
+      },
+    ],
+  },
+]
+
+const defaultWorkspaceMode = workspaceModes[0] as WorkspaceMode
+
+const activeMode = computed<WorkspaceMode>(() => {
+  const path = route.path
+  return workspaceModes.find((mode) => mode.match.some((prefix) => path.startsWith(prefix)))
+    || defaultWorkspaceMode
+})
 
 function handleLogout() {
   authStore.logout()
@@ -429,27 +479,111 @@ onUnmounted(() => {
    Sidebar
    ══════════════════════════════════════════ */
 .sidebar {
-  width: 220px;
+  width: 236px;
   background-color: #fff;
   border-right: 1px solid var(--c-border);
   flex-shrink: 0;
   overflow-y: auto;
   display: flex;
+  flex-direction: row;
+}
+
+.workspace-rail {
+  width: 54px;
+  flex-shrink: 0;
+  background: #f5f4f1;
+  border-right: 1px solid #dedbd5;
+  padding: 10px 0;
+  display: flex;
   flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.rail-item {
+  width: 48px;
+  min-height: 54px;
+  padding: 6px 3px;
+  border-left: 3px solid transparent;
+  color: #6b7583;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  line-height: 1.05;
+  transition: background 160ms ease-out, color 160ms ease-out, border-color 160ms ease-out;
+}
+
+.rail-item:hover {
+  color: var(--c-primary);
+  background: rgb(255 255 255 / 0.72);
+}
+
+.rail-item.active {
+  color: var(--c-primary);
+  background: #fff;
+  border-left-color: var(--c-accent);
+  font-weight: 700;
+}
+
+.rail-icon {
+  width: 22px;
+  height: 22px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0;
 }
 
 .sidebar-nav {
   flex: 1;
-  padding: var(--space-md) 0 var(--space-lg);
+  min-width: 0;
+  background: #fbfbfa;
+  padding: 0 0 var(--space-lg);
+}
+
+.side-title {
+  height: 58px;
+  padding: 0 18px;
+  border-bottom: 1px solid #e6e8ec;
+  color: #23364a;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.side-title-icon {
+  width: 26px;
+  height: 26px;
+  border: 1px solid color-mix(in oklch, var(--c-accent) 75%, #fff);
+  border-radius: 5px;
+  color: var(--c-accent);
+  background: color-mix(in oklch, var(--c-accent) 8%, #fff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  letter-spacing: 0;
 }
 
 .nav-group {
-  padding: var(--space-xs) 0 var(--space-sm);
+  padding: var(--space-sm) 0;
 }
 
 .nav-group + .nav-group {
   border-top: 1px solid var(--c-border-light);
-  margin-top: var(--space-xs);
+  margin-top: 0;
   padding-top: var(--space-sm);
 }
 
@@ -467,8 +601,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  height: 32px;
-  padding: 0 var(--space-xl);
+  min-height: 36px;
+  padding: 0 18px;
   color: var(--c-text-2);
   text-decoration: none;
   font-family: var(--font-sans);
@@ -476,7 +610,17 @@ onUnmounted(() => {
   transition: background 160ms ease-out, color 160ms ease-out;
 }
 
-.nav-item svg {
+.nav-icon {
+  width: 18px;
+  min-width: 18px;
+  color: inherit;
+  font-size: 13px;
+  text-align: center;
+  letter-spacing: 0;
+}
+
+.nav-item svg,
+.nav-icon {
   flex-shrink: 0;
   opacity: 0.6;
   transition: opacity 160ms ease-out;
@@ -487,7 +631,8 @@ onUnmounted(() => {
   background-color: var(--c-hover);
 }
 
-.nav-item:hover svg {
+.nav-item:hover svg,
+.nav-item:hover .nav-icon {
   opacity: 0.85;
 }
 
@@ -504,9 +649,16 @@ onUnmounted(() => {
 }
 
 .nav-item.active svg,
-.nav-item.router-link-active svg {
+.nav-item.router-link-active svg,
+.nav-item.active .nav-icon,
+.nav-item.router-link-active .nav-icon {
   opacity: 1;
   color: var(--c-accent);
+}
+
+.nav-sub-item {
+  padding-left: 48px;
+  color: #3f5063;
 }
 
 .nav-separator {
@@ -585,9 +737,10 @@ onUnmounted(() => {
 
   .sidebar {
     position: fixed;
-    top: 48px;
+    top: 52px;
     left: 0;
     bottom: 0;
+    width: min(320px, 86vw);
     z-index: 200;
     transform: translateX(-100%);
     transition: transform 0.25s ease;
@@ -602,9 +755,17 @@ onUnmounted(() => {
   .sidebar-overlay {
     display: block;
     position: fixed;
-    inset: 48px 0 0 0;
+    inset: 52px 0 0 0;
     background: rgba(0, 0, 0, 0.3);
     z-index: 199;
+  }
+
+  .workspace-rail {
+    width: 58px;
+  }
+
+  .rail-item {
+    width: 52px;
   }
 
   .console-main {
