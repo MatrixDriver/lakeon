@@ -65,14 +65,14 @@
           type="button"
           @click="selectTask(task.id)"
         >
-          <div>
+          <div class="task-main">
             <div class="task-name">{{ taskTitle(task) }}</div>
             <div class="muted">{{ task.harnessId }} · {{ task.id }}</div>
           </div>
-          <span class="status-pill" :class="statusClass(task)">{{ statusLabel(task) }}</span>
-          <span>{{ task.currentStageId || 'pending' }}</span>
-          <span>{{ task.branchCount }} 分支</span>
-          <span>{{ task.evidenceCount }} Evidence</span>
+          <span class="status-pill task-status" :class="statusClass(task)">{{ statusLabel(task) }}</span>
+          <span class="task-stage">{{ task.currentStageId || 'pending' }}</span>
+          <span class="task-metric"><strong>{{ task.branchCount }}</strong><small>分支</small></span>
+          <span class="task-metric"><strong>{{ task.evidenceCount }}</strong><small>Evidence</small></span>
         </button>
         <div v-if="!loadingTasks && !filteredTasks.length" class="empty-state">还没有匹配的任务运行。</div>
       </section>
@@ -351,9 +351,13 @@ function shortTime(value?: string | null) {
 }
 
 .app-name,
-.task-name,
 .detail-title {
   color: #a75710;
+  font-weight: 700;
+}
+
+.task-name {
+  color: #25364a;
   font-weight: 700;
 }
 
@@ -407,16 +411,89 @@ function shortTime(value?: string | null) {
   gap: 16px;
 }
 
+.workbench-grid > .section-panel {
+  min-width: 0;
+}
+
 .task-row {
-  grid-template-columns: 1.2fr .6fr .8fr .55fr .65fr;
-  gap: 10px;
-  min-height: 64px;
-  padding: 0 14px;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto minmax(96px, .45fr) 58px 72px;
+  gap: 12px;
+  min-height: 72px;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid #edf0f4;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 140ms ease-out, box-shadow 140ms ease-out;
+}
+
+.task-row:hover {
+  background: #f9fbfd;
 }
 
 .task-row.selected {
-  background: #fff8ef;
+  background: #fffaf4;
   box-shadow: inset 3px 0 0 #f08d2f;
+}
+
+.task-main {
+  min-width: 0;
+}
+
+.task-main .muted {
+  display: block;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-name {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.25;
+  font-size: 13px;
+}
+
+.task-status {
+  justify-self: start;
+  white-space: nowrap;
+}
+
+.task-stage {
+  min-width: 0;
+  color: #445268;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-metric {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px;
+  color: #617187;
+  white-space: nowrap;
+}
+
+.task-metric strong {
+  color: #25364a;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.task-metric small {
+  color: #7b8798;
+  font-size: 11px;
 }
 
 .detail-panel {
@@ -444,6 +521,7 @@ function shortTime(value?: string | null) {
 }
 
 .stage {
+  min-width: 0;
   min-height: 58px;
   border: 1px solid #e1e7ee;
   border-radius: 6px;
@@ -451,6 +529,8 @@ function shortTime(value?: string | null) {
   background: #fafbfd;
   font-weight: 650;
   font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stage span {
@@ -458,6 +538,9 @@ function shortTime(value?: string | null) {
   margin-top: 5px;
   color: #8491a0;
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stage.done {
