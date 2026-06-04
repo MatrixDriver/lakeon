@@ -46,7 +46,7 @@ public class AgentStateController {
     public AgentStateDtos.TaskRunResponse createAgentAppRun(
             HttpServletRequest httpRequest,
             @PathVariable String appId,
-            @Valid @RequestBody AgentStateDtos.CreateTaskRunRequest request) {
+            @Valid @RequestBody AgentStateDtos.CreateAgentAppRunRequest request) {
         return agentStateService.createTaskRunForApp(tenantId(httpRequest), appId, request);
     }
 

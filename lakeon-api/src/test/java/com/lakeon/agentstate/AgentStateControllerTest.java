@@ -113,8 +113,7 @@ class AgentStateControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "goal": "verify a paper claim",
-                                  "harnessId": "paperbench"
+                                  "goal": "verify a paper claim"
                                 }
                                 """))
                 .andExpect(status().isCreated())

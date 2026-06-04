@@ -8,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -105,6 +106,40 @@ class AgentStateServiceTest {
 
         ArgumentCaptor<AgentTaskRunEntity> taskCaptor = ArgumentCaptor.forClass(AgentTaskRunEntity.class);
         verify(taskRunRepository).save(taskCaptor.capture());
+        assertThat(taskCaptor.getValue().getAgentAppId()).isEqualTo("app_001");
+    }
+
+    @Test
+    @DisplayName("createTaskRunForApp defaults harness id from app key")
+    void createTaskRunForApp_defaultsHarnessIdFromAppKey() {
+        AgentStateService service = service();
+        AgentAppEntity app = new AgentAppEntity();
+        app.setId("app_001");
+        app.setTenantId("tn_test001");
+        app.setKey("paperbench");
+        app.setDisplayName("PaperBench");
+        app.setType("benchmark");
+        app.setVersion("0.1.0");
+        app.setStatus("active");
+        when(agentAppRepository.findByIdAndTenantId("app_001", "tn_test001")).thenReturn(Optional.of(app));
+        when(taskRunRepository.save(any(AgentTaskRunEntity.class))).thenAnswer(inv -> {
+            AgentTaskRunEntity entity = inv.getArgument(0);
+            entity.prePersist();
+            return entity;
+        });
+
+        AgentStateDtos.TaskRunResponse response = service.createTaskRunForApp(
+                "tn_test001",
+                "app_001",
+                new AgentStateDtos.CreateAgentAppRunRequest("verify a paper claim", null));
+
+        assertThat(response.id()).startsWith("task_");
+        assertThat(response.harnessId()).isEqualTo("paperbench");
+        assertThat(response.agentAppId()).isEqualTo("app_001");
+
+        ArgumentCaptor<AgentTaskRunEntity> taskCaptor = ArgumentCaptor.forClass(AgentTaskRunEntity.class);
+        verify(taskRunRepository).save(taskCaptor.capture());
+        assertThat(taskCaptor.getValue().getHarnessId()).isEqualTo("paperbench");
         assertThat(taskCaptor.getValue().getAgentAppId()).isEqualTo("app_001");
     }
 

@@ -46,6 +46,10 @@ public final class AgentStateDtos {
         }
     }
 
+    public record CreateAgentAppRunRequest(
+            @NotBlank String goal,
+            @JsonProperty("harness_id") @JsonAlias("harnessId") String harnessId) {}
+
     public record TaskRunResponse(
             String id,
             @JsonProperty("harness_id") String harnessId,

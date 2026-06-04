@@ -127,7 +127,7 @@ public class AgentStateService {
 
     @Transactional
     public AgentStateDtos.TaskRunResponse createTaskRunForApp(
-            String tenantId, String appId, AgentStateDtos.CreateTaskRunRequest request) {
+            String tenantId, String appId, AgentStateDtos.CreateAgentAppRunRequest request) {
         AgentAppEntity app = findAgentApp(tenantId, appId);
         String harnessId = request.harnessId() == null || request.harnessId().isBlank() ? app.getKey() : request.harnessId();
         return createTaskRun(
