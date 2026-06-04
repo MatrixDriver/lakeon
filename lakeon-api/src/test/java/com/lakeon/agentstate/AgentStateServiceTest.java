@@ -1,5 +1,6 @@
 package com.lakeon.agentstate;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +22,7 @@ class AgentStateServiceTest {
 
     @Mock private AgentTaskRunRepository taskRunRepository;
     @Mock private AgentAppRepository agentAppRepository;
+    @Mock private AgentStageRunRepository stageRunRepository;
     @Mock private AgentWorkspaceRepository workspaceRepository;
     @Mock private AgentWorkspaceBranchRepository branchRepository;
     @Mock private ContextNodeRepository contextNodeRepository;
@@ -141,6 +143,125 @@ class AgentStateServiceTest {
         verify(taskRunRepository).save(taskCaptor.capture());
         assertThat(taskCaptor.getValue().getHarnessId()).isEqualTo("paperbench");
         assertThat(taskCaptor.getValue().getAgentAppId()).isEqualTo("app_001");
+    }
+
+    @Test
+    @DisplayName("listTaskRuns returns console summary metrics for tenant task runs")
+    void listTaskRuns_returnsConsoleSummaryMetrics() {
+        AgentStateService service = service();
+        AgentTaskRunEntity task = new AgentTaskRunEntity();
+        task.setId("task_001");
+        task.setTenantId("tn_test001");
+        task.setGoal("verify quicksort");
+        task.setHarnessId("paperbench");
+        task.setStatus("running");
+        task.setCreatedAt(java.time.Instant.parse("2026-06-04T00:00:00Z"));
+        AgentStageRunEntity stage = new AgentStageRunEntity();
+        stage.setId("stage_001");
+        stage.setTaskRunId("task_001");
+        stage.setStageId("experiment_run");
+        AgentWorkspaceEntity workspace = new AgentWorkspaceEntity();
+        workspace.setId("ws_001");
+        workspace.setTaskRunId("task_001");
+        AgentWorkspaceBranchEntity root = new AgentWorkspaceBranchEntity();
+        root.setId("awb_root");
+        root.setName("root");
+        AgentWorkspaceBranchEntity branch = new AgentWorkspaceBranchEntity();
+        branch.setId("awb_001");
+        branch.setName("branch");
+        AgentEvidencePacketEntity evidence = new AgentEvidencePacketEntity();
+        evidence.setId("evidence_001");
+        AgentAuditEventEntity audit = new AgentAuditEventEntity();
+        audit.setId("audit_001");
+        audit.setResult("allowed");
+        when(taskRunRepository.findByTenantIdOrderByCreatedAtDesc("tn_test001")).thenReturn(List.of(task));
+        when(stageRunRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(stage));
+        when(workspaceRepository.findByTenantIdAndTaskRunId("tn_test001", "task_001")).thenReturn(Optional.of(workspace));
+        when(branchRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtAsc("tn_test001", "ws_001")).thenReturn(List.of(root, branch));
+        when(evidencePacketRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(evidence));
+        when(auditEventRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(audit));
+
+        List<AgentStateDtos.TaskRunSummaryResponse> response = service.listTaskRuns("tn_test001");
+
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0).id()).isEqualTo("task_001");
+        assertThat(response.get(0).currentStageId()).isEqualTo("experiment_run");
+        assertThat(response.get(0).workspaceId()).isEqualTo("ws_001");
+        assertThat(response.get(0).branchCount()).isEqualTo(2);
+        assertThat(response.get(0).evidenceCount()).isEqualTo(1);
+        assertThat(response.get(0).latestBranchId()).isEqualTo("awb_001");
+        assertThat(response.get(0).latestEvidencePacketId()).isEqualTo("evidence_001");
+        assertThat(response.get(0).latestAuditResult()).isEqualTo("allowed");
+    }
+
+    @Test
+    @DisplayName("getTaskRun returns stages branches artifacts evidence and audit detail")
+    void getTaskRun_returnsConsoleDetail() {
+        AgentStateService service = service();
+        AgentTaskRunEntity task = new AgentTaskRunEntity();
+        task.setId("task_001");
+        task.setTenantId("tn_test001");
+        task.setGoal("verify quicksort");
+        task.setHarnessId("paperbench");
+        task.setStatus("running");
+        task.setCreatedAt(java.time.Instant.parse("2026-06-04T00:00:00Z"));
+        AgentStageRunEntity stage = new AgentStageRunEntity();
+        stage.setId("stage_001");
+        stage.setTaskRunId("task_001");
+        stage.setStageId("experiment_run");
+        AgentWorkspaceEntity workspace = new AgentWorkspaceEntity();
+        workspace.setId("ws_001");
+        workspace.setTaskRunId("task_001");
+        AgentWorkspaceBranchEntity root = new AgentWorkspaceBranchEntity();
+        root.setId("awb_root");
+        root.setName("root");
+        AgentWorkspaceBranchEntity branch = new AgentWorkspaceBranchEntity();
+        branch.setId("awb_001");
+        branch.setName("branch");
+        branch.setHypothesis("attempt 1");
+        AgentStateCommitEntity commit = new AgentStateCommitEntity();
+        commit.setId("commit_001");
+        commit.setTaskRunId("task_001");
+        commit.setStageRunId("stage_001");
+        commit.setBranchId("awb_001");
+        commit.setSummary("verification passed");
+        AgentArtifactRefEntity artifact = new AgentArtifactRefEntity();
+        artifact.setId("artifact_001");
+        artifact.setTaskRunId("task_001");
+        artifact.setStageRunId("stage_001");
+        artifact.setBranchId("awb_001");
+        artifact.setKind("experiment_run");
+        AgentEvidencePacketEntity evidence = new AgentEvidencePacketEntity();
+        evidence.setId("evidence_001");
+        evidence.setTaskRunId("task_001");
+        evidence.setBranchId("awb_001");
+        evidence.setClaim("claim");
+        evidence.setStatus("pending");
+        evidence.setEvidenceRefsJson("[\"artifact_001\"]");
+        AgentAuditEventEntity audit = new AgentAuditEventEntity();
+        audit.setId("audit_001");
+        audit.setTaskRunId("task_001");
+        audit.setAction("paperbench_report_gate");
+        audit.setResult("allowed");
+        when(taskRunRepository.findByIdAndTenantId("task_001", "tn_test001")).thenReturn(Optional.of(task));
+        when(stageRunRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(stage));
+        when(workspaceRepository.findByTenantIdAndTaskRunId("tn_test001", "task_001")).thenReturn(Optional.of(workspace));
+        when(branchRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtAsc("tn_test001", "ws_001")).thenReturn(List.of(root, branch));
+        when(stateCommitRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(commit));
+        when(artifactRefRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(artifact));
+        when(evidencePacketRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(evidence));
+        when(auditEventRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(audit));
+
+        AgentStateDtos.TaskRunDetailResponse response = service.getTaskRun("tn_test001", "task_001");
+
+        assertThat(response.task().id()).isEqualTo("task_001");
+        assertThat(response.workspace().rootBranchId()).isEqualTo("awb_root");
+        assertThat(response.stages()).hasSize(1);
+        assertThat(response.branches()).hasSize(2);
+        assertThat(response.commits().get(0).summary()).isEqualTo("verification passed");
+        assertThat(response.artifacts().get(0).kind()).isEqualTo("experiment_run");
+        assertThat(response.evidencePackets().get(0).evidenceRefs()).containsExactly("artifact_001");
+        assertThat(response.auditEvents().get(0).result()).isEqualTo("allowed");
     }
 
     @Test
@@ -303,6 +424,7 @@ class AgentStateServiceTest {
         return new AgentStateService(
                 taskRunRepository,
                 agentAppRepository,
+                stageRunRepository,
                 workspaceRepository,
                 branchRepository,
                 contextNodeRepository,
@@ -313,6 +435,7 @@ class AgentStateServiceTest {
                 lineageEdgeRepository,
                 evidencePacketRepository,
                 policyDecisionRepository,
-                auditEventRepository);
+                auditEventRepository,
+                new ObjectMapper());
     }
 }

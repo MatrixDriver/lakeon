@@ -58,6 +58,16 @@ public class AgentStateController {
         return agentStateService.createTaskRun(tenantId(httpRequest), request);
     }
 
+    @GetMapping("/task-runs")
+    public List<AgentStateDtos.TaskRunSummaryResponse> listTaskRuns(HttpServletRequest httpRequest) {
+        return agentStateService.listTaskRuns(tenantId(httpRequest));
+    }
+
+    @GetMapping("/task-runs/{taskRunId}")
+    public AgentStateDtos.TaskRunDetailResponse getTaskRun(HttpServletRequest httpRequest, @PathVariable String taskRunId) {
+        return agentStateService.getTaskRun(tenantId(httpRequest), taskRunId);
+    }
+
     @PostMapping("/task-runs/{taskRunId}/stages")
     @ResponseStatus(HttpStatus.CREATED)
     public AgentStateDtos.StageRunResponse createStageRun(

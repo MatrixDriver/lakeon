@@ -58,15 +58,14 @@
             :aria-current="activeMode.id === mode.id ? 'page' : undefined"
             @click="sidebarOpen = false"
           >
-            <span class="rail-icon" aria-hidden="true">{{ mode.icon }}</span>
             <span>{{ mode.shortLabel }}</span>
           </router-link>
         </nav>
 
         <nav class="sidebar-nav" :aria-label="activeMode.label">
           <div class="side-title">
-            <span class="side-title-icon" aria-hidden="true">{{ activeMode.icon }}</span>
             <span>{{ activeMode.label }}</span>
+            <small>{{ activeMode.description }}</small>
           </div>
 
           <div v-for="group in activeMode.groups" :key="group.title" class="nav-group">
@@ -84,7 +83,7 @@
                 :class="{ active: isActive && !item.sub, 'nav-sub-item': item.sub }"
                 @click="(event) => { navigate(event); sidebarOpen = false }"
               >
-                <span v-if="item.icon" class="nav-icon" aria-hidden="true">{{ item.icon }}</span>
+                <span class="nav-marker" aria-hidden="true"></span>
                 {{ item.label }}
               </a>
             </router-link>
@@ -129,7 +128,7 @@ type WorkspaceMode = {
   id: 'database' | 'agent' | 'knowledge' | 'memory' | 'ops'
   label: string
   shortLabel: string
-  icon: string
+  description: string
   to: string
   match: string[]
   groups: NavGroup[]
@@ -139,8 +138,8 @@ const workspaceModes: WorkspaceMode[] = [
   {
     id: 'database',
     label: '数据库工作台',
-    shortLabel: 'DB',
-    icon: 'DB',
+    shortLabel: '数据',
+    description: '实例、分支、SQL 与迁移',
     to: '/dashboard',
     match: ['/dashboard', '/databases', '/timetravel', '/sql', '/import', '/datalake'],
     groups: [
@@ -174,8 +173,8 @@ const workspaceModes: WorkspaceMode[] = [
   {
     id: 'agent',
     label: 'Agent 工作台',
-    shortLabel: 'Agent',
-    icon: 'A',
+    shortLabel: '智能体',
+    description: '任务、证据与治理审计',
     to: '/agent-state',
     match: ['/agent-state', '/agentfs'],
     groups: [
@@ -199,8 +198,8 @@ const workspaceModes: WorkspaceMode[] = [
   {
     id: 'knowledge',
     label: '知识库',
-    shortLabel: 'Knowledge',
-    icon: 'K',
+    shortLabel: '知识',
+    description: '文档、检索与对话',
     to: '/knowledge',
     match: ['/knowledge'],
     groups: [
@@ -217,8 +216,8 @@ const workspaceModes: WorkspaceMode[] = [
   {
     id: 'memory',
     label: '记忆库',
-    shortLabel: 'Memory',
-    icon: 'M',
+    shortLabel: '记忆',
+    description: '记忆库与结构化浏览',
     to: '/memory',
     match: ['/memory'],
     groups: [
@@ -234,8 +233,8 @@ const workspaceModes: WorkspaceMode[] = [
   {
     id: 'ops',
     label: '运维与账户',
-    shortLabel: 'Ops',
-    icon: 'O',
+    shortLabel: '运维',
+    description: '监控、权限与账户',
     to: '/monitor',
     match: ['/monitor', '/logs', '/usage', '/recycle-bin', '/apikey', '/account'],
     groups: [
@@ -489,96 +488,83 @@ onUnmounted(() => {
 }
 
 .workspace-rail {
-  width: 54px;
+  width: 64px;
   flex-shrink: 0;
-  background: #f5f4f1;
-  border-right: 1px solid #dedbd5;
-  padding: 10px 0;
+  background: #f7f8fa;
+  border-right: 1px solid #e3e7ec;
+  padding: 12px 7px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .rail-item {
-  width: 48px;
-  min-height: 54px;
-  padding: 6px 3px;
-  border-left: 3px solid transparent;
-  color: #6b7583;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: #718095;
   text-decoration: none;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
   font-family: var(--font-sans);
-  font-size: 10px;
-  line-height: 1.05;
-  transition: background 160ms ease-out, color 160ms ease-out, border-color 160ms ease-out;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+  transition: background 160ms ease-out, color 160ms ease-out, border-color 160ms ease-out, box-shadow 160ms ease-out;
 }
 
 .rail-item:hover {
-  color: var(--c-primary);
-  background: rgb(255 255 255 / 0.72);
+  color: #26394d;
+  background: #fff;
+  border-color: #e0e5eb;
 }
 
 .rail-item.active {
   color: var(--c-primary);
   background: #fff;
-  border-left-color: var(--c-accent);
+  border-color: color-mix(in oklch, var(--c-accent) 28%, #dfe5ec);
   font-weight: 700;
-}
-
-.rail-icon {
-  width: 22px;
-  height: 22px;
-  border: 1px solid currentColor;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0;
+  box-shadow: inset 3px 0 0 var(--c-accent);
 }
 
 .sidebar-nav {
   flex: 1;
   min-width: 0;
-  background: #fbfbfa;
+  background: #fff;
   padding: 0 0 var(--space-lg);
 }
 
 .side-title {
-  height: 58px;
+  min-height: 68px;
   padding: 0 18px;
-  border-bottom: 1px solid #e6e8ec;
+  border-bottom: 1px solid #edf0f3;
   color: #23364a;
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
   font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 700;
 }
 
-.side-title-icon {
-  width: 26px;
-  height: 26px;
-  border: 1px solid color-mix(in oklch, var(--c-accent) 75%, #fff);
-  border-radius: 5px;
-  color: var(--c-accent);
-  background: color-mix(in oklch, var(--c-accent) 8%, #fff);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.side-title small {
+  color: #8793a5;
   font-size: 11px;
+  font-weight: 500;
+  line-height: 1.25;
   letter-spacing: 0;
 }
 
 .nav-group {
-  padding: var(--space-sm) 0;
+  padding: 12px 0;
 }
 
 .nav-group + .nav-group {
@@ -588,77 +574,75 @@ onUnmounted(() => {
 }
 
 .nav-group-title {
-  padding: var(--space-sm) var(--space-xl) var(--space-xs);
+  padding: 0 18px 8px;
   font-family: var(--font-sans);
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 700;
   text-transform: uppercase;
-  color: var(--c-text-3);
-  letter-spacing: 0.1em;
+  color: #9aa5b4;
+  letter-spacing: 0.12em;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-  min-height: 36px;
+  gap: 10px;
+  min-height: 34px;
   padding: 0 18px;
-  color: var(--c-text-2);
+  color: #516174;
   text-decoration: none;
   font-family: var(--font-sans);
   font-size: 13px;
   transition: background 160ms ease-out, color 160ms ease-out;
 }
 
-.nav-icon {
-  width: 18px;
-  min-width: 18px;
-  color: inherit;
-  font-size: 13px;
-  text-align: center;
-  letter-spacing: 0;
-}
-
-.nav-item svg,
-.nav-icon {
+.nav-marker {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #c3cbd6;
   flex-shrink: 0;
-  opacity: 0.6;
-  transition: opacity 160ms ease-out;
+  transition: background 160ms ease-out, transform 160ms ease-out;
 }
 
 .nav-item:hover {
-  color: var(--c-text);
-  background-color: var(--c-hover);
+  color: #23364a;
+  background-color: #f7f9fb;
 }
 
-.nav-item:hover svg,
-.nav-item:hover .nav-icon {
-  opacity: 0.85;
+.nav-item:hover .nav-marker {
+  background: #8d9aad;
 }
 
 .nav-item.active,
 .nav-item.router-link-active {
   color: var(--c-primary);
   font-weight: 600;
-  background-color: color-mix(in oklch, var(--c-accent) 8%, #fff);
+  background-color: color-mix(in oklch, var(--c-accent) 6%, #fff);
+  box-shadow: inset 3px 0 0 var(--c-accent);
 }
 
 .nav-item.active:hover,
 .nav-item.router-link-active:hover {
-  background-color: color-mix(in oklch, var(--c-accent) 12%, #fff);
+  background-color: color-mix(in oklch, var(--c-accent) 9%, #fff);
 }
 
-.nav-item.active svg,
-.nav-item.router-link-active svg,
-.nav-item.active .nav-icon,
-.nav-item.router-link-active .nav-icon {
-  opacity: 1;
-  color: var(--c-accent);
+.nav-item.active .nav-marker,
+.nav-item.router-link-active .nav-marker {
+  background: var(--c-accent);
+  transform: scale(1.1);
 }
 
 .nav-sub-item {
-  padding-left: 48px;
-  color: #3f5063;
+  padding-left: 32px;
+  color: #617187;
+  font-size: 12px;
+}
+
+.nav-sub-item .nav-marker {
+  width: 4px;
+  height: 4px;
+  background: #d3d9e1;
 }
 
 .nav-separator {
@@ -761,11 +745,11 @@ onUnmounted(() => {
   }
 
   .workspace-rail {
-    width: 58px;
+    width: 68px;
   }
 
   .rail-item {
-    width: 52px;
+    min-height: 36px;
   }
 
   .console-main {

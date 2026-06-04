@@ -147,6 +147,91 @@ class AgentStateControllerTest {
     }
 
     @Test
+    @DisplayName("GET /api/v1/agent-state/task-runs lists console task summaries")
+    void listTaskRuns_returnsConsoleSummaries() throws Exception {
+        when(agentStateService.listTaskRuns(eq(TENANT_ID)))
+                .thenReturn(List.of(new AgentStateDtos.TaskRunSummaryResponse(
+                        "task_001",
+                        "verify quicksort",
+                        "paperbench",
+                        "running",
+                        null,
+                        "evidence_pack",
+                        "ws_001",
+                        2,
+                        1,
+                        "awb_002",
+                        "evidence_001",
+                        "allowed",
+                        java.time.Instant.parse("2026-06-04T00:00:00Z"))));
+
+        mockMvc.perform(get("/api/v1/agent-state/task-runs")
+                        .header("Authorization", API_KEY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value("task_001"))
+                .andExpect(jsonPath("$[0].harness_id").value("paperbench"))
+                .andExpect(jsonPath("$[0].current_stage_id").value("evidence_pack"))
+                .andExpect(jsonPath("$[0].branch_count").value(2))
+                .andExpect(jsonPath("$[0].evidence_count").value(1))
+                .andExpect(jsonPath("$[0].latest_branch_id").value("awb_002"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/agent-state/task-runs/{id} returns console detail")
+    void getTaskRun_returnsConsoleDetail() throws Exception {
+        AgentStateDtos.TaskRunSummaryResponse task = new AgentStateDtos.TaskRunSummaryResponse(
+                "task_001",
+                "verify quicksort",
+                "paperbench",
+                "running",
+                null,
+                "evidence_pack",
+                "ws_001",
+                2,
+                1,
+                "awb_002",
+                "evidence_001",
+                "allowed",
+                java.time.Instant.parse("2026-06-04T00:00:00Z"));
+        when(agentStateService.getTaskRun(eq(TENANT_ID), eq("task_001")))
+                .thenReturn(new AgentStateDtos.TaskRunDetailResponse(
+                        task,
+                        List.of(new AgentStateDtos.StageRunDetailResponse(
+                                "stage_001", "task_001", "paper_parse", "running", null, null,
+                                java.time.Instant.parse("2026-06-04T00:00:01Z"))),
+                        new AgentStateDtos.WorkspaceDetailResponse(
+                                "ws_001", "task_001", "awb_001", java.time.Instant.parse("2026-06-04T00:00:02Z")),
+                        List.of(new AgentStateDtos.BranchDetailResponse(
+                                "awb_002", "ws_001", "awb_001", "stage_001", "branch", "attempt 1",
+                                "active", java.time.Instant.parse("2026-06-04T00:00:03Z"))),
+                        List.of(new AgentStateDtos.StateCommitDetailResponse(
+                                "commit_001", "task_001", "stage_001", "awb_002", "verification passed",
+                                java.time.Instant.parse("2026-06-04T00:00:04Z"))),
+                        List.of(new AgentStateDtos.ArtifactDetailResponse(
+                                "artifact_001", "task_001", "stage_001", "awb_002", "experiment_run",
+                                java.time.Instant.parse("2026-06-04T00:00:05Z"))),
+                        List.of(new AgentStateDtos.EvidencePacketDetailResponse(
+                                "evidence_001", "task_001", "awb_002", "claim", "pending", List.of("artifact_001"),
+                                java.time.Instant.parse("2026-06-04T00:00:06Z"))),
+                        List.of(new AgentStateDtos.AuditEventDetailResponse(
+                                "audit_001", "task_001", null, "paperbench_report_gate", "allowed", "evidence verified",
+                                java.time.Instant.parse("2026-06-04T00:00:07Z")))));
+
+        mockMvc.perform(get("/api/v1/agent-state/task-runs/task_001")
+                        .header("Authorization", API_KEY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.task.id").value("task_001"))
+                .andExpect(jsonPath("$.stages[0].stage_id").value("paper_parse"))
+                .andExpect(jsonPath("$.workspace.root_branch_id").value("awb_001"))
+                .andExpect(jsonPath("$.branches[0].id").value("awb_002"))
+                .andExpect(jsonPath("$.commits[0].summary").value("verification passed"))
+                .andExpect(jsonPath("$.artifacts[0].kind").value("experiment_run"))
+                .andExpect(jsonPath("$.evidence_packets[0].id").value("evidence_001"))
+                .andExpect(jsonPath("$.audit_events[0].result").value("allowed"));
+    }
+
+    @Test
     @DisplayName("POST /api/v1/agent-state/workspaces creates logical workspace and root branch")
     void createWorkspace_returnsWorkspaceWithRootBranch() throws Exception {
         when(agentStateService.createWorkspace(eq(TENANT_ID), any()))

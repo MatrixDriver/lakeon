@@ -125,6 +125,38 @@ public class AgentStateService {
         return agentAppResponse(findAgentApp(tenantId, appId));
     }
 
+    public List<AgentStateDtos.TaskRunSummaryResponse> listTaskRuns(String tenantId) {
+        return taskRunRepository.findByTenantIdOrderByCreatedAtDesc(tenantId)
+                .stream()
+                .map(task -> taskRunSummary(tenantId, task))
+                .toList();
+    }
+
+    public AgentStateDtos.TaskRunDetailResponse getTaskRun(String tenantId, String taskRunId) {
+        AgentTaskRunEntity task = taskRunRepository.findByIdAndTenantId(taskRunId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Task run not found: " + taskRunId));
+        List<AgentStageRunEntity> stages = stageRunRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, taskRunId);
+        AgentWorkspaceEntity workspace = workspaceRepository.findByTenantIdAndTaskRunId(tenantId, taskRunId).orElse(null);
+        List<AgentWorkspaceBranchEntity> branches = workspace == null
+                ? List.of()
+                : branchRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtAsc(tenantId, workspace.getId());
+        return new AgentStateDtos.TaskRunDetailResponse(
+                taskRunSummary(task, stages, workspace, branches,
+                        evidencePacketRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, taskRunId),
+                        auditEventRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, taskRunId)),
+                stages.stream().map(this::stageRunDetail).toList(),
+                workspace == null ? null : workspaceDetail(workspace, branches),
+                branches.stream().map(this::branchDetail).toList(),
+                stateCommitRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, taskRunId)
+                        .stream().map(this::stateCommitDetail).toList(),
+                artifactRefRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, taskRunId)
+                        .stream().map(this::artifactDetail).toList(),
+                evidencePacketRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, taskRunId)
+                        .stream().map(this::evidencePacketDetail).toList(),
+                auditEventRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, taskRunId)
+                        .stream().map(this::auditEventDetail).toList());
+    }
+
     @Transactional
     public AgentStateDtos.TaskRunResponse createTaskRunForApp(
             String tenantId, String appId, AgentStateDtos.CreateAgentAppRunRequest request) {
@@ -374,6 +406,125 @@ public class AgentStateService {
                 entity.getVersion(),
                 entity.getStatus(),
                 fromJsonList(entity.getStageSchemaJson()));
+    }
+
+    private AgentStateDtos.TaskRunSummaryResponse taskRunSummary(String tenantId, AgentTaskRunEntity task) {
+        List<AgentStageRunEntity> stages = stageRunRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, task.getId());
+        AgentWorkspaceEntity workspace = workspaceRepository.findByTenantIdAndTaskRunId(tenantId, task.getId()).orElse(null);
+        List<AgentWorkspaceBranchEntity> branches = workspace == null
+                ? List.of()
+                : branchRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtAsc(tenantId, workspace.getId());
+        return taskRunSummary(
+                task,
+                stages,
+                workspace,
+                branches,
+                evidencePacketRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, task.getId()),
+                auditEventRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, task.getId()));
+    }
+
+    private AgentStateDtos.TaskRunSummaryResponse taskRunSummary(
+            AgentTaskRunEntity task,
+            List<AgentStageRunEntity> stages,
+            AgentWorkspaceEntity workspace,
+            List<AgentWorkspaceBranchEntity> branches,
+            List<AgentEvidencePacketEntity> evidencePackets,
+            List<AgentAuditEventEntity> auditEvents) {
+        AgentStageRunEntity currentStage = stages.isEmpty() ? null : stages.get(stages.size() - 1);
+        AgentWorkspaceBranchEntity latestBranch = branches.isEmpty() ? null : branches.get(branches.size() - 1);
+        AgentEvidencePacketEntity latestEvidence = evidencePackets.isEmpty() ? null : evidencePackets.get(evidencePackets.size() - 1);
+        AgentAuditEventEntity latestAudit = auditEvents.isEmpty() ? null : auditEvents.get(auditEvents.size() - 1);
+        return new AgentStateDtos.TaskRunSummaryResponse(
+                task.getId(),
+                task.getGoal(),
+                task.getHarnessId(),
+                task.getStatus(),
+                task.getAgentAppId(),
+                currentStage == null ? null : currentStage.getStageId(),
+                workspace == null ? null : workspace.getId(),
+                branches.size(),
+                evidencePackets.size(),
+                latestBranch == null ? null : latestBranch.getId(),
+                latestEvidence == null ? null : latestEvidence.getId(),
+                latestAudit == null ? null : latestAudit.getResult(),
+                task.getCreatedAt());
+    }
+
+    private AgentStateDtos.StageRunDetailResponse stageRunDetail(AgentStageRunEntity stage) {
+        return new AgentStateDtos.StageRunDetailResponse(
+                stage.getId(),
+                stage.getTaskRunId(),
+                stage.getStageId(),
+                stage.getStatus(),
+                stage.getBranchId(),
+                stage.getContextPackId(),
+                stage.getCreatedAt());
+    }
+
+    private AgentStateDtos.WorkspaceDetailResponse workspaceDetail(AgentWorkspaceEntity workspace, List<AgentWorkspaceBranchEntity> branches) {
+        return new AgentStateDtos.WorkspaceDetailResponse(
+                workspace.getId(),
+                workspace.getTaskRunId(),
+                branches.stream()
+                        .filter(branch -> "root".equals(branch.getName()))
+                        .findFirst()
+                        .map(AgentWorkspaceBranchEntity::getId)
+                        .orElse(null),
+                workspace.getCreatedAt());
+    }
+
+    private AgentStateDtos.BranchDetailResponse branchDetail(AgentWorkspaceBranchEntity branch) {
+        return new AgentStateDtos.BranchDetailResponse(
+                branch.getId(),
+                branch.getWorkspaceId(),
+                branch.getParentBranchId(),
+                branch.getStageRunId(),
+                branch.getName(),
+                branch.getHypothesis(),
+                branch.getStatus(),
+                branch.getCreatedAt());
+    }
+
+    private AgentStateDtos.StateCommitDetailResponse stateCommitDetail(AgentStateCommitEntity commit) {
+        return new AgentStateDtos.StateCommitDetailResponse(
+                commit.getId(),
+                commit.getTaskRunId(),
+                commit.getStageRunId(),
+                commit.getBranchId(),
+                commit.getSummary(),
+                commit.getCreatedAt());
+    }
+
+    private AgentStateDtos.ArtifactDetailResponse artifactDetail(AgentArtifactRefEntity artifact) {
+        return new AgentStateDtos.ArtifactDetailResponse(
+                artifact.getId(),
+                artifact.getTaskRunId(),
+                artifact.getStageRunId(),
+                artifact.getBranchId(),
+                artifact.getKind(),
+                artifact.getCreatedAt());
+    }
+
+    private AgentStateDtos.EvidencePacketDetailResponse evidencePacketDetail(AgentEvidencePacketEntity packet) {
+        return new AgentStateDtos.EvidencePacketDetailResponse(
+                packet.getId(),
+                packet.getTaskRunId(),
+                packet.getBranchId(),
+                packet.getClaim(),
+                packet.getStatus(),
+                fromJsonList(packet.getEvidenceRefsJson()),
+                packet.getCreatedAt());
+    }
+
+    private AgentStateDtos.AuditEventDetailResponse auditEventDetail(AgentAuditEventEntity event) {
+        return new AgentStateDtos.AuditEventDetailResponse(
+                event.getId(),
+                event.getTaskRunId(),
+                event.getBranchId(),
+                event.getAction(),
+                event.getResult(),
+                event.getReason(),
+                event.getCreatedAt());
     }
 
     private AgentAppEntity findAgentApp(String tenantId, String appId) {

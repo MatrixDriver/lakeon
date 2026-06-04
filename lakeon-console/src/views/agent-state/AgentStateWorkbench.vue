@@ -9,18 +9,24 @@
     </div>
 
     <div class="agent-tabs" role="tablist" aria-label="Agent app filters">
-      <button class="agent-tab active" type="button">全部任务</button>
-      <button class="agent-tab" type="button">PaperBench</button>
-      <button class="agent-tab" type="button">Data Agent</button>
-      <button class="agent-tab" type="button">Custom</button>
+      <button
+        v-for="filter in taskFilters"
+        :key="filter.value"
+        class="agent-tab"
+        :class="{ active: activeFilter === filter.value }"
+        type="button"
+        @click="activeFilter = filter.value"
+      >
+        {{ filter.label }}
+      </button>
     </div>
 
     <div class="kpi-grid">
-      <div class="kpi"><span>运行中 Task</span><strong>3</strong></div>
-      <div class="kpi"><span>阻塞</span><strong>1</strong></div>
-      <div class="kpi"><span>Evidence</span><strong>12</strong></div>
-      <div class="kpi"><span>分支</span><strong>8</strong></div>
-      <div class="kpi"><span>Policy Block</span><strong>2</strong></div>
+      <div class="kpi"><span>运行中 Task</span><strong>{{ kpis.running }}</strong></div>
+      <div class="kpi"><span>阻塞</span><strong>{{ kpis.blocked }}</strong></div>
+      <div class="kpi"><span>Evidence</span><strong>{{ kpis.evidence }}</strong></div>
+      <div class="kpi"><span>分支</span><strong>{{ kpis.branches }}</strong></div>
+      <div class="kpi"><span>Policy Block</span><strong>{{ kpis.policyBlock }}</strong></div>
     </div>
 
     <div class="apps-panel section-panel">
@@ -48,98 +54,188 @@
       <section class="section-panel task-panel">
         <div class="panel-header">
           <h2>任务运行</h2>
-          <span class="muted">按应用、状态、阶段筛选</span>
+          <span v-if="loadingTasks" class="muted">加载中</span>
+          <span v-else class="muted">{{ filteredTasks.length }} 个任务</span>
         </div>
-        <div class="task-row selected">
+        <button
+          v-for="task in filteredTasks"
+          :key="task.id"
+          class="task-row"
+          :class="{ selected: task.id === selectedTaskId }"
+          type="button"
+          @click="selectTask(task.id)"
+        >
           <div>
-            <div class="task-name">paperbench-toy-claim</div>
-            <div class="muted">论文复现实验助手</div>
+            <div class="task-name">{{ taskTitle(task) }}</div>
+            <div class="muted">{{ task.harnessId }} · {{ task.id }}</div>
           </div>
-          <span class="status-pill running">运行中</span>
-          <span>evidence_pack</span>
-          <span>3 分支</span>
-          <span>5 Evidence</span>
-        </div>
-        <div class="task-row">
-          <div>
-            <div class="task-name">data-dbt-revenue</div>
-            <div class="muted">数据发布检查助手</div>
-          </div>
-          <span class="status-pill blocked">阻塞</span>
-          <span>policy_check</span>
-          <span>2 分支</span>
-          <span>4 Evidence</span>
-        </div>
-        <div class="task-row">
-          <div>
-            <div class="task-name">paperbench-vision-ablation</div>
-            <div class="muted">论文复现实验助手</div>
-          </div>
-          <span class="status-pill done">完成</span>
-          <span>report_gate</span>
-          <span>4 分支</span>
-          <span>7 Evidence</span>
-        </div>
+          <span class="status-pill" :class="statusClass(task)">{{ statusLabel(task) }}</span>
+          <span>{{ task.currentStageId || 'pending' }}</span>
+          <span>{{ task.branchCount }} 分支</span>
+          <span>{{ task.evidenceCount }} Evidence</span>
+        </button>
+        <div v-if="!loadingTasks && !filteredTasks.length" class="empty-state">还没有匹配的任务运行。</div>
       </section>
 
       <section class="section-panel detail-panel">
         <div class="panel-header">
           <h2>任务详情</h2>
-          <span class="status-pill running">report gate 待验证</span>
+          <span v-if="loadingDetail" class="muted">加载中</span>
+          <span v-else-if="selectedTask" class="status-pill" :class="statusClass(selectedTask)">
+            {{ selectedTask.currentStageId || 'pending' }}
+          </span>
         </div>
-        <div class="detail-title">paperbench-toy-claim</div>
-        <p class="muted">目标：verify the toy claim reaches 95% accuracy</p>
-        <div class="timeline">
-          <div class="stage done">paper_parse<span>done</span></div>
-          <div class="stage done">claim_extract<span>commit</span></div>
-          <div class="stage done">experiment<span>branch_1</span></div>
-          <div class="stage current">evidence_pack<span>packet_1</span></div>
-          <div class="stage">report_gate<span>pending</span></div>
-        </div>
-        <div class="evidence-box">
+        <template v-if="selectedTask">
+          <div class="detail-title">{{ taskTitle(selectedTask) }}</div>
+          <p class="muted">目标：{{ selectedTask.goal }}</p>
+          <div v-if="stageCards.length" class="timeline" :style="{ gridTemplateColumns: `repeat(${stageCards.length}, 1fr)` }">
+            <div
+              v-for="stage in stageCards"
+              :key="stage.id"
+              class="stage"
+              :class="{ done: stage.done, current: stage.current }"
+            >
+              {{ stage.label }}
+              <span>{{ stage.meta }}</span>
+            </div>
+          </div>
+          <div v-else class="empty-state inline">还没有阶段运行记录。</div>
+        </template>
+        <div v-else class="empty-state">请选择一个任务运行查看详情。</div>
+        <div v-if="latestEvidence" class="evidence-box">
           <h3>Evidence Packet</h3>
-          <p><strong>Claim</strong> Toy classifier reaches 95% accuracy.</p>
-          <span class="stage-pill">artifact_log_1</span>
-          <span class="stage-pill">metric_accuracy</span>
-          <span class="stage-pill pending">evaluate pending</span>
+          <p><strong>Claim</strong> {{ latestEvidence.claim || latestEvidence.id }}</p>
+          <span v-for="ref in latestEvidence.evidenceRefs" :key="ref" class="stage-pill">{{ ref }}</span>
+          <span class="stage-pill pending">{{ latestEvidence.status }}</span>
         </div>
       </section>
 
       <section class="section-panel">
         <div class="panel-header"><h2>工作区分支</h2></div>
-        <div class="branch-dag">
-          <span>branch_root</span>
-          <b>→</b>
-          <span>exp_lr_1</span>
-          <b>→</b>
-          <span>evidence_pack</span>
+        <div v-if="selectedDetail?.branches.length" class="branch-dag">
+          <template v-for="(branch, index) in selectedDetail.branches" :key="branch.id">
+            <span :title="branch.hypothesis || branch.id">{{ branch.name || branch.id }}</span>
+            <b v-if="index < selectedDetail.branches.length - 1">→</b>
+          </template>
         </div>
+        <div v-else class="empty-state">还没有工作区分支。</div>
       </section>
 
       <section class="section-panel">
         <div class="panel-header"><h2>Policy & Audit</h2></div>
-        <div class="audit-row"><span>claim_extract committed</span><span>09:41</span></div>
-        <div class="audit-row"><span>artifact captured</span><span>09:48</span></div>
-        <div class="audit-row"><span>evidence packet created</span><span>09:52</span></div>
+        <div v-for="event in selectedDetail?.auditEvents || []" :key="event.id" class="audit-row">
+          <span>{{ event.action }} · {{ event.result }}</span>
+          <span>{{ shortTime(event.createdAt) }}</span>
+        </div>
+        <div v-if="!selectedDetail?.auditEvents.length" class="empty-state">还没有治理审计事件。</div>
       </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { agentStateApi, type AgentApp } from '../../api/agent-state'
+import { computed, onMounted, ref } from 'vue'
+import { agentStateApi, type AgentApp, type TaskRunDetail, type TaskRunSummary } from '../../api/agent-state'
 
 const apps = ref<AgentApp[]>([])
+const tasks = ref<TaskRunSummary[]>([])
+const selectedDetail = ref<TaskRunDetail | null>(null)
+const selectedTaskId = ref<string | null>(null)
+const activeFilter = ref('all')
 const loadingApps = ref(true)
+const loadingTasks = ref(true)
+const loadingDetail = ref(false)
+
+const taskFilters = [
+  { label: '全部任务', value: 'all' },
+  { label: 'PaperBench', value: 'paperbench' },
+  { label: 'Data Agent', value: 'data' },
+  { label: 'Custom', value: 'custom' },
+]
+
+const filteredTasks = computed(() => {
+  if (activeFilter.value === 'all') return tasks.value
+  if (activeFilter.value === 'custom') return tasks.value.filter((task) => !task.harnessId.includes('paper') && !task.harnessId.includes('data'))
+  return tasks.value.filter((task) => task.harnessId.toLowerCase().includes(activeFilter.value))
+})
+
+const selectedTask = computed(() => tasks.value.find((task) => task.id === selectedTaskId.value) || null)
+
+const kpis = computed(() => ({
+  running: tasks.value.filter((task) => statusLabel(task) === '运行中').length,
+  blocked: tasks.value.filter((task) => statusLabel(task) === '阻塞').length,
+  evidence: tasks.value.reduce((total, task) => total + task.evidenceCount, 0),
+  branches: tasks.value.reduce((total, task) => total + task.branchCount, 0),
+  policyBlock: selectedDetail.value?.auditEvents.filter((event) => event.result === 'blocked' || event.result === 'denied').length || 0,
+}))
+
+const latestEvidence = computed(() => {
+  const packets = selectedDetail.value?.evidencePackets || []
+  return packets[packets.length - 1] || null
+})
+
+const stageCards = computed(() => {
+  const stages = selectedDetail.value?.stages || []
+  return stages.map((stage) => ({
+    id: stage.id,
+    label: stage.stageId,
+    meta: stage.branchId || stage.contextPackId || stage.status,
+    done: stage.status === 'done' || stage.status === 'completed',
+    current: selectedTask.value?.currentStageId === stage.stageId,
+  }))
+})
 
 onMounted(async () => {
+  await Promise.all([loadApps(), loadTasks()])
+})
+
+async function loadApps() {
   try {
     apps.value = await agentStateApi.listApps()
   } finally {
     loadingApps.value = false
   }
-})
+}
+
+async function loadTasks() {
+  try {
+    tasks.value = await agentStateApi.listTaskRuns()
+    if (tasks.value[0]) await selectTask(tasks.value[0].id)
+  } finally {
+    loadingTasks.value = false
+  }
+}
+
+async function selectTask(taskRunId: string) {
+  selectedTaskId.value = taskRunId
+  loadingDetail.value = true
+  try {
+    selectedDetail.value = await agentStateApi.getTaskRun(taskRunId)
+  } finally {
+    loadingDetail.value = false
+  }
+}
+
+function taskTitle(task: TaskRunSummary) {
+  return task.goal.length > 44 ? `${task.goal.slice(0, 44)}...` : task.goal
+}
+
+function statusLabel(task: TaskRunSummary) {
+  if (task.latestAuditResult === 'blocked' || task.status === 'blocked') return '阻塞'
+  if (task.latestAuditResult === 'allowed' || task.latestAuditResult === 'pass' || task.status === 'completed') return '完成'
+  return '运行中'
+}
+
+function statusClass(task: TaskRunSummary) {
+  if (statusLabel(task) === '阻塞') return 'blocked'
+  if (statusLabel(task) === '完成') return 'done'
+  return 'running'
+}
+
+function shortTime(value?: string | null) {
+  if (!value) return '--'
+  return new Date(value).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
 </script>
 
 <style scoped>
