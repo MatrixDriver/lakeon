@@ -14,6 +14,7 @@ import java.util.Map;
 @Service
 public class AgentStateService {
     private final AgentTaskRunRepository taskRunRepository;
+    private final AgentAppRepository agentAppRepository;
     private final AgentStageRunRepository stageRunRepository;
     private final AgentWorkspaceRepository workspaceRepository;
     private final AgentWorkspaceBranchRepository branchRepository;
@@ -30,6 +31,7 @@ public class AgentStateService {
 
     @Autowired
     public AgentStateService(AgentTaskRunRepository taskRunRepository,
+                             AgentAppRepository agentAppRepository,
                              AgentStageRunRepository stageRunRepository,
                              AgentWorkspaceRepository workspaceRepository,
                              AgentWorkspaceBranchRepository branchRepository,
@@ -44,6 +46,7 @@ public class AgentStateService {
                              AgentAuditEventRepository auditEventRepository,
                              ObjectMapper objectMapper) {
         this.taskRunRepository = taskRunRepository;
+        this.agentAppRepository = agentAppRepository;
         this.stageRunRepository = stageRunRepository;
         this.workspaceRepository = workspaceRepository;
         this.branchRepository = branchRepository;
@@ -60,6 +63,27 @@ public class AgentStateService {
     }
 
     AgentStateService(AgentTaskRunRepository taskRunRepository,
+                      AgentStageRunRepository stageRunRepository,
+                      AgentWorkspaceRepository workspaceRepository,
+                      AgentWorkspaceBranchRepository branchRepository,
+                      ContextNodeRepository contextNodeRepository,
+                      ContextPackRepository contextPackRepository,
+                      AgentCheckpointRepository checkpointRepository,
+                      AgentStateCommitRepository stateCommitRepository,
+                      AgentArtifactRefRepository artifactRefRepository,
+                      AgentLineageEdgeRepository lineageEdgeRepository,
+                      AgentEvidencePacketRepository evidencePacketRepository,
+                      AgentPolicyDecisionRepository policyDecisionRepository,
+                      AgentAuditEventRepository auditEventRepository,
+                      ObjectMapper objectMapper) {
+        this(taskRunRepository, null, stageRunRepository, workspaceRepository, branchRepository,
+                contextNodeRepository, contextPackRepository, checkpointRepository, stateCommitRepository,
+                artifactRefRepository, lineageEdgeRepository, evidencePacketRepository, policyDecisionRepository,
+                auditEventRepository, objectMapper);
+    }
+
+    AgentStateService(AgentTaskRunRepository taskRunRepository,
+                      AgentAppRepository agentAppRepository,
                       AgentWorkspaceRepository workspaceRepository,
                       AgentWorkspaceBranchRepository branchRepository,
                       ContextNodeRepository contextNodeRepository,
@@ -71,10 +95,44 @@ public class AgentStateService {
                       AgentEvidencePacketRepository evidencePacketRepository,
                       AgentPolicyDecisionRepository policyDecisionRepository,
                       AgentAuditEventRepository auditEventRepository) {
-        this(taskRunRepository, null, workspaceRepository, branchRepository, contextNodeRepository,
+        this(taskRunRepository, agentAppRepository, null, workspaceRepository, branchRepository, contextNodeRepository,
                 contextPackRepository, checkpointRepository, stateCommitRepository, artifactRefRepository,
                 lineageEdgeRepository, evidencePacketRepository, policyDecisionRepository, auditEventRepository,
                 new ObjectMapper());
+    }
+
+    @Transactional
+    public AgentStateDtos.AgentAppResponse createAgentApp(String tenantId, AgentStateDtos.CreateAgentAppRequest request) {
+        AgentAppEntity entity = new AgentAppEntity();
+        entity.setTenantId(tenantId);
+        entity.setKey(request.key());
+        entity.setDisplayName(request.displayName());
+        entity.setType(blankDefault(request.type(), "custom"));
+        entity.setVersion(blankDefault(request.version(), "0.1.0"));
+        entity.setStatus(blankDefault(request.status(), "active"));
+        entity.setStageSchemaJson(toJson(request.stageSchema() == null ? List.of() : request.stageSchema()));
+        return agentAppResponse(agentAppRepository.save(entity));
+    }
+
+    public List<AgentStateDtos.AgentAppResponse> listAgentApps(String tenantId) {
+        return agentAppRepository.findByTenantIdOrderByCreatedAtAsc(tenantId)
+                .stream()
+                .map(this::agentAppResponse)
+                .toList();
+    }
+
+    public AgentStateDtos.AgentAppResponse getAgentApp(String tenantId, String appId) {
+        return agentAppResponse(findAgentApp(tenantId, appId));
+    }
+
+    @Transactional
+    public AgentStateDtos.TaskRunResponse createTaskRunForApp(
+            String tenantId, String appId, AgentStateDtos.CreateTaskRunRequest request) {
+        AgentAppEntity app = findAgentApp(tenantId, appId);
+        String harnessId = request.harnessId() == null || request.harnessId().isBlank() ? app.getKey() : request.harnessId();
+        return createTaskRun(
+                tenantId,
+                new AgentStateDtos.CreateTaskRunRequest(request.goal(), harnessId, app.getId()));
     }
 
     @Transactional
@@ -83,9 +141,10 @@ public class AgentStateService {
         entity.setTenantId(tenantId);
         entity.setGoal(request.goal());
         entity.setHarnessId(request.harnessId());
+        entity.setAgentAppId(request.agentAppId());
         entity.setStatus("running");
         AgentTaskRunEntity saved = taskRunRepository.save(entity);
-        return new AgentStateDtos.TaskRunResponse(saved.getId(), saved.getHarnessId(), saved.getStatus());
+        return new AgentStateDtos.TaskRunResponse(saved.getId(), saved.getHarnessId(), saved.getStatus(), saved.getAgentAppId());
     }
 
     @Transactional
@@ -304,6 +363,26 @@ public class AgentStateService {
     private boolean isDestructive(String action) {
         String normalized = action == null ? "" : action.toLowerCase();
         return normalized.contains("drop") || normalized.contains("delete") || normalized.contains("truncate");
+    }
+
+    private AgentStateDtos.AgentAppResponse agentAppResponse(AgentAppEntity entity) {
+        return new AgentStateDtos.AgentAppResponse(
+                entity.getId(),
+                entity.getKey(),
+                entity.getDisplayName(),
+                entity.getType(),
+                entity.getVersion(),
+                entity.getStatus(),
+                fromJsonList(entity.getStageSchemaJson()));
+    }
+
+    private AgentAppEntity findAgentApp(String tenantId, String appId) {
+        return agentAppRepository.findByIdAndTenantId(appId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Agent app not found: " + appId));
+    }
+
+    private String blankDefault(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     private String toJson(Object value) {

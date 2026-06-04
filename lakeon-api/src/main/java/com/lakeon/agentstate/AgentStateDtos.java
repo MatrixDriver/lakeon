@@ -10,14 +10,56 @@ import java.util.Map;
 public final class AgentStateDtos {
     private AgentStateDtos() {}
 
+    public record CreateAgentAppRequest(
+            @NotBlank String key,
+            @JsonProperty("display_name") @JsonAlias("displayName") @NotBlank String displayName,
+            String type,
+            String version,
+            String status,
+            @JsonProperty("stage_schema") @JsonAlias("stageSchema") List<String> stageSchema) {}
+
+    public record AgentAppResponse(
+            String id,
+            String key,
+            @JsonProperty("display_name") String displayName,
+            String type,
+            String version,
+            String status,
+            @JsonProperty("stage_schema") List<String> stageSchema) {
+        @JsonProperty("displayName")
+        public String displayNameCamel() {
+            return displayName;
+        }
+
+        @JsonProperty("stageSchema")
+        public List<String> stageSchemaCamel() {
+            return stageSchema;
+        }
+    }
+
     public record CreateTaskRunRequest(
             @NotBlank String goal,
-            @JsonProperty("harness_id") @JsonAlias("harnessId") @NotBlank String harnessId) {}
+            @JsonProperty("harness_id") @JsonAlias("harnessId") @NotBlank String harnessId,
+            @JsonProperty("agent_app_id") @JsonAlias("agentAppId") String agentAppId) {
+        public CreateTaskRunRequest(String goal, String harnessId) {
+            this(goal, harnessId, null);
+        }
+    }
 
     public record TaskRunResponse(
             String id,
             @JsonProperty("harness_id") String harnessId,
-            String status) {}
+            String status,
+            @JsonProperty("agent_app_id") String agentAppId) {
+        public TaskRunResponse(String id, String harnessId, String status) {
+            this(id, harnessId, status, null);
+        }
+
+        @JsonProperty("agentAppId")
+        public String agentAppIdCamel() {
+            return agentAppId;
+        }
+    }
 
     public record CreateStageRunRequest(
             @JsonProperty("stage_id") @NotBlank String stageId,

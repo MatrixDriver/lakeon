@@ -19,6 +19,7 @@ import static org.mockito.Mockito.when;
 class AgentStateServiceTest {
 
     @Mock private AgentTaskRunRepository taskRunRepository;
+    @Mock private AgentAppRepository agentAppRepository;
     @Mock private AgentWorkspaceRepository workspaceRepository;
     @Mock private AgentWorkspaceBranchRepository branchRepository;
     @Mock private ContextNodeRepository contextNodeRepository;
@@ -30,6 +31,82 @@ class AgentStateServiceTest {
     @Mock private AgentEvidencePacketRepository evidencePacketRepository;
     @Mock private AgentPolicyDecisionRepository policyDecisionRepository;
     @Mock private AgentAuditEventRepository auditEventRepository;
+
+    @Test
+    @DisplayName("createAgentApp registers tenant-scoped agent app metadata")
+    void createAgentApp_registersTenantScopedApp() {
+        AgentStateService service = service();
+        when(agentAppRepository.save(any(AgentAppEntity.class))).thenAnswer(inv -> {
+            AgentAppEntity entity = inv.getArgument(0);
+            entity.prePersist();
+            return entity;
+        });
+
+        AgentStateDtos.AgentAppResponse response = service.createAgentApp(
+                "tn_test001",
+                new AgentStateDtos.CreateAgentAppRequest(
+                        "paperbench",
+                        "论文复现实验助手",
+                        "benchmark",
+                        "0.1.0",
+                        "active",
+                        List.of("paper_parse", "claim_extract", "experiment_run", "evidence_pack", "report_gate")));
+
+        assertThat(response.id()).startsWith("app_");
+        assertThat(response.key()).isEqualTo("paperbench");
+        assertThat(response.displayName()).isEqualTo("论文复现实验助手");
+
+        ArgumentCaptor<AgentAppEntity> appCaptor = ArgumentCaptor.forClass(AgentAppEntity.class);
+        verify(agentAppRepository).save(appCaptor.capture());
+        assertThat(appCaptor.getValue().getTenantId()).isEqualTo("tn_test001");
+        assertThat(appCaptor.getValue().getStageSchemaJson()).contains("claim_extract");
+    }
+
+    @Test
+    @DisplayName("listAgentApps returns tenant scoped app metadata")
+    void listAgentApps_returnsTenantScopedApps() {
+        AgentStateService service = service();
+        AgentAppEntity app = new AgentAppEntity();
+        app.setId("app_001");
+        app.setKey("data");
+        app.setDisplayName("数据发布检查助手");
+        app.setType("data");
+        app.setVersion("0.1.0");
+        app.setStatus("active");
+        when(agentAppRepository.findByTenantIdOrderByCreatedAtAsc("tn_test001")).thenReturn(List.of(app));
+
+        List<AgentStateDtos.AgentAppResponse> response = service.listAgentApps("tn_test001");
+
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0).id()).isEqualTo("app_001");
+        assertThat(response.get(0).displayName()).isEqualTo("数据发布检查助手");
+    }
+
+    @Test
+    @DisplayName("createTaskRun can bind an agent app while preserving harness id")
+    void createTaskRun_bindsAgentAppAndHarnessId() {
+        AgentStateService service = service();
+        when(taskRunRepository.save(any(AgentTaskRunEntity.class))).thenAnswer(inv -> {
+            AgentTaskRunEntity entity = inv.getArgument(0);
+            entity.prePersist();
+            return entity;
+        });
+
+        AgentStateDtos.TaskRunResponse response = service.createTaskRun(
+                "tn_test001",
+                new AgentStateDtos.CreateTaskRunRequest(
+                        "verify a paper claim",
+                        "paperbench",
+                        "app_001"));
+
+        assertThat(response.id()).startsWith("task_");
+        assertThat(response.harnessId()).isEqualTo("paperbench");
+        assertThat(response.agentAppId()).isEqualTo("app_001");
+
+        ArgumentCaptor<AgentTaskRunEntity> taskCaptor = ArgumentCaptor.forClass(AgentTaskRunEntity.class);
+        verify(taskRunRepository).save(taskCaptor.capture());
+        assertThat(taskCaptor.getValue().getAgentAppId()).isEqualTo("app_001");
+    }
 
     @Test
     @DisplayName("createWorkspace persists workspace plus root branch for a tenant task")
@@ -190,6 +267,7 @@ class AgentStateServiceTest {
     private AgentStateService service() {
         return new AgentStateService(
                 taskRunRepository,
+                agentAppRepository,
                 workspaceRepository,
                 branchRepository,
                 contextNodeRepository,

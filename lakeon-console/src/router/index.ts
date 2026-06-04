@@ -83,6 +83,7 @@ const routes = [
       { path: 'account/activity', name: 'DataActivity', component: () => import('../views/account/DataActivityView.vue') },
       { path: 'recycle-bin', name: 'RecycleBin', component: () => import('../views/account/RecycleBin.vue') },
       { path: 'help', name: 'Docs', component: () => import('../views/docs/DocsView.vue') },
+      { path: 'agent-state', name: 'AgentStateWorkbench', component: () => import('../views/agent-state/AgentStateWorkbench.vue') },
       // Datalake
       { path: 'datalake', redirect: '/datalake/datasets' },
       { path: 'datalake/jobs', name: 'DatalakeJobs', component: () => import('../views/datalake/DatalakeJobs.vue') },

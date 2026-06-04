@@ -6,6 +6,11 @@ import java.util.List;
 
 interface AgentTaskRunRepository extends JpaRepository<AgentTaskRunEntity, String> {}
 
+interface AgentAppRepository extends JpaRepository<AgentAppEntity, String> {
+    List<AgentAppEntity> findByTenantIdOrderByCreatedAtAsc(String tenantId);
+    java.util.Optional<AgentAppEntity> findByIdAndTenantId(String id, String tenantId);
+}
+
 interface AgentStageRunRepository extends JpaRepository<AgentStageRunEntity, String> {}
 
 interface AgentWorkspaceRepository extends JpaRepository<AgentWorkspaceEntity, String> {}

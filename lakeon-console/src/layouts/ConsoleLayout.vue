@@ -79,6 +79,24 @@
             </router-link>
           </div>
 
+          <!-- Agent 工作台 -->
+          <div class="nav-group">
+            <div class="nav-group-title">Agent 工作台</div>
+            <router-link to="/agent-state" class="nav-item" active-class="active" @click="sidebarOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="6" width="14" height="12" rx="3"/><path d="M9 3v3M15 3v3M9 12h.01M15 12h.01M8 18v3M16 18v3"/></svg>
+              Agent 工作台
+            </router-link>
+            <router-link to="/agent-state" class="nav-item nav-sub-item" active-class="active" @click="sidebarOpen = false">
+              任务运行
+            </router-link>
+            <router-link to="/agent-state" class="nav-item nav-sub-item" active-class="active" @click="sidebarOpen = false">
+              Evidence
+            </router-link>
+            <router-link to="/agent-state" class="nav-item nav-sub-item" active-class="active" @click="sidebarOpen = false">
+              Policy & Audit
+            </router-link>
+          </div>
+
           <!-- 知识库 -->
           <div class="nav-group">
             <div class="nav-group-title">知识库</div>

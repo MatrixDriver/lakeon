@@ -33,6 +33,7 @@ class AgentStateServiceSpringContextTest {
     @Configuration
     static class MockRepositoryConfig {
         @Bean AgentTaskRunRepository taskRunRepository() { return Mockito.mock(AgentTaskRunRepository.class); }
+        @Bean AgentAppRepository agentAppRepository() { return Mockito.mock(AgentAppRepository.class); }
         @Bean AgentStageRunRepository stageRunRepository() { return Mockito.mock(AgentStageRunRepository.class); }
         @Bean AgentWorkspaceRepository workspaceRepository() { return Mockito.mock(AgentWorkspaceRepository.class); }
         @Bean AgentWorkspaceBranchRepository branchRepository() { return Mockito.mock(AgentWorkspaceBranchRepository.class); }

@@ -23,6 +23,33 @@ public class AgentStateController {
         this.agentStateService = agentStateService;
     }
 
+    @PostMapping("/apps")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AgentStateDtos.AgentAppResponse createAgentApp(
+            HttpServletRequest httpRequest,
+            @Valid @RequestBody AgentStateDtos.CreateAgentAppRequest request) {
+        return agentStateService.createAgentApp(tenantId(httpRequest), request);
+    }
+
+    @GetMapping("/apps")
+    public List<AgentStateDtos.AgentAppResponse> listAgentApps(HttpServletRequest httpRequest) {
+        return agentStateService.listAgentApps(tenantId(httpRequest));
+    }
+
+    @GetMapping("/apps/{appId}")
+    public AgentStateDtos.AgentAppResponse getAgentApp(HttpServletRequest httpRequest, @PathVariable String appId) {
+        return agentStateService.getAgentApp(tenantId(httpRequest), appId);
+    }
+
+    @PostMapping("/apps/{appId}/runs")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AgentStateDtos.TaskRunResponse createAgentAppRun(
+            HttpServletRequest httpRequest,
+            @PathVariable String appId,
+            @Valid @RequestBody AgentStateDtos.CreateTaskRunRequest request) {
+        return agentStateService.createTaskRunForApp(tenantId(httpRequest), appId, request);
+    }
+
     @PostMapping("/task-runs")
     @ResponseStatus(HttpStatus.CREATED)
     public AgentStateDtos.TaskRunResponse createTaskRun(

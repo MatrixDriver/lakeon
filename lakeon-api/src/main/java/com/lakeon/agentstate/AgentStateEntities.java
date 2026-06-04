@@ -43,6 +43,42 @@ abstract class AgentStateEntity {
 }
 
 @Entity
+@Table(name = "agent_app")
+class AgentAppEntity extends AgentStateEntity {
+    @Column(name = "app_key", nullable = false, length = 128)
+    private String key;
+
+    @Column(name = "display_name", nullable = false, length = 255)
+    private String displayName;
+
+    @Column(name = "type", nullable = false, length = 64)
+    private String type = "custom";
+
+    @Column(name = "version", nullable = false, length = 64)
+    private String version = "0.1.0";
+
+    @Column(name = "status", nullable = false, length = 32)
+    private String status = "active";
+
+    @Column(name = "stage_schema_json", columnDefinition = "TEXT")
+    private String stageSchemaJson;
+
+    @Override protected String idPrefix() { return "app_"; }
+    public String getKey() { return key; }
+    public void setKey(String key) { this.key = key; }
+    public String getDisplayName() { return displayName; }
+    public void setDisplayName(String displayName) { this.displayName = displayName; }
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; }
+    public String getVersion() { return version; }
+    public void setVersion(String version) { this.version = version; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public String getStageSchemaJson() { return stageSchemaJson; }
+    public void setStageSchemaJson(String stageSchemaJson) { this.stageSchemaJson = stageSchemaJson; }
+}
+
+@Entity
 @Table(name = "agent_task_run")
 class AgentTaskRunEntity extends AgentStateEntity {
     @Column(name = "goal", nullable = false, columnDefinition = "TEXT")
@@ -50,6 +86,9 @@ class AgentTaskRunEntity extends AgentStateEntity {
 
     @Column(name = "harness_id", nullable = false, length = 64)
     private String harnessId;
+
+    @Column(name = "agent_app_id", length = 64)
+    private String agentAppId;
 
     @Column(name = "status", nullable = false, length = 32)
     private String status = "running";
@@ -59,6 +98,8 @@ class AgentTaskRunEntity extends AgentStateEntity {
     public void setGoal(String goal) { this.goal = goal; }
     public String getHarnessId() { return harnessId; }
     public void setHarnessId(String harnessId) { this.harnessId = harnessId; }
+    public String getAgentAppId() { return agentAppId; }
+    public void setAgentAppId(String agentAppId) { this.agentAppId = agentAppId; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 }

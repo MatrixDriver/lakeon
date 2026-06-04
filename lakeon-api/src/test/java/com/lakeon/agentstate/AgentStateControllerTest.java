@@ -56,10 +56,78 @@ class AgentStateControllerTest {
     }
 
     @Test
+    @DisplayName("Agent app registry creates and lists app metadata")
+    void agentAppRegistry_createsAndListsApps() throws Exception {
+        AgentStateDtos.AgentAppResponse app = new AgentStateDtos.AgentAppResponse(
+                "app_001",
+                "paperbench",
+                "论文复现实验助手",
+                "benchmark",
+                "0.1.0",
+                "active",
+                List.of("paper_parse", "claim_extract", "experiment_run", "evidence_pack", "report_gate"));
+        when(agentStateService.createAgentApp(eq(TENANT_ID), any())).thenReturn(app);
+        when(agentStateService.listAgentApps(eq(TENANT_ID))).thenReturn(List.of(app));
+        when(agentStateService.getAgentApp(eq(TENANT_ID), eq("app_001"))).thenReturn(app);
+
+        mockMvc.perform(post("/api/v1/agent-state/apps")
+                        .header("Authorization", API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "key": "paperbench",
+                                  "displayName": "论文复现实验助手",
+                                  "type": "benchmark",
+                                  "version": "0.1.0",
+                                  "stageSchema": ["paper_parse", "claim_extract", "experiment_run", "evidence_pack", "report_gate"]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("app_001"))
+                .andExpect(jsonPath("$.key").value("paperbench"))
+                .andExpect(jsonPath("$.displayName").value("论文复现实验助手"))
+                .andExpect(jsonPath("$.stageSchema[1]").value("claim_extract"));
+
+        mockMvc.perform(get("/api/v1/agent-state/apps")
+                        .header("Authorization", API_KEY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value("app_001"))
+                .andExpect(jsonPath("$[0].display_name").value("论文复现实验助手"));
+
+        mockMvc.perform(get("/api/v1/agent-state/apps/app_001")
+                        .header("Authorization", API_KEY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("app_001"))
+                .andExpect(jsonPath("$.key").value("paperbench"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/agent-state/apps/{appId}/runs creates task run bound to app")
+    void createAgentAppRun_bindsTaskRunToApp() throws Exception {
+        when(agentStateService.createTaskRunForApp(eq(TENANT_ID), eq("app_001"), any()))
+                .thenReturn(new AgentStateDtos.TaskRunResponse("task_001", "paperbench", "running", "app_001"));
+
+        mockMvc.perform(post("/api/v1/agent-state/apps/app_001/runs")
+                        .header("Authorization", API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "goal": "verify a paper claim",
+                                  "harnessId": "paperbench"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("task_001"))
+                .andExpect(jsonPath("$.harness_id").value("paperbench"))
+                .andExpect(jsonPath("$.agent_app_id").value("app_001"));
+    }
+
+    @Test
     @DisplayName("POST /api/v1/agent-state/task-runs creates task run")
     void createTaskRun_returnsCreatedTaskRun() throws Exception {
         when(agentStateService.createTaskRun(eq(TENANT_ID), any()))
-                .thenReturn(new AgentStateDtos.TaskRunResponse("task_001", "data", "running"));
+                .thenReturn(new AgentStateDtos.TaskRunResponse("task_001", "data", "running", "app_001"));
 
         mockMvc.perform(post("/api/v1/agent-state/task-runs")
                         .header("Authorization", API_KEY)
@@ -67,12 +135,15 @@ class AgentStateControllerTest {
                         .content("""
                                 {
                                   "goal": "publish a dbt model",
-                                  "harness_id": "data"
+                                  "harness_id": "data",
+                                  "agent_app_id": "app_001"
                                 }
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value("task_001"))
                 .andExpect(jsonPath("$.harness_id").value("data"))
+                .andExpect(jsonPath("$.agent_app_id").value("app_001"))
+                .andExpect(jsonPath("$.agentAppId").value("app_001"))
                 .andExpect(jsonPath("$.status").value("running"));
     }
 
