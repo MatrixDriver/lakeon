@@ -21,10 +21,10 @@
             <label class="form-label">连接方式</label>
             <div class="radio-group">
               <label class="radio-item" :class="{ disabled: postgresConnectors.length === 0 }">
-                <input type="radio" v-model="sourceMode" value="CONNECTOR" :disabled="postgresConnectors.length === 0" /> 选择连接器
+                <input data-test="source-mode-connector" type="radio" v-model="sourceMode" value="CONNECTOR" :disabled="postgresConnectors.length === 0" /> 选择连接器
               </label>
               <label class="radio-item">
-                <input type="radio" v-model="sourceMode" value="TEMPORARY" /> 临时连接
+                <input data-test="source-mode-temporary" type="radio" v-model="sourceMode" value="TEMPORARY" /> 临时连接
               </label>
             </div>
             <div v-if="connectorsLoading" class="loading-text">正在加载连接器...</div>
@@ -36,7 +36,7 @@
           <div v-if="sourceMode === 'CONNECTOR'">
             <div class="form-group">
               <label class="form-label">PostgreSQL 连接器 <span class="required">*</span></label>
-              <select v-model="selectedConnectorId" class="form-input">
+              <select data-test="connector-select" v-model="selectedConnectorId" class="form-input">
                 <option v-for="connector in postgresConnectors" :key="connector.id" :value="connector.id">
                   {{ connector.name }}<template v-if="connector.target_summary"> - {{ connector.target_summary }}</template>
                 </option>
@@ -47,37 +47,37 @@
           <div v-else>
             <div class="form-group">
               <label class="form-label">主机地址 <span class="required">*</span></label>
-              <input v-model="form.host" class="form-input" placeholder="例如: 192.168.0.100" />
+              <input data-test="manual-host" v-model="form.host" class="form-input" placeholder="例如: 192.168.0.100" />
             </div>
             <div class="form-row">
               <div class="form-group form-half">
                 <label class="form-label">端口 <span class="required">*</span></label>
-                <input v-model.number="form.port" type="number" class="form-input" />
+                <input data-test="manual-port" v-model.number="form.port" type="number" class="form-input" />
               </div>
               <div class="form-group form-half">
                 <label class="form-label">数据库名 <span class="required">*</span></label>
-                <input v-model="form.dbname" class="form-input" placeholder="postgres" />
+                <input data-test="manual-dbname" v-model="form.dbname" class="form-input" placeholder="postgres" />
               </div>
             </div>
             <div class="form-row">
               <div class="form-group form-half">
                 <label class="form-label">用户名 <span class="required">*</span></label>
-                <input v-model="form.user" class="form-input" placeholder="postgres" />
+                <input data-test="manual-user" v-model="form.user" class="form-input" placeholder="postgres" />
               </div>
               <div class="form-group form-half">
                 <label class="form-label">密码 <span class="required">*</span></label>
-                <input v-model="form.password" type="password" class="form-input" />
+                <input data-test="manual-password" v-model="form.password" type="password" class="form-input" />
               </div>
             </div>
             <div class="test-conn-row" style="margin-top: 12px;">
-              <button class="btn btn-default btn-small" :disabled="!connFormValid || testingConn" @click="handleTestConn">
+              <button data-test="test-connection" class="btn btn-default btn-small" :disabled="!connFormValid || testingConn" @click="handleTestConn">
                 {{ testingConn ? '测试中...' : '测试连接' }}
               </button>
               <span v-if="connTestResult === true" class="text-success">✓ 连接成功<span v-if="connVersion" class="conn-version"> ({{ connVersion }})</span><span v-if="walLevelInfo" class="conn-version"> | wal_level={{ walLevelInfo }}<template v-if="hasReplication"> ✓ replication</template><template v-else> ✗ no replication</template></span></span>
-              <span v-if="connTestResult === false" class="text-error">✗ {{ connError }}</span>
             </div>
           </div>
 
+          <div v-if="connError" data-test="connection-error" class="text-error" style="margin-top: 12px;">✗ {{ connError }}</div>
           <div v-if="tablesLoading" class="loading-text" style="margin-top: 12px;">正在加载源表列表...</div>
         </div>
 
@@ -87,13 +87,13 @@
             <label class="form-label">导入模式</label>
             <div class="radio-group">
               <label class="radio-item">
-                <input type="radio" v-model="form.mode" value="FULL" /> 整库导入
+                <input data-test="import-mode-full" type="radio" v-model="form.mode" value="FULL" /> 整库导入
               </label>
               <label class="radio-item">
-                <input type="radio" v-model="form.mode" value="SELECTIVE" /> 按表选择
+                <input data-test="import-mode-selective" type="radio" v-model="form.mode" value="SELECTIVE" /> 按表选择
               </label>
               <label class="radio-item" :class="{ disabled: !syncAvailable }">
-                <input type="radio" v-model="form.mode" value="SYNC" :disabled="!syncAvailable" /> 持续同步
+                <input data-test="import-mode-sync" type="radio" v-model="form.mode" value="SYNC" :disabled="!syncAvailable" /> 持续同步
               </label>
             </div>
             <div v-if="sourceMode === 'CONNECTOR' && !syncAvailable" class="hint-text">
@@ -114,7 +114,7 @@
               </div>
               <div class="table-checkbox-list">
                 <label v-for="t in sourceTables" :key="t.schema + '.' + t.table" class="checkbox-item">
-                  <input type="checkbox" :value="t.schema + '.' + t.table" v-model="form.selectedTables" />
+                  <input :data-test="`table-checkbox-${t.schema}-${t.table}`" type="checkbox" :value="t.schema + '.' + t.table" v-model="form.selectedTables" />
                   {{ t.schema }}.{{ t.table }}
                   <span class="row-hint">(约 {{ t.estimated_rows > 0 ? t.estimated_rows : '?' }} 行)</span>
                 </label>
@@ -133,7 +133,7 @@
               </div>
               <div class="table-checkbox-list">
                 <label v-for="t in sourceTables" :key="t.schema + '.' + t.table" class="checkbox-item">
-                  <input type="checkbox" :value="t.schema + '.' + t.table" v-model="form.selectedTables" />
+                  <input :data-test="`table-checkbox-${t.schema}-${t.table}`" type="checkbox" :value="t.schema + '.' + t.table" v-model="form.selectedTables" />
                   {{ t.schema }}.{{ t.table }}
                   <span class="row-hint">(约 {{ t.estimated_rows > 0 ? t.estimated_rows : '?' }} 行)</span>
                 </label>
@@ -173,14 +173,14 @@
       </div>
 
       <div class="dialog-footer">
-        <button v-if="step > 0" class="btn btn-default" @click="step--">上一步</button>
+        <button v-if="step > 0" data-test="wizard-back" class="btn btn-default" @click="step--">上一步</button>
         <span v-else></span>
         <div>
           <button class="btn btn-default" @click="$emit('close')">取消</button>
-          <button v-if="step < 2" class="btn btn-primary" :disabled="!canNext || tablesLoading" @click="nextStep">
+          <button v-if="step < 2" data-test="wizard-next" class="btn btn-primary" :disabled="!canNext || tablesLoading" @click="nextStep">
             {{ tablesLoading ? '连接中...' : '下一步' }}
           </button>
-          <button v-else class="btn btn-primary" :disabled="creating" @click="handleCreate">
+          <button v-else data-test="wizard-create" class="btn btn-primary" :disabled="!canCreate" @click="handleCreate">
             {{ creating ? '创建中...' : (form.mode === 'SYNC' ? '开始同步' : '开始导入') }}
           </button>
         </div>
@@ -266,9 +266,16 @@ const canNext = computed(() => {
   if (step.value === 0) {
     return sourceMode.value === 'CONNECTOR' ? !!selectedConnectorId.value : connFormValid.value
   }
-  if (step.value === 1) return form.value.mode === 'FULL' || form.value.selectedTables.length > 0
+  if (step.value === 1) {
+    if (form.value.mode === 'SYNC' && !syncAvailable.value) return false
+    return form.value.mode === 'FULL' || form.value.selectedTables.length > 0
+  }
   return true
 })
+
+const canCreate = computed(() =>
+  !creating.value && !(form.value.mode === 'SYNC' && !syncAvailable.value)
+)
 
 watch(() => props.visible, (v) => {
   if (v) {
@@ -289,11 +296,35 @@ watch(sourceMode, () => {
 watch(selectedConnectorId, () => {
   sourceTables.value = []
   form.value.selectedTables = []
+  connError.value = ''
 })
+
+watch(
+  () => [form.value.host, form.value.port, form.value.dbname, form.value.user, form.value.password],
+  () => {
+    if (sourceMode.value !== 'TEMPORARY') return
+    sourceTables.value = []
+    form.value.selectedTables = []
+    clearConnectionTestMetadata()
+    if (form.value.mode === 'SYNC') {
+      form.value.mode = 'FULL'
+    }
+  }
+)
 
 function resetWizard() {
   step.value = 0
   sourceMode.value = 'TEMPORARY'
+  form.value = {
+    host: '',
+    port: 5432,
+    dbname: '',
+    user: 'postgres',
+    password: '',
+    mode: 'FULL',
+    conflictStrategy: 'APPEND',
+    selectedTables: [],
+  }
   postgresConnectors.value = []
   selectedConnectorId.value = ''
   sourceTables.value = []
@@ -334,9 +365,7 @@ async function loadConnectors() {
 
 async function handleTestConn() {
   testingConn.value = true
-  connTestResult.value = null
-  connError.value = ''
-  connVersion.value = ''
+  clearConnectionTestMetadata()
   try {
     const res = await importApi.testConnection({
       host: form.value.host, port: form.value.port,
@@ -401,6 +430,10 @@ function toggleAll() {
 }
 
 async function handleCreate() {
+  if (form.value.mode === 'SYNC' && !syncAvailable.value) {
+    createError.value = '持续同步需要源库 wal_level=logical 且具有 replication 权限'
+    return
+  }
   creating.value = true
   createError.value = ''
   try {

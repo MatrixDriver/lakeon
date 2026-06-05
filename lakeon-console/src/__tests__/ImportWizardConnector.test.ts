@@ -43,6 +43,31 @@ function mountWizard() {
   })
 }
 
+function byTest(wrapper: ReturnType<typeof mountWizard>, testId: string) {
+  return wrapper.find(`[data-test="${testId}"]`)
+}
+
+async function chooseTemporary(wrapper: ReturnType<typeof mountWizard>) {
+  await byTest(wrapper, 'source-mode-temporary').setValue()
+}
+
+async function chooseConnector(wrapper: ReturnType<typeof mountWizard>) {
+  await byTest(wrapper, 'source-mode-connector').setValue()
+}
+
+async function fillManualConnection(wrapper: ReturnType<typeof mountWizard>, host = '10.0.0.5') {
+  await byTest(wrapper, 'manual-host').setValue(host)
+  await byTest(wrapper, 'manual-port').setValue(5432)
+  await byTest(wrapper, 'manual-dbname').setValue('appdb')
+  await byTest(wrapper, 'manual-user').setValue('dbuser')
+  await byTest(wrapper, 'manual-password').setValue('secret')
+}
+
+async function clickNext(wrapper: ReturnType<typeof mountWizard>) {
+  await byTest(wrapper, 'wizard-next').trigger('click')
+  await flushPromises()
+}
+
 describe('ImportWizard connector mode', () => {
   beforeEach(() => {
     vi.resetAllMocks()
@@ -69,11 +94,9 @@ describe('ImportWizard connector mode', () => {
     const wrapper = mountWizard()
     await flushPromises()
 
-    await wrapper.find('.dialog-footer .btn-primary').trigger('click')
-    await flushPromises()
-    await wrapper.find('.dialog-footer .btn-primary').trigger('click')
-    await flushPromises()
-    await wrapper.find('.dialog-footer .btn-primary').trigger('click')
+    await clickNext(wrapper)
+    await clickNext(wrapper)
+    await byTest(wrapper, 'wizard-create').trigger('click')
     await flushPromises()
 
     expect(importApi.create).toHaveBeenCalledWith('target-db-1', expect.objectContaining({
@@ -88,20 +111,13 @@ describe('ImportWizard connector mode', () => {
     const wrapper = mountWizard()
     await flushPromises()
 
-    const temporaryRadio = wrapper.find('input[type="radio"][value="TEMPORARY"]')
-    await temporaryRadio.setValue()
-    await wrapper.find('input[placeholder="例如: 192.168.0.100"]').setValue('10.0.0.5')
-    await wrapper.find('input[type="number"]').setValue(5433)
-    await wrapper.find('input[placeholder="postgres"]').setValue('appdb')
-    const inputs = wrapper.findAll('input.form-input')
-    await inputs[3].setValue('dbuser')
-    await inputs[4].setValue('secret')
+    await chooseTemporary(wrapper)
+    await fillManualConnection(wrapper, '10.0.0.5')
+    await byTest(wrapper, 'manual-port').setValue(5433)
 
-    await wrapper.find('.dialog-footer .btn-primary').trigger('click')
-    await flushPromises()
-    await wrapper.find('.dialog-footer .btn-primary').trigger('click')
-    await flushPromises()
-    await wrapper.find('.dialog-footer .btn-primary').trigger('click')
+    await clickNext(wrapper)
+    await clickNext(wrapper)
+    await byTest(wrapper, 'wizard-create').trigger('click')
     await flushPromises()
 
     expect(importApi.create).toHaveBeenCalledWith('target-db-1', expect.objectContaining({
@@ -123,33 +139,109 @@ describe('ImportWizard connector mode', () => {
     const wrapper = mountWizard()
     await flushPromises()
 
-    await wrapper.find('input[type="radio"][value="TEMPORARY"]').setValue()
-    await wrapper.find('input[placeholder="例如: 192.168.0.100"]').setValue('10.0.0.5')
-    await wrapper.find('input[type="number"]').setValue(5432)
-    await wrapper.find('input[placeholder="postgres"]').setValue('appdb')
-    const inputs = wrapper.findAll('input.form-input')
-    await inputs[3].setValue('dbuser')
-    await inputs[4].setValue('secret')
+    await chooseTemporary(wrapper)
+    await fillManualConnection(wrapper)
 
-    const testButton = wrapper.findAll('button').find(button => button.text() === '测试连接')
-    expect(testButton).toBeTruthy()
-    await testButton!.trigger('click')
+    await byTest(wrapper, 'test-connection').trigger('click')
     await flushPromises()
 
-    await wrapper.find('.dialog-footer .btn-primary').trigger('click')
-    await flushPromises()
+    await clickNext(wrapper)
 
-    const temporarySyncRadio = wrapper.find('input[type="radio"][value="SYNC"]')
+    const temporarySyncRadio = byTest(wrapper, 'import-mode-sync')
     expect((temporarySyncRadio.element as HTMLInputElement).disabled).toBe(false)
     await temporarySyncRadio.setValue()
 
-    await wrapper.find('.dialog-footer > .btn-default').trigger('click')
+    await byTest(wrapper, 'wizard-back').trigger('click')
     await flushPromises()
-    await wrapper.find('input[type="radio"][value="CONNECTOR"]').setValue()
-    await wrapper.find('.dialog-footer .btn-primary').trigger('click')
+    await chooseConnector(wrapper)
+    await clickNext(wrapper)
+
+    const connectorSyncRadio = byTest(wrapper, 'import-mode-sync')
+    expect((connectorSyncRadio.element as HTMLInputElement).disabled).toBe(true)
+  })
+
+  it('clears temporary sync availability when manual source fields change', async () => {
+    vi.mocked(importApi.testConnection).mockResolvedValue({
+      data: { ok: true, wal_level: 'logical', has_replication: true },
+    } as any)
+
+    const wrapper = mountWizard()
     await flushPromises()
 
-    const connectorSyncRadio = wrapper.find('input[type="radio"][value="SYNC"]')
-    expect((connectorSyncRadio.element as HTMLInputElement).disabled).toBe(true)
+    await chooseTemporary(wrapper)
+    await fillManualConnection(wrapper)
+    await byTest(wrapper, 'test-connection').trigger('click')
+    await flushPromises()
+    await clickNext(wrapper)
+
+    expect((byTest(wrapper, 'import-mode-sync').element as HTMLInputElement).disabled).toBe(false)
+
+    await byTest(wrapper, 'wizard-back').trigger('click')
+    await flushPromises()
+    await byTest(wrapper, 'manual-host').setValue('10.0.0.6')
+    await clickNext(wrapper)
+
+    expect((byTest(wrapper, 'import-mode-sync').element as HTMLInputElement).disabled).toBe(true)
+  })
+
+  it('resets stale sync mode and selected tables when the wizard reopens', async () => {
+    vi.mocked(importApi.testConnection).mockResolvedValue({
+      data: { ok: true, wal_level: 'logical', has_replication: true },
+    } as any)
+
+    const wrapper = mountWizard()
+    await flushPromises()
+
+    await chooseTemporary(wrapper)
+    await fillManualConnection(wrapper)
+    await byTest(wrapper, 'test-connection').trigger('click')
+    await flushPromises()
+    await clickNext(wrapper)
+    await byTest(wrapper, 'import-mode-sync').setValue()
+    await byTest(wrapper, 'table-checkbox-public-orders').setValue(true)
+
+    await wrapper.setProps({ visible: false })
+    await flushPromises()
+    await wrapper.setProps({ visible: true })
+    await flushPromises()
+
+    await clickNext(wrapper)
+    await clickNext(wrapper)
+    await byTest(wrapper, 'wizard-create').trigger('click')
+    await flushPromises()
+
+    expect(importApi.create).toHaveBeenCalledWith('target-db-1', expect.objectContaining({
+      mode: 'FULL',
+      conflictStrategy: 'APPEND',
+      tables: undefined,
+    }))
+  })
+
+  it('shows temporary table load failures on the connection step', async () => {
+    vi.mocked(importApi.listSourceTables).mockRejectedValue({
+      response: { data: { error: { message: '源表加载失败' } } },
+    })
+
+    const wrapper = mountWizard()
+    await flushPromises()
+
+    await chooseTemporary(wrapper)
+    await fillManualConnection(wrapper)
+    await clickNext(wrapper)
+
+    expect(byTest(wrapper, 'connection-error').text()).toContain('源表加载失败')
+  })
+
+  it('shows connector table load failures on the connection step', async () => {
+    vi.mocked(connectorsApi.listPostgresTables).mockRejectedValue({
+      response: { data: { error: { message: '连接器表加载失败' } } },
+    })
+
+    const wrapper = mountWizard()
+    await flushPromises()
+
+    await clickNext(wrapper)
+
+    expect(byTest(wrapper, 'connection-error').text()).toContain('连接器表加载失败')
   })
 })
