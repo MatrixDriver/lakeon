@@ -152,13 +152,12 @@
             <h2>工作区分支</h2>
             <span class="muted">{{ selectedDetail?.branches.length || 0 }} 个</span>
           </div>
-          <div v-if="selectedDetail?.branches.length" class="branch-dag">
-            <template v-for="(branch, index) in selectedDetail.branches" :key="branch.id">
-              <span :title="branch.hypothesis || branch.id">{{ branch.name || branch.id }}</span>
-              <b v-if="index < selectedDetail.branches.length - 1">→</b>
-            </template>
-          </div>
-          <div v-else class="empty-state">还没有工作区分支。</div>
+          <AgentRunBranchGraph
+            :detail="selectedDetail"
+            :stage-label="stageLabel"
+            :evidence-status-label="evidenceStatusLabel"
+            :short-time="shortTime"
+          />
         </section>
 
         <section id="audit" class="section-panel audit-panel">
@@ -195,6 +194,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { agentStateApi, type AgentApp, type TaskRunDetail, type TaskRunSummary } from '../../api/agent-state'
+import AgentRunBranchGraph from '../../components/agent-state/AgentRunBranchGraph.vue'
 
 const apps = ref<AgentApp[]>([])
 const tasks = ref<TaskRunSummary[]>([])
@@ -736,25 +736,6 @@ function shortTime(value?: string | null) {
 .evidence-box p {
   margin: 0 0 10px;
   line-height: 1.55;
-}
-
-.branch-dag {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 18px 14px;
-}
-
-.branch-dag span {
-  border: 1px solid #d7e0ea;
-  border-radius: 5px;
-  padding: 7px 9px;
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.branch-dag b {
-  color: #99a5b4;
 }
 
 .audit-row {
