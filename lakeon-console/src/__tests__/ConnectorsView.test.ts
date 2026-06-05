@@ -117,6 +117,51 @@ describe('ConnectorsView', () => {
     expect(connectorsApi.list).toHaveBeenCalledTimes(2)
   })
 
+  it('disables all PostgreSQL test buttons while one test is pending', async () => {
+    const multiPostgresConnectors = [
+      connectors[0],
+      {
+        ...connectors[0],
+        id: 'pg_2',
+        name: '分析 PostgreSQL',
+        target_summary: 'analytics.internal:5432/warehouse',
+      },
+      connectors[1],
+    ]
+    let resolveTest: (value: { data: { ok: boolean; error: null; metadata: Record<string, unknown> } }) => void = () => {}
+    const pendingTest = new Promise<{ data: { ok: boolean; error: null; metadata: Record<string, unknown> } }>((resolve) => {
+      resolveTest = resolve
+    })
+    vi.mocked(connectorsApi.list).mockResolvedValue({ data: multiPostgresConnectors } as any)
+    vi.mocked(connectorsApi.test).mockReturnValue(pendingTest as any)
+
+    const wrapper = mount(ConnectorsView, {
+      global: {
+        stubs: { RouterLink: true },
+      },
+    })
+    await flushPromises()
+
+    const firstPgTestButton = wrapper.find('[data-test="test-pg_1"]')
+    const secondPgTestButton = wrapper.find('[data-test="test-pg_2"]')
+    expect(firstPgTestButton.attributes('disabled')).toBeUndefined()
+    expect(secondPgTestButton.attributes('disabled')).toBeUndefined()
+
+    await firstPgTestButton.trigger('click')
+    expect(connectorsApi.test).toHaveBeenCalledTimes(1)
+    expect(connectorsApi.test).toHaveBeenCalledWith('pg_1')
+    expect(secondPgTestButton.attributes('disabled')).toBeDefined()
+
+    await secondPgTestButton.trigger('click')
+    expect(connectorsApi.test).toHaveBeenCalledTimes(1)
+
+    resolveTest({ data: { ok: true, error: null, metadata: {} } })
+    await flushPromises()
+
+    expect(firstPgTestButton.attributes('disabled')).toBeUndefined()
+    expect(secondPgTestButton.attributes('disabled')).toBeUndefined()
+  })
+
   it('shows and preserves ok=false test errors after reloading connectors', async () => {
     vi.mocked(connectorsApi.test).mockResolvedValue({
       data: { ok: false, error: '认证失败', metadata: {} },
