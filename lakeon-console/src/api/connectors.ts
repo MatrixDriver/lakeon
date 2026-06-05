@@ -26,7 +26,7 @@ export interface PostgresTableInfo {
 
 export interface ConnectorTestResponse {
   ok: boolean
-  error?: string | null
+  error: string | null
   metadata: Record<string, any>
 }
 
