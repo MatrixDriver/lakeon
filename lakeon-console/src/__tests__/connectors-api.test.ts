@@ -49,4 +49,23 @@ describe('connectorsApi', () => {
     })
     expect(result.data.id).toBe('conn_001')
   })
+
+  it('test posts to the connector test endpoint', async () => {
+    const mockResponse = {
+      data: {
+        ok: true,
+        error: null,
+        metadata: {
+          version: '16.4',
+        },
+      },
+    }
+    vi.mocked(client.post).mockResolvedValue(mockResponse)
+
+    const result = await connectorsApi.test('conn_1')
+
+    expect(client.post).toHaveBeenCalledWith('/connectors/conn_1/test')
+    expect(result.data.ok).toBe(true)
+    expect(result.data.metadata.version).toBe('16.4')
+  })
 })

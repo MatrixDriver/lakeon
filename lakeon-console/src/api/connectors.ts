@@ -24,6 +24,12 @@ export interface PostgresTableInfo {
   estimated_rows: number
 }
 
+export interface ConnectorTestResponse {
+  ok: boolean
+  error?: string | null
+  metadata: Record<string, any>
+}
+
 export const connectorsApi = {
   createPostgres: (input: {
     name: string
@@ -50,7 +56,7 @@ export const connectorsApi = {
     client.get<Connector[]>('/connectors'),
 
   test: (id: string) =>
-    client.post<Connector>(`/connectors/${id}/test`),
+    client.post<ConnectorTestResponse>(`/connectors/${id}/test`),
 
   listPostgresTables: (id: string) =>
     client.get<PostgresTableInfo[]>(`/connectors/${id}/postgres/tables`, { timeout: 60000 }),
