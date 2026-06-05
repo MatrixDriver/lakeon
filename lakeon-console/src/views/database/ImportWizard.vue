@@ -239,7 +239,9 @@ const tableCount = computed(() => {
   return form.value.selectedTables.length
 })
 
-const syncAvailable = computed(() => walLevelInfo.value === 'logical' && hasReplication.value)
+const syncAvailable = computed(() =>
+  sourceMode.value === 'TEMPORARY' && walLevelInfo.value === 'logical' && hasReplication.value
+)
 
 const selectedConnector = computed(() =>
   postgresConnectors.value.find(c => c.id === selectedConnectorId.value) || null
@@ -278,6 +280,7 @@ watch(() => props.visible, (v) => {
 watch(sourceMode, () => {
   sourceTables.value = []
   form.value.selectedTables = []
+  clearConnectionTestMetadata()
   if (sourceMode.value === 'CONNECTOR' && form.value.mode === 'SYNC') {
     form.value.mode = 'FULL'
   }
@@ -294,12 +297,16 @@ function resetWizard() {
   postgresConnectors.value = []
   selectedConnectorId.value = ''
   sourceTables.value = []
+  clearConnectionTestMetadata()
+  createError.value = ''
+}
+
+function clearConnectionTestMetadata() {
   connTestResult.value = null
   connError.value = ''
   connVersion.value = ''
   walLevelInfo.value = ''
   hasReplication.value = false
-  createError.value = ''
 }
 
 async function loadConnectors() {

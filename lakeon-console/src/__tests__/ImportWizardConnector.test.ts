@@ -114,4 +114,42 @@ describe('ImportWizard connector mode', () => {
       conflictStrategy: 'APPEND',
     }))
   })
+
+  it('does not inherit temporary sync availability when switching back to connector mode', async () => {
+    vi.mocked(importApi.testConnection).mockResolvedValue({
+      data: { ok: true, wal_level: 'logical', has_replication: true },
+    } as any)
+
+    const wrapper = mountWizard()
+    await flushPromises()
+
+    await wrapper.find('input[type="radio"][value="TEMPORARY"]').setValue()
+    await wrapper.find('input[placeholder="例如: 192.168.0.100"]').setValue('10.0.0.5')
+    await wrapper.find('input[type="number"]').setValue(5432)
+    await wrapper.find('input[placeholder="postgres"]').setValue('appdb')
+    const inputs = wrapper.findAll('input.form-input')
+    await inputs[3].setValue('dbuser')
+    await inputs[4].setValue('secret')
+
+    const testButton = wrapper.findAll('button').find(button => button.text() === '测试连接')
+    expect(testButton).toBeTruthy()
+    await testButton!.trigger('click')
+    await flushPromises()
+
+    await wrapper.find('.dialog-footer .btn-primary').trigger('click')
+    await flushPromises()
+
+    const temporarySyncRadio = wrapper.find('input[type="radio"][value="SYNC"]')
+    expect((temporarySyncRadio.element as HTMLInputElement).disabled).toBe(false)
+    await temporarySyncRadio.setValue()
+
+    await wrapper.find('.dialog-footer > .btn-default').trigger('click')
+    await flushPromises()
+    await wrapper.find('input[type="radio"][value="CONNECTOR"]').setValue()
+    await wrapper.find('.dialog-footer .btn-primary').trigger('click')
+    await flushPromises()
+
+    const connectorSyncRadio = wrapper.find('input[type="radio"][value="SYNC"]')
+    expect((connectorSyncRadio.element as HTMLInputElement).disabled).toBe(true)
+  })
 })
