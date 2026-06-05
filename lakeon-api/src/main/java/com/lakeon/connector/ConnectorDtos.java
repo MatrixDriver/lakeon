@@ -1,6 +1,7 @@
 package com.lakeon.connector;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.lakeon.model.dto.SourceTableInfo;
 
@@ -58,7 +59,7 @@ public final class ConnectorDtos {
         Integer port,
         String dbname,
         String user,
-        String password
+        @JsonIgnore String password
     ) {
     }
 
