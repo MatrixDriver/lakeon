@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "0.9.246-agentstate-status-331be188"
+    tag: "0.9.246-agentstate-status-b8d47626"
   jobCallbackBaseUrl: "http://10.247.156.79:8088"  # CCI job pods use ClusterIP (no external access)
   jobNamespace: "lakeon-jobs"
   resources:
@@ -200,7 +200,7 @@ console:
   enabled: false
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-console
-    tag: "0.3.14"
+    tag: "0.3.14-b8d47626"
   replicas: 1
   port: 80
   serviceType: LoadBalancer
