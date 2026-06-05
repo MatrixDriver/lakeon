@@ -50,7 +50,7 @@
       <div v-else-if="!loadingApps" class="empty-state">还没有智能体应用。可以先注册 PaperBench 或数据智能体模板。</div>
     </div>
 
-    <div class="workbench-grid">
+    <div class="task-workbench">
       <section id="tasks" class="section-panel task-panel">
         <div class="panel-header">
           <h2>任务运行</h2>
@@ -77,18 +77,48 @@
         <div v-if="!loadingTasks && !filteredTasks.length" class="empty-state">还没有匹配的任务运行。</div>
       </section>
 
-      <section class="section-panel detail-panel">
-        <div class="panel-header">
-          <h2>任务详情</h2>
-          <span v-if="loadingDetail" class="muted">加载中</span>
-          <span v-else-if="selectedTask" class="status-pill" :class="statusClass(selectedTask)">
-            {{ stageLabel(selectedTask.currentStageId) }}
-          </span>
-        </div>
-        <template v-if="selectedTask">
-          <div class="detail-title">{{ taskTitle(selectedTask) }}</div>
-          <p class="muted">目标：{{ selectedTask.goal }}</p>
-          <div v-if="stageCards.length" class="timeline" :style="{ gridTemplateColumns: `repeat(${stageCards.length}, 1fr)` }">
+      <div class="task-detail-stack">
+        <section id="detail" class="section-panel task-overview-panel">
+          <div class="panel-header">
+            <h2>任务概览</h2>
+            <span v-if="loadingDetail" class="muted">加载中</span>
+            <span v-else-if="selectedTask" class="status-pill" :class="statusClass(selectedTask)">
+              {{ statusLabel(selectedTask) }}
+            </span>
+          </div>
+          <template v-if="selectedTask">
+            <div class="task-summary">
+              <div class="detail-title">{{ taskTitle(selectedTask) }}</div>
+              <p class="muted">目标：{{ selectedTask.goal }}</p>
+            </div>
+            <div class="task-overview-grid">
+              <div class="task-overview-item">
+                <span>当前阶段</span>
+                <strong>{{ stageLabel(selectedTask.currentStageId) }}</strong>
+              </div>
+              <div class="task-overview-item">
+                <span>工作区</span>
+                <strong>{{ selectedTask.workspaceId || '--' }}</strong>
+              </div>
+              <div class="task-overview-item">
+                <span>最新分支</span>
+                <strong>{{ selectedTask.latestBranchId || '--' }}</strong>
+              </div>
+              <div class="task-overview-item">
+                <span>最新证据</span>
+                <strong>{{ selectedTask.latestEvidencePacketId || '--' }}</strong>
+              </div>
+            </div>
+          </template>
+          <div v-else class="empty-state">请选择一个任务运行查看详情。</div>
+        </section>
+
+        <section id="stages" class="section-panel stages-panel">
+          <div class="panel-header">
+            <h2>执行阶段</h2>
+            <span class="muted">{{ stageCards.length }} 个阶段</span>
+          </div>
+          <div v-if="stageCards.length" class="timeline" :style="{ gridTemplateColumns: `repeat(${stageCards.length}, minmax(120px, 1fr))` }">
             <div
               v-for="stage in stageCards"
               :key="stage.id"
@@ -99,39 +129,65 @@
               <span>{{ stage.meta }}</span>
             </div>
           </div>
-          <div v-else class="empty-state inline">还没有阶段运行记录。</div>
-        </template>
-        <div v-else class="empty-state">请选择一个任务运行查看详情。</div>
-        <div id="evidence" class="evidence-box">
-          <template v-if="latestEvidence">
-            <h3>证据包</h3>
-            <p><strong>主张</strong> {{ latestEvidence.claim || latestEvidence.id }}</p>
-            <span v-for="ref in latestEvidence.evidenceRefs" :key="ref" class="stage-pill">{{ ref }}</span>
-            <span class="stage-pill pending">{{ evidenceStatusLabel(latestEvidence.status) }}</span>
-          </template>
-          <div v-else class="empty-state inline">还没有证据包。</div>
-        </div>
-      </section>
+          <div v-else class="empty-state">还没有阶段运行记录。</div>
+        </section>
 
-      <section class="section-panel">
-        <div class="panel-header"><h2>工作区分支</h2></div>
-        <div v-if="selectedDetail?.branches.length" class="branch-dag">
-          <template v-for="(branch, index) in selectedDetail.branches" :key="branch.id">
-            <span :title="branch.hypothesis || branch.id">{{ branch.name || branch.id }}</span>
-            <b v-if="index < selectedDetail.branches.length - 1">→</b>
-          </template>
-        </div>
-        <div v-else class="empty-state">还没有工作区分支。</div>
-      </section>
+        <section id="evidence" class="section-panel evidence-panel">
+          <div class="panel-header">
+            <h2>证据包</h2>
+            <span class="muted">{{ selectedDetail?.evidencePackets.length || 0 }} 个</span>
+          </div>
+          <div class="evidence-box">
+            <template v-if="latestEvidence">
+              <p><strong>主张</strong> {{ latestEvidence.claim || latestEvidence.id }}</p>
+              <span v-for="ref in latestEvidence.evidenceRefs" :key="ref" class="stage-pill">{{ ref }}</span>
+              <span class="stage-pill pending">{{ evidenceStatusLabel(latestEvidence.status) }}</span>
+            </template>
+            <div v-else class="empty-state inline">还没有证据包。</div>
+          </div>
+        </section>
 
-      <section id="audit" class="section-panel">
-        <div class="panel-header"><h2>治理审计</h2></div>
-        <div v-for="event in selectedDetail?.auditEvents || []" :key="event.id" class="audit-row">
-          <span>{{ event.action }} · {{ event.result }}</span>
-          <span>{{ shortTime(event.createdAt) }}</span>
-        </div>
-        <div v-if="!selectedDetail?.auditEvents.length" class="empty-state">还没有治理审计事件。</div>
-      </section>
+        <section id="branches" class="section-panel branches-panel">
+          <div class="panel-header">
+            <h2>工作区分支</h2>
+            <span class="muted">{{ selectedDetail?.branches.length || 0 }} 个</span>
+          </div>
+          <div v-if="selectedDetail?.branches.length" class="branch-dag">
+            <template v-for="(branch, index) in selectedDetail.branches" :key="branch.id">
+              <span :title="branch.hypothesis || branch.id">{{ branch.name || branch.id }}</span>
+              <b v-if="index < selectedDetail.branches.length - 1">→</b>
+            </template>
+          </div>
+          <div v-else class="empty-state">还没有工作区分支。</div>
+        </section>
+
+        <section id="audit" class="section-panel audit-panel">
+          <div class="panel-header">
+            <h2>治理审计</h2>
+            <span class="muted">{{ selectedDetail?.auditEvents.length || 0 }} 条</span>
+          </div>
+          <div v-for="event in selectedDetail?.auditEvents || []" :key="event.id" class="audit-row">
+            <span>{{ event.action }} · {{ event.result }}</span>
+            <span>{{ shortTime(event.createdAt) }}</span>
+          </div>
+          <div v-if="!selectedDetail?.auditEvents.length" class="empty-state">还没有治理审计事件。</div>
+        </section>
+
+        <section id="outputs" class="section-panel output-panel">
+          <div class="panel-header">
+            <h2>运行输出</h2>
+            <span class="muted">{{ outputRows.length }} 条</span>
+          </div>
+          <div v-for="row in outputRows" :key="row.id" class="output-row">
+            <div class="output-meta">
+              <span class="stage-pill">{{ row.kind }}</span>
+              <span class="muted">{{ shortTime(row.createdAt) }}</span>
+            </div>
+            <pre>{{ row.text }}</pre>
+          </div>
+          <div v-if="!outputRows.length" class="empty-state">还没有可查看的运行输出。</div>
+        </section>
+      </div>
     </div>
   </div>
 </template>
@@ -188,6 +244,29 @@ const stageCards = computed(() => {
     current: selectedTask.value?.currentStageId === stage.stageId,
   }))
 })
+
+const outputRows = computed(() => [
+  ...(selectedDetail.value?.commits || []).map((commit) => ({
+    id: `commit:${commit.id}`,
+    kind: 'commit',
+    text: commit.summary || commit.id,
+    createdAt: commit.createdAt,
+  })),
+  ...(selectedDetail.value?.artifacts || []).map((artifact) => ({
+    id: `artifact:${artifact.id}`,
+    kind: artifact.kind,
+    text: `${artifact.id} · branch=${artifact.branchId}`,
+    createdAt: artifact.createdAt,
+  })),
+  ...(selectedDetail.value?.auditEvents || [])
+    .filter((event) => event.action.startsWith('workflow_trace:') || event.reason)
+    .map((event) => ({
+      id: `audit:${event.id}`,
+      kind: event.action.replace('workflow_trace:', 'trace:'),
+      text: event.reason ? `${event.result}\n${event.reason}` : event.result,
+      createdAt: event.createdAt,
+    })),
+])
 
 onMounted(async () => {
   await Promise.all([loadApps(), loadTasks()])
@@ -442,20 +521,33 @@ function shortTime(value?: string | null) {
   color: #758397;
 }
 
-.workbench-grid {
+.task-workbench {
   display: grid;
-  grid-template-columns: 1.35fr .95fr;
+  grid-template-columns: minmax(420px, .95fr) minmax(0, 1.35fr);
   gap: 16px;
+  align-items: start;
 }
 
-.workbench-grid > .section-panel {
+.task-workbench > .section-panel,
+.task-detail-stack > .section-panel {
   min-width: 0;
 }
 
 #tasks,
+#detail,
+#stages,
 #evidence,
-#audit {
+#branches,
+#audit,
+#outputs {
   scroll-margin-top: 72px;
+}
+
+.task-detail-stack {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .task-row {
@@ -539,28 +631,63 @@ function shortTime(value?: string | null) {
   font-size: 11px;
 }
 
-.detail-panel {
-  padding-bottom: 14px;
+.task-overview-panel {
+  overflow: hidden;
 }
 
-.detail-panel > .detail-title,
-.detail-panel > p,
-.timeline,
-.evidence-box {
-  margin-left: 14px;
-  margin-right: 14px;
+.task-summary {
+  padding: 14px 14px 10px;
 }
 
-.detail-title {
-  margin-top: 14px;
+.task-summary .detail-title {
+  margin-bottom: 6px;
+  color: #25364a;
+}
+
+.task-summary p {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.task-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  border-top: 1px solid #edf0f4;
+}
+
+.task-overview-item {
+  min-width: 0;
+  padding: 12px 14px;
+  border-right: 1px solid #edf0f4;
+}
+
+.task-overview-item:last-child {
+  border-right: 0;
+}
+
+.task-overview-item span {
+  display: block;
+  margin-bottom: 5px;
+  color: #758397;
+  font-size: 12px;
+}
+
+.task-overview-item strong {
+  display: block;
+  overflow: hidden;
+  color: #25364a;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .timeline {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
   gap: 8px;
-  margin-top: 14px;
-  margin-bottom: 14px;
+  padding: 14px;
+  overflow-x: auto;
 }
 
 .stage {
@@ -603,14 +730,12 @@ function shortTime(value?: string | null) {
 }
 
 .evidence-box {
-  border: 1px solid #e3e8ef;
-  border-radius: 6px;
   padding: 12px;
 }
 
-.evidence-box h3 {
-  margin: 0 0 8px;
-  font-size: 14px;
+.evidence-box p {
+  margin: 0 0 10px;
+  line-height: 1.55;
 }
 
 .branch-dag {
@@ -638,5 +763,31 @@ function shortTime(value?: string | null) {
   padding: 10px 14px;
   border-bottom: 1px solid #edf0f4;
   font-size: 12px;
+}
+
+.output-row {
+  padding: 12px 14px;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.output-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.output-row pre {
+  margin: 0;
+  padding: 10px;
+  border: 1px solid #e4e9ef;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #26364a;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 </style>

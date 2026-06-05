@@ -13,6 +13,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -83,6 +84,31 @@ class AgentStateServiceTest {
         assertThat(response).hasSize(1);
         assertThat(response.get(0).id()).isEqualTo("app_001");
         assertThat(response.get(0).displayName()).isEqualTo("数据发布检查助手");
+    }
+
+    @Test
+    @DisplayName("listAgentApps registers built-in app templates when tenant has none")
+    void listAgentApps_registersBuiltInTemplatesWhenEmpty() {
+        AgentStateService service = service();
+        when(agentAppRepository.findByTenantIdOrderByCreatedAtAsc("tn_test001")).thenReturn(List.of());
+        when(agentAppRepository.save(any(AgentAppEntity.class))).thenAnswer(inv -> {
+            AgentAppEntity entity = inv.getArgument(0);
+            entity.prePersist();
+            return entity;
+        });
+
+        List<AgentStateDtos.AgentAppResponse> response = service.listAgentApps("tn_test001");
+
+        assertThat(response).extracting(AgentStateDtos.AgentAppResponse::key)
+                .containsExactly("paperbench", "data");
+        assertThat(response).extracting(AgentStateDtos.AgentAppResponse::displayName)
+                .containsExactly("PaperBench 论文复现", "数据发布检查");
+        assertThat(response.get(0).stageSchema()).contains("paper_parse", "report_gate");
+        assertThat(response.get(1).stageSchema()).contains("schema_resolve", "publish_gate");
+
+        ArgumentCaptor<AgentAppEntity> appCaptor = ArgumentCaptor.forClass(AgentAppEntity.class);
+        verify(agentAppRepository, times(2)).save(appCaptor.capture());
+        assertThat(appCaptor.getAllValues()).allSatisfy(app -> assertThat(app.getTenantId()).isEqualTo("tn_test001"));
     }
 
     @Test
@@ -173,13 +199,18 @@ class AgentStateServiceTest {
         evidence.setId("evidence_001");
         AgentAuditEventEntity audit = new AgentAuditEventEntity();
         audit.setId("audit_001");
+        audit.setAction("paperbench_report_gate");
         audit.setResult("allowed");
+        AgentAuditEventEntity traceAudit = new AgentAuditEventEntity();
+        traceAudit.setId("audit_trace");
+        traceAudit.setAction("workflow_trace:report_gate");
+        traceAudit.setResult("started");
         when(taskRunRepository.findByTenantIdOrderByCreatedAtDesc("tn_test001")).thenReturn(List.of(task));
         when(stageRunRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(stage));
         when(workspaceRepository.findByTenantIdAndTaskRunId("tn_test001", "task_001")).thenReturn(Optional.of(workspace));
         when(branchRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtAsc("tn_test001", "ws_001")).thenReturn(List.of(root, branch));
         when(evidencePacketRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(evidence));
-        when(auditEventRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(audit));
+        when(auditEventRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(audit, traceAudit));
 
         List<AgentStateDtos.TaskRunSummaryResponse> response = service.listTaskRuns("tn_test001");
 
@@ -192,6 +223,7 @@ class AgentStateServiceTest {
         assertThat(response.get(0).latestBranchId()).isEqualTo("awb_001");
         assertThat(response.get(0).latestEvidencePacketId()).isEqualTo("evidence_001");
         assertThat(response.get(0).latestAuditResult()).isEqualTo("allowed");
+        assertThat(response.get(0).status()).isEqualTo("completed");
     }
 
     @Test

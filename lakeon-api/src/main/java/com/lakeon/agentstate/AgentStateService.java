@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 
 @Service
 public class AgentStateService {
@@ -114,8 +115,15 @@ public class AgentStateService {
         return agentAppResponse(agentAppRepository.save(entity));
     }
 
+    @Transactional
     public List<AgentStateDtos.AgentAppResponse> listAgentApps(String tenantId) {
-        return agentAppRepository.findByTenantIdOrderByCreatedAtAsc(tenantId)
+        List<AgentAppEntity> apps = new ArrayList<>(agentAppRepository.findByTenantIdOrderByCreatedAtAsc(tenantId));
+        if (apps.isEmpty()) {
+            for (BuiltInAgentApp app : BUILT_IN_AGENT_APPS) {
+                apps.add(agentAppRepository.save(toEntity(tenantId, app)));
+            }
+        }
+        return apps
                 .stream()
                 .map(this::agentAppResponse)
                 .toList();
@@ -408,6 +416,34 @@ public class AgentStateService {
                 fromJsonList(entity.getStageSchemaJson()));
     }
 
+    private static final List<BuiltInAgentApp> BUILT_IN_AGENT_APPS = List.of(
+            new BuiltInAgentApp(
+                    "paperbench",
+                    "PaperBench 论文复现",
+                    "benchmark",
+                    "0.1.0",
+                    List.of("paper_parse", "claim_extract", "experiment_run", "evidence_pack", "report_gate")),
+            new BuiltInAgentApp(
+                    "data",
+                    "数据发布检查",
+                    "data",
+                    "0.1.0",
+                    List.of("schema_resolve", "context_pack", "sql_validate", "policy_check", "publish_gate")));
+
+    private AgentAppEntity toEntity(String tenantId, BuiltInAgentApp app) {
+        AgentAppEntity entity = new AgentAppEntity();
+        entity.setTenantId(tenantId);
+        entity.setKey(app.key());
+        entity.setDisplayName(app.displayName());
+        entity.setType(app.type());
+        entity.setVersion(app.version());
+        entity.setStatus("active");
+        entity.setStageSchemaJson(toJson(app.stageSchema()));
+        return entity;
+    }
+
+    private record BuiltInAgentApp(String key, String displayName, String type, String version, List<String> stageSchema) {}
+
     private AgentStateDtos.TaskRunSummaryResponse taskRunSummary(String tenantId, AgentTaskRunEntity task) {
         List<AgentStageRunEntity> stages = stageRunRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, task.getId());
         AgentWorkspaceEntity workspace = workspaceRepository.findByTenantIdAndTaskRunId(tenantId, task.getId()).orElse(null);
@@ -433,12 +469,12 @@ public class AgentStateService {
         AgentStageRunEntity currentStage = stages.isEmpty() ? null : stages.get(stages.size() - 1);
         AgentWorkspaceBranchEntity latestBranch = branches.isEmpty() ? null : branches.get(branches.size() - 1);
         AgentEvidencePacketEntity latestEvidence = evidencePackets.isEmpty() ? null : evidencePackets.get(evidencePackets.size() - 1);
-        AgentAuditEventEntity latestAudit = auditEvents.isEmpty() ? null : auditEvents.get(auditEvents.size() - 1);
+        String derivedAuditResult = derivedAuditResult(auditEvents);
         return new AgentStateDtos.TaskRunSummaryResponse(
                 task.getId(),
                 task.getGoal(),
                 task.getHarnessId(),
-                task.getStatus(),
+                derivedStatus(task.getStatus(), derivedAuditResult),
                 task.getAgentAppId(),
                 currentStage == null ? null : currentStage.getStageId(),
                 workspace == null ? null : workspace.getId(),
@@ -446,8 +482,30 @@ public class AgentStateService {
                 evidencePackets.size(),
                 latestBranch == null ? null : latestBranch.getId(),
                 latestEvidence == null ? null : latestEvidence.getId(),
-                latestAudit == null ? null : latestAudit.getResult(),
+                derivedAuditResult,
                 task.getCreatedAt());
+    }
+
+    private String derivedStatus(String storedStatus, String auditResult) {
+        if ("allowed".equals(auditResult) || "completed".equals(auditResult)) return "completed";
+        if ("blocked".equals(auditResult) || "failed".equals(auditResult)) return "blocked";
+        return storedStatus;
+    }
+
+    private String derivedAuditResult(List<AgentAuditEventEntity> auditEvents) {
+        return auditEvents.stream()
+                .filter(event -> "paperbench_report_gate".equals(event.getAction()))
+                .reduce((first, second) -> second)
+                .map(AgentAuditEventEntity::getResult)
+                .or(() -> auditEvents.stream()
+                        .filter(event -> "workflow_trace:workflow_run".equals(event.getAction()) && !"started".equals(event.getResult()))
+                        .reduce((first, second) -> second)
+                        .map(AgentAuditEventEntity::getResult))
+                .or(() -> auditEvents.stream()
+                        .filter(event -> !event.getAction().startsWith("workflow_trace:"))
+                        .reduce((first, second) -> second)
+                        .map(AgentAuditEventEntity::getResult))
+                .orElseGet(() -> auditEvents.isEmpty() ? null : auditEvents.get(auditEvents.size() - 1).getResult());
     }
 
     private AgentStateDtos.StageRunDetailResponse stageRunDetail(AgentStageRunEntity stage) {
