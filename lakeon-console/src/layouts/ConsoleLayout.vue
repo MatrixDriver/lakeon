@@ -172,7 +172,7 @@ const workspaceModes: WorkspaceMode[] = [
   },
   {
     id: 'agent',
-    label: 'Agent 工作台',
+    label: '智能体工作台',
     shortLabel: '智能体',
     description: '任务、证据与治理审计',
     to: '/agent-state',
@@ -181,14 +181,14 @@ const workspaceModes: WorkspaceMode[] = [
       {
         title: '工作状态',
         items: [
-          { label: 'Agent 工作台', to: '/agent-state', icon: '▢' },
-          { label: '任务运行', to: '/agent-state', sub: true },
-          { label: 'Evidence', to: '/agent-state', sub: true },
-          { label: 'Policy & Audit', to: '/agent-state', sub: true },
+          { label: '工作台总览', to: '/agent-state', icon: '▢' },
+          { label: '任务运行', to: '/agent-state#tasks', sub: true },
+          { label: '证据', to: '/agent-state#evidence', sub: true },
+          { label: '治理审计', to: '/agent-state#audit', sub: true },
         ],
       },
       {
-        title: 'Agent 文件',
+        title: '智能体文件',
         items: [
           { label: '浏览文件', to: '/agentfs', icon: '□' },
         ],

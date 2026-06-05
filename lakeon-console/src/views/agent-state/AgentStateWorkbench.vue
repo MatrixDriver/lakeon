@@ -2,8 +2,8 @@
   <div class="agent-state-page">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Agent 工作台</h1>
-        <p class="page-subtitle">按 Agent App 查看长程任务运行、Evidence、工作区分支和治理审计。</p>
+        <h1 class="page-title">智能体工作台</h1>
+        <p class="page-subtitle">按智能体应用查看长程任务运行、证据、工作区分支和治理审计。</p>
       </div>
       <button class="btn btn-primary">导入任务</button>
     </div>
@@ -22,16 +22,16 @@
     </div>
 
     <div class="kpi-grid">
-      <div class="kpi"><span>运行中 Task</span><strong>{{ kpis.running }}</strong></div>
+      <div class="kpi"><span>运行中任务</span><strong>{{ kpis.running }}</strong></div>
       <div class="kpi"><span>阻塞</span><strong>{{ kpis.blocked }}</strong></div>
-      <div class="kpi"><span>Evidence</span><strong>{{ kpis.evidence }}</strong></div>
+      <div class="kpi"><span>证据</span><strong>{{ kpis.evidence }}</strong></div>
       <div class="kpi"><span>分支</span><strong>{{ kpis.branches }}</strong></div>
-      <div class="kpi"><span>Policy Block</span><strong>{{ kpis.policyBlock }}</strong></div>
+      <div class="kpi"><span>策略拦截</span><strong>{{ kpis.policyBlock }}</strong></div>
     </div>
 
     <div class="apps-panel section-panel">
       <div class="panel-header">
-        <h2>Agent Apps</h2>
+        <h2>智能体应用</h2>
         <span v-if="loadingApps" class="muted">加载中</span>
         <span v-else class="muted">{{ apps.length }} 个应用</span>
       </div>
@@ -42,16 +42,16 @@
             <div class="muted">{{ app.key }} · {{ app.type }} · {{ app.version }}</div>
           </div>
           <div class="stage-preview">
-            <span v-for="stage in app.stageSchema.slice(0, 5)" :key="stage" class="stage-pill">{{ stage }}</span>
+            <span v-for="stage in app.stageSchema.slice(0, 5)" :key="stage" class="stage-pill" :title="stage">{{ stageLabel(stage) }}</span>
           </div>
-          <span class="status-pill active">{{ app.status }}</span>
+          <span class="status-pill active">{{ appStatusLabel(app.status) }}</span>
         </div>
       </div>
-      <div v-else-if="!loadingApps" class="empty-state">还没有 Agent App。可以先注册 PaperBench 或 Data Agent 模板。</div>
+      <div v-else-if="!loadingApps" class="empty-state">还没有智能体应用。可以先注册 PaperBench 或数据智能体模板。</div>
     </div>
 
     <div class="workbench-grid">
-      <section class="section-panel task-panel">
+      <section id="tasks" class="section-panel task-panel">
         <div class="panel-header">
           <h2>任务运行</h2>
           <span v-if="loadingTasks" class="muted">加载中</span>
@@ -70,9 +70,9 @@
             <div class="muted">{{ task.harnessId }} · {{ task.id }}</div>
           </div>
           <span class="status-pill task-status" :class="statusClass(task)">{{ statusLabel(task) }}</span>
-          <span class="task-stage">{{ task.currentStageId || 'pending' }}</span>
+          <span class="task-stage" :title="task.currentStageId || 'pending'">{{ stageLabel(task.currentStageId) }}</span>
           <span class="task-metric"><strong>{{ task.branchCount }}</strong><small>分支</small></span>
-          <span class="task-metric"><strong>{{ task.evidenceCount }}</strong><small>Evidence</small></span>
+          <span class="task-metric"><strong>{{ task.evidenceCount }}</strong><small>证据</small></span>
         </button>
         <div v-if="!loadingTasks && !filteredTasks.length" class="empty-state">还没有匹配的任务运行。</div>
       </section>
@@ -82,7 +82,7 @@
           <h2>任务详情</h2>
           <span v-if="loadingDetail" class="muted">加载中</span>
           <span v-else-if="selectedTask" class="status-pill" :class="statusClass(selectedTask)">
-            {{ selectedTask.currentStageId || 'pending' }}
+            {{ stageLabel(selectedTask.currentStageId) }}
           </span>
         </div>
         <template v-if="selectedTask">
@@ -95,18 +95,21 @@
               class="stage"
               :class="{ done: stage.done, current: stage.current }"
             >
-              {{ stage.label }}
+              <div class="stage-label" :title="stage.rawLabel">{{ stage.label }}</div>
               <span>{{ stage.meta }}</span>
             </div>
           </div>
           <div v-else class="empty-state inline">还没有阶段运行记录。</div>
         </template>
         <div v-else class="empty-state">请选择一个任务运行查看详情。</div>
-        <div v-if="latestEvidence" class="evidence-box">
-          <h3>Evidence Packet</h3>
-          <p><strong>Claim</strong> {{ latestEvidence.claim || latestEvidence.id }}</p>
-          <span v-for="ref in latestEvidence.evidenceRefs" :key="ref" class="stage-pill">{{ ref }}</span>
-          <span class="stage-pill pending">{{ latestEvidence.status }}</span>
+        <div id="evidence" class="evidence-box">
+          <template v-if="latestEvidence">
+            <h3>证据包</h3>
+            <p><strong>主张</strong> {{ latestEvidence.claim || latestEvidence.id }}</p>
+            <span v-for="ref in latestEvidence.evidenceRefs" :key="ref" class="stage-pill">{{ ref }}</span>
+            <span class="stage-pill pending">{{ evidenceStatusLabel(latestEvidence.status) }}</span>
+          </template>
+          <div v-else class="empty-state inline">还没有证据包。</div>
         </div>
       </section>
 
@@ -121,8 +124,8 @@
         <div v-else class="empty-state">还没有工作区分支。</div>
       </section>
 
-      <section class="section-panel">
-        <div class="panel-header"><h2>Policy & Audit</h2></div>
+      <section id="audit" class="section-panel">
+        <div class="panel-header"><h2>治理审计</h2></div>
         <div v-for="event in selectedDetail?.auditEvents || []" :key="event.id" class="audit-row">
           <span>{{ event.action }} · {{ event.result }}</span>
           <span>{{ shortTime(event.createdAt) }}</span>
@@ -149,8 +152,8 @@ const loadingDetail = ref(false)
 const taskFilters = [
   { label: '全部任务', value: 'all' },
   { label: 'PaperBench', value: 'paperbench' },
-  { label: 'Data Agent', value: 'data' },
-  { label: 'Custom', value: 'custom' },
+  { label: '数据智能体', value: 'data' },
+  { label: '自定义', value: 'custom' },
 ]
 
 const filteredTasks = computed(() => {
@@ -178,7 +181,8 @@ const stageCards = computed(() => {
   const stages = selectedDetail.value?.stages || []
   return stages.map((stage) => ({
     id: stage.id,
-    label: stage.stageId,
+    rawLabel: stage.stageId,
+    label: stageLabel(stage.stageId),
     meta: stage.branchId || stage.contextPackId || stage.status,
     done: stage.status === 'done' || stage.status === 'completed',
     current: selectedTask.value?.currentStageId === stage.stageId,
@@ -230,6 +234,39 @@ function statusClass(task: TaskRunSummary) {
   if (statusLabel(task) === '阻塞') return 'blocked'
   if (statusLabel(task) === '完成') return 'done'
   return 'running'
+}
+
+function stageLabel(value?: string | null) {
+  const labels: Record<string, string> = {
+    paper_parse: '论文解析',
+    claim_extract: '主张抽取',
+    experiment_run: '实验运行',
+    evidence_pack: '证据打包',
+    report_gate: '报告门禁',
+    policy_check: '策略检查',
+    pending: '待处理',
+  }
+  return labels[value || 'pending'] || value || '待处理'
+}
+
+function appStatusLabel(value?: string | null) {
+  const labels: Record<string, string> = {
+    active: '启用',
+    inactive: '停用',
+    disabled: '停用',
+    draft: '草稿',
+  }
+  return labels[value || ''] || value || '--'
+}
+
+function evidenceStatusLabel(value?: string | null) {
+  const labels: Record<string, string> = {
+    pending: '待验证',
+    supported: '已支持',
+    rejected: '已驳回',
+    blocked: '已阻塞',
+  }
+  return labels[value || ''] || value || '--'
 }
 
 function shortTime(value?: string | null) {
@@ -415,6 +452,12 @@ function shortTime(value?: string | null) {
   min-width: 0;
 }
 
+#tasks,
+#evidence,
+#audit {
+  scroll-margin-top: 72px;
+}
+
 .task-row {
   width: 100%;
   grid-template-columns: minmax(0, 1fr) auto minmax(96px, .45fr) 58px 72px;
@@ -538,6 +581,12 @@ function shortTime(value?: string | null) {
   margin-top: 5px;
   color: #8491a0;
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stage-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
