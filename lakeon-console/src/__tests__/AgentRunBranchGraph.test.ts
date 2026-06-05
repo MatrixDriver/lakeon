@@ -124,6 +124,19 @@ describe('AgentRunBranchGraph', () => {
     expect(wrapper.find('[data-test="branch-graph-inspector"]').text()).toContain('Evidence packet passed gate')
   })
 
+  it('infers root as the display parent for legacy branches without parentBranchId', () => {
+    const legacyDetail = {
+      ...detail,
+      branches: detail.branches.map((branch) => (
+        branch.id === 'branch_claim' ? { ...branch, parentBranchId: null } : branch
+      )),
+    }
+    const wrapper = mountGraph(legacyDetail)
+
+    expect(wrapper.findAll('.branch-edge')).toHaveLength(1)
+    expect(wrapper.find('[data-test="branch-node-branch_claim"]').attributes('style')).toContain('left: 274px')
+  })
+
   it('shows an empty state when the run has no branches', () => {
     const wrapper = mountGraph({ branches: [], commits: [], artifacts: [], evidencePackets: [], auditEvents: [] })
 

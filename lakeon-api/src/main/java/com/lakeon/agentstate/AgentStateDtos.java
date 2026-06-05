@@ -177,6 +177,7 @@ public final class AgentStateDtos {
 
     public record ForkBranchRequest(
             @JsonProperty("workspace_id") @JsonAlias("workspaceId") @NotBlank String workspaceId,
+            @JsonProperty("parent_branch_id") @JsonAlias("parentBranchId") String parentBranchId,
             @JsonProperty("stage_run_id") @JsonAlias("stageRunId") String stageRunId,
             String hypothesis) {}
 

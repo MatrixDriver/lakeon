@@ -74,6 +74,7 @@ class AgentStateDataAgentSmokeTest {
                 tenantId,
                 new AgentStateDtos.ForkBranchRequest(
                         workspace.id(),
+                        null,
                         sqlStage.id(),
                         "safe aggregate without PII output"));
 

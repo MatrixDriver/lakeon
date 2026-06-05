@@ -52,7 +52,7 @@
             <h4>节点上下文</h4>
             <dl>
               <div><dt>分支</dt><dd>{{ selectedNode.branch.id }}</dd></div>
-              <div><dt>父分支</dt><dd>{{ selectedNode.branch.parentBranchId || 'workspace root' }}</dd></div>
+              <div><dt>父分支</dt><dd>{{ selectedNode.displayParentBranchId || 'workspace root' }}</dd></div>
               <div><dt>阶段</dt><dd>{{ selectedNode.stageName }}</dd></div>
               <div><dt>创建</dt><dd>{{ shortTime(selectedNode.branch.createdAt) }}</dd></div>
             </dl>
@@ -126,11 +126,12 @@ const branchDepths = computed(() => {
 
   function depthFor(branch: BranchDetail): number {
     if (depths.has(branch.id)) return depths.get(branch.id) || 0
-    if (!branch.parentBranchId || !byId.has(branch.parentBranchId)) {
+    const parentBranchId = displayParentBranchId(branch)
+    if (!parentBranchId || !byId.has(parentBranchId)) {
       depths.set(branch.id, 0)
       return 0
     }
-    const parentDepth = depthFor(byId.get(branch.parentBranchId) as BranchDetail)
+    const parentDepth = depthFor(byId.get(parentBranchId) as BranchDetail)
     depths.set(branch.id, parentDepth + 1)
     return parentDepth + 1
   }
@@ -149,6 +150,7 @@ const branchNodes = computed(() => {
     return {
       id: `branch:${branch.id}`,
       branch,
+      displayParentBranchId: displayParentBranchId(branch),
       statusClass,
       statusLabel: branchStatusLabel(branch.status),
       stageName: branch.stageRunId ? stagesById.value.get(branch.stageRunId) || branch.stageRunId : '待处理',
@@ -162,9 +164,9 @@ const branchNodesById = computed(() => new Map(branchNodes.value.map((node) => [
 
 const edges = computed(() => {
   return branchNodes.value
-    .filter((node) => node.branch.parentBranchId && branchNodesById.value.has(node.branch.parentBranchId))
+    .filter((node) => node.displayParentBranchId && branchNodesById.value.has(node.displayParentBranchId))
     .map((node) => {
-      const parent = branchNodesById.value.get(node.branch.parentBranchId as string)
+      const parent = branchNodesById.value.get(node.displayParentBranchId as string)
       return {
         from: parent?.id,
         to: node.id,
@@ -193,6 +195,12 @@ const selectedEvidence = computed(() => byBranch(props.detail?.evidencePackets |
 const selectedAuditEvents = computed(() => byBranch(props.detail?.auditEvents || [], selectedBranchId.value))
 const selectedBlockedAudits = computed(() => selectedAuditEvents.value.filter((event) => ['blocked', 'denied'].includes(event.result)))
 const latestAudit = computed(() => selectedAuditEvents.value[selectedAuditEvents.value.length - 1] || null)
+const inferredRootBranchId = computed(() => {
+  const branches = props.detail?.branches || []
+  return props.detail?.workspace?.rootBranchId
+    || branches.find((branch) => branch.name === 'root')?.id
+    || null
+})
 
 watch(
   () => props.detail?.task.id,
@@ -223,6 +231,13 @@ function nodeCounts(node: { branch: BranchDetail }) {
     artifacts: (props.detail?.artifacts || []).filter((artifact) => artifact.branchId === branchId).length,
     evidence: (props.detail?.evidencePackets || []).filter((packet) => packet.branchId === branchId).length,
   }
+}
+
+function displayParentBranchId(branch: BranchDetail) {
+  if (branch.parentBranchId) return branch.parentBranchId
+  const rootBranchId = inferredRootBranchId.value
+  if (!rootBranchId || branch.id === rootBranchId || branch.name === 'root') return null
+  return rootBranchId
 }
 
 function branchStatusClass(status?: string | null) {

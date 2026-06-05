@@ -223,6 +223,7 @@ public class AgentStateService {
         AgentWorkspaceBranchEntity branch = new AgentWorkspaceBranchEntity();
         branch.setTenantId(tenantId);
         branch.setWorkspaceId(request.workspaceId());
+        branch.setParentBranchId(resolveParentBranchId(tenantId, request.workspaceId(), request.parentBranchId()));
         branch.setStageRunId(request.stageRunId());
         branch.setName("branch");
         branch.setHypothesis(request.hypothesis());
@@ -639,6 +640,17 @@ public class AgentStateService {
 
     private String blankDefault(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private String resolveParentBranchId(String tenantId, String workspaceId, String requestedParentBranchId) {
+        if (requestedParentBranchId != null && !requestedParentBranchId.isBlank()) {
+            return requestedParentBranchId;
+        }
+        return branchRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtAsc(tenantId, workspaceId).stream()
+                .filter(branch -> "root".equals(branch.getName()))
+                .findFirst()
+                .map(AgentWorkspaceBranchEntity::getId)
+                .orElse(null);
     }
 
     private void putIfPresent(Map<String, Object> target, String key, Object value) {

@@ -328,6 +328,53 @@ class AgentStateServiceTest {
     }
 
     @Test
+    @DisplayName("forkBranch links new branches to the workspace root when parent is omitted")
+    void forkBranch_defaultsParentToWorkspaceRoot() {
+        AgentStateService service = service();
+        AgentWorkspaceBranchEntity root = new AgentWorkspaceBranchEntity();
+        root.setId("awb_root");
+        root.setTenantId("tn_test001");
+        root.setWorkspaceId("ws_001");
+        root.setName("root");
+        when(branchRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtAsc("tn_test001", "ws_001"))
+                .thenReturn(List.of(root));
+        when(branchRepository.save(any(AgentWorkspaceBranchEntity.class))).thenAnswer(inv -> {
+            AgentWorkspaceBranchEntity entity = inv.getArgument(0);
+            entity.prePersist();
+            return entity;
+        });
+
+        AgentStateDtos.BranchResponse response = service.forkBranch(
+                "tn_test001",
+                new AgentStateDtos.ForkBranchRequest("ws_001", null, "stage_sql", "validate SQL"));
+
+        ArgumentCaptor<AgentWorkspaceBranchEntity> branchCaptor = ArgumentCaptor.forClass(AgentWorkspaceBranchEntity.class);
+        verify(branchRepository).save(branchCaptor.capture());
+        assertThat(response.id()).startsWith("awb_");
+        assertThat(branchCaptor.getValue().getParentBranchId()).isEqualTo("awb_root");
+        assertThat(branchCaptor.getValue().getStageRunId()).isEqualTo("stage_sql");
+    }
+
+    @Test
+    @DisplayName("forkBranch honors an explicit parent branch id")
+    void forkBranch_usesExplicitParentBranch() {
+        AgentStateService service = service();
+        when(branchRepository.save(any(AgentWorkspaceBranchEntity.class))).thenAnswer(inv -> {
+            AgentWorkspaceBranchEntity entity = inv.getArgument(0);
+            entity.prePersist();
+            return entity;
+        });
+
+        service.forkBranch(
+                "tn_test001",
+                new AgentStateDtos.ForkBranchRequest("ws_001", "awb_parent", "stage_sql", "validate SQL"));
+
+        ArgumentCaptor<AgentWorkspaceBranchEntity> branchCaptor = ArgumentCaptor.forClass(AgentWorkspaceBranchEntity.class);
+        verify(branchRepository).save(branchCaptor.capture());
+        assertThat(branchCaptor.getValue().getParentBranchId()).isEqualTo("awb_parent");
+    }
+
+    @Test
     @DisplayName("resolveContext returns tenant scoped context node ids")
     void resolveContext_returnsTenantScopedNodeIds() {
         AgentStateService service = service();
