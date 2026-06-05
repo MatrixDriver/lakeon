@@ -12,13 +12,20 @@ import java.util.Base64;
 
 @Component
 public class ConnectorSecretCrypto {
+    private static final String OLD_PUBLIC_DEFAULT_KEY = "0123456789abcdef0123456789abcdef";
     private static final int IV_BYTES = 12;
     private static final int TAG_BITS = 128;
 
     private final byte[] key;
     private final SecureRandom random = new SecureRandom();
 
-    public ConnectorSecretCrypto(@Value("${lakeon.connector.secret-key:0123456789abcdef0123456789abcdef}") String rawKey) {
+    public ConnectorSecretCrypto(@Value("${lakeon.connector.secret-key}") String rawKey) {
+        if (rawKey == null || rawKey.isBlank()) {
+            throw new IllegalArgumentException("Connector secret key is required");
+        }
+        if (OLD_PUBLIC_DEFAULT_KEY.equals(rawKey)) {
+            throw new IllegalArgumentException("Connector secret key must not use the old public default");
+        }
         byte[] bytes = rawKey.getBytes(StandardCharsets.UTF_8);
         if (bytes.length != 16 && bytes.length != 24 && bytes.length != 32) {
             throw new IllegalArgumentException("Connector secret key must be 16, 24, or 32 bytes");
