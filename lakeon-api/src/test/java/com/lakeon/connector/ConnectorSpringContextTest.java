@@ -2,6 +2,7 @@ package com.lakeon.connector;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.obs.connection.ObsConnectionRepository;
+import com.lakeon.repository.ImportTaskRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +45,11 @@ class ConnectorSpringContextTest {
         @Bean
         ObsConnectionRepository obsConnectionRepository() {
             return Mockito.mock(ObsConnectionRepository.class);
+        }
+
+        @Bean
+        ImportTaskRepository importTaskRepository() {
+            return Mockito.mock(ImportTaskRepository.class);
         }
 
         @Bean

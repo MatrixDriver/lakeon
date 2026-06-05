@@ -9,6 +9,7 @@ import com.lakeon.connector.ConnectorDtos.PostgresConnectionSnapshot;
 import com.lakeon.model.dto.SourceTableInfo;
 import com.lakeon.obs.connection.ObsConnectionEntity;
 import com.lakeon.obs.connection.ObsConnectionRepository;
+import com.lakeon.repository.ImportTaskRepository;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
 import org.springframework.stereotype.Service;
@@ -22,19 +23,24 @@ import java.util.stream.Stream;
 
 @Service
 public class ConnectorService {
+    private static final List<String> POSTGRES_CONFIG_KEYS = List.of("host", "port", "dbname", "ssl_mode", "description");
+
     private final ConnectorRepository connectorRepository;
     private final ObsConnectionRepository obsConnectionRepository;
+    private final ImportTaskRepository importTaskRepository;
     private final ObjectMapper objectMapper;
     private final ConnectorSecretCrypto crypto;
     private final PostgresConnectorAdapter postgresAdapter;
 
     public ConnectorService(ConnectorRepository connectorRepository,
                             ObsConnectionRepository obsConnectionRepository,
+                            ImportTaskRepository importTaskRepository,
                             ObjectMapper objectMapper,
                             ConnectorSecretCrypto crypto,
                             PostgresConnectorAdapter postgresAdapter) {
         this.connectorRepository = connectorRepository;
         this.obsConnectionRepository = obsConnectionRepository;
+        this.importTaskRepository = importTaskRepository;
         this.objectMapper = objectMapper;
         this.crypto = crypto;
         this.postgresAdapter = postgresAdapter;
@@ -72,7 +78,7 @@ public class ConnectorService {
     public List<ConnectorResponse> list(String tenantId) {
         List<ConnectorResponse> postgres = connectorRepository.findAllByTenantIdOrderByUpdatedAtDesc(tenantId)
             .stream()
-            .map(entity -> toResponse(entity, 0L))
+            .map(entity -> toResponse(entity, usageCount(tenantId, entity.getId())))
             .toList();
         if (obsConnectionRepository == null) {
             return postgres;
@@ -87,7 +93,7 @@ public class ConnectorService {
     @Transactional(readOnly = true)
     public ConnectorResponse get(String tenantId, String id) {
         return connectorRepository.findByIdAndTenantId(id, tenantId)
-            .map(entity -> toResponse(entity, 0L))
+            .map(entity -> toResponse(entity, usageCount(tenantId, entity.getId())))
             .orElseGet(() -> getObs(tenantId, id));
     }
 
@@ -202,17 +208,20 @@ public class ConnectorService {
         return "";
     }
 
-    private Map<String, Object> sanitizedPostgresConfig(Map<String, Object> config) {
-        Map<String, Object> sanitized = new LinkedHashMap<>(config == null ? Map.of() : config);
-        sanitized.remove("user");
-        sanitized.remove("password");
-        return sanitized;
-    }
-
     private Map<String, Object> normalizedPostgresConfig(Map<String, Object> config) {
-        Map<String, Object> normalized = sanitizedPostgresConfig(config);
+        Map<String, Object> source = config == null ? Map.of() : config;
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        for (String key : POSTGRES_CONFIG_KEYS) {
+            if (source.containsKey(key)) {
+                normalized.put(key, source.get(key));
+            }
+        }
         normalized.put("port", postgresPortValue(normalized.get("port")));
         return normalized;
+    }
+
+    private long usageCount(String tenantId, String connectorId) {
+        return importTaskRepository == null ? 0L : importTaskRepository.countByConnectorIdAndTenantId(connectorId, tenantId);
     }
 
     private String writeJson(Map<String, Object> value) {

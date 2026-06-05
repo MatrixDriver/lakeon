@@ -6,6 +6,7 @@ import com.lakeon.connector.ConnectorDtos.CreateConnectorRequest;
 import com.lakeon.model.dto.SourceTableInfo;
 import com.lakeon.obs.connection.ObsConnectionEntity;
 import com.lakeon.obs.connection.ObsConnectionRepository;
+import com.lakeon.repository.ImportTaskRepository;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,6 +38,8 @@ class ConnectorServiceTest {
     @Mock
     ObsConnectionRepository obsConnectionRepository;
     @Mock
+    ImportTaskRepository importTaskRepository;
+    @Mock
     PostgresConnectorAdapter postgresAdapter;
 
     ConnectorSecretCrypto crypto;
@@ -48,6 +51,7 @@ class ConnectorServiceTest {
         service = new ConnectorService(
             connectorRepository,
             obsConnectionRepository,
+            importTaskRepository,
             new ObjectMapper(),
             crypto,
             postgresAdapter
@@ -73,6 +77,36 @@ class ConnectorServiceTest {
         assertThat(response.targetSummary()).isEqualTo("pg.example.com:5432/appdb");
         assertThat(response.config()).doesNotContainKey("password");
         assertThat(response.config()).doesNotContainKey("user");
+    }
+
+    @Test
+    void createPostgresConnector_whitelistsConfigFieldsToAvoidSecretEcho() throws Exception {
+        ArgumentCaptor<ConnectorEntity> entityCaptor = ArgumentCaptor.forClass(ConnectorEntity.class);
+        when(connectorRepository.save(any(ConnectorEntity.class))).thenAnswer(invocation -> {
+            ConnectorEntity entity = invocation.getArgument(0);
+            entity.setId("conn_pg001");
+            return entity;
+        });
+        Map<String, Object> config = new LinkedHashMap<>(postgresConfig());
+        config.put("url", "postgres://postgres:secret@pg.example.com/appdb");
+        config.put("source_password", "secret");
+        config.put("token", "sensitive");
+
+        var response = service.create("tn_1", new CreateConnectorRequest(
+            ConnectorType.POSTGRESQL,
+            "Source PG",
+            config,
+            postgresSecret()
+        ));
+
+        verify(connectorRepository).save(entityCaptor.capture());
+        Map<String, Object> storedConfig = new ObjectMapper().readValue(
+            entityCaptor.getValue().getConfigJson(),
+            new TypeReference<LinkedHashMap<String, Object>>() {
+            }
+        );
+        assertThat(storedConfig).containsOnlyKeys("host", "port", "dbname");
+        assertThat(response.config()).containsOnlyKeys("host", "port", "dbname");
     }
 
     @Test
@@ -121,6 +155,19 @@ class ConnectorServiceTest {
         assertThat(snapshot.dbname()).isEqualTo("appdb");
         assertThat(snapshot.user()).isEqualTo("postgres");
         assertThat(snapshot.password()).isEqualTo("secret");
+    }
+
+    @Test
+    void list_includesImportTaskUsageCountForPostgresConnectors() {
+        ConnectorEntity entity = postgresEntity();
+        when(connectorRepository.findAllByTenantIdOrderByUpdatedAtDesc("tn_1")).thenReturn(List.of(entity));
+        when(importTaskRepository.countByConnectorIdAndTenantId("conn_pg001", "tn_1")).thenReturn(3L);
+        when(obsConnectionRepository.findAllByTenantIdOrderByCreatedAtDesc("tn_1")).thenReturn(List.of());
+
+        var responses = service.list("tn_1");
+
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).usageCount()).isEqualTo(3L);
     }
 
     @Test
