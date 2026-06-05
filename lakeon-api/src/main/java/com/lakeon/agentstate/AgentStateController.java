@@ -172,6 +172,22 @@ public class AgentStateController {
         return agentStateService.snapshotManifest(tenantId(httpRequest), request);
     }
 
+    @PostMapping("/branch-versions")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AgentStateDtos.IdResponse recordBranchVersion(
+            HttpServletRequest httpRequest,
+            @Valid @RequestBody AgentStateDtos.RecordBranchVersionRequest request) {
+        return agentStateService.recordBranchVersion(tenantId(httpRequest), request);
+    }
+
+    @PostMapping("/runtime-events")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AgentStateDtos.IdResponse recordRuntimeEvent(
+            HttpServletRequest httpRequest,
+            @Valid @RequestBody AgentStateDtos.RecordRuntimeEventRequest request) {
+        return agentStateService.recordRuntimeEvent(tenantId(httpRequest), request);
+    }
+
     @PostMapping("/checkpoints/{checkpointId}/restore")
     public AgentStateDtos.RestorePlanResponse restoreCheckpoint(
             HttpServletRequest httpRequest,

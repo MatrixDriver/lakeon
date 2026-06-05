@@ -273,6 +273,8 @@ class AgentStateControllerTest {
                 .thenReturn(new AgentStateDtos.IdResponse("lineage_001"));
         when(agentStateService.snapshotManifest(eq(TENANT_ID), any()))
                 .thenReturn(new AgentStateDtos.IdResponse("manifest_001"));
+        when(agentStateService.recordBranchVersion(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.IdResponse("branch_version_001"));
         when(agentStateService.appendAuditEvent(eq(TENANT_ID), any()))
                 .thenReturn(new AgentStateDtos.IdResponse("audit_001"));
 
@@ -373,6 +375,44 @@ class AgentStateControllerTest {
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value("manifest_001"));
+
+        mockMvc.perform(post("/api/v1/agent-state/branch-versions")
+                        .header("Authorization", API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "workspaceId": "ws_001",
+                                  "branchId": "branch_001",
+                                  "stageRunId": "stage_sql",
+                                  "stateCommitId": "commit_001",
+                                  "artifactIds": ["artifact_001"],
+                                  "manifestId": "manifest_001",
+                                  "lineageIds": ["lineage_001"],
+                                  "summary": "validated SQL fixture"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("branch_version_001"));
+
+        when(agentStateService.recordRuntimeEvent(eq(TENANT_ID), any()))
+                .thenReturn(new AgentStateDtos.IdResponse("runtime_event_001"));
+
+        mockMvc.perform(post("/api/v1/agent-state/runtime-events")
+                        .header("Authorization", API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "kind": "tool_call_completed",
+                                  "sessionId": "ses_001",
+                                  "messageId": "msg_001",
+                                  "callId": "call_001",
+                                  "tool": "edit",
+                                  "status": "completed",
+                                  "output": {"hash": "sha256:test", "size": 12}
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("runtime_event_001"));
 
         mockMvc.perform(post("/api/v1/agent-state/audit/events")
                         .header("Authorization", API_KEY)

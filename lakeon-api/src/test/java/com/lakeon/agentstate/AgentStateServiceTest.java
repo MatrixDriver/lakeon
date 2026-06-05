@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -414,6 +415,82 @@ class AgentStateServiceTest {
         assertThat(checkpointCaptor.getValue().getBranchId()).isEqualTo("branch_001");
         assertThat(checkpointCaptor.getValue().getStageRunId()).isEqualTo("stage_sql");
         assertThat(checkpointCaptor.getValue().getManifestJson()).contains("artifact_sql_001");
+    }
+
+    @Test
+    @DisplayName("recordBranchVersion binds workspace, commit, artifacts, manifest, and lineage into a checkpoint manifest")
+    void recordBranchVersion_storesUnifiedVersionManifest() {
+        AgentStateService service = service();
+        when(checkpointRepository.save(any(AgentCheckpointEntity.class))).thenAnswer(inv -> {
+            AgentCheckpointEntity entity = inv.getArgument(0);
+            entity.prePersist();
+            return entity;
+        });
+
+        AgentStateDtos.IdResponse response = service.recordBranchVersion(
+                "tn_test001",
+                new AgentStateDtos.RecordBranchVersionRequest(
+                        "ws_001",
+                        "branch_001",
+                        "stage_sql",
+                        "commit_001",
+                        List.of("artifact_sql_001"),
+                        "manifest_001",
+                        List.of("lineage_001"),
+                        "validated SQL fixture"));
+
+        ArgumentCaptor<AgentCheckpointEntity> checkpointCaptor = ArgumentCaptor.forClass(AgentCheckpointEntity.class);
+        verify(checkpointRepository).save(checkpointCaptor.capture());
+        assertThat(response.id()).startsWith("ckpt_");
+        assertThat(checkpointCaptor.getValue().getTenantId()).isEqualTo("tn_test001");
+        assertThat(checkpointCaptor.getValue().getBranchId()).isEqualTo("branch_001");
+        assertThat(checkpointCaptor.getValue().getStageRunId()).isEqualTo("stage_sql");
+        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("branch_version");
+        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("ws_001");
+        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("commit_001");
+        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("artifact_sql_001");
+        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("manifest_001");
+        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("lineage_001");
+    }
+
+    @Test
+    @DisplayName("recordRuntimeEvent stores OpenCode session and tool event manifests")
+    void recordRuntimeEvent_storesSessionEventManifest() {
+        AgentStateService service = service();
+        when(checkpointRepository.save(any(AgentCheckpointEntity.class))).thenAnswer(inv -> {
+            AgentCheckpointEntity entity = inv.getArgument(0);
+            entity.prePersist();
+            return entity;
+        });
+
+        AgentStateDtos.IdResponse response = service.recordRuntimeEvent(
+                "tn_test001",
+                new AgentStateDtos.RecordRuntimeEventRequest(
+                        "tool_call_completed",
+                        "ses_001",
+                        "msg_001",
+                        "call_001",
+                        "edit",
+                        null,
+                        null,
+                        null,
+                        "completed",
+                        "edited file",
+                        Map.of("file_path", "src/app.ts"),
+                        Map.of("hash", "sha256:test", "size", 12),
+                        Map.of("path", "src/app.ts", "hash", "sha256:patch"),
+                        Map.of("agent", "build")));
+
+        ArgumentCaptor<AgentCheckpointEntity> checkpointCaptor = ArgumentCaptor.forClass(AgentCheckpointEntity.class);
+        verify(checkpointRepository).save(checkpointCaptor.capture());
+        assertThat(response.id()).startsWith("ckpt_");
+        assertThat(checkpointCaptor.getValue().getTenantId()).isEqualTo("tn_test001");
+        assertThat(checkpointCaptor.getValue().getBranchId()).isEqualTo("session:ses_001");
+        assertThat(checkpointCaptor.getValue().getStageRunId()).isEqualTo("msg_001");
+        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("tool_call_completed");
+        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("ses_001");
+        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("call_001");
+        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("sha256:patch");
     }
 
     @Test

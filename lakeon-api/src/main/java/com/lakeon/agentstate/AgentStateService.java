@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 
 @Service
 public class AgentStateService {
@@ -326,6 +327,52 @@ public class AgentStateService {
         return new AgentStateDtos.IdResponse(checkpointRepository.save(checkpoint).getId());
     }
 
+    @Transactional
+    public AgentStateDtos.IdResponse recordBranchVersion(String tenantId, AgentStateDtos.RecordBranchVersionRequest request) {
+        AgentCheckpointEntity checkpoint = new AgentCheckpointEntity();
+        checkpoint.setTenantId(tenantId);
+        checkpoint.setBranchId(request.branchId());
+        checkpoint.setStageRunId(request.stageRunId());
+        checkpoint.setManifestJson(toJson(Map.of(
+                "kind", "branch_version",
+                "workspace_id", request.workspaceId(),
+                "branch_id", request.branchId(),
+                "stage_run_id", request.stageRunId(),
+                "state_commit_id", request.stateCommitId(),
+                "artifacts", request.artifactIds() == null ? List.of() : request.artifactIds(),
+                "manifest_id", request.manifestId(),
+                "lineage_ids", request.lineageIds() == null ? List.of() : request.lineageIds(),
+                "summary", request.summary() == null ? "" : request.summary()
+        )));
+        return new AgentStateDtos.IdResponse(checkpointRepository.save(checkpoint).getId());
+    }
+
+    @Transactional
+    public AgentStateDtos.IdResponse recordRuntimeEvent(String tenantId, AgentStateDtos.RecordRuntimeEventRequest request) {
+        Map<String, Object> manifest = new LinkedHashMap<>();
+        manifest.put("kind", request.kind());
+        manifest.put("session_id", request.sessionId());
+        putIfPresent(manifest, "message_id", request.messageId());
+        putIfPresent(manifest, "call_id", request.callId());
+        putIfPresent(manifest, "tool", request.tool());
+        putIfPresent(manifest, "parent_session_id", request.parentSessionId());
+        putIfPresent(manifest, "child_session_id", request.childSessionId());
+        putIfPresent(manifest, "branch_id", request.branchId());
+        putIfPresent(manifest, "status", request.status());
+        putIfPresent(manifest, "summary", request.summary());
+        putIfPresent(manifest, "input", request.input());
+        putIfPresent(manifest, "output", request.output());
+        putIfPresent(manifest, "artifact", request.artifact());
+        putIfPresent(manifest, "metadata", request.metadata());
+
+        AgentCheckpointEntity checkpoint = new AgentCheckpointEntity();
+        checkpoint.setTenantId(tenantId);
+        checkpoint.setBranchId(request.branchId() == null ? "session:" + request.sessionId() : request.branchId());
+        checkpoint.setStageRunId(request.messageId());
+        checkpoint.setManifestJson(toJson(manifest));
+        return new AgentStateDtos.IdResponse(checkpointRepository.save(checkpoint).getId());
+    }
+
     public AgentStateDtos.RestorePlanResponse restoreCheckpoint(String tenantId, String checkpointId) {
         AgentCheckpointEntity checkpoint = checkpointRepository.findByIdAndTenantId(checkpointId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Checkpoint not found: " + checkpointId));
@@ -592,6 +639,12 @@ public class AgentStateService {
 
     private String blankDefault(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private void putIfPresent(Map<String, Object> target, String key, Object value) {
+        if (value != null) {
+            target.put(key, value);
+        }
     }
 
     private String toJson(Object value) {

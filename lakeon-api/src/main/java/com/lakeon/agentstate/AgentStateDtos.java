@@ -270,6 +270,32 @@ public final class AgentStateDtos {
 
     public record CheckpointResponse(String id) {}
 
+    public record RecordBranchVersionRequest(
+            @JsonProperty("workspace_id") @JsonAlias("workspaceId") @NotBlank String workspaceId,
+            @JsonProperty("branch_id") @JsonAlias("branchId") @NotBlank String branchId,
+            @JsonProperty("stage_run_id") @JsonAlias("stageRunId") @NotBlank String stageRunId,
+            @JsonProperty("state_commit_id") @JsonAlias("stateCommitId") @NotBlank String stateCommitId,
+            @JsonProperty("artifact_ids") @JsonAlias("artifactIds") List<String> artifactIds,
+            @JsonProperty("manifest_id") @JsonAlias("manifestId") @NotBlank String manifestId,
+            @JsonProperty("lineage_ids") @JsonAlias("lineageIds") List<String> lineageIds,
+            String summary) {}
+
+    public record RecordRuntimeEventRequest(
+            @NotBlank String kind,
+            @JsonProperty("session_id") @JsonAlias("sessionId") @NotBlank String sessionId,
+            @JsonProperty("message_id") @JsonAlias("messageId") String messageId,
+            @JsonProperty("call_id") @JsonAlias("callId") String callId,
+            String tool,
+            @JsonProperty("parent_session_id") @JsonAlias("parentSessionId") String parentSessionId,
+            @JsonProperty("child_session_id") @JsonAlias("childSessionId") String childSessionId,
+            @JsonProperty("branch_id") @JsonAlias("branchId") String branchId,
+            String status,
+            String summary,
+            Map<String, Object> input,
+            Map<String, Object> output,
+            Map<String, Object> artifact,
+            Map<String, Object> metadata) {}
+
     public record RestorePlanResponse(
             @JsonProperty("checkpoint_id") String checkpointId,
             @JsonProperty("restorable_refs") List<String> restorableRefs,
