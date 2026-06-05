@@ -844,7 +844,7 @@ public class ImportService {
             task.getId(),
             task.getDatabaseId(),
             task.getConnectorId(),
-            connectorName != null ? connectorName : task.getConnectorId(),
+            connectorName,
             task.getSourceHost(),
             task.getSourcePort(),
             task.getSourceDbname(),

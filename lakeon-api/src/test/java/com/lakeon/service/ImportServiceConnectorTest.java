@@ -14,6 +14,7 @@ import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.model.enums.ConflictStrategy;
 import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.model.enums.ImportMode;
+import com.lakeon.model.enums.ImportTaskStatus;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.ImportTableTaskRepository;
 import com.lakeon.repository.ImportTaskRepository;
@@ -113,7 +114,7 @@ class ImportServiceConnectorTest {
         when(connectorService.resolvePostgres("tn_test001", "conn_pg001"))
             .thenReturn(new PostgresConnectionSnapshot(
                 "conn_pg001",
-                "Orders PostgreSQL",
+                "Source PG",
                 "resolved.example.com",
                 6543,
                 "orders",
@@ -151,6 +152,33 @@ class ImportServiceConnectorTest {
         assertThat(savedTask.getSourcePassword()).isEqualTo("resolved_pass");
 
         assertThat(response.connectorId()).isEqualTo("conn_pg001");
-        assertThat(response.connectorName()).isEqualTo("Orders PostgreSQL");
+        assertThat(response.connectorName()).isEqualTo("Source PG");
+    }
+
+    @Test
+    @DisplayName("getImport returns connector id without inventing connector name")
+    void getImport_existingConnectorTaskWithoutResolvedNameReturnsNullName() {
+        ImportTaskEntity task = new ImportTaskEntity();
+        task.setId("imp_existing001");
+        task.setTenantId("tn_test001");
+        task.setDatabaseId("db_test001");
+        task.setConnectorId("conn_pg001");
+        task.setSourceHost("resolved.example.com");
+        task.setSourcePort(6543);
+        task.setSourceDbname("orders");
+        task.setSourceUser("resolved_user");
+        task.setMode(ImportMode.SELECTIVE);
+        task.setConflictStrategy(ConflictStrategy.REPLACE);
+        task.setStatus(ImportTaskStatus.PENDING);
+
+        when(importTaskRepository.findByIdAndTenantId("imp_existing001", "tn_test001"))
+            .thenReturn(Optional.of(task));
+        when(importTableTaskRepository.findAllByImportTaskIdOrderBySchemaNameAscTableNameAsc("imp_existing001"))
+            .thenReturn(List.of());
+
+        ImportTaskResponse response = importService.getImport(tenant, "db_test001", "imp_existing001");
+
+        assertThat(response.connectorId()).isEqualTo("conn_pg001");
+        assertThat(response.connectorName()).isNull();
     }
 }
