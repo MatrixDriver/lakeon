@@ -93,6 +93,8 @@ lakeon:
     account-id: ${LAKEON_HWCLOUD_ACCOUNT_ID:}
   demo:
     tenant-id: ${LAKEON_DEMO_TENANT_ID:}
+  connector:
+    secret-key: ${CONNECTOR_SECRET_KEY}
   knowledge:
     embedding-api-url: ${LAKEON_EMBEDDING_API_URL:http://embedding-svc:8000/v1/embeddings}
     embedding-api-key: ${LAKEON_EMBEDDING_API_KEY:${LAKEON_AI_API_KEY:}}

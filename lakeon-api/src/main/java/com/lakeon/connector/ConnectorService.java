@@ -42,17 +42,29 @@ public class ConnectorService {
 
     @Transactional
     public ConnectorResponse create(String tenantId, CreateConnectorRequest request) {
+        if (request == null) {
+            throw new BadRequestException("Missing connector request");
+        }
+        if (request.type() == null) {
+            throw new BadRequestException("Missing connector field: type");
+        }
         if (request.type() != ConnectorType.POSTGRESQL) {
             throw new BadRequestException("Only PostgreSQL connector creation is supported in Phase 1");
         }
+        Map<String, Object> config = sanitizedPostgresConfig(request.config());
+        Map<String, Object> secret = request.secret() == null ? Map.of() : request.secret();
+        stringValue(config, "host");
+        stringValue(config, "dbname");
+        stringValue(secret, "user");
+        stringValue(secret, "password");
 
         ConnectorEntity entity = new ConnectorEntity();
         entity.setTenantId(tenantId);
         entity.setType(request.type());
         entity.setName(requireText(request.name(), "name"));
         entity.setStatus(ConnectorStatus.UNTESTED);
-        entity.setConfigJson(writeJson(sanitizedPostgresConfig(request.config())));
-        entity.setEncryptedSecretJson(crypto.encrypt(writeJson(request.secret())));
+        entity.setConfigJson(writeJson(config));
+        entity.setEncryptedSecretJson(crypto.encrypt(writeJson(secret)));
         return toResponse(connectorRepository.save(entity), 0L);
     }
 

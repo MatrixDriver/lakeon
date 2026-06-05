@@ -64,6 +64,11 @@ spec:
                 secretKeyRef:
                   name: api-credentials
                   key: ai-api-key
+            - name: CONNECTOR_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: connector-secret-key
             - name: LAKEON_WIKI_API_KEY
               valueFrom:
                 secretKeyRef:

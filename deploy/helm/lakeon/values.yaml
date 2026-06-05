@@ -63,6 +63,7 @@ api:
   port: 8080
   serviceType: ClusterIP
   adminToken: ""
+  connectorSecretKey: ""
   ssl:
     enabled: false
   image:
