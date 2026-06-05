@@ -22,6 +22,8 @@ export interface ImportTableTask {
 export interface ImportTask {
   id: string
   database_id: string
+  connector_id: string | null
+  connector_name: string | null
   source_host: string
   source_port: number
   source_dbname: string
@@ -71,10 +73,12 @@ export const importApi = {
     client.post<SourceTableInfo[]>('/import/source-tables', data, { timeout: 60000 }),
 
   create: (dbId: string, data: {
-    sourceHost: string; sourcePort: number; sourceDbname: string;
-    sourceUser: string; sourcePassword: string;
+    connectorId?: string;
+    sourceHost?: string; sourcePort?: number; sourceDbname?: string;
+    sourceUser?: string; sourcePassword?: string;
     mode: string; conflictStrategy: string; tables?: string[]
   }) => client.post<ImportTask>(`/databases/${dbId}/import`, {
+    connector_id: data.connectorId,
     source_host: data.sourceHost,
     source_port: data.sourcePort,
     source_dbname: data.sourceDbname,
