@@ -136,5 +136,10 @@ test.describe('Agent state workbench', () => {
     await expect(page).toHaveURL(/\/agent-state#evidence$/)
     await page.locator('.sidebar-nav').getByRole('link', { name: '治理审计' }).click()
     await expect(page).toHaveURL(/\/agent-state#audit$/)
+    await expect(page.locator('.sidebar-nav').getByRole('link', { name: '治理审计' })).toHaveClass(/active/)
+    await page.waitForFunction(() => {
+      const main = document.querySelector('.console-main')
+      return main instanceof HTMLElement && main.scrollTop > 0
+    })
   })
 })

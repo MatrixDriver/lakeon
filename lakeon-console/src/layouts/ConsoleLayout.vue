@@ -80,8 +80,8 @@
               <a
                 :href="href"
                 class="nav-item"
-                :class="{ active: isActive && !item.sub, 'nav-sub-item': item.sub }"
-                @click="(event) => { navigate(event); sidebarOpen = false }"
+                :class="{ active: isNavItemActive(item, isActive), 'nav-sub-item': item.sub }"
+                @click="(event) => handleNavClick(item, navigate, event)"
               >
                 <span class="nav-marker" aria-hidden="true"></span>
                 {{ item.label }}
@@ -270,6 +270,29 @@ const activeMode = computed<WorkspaceMode>(() => {
 function handleLogout() {
   authStore.logout()
   router.push('/')
+}
+
+function isNavItemActive(item: NavItem, isActive: boolean) {
+  if (item.to.includes('#')) {
+    return `${route.path}${route.hash}` === item.to
+  }
+  return isActive && !item.sub
+}
+
+function handleNavClick(item: NavItem, navigate: (event?: MouseEvent) => void, event: MouseEvent) {
+  navigate(event)
+  sidebarOpen.value = false
+  scrollToHashTarget(item.to)
+}
+
+function scrollToHashTarget(to: string) {
+  const hash = to.includes('#') ? to.slice(to.indexOf('#')) : ''
+  if (!hash) return
+
+  window.setTimeout(() => {
+    const target = document.getElementById(decodeURIComponent(hash.slice(1)))
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, 80)
 }
 
 // Trial countdown
