@@ -6,6 +6,7 @@ import com.lakeon.model.enums.ImportMode;
 import java.util.List;
 
 public record CreateImportRequest(
+    @JsonProperty("connector_id") String connectorId,
     @JsonProperty("source_host") String sourceHost,
     @JsonProperty("source_port") Integer sourcePort,
     @JsonProperty("source_dbname") String sourceDbname,

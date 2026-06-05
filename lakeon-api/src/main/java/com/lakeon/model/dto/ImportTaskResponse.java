@@ -12,6 +12,8 @@ import java.util.List;
 public record ImportTaskResponse(
     String id,
     @JsonProperty("database_id") String databaseId,
+    @JsonProperty("connector_id") String connectorId,
+    @JsonProperty("connector_name") String connectorName,
     @JsonProperty("source_host") String sourceHost,
     @JsonProperty("source_port") Integer sourcePort,
     @JsonProperty("source_dbname") String sourceDbname,

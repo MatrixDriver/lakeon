@@ -1,6 +1,8 @@
 package com.lakeon.service;
 
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.connector.ConnectorDtos.PostgresConnectionSnapshot;
+import com.lakeon.connector.ConnectorService;
 import com.lakeon.k8s.ComputePodManager;
 import com.lakeon.k8s.ImportJobPodManager;
 import com.lakeon.model.dto.*;
@@ -47,6 +49,7 @@ public class ImportService {
     private final DatabaseService databaseService;
     private final OperationLogService operationLogService;
     private final LakeonProperties props;
+    private final ConnectorService connectorService;
     private final ExecutorService importExecutor = Executors.newFixedThreadPool(2);
 
     public ImportService(ImportTaskRepository importTaskRepository,
@@ -56,7 +59,8 @@ public class ImportService {
                          ComputePodManager computePodManager,
                          DatabaseService databaseService,
                          OperationLogService operationLogService,
-                         LakeonProperties props) {
+                         LakeonProperties props,
+                         ConnectorService connectorService) {
         this.importTaskRepository = importTaskRepository;
         this.importTableTaskRepository = importTableTaskRepository;
         this.databaseRepository = databaseRepository;
@@ -65,6 +69,7 @@ public class ImportService {
         this.databaseService = databaseService;
         this.operationLogService = operationLogService;
         this.props = props;
+        this.connectorService = connectorService;
     }
 
     public Map<String, Object> testConnection(TestConnectionRequest req) {
@@ -152,12 +157,15 @@ public class ImportService {
 
     @Transactional
     public ImportTaskResponse createImport(TenantEntity tenant, String dbId, CreateImportRequest req) {
+        PostgresConnectionSnapshot connectorSnapshot = resolveConnectorSnapshot(tenant.getId(), req.connectorId());
+        CreateImportRequest effectiveReq = effectiveImportRequest(req, connectorSnapshot);
+
         // Validate database exists and belongs to tenant
         DatabaseEntity database = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
             .orElseThrow(() -> new NotFoundException("Database not found: " + dbId));
 
         // For SYNC mode, check task limit
-        if (req.mode() == ImportMode.SYNC) {
+        if (effectiveReq.mode() == ImportMode.SYNC) {
             long activeSyncCount = importTaskRepository
                 .findAllByDatabaseIdAndTenantIdOrderByCreatedAtDesc(dbId, tenant.getId())
                 .stream()
@@ -174,9 +182,9 @@ public class ImportService {
 
         // For SELECTIVE/SYNC mode, parse tables immediately (lightweight)
         List<SourceTableInfo> selectedTables = null;
-        if ((req.mode() == ImportMode.SELECTIVE || req.mode() == ImportMode.SYNC) && req.tables() != null) {
+        if ((effectiveReq.mode() == ImportMode.SELECTIVE || effectiveReq.mode() == ImportMode.SYNC) && effectiveReq.tables() != null) {
             selectedTables = new ArrayList<>();
-            for (String tableSpec : req.tables()) {
+            for (String tableSpec : effectiveReq.tables()) {
                 String[] parts = tableSpec.split("\\.", 2);
                 String schema = parts.length > 1 ? parts[0] : "public";
                 String table = parts.length > 1 ? parts[1] : parts[0];
@@ -192,18 +200,19 @@ public class ImportService {
         ImportTaskEntity task = new ImportTaskEntity();
         task.setTenantId(tenant.getId());
         task.setDatabaseId(dbId);
-        task.setSourceHost(req.sourceHost());
-        task.setSourcePort(req.sourcePort());
-        task.setSourceDbname(req.sourceDbname());
-        task.setSourceUser(req.sourceUser());
-        task.setSourcePassword(req.sourcePassword());
-        task.setMode(req.mode());
-        task.setConflictStrategy(req.conflictStrategy() != null ? req.conflictStrategy() : ConflictStrategy.APPEND);
+        task.setConnectorId(effectiveReq.connectorId());
+        task.setSourceHost(effectiveReq.sourceHost());
+        task.setSourcePort(effectiveReq.sourcePort());
+        task.setSourceDbname(effectiveReq.sourceDbname());
+        task.setSourceUser(effectiveReq.sourceUser());
+        task.setSourcePassword(effectiveReq.sourcePassword());
+        task.setMode(effectiveReq.mode());
+        task.setConflictStrategy(effectiveReq.conflictStrategy() != null ? effectiveReq.conflictStrategy() : ConflictStrategy.APPEND);
         task.setStatus(ImportTaskStatus.PENDING);
         task.setOperationLogId(opLog.getId());
 
         // SYNC mode: generate publication/subscription/slot names
-        if (req.mode() == ImportMode.SYNC) {
+        if (effectiveReq.mode() == ImportMode.SYNC) {
             String shortId = task.getId() != null ? task.getId() : UUID.randomUUID().toString().substring(0, 8);
             // Will be set after prePersist generates the ID
             task.setSyncStatus("INITIALIZING");
@@ -211,7 +220,7 @@ public class ImportService {
         task = importTaskRepository.save(task);
 
         // SYNC mode: set pub/sub/slot names using generated ID
-        if (req.mode() == ImportMode.SYNC) {
+        if (effectiveReq.mode() == ImportMode.SYNC) {
             String safeName = task.getId().replace("-", "_");
             task.setPublicationName("lakeon_pub_" + safeName);
             task.setSubscriptionName("lakeon_sub_" + safeName);
@@ -227,11 +236,38 @@ public class ImportService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                importExecutor.submit(() -> prepareAndLaunchImport(taskId, tenantId, dbId, req, finalSelectedTables, opLogId));
+                importExecutor.submit(() -> prepareAndLaunchImport(taskId, tenantId, dbId, effectiveReq, finalSelectedTables, opLogId));
             }
         });
 
-        return toResponse(task, null);
+        return toResponse(task, null, connectorSnapshot == null ? null : connectorSnapshot.connectorName());
+    }
+
+    private PostgresConnectionSnapshot resolveConnectorSnapshot(String tenantId, String connectorId) {
+        if (connectorId == null || connectorId.isBlank()) {
+            return null;
+        }
+        if (connectorService == null) {
+            throw new IllegalStateException("Connector service is not available");
+        }
+        return connectorService.resolvePostgres(tenantId, connectorId);
+    }
+
+    private CreateImportRequest effectiveImportRequest(CreateImportRequest req, PostgresConnectionSnapshot snapshot) {
+        if (snapshot == null) {
+            return req;
+        }
+        return new CreateImportRequest(
+            snapshot.connectorId(),
+            snapshot.host(),
+            snapshot.port(),
+            snapshot.dbname(),
+            snapshot.user(),
+            snapshot.password(),
+            req.mode(),
+            req.conflictStrategy(),
+            req.tables()
+        );
     }
 
     private void prepareAndLaunchImport(String taskId, String tenantId, String dbId,
@@ -783,6 +819,10 @@ public class ImportService {
     }
 
     private ImportTaskResponse toResponse(ImportTaskEntity task, List<ImportTableTaskEntity> tables) {
+        return toResponse(task, tables, null);
+    }
+
+    private ImportTaskResponse toResponse(ImportTaskEntity task, List<ImportTableTaskEntity> tables, String connectorName) {
         List<ImportTableTaskResponse> tableResponses = null;
         if (tables != null) {
             tableResponses = tables.stream()
@@ -803,6 +843,8 @@ public class ImportService {
         return new ImportTaskResponse(
             task.getId(),
             task.getDatabaseId(),
+            task.getConnectorId(),
+            connectorName != null ? connectorName : task.getConnectorId(),
             task.getSourceHost(),
             task.getSourcePort(),
             task.getSourceDbname(),

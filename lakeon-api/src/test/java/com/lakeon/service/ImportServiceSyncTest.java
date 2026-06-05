@@ -92,7 +92,8 @@ class ImportServiceSyncTest {
             computePodManager,
             databaseService,
             operationLogService,
-            props
+            props,
+            null
         );
 
         // Initialize transaction synchronization for tests that call createImport
@@ -137,6 +138,7 @@ class ImportServiceSyncTest {
                 .thenReturn(List.of(existingTask));
 
             var request = new CreateImportRequest(
+                null,
                 "source.example.com", 5432, "sourcedb", "srcuser", "srcpass",
                 ImportMode.SYNC, ConflictStrategy.APPEND, List.of("public.users")
             );
@@ -173,6 +175,7 @@ class ImportServiceSyncTest {
                 .thenReturn(new OperationLogEntity());
 
             var request = new CreateImportRequest(
+                null,
                 "source.example.com", 5432, "sourcedb", "srcuser", "srcpass",
                 ImportMode.SYNC, ConflictStrategy.APPEND, List.of("public.users", "public.orders")
             );

@@ -24,6 +24,9 @@ public class ImportTaskEntity {
     @Column(name = "database_id", nullable = false, length = 64)
     private String databaseId;
 
+    @Column(name = "connector_id", length = 64)
+    private String connectorId;
+
     @Column(name = "source_host", nullable = false)
     private String sourceHost;
 
@@ -137,6 +140,14 @@ public class ImportTaskEntity {
 
     public void setDatabaseId(String databaseId) {
         this.databaseId = databaseId;
+    }
+
+    public String getConnectorId() {
+        return connectorId;
+    }
+
+    public void setConnectorId(String connectorId) {
+        this.connectorId = connectorId;
     }
 
     public String getSourceHost() {
