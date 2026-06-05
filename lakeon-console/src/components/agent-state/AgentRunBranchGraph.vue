@@ -292,7 +292,7 @@ function branchStatusLabel(status?: string | null) {
 .dot.blocked { background: #b94747; }
 
 .branch-graph-canvas {
-  height: 340px;
+  height: 440px;
   overflow: auto;
   border-top: 1px solid #edf0f4;
   background:

@@ -80,7 +80,7 @@
       <div class="task-detail-stack">
         <section id="detail" class="section-panel task-overview-panel">
           <div class="panel-header">
-            <h2>任务概览</h2>
+            <h2>任务详情</h2>
             <span v-if="loadingDetail" class="muted">加载中</span>
             <span v-else-if="selectedTask" class="status-pill" :class="statusClass(selectedTask)">
               {{ statusLabel(selectedTask) }}
@@ -109,30 +109,68 @@
                 <strong>{{ selectedTask.latestEvidencePacketId || '--' }}</strong>
               </div>
             </div>
+            <div class="detail-tabs" role="tablist" aria-label="任务详情视图">
+              <button
+                v-for="tab in detailTabs"
+                :key="tab.value"
+                type="button"
+                class="detail-tab"
+                :class="{ active: activeDetailTab === tab.value }"
+                @click="setDetailTab(tab.value)"
+              >
+                {{ tab.label }}
+              </button>
+            </div>
           </template>
           <div v-else class="empty-state">请选择一个任务运行查看详情。</div>
         </section>
 
-        <section id="stages" class="section-panel stages-panel">
-          <div class="panel-header">
-            <h2>执行阶段</h2>
-            <span class="muted">{{ stageCards.length }} 个阶段</span>
-          </div>
-          <div v-if="stageCards.length" class="timeline" :style="{ gridTemplateColumns: `repeat(${stageCards.length}, minmax(120px, 1fr))` }">
-            <div
-              v-for="stage in stageCards"
-              :key="stage.id"
-              class="stage"
-              :class="{ done: stage.done, current: stage.current }"
-            >
-              <div class="stage-label" :title="stage.rawLabel">{{ stage.label }}</div>
-              <span>{{ stage.meta }}</span>
+        <template v-if="activeDetailTab === 'overview'">
+          <section id="stages" class="section-panel stages-panel">
+            <div class="panel-header">
+              <h2>执行阶段</h2>
+              <span class="muted">{{ stageCards.length }} 个阶段</span>
             </div>
-          </div>
-          <div v-else class="empty-state">还没有阶段运行记录。</div>
-        </section>
+            <div v-if="stageCards.length" class="timeline" :style="{ gridTemplateColumns: `repeat(${stageCards.length}, minmax(120px, 1fr))` }">
+              <div
+                v-for="stage in stageCards"
+                :key="stage.id"
+                class="stage"
+                :class="{ done: stage.done, current: stage.current }"
+              >
+                <div class="stage-label" :title="stage.rawLabel">{{ stage.label }}</div>
+                <span>{{ stage.meta }}</span>
+              </div>
+            </div>
+            <div v-else class="empty-state">还没有阶段运行记录。</div>
+          </section>
 
-        <section id="evidence" class="section-panel evidence-panel">
+          <section class="section-panel overview-snapshot-panel">
+            <div class="panel-header">
+              <h2>运行快照</h2>
+              <span class="muted">证据、分支与审计摘要</span>
+            </div>
+            <div class="overview-snapshot-grid">
+              <div>
+                <span>最新证据</span>
+                <strong>{{ latestEvidence?.id || '--' }}</strong>
+                <p>{{ latestEvidence?.claim || '还没有证据包。' }}</p>
+              </div>
+              <div>
+                <span>工作区分支</span>
+                <strong>{{ selectedDetail?.branches.length || 0 }} 个</strong>
+                <p>{{ selectedTask?.latestBranchId || '还没有工作区分支。' }}</p>
+              </div>
+              <div>
+                <span>治理审计</span>
+                <strong>{{ selectedDetail?.auditEvents.length || 0 }} 条</strong>
+                <p>{{ latestAuditEvent?.action || '还没有治理审计事件。' }}</p>
+              </div>
+            </div>
+          </section>
+        </template>
+
+        <section v-if="activeDetailTab === 'evidence'" id="evidence" class="section-panel evidence-panel">
           <div class="panel-header">
             <h2>证据包</h2>
             <span class="muted">{{ selectedDetail?.evidencePackets.length || 0 }} 个</span>
@@ -147,10 +185,13 @@
           </div>
         </section>
 
-        <section id="branches" class="section-panel branches-panel">
+        <section v-if="activeDetailTab === 'branches'" id="branches" class="section-panel branches-panel branch-workspace-panel">
           <div class="panel-header">
-            <h2>工作区分支</h2>
-            <span class="muted">{{ selectedDetail?.branches.length || 0 }} 个</span>
+            <div>
+              <h2>分支图</h2>
+              <p class="panel-subtitle">查看当前 Run 内工作区分支、产物、证据与治理结果的演化关系。</p>
+            </div>
+            <span class="muted">{{ selectedDetail?.branches.length || 0 }} 个分支</span>
           </div>
           <AgentRunBranchGraph
             :detail="selectedDetail"
@@ -160,7 +201,7 @@
           />
         </section>
 
-        <section id="audit" class="section-panel audit-panel">
+        <section v-if="activeDetailTab === 'audit'" id="audit" class="section-panel audit-panel">
           <div class="panel-header">
             <h2>治理审计</h2>
             <span class="muted">{{ selectedDetail?.auditEvents.length || 0 }} 条</span>
@@ -172,7 +213,7 @@
           <div v-if="!selectedDetail?.auditEvents.length" class="empty-state">还没有治理审计事件。</div>
         </section>
 
-        <section id="outputs" class="section-panel output-panel">
+        <section v-if="activeDetailTab === 'outputs'" id="outputs" class="section-panel output-panel">
           <div class="panel-header">
             <h2>运行输出</h2>
             <span class="muted">{{ outputRows.length }} 条</span>
@@ -192,24 +233,38 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { agentStateApi, type AgentApp, type TaskRunDetail, type TaskRunSummary } from '../../api/agent-state'
 import AgentRunBranchGraph from '../../components/agent-state/AgentRunBranchGraph.vue'
+
+type DetailTab = 'overview' | 'branches' | 'evidence' | 'audit' | 'outputs'
 
 const apps = ref<AgentApp[]>([])
 const tasks = ref<TaskRunSummary[]>([])
 const selectedDetail = ref<TaskRunDetail | null>(null)
 const selectedTaskId = ref<string | null>(null)
 const activeFilter = ref('all')
+const activeDetailTab = ref<DetailTab>('overview')
 const loadingApps = ref(true)
 const loadingTasks = ref(true)
 const loadingDetail = ref(false)
+const route = useRoute()
+const router = useRouter()
 
 const taskFilters = [
   { label: '全部任务', value: 'all' },
   { label: 'PaperBench', value: 'paperbench' },
   { label: '数据智能体', value: 'data' },
   { label: '自定义', value: 'custom' },
+]
+
+const detailTabs: { label: string; value: DetailTab; hash: string }[] = [
+  { label: '概览', value: 'overview', hash: '#detail' },
+  { label: '分支图', value: 'branches', hash: '#branches' },
+  { label: '证据', value: 'evidence', hash: '#evidence' },
+  { label: '治理审计', value: 'audit', hash: '#audit' },
+  { label: '输出', value: 'outputs', hash: '#outputs' },
 ]
 
 const filteredTasks = computed(() => {
@@ -231,6 +286,11 @@ const kpis = computed(() => ({
 const latestEvidence = computed(() => {
   const packets = selectedDetail.value?.evidencePackets || []
   return packets[packets.length - 1] || null
+})
+
+const latestAuditEvent = computed(() => {
+  const events = selectedDetail.value?.auditEvents || []
+  return events[events.length - 1] || null
 })
 
 const stageCards = computed(() => {
@@ -269,7 +329,12 @@ const outputRows = computed(() => [
 ])
 
 onMounted(async () => {
+  syncTabFromHash(route.hash)
   await Promise.all([loadApps(), loadTasks()])
+})
+
+watch(() => route.hash, (hash) => {
+  syncTabFromHash(hash)
 })
 
 async function loadApps() {
@@ -297,6 +362,26 @@ async function selectTask(taskRunId: string) {
   } finally {
     loadingDetail.value = false
   }
+}
+
+function setDetailTab(tab: DetailTab) {
+  activeDetailTab.value = tab
+  const hash = detailTabs.find((item) => item.value === tab)?.hash || '#detail'
+  if (route.hash !== hash) {
+    router.replace({ hash })
+  }
+}
+
+function syncTabFromHash(hash: string) {
+  const next: Record<string, DetailTab> = {
+    '#detail': 'overview',
+    '#stages': 'overview',
+    '#branches': 'branches',
+    '#evidence': 'evidence',
+    '#audit': 'audit',
+    '#outputs': 'outputs',
+  }
+  activeDetailTab.value = next[hash] || activeDetailTab.value
 }
 
 function taskTitle(task: TaskRunSummary) {
@@ -446,6 +531,12 @@ function shortTime(value?: string | null) {
 .panel-header h2 {
   margin: 0;
   font-size: 15px;
+}
+
+.panel-subtitle {
+  margin: 3px 0 0;
+  color: #758397;
+  font-size: 12px;
 }
 
 .apps-list,
@@ -656,6 +747,33 @@ function shortTime(value?: string | null) {
   border-top: 1px solid #edf0f4;
 }
 
+.detail-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid #edf0f4;
+  background: #fbfcfd;
+}
+
+.detail-tab {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid #dfe5ec;
+  border-radius: 4px;
+  background: #fff;
+  color: #566477;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.detail-tab.active {
+  color: #fff;
+  background: #1d2f42;
+  border-color: #1d2f42;
+}
+
 .task-overview-item {
   min-width: 0;
   padding: 12px 14px;
@@ -736,6 +854,53 @@ function shortTime(value?: string | null) {
 .evidence-box p {
   margin: 0 0 10px;
   line-height: 1.55;
+}
+
+.overview-snapshot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+}
+
+.overview-snapshot-grid > div {
+  min-width: 0;
+  padding: 14px;
+  border-right: 1px solid #edf0f4;
+}
+
+.overview-snapshot-grid > div:last-child {
+  border-right: 0;
+}
+
+.overview-snapshot-grid span {
+  display: block;
+  margin-bottom: 6px;
+  color: #758397;
+  font-size: 12px;
+}
+
+.overview-snapshot-grid strong {
+  display: block;
+  overflow: hidden;
+  color: #25364a;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overview-snapshot-grid p {
+  display: -webkit-box;
+  margin: 8px 0 0;
+  overflow: hidden;
+  color: #6f7e91;
+  font-size: 12px;
+  line-height: 1.5;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.branch-workspace-panel {
+  min-height: 620px;
 }
 
 .audit-row {
