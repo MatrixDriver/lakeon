@@ -18,7 +18,7 @@
           <span class="summary-item"><strong>{{ postgresCount }}</strong> 个 PostgreSQL</span>
           <span class="summary-item"><strong>{{ obsCount }}</strong> 个 OBS</span>
         </div>
-        <button class="btn btn-default btn-small" :disabled="loading" @click="loadConnectors">
+        <button class="btn btn-default btn-small" :disabled="loading" @click="() => loadConnectors()">
           {{ loading ? '刷新中...' : '刷新' }}
         </button>
       </section>
@@ -49,30 +49,30 @@
             <strong>{{ connector.name }}</strong>
             <small>{{ connector.id }}</small>
           </div>
-          <div>
+          <div class="connector-cell" data-label="类型">
             <span class="type-pill" :class="connector.type.toLowerCase()">
               {{ typeLabel(connector.type) }}
             </span>
           </div>
-          <div>
+          <div class="connector-cell" data-label="状态">
             <span class="status-pill" :class="connector.status.toLowerCase()">
               {{ statusLabel(connector.status) }}
             </span>
           </div>
-          <div class="target-cell">
+          <div class="target-cell connector-cell" data-label="目标">
             <span>{{ targetSummary(connector) }}</span>
             <small v-if="connector.last_error" class="last-error">{{ connector.last_error }}</small>
           </div>
-          <div class="usage-cell">
+          <div class="usage-cell connector-cell" data-label="使用">
             <span>{{ connector.usage_count }} 次</span>
             <small>{{ connector.usage_hint || '未关联任务' }}</small>
           </div>
-          <div class="time-cell">{{ formatDate(connector.last_tested_at) }}</div>
-          <div class="actions-cell">
+          <div class="time-cell connector-cell" data-label="最近测试">{{ formatDate(connector.last_tested_at) }}</div>
+          <div class="actions-cell connector-cell" data-label="操作">
             <button
               class="action-link"
               :data-test="`test-${connector.id}`"
-              :disabled="connector.type !== 'POSTGRESQL' || testingId === connector.id"
+              :disabled="connector.type !== 'POSTGRESQL' || Boolean(testingId)"
               :title="connector.type === 'POSTGRESQL' ? '测试连接' : 'OBS 暂不支持此测试接口'"
               @click="handleTest(connector)"
             >
@@ -161,10 +161,16 @@ const postgresForm = reactive({
 
 const postgresCount = computed(() => connectors.value.filter((connector) => connector.type === 'POSTGRESQL').length)
 const obsCount = computed(() => connectors.value.filter((connector) => connector.type === 'OBS').length)
+const portNumber = computed(() => Number(postgresForm.port))
+const isValidPort = computed(() =>
+  Number.isInteger(portNumber.value)
+  && portNumber.value >= 1
+  && portNumber.value <= 65535
+)
 const canCreate = computed(() =>
   postgresForm.name.trim()
   && postgresForm.host.trim()
-  && Number(postgresForm.port) > 0
+  && isValidPort.value
   && postgresForm.dbname.trim()
   && postgresForm.user.trim()
   && postgresForm.password
@@ -172,14 +178,22 @@ const canCreate = computed(() =>
 
 onMounted(loadConnectors)
 
-async function loadConnectors() {
+async function loadConnectors(options: { preserveError?: boolean } = {}) {
   loading.value = true
-  error.value = ''
+  const preservedError = error.value
+  if (!options.preserveError) {
+    error.value = ''
+  }
   try {
     const res = await connectorsApi.list()
     connectors.value = res.data
+    if (options.preserveError) {
+      error.value = preservedError
+    }
   } catch (e: any) {
-    error.value = e.response?.data?.error?.message || '连接器加载失败'
+    error.value = options.preserveError && preservedError
+      ? preservedError
+      : e.response?.data?.error?.message || '连接器加载失败'
   } finally {
     loading.value = false
   }
@@ -232,11 +246,16 @@ async function handleTest(connector: Connector) {
   testingId.value = connector.id
   error.value = ''
   try {
-    await connectorsApi.test(connector.id)
+    const res = await connectorsApi.test(connector.id)
+    if (!res.data.ok) {
+      error.value = res.data.error || '连接测试失败'
+      await loadConnectors({ preserveError: true })
+      return
+    }
     await loadConnectors()
   } catch (e: any) {
     error.value = e.response?.data?.error?.message || '连接测试失败'
-    await loadConnectors()
+    await loadConnectors({ preserveError: true })
   } finally {
     testingId.value = ''
   }
@@ -512,10 +531,30 @@ function formatDate(iso: string | null) {
 @media (max-width: 980px) {
   .connector-row {
     grid-template-columns: 1fr 1fr;
+    align-items: start;
   }
 
   .connector-head {
     display: none;
+  }
+
+  .connector-cell {
+    display: grid;
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+  }
+
+  .connector-cell::before {
+    content: attr(data-label);
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 24px;
+  }
+
+  .actions-cell {
+    justify-content: flex-start;
   }
 }
 

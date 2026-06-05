@@ -116,6 +116,87 @@ describe('ConnectorsView', () => {
     expect(connectorsApi.test).toHaveBeenCalledWith('pg_1')
     expect(connectorsApi.list).toHaveBeenCalledTimes(2)
   })
+
+  it('shows and preserves ok=false test errors after reloading connectors', async () => {
+    vi.mocked(connectorsApi.test).mockResolvedValue({
+      data: { ok: false, error: '认证失败', metadata: {} },
+    } as any)
+
+    const wrapper = mount(ConnectorsView, {
+      global: {
+        stubs: { RouterLink: true },
+      },
+    })
+    await flushPromises()
+
+    await wrapper.find('[data-test="test-pg_1"]').trigger('click')
+    await flushPromises()
+
+    expect(connectorsApi.list).toHaveBeenCalledTimes(2)
+    expect(wrapper.find('.error-banner').text()).toBe('认证失败')
+  })
+
+  it('shows and preserves thrown test errors after reloading connectors', async () => {
+    vi.mocked(connectorsApi.test).mockRejectedValue({
+      response: { data: { error: { message: '网络不可达' } } },
+    })
+
+    const wrapper = mount(ConnectorsView, {
+      global: {
+        stubs: { RouterLink: true },
+      },
+    })
+    await flushPromises()
+
+    await wrapper.find('[data-test="test-pg_1"]').trigger('click')
+    await flushPromises()
+
+    expect(connectorsApi.list).toHaveBeenCalledTimes(2)
+    expect(wrapper.find('.error-banner').text()).toBe('网络不可达')
+  })
+
+  it('disables save for ports outside the PostgreSQL range or fractional ports', async () => {
+    const wrapper = mount(ConnectorsView, {
+      global: {
+        stubs: { RouterLink: true },
+      },
+    })
+    await flushPromises()
+
+    await wrapper.find('[data-test="open-create-postgres"]').trigger('click')
+    await wrapper.find('[data-test="pg-name"]').setValue('新生产库')
+    await wrapper.find('[data-test="pg-host"]').setValue('db.internal')
+    await wrapper.find('[data-test="pg-dbname"]').setValue('orders')
+    await wrapper.find('[data-test="pg-user"]').setValue('reader')
+    await wrapper.find('[data-test="pg-password"]').setValue('secret')
+
+    const saveButton = wrapper.find('[data-test="save-postgres"] button[type="submit"]')
+    await wrapper.find('[data-test="pg-port"]').setValue('65536')
+    expect(saveButton.attributes('disabled')).toBeDefined()
+
+    await wrapper.find('[data-test="pg-port"]').setValue('5432.5')
+    expect(saveButton.attributes('disabled')).toBeDefined()
+
+    await wrapper.find('[data-test="pg-port"]').setValue('5432')
+    expect(saveButton.attributes('disabled')).toBeUndefined()
+  })
+
+  it('renders mobile row labels in connector cells', async () => {
+    const wrapper = mount(ConnectorsView, {
+      global: {
+        stubs: { RouterLink: true },
+      },
+    })
+    await flushPromises()
+
+    const labels = wrapper.findAll('[data-label]').map((cell) => cell.attributes('data-label'))
+    expect(labels).toContain('类型')
+    expect(labels).toContain('状态')
+    expect(labels).toContain('目标')
+    expect(labels).toContain('使用')
+    expect(labels).toContain('最近测试')
+    expect(labels).toContain('操作')
+  })
 })
 
 describe('Connectors route', () => {
