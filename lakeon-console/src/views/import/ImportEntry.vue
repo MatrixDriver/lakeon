@@ -76,7 +76,7 @@
             </thead>
             <tbody>
               <tr v-for="task in importTasks" :key="task.id" class="task-row">
-                <td class="clickable-cell" @click="selectedTaskId = task.id">{{ task.source_host }}:{{ task.source_port }}/{{ task.source_dbname }}</td>
+                <td class="clickable-cell" @click="selectedTaskId = task.id">{{ taskSourceText(task) }}</td>
                 <td class="clickable-cell" @click="selectedTaskId = task.id">{{ modeText(task.mode) }}</td>
                 <td class="clickable-cell" @click="selectedTaskId = task.id">
                   <template v-if="task.mode === 'SYNC'">
@@ -205,6 +205,10 @@ function modeText(mode: string): string {
   if (mode === 'FULL') return '全库'
   if (mode === 'SELECTIVE') return '指定表'
   return '持续同步'
+}
+
+function taskSourceText(task: ImportTask): string {
+  return task.connector_name || task.connector_id || `${task.source_host}:${task.source_port}/${task.source_dbname}`
 }
 
 function formatLag(seconds: number): string {

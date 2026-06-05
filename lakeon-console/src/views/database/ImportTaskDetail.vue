@@ -14,7 +14,7 @@
         <div class="summary-grid">
           <div class="summary-item">
             <span class="item-label">源数据库</span>
-            <span class="item-value">{{ task.source_host }}:{{ task.source_port }}/{{ task.source_dbname }}</span>
+            <span class="item-value">{{ taskSourceText }}</span>
           </div>
           <div class="summary-item">
             <span class="item-label">导入模式</span>
@@ -178,6 +178,11 @@ const modeLabel = computed(() => {
   if (task.value.mode === 'FULL') return '整库导入'
   if (task.value.mode === 'SELECTIVE') return '按表选择'
   return '持续同步'
+})
+
+const taskSourceText = computed(() => {
+  if (!task.value) return ''
+  return task.value.connector_name || task.value.connector_id || `${task.value.source_host}:${task.value.source_port}/${task.value.source_dbname}`
 })
 
 const tableSearch = ref('')
