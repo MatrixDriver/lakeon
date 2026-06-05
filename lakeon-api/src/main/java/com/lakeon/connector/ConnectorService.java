@@ -51,7 +51,7 @@ public class ConnectorService {
         if (request.type() != ConnectorType.POSTGRESQL) {
             throw new BadRequestException("Only PostgreSQL connector creation is supported in Phase 1");
         }
-        Map<String, Object> config = sanitizedPostgresConfig(request.config());
+        Map<String, Object> config = normalizedPostgresConfig(request.config());
         Map<String, Object> secret = request.secret() == null ? Map.of() : request.secret();
         stringValue(config, "host");
         stringValue(config, "dbname");
@@ -209,6 +209,12 @@ public class ConnectorService {
         return sanitized;
     }
 
+    private Map<String, Object> normalizedPostgresConfig(Map<String, Object> config) {
+        Map<String, Object> normalized = sanitizedPostgresConfig(config);
+        normalized.put("port", postgresPortValue(normalized.get("port")));
+        return normalized;
+    }
+
     private String writeJson(Map<String, Object> value) {
         try {
             return objectMapper.writeValueAsString(value == null ? Map.of() : value);
@@ -250,5 +256,24 @@ public class ConnectorService {
             return number.intValue();
         }
         return Integer.parseInt(String.valueOf(value));
+    }
+
+    private Integer postgresPortValue(Object value) {
+        int port;
+        if (value == null) {
+            port = 5432;
+        } else if (value instanceof Number number) {
+            port = number.intValue();
+        } else {
+            try {
+                port = Integer.parseInt(String.valueOf(value).trim());
+            } catch (NumberFormatException e) {
+                throw new BadRequestException("Invalid connector field: port");
+            }
+        }
+        if (port < 1 || port > 65535) {
+            throw new BadRequestException("Invalid connector field: port");
+        }
+        return port;
     }
 }

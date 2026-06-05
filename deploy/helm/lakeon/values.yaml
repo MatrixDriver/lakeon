@@ -188,6 +188,15 @@ memory:
   cpu: 500m
   memorySize: 512Mi
 
+llm:
+  enabled: false
+
+embedding:
+  enabled: false
+
+orchestrator:
+  enabled: false
+
 fluentbit:
   enabled: true
   image: "cr.fluentbit.io/fluent/fluent-bit:3.2"

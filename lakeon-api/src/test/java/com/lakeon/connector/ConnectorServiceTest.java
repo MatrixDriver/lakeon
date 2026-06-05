@@ -1,5 +1,6 @@
 package com.lakeon.connector;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.connector.ConnectorDtos.CreateConnectorRequest;
 import com.lakeon.model.dto.SourceTableInfo;
@@ -72,6 +73,33 @@ class ConnectorServiceTest {
         assertThat(response.targetSummary()).isEqualTo("pg.example.com:5432/appdb");
         assertThat(response.config()).doesNotContainKey("password");
         assertThat(response.config()).doesNotContainKey("user");
+    }
+
+    @Test
+    void createPostgresConnector_normalizesNumericStringPort() throws Exception {
+        ArgumentCaptor<ConnectorEntity> entityCaptor = ArgumentCaptor.forClass(ConnectorEntity.class);
+        when(connectorRepository.save(any(ConnectorEntity.class))).thenAnswer(invocation -> {
+            ConnectorEntity entity = invocation.getArgument(0);
+            entity.setId("conn_pg001");
+            return entity;
+        });
+
+        var response = service.create("tn_1", new CreateConnectorRequest(
+            ConnectorType.POSTGRESQL,
+            "Source PG",
+            new LinkedHashMap<>(Map.of("host", "pg.example.com", "port", "15432", "dbname", "appdb")),
+            postgresSecret()
+        ));
+
+        verify(connectorRepository).save(entityCaptor.capture());
+        Map<String, Object> storedConfig = new ObjectMapper().readValue(
+            entityCaptor.getValue().getConfigJson(),
+            new TypeReference<LinkedHashMap<String, Object>>() {
+            }
+        );
+        assertThat(storedConfig).containsEntry("port", 15432);
+        assertThat(response.config()).containsEntry("port", 15432);
+        assertThat(response.targetSummary()).isEqualTo("pg.example.com:15432/appdb");
     }
 
     @Test
@@ -223,6 +251,36 @@ class ConnectorServiceTest {
         )))
             .isInstanceOf(BadRequestException.class)
             .hasMessageContaining("dbname");
+    }
+
+    @Test
+    void create_rejectsInvalidPortString() {
+        Map<String, Object> config = new LinkedHashMap<>(postgresConfig());
+        config.put("port", "not-a-port");
+
+        assertThatThrownBy(() -> service.create("tn_1", new CreateConnectorRequest(
+            ConnectorType.POSTGRESQL,
+            "Source PG",
+            config,
+            postgresSecret()
+        )))
+            .isInstanceOf(BadRequestException.class)
+            .hasMessageContaining("port");
+    }
+
+    @Test
+    void create_rejectsOutOfRangePort() {
+        Map<String, Object> config = new LinkedHashMap<>(postgresConfig());
+        config.put("port", 70000);
+
+        assertThatThrownBy(() -> service.create("tn_1", new CreateConnectorRequest(
+            ConnectorType.POSTGRESQL,
+            "Source PG",
+            config,
+            postgresSecret()
+        )))
+            .isInstanceOf(BadRequestException.class)
+            .hasMessageContaining("port");
     }
 
     @Test
