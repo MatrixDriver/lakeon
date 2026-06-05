@@ -141,7 +141,7 @@ const workspaceModes: WorkspaceMode[] = [
     shortLabel: '数据',
     description: '实例、分支、SQL 与迁移',
     to: '/dashboard',
-    match: ['/dashboard', '/databases', '/timetravel', '/sql', '/import', '/datalake'],
+    match: ['/dashboard', '/databases', '/timetravel', '/sql', '/import', '/connectors', '/datalake'],
     groups: [
       {
         title: '数据库',
@@ -155,7 +155,7 @@ const workspaceModes: WorkspaceMode[] = [
       {
         title: '数据源',
         items: [
-          { label: 'OBS 连接', to: '/datalake/connections', icon: '◇' },
+          { label: '连接器', to: '/connectors', icon: '◇' },
         ],
       },
       {

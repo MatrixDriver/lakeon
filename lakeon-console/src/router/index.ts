@@ -73,6 +73,7 @@ const routes = [
       { path: 'timetravel', name: 'TimeTravel', component: () => import('../views/timetravel/TimeTravelView.vue') },
       { path: 'sql', name: 'SqlEditor', component: () => import('../views/sql/SqlEditorEntry.vue') },
       { path: 'import', name: 'Import', component: () => import('../views/import/ImportEntry.vue') },
+      { path: 'connectors', name: 'Connectors', component: () => import('../views/connectors/ConnectorsView.vue') },
       { path: 'monitor', name: 'Monitor', component: () => import('../views/monitor/MonitorView.vue') },
       { path: 'logs', name: 'LogManagement', component: () => import('../views/log-management/LogManagement.vue') },
       { path: 'backups', name: 'BackupManagement', component: () => import('../views/backup/BackupManagement.vue') },
@@ -102,7 +103,7 @@ const routes = [
       { path: 'datalake/pipelines/:id/edit', name: 'DatalakePipelineEdit', component: () => import('../views/datalake/DatalakePipelineEditor.vue') },
       { path: 'datalake/pipelines/:id/runs/:runId', name: 'DatalakePipelineRun', component: () => import('../views/datalake/DatalakePipelineRun.vue') },
       // Datalake — Connections
-      { path: 'datalake/connections', name: 'DatalakeConnections', component: () => import('../views/datalake/DatalakeConnections.vue') },
+      { path: 'datalake/connections', redirect: '/connectors' },
       // Datalake — Components
       { path: 'datalake/components', name: 'DatalakeComponents', component: () => import('../views/datalake/DatalakeComponents.vue') },
       { path: 'datalake/components/register', name: 'DatalakeComponentRegister', component: () => import('../views/datalake/DatalakeComponentRegister.vue') },
