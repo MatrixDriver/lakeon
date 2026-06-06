@@ -15,6 +15,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -52,7 +53,7 @@ public class AgentStateDataPlaneStore {
                 ps.setString(2, taskRunId);
                 ps.setString(3, database.getId());
                 ps.setString(4, rootBranchId);
-                ps.setObject(5, now);
+                ps.setTimestamp(5, Timestamp.from(now));
                 ps.executeUpdate();
             }
             try (PreparedStatement ps = conn.prepareStatement("""
@@ -62,7 +63,7 @@ public class AgentStateDataPlaneStore {
                     """)) {
                 ps.setString(1, rootBranchId);
                 ps.setString(2, workspaceId);
-                ps.setObject(3, now);
+                ps.setTimestamp(3, Timestamp.from(now));
                 ps.executeUpdate();
             }
             return new DataPlaneWorkspace(workspaceId, rootBranchId, database.getId(), now);
@@ -94,7 +95,7 @@ public class AgentStateDataPlaneStore {
                 ps.setString(3, resolvedParentId);
                 ps.setString(4, stageRunId);
                 ps.setString(5, hypothesis);
-                ps.setObject(6, now);
+                ps.setTimestamp(6, Timestamp.from(now));
                 ps.executeUpdate();
             }
             return new AgentStateDtos.BranchDetailResponse(
@@ -124,7 +125,7 @@ public class AgentStateDataPlaneStore {
                 ps.setString(3, stageId);
                 ps.setString(4, branchId);
                 ps.setString(5, contextPackId);
-                ps.setObject(6, now);
+                ps.setTimestamp(6, Timestamp.from(now));
                 ps.executeUpdate();
             }
             return new AgentStateDtos.StageRunDetailResponse(id, taskRunId, stageId, "running", branchId, contextPackId, now);
@@ -284,7 +285,7 @@ public class AgentStateDataPlaneStore {
                 ps.setString(7, status);
                 ps.setString(8, summary);
                 ps.setString(9, toJson(payload == null ? Map.of() : payload));
-                ps.setObject(10, now);
+                ps.setTimestamp(10, Timestamp.from(now));
                 ps.executeUpdate();
             }
             return new AgentStateDtos.IdResponse(id);
