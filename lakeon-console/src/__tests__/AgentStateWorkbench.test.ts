@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import AgentStateWorkbench from '../views/agent-state/AgentStateWorkbench.vue'
+import AgentTaskRunDetailView from '../views/agent-state/AgentTaskRunDetailView.vue'
 import { agentStateApi } from '../api/agent-state'
 import type { TaskRunDetail, TaskRunSummary } from '../api/agent-state'
 
@@ -55,12 +56,19 @@ const detail: TaskRunDetail = {
   ],
 }
 
-async function mountWorkbench(hash = '') {
-  const router = createRouter({
+function createAgentStateRouter() {
+  return createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/agent-state', component: AgentStateWorkbench }],
+    routes: [
+      { path: '/agent-state', component: AgentStateWorkbench },
+      { path: '/agent-state/runs/:taskRunId', component: AgentTaskRunDetailView },
+    ],
   })
-  router.push(`/agent-state${hash}`)
+}
+
+async function mountWorkbench() {
+  const router = createAgentStateRouter()
+  router.push('/agent-state')
   await router.isReady()
 
   const wrapper = mount(AgentStateWorkbench, {
@@ -69,10 +77,24 @@ async function mountWorkbench(hash = '') {
     },
   })
   await flushPromises()
-  return wrapper
+  return { wrapper, router }
 }
 
-describe('AgentStateWorkbench detail tabs', () => {
+async function mountTaskDetail(path = '/agent-state/runs/task_1') {
+  const router = createAgentStateRouter()
+  router.push(path)
+  await router.isReady()
+
+  const wrapper = mount(AgentTaskRunDetailView, {
+    global: {
+      plugins: [router],
+    },
+  })
+  await flushPromises()
+  return { wrapper, router }
+}
+
+describe('AgentStateWorkbench task list', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.mocked(agentStateApi.listApps).mockResolvedValue([])
@@ -80,23 +102,39 @@ describe('AgentStateWorkbench detail tabs', () => {
     vi.mocked(agentStateApi.getTaskRun).mockResolvedValue(detail)
   })
 
-  it('opens the branch graph workspace when the route hash is #branches', async () => {
-    const wrapper = await mountWorkbench('#branches')
+  it('shows task runs without loading the selected task detail', async () => {
+    const { wrapper } = await mountWorkbench()
 
-    expect(wrapper.find('[data-test="branch-graph-canvas"]').exists()).toBe(true)
-    expect(wrapper.find('.detail-tab.active').text()).toBe('分支图')
-    expect(wrapper.find('#evidence').exists()).toBe(false)
-    expect(wrapper.find('#audit').exists()).toBe(false)
+    expect(wrapper.text()).toContain('任务运行')
+    expect(wrapper.text()).toContain('Verify quicksort')
+    expect(agentStateApi.getTaskRun).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-test="branch-graph-canvas"]').exists()).toBe(false)
   })
 
-  it('switches from overview to evidence without showing the branch graph', async () => {
-    const wrapper = await mountWorkbench()
+  it('navigates to the task detail page when a task is selected', async () => {
+    const { wrapper, router } = await mountWorkbench()
 
-    expect(wrapper.find('[data-test="branch-graph-canvas"]').exists()).toBe(false)
-    await wrapper.findAll('.detail-tab').find((button) => button.text() === '证据')?.trigger('click')
+    await wrapper.find('.task-row').trigger('click')
     await flushPromises()
 
-    expect(wrapper.find('#evidence').exists()).toBe(true)
-    expect(wrapper.find('[data-test="branch-graph-canvas"]').exists()).toBe(false)
+    expect(router.currentRoute.value.fullPath).toBe('/agent-state/runs/task_1')
+  })
+})
+
+describe('AgentTaskRunDetailView', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.mocked(agentStateApi.listApps).mockResolvedValue([])
+    vi.mocked(agentStateApi.listTaskRuns).mockResolvedValue([task])
+    vi.mocked(agentStateApi.getTaskRun).mockResolvedValue(detail)
+  })
+
+  it('loads a task run from the route and opens the branch graph tab from the hash', async () => {
+    const { wrapper } = await mountTaskDetail('/agent-state/runs/task_1#branches')
+
+    expect(agentStateApi.getTaskRun).toHaveBeenCalledWith('task_1')
+    expect(wrapper.find('[data-test="branch-graph-canvas"]').exists()).toBe(true)
+    expect(wrapper.find('.detail-tab.active').text()).toBe('分支图')
+    expect(wrapper.text()).toContain('Verify quicksort')
   })
 })

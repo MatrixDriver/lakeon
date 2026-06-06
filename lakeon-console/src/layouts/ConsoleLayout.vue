@@ -181,14 +181,7 @@ const workspaceModes: WorkspaceMode[] = [
       {
         title: '工作状态',
         items: [
-          { label: '工作台总览', to: '/agent-state', icon: '▢' },
-          { label: '任务运行', to: '/agent-state#tasks', sub: true },
-          { label: '任务概览', to: '/agent-state#detail', sub: true },
-          { label: '执行阶段', to: '/agent-state#stages', sub: true },
-          { label: '证据包', to: '/agent-state#evidence', sub: true },
-          { label: '分支图', to: '/agent-state#branches', sub: true },
-          { label: '治理审计', to: '/agent-state#audit', sub: true },
-          { label: '运行输出', to: '/agent-state#outputs', sub: true },
+          { label: '任务运行', to: '/agent-state', icon: '▢' },
         ],
       },
       {

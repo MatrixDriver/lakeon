@@ -2,8 +2,8 @@
   <div class="agent-state-page">
     <div class="page-header">
       <div>
-        <h1 class="page-title">智能体工作台</h1>
-        <p class="page-subtitle">按智能体应用查看长程任务运行、证据、工作区分支和治理审计。</p>
+        <h1 class="page-title">智能体数据平台</h1>
+        <p class="page-subtitle">先查看任务运行列表，进入单个任务后再检查分支图、证据与治理审计。</p>
       </div>
       <button class="btn btn-primary">导入任务</button>
     </div>
@@ -50,7 +50,7 @@
       <div v-else-if="!loadingApps" class="empty-state">还没有智能体应用。可以先注册 PaperBench 或数据智能体模板。</div>
     </div>
 
-    <div class="task-workbench">
+    <div class="task-workbench list-only">
       <section id="tasks" class="section-panel task-panel">
         <div class="panel-header">
           <h2>任务运行</h2>
@@ -61,9 +61,8 @@
           v-for="task in filteredTasks"
           :key="task.id"
           class="task-row"
-          :class="{ selected: task.id === selectedTaskId }"
           type="button"
-          @click="selectTask(task.id)"
+          @click="openTask(task.id)"
         >
           <div class="task-main">
             <div class="task-name">{{ taskTitle(task) }}</div>
@@ -76,180 +75,20 @@
         </button>
         <div v-if="!loadingTasks && !filteredTasks.length" class="empty-state">还没有匹配的任务运行。</div>
       </section>
-
-      <div class="task-detail-stack">
-        <section id="detail" class="section-panel task-overview-panel">
-          <div class="panel-header">
-            <h2>任务详情</h2>
-            <span v-if="loadingDetail" class="muted">加载中</span>
-            <span v-else-if="selectedTask" class="status-pill" :class="statusClass(selectedTask)">
-              {{ statusLabel(selectedTask) }}
-            </span>
-          </div>
-          <template v-if="selectedTask">
-            <div class="task-summary">
-              <div class="detail-title">{{ taskTitle(selectedTask) }}</div>
-              <p class="muted">目标：{{ selectedTask.goal }}</p>
-            </div>
-            <div class="task-overview-grid">
-              <div class="task-overview-item">
-                <span>当前阶段</span>
-                <strong>{{ stageLabel(selectedTask.currentStageId) }}</strong>
-              </div>
-              <div class="task-overview-item">
-                <span>工作区</span>
-                <strong>{{ selectedTask.workspaceId || '--' }}</strong>
-              </div>
-              <div class="task-overview-item">
-                <span>最新分支</span>
-                <strong>{{ selectedTask.latestBranchId || '--' }}</strong>
-              </div>
-              <div class="task-overview-item">
-                <span>最新证据</span>
-                <strong>{{ selectedTask.latestEvidencePacketId || '--' }}</strong>
-              </div>
-            </div>
-            <div class="detail-tabs" role="tablist" aria-label="任务详情视图">
-              <button
-                v-for="tab in detailTabs"
-                :key="tab.value"
-                type="button"
-                class="detail-tab"
-                :class="{ active: activeDetailTab === tab.value }"
-                @click="setDetailTab(tab.value)"
-              >
-                {{ tab.label }}
-              </button>
-            </div>
-          </template>
-          <div v-else class="empty-state">请选择一个任务运行查看详情。</div>
-        </section>
-
-        <template v-if="activeDetailTab === 'overview'">
-          <section id="stages" class="section-panel stages-panel">
-            <div class="panel-header">
-              <h2>执行阶段</h2>
-              <span class="muted">{{ stageCards.length }} 个阶段</span>
-            </div>
-            <div v-if="stageCards.length" class="timeline" :style="{ gridTemplateColumns: `repeat(${stageCards.length}, minmax(120px, 1fr))` }">
-              <div
-                v-for="stage in stageCards"
-                :key="stage.id"
-                class="stage"
-                :class="{ done: stage.done, current: stage.current }"
-              >
-                <div class="stage-label" :title="stage.rawLabel">{{ stage.label }}</div>
-                <span>{{ stage.meta }}</span>
-              </div>
-            </div>
-            <div v-else class="empty-state">还没有阶段运行记录。</div>
-          </section>
-
-          <section class="section-panel overview-snapshot-panel">
-            <div class="panel-header">
-              <h2>运行快照</h2>
-              <span class="muted">证据、分支与审计摘要</span>
-            </div>
-            <div class="overview-snapshot-grid">
-              <div>
-                <span>最新证据</span>
-                <strong>{{ latestEvidence?.id || '--' }}</strong>
-                <p>{{ latestEvidence?.claim || '还没有证据包。' }}</p>
-              </div>
-              <div>
-                <span>工作区分支</span>
-                <strong>{{ selectedDetail?.branches.length || 0 }} 个</strong>
-                <p>{{ selectedTask?.latestBranchId || '还没有工作区分支。' }}</p>
-              </div>
-              <div>
-                <span>治理审计</span>
-                <strong>{{ selectedDetail?.auditEvents.length || 0 }} 条</strong>
-                <p>{{ latestAuditEvent?.action || '还没有治理审计事件。' }}</p>
-              </div>
-            </div>
-          </section>
-        </template>
-
-        <section v-if="activeDetailTab === 'evidence'" id="evidence" class="section-panel evidence-panel">
-          <div class="panel-header">
-            <h2>证据包</h2>
-            <span class="muted">{{ selectedDetail?.evidencePackets.length || 0 }} 个</span>
-          </div>
-          <div class="evidence-box">
-            <template v-if="latestEvidence">
-              <p><strong>主张</strong> {{ latestEvidence.claim || latestEvidence.id }}</p>
-              <span v-for="ref in latestEvidence.evidenceRefs" :key="ref" class="stage-pill">{{ ref }}</span>
-              <span class="stage-pill pending">{{ evidenceStatusLabel(latestEvidence.status) }}</span>
-            </template>
-            <div v-else class="empty-state inline">还没有证据包。</div>
-          </div>
-        </section>
-
-        <section v-if="activeDetailTab === 'branches'" id="branches" class="section-panel branches-panel branch-workspace-panel">
-          <div class="panel-header">
-            <div>
-              <h2>分支图</h2>
-              <p class="panel-subtitle">查看当前 Run 内工作区分支、产物、证据与治理结果的演化关系。</p>
-            </div>
-            <span class="muted">{{ selectedDetail?.branches.length || 0 }} 个分支</span>
-          </div>
-          <AgentRunBranchGraph
-            :detail="selectedDetail"
-            :stage-label="stageLabel"
-            :evidence-status-label="evidenceStatusLabel"
-            :short-time="shortTime"
-          />
-        </section>
-
-        <section v-if="activeDetailTab === 'audit'" id="audit" class="section-panel audit-panel">
-          <div class="panel-header">
-            <h2>治理审计</h2>
-            <span class="muted">{{ selectedDetail?.auditEvents.length || 0 }} 条</span>
-          </div>
-          <div v-for="event in selectedDetail?.auditEvents || []" :key="event.id" class="audit-row">
-            <span>{{ event.action }} · {{ event.result }}</span>
-            <span>{{ shortTime(event.createdAt) }}</span>
-          </div>
-          <div v-if="!selectedDetail?.auditEvents.length" class="empty-state">还没有治理审计事件。</div>
-        </section>
-
-        <section v-if="activeDetailTab === 'outputs'" id="outputs" class="section-panel output-panel">
-          <div class="panel-header">
-            <h2>运行输出</h2>
-            <span class="muted">{{ outputRows.length }} 条</span>
-          </div>
-          <div v-for="row in outputRows" :key="row.id" class="output-row">
-            <div class="output-meta">
-              <span class="stage-pill">{{ row.kind }}</span>
-              <span class="muted">{{ shortTime(row.createdAt) }}</span>
-            </div>
-            <pre>{{ row.text }}</pre>
-          </div>
-          <div v-if="!outputRows.length" class="empty-state">还没有可查看的运行输出。</div>
-        </section>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { agentStateApi, type AgentApp, type TaskRunDetail, type TaskRunSummary } from '../../api/agent-state'
-import AgentRunBranchGraph from '../../components/agent-state/AgentRunBranchGraph.vue'
-
-type DetailTab = 'overview' | 'branches' | 'evidence' | 'audit' | 'outputs'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { agentStateApi, type AgentApp, type TaskRunSummary } from '../../api/agent-state'
 
 const apps = ref<AgentApp[]>([])
 const tasks = ref<TaskRunSummary[]>([])
-const selectedDetail = ref<TaskRunDetail | null>(null)
-const selectedTaskId = ref<string | null>(null)
 const activeFilter = ref('all')
-const activeDetailTab = ref<DetailTab>('overview')
 const loadingApps = ref(true)
 const loadingTasks = ref(true)
-const loadingDetail = ref(false)
-const route = useRoute()
 const router = useRouter()
 
 const taskFilters = [
@@ -259,82 +98,22 @@ const taskFilters = [
   { label: '自定义', value: 'custom' },
 ]
 
-const detailTabs: { label: string; value: DetailTab; hash: string }[] = [
-  { label: '概览', value: 'overview', hash: '#detail' },
-  { label: '分支图', value: 'branches', hash: '#branches' },
-  { label: '证据', value: 'evidence', hash: '#evidence' },
-  { label: '治理审计', value: 'audit', hash: '#audit' },
-  { label: '输出', value: 'outputs', hash: '#outputs' },
-]
-
 const filteredTasks = computed(() => {
   if (activeFilter.value === 'all') return tasks.value
   if (activeFilter.value === 'custom') return tasks.value.filter((task) => !task.harnessId.includes('paper') && !task.harnessId.includes('data'))
   return tasks.value.filter((task) => task.harnessId.toLowerCase().includes(activeFilter.value))
 })
 
-const selectedTask = computed(() => tasks.value.find((task) => task.id === selectedTaskId.value) || null)
-
 const kpis = computed(() => ({
   running: tasks.value.filter((task) => statusLabel(task) === '运行中').length,
   blocked: tasks.value.filter((task) => statusLabel(task) === '阻塞').length,
   evidence: tasks.value.reduce((total, task) => total + task.evidenceCount, 0),
   branches: tasks.value.reduce((total, task) => total + task.branchCount, 0),
-  policyBlock: selectedDetail.value?.auditEvents.filter((event) => event.result === 'blocked' || event.result === 'denied').length || 0,
+  policyBlock: tasks.value.filter((task) => task.latestAuditResult === 'blocked').length,
 }))
 
-const latestEvidence = computed(() => {
-  const packets = selectedDetail.value?.evidencePackets || []
-  return packets[packets.length - 1] || null
-})
-
-const latestAuditEvent = computed(() => {
-  const events = selectedDetail.value?.auditEvents || []
-  return events[events.length - 1] || null
-})
-
-const stageCards = computed(() => {
-  const stages = selectedDetail.value?.stages || []
-  return stages.map((stage) => ({
-    id: stage.id,
-    rawLabel: stage.stageId,
-    label: stageLabel(stage.stageId),
-    meta: stage.branchId || stage.contextPackId || stage.status,
-    done: stage.status === 'done' || stage.status === 'completed',
-    current: selectedTask.value?.currentStageId === stage.stageId,
-  }))
-})
-
-const outputRows = computed(() => [
-  ...(selectedDetail.value?.commits || []).map((commit) => ({
-    id: `commit:${commit.id}`,
-    kind: 'commit',
-    text: commit.summary || commit.id,
-    createdAt: commit.createdAt,
-  })),
-  ...(selectedDetail.value?.artifacts || []).map((artifact) => ({
-    id: `artifact:${artifact.id}`,
-    kind: artifact.kind,
-    text: `${artifact.id} · branch=${artifact.branchId}`,
-    createdAt: artifact.createdAt,
-  })),
-  ...(selectedDetail.value?.auditEvents || [])
-    .filter((event) => event.action.startsWith('workflow_trace:') || event.reason)
-    .map((event) => ({
-      id: `audit:${event.id}`,
-      kind: event.action.replace('workflow_trace:', 'trace:'),
-      text: event.reason ? `${event.result}\n${event.reason}` : event.result,
-      createdAt: event.createdAt,
-    })),
-])
-
 onMounted(async () => {
-  syncTabFromHash(route.hash)
   await Promise.all([loadApps(), loadTasks()])
-})
-
-watch(() => route.hash, (hash) => {
-  syncTabFromHash(hash)
 })
 
 async function loadApps() {
@@ -348,40 +127,13 @@ async function loadApps() {
 async function loadTasks() {
   try {
     tasks.value = await agentStateApi.listTaskRuns()
-    if (tasks.value[0]) await selectTask(tasks.value[0].id)
   } finally {
     loadingTasks.value = false
   }
 }
 
-async function selectTask(taskRunId: string) {
-  selectedTaskId.value = taskRunId
-  loadingDetail.value = true
-  try {
-    selectedDetail.value = await agentStateApi.getTaskRun(taskRunId)
-  } finally {
-    loadingDetail.value = false
-  }
-}
-
-function setDetailTab(tab: DetailTab) {
-  activeDetailTab.value = tab
-  const hash = detailTabs.find((item) => item.value === tab)?.hash || '#detail'
-  if (route.hash !== hash) {
-    router.replace({ hash })
-  }
-}
-
-function syncTabFromHash(hash: string) {
-  const next: Record<string, DetailTab> = {
-    '#detail': 'overview',
-    '#stages': 'overview',
-    '#branches': 'branches',
-    '#evidence': 'evidence',
-    '#audit': 'audit',
-    '#outputs': 'outputs',
-  }
-  activeDetailTab.value = next[hash] || activeDetailTab.value
+function openTask(taskRunId: string) {
+  router.push(`/agent-state/runs/${taskRunId}`)
 }
 
 function taskTitle(task: TaskRunSummary) {
@@ -421,21 +173,6 @@ function appStatusLabel(value?: string | null) {
     draft: '草稿',
   }
   return labels[value || ''] || value || '--'
-}
-
-function evidenceStatusLabel(value?: string | null) {
-  const labels: Record<string, string> = {
-    pending: '待验证',
-    supported: '已支持',
-    rejected: '已驳回',
-    blocked: '已阻塞',
-  }
-  return labels[value || ''] || value || '--'
-}
-
-function shortTime(value?: string | null) {
-  if (!value) return '--'
-  return new Date(value).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 }
 </script>
 
@@ -617,6 +354,10 @@ function shortTime(value?: string | null) {
   grid-template-columns: minmax(420px, .95fr) minmax(0, 1.35fr);
   gap: 16px;
   align-items: start;
+}
+
+.task-workbench.list-only {
+  display: block;
 }
 
 .task-workbench > .section-panel,
