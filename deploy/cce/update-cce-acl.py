@@ -31,6 +31,7 @@ from hwcloud import (
 KEEP_CIDRS = {
     "192.168.0.0/24",   # CCE VPC 内部
     "192.168.0.0/16",   # 兜底 VPC 兼容
+    "34.214.255.115/32",  # 当前本机代理出口，kubectl 默认环境会走这个 IP
 }
 
 PORT = 5443
