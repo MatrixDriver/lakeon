@@ -225,7 +225,7 @@ public class AgentStateDataPlaneStore {
                             rs.getString("status"),
                             rs.getString("summary"),
                             fromJsonObject(rs.getString("payload")),
-                            rs.getObject("created_at", Instant.class));
+                            timestampInstant(rs, "created_at"));
                     return java.util.Optional.of(toEvidence(row));
                 }
             }
@@ -395,6 +395,11 @@ public class AgentStateDataPlaneStore {
         }
     }
 
+    private Instant timestampInstant(ResultSet rs, String column) throws SQLException {
+        Timestamp timestamp = rs.getTimestamp(column);
+        return timestamp == null ? null : timestamp.toInstant();
+    }
+
     private List<AgentStateDtos.StageRunDetailResponse> listStages(Connection conn, String taskRunId) throws SQLException {
         List<AgentStateDtos.StageRunDetailResponse> rows = new ArrayList<>();
         try (PreparedStatement ps = conn.prepareStatement("""
@@ -413,7 +418,7 @@ public class AgentStateDataPlaneStore {
                             rs.getString("status"),
                             rs.getString("branch_id"),
                             rs.getString("context_pack_id"),
-                            rs.getObject("created_at", Instant.class)));
+                            timestampInstant(rs, "created_at")));
                 }
             }
         }
@@ -439,7 +444,7 @@ public class AgentStateDataPlaneStore {
                             rs.getString("name"),
                             rs.getString("hypothesis"),
                             rs.getString("status"),
-                            rs.getObject("created_at", Instant.class)));
+                            timestampInstant(rs, "created_at")));
                 }
             }
         }
@@ -467,7 +472,7 @@ public class AgentStateDataPlaneStore {
                             rs.getString("status"),
                             rs.getString("summary"),
                             fromJsonObject(rs.getString("payload")),
-                            rs.getObject("created_at", Instant.class)));
+                            timestampInstant(rs, "created_at")));
                 }
             }
         }
