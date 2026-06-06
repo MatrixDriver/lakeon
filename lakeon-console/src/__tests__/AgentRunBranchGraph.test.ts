@@ -124,6 +124,23 @@ describe('AgentRunBranchGraph', () => {
     expect(wrapper.find('[data-test="branch-graph-inspector"]').text()).toContain('Evidence packet passed gate')
   })
 
+  it('keeps many artifacts inside the selected node inspector', async () => {
+    const manyArtifacts = Array.from({ length: 18 }, (_, index) => ({
+      id: `artifact_${index + 1}`,
+      taskRunId: 'task_1',
+      stageRunId: 'stage_claim',
+      branchId: 'branch_claim',
+      kind: index % 2 === 0 ? 'verifier' : 'log',
+      createdAt: '2026-06-05T07:04:00Z',
+    }))
+    const wrapper = mountGraph({ artifacts: manyArtifacts })
+
+    await wrapper.find('[data-test="branch-node-branch_claim"]').trigger('click')
+
+    expect(wrapper.find('[data-test="branch-artifact-list"]').exists()).toBe(true)
+    expect(wrapper.findAll('[data-test="branch-artifact-chip"]')).toHaveLength(18)
+  })
+
   it('infers root as the display parent for legacy branches without parentBranchId', () => {
     const legacyDetail = {
       ...detail,

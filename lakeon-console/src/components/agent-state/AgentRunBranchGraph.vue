@@ -1,7 +1,7 @@
 <template>
   <div class="branch-graph">
     <div v-if="!branchNodes.length" class="empty-state">还没有工作区分支。</div>
-    <template v-else>
+    <div v-else class="branch-graph-workspace">
       <div class="branch-graph-card">
         <div class="branch-graph-header">
           <h3>工作区分支图</h3>
@@ -62,8 +62,15 @@
             <h4>Evidence 与产物</h4>
             <p v-if="selectedEvidence">{{ selectedEvidence.claim || selectedEvidence.id }}</p>
             <p v-else class="muted">当前分支还没有 Evidence。</p>
-            <div class="chip-row">
-              <span v-for="artifact in selectedArtifacts" :key="artifact.id" class="chip">{{ artifact.kind }} · {{ artifact.id }}</span>
+            <div class="chip-row artifact-list" data-test="branch-artifact-list">
+              <span
+                v-for="artifact in selectedArtifacts"
+                :key="artifact.id"
+                class="chip"
+                data-test="branch-artifact-chip"
+              >
+                {{ artifact.kind }} · {{ artifact.id }}
+              </span>
               <span v-if="selectedEvidence" class="chip evidence-chip">{{ evidenceStatusLabel(selectedEvidence.status) }}</span>
             </div>
             <p v-if="selectedCommit" class="commit-summary">{{ selectedCommit.summary || selectedCommit.id }}</p>
@@ -80,7 +87,7 @@
           </section>
         </div>
       </div>
-    </template>
+    </div>
   </div>
 </template>
 
@@ -257,13 +264,24 @@ function branchStatusLabel(status?: string | null) {
 
 <style scoped>
 .branch-graph {
+  min-width: 0;
+}
+
+.branch-graph-workspace {
   display: grid;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  gap: 14px;
+  align-items: start;
+  padding: 0 14px 14px;
 }
 
 .branch-graph-card,
 .branch-inspector {
-  border-top: 1px solid #edf0f4;
+  min-width: 0;
+  border: 1px solid #edf0f4;
+  border-radius: 6px;
+  background: #fff;
+  overflow: hidden;
 }
 
 .branch-graph-header,
@@ -307,7 +325,7 @@ function branchStatusLabel(status?: string | null) {
 .dot.blocked { background: #b94747; }
 
 .branch-graph-canvas {
-  height: 440px;
+  height: clamp(320px, calc(100vh - 340px), 520px);
   overflow: auto;
   border-top: 1px solid #edf0f4;
   background:
@@ -400,7 +418,10 @@ function branchStatusLabel(status?: string | null) {
 }
 
 .branch-inspector {
-  background: #fff;
+  position: sticky;
+  top: 76px;
+  max-height: calc(100vh - 108px);
+  overflow: hidden;
 }
 
 .status-pill {
@@ -434,15 +455,17 @@ function branchStatusLabel(status?: string | null) {
 }
 
 .branch-inspector-body {
-  display: grid;
-  grid-template-columns: 1fr 1.2fr 1fr;
+  display: flex;
+  max-height: calc(100vh - 154px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  flex-direction: column;
   gap: 12px;
-  padding: 0 14px 14px;
+  padding: 0 12px 12px;
 }
 
 .branch-inspector-body section {
   min-width: 0;
-  min-height: 126px;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   padding: 12px;
@@ -492,6 +515,7 @@ p {
 
 .chip {
   display: inline-flex;
+  max-width: 100%;
   min-height: 22px;
   align-items: center;
   padding: 0 7px;
@@ -500,6 +524,16 @@ p {
   background: #fff;
   color: #526173;
   font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artifact-list {
+  max-height: 132px;
+  overflow: auto;
+  align-content: flex-start;
+  padding-right: 2px;
 }
 
 .evidence-chip {
@@ -520,8 +554,18 @@ p {
 }
 
 @media (max-width: 1100px) {
-  .branch-inspector-body {
+  .branch-graph-workspace {
     grid-template-columns: 1fr;
   }
+
+  .branch-inspector {
+    position: static;
+    max-height: none;
+  }
+
+  .branch-inspector-body {
+    max-height: none;
+  }
 }
+
 </style>
