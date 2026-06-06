@@ -66,7 +66,7 @@
         >
           <div class="task-main">
             <div class="task-name">{{ taskTitle(task) }}</div>
-            <div class="muted">{{ task.harnessId }} · {{ task.id }}</div>
+            <div class="muted">{{ agentLabel(task) }} · 开始 {{ shortTime(task.createdAt) }} · {{ task.id }}</div>
           </div>
           <span class="status-pill task-status" :class="statusClass(task)">{{ statusLabel(task) }}</span>
           <span class="task-stage" :title="task.currentStageId || 'pending'">{{ stageLabel(task.currentStageId) }}</span>
@@ -112,6 +112,8 @@ const kpis = computed(() => ({
   policyBlock: tasks.value.filter((task) => task.latestAuditResult === 'blocked').length,
 }))
 
+const appById = computed(() => new Map(apps.value.map((app) => [app.id, app])))
+
 onMounted(async () => {
   await Promise.all([loadApps(), loadTasks()])
 })
@@ -138,6 +140,25 @@ function openTask(taskRunId: string) {
 
 function taskTitle(task: TaskRunSummary) {
   return task.goal.length > 44 ? `${task.goal.slice(0, 44)}...` : task.goal
+}
+
+function agentLabel(task: TaskRunSummary) {
+  const app = task.agentAppId ? appById.value.get(task.agentAppId) : undefined
+  if (app) return app.displayName
+  if (task.harnessId.toLowerCase().includes('paper')) return 'PaperBench Agent'
+  if (task.harnessId.toLowerCase().includes('data')) return 'Data Agent'
+  return `${task.harnessId} Agent`
+}
+
+function shortTime(value?: string | null) {
+  if (!value) return '--'
+  return new Date(value).toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
 }
 
 function statusLabel(task: TaskRunSummary) {
