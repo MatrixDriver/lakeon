@@ -141,9 +141,19 @@ class AgentWorkspaceEntity extends AgentStateEntity {
     @Column(name = "task_run_id", nullable = false, length = 64)
     private String taskRunId;
 
+    @Column(name = "database_id", length = 64)
+    private String databaseId;
+
+    @Column(name = "root_branch_id", length = 64)
+    private String rootBranchId;
+
     @Override protected String idPrefix() { return "ws_"; }
     public String getTaskRunId() { return taskRunId; }
     public void setTaskRunId(String taskRunId) { this.taskRunId = taskRunId; }
+    public String getDatabaseId() { return databaseId; }
+    public void setDatabaseId(String databaseId) { this.databaseId = databaseId; }
+    public String getRootBranchId() { return rootBranchId; }
+    public void setRootBranchId(String rootBranchId) { this.rootBranchId = rootBranchId; }
 }
 
 @Entity

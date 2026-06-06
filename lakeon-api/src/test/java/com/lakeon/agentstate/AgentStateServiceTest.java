@@ -1,6 +1,9 @@
 package com.lakeon.agentstate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.model.enums.DatabaseStatus;
+import com.lakeon.repository.DatabaseRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +39,8 @@ class AgentStateServiceTest {
     @Mock private AgentEvidencePacketRepository evidencePacketRepository;
     @Mock private AgentPolicyDecisionRepository policyDecisionRepository;
     @Mock private AgentAuditEventRepository auditEventRepository;
+    @Mock private DatabaseRepository databaseRepository;
+    @Mock private AgentStateDataPlaneStore dataPlaneStore;
 
     @Test
     @DisplayName("createAgentApp registers tenant-scoped agent app metadata")
@@ -183,35 +188,29 @@ class AgentStateServiceTest {
         task.setHarnessId("paperbench");
         task.setStatus("running");
         task.setCreatedAt(java.time.Instant.parse("2026-06-04T00:00:00Z"));
-        AgentStageRunEntity stage = new AgentStageRunEntity();
-        stage.setId("stage_001");
-        stage.setTaskRunId("task_001");
-        stage.setStageId("experiment_run");
         AgentWorkspaceEntity workspace = new AgentWorkspaceEntity();
         workspace.setId("ws_001");
         workspace.setTaskRunId("task_001");
-        AgentWorkspaceBranchEntity root = new AgentWorkspaceBranchEntity();
-        root.setId("awb_root");
-        root.setName("root");
-        AgentWorkspaceBranchEntity branch = new AgentWorkspaceBranchEntity();
-        branch.setId("awb_001");
-        branch.setName("branch");
-        AgentEvidencePacketEntity evidence = new AgentEvidencePacketEntity();
-        evidence.setId("evidence_001");
-        AgentAuditEventEntity audit = new AgentAuditEventEntity();
-        audit.setId("audit_001");
-        audit.setAction("paperbench_report_gate");
-        audit.setResult("allowed");
-        AgentAuditEventEntity traceAudit = new AgentAuditEventEntity();
-        traceAudit.setId("audit_trace");
-        traceAudit.setAction("workflow_trace:report_gate");
-        traceAudit.setResult("started");
+        workspace.setDatabaseId("db_001");
+        workspace.setRootBranchId("awb_root");
+        AgentStateDtos.StageRunDetailResponse stageDetail = new AgentStateDtos.StageRunDetailResponse(
+                "stage_001", "task_001", "experiment_run", "running", "awb_001", null, null);
+        AgentStateDtos.BranchDetailResponse root = new AgentStateDtos.BranchDetailResponse(
+                "awb_root", "ws_001", null, null, "root", null, "active", null);
+        AgentStateDtos.BranchDetailResponse branch = new AgentStateDtos.BranchDetailResponse(
+                "awb_001", "ws_001", "awb_root", "stage_001", "branch", null, "active", null);
+        AgentStateDtos.EvidencePacketDetailResponse evidence = new AgentStateDtos.EvidencePacketDetailResponse(
+                "evidence_001", "task_001", "awb_001", "claim", "pending", List.of("artifact_001"), null);
+        AgentStateDtos.AuditEventDetailResponse audit = new AgentStateDtos.AuditEventDetailResponse(
+                "audit_001", "task_001", "awb_001", "paperbench_report_gate", "allowed", null, null);
+        AgentStateDtos.AuditEventDetailResponse traceAudit = new AgentStateDtos.AuditEventDetailResponse(
+                "audit_trace", "task_001", "awb_001", "workflow_trace:report_gate", "started", null, null);
         when(taskRunRepository.findByTenantIdOrderByCreatedAtDesc("tn_test001")).thenReturn(List.of(task));
-        when(stageRunRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(stage));
         when(workspaceRepository.findByTenantIdAndTaskRunId("tn_test001", "task_001")).thenReturn(Optional.of(workspace));
-        when(branchRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtAsc("tn_test001", "ws_001")).thenReturn(List.of(root, branch));
-        when(evidencePacketRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(evidence));
-        when(auditEventRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(audit, traceAudit));
+        DatabaseEntity database = database("db_001");
+        when(databaseRepository.findByIdAndTenantId("db_001", "tn_test001")).thenReturn(Optional.of(database));
+        when(dataPlaneStore.loadDetail(database, "task_001", workspace)).thenReturn(new AgentStateDtos.DataPlaneDetail(
+                List.of(stageDetail), List.of(root, branch), List.of(), List.of(), List.of(evidence), List.of(audit, traceAudit)));
 
         List<AgentStateDtos.TaskRunSummaryResponse> response = service.listTaskRuns("tn_test001");
 
@@ -238,52 +237,31 @@ class AgentStateServiceTest {
         task.setHarnessId("paperbench");
         task.setStatus("running");
         task.setCreatedAt(java.time.Instant.parse("2026-06-04T00:00:00Z"));
-        AgentStageRunEntity stage = new AgentStageRunEntity();
-        stage.setId("stage_001");
-        stage.setTaskRunId("task_001");
-        stage.setStageId("experiment_run");
         AgentWorkspaceEntity workspace = new AgentWorkspaceEntity();
         workspace.setId("ws_001");
         workspace.setTaskRunId("task_001");
-        AgentWorkspaceBranchEntity root = new AgentWorkspaceBranchEntity();
-        root.setId("awb_root");
-        root.setName("root");
-        AgentWorkspaceBranchEntity branch = new AgentWorkspaceBranchEntity();
-        branch.setId("awb_001");
-        branch.setName("branch");
-        branch.setHypothesis("attempt 1");
-        AgentStateCommitEntity commit = new AgentStateCommitEntity();
-        commit.setId("commit_001");
-        commit.setTaskRunId("task_001");
-        commit.setStageRunId("stage_001");
-        commit.setBranchId("awb_001");
-        commit.setSummary("verification passed");
-        AgentArtifactRefEntity artifact = new AgentArtifactRefEntity();
-        artifact.setId("artifact_001");
-        artifact.setTaskRunId("task_001");
-        artifact.setStageRunId("stage_001");
-        artifact.setBranchId("awb_001");
-        artifact.setKind("experiment_run");
-        AgentEvidencePacketEntity evidence = new AgentEvidencePacketEntity();
-        evidence.setId("evidence_001");
-        evidence.setTaskRunId("task_001");
-        evidence.setBranchId("awb_001");
-        evidence.setClaim("claim");
-        evidence.setStatus("pending");
-        evidence.setEvidenceRefsJson("[\"artifact_001\"]");
-        AgentAuditEventEntity audit = new AgentAuditEventEntity();
-        audit.setId("audit_001");
-        audit.setTaskRunId("task_001");
-        audit.setAction("paperbench_report_gate");
-        audit.setResult("allowed");
+        workspace.setDatabaseId("db_001");
+        workspace.setRootBranchId("awb_root");
+        AgentStateDtos.StageRunDetailResponse stageDetail = new AgentStateDtos.StageRunDetailResponse(
+                "stage_001", "task_001", "experiment_run", "running", "awb_001", null, null);
+        AgentStateDtos.BranchDetailResponse root = new AgentStateDtos.BranchDetailResponse(
+                "awb_root", "ws_001", null, null, "root", null, "active", null);
+        AgentStateDtos.BranchDetailResponse branch = new AgentStateDtos.BranchDetailResponse(
+                "awb_001", "ws_001", "awb_root", "stage_001", "branch", "attempt 1", "active", null);
+        AgentStateDtos.StateCommitDetailResponse commit = new AgentStateDtos.StateCommitDetailResponse(
+                "commit_001", "task_001", "stage_001", "awb_001", "verification passed", null);
+        AgentStateDtos.ArtifactDetailResponse artifact = new AgentStateDtos.ArtifactDetailResponse(
+                "artifact_001", "task_001", "stage_001", "awb_001", "experiment_run", null);
+        AgentStateDtos.EvidencePacketDetailResponse evidence = new AgentStateDtos.EvidencePacketDetailResponse(
+                "evidence_001", "task_001", "awb_001", "claim", "pending", List.of("artifact_001"), null);
+        AgentStateDtos.AuditEventDetailResponse audit = new AgentStateDtos.AuditEventDetailResponse(
+                "audit_001", "task_001", "awb_001", "paperbench_report_gate", "allowed", null, null);
         when(taskRunRepository.findByIdAndTenantId("task_001", "tn_test001")).thenReturn(Optional.of(task));
-        when(stageRunRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(stage));
         when(workspaceRepository.findByTenantIdAndTaskRunId("tn_test001", "task_001")).thenReturn(Optional.of(workspace));
-        when(branchRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtAsc("tn_test001", "ws_001")).thenReturn(List.of(root, branch));
-        when(stateCommitRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(commit));
-        when(artifactRefRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(artifact));
-        when(evidencePacketRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(evidence));
-        when(auditEventRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc("tn_test001", "task_001")).thenReturn(List.of(audit));
+        DatabaseEntity database = database("db_001");
+        when(databaseRepository.findByIdAndTenantId("db_001", "tn_test001")).thenReturn(Optional.of(database));
+        when(dataPlaneStore.loadDetail(database, "task_001", workspace)).thenReturn(new AgentStateDtos.DataPlaneDetail(
+                List.of(stageDetail), List.of(root, branch), List.of(commit), List.of(artifact), List.of(evidence), List.of(audit)));
 
         AgentStateDtos.TaskRunDetailResponse response = service.getTaskRun("tn_test001", "task_001");
 
@@ -301,13 +279,12 @@ class AgentStateServiceTest {
     @DisplayName("createWorkspace persists workspace plus root branch for a tenant task")
     void createWorkspace_persistsWorkspaceAndRootBranch() {
         AgentStateService service = service();
+        DatabaseEntity database = database("db_001");
+        when(databaseRepository.findAllByTenantIdAndStatus("tn_test001", DatabaseStatus.RUNNING)).thenReturn(List.of(database));
+        when(dataPlaneStore.createWorkspace(database, "task_001")).thenReturn(
+                new AgentStateDataPlaneStore.DataPlaneWorkspace("ws_dp", "awb_root", "db_001", java.time.Instant.parse("2026-06-04T00:00:00Z")));
         when(workspaceRepository.save(any(AgentWorkspaceEntity.class))).thenAnswer(inv -> {
             AgentWorkspaceEntity entity = inv.getArgument(0);
-            entity.prePersist();
-            return entity;
-        });
-        when(branchRepository.save(any(AgentWorkspaceBranchEntity.class))).thenAnswer(inv -> {
-            AgentWorkspaceBranchEntity entity = inv.getArgument(0);
             entity.prePersist();
             return entity;
         });
@@ -315,63 +292,52 @@ class AgentStateServiceTest {
         AgentStateDtos.WorkspaceResponse response = service.createWorkspace(
                 "tn_test001", new AgentStateDtos.CreateWorkspaceRequest("task_001"));
 
-        assertThat(response.id()).startsWith("ws_");
-        assertThat(response.rootBranchId()).startsWith("awb_");
+        assertThat(response.id()).isEqualTo("ws_dp");
+        assertThat(response.rootBranchId()).isEqualTo("awb_root");
 
         ArgumentCaptor<AgentWorkspaceEntity> workspaceCaptor = ArgumentCaptor.forClass(AgentWorkspaceEntity.class);
-        ArgumentCaptor<AgentWorkspaceBranchEntity> branchCaptor = ArgumentCaptor.forClass(AgentWorkspaceBranchEntity.class);
         verify(workspaceRepository).save(workspaceCaptor.capture());
-        verify(branchRepository).save(branchCaptor.capture());
         assertThat(workspaceCaptor.getValue().getTenantId()).isEqualTo("tn_test001");
         assertThat(workspaceCaptor.getValue().getTaskRunId()).isEqualTo("task_001");
-        assertThat(branchCaptor.getValue().getName()).isEqualTo("root");
+        assertThat(workspaceCaptor.getValue().getDatabaseId()).isEqualTo("db_001");
+        assertThat(workspaceCaptor.getValue().getRootBranchId()).isEqualTo("awb_root");
     }
 
     @Test
     @DisplayName("forkBranch links new branches to the workspace root when parent is omitted")
     void forkBranch_defaultsParentToWorkspaceRoot() {
         AgentStateService service = service();
-        AgentWorkspaceBranchEntity root = new AgentWorkspaceBranchEntity();
-        root.setId("awb_root");
-        root.setTenantId("tn_test001");
-        root.setWorkspaceId("ws_001");
-        root.setName("root");
-        when(branchRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtAsc("tn_test001", "ws_001"))
-                .thenReturn(List.of(root));
-        when(branchRepository.save(any(AgentWorkspaceBranchEntity.class))).thenAnswer(inv -> {
-            AgentWorkspaceBranchEntity entity = inv.getArgument(0);
-            entity.prePersist();
-            return entity;
-        });
+        AgentWorkspaceEntity workspace = workspace("ws_001", "task_001", "db_001", "awb_root");
+        DatabaseEntity database = database("db_001");
+        when(workspaceRepository.findById("ws_001")).thenReturn(Optional.of(workspace));
+        when(databaseRepository.findByIdAndTenantId("db_001", "tn_test001")).thenReturn(Optional.of(database));
+        when(dataPlaneStore.forkBranch(database, "ws_001", null, "stage_sql", "validate SQL")).thenReturn(
+                new AgentStateDtos.BranchDetailResponse("awb_001", "ws_001", "awb_root", "stage_sql", "branch", "validate SQL", "active", null));
 
         AgentStateDtos.BranchResponse response = service.forkBranch(
                 "tn_test001",
                 new AgentStateDtos.ForkBranchRequest("ws_001", null, "stage_sql", "validate SQL"));
 
-        ArgumentCaptor<AgentWorkspaceBranchEntity> branchCaptor = ArgumentCaptor.forClass(AgentWorkspaceBranchEntity.class);
-        verify(branchRepository).save(branchCaptor.capture());
-        assertThat(response.id()).startsWith("awb_");
-        assertThat(branchCaptor.getValue().getParentBranchId()).isEqualTo("awb_root");
-        assertThat(branchCaptor.getValue().getStageRunId()).isEqualTo("stage_sql");
+        assertThat(response.id()).isEqualTo("awb_001");
+        verify(dataPlaneStore).forkBranch(database, "ws_001", null, "stage_sql", "validate SQL");
     }
 
     @Test
     @DisplayName("forkBranch honors an explicit parent branch id")
     void forkBranch_usesExplicitParentBranch() {
         AgentStateService service = service();
-        when(branchRepository.save(any(AgentWorkspaceBranchEntity.class))).thenAnswer(inv -> {
-            AgentWorkspaceBranchEntity entity = inv.getArgument(0);
-            entity.prePersist();
-            return entity;
-        });
+        AgentWorkspaceEntity workspace = workspace("ws_001", "task_001", "db_001", "awb_root");
+        DatabaseEntity database = database("db_001");
+        when(workspaceRepository.findById("ws_001")).thenReturn(Optional.of(workspace));
+        when(databaseRepository.findByIdAndTenantId("db_001", "tn_test001")).thenReturn(Optional.of(database));
+        when(dataPlaneStore.forkBranch(database, "ws_001", "awb_parent", "stage_sql", "validate SQL")).thenReturn(
+                new AgentStateDtos.BranchDetailResponse("awb_002", "ws_001", "awb_parent", "stage_sql", "branch", "validate SQL", "active", null));
 
         service.forkBranch(
                 "tn_test001",
                 new AgentStateDtos.ForkBranchRequest("ws_001", "awb_parent", "stage_sql", "validate SQL"));
 
-        ArgumentCaptor<AgentWorkspaceBranchEntity> branchCaptor = ArgumentCaptor.forClass(AgentWorkspaceBranchEntity.class);
-        verify(branchRepository).save(branchCaptor.capture());
-        assertThat(branchCaptor.getValue().getParentBranchId()).isEqualTo("awb_parent");
+        verify(dataPlaneStore).forkBranch(database, "ws_001", "awb_parent", "stage_sql", "validate SQL");
     }
 
     @Test
@@ -413,15 +379,23 @@ class AgentStateServiceTest {
     @DisplayName("createCheckpoint stores manifest and restoreCheckpoint returns restorable and missing refs")
     void checkpointRestore_returnsResumePlan() {
         AgentStateService service = service();
-        when(checkpointRepository.save(any(AgentCheckpointEntity.class))).thenAnswer(inv -> {
-            AgentCheckpointEntity entity = inv.getArgument(0);
-            entity.prePersist();
-            return entity;
-        });
-        AgentCheckpointEntity checkpoint = new AgentCheckpointEntity();
-        checkpoint.setId("ckpt_001");
-        checkpoint.setManifestJson("{\"artifacts\":[\"artifact_sql_001\"],\"missing\":[\"lineage_snapshot_001\"]}");
-        when(checkpointRepository.findByIdAndTenantId("ckpt_001", "tn_test001")).thenReturn(java.util.Optional.of(checkpoint));
+        DatabaseEntity database = database("db_001");
+        when(databaseRepository.findAllByTenantIdAndStatus("tn_test001", DatabaseStatus.RUNNING)).thenReturn(List.of(database));
+        when(dataPlaneStore.appendManifestVersion(
+                database,
+                "checkpoint:branch_001",
+                "branch_001",
+                "stage_sql",
+                "checkpoint",
+                "checkpoint",
+                Map.of("artifacts", List.of("artifact_sql_001"))))
+                .thenReturn(new AgentStateDtos.IdResponse("ckpt_001"));
+        when(dataPlaneStore.restorePlan(database, "ckpt_001")).thenReturn(Optional.of(
+                new AgentStateDtos.RestorePlanResponse(
+                        "ckpt_001",
+                        List.of("artifact_sql_001"),
+                        List.of("lineage_snapshot_001"),
+                        false)));
 
         AgentStateDtos.CheckpointResponse checkpointResponse = service.createCheckpoint(
                 "tn_test001",
@@ -431,7 +405,7 @@ class AgentStateServiceTest {
                         java.util.Map.of("artifacts", List.of("artifact_sql_001"))));
         AgentStateDtos.RestorePlanResponse restorePlan = service.restoreCheckpoint("tn_test001", "ckpt_001");
 
-        assertThat(checkpointResponse.id()).startsWith("ckpt_");
+        assertThat(checkpointResponse.id()).isEqualTo("ckpt_001");
         assertThat(restorePlan.restorableRefs()).containsExactly("artifact_sql_001");
         assertThat(restorePlan.missingRefs()).containsExactly("lineage_snapshot_001");
         assertThat(restorePlan.complete()).isFalse();
@@ -441,11 +415,19 @@ class AgentStateServiceTest {
     @DisplayName("snapshotManifest stores OpenCode artifact ids as checkpoint manifest refs")
     void snapshotManifest_storesArtifactRefsForRestore() {
         AgentStateService service = service();
-        when(checkpointRepository.save(any(AgentCheckpointEntity.class))).thenAnswer(inv -> {
-            AgentCheckpointEntity entity = inv.getArgument(0);
-            entity.prePersist();
-            return entity;
-        });
+        AgentWorkspaceEntity workspace = workspace("ws_001", "task_001", "db_001", "awb_root");
+        DatabaseEntity database = database("db_001");
+        when(workspaceRepository.findByTenantIdAndTaskRunId("tn_test001", "task_001")).thenReturn(Optional.of(workspace));
+        when(databaseRepository.findByIdAndTenantId("db_001", "tn_test001")).thenReturn(Optional.of(database));
+        when(dataPlaneStore.appendManifestVersion(
+                any(DatabaseEntity.class),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()))
+                .thenReturn(new AgentStateDtos.IdResponse("ver_manifest"));
 
         AgentStateDtos.IdResponse response = service.snapshotManifest(
                 "tn_test001",
@@ -455,24 +437,38 @@ class AgentStateServiceTest {
                         "branch_001",
                         List.of("artifact_sql_001")));
 
-        ArgumentCaptor<AgentCheckpointEntity> checkpointCaptor = ArgumentCaptor.forClass(AgentCheckpointEntity.class);
-        verify(checkpointRepository).save(checkpointCaptor.capture());
-        assertThat(response.id()).startsWith("ckpt_");
-        assertThat(checkpointCaptor.getValue().getTenantId()).isEqualTo("tn_test001");
-        assertThat(checkpointCaptor.getValue().getBranchId()).isEqualTo("branch_001");
-        assertThat(checkpointCaptor.getValue().getStageRunId()).isEqualTo("stage_sql");
-        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("artifact_sql_001");
+        ArgumentCaptor<Map<String, Object>> manifestCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(dataPlaneStore).appendManifestVersion(
+                org.mockito.ArgumentMatchers.eq(database),
+                org.mockito.ArgumentMatchers.eq("task_001"),
+                org.mockito.ArgumentMatchers.eq("branch_001"),
+                org.mockito.ArgumentMatchers.eq("stage_sql"),
+                org.mockito.ArgumentMatchers.eq("artifact_manifest"),
+                org.mockito.ArgumentMatchers.eq("snapshot manifest"),
+                manifestCaptor.capture());
+        assertThat(response.id()).isEqualTo("ver_manifest");
+        assertThat(manifestCaptor.getValue()).containsEntry("task_run_id", "task_001");
+        assertThat(manifestCaptor.getValue()).containsEntry("branch_id", "branch_001");
+        assertThat((List<String>) manifestCaptor.getValue().get("artifacts")).containsExactly("artifact_sql_001");
     }
 
     @Test
     @DisplayName("recordBranchVersion binds workspace, commit, artifacts, manifest, and lineage into a checkpoint manifest")
     void recordBranchVersion_storesUnifiedVersionManifest() {
         AgentStateService service = service();
-        when(checkpointRepository.save(any(AgentCheckpointEntity.class))).thenAnswer(inv -> {
-            AgentCheckpointEntity entity = inv.getArgument(0);
-            entity.prePersist();
-            return entity;
-        });
+        AgentWorkspaceEntity workspace = workspace("ws_001", "task_001", "db_001", "awb_root");
+        DatabaseEntity database = database("db_001");
+        when(workspaceRepository.findById("ws_001")).thenReturn(Optional.of(workspace));
+        when(databaseRepository.findByIdAndTenantId("db_001", "tn_test001")).thenReturn(Optional.of(database));
+        when(dataPlaneStore.appendManifestVersion(
+                any(DatabaseEntity.class),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()))
+                .thenReturn(new AgentStateDtos.IdResponse("ver_branch"));
 
         AgentStateDtos.IdResponse response = service.recordBranchVersion(
                 "tn_test001",
@@ -486,29 +482,38 @@ class AgentStateServiceTest {
                         List.of("lineage_001"),
                         "validated SQL fixture"));
 
-        ArgumentCaptor<AgentCheckpointEntity> checkpointCaptor = ArgumentCaptor.forClass(AgentCheckpointEntity.class);
-        verify(checkpointRepository).save(checkpointCaptor.capture());
-        assertThat(response.id()).startsWith("ckpt_");
-        assertThat(checkpointCaptor.getValue().getTenantId()).isEqualTo("tn_test001");
-        assertThat(checkpointCaptor.getValue().getBranchId()).isEqualTo("branch_001");
-        assertThat(checkpointCaptor.getValue().getStageRunId()).isEqualTo("stage_sql");
-        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("branch_version");
-        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("ws_001");
-        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("commit_001");
-        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("artifact_sql_001");
-        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("manifest_001");
-        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("lineage_001");
+        ArgumentCaptor<Map<String, Object>> manifestCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(dataPlaneStore).appendManifestVersion(
+                org.mockito.ArgumentMatchers.eq(database),
+                org.mockito.ArgumentMatchers.eq("task_001"),
+                org.mockito.ArgumentMatchers.eq("branch_001"),
+                org.mockito.ArgumentMatchers.eq("stage_sql"),
+                org.mockito.ArgumentMatchers.eq("branch_version"),
+                org.mockito.ArgumentMatchers.eq("validated SQL fixture"),
+                manifestCaptor.capture());
+        assertThat(response.id()).isEqualTo("ver_branch");
+        assertThat(manifestCaptor.getValue()).containsEntry("workspace_id", "ws_001");
+        assertThat(manifestCaptor.getValue()).containsEntry("state_commit_id", "commit_001");
+        assertThat((List<String>) manifestCaptor.getValue().get("artifacts")).containsExactly("artifact_sql_001");
+        assertThat(manifestCaptor.getValue()).containsEntry("manifest_id", "manifest_001");
+        assertThat((List<String>) manifestCaptor.getValue().get("lineage_ids")).containsExactly("lineage_001");
     }
 
     @Test
     @DisplayName("recordRuntimeEvent stores OpenCode session and tool event manifests")
     void recordRuntimeEvent_storesSessionEventManifest() {
         AgentStateService service = service();
-        when(checkpointRepository.save(any(AgentCheckpointEntity.class))).thenAnswer(inv -> {
-            AgentCheckpointEntity entity = inv.getArgument(0);
-            entity.prePersist();
-            return entity;
-        });
+        DatabaseEntity database = database("db_001");
+        when(databaseRepository.findAllByTenantIdAndStatus("tn_test001", DatabaseStatus.RUNNING)).thenReturn(List.of(database));
+        when(dataPlaneStore.appendManifestVersion(
+                any(DatabaseEntity.class),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()))
+                .thenReturn(new AgentStateDtos.IdResponse("runtime_001"));
 
         AgentStateDtos.IdResponse response = service.recordRuntimeEvent(
                 "tn_test001",
@@ -528,32 +533,61 @@ class AgentStateServiceTest {
                         Map.of("path", "src/app.ts", "hash", "sha256:patch"),
                         Map.of("agent", "build")));
 
-        ArgumentCaptor<AgentCheckpointEntity> checkpointCaptor = ArgumentCaptor.forClass(AgentCheckpointEntity.class);
-        verify(checkpointRepository).save(checkpointCaptor.capture());
-        assertThat(response.id()).startsWith("ckpt_");
-        assertThat(checkpointCaptor.getValue().getTenantId()).isEqualTo("tn_test001");
-        assertThat(checkpointCaptor.getValue().getBranchId()).isEqualTo("session:ses_001");
-        assertThat(checkpointCaptor.getValue().getStageRunId()).isEqualTo("msg_001");
-        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("tool_call_completed");
-        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("ses_001");
-        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("call_001");
-        assertThat(checkpointCaptor.getValue().getManifestJson()).contains("sha256:patch");
+        ArgumentCaptor<Map<String, Object>> manifestCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(dataPlaneStore).appendManifestVersion(
+                org.mockito.ArgumentMatchers.eq(database),
+                org.mockito.ArgumentMatchers.eq("runtime:ses_001"),
+                org.mockito.ArgumentMatchers.eq("session:ses_001"),
+                org.mockito.ArgumentMatchers.eq("msg_001"),
+                org.mockito.ArgumentMatchers.eq("runtime_event"),
+                org.mockito.ArgumentMatchers.eq("edited file"),
+                manifestCaptor.capture());
+        assertThat(response.id()).isEqualTo("runtime_001");
+        assertThat(manifestCaptor.getValue()).containsEntry("kind", "tool_call_completed");
+        assertThat(manifestCaptor.getValue()).containsEntry("session_id", "ses_001");
+        assertThat(manifestCaptor.getValue()).containsEntry("call_id", "call_001");
+        assertThat((Map<String, Object>) manifestCaptor.getValue().get("artifact")).containsEntry("hash", "sha256:patch");
     }
 
     @Test
     @DisplayName("evaluateEvidence blocks packets without evidence refs")
     void evaluateEvidence_blocksMissingEvidenceRefs() {
         AgentStateService service = service();
-        AgentEvidencePacketEntity packet = new AgentEvidencePacketEntity();
-        packet.setId("evidence_001");
-        packet.setEvidenceRefsJson("[]");
-        when(evidencePacketRepository.findByIdAndTenantId("evidence_001", "tn_test001"))
-                .thenReturn(java.util.Optional.of(packet));
+        DatabaseEntity database = database("db_001");
+        when(databaseRepository.findAllByTenantIdAndStatus("tn_test001", DatabaseStatus.RUNNING)).thenReturn(List.of(database));
+        when(dataPlaneStore.findEvidencePacket(database, "evidence_001")).thenReturn(Optional.of(
+                new AgentStateDtos.EvidencePacketDetailResponse(
+                        "evidence_001",
+                        "task_001",
+                        "branch_001",
+                        "claim",
+                        "pending",
+                        List.of(),
+                        null)));
 
         AgentStateDtos.PolicyDecisionResponse response = service.evaluateEvidence("tn_test001", "evidence_001");
 
         assertThat(response.allowed()).isFalse();
         assertThat(response.reason()).contains("missing verified evidence");
+    }
+
+    @Test
+    @DisplayName("listAuditEvents reads audit ids from data-plane versions")
+    void listAuditEvents_readsDataPlaneAuditVersions() {
+        AgentStateService service = service();
+        AgentWorkspaceEntity workspace = workspace("ws_001", "task_001", "db_001", "awb_root");
+        DatabaseEntity database = database("db_001");
+        AgentStateDtos.AuditEventDetailResponse audit = new AgentStateDtos.AuditEventDetailResponse(
+                "audit_001", "task_001", "branch_001", "paperbench_report_gate", "allowed", null, null);
+        when(workspaceRepository.findByTenantIdAndTaskRunId("tn_test001", "task_001")).thenReturn(Optional.of(workspace));
+        when(databaseRepository.findByIdAndTenantId("db_001", "tn_test001")).thenReturn(Optional.of(database));
+        when(dataPlaneStore.loadDetail(database, "task_001", workspace)).thenReturn(new AgentStateDtos.DataPlaneDetail(
+                List.of(), List.of(), List.of(), List.of(), List.of(), List.of(audit)));
+
+        List<AgentStateDtos.IdResponse> response = service.listAuditEvents("tn_test001", "task_001");
+
+        assertThat(response).extracting(AgentStateDtos.IdResponse::id).containsExactly("audit_001");
+        verify(dataPlaneStore).loadDetail(database, "task_001", workspace);
     }
 
     @Test
@@ -592,6 +626,29 @@ class AgentStateServiceTest {
                 evidencePacketRepository,
                 policyDecisionRepository,
                 auditEventRepository,
+                databaseRepository,
+                dataPlaneStore,
                 new ObjectMapper());
+    }
+
+    private DatabaseEntity database(String id) {
+        DatabaseEntity database = new DatabaseEntity();
+        database.setId(id);
+        database.setTenantId("tn_test001");
+        database.setName("agent_state_db");
+        database.setStatus(DatabaseStatus.RUNNING);
+        database.setComputeHost("127.0.0.1");
+        database.setComputePort(55433);
+        return database;
+    }
+
+    private AgentWorkspaceEntity workspace(String id, String taskRunId, String databaseId, String rootBranchId) {
+        AgentWorkspaceEntity workspace = new AgentWorkspaceEntity();
+        workspace.setId(id);
+        workspace.setTenantId("tn_test001");
+        workspace.setTaskRunId(taskRunId);
+        workspace.setDatabaseId(databaseId);
+        workspace.setRootBranchId(rootBranchId);
+        return workspace;
     }
 }

@@ -1,8 +1,12 @@
 package com.lakeon.agentstate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.model.enums.DatabaseStatus;
+import com.lakeon.repository.DatabaseRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -30,12 +34,23 @@ class AgentStateDataAgentSmokeTest {
     @Autowired private AgentEvidencePacketRepository evidencePacketRepository;
     @Autowired private AgentPolicyDecisionRepository policyDecisionRepository;
     @Autowired private AgentAuditEventRepository auditEventRepository;
+    @Autowired private DatabaseRepository databaseRepository;
 
     @Test
     @DisplayName("fixture: SQL/dbt publish flow requires context, branch state, checkpoint, and evidence gate")
     void dataAgentFixture_runsStateClosure() {
         AgentStateService service = service();
         String tenantId = "tn_data_agent_fixture";
+        DatabaseEntity database = new DatabaseEntity();
+        database.setTenantId(tenantId);
+        database.setName("agent_state_fixture");
+        database.setStatus(DatabaseStatus.RUNNING);
+        database.setComputeSize("1x");
+        database.setSuspendTimeout("1h");
+        database.setStorageLimitGb(10);
+        database.setComputeHost("127.0.0.1");
+        database.setComputePort(55433);
+        databaseRepository.save(database);
 
         AgentStateDtos.TaskRunResponse task = service.createTaskRun(
                 tenantId,
@@ -128,6 +143,52 @@ class AgentStateDataAgentSmokeTest {
     }
 
     private AgentStateService service() {
+        AgentStateDataPlaneStore dataPlaneStore = Mockito.mock(AgentStateDataPlaneStore.class);
+        Mockito.when(dataPlaneStore.createWorkspace(Mockito.any(DatabaseEntity.class), Mockito.anyString()))
+                .thenAnswer(inv -> new AgentStateDataPlaneStore.DataPlaneWorkspace(
+                        "ws_fixture",
+                        "awb_root",
+                        inv.<DatabaseEntity>getArgument(0).getId(),
+                        java.time.Instant.now()));
+        Mockito.when(dataPlaneStore.createStageRun(Mockito.any(DatabaseEntity.class), Mockito.anyString(), Mockito.anyString(), Mockito.any(), Mockito.any()))
+                .thenAnswer(inv -> new AgentStateDtos.StageRunDetailResponse(
+                        "stage_" + java.util.UUID.randomUUID().toString().substring(0, 8),
+                        inv.getArgument(1),
+                        inv.getArgument(2),
+                        "running",
+                        inv.getArgument(3),
+                        inv.getArgument(4),
+                        java.time.Instant.now()));
+        Mockito.when(dataPlaneStore.forkBranch(Mockito.any(DatabaseEntity.class), Mockito.anyString(), Mockito.any(), Mockito.any(), Mockito.any()))
+                .thenAnswer(inv -> new AgentStateDtos.BranchDetailResponse(
+                        "awb_" + java.util.UUID.randomUUID().toString().substring(0, 8),
+                        inv.getArgument(1),
+                        "awb_root",
+                        inv.getArgument(3),
+                        "branch",
+                        inv.getArgument(4),
+                        "active",
+                        java.time.Instant.now()));
+        Mockito.when(dataPlaneStore.recordArtifact(Mockito.any(DatabaseEntity.class), Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
+                .thenReturn(new AgentStateDtos.IdResponse("artifact_fixture"));
+        Mockito.when(dataPlaneStore.appendStateCommit(Mockito.any(DatabaseEntity.class), Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.any()))
+                .thenReturn(new AgentStateDtos.IdResponse("commit_fixture"));
+        Mockito.when(dataPlaneStore.appendManifestVersion(Mockito.any(DatabaseEntity.class), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyString(), Mockito.any(), Mockito.anyMap()))
+                .thenReturn(new AgentStateDtos.IdResponse("ckpt_fixture"));
+        Mockito.when(dataPlaneStore.restorePlan(Mockito.any(DatabaseEntity.class), Mockito.eq("ckpt_fixture")))
+                .thenReturn(java.util.Optional.of(new AgentStateDtos.RestorePlanResponse(
+                        "ckpt_fixture", List.of("artifact_fixture"), List.of(), true)));
+        Mockito.when(dataPlaneStore.createEvidencePacket(Mockito.any(DatabaseEntity.class), Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyList()))
+                .thenAnswer(inv -> {
+                    List<String> refs = inv.getArgument(4);
+                    return new AgentStateDtos.IdResponse(refs.isEmpty() ? "evidence_missing" : "evidence_verified");
+                });
+        Mockito.when(dataPlaneStore.findEvidencePacket(Mockito.any(DatabaseEntity.class), Mockito.eq("evidence_missing")))
+                .thenReturn(java.util.Optional.of(new AgentStateDtos.EvidencePacketDetailResponse(
+                        "evidence_missing", "task_fixture", "branch_fixture", "claim", "pending", List.of(), java.time.Instant.now())));
+        Mockito.when(dataPlaneStore.findEvidencePacket(Mockito.any(DatabaseEntity.class), Mockito.eq("evidence_verified")))
+                .thenReturn(java.util.Optional.of(new AgentStateDtos.EvidencePacketDetailResponse(
+                        "evidence_verified", "task_fixture", "branch_fixture", "claim", "pending", List.of("artifact_fixture"), java.time.Instant.now())));
         return new AgentStateService(
                 taskRunRepository,
                 stageRunRepository,
@@ -142,6 +203,8 @@ class AgentStateDataAgentSmokeTest {
                 evidencePacketRepository,
                 policyDecisionRepository,
                 auditEventRepository,
+                databaseRepository,
+                dataPlaneStore,
                 new ObjectMapper());
     }
 }

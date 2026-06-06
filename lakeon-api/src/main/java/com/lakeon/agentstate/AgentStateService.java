@@ -3,7 +3,11 @@ package com.lakeon.agentstate;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.model.enums.DatabaseStatus;
+import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.exception.NotFoundException;
+import com.lakeon.service.exception.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +33,8 @@ public class AgentStateService {
     private final AgentEvidencePacketRepository evidencePacketRepository;
     private final AgentPolicyDecisionRepository policyDecisionRepository;
     private final AgentAuditEventRepository auditEventRepository;
+    private final DatabaseRepository databaseRepository;
+    private final AgentStateDataPlaneStore dataPlaneStore;
     private final ObjectMapper objectMapper;
 
     @Autowired
@@ -46,6 +52,8 @@ public class AgentStateService {
                              AgentEvidencePacketRepository evidencePacketRepository,
                              AgentPolicyDecisionRepository policyDecisionRepository,
                              AgentAuditEventRepository auditEventRepository,
+                             DatabaseRepository databaseRepository,
+                             AgentStateDataPlaneStore dataPlaneStore,
                              ObjectMapper objectMapper) {
         this.taskRunRepository = taskRunRepository;
         this.agentAppRepository = agentAppRepository;
@@ -61,6 +69,8 @@ public class AgentStateService {
         this.evidencePacketRepository = evidencePacketRepository;
         this.policyDecisionRepository = policyDecisionRepository;
         this.auditEventRepository = auditEventRepository;
+        this.databaseRepository = databaseRepository;
+        this.dataPlaneStore = dataPlaneStore;
         this.objectMapper = objectMapper;
     }
 
@@ -77,11 +87,13 @@ public class AgentStateService {
                       AgentEvidencePacketRepository evidencePacketRepository,
                       AgentPolicyDecisionRepository policyDecisionRepository,
                       AgentAuditEventRepository auditEventRepository,
+                      DatabaseRepository databaseRepository,
+                      AgentStateDataPlaneStore dataPlaneStore,
                       ObjectMapper objectMapper) {
         this(taskRunRepository, null, stageRunRepository, workspaceRepository, branchRepository,
                 contextNodeRepository, contextPackRepository, checkpointRepository, stateCommitRepository,
                 artifactRefRepository, lineageEdgeRepository, evidencePacketRepository, policyDecisionRepository,
-                auditEventRepository, objectMapper);
+                auditEventRepository, databaseRepository, dataPlaneStore, objectMapper);
     }
 
     AgentStateService(AgentTaskRunRepository taskRunRepository,
@@ -96,10 +108,13 @@ public class AgentStateService {
                       AgentLineageEdgeRepository lineageEdgeRepository,
                       AgentEvidencePacketRepository evidencePacketRepository,
                       AgentPolicyDecisionRepository policyDecisionRepository,
-                      AgentAuditEventRepository auditEventRepository) {
+                      AgentAuditEventRepository auditEventRepository,
+                      DatabaseRepository databaseRepository,
+                      AgentStateDataPlaneStore dataPlaneStore) {
         this(taskRunRepository, agentAppRepository, null, workspaceRepository, branchRepository, contextNodeRepository,
                 contextPackRepository, checkpointRepository, stateCommitRepository, artifactRefRepository,
                 lineageEdgeRepository, evidencePacketRepository, policyDecisionRepository, auditEventRepository,
+                databaseRepository, dataPlaneStore,
                 new ObjectMapper());
     }
 
@@ -144,26 +159,19 @@ public class AgentStateService {
     public AgentStateDtos.TaskRunDetailResponse getTaskRun(String tenantId, String taskRunId) {
         AgentTaskRunEntity task = taskRunRepository.findByIdAndTenantId(taskRunId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Task run not found: " + taskRunId));
-        List<AgentStageRunEntity> stages = stageRunRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, taskRunId);
         AgentWorkspaceEntity workspace = workspaceRepository.findByTenantIdAndTaskRunId(tenantId, taskRunId).orElse(null);
-        List<AgentWorkspaceBranchEntity> branches = workspace == null
-                ? List.of()
-                : branchRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtAsc(tenantId, workspace.getId());
+        AgentStateDtos.DataPlaneDetail detail = workspace == null || workspace.getDatabaseId() == null
+                ? new AgentStateDtos.DataPlaneDetail(List.of(), List.of(), List.of(), List.of(), List.of(), List.of())
+                : dataPlaneStore.loadDetail(findDataPlaneDatabase(tenantId, workspace.getDatabaseId()), taskRunId, workspace);
         return new AgentStateDtos.TaskRunDetailResponse(
-                taskRunSummary(task, stages, workspace, branches,
-                        evidencePacketRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, taskRunId),
-                        auditEventRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, taskRunId)),
-                stages.stream().map(this::stageRunDetail).toList(),
-                workspace == null ? null : workspaceDetail(workspace, branches),
-                branches.stream().map(this::branchDetail).toList(),
-                stateCommitRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, taskRunId)
-                        .stream().map(this::stateCommitDetail).toList(),
-                artifactRefRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, taskRunId)
-                        .stream().map(this::artifactDetail).toList(),
-                evidencePacketRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, taskRunId)
-                        .stream().map(this::evidencePacketDetail).toList(),
-                auditEventRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, taskRunId)
-                        .stream().map(this::auditEventDetail).toList());
+                taskRunSummary(task, detail.stages(), workspace, detail.branches(), detail.evidencePackets(), detail.auditEvents()),
+                detail.stages(),
+                workspace == null ? null : workspaceDetail(workspace),
+                detail.branches(),
+                detail.commits(),
+                detail.artifacts(),
+                detail.evidencePackets(),
+                detail.auditEvents());
     }
 
     @Transactional
@@ -191,44 +199,46 @@ public class AgentStateService {
     @Transactional
     public AgentStateDtos.StageRunResponse createStageRun(
             String tenantId, String taskRunId, AgentStateDtos.CreateStageRunRequest request) {
-        AgentStageRunEntity entity = new AgentStageRunEntity();
-        entity.setTenantId(tenantId);
-        entity.setTaskRunId(taskRunId);
-        entity.setStageId(request.stageId());
-        entity.setBranchId(request.branchId());
-        entity.setContextPackId(request.contextPackId());
-        AgentStageRunEntity saved = stageRunRepository.save(entity);
+        AgentWorkspaceEntity workspace = workspaceRepository.findByTenantIdAndTaskRunId(tenantId, taskRunId).orElse(null);
+        DatabaseEntity database = workspace == null || workspace.getDatabaseId() == null
+                ? resolveDataPlaneDatabase(tenantId, null)
+                : findDataPlaneDatabase(tenantId, workspace.getDatabaseId());
+        AgentStateDtos.StageRunDetailResponse dataPlaneStage = dataPlaneStore.createStageRun(
+                database,
+                taskRunId,
+                request.stageId(),
+                request.branchId(),
+                request.contextPackId());
         return new AgentStateDtos.StageRunResponse(
-                saved.getId(), saved.getTaskRunId(), saved.getStageId(), saved.getStatus(),
-                saved.getBranchId(), saved.getContextPackId());
+                dataPlaneStage.id(), dataPlaneStage.taskRunId(), dataPlaneStage.stageId(), dataPlaneStage.status(),
+                dataPlaneStage.branchId(), dataPlaneStage.contextPackId());
     }
 
     @Transactional
     public AgentStateDtos.WorkspaceResponse createWorkspace(String tenantId, AgentStateDtos.CreateWorkspaceRequest request) {
+        DatabaseEntity database = resolveDataPlaneDatabase(tenantId, request.databaseId());
+        AgentStateDataPlaneStore.DataPlaneWorkspace dataPlaneWorkspace = dataPlaneStore.createWorkspace(database, request.taskRunId());
         AgentWorkspaceEntity workspace = new AgentWorkspaceEntity();
+        workspace.setId(dataPlaneWorkspace.id());
         workspace.setTenantId(tenantId);
         workspace.setTaskRunId(request.taskRunId());
+        workspace.setDatabaseId(database.getId());
+        workspace.setRootBranchId(dataPlaneWorkspace.rootBranchId());
         AgentWorkspaceEntity savedWorkspace = workspaceRepository.save(workspace);
 
-        AgentWorkspaceBranchEntity root = new AgentWorkspaceBranchEntity();
-        root.setTenantId(tenantId);
-        root.setWorkspaceId(savedWorkspace.getId());
-        root.setName("root");
-        AgentWorkspaceBranchEntity savedRoot = branchRepository.save(root);
-        return new AgentStateDtos.WorkspaceResponse(savedWorkspace.getId(), savedRoot.getId());
+        return new AgentStateDtos.WorkspaceResponse(savedWorkspace.getId(), dataPlaneWorkspace.rootBranchId());
     }
 
     @Transactional
     public AgentStateDtos.BranchResponse forkBranch(String tenantId, AgentStateDtos.ForkBranchRequest request) {
-        AgentWorkspaceBranchEntity branch = new AgentWorkspaceBranchEntity();
-        branch.setTenantId(tenantId);
-        branch.setWorkspaceId(request.workspaceId());
-        branch.setParentBranchId(resolveParentBranchId(tenantId, request.workspaceId(), request.parentBranchId()));
-        branch.setStageRunId(request.stageRunId());
-        branch.setName("branch");
-        branch.setHypothesis(request.hypothesis());
-        AgentWorkspaceBranchEntity saved = branchRepository.save(branch);
-        return new AgentStateDtos.BranchResponse(saved.getId());
+        AgentWorkspaceEntity workspace = findWorkspace(tenantId, request.workspaceId());
+        AgentStateDtos.BranchDetailResponse branch = dataPlaneStore.forkBranch(
+                findDataPlaneDatabase(tenantId, workspace.getDatabaseId()),
+                request.workspaceId(),
+                request.parentBranchId(),
+                request.stageRunId(),
+                request.hypothesis());
+        return new AgentStateDtos.BranchResponse(branch.id());
     }
 
     @Transactional
@@ -272,24 +282,22 @@ public class AgentStateService {
 
     @Transactional
     public AgentStateDtos.IdResponse appendStateCommit(String tenantId, AgentStateDtos.AppendStateCommitRequest request) {
-        AgentStateCommitEntity commit = new AgentStateCommitEntity();
-        commit.setTenantId(tenantId);
-        commit.setTaskRunId(request.taskRunId());
-        commit.setStageRunId(request.stageRunId());
-        commit.setBranchId(request.branchId());
-        commit.setSummary(request.summary());
-        return new AgentStateDtos.IdResponse(stateCommitRepository.save(commit).getId());
+        return dataPlaneStore.appendStateCommit(
+                dataPlaneDatabaseForTask(tenantId, request.taskRunId()),
+                request.taskRunId(),
+                request.stageRunId(),
+                request.branchId(),
+                request.summary());
     }
 
     @Transactional
     public AgentStateDtos.IdResponse recordArtifact(String tenantId, AgentStateDtos.RecordArtifactRequest request) {
-        AgentArtifactRefEntity artifact = new AgentArtifactRefEntity();
-        artifact.setTenantId(tenantId);
-        artifact.setTaskRunId(request.taskRunId());
-        artifact.setStageRunId(request.stageRunId());
-        artifact.setBranchId(request.branchId());
-        artifact.setKind(request.kind());
-        return new AgentStateDtos.IdResponse(artifactRefRepository.save(artifact).getId());
+        return dataPlaneStore.recordArtifact(
+                dataPlaneDatabaseForTask(tenantId, request.taskRunId()),
+                request.taskRunId(),
+                request.stageRunId(),
+                request.branchId(),
+                request.kind());
     }
 
     @Transactional
@@ -305,36 +313,46 @@ public class AgentStateService {
 
     @Transactional
     public AgentStateDtos.CheckpointResponse createCheckpoint(String tenantId, AgentStateDtos.CreateCheckpointRequest request) {
-        AgentCheckpointEntity checkpoint = new AgentCheckpointEntity();
-        checkpoint.setTenantId(tenantId);
-        checkpoint.setBranchId(request.branchId());
-        checkpoint.setStageRunId(request.stageRunId());
-        checkpoint.setManifestJson(toJson(request.manifest() == null ? Map.of() : request.manifest()));
-        return new AgentStateDtos.CheckpointResponse(checkpointRepository.save(checkpoint).getId());
+        String taskRunId = "checkpoint:" + request.branchId();
+        AgentStateDtos.IdResponse response = dataPlaneStore.appendManifestVersion(
+                resolveDataPlaneDatabase(tenantId, null),
+                taskRunId,
+                request.branchId(),
+                request.stageRunId(),
+                "checkpoint",
+                "checkpoint",
+                request.manifest() == null ? Map.of() : request.manifest());
+        return new AgentStateDtos.CheckpointResponse(response.id());
     }
 
     @Transactional
     public AgentStateDtos.IdResponse snapshotManifest(String tenantId, AgentStateDtos.SnapshotManifestRequest request) {
-        AgentCheckpointEntity checkpoint = new AgentCheckpointEntity();
-        checkpoint.setTenantId(tenantId);
-        checkpoint.setBranchId(request.branchId());
-        checkpoint.setStageRunId(request.stageRunId());
-        checkpoint.setManifestJson(toJson(Map.of(
+        return dataPlaneStore.appendManifestVersion(
+                dataPlaneDatabaseForTask(tenantId, request.taskRunId()),
+                request.taskRunId(),
+                request.branchId(),
+                request.stageRunId(),
+                "artifact_manifest",
+                "snapshot manifest",
+                Map.of(
                 "task_run_id", request.taskRunId(),
                 "stage_run_id", request.stageRunId(),
                 "branch_id", request.branchId(),
                 "artifacts", request.artifactIds() == null ? List.of() : request.artifactIds()
-        )));
-        return new AgentStateDtos.IdResponse(checkpointRepository.save(checkpoint).getId());
+        ));
     }
 
     @Transactional
     public AgentStateDtos.IdResponse recordBranchVersion(String tenantId, AgentStateDtos.RecordBranchVersionRequest request) {
-        AgentCheckpointEntity checkpoint = new AgentCheckpointEntity();
-        checkpoint.setTenantId(tenantId);
-        checkpoint.setBranchId(request.branchId());
-        checkpoint.setStageRunId(request.stageRunId());
-        checkpoint.setManifestJson(toJson(Map.of(
+        AgentWorkspaceEntity workspace = findWorkspace(tenantId, request.workspaceId());
+        return dataPlaneStore.appendManifestVersion(
+                findDataPlaneDatabase(tenantId, workspace.getDatabaseId()),
+                workspace.getTaskRunId(),
+                request.branchId(),
+                request.stageRunId(),
+                "branch_version",
+                request.summary() == null ? "" : request.summary(),
+                Map.of(
                 "kind", "branch_version",
                 "workspace_id", request.workspaceId(),
                 "branch_id", request.branchId(),
@@ -344,8 +362,7 @@ public class AgentStateService {
                 "manifest_id", request.manifestId(),
                 "lineage_ids", request.lineageIds() == null ? List.of() : request.lineageIds(),
                 "summary", request.summary() == null ? "" : request.summary()
-        )));
-        return new AgentStateDtos.IdResponse(checkpointRepository.save(checkpoint).getId());
+        ));
     }
 
     @Transactional
@@ -366,41 +383,48 @@ public class AgentStateService {
         putIfPresent(manifest, "artifact", request.artifact());
         putIfPresent(manifest, "metadata", request.metadata());
 
-        AgentCheckpointEntity checkpoint = new AgentCheckpointEntity();
-        checkpoint.setTenantId(tenantId);
-        checkpoint.setBranchId(request.branchId() == null ? "session:" + request.sessionId() : request.branchId());
-        checkpoint.setStageRunId(request.messageId());
-        checkpoint.setManifestJson(toJson(manifest));
-        return new AgentStateDtos.IdResponse(checkpointRepository.save(checkpoint).getId());
+        String taskRunId = "runtime:" + request.sessionId();
+        return dataPlaneStore.appendManifestVersion(
+                resolveDataPlaneDatabase(tenantId, null),
+                taskRunId,
+                request.branchId() == null ? "session:" + request.sessionId() : request.branchId(),
+                request.messageId(),
+                "runtime_event",
+                request.summary(),
+                manifest);
     }
 
     public AgentStateDtos.RestorePlanResponse restoreCheckpoint(String tenantId, String checkpointId) {
-        AgentCheckpointEntity checkpoint = checkpointRepository.findByIdAndTenantId(checkpointId, tenantId)
+        return databaseRepository.findAllByTenantIdAndStatus(tenantId, DatabaseStatus.RUNNING)
+                .stream()
+                .map(database -> dataPlaneStore.restorePlan(database, checkpointId))
+                .filter(java.util.Optional::isPresent)
+                .map(java.util.Optional::get)
+                .findFirst()
                 .orElseThrow(() -> new NotFoundException("Checkpoint not found: " + checkpointId));
-        Map<String, Object> manifest = fromJsonObject(checkpoint.getManifestJson());
-        List<String> restorableRefs = stringList(manifest.get("artifacts"));
-        List<String> missingRefs = stringList(manifest.get("missing"));
-        return new AgentStateDtos.RestorePlanResponse(
-                checkpoint.getId(), restorableRefs, missingRefs, missingRefs.isEmpty());
     }
 
     @Transactional
     public AgentStateDtos.EvidencePacketResponse createEvidencePacket(
             String tenantId, AgentStateDtos.CreateEvidencePacketRequest request) {
-        AgentEvidencePacketEntity packet = new AgentEvidencePacketEntity();
-        packet.setTenantId(tenantId);
-        packet.setTaskRunId(request.taskRunId());
-        packet.setBranchId(request.branchId());
-        packet.setClaim(request.claim());
-        packet.setEvidenceRefsJson(toJson(request.evidenceRefs() == null ? List.of() : request.evidenceRefs()));
-        AgentEvidencePacketEntity saved = evidencePacketRepository.save(packet);
-        return new AgentStateDtos.EvidencePacketResponse(saved.getId(), saved.getStatus());
+        AgentStateDtos.IdResponse response = dataPlaneStore.createEvidencePacket(
+                dataPlaneDatabaseForTask(tenantId, request.taskRunId()),
+                request.taskRunId(),
+                request.branchId(),
+                request.claim(),
+                request.evidenceRefs());
+        return new AgentStateDtos.EvidencePacketResponse(response.id(), "pending");
     }
 
     public AgentStateDtos.PolicyDecisionResponse evaluateEvidence(String tenantId, String evidencePacketId) {
-        AgentEvidencePacketEntity packet = evidencePacketRepository.findByIdAndTenantId(evidencePacketId, tenantId)
+        AgentStateDtos.EvidencePacketDetailResponse packet = databaseRepository.findAllByTenantIdAndStatus(tenantId, DatabaseStatus.RUNNING)
+                .stream()
+                .map(database -> dataPlaneStore.findEvidencePacket(database, evidencePacketId))
+                .filter(java.util.Optional::isPresent)
+                .map(java.util.Optional::get)
+                .findFirst()
                 .orElseThrow(() -> new NotFoundException("Evidence packet not found: " + evidencePacketId));
-        List<String> evidenceRefs = fromJsonList(packet.getEvidenceRefsJson());
+        List<String> evidenceRefs = packet.evidenceRefs();
         if (evidenceRefs.isEmpty()) {
             return new AgentStateDtos.PolicyDecisionResponse(false, "missing verified evidence");
         }
@@ -427,20 +451,24 @@ public class AgentStateService {
 
     @Transactional
     public AgentStateDtos.IdResponse appendAuditEvent(String tenantId, AgentStateDtos.AppendAuditEventRequest request) {
-        AgentAuditEventEntity event = new AgentAuditEventEntity();
-        event.setTenantId(tenantId);
-        event.setTaskRunId(request.taskRunId());
-        event.setBranchId(request.branchId());
-        event.setAction(request.action());
-        event.setResult(request.result());
-        event.setReason(request.reason());
-        return new AgentStateDtos.IdResponse(auditEventRepository.save(event).getId());
+        return dataPlaneStore.appendAuditEvent(
+                dataPlaneDatabaseForTask(tenantId, request.taskRunId()),
+                request.taskRunId(),
+                request.branchId(),
+                request.action(),
+                request.result(),
+                request.reason());
     }
 
     public List<AgentStateDtos.IdResponse> listAuditEvents(String tenantId, String taskRunId) {
-        return auditEventRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, taskRunId)
+        AgentWorkspaceEntity workspace = workspaceRepository.findByTenantIdAndTaskRunId(tenantId, taskRunId).orElse(null);
+        if (workspace == null || workspace.getDatabaseId() == null) {
+            return List.of();
+        }
+        return dataPlaneStore.loadDetail(findDataPlaneDatabase(tenantId, workspace.getDatabaseId()), taskRunId, workspace)
+                .auditEvents()
                 .stream()
-                .map(event -> new AgentStateDtos.IdResponse(event.getId()))
+                .map(event -> new AgentStateDtos.IdResponse(event.id()))
                 .toList();
     }
 
@@ -493,30 +521,29 @@ public class AgentStateService {
     private record BuiltInAgentApp(String key, String displayName, String type, String version, List<String> stageSchema) {}
 
     private AgentStateDtos.TaskRunSummaryResponse taskRunSummary(String tenantId, AgentTaskRunEntity task) {
-        List<AgentStageRunEntity> stages = stageRunRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, task.getId());
         AgentWorkspaceEntity workspace = workspaceRepository.findByTenantIdAndTaskRunId(tenantId, task.getId()).orElse(null);
-        List<AgentWorkspaceBranchEntity> branches = workspace == null
-                ? List.of()
-                : branchRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtAsc(tenantId, workspace.getId());
+        AgentStateDtos.DataPlaneDetail detail = workspace == null || workspace.getDatabaseId() == null
+                ? new AgentStateDtos.DataPlaneDetail(List.of(), List.of(), List.of(), List.of(), List.of(), List.of())
+                : dataPlaneStore.loadDetail(findDataPlaneDatabase(tenantId, workspace.getDatabaseId()), task.getId(), workspace);
         return taskRunSummary(
                 task,
-                stages,
+                detail.stages(),
                 workspace,
-                branches,
-                evidencePacketRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, task.getId()),
-                auditEventRepository.findByTenantIdAndTaskRunIdOrderByCreatedAtAsc(tenantId, task.getId()));
+                detail.branches(),
+                detail.evidencePackets(),
+                detail.auditEvents());
     }
 
     private AgentStateDtos.TaskRunSummaryResponse taskRunSummary(
             AgentTaskRunEntity task,
-            List<AgentStageRunEntity> stages,
+            List<AgentStateDtos.StageRunDetailResponse> stages,
             AgentWorkspaceEntity workspace,
-            List<AgentWorkspaceBranchEntity> branches,
-            List<AgentEvidencePacketEntity> evidencePackets,
-            List<AgentAuditEventEntity> auditEvents) {
-        AgentStageRunEntity currentStage = stages.isEmpty() ? null : stages.get(stages.size() - 1);
-        AgentWorkspaceBranchEntity latestBranch = branches.isEmpty() ? null : branches.get(branches.size() - 1);
-        AgentEvidencePacketEntity latestEvidence = evidencePackets.isEmpty() ? null : evidencePackets.get(evidencePackets.size() - 1);
+            List<AgentStateDtos.BranchDetailResponse> branches,
+            List<AgentStateDtos.EvidencePacketDetailResponse> evidencePackets,
+            List<AgentStateDtos.AuditEventDetailResponse> auditEvents) {
+        AgentStateDtos.StageRunDetailResponse currentStage = stages.isEmpty() ? null : stages.get(stages.size() - 1);
+        AgentStateDtos.BranchDetailResponse latestBranch = branches.isEmpty() ? null : branches.get(branches.size() - 1);
+        AgentStateDtos.EvidencePacketDetailResponse latestEvidence = evidencePackets.isEmpty() ? null : evidencePackets.get(evidencePackets.size() - 1);
         String derivedAuditResult = derivedAuditResult(auditEvents);
         return new AgentStateDtos.TaskRunSummaryResponse(
                 task.getId(),
@@ -524,12 +551,12 @@ public class AgentStateService {
                 task.getHarnessId(),
                 derivedStatus(task.getStatus(), derivedAuditResult),
                 task.getAgentAppId(),
-                currentStage == null ? null : currentStage.getStageId(),
+                currentStage == null ? null : currentStage.stageId(),
                 workspace == null ? null : workspace.getId(),
                 branches.size(),
                 evidencePackets.size(),
-                latestBranch == null ? null : latestBranch.getId(),
-                latestEvidence == null ? null : latestEvidence.getId(),
+                latestBranch == null ? null : latestBranch.id(),
+                latestEvidence == null ? null : latestEvidence.id(),
                 derivedAuditResult,
                 task.getCreatedAt());
     }
@@ -540,20 +567,20 @@ public class AgentStateService {
         return storedStatus;
     }
 
-    private String derivedAuditResult(List<AgentAuditEventEntity> auditEvents) {
+    private String derivedAuditResult(List<AgentStateDtos.AuditEventDetailResponse> auditEvents) {
         return auditEvents.stream()
-                .filter(event -> "paperbench_report_gate".equals(event.getAction()))
+                .filter(event -> "paperbench_report_gate".equals(event.action()))
                 .reduce((first, second) -> second)
-                .map(AgentAuditEventEntity::getResult)
+                .map(AgentStateDtos.AuditEventDetailResponse::result)
                 .or(() -> auditEvents.stream()
-                        .filter(event -> "workflow_trace:workflow_run".equals(event.getAction()) && !"started".equals(event.getResult()))
+                        .filter(event -> "workflow_trace:workflow_run".equals(event.action()) && !"started".equals(event.result()))
                         .reduce((first, second) -> second)
-                        .map(AgentAuditEventEntity::getResult))
+                        .map(AgentStateDtos.AuditEventDetailResponse::result))
                 .or(() -> auditEvents.stream()
-                        .filter(event -> !event.getAction().startsWith("workflow_trace:"))
+                        .filter(event -> !event.action().startsWith("workflow_trace:"))
                         .reduce((first, second) -> second)
-                        .map(AgentAuditEventEntity::getResult))
-                .orElseGet(() -> auditEvents.isEmpty() ? null : auditEvents.get(auditEvents.size() - 1).getResult());
+                        .map(AgentStateDtos.AuditEventDetailResponse::result))
+                .orElseGet(() -> auditEvents.isEmpty() ? null : auditEvents.get(auditEvents.size() - 1).result());
     }
 
     private AgentStateDtos.StageRunDetailResponse stageRunDetail(AgentStageRunEntity stage) {
@@ -567,15 +594,11 @@ public class AgentStateService {
                 stage.getCreatedAt());
     }
 
-    private AgentStateDtos.WorkspaceDetailResponse workspaceDetail(AgentWorkspaceEntity workspace, List<AgentWorkspaceBranchEntity> branches) {
+    private AgentStateDtos.WorkspaceDetailResponse workspaceDetail(AgentWorkspaceEntity workspace) {
         return new AgentStateDtos.WorkspaceDetailResponse(
                 workspace.getId(),
                 workspace.getTaskRunId(),
-                branches.stream()
-                        .filter(branch -> "root".equals(branch.getName()))
-                        .findFirst()
-                        .map(AgentWorkspaceBranchEntity::getId)
-                        .orElse(null),
+                workspace.getRootBranchId(),
                 workspace.getCreatedAt());
     }
 
@@ -636,6 +659,35 @@ public class AgentStateService {
     private AgentAppEntity findAgentApp(String tenantId, String appId) {
         return agentAppRepository.findByIdAndTenantId(appId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Agent app not found: " + appId));
+    }
+
+    private AgentWorkspaceEntity findWorkspace(String tenantId, String workspaceId) {
+        return workspaceRepository.findById(workspaceId)
+                .filter(workspace -> tenantId.equals(workspace.getTenantId()))
+                .orElseThrow(() -> new NotFoundException("Agent workspace not found: " + workspaceId));
+    }
+
+    private DatabaseEntity dataPlaneDatabaseForTask(String tenantId, String taskRunId) {
+        AgentWorkspaceEntity workspace = workspaceRepository.findByTenantIdAndTaskRunId(tenantId, taskRunId)
+                .orElseThrow(() -> new NotFoundException("Agent workspace not found for task run: " + taskRunId));
+        return findDataPlaneDatabase(tenantId, workspace.getDatabaseId());
+    }
+
+    private DatabaseEntity resolveDataPlaneDatabase(String tenantId, String requestedDatabaseId) {
+        if (requestedDatabaseId != null && !requestedDatabaseId.isBlank()) {
+            return findDataPlaneDatabase(tenantId, requestedDatabaseId);
+        }
+        return databaseRepository.findAllByTenantIdAndStatus(tenantId, DatabaseStatus.RUNNING).stream()
+                .findFirst()
+                .orElseThrow(() -> new BadRequestException("Agent state requires a running DBay data-plane database"));
+    }
+
+    private DatabaseEntity findDataPlaneDatabase(String tenantId, String databaseId) {
+        if (databaseId == null || databaseId.isBlank()) {
+            throw new BadRequestException("Agent state workspace is not bound to a data-plane database");
+        }
+        return databaseRepository.findByIdAndTenantId(databaseId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Data-plane database not found: " + databaseId));
     }
 
     private String blankDefault(String value, String fallback) {

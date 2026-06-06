@@ -151,7 +151,12 @@ public final class AgentStateDtos {
     }
 
     public record CreateWorkspaceRequest(
-            @JsonProperty("task_run_id") @JsonAlias("taskRunId") @NotBlank String taskRunId) {}
+            @JsonProperty("task_run_id") @JsonAlias("taskRunId") @NotBlank String taskRunId,
+            @JsonProperty("database_id") @JsonAlias("databaseId") String databaseId) {
+        public CreateWorkspaceRequest(String taskRunId) {
+            this(taskRunId, null);
+        }
+    }
 
     public record WorkspaceResponse(
             String id,
@@ -395,4 +400,12 @@ public final class AgentStateDtos {
     }
 
     public record IdResponse(String id) {}
+
+    public record DataPlaneDetail(
+            List<StageRunDetailResponse> stages,
+            List<BranchDetailResponse> branches,
+            List<StateCommitDetailResponse> commits,
+            List<ArtifactDetailResponse> artifacts,
+            List<EvidencePacketDetailResponse> evidencePackets,
+            List<AuditEventDetailResponse> auditEvents) {}
 }
