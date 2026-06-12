@@ -14,7 +14,7 @@ api:
 proxy:
   replicas: 2
   authEndpoint: ""
-  projectInfoCache: "size=0,max_roles=0"
+  projectInfoCache: "size=0,ttl=0s,max_roles=0,gc_interval=60m"
   autoscaling:
     enabled: true
     minReplicas: 2
