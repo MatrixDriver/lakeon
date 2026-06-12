@@ -1,6 +1,8 @@
 package com.lakeon.k8s;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.BranchEntity;
 import com.lakeon.model.entity.DatabaseEntity;
@@ -682,9 +684,7 @@ public class ComputePodManager {
             ConfigMap cm = k8sClient.configMaps().inNamespace(namespace).withName(configMapName).get();
             if (cm != null && cm.getData() != null && cm.getData().containsKey("config.json")) {
                 String config = cm.getData().get("config.json");
-                String updated = config.replaceFirst(
-                    "(\"name\"\\s*:\\s*\"" + java.util.regex.Pattern.quote(username) + "\"[^}]*\"encrypted_password\"\\s*:\\s*\")[^\"]*\"",
-                    "$1" + java.util.regex.Matcher.quoteReplacement(scramHash) + "\"");
+                String updated = updatePasswordInComputeConfig(config, username, scramHash);
                 if (!updated.equals(config)) {
                     cm.getData().put("config.json", updated);
                     k8sClient.configMaps().inNamespace(namespace).withName(configMapName).createOrReplace(cm);
@@ -694,6 +694,23 @@ public class ComputePodManager {
         } catch (Exception e) {
             log.warn("Failed to update ConfigMap {} password: {}", configMapName, e.getMessage());
         }
+    }
+
+    String updatePasswordInComputeConfig(String configJson, String username, String scramHash) throws java.io.IOException {
+        JsonNode root = objectMapper.readTree(configJson);
+        JsonNode roles = root.path("spec").path("cluster").path("roles");
+        if (!roles.isArray()) {
+            return configJson;
+        }
+        boolean updated = false;
+        for (JsonNode role : roles) {
+            if (role instanceof ObjectNode objectRole
+                    && username.equals(objectRole.path("name").asText(null))) {
+                objectRole.put("encrypted_password", scramHash);
+                updated = true;
+            }
+        }
+        return updated ? objectMapper.writeValueAsString(root) : configJson;
     }
 
     /**

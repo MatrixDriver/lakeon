@@ -1,3 +1,4 @@
+{{- if include "lakeon.dataPlaneEnabled" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -32,7 +33,7 @@ spec:
           args:
             - "--proxy=0.0.0.0:{{ .Values.proxy.listenPort }}"
             - "--auth-backend=control-plane"
-            - "--auth-endpoint=http://lakeon-api:{{ .Values.api.internalPort | default 8088 }}/proxy"
+            - "--auth-endpoint={{ .Values.proxy.authEndpoint | default (printf "http://lakeon-api:%v/proxy" (.Values.api.internalPort | default 8088)) }}"
             - "--wss=0.0.0.0:{{ .Values.proxy.httpPort }}"
             - "--mgmt=127.0.0.1:{{ .Values.proxy.mgmtPort }}"
             {{- if .Values.proxy.tls.enabled }}
@@ -74,3 +75,4 @@ spec:
           secret:
             secretName: {{ .Values.proxy.tls.secretName }}
       {{- end }}
+{{- end }}

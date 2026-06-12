@@ -1,3 +1,4 @@
+{{- if include "lakeon.controlPlaneEnabled" . }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -6,10 +7,15 @@ metadata:
   labels:
     app: lakeon-api
     {{- include "lakeon.labels" . | nindent 4 }}
-  {{- if .Values.api.elb }}
+  {{- if or (and .Values.api.elb .Values.api.elb.id) (and .Values.api.elb .Values.api.elb.autocreate) }}
   annotations:
+    {{- if .Values.api.elb.id }}
     kubernetes.io/elb.id: {{ .Values.api.elb.id | quote }}
+    {{- end }}
     kubernetes.io/elb.class: {{ .Values.api.elb.class | default "union" | quote }}
+    {{- if .Values.api.elb.autocreate }}
+    kubernetes.io/elb.autocreate: {{ .Values.api.elb.autocreate | quote }}
+    {{- end }}
   {{- end }}
 spec:
   type: {{ .Values.api.serviceType }}
@@ -22,3 +28,4 @@ spec:
     - name: http-internal
       port: {{ .Values.api.internalPort | default 8088 }}
       targetPort: http-internal
+{{- end }}

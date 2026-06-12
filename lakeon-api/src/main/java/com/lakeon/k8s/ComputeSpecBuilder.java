@@ -48,8 +48,7 @@ public class ComputeSpecBuilder {
         spec.put("operation_uuid", UUID.randomUUID().toString());
         spec.put("tenant_id", entity.getNeonTenantId());
         spec.put("timeline_id", entity.getNeonTimelineId());
-        String pageserverFqdn = extractPageserverHost() + ".lakeon.svc.cluster.local";
-        spec.put("pageserver_connstring", "postgresql://" + pageserverFqdn + ":6400");
+        spec.put("pageserver_connstring", buildPageserverPgConnstring());
         spec.put("safekeeper_connstrings", parseSafekeeperUrls());
         spec.put("mode", mode);
         spec.put("suspend_timeout_seconds", suspendTimeoutSeconds);
@@ -98,7 +97,6 @@ public class ComputeSpecBuilder {
     }
 
     public List<Map<String, String>> getDefaultPgSettings(DatabaseEntity entity) {
-        String pageserverFqdn = extractPageserverHost() + ".lakeon.svc.cluster.local";
         List<Map<String, String>> settings = new ArrayList<>();
         settings.add(Map.of("name", "shared_preload_libraries", "value", "neon", "vartype", "string"));
         settings.add(Map.of("name", "fsync", "value", "off", "vartype", "bool"));
@@ -110,7 +108,7 @@ public class ComputeSpecBuilder {
         settings.add(Map.of("name", "max_connections", "value", "100", "vartype", "integer"));
         settings.add(Map.of("name", "listen_addresses", "value", "0.0.0.0", "vartype", "string"));
         settings.add(Map.of("name", "neon.pageserver_connstring", "value",
-                "postgresql://pageserver.lakeon.svc.cluster.local:6400", "vartype", "string"));
+                buildPageserverPgConnstring(), "vartype", "string"));
         settings.add(Map.of("name", "neon.safekeepers", "value",
                 props.getNeon().getSafekeeperUrls(), "vartype", "string"));
         settings.add(Map.of("name", "neon.tenant_id", "value",
@@ -120,9 +118,35 @@ public class ComputeSpecBuilder {
         return settings;
     }
 
-    private String extractPageserverHost() {
+    String buildPageserverPgConnstring() {
+        return "postgresql://" + resolvePageserverPgHost() + ":6400";
+    }
+
+    String resolvePageserverPgHost() {
         String url = props.getNeon().getPageserverUrl();
-        return url.replaceAll("https?://", "").replaceAll(":\\d+$", "");
+        String host = url.replaceAll("https?://", "").replaceAll(":\\d+$", "");
+        if (host.contains(".") || isIpv4(host)) {
+            return host;
+        }
+        return host + ".lakeon.svc.cluster.local";
+    }
+
+    private boolean isIpv4(String host) {
+        String[] parts = host.split("\\.");
+        if (parts.length != 4) {
+            return false;
+        }
+        for (String part : parts) {
+            try {
+                int value = Integer.parseInt(part);
+                if (value < 0 || value > 255) {
+                    return false;
+                }
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private List<String> parseSafekeeperUrls() {

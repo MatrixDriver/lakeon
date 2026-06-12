@@ -1,8 +1,9 @@
+{{- if include "lakeon.dataPlaneEnabled" . }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: lakeon-import-script
-  namespace: lakeon-compute
+  namespace: {{ .Values.dataPlane.computeNamespace | default "lakeon-compute" }}
   labels:
     {{- include "lakeon.labels" . | nindent 4 }}
 data:
@@ -10,3 +11,4 @@ data:
 {{ .Files.Get "scripts/import.sh" | indent 4 }}
   sync-setup.sh: |
 {{ .Files.Get "scripts/sync-setup.sh" | indent 4 }}
+{{- end }}

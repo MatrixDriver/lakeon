@@ -36,6 +36,12 @@ lakeon:
     internal-token: ${LAKEON_PROXY_INTERNAL_TOKEN:}
     external-host: ${LAKEON_PROXY_EXTERNAL_HOST:}
     external-port: ${LAKEON_PROXY_EXTERNAL_PORT:4432}
+  data-plane:
+    kube-api-server: ${LAKEON_DATA_PLANE_KUBE_API_SERVER:}
+    kube-token: ${LAKEON_DATA_PLANE_KUBE_TOKEN:}
+    kube-ca-b64: ${LAKEON_DATA_PLANE_KUBE_CA_B64:}
+    namespace: ${LAKEON_DATA_PLANE_NAMESPACE:lakeon}
+    compute-namespace: ${LAKEON_DATA_PLANE_COMPUTE_NAMESPACE:lakeon-compute}
   admin:
     token: ${LAKEON_ADMIN_TOKEN:}
   cost:

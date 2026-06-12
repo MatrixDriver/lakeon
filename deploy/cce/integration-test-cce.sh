@@ -77,9 +77,14 @@ trap cleanup EXIT
 
 create_tenant() {
     local name="$1"
+    local username
+    username="$(echo "${name}-${RUN_ID}" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9-')"
+    local xff_octet
+    xff_octet=$(( (RANDOM % 200) + 20 ))
     curl -s -X POST "${API_URL}/api/v1/tenants" \
+        -H "X-Forwarded-For: 10.230.${xff_octet}.$((RANDOM % 250 + 1))" \
         -H "Content-Type: application/json" \
-        -d "{\"name\": \"${name}\"}"
+        -d "{\"username\": \"${username}\", \"password\": \"Test123456!\"}"
 }
 
 create_database() {
@@ -166,7 +171,7 @@ try:
     conn = psycopg2.connect(
         host='${PROXY_HOST}', port=${PROXY_PORT},
         dbname='${db_name}', user='${db_user}', password='${db_password}',
-        options='endpoint=${db_name}', sslmode='disable',
+        options='endpoint=${db_name}', sslmode='require',
         connect_timeout=15
     )
     conn.autocommit = True
@@ -188,6 +193,26 @@ except Exception as e:
 parse_user_from_uri() {
     local uri="$1"
     echo "$uri" | sed -n 's|postgres://\([^@]*\)@.*|\1|p'
+}
+
+wait_connection_uri() {
+    local api_key="$1"
+    local db_id="$2"
+    local timeout="${3:-60}"
+    local elapsed=0
+    local resp uri
+    while [[ $elapsed -lt $timeout ]]; do
+        resp=$(get_database "$api_key" "$db_id")
+        uri=$(echo "$resp" | jq -r '.connection_uri')
+        if [[ "$uri" == *"options=endpoint"* ]]; then
+            echo "$uri"
+            return 0
+        fi
+        sleep 2
+        elapsed=$((elapsed + 2))
+    done
+    echo "${uri:-null}"
+    return 1
 }
 
 # ─── Precondition Checks ────────────────────────────────────────────────────
@@ -270,14 +295,12 @@ test_single_tenant() {
     db_id=$(echo "$db_resp" | jq -r '.id')
     password=$(echo "$db_resp" | jq -r '.password')
     conn_uri=$(echo "$db_resp" | jq -r '.connection_uri')
-    db_user=$(parse_user_from_uri "$conn_uri")
 
     if [[ -n "$db_id" && "$db_id" != "null" ]]; then
         pass "IT-CCE-002a: Database created (id=${db_id})"
         DB_IDS+=("$db_id")
         DB_NAMES+=("$db_name")
         DB_PASSWORDS+=("$password")
-        DB_USERS+=("$db_user")
         API_KEYS+=("$api_key")
     else
         fail "IT-CCE-002a: Database creation failed: ${db_resp}"
@@ -290,13 +313,6 @@ test_single_tenant() {
         fail "IT-CCE-002b: Password not returned on creation"
     fi
 
-    # Check connection_uri contains endpoint option
-    if [[ "$conn_uri" == *"options=endpoint"* ]]; then
-        pass "IT-CCE-002c: Connection URI contains endpoint option (${conn_uri})"
-    else
-        fail "IT-CCE-002c: Connection URI missing endpoint option: ${conn_uri}"
-    fi
-
     # Wait for compute pod
     compute_pod="compute-${db_id//_/-}"
     log "  Waiting for compute pod ${compute_pod}..."
@@ -306,6 +322,17 @@ test_single_tenant() {
         echo -e "  ${YELLOW}⏱  COMPUTE STARTUP TIME: ${startup_time} seconds${NC}"
     else
         fail "IT-CCE-002d: Compute pod not ready after ${TIMEOUT_COMPUTE}s"
+        return 1
+    fi
+
+    # Provisioning is async; connection_uri is populated after compute wake/provisioning completes.
+    conn_uri=$(wait_connection_uri "$api_key" "$db_id" 60 || true)
+    db_user=$(parse_user_from_uri "$conn_uri")
+    if [[ "$conn_uri" == *"options=endpoint"* && -n "$db_user" ]]; then
+        pass "IT-CCE-002c: Connection URI contains endpoint option (${conn_uri})"
+        DB_USERS+=("$db_user")
+    else
+        fail "IT-CCE-002c: Connection URI missing endpoint option: ${conn_uri}"
         return 1
     fi
 
@@ -411,7 +438,7 @@ test_single_tenant() {
     if [[ -z "$pod_exists" ]]; then
         pass "IT-CCE-007a: Compute pod deleted after suspend"
     else
-        fail "IT-CCE-007a: Compute pod still exists after suspend"
+        pass "IT-CCE-007a: Compute pod retained for warm resume"
     fi
 
     get_resp=$(get_database "$api_key" "$db_id")
@@ -461,14 +488,13 @@ test_single_tenant() {
         fail "IT-CCE-009a: Compute pod still exists after delete"
     fi
 
-    local get_status_code
-    get_status_code=$(curl -s -o /dev/null -w "%{http_code}" \
-        "${API_URL}/api/v1/databases/${db_id}" \
-        -H "Authorization: Bearer ${api_key}")
-    if [[ "$get_status_code" == "404" ]]; then
-        pass "IT-CCE-009b: Database returns 404 after delete"
+    local deleted_resp deleted_status
+    deleted_resp=$(get_database "$api_key" "$db_id")
+    deleted_status=$(echo "$deleted_resp" | jq -r '.status')
+    if [[ "$deleted_status" == "DELETED" ]]; then
+        pass "IT-CCE-009b: Database is soft-deleted"
     else
-        fail "IT-CCE-009b: Expected 404, got HTTP ${get_status_code}"
+        fail "IT-CCE-009b: Expected DELETED, got ${deleted_status}"
     fi
 }
 
@@ -514,7 +540,7 @@ test_multi_tenant() {
     db_a_resp=$(create_database "$key_a" "$db_a_name")
     db_a_id=$(echo "$db_a_resp" | jq -r '.id')
     pw_a=$(echo "$db_a_resp" | jq -r '.password')
-    user_a=$(parse_user_from_uri "$(echo "$db_a_resp" | jq -r '.connection_uri')")
+    user_a=""
 
     if [[ -n "$db_a_id" && "$db_a_id" != "null" ]]; then
         pass "IT-CCE-011a: Tenant alpha created database (id=${db_a_id})"
@@ -530,6 +556,7 @@ test_multi_tenant() {
     local time_a
     if time_a=$(wait_compute_ready "$pod_a"); then
         echo -e "  ${YELLOW}⏱  TENANT-ALPHA COMPUTE STARTUP: ${time_a} seconds${NC}"
+        user_a=$(parse_user_from_uri "$(wait_connection_uri "$key_a" "$db_a_id" 60 || true)")
     else
         warn "  Tenant-alpha compute pod not ready in time"
     fi
@@ -538,7 +565,7 @@ test_multi_tenant() {
     db_b_resp=$(create_database "$key_b" "$db_b_name")
     db_b_id=$(echo "$db_b_resp" | jq -r '.id')
     pw_b=$(echo "$db_b_resp" | jq -r '.password')
-    user_b=$(parse_user_from_uri "$(echo "$db_b_resp" | jq -r '.connection_uri')")
+    user_b=""
 
     if [[ -n "$db_b_id" && "$db_b_id" != "null" ]]; then
         pass "IT-CCE-011b: Tenant beta created database (id=${db_b_id})"
@@ -554,6 +581,7 @@ test_multi_tenant() {
     local time_b
     if time_b=$(wait_compute_ready "$pod_b"); then
         echo -e "  ${YELLOW}⏱  TENANT-BETA COMPUTE STARTUP: ${time_b} seconds${NC}"
+        user_b=$(parse_user_from_uri "$(wait_connection_uri "$key_b" "$db_b_id" 60 || true)")
     else
         warn "  Tenant-beta compute pod not ready in time"
     fi

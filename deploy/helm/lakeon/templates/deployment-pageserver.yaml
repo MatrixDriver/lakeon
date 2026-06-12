@@ -1,3 +1,4 @@
+{{- if include "lakeon.dataPlaneEnabled" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -90,3 +91,4 @@ spec:
             name: pageserver-config
         - name: data
           emptyDir: {}
+{{- end }}

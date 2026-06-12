@@ -2,6 +2,22 @@ global:
   namespace: lakeon
   imagePullSecrets: []
 
+plane:
+  # all keeps the historical single-cluster deployment.
+  # control renders lakeon-api and control-plane support resources.
+  # data renders Neon data-plane services.
+  mode: all
+
+dataPlane:
+  kubeApiServer: ""
+  kubeToken: ""
+  kubeCaB64: ""
+  namespace: lakeon
+  computeNamespace: lakeon-compute
+  pageserverUrl: "http://pageserver.lakeon.svc.cluster.local:9898"
+  safekeeperUrls: "safekeeper-0.safekeeper.lakeon.svc.cluster.local:5454,safekeeper-1.safekeeper.lakeon.svc.cluster.local:5454,safekeeper-2.safekeeper.lakeon.svc.cluster.local:5454"
+  storageBrokerUrl: "http://storage-broker.lakeon.svc.cluster.local:50051"
+
 initImage: "busybox:1.36"
 
 neon:
@@ -15,6 +31,7 @@ neon:
 
 pageserver:
   replicas: 1
+  serviceType: ClusterIP
   httpPort: 9898
   pgPort: 6400
   resources:
@@ -47,6 +64,12 @@ proxy:
   httpPort: 7100
   mgmtPort: 7000
   authBackend: control-plane
+  authEndpoint: ""
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 65
   # External host for user-facing connection URIs (e.g. ELB IP or domain)
   # If empty, falls back to cluster-internal proxy DNS
   externalHost: ""
@@ -64,6 +87,11 @@ api:
   serviceType: ClusterIP
   adminToken: ""
   connectorSecretKey: ""
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
   ssl:
     enabled: false
   image:

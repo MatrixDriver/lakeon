@@ -1,3 +1,4 @@
+{{- if include "lakeon.dataPlaneEnabled" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -33,7 +34,7 @@ spec:
             - "$(DATABASE_URL)"
           env:
             - name: DATABASE_URL
-              value: "postgresql://lakeon:Admin@2026@metadata-db:5432/lakeon"
+              value: "postgresql://{{ .Values.metadataDb.user }}:{{ .Values.metadataDb.password }}@{{ .Values.metadataDb.host }}:{{ .Values.metadataDb.port }}/{{ .Values.metadataDb.name }}"
           ports:
             - containerPort: 1234
               name: http
@@ -56,3 +57,4 @@ spec:
             limits:
               cpu: 500m
               memory: 256Mi
+{{- end }}
