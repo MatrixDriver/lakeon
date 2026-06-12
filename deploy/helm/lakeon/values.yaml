@@ -65,6 +65,9 @@ proxy:
   mgmtPort: 7000
   authBackend: control-plane
   authEndpoint: ""
+  # Cache for proxy project_info / role secrets. Disable with size=0 when
+  # password resets must take effect immediately across proxy replicas.
+  projectInfoCache: ""
   autoscaling:
     enabled: false
     minReplicas: 2

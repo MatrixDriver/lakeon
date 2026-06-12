@@ -420,7 +420,7 @@ test_single_tenant() {
     # New password should work
     local new_pw_result
     new_pw_result=$(run_sql "$db_name" "$db_user" "$new_password" "SELECT 1 AS ok;")
-    if [[ "$new_pw_result" == *"1"* ]]; then
+    if [[ "$new_pw_result" == "1" ]]; then
         pass "IT-CCE-006c: New password works via proxy"
         password="$new_password"
         DB_PASSWORDS[0]="$new_password"

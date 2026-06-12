@@ -36,6 +36,9 @@ spec:
             - "--auth-endpoint={{ .Values.proxy.authEndpoint | default (printf "http://lakeon-api:%v/proxy" (.Values.api.internalPort | default 8088)) }}"
             - "--wss=0.0.0.0:{{ .Values.proxy.httpPort }}"
             - "--mgmt=127.0.0.1:{{ .Values.proxy.mgmtPort }}"
+            {{- if .Values.proxy.projectInfoCache }}
+            - "--project-info-cache={{ .Values.proxy.projectInfoCache }}"
+            {{- end }}
             {{- if .Values.proxy.tls.enabled }}
             - "--tls-key=/tls/tls.key"
             - "--tls-cert=/tls/tls.crt"
