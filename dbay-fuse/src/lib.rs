@@ -3,4 +3,8 @@ pub mod conflict;
 pub mod dbay_api;
 pub mod etag_ledger;
 pub mod hostname;
+pub mod outbox;
+pub mod profile;
 pub mod pull;
+pub mod state_scan;
+pub mod sync;

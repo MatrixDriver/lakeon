@@ -24,6 +24,8 @@ use crate::state_scan;
 
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
 const MAX_BATCH: usize = 50;
+const DRAIN_RETRIES: usize = 5;
+const DRAIN_RETRY_SLEEP: Duration = Duration::from_secs(10);
 
 pub fn spawn(agent: &str, outbox: Arc<Outbox>, state_dir: &Path, outbox_dir: &Path) -> Result<()> {
     let agent = agent.to_string();
@@ -47,6 +49,60 @@ pub fn spawn(agent: &str, outbox: Arc<Outbox>, state_dir: &Path, outbox_dir: &Pa
     Ok(())
 }
 
+pub fn drain_once(agent: &str, outbox_dir: &Path, ledger_path: &Path) -> Result<usize> {
+    let client = DbayClient::for_agent_no_base(agent)?
+        .ok_or_else(|| anyhow::anyhow!("DBay not configured: see ~/.dbay/config.json"))?;
+    let outbox = Outbox::open(outbox_dir)?;
+    let ledger = Ledger::open(ledger_path)
+        .with_context(|| format!("open ledger {}", ledger_path.display()))?;
+    let pending = outbox.pending();
+    if pending.is_empty() {
+        return Ok(0);
+    }
+    let batch = coalesce(&pending);
+    let mut drained = 0usize;
+    let mut idx = 0;
+    while idx < batch.len() {
+        let end = (idx + MAX_BATCH).min(batch.len());
+        let chunk = &batch[idx..end];
+        let seqs_to_ack = send_batch_with_retries(&client, &outbox, chunk, &ledger)?;
+        drained += seqs_to_ack.len();
+        for seq in seqs_to_ack {
+            outbox.ack(seq)?;
+        }
+        idx = end;
+    }
+    let _ = outbox.maybe_compact();
+    Ok(drained)
+}
+
+fn send_batch_with_retries(
+    client: &DbayClient,
+    outbox: &Outbox,
+    chunk: &[Entry],
+    ledger: &Ledger,
+) -> Result<Vec<u64>> {
+    let mut attempt = 0usize;
+    loop {
+        match send_batch(client, outbox, chunk, ledger) {
+            Ok(seqs) => return Ok(seqs),
+            Err(e) if is_transient_agentfs_provisioning_error(&e) && attempt < DRAIN_RETRIES => {
+                attempt += 1;
+                tracing::warn!(attempt, ?e, "AgentFS provisioning not ready; retrying batch drain");
+                thread::sleep(DRAIN_RETRY_SLEEP);
+            }
+            Err(e) => return Err(e),
+        }
+    }
+}
+
+fn is_transient_agentfs_provisioning_error(e: &anyhow::Error) -> bool {
+    let msg = format!("{e:#}");
+    msg.contains("AgentFS database not READY")
+        || msg.contains("AgentFS database still provisioning")
+        || msg.contains("retry shortly")
+}
+
 fn run(
     _agent: String,
     outbox: Arc<Outbox>,
@@ -58,8 +114,8 @@ fn run(
     tracing::info!(has_client = client.is_some(), "uplink worker started");
     let trigger_path = state_scan::rescan_trigger_path(&outbox_dir);
     loop {
-        // takeover (and future CLI tools) can signal a rescan by
-        // creating the trigger file. Consume before the pending
+        // Folder tools can signal a rescan by creating the trigger file.
+        // Consume before the pending
         // check so the new ops join this iteration's batch.
         match state_scan::consume_rescan_trigger(&state_dir, &outbox, &trigger_path) {
             Ok(0) => {}
@@ -208,10 +264,11 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry], ledger: &Led
                 }),
                 0,
             ),
-            Op::Mkdir { path } => (
-                serde_json::json!({"op":"mkdir","path":path}),
-                0,
-            ),
+            Op::Mkdir { path, properties } => {
+                let mut obj = serde_json::json!({"op":"mkdir","path":path});
+                if let Some(p) = properties { obj["properties"] = p.clone(); }
+                (obj, 0)
+            }
             Op::Ack { .. } => continue,
         };
         ops.push(op_json);
@@ -316,8 +373,8 @@ fn send_one(cli: &DbayClient, outbox: &Outbox, entry: &Entry) -> Result<()> {
         Op::Rename { path, new_path } => {
             cli.agentfs_rename(path, new_path)?;
         }
-        Op::Mkdir { path } => {
-            cli.agentfs_mkdir(path)?;
+        Op::Mkdir { path, properties } => {
+            cli.agentfs_mkdir(path, properties.as_ref())?;
         }
         Op::Ack { .. } => {}
     }
@@ -330,8 +387,24 @@ fn log_only(_outbox: &Outbox, entry: &Entry) {
         Op::Append { path, .. } => format!("APPEND {path}"),
         Op::Delete { path } => format!("DELETE {path}"),
         Op::Rename { path, new_path } => format!("RENAME {path} → {new_path}"),
-        Op::Mkdir { path } => format!("MKDIR {path}"),
+        Op::Mkdir { path, .. } => format!("MKDIR {path}"),
         Op::Ack { .. } => return,
     };
     tracing::info!(seq = entry.seq, "[log-only] {}", op_label);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_transient_agentfs_provisioning_error;
+
+    #[test]
+    fn recognizes_agentfs_provisioning_retry_errors() {
+        let err = anyhow::anyhow!(
+            "agentfs batch failed: 500 Internal Server Error AgentFS database not READY after 120s; retry shortly"
+        );
+        assert!(is_transient_agentfs_provisioning_error(&err));
+
+        let fatal = anyhow::anyhow!("agentfs batch failed: 401 Unauthorized");
+        assert!(!is_transient_agentfs_provisioning_error(&fatal));
+    }
 }

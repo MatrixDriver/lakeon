@@ -1,8 +1,7 @@
 # DBay AgentFS 使用指南
 
-让 Claude Code / OpenClaw 等 agent 的工作目录（`~/.claude/projects`、`~/.claude/memory`、`CLAUDE.md` 等）透明上云到 DBay，跨设备可用。
+AgentFS 是一个通用的本地目录接入层：用户可以 mount 一个新的 DBay 目录，也可以把已有目录以 sync/import 的方式加入 DBay。用户需要声明目录性质，DBay 再根据该 profile 选择存储策略和云端后台处理。
 
-> 架构细节见 `specs/agentfs-openapi.yaml` 和 `specs/universal-memory.md`
 > 服务端实现在 `lakeon-api/src/main/java/com/lakeon/agentfs/`
 > 客户端实现在 `dbay-fuse/`
 
@@ -10,21 +9,16 @@
 
 ## 1. 前提
 
-- macOS（装了 [macFUSE](https://osxfuse.github.io/)）或 Linux（装了 fuse3）
+- macOS（mount 模式需要 macFUSE）或 Linux（mount 模式需要 fuse3）
 - Rust 工具链（`rustup`）
-- 已有 DBay 账号 + API key（从 https://console.dbay.cloud 注册或从 `~/.dbay/config.json` 里读）
+- 已有 DBay 账号 + API key
 
 ## 2. 一次性设置
 
 ```bash
-# 克隆仓库
-git clone <lakeon repo>
 cd lakeon/dbay-fuse
-
-# 编译
 cargo build --release
 
-# 准备 ~/.dbay/config.json
 cat > ~/.dbay/config.json <<EOF
 {
   "endpoint": "https://api.dbay.cloud:8443",
@@ -32,182 +26,123 @@ cat > ~/.dbay/config.json <<EOF
 }
 EOF
 
-# 验证
-./target/release/dbay-fuse whoami --agent claude
-# 期望输出：api_key、base_url、base_id 都有值
+./target/release/dbay-fuse whoami --kind files
 ```
 
-## 3. 首次启用（接管 CC 目录）
+## 3. 目录性质
 
-**重要**：第一次接管 `projects/` 之前请先 **退出所有 Claude Code 窗口**，避免撕裂正在写的 session 文件。
+`--kind` 只表达“这是什么目录”：
+
+- `codex-home`
+- `claude-home`
+- `openclaw-home`
+- `iceberg-table`
+- `lance-table`
+- `data-dir`
+- `files`
+
+`--storage` 表达“字节怎么存”：
+
+- `auto`
+- `inline-only`
+- `object-first`
+- `object-only`
+- `table-native`
+
+`--processing` 表达“云端做什么后台处理”：
+
+- `none`
+- `agent-home`
+- `dataset`
+- `iceberg`
+- `lance`
+- `small-file-memory`
+
+通常用户只需要给 `--kind`，系统会推导默认 storage 和 processing。
+
+## 4. Mount 一个新目录
 
 ```bash
-# A. 启动 FUSE daemon（后台或 tmux）
-./target/release/dbay-fuse mount --agent claude &
-# 或更稳定的方式：tmux new-session -d -s dbay-fuse './target/release/dbay-fuse mount --agent claude'
-
-# B. 接管逐个目录（先小的，观察一下再做大的）
-./target/release/dbay-fuse takeover --agent claude --nodes CLAUDE.md         # 最小，268B
-./target/release/dbay-fuse takeover --agent claude --nodes memory            # 几个 md
-./target/release/dbay-fuse takeover --agent claude --nodes projects          # 大头，几十 MB
-
-# C. 校验 symlink 指向 FUSE mount
-ls -la ~/.claude/CLAUDE.md
-# lrwxr-xr-x  ... ~/.claude/CLAUDE.md -> /Users/you/.dbay/mnt/claude/CLAUDE.md
-
-# D. 校验能读回原内容
-cat ~/.claude/CLAUDE.md | head
+./target/release/dbay-fuse mount ~/DBay --kind files
 ```
 
-## 4. 日常使用
+mount 模式会使用：
 
-起 Claude Code 就完了，没有额外步骤。所有写入会：
+```text
+~/.dbay/mnt/<folder>/      # 默认 mount 点（如果命令未给本地目录）
+~/.dbay/state/<folder>/    # 本地 backing store/cache
+~/.dbay/outbox/<folder>/   # 待上传队列
+```
 
-1. 立即落到本地 `~/.dbay/state/claude/`（POSIX 保证 durability）
-2. 异步推送到 DBay（通过 outbox）
-3. DBay Postgres `agent_files` 表持久化
+读写热路径保持本地优先：
 
-检查状态：
+1. 应用写入 mount 目录。
+2. 内容先落本地 state。
+3. outbox 后台上传到 DBay。
+
+## 5. 同步已有目录
+
+sync 模式不会复制第二份完整数据。用户原目录就是 local state，`~/.dbay/sync/<folder>/` 只保存 ledger、队列、临时文件和冲突记录。
 
 ```bash
-# 查看还有多少 pending upload
-./target/release/dbay-fuse outbox-status --agent claude
-# 输出：pending count: 0  → 全部上云
-
-# 查看服务端有哪些文件
-KEY=$(jq -r .api_key < ~/.dbay/config.json)
-curl -sk "https://api.dbay.cloud:8443/api/v1/agentfs/list?recursive=true" \
-  -H "Authorization: Bearer $KEY" | python3 -m json.tool
+./target/release/dbay-fuse sync ~/.codex --kind codex-home
+./target/release/dbay-fuse sync ~/.claude --kind claude-home
+./target/release/dbay-fuse sync ~/datasets/events --kind iceberg-table
+./target/release/dbay-fuse sync ~/vectors/products.lance --kind lance-table
+./target/release/dbay-fuse sync ~/reports --kind data-dir
+./target/release/dbay-fuse sync ~/notes --kind files --storage inline-only --processing small-file-memory
 ```
 
-## 5. 回滚（完全撤销接管）
+当前 sync 命令会扫描目录并把变更排入 `~/.dbay/sync/<folder>/outbox`。后续版本会补上常驻 watcher 和云端 worker 状态展示。
+
+## 6. 一次性导入
 
 ```bash
-./target/release/dbay-fuse release --agent claude
-# 会：
-# 1. 把 symlinks 删掉
-# 2. 从 ~/.dbay/backups/claude-<ts>/ 恢复原始目录
-# 3. daemon 不会被杀，但符号链接指向的 FUSE mount 不再被用
-
-# 然后卸载 FUSE
-pkill -f "dbay-fuse mount"
-umount ~/.dbay/mnt/claude
+./target/release/dbay-fuse import ~/archive --kind data-dir
 ```
 
-## 6. 故障恢复
+import 和 sync 使用同一套 planner，但产品语义是“一次性加入 DBay”，适合历史归档。
 
-### 6.1 daemon 挂了
+## 7. 检测建议
 
-不用怕，数据没丢：
-- 写时先落本地 `~/.dbay/state/claude/`
-- outbox 记录未上云的变更，**重启 daemon 会自动 replay**
+检测算法先作为 advisor，不直接替用户决定。
 
 ```bash
-./target/release/dbay-fuse mount --agent claude &
+./target/release/dbay-fuse inspect ~/datasets/events
 ```
 
-### 6.2 网络断了
+输出会包含推荐 kind、置信度和原因。
 
-outbox 会一直积压，再连上就自动消费。期间 agent 仍可读写本地。
+## 8. 故障恢复
 
-查看积压：
+### daemon 挂了
+
+mount 模式的数据先落本地 state，outbox 会在重启后继续 replay。
+
 ```bash
-./target/release/dbay-fuse outbox-status --agent claude
-# 如果 pending count 一直不降，看 daemon 日志排查
+./target/release/dbay-fuse mount ~/DBay --kind files
 ```
 
-### 6.3 symlink 指向的 FUSE mount 不存在
+### 网络断了
 
-症状：`ls ~/.claude/` 显示 `CLAUDE.md` 是 broken link。
+outbox 会积压，网络恢复后继续上传。
 
-修法：重启 daemon
 ```bash
-./target/release/dbay-fuse mount --agent claude &
+./target/release/dbay-fuse outbox-status --folder dbay
 ```
 
-### 6.4 冲突文件处理
+### 冲突文件处理
 
 冲突文件位于：
-- `~/.dbay/conflicts/<原路径>.conflict-from-<host>-<ts>` —— uplink 时触发的冲突（其他机器把同一文件改了，本地版本胜出，远端版本作为副本保存）
-- `<state-dir>/<原路径>.conflict-pull-<host>-<ts>` —— `dbay-fuse pull` 时触发的冲突（远端有新版本，但本地的 ledger 记录与远端不一致，远端版本作为副本写入 state 目录）
-- `~/.dbay/conflicts/conflicts.log` —— 所有 uplink 冲突的 JSONL 日志
 
-排查：
-```bash
-tail ~/.dbay/conflicts/conflicts.log
-ls -la ~/.dbay/conflicts/
-```
+- `~/.dbay/conflicts/<原路径>.conflict-from-<host>-<ts>`
+- `<state-dir>/<原路径>.conflict-pull-<host>-<ts>`
+- `~/.dbay/conflicts/conflicts.log`
 
-处理：手动 diff、merge、删除副本即可。后续会加 `dbay-fuse conflicts list/clean` 子命令。
+处理方式仍是手动 diff、merge、删除副本。后续会加 `conflicts list/clean`。
 
-## 7. 目录布局
+## 9. 路线图
 
-```
-~/.dbay/
-  ├── config.json           # api key + base binding
-  ├── mnt/claude/           # FUSE 挂载点（CC 的 projects/memory/CLAUDE.md 实际读写）
-  ├── state/claude/         # 本地真数据（passthrough 的 backing store）
-  ├── outbox/claude/
-  │    ├── pending.log      # 待上云的操作日志（JSONL append-only）
-  │    └── blobs/<sha>/     # 文件内容 content-addressed 存储
-  └── backups/claude-<ts>/  # takeover 时的原始备份（release 用到）
-```
-
-## 8. 性能预期
-
-| 操作 | 延迟 | 为什么 |
-|---|---|---|
-| 读 | <1ms | 本地 state 直读，FUSE 无网络 |
-| 写（小文件） | <1ms 返回 + 异步 | 写本地 + outbox append，返回立即；DBay 同步后台做 |
-| 写（大文件） | 取决于本地 fs | 上限是本地磁盘写速 |
-| 上云延迟 | 500ms–几秒 | watchdog idle + uplink poll + 网络 RTT |
-
-**对比**：直接调 DBay memory API 每次 RTT 1.2s+。本方案把这个延迟藏在后台。
-
-## 9. 约束与已知问题
-
-1. **单用户一个 store**：同一 API key 下所有 agent 写入到同一个 `agent_files` 命名空间（按 path prefix 区分）
-2. **跨设备 ETag 冲突检测已启用**：两台机器同时改同一文件时，uplink 通过本地 etag ledger 带 `if_match` 给服务端；不匹配会触发"本地胜、远端版本另存为副本"：
-   - 远端的版本下载到 `~/.dbay/conflicts/<原路径>.conflict-from-<host>-<ts>`
-   - 本地版本作为新基线 PUT 上去
-   - 每次冲突在 `~/.dbay/conflicts/conflicts.log` 追加一行 JSON
-3. **多窗口并发 append**：客户端 `append_state` 已对 pure-append 文件（如 session.jsonl）走 delta append 路径（`Op::Append` + `/files/append`，仅上传新增字节），并且和 PUT 一样走 if_match 冲突检测；并发 append 的冲突也会触发副本机制。
-4. **Memory 索引有延迟**：文件写进 AgentFS 后，Memory 系统（memory_ingest）不会立即看到——需要独立的派生 worker 消费（**还没实装**）。
-5. **takeover projects/ 前务必退出 CC**：正在写的 session 被换底盘会导致 append 失败或数据截断。
-
-## 10. 卸载
-
-```bash
-./target/release/dbay-fuse release --agent claude
-pkill -f "dbay-fuse mount"
-umount ~/.dbay/mnt/claude
-# 想彻底清干净：
-rm -rf ~/.dbay/{mnt,state,outbox,backups}
-# 服务端的 agent_files 表数据不会自动删——如果要删：
-curl -sk -X POST https://api.dbay.cloud:8443/api/v1/agentfs/files/delete \
-  -H "Authorization: Bearer $KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"path":"/projects"}'   # 逐个或写脚本
-```
-
-## 11. 调试
-
-```bash
-# 详细日志
-RUST_LOG=debug ./target/release/dbay-fuse mount --agent claude 2>&1 | tee /tmp/dbay.log
-
-# 看服务端 pod 日志
-export KUBECONFIG=$HOME/.kube/cce-lakeon-config
-kubectl -n lakeon logs -l app=lakeon-api --tail=50 | grep -i agentfs
-
-# 检查 Postgres 里的数据
-# （需要 RDS 访问权限）
-```
-
-## 12. 路线图
-
-- ✅ Phase 1（当前）：passthrough + outbox，POSIX 兼容
-- ⏳ Phase 2：Memory 派生 worker（CDC → memory_ingest），让 `feedback_*.md` 等文件自动进 recall 索引
-- ⏳ Phase 3：虚拟 CLAUDE.md（从 memory_items 实时拼装）
-- ⏳ Phase 4：OpenClaw adapter（workspace/ 映射）
-- ✅ Phase 5：下行拉取（`dbay-fuse pull` + mount/takeover 自动调用）
+- 当前：通用 folder profile、mount、pull、sync/import skeleton、inspect advisor
+- 下一步：sync watcher、OBS/object tier、profile-specific cloud workers
+- 后续：agent-home 提炼 Console、Data Agent、Iceberg/Lance catalog/版本映射

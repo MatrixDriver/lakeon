@@ -30,11 +30,18 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use crate::append_state::{self, AppendMap, FlushMode};
 use crate::flush_watchdog::{FlushCmd, FlushWatchdog};
 use crate::outbox::{self, Op, Outbox};
+use crate::profile::FolderProfile;
 
 const TTL: Duration = Duration::from_secs(1);
 const ROOT_INO: u64 = 1;
 
-pub fn mount(agent: &str, mount_point: &Path, state_dir: &Path, outbox_dir: &Path) -> Result<()> {
+pub fn mount(
+    agent: &str,
+    mount_point: &Path,
+    state_dir: &Path,
+    outbox_dir: &Path,
+    profile: FolderProfile,
+) -> Result<()> {
     let outbox = Arc::new(Outbox::open(outbox_dir)?);
     let append_map = append_state::new_map();
 
@@ -49,14 +56,16 @@ pub fn mount(agent: &str, mount_point: &Path, state_dir: &Path, outbox_dir: &Pat
         outbox.clone(),
         watchdog.tx(),
         append_map.clone(),
+        profile.properties(),
     );
 
     // Wire watchdog → flush callback (uses delta upload when possible)
     let state_clone = state_dir.to_path_buf();
     let outbox_clone = outbox.clone();
     let map_clone = append_map.clone();
+    let properties_clone = profile.properties();
     watchdog.install_flush(move |path: PathBuf| {
-        if let Err(e) = flush_path(&state_clone, &path, &outbox_clone, &map_clone) {
+        if let Err(e) = flush_path(&state_clone, &path, &outbox_clone, &map_clone, &properties_clone) {
             tracing::warn!(?e, ?path, "watchdog flush failed");
         }
     });
@@ -73,7 +82,13 @@ pub fn mount(agent: &str, mount_point: &Path, state_dir: &Path, outbox_dir: &Pat
 
 /// Flush a dirty path to outbox — delta append when possible, else full put.
 /// Used by watchdog AND release handler. Emits per-step timing trace.
-fn flush_path(state_dir: &Path, rel: &Path, outbox: &Outbox, append_map: &AppendMap) -> Result<()> {
+fn flush_path(
+    state_dir: &Path,
+    rel: &Path,
+    outbox: &Outbox,
+    append_map: &AppendMap,
+    properties: &serde_json::Value,
+) -> Result<()> {
     use std::time::Instant;
     let total = Instant::now();
     let real = state_dir.join(rel);
@@ -89,7 +104,7 @@ fn flush_path(state_dir: &Path, rel: &Path, outbox: &Outbox, append_map: &Append
     let t_plan = t.elapsed();
     match plan {
         FlushMode::Nothing => Ok(()),
-        FlushMode::Append { from, to } => {
+        FlushMode::Append { from, to } if from > 0 => {
             use std::io::{Read, Seek, SeekFrom};
             let t = Instant::now();
             let mut f = fs::File::open(&real).context("open for append delta")?;
@@ -115,7 +130,7 @@ fn flush_path(state_dir: &Path, rel: &Path, outbox: &Outbox, append_map: &Append
             );
             Ok(())
         }
-        FlushMode::Put => {
+        FlushMode::Append { .. } | FlushMode::Put => {
             let t = Instant::now();
             let data = fs::read(&real).context("read for put")?;
             let t_read = t.elapsed();
@@ -123,7 +138,11 @@ fn flush_path(state_dir: &Path, rel: &Path, outbox: &Outbox, append_map: &Append
             let sha = outbox::write_blob(&outbox.blobs_dir(), &data)?;
             let t_blob = t.elapsed();
             let t = Instant::now();
-            outbox.enqueue(Op::Put { path: virt_path, blob: sha, properties: None })?;
+            outbox.enqueue(Op::Put {
+                path: virt_path,
+                blob: sha,
+                properties: Some(properties.clone()),
+            })?;
             let t_enq = t.elapsed();
             append_state::mark_flushed(append_map, rel);
             tracing::info!(
@@ -160,6 +179,7 @@ struct PassthroughFS {
     outbox: Arc<Outbox>,
     flush_tx: mpsc::Sender<FlushCmd>,
     append_map: AppendMap,
+    properties: serde_json::Value,
 
     inodes: HashMap<u64, PathBuf>,
     paths: HashMap<PathBuf, u64>,
@@ -180,7 +200,13 @@ struct OpenFh {
 }
 
 impl PassthroughFS {
-    fn new(root: PathBuf, outbox: Arc<Outbox>, flush_tx: mpsc::Sender<FlushCmd>, append_map: AppendMap) -> Self {
+    fn new(
+        root: PathBuf,
+        outbox: Arc<Outbox>,
+        flush_tx: mpsc::Sender<FlushCmd>,
+        append_map: AppendMap,
+        properties: serde_json::Value,
+    ) -> Self {
         let mut inodes = HashMap::new();
         let mut paths = HashMap::new();
         inodes.insert(ROOT_INO, root.clone());
@@ -190,6 +216,7 @@ impl PassthroughFS {
             outbox,
             flush_tx,
             append_map,
+            properties,
             inodes,
             paths,
             next_ino: 2,
@@ -250,7 +277,10 @@ impl PassthroughFS {
 
     fn enqueue_mkdir(&self, real: &Path) {
         if let Some(rel) = relative_to_root(&self.root, real) {
-            let _ = self.outbox.enqueue(Op::Mkdir { path: to_virt_path(&rel) });
+            let _ = self.outbox.enqueue(Op::Mkdir {
+                path: to_virt_path(&rel),
+                properties: Some(self.properties.clone()),
+            });
         }
     }
 
@@ -261,7 +291,7 @@ impl PassthroughFS {
         // have pending changes that need to flush before release tells the
         // watchdog to drop tracking.
         if let Some(rel) = relative_to_root(&self.root, &f.real_path) {
-            flush_path(&self.root, &rel, &self.outbox, &self.append_map)?;
+            flush_path(&self.root, &rel, &self.outbox, &self.append_map, &self.properties)?;
         }
         f.dirty = false;
         f.dirty_bytes = 0;

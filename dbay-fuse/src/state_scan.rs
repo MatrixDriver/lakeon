@@ -1,11 +1,8 @@
 //! State-dir scan: walk the passthrough state directory and produce
 //! the ordered sequence of ops needed to replicate it to AgentFS.
 //!
-//! Used by two triggers:
-//!   - daemon startup: ensures takeover-imported files are eventually
-//!     uploaded even if the outbox was wiped or the daemon crashed
-//!     before the first flush.
-//!   - `rescan.trigger` file written by `takeover` after rsync.
+//! Used by folder import/sync flows and by mount-mode rescans. Server-side
+//! idempotency absorbs re-uploading unchanged content.
 //!
 //! Server-side idempotency (AgentFSService.upsertFile WHERE etag IS
 //! DISTINCT FROM ...) absorbs the cost of re-uploading unchanged
@@ -87,13 +84,13 @@ pub fn rescan_trigger_path(outbox_dir: &Path) -> PathBuf {
     outbox_dir.join("rescan.trigger")
 }
 
-/// Create the rescan trigger file inside `outbox_dir`. Called by
-/// `takeover` after successful rsync+symlink-swap. Daemon's uplink
-/// worker detects it on the next poll and runs `consume_rescan_trigger`.
+/// Create the rescan trigger file inside `outbox_dir`. A folder tool can
+/// call this after changing a state tree; the daemon's uplink worker detects
+/// it on the next poll and runs `consume_rescan_trigger`.
 ///
 /// Idempotent: if the file already exists, this returns the same path
 /// without error. Parent directory is created if missing (fresh-install
-/// scenario where takeover runs before the outbox has ever been
+/// scenario where a folder tool runs before the outbox has ever been
 /// touched by the daemon).
 pub fn write_rescan_trigger(outbox_dir: &Path) -> Result<PathBuf> {
     std::fs::create_dir_all(outbox_dir)
@@ -109,9 +106,9 @@ pub fn write_rescan_trigger(outbox_dir: &Path) -> Result<PathBuf> {
 /// of ops enqueued (0 when no trigger file present).
 ///
 /// Single-writer guarantee: this is only ever called from the uplink
-/// worker thread, which is the sole writer of the outbox. Takeover
-/// signals intent by creating `rescan.trigger` but never touches the
-/// outbox directly.
+/// worker thread, which is the sole writer of the outbox. Other folder
+/// tools signal intent by creating `rescan.trigger` but never touch the outbox
+/// directly.
 pub fn consume_rescan_trigger(
     state_root: &Path,
     outbox: &Outbox,
@@ -144,7 +141,10 @@ pub fn enqueue_scan(entries: &[ScanEntry], state_root: &Path, outbox: &Outbox) -
         let virt = to_virt_path(&e.rel);
         match e.kind {
             Kind::Dir => {
-                outbox.enqueue(Op::Mkdir { path: virt })?;
+                outbox.enqueue(Op::Mkdir {
+                    path: virt,
+                    properties: None,
+                })?;
                 count += 1;
             }
             Kind::File => {
@@ -234,7 +234,10 @@ mod tests {
         // Ordering: Mkdir for /a must come before Put for /a/x.md
         // so that the server has a parent when the file lands.
         match &pending[0].op {
-            Op::Mkdir { path } => assert_eq!(path, "/a"),
+            Op::Mkdir { path, properties } => {
+                assert_eq!(path, "/a");
+                assert!(properties.is_none());
+            }
             other => panic!("expected Mkdir at index 0, got {:?}", other),
         }
         match &pending[1].op {

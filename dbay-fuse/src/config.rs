@@ -1,19 +1,19 @@
 //! Read `~/.dbay/config.json` (same file `dbay-cli` / `dbay-mcp` use) and
-//! resolve base name/id for the current agent.
+//! resolve base name/id for the current folder.
 //!
 //! Config schema (backwards-compat with existing dbay-cli):
 //! {
 //!   "endpoint": "https://api.dbay.cloud:8443",
 //!   "api_key":  "lk_...",
 //!   "memory_base": "personal"          // name OR mem_xxx id; default base
-//!   "agent_bases": {                   // optional: per-agent override by NAME
-//!     "claude":   "personal",
-//!     "openclaw": "work"
+//!   "agent_bases": {                   // legacy name; per-folder override by NAME
+//!     "personal": "personal",
+//!     "codex":    "work"
 //!   }
 //! }
 //!
 //! Env vars still override (for CI/one-shot):
-//!   DBAY_API_KEY, DBAY_BASE, DBAY_BASE_URL, DBAY_AGENT
+//!   DBAY_API_KEY, DBAY_BASE, DBAY_BASE_URL
 
 use anyhow::{anyhow, bail, Context, Result};
 use serde::Deserialize;
@@ -45,7 +45,7 @@ pub fn load() -> Result<FileConfig> {
         .with_context(|| format!("parse {}", path.display()))?)
 }
 
-/// Resolved connection info for an agent.
+/// Resolved connection info for a folder.
 pub struct Resolved {
     pub api_key: String,
     pub base_url: String,
@@ -73,7 +73,7 @@ pub fn resolve_for_agent(agent: &str) -> Result<Option<Resolved>> {
 
     // Base selection priority:
     //   1. env DBAY_BASE
-    //   2. config.json agent_bases.<agent>
+    //   2. config.json agent_bases.<folder> (legacy field name)
     //   3. config.json memory_base (legacy single base)
     //   4. None → caller will auto-detect (if exactly 1 READY base)
     let base_ref = std::env::var("DBAY_BASE")

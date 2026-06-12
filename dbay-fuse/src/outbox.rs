@@ -1,6 +1,6 @@
 //! Outbox: append-only durable queue of pending uploads to DBay AgentFS.
 //!
-//! Layout (under `~/.dbay/outbox/<agent>/`):
+//! Layout (under `~/.dbay/outbox/<folder>/`):
 //!   pending.log         — append-only JSON-lines; each line one op.
 //!   blobs/<sha>/<sha>   — content-addressed payloads referenced by put/append ops.
 //!
@@ -51,7 +51,7 @@ pub enum Op {
     Append { path: String, blob: String },
     Delete { path: String },
     Rename { path: String, new_path: String },
-    Mkdir { path: String },
+    Mkdir { path: String, properties: Option<serde_json::Value> },
     Ack { #[serde(rename = "ref")] ref_seq: u64 },
 }
 
@@ -281,7 +281,7 @@ pub fn print_status(outbox_dir: &Path) -> Result<()> {
             Op::Append { path, .. } => format!("APPEND {path}"),
             Op::Delete { path } => format!("DELETE {path}"),
             Op::Rename { path, new_path } => format!("RENAME {path} → {new_path}"),
-            Op::Mkdir { path } => format!("MKDIR {path}"),
+            Op::Mkdir { path, .. } => format!("MKDIR {path}"),
             Op::Ack { ref_seq } => format!("ACK #{ref_seq}"),
         };
         println!("  #{:>6}  {}", entry.seq, op_label);

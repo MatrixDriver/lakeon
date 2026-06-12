@@ -436,7 +436,7 @@ impl Filesystem for InmemFs {
         };
         let name_str = match name.to_str() { Some(s) => s, None => return reply.error(EIO) };
         let path = join_path(&parent_path, name_str);
-        if let Err(e) = self.client.agentfs_mkdir(&path) {
+        if let Err(e) = self.client.agentfs_mkdir(&path, None) {
             tracing::warn!(%path, ?e, "mkdir server failed");
             return reply.error(EIO);
         }

@@ -10,6 +10,23 @@ use std::time::Duration;
 
 use crate::config::{self, is_base_id};
 
+const HTTP_TIMEOUT_SECS: u64 = 150;
+
+fn http_client() -> Result<Client> {
+    let mut builder = Client::builder().timeout(Duration::from_secs(HTTP_TIMEOUT_SECS));
+    if insecure_tls_enabled() {
+        builder = builder.danger_accept_invalid_certs(true);
+    }
+    builder.build().context("build http client")
+}
+
+fn insecure_tls_enabled() -> bool {
+    matches!(
+        std::env::var("DBAY_INSECURE_TLS").ok().as_deref(),
+        Some("1") | Some("true") | Some("TRUE") | Some("yes") | Some("YES")
+    )
+}
+
 #[derive(Clone)]
 pub struct DbayClient {
     http: Client,
@@ -124,10 +141,7 @@ impl DbayClient {
     /// Returns `Ok(None)` when the user isn't logged in yet (no api key anywhere).
     pub fn for_agent(agent: &str) -> Result<Option<Self>> {
         let Some(r) = config::resolve_for_agent(agent)? else { return Ok(None); };
-        let http = Client::builder()
-            .timeout(Duration::from_secs(30))
-            .build()
-            .context("build http client")?;
+        let http = http_client()?;
         let mut client = Self {
             http,
             base_url: r.base_url,
@@ -144,14 +158,11 @@ impl DbayClient {
 
     /// Like `for_agent` but skips memory-base resolution. Use for paths that
     /// only call AgentFS endpoints (`/agentfs/*`) which are tenant-scoped, not
-    /// base-scoped — `pull`, `mount` startup-pull, takeover pre-pull. Avoids
+    /// base-scoped — `pull`, mount startup-pull, and sync/import. Avoids
     /// the "No memory bases on this account" failure on fresh tenants.
     pub fn for_agent_no_base(agent: &str) -> Result<Option<Self>> {
         let Some(r) = config::resolve_for_agent(agent)? else { return Ok(None); };
-        let http = Client::builder()
-            .timeout(Duration::from_secs(30))
-            .build()
-            .context("build http client")?;
+        let http = http_client()?;
         Ok(Some(Self {
             http,
             base_url: r.base_url,
@@ -197,7 +208,7 @@ impl DbayClient {
                 let names: Vec<_> = ready.iter().map(|b| b.name.as_str()).collect();
                 bail!(
                     "Multiple memory bases found: {}. \
-                     Pick one with `dbay agent bind <agent> --base <name>` \
+                     Pick one with `dbay-fuse agent-bind --folder <folder> --base <name>` \
                      or set DBAY_BASE.",
                     names.join(", ")
                 );
@@ -317,8 +328,15 @@ impl DbayClient {
         Ok(())
     }
 
-    pub fn agentfs_mkdir(&self, path: &str) -> Result<()> {
-        let body = serde_json::json!({ "path": path });
+    pub fn agentfs_mkdir(
+        &self,
+        path: &str,
+        properties: Option<&serde_json::Value>,
+    ) -> Result<()> {
+        let body = serde_json::json!({
+            "path": path,
+            "properties": properties.cloned().unwrap_or(serde_json::Value::Null),
+        });
         let resp = self
             .http
             .post(self.agentfs_url("/mkdir"))
@@ -535,5 +553,31 @@ impl DbayClient {
             bail!("recall failed: {status} {text}");
         }
         Ok(resp.json().context("recall decode")?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::insecure_tls_enabled;
+
+    #[test]
+    fn insecure_tls_requires_explicit_env_opt_in() {
+        let prev = std::env::var("DBAY_INSECURE_TLS").ok();
+        std::env::remove_var("DBAY_INSECURE_TLS");
+        assert!(!insecure_tls_enabled());
+
+        std::env::set_var("DBAY_INSECURE_TLS", "1");
+        assert!(insecure_tls_enabled());
+
+        std::env::set_var("DBAY_INSECURE_TLS", "true");
+        assert!(insecure_tls_enabled());
+
+        std::env::set_var("DBAY_INSECURE_TLS", "0");
+        assert!(!insecure_tls_enabled());
+
+        match prev {
+            Some(v) => std::env::set_var("DBAY_INSECURE_TLS", v),
+            None => std::env::remove_var("DBAY_INSECURE_TLS"),
+        }
     }
 }

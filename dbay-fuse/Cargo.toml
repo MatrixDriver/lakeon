@@ -2,7 +2,7 @@
 name = "dbay-fuse"
 version = "0.1.0"
 edition = "2021"
-description = "DBay FUSE filesystem — takes over agent workspace dirs and backs them with Lakebase"
+description = "DBay FUSE filesystem for general workspace mount and sync"
 authors = ["Jacky"]
 
 [lib]

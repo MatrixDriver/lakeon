@@ -1,19 +1,22 @@
 # dbay-fuse
 
-FUSE daemon that takes over AI agent working directories (Claude Code, OpenClaw, ...)
-and backs them with DBay AgentFS.
+General DBay AgentFS client for mounting or syncing user-declared folders.
+
+AgentFS no longer takes over `~/.claude` or other agent homes. Users choose a
+local directory, declare what kind of directory it is, and DBay uses that profile
+to pick storage and background processing behavior.
 
 ## Architecture
 
 ```
-Claude Code / OpenClaw
+App / agent / shell
         │ POSIX
 ┌───────▼────────────────────────────────┐
 │ dbay-fuse (Rust)                       │
-│  · Passthrough FS → ~/.dbay/state/     │
-│  · Outbox (append-only log + blobs)    │
-│  · Flush watchdog (idle + size)        │
-│  · Uplink worker → DBay AgentFS        │
+│  · mount: passthrough FS → state dir    │
+│  · sync: source dir is the state root   │
+│  · outbox (append-only log + blobs)     │
+│  · uplink worker → DBay AgentFS         │
 └───────┬────────────────────────────────┘
         │ HTTPS (async, out of band)
 ┌───────▼────────────────────────────────┐
@@ -21,89 +24,96 @@ Claude Code / OpenClaw
 └───────┬────────────────────────────────┘
         │
 ┌───────▼────────────────────────────────┐
-│ Postgres (agent_files table)           │
+│ Neon/Postgres metadata + file bytes     │
 └───────┬────────────────────────────────┘
-        │ async CDC
+        │ async derivation
 ┌───────▼────────────────────────────────┐
-│ Memory extraction workers              │
-│ (existing memory_ingest path)          │
+│ Profile-specific workers               │
+│ agent home / dataset / table metadata   │
 └────────────────────────────────────────┘
 ```
 
-**No SQLite.** Durability:
-- Reads/writes hit local state directory immediately (POSIX)
-- Uploads queued in `outbox/pending.log` (append-only + fsync)
-- Upload worker drains async; daemon crash = replay outbox on restart
+## Profile Axes
 
-## Install
+`--kind` says what the directory is:
 
-Prereqs:
-- [macFUSE](https://osxfuse.github.io/) (macOS) or fuse3 (Linux)
-- Rust toolchain
+- `codex-home`
+- `claude-home`
+- `openclaw-home`
+- `iceberg-table`
+- `lance-table`
+- `data-dir`
+- `files`
 
-Build:
+`--storage` says where bytes should live:
+
+- `auto`
+- `inline-only`
+- `object-first`
+- `object-only`
+- `table-native`
+
+`--processing` says what cloud workers should derive:
+
+- `none`
+- `agent-home`
+- `dataset`
+- `iceberg`
+- `lance`
+- `small-file-memory`
+
+Defaults are derived from `--kind`. For example, `iceberg-table` defaults to
+`table-native + iceberg`, while `codex-home` defaults to `auto + agent-home`.
+
+## Usage
+
+```bash
+# Mount a new general folder. Folder name defaults to "dbay".
+dbay-fuse mount ~/DBay --kind files
+
+# Sync an existing directory without copying it into ~/.dbay/state.
+dbay-fuse sync ~/.codex --kind codex-home
+dbay-fuse sync ~/datasets/events --kind iceberg-table
+dbay-fuse sync ~/reports --kind data-dir
+
+# One-shot import uses the same planner, then exits.
+dbay-fuse import ~/archive --kind data-dir
+
+# Ask the local advisor for a recommended directory kind.
+dbay-fuse inspect ~/datasets/events
+
+# Existing scripts can still use --agent as a compatibility alias.
+dbay-fuse pull --agent claude
+```
+
+## Directory Layout
+
+```
+~/.dbay/
+  ├── config.json
+  ├── mnt/<folder>/          # mount mode view
+  ├── state/<folder>/        # mount mode backing store/cache
+  ├── outbox/<folder>/       # mount mode upload queue
+  ├── sync/<folder>/         # sync/import metadata only
+  │   ├── outbox/
+  │   ├── etags.db
+  │   └── tmp/
+  └── sync-ledger/<folder>/  # mount/pull etag ledger
+```
+
+In sync mode, the user's original directory is the only full local copy.
+`~/.dbay/sync/<folder>/` stores metadata, queues, and temporary files.
+
+## Build
 
 ```bash
 cd ~/code/lakeon/dbay-fuse
 cargo build --release
 ```
 
-## Usage
+## Verification
 
 ```bash
-# Mount (blocks, run in tmux / &)
-dbay-fuse mount --agent claude
-
-# Takeover selected subdirs (first time)
-dbay-fuse takeover --agent claude --nodes CLAUDE.md
-dbay-fuse takeover --agent claude --nodes memory
-dbay-fuse takeover --agent claude --nodes projects       # kill CC first!
-
-# Rollback
-dbay-fuse release --agent claude
-
-# Config
-dbay-fuse whoami --agent claude
-dbay-fuse agent-bind --agent claude --base personal
-
-# Status
-dbay-fuse outbox-status --agent claude
+cargo test
+cargo check
 ```
-
-## Flush triggers
-
-A file's write is pushed to DBay AgentFS when **any** of the following happens:
-
-| Trigger      | How                         |
-|--------------|-----------------------------|
-| close        | FUSE release op             |
-| fsync        | FUSE fsync op               |
-| idle 500ms   | watchdog thread             |
-| dirty >1MB   | watchdog thread             |
-| mkdir / rm   | immediate (small ops)       |
-| rename       | immediate                   |
-
-## Directory layout
-
-```
-~/.dbay/
-  ├── config.json                # api key, base binding
-  ├── mnt/<agent>/               # FUSE mountpoint
-  ├── state/<agent>/             # local passthrough backing store
-  ├── outbox/<agent>/
-  │    ├── pending.log           # append-only op log
-  │    └── blobs/<sha>/<sha>     # content-addressed payloads
-  └── backups/<agent>-<ts>/      # takeover rollback targets
-```
-
-## Roadmap
-
-- [x] Passthrough FS
-- [x] Outbox + flush watchdog + uplink worker
-- [x] AgentFS HTTP client (path-in-body, append endpoint)
-- [ ] DBay server-side AgentFS API implementation (`/v1/agentfs/*`)
-- [ ] AgentFS → Memory derivation worker (async indexing)
-- [ ] Virtual CLAUDE.md composition from memory_items
-- [ ] OpenClaw adapter (`~/.openclaw/workspace/*`)
-
-See `../specs/agentfs-openapi.yaml` and `../specs/universal-memory.md`.
