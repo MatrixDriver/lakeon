@@ -907,6 +907,12 @@ public class DatabaseService {
         if (entity.getComputePodName() != null) {
             computePodManager.syncPassword(entity.getComputePodName(), entity.getDbUser(), scramHash);
         }
+        for (BranchEntity branch : branchRepository.findAllByDatabaseId(entity.getId())) {
+            String branchPodName = branch.getComputePodName();
+            if (branchPodName != null && !branchPodName.equals(entity.getComputePodName())) {
+                computePodManager.syncPassword(branchPodName, entity.getDbUser(), scramHash);
+            }
+        }
 
         return Map.of("password", rawPassword);
     }

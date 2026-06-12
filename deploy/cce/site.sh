@@ -29,6 +29,8 @@ source "$SITE_DIR/site.conf"
 
 # 设置 KUBECONFIG
 export KUBECONFIG="${SITE_KUBECONFIG:-$HOME/.kube/cce-lakeon-config}"
+export CONTROL_KUBECONFIG="${SITE_CONTROL_KUBECONFIG:-$HOME/.kube/cce-dbay-control-plane-config}"
+export DATA_KUBECONFIG="${SITE_DATA_KUBECONFIG:-$SITE_KUBECONFIG}"
 
 # 站点凭据文件
 SITE_ENV_FILE="$SITE_DIR/.env"
@@ -38,6 +40,8 @@ fi
 
 # 站点 Helm values
 SITE_VALUES="$SITE_DIR/values.yaml"
+SITE_CONTROL_VALUES="$SITE_DIR/values-control-plane.yaml"
+SITE_DATA_VALUES="$SITE_DIR/values-data-plane.yaml"
 
 # 导出给 hwcloud.py 等 Python 脚本使用
 export LAKEON_SITE_DIR="$SITE_DIR"

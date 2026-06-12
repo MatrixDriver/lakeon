@@ -70,11 +70,12 @@ subjects:
     name: lakeon-api
     namespace: {{ .Values.global.namespace }}
 ---
+{{- if include "lakeon.dataPlaneEnabled" . }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: lakeon-compute-manager
-  namespace: lakeon-compute
+  namespace: {{ .Values.dataPlane.computeNamespace | default "lakeon-compute" }}
   labels:
     {{- include "lakeon.labels" . | nindent 4 }}
 rules:
@@ -94,6 +95,7 @@ rules:
     resources: ["serviceaccounts"]
     verbs: ["get", "patch"]
 ---
+{{- end }}
 ---
 # ClusterRole for datalake: namespace creation + job management across datalake-* namespaces
 apiVersion: rbac.authorization.k8s.io/v1
@@ -196,11 +198,12 @@ subjects:
     name: pipeline-orchestrator
     namespace: {{ .Values.global.namespace }}
 ---
+{{- if include "lakeon.dataPlaneEnabled" . }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: lakeon-api-compute-manager
-  namespace: lakeon-compute
+  namespace: {{ .Values.dataPlane.computeNamespace | default "lakeon-compute" }}
   labels:
     {{- include "lakeon.labels" . | nindent 4 }}
 roleRef:
@@ -211,3 +214,4 @@ subjects:
   - kind: ServiceAccount
     name: lakeon-api
     namespace: {{ .Values.global.namespace }}
+{{- end }}

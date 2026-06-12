@@ -1,3 +1,4 @@
+{{- if include "lakeon.dataPlaneEnabled" . }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -6,7 +7,18 @@ metadata:
   labels:
     app: pageserver
     {{- include "lakeon.labels" . | nindent 4 }}
+  {{- if or (and .Values.pageserver.elb .Values.pageserver.elb.id) (and .Values.pageserver.elb .Values.pageserver.elb.autocreate) }}
+  annotations:
+    {{- if .Values.pageserver.elb.id }}
+    kubernetes.io/elb.id: {{ .Values.pageserver.elb.id | quote }}
+    {{- end }}
+    kubernetes.io/elb.class: {{ .Values.pageserver.elb.class | default "union" | quote }}
+    {{- if .Values.pageserver.elb.autocreate }}
+    kubernetes.io/elb.autocreate: {{ .Values.pageserver.elb.autocreate | quote }}
+    {{- end }}
+  {{- end }}
 spec:
+  type: {{ .Values.pageserver.serviceType | default "ClusterIP" }}
   selector:
     app: pageserver
   ports:
@@ -16,3 +28,4 @@ spec:
     - name: pg
       port: {{ .Values.pageserver.pgPort }}
       targetPort: pg
+{{- end }}

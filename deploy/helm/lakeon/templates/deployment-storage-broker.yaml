@@ -1,3 +1,4 @@
+{{- if include "lakeon.dataPlaneEnabled" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -40,3 +41,4 @@ spec:
               port: grpc
             initialDelaySeconds: 3
             periodSeconds: 5
+{{- end }}

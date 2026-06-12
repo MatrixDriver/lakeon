@@ -1,3 +1,4 @@
+{{- if include "lakeon.controlPlaneEnabled" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -69,6 +70,12 @@ spec:
                 secretKeyRef:
                   name: api-credentials
                   key: connector-secret-key
+            - name: LAKEON_DATA_PLANE_KUBE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: data-plane-kube-token
+                  optional: true
             - name: LAKEON_WIKI_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -84,6 +91,7 @@ spec:
                 secretKeyRef:
                   name: wiki-agent-secrets
                   key: internal-token
+                  optional: true
             {{- if .Values.embedding.apiUrl }}
             - name: LAKEON_EMBEDDING_API_URL
               value: {{ .Values.embedding.apiUrl | quote }}
@@ -166,3 +174,4 @@ spec:
           secret:
             secretName: api-keystore
         {{- end }}
+{{- end }}

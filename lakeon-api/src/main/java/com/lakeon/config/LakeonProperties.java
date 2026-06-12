@@ -13,6 +13,7 @@ public class LakeonProperties {
     private NeonConfig neon = new NeonConfig();
     private ObsConfig obs = new ObsConfig();
     private ProxyConfig proxy = new ProxyConfig();
+    private DataPlaneConfig dataPlane = new DataPlaneConfig();
     private K8sConfig k8s = new K8sConfig();
     private DefaultsConfig defaults = new DefaultsConfig();
     private AdminConfig admin = new AdminConfig();
@@ -41,6 +42,8 @@ public class LakeonProperties {
     public void setObs(ObsConfig obs) { this.obs = obs; }
     public ProxyConfig getProxy() { return proxy; }
     public void setProxy(ProxyConfig proxy) { this.proxy = proxy; }
+    public DataPlaneConfig getDataPlane() { return dataPlane; }
+    public void setDataPlane(DataPlaneConfig dataPlane) { this.dataPlane = dataPlane; }
     public K8sConfig getK8s() { return k8s; }
     public void setK8s(K8sConfig k8s) { this.k8s = k8s; }
     public DefaultsConfig getDefaults() { return defaults; }
@@ -127,6 +130,25 @@ public class LakeonProperties {
         public void setExternalHost(String externalHost) { this.externalHost = externalHost; }
         public int getExternalPort() { return externalPort; }
         public void setExternalPort(int externalPort) { this.externalPort = externalPort; }
+    }
+
+    public static class DataPlaneConfig {
+        private String kubeApiServer;
+        private String kubeToken;
+        private String kubeCaB64;
+        private String namespace = "lakeon";
+        private String computeNamespace = "lakeon-compute";
+
+        public String getKubeApiServer() { return kubeApiServer; }
+        public void setKubeApiServer(String kubeApiServer) { this.kubeApiServer = kubeApiServer; }
+        public String getKubeToken() { return kubeToken; }
+        public void setKubeToken(String kubeToken) { this.kubeToken = kubeToken; }
+        public String getKubeCaB64() { return kubeCaB64; }
+        public void setKubeCaB64(String kubeCaB64) { this.kubeCaB64 = kubeCaB64; }
+        public String getNamespace() { return namespace; }
+        public void setNamespace(String namespace) { this.namespace = namespace; }
+        public String getComputeNamespace() { return computeNamespace; }
+        public void setComputeNamespace(String computeNamespace) { this.computeNamespace = computeNamespace; }
     }
 
     public static class K8sConfig {

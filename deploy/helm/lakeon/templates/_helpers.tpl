@@ -35,6 +35,22 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 
 {{/*
+控制面资源开关。默认 all 保持历史单集群部署。
+*/}}
+{{- define "lakeon.controlPlaneEnabled" -}}
+{{- $mode := .Values.plane.mode | default "all" -}}
+{{- if or (eq $mode "all") (eq $mode "control") -}}true{{- end -}}
+{{- end }}
+
+{{/*
+数据面资源开关。默认 all 保持历史单集群部署。
+*/}}
+{{- define "lakeon.dataPlaneEnabled" -}}
+{{- $mode := .Values.plane.mode | default "all" -}}
+{{- if or (eq $mode "all") (eq $mode "data") -}}true{{- end -}}
+{{- end }}
+
+{{/*
 Safekeeper 连接串列表，用于 compute 配置
 */}}
 {{- define "lakeon.safekeeperConnstrings" -}}

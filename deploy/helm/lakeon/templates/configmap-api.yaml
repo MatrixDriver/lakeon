@@ -1,3 +1,4 @@
+{{- if include "lakeon.controlPlaneEnabled" . }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -8,14 +9,22 @@ metadata:
 data:
   LAKEON_DB_DSN: "jdbc:postgresql://{{ .Values.metadataDb.host }}:{{ .Values.metadataDb.port }}/{{ .Values.metadataDb.name }}"
   LAKEON_DB_USER: {{ .Values.metadataDb.user | quote }}
-  LAKEON_NEON_PAGESERVER_URL: "http://pageserver:{{ .Values.pageserver.httpPort }}"
-  LAKEON_NEON_SAFEKEEPER_URLS: {{ include "lakeon.safekeeperConnstrings" . | quote }}
-  LAKEON_NEON_STORAGE_BROKER_URL: "http://storage-broker:{{ .Values.storageBroker.port }}"
+  LAKEON_NEON_PAGESERVER_URL: {{ .Values.dataPlane.pageserverUrl | default (printf "http://pageserver:%v" .Values.pageserver.httpPort) | quote }}
+  LAKEON_NEON_SAFEKEEPER_URLS: {{ .Values.dataPlane.safekeeperUrls | default (include "lakeon.safekeeperConnstrings" .) | quote }}
+  LAKEON_NEON_STORAGE_BROKER_URL: {{ .Values.dataPlane.storageBrokerUrl | default (printf "http://storage-broker:%v" .Values.storageBroker.port) | quote }}
   LAKEON_COMPUTE_IMAGE: "{{ .Values.neon.computeImage.repository }}:{{ .Values.neon.computeImage.tag }}"
   {{- if .Values.api.importImage }}
   LAKEON_IMPORT_IMAGE: {{ .Values.api.importImage | quote }}
   {{- end }}
-  LAKEON_K8S_NAMESPACE: "lakeon-compute"
+  LAKEON_K8S_NAMESPACE: {{ .Values.dataPlane.computeNamespace | default "lakeon-compute" | quote }}
+  {{- if .Values.dataPlane.kubeApiServer }}
+  LAKEON_DATA_PLANE_KUBE_API_SERVER: {{ .Values.dataPlane.kubeApiServer | quote }}
+  {{- end }}
+  {{- if .Values.dataPlane.kubeCaB64 }}
+  LAKEON_DATA_PLANE_KUBE_CA_B64: {{ .Values.dataPlane.kubeCaB64 | quote }}
+  {{- end }}
+  LAKEON_DATA_PLANE_NAMESPACE: {{ .Values.dataPlane.namespace | default .Values.global.namespace | quote }}
+  LAKEON_DATA_PLANE_COMPUTE_NAMESPACE: {{ .Values.dataPlane.computeNamespace | default "lakeon-compute" | quote }}
   {{- if .Values.api.computeCpu }}
   LAKEON_COMPUTE_CPU: {{ .Values.api.computeCpu | quote }}
   {{- end }}
@@ -150,3 +159,4 @@ data:
   LAKEON_HWCLOUD_ACCOUNT_NAME: {{ .Values.hwcloud.accountName | quote }}
   {{- end }}
   {{- end }}
+{{- end }}

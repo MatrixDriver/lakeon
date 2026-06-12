@@ -1,3 +1,4 @@
+{{- if include "lakeon.dataPlaneEnabled" . }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -17,3 +18,4 @@ spec:
     - name: http
       port: {{ .Values.safekeeper.httpPort }}
       targetPort: http
+{{- end }}

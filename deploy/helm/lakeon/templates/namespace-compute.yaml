@@ -1,0 +1,8 @@
+{{- if include "lakeon.dataPlaneEnabled" . }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.dataPlane.computeNamespace | default "lakeon-compute" }}
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+{{- end }}

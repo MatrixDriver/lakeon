@@ -93,4 +93,20 @@ class ComputePodManagerReconcileTest {
         assertFalse(mgr.reconcileComputeHost(entity));
         verify(repo, never()).save(any());
     }
+
+    @Test
+    void updatePasswordInComputeConfig_updatesRoleRegardlessOfFieldOrder() throws Exception {
+        String config = """
+            {"spec":{"cluster":{"roles":[
+              {"encrypted_password":"old","name":"user_a"},
+              {"name":"user_b","encrypted_password":"keep"}
+            ]}}}
+            """;
+
+        String updated = mgr.updatePasswordInComputeConfig(config, "user_a", "new-hash");
+
+        var root = new ObjectMapper().readTree(updated);
+        assertEquals("new-hash", root.path("spec").path("cluster").path("roles").get(0).path("encrypted_password").asText());
+        assertEquals("keep", root.path("spec").path("cluster").path("roles").get(1).path("encrypted_password").asText());
+    }
 }

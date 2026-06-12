@@ -1,3 +1,4 @@
+{{- if include "lakeon.dataPlaneEnabled" . }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -112,3 +113,4 @@ spec:
           emptyDir: {}
         - name: data
           emptyDir: {}
+{{- end }}

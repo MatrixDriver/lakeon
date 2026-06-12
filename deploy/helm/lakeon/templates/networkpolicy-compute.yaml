@@ -1,4 +1,4 @@
-{{- if .Values.networkPolicy.enabled }}
+{{- if and .Values.networkPolicy.enabled (include "lakeon.dataPlaneEnabled" .) }}
 # NetworkPolicy: isolate compute pods in lakeon-compute namespace
 # - Egress: only pageserver:6400, safekeeper:5454, DNS:53
 # - Ingress: only proxy and lakeon-api pods from lakeon namespace
@@ -6,7 +6,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: compute-isolation
-  namespace: lakeon-compute
+  namespace: {{ .Values.dataPlane.computeNamespace | default "lakeon-compute" }}
   labels:
     {{- include "lakeon.labels" . | nindent 4 }}
 spec:

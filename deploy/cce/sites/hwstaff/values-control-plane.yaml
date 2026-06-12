@@ -1,0 +1,62 @@
+# hwstaff control-plane CCE overrides.
+# Use together with values.yaml:
+#   helm ... -f values.yaml -f values-control-plane.yaml
+
+plane:
+  mode: control
+
+api:
+  replicas: 2
+  serviceType: LoadBalancer
+  elb:
+    id: ""
+    class: "performance"
+    autocreate: '{"type":"inner","name":"dbay-control-api-inner-elb","l4_flavor_id":"ec6df27e-8ae9-45e3-828f-a6de45e3e109","available_zone":["cn-north-4a","cn-north-4c"]}'
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 70
+
+dataPlane:
+  namespace: lakeon
+  computeNamespace: lakeon-compute
+  pageserverUrl: "http://pageserver.lakeon.svc.cluster.local:9898"
+  safekeeperUrls: "safekeeper-0.safekeeper.lakeon.svc.cluster.local:5454,safekeeper-1.safekeeper.lakeon.svc.cluster.local:5454,safekeeper-2.safekeeper.lakeon.svc.cluster.local:5454"
+  storageBrokerUrl: "http://storage-broker.lakeon.svc.cluster.local:50051"
+  kubeApiServer: ""
+  kubeToken: ""
+  kubeCaB64: ""
+
+proxy:
+  replicas: 0
+
+pageserver:
+  replicas: 0
+
+safekeeper:
+  replicas: 0
+
+storageBroker:
+  replicas: 0
+
+orchestrator:
+  enabled: false
+
+wikiAgent:
+  enabled: false
+
+admin:
+  enabled: false
+
+console:
+  enabled: false
+
+memory:
+  enabled: false
+
+embedding:
+  enabled: false
+
+llm:
+  enabled: false

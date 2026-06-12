@@ -48,4 +48,33 @@ class ComputeSpecBuilderJwksTest {
         assertThat(keys.isArray()).isTrue();
         assertThat(keys.size()).isEqualTo(0);
     }
+
+    @Test
+    void buildPageserverPgConnstring_usesServiceDnsForShortServiceName() {
+        LakeonProperties props = newProps();
+        ComputeSpecBuilder builder = new ComputeSpecBuilder(props, new ObjectMapper());
+
+        assertThat(builder.buildPageserverPgConnstring())
+            .isEqualTo("postgresql://pageserver.lakeon.svc.cluster.local:6400");
+    }
+
+    @Test
+    void buildPageserverPgConnstring_usesConfiguredIpDirectly() {
+        LakeonProperties props = newProps();
+        props.getNeon().setPageserverUrl("http://192.168.0.175:9898");
+        ComputeSpecBuilder builder = new ComputeSpecBuilder(props, new ObjectMapper());
+
+        assertThat(builder.buildPageserverPgConnstring())
+            .isEqualTo("postgresql://192.168.0.175:6400");
+    }
+
+    @Test
+    void buildPageserverPgConnstring_keepsConfiguredFqdn() {
+        LakeonProperties props = newProps();
+        props.getNeon().setPageserverUrl("http://pageserver.lakeon.svc.cluster.local:9898");
+        ComputeSpecBuilder builder = new ComputeSpecBuilder(props, new ObjectMapper());
+
+        assertThat(builder.buildPageserverPgConnstring())
+            .isEqualTo("postgresql://pageserver.lakeon.svc.cluster.local:6400");
+    }
 }
