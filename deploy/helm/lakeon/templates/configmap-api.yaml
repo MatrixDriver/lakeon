@@ -156,6 +156,13 @@ data:
   LAKEON_DATALAKE_VK_NODE_SELECTOR_KEY: {{ .vkNodeSelectorKey | quote }}
   LAKEON_DATALAKE_VK_NODE_SELECTOR_VALUE: {{ .vkNodeSelectorValue | quote }}
   LAKEON_DATALAKE_POLL_INTERVAL_MS: {{ .pollIntervalMs | quote }}
+  {{- with .warmPool }}
+  LAKEON_DATALAKE_WARM_POOL_ENABLED: {{ .enabled | quote }}
+  LAKEON_DATALAKE_WARM_POOL_SIZE: {{ .size | quote }}
+  LAKEON_DATALAKE_WARM_POOL_NS: {{ .namespace | quote }}
+  LAKEON_DATALAKE_WARM_POOL_IMAGE: {{ .image | quote }}
+  LAKEON_DATALAKE_WARM_POOL_IDLE_TIMEOUT: {{ .idleTimeoutMinutes | quote }}
+  {{- end }}
   LAKEON_DATALAKE_IMAGE_PYTHON_SLIM: {{ .images.pythonSlim | quote }}
   LAKEON_DATALAKE_IMAGE_PYTHON_DATA: {{ .images.pythonData | quote }}
   LAKEON_DATALAKE_IMAGE_RAY: {{ .images.ray | quote }}

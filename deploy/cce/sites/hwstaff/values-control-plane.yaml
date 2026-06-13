@@ -73,6 +73,10 @@ dataPlane:
   kubeToken: ""
   kubeCaB64: ""
 
+datalake:
+  warmPool:
+    enabled: false
+
 proxy:
   replicas: 0
 

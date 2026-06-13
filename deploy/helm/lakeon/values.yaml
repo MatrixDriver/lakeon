@@ -218,6 +218,12 @@ datalake:
   vkNodeSelectorKey: "type"
   vkNodeSelectorValue: "virtual-kubelet"
   pollIntervalMs: "10000"
+  warmPool:
+    enabled: false
+    size: 2
+    namespace: "datalake-pool"
+    image: "swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data"
+    idleTimeoutMinutes: 30
   images:
     pythonSlim: "swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-slim"
     pythonData: "swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-data"
