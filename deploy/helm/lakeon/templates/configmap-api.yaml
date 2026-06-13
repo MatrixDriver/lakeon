@@ -50,6 +50,15 @@ data:
   LAKEON_PROXY_EXTERNAL_HOST: {{ .Values.proxy.externalHost | quote }}
   {{- end }}
   LAKEON_PROXY_EXTERNAL_PORT: {{ .Values.proxy.listenPort | quote }}
+  {{- if .Values.proxy.internalHost }}
+  LAKEON_PROXY_INTERNAL_HOST: {{ .Values.proxy.internalHost | quote }}
+  {{- end }}
+  {{- if .Values.proxy.internalPort }}
+  LAKEON_PROXY_INTERNAL_PORT: {{ .Values.proxy.internalPort | quote }}
+  {{- end }}
+  {{- if .Values.memory.serviceUrl }}
+  LAKEON_MEMORY_SERVICE_URL: {{ .Values.memory.serviceUrl | quote }}
+  {{- end }}
   {{- if .Values.global.imagePullSecrets }}
   LAKEON_IMAGE_PULL_SECRETS: {{ range $i, $s := .Values.global.imagePullSecrets }}{{ if $i }},{{ end }}{{ $s.name }}{{ end }}
   {{- end }}

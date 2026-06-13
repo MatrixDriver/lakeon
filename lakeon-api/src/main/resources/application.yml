@@ -36,6 +36,8 @@ lakeon:
     internal-token: ${LAKEON_PROXY_INTERNAL_TOKEN:}
     external-host: ${LAKEON_PROXY_EXTERNAL_HOST:}
     external-port: ${LAKEON_PROXY_EXTERNAL_PORT:4432}
+    internal-host: ${LAKEON_PROXY_INTERNAL_HOST:}
+    internal-port: ${LAKEON_PROXY_INTERNAL_PORT:4432}
   data-plane:
     kube-api-server: ${LAKEON_DATA_PLANE_KUBE_API_SERVER:}
     kube-token: ${LAKEON_DATA_PLANE_KUBE_TOKEN:}
