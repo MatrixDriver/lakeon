@@ -162,6 +162,15 @@ spec:
               {{- end }}
             initialDelaySeconds: 30
             periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+              {{- if $root.Values.api.ssl.enabled }}
+              scheme: HTTPS
+              {{- end }}
+            failureThreshold: 24
+            periodSeconds: 5
           readinessProbe:
             httpGet:
               path: /actuator/health
