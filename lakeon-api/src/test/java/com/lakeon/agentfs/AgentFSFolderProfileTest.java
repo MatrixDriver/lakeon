@@ -21,6 +21,20 @@ class AgentFSFolderProfileTest {
     }
 
     @Test
+    void defaults_opencode_home_to_agent_home_processing() {
+        AgentFSFolderProfile profile = AgentFSFolderProfile.normalize(
+                "opencode-runtime",
+                "opencode-home",
+                null,
+                null);
+
+        assertEquals("opencode-runtime", profile.displayName());
+        assertEquals("opencode-home", profile.directoryKind());
+        assertEquals("auto", profile.storagePolicy());
+        assertEquals("agent-home", profile.processingProfile());
+    }
+
+    @Test
     void defaults_data_dir_to_object_first_dataset_processing() {
         AgentFSFolderProfile profile = AgentFSFolderProfile.normalize(
                 "warehouse",

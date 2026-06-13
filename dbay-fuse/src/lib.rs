@@ -8,3 +8,4 @@ pub mod profile;
 pub mod pull;
 pub mod state_scan;
 pub mod sync;
+pub mod watch_sync;

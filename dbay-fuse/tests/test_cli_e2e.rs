@@ -18,6 +18,15 @@ fn help_exposes_folder_commands_without_takeover_or_workspace() {
 }
 
 #[test]
+fn sync_help_exposes_watch_mode() {
+    let output = Command::new(bin()).arg("sync").arg("--help").output().unwrap();
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("--watch"));
+}
+
+#[test]
 fn inspect_cli_recommends_iceberg_table_for_iceberg_layout() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(dir.path().join("metadata")).unwrap();
@@ -187,6 +196,7 @@ fn sync_non_dry_run_enqueues_directory_and_file_ops_without_copying_source() {
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(stdout.contains("folder: project-notes"));
+    assert!(stdout.contains("registration: skipped"));
     assert!(stdout.contains("queued:    2"));
 
     let sync_root = home.path().join(".dbay").join("sync").join("project-notes");
@@ -195,7 +205,7 @@ fn sync_non_dry_run_enqueues_directory_and_file_ops_without_copying_source() {
     assert!(log.contains(r#""path":"/notes/nested""#));
     assert!(log.contains(r#""op":"put""#));
     assert!(log.contains(r#""path":"/notes/nested/a.md""#));
-    assert!(log.contains(r#""agentfs_profile""#));
+    assert!(log.contains(r#""lbfs_profile""#));
     assert!(log.contains(r#""directory_kind":"files""#));
     assert!(log.contains(r#""storage_policy":"auto""#));
     assert!(log.contains(r#""processing_profile":"none""#));

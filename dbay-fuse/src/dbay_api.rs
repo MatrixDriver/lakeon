@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 use crate::config::{self, is_base_id};
+use crate::profile::FolderProfile;
 
 const HTTP_TIMEOUT_SECS: u64 = 150;
 
@@ -76,9 +77,9 @@ pub struct RecallResp {
     pub memories: Vec<RecalledMemory>,
 }
 
-/// AgentFS list/head entry. Used by the in-memory FUSE backend.
+/// LakebaseFS list/head entry. Used by the in-memory FUSE backend.
 #[derive(Debug, Clone)]
-pub struct AgentFSEntry {
+pub struct LakebaseFSEntry {
     pub path: String,
     pub kind: String, // "file" | "dir"
     pub size: u64,
@@ -86,7 +87,7 @@ pub struct AgentFSEntry {
     pub etag: String,
 }
 
-impl AgentFSEntry {
+impl LakebaseFSEntry {
     pub fn from_json(v: &serde_json::Value) -> Self {
         Self {
             path: v.get("path").and_then(|x| x.as_str()).unwrap_or("").to_string(),
@@ -99,12 +100,12 @@ impl AgentFSEntry {
 }
 
 #[derive(Debug)]
-pub enum AgentFSPutError {
+pub enum LakebaseFSPutError {
     PreconditionFailed,
     Other(anyhow::Error),
 }
 
-impl std::fmt::Display for AgentFSPutError {
+impl std::fmt::Display for LakebaseFSPutError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::PreconditionFailed => write!(f, "precondition failed (etag mismatch)"),
@@ -113,7 +114,7 @@ impl std::fmt::Display for AgentFSPutError {
     }
 }
 
-impl std::error::Error for AgentFSPutError {}
+impl std::error::Error for LakebaseFSPutError {}
 
 #[derive(Deserialize, Debug)]
 pub struct RecalledMemory {
@@ -157,7 +158,7 @@ impl DbayClient {
     }
 
     /// Like `for_agent` but skips memory-base resolution. Use for paths that
-    /// only call AgentFS endpoints (`/agentfs/*`) which are tenant-scoped, not
+    /// only call LakebaseFS endpoints (`/lbfs/*`) which are tenant-scoped, not
     /// base-scoped — `pull`, mount startup-pull, and sync/import. Avoids
     /// the "No memory bases on this account" failure on fresh tenants.
     pub fn for_agent_no_base(agent: &str) -> Result<Option<Self>> {
@@ -241,12 +242,29 @@ impl DbayClient {
         format!("{}/memory/bases/{}{}", self.base_url, self.base_id, path)
     }
 
-    fn agentfs_url(&self, tail: &str) -> String {
-        format!("{}/agentfs{}", self.base_url, tail)
+    fn lbfs_url(&self, tail: &str) -> String {
+        format!("{}/lbfs{}", self.base_url, tail)
     }
 
-    /// AgentFS PUT (path in body, base64-encoded data).
-    pub fn agentfs_put(
+    pub fn register_folder(&self, profile: &FolderProfile) -> Result<()> {
+        let body = folder_registration_body(profile);
+        let resp = self
+            .http
+            .post(self.lbfs_url("/folders"))
+            .bearer_auth(&self.api_key)
+            .json(&body)
+            .send()
+            .context("lbfs folder register http")?;
+        if !resp.status().is_success() {
+            let s = resp.status();
+            let t = resp.text().unwrap_or_default();
+            bail!("lbfs folder register failed: {s} {t}");
+        }
+        Ok(())
+    }
+
+    /// LakebaseFS PUT (path in body, base64-encoded data).
+    pub fn lbfs_put(
         &self,
         path: &str,
         data: &[u8],
@@ -260,20 +278,20 @@ impl DbayClient {
         });
         let resp = self
             .http
-            .post(self.agentfs_url("/files/put"))
+            .post(self.lbfs_url("/files/put"))
             .bearer_auth(&self.api_key)
             .json(&body)
             .send()
-            .context("agentfs put http")?;
+            .context("lbfs put http")?;
         if !resp.status().is_success() {
             let s = resp.status();
             let t = resp.text().unwrap_or_default();
-            bail!("agentfs put failed: {s} {t}");
+            bail!("lbfs put failed: {s} {t}");
         }
         Ok(())
     }
 
-    pub fn agentfs_append(&self, path: &str, data: &[u8]) -> Result<()> {
+    pub fn lbfs_append(&self, path: &str, data: &[u8]) -> Result<()> {
         use base64::Engine;
         let body = serde_json::json!({
             "path": path,
@@ -281,54 +299,54 @@ impl DbayClient {
         });
         let resp = self
             .http
-            .post(self.agentfs_url("/files/append"))
+            .post(self.lbfs_url("/files/append"))
             .bearer_auth(&self.api_key)
             .json(&body)
             .send()
-            .context("agentfs append http")?;
+            .context("lbfs append http")?;
         if !resp.status().is_success() {
             let s = resp.status();
             let t = resp.text().unwrap_or_default();
-            bail!("agentfs append failed: {s} {t}");
+            bail!("lbfs append failed: {s} {t}");
         }
         Ok(())
     }
 
-    pub fn agentfs_delete(&self, path: &str) -> Result<()> {
+    pub fn lbfs_delete(&self, path: &str) -> Result<()> {
         let body = serde_json::json!({ "path": path });
         let resp = self
             .http
-            .post(self.agentfs_url("/files/delete"))
+            .post(self.lbfs_url("/files/delete"))
             .bearer_auth(&self.api_key)
             .json(&body)
             .send()
-            .context("agentfs delete http")?;
+            .context("lbfs delete http")?;
         if !resp.status().is_success() {
             let s = resp.status();
             let t = resp.text().unwrap_or_default();
-            bail!("agentfs delete failed: {s} {t}");
+            bail!("lbfs delete failed: {s} {t}");
         }
         Ok(())
     }
 
-    pub fn agentfs_rename(&self, from: &str, to: &str) -> Result<()> {
+    pub fn lbfs_rename(&self, from: &str, to: &str) -> Result<()> {
         let body = serde_json::json!({ "from": from, "to": to });
         let resp = self
             .http
-            .post(self.agentfs_url("/rename"))
+            .post(self.lbfs_url("/rename"))
             .bearer_auth(&self.api_key)
             .json(&body)
             .send()
-            .context("agentfs rename http")?;
+            .context("lbfs rename http")?;
         if !resp.status().is_success() {
             let s = resp.status();
             let t = resp.text().unwrap_or_default();
-            bail!("agentfs rename failed: {s} {t}");
+            bail!("lbfs rename failed: {s} {t}");
         }
         Ok(())
     }
 
-    pub fn agentfs_mkdir(
+    pub fn lbfs_mkdir(
         &self,
         path: &str,
         properties: Option<&serde_json::Value>,
@@ -339,35 +357,35 @@ impl DbayClient {
         });
         let resp = self
             .http
-            .post(self.agentfs_url("/mkdir"))
+            .post(self.lbfs_url("/mkdir"))
             .bearer_auth(&self.api_key)
             .json(&body)
             .send()
-            .context("agentfs mkdir http")?;
+            .context("lbfs mkdir http")?;
         if !resp.status().is_success() {
             let s = resp.status();
             let t = resp.text().unwrap_or_default();
-            bail!("agentfs mkdir failed: {s} {t}");
+            bail!("lbfs mkdir failed: {s} {t}");
         }
         Ok(())
     }
 
-    /// POST /agentfs/batch — multi-op call. Returns one BatchOpResult per input op.
+    /// POST /lbfs/batch — multi-op call. Returns one BatchOpResult per input op.
     /// Non-2xx surfaces as Err; a 2xx with per-op status="precondition_failed"
     /// is returned in the Vec so the caller can take per-op action.
-    pub fn agentfs_batch(&self, ops: Vec<serde_json::Value>) -> Result<Vec<BatchOpResult>> {
+    pub fn lbfs_batch(&self, ops: Vec<serde_json::Value>) -> Result<Vec<BatchOpResult>> {
         let body = serde_json::json!({ "ops": ops });
         let resp = self
             .http
-            .post(self.agentfs_url("/batch"))
+            .post(self.lbfs_url("/batch"))
             .bearer_auth(&self.api_key)
             .json(&body)
             .send()
-            .context("agentfs batch http")?;
+            .context("lbfs batch http")?;
         if !resp.status().is_success() {
             let s = resp.status();
             let t = resp.text().unwrap_or_default();
-            bail!("agentfs batch failed: {s} {t}");
+            bail!("lbfs batch failed: {s} {t}");
         }
         let text = resp.text().unwrap_or_default();
         let v: serde_json::Value = serde_json::from_str(&text).context("batch decode")?;
@@ -410,20 +428,20 @@ impl DbayClient {
         Ok(resp.json().context("ingest decode")?)
     }
 
-    // ───────── AgentFS strict / read-side methods (used by inmem backend) ─────────
+    // ───────── LakebaseFS strict / read-side methods (used by inmem backend) ─────────
 
-    /// GET /agentfs/files — returns (bytes, etag, mtime_ns).
-    pub fn agentfs_get(&self, path: &str) -> Result<(Vec<u8>, String, u64)> {
+    /// GET /lbfs/files — returns (bytes, etag, mtime_ns).
+    pub fn lbfs_get(&self, path: &str) -> Result<(Vec<u8>, String, u64)> {
         use base64::Engine;
         let p_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(path.as_bytes());
         let resp = self.http
-            .get(self.agentfs_url("/files"))
+            .get(self.lbfs_url("/files"))
             .query(&[("path", &p_b64)])
             .bearer_auth(&self.api_key)
             .send()
-            .context("agentfs get http")?;
+            .context("lbfs get http")?;
         if !resp.status().is_success() {
-            bail!("agentfs get failed: {} {}", resp.status(), resp.text().unwrap_or_default());
+            bail!("lbfs get failed: {} {}", resp.status(), resp.text().unwrap_or_default());
         }
         // HTTP ETag headers may be wrapped in double-quotes per RFC 7232; strip
         // them so the value compares equal to the bare-string etag returned by
@@ -433,22 +451,22 @@ impl DbayClient {
             .unwrap_or("")
             .trim_matches('"')
             .to_string();
-        let mtime_ns = resp.headers().get("X-AgentFS-Mtime")
+        let mtime_ns = resp.headers().get("X-LBFS-Mtime")
             .and_then(|v| v.to_str().ok()).and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
-        let bytes = resp.bytes().context("agentfs get body")?.to_vec();
+        let bytes = resp.bytes().context("lbfs get body")?.to_vec();
         Ok((bytes, etag, mtime_ns))
     }
 
-    /// GET /agentfs/files/head — metadata only. None on 404.
-    pub fn agentfs_head(&self, path: &str) -> Result<Option<AgentFSEntry>> {
+    /// GET /lbfs/files/head — metadata only. None on 404.
+    pub fn lbfs_head(&self, path: &str) -> Result<Option<LakebaseFSEntry>> {
         use base64::Engine;
         let p_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(path.as_bytes());
         let resp = self.http
-            .get(self.agentfs_url("/files/head"))
+            .get(self.lbfs_url("/files/head"))
             .query(&[("path", &p_b64)])
             .bearer_auth(&self.api_key)
             .send()
-            .context("agentfs head http")?;
+            .context("lbfs head http")?;
         let status = resp.status();
         if status.as_u16() == 404 {
             return Ok(None);
@@ -459,42 +477,42 @@ impl DbayClient {
             if text.contains("not_found") || text.contains("NotFound") {
                 return Ok(None);
             }
-            bail!("agentfs head failed: {status} {text}");
+            bail!("lbfs head failed: {status} {text}");
         }
         let v: serde_json::Value = serde_json::from_str(&text).context("head decode")?;
-        Ok(Some(AgentFSEntry::from_json(&v)))
+        Ok(Some(LakebaseFSEntry::from_json(&v)))
     }
 
-    /// GET /agentfs/list — returns directory entries.
-    pub fn agentfs_list(&self, prefix: &str, recursive: bool) -> Result<Vec<AgentFSEntry>> {
+    /// GET /lbfs/list — returns directory entries.
+    pub fn lbfs_list(&self, prefix: &str, recursive: bool) -> Result<Vec<LakebaseFSEntry>> {
         use base64::Engine;
         let p_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(prefix.as_bytes());
         let resp = self.http
-            .get(self.agentfs_url("/list"))
+            .get(self.lbfs_url("/list"))
             .query(&[("prefix", p_b64.as_str()), ("recursive", if recursive {"true"} else {"false"})])
             .bearer_auth(&self.api_key)
             .send()
-            .context("agentfs list http")?;
+            .context("lbfs list http")?;
         let status = resp.status();
         let text = resp.text().unwrap_or_default();
         if !status.is_success() {
-            bail!("agentfs list failed: {status} {text}");
+            bail!("lbfs list failed: {status} {text}");
         }
         let v: serde_json::Value = serde_json::from_str(&text).context("list decode")?;
         let arr = v.get("entries").cloned().unwrap_or(serde_json::json!([]));
-        Ok(arr.as_array().map(|a| a.iter().map(AgentFSEntry::from_json).collect()).unwrap_or_default())
+        Ok(arr.as_array().map(|a| a.iter().map(LakebaseFSEntry::from_json).collect()).unwrap_or_default())
     }
 
-    /// POST /agentfs/files/put with optional If-Match / If-None-Match. Returns
+    /// POST /lbfs/files/put with optional If-Match / If-None-Match. Returns
     /// the new etag on success. PreconditionFailed surfaces as a typed variant
     /// so the caller can distinguish concurrent modification from real errors.
-    pub fn agentfs_put_strict(
+    pub fn lbfs_put_strict(
         &self,
         path: &str,
         data: &[u8],
         if_match: Option<&str>,
         if_none_match: Option<&str>,
-    ) -> std::result::Result<String, AgentFSPutError> {
+    ) -> std::result::Result<String, LakebaseFSPutError> {
         use base64::Engine;
         let mut body = serde_json::json!({
             "path": path,
@@ -503,37 +521,37 @@ impl DbayClient {
         if let Some(m) = if_match { body["if_match"] = serde_json::json!(m); }
         if let Some(m) = if_none_match { body["if_none_match"] = serde_json::json!(m); }
         let resp = self.http
-            .post(self.agentfs_url("/files/put"))
+            .post(self.lbfs_url("/files/put"))
             .bearer_auth(&self.api_key)
             .json(&body)
             .send()
-            .map_err(|e| AgentFSPutError::Other(anyhow::anyhow!("put http: {e}")))?;
+            .map_err(|e| LakebaseFSPutError::Other(anyhow::anyhow!("put http: {e}")))?;
         let status = resp.status();
         let text = resp.text().unwrap_or_default();
         if status.is_success() {
             let v: serde_json::Value = serde_json::from_str(&text)
-                .map_err(|e| AgentFSPutError::Other(anyhow::anyhow!("put decode: {e}")))?;
+                .map_err(|e| LakebaseFSPutError::Other(anyhow::anyhow!("put decode: {e}")))?;
             let etag = v.get("etag").and_then(|x| x.as_str()).unwrap_or_default().to_string();
             return Ok(etag);
         }
         if text.contains("precondition_failed") {
-            return Err(AgentFSPutError::PreconditionFailed);
+            return Err(LakebaseFSPutError::PreconditionFailed);
         }
-        Err(AgentFSPutError::Other(anyhow::anyhow!("agentfs put failed: {status} {text}")))
+        Err(LakebaseFSPutError::Other(anyhow::anyhow!("lbfs put failed: {status} {text}")))
     }
 
-    /// POST /agentfs/files/delete with optional If-Match.
-    pub fn agentfs_delete_strict(&self, path: &str, if_match: Option<&str>) -> Result<()> {
+    /// POST /lbfs/files/delete with optional If-Match.
+    pub fn lbfs_delete_strict(&self, path: &str, if_match: Option<&str>) -> Result<()> {
         let mut body = serde_json::json!({ "path": path });
         if let Some(m) = if_match { body["if_match"] = serde_json::json!(m); }
         let resp = self.http
-            .post(self.agentfs_url("/files/delete"))
+            .post(self.lbfs_url("/files/delete"))
             .bearer_auth(&self.api_key)
             .json(&body)
             .send()
-            .context("agentfs delete http")?;
+            .context("lbfs delete http")?;
         if !resp.status().is_success() {
-            bail!("agentfs delete failed: {} {}", resp.status(), resp.text().unwrap_or_default());
+            bail!("lbfs delete failed: {} {}", resp.status(), resp.text().unwrap_or_default());
         }
         Ok(())
     }
@@ -556,9 +574,19 @@ impl DbayClient {
     }
 }
 
+pub fn folder_registration_body(profile: &FolderProfile) -> serde_json::Value {
+    serde_json::json!({
+        "display_name": profile.folder,
+        "directory_kind": profile.directory_kind.to_string(),
+        "storage_policy": profile.storage_policy.to_string(),
+        "processing_profile": profile.processing_profile.to_string(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    use super::insecure_tls_enabled;
+    use super::{folder_registration_body, insecure_tls_enabled};
+    use crate::profile::{DirectoryKind, FolderProfile};
 
     #[test]
     fn insecure_tls_requires_explicit_env_opt_in() {
@@ -579,5 +607,22 @@ mod tests {
             Some(v) => std::env::set_var("DBAY_INSECURE_TLS", v),
             None => std::env::remove_var("DBAY_INSECURE_TLS"),
         }
+    }
+
+    #[test]
+    fn folder_registration_body_uses_lbfs_profile_fields() {
+        let profile = FolderProfile::new(
+            "/agents/opencode",
+            DirectoryKind::OpencodeHome,
+            None,
+            None,
+        );
+
+        let body = folder_registration_body(&profile);
+
+        assert_eq!(body["display_name"], "/agents/opencode");
+        assert_eq!(body["directory_kind"], "opencode-home");
+        assert_eq!(body["storage_policy"], "auto");
+        assert_eq!(body["processing_profile"], "agent-home");
     }
 }
