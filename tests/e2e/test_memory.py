@@ -241,7 +241,7 @@ def test_digest_server(mem_base_server_mode, e2e_client):
 @pytest.fixture
 def tenant_b():
     """Create a second tenant for isolation tests. Always cleaned up."""
-    from tests.e2e.conftest import _create_tenant_with_invite, ENDPOINT, ADMIN_TOKEN
+    from conftest import _create_tenant_with_invite, ENDPOINT, ADMIN_TOKEN
     from dbay_cli.client import DbayClient
     ts = int(time.time())
     client_b, tenant_b = _create_tenant_with_invite(

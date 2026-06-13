@@ -57,8 +57,8 @@ public class MemoryService {
                                         String scene, boolean encrypted, String encryptedDek,
                                         String kdfSalt, Integer embeddingDim) {
         String tenantId = tenant.getId();
-        // Use a generated slug for DB name (ASCII-safe, avoids HTTP header encoding issues with Chinese names)
-        String dbSlug = "mem_" + java.util.UUID.randomUUID().toString().substring(0, 8);
+        // Keep the backing Neon project/endpoint name proxy-safe: letters, numbers, and hyphen only.
+        String dbSlug = "mem-" + java.util.UUID.randomUUID().toString().substring(0, 8);
         var dbRequest = new CreateDatabaseRequest(dbSlug, null, null, null);
         DatabaseResponse dbResp = databaseService.create(tenant, dbRequest);
 
