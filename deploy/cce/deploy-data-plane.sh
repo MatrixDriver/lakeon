@@ -31,6 +31,7 @@ helm upgrade --install lakeon-data "$SCRIPT_DIR/../helm/lakeon" \
   --set metadataDb.password="$RDS_PASSWORD" \
   --set-string api.logDbDsn="$LOG_DB_DSN" \
   --set-string proxy.authEndpoint="$CONTROL_PLANE_PROXY_AUTH_ENDPOINT" \
+  ${AI_API_KEY:+--set} ${AI_API_KEY:+api.aiApiKey=$AI_API_KEY} \
   ${DATA_PLANE_PAGESERVER_ELB_ID:+--set} ${DATA_PLANE_PAGESERVER_ELB_ID:+pageserver.elb.id=$DATA_PLANE_PAGESERVER_ELB_ID} \
   ${DATA_PLANE_PAGESERVER_ELB_CLASS:+--set} ${DATA_PLANE_PAGESERVER_ELB_CLASS:+pageserver.elb.class=$DATA_PLANE_PAGESERVER_ELB_CLASS} \
   ${DATA_PLANE_PAGESERVER_SERVICE_TYPE:+--set} ${DATA_PLANE_PAGESERVER_SERVICE_TYPE:+pageserver.serviceType=$DATA_PLANE_PAGESERVER_SERVICE_TYPE} \
