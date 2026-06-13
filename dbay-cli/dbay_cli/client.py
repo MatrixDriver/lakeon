@@ -618,7 +618,8 @@ class DbayClient:
     # ── Memory Operations ─────────────────────────────────────────
     def mem_ingest(self, mem_id: str, content: str, role: str = "user",
                    signal: str = "memory", memory_type: str = None,
-                   importance: float = None, source: str = None) -> dict:
+                   importance: float = None, source: str = None,
+                   embedding: list[float] = None) -> dict:
         body: dict = {"content": content, "role": role, "signal": signal}
         if memory_type is not None:
             body["memory_type"] = memory_type
@@ -626,6 +627,8 @@ class DbayClient:
             body["importance"] = importance
         if source is not None:
             body["source"] = source
+        if embedding is not None:
+            body["embedding"] = embedding
         return self._request("POST", f"/memory/bases/{mem_id}/ingest", json=body)
 
     def mem_ingest_extracted(self, mem_id: str, message_id: str, data: dict) -> dict:
@@ -633,8 +636,13 @@ class DbayClient:
                              json={"message_id": message_id, "data": data})
 
     def mem_recall(self, mem_id: str, query: str, top_k: int = 10,
-                   memory_types: list = None) -> dict:
-        body: dict = {"query": query, "top_k": top_k}
+                   memory_types: list = None,
+                   query_embedding: list[float] = None) -> dict:
+        body: dict = {"top_k": top_k}
+        if query_embedding is not None:
+            body["query_embedding"] = query_embedding
+        else:
+            body["query"] = query
         if memory_types:
             body["memory_types"] = memory_types
         return self._request("POST", f"/memory/bases/{mem_id}/recall", json=body)

@@ -27,6 +27,10 @@ from dbay_mcp.crypto import (
 TEST_PASSWORD = "e2e-test-password-2026"
 
 
+def test_embedding(seed: float = 0.01) -> list[float]:
+    return [seed] * 1024
+
+
 # ---------------------------------------------------------------------------
 # Module-scoped fixtures for server integration tests
 # ---------------------------------------------------------------------------
@@ -207,6 +211,7 @@ class TestEncryptedMemoryBase:
             mem_id, content=encrypted_content,
             signal="memory", memory_type="fact",
             importance=0.8,
+            embedding=test_embedding(),
         )
         assert result["status"] == "stored"
 
@@ -231,12 +236,17 @@ class TestEncryptedMemoryBase:
         result = e2e_client.mem_ingest(
             mem_id, content=encrypted_content,
             signal="memory", memory_type="fact",
+            embedding=test_embedding(0.02),
         )
         assert result["status"] == "stored"
 
         # Recall - server returns ciphertext, we decrypt
         time.sleep(1)
-        recall_result = e2e_client.mem_recall(mem_id, query="project deadline")
+        recall_result = e2e_client.mem_recall(
+            mem_id,
+            query="project deadline",
+            query_embedding=test_embedding(0.02),
+        )
         found = False
         for m in recall_result.get("memories", []):
             try:
@@ -257,6 +267,7 @@ class TestEncryptedMemoryBase:
         result = e2e_client.mem_ingest(
             mem_id, content=encrypted_content,
             signal="memory", memory_type="fact",
+            embedding=test_embedding(0.03),
         )
         memory_id = result["memory_id"]
 
@@ -267,7 +278,7 @@ class TestEncryptedMemoryBase:
 
     def test_multi_tenant_isolation_encrypted(self, encrypted_base, e2e_client):
         """Other tenants cannot access encrypted memory base."""
-        from tests.e2e.conftest import _create_tenant_with_invite, ENDPOINT, ADMIN_TOKEN
+        from conftest import _create_tenant_with_invite, ENDPOINT, ADMIN_TOKEN
         from dbay_cli.client import DbayClient, DbayApiError
 
         ts = int(time.time())
