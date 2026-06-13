@@ -73,6 +73,18 @@ data:
   {{- if .Values.cloud.cceClusterId }}
   LAKEON_CLOUD_CCE_CLUSTER_ID: {{ .Values.cloud.cceClusterId | quote }}
   {{- end }}
+  {{- if .Values.cloud.controlCceClusterId }}
+  LAKEON_CLOUD_CONTROL_CCE_CLUSTER_ID: {{ .Values.cloud.controlCceClusterId | quote }}
+  {{- end }}
+  {{- if .Values.cloud.controlCceClusterName }}
+  LAKEON_CLOUD_CONTROL_CCE_CLUSTER_NAME: {{ .Values.cloud.controlCceClusterName | quote }}
+  {{- end }}
+  {{- if .Values.cloud.dataCceClusterId }}
+  LAKEON_CLOUD_DATA_CCE_CLUSTER_ID: {{ .Values.cloud.dataCceClusterId | quote }}
+  {{- end }}
+  {{- if .Values.cloud.dataCceClusterName }}
+  LAKEON_CLOUD_DATA_CCE_CLUSTER_NAME: {{ .Values.cloud.dataCceClusterName | quote }}
+  {{- end }}
   {{- if .Values.cloud.rdsInstanceId }}
   LAKEON_CLOUD_RDS_INSTANCE_ID: {{ .Values.cloud.rdsInstanceId | quote }}
   {{- end }}
@@ -84,6 +96,12 @@ data:
   {{- end }}
   {{- if .Values.cloud.nodePoolId }}
   LAKEON_CLOUD_NODE_POOL_ID: {{ .Values.cloud.nodePoolId | quote }}
+  {{- end }}
+  {{- if .Values.cloud.publicApiElbId }}
+  LAKEON_CLOUD_PUBLIC_API_ELB_ID: {{ .Values.cloud.publicApiElbId | quote }}
+  {{- end }}
+  {{- if .Values.cloud.controlPrivateElbIp }}
+  LAKEON_CLOUD_CONTROL_PRIVATE_ELB_IP: {{ .Values.cloud.controlPrivateElbIp | quote }}
   {{- end }}
   {{- end }}
   {{- if .Values.sync }}

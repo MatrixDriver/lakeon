@@ -238,11 +238,19 @@ cloud:
   consoleRegion: "cn-north-4"
   resourceIds:
     - "80fc030a-1577-4daf-9f4c-fa31e93a3a85"  # ELB lakeon-elb
+    - "46b20c38-5c54-4781-9f00-d25d8c1717a8"  # ELB lakeon-elb (current API/PG listeners)
+    - "377df1d7-663c-11f1-b0ad-0255ac100240"  # CCE dbay-control-cce
   cceClusterId: "9fa5350b-1780-11f1-842d-0255ac100249"
+  controlCceClusterId: "377df1d7-663c-11f1-b0ad-0255ac100240"
+  controlCceClusterName: "dbay-control-cce"
+  dataCceClusterId: "9fa5350b-1780-11f1-842d-0255ac100249"
+  dataCceClusterName: "dbay-cce"
   rdsInstanceId: "f7e6a949fe8c4177bf074a03bb747d87in03"
-  elbId: "80fc030a-1577-4daf-9f4c-fa31e93a3a85"
-  eipId: "e7ecf9e9-bdcd-4ab9-a85a-bb70686e4faa"
+  elbId: "46b20c38-5c54-4781-9f00-d25d8c1717a8"
+  eipId: "0068faa1-8e37-46d0-b6b6-683ab9e4c085"
   nodePoolId: "55859b9b"
+  publicApiElbId: "46b20c38-5c54-4781-9f00-d25d8c1717a8"
+  controlPrivateElbIp: "192.168.0.182"
 
 # ── 弹性节点池（compute pod 自动扩缩容）──────────────────────────
 # ── 节点池架构 ──────────────────────────────────────────────────

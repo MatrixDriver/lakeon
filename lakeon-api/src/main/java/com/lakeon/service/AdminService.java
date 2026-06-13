@@ -600,74 +600,119 @@ public class AdminService {
         Map<String, Object> result = new LinkedHashMap<>();
         var cloud = props.getCloud();
         String region = cloud.getConsoleRegion();
+        String controlClusterId = firstNonBlank(cloud.getControlCceClusterId(), "");
+        String controlClusterName = firstNonBlank(cloud.getControlCceClusterName(), "dbay-control-cce");
+        String dataClusterId = firstNonBlank(cloud.getDataCceClusterId(), cloud.getCceClusterId());
+        String dataClusterName = firstNonBlank(cloud.getDataCceClusterName(), "dbay-cce");
+        String elbId = firstNonBlank(cloud.getPublicApiElbId(), cloud.getElbId());
 
         // Build topology (deployment architecture)
         Map<String, Object> topology = new LinkedHashMap<>();
         List<Map<String, String>> topoNodes = new java.util.ArrayList<>();
-        topoNodes.add(Map.of("id", "railway", "label", "Railway (海外)", "sublabel", "dbay.cloud", "desc", "Web 控制台 · SRE Admin", "type", "railway"));
-        topoNodes.add(Map.of("id", "eip", "label", "EIP 弹性公网IP", "sublabel", "api.dbay.cloud:8443", "desc", "HTTPS 入口", "type", "network"));
-        topoNodes.add(Map.of("id", "elb", "label", "ELB 负载均衡", "sublabel", "TCP:8443 透传", "desc", "共享型 ELB", "type", "network"));
-        topoNodes.add(Map.of("id", "external-api", "label", "外部 API", "sublabel", "华为云 MaaS", "desc", "LLM (DeepSeek V3.2)", "type", "railway"));
-        topoNodes.add(Map.of("id", "cce", "label", "CCE 集群", "sublabel", "lakeon-k8s-cluster", "desc", "API · Proxy · Pageserver · Safekeeper · Memory · KubeRay · FluentBit", "type", "compute"));
-        topoNodes.add(Map.of("id", "compute-pool", "label", "弹性节点池", "sublabel", "dbay-compute-pool", "desc", "数据库 Compute Pod (按需扩缩)", "type", "compute"));
-        topoNodes.add(Map.of("id", "cci", "label", "CCI (Serverless)", "sublabel", "virtual-kubelet 调度", "desc", "KB Job · Notebook (Ray) · 数据湖 (Python/Ray/微调) · 热池", "type", "compute"));
-        topoNodes.add(Map.of("id", "rds", "label", "RDS PostgreSQL", "sublabel", "元数据库", "desc", "存储租户/数据库/操作日志", "type", "storage"));
-        topoNodes.add(Map.of("id", "obs", "label", "OBS 对象存储", "sublabel", props.getObs().getBucket(), "desc", "Neon 远程存储 · 文档 · 数据集", "type", "storage"));
-        topoNodes.add(Map.of("id", "swr", "label", "SWR 镜像仓库", "sublabel", "flex", "desc", "API · Console · KB Job · Memory · Ray · Python", "type", "storage"));
+        topoNodes.add(Map.of("id", "console", "label", "Console / SRE", "sublabel", "Railway", "desc", "用户控制台与 SRE 控制台", "type", "access"));
+        topoNodes.add(Map.of("id", "pg-client", "label", "PG Client", "sublabel", "PostgreSQL 生态", "desc", "psql / JDBC / 现有 PG 应用", "type", "access"));
+        topoNodes.add(Map.of("id", "api-elb", "label", "api.dbay.cloud", "sublabel", "公网 ELB :8443", "desc", "HTTPS API 入口，转发到控制面 CCE", "type", "network"));
+        topoNodes.add(Map.of("id", "pg-elb", "label", "pg.dbay.cloud", "sublabel", "公网 ELB :4432", "desc", "PG 协议入口，转发到数据面 proxy", "type", "network"));
+        topoNodes.add(Map.of("id", "control-cce", "label", "控制面 CCE", "sublabel", controlClusterName, "desc", "lakeon-api · serving-api · admin-api · HPA", "type", "control"));
+        topoNodes.add(Map.of("id", "data-cce", "label", "数据面 CCE", "sublabel", dataClusterName, "desc", "proxy · Neon compute pods · pageserver · safekeeper", "type", "data"));
+        topoNodes.add(Map.of("id", "compute-pool", "label", "CCE 弹性节点池", "sublabel", "dbay-compute-pool", "desc", "每个 DB / branch 的 Neon compute pod 按需扩缩", "type", "data"));
+        topoNodes.add(Map.of("id", "storage-plane", "label", "Neon 存储层", "sublabel", "pageserver · safekeeper · broker", "desc", "safekeeper 常驻；pageserver 本地缓存，可从 OBS 恢复", "type", "data"));
+        topoNodes.add(Map.of("id", "rds", "label", "RDS PostgreSQL", "sublabel", "元数据库", "desc", "租户、DB、branch、Placement、审计状态", "type", "storage"));
+        topoNodes.add(Map.of("id", "obs", "label", "OBS 对象存储", "sublabel", props.getObs().getBucket(), "desc", "数据页文件、索引文件、WAL 归档、备份快照", "type", "storage"));
+        topoNodes.add(Map.of("id", "aom", "label", "AOM / Prometheus", "sublabel", "metrics", "desc", "数据面写入指标；控制面读取并驱动 Scale Controller", "type", "observability"));
+        topoNodes.add(Map.of("id", "lts", "label", "LTS 日志服务", "sublabel", "logs", "desc", "控制面与数据面写入应用日志、审计日志", "type", "observability"));
+        topoNodes.add(Map.of("id", "swr", "label", "SWR 镜像仓库", "sublabel", "flex", "desc", "控制面、数据面和 compute pod 镜像", "type", "storage"));
         topology.put("nodes", topoNodes);
 
         List<Map<String, String>> topoEdges = new java.util.ArrayList<>();
-        topoEdges.add(Map.of("from", "railway", "to", "eip", "label", "浏览器直连 API"));
-        topoEdges.add(Map.of("from", "eip", "to", "elb", "label", ""));
-        topoEdges.add(Map.of("from", "elb", "to", "cce", "label", "TCP 透传"));
-        topoEdges.add(Map.of("from", "cce", "to", "compute-pool", "label", "创建数据库 Compute Pod"));
-        topoEdges.add(Map.of("from", "cce", "to", "cci", "label", "KB Job · Notebook · 数据湖"));
-        topoEdges.add(Map.of("from", "cce", "to", "external-api", "label", "Embedding/LLM 调用"));
-        topoEdges.add(Map.of("from", "cce", "to", "rds", "label", "JDBC"));
-        topoEdges.add(Map.of("from", "cce", "to", "obs", "label", "S3 协议"));
-        topoEdges.add(Map.of("from", "cce", "to", "swr", "label", "镜像拉取"));
+        topoEdges.add(Map.of("from", "console", "to", "api-elb", "label", "HTTPS API"));
+        topoEdges.add(Map.of("from", "api-elb", "to", "control-cce", "label", "Service LoadBalancer"));
+        topoEdges.add(Map.of("from", "pg-client", "to", "pg-elb", "label", "PG wire protocol"));
+        topoEdges.add(Map.of("from", "pg-elb", "to", "data-cce", "label", "Service LoadBalancer"));
+        topoEdges.add(Map.of("from", "control-cce", "to", "data-cce", "label", "CCE 间私网 / 内网 ELB"));
+        topoEdges.add(Map.of("from", "data-cce", "to", "compute-pool", "label", "Kubernetes 调度"));
+        topoEdges.add(Map.of("from", "data-cce", "to", "storage-plane", "label", "Neon 热路径"));
+        topoEdges.add(Map.of("from", "control-cce", "to", "rds", "label", "元数据读写"));
+        topoEdges.add(Map.of("from", "data-cce", "to", "obs", "label", "远端存储"));
+        topoEdges.add(Map.of("from", "data-cce", "to", "aom", "label", "metrics 写入"));
+        topoEdges.add(Map.of("from", "control-cce", "to", "aom", "label", "metrics 读取"));
+        topoEdges.add(Map.of("from", "control-cce", "to", "lts", "label", "日志写入"));
+        topoEdges.add(Map.of("from", "data-cce", "to", "lts", "label", "日志写入"));
+        topoEdges.add(Map.of("from", "control-cce", "to", "swr", "label", "镜像拉取"));
+        topoEdges.add(Map.of("from", "data-cce", "to", "swr", "label", "镜像拉取"));
         topology.put("edges", topoEdges);
         result.put("topology", topology);
 
         // Build resource list with IDs and console URLs
         List<Map<String, Object>> resources = new java.util.ArrayList<>();
 
-        resources.add(buildResource("CCE 集群", region, "CCE", "容器集群", "ACTIVE",
-                cloud.getCceClusterId(), consoleUrl("cce-cluster", region, cloud.getCceClusterId())));
+        resources.add(buildResource("控制面 CCE " + controlClusterName, region, "CCE", "容器集群", "ACTIVE",
+                controlClusterId, consoleUrl("cce-cluster", region, controlClusterId),
+                "运行 lakeon-api、serving-api、admin-api；无状态副本，状态写入 RDS。"));
 
-        resources.add(buildResource("弹性节点池 dbay-compute-pool", region, "CCE", "节点池", "ACTIVE",
-                cloud.getNodePoolId(), consoleUrl("cce-nodepool", region, cloud.getCceClusterId(), cloud.getNodePoolId())));
+        resources.add(buildResource("数据面 CCE " + dataClusterName, region, "CCE", "容器集群", "ACTIVE",
+                dataClusterId, consoleUrl("cce-cluster", region, dataClusterId),
+                "运行 proxy、Neon compute pods、pageserver、safekeeper、storage-broker/controller。"));
+
+        resources.add(buildResource("数据面 CCE 弹性节点池 dbay-compute-pool", region, "CCE", "节点池", "ACTIVE",
+                cloud.getNodePoolId(), consoleUrl("cce-nodepool", region, dataClusterId, cloud.getNodePoolId()),
+                "承载 Neon compute pod；每个 DB / branch 可启动独立 compute pod。"));
 
         try {
             int nodeCount = k8sClient.nodes().list().getItems().size();
-            resources.add(buildResource("CCE 节点 (" + nodeCount + "台)", region, "CCE", "弹性云服务器", "ACTIVE",
-                    "", consoleUrl("cce-nodes", region, cloud.getCceClusterId())));
+            resources.add(buildResource("数据面 CCE 节点 (" + nodeCount + "台)", region, "CCE", "弹性云服务器", "ACTIVE",
+                    "", consoleUrl("cce-nodes", region, dataClusterId),
+                    "后端 Kubernetes client 当前连接数据面集群，用于数据面健康和日志操作。"));
         } catch (Exception e) {
-            resources.add(buildResource("CCE 节点", region, "CCE", "弹性云服务器", "UNKNOWN",
-                    "", ""));
+            resources.add(buildResource("数据面 CCE 节点", region, "CCE", "弹性云服务器", "UNKNOWN",
+                    "", "", "无法读取数据面 Kubernetes 节点列表。"));
         }
 
         resources.add(buildResource("RDS PostgreSQL", region, "RDS", "关系型数据库", "ACTIVE",
-                cloud.getRdsInstanceId(), consoleUrl("rds", region, cloud.getRdsInstanceId())));
+                cloud.getRdsInstanceId(), consoleUrl("rds", region, cloud.getRdsInstanceId()),
+                "控制面元数据库，保存租户、DB、branch、Placement、审计和操作状态。"));
         resources.add(buildResource("OBS " + props.getObs().getBucket(), region, "OBS", "对象存储桶", "ACTIVE",
-                props.getObs().getBucket(), consoleUrl("obs", region, props.getObs().getBucket())));
-        resources.add(buildResource("ELB 负载均衡", region, "ELB", "弹性负载均衡", "ACTIVE",
-                cloud.getElbId(), consoleUrl("elb", region, cloud.getElbId())));
-        resources.add(buildResource("EIP api.dbay.cloud", region, "EIP", "弹性公网IP", "ACTIVE",
-                cloud.getEipId(), consoleUrl("eip", region, cloud.getEipId())));
+                props.getObs().getBucket(), consoleUrl("obs", region, props.getObs().getBucket()),
+                "保存数据页文件、索引文件、WAL 归档和备份快照。"));
+        resources.add(buildResource("公网 ELB api.dbay.cloud / pg.dbay.cloud", region, "ELB", "弹性负载均衡", "ACTIVE",
+                elbId, consoleUrl("elb", region, elbId),
+                "同一独享 ELB 提供 API :8443 到控制面、PG :4432 到数据面 proxy。"));
+        resources.add(buildResource("EIP 122.9.12.37", region, "EIP", "弹性公网IP", "ACTIVE",
+                cloud.getEipId(), consoleUrl("eip", region, cloud.getEipId()),
+                "公网入口 IP；DNS 解析到 api.dbay.cloud 与 pg.dbay.cloud。"));
+        resources.add(buildResource("控制面 API 内网入口", region, "ELB", "内网 LoadBalancer", "ACTIVE",
+                cloud.getControlPrivateElbIp(), "",
+                "控制面 CCE 内网 Service LoadBalancer，用于同 VPC 私网访问。"));
+        resources.add(buildResource("AOM / Prometheus", region, "AOM", "指标服务", "ACTIVE",
+                "", "https://console.huaweicloud.com/aom/?region=" + region,
+                "数据面 CCE 写入 metrics；控制面读取指标并驱动 DBay Scale Controller。"));
+        resources.add(buildResource("LTS 日志服务", region, "LTS", "日志服务", "ACTIVE",
+                "", "https://console.huaweicloud.com/lts/?region=" + region,
+                "控制面与数据面 CCE 写入应用日志、审计日志，用于排障和运营分析。"));
         resources.add(buildResource("SWR 镜像仓库 (flex)", region, "SWR", "容器镜像仓库", "ACTIVE",
-                "", "https://console.huaweicloud.com/swr/?region=" + region + "#/swr/organization/list"));
-        resources.add(buildResource("CCI 数据湖任务", region, "CCI", "容器实例 (Serverless)", "ACTIVE",
-                "", "https://console.huaweicloud.com/cci/?region=" + region));
+                "", "https://console.huaweicloud.com/swr/?region=" + region + "#/swr/organization/list",
+                "存放控制面、数据面、Neon compute 和工具镜像。"));
         resources.add(buildResource("Railway Console", "海外 (Singapore)", "Railway", "Web 托管", "ACTIVE",
-                "", "https://railway.com/dashboard"));
+                "", "https://railway.com/dashboard",
+                "dbay.cloud 用户控制台，通过 api.dbay.cloud 访问控制面 API。"));
         resources.add(buildResource("Railway Admin", "海外 (Singapore)", "Railway", "Web 托管", "ACTIVE",
-                "", "https://railway.com/dashboard"));
+                "", "https://railway.com/dashboard",
+                "SRE 控制台，通过 api.dbay.cloud 访问 admin API。"));
         resources.add(buildResource("华为云 MaaS", "华北-北京四", "华为云", "LLM (DeepSeek V3.2)", "ACTIVE",
-                "", "https://console.huaweicloud.com/modelarts"));
+                "", "https://console.huaweicloud.com/modelarts",
+                "控制面业务能力调用的外部 LLM / embedding 服务。"));
 
         result.put("resources", resources);
         return result;
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
     }
 
     private String consoleUrl(String type, String region, String... ids) {
@@ -691,6 +736,11 @@ public class AdminService {
 
     private Map<String, Object> buildResource(String name, String region, String service, String type, String status,
                                                String resourceId, String consoleUrl) {
+        return buildResource(name, region, service, type, status, resourceId, consoleUrl, "");
+    }
+
+    private Map<String, Object> buildResource(String name, String region, String service, String type, String status,
+                                               String resourceId, String consoleUrl, String description) {
         Map<String, Object> r = new LinkedHashMap<>();
         r.put("name", name);
         r.put("region", region);
@@ -699,6 +749,7 @@ public class AdminService {
         r.put("status", status);
         r.put("resourceId", resourceId != null ? resourceId : "");
         r.put("consoleUrl", consoleUrl != null ? consoleUrl : "");
+        r.put("description", description != null ? description : "");
         return r;
     }
 

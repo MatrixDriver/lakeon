@@ -249,10 +249,16 @@ public class LakeonProperties {
         private List<String> resourceIds = List.of();
         private String consoleRegion = "cn-north-4";
         private String cceClusterId = "";
+        private String controlCceClusterId = "";
+        private String controlCceClusterName = "dbay-control-cce";
+        private String dataCceClusterId = "";
+        private String dataCceClusterName = "dbay-cce";
         private String rdsInstanceId = "";
         private String elbId = "";
         private String eipId = "";
         private String nodePoolId = "";
+        private String publicApiElbId = "";
+        private String controlPrivateElbIp = "";
 
         public String getResourcesFile() { return resourcesFile; }
         public void setResourcesFile(String resourcesFile) { this.resourcesFile = resourcesFile; }
@@ -262,6 +268,14 @@ public class LakeonProperties {
         public void setConsoleRegion(String consoleRegion) { this.consoleRegion = consoleRegion; }
         public String getCceClusterId() { return cceClusterId; }
         public void setCceClusterId(String cceClusterId) { this.cceClusterId = cceClusterId; }
+        public String getControlCceClusterId() { return controlCceClusterId; }
+        public void setControlCceClusterId(String controlCceClusterId) { this.controlCceClusterId = controlCceClusterId; }
+        public String getControlCceClusterName() { return controlCceClusterName; }
+        public void setControlCceClusterName(String controlCceClusterName) { this.controlCceClusterName = controlCceClusterName; }
+        public String getDataCceClusterId() { return dataCceClusterId; }
+        public void setDataCceClusterId(String dataCceClusterId) { this.dataCceClusterId = dataCceClusterId; }
+        public String getDataCceClusterName() { return dataCceClusterName; }
+        public void setDataCceClusterName(String dataCceClusterName) { this.dataCceClusterName = dataCceClusterName; }
         public String getRdsInstanceId() { return rdsInstanceId; }
         public void setRdsInstanceId(String rdsInstanceId) { this.rdsInstanceId = rdsInstanceId; }
         public String getElbId() { return elbId; }
@@ -270,6 +284,10 @@ public class LakeonProperties {
         public void setEipId(String eipId) { this.eipId = eipId; }
         public String getNodePoolId() { return nodePoolId; }
         public void setNodePoolId(String nodePoolId) { this.nodePoolId = nodePoolId; }
+        public String getPublicApiElbId() { return publicApiElbId; }
+        public void setPublicApiElbId(String publicApiElbId) { this.publicApiElbId = publicApiElbId; }
+        public String getControlPrivateElbIp() { return controlPrivateElbIp; }
+        public void setControlPrivateElbIp(String controlPrivateElbIp) { this.controlPrivateElbIp = controlPrivateElbIp; }
     }
 
     public static class AlertConfig {

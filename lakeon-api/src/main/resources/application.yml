@@ -68,10 +68,16 @@ lakeon:
     resource-ids: ${LAKEON_CLOUD_RESOURCE_IDS:}
     console-region: ${LAKEON_CLOUD_CONSOLE_REGION:cn-north-4}
     cce-cluster-id: ${LAKEON_CLOUD_CCE_CLUSTER_ID:}
+    control-cce-cluster-id: ${LAKEON_CLOUD_CONTROL_CCE_CLUSTER_ID:}
+    control-cce-cluster-name: ${LAKEON_CLOUD_CONTROL_CCE_CLUSTER_NAME:dbay-control-cce}
+    data-cce-cluster-id: ${LAKEON_CLOUD_DATA_CCE_CLUSTER_ID:}
+    data-cce-cluster-name: ${LAKEON_CLOUD_DATA_CCE_CLUSTER_NAME:dbay-cce}
     rds-instance-id: ${LAKEON_CLOUD_RDS_INSTANCE_ID:}
     elb-id: ${LAKEON_CLOUD_ELB_ID:}
     eip-id: ${LAKEON_CLOUD_EIP_ID:}
     node-pool-id: ${LAKEON_CLOUD_NODE_POOL_ID:}
+    public-api-elb-id: ${LAKEON_CLOUD_PUBLIC_API_ELB_ID:}
+    control-private-elb-ip: ${LAKEON_CLOUD_CONTROL_PRIVATE_ELB_IP:}
   alert:
     smn-topic-urn: ${LAKEON_ALERT_SMN_TOPIC_URN:}
     smn-region: ${LAKEON_ALERT_SMN_REGION:cn-north-4}
