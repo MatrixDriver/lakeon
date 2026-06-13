@@ -6,7 +6,7 @@
 
 **Architecture:** The client separates directory semantics (`directory_kind`), byte placement (`storage_policy`), and cloud processing (`processing_profile`). `mount` remains a FUSE-backed folder view with a local state/cache, while `sync` treats the user's existing directory as the only full local copy and records only ledger/outbox metadata under `~/.dbay`.
 
-**Tech Stack:** Rust 2021, `clap`, existing `dbay-fuse` outbox/pull/state scan modules, Spring AgentFS API unchanged for the MVP.
+**Tech Stack:** Rust 2021, `clap`, existing `dbay-fuse` outbox/pull/state scan modules, Spring AgentFS API for folder registry and file operations.
 
 ---
 
@@ -59,6 +59,14 @@ agentfs_dataset_versions:
 Cost rule: all folders for a tenant use the default storage pool unless the user explicitly buys or requests isolation. Only enterprise isolation, high-QPS analytics, regional compliance, or heavy Data Agent workloads should create another storage pool / Neon DB.
 
 Multi-device rule: devices join the same `folder_id`; conflicts are detected by `tenant_id + folder_id + path + etag`, not by local path.
+
+Current backend status:
+
+- [x] `agentfs_folders` exists in the control-plane metadata DB.
+- [x] `/api/v1/agentfs/folders` exposes create/list/get/update profile APIs.
+- [x] The legacy AgentFS memory forwarder is gated to `agent-home` and `small-file-memory` profiles.
+- [ ] `agentfs_devices`, `agentfs_objects`, `agentfs_datasets`, and `agentfs_dataset_versions` are still pending.
+- [ ] OBS object tier, Iceberg/Lance catalog mapping, and worker status APIs are still pending.
 
 ### Task 1: Profile Model
 

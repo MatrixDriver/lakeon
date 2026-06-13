@@ -141,8 +141,33 @@ outbox 会积压，网络恢复后继续上传。
 
 处理方式仍是手动 diff、merge、删除副本。后续会加 `conflicts list/clean`。
 
-## 9. 路线图
+## 9. 服务端 folder profile
 
-- 当前：通用 folder profile、mount、pull、sync/import skeleton、inspect advisor
-- 下一步：sync watcher、OBS/object tier、profile-specific cloud workers
+控制面现在有一等的 AgentFS folder registry。客户端仍会把 `agentfs_profile`
+写入文件 properties，作为兼容和事件处理提示；服务端的 `agentfs_folders`
+是后续 Console、设备绑定、worker 状态和对象存储策略的 source of truth。
+
+```http
+POST /api/v1/agentfs/folders
+{
+  "display_name": "warehouse",
+  "directory_kind": "data-dir"
+}
+```
+
+默认映射保持和 CLI 一致：
+
+- `codex-home` / `claude-home` / `openclaw-home` -> `storage=auto`, `processing=agent-home`
+- `data-dir` -> `storage=object-first`, `processing=dataset`
+- `iceberg-table` -> `storage=table-native`, `processing=iceberg`
+- `lance-table` -> `storage=table-native`, `processing=lance`
+- `files` -> `storage=auto`, `processing=none`
+
+现有 memory forwarder 只处理 `agent-home` 和 `small-file-memory`。没有
+`agentfs_profile` 的老文件保持 legacy 行为，避免升级后停止已有 memory 派生。
+
+## 10. 路线图
+
+- 当前：通用 folder profile、mount、pull、sync/import skeleton、inspect advisor、服务端 folder registry、memory worker profile gate
+- 下一步：sync watcher、OBS/object tier、profile-specific cloud workers 状态展示
 - 后续：agent-home 提炼 Console、Data Agent、Iceberg/Lance catalog/版本映射

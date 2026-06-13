@@ -130,24 +130,31 @@ public class AgentFSEventForwarder {
             List<EventRow> events = loadPending(c, BATCH_SIZE);
             if (events.isEmpty()) return;
 
-            String baseConnstr;
-            try {
-                baseConnstr = resolveTargetBaseConnstr(tenant);
-            } catch (Exception e) {
-                log.info("forwarder tenant={} target base unavailable: {}", tenant.getId(), e.getMessage());
-                return;
-            }
-            if (baseConnstr == null) {
-                log.info("forwarder tenant={} target base provisioning; will retry", tenant.getId());
-                return;
-            }
-
+            String baseConnstr = null;
             long maxId = 0;
             for (EventRow e : events) {
                 if (!PathWhitelist.accept(e.path)) {
                     markDone(c, e.id);
                     maxId = Math.max(maxId, e.id);
                     continue;
+                }
+                if (!routesToMemoryWorker(c, e.path)) {
+                    markDone(c, e.id);
+                    maxId = Math.max(maxId, e.id);
+                    continue;
+                }
+                if (baseConnstr == null) {
+                    try {
+                        baseConnstr = resolveTargetBaseConnstr(tenant);
+                    } catch (Exception ex) {
+                        log.info("forwarder tenant={} target base unavailable: {}",
+                                tenant.getId(), ex.getMessage());
+                        break;
+                    }
+                    if (baseConnstr == null) {
+                        log.info("forwarder tenant={} target base provisioning; will retry", tenant.getId());
+                        break;
+                    }
                 }
                 try {
                     boolean processed = forwardOne(c, baseConnstr, tenant, e);
@@ -283,6 +290,18 @@ public class AgentFSEventForwarder {
                 if (!rs.next()) return new byte[0];
                 byte[] d = rs.getBytes(1);
                 return d == null ? new byte[0] : d;
+            }
+        }
+    }
+
+    private boolean routesToMemoryWorker(Connection c, String path) throws SQLException {
+        try (PreparedStatement st = c.prepareStatement("SELECT properties::text FROM files WHERE path=?")) {
+            st.setString(1, path);
+            try (ResultSet rs = st.executeQuery()) {
+                if (!rs.next()) {
+                    return true;
+                }
+                return AgentFSFolderProfile.propertiesRouteToMemoryWorker(rs.getString(1));
             }
         }
     }

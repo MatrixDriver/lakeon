@@ -6,9 +6,10 @@ info:
     Storage for AI agent working directories. One store per user (identified
     by the caller's API key). Presents a POSIX-like path hierarchy.
 
-    AgentFS stores raw bytes + properties; it does NOT run embeddings, BM25,
-    or any semantic analysis. Semantic Memory is a separate layer derived
-    asynchronously from AgentFS changes.
+    AgentFS stores raw bytes + properties in the hot path. Folder profiles
+    can trigger asynchronous cloud workers such as agent-home memory derive,
+    dataset registration, or table metadata mapping; no embedding or semantic
+    analysis runs inline with file writes.
 
     Design principles (v0.2 after red-blue review):
     - Paths go in request body (not URL), avoiding URL length / encoding issues
@@ -30,6 +31,68 @@ security:
 
 paths:
   # ---------- READ PATH (GET for cache-friendliness) ----------
+
+  /agentfs/folders:
+    get:
+      summary: List AgentFS folder profiles for the authenticated tenant
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  folders:
+                    type: array
+                    items: { $ref: "#/components/schemas/Folder" }
+    post:
+      summary: Create an AgentFS folder profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FolderCreate" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Folder" }
+
+  /agentfs/folders/{id}:
+    get:
+      summary: Get an AgentFS folder profile
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Folder" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      summary: Update an AgentFS folder profile
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FolderCreate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Folder" }
 
   /agentfs/files:
     get:
@@ -314,6 +377,34 @@ components:
         mtime_ns:   { type: integer, format: int64 }
         etag:       { type: string }
         properties: { type: object, additionalProperties: true }
+
+    FolderCreate:
+      type: object
+      required: [display_name]
+      properties:
+        display_name: { type: string }
+        directory_kind:
+          type: string
+          enum: [codex-home, claude-home, openclaw-home, iceberg-table, lance-table, data-dir, files]
+          default: files
+        storage_policy:
+          type: string
+          nullable: true
+          enum: [auto, inline-only, object-first, object-only, table-native]
+        processing_profile:
+          type: string
+          nullable: true
+          enum: [none, agent-home, dataset, iceberg, lance, small-file-memory]
+
+    Folder:
+      allOf:
+        - $ref: "#/components/schemas/FolderCreate"
+        - type: object
+          properties:
+            id: { type: string }
+            status: { type: string, enum: [active] }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
 
     BatchPut:
       type: object
