@@ -266,6 +266,8 @@ class BackupServiceTest {
                     .thenReturn(Optional.of(testDatabase));
             when(neonApiClient.createTimeline(eq("neon-tenant-abc"), any()))
                     .thenReturn(new NeonTimeline("neon-timeline-restored"));
+            when(databaseService.buildConnectionUri("cloud_admin", "my-db", "restored-db"))
+                    .thenReturn("postgres://cloud_admin@pg.dbay.cloud:5432/my-db?options=endpoint%3Drestored-db");
             when(databaseRepository.save(any(DatabaseEntity.class)))
                     .thenAnswer(inv -> {
                         DatabaseEntity db = inv.getArgument(0);
@@ -281,8 +283,10 @@ class BackupServiceTest {
             assertThat(result).isNotNull();
             assertThat(result.getName()).isEqualTo("restored-db");
             assertThat(result.getNeonTimelineId()).isEqualTo("neon-timeline-restored");
+            assertThat(result.getConnectionUri()).contains("/my-db?options=endpoint%3Drestored-db");
             assertThat(result.getStatus()).isEqualTo(DatabaseStatus.SUSPENDED);
             verify(neonApiClient).createTimeline(eq("neon-tenant-abc"), any());
+            verify(databaseService).buildConnectionUri("cloud_admin", "my-db", "restored-db");
             verify(databaseRepository).save(any(DatabaseEntity.class));
         }
 

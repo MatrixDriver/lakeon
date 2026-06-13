@@ -1,6 +1,8 @@
 package com.lakeon.service;
 
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.model.dto.CreateDatabaseRequest;
+import com.lakeon.model.dto.DatabaseResponse;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.repository.DatabaseRepository;
@@ -88,10 +90,10 @@ public class TrialService {
     }
 
     /**
-     * Create a trial tenant. No invite code needed, no database created.
+     * Create a trial tenant. No invite code needed; create one small database
+     * so the console's one-click trial can connect immediately.
      * Trial expires after 24 hours and is auto-cleaned.
      */
-    @Transactional
     public Map<String, Object> createTrial() {
         String trialId = UUID.randomUUID().toString().substring(0, 8);
         String username = "trial_" + trialId;
@@ -102,11 +104,27 @@ public class TrialService {
         tenant.setPasswordHash("");
         tenant.setTrial(true);
         tenant.setExpiresAt(Instant.now().plus(TRIAL_HOURS, ChronoUnit.HOURS));
-        tenant.setMaxDatabases(0);
-        tenant.setMaxStorageGb(0);
-        tenant.setMaxComputeCu(0);
+        tenant.setMaxDatabases(1);
+        tenant.setMaxStorageGb(1);
+        tenant.setMaxComputeCu(1);
         tenant.setMaxDatalakeJobs(3);
         tenant = tenantRepository.save(tenant);
+
+        DatabaseResponse database;
+        try {
+            database = databaseService.create(
+                tenant,
+                new CreateDatabaseRequest("trial-" + trialId, "1cu", "15m", 1)
+            );
+        } catch (RuntimeException e) {
+            try {
+                tenantRepository.delete(tenant);
+            } catch (Exception cleanupError) {
+                log.warn("Failed to clean up trial tenant {} after database creation failed: {}",
+                    tenant.getId(), cleanupError.getMessage());
+            }
+            throw e;
+        }
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("tenant_id", tenant.getId());
@@ -115,8 +133,17 @@ public class TrialService {
         result.put("trial", true);
         result.put("expires_at", tenant.getExpiresAt());
         result.put("expires_in_hours", TRIAL_HOURS);
+        result.put("database_id", database.getId());
+        Map<String, Object> databaseInfo = new LinkedHashMap<>();
+        databaseInfo.put("id", database.getId());
+        databaseInfo.put("name", database.getName());
+        databaseInfo.put("status", database.getStatus());
+        databaseInfo.put("connection_uri", database.getConnectionUri());
+        databaseInfo.put("password", database.getPassword());
+        result.put("database", databaseInfo);
 
-        log.info("Created trial account: {} (expires {})", tenant.getId(), tenant.getExpiresAt());
+        log.info("Created trial account: {} with database {} (expires {})",
+            tenant.getId(), database.getId(), tenant.getExpiresAt());
         return result;
     }
 

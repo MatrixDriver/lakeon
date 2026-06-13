@@ -208,9 +208,10 @@ public class BackupService {
             restoredDb.setDbUser(sourceDb.getDbUser());
             restoredDb.setDbPassword(sourceDb.getDbPassword());
             restoredDb.setStatus(com.lakeon.model.enums.DatabaseStatus.SUSPENDED);
-            // Build connection URI (don't copy stale compute host/port)
+            // The branched timeline carries the source PG database name. The Lakeon
+            // endpoint name is the restored DB name, but the URI path must stay sourceDb.name.
             restoredDb.setConnectionUri(databaseService.buildConnectionUri(
-                sourceDb.getDbUser(), req.name()));
+                sourceDb.getDbUser(), sourceDb.getName(), req.name()));
 
             restoredDb = databaseRepository.save(restoredDb);
 
