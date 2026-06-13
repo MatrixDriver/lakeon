@@ -138,6 +138,164 @@ interface Resource {
   description?: string
 }
 
+const latestTopology: Topology = {
+  nodes: [
+    { id: 'console', label: 'Console / SRE', sublabel: 'Railway', desc: '用户控制台与 SRE 控制台', type: 'access' },
+    { id: 'pg-client', label: 'PG Client', sublabel: 'PostgreSQL 生态', desc: 'psql / JDBC / 现有 PG 应用', type: 'access' },
+    { id: 'api-elb', label: 'api.dbay.cloud', sublabel: '公网 ELB :8443', desc: 'HTTPS API 入口，转发到控制面 CCE', type: 'network' },
+    { id: 'pg-elb', label: 'pg.dbay.cloud', sublabel: '公网 ELB :4432', desc: 'PG 协议入口，转发到数据面 proxy', type: 'network' },
+    { id: 'control-cce', label: '控制面 CCE', sublabel: 'dbay-control-cce', desc: 'lakeon-api · serving-api · admin-api · HPA', type: 'control' },
+    { id: 'data-cce', label: '数据面 CCE', sublabel: 'dbay-cce', desc: 'proxy · Neon compute pods · pageserver · safekeeper', type: 'data' },
+    { id: 'compute-pool', label: 'CCE 弹性节点池', sublabel: 'dbay-compute-pool', desc: '每个 DB / branch 的 Neon compute pod 按需扩缩', type: 'data' },
+    { id: 'storage-plane', label: 'Neon 存储层', sublabel: 'pageserver · safekeeper · broker', desc: 'safekeeper 常驻；pageserver 本地缓存，可从 OBS 恢复', type: 'data' },
+    { id: 'rds', label: 'RDS PostgreSQL', sublabel: '元数据库', desc: '租户、DB、branch、Placement、审计状态', type: 'storage' },
+    { id: 'obs', label: 'OBS 对象存储', sublabel: 'dbay-mainstore', desc: '数据页文件、索引文件、WAL 归档、备份快照', type: 'storage' },
+    { id: 'aom', label: 'AOM / Prometheus', sublabel: 'metrics', desc: '数据面写入指标；控制面读取并驱动 Scale Controller', type: 'observability' },
+    { id: 'lts', label: 'LTS 日志服务', sublabel: 'logs', desc: '控制面与数据面写入应用日志、审计日志', type: 'observability' },
+    { id: 'swr', label: 'SWR 镜像仓库', sublabel: 'flex', desc: '控制面、数据面和 compute pod 镜像', type: 'storage' },
+  ],
+  edges: [
+    { from: 'console', to: 'api-elb', label: 'HTTPS API' },
+    { from: 'api-elb', to: 'control-cce', label: 'Service LoadBalancer' },
+    { from: 'pg-client', to: 'pg-elb', label: 'PG wire protocol' },
+    { from: 'pg-elb', to: 'data-cce', label: 'Service LoadBalancer' },
+    { from: 'control-cce', to: 'data-cce', label: 'CCE 间私网 / 内网 ELB' },
+    { from: 'data-cce', to: 'compute-pool', label: 'Kubernetes 调度' },
+    { from: 'data-cce', to: 'storage-plane', label: 'Neon 热路径' },
+    { from: 'control-cce', to: 'rds', label: '元数据读写' },
+    { from: 'data-cce', to: 'obs', label: '远端存储' },
+    { from: 'data-cce', to: 'aom', label: 'metrics 写入' },
+    { from: 'control-cce', to: 'aom', label: 'metrics 读取' },
+    { from: 'control-cce', to: 'lts', label: '日志写入' },
+    { from: 'data-cce', to: 'lts', label: '日志写入' },
+    { from: 'control-cce', to: 'swr', label: '镜像拉取' },
+    { from: 'data-cce', to: 'swr', label: '镜像拉取' },
+  ],
+}
+
+const latestResources: Resource[] = [
+  {
+    name: '控制面 CCE dbay-control-cce',
+    resourceId: '377df1d7-663c-11f1-b0ad-0255ac100240',
+    region: 'cn-north-4',
+    service: 'CCE',
+    type: '容器集群',
+    status: 'ACTIVE',
+    consoleUrl: 'https://console.huaweicloud.com/cce2.0/?region=cn-north-4#/app/cluster/detail?id=377df1d7-663c-11f1-b0ad-0255ac100240',
+    description: '运行 lakeon-api、serving-api、admin-api；无状态副本，状态写入 RDS。',
+  },
+  {
+    name: '数据面 CCE dbay-cce',
+    resourceId: '9fa5350b-1780-11f1-842d-0255ac100249',
+    region: 'cn-north-4',
+    service: 'CCE',
+    type: '容器集群',
+    status: 'ACTIVE',
+    consoleUrl: 'https://console.huaweicloud.com/cce2.0/?region=cn-north-4#/app/cluster/detail?id=9fa5350b-1780-11f1-842d-0255ac100249',
+    description: '运行 proxy、Neon compute pods、pageserver、safekeeper、storage-broker/controller。',
+  },
+  {
+    name: '数据面 CCE 弹性节点池 dbay-compute-pool',
+    resourceId: '55859b9b',
+    region: 'cn-north-4',
+    service: 'CCE',
+    type: '节点池',
+    status: 'ACTIVE',
+    consoleUrl: 'https://console.huaweicloud.com/cce2.0/?region=cn-north-4#/app/cluster/detail/nodePool?id=9fa5350b-1780-11f1-842d-0255ac100249&poolId=55859b9b',
+    description: '承载 Neon compute pod；每个 DB / branch 可启动独立 compute pod。',
+  },
+  {
+    name: '公网 ELB api.dbay.cloud / pg.dbay.cloud',
+    resourceId: '46b20c38-5c54-4781-9f00-d25d8c1717a8',
+    region: 'cn-north-4',
+    service: 'ELB',
+    type: '弹性负载均衡',
+    status: 'ACTIVE',
+    consoleUrl: 'https://console.huaweicloud.com/elb/?region=cn-north-4#/elb/detail/46b20c38-5c54-4781-9f00-d25d8c1717a8',
+    description: '同一独享 ELB 提供 API :8443 到控制面、PG :4432 到数据面 proxy。',
+  },
+  {
+    name: 'EIP 122.9.12.37',
+    resourceId: '0068faa1-8e37-46d0-b6b6-683ab9e4c085',
+    region: 'cn-north-4',
+    service: 'EIP',
+    type: '弹性公网IP',
+    status: 'ACTIVE',
+    consoleUrl: 'https://console.huaweicloud.com/vpc/?region=cn-north-4#/eips/detail/0068faa1-8e37-46d0-b6b6-683ab9e4c085',
+    description: '公网入口 IP；DNS 解析到 api.dbay.cloud 与 pg.dbay.cloud。',
+  },
+  {
+    name: 'RDS PostgreSQL',
+    resourceId: 'f7e6a949fe8c4177bf074a03bb747d87in03',
+    region: 'cn-north-4',
+    service: 'RDS',
+    type: '关系型数据库',
+    status: 'ACTIVE',
+    consoleUrl: 'https://console.huaweicloud.com/rds/?region=cn-north-4#/rds/management/list/pg/f7e6a949fe8c4177bf074a03bb747d87in03/summary',
+    description: '控制面元数据库，保存租户、DB、branch、Placement、审计和操作状态。',
+  },
+  {
+    name: 'OBS dbay-mainstore',
+    resourceId: 'dbay-mainstore',
+    region: 'cn-north-4',
+    service: 'OBS',
+    type: '对象存储桶',
+    status: 'ACTIVE',
+    consoleUrl: 'https://console.huaweicloud.com/obs/?region=cn-north-4#/obs/manage/dbay-mainstore/overview',
+    description: '保存数据页文件、索引文件、WAL 归档和备份快照。',
+  },
+  {
+    name: 'AOM / Prometheus',
+    resourceId: '',
+    region: 'cn-north-4',
+    service: 'AOM',
+    type: '指标服务',
+    status: 'ACTIVE',
+    consoleUrl: 'https://console.huaweicloud.com/aom/?region=cn-north-4',
+    description: '数据面 CCE 写入 metrics；控制面读取指标并驱动 DBay Scale Controller。',
+  },
+  {
+    name: 'LTS 日志服务',
+    resourceId: '',
+    region: 'cn-north-4',
+    service: 'LTS',
+    type: '日志服务',
+    status: 'ACTIVE',
+    consoleUrl: 'https://console.huaweicloud.com/lts/?region=cn-north-4',
+    description: '控制面与数据面 CCE 写入应用日志、审计日志，用于排障和运营分析。',
+  },
+  {
+    name: 'SWR 镜像仓库 (flex)',
+    resourceId: '',
+    region: 'cn-north-4',
+    service: 'SWR',
+    type: '容器镜像仓库',
+    status: 'ACTIVE',
+    consoleUrl: 'https://console.huaweicloud.com/swr/?region=cn-north-4#/swr/organization/list',
+    description: '存放控制面、数据面、Neon compute 和工具镜像。',
+  },
+  {
+    name: 'Railway Console',
+    resourceId: '',
+    region: '海外 (Singapore)',
+    service: 'Railway',
+    type: 'Web 托管',
+    status: 'ACTIVE',
+    consoleUrl: 'https://railway.com/dashboard',
+    description: 'dbay.cloud 用户控制台，通过 api.dbay.cloud 访问控制面 API。',
+  },
+  {
+    name: 'Railway Admin',
+    resourceId: '',
+    region: '海外 (Singapore)',
+    service: 'Railway',
+    type: 'Web 托管',
+    status: 'ACTIVE',
+    consoleUrl: 'https://railway.com/dashboard',
+    description: 'SRE 控制台，通过 api.dbay.cloud 访问 admin API。',
+  },
+]
+
 const loading = ref(true)
 const resources = ref<Resource[]>([])
 const topology = ref<Topology | null>(null)
@@ -162,6 +320,20 @@ function edgeLabel(from: string, to: string) {
   return topology.value?.edges.find(edge => edge.from === from && edge.to === to)?.label || ''
 }
 
+function normalizeTopology(data: Topology | null | undefined) {
+  if (data?.nodes?.some(item => item.id === 'control-cce') && data.nodes.some(item => item.id === 'data-cce')) {
+    return data
+  }
+  return latestTopology
+}
+
+function normalizeResources(data: Resource[] | null | undefined) {
+  if (data?.some(item => item.name.includes('控制面 CCE')) && data.some(item => item.name.includes('数据面 CCE'))) {
+    return data
+  }
+  return latestResources
+}
+
 const ArchBox = defineComponent({
   name: 'ArchBox',
   props: {
@@ -182,10 +354,12 @@ onMounted(async () => {
   try {
     const res = await adminApi.cloudResources()
     const data = res.data
-    resources.value = data.resources || []
-    topology.value = data.topology || null
+    resources.value = normalizeResources(data.resources)
+    topology.value = normalizeTopology(data.topology)
   } catch (e) {
     console.error('Failed to load cloud resources', e)
+    resources.value = latestResources
+    topology.value = latestTopology
   } finally {
     loading.value = false
   }
