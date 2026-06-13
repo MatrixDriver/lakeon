@@ -100,7 +100,7 @@ public class MemoryDbHelper {
         if (internalProxyHost != null && !internalProxyHost.isBlank()) {
             int port = props.getProxy().getInternalPort();
             String user = enc(db.getDbUser() != null ? db.getDbUser() : "cloud_admin");
-            String password = enc(db.getDbPassword() != null ? db.getDbPassword() : "");
+            String password = enc(mem.getDbPassword() != null ? mem.getDbPassword() : "");
             String database = enc(db.getName());
             String endpoint = enc(db.getName());
             return "postgresql://" + user + ":" + password + "@" + internalProxyHost + ":" + port

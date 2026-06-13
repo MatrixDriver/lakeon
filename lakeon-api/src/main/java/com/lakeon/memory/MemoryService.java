@@ -77,6 +77,7 @@ public class MemoryService {
             entity.setEmbeddingDim(embeddingDim);
         }
         entity.setDatabaseId(dbResp.getId());
+        entity.setDbPassword(dbResp.getPassword());
         entity.setStatus("PROVISIONING");
         entity = repository.save(entity);
         return entity;

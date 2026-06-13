@@ -49,6 +49,7 @@ class MemoryServiceTest {
 
         DatabaseResponse response = new DatabaseResponse();
         response.setId("db_test001");
+        response.setPassword("raw-secret-password");
         when(databaseService.create(any(TenantEntity.class), any(CreateDatabaseRequest.class))).thenReturn(response);
         when(repository.save(any(MemoryBaseEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
     }
@@ -75,5 +76,26 @@ class MemoryServiceTest {
                 .startsWith("mem-")
                 .matches("[A-Za-z0-9-]+")
                 .doesNotContain("_");
+    }
+
+    @Test
+    void createBaseStoresRawDatabasePasswordForMemoryServiceConnections() {
+        service.createBase(
+                tenant,
+                "project memory",
+                null,
+                MemoryBaseType.BUILTIN,
+                null,
+                true,
+                null,
+                false,
+                null,
+                null,
+                null);
+
+        ArgumentCaptor<MemoryBaseEntity> entity = ArgumentCaptor.forClass(MemoryBaseEntity.class);
+        verify(repository).save(entity.capture());
+
+        assertThat(entity.getValue().getDbPassword()).isEqualTo("raw-secret-password");
     }
 }
