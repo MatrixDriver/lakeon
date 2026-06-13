@@ -53,6 +53,8 @@ helm upgrade --install lakeon-control "$SCRIPT_DIR/../helm/lakeon" \
   --server-side=false \
   -n lakeon --create-namespace --timeout 5m --no-hooks
 
-kubectl rollout status deployment/lakeon-api -n lakeon --timeout=180s
+for deploy in lakeon-api serving-api admin-api; do
+  kubectl rollout status "deployment/$deploy" -n lakeon --timeout=180s
+done
 
 echo "Control plane deployed."

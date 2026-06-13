@@ -113,6 +113,15 @@ api:
     class: "performance"
     port: 8443
     internalPort: 8088
+  ingress:
+    enabled: false
+    name: lakeon-api-gateway
+    className: ""
+    annotations: {}
+    host: ""
+    port: 8443
+    backendPort: ""
+    tls: []
   split:
     enabled: false
     components:

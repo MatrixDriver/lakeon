@@ -1,0 +1,50 @@
+{{- if and (include "lakeon.controlPlaneEnabled" .) .Values.api.split.enabled .Values.api.ingress.enabled }}
+{{- $backendPort := .Values.api.ingress.backendPort | default (ternary (.Values.api.internalPort | default 8088) (.Values.api.port | default 8080) .Values.api.ssl.enabled) -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.api.ingress.name | default "lakeon-api-gateway" }}
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: lakeon-api-gateway
+    {{- include "lakeon.labels" . | nindent 4 }}
+  {{- with .Values.api.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.api.ingress.className }}
+  ingressClassName: {{ .Values.api.ingress.className | quote }}
+  {{- end }}
+  {{- with .Values.api.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    - {{- if .Values.api.ingress.host }}
+      host: {{ .Values.api.ingress.host | quote }}
+      {{- end }}
+      http:
+        paths:
+          - path: /api/v1/admin
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.api.split.components.admin.name | default "admin-api" }}
+                port:
+                  number: {{ $backendPort }}
+          - path: /proxy
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.api.split.components.serving.name | default "serving-api" }}
+                port:
+                  number: {{ $backendPort }}
+          - path: /api/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.api.split.components.serving.name | default "serving-api" }}
+                port:
+                  number: {{ $backendPort }}
+{{- end }}
