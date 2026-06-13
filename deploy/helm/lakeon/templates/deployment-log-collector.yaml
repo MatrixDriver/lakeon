@@ -1,4 +1,4 @@
-{{- if .Values.fluentbit.enabled }}
+{{- if and .Values.fluentbit.enabled (.Values.logCollector.enabled | default true) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

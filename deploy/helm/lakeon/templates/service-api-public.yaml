@@ -1,0 +1,25 @@
+{{- if and (include "lakeon.controlPlaneEnabled" .) .Values.api.publicElb.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: lakeon-api-public
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: lakeon-api
+    app.kubernetes.io/component: api-public
+    {{- include "lakeon.labels" . | nindent 4 }}
+  annotations:
+    kubernetes.io/elb.id: {{ required "api.publicElb.id must be set when api.publicElb.enabled=true" .Values.api.publicElb.id | quote }}
+    kubernetes.io/elb.class: {{ .Values.api.publicElb.class | default "performance" | quote }}
+spec:
+  type: LoadBalancer
+  selector:
+    app: lakeon-api
+  ports:
+    - name: https
+      port: {{ .Values.api.publicElb.port | default 8443 }}
+      targetPort: http
+    - name: http-internal
+      port: {{ .Values.api.publicElb.internalPort | default 8088 }}
+      targetPort: http-internal
+{{- end }}

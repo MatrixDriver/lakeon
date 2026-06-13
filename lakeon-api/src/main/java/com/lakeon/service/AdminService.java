@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.NodeMetrics;
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetrics;
@@ -175,8 +176,8 @@ public class AdminService {
 
     private Map<String, Object> checkApiPod() {
         Map<String, Object> status = new LinkedHashMap<>();
-        try {
-            var pods = k8sClient.pods().inNamespace("lakeon")
+        try (KubernetesClient controlPlaneClient = new KubernetesClientBuilder().build()) {
+            var pods = controlPlaneClient.pods().inNamespace("lakeon")
                     .withLabel("app", "lakeon-api").list().getItems();
             if (!pods.isEmpty()) {
                 var pod = pods.get(0);
@@ -216,18 +217,22 @@ public class AdminService {
 
     private Map<String, Object> checkElb() {
         Map<String, Object> status = new LinkedHashMap<>();
-        try {
-            var services = k8sClient.services().inNamespace("lakeon")
-                    .withLabel("app", "lakeon-api").list().getItems();
-            if (!services.isEmpty()) {
-                var svc = services.get(0);
-                var ingress = svc.getStatus().getLoadBalancer().getIngress();
+        try (KubernetesClient controlPlaneClient = new KubernetesClientBuilder().build()) {
+            var svc = controlPlaneClient.services().inNamespace("lakeon").withName("lakeon-api-public").get();
+            if (svc == null) {
+                svc = controlPlaneClient.services().inNamespace("lakeon").withName("lakeon-api").get();
+            }
+            if (svc != null) {
+                var loadBalancerStatus = svc.getStatus() == null ? null : svc.getStatus().getLoadBalancer();
+                var ingress = loadBalancerStatus == null ? null : loadBalancerStatus.getIngress();
                 if (ingress != null && !ingress.isEmpty()) {
                     status.put("status", "healthy");
                     status.put("ip", ingress.get(0).getIp());
+                    status.put("service", svc.getMetadata().getName());
                 } else {
                     status.put("status", "healthy");
                     status.put("type", svc.getSpec().getType());
+                    status.put("service", svc.getMetadata().getName());
                 }
             } else {
                 status.put("status", "unknown");

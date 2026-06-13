@@ -107,6 +107,12 @@ api:
   # nodeSelector for compute pods (elastic node pool scheduling)
   # Example: { "lakeon/role": "compute" }
   computeNodeSelector: {}
+  publicElb:
+    enabled: false
+    id: ""
+    class: "performance"
+    port: 8443
+    internalPort: 8088
 
 obs:
   endpoint: ""
@@ -240,6 +246,7 @@ fluentbit:
       memory: "128Mi"
 
 logCollector:
+  enabled: true
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/log-collector
     tag: "0.1.4"

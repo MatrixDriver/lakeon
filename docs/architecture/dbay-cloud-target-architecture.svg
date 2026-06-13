@@ -1,0 +1,176 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1120" viewBox="0 0 1500 1120" role="img" aria-labelledby="title desc">
+  <title id="title">DBay Neon 数据面目标部署架构</title>
+  <desc id="desc">DBay 云服务目标部署架构，聚焦 Neon 数据库组件：控制面 CCE、数据面 CCE、proxy、compute pods、pageserver shard、safekeeper set、storage broker、storage controller、RDS 元数据库、OBS 远端存储和 ELB 入口。</desc>
+  <defs>
+    <style>
+      .bg { fill: #f7f3ec; }
+      .vpc { fill: #fffaf2; stroke: #b68a52; stroke-width: 2.5; }
+      .section { fill: #ffffff; stroke: #c7a979; stroke-width: 2; }
+      .control { fill: #fffdf8; stroke: #9a6f38; stroke-width: 2; }
+      .data { fill: #f7fbff; stroke: #4e7fa9; stroke-width: 2; }
+      .compute { fill: #f4fbf7; stroke: #4b8b66; stroke-width: 2; }
+      .store { fill: #fff7dc; stroke: #bd8c21; stroke-width: 2; }
+      .external { fill: #ffffff; stroke: #81715d; stroke-width: 2; }
+      .box { fill: #ffffff; stroke: #7f705f; stroke-width: 1.5; }
+      .boxCtl { fill: #fffdf8; stroke: #9a6f38; stroke-width: 1.6; }
+      .boxData { fill: #fbfdff; stroke: #507da5; stroke-width: 1.6; }
+      .boxCompute { fill: #fbfffc; stroke: #4b8b66; stroke-width: 1.6; }
+      .boxStore { fill: #fff9e8; stroke: #bd8c21; stroke-width: 1.6; }
+      .title { font-family: Inter, Arial, sans-serif; font-size: 28px; font-weight: 700; fill: #2d261d; }
+      .subtitle { font-family: Inter, Arial, sans-serif; font-size: 15px; fill: #6b5b48; }
+      .h1 { font-family: Inter, Arial, sans-serif; font-size: 20px; font-weight: 700; fill: #2d261d; }
+      .h2 { font-family: Inter, Arial, sans-serif; font-size: 16px; font-weight: 700; fill: #2d261d; }
+      .txt { font-family: Inter, Arial, sans-serif; font-size: 13px; fill: #3f362c; }
+      .small { font-family: Inter, Arial, sans-serif; font-size: 11.5px; fill: #5c4f40; }
+      .note { font-family: Inter, Arial, sans-serif; font-size: 12px; fill: #6b5b48; }
+      .line { stroke: #574838; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .lineSoft { stroke: #8e806f; stroke-width: 1.6; fill: none; marker-end: url(#arrowSoft); stroke-dasharray: 6 5; }
+      .lineData { stroke: #386e9f; stroke-width: 2; fill: none; marker-end: url(#arrowData); }
+      .lineGold { stroke: #9d7424; stroke-width: 2; fill: none; marker-end: url(#arrowGold); }
+      .pill { fill: #efe3d0; stroke: #b68a52; stroke-width: 1; }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L8,3 z" fill="#574838" />
+    </marker>
+    <marker id="arrowSoft" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L8,3 z" fill="#8e806f" />
+    </marker>
+    <marker id="arrowData" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L8,3 z" fill="#386e9f" />
+    </marker>
+    <marker id="arrowGold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L8,3 z" fill="#9d7424" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1500" height="1120" />
+
+  <text class="title" x="56" y="54">DBay 云服务 - Neon 数据库部署架构</text>
+  <text class="subtitle" x="56" y="82">聚焦数据库链路：控制面 CCE 管理租户、Placement 和伸缩策略；数据面 CCE 运行 Neon 热路径；compute pods 跑在 CCE 弹性节点池。</text>
+
+  <rect class="external" x="56" y="116" width="1388" height="130" rx="8" />
+  <text class="h1" x="82" y="150">公网与私网入口</text>
+  <rect class="box" x="82" y="162" width="340" height="56" rx="6" />
+  <text class="h2" x="105" y="186">Console / API</text>
+  <text class="small" x="105" y="205">dbay.cloud / api.dbay.cloud -> 公网 ELB</text>
+  <rect class="box" x="484" y="162" width="420" height="56" rx="6" />
+  <text class="h2" x="507" y="186">PG 客户端 / PG 生态应用</text>
+  <text class="small" x="507" y="205">已有 PostgreSQL 客户端直连 pg.dbay.cloud -> 公网 ELB</text>
+  <rect class="vpc" x="56" y="278" width="1388" height="744" rx="14" />
+  <text class="h1" x="82" y="314">华为云 VPC - 单 Region 私有子网</text>
+  <text class="note" x="82" y="336">使用单个 VPC：控制面 CCE、数据面 CCE、RDS 元数据、OBS、SWR 都在私网内。</text>
+
+  <rect class="section control" x="86" y="372" width="390" height="434" rx="10" />
+  <text class="h1" x="112" y="406">控制面 CCE</text>
+  <text class="note" x="112" y="428">无状态控制面副本；不运行数据库热路径进程</text>
+
+  <rect class="boxCtl" x="112" y="446" width="318" height="108" rx="6" opacity="0.5" />
+  <rect class="boxCtl" x="124" y="458" width="318" height="108" rx="6" opacity="0.7" />
+  <rect class="boxCtl" x="136" y="470" width="318" height="108" rx="6" />
+  <text class="h2" x="156" y="496">serving-api x N</text>
+  <text class="small" x="156" y="516">高频业务 API；无状态副本</text>
+  <text class="small" x="156" y="535">用户 / Agent 调用、DB / branch lifecycle</text>
+  <text class="small" x="156" y="554">proxy auth、Placement、compute lifecycle</text>
+  <text class="small" x="156" y="572">状态全部写入外部 RDS</text>
+
+  <rect class="boxCtl" x="112" y="600" width="318" height="108" rx="6" opacity="0.5" />
+  <rect class="boxCtl" x="124" y="612" width="318" height="108" rx="6" opacity="0.7" />
+  <rect class="boxCtl" x="136" y="624" width="318" height="108" rx="6" />
+  <text class="h2" x="156" y="650">admin-api x N</text>
+  <text class="small" x="156" y="670">管理 API；无状态副本</text>
+  <text class="small" x="156" y="689">SRE、租户治理、配额、审计、人工运维</text>
+  <text class="small" x="156" y="708">DBay Scale Controller：读取 AOM / RDS</text>
+  <text class="small" x="156" y="726">控制 proxy HPA、shard / set / Cell 扩容</text>
+
+  <rect class="boxCtl" x="136" y="752" width="318" height="36" rx="6" />
+  <text class="h2" x="156" y="774">log-collector / Fluent Bit Agent</text>
+  <text class="small" x="156" y="788">采集控制面服务日志，写入外部 LTS</text>
+
+  <rect class="section data" x="532" y="372" width="850" height="474" rx="10" />
+  <text class="h1" x="558" y="406">Data Plane Cell A - CCE</text>
+  <text class="note" x="558" y="428">Neon 热路径三层：上层接入、中层计算、下层存储；低延迟私网、专用数据库弹性节点池、明确 Placement</text>
+
+  <rect class="boxData" x="556" y="452" width="802" height="86" rx="8" />
+  <text class="h2" x="578" y="478">上层：接入层</text>
+  <rect class="boxData" x="722" y="456" width="258" height="52" rx="6" opacity="0.55" />
+  <rect class="boxData" x="736" y="468" width="258" height="52" rx="6" opacity="0.72" />
+  <rect class="boxData" x="750" y="480" width="258" height="52" rx="6" />
+  <text class="h2" x="768" y="502">proxy x N</text>
+  <text class="small" x="768" y="520">TLS、鉴权桥接、连接入口；HPA + ELB</text>
+  <rect class="boxData" x="1050" y="480" width="284" height="52" rx="6" />
+  <text class="h2" x="1068" y="502">log-collector / Fluent Bit Agent</text>
+  <text class="small" x="1068" y="520">采集数据面微服务与 compute 日志，写入 LTS</text>
+  <rect class="compute" x="556" y="560" width="832" height="112" rx="8" />
+  <text class="h2" x="578" y="588">中层：计算层 - CCE 弹性节点池</text>
+  <rect class="boxCompute" x="730" y="600" width="334" height="48" rx="6" opacity="0.55" />
+  <rect class="boxCompute" x="744" y="612" width="334" height="48" rx="6" opacity="0.72" />
+  <rect class="boxCompute" x="758" y="624" width="334" height="48" rx="6" />
+  <text class="h2" x="776" y="646">Neon compute pods x M</text>
+  <text class="small" x="776" y="664">每个活跃 DB 一个；不同活跃 branch 也各有一个</text>
+  <rect class="boxCompute" x="1128" y="604" width="206" height="50" rx="6" />
+  <text class="h2" x="1146" y="626">HPA / Autoscaler</text>
+  <text class="small" x="1146" y="644">控制 CCE 弹性节点池扩缩容</text>
+
+  <rect class="boxData" x="556" y="694" width="832" height="132" rx="8" />
+  <text class="h2" x="578" y="722">下层：存储层</text>
+
+  <rect class="boxData" x="574" y="718" width="244" height="62" rx="6" opacity="0.5" />
+  <rect class="boxData" x="556" y="730" width="244" height="62" rx="6" opacity="0.7" />
+  <rect class="boxData" x="568" y="742" width="244" height="62" rx="6" />
+  <text class="h2" x="616" y="766">pageserver shard x P</text>
+  <text class="small" x="616" y="786">缓存 / layer 管理：可死可重建</text>
+  <text class="small" x="616" y="800">容量控制器扩 shard / 迁移 placement</text>
+
+  <rect class="boxData" x="842" y="718" width="244" height="62" rx="6" opacity="0.5" />
+  <rect class="boxData" x="884" y="730" width="244" height="62" rx="6" opacity="0.7" />
+  <rect class="boxData" x="866" y="742" width="244" height="62" rx="6" />
+  <text class="h2" x="884" y="766">safekeeper set x 3 或 x 5</text>
+  <text class="small" x="884" y="786">WAL 多数派：常驻关键，不能整体死</text>
+  <text class="small" x="884" y="800">通过新增 set / cell 扩容</text>
+
+  <rect class="boxData" x="1134" y="742" width="222" height="62" rx="6" />
+  <text class="h2" x="1152" y="766">broker / controller</text>
+  <text class="small" x="1152" y="786">路由与存储元数据：常驻关键</text>
+  <text class="small" x="1152" y="800">ClusterIP 私网服务</text>
+
+  <rect class="section store" x="86" y="840" width="340" height="78" rx="8" />
+  <text class="h2" x="112" y="866">VPC 共享基础设施：RDS 元数据库</text>
+  <text class="small" x="112" y="888">不在 CCE 内；同 VPC 私网互通</text>
+  <text class="small" x="112" y="906">保存租户、DB、timeline、Cell、shard、compute 状态</text>
+
+  <rect class="section store" x="456" y="840" width="300" height="78" rx="8" />
+  <text class="h2" x="482" y="866">华为云 AOM / Prometheus</text>
+  <text class="small" x="482" y="888">数据面写入 / 暴露 metrics</text>
+  <text class="small" x="482" y="906">控制面读取指标，驱动扩缩容</text>
+
+  <rect class="section store" x="786" y="840" width="300" height="78" rx="8" />
+  <text class="h2" x="812" y="866">华为云 LTS 日志服务</text>
+  <text class="small" x="812" y="888">各 CCE 内采集 Agent 写入日志</text>
+  <text class="small" x="812" y="906">排障、审计、告警、运营分析</text>
+
+  <rect class="section store" x="1116" y="840" width="266" height="78" rx="8" />
+  <text class="h2" x="1142" y="866">OBS 远端存储</text>
+  <text class="small" x="1142" y="888">数据页层文件 / 索引文件</text>
+  <text class="small" x="1142" y="906">WAL 归档 / 备份快照</text>
+
+  <rect class="section" x="56" y="1042" width="1388" height="48" rx="8" />
+  <text class="h2" x="82" y="1072">伸缩规则</text>
+  <text class="txt" x="200" y="1072">DBay Scale Controller 是 admin-api 内部模块：读取 AOM 指标与 RDS 状态，控制 proxy HPA、compute pods lifecycle、pageserver shard、safekeeper set 与 Cell 扩容。</text>
+
+  <path class="line" d="M252 218 L252 372 L264 372 L264 456" />
+  <path class="lineData" d="M694 218 L694 336 L835 336 L835 468" />
+  <path class="lineSoft" d="M454 515 L532 515" />
+  <text class="small" x="462" y="506">CCE 间私网：内网 ELB / 私有地址</text>
+  <path class="lineGold" d="M264 714 L264 840" />
+  <path class="lineSoft" d="M416 684 C500 760 565 812 626 840" />
+  <path class="lineSoft" d="M416 684 C620 778 770 822 996 840" />
+  <path class="lineData" d="M835 520 L880 624" />
+  <path class="lineSoft" d="M1092 638 L1128 638" />
+  <path class="lineData" d="M860 672 L690 742" />
+  <path class="lineData" d="M940 672 L958 742" />
+  <path class="lineData" d="M1010 672 L1215 742" />
+  <path class="lineGold" d="M690 804 C850 828 1040 836 1249 840" />
+  <path class="lineGold" d="M958 804 C1050 824 1150 834 1249 840" />
+  <path class="lineSoft" d="M835 520 C845 670 880 770 936 840" />
+  <path class="lineSoft" d="M690 804 C750 826 835 836 936 840" />
+</svg>
