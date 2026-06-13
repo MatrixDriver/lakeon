@@ -75,7 +75,18 @@ kind: Service
 metadata:
   name: memory-svc
   namespace: {{ .Release.Namespace }}
+  {{- if or (and .Values.memory.elb .Values.memory.elb.id) (and .Values.memory.elb .Values.memory.elb.autocreate) }}
+  annotations:
+    {{- if .Values.memory.elb.id }}
+    kubernetes.io/elb.id: {{ .Values.memory.elb.id | quote }}
+    {{- end }}
+    kubernetes.io/elb.class: {{ .Values.memory.elb.class | default "union" | quote }}
+    {{- if .Values.memory.elb.autocreate }}
+    kubernetes.io/elb.autocreate: {{ .Values.memory.elb.autocreate | quote }}
+    {{- end }}
+  {{- end }}
 spec:
+  type: {{ .Values.memory.serviceType | default "ClusterIP" }}
   selector:
     app: lakeon-memory
   ports:

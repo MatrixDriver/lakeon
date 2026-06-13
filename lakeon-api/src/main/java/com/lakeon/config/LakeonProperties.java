@@ -123,6 +123,8 @@ public class LakeonProperties {
         private String internalToken;
         private String externalHost;
         private int externalPort = 4432;
+        private String internalHost;
+        private int internalPort = 4432;
 
         public String getInternalToken() { return internalToken; }
         public void setInternalToken(String internalToken) { this.internalToken = internalToken; }
@@ -130,6 +132,10 @@ public class LakeonProperties {
         public void setExternalHost(String externalHost) { this.externalHost = externalHost; }
         public int getExternalPort() { return externalPort; }
         public void setExternalPort(int externalPort) { this.externalPort = externalPort; }
+        public String getInternalHost() { return internalHost; }
+        public void setInternalHost(String internalHost) { this.internalHost = internalHost; }
+        public int getInternalPort() { return internalPort; }
+        public void setInternalPort(int internalPort) { this.internalPort = internalPort; }
     }
 
     public static class DataPlaneConfig {

@@ -32,9 +32,11 @@ spec:
             - "0.0.0.0:1234"
             - "--database-url"
             - "$(DATABASE_URL)"
+            - "--control-plane-url"
+            - "http://lakeon-api:8090"
           env:
             - name: DATABASE_URL
-              value: "postgresql://{{ .Values.metadataDb.user }}:{{ .Values.metadataDb.password }}@{{ .Values.metadataDb.host }}:{{ .Values.metadataDb.port }}/{{ .Values.metadataDb.name }}"
+              value: "postgresql://{{ .Values.metadataDb.user | urlquery }}:{{ .Values.metadataDb.password | urlquery }}@{{ .Values.metadataDb.host }}:{{ .Values.metadataDb.port }}/{{ .Values.metadataDb.name }}"
           ports:
             - containerPort: 1234
               name: http

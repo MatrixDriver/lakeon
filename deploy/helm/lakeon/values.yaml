@@ -256,6 +256,12 @@ console:
 memory:
   enabled: false
   image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.1.0
+  serviceType: ClusterIP
+  serviceUrl: ""
+  elb:
+    id: ""
+    class: "union"
+    autocreate: ""
   cpu: 500m
   memorySize: 512Mi
 

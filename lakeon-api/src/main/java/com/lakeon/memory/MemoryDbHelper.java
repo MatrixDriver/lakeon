@@ -1,6 +1,7 @@
 package com.lakeon.memory;
 
 import com.lakeon.k8s.ComputePodManager;
+import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.service.ComputeLifecycleService;
@@ -10,6 +11,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Resolves a memory base ID to a PostgreSQL connection string by waking the
@@ -23,15 +27,18 @@ public class MemoryDbHelper {
     private final DatabaseRepository databaseRepository;
     private final ComputeLifecycleService computeLifecycleService;
     private final ComputePodManager computePodManager;
+    private final LakeonProperties props;
 
     public MemoryDbHelper(MemoryBaseRepository memoryBaseRepository,
                            DatabaseRepository databaseRepository,
                            @Lazy ComputeLifecycleService computeLifecycleService,
-                           ComputePodManager computePodManager) {
+                           ComputePodManager computePodManager,
+                           LakeonProperties props) {
         this.memoryBaseRepository = memoryBaseRepository;
         this.databaseRepository = databaseRepository;
         this.computeLifecycleService = computeLifecycleService;
         this.computePodManager = computePodManager;
+        this.props = props;
     }
 
     /**
@@ -89,6 +96,17 @@ public class MemoryDbHelper {
         // Wake compute pod (no-op if already running)
         computeLifecycleService.wakeCompute(databaseId);
 
+        String internalProxyHost = props.getProxy().getInternalHost();
+        if (internalProxyHost != null && !internalProxyHost.isBlank()) {
+            int port = props.getProxy().getInternalPort();
+            String user = enc(db.getDbUser() != null ? db.getDbUser() : "cloud_admin");
+            String password = enc(db.getDbPassword() != null ? db.getDbPassword() : "");
+            String database = enc(db.getName());
+            String endpoint = enc(db.getName());
+            return "postgresql://" + user + ":" + password + "@" + internalProxyHost + ":" + port
+                    + "/" + database + "?options=endpoint%3D" + endpoint + "&sslmode=require";
+        }
+
         // Get direct pod IP
         String podName = "compute-" + databaseId.replace("_", "-");
         if (!computePodManager.waitForPodReady(podName, 360_000)) {
@@ -102,5 +120,9 @@ public class MemoryDbHelper {
         log.info("resolveConnstr: mem={} db={} pod={} ip={}", memId, databaseId, podName, podIp);
         return "postgresql://cloud_admin:cloud-admin-internal@" + podIp + ":55433/" + db.getName()
                 + "?sslmode=disable";
+    }
+
+    private static String enc(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
     }
 }

@@ -135,10 +135,11 @@ def _create_tenant_with_invite(endpoint: str, admin_token: str,
     )
     client = DbayClient(endpoint=endpoint, api_key=tenant["api_key"])
 
-    # Increase quota for test tenant
+    # Full-suite E2E creates many temporary backing databases across
+    # database, branch, KB, memory, PITR, and version fixtures.
     tenant_id = tenant.get("id")
     if tenant_id:
-        admin.admin_update_quota(tenant_id, max_databases=20)
+        admin.admin_update_quota(tenant_id, max_databases=200)
 
     return client, tenant
 

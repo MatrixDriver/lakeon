@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "split-b10b265e-control-public-e935accb"
+    tag: "split-b10b265e-control-public-6f579d49-crosscce-20260613-2346"
   jobCallbackBaseUrl: "http://10.247.156.79:8088"  # CCI job pods use ClusterIP (no external access)
   jobNamespace: "lakeon-jobs"
   resources:
@@ -104,6 +104,8 @@ storageBroker:
 proxy:
   replicas: 1
   externalHost: "pg.dbay.cloud"
+  internalHost: "192.168.0.53"
+  internalPort: 4432
   serviceType: LoadBalancer
   tls:
     enabled: true
@@ -302,7 +304,12 @@ llm:
 
 memory:
   enabled: true
-  image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.2.7
+  image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.2.8-6f579d49-dirty
+  serviceType: LoadBalancer
+  serviceUrl: "http://192.168.0.175:8001"
+  elb:
+    id: "018d2a1e-68ad-4841-980b-4e6f1a09ff29"
+    class: "performance"
   chatApiUrl: "https://api.deepseek.com/v1"
   chatModel: "deepseek-chat"
 
