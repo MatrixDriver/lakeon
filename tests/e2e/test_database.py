@@ -2,7 +2,6 @@ import time
 
 import pytest
 
-from dbay_cli.client import DbayApiError
 from conftest import poll_until, run_psql
 
 
@@ -108,7 +107,7 @@ class TestDatabase:
         assert result == "42"
 
     def test_delete_database(self, e2e_client):
-        """Creating then deleting a database should result in 404 on GET."""
+        """Creating then deleting a database should move it to recycle bin."""
         db = e2e_client.create_database(name=f"e2e-del-{int(time.time())}")
         db = poll_until(
             lambda: e2e_client.get_database(db["id"]),
@@ -116,6 +115,6 @@ class TestDatabase:
             timeout=180,
         )
         e2e_client.delete_database(db["id"])
-        with pytest.raises(DbayApiError) as exc_info:
-            e2e_client.get_database(db["id"])
-        assert exc_info.value.status_code == 404
+        deleted = e2e_client.get_database(db["id"])
+        assert _status(deleted) == "DELETED"
+        assert deleted.get("deleted_at") is not None

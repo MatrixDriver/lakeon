@@ -16,9 +16,95 @@ done
 DATA_PLANE_KUBE_API_SERVER="${DATA_PLANE_KUBE_API_SERVER:-}"
 DATA_PLANE_KUBE_CA_B64="${DATA_PLANE_KUBE_CA_B64:-}"
 DATA_PLANE_KUBE_TOKEN="${DATA_PLANE_KUBE_TOKEN:-}"
+DATA_PLANE_CCE_CLUSTER_NAME="${DATA_PLANE_CCE_CLUSTER_NAME:-dbay-cce}"
+
+is_private_kube_api_server() {
+  python3 - "$1" <<'PY'
+import ipaddress
+import socket
+import sys
+from urllib.parse import urlparse
+
+host = urlparse(sys.argv[1]).hostname
+if not host:
+    sys.exit(1)
+try:
+    ip = ipaddress.ip_address(host)
+except ValueError:
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError:
+        sys.exit(1)
+    for info in infos:
+        try:
+            if ipaddress.ip_address(info[4][0]).is_private:
+                sys.exit(0)
+        except ValueError:
+            pass
+    sys.exit(1)
+sys.exit(0 if ip.is_private else 1)
+PY
+}
+
+derive_data_plane_internal_endpoint() {
+  LAKEON_SITE_DIR="$SITE_DIR" SCRIPT_DIR="$SCRIPT_DIR" DATA_PLANE_CCE_CLUSTER_NAME="$DATA_PLANE_CCE_CLUSTER_NAME" python3 - <<'PY'
+import importlib.util
+import os
+import sys
+
+script_dir = os.environ["SCRIPT_DIR"]
+hwcloud_path = os.path.join(script_dir, "hwcloud.py")
+spec = importlib.util.spec_from_file_location("hwcloud", hwcloud_path)
+hwcloud = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(hwcloud)
+
+target_name = os.environ.get("DATA_PLANE_CCE_CLUSTER_NAME", "dbay-cce")
+ak, sk, _ = hwcloud.load_credentials()
+project_id = hwcloud.get_project_id(ak, sk)
+status, clusters = hwcloud.api(
+    "GET",
+    f"https://cce.{hwcloud.REGION}.myhuaweicloud.com/api/v3/projects/{project_id}/clusters",
+    ak,
+    sk,
+)
+if status != 200:
+    raise SystemExit(f"list CCE clusters failed: {status} {clusters}")
+
+cluster_id = None
+for cluster in clusters.get("items", []):
+    metadata = cluster.get("metadata", {})
+    if metadata.get("name") == target_name:
+        cluster_id = metadata.get("uid")
+        break
+if not cluster_id:
+    raise SystemExit(f"data-plane CCE cluster not found: {target_name}")
+
+status, detail = hwcloud.api(
+    "GET",
+    f"https://cce.{hwcloud.REGION}.myhuaweicloud.com/api/v3/projects/{project_id}/clusters/{cluster_id}",
+    ak,
+    sk,
+)
+if status != 200:
+    raise SystemExit(f"get data-plane CCE cluster failed: {status} {detail}")
+
+for endpoint in detail.get("status", {}).get("endpoints", []):
+    if endpoint.get("type") == "Internal" and endpoint.get("url"):
+        print(endpoint["url"])
+        break
+else:
+    raise SystemExit(f"data-plane CCE cluster {target_name} has no Internal endpoint")
+PY
+}
 
 if [ -z "$DATA_PLANE_KUBE_API_SERVER" ]; then
-  DATA_PLANE_KUBE_API_SERVER="$(KUBECONFIG="$DATA_KUBECONFIG" kubectl config view --raw --minify -o jsonpath='{.clusters[0].cluster.server}')"
+  DATA_PLANE_KUBE_API_SERVER="$(derive_data_plane_internal_endpoint)"
+fi
+
+if ! is_private_kube_api_server "$DATA_PLANE_KUBE_API_SERVER"; then
+  echo "ERROR: DATA_PLANE_KUBE_API_SERVER must be a private/VPCEP endpoint, got: $DATA_PLANE_KUBE_API_SERVER" >&2
+  echo "       Refusing to deploy a control-plane that calls the data-plane kube-apiserver public management endpoint." >&2
+  exit 1
 fi
 
 if [ -z "$DATA_PLANE_KUBE_CA_B64" ]; then
