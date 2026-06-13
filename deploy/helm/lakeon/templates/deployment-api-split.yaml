@@ -169,7 +169,7 @@ spec:
               {{- if $root.Values.api.ssl.enabled }}
               scheme: HTTPS
               {{- end }}
-            failureThreshold: 24
+            failureThreshold: 60
             periodSeconds: 5
           readinessProbe:
             httpGet:
