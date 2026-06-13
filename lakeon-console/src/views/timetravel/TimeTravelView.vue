@@ -25,212 +25,190 @@
 
     <!-- Branch + Version panel -->
     <template v-else-if="selectedDbId">
-      <div class="branch-version-layout">
-        <!-- Left: Branch list -->
-        <div class="branch-list-panel">
-          <div class="branch-list-header">
-            <span class="branch-list-title">分支列表</span>
-            <button class="btn btn-small btn-text" @click="fetchBranches">刷新</button>
-          </div>
-          <div v-if="branchesLoading" class="branch-list-loading">加载中...</div>
-          <div v-else class="branch-list-items">
-            <div
-              v-for="branch in branches"
-              :key="branch.id"
-              class="branch-list-item"
-              :class="{ 'branch-list-item-selected': selectedBranchId === branch.id }"
-              @click="selectBranchForVersions(branch.id)"
-            >
-              <div class="branch-item-row">
-                <span
-                  class="branch-status-dot"
-                  :class="branch.compute_status === 'RUNNING' ? 'dot-green' : branch.compute_status === 'SUSPENDED' ? 'dot-yellow' : 'dot-gray'"
-                ></span>
-                <span class="branch-item-name">{{ branch.name }}</span>
-                <span v-if="branch.is_default" class="default-tag">默认</span>
-                <span class="compute-status-label" :class="branch.compute_status === 'RUNNING' ? 'status-running' : branch.compute_status === 'SUSPENDED' ? 'status-suspended' : 'status-idle'">
-                  {{ branch.compute_status === 'RUNNING' ? '运行中' : branch.compute_status === 'SUSPENDED' ? '已挂起' : '未启动' }}
-                </span>
-              </div>
-              <div v-if="branch.connection_uri" class="branch-item-uri" @click.stop="copyUri(branch.connection_uri)" title="点击复制连接串">
-                <code class="branch-uri-text">{{ branch.connection_uri.replace(/^postgres:\/\/[^@]+@/, '') }}</code>
-                <span class="btn-copy-uri">⎘</span>
-              </div>
-              <div class="branch-item-meta">
-                <span class="mono-text">{{ branch.last_record_lsn || '-' }}</span>
-                <span>{{ formatSize(branch.current_logical_size_bytes) }}</span>
-              </div>
-              <div class="branch-item-actions" v-if="selectedBranchId === branch.id">
-                <button
-                  v-if="!branch.is_default"
-                  class="btn btn-small btn-text"
-                  @click.stop="handlePromoteBranch(branch.id)"
-                >提升为默认</button>
-                <button
-                  v-if="!branch.is_default"
-                  class="btn btn-small btn-text btn-danger-text"
-                  @click.stop="handleDeleteBranch(branch.id)"
-                >删除</button>
-              </div>
+      <div class="branch-version-layout branch-graph-layout">
+        <div class="branch-graph-panel">
+          <div class="branch-graph-header">
+            <div>
+              <span class="branch-graph-title">数据库分支图</span>
+              <span class="branch-count">{{ branches.length }} 个分支</span>
+            </div>
+            <div class="branch-graph-actions">
+              <span class="legend-item"><span class="branch-status-dot dot-green"></span>运行中</span>
+              <span class="legend-item"><span class="branch-status-dot dot-yellow"></span>已挂起</span>
+              <span class="legend-item"><span class="branch-status-dot dot-gray"></span>未启动</span>
+              <button class="btn btn-small btn-text" @click="fetchBranches">刷新</button>
+              <button class="btn btn-primary btn-small" @click="preselectedParentId = selectedBranchId || ''; showBranchDialog = true">新建分支</button>
             </div>
           </div>
-          <div class="branch-list-footer">
-            <button class="btn btn-small btn-default" style="width: 100%;" @click="preselectedParentId = ''; showBranchDialog = true">+ 新建分支</button>
+
+          <div v-if="branchesLoading" class="branch-graph-loading">加载中...</div>
+          <div v-else-if="branches.length === 0" class="branch-graph-empty">暂无分支</div>
+          <div
+            v-else
+            class="branch-graph-canvas"
+          >
+            <div
+              class="branch-graph-stage"
+              :style="{ width: `${branchGraphSize.width}px`, height: `${branchGraphSize.height}px` }"
+            >
+              <svg class="branch-graph-edges" :viewBox="`0 0 ${branchGraphSize.width} ${branchGraphSize.height}`" preserveAspectRatio="none">
+                <path
+                  v-for="edge in branchGraphEdges"
+                  :key="edge.id"
+                  class="branch-graph-edge"
+                  :d="edge.path"
+                />
+              </svg>
+              <button
+                v-for="node in branchGraphNodes"
+                :key="node.branch.id"
+                class="branch-node"
+                :class="{
+                  'branch-node-selected': selectedBranchId === node.branch.id,
+                  'branch-node-default': node.branch.is_default,
+                }"
+                :style="{ left: `${node.x}px`, top: `${node.y}px`, width: `${node.width}px`, height: `${node.height}px` }"
+                @click="selectBranchForVersions(node.branch.id)"
+              >
+                <span class="branch-node-name-row">
+                  <span class="branch-node-name">{{ node.branch.name }}</span>
+                  <span v-if="node.branch.is_default" class="default-tag">默认</span>
+                </span>
+                <code class="branch-node-id">{{ node.branch.id.slice(0, 12) }}</code>
+                <span class="branch-node-meta">
+                  <span
+                    class="branch-status-dot"
+                    :class="node.statusClass"
+                  ></span>
+                  {{ node.statusLabel }} · {{ formatSize(node.branch.current_logical_size_bytes) }}
+                </span>
+                <span class="branch-node-lsn">LSN {{ node.branch.last_record_lsn || node.branch.ancestor_lsn || '-' }}</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- Right: Version timeline -->
-        <div class="version-timeline-panel">
-          <template v-if="selectedBranchId">
-            <!-- Branch connection URI bar -->
-            <div v-if="selectedBranchObj?.connection_uri" class="branch-uri-bar">
-              <span class="branch-uri-bar-label">连接串</span>
-              <code class="branch-uri-bar-value">{{ selectedBranchObj.connection_uri }}</code>
-              <button class="btn btn-small btn-default" @click="copyUri(selectedBranchObj.connection_uri)">复制</button>
-            </div>
-            <div class="version-timeline-header">
-              <span class="version-timeline-title">
-                {{ branches.find(b => b.id === selectedBranchId)?.name || '' }} - 版本历史
+        <aside class="branch-detail-panel">
+          <template v-if="selectedBranchObj">
+            <div class="branch-detail-header">
+              <div>
+                <span class="branch-detail-kicker">选中分支</span>
+                <h3 class="branch-detail-title">{{ selectedBranchObj.name }}</h3>
+              </div>
+              <span class="compute-status-label" :class="computeStatusClass(selectedBranchObj)">
+                {{ computeStatusLabel(selectedBranchObj) }}
               </span>
-              <div class="version-header-actions">
-                <button
-                  v-if="!squashMode"
-                  class="btn btn-default btn-small"
-                  :disabled="versions.length < 3"
-                  :title="versions.length < 3 ? '需要至少 3 个版本才能合并' : ''"
-                  @click="enterSquashMode"
-                >合并版本</button>
-                <button v-if="squashMode" class="btn btn-default btn-small" @click="exitSquashMode">取消合并</button>
-                <button class="btn btn-primary btn-small" @click="showVersionDialog = true">创建版本</button>
-              </div>
-            </div>
-            <div v-if="versionsLoading" class="version-timeline-loading">加载中...</div>
-            <div v-else-if="versions.length === 0" class="version-timeline-empty">
-              <p>暂无版本。点击「创建版本」保存当前数据库状态。</p>
-            </div>
-            <div v-else class="version-list">
-              <!-- Squash mode hint -->
-              <div v-if="squashMode" class="squash-hint">
-                <template v-if="!squashFrom">点击选择起始版本</template>
-                <template v-else-if="!squashTo">点击选择结束版本</template>
-              </div>
-              <div
-                v-for="(ver, idx) in versions"
-                :key="ver.id"
-                class="version-item"
-                :class="{
-                  'version-item-expanded': expandedVersionId === ver.id && !squashMode,
-                  'version-item-squash-range': squashMode && isVersionInSquashRange(ver),
-                  'version-item-squash-endpoint': squashMode && isSquashEndpoint(ver),
-                }"
-                @click="squashMode ? handleSquashVersionClick(ver) : undefined"
-              >
-                <div class="version-timeline-dot-line">
-                  <span class="version-dot" :class="idx === 0 ? 'version-dot-latest' : ''"></span>
-                  <span v-if="idx < versions.length - 1" class="version-line"></span>
-                </div>
-                <div class="version-content" @click="!squashMode ? toggleVersionExpand(ver.id) : undefined">
-                  <div class="version-header-row">
-                    <span class="version-name" :class="{ 'version-name-strikethrough': squashMode && isVersionInSquashRange(ver) }">{{ ver.name }}</span>
-                    <span class="version-time">{{ formatDateTime(ver.created_at) }}</span>
-                  </div>
-                  <div v-if="ver.description" class="version-desc">{{ ver.description }}</div>
-                  <div class="version-meta-row">
-                    <code class="version-lsn">LSN {{ ver.lsn }}</code>
-                    <span class="version-author">{{ ver.created_by }}</span>
-                    <span class="version-ago">{{ timeAgo(ver.created_at) }}</span>
-                  </div>
-                  <div v-if="expandedVersionId === ver.id && !squashMode" class="version-actions">
-                    <button class="btn btn-small btn-text" @click.stop="handleRestoreToVersion(ver)">回滚到此版本</button>
-                    <button class="btn btn-small btn-danger-text" @click.stop="handleDeleteVersion(ver.id)">删除版本</button>
-                  </div>
-                </div>
-              </div>
-              <!-- Squash confirm bar -->
-              <div v-if="squashMode && squashFrom && squashTo" class="squash-confirm-bar">
-                <span class="squash-confirm-text">
-                  合并 {{ squashFrom.name }} 到 {{ squashTo.name }}，中间 {{ squashVersionsBetween }} 个版本将被删除
-                </span>
-                <div class="squash-confirm-actions">
-                  <button class="btn btn-default btn-small" @click="exitSquashMode">取消</button>
-                  <button
-                    class="btn btn-primary btn-small"
-                    :disabled="squashLoading || squashVersionsBetween < 1"
-                    @click="handleConfirmSquash"
-                  >{{ squashLoading ? '合并中...' : '确认合并' }}</button>
-                </div>
-              </div>
             </div>
 
+            <section class="branch-detail-section">
+              <h4 class="branch-section-title">节点上下文</h4>
+              <dl class="branch-detail-grid">
+                <div>
+                  <dt>父分支</dt>
+                  <dd>{{ selectedBranchObj.parent_branch || 'workspace root' }}</dd>
+                </div>
+                <div>
+                  <dt>创建</dt>
+                  <dd>{{ formatDateTime(selectedBranchObj.created_at) }}</dd>
+                </div>
+                <div>
+                  <dt>LSN</dt>
+                  <dd class="mono-text">{{ selectedBranchObj.last_record_lsn || selectedBranchObj.ancestor_lsn || '-' }}</dd>
+                </div>
+                <div>
+                  <dt>大小</dt>
+                  <dd>{{ formatSize(selectedBranchObj.current_logical_size_bytes) }}</dd>
+                </div>
+              </dl>
+              <div v-if="selectedBranchObj.connection_uri" class="branch-uri-card">
+                <span class="branch-uri-bar-label">连接串</span>
+                <code class="branch-uri-bar-value">{{ selectedBranchObj.connection_uri }}</code>
+                <button class="btn btn-small btn-default" @click="copyUri(selectedBranchObj.connection_uri)">复制</button>
+              </div>
+              <div class="branch-detail-actions" v-if="!selectedBranchObj.is_default">
+                <button class="btn btn-small btn-text" @click="handlePromoteBranch(selectedBranchObj.id)">提升为默认</button>
+                <button class="btn btn-small btn-danger-text" @click="handleDeleteBranch(selectedBranchObj.id)">删除分支</button>
+              </div>
+            </section>
+
+            <section class="branch-detail-section branch-version-section">
+              <div class="version-timeline-header">
+                <span class="version-timeline-title">版本历史</span>
+                <div class="version-header-actions">
+                  <button
+                    v-if="!squashMode"
+                    class="btn btn-default btn-small"
+                    :disabled="versions.length < 3"
+                    :title="versions.length < 3 ? '需要至少 3 个版本才能合并' : ''"
+                    @click="enterSquashMode"
+                  >合并版本</button>
+                  <button v-if="squashMode" class="btn btn-default btn-small" @click="exitSquashMode">取消合并</button>
+                  <button class="btn btn-primary btn-small" @click="showVersionDialog = true">创建版本</button>
+                </div>
+              </div>
+
+              <div v-if="versionsLoading" class="version-timeline-loading">加载中...</div>
+              <div v-else-if="versions.length === 0" class="version-timeline-empty">
+                <p>暂无版本。点击「创建版本」保存当前数据库状态。</p>
+              </div>
+              <div v-else class="version-list">
+                <div v-if="squashMode" class="squash-hint">
+                  <template v-if="!squashFrom">点击选择起始版本</template>
+                  <template v-else-if="!squashTo">点击选择结束版本</template>
+                </div>
+                <div
+                  v-for="(ver, idx) in versions"
+                  :key="ver.id"
+                  class="version-item"
+                  :class="{
+                    'version-item-expanded': expandedVersionId === ver.id && !squashMode,
+                    'version-item-squash-range': squashMode && isVersionInSquashRange(ver),
+                    'version-item-squash-endpoint': squashMode && isSquashEndpoint(ver),
+                  }"
+                  @click="squashMode ? handleSquashVersionClick(ver) : undefined"
+                >
+                  <div class="version-timeline-dot-line">
+                    <span class="version-dot" :class="idx === 0 ? 'version-dot-latest' : ''"></span>
+                    <span v-if="idx < versions.length - 1" class="version-line"></span>
+                  </div>
+                  <div class="version-content" @click="!squashMode ? toggleVersionExpand(ver.id) : undefined">
+                    <div class="version-header-row">
+                      <span class="version-name" :class="{ 'version-name-strikethrough': squashMode && isVersionInSquashRange(ver) }">{{ ver.name }}</span>
+                      <span class="version-time">{{ formatDateTime(ver.created_at) }}</span>
+                    </div>
+                    <div v-if="ver.description" class="version-desc">{{ ver.description }}</div>
+                    <div class="version-meta-row">
+                      <code class="version-lsn">LSN {{ ver.lsn }}</code>
+                      <span class="version-author">{{ ver.created_by }}</span>
+                      <span class="version-ago">{{ timeAgo(ver.created_at) }}</span>
+                    </div>
+                    <div v-if="expandedVersionId === ver.id && !squashMode" class="version-actions">
+                      <button class="btn btn-small btn-text" @click.stop="handleRestoreToVersion(ver)">回滚到此版本</button>
+                      <button class="btn btn-small btn-danger-text" @click.stop="handleDeleteVersion(ver.id)">删除版本</button>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="squashMode && squashFrom && squashTo" class="squash-confirm-bar">
+                  <span class="squash-confirm-text">
+                    合并 {{ squashFrom.name }} 到 {{ squashTo.name }}，中间 {{ squashVersionsBetween }} 个版本将被删除
+                  </span>
+                  <div class="squash-confirm-actions">
+                    <button class="btn btn-default btn-small" @click="exitSquashMode">取消</button>
+                    <button
+                      class="btn btn-primary btn-small"
+                      :disabled="squashLoading || squashVersionsBetween < 1"
+                      @click="handleConfirmSquash"
+                    >{{ squashLoading ? '合并中...' : '确认合并' }}</button>
+                  </div>
+                </div>
+              </div>
+            </section>
           </template>
           <div v-else class="version-timeline-placeholder">
             <p>选择左侧分支查看版本历史</p>
           </div>
-        </div>
+        </aside>
       </div>
-
-      <!-- Branch table (collapsed, for detailed view) -->
-      <details class="branch-table-details" open>
-        <summary class="branch-table-summary">分支详情表格</summary>
-        <div class="section-card" style="margin-top: 12px;">
-          <div class="table-toolbar-row">
-            <input v-model="branchSearch" class="form-input search-input" placeholder="搜索分支名称" />
-            <button class="btn btn-small btn-default" @click="fetchBranches">刷新</button>
-          </div>
-          <div class="table-wrapper">
-            <table class="data-table" v-if="filteredBranches.length > 0">
-              <thead>
-                <tr>
-                  <th>名称</th>
-                  <th>父分支</th>
-                  <th>LSN</th>
-                  <th>大小</th>
-                  <th>状态</th>
-                  <th>创建时间</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="branch in pagedBranches"
-                  :key="branch.id"
-                  :class="{ 'row-highlight': selectedBranchId === branch.id }"
-                >
-                  <td>
-                    {{ branch.name }}
-                    <span v-if="branch.is_default" class="default-tag">默认</span>
-                    <span
-                      class="compute-status-label"
-                      :class="branch.compute_status === 'RUNNING' ? 'status-running' : branch.compute_status === 'SUSPENDED' ? 'status-suspended' : 'status-idle'"
-                    >{{ branch.compute_status === 'RUNNING' ? '运行中' : branch.compute_status === 'SUSPENDED' ? '已挂起' : '未启动' }}</span>
-                  </td>
-                  <td>{{ branch.parent_branch || '-' }}</td>
-                  <td class="mono-text">{{ branch.last_record_lsn || '-' }}</td>
-                  <td>{{ formatSize(branch.current_logical_size_bytes) }}</td>
-                  <td>
-                    <span class="branch-status-tag" :class="'branch-status-' + branch.status">
-                      {{ branch.status === 'active' ? '活跃' : branch.status === 'creating' ? '创建中' : branch.status === 'error' ? '异常' : branch.status }}
-                    </span>
-                  </td>
-                  <td>{{ formatDate(branch.created_at) }}</td>
-                  <td class="action-cell">
-                    <button
-                      v-if="!branch.is_default"
-                      class="btn btn-small btn-text btn-danger-text"
-                      @click="handleDeleteBranch(branch.id)"
-                    >删除</button>
-                    <span v-if="branch.is_default" class="text-muted">-</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <div v-else class="empty-state">
-              <p v-if="branchesLoading">加载中...</p>
-              <p v-else>暂无分支</p>
-            </div>
-          </div>
-        </div>
-      </details>
 
       <CreateBranchDialog
         :visible="showBranchDialog"
@@ -280,9 +258,6 @@ const branches = ref<Branch[]>([])
 const branchesLoading = ref(false)
 const showBranchDialog = ref(false)
 const preselectedParentId = ref('')
-const branchSearch = ref('')
-const branchPageSize = ref(10)
-const branchCurrentPage = ref(1)
 const selectedBranchId = ref('')
 
 // Versions
@@ -305,17 +280,120 @@ const selectedBranchObj = computed(() => {
   return branches.value.find(b => b.id === selectedBranchId.value) || null
 })
 
-const filteredBranches = computed(() => {
-  const q = branchSearch.value.toLowerCase()
-  if (!q) return branches.value
-  return branches.value.filter(b => b.name.toLowerCase().includes(q))
+const GRAPH_NODE_WIDTH = 230
+const GRAPH_NODE_HEIGHT = 104
+const GRAPH_COLUMN_GAP = 116
+const GRAPH_ROW_GAP = 52
+const GRAPH_PADDING_X = 36
+const GRAPH_PADDING_Y = 56
+
+interface BranchGraphNode {
+  branch: Branch
+  x: number
+  y: number
+  width: number
+  height: number
+  statusLabel: string
+  statusClass: string
+}
+
+interface BranchGraphEdge {
+  id: string
+  path: string
+}
+
+function computeStatusLabel(branch: Branch): string {
+  if (branch.compute_status === 'RUNNING') return '运行中'
+  if (branch.compute_status === 'SUSPENDED') return '已挂起'
+  return '未启动'
+}
+
+function computeStatusClass(branch: Branch): string {
+  if (branch.compute_status === 'RUNNING') return 'status-running'
+  if (branch.compute_status === 'SUSPENDED') return 'status-suspended'
+  return 'status-idle'
+}
+
+function computeStatusDotClass(branch: Branch): string {
+  if (branch.compute_status === 'RUNNING') return 'dot-green'
+  if (branch.compute_status === 'SUSPENDED') return 'dot-yellow'
+  return 'dot-gray'
+}
+
+const branchGraphNodes = computed<BranchGraphNode[]>(() => {
+  const byId = new Map(branches.value.map(branch => [branch.id, branch]))
+  const depthCache = new Map<string, number>()
+  const orderedBranches = [...branches.value].sort((a, b) => {
+    if (a.is_default !== b.is_default) return a.is_default ? -1 : 1
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  })
+
+  function getDepth(branch: Branch, seen = new Set<string>()): number {
+    if (depthCache.has(branch.id)) return depthCache.get(branch.id)!
+    const parentId = branch.parent_branch_id
+    if (!parentId || !byId.has(parentId) || seen.has(parentId)) {
+      depthCache.set(branch.id, 0)
+      return 0
+    }
+    seen.add(branch.id)
+    const depth = getDepth(byId.get(parentId)!, seen) + 1
+    depthCache.set(branch.id, depth)
+    return depth
+  }
+
+  const columns = new Map<number, Branch[]>()
+  for (const branch of orderedBranches) {
+    const depth = getDepth(branch)
+    const column = columns.get(depth) || []
+    column.push(branch)
+    columns.set(depth, column)
+  }
+
+  return orderedBranches.map(branch => {
+    const depth = getDepth(branch)
+    const column = columns.get(depth) || []
+    const row = column.findIndex(item => item.id === branch.id)
+    return {
+      branch,
+      x: GRAPH_PADDING_X + depth * (GRAPH_NODE_WIDTH + GRAPH_COLUMN_GAP),
+      y: GRAPH_PADDING_Y + Math.max(row, 0) * (GRAPH_NODE_HEIGHT + GRAPH_ROW_GAP),
+      width: GRAPH_NODE_WIDTH,
+      height: GRAPH_NODE_HEIGHT,
+      statusLabel: computeStatusLabel(branch),
+      statusClass: computeStatusDotClass(branch),
+    }
+  })
 })
 
-const pagedBranches = computed(() => {
-  const start = (branchCurrentPage.value - 1) * branchPageSize.value
-  return filteredBranches.value.slice(start, start + branchPageSize.value)
+const branchGraphNodeMap = computed(() => {
+  return new Map(branchGraphNodes.value.map(node => [node.branch.id, node]))
 })
 
+const branchGraphEdges = computed<BranchGraphEdge[]>(() => {
+  return branchGraphNodes.value.flatMap(node => {
+    const parentId = node.branch.parent_branch_id
+    const parent = parentId ? branchGraphNodeMap.value.get(parentId) : null
+    if (!parent) return []
+    const startX = parent.x + parent.width
+    const startY = parent.y + parent.height / 2
+    const endX = node.x
+    const endY = node.y + node.height / 2
+    const midX = startX + Math.max(44, (endX - startX) / 2)
+    return [{
+      id: `${parent.branch.id}-${node.branch.id}`,
+      path: `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`,
+    }]
+  })
+})
+
+const branchGraphSize = computed(() => {
+  const maxX = Math.max(...branchGraphNodes.value.map(node => node.x + node.width), 680)
+  const maxY = Math.max(...branchGraphNodes.value.map(node => node.y + node.height), 420)
+  return {
+    width: maxX + GRAPH_PADDING_X,
+    height: maxY + GRAPH_PADDING_Y,
+  }
+})
 
 function timeAgo(dateStr: string): string {
   const now = Date.now()
@@ -365,6 +443,11 @@ async function fetchBranches() {
   try {
     const res = await branchApi.list(selectedDbId.value)
     branches.value = res.data
+    const selectedStillExists = res.data.some(branch => branch.id === selectedBranchId.value)
+    if (!selectedStillExists && res.data.length > 0) {
+      const defaultBranch = res.data.find(branch => branch.is_default) || res.data[0]!
+      selectBranchForVersions(defaultBranch.id)
+    }
   } catch (e) {
     console.error('Failed to load branches', e)
   } finally {
@@ -559,8 +642,6 @@ watch(selectedDbId, async (newId) => {
   }
 })
 
-watch([branchSearch, branchPageSize], () => { branchCurrentPage.value = 1 })
-
 onMounted(() => {
   fetchDatabases()
 })
@@ -642,6 +723,279 @@ onMounted(() => {
   background: #fff;
   min-height: 400px;
   margin-bottom: 16px;
+}
+
+.branch-graph-layout {
+  min-height: 640px;
+  overflow: hidden;
+}
+
+.branch-graph-panel {
+  flex: 1;
+  min-width: 0;
+  border-right: 1px solid var(--c-border-light);
+  display: flex;
+  flex-direction: column;
+}
+
+.branch-graph-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--c-border-light);
+  background: #fff;
+}
+
+.branch-graph-title {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--c-text);
+  line-height: 1.2;
+}
+
+.branch-count {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--c-text-3);
+}
+
+.branch-graph-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--c-text-2);
+  white-space: nowrap;
+}
+
+.branch-graph-loading,
+.branch-graph-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 420px;
+  color: var(--c-text-3);
+  font-size: 13px;
+}
+
+.branch-graph-canvas {
+  flex: 1;
+  overflow: auto;
+  background-color: #fff;
+  background-image:
+    linear-gradient(var(--c-border-light) 1px, transparent 1px),
+    linear-gradient(90deg, var(--c-border-light) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.branch-graph-stage {
+  position: relative;
+}
+
+.branch-graph-edges {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.branch-graph-edge {
+  fill: none;
+  stroke: #b8c3d1;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.branch-node {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 16px 18px;
+  border: 1px solid #d8dee7;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10px 24px rgba(42, 77, 106, 0.08);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.branch-node::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: -1px;
+  bottom: -1px;
+  width: 5px;
+  border-radius: 7px 0 0 7px;
+  background: var(--c-accent);
+}
+
+.branch-node:hover {
+  border-color: color-mix(in oklch, var(--c-accent) 45%, #d8dee7);
+  box-shadow: 0 14px 30px rgba(42, 77, 106, 0.12);
+  transform: translateY(-1px);
+}
+
+.branch-node-selected {
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--c-accent) 14%, transparent), 0 14px 30px rgba(42, 77, 106, 0.12);
+}
+
+.branch-node-default {
+  background: color-mix(in oklch, var(--c-accent-light) 34%, #fff);
+}
+
+.branch-node-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.branch-node-name {
+  color: var(--c-text);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.branch-node-id,
+.branch-node-lsn {
+  max-width: 100%;
+  color: var(--c-text-2);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.branch-node-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  color: var(--c-text-2);
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.branch-detail-panel {
+  width: 410px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  background: var(--c-bg-alt);
+  overflow-y: auto;
+}
+
+.branch-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.branch-detail-kicker {
+  display: block;
+  color: var(--c-text-3);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+
+.branch-detail-title {
+  margin: 0;
+  color: var(--c-text);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.branch-detail-section {
+  border: 1px solid var(--c-border-light);
+  border-radius: 7px;
+  background: #fff;
+  padding: 16px;
+}
+
+.branch-section-title {
+  margin: 0 0 14px;
+  color: var(--c-text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.branch-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+  margin: 0;
+}
+
+.branch-detail-grid dt {
+  margin: 0 0 4px;
+  color: var(--c-text-3);
+  font-size: 12px;
+}
+
+.branch-detail-grid dd {
+  margin: 0;
+  color: var(--c-text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.branch-uri-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--c-border-light);
+  border-radius: 6px;
+  background: var(--c-bg-alt);
+}
+
+.branch-detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.branch-version-section {
+  flex: 1;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
 }
 
 .branch-list-panel {

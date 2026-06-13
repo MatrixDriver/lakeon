@@ -58,7 +58,34 @@
             :aria-current="activeMode.id === mode.id ? 'page' : undefined"
             @click="sidebarOpen = false"
           >
-            <span>{{ mode.shortLabel }}</span>
+            <svg class="rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <template v-if="mode.icon === 'database'">
+                <ellipse cx="12" cy="5" rx="7" ry="3" />
+                <path d="M5 5v6c0 1.66 3.13 3 7 3s7-1.34 7-3V5" />
+                <path d="M5 11v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6" />
+              </template>
+              <template v-else-if="mode.icon === 'agent'">
+                <rect x="7" y="8" width="10" height="10" rx="2" />
+                <path d="M12 4v4" />
+                <path d="M8 4h8" />
+                <path d="M4 12h3" />
+                <path d="M17 12h3" />
+              </template>
+              <template v-else-if="mode.icon === 'knowledge'">
+                <path d="M6 4h10a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2V4Z" />
+                <path d="M8 18h10" />
+                <path d="M9 8h6" />
+              </template>
+              <template v-else-if="mode.icon === 'memory'">
+                <path d="M8 15a6 6 0 1 1 8 0c-.94.78-1.5 1.75-1.5 3h-5c0-1.25-.56-2.22-1.5-3Z" />
+                <path d="M9.5 21h5" />
+              </template>
+              <template v-else>
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19 12a7 7 0 0 0-.08-1l2.08-1.6-2-3.46-2.44.98a7.5 7.5 0 0 0-1.72-1L14.5 3h-5l-.34 2.92a7.5 7.5 0 0 0-1.72 1L5 5.94l-2 3.46L5.08 11A7 7 0 0 0 5 12a7 7 0 0 0 .08 1L3 14.6l2 3.46 2.44-.98a7.5 7.5 0 0 0 1.72 1L9.5 21h5l.34-2.92a7.5 7.5 0 0 0 1.72-1l2.44.98 2-3.46L18.92 13c.05-.33.08-.66.08-1Z" />
+              </template>
+            </svg>
+            <span class="rail-label">{{ mode.shortLabel }}</span>
           </router-link>
         </nav>
 
@@ -128,6 +155,7 @@ type WorkspaceMode = {
   id: 'database' | 'agent' | 'knowledge' | 'memory' | 'ops'
   label: string
   shortLabel: string
+  icon: 'database' | 'agent' | 'knowledge' | 'memory' | 'ops'
   description: string
   to: string
   match: string[]
@@ -138,7 +166,8 @@ const workspaceModes: WorkspaceMode[] = [
   {
     id: 'database',
     label: '数据库工作台',
-    shortLabel: '数据',
+    shortLabel: '数据库',
+    icon: 'database',
     description: '实例、分支、SQL 与迁移',
     to: '/dashboard',
     match: ['/dashboard', '/databases', '/timetravel', '/sql', '/import', '/connectors', '/datalake'],
@@ -153,12 +182,6 @@ const workspaceModes: WorkspaceMode[] = [
         ],
       },
       {
-        title: '数据源',
-        items: [
-          { label: '连接器', to: '/connectors', icon: '◇' },
-        ],
-      },
-      {
         title: '数据湖',
         items: [
           { label: '生产线', to: '/datalake/pipelines', icon: '≡' },
@@ -168,12 +191,19 @@ const workspaceModes: WorkspaceMode[] = [
           { label: 'Notebook', to: '/datalake/notebook', icon: '▧' },
         ],
       },
+      {
+        title: '数据源',
+        items: [
+          { label: '连接器', to: '/connectors', icon: '◇' },
+        ],
+      },
     ],
   },
   {
     id: 'agent',
     label: '智能体数据平台',
-    shortLabel: '智能体',
+    shortLabel: 'Agent',
+    icon: 'agent',
     description: '任务、证据与治理审计',
     to: '/agent-state',
     match: ['/agent-state', '/agentfs'],
@@ -195,7 +225,8 @@ const workspaceModes: WorkspaceMode[] = [
   {
     id: 'knowledge',
     label: '知识库',
-    shortLabel: '知识',
+    shortLabel: '知识库',
+    icon: 'knowledge',
     description: '文档、检索与对话',
     to: '/knowledge',
     match: ['/knowledge'],
@@ -213,7 +244,8 @@ const workspaceModes: WorkspaceMode[] = [
   {
     id: 'memory',
     label: '记忆库',
-    shortLabel: '记忆',
+    shortLabel: '记忆库',
+    icon: 'memory',
     description: '记忆库与结构化浏览',
     to: '/memory',
     match: ['/memory'],
@@ -231,6 +263,7 @@ const workspaceModes: WorkspaceMode[] = [
     id: 'ops',
     label: '运维与账户',
     shortLabel: '运维',
+    icon: 'ops',
     description: '监控、权限与账户',
     to: '/monitor',
     match: ['/monitor', '/logs', '/usage', '/recycle-bin', '/apikey', '/account'],
@@ -508,47 +541,60 @@ onUnmounted(() => {
 }
 
 .workspace-rail {
-  width: 64px;
+  width: 72px;
   flex-shrink: 0;
-  background: #f7f8fa;
+  background: #f5f6f8;
   border-right: 1px solid #e3e7ec;
-  padding: 12px 7px;
+  padding: 8px 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
 }
 
 .rail-item {
   width: 100%;
-  min-height: 36px;
-  padding: 0 6px;
+  min-height: 72px;
+  padding: 9px 4px 8px;
   border: 1px solid transparent;
-  border-radius: 5px;
-  color: #718095;
+  border-radius: 0;
+  color: #657386;
   text-decoration: none;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.2;
   letter-spacing: 0;
-  white-space: nowrap;
+  text-align: center;
   transition: background 160ms ease-out, color 160ms ease-out, border-color 160ms ease-out, box-shadow 160ms ease-out;
+}
+
+.rail-icon {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+}
+
+.rail-label {
+  display: block;
+  max-width: 56px;
+  overflow-wrap: anywhere;
 }
 
 .rail-item:hover {
   color: #26394d;
   background: #fff;
-  border-color: #e0e5eb;
 }
 
 .rail-item.active {
-  color: var(--c-primary);
+  color: #21344a;
   background: #fff;
-  border-color: color-mix(in oklch, var(--c-accent) 28%, #dfe5ec);
+  border-color: transparent;
   font-weight: 700;
   box-shadow: inset 3px 0 0 var(--c-accent);
 }
@@ -765,11 +811,12 @@ onUnmounted(() => {
   }
 
   .workspace-rail {
-    width: 68px;
+    width: 72px;
   }
 
   .rail-item {
-    min-height: 36px;
+    min-height: 70px;
+    font-size: 13px;
   }
 
   .console-main {

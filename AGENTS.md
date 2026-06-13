@@ -1,0 +1,73 @@
+# Lakeon Project
+
+## Project Structure
+
+```
+lakeon-console/    # Vue 3 + Vite 前端控制台
+lakeon-admin/      # Vue 3 + Vite SRE 运维控制台
+lakeon-api/        # Spring Boot 3.3.5 (Java 17) 后端 API
+lakeon-orchestrator/ # Python 3.11+ FastAPI 生产线编排引擎
+dbay-cli/          # Python Typer CLI 工具
+tests/e2e/         # pytest API E2E 测试
+deploy/            # Helm + CCE 部署脚本
+```
+
+## Tech Stack
+
+- **Frontend**: Vue 3, TypeScript 5.9, Vite, Pinia, Vue Flow, CodeMirror
+- **Backend**: Spring Boot 3.3.5, Java 17, JPA, PostgreSQL
+- **Orchestrator**: Python 3.11+, FastAPI, Ray, SQLAlchemy
+- **CLI**: Python 3.11+, Typer, httpx
+- **Testing**: Vitest (unit), Playwright (browser E2E), pytest (API E2E)
+
+## Build & Test Commands
+
+```bash
+# 前端
+cd lakeon-console
+npm run dev          # 启动 dev server (localhost:5173)
+npm run build        # vue-tsc -b && vite build
+npm run test         # vitest 单元测试
+npm run test:e2e     # Playwright 浏览器 E2E (自动启动 dev server)
+
+# API E2E
+python3 -m pytest tests/e2e/test_pipeline.py -v
+
+# Type check (push 前自动执行)
+cd lakeon-console && npx vue-tsc -b --noEmit
+cd lakeon-admin && npx vue-tsc -b --noEmit
+```
+
+## Deployment
+
+**默认站点: hwstaff** (SITE=hwstaff)。所有部署操作用 hwstaff，不用 jackylk。
+
+```bash
+# 构建并推送镜像
+SITE=hwstaff bash deploy/cce/build-and-push-api.sh
+SITE=hwstaff bash deploy/cce/build-and-push-admin.sh
+
+# 重启 CCE 部署
+KUBECONFIG=~/.kube/cce-lakeon-config kubectl rollout restart deployment/lakeon-api -n lakeon
+
+# 前端 (console/admin) 部署在 Railway，git push 自动触发
+```
+
+## Commit Convention
+
+`type(scope): description`，如：`feat(console): add pipeline list page`、`fix(api): handle null data_type`
+
+## Key Conventions
+
+- **Pre-push hook**: 自动跑 `vue-tsc -b` 检查两个前端项目，不过不能 push
+- **E2E 测试**: 每个新特性都要加 E2E 测试 (API pytest + Playwright browser)
+  - **全部通过才算成功**: 有 FAILED 必须全部修复后再汇报，不能留 FAILED
+  - **不能作假**: FAILED 不能标记为 SKIPPED 来蒙混过关
+  - **端到端验证业务流程**: 不只是验证 API 返回 200，要断言业务结果正确。例如知识库要覆盖：上传→解析→切片→embedding→summarize→wiki生成→图谱→对话→沉淀→验证沉淀结果
+  - **不稳定依赖要调查根因**: 遇到外部服务超时等问题，要查明原因并修复，不能 skip
+- **API endpoint**: 线上 `https://api.dbay.cloud:8443/api/v1`，dev proxy `localhost:8080`
+- **Admin token**: `lakeon-sre-2026` (测试和 SRE 控制台用)
+- **测试租户**: E2E 测试创建临时租户，测试后自动清理
+- **不做抛弃型方案**: 瞄准目标方案分阶段做
+- **设计偏好**: 优雅舒适暖色调 (港湾风格)，不要 emoji 和通用 AI 模板风格
+- **Design Context**: 前端设计的详细规范（品牌气质、字体、色彩、禁区、双端一致性）见项目根目录 `.impeccable.md`。任何界面工作前必须先读取该文件。

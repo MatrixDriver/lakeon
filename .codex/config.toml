@@ -1,0 +1,2 @@
+[mcp_servers.echomem]
+command = "/Users/jacky/code/lakeon/echomem/.venv/bin/echomem-mcp-shim"
