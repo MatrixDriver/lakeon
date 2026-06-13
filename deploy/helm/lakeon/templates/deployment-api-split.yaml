@@ -1,0 +1,185 @@
+{{- if and (include "lakeon.controlPlaneEnabled" .) .Values.api.split.enabled }}
+{{- $root := . -}}
+{{- range $role, $component := .Values.api.split.components }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $component.name }}
+  namespace: {{ $root.Values.global.namespace }}
+  labels:
+    app: {{ $component.name }}
+    lakeon.io/api-role: {{ $role }}
+    {{- include "lakeon.labels" $root | nindent 4 }}
+spec:
+  replicas: {{ $component.replicas | default 1 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: {{ $component.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $component.name }}
+        lakeon.io/api-role: {{ $role }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ $root.Values.api.port }}"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      {{- with $root.Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: lakeon-api
+      containers:
+        - name: lakeon-api
+          image: "{{ $root.Values.api.image.repository }}:{{ $root.Values.api.image.tag }}"
+          ports:
+            - containerPort: {{ $root.Values.api.port }}
+              name: http
+            {{- if $root.Values.api.ssl.enabled }}
+            - containerPort: {{ $root.Values.api.internalPort | default 8088 }}
+              name: http-internal
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: lakeon-api-config
+          env:
+            - name: LAKEON_API_ROLE
+              value: {{ $role | quote }}
+            - name: LAKEON_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: db-password
+            - name: LAKEON_PROXY_INTERNAL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: proxy-token
+            - name: LAKEON_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: admin-token
+            - name: LAKEON_AI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: ai-api-key
+            - name: CONNECTOR_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: connector-secret-key
+            - name: LAKEON_DATA_PLANE_KUBE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: data-plane-kube-token
+                  optional: true
+            - name: LAKEON_WIKI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: wiki-api-key
+                  optional: true
+            - name: LAKEON_WIKI_BASE_URL
+              value: "https://api.modelarts-maas.com/openai/v1"
+            - name: WIKI_AGENT_URL
+              value: {{ $root.Values.wikiAgent.url | default "http://lakeon-wiki-agent.lakeon.svc:8090" | quote }}
+            - name: WIKI_AGENT_INTERNAL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: wiki-agent-secrets
+                  key: internal-token
+                  optional: true
+            {{- if $root.Values.embedding.apiUrl }}
+            - name: LAKEON_EMBEDDING_API_URL
+              value: {{ $root.Values.embedding.apiUrl | quote }}
+            {{- end }}
+            {{- if $root.Values.llm.apiUrl }}
+            - name: LAKEON_AI_BASE_URL
+              value: {{ $root.Values.llm.apiUrl | quote }}
+            {{- end }}
+            {{- if $root.Values.llm.model }}
+            - name: LAKEON_AI_MODEL
+              value: {{ $root.Values.llm.model | quote }}
+            {{- end }}
+            {{- if $root.Values.obs.accessKey }}
+            - name: LAKEON_OBS_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: obs-credentials
+                  key: access-key
+            - name: LAKEON_OBS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: obs-credentials
+                  key: secret-key
+            {{- end }}
+            - name: COMPUTE_JWT_PRIVATE_KEY
+              valueFrom: { secretKeyRef: { name: lakeon-compute-jwt, key: private-key } }
+            - name: COMPUTE_JWT_PUBLIC_JWK
+              valueFrom: { secretKeyRef: { name: lakeon-compute-jwt, key: public-jwk } }
+            - name: COMPUTE_JWT_KID
+              valueFrom: { secretKeyRef: { name: lakeon-compute-jwt, key: kid } }
+            - name: COMPUTE_WARM_POOL_ENABLED
+              value: {{ $root.Values.computeWarmPool.enabled | quote }}
+            - name: COMPUTE_WARM_POOL_SIZE
+              value: {{ $root.Values.computeWarmPool.size | quote }}
+            - name: COMPUTE_WARM_POOL_MOCK_TENANT_ID
+              value: {{ $root.Values.computeWarmPool.mockTenantId | quote }}
+            - name: COMPUTE_WARM_POOL_MOCK_TIMELINE_ID
+              value: {{ $root.Values.computeWarmPool.mockTimelineId | quote }}
+            - name: COMPUTE_WARM_POOL_IMAGE
+              value: {{ $root.Values.computeWarmPool.image | quote }}
+            - name: COMPUTE_WARM_POOL_USE_CCI
+              value: {{ $root.Values.computeWarmPool.useCciBurst | default true | quote }}
+          volumeMounts:
+            - name: cloud-resources
+              mountPath: /app/data/cloud-resources.json
+              subPath: resources.json
+              readOnly: true
+            {{- if $root.Values.api.ssl.enabled }}
+            - name: tls-keystore
+              mountPath: /app/secrets
+              readOnly: true
+            {{- end }}
+          resources:
+            {{- toYaml $root.Values.api.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+              {{- if $root.Values.api.ssl.enabled }}
+              scheme: HTTPS
+              {{- end }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+              {{- if $root.Values.api.ssl.enabled }}
+              scheme: HTTPS
+              {{- end }}
+            initialDelaySeconds: 15
+            periodSeconds: 5
+      volumes:
+        - name: cloud-resources
+          configMap:
+            name: lakeon-cloud-resources
+            optional: true
+        {{- if $root.Values.api.ssl.enabled }}
+        - name: tls-keystore
+          secret:
+            secretName: api-keystore
+        {{- end }}
+{{- end }}
+{{- end }}

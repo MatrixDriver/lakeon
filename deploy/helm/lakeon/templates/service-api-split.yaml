@@ -1,0 +1,28 @@
+{{- if and (include "lakeon.controlPlaneEnabled" .) .Values.api.split.enabled }}
+{{- $root := . -}}
+{{- range $role, $component := .Values.api.split.components }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $component.name }}
+  namespace: {{ $root.Values.global.namespace }}
+  labels:
+    app: {{ $component.name }}
+    lakeon.io/api-role: {{ $role }}
+    {{- include "lakeon.labels" $root | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ $component.name }}
+  ports:
+    - name: https
+      port: {{ $root.Values.api.port | default 8080 }}
+      targetPort: http
+    {{- if $root.Values.api.ssl.enabled }}
+    - name: http-internal
+      port: {{ $root.Values.api.internalPort | default 8088 }}
+      targetPort: http-internal
+    {{- end }}
+{{- end }}
+{{- end }}

@@ -7,6 +7,8 @@
 #
 # Prerequisites:
 #   - KUBECONFIG set to CCE cluster (e.g. ~/.kube/cce-lakeon-config)
+#   - CONTROL_KUBECONFIG optionally set to the control-plane CCE kubeconfig
+#     when API and data-plane components run in separate clusters.
 #   - curl, jq, pgcli available
 #   - ELB IP accessible for API (port 8080) and Proxy (port 4432)
 #
@@ -24,6 +26,7 @@ export no_proxy="${PROXY_HOST},localhost,127.0.0.1"
 export NO_PROXY="${PROXY_HOST},localhost,127.0.0.1"
 NAMESPACE="lakeon"
 COMPUTE_NS="lakeon-compute"
+CONTROL_KUBECONFIG="${CONTROL_KUBECONFIG:-${KUBECONFIG:-}}"
 TIMEOUT_COMPUTE=120
 RUN_ID=$(date +%s | tail -c 6)
 PASS=0
@@ -239,11 +242,12 @@ check_prerequisites() {
         exit 1
     fi
 
-    # Check lakeon-api pod running
+    # Check lakeon-api pod running. In split control/data-plane deployments,
+    # API pods live in CONTROL_KUBECONFIG while compute/proxy remain in KUBECONFIG.
     local api_ready
-    api_ready=$(kubectl get pods -n "$NAMESPACE" -l app=lakeon-api -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "")
+    api_ready=$(KUBECONFIG="$CONTROL_KUBECONFIG" kubectl get pods -n "$NAMESPACE" -l app=lakeon-api -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "")
     if [[ "$api_ready" != "True" ]]; then
-        echo "ERROR: lakeon-api pod not ready in namespace ${NAMESPACE}" >&2
+        echo "ERROR: lakeon-api pod not ready in namespace ${NAMESPACE} (CONTROL_KUBECONFIG=${CONTROL_KUBECONFIG:-unset})" >&2
         exit 1
     fi
 

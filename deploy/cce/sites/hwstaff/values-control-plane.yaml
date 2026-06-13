@@ -18,6 +18,25 @@ api:
     class: "performance"
     port: 8443
     internalPort: 8088
+  split:
+    enabled: true
+    components:
+      serving:
+        name: serving-api
+        replicas: 1
+        autoscaling:
+          enabled: true
+          minReplicas: 1
+          maxReplicas: 3
+          targetCPUUtilizationPercentage: 70
+      admin:
+        name: admin-api
+        replicas: 1
+        autoscaling:
+          enabled: true
+          minReplicas: 1
+          maxReplicas: 2
+          targetCPUUtilizationPercentage: 70
   autoscaling:
     enabled: true
     minReplicas: 2

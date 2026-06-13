@@ -1,0 +1,31 @@
+{{- if and (include "lakeon.controlPlaneEnabled" .) .Values.api.split.enabled }}
+{{- $root := . -}}
+{{- range $role, $component := .Values.api.split.components }}
+{{- if $component.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $component.name }}
+  namespace: {{ $root.Values.global.namespace }}
+  labels:
+    app: {{ $component.name }}
+    lakeon.io/api-role: {{ $role }}
+    {{- include "lakeon.labels" $root | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $component.name }}
+  minReplicas: {{ $component.autoscaling.minReplicas }}
+  maxReplicas: {{ $component.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $component.autoscaling.targetCPUUtilizationPercentage }}
+{{- end }}
+{{- end }}
+{{- end }}
