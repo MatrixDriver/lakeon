@@ -27,7 +27,7 @@ from dbay_mcp.crypto import (
 TEST_PASSWORD = "e2e-test-password-2026"
 
 
-def test_embedding(seed: float = 0.01) -> list[float]:
+def _embedding(seed: float = 0.01) -> list[float]:
     return [seed] * 1024
 
 
@@ -211,7 +211,7 @@ class TestEncryptedMemoryBase:
             mem_id, content=encrypted_content,
             signal="memory", memory_type="fact",
             importance=0.8,
-            embedding=test_embedding(),
+            embedding=_embedding(),
         )
         assert result["status"] == "stored"
 
@@ -236,7 +236,7 @@ class TestEncryptedMemoryBase:
         result = e2e_client.mem_ingest(
             mem_id, content=encrypted_content,
             signal="memory", memory_type="fact",
-            embedding=test_embedding(0.02),
+            embedding=_embedding(0.02),
         )
         assert result["status"] == "stored"
 
@@ -245,7 +245,7 @@ class TestEncryptedMemoryBase:
         recall_result = e2e_client.mem_recall(
             mem_id,
             query="project deadline",
-            query_embedding=test_embedding(0.02),
+            query_embedding=_embedding(0.02),
         )
         found = False
         for m in recall_result.get("memories", []):
@@ -267,7 +267,7 @@ class TestEncryptedMemoryBase:
         result = e2e_client.mem_ingest(
             mem_id, content=encrypted_content,
             signal="memory", memory_type="fact",
-            embedding=test_embedding(0.03),
+            embedding=_embedding(0.03),
         )
         memory_id = result["memory_id"]
 
