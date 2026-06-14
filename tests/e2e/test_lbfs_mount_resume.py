@@ -24,7 +24,7 @@ def _put(endpoint, key, path, data, retries=20, delay=6):
     for _ in range(retries):
         try:
             r = requests.post(
-                f"{endpoint}/api/v1/agentfs/files/put",
+                f"{endpoint}/api/v1/lbfs/files/put",
                 json={"path": path, "data_base64": base64.b64encode(data).decode()},
                 headers={"Authorization": f"Bearer {key}"},
                 verify=False, timeout=30,

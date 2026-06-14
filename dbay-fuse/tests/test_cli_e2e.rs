@@ -125,8 +125,6 @@ fn sync_dry_run_infers_folder_name_and_does_not_copy_source_to_state() {
         .arg("files")
         .arg("--storage")
         .arg("inline-only")
-        .arg("--processing")
-        .arg("small-file-memory")
         .arg("--remote")
         .arg("/notes")
         .arg("--dry-run")
@@ -137,7 +135,7 @@ fn sync_dry_run_infers_folder_name_and_does_not_copy_source_to_state() {
     let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(stdout.contains("folder: events-data"));
     assert!(stdout.contains("storage:   inline-only"));
-    assert!(stdout.contains("processing: small-file-memory"));
+    assert!(stdout.contains("processing: none"));
     assert!(stdout.contains("entries:   1"));
     assert!(!home.path().join(".dbay").join("state").join("events-data").exists());
 }

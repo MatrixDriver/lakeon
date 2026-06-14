@@ -37,14 +37,14 @@ fn sync_plan_keeps_profile_axes_separate() {
         "notes",
         DirectoryKind::Files,
         Some(StoragePolicy::InlineOnly),
-        Some(ProcessingProfile::SmallFileMemory),
+        None,
     );
 
     let plan = build_sync_plan(source.path(), "/", profile).unwrap();
 
     assert_eq!(plan.profile.directory_kind, DirectoryKind::Files);
     assert_eq!(plan.profile.storage_policy, StoragePolicy::InlineOnly);
-    assert_eq!(plan.profile.processing_profile, ProcessingProfile::SmallFileMemory);
+    assert_eq!(plan.profile.processing_profile, ProcessingProfile::None);
 }
 
 #[test]

@@ -61,6 +61,8 @@ public class AgentFSEventForwarder {
     private final MemoryDbHelper memoryDbHelper;
     private final MemorySvcClient memorySvc;
     private final AgentFSProcessingRouter processingRouter;
+    private final AgentFSFolderRepository folderRepo;
+    private final LBFSAutoJobRecorder autoJobRecorder;
     private final String podId;
 
     public AgentFSEventForwarder(AgentFSAssignmentRepository asgRepo,
@@ -71,7 +73,9 @@ public class AgentFSEventForwarder {
                                  MemoryService memoryService,
                                  MemoryDbHelper memoryDbHelper,
                                  MemorySvcClient memorySvc,
-                                 AgentFSProcessingRouter processingRouter) {
+                                 AgentFSProcessingRouter processingRouter,
+                                 AgentFSFolderRepository folderRepo,
+                                 LBFSAutoJobRecorder autoJobRecorder) {
         this.asgRepo = asgRepo;
         this.lockRepo = lockRepo;
         this.targetRepo = targetRepo;
@@ -81,6 +85,8 @@ public class AgentFSEventForwarder {
         this.memoryDbHelper = memoryDbHelper;
         this.memorySvc = memorySvc;
         this.processingRouter = processingRouter;
+        this.folderRepo = folderRepo;
+        this.autoJobRecorder = autoJobRecorder;
         this.podId = resolvePodId();
     }
 
@@ -141,15 +147,20 @@ public class AgentFSEventForwarder {
                     maxId = Math.max(maxId, e.id);
                     continue;
                 }
-                String processingProfile = processingProfileForPath(c, e.path);
+                String propertiesJson = propertiesForPath(c, e.path);
+                String processingProfile = AgentFSFolderProfile.processingProfileFromProperties(propertiesJson);
                 if (!routesToMemoryWorker(processingProfile)) {
-                    AgentFSFolderEntity folder = folderForProcessingProfile(
+                    AgentFSFolderEntity folder = resolveFolderForProcessingProfile(
                             tenant.getId(),
                             e.path,
-                            processingProfile);
+                            processingProfile,
+                            propertiesJson);
+                    AgentFSProcessingEvent event = new AgentFSProcessingEvent(
+                            tenant.getId(), e.path, e.etag, e.eventType);
                     AgentFSProcessingResult result = processingRouter.dispatch(
                             folder,
-                            new AgentFSProcessingEvent(tenant.getId(), e.path, e.etag, e.eventType));
+                            event);
+                    autoJobRecorder.record(folder, event, result);
                     if (result.accepted()) {
                         markDone(c, e.id);
                     } else if (result.retryable()) {
@@ -311,14 +322,14 @@ public class AgentFSEventForwarder {
         }
     }
 
-    private String processingProfileForPath(Connection c, String path) throws SQLException {
+    private String propertiesForPath(Connection c, String path) throws SQLException {
         try (PreparedStatement st = c.prepareStatement("SELECT properties::text FROM files WHERE path=?")) {
             st.setString(1, path);
             try (ResultSet rs = st.executeQuery()) {
                 if (!rs.next()) {
                     return null;
                 }
-                return AgentFSFolderProfile.processingProfileFromProperties(rs.getString(1));
+                return rs.getString(1);
             }
         }
     }
@@ -327,8 +338,7 @@ public class AgentFSEventForwarder {
         if (processingProfile == null || processingProfile.isBlank()) {
             return true;
         }
-        return AgentFSFolderProfile.PROCESSING_AGENT_HOME.equals(processingProfile)
-                || AgentFSFolderProfile.PROCESSING_SMALL_FILE_MEMORY.equals(processingProfile);
+        return AgentFSFolderProfile.PROCESSING_AGENT_HOME.equals(processingProfile);
     }
 
     static AgentFSFolderEntity folderForProcessingProfile(
@@ -342,9 +352,26 @@ public class AgentFSEventForwarder {
         folder.setStoragePolicy(AgentFSFolderProfile.STORAGE_AUTO);
         folder.setProcessingProfile(
                 processingProfile == null || processingProfile.isBlank()
-                        ? AgentFSFolderProfile.PROCESSING_SMALL_FILE_MEMORY
+                        ? AgentFSFolderProfile.PROCESSING_NONE
                         : processingProfile);
         return folder;
+    }
+
+    private AgentFSFolderEntity resolveFolderForProcessingProfile(
+            String tenantId,
+            String path,
+            String processingProfile,
+            String propertiesJson) {
+        String folderName = AgentFSFolderProfile.folderFromProperties(propertiesJson);
+        if (folderName != null) {
+            AgentFSFolderEntity registered = folderRepo
+                    .findByTenantIdAndDisplayName(tenantId, folderName)
+                    .orElse(null);
+            if (registered != null) {
+                return registered;
+            }
+        }
+        return folderForProcessingProfile(tenantId, path, processingProfile);
     }
 
     /**

@@ -1,12 +1,12 @@
-"""AgentFS Phase 2 mechanism E2E tests.
+"""LakebaseFS Phase 2 mechanism E2E tests.
 
 Exercises the end-to-end derivation pipeline:
-  CC writes file -> FUSE -> /agentfs/put -> agent_files + event row
-  -> forwarder -> memory-svc /agentfs/derive -> memories table
+  CC writes file -> FUSE -> /lbfs/put -> agent_files + event row
+  -> forwarder -> memory-svc /lbfs/derive -> memories table
   -> memory_recall returns it
 
 These tests will not pass until Phase F has rolled out the forwarder
-and /agentfs/derive endpoint. Use after deploy to verify mechanism.
+and /lbfs/derive endpoint. Use after deploy to verify mechanism.
 """
 import base64
 import time
@@ -14,10 +14,10 @@ import time
 import requests
 import urllib3
 
-from tests.e2e.conftest import poll_until
+from conftest import poll_until
 
 # The e2e suite hits an HTTPS endpoint with a valid cert but we keep
-# verify=False to match existing agentfs tests; silence the warning spam.
+# verify=False to match existing lbfs tests; silence the warning spam.
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
@@ -25,9 +25,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 DERIVE_TIMEOUT = 180
 
 
-def _agentfs_put(endpoint, api_key, path, data: bytes):
+def _lbfs_put(endpoint, api_key, path, data: bytes):
     r = requests.post(
-        f"{endpoint}/api/v1/agentfs/files/put",
+        f"{endpoint}/api/v1/lbfs/files/put",
         json={"path": path, "data_base64": base64.b64encode(data).decode()},
         headers={"Authorization": f"Bearer {api_key}"},
         verify=False,
@@ -37,9 +37,9 @@ def _agentfs_put(endpoint, api_key, path, data: bytes):
     return r.json()
 
 
-def _agentfs_delete(endpoint, api_key, path):
+def _lbfs_delete(endpoint, api_key, path):
     r = requests.post(
-        f"{endpoint}/api/v1/agentfs/files/delete",
+        f"{endpoint}/api/v1/lbfs/files/delete",
         json={"path": path},
         headers={"Authorization": f"Bearer {api_key}"},
         verify=False,
@@ -50,7 +50,7 @@ def _agentfs_delete(endpoint, api_key, path):
 
 def _memory_target(endpoint, api_key):
     r = requests.get(
-        f"{endpoint}/api/v1/agentfs/memory-target",
+        f"{endpoint}/api/v1/lbfs/memory-target",
         headers={"Authorization": f"Bearer {api_key}"},
         verify=False,
         timeout=30,
@@ -91,12 +91,12 @@ def _query_memories(endpoint, api_key, base_id, source_path):
     ]
 
 
-def _warm_up_agentfs(endpoint, api_key):
-    """First PUT for a fresh tenant triggers AgentFS DB provision (~30s).
+def _warm_up_lbfs(endpoint, api_key):
+    """First PUT for a fresh tenant triggers LakebaseFS DB provision (~30s).
     Absorb that here so subsequent tests run on a warm DB."""
     for attempt in range(24):  # 24 x 5s = 120s (provision can take up to 90s)
         try:
-            _agentfs_put(endpoint, api_key, "/memory/__warmup__.md", b"warmup")
+            _lbfs_put(endpoint, api_key, "/memory/__warmup__.md", b"warmup")
             return
         except Exception:
             if attempt == 23:
@@ -129,11 +129,11 @@ def _safe_recall(endpoint, api_key, base_id, query, top_k=3):
 def test_phase2_create_derives_memory(e2e_client):
     """PUT feedback_*.md -> recall hits it."""
     ep, key = e2e_client.endpoint, e2e_client.api_key
-    _warm_up_agentfs(ep, key)
+    _warm_up_lbfs(ep, key)
 
     path = "/memory/feedback_no_emoji.md"
     body = b"---\ntype: feedback\nname: no_emoji\n---\n\nUser prefers no emoji in output\n"
-    _agentfs_put(ep, key, path, body)
+    _lbfs_put(ep, key, path, body)
 
     def found_in_recall():
         target = _memory_target(ep, key)
@@ -156,13 +156,13 @@ def test_phase2_create_derives_memory(e2e_client):
 def test_phase2_update_refreshes_etag(e2e_client):
     """Updating file content produces a new memory row with new source_etag."""
     ep, key = e2e_client.endpoint, e2e_client.api_key
-    _warm_up_agentfs(ep, key)
+    _warm_up_lbfs(ep, key)
 
     path = "/memory/feedback_edit_me.md"
     v1 = b"---\ntype: feedback\n---\n\nversion 1 content\n"
     v2 = b"---\ntype: feedback\n---\n\nversion 2 content\n"
 
-    _agentfs_put(ep, key, path, v1)
+    _lbfs_put(ep, key, path, v1)
     target = poll_until(
         lambda: _memory_target(ep, key),
         lambda t: t.get("base_id"),
@@ -175,7 +175,7 @@ def test_phase2_update_refreshes_etag(e2e_client):
         return rows and any("version 1" in (r.get("content") or "") for r in rows)
     poll_until(v1_present, lambda x: x, timeout=DERIVE_TIMEOUT, interval=10)
 
-    _agentfs_put(ep, key, path, v2)
+    _lbfs_put(ep, key, path, v2)
 
     def v2_present():
         rows = _query_memories(ep, key, base_id, path)
@@ -184,13 +184,13 @@ def test_phase2_update_refreshes_etag(e2e_client):
 
 
 def test_phase2_delete_removes_memory(e2e_client):
-    """Deleting AgentFS file removes corresponding memory row."""
+    """Deleting LakebaseFS file removes corresponding memory row."""
     ep, key = e2e_client.endpoint, e2e_client.api_key
-    _warm_up_agentfs(ep, key)
+    _warm_up_lbfs(ep, key)
 
     path = "/memory/feedback_to_delete.md"
     body = b"---\ntype: feedback\n---\n\nwill be deleted\n"
-    _agentfs_put(ep, key, path, body)
+    _lbfs_put(ep, key, path, body)
 
     target = poll_until(
         lambda: _memory_target(ep, key),
@@ -204,7 +204,7 @@ def test_phase2_delete_removes_memory(e2e_client):
         timeout=DERIVE_TIMEOUT, interval=10,
     )
 
-    _agentfs_delete(ep, key, path)
+    _lbfs_delete(ep, key, path)
     poll_until(
         lambda: _query_memories(ep, key, base_id, path),
         lambda rows: len(rows) == 0,
@@ -215,10 +215,10 @@ def test_phase2_delete_removes_memory(e2e_client):
 def test_phase2_memory_md_is_not_derived(e2e_client):
     """MEMORY.md is a view file and MUST NOT be derived into memories."""
     ep, key = e2e_client.endpoint, e2e_client.api_key
-    _warm_up_agentfs(ep, key)
+    _warm_up_lbfs(ep, key)
 
     # First create any other file so the target base exists.
-    _agentfs_put(
+    _lbfs_put(
         ep, key, "/memory/feedback_any.md",
         b"---\ntype: feedback\n---\nany content\n",
     )
@@ -231,7 +231,7 @@ def test_phase2_memory_md_is_not_derived(e2e_client):
 
     # Now put MEMORY.md.
     memory_md_path = "/memory/MEMORY.md"
-    _agentfs_put(ep, key, memory_md_path, b"# Index\n- entry 1\n")
+    _lbfs_put(ep, key, memory_md_path, b"# Index\n- entry 1\n")
     # Give forwarder one full cycle to process.
     time.sleep(60)
 
@@ -242,11 +242,11 @@ def test_phase2_memory_md_is_not_derived(e2e_client):
 def test_phase2_projects_memory_is_derived(e2e_client):
     """/projects/<id>/memory/*.md also matches whitelist."""
     ep, key = e2e_client.endpoint, e2e_client.api_key
-    _warm_up_agentfs(ep, key)
+    _warm_up_lbfs(ep, key)
 
     path = "/projects/test-proj/memory/project_my_decision.md"
     body = b"---\ntype: project\n---\n\nproject decision content\n"
-    _agentfs_put(ep, key, path, body)
+    _lbfs_put(ep, key, path, body)
 
     target = poll_until(
         lambda: _memory_target(ep, key),
@@ -266,10 +266,10 @@ def test_phase2_switch_target_routes_new_events(e2e_client):
     """When user switches target base, new events go to the new base;
     old base retains previously derived entries (no automatic migration)."""
     ep, key = e2e_client.endpoint, e2e_client.api_key
-    _warm_up_agentfs(ep, key)
+    _warm_up_lbfs(ep, key)
 
     # Seed one file -> auto-created base.
-    _agentfs_put(
+    _lbfs_put(
         ep, key, "/memory/feedback_before.md",
         b"---\ntype: feedback\n---\nbefore switch\n",
     )
@@ -309,7 +309,7 @@ def test_phase2_switch_target_routes_new_events(e2e_client):
 
     # Switch target.
     switch = requests.post(
-        f"{ep}/api/v1/agentfs/memory-target",
+        f"{ep}/api/v1/lbfs/memory-target",
         json={"base_id": new_base_id},
         headers={"Authorization": f"Bearer {key}"},
         verify=False, timeout=30,
@@ -317,7 +317,7 @@ def test_phase2_switch_target_routes_new_events(e2e_client):
     switch.raise_for_status()
 
     # Put a new file -> should land in the new base.
-    _agentfs_put(
+    _lbfs_put(
         ep, key, "/memory/feedback_after.md",
         b"---\ntype: feedback\n---\nafter switch\n",
     )

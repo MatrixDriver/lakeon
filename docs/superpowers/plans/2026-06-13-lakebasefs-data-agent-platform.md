@@ -112,7 +112,6 @@ LakebaseFS API and workers:
 - Modify `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSFolderProfile.java`: add `opencode-home` and profile defaults.
 - Modify `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSEventForwarder.java`: dispatch through `AgentFSProcessingRouter`.
 - Modify `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSProcessingWorker.java`: return structured processing results.
-- Create `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSSmallFileMemoryWorker.java`.
 - Create `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSAgentHomeWorker.java`.
 - Create `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSDatasetWorker.java`.
 - Create `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSTableWorker.java`.
@@ -561,7 +560,7 @@ git commit -m "feat(lbfs): add continuous sync mode"
 - Modify: `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSProcessingWorker.java`
 - Modify: `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSProcessingRouter.java`
 - Modify: `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSEventForwarder.java`
-- Create: `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSSmallFileMemoryWorker.java`
+- Create: `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSAgentHomeWorker.java`
 - Test: `lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSEventForwarderTest.java`
 - Test: `lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSProcessingRouterTest.java`
 
@@ -614,16 +613,16 @@ public record AgentFSProcessingResult(boolean accepted, boolean retryable, Strin
 
 Make router return `AgentFSProcessingResult.done("no worker")` when profile is `none`, and `AgentFSProcessingResult.retry("missing worker: " + profile)` when a folder references a worker that is not registered.
 
-- [ ] **Step 4: Extract memory derive into `AgentFSSmallFileMemoryWorker`**
+- [ ] **Step 4: Extract agent-home memory derive into `AgentFSAgentHomeWorker`**
 
 Move the existing `forwardOne(...)` memory derive behavior from `AgentFSEventForwarder` into a worker with:
 
 ```java
 @Component
-public class AgentFSSmallFileMemoryWorker implements AgentFSProcessingWorker {
+public class AgentFSAgentHomeWorker implements AgentFSProcessingWorker {
     @Override
     public String processingProfile() {
-        return AgentFSFolderProfile.PROCESSING_SMALL_FILE_MEMORY;
+        return AgentFSFolderProfile.PROCESSING_AGENT_HOME;
     }
 
     @Override

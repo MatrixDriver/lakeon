@@ -33,7 +33,6 @@ public record AgentFSFolderProfile(
     public static final String PROCESSING_DATASET = "dataset";
     public static final String PROCESSING_ICEBERG = "iceberg";
     public static final String PROCESSING_LANCE = "lance";
-    public static final String PROCESSING_SMALL_FILE_MEMORY = "small-file-memory";
 
     private static final Set<String> DIRECTORY_KINDS = Set.of(
             KIND_CODEX_HOME,
@@ -57,8 +56,7 @@ public record AgentFSFolderProfile(
             PROCESSING_AGENT_HOME,
             PROCESSING_DATASET,
             PROCESSING_ICEBERG,
-            PROCESSING_LANCE,
-            PROCESSING_SMALL_FILE_MEMORY);
+            PROCESSING_LANCE);
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -95,8 +93,7 @@ public record AgentFSFolderProfile(
     }
 
     public boolean routesToMemoryWorker() {
-        return PROCESSING_AGENT_HOME.equals(processingProfile)
-                || PROCESSING_SMALL_FILE_MEMORY.equals(processingProfile);
+        return PROCESSING_AGENT_HOME.equals(processingProfile);
     }
 
     public static boolean propertiesRouteToMemoryWorker(String propertiesJson) {
@@ -104,22 +101,44 @@ public record AgentFSFolderProfile(
         if (processing == null) {
             return true;
         }
-        return PROCESSING_AGENT_HOME.equals(processing)
-                || PROCESSING_SMALL_FILE_MEMORY.equals(processing);
+        return PROCESSING_AGENT_HOME.equals(processing);
     }
 
     public static String processingProfileFromProperties(String propertiesJson) {
+        JsonNode profile = lbfsProfileNode(propertiesJson);
+        if (profile == null) {
+            return null;
+        }
+        JsonNode processing = profile.path("processing_profile");
+        if (processing.isMissingNode() || processing.isNull() || processing.asText().isBlank()) {
+            return null;
+        }
+        return processing.asText().trim().toLowerCase();
+    }
+
+    public static String folderFromProperties(String propertiesJson) {
+        JsonNode profile = lbfsProfileNode(propertiesJson);
+        if (profile == null) {
+            return null;
+        }
+        JsonNode folder = profile.path("folder");
+        if (folder.isMissingNode() || folder.isNull() || folder.asText().isBlank()) {
+            return null;
+        }
+        return folder.asText().trim();
+    }
+
+    private static JsonNode lbfsProfileNode(String propertiesJson) {
         if (propertiesJson == null || propertiesJson.isBlank()) {
             return null;
         }
         try {
             JsonNode root = OBJECT_MAPPER.readTree(propertiesJson);
             JsonNode profile = root.path("lbfs_profile");
-            JsonNode processing = profile.path("processing_profile");
-            if (processing.isMissingNode() || processing.isNull() || processing.asText().isBlank()) {
+            if (profile.isMissingNode() || profile.isNull()) {
                 return null;
             }
-            return processing.asText().trim().toLowerCase();
+            return profile;
         } catch (Exception ignored) {
             return null;
         }

@@ -1,8 +1,8 @@
 # dbay-fuse
 
-General DBay AgentFS client for mounting or syncing user-declared folders.
+General DBay LakebaseFS client for mounting or syncing user-declared folders.
 
-AgentFS no longer takes over `~/.claude` or other agent homes. Users choose a
+LakebaseFS no longer takes over `~/.claude` or other agent homes. Users choose a
 local directory, declare what kind of directory it is, and DBay uses that profile
 to pick storage and background processing behavior.
 
@@ -16,11 +16,11 @@ App / agent / shell
 │  · mount: passthrough FS → state dir    │
 │  · sync: source dir is the state root   │
 │  · outbox (append-only log + blobs)     │
-│  · uplink worker → DBay AgentFS         │
+│  · uplink worker → DBay LakebaseFS         │
 └───────┬────────────────────────────────┘
         │ HTTPS (async, out of band)
 ┌───────▼────────────────────────────────┐
-│ DBay AgentFS API (/v1/agentfs/*)       │
+│ DBay LakebaseFS API (/v1/lbfs/*)       │
 └───────┬────────────────────────────────┘
         │
 ┌───────▼────────────────────────────────┐
@@ -60,7 +60,6 @@ App / agent / shell
 - `dataset`
 - `iceberg`
 - `lance`
-- `small-file-memory`
 
 Defaults are derived from `--kind`. For example, `iceberg-table` defaults to
 `table-native + iceberg`, while `codex-home` defaults to `auto + agent-home`.

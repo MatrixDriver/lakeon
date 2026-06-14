@@ -4,7 +4,7 @@ Simulates cross-device editing without actually launching the FUSE daemon —
 we exercise the server's per-op precondition_failed behaviour via direct
 HTTP calls, which is what dbay-fuse's uplink would do.
 
-NOTE: requires lakeon-api deployed with T1-T3 changes (AgentFSService.append
+NOTE: requires lakeon-api deployed with T1-T3 changes (LakebaseFSService.append
 accepts ifMatch; controller wires if_match through /files/append + batch
 append; batch demotes BadRequestException("precondition_failed: ...") to
 per-op status:"precondition_failed").
@@ -24,7 +24,7 @@ def _b64url(s: bytes) -> str:
 
 
 def _put(endpoint, key, path, data, if_match=None, retries=20, delay=6):
-    """POST /files/put; first call on a fresh tenant retries while AgentFS DB
+    """POST /files/put; first call on a fresh tenant retries while LakebaseFS DB
     provisions (which can take several minutes — the server may time-out
     while creating per-tenant Postgres, surfacing as requests.ReadTimeout)."""
     last_err = None
@@ -34,7 +34,7 @@ def _put(endpoint, key, path, data, if_match=None, retries=20, delay=6):
             body["if_match"] = if_match
         try:
             r = requests.post(
-                f"{endpoint}/api/v1/agentfs/files/put",
+                f"{endpoint}/api/v1/lbfs/files/put",
                 json=body,
                 headers={"Authorization": f"Bearer {key}"},
                 verify=False, timeout=30,
@@ -52,7 +52,7 @@ def _put(endpoint, key, path, data, if_match=None, retries=20, delay=6):
 
 def _head(endpoint, key, path):
     r = requests.get(
-        f"{endpoint}/api/v1/agentfs/files/head",
+        f"{endpoint}/api/v1/lbfs/files/head",
         params={"path": _b64url(path.encode())},
         headers={"Authorization": f"Bearer {key}"},
         verify=False, timeout=30,
@@ -90,7 +90,7 @@ def test_append_with_stale_if_match_returns_precondition_failed(e2e_client):
 
     # Concurrent append from another client — succeeds, etag advances.
     r2 = requests.post(
-        f"{endpoint}/api/v1/agentfs/files/append",
+        f"{endpoint}/api/v1/lbfs/files/append",
         json={"path": "/cross-dev-append.log", "data_base64": _b64(b" world")},
         headers={"Authorization": f"Bearer {key}"},
         verify=False, timeout=60,
@@ -99,7 +99,7 @@ def test_append_with_stale_if_match_returns_precondition_failed(e2e_client):
 
     # Stale appender using the original etag_v1.
     r3 = requests.post(
-        f"{endpoint}/api/v1/agentfs/files/append",
+        f"{endpoint}/api/v1/lbfs/files/append",
         json={"path": "/cross-dev-append.log",
               "data_base64": _b64(b"!"),
               "if_match": etag_v1},
@@ -124,7 +124,7 @@ def test_batch_one_precondition_fails_others_succeed(e2e_client):
         {"op": "put", "path": "/batch-b.txt",
          "data_base64": _b64(b"2"), "if_match": etag_b},
     ]}
-    r = requests.post(f"{endpoint}/api/v1/agentfs/batch", json=body,
+    r = requests.post(f"{endpoint}/api/v1/lbfs/batch", json=body,
                       headers={"Authorization": f"Bearer {key}"},
                       verify=False, timeout=60)
     assert r.status_code == 200, r.text

@@ -1,8 +1,10 @@
 package com.lakeon.agentfs;
 
+import com.lakeon.service.exception.BadRequestException;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class AgentFSFolderProfileTest {
 
@@ -53,10 +55,19 @@ class AgentFSFolderProfileTest {
                 "docs",
                 "files",
                 "inline-only",
-                "small-file-memory");
+                "none");
 
         assertEquals("files", profile.directoryKind());
         assertEquals("inline-only", profile.storagePolicy());
-        assertEquals("small-file-memory", profile.processingProfile());
+        assertEquals("none", profile.processingProfile());
+    }
+
+    @Test
+    void rejects_removed_small_file_memory_processing_profile() {
+        assertThrows(BadRequestException.class, () -> AgentFSFolderProfile.normalize(
+                "docs",
+                "files",
+                "inline-only",
+                "small-file-memory"));
     }
 }
