@@ -257,9 +257,7 @@ public class LakebaseFSDatabaseManager {
             String endpoint = enc(entity.getName());
             String jdbcUrl = "jdbc:postgresql://" + internalProxyHost + ":" + port + "/" + database
                     + "?sslmode=require&options=endpoint%3D" + endpoint;
-            String user = entity.getDbUser() != null ? entity.getDbUser() : "cloud_admin";
-            String password = entity.getDbPassword() != null ? entity.getDbPassword() : "";
-            return DriverManager.getConnection(jdbcUrl, user, password);
+            return DriverManager.getConnection(jdbcUrl, adminJdbcUser(), adminJdbcPassword());
         }
 
         String host = entity.getComputeHost();
@@ -280,6 +278,14 @@ public class LakebaseFSDatabaseManager {
                 || msg.contains("connection refused")
                 || msg.contains("could not translate")
                 || msg.contains("no route to host");
+    }
+
+    static String adminJdbcUser() {
+        return "cloud_admin";
+    }
+
+    static String adminJdbcPassword() {
+        return "cloud-admin-internal";
     }
 
     private static String enc(String value) {

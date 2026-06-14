@@ -56,4 +56,10 @@ class LakebaseFSDatabaseManagerRetryTest {
 
         assertTrue(slug.matches("lbfs-[a-f0-9]{8}"), slug);
     }
+
+    @Test
+    void lbfs_admin_connections_use_internal_admin_credentials() {
+        assertTrue(LakebaseFSDatabaseManager.adminJdbcUser().equals("cloud_admin"));
+        assertTrue(LakebaseFSDatabaseManager.adminJdbcPassword().equals("cloud-admin-internal"));
+    }
 }
