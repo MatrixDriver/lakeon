@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import client from '../api/client'
-import { createLBFSFolder, listLBFSFolders } from '../api/lbfs'
+import { createLBFSFolder, listLBFSFolders, listLBFSProcessingJobs } from '../api/lbfs'
 
 vi.mock('../api/client', () => ({
   default: {
@@ -83,5 +83,29 @@ describe('LakebaseFS folder API', () => {
     })
     expect(result.data.directory_kind).toBe('opencode-home')
     expect(result.data.processing_profile).toBe('agent-home')
+  })
+
+  it('lists processing jobs for a folder', async () => {
+    vi.mocked(client.get).mockResolvedValue({
+      data: {
+        jobs: [
+          {
+            id: 'job_1',
+            folder_id: 'fld_1',
+            source_path: '/datasets/orders.csv',
+            profile: 'dataset',
+            status: 'running',
+            attempts: 1,
+            last_error: null,
+          },
+        ],
+      },
+    })
+
+    const result = await listLBFSProcessingJobs('fld_1')
+
+    expect(client.get).toHaveBeenCalledWith('/lbfs/folders/fld_1/jobs')
+    expect(result.data.jobs[0].source_path).toBe('/datasets/orders.csv')
+    expect(result.data.jobs[0].status).toBe('running')
   })
 })
