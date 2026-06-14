@@ -20,15 +20,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(AgentFSProcessingJobController.class)
+@WebMvcTest(LBFSAutoJobController.class)
 @Import(ApiKeyFilter.class)
-class AgentFSProcessingJobControllerTest {
+class LBFSAutoJobControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockBean
-    private AgentFSProcessingJobRepository jobRepository;
+    private LBFSAutoJobRepository jobRepository;
 
     @MockBean
     private TenantService tenantService;
@@ -47,8 +47,8 @@ class AgentFSProcessingJobControllerTest {
     }
 
     @Test
-    void lists_processing_jobs_for_folder() throws Exception {
-        AgentFSProcessingJobEntity job = new AgentFSProcessingJobEntity();
+    void lists_auto_jobs_for_folder() throws Exception {
+        LBFSAutoJobEntity job = new LBFSAutoJobEntity();
         job.setId("job_1");
         job.setTenantId("tn_test");
         job.setFolderId("fld_1");
@@ -61,14 +61,14 @@ class AgentFSProcessingJobControllerTest {
         when(jobRepository.findByTenantIdAndFolderIdOrderByCreatedAtDesc("tn_test", "fld_1"))
                 .thenReturn(List.of(job));
 
-        mockMvc.perform(get("/api/v1/lbfs/folders/fld_1/jobs")
+        mockMvc.perform(get("/api/v1/lbfs/folders/fld_1/auto-jobs")
                         .header("Authorization", "Bearer test-api-key-valid-32chars!!!"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.jobs[0].id").value("job_1"))
-                .andExpect(jsonPath("$.jobs[0].folder_id").value("fld_1"))
-                .andExpect(jsonPath("$.jobs[0].source_path").value("/datasets/orders.csv"))
-                .andExpect(jsonPath("$.jobs[0].profile").value("dataset"))
-                .andExpect(jsonPath("$.jobs[0].status").value("running"))
-                .andExpect(jsonPath("$.jobs[0].attempts").value(1));
+                .andExpect(jsonPath("$.auto_jobs[0].id").value("job_1"))
+                .andExpect(jsonPath("$.auto_jobs[0].folder_id").value("fld_1"))
+                .andExpect(jsonPath("$.auto_jobs[0].source_path").value("/datasets/orders.csv"))
+                .andExpect(jsonPath("$.auto_jobs[0].profile").value("dataset"))
+                .andExpect(jsonPath("$.auto_jobs[0].status").value("running"))
+                .andExpect(jsonPath("$.auto_jobs[0].attempts").value(1));
     }
 }

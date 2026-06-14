@@ -11,8 +11,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "agentfs_processing_jobs")
-public class AgentFSProcessingJobEntity {
+@Table(name = "lbfs_auto_jobs")
+public class LBFSAutoJobEntity {
 
     @Id
     @Column(name = "id", length = 64, nullable = false)
@@ -57,7 +57,7 @@ public class AgentFSProcessingJobEntity {
     @PrePersist
     public void prePersist() {
         if (id == null) {
-            id = "lbfs_job_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+            id = "lbfs_auto_job_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
         }
         Instant now = Instant.now();
         if (createdAt == null) createdAt = now;

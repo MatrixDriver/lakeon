@@ -12,12 +12,12 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/lbfs/folders/{folderId}/jobs")
-public class AgentFSProcessingJobController {
+@RequestMapping("/api/v1/lbfs/folders/{folderId}/auto-jobs")
+public class LBFSAutoJobController {
 
-    private final AgentFSProcessingJobRepository jobRepository;
+    private final LBFSAutoJobRepository jobRepository;
 
-    public AgentFSProcessingJobController(AgentFSProcessingJobRepository jobRepository) {
+    public LBFSAutoJobController(LBFSAutoJobRepository jobRepository) {
         this.jobRepository = jobRepository;
     }
 
@@ -25,7 +25,7 @@ public class AgentFSProcessingJobController {
     public Map<String, Object> list(HttpServletRequest req, @PathVariable String folderId) {
         String tenantId = getTenant(req).getId();
         return Map.of(
-                "jobs",
+                "auto_jobs",
                 jobRepository.findByTenantIdAndFolderIdOrderByCreatedAtDesc(tenantId, folderId)
                         .stream()
                         .map(this::toMap)
@@ -38,7 +38,7 @@ public class AgentFSProcessingJobController {
         return t;
     }
 
-    private Map<String, Object> toMap(AgentFSProcessingJobEntity job) {
+    private Map<String, Object> toMap(LBFSAutoJobEntity job) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", job.getId());
         m.put("folder_id", job.getFolderId());
