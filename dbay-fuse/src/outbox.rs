@@ -1,4 +1,4 @@
-//! Outbox: append-only durable queue of pending uploads to DBay AgentFS.
+//! Outbox: append-only durable queue of pending uploads to DBay LakebaseFS.
 //!
 //! Layout (under `~/.dbay/outbox/<folder>/`):
 //!   pending.log         — append-only JSON-lines; each line one op.

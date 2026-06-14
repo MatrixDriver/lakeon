@@ -1,4 +1,4 @@
-//! `pull` subcommand: bring local state directory in sync with remote AgentFS.
+//! `pull` subcommand: bring local state directory in sync with remote LakebaseFS.
 //!
 //! Decision matrix (per remote entry):
 //!   remote-only            → Download
@@ -80,7 +80,7 @@ pub fn pull(
     include_large: bool,
     dry_run: bool,
 ) -> Result<PullSummary> {
-    let entries = cli.agentfs_list(prefix, true).context("list remote")?;
+    let entries = cli.lbfs_list(prefix, true).context("list remote")?;
     let total = entries.len();
     let mut summary = PullSummary::default();
     for (i, e) in entries.iter().enumerate() {
@@ -154,7 +154,7 @@ fn download_and_write(
     action: &PullAction,
 ) -> Result<()> {
     let (bytes, etag, _mtime) = cli
-        .agentfs_get(&remote.path)
+        .lbfs_get(&remote.path)
         .with_context(|| format!("get {}", remote.path))?;
     if let Some(parent) = local_path.parent() {
         fs::create_dir_all(parent).ok();

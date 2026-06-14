@@ -34,7 +34,7 @@ use std::ffi::{OsStr, OsString};
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::dbay_api::{AgentFSEntry, AgentFSPutError, DbayClient};
+use crate::dbay_api::{LakebaseFSEntry, LakebaseFSPutError, DbayClient};
 
 const TTL: Duration = Duration::from_secs(1);
 const MAX_BUFFER: usize = 64 * 1024 * 1024; // 64 MB per file
@@ -131,7 +131,7 @@ impl InmemFs {
     }
 
     /// Find existing inode by path or insert a new one.
-    fn intern(&mut self, parent_ino: u64, name: &OsStr, entry: &AgentFSEntry) -> u64 {
+    fn intern(&mut self, parent_ino: u64, name: &OsStr, entry: &LakebaseFSEntry) -> u64 {
         let path = entry.path.clone();
         if let Some(&ino) = self.by_path.get(&path) {
             return ino;
@@ -155,7 +155,7 @@ impl InmemFs {
             Some(i) if i.kind == Kind::Dir && !i.children_loaded => i.path.clone(),
             _ => return Ok(()),
         };
-        let entries = self.client.agentfs_list(&dir_path, false)
+        let entries = self.client.lbfs_list(&dir_path, false)
             .with_context(|| format!("list {dir_path}"))?;
         for e in &entries {
             if e.path == dir_path { continue; } // server may include the dir itself
@@ -176,7 +176,7 @@ impl InmemFs {
             Some(i) if i.kind == Kind::File && i.buffer.is_none() => i.path.clone(),
             _ => return Ok(()),
         };
-        let (bytes, etag, mtime_ns) = self.client.agentfs_get(&path)
+        let (bytes, etag, mtime_ns) = self.client.lbfs_get(&path)
             .with_context(|| format!("get {path}"))?;
         if let Some(i) = self.inodes.get_mut(&ino) {
             i.size = bytes.len() as u64;
@@ -187,7 +187,7 @@ impl InmemFs {
         Ok(())
     }
 
-    /// PUT the in-memory buffer to AgentFS with retries. Returns Err(EIO) on
+    /// PUT the in-memory buffer to LakebaseFS with retries. Returns Err(EIO) on
     /// hard failure or precondition mismatch (concurrent modification).
     fn flush_inode(&mut self, ino: u64) -> std::result::Result<(), i32> {
         let (path, data, if_match, if_none_match) = {
@@ -201,9 +201,9 @@ impl InmemFs {
             (i.path.clone(), buf, if_match, if_none_match)
         };
 
-        let mut last_err: Option<AgentFSPutError> = None;
+        let mut last_err: Option<LakebaseFSPutError> = None;
         for attempt in 0..PUT_RETRIES {
-            match self.client.agentfs_put_strict(
+            match self.client.lbfs_put_strict(
                 &path,
                 &data,
                 if_match.as_deref(),
@@ -218,7 +218,7 @@ impl InmemFs {
                     }
                     return Ok(());
                 }
-                Err(AgentFSPutError::PreconditionFailed) => {
+                Err(LakebaseFSPutError::PreconditionFailed) => {
                     tracing::warn!(%path, "PUT precondition failed (concurrent modification?)");
                     return Err(EIO);
                 }
@@ -284,7 +284,7 @@ impl Filesystem for InmemFs {
         }
         let name_str = match name.to_str() { Some(s) => s, None => return reply.error(ENOENT) };
         let child_path = join_path(&parent_path, name_str);
-        match self.client.agentfs_head(&child_path) {
+        match self.client.lbfs_head(&child_path) {
             Ok(Some(entry)) => {
                 let ino = self.intern(parent, name, &entry);
                 if let Some(attr) = self.attr_for(ino) {
@@ -436,7 +436,7 @@ impl Filesystem for InmemFs {
         };
         let name_str = match name.to_str() { Some(s) => s, None => return reply.error(EIO) };
         let path = join_path(&parent_path, name_str);
-        if let Err(e) = self.client.agentfs_mkdir(&path, None) {
+        if let Err(e) = self.client.lbfs_mkdir(&path, None) {
             tracing::warn!(%path, ?e, "mkdir server failed");
             return reply.error(EIO);
         }
@@ -466,7 +466,7 @@ impl Filesystem for InmemFs {
             let i = self.inodes.get(&ino).unwrap();
             (ino, i.path.clone(), i.etag.clone())
         };
-        if let Err(e) = self.client.agentfs_delete_strict(&child_path, etag.as_deref()) {
+        if let Err(e) = self.client.lbfs_delete_strict(&child_path, etag.as_deref()) {
             tracing::warn!(%child_path, ?e, "delete server failed");
             return reply.error(EIO);
         }

@@ -2,7 +2,7 @@
 //!
 //! Writes go to two places:
 //!   1. The local state file (direct POSIX write, durability on each op)
-//!   2. The outbox — async upload queue to DBay AgentFS
+//!   2. The outbox — async upload queue to DBay LakebaseFS
 //!
 //! The outbox enqueue happens at "flush triggers":
 //!   · release (close)            — handled here
@@ -45,7 +45,7 @@ pub fn mount(
     let outbox = Arc::new(Outbox::open(outbox_dir)?);
     let append_map = append_state::new_map();
 
-    // Start uplink worker (reads outbox, POSTs to AgentFS)
+    // Start uplink worker (reads outbox, POSTs to LakebaseFS)
     crate::uplink_worker::spawn(agent, outbox.clone(), state_dir, outbox_dir)?;
 
     // Start flush watchdog (idle + size triggers)
@@ -160,7 +160,7 @@ fn flush_path(
 }
 
 /// Convert a state-relative path (e.g. `memory/user.md`) to the virtual path
-/// we send to AgentFS (e.g. `/memory/user.md`).
+/// we send to LakebaseFS (e.g. `/memory/user.md`).
 fn to_virt_path(rel: &Path) -> String {
     let s = rel.to_string_lossy();
     if s.starts_with('/') {

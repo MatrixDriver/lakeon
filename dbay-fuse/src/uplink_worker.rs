@@ -1,4 +1,4 @@
-//! Background uplink worker: drains the outbox to DBay AgentFS.
+//! Background uplink worker: drains the outbox to DBay LakebaseFS.
 //!
 //! One thread per daemon. Polls every 2s, or wakes when the outbox itself
 //! appends. Coalesces adjacent Put ops on the same path into the latest.
@@ -86,9 +86,9 @@ fn send_batch_with_retries(
     loop {
         match send_batch(client, outbox, chunk, ledger) {
             Ok(seqs) => return Ok(seqs),
-            Err(e) if is_transient_agentfs_provisioning_error(&e) && attempt < DRAIN_RETRIES => {
+            Err(e) if is_transient_lbfs_provisioning_error(&e) && attempt < DRAIN_RETRIES => {
                 attempt += 1;
-                tracing::warn!(attempt, ?e, "AgentFS provisioning not ready; retrying batch drain");
+                tracing::warn!(attempt, ?e, "LakebaseFS provisioning not ready; retrying batch drain");
                 thread::sleep(DRAIN_RETRY_SLEEP);
             }
             Err(e) => return Err(e),
@@ -96,10 +96,10 @@ fn send_batch_with_retries(
     }
 }
 
-fn is_transient_agentfs_provisioning_error(e: &anyhow::Error) -> bool {
+fn is_transient_lbfs_provisioning_error(e: &anyhow::Error) -> bool {
     let msg = format!("{e:#}");
-    msg.contains("AgentFS database not READY")
-        || msg.contains("AgentFS database still provisioning")
+    msg.contains("LakebaseFS database not READY")
+        || msg.contains("LakebaseFS database still provisioning")
         || msg.contains("retry shortly")
 }
 
@@ -131,7 +131,7 @@ fn run(
         }
         let batch = coalesce(&pending);
         if let Some(cli) = client.as_ref() {
-            // Process in chunks of up to MAX_BATCH using /agentfs/batch
+            // Process in chunks of up to MAX_BATCH using /lbfs/batch
             let mut idx = 0;
             while idx < batch.len() {
                 let end = (idx + MAX_BATCH).min(batch.len());
@@ -278,7 +278,7 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry], ledger: &Led
     // ACK skipped entries before sending so they don't come back next poll.
     for seq in skipped_seqs { let _ = outbox.ack(seq); }
     if ops.is_empty() { return Ok(Vec::new()); }
-    let results = cli.agentfs_batch(ops)?;
+    let results = cli.lbfs_batch(ops)?;
     // Update ledger from per-op results. Server echoes each op's path back in
     // BatchOpResult.path — read it directly instead of carrying a parallel Vec.
     let mut seqs_to_ack: Vec<u64> = Vec::with_capacity(results.len());
@@ -328,7 +328,7 @@ fn send_batch(cli: &DbayClient, outbox: &Outbox, entries: &[Entry], ledger: &Led
 /// effectively making the local version the new baseline (local wins).
 fn handle_conflict(cli: &DbayClient, ledger: &Ledger, path: &str) -> Result<()> {
     let (remote_bytes, remote_etag, _mtime) = cli
-        .agentfs_get(path)
+        .lbfs_get(path)
         .with_context(|| format!("download remote for conflict path {path}"))?;
     let host = crate::hostname::hostname_or_unknown();
     let ts = crate::conflict::local_filename_timestamp();
@@ -360,21 +360,21 @@ fn send_one(cli: &DbayClient, outbox: &Outbox, entry: &Entry) -> Result<()> {
         Op::Put { path, blob, properties } => {
             let bytes = outbox::read_blob(&outbox.blobs_dir(), blob)
                 .context("read blob for put")?;
-            cli.agentfs_put(path, &bytes, properties.as_ref())?;
+            cli.lbfs_put(path, &bytes, properties.as_ref())?;
         }
         Op::Append { path, blob } => {
             let bytes = outbox::read_blob(&outbox.blobs_dir(), blob)
                 .context("read blob for append")?;
-            cli.agentfs_append(path, &bytes)?;
+            cli.lbfs_append(path, &bytes)?;
         }
         Op::Delete { path } => {
-            cli.agentfs_delete(path)?;
+            cli.lbfs_delete(path)?;
         }
         Op::Rename { path, new_path } => {
-            cli.agentfs_rename(path, new_path)?;
+            cli.lbfs_rename(path, new_path)?;
         }
         Op::Mkdir { path, properties } => {
-            cli.agentfs_mkdir(path, properties.as_ref())?;
+            cli.lbfs_mkdir(path, properties.as_ref())?;
         }
         Op::Ack { .. } => {}
     }
@@ -395,16 +395,16 @@ fn log_only(_outbox: &Outbox, entry: &Entry) {
 
 #[cfg(test)]
 mod tests {
-    use super::is_transient_agentfs_provisioning_error;
+    use super::is_transient_lbfs_provisioning_error;
 
     #[test]
-    fn recognizes_agentfs_provisioning_retry_errors() {
+    fn recognizes_lbfs_provisioning_retry_errors() {
         let err = anyhow::anyhow!(
-            "agentfs batch failed: 500 Internal Server Error AgentFS database not READY after 120s; retry shortly"
+            "lbfs batch failed: 500 Internal Server Error LakebaseFS database not READY after 120s; retry shortly"
         );
-        assert!(is_transient_agentfs_provisioning_error(&err));
+        assert!(is_transient_lbfs_provisioning_error(&err));
 
-        let fatal = anyhow::anyhow!("agentfs batch failed: 401 Unauthorized");
-        assert!(!is_transient_agentfs_provisioning_error(&fatal));
+        let fatal = anyhow::anyhow!("lbfs batch failed: 401 Unauthorized");
+        assert!(!is_transient_lbfs_provisioning_error(&fatal));
     }
 }
