@@ -142,13 +142,13 @@ public class LakebaseFSEventForwarder {
             String baseConnstr = null;
             long maxId = 0;
             for (EventRow e : events) {
-                if (!PathWhitelist.accept(e.path)) {
+                String propertiesJson = propertiesForPath(c, e.path);
+                String processingProfile = LakebaseFSFolderProfile.processingProfileFromProperties(propertiesJson);
+                if (!acceptsForRoute(processingProfile, e.path)) {
                     markDone(c, e.id);
                     maxId = Math.max(maxId, e.id);
                     continue;
                 }
-                String propertiesJson = propertiesForPath(c, e.path);
-                String processingProfile = LakebaseFSFolderProfile.processingProfileFromProperties(propertiesJson);
                 if (!routesToMemoryWorker(processingProfile)) {
                     LakebaseFSFolderEntity folder = resolveFolderForProcessingProfile(
                             tenant.getId(),
@@ -339,6 +339,13 @@ public class LakebaseFSEventForwarder {
             return true;
         }
         return LakebaseFSFolderProfile.PROCESSING_AGENT_HOME.equals(processingProfile);
+    }
+
+    static boolean acceptsForRoute(String processingProfile, String path) {
+        if (!routesToMemoryWorker(processingProfile)) {
+            return true;
+        }
+        return PathWhitelist.accept(path);
     }
 
     static LakebaseFSFolderEntity folderForProcessingProfile(

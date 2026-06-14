@@ -19,6 +19,12 @@ class LakebaseFSEventForwarderRoutingTest {
     }
 
     @Test
+    void dataset_profile_bypasses_memory_path_whitelist() {
+        assertTrue(LakebaseFSEventForwarder.acceptsForRoute("dataset", "/datasets/orders.csv"));
+        assertFalse(LakebaseFSEventForwarder.acceptsForRoute("agent-home", "/datasets/orders.csv"));
+    }
+
+    @Test
     void builds_folder_entity_for_profile_dispatch() {
         LakebaseFSFolderEntity folder = LakebaseFSEventForwarder.folderForProcessingProfile(
                 "tn_1",
