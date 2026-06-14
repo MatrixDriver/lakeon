@@ -258,6 +258,9 @@ impl DbayClient {
         if !resp.status().is_success() {
             let s = resp.status();
             let t = resp.text().unwrap_or_default();
+            if is_folder_already_exists_response(s.as_u16(), &t) {
+                return Ok(());
+            }
             bail!("lbfs folder register failed: {s} {t}");
         }
         Ok(())
@@ -583,9 +586,13 @@ pub fn folder_registration_body(profile: &FolderProfile) -> serde_json::Value {
     })
 }
 
+fn is_folder_already_exists_response(status: u16, body: &str) -> bool {
+    status == 400 && body.contains("LakebaseFS folder already exists:")
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{folder_registration_body, insecure_tls_enabled};
+    use super::{folder_registration_body, insecure_tls_enabled, is_folder_already_exists_response};
     use crate::profile::{DirectoryKind, FolderProfile};
 
     #[test]
@@ -624,5 +631,21 @@ mod tests {
         assert_eq!(body["directory_kind"], "opencode-home");
         assert_eq!(body["storage_policy"], "auto");
         assert_eq!(body["processing_profile"], "agent-home");
+    }
+
+    #[test]
+    fn folder_registration_treats_existing_folder_as_idempotent() {
+        assert!(is_folder_already_exists_response(
+            400,
+            r#"{"error":{"code":"BAD_REQUEST","message":"LakebaseFS folder already exists: bench-sync"}}"#
+        ));
+        assert!(!is_folder_already_exists_response(
+            400,
+            r#"{"error":{"code":"BAD_REQUEST","message":"directory_kind is required"}}"#
+        ));
+        assert!(!is_folder_already_exists_response(
+            500,
+            r#"{"error":{"message":"LakebaseFS folder already exists: bench-sync"}}"#
+        ));
     }
 }
