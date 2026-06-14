@@ -11,6 +11,8 @@ import pytest
 
 from conftest import poll_until
 
+PROCESSED_DOCUMENT_STATUSES = ("READY", "WIKI_REVIEW")
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -18,7 +20,7 @@ from conftest import poll_until
 
 def _upload_and_process(e2e_client, kb_id, filename, file_path, max_retries=3):
     """Upload a file to a KB and wait for processing to complete.
-    Returns the READY document dict (with document_id).
+    Returns the processed document dict (with document_id).
     Retries if processing fails due to compute connection issues.
     """
     import httpx
@@ -43,12 +45,12 @@ def _upload_and_process(e2e_client, kb_id, filename, file_path, max_retries=3):
 
         doc = poll_until(
             lambda: e2e_client.get_document(doc_id),
-            condition=lambda d: d["status"] in ("READY", "FAILED"),
+            condition=lambda d: d["status"] in (*PROCESSED_DOCUMENT_STATUSES, "FAILED"),
             timeout=420,
             interval=5,
         )
 
-        if doc["status"] == "READY":
+        if doc["status"] in PROCESSED_DOCUMENT_STATUSES:
             return doc
 
         # Retry on connection errors (compute pod may have been suspended)
@@ -61,7 +63,7 @@ def _upload_and_process(e2e_client, kb_id, filename, file_path, max_retries=3):
             resp = httpx.put(result["upload_url"], content=file_content, verify=False, timeout=30)
             continue
 
-        assert doc["status"] == "READY", f"Document processing failed: {doc.get('error')}"
+        assert doc["status"] in PROCESSED_DOCUMENT_STATUSES, f"Document processing failed: {doc.get('error')}"
 
     return doc
 
@@ -330,13 +332,13 @@ class TestDocumentUpload:
     def test_upload_markdown(self, e2e_client, kb, sample_md):
         """Upload a Markdown file and verify it gets processed."""
         doc = _upload_and_process(e2e_client, kb["id"], "test-doc.md", sample_md)
-        assert doc["status"] == "READY"
+        assert doc["status"] in PROCESSED_DOCUMENT_STATUSES
         assert doc["chunks_count"] > 0
 
     def test_upload_second_document(self, e2e_client, kb, sample_md_alt):
         """Upload a second document to the same KB."""
         doc = _upload_and_process(e2e_client, kb["id"], "k8s-guide.md", sample_md_alt)
-        assert doc["status"] == "READY"
+        assert doc["status"] in PROCESSED_DOCUMENT_STATUSES
         assert doc["chunks_count"] > 0
 
     def test_list_documents(self, e2e_client, kb):
@@ -400,7 +402,7 @@ def _batch_upload_and_process(e2e_client, kb_id, files_map, max_retries=3):
     """Batch upload multiple files and wait for processing.
 
     files_map: list of (filename, file_path) tuples.
-    Returns list of READY document dicts.
+    Returns list of processed document dicts.
     """
     import httpx
 
@@ -421,12 +423,12 @@ def _batch_upload_and_process(e2e_client, kb_id, files_map, max_retries=3):
     proc_resp = e2e_client.batch_process_documents(doc_ids)
     assert proc_resp["document_count"] == len(doc_ids)
 
-    # Poll each document until READY or FAILED
+    # Poll each document until processed or FAILED
     docs = []
     for doc_id in doc_ids:
         doc = poll_until(
             lambda did=doc_id: e2e_client.get_document(did),
-            condition=lambda d: d["status"] in ("READY", "FAILED"),
+            condition=lambda d: d["status"] in (*PROCESSED_DOCUMENT_STATUSES, "FAILED"),
             timeout=420,
             interval=5,
         )
@@ -446,7 +448,7 @@ class TestBatchUpload:
         docs = _batch_upload_and_process(e2e_client, kb["id"], files_map)
 
         for doc in docs:
-            assert doc["status"] == "READY", f"Doc {doc['filename']} failed: {doc.get('error')}"
+            assert doc["status"] in PROCESSED_DOCUMENT_STATUSES, f"Doc {doc['filename']} failed: {doc.get('error')}"
             assert doc["chunks_count"] > 0
 
     def test_batch_upload_urls_returns_correct_structure(self, e2e_client, kb):

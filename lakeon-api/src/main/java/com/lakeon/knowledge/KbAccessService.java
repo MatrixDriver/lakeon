@@ -1,6 +1,5 @@
 package com.lakeon.knowledge;
 
-import com.lakeon.service.exception.ForbiddenException;
 import com.lakeon.service.exception.NotFoundException;
 import org.springframework.stereotype.Service;
 
@@ -28,7 +27,7 @@ public class KbAccessService {
         }
         return kbShareRepository.findByKbIdAndTenantId(kb.getId(), tenantId)
                 .map(KbShareEntity::getRole)
-                .orElseThrow(() -> new ForbiddenException("No access to knowledge base: " + kb.getId()));
+                .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kb.getId()));
     }
 
     public KnowledgeBaseEntity getKbWithAccess(String kbId, String tenantId) {
@@ -43,7 +42,7 @@ public class KbAccessService {
                 .orElseThrow(() -> new NotFoundException("Knowledge base not found: " + kbId));
         KbRole role = checkAccess(kb, tenantId);
         if (role != KbRole.ADMIN) {
-            throw new ForbiddenException("Admin access required for knowledge base: " + kbId);
+            throw new NotFoundException("Knowledge base not found: " + kbId);
         }
         return kb;
     }

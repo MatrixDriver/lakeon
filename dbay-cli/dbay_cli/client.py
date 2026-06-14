@@ -18,11 +18,17 @@ class DbayApiError(Exception):
 
 
 class DbayClient:
-    def __init__(self, endpoint: str, api_key: str | None = None, extra_headers: dict | None = None):
+    def __init__(
+        self,
+        endpoint: str,
+        api_key: str | None = None,
+        extra_headers: dict | None = None,
+        trust_env: bool = False,
+    ):
         self.endpoint = endpoint.rstrip("/")
         self.api_key = api_key
         self.extra_headers = extra_headers or {}
-        self.http = httpx.Client(verify=False, timeout=300)
+        self.http = httpx.Client(verify=False, timeout=300, trust_env=trust_env)
 
     def _headers(self) -> dict:
         h = {"Content-Type": "application/json"}
@@ -193,7 +199,13 @@ class DbayClient:
         return self._request("POST", "/knowledge/batch-process", json={"document_ids": document_ids})
 
     def list_documents(self, kb_id: str):
-        return self._request("GET", f"/knowledge/documents?kb_id={kb_id}")
+        result = self._request("GET", f"/knowledge/documents?kb_id={kb_id}")
+        if isinstance(result, dict):
+            for key in ("documents", "items", "data"):
+                value = result.get(key)
+                if isinstance(value, list):
+                    return value
+        return result
 
     def get_document(self, document_id: str):
         return self._request("GET", f"/knowledge/documents/{document_id}")

@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "split-b10b265e-control-public-6f579d49-crosscce-20260613-2346-e3093c85"
+    tag: "split-b10b265e-control-public-6f579d49-crosscce-20260613-2346-8155a78b-dirty"
   jobCallbackBaseUrl: "http://192.168.0.182:8088"  # CCI job pods use control-plane private ELB, not CCE ClusterIP
   jobNamespace: "lakeon-jobs"
   jobUseCci: false  # CCI 当前 ENI/端口资源不足；knowledge jobs 先跑数据面 CCE 节点池
@@ -289,13 +289,17 @@ networkPolicy:
 embedding:
   enabled: true
   image: vllm/vllm-openai:latest
+  serviceType: LoadBalancer
+  elb:
+    id: "018d2a1e-68ad-4841-980b-4e6f1a09ff29"
+    class: "performance"
   gpu: "1"
   cpu: "2"
   memory: "8Gi"
   modelPath: "/models/bge-m3"
   maxModelLen: "8192"
   gpuMemoryUtilization: "0.3"
-  apiUrl: "http://embedding-svc.lakeon.svc.cluster.local:8000/v1/embeddings"
+  apiUrl: "http://192.168.0.175:8000/v1/embeddings"
   model: "BAAI/bge-m3"
 
 llm:

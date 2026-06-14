@@ -90,7 +90,18 @@ kind: Service
 metadata:
   name: embedding-svc
   namespace: {{ .Release.Namespace }}
+  {{- if or (and .Values.embedding.elb .Values.embedding.elb.id) (and .Values.embedding.elb .Values.embedding.elb.autocreate) }}
+  annotations:
+    {{- if .Values.embedding.elb.id }}
+    kubernetes.io/elb.id: {{ .Values.embedding.elb.id | quote }}
+    {{- end }}
+    kubernetes.io/elb.class: {{ .Values.embedding.elb.class | default "union" | quote }}
+    {{- if .Values.embedding.elb.autocreate }}
+    kubernetes.io/elb.autocreate: {{ .Values.embedding.elb.autocreate | quote }}
+    {{- end }}
+  {{- end }}
 spec:
+  type: {{ .Values.embedding.serviceType | default "ClusterIP" }}
   selector:
     app: lakeon-embedding
   ports:
