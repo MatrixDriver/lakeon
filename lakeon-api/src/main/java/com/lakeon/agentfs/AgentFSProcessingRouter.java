@@ -20,13 +20,14 @@ public class AgentFSProcessingRouter {
                         (left, right) -> left));
     }
 
-    public void dispatch(AgentFSFolderEntity folder, AgentFSProcessingEvent event) {
+    public AgentFSProcessingResult dispatch(AgentFSFolderEntity folder, AgentFSProcessingEvent event) {
         if (folder == null || AgentFSFolderProfile.PROCESSING_NONE.equals(folder.getProcessingProfile())) {
-            return;
+            return AgentFSProcessingResult.done("processing skipped");
         }
         AgentFSProcessingWorker worker = workers.get(folder.getProcessingProfile());
         if (worker != null) {
-            worker.process(folder, event);
+            return worker.process(folder, event);
         }
+        return AgentFSProcessingResult.retry("missing worker: " + folder.getProcessingProfile());
     }
 }

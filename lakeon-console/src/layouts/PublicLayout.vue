@@ -19,7 +19,7 @@
         <div class="pub-nav-right">
           <button class="lang-btn" @click="toggleLocale">{{ locale === 'zh' ? 'EN' : '中' }}</button>
           <router-link to="/login" class="btn-signin">{{ t('登录', 'Sign in') }}</router-link>
-          <a href="#" class="btn-start" @click.prevent="handleNavTrial">{{ t('开始使用', 'Get started') }}</a>
+          <router-link to="/login?register=1" class="btn-start">{{ t('开始使用', 'Get started') }}</router-link>
           <!-- Mobile hamburger -->
           <button class="hamburger" @click="mobileOpen = !mobileOpen" aria-label="Menu">
             <span></span><span></span><span></span>
@@ -45,35 +45,16 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { useLocale } from '../stores/locale'
-import { useAuthStore } from '../stores/auth'
-import client from '../api/client'
 import MobileNav from '../components/public/MobileNav.vue'
 
 const { locale, setLocale, t } = useLocale()
-const router = useRouter()
-const authStore = useAuthStore()
 const mobileOpen = ref(false)
 
 function toggleLocale() {
   setLocale(locale.value === 'zh' ? 'en' : 'zh')
 }
 
-async function handleNavTrial() {
-  try {
-    localStorage.removeItem('lakeon_api_key')
-    authStore.apiKey = ''
-    const { data } = await client.post('/trial', null, { timeout: 10000 })
-    localStorage.setItem('lakeon_api_key', data.api_key)
-    authStore.apiKey = data.api_key
-    authStore.setTenant(data.tenant_id, data.username || 'trial')
-    authStore.setTrialState(true, data.expires_at)
-    router.push('/dashboard')
-  } catch {
-    router.push('/login?register=1')
-  }
-}
 </script>
 
 <style scoped>

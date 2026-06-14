@@ -22,9 +22,9 @@
         </p>
 
         <div class="hero-ctas">
-          <button class="cta-primary" @click="startTrial" :disabled="trialLoading">
-            {{ trialLoading ? t('创建中…', 'Creating…') : t('开始使用', 'Get started') }}
-          </button>
+          <router-link to="/login?register=1" class="cta-primary">
+            {{ t('开始使用', 'Get started') }}
+          </router-link>
           <router-link to="/product" class="cta-ghost">
             {{ t('了解方案', 'Explore the solution') }} →
           </router-link>
@@ -679,35 +679,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { useLocale } from '../../stores/locale'
-import { useAuthStore } from '../../stores/auth'
-import client from '../../api/client'
 
 const { t } = useLocale()
-const router = useRouter()
-const authStore = useAuthStore()
-
-const trialLoading = ref(false)
-
-async function startTrial() {
-  trialLoading.value = true
-  try {
-    localStorage.removeItem('lakeon_api_key')
-    authStore.apiKey = ''
-    const { data } = await client.post('/trial', null, { timeout: 10000 })
-    localStorage.setItem('lakeon_api_key', data.api_key)
-    authStore.apiKey = data.api_key
-    authStore.setTenant(data.tenant_id, data.username || 'trial')
-    authStore.setTrialState(true, data.expires_at)
-    router.push('/dashboard')
-  } catch {
-    router.push('/login?register=1')
-  } finally {
-    trialLoading.value = false
-  }
-}
 </script>
 
 <style scoped>

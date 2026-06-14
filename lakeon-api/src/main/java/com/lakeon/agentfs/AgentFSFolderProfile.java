@@ -16,6 +16,7 @@ public record AgentFSFolderProfile(
     public static final String KIND_CODEX_HOME = "codex-home";
     public static final String KIND_CLAUDE_HOME = "claude-home";
     public static final String KIND_OPENCLAW_HOME = "openclaw-home";
+    public static final String KIND_OPENCODE_HOME = "opencode-home";
     public static final String KIND_ICEBERG_TABLE = "iceberg-table";
     public static final String KIND_LANCE_TABLE = "lance-table";
     public static final String KIND_DATA_DIR = "data-dir";
@@ -38,6 +39,7 @@ public record AgentFSFolderProfile(
             KIND_CODEX_HOME,
             KIND_CLAUDE_HOME,
             KIND_OPENCLAW_HOME,
+            KIND_OPENCODE_HOME,
             KIND_ICEBERG_TABLE,
             KIND_LANCE_TABLE,
             KIND_DATA_DIR,
@@ -64,6 +66,7 @@ public record AgentFSFolderProfile(
             KIND_CODEX_HOME, new Defaults(STORAGE_AUTO, PROCESSING_AGENT_HOME),
             KIND_CLAUDE_HOME, new Defaults(STORAGE_AUTO, PROCESSING_AGENT_HOME),
             KIND_OPENCLAW_HOME, new Defaults(STORAGE_AUTO, PROCESSING_AGENT_HOME),
+            KIND_OPENCODE_HOME, new Defaults(STORAGE_AUTO, PROCESSING_AGENT_HOME),
             KIND_ICEBERG_TABLE, new Defaults(STORAGE_TABLE_NATIVE, PROCESSING_ICEBERG),
             KIND_LANCE_TABLE, new Defaults(STORAGE_TABLE_NATIVE, PROCESSING_LANCE),
             KIND_DATA_DIR, new Defaults(STORAGE_OBJECT_FIRST, PROCESSING_DATASET),
@@ -111,7 +114,7 @@ public record AgentFSFolderProfile(
         }
         try {
             JsonNode root = OBJECT_MAPPER.readTree(propertiesJson);
-            JsonNode profile = root.path("agentfs_profile");
+            JsonNode profile = root.path("lbfs_profile");
             JsonNode processing = profile.path("processing_profile");
             if (processing.isMissingNode() || processing.isNull() || processing.asText().isBlank()) {
                 return null;

@@ -9,7 +9,7 @@
 //!                                                      ↓
 //!                                             async uplink worker
 //!                                                      ↓
-//!                                             DBay AgentFS HTTP API
+//!                                             DBay LakebaseFS HTTP API
 //!
 //! No SQLite. No in-memory DB. Durability = POSIX file + outbox.
 
@@ -32,6 +32,7 @@ mod pull;
 mod state_scan;
 mod sync;
 mod uplink_worker;
+mod watch_sync;
 
 use profile::{DirectoryKind, ProcessingProfile, StoragePolicy, FolderProfile};
 
@@ -66,7 +67,7 @@ enum Cmd {
         #[arg(long)]
         foreground: bool,
         /// Experimental: in-memory backend, no local disk passthrough.
-        /// Writes buffer in RAM until flush/release, then PUT to AgentFS
+        /// Writes buffer in RAM until flush/release, then PUT to LakebaseFS
         /// in a single tx. Daemon crash before flush = no commit (rollback).
         /// Default false: keep proven disk-passthrough + outbox model.
         #[arg(long)]
@@ -117,7 +118,7 @@ enum Cmd {
         #[arg(long)]
         agent: Option<String>,
     },
-    /// Drain one sync/import outbox batch to DBay AgentFS.
+    /// Drain one sync/import outbox batch to DBay LakebaseFS.
     OutboxDrain {
         #[arg(long)]
         folder: Option<String>,
@@ -125,7 +126,7 @@ enum Cmd {
         #[arg(long)]
         agent: Option<String>,
     },
-    /// Sync remote AgentFS down to local state directory (one-shot).
+    /// Sync remote LakebaseFS down to local state directory (one-shot).
     Pull {
         #[arg(long)]
         folder: Option<String>,
@@ -159,6 +160,9 @@ enum Cmd {
         remote: String,
         #[arg(long)]
         dry_run: bool,
+        /// Keep watching the source directory after the initial sync plan.
+        #[arg(long)]
+        watch: bool,
     },
     /// One-shot import of an existing directory using the sync planner.
     Import {
@@ -270,6 +274,14 @@ fn main() -> Result<()> {
             let profile = FolderProfile::new(&folder, kind, storage, processing);
             let mount = mount.or(mount_dir).unwrap_or(default_mount(&folder)?);
             std::fs::create_dir_all(&mount)?;
+            match register_folder_if_configured(&folder, &profile)? {
+                RegistrationStatus::Registered => {
+                    tracing::info!(folder = %profile.folder, "registered LakebaseFS folder profile");
+                }
+                RegistrationStatus::Skipped => {
+                    tracing::warn!("DBay not configured — skipping folder profile registration");
+                }
+            }
             if in_memory {
                 tracing::info!(?profile, ?mount, "mounting (in-memory backend)");
                 inmem::mount(&folder, &mount)?;
@@ -417,8 +429,9 @@ fn main() -> Result<()> {
             processing,
             remote,
             dry_run,
+            watch,
         } => {
-            run_sync_like("sync", source_dir, folder, agent, kind, storage, processing, remote, dry_run)?;
+            run_sync_like("sync", source_dir, folder, agent, kind, storage, processing, remote, dry_run, watch)?;
         }
         Cmd::Import {
             source_dir,
@@ -430,7 +443,7 @@ fn main() -> Result<()> {
             remote,
             dry_run,
         } => {
-            run_sync_like("import", source_dir, folder, agent, kind, storage, processing, remote, dry_run)?;
+            run_sync_like("import", source_dir, folder, agent, kind, storage, processing, remote, dry_run, false)?;
         }
         Cmd::Inspect { source_dir } => {
             let rec = profile::inspect_path(&source_dir)?;
@@ -455,6 +468,7 @@ fn run_sync_like(
     processing: Option<ProcessingProfile>,
     remote: String,
     dry_run: bool,
+    watch: bool,
 ) -> Result<()> {
     let folder = folder_name(folder, agent, Some(&source_dir));
     let profile = FolderProfile::new(&folder, kind, storage, processing);
@@ -475,13 +489,46 @@ fn run_sync_like(
         return Ok(());
     }
 
+    match register_folder_if_configured(&folder, &plan.profile)? {
+        RegistrationStatus::Registered => println!("  registration: registered"),
+        RegistrationStatus::Skipped => println!("  registration: skipped"),
+    }
+
     std::fs::create_dir_all(&paths.outbox)?;
     std::fs::create_dir_all(&paths.tmp)?;
     let outbox = outbox::Outbox::open(&paths.outbox)?;
     let enqueued = sync::enqueue_sync_plan(&plan, &outbox)?;
     println!("  queued:    {enqueued}");
-    println!("  note:      run a folder sync daemon/uplink worker to drain this queue");
+    if watch {
+        println!("  watch:     enabled");
+        println!("  note:      watching source directory; use outbox-drain or uplink worker to drain this queue");
+        watch_sync::run_watch_loop(
+            plan.state_root.clone(),
+            plan.remote_prefix.clone(),
+            plan.profile.clone(),
+            paths.outbox.clone(),
+        )?;
+    } else {
+        println!("  note:      run a folder sync daemon/uplink worker to drain this queue");
+    }
     Ok(())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RegistrationStatus {
+    Registered,
+    Skipped,
+}
+
+fn register_folder_if_configured(
+    folder: &str,
+    profile: &FolderProfile,
+) -> Result<RegistrationStatus> {
+    let Some(client) = dbay_api::DbayClient::for_agent_no_base(folder)? else {
+        return Ok(RegistrationStatus::Skipped);
+    };
+    client.register_folder(profile)?;
+    Ok(RegistrationStatus::Registered)
 }
 
 fn umount(mount: &Path) -> Result<()> {

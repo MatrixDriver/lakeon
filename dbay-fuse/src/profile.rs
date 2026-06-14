@@ -7,6 +7,7 @@ pub enum DirectoryKind {
     CodexHome,
     ClaudeHome,
     OpenclawHome,
+    OpencodeHome,
     IcebergTable,
     LanceTable,
     DataDir,
@@ -19,6 +20,7 @@ impl std::fmt::Display for DirectoryKind {
             Self::CodexHome => "codex-home",
             Self::ClaudeHome => "claude-home",
             Self::OpenclawHome => "openclaw-home",
+            Self::OpencodeHome => "opencode-home",
             Self::IcebergTable => "iceberg-table",
             Self::LanceTable => "lance-table",
             Self::DataDir => "data-dir",
@@ -100,7 +102,7 @@ impl FolderProfile {
 
     pub fn properties(&self) -> serde_json::Value {
         serde_json::json!({
-            "agentfs_profile": {
+            "lbfs_profile": {
                 "folder": self.folder,
                 "directory_kind": self.directory_kind.to_string(),
                 "storage_policy": self.storage_policy.to_string(),
@@ -114,7 +116,8 @@ pub fn defaults_for(kind: DirectoryKind) -> (StoragePolicy, ProcessingProfile) {
     match kind {
         DirectoryKind::CodexHome
         | DirectoryKind::ClaudeHome
-        | DirectoryKind::OpenclawHome => (StoragePolicy::Auto, ProcessingProfile::AgentHome),
+        | DirectoryKind::OpenclawHome
+        | DirectoryKind::OpencodeHome => (StoragePolicy::Auto, ProcessingProfile::AgentHome),
         DirectoryKind::IcebergTable => (StoragePolicy::TableNative, ProcessingProfile::Iceberg),
         DirectoryKind::LanceTable => (StoragePolicy::TableNative, ProcessingProfile::Lance),
         DirectoryKind::DataDir => (StoragePolicy::ObjectFirst, ProcessingProfile::Dataset),
@@ -145,6 +148,17 @@ pub fn inspect_path(path: &Path) -> Result<ProfileRecommendation> {
         return Ok(ProfileRecommendation {
             kind: DirectoryKind::LanceTable,
             confidence: 0.90,
+            reasons,
+        });
+    }
+    if path.join(".opencode").exists()
+        || path.join("opencode.json").exists()
+        || path.join("packages").join("opencode").exists()
+    {
+        reasons.push("found opencode-style home or workspace files".to_string());
+        return Ok(ProfileRecommendation {
+            kind: DirectoryKind::OpencodeHome,
+            confidence: 0.80,
             reasons,
         });
     }

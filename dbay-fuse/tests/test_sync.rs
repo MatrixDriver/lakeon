@@ -1,6 +1,7 @@
 use dbay_fuse::profile::{DirectoryKind, ProcessingProfile, StoragePolicy, FolderProfile};
 use dbay_fuse::outbox::Outbox;
 use dbay_fuse::sync::{build_sync_plan, default_sync_paths, enqueue_sync_plan};
+use dbay_fuse::watch_sync::{coalesce_watch_events, WatchPathEvent};
 
 #[test]
 fn sync_plan_uses_source_directory_as_state_root() {
@@ -69,10 +70,25 @@ fn sync_enqueue_attaches_profile_properties_to_dirs_and_files() {
             other => panic!("unexpected op: {:?}", other),
         }
         .expect("profile properties");
-        let profile = &properties["agentfs_profile"];
+        let profile = &properties["lbfs_profile"];
         assert_eq!(profile["folder"], "reports");
         assert_eq!(profile["directory_kind"], "data-dir");
         assert_eq!(profile["storage_policy"], "object-first");
         assert_eq!(profile["processing_profile"], "dataset");
     }
+}
+
+#[test]
+fn watch_sync_coalesces_duplicate_path_events() {
+    let events = vec![
+        WatchPathEvent::changed("data/orders.csv"),
+        WatchPathEvent::changed("data/orders.csv"),
+        WatchPathEvent::removed("data/old.csv"),
+    ];
+
+    let batch = coalesce_watch_events(events);
+
+    assert_eq!(batch.len(), 2);
+    assert!(batch.iter().any(|event| event.path == "data/orders.csv"));
+    assert!(batch.iter().any(|event| event.path == "data/old.csv"));
 }

@@ -105,8 +105,6 @@ lakeon:
     storage-limit-gb: ${LAKEON_DEFAULT_STORAGE_LIMIT:10}
   hwcloud:
     account-id: ${LAKEON_HWCLOUD_ACCOUNT_ID:}
-  demo:
-    tenant-id: ${LAKEON_DEMO_TENANT_ID:}
   connector:
     secret-key: ${CONNECTOR_SECRET_KEY}
   knowledge:

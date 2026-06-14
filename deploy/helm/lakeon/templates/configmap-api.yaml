@@ -180,11 +180,6 @@ data:
   LAKEON_DATALAKE_IMAGE_RAY: {{ .images.ray | quote }}
   LAKEON_DATALAKE_IMAGE_RAY_GPU: {{ .images.rayGpu | quote }}
   {{- end }}
-  {{- if .Values.demo }}
-  {{- if .Values.demo.tenantId }}
-  LAKEON_DEMO_TENANT_ID: {{ .Values.demo.tenantId | quote }}
-  {{- end }}
-  {{- end }}
   {{- if .Values.api.logDbDsn }}
   LOG_DB_DSN: {{ .Values.api.logDbDsn | quote }}
   {{- end }}

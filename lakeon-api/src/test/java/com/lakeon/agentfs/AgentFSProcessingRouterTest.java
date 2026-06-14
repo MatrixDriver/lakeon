@@ -17,10 +17,14 @@ class AgentFSProcessingRouterTest {
         AgentFSFolderEntity folder = new AgentFSFolderEntity();
         folder.setProcessingProfile("small-file-memory");
 
-        router.dispatch(folder, new AgentFSProcessingEvent("tn_1", "/notes/a.md", "etag-1", "put"));
+        AgentFSProcessingResult result = router.dispatch(
+                folder,
+                new AgentFSProcessingEvent("tn_1", "/notes/a.md", "etag-1", "put"));
 
         assertEquals(List.of("/notes/a.md"), memory.paths);
         assertEquals(List.of(), dataset.paths);
+        assertEquals(true, result.accepted());
+        assertEquals(false, result.retryable());
     }
 
     @Test
@@ -30,9 +34,28 @@ class AgentFSProcessingRouterTest {
         AgentFSFolderEntity folder = new AgentFSFolderEntity();
         folder.setProcessingProfile("none");
 
-        router.dispatch(folder, new AgentFSProcessingEvent("tn_1", "/plain.txt", "etag-1", "put"));
+        AgentFSProcessingResult result = router.dispatch(
+                folder,
+                new AgentFSProcessingEvent("tn_1", "/plain.txt", "etag-1", "put"));
 
         assertEquals(List.of(), memory.paths);
+        assertEquals(true, result.accepted());
+        assertEquals("processing skipped", result.message());
+    }
+
+    @Test
+    void missing_processing_worker_returns_retryable_result() {
+        AgentFSProcessingRouter router = new AgentFSProcessingRouter(List.of());
+        AgentFSFolderEntity folder = new AgentFSFolderEntity();
+        folder.setProcessingProfile("dataset");
+
+        AgentFSProcessingResult result = router.dispatch(
+                folder,
+                new AgentFSProcessingEvent("tn_1", "/datasets/orders.csv", "etag-1", "put"));
+
+        assertEquals(false, result.accepted());
+        assertEquals(true, result.retryable());
+        assertEquals("missing worker: dataset", result.message());
     }
 
     private static final class RecordingWorker implements AgentFSProcessingWorker {
@@ -49,8 +72,9 @@ class AgentFSProcessingRouterTest {
         }
 
         @Override
-        public void process(AgentFSFolderEntity folder, AgentFSProcessingEvent event) {
+        public AgentFSProcessingResult process(AgentFSFolderEntity folder, AgentFSProcessingEvent event) {
             paths.add(event.path());
+            return AgentFSProcessingResult.done("recorded");
         }
     }
 }

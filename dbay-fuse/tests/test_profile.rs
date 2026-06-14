@@ -17,6 +17,22 @@ fn agent_home_defaults_to_auto_storage_and_agent_processing() {
 }
 
 #[test]
+fn opencode_home_defaults_to_agent_home_processing() {
+    let profile = FolderProfile::new(
+        "/agents/opencode",
+        DirectoryKind::OpencodeHome,
+        None,
+        None,
+    );
+
+    assert_eq!(profile.folder, "/agents/opencode");
+    assert_eq!(profile.directory_kind, DirectoryKind::OpencodeHome);
+    assert_eq!(profile.storage_policy, StoragePolicy::Auto);
+    assert_eq!(profile.processing_profile, ProcessingProfile::AgentHome);
+    assert_eq!(profile.directory_kind.to_string(), "opencode-home");
+}
+
+#[test]
 fn table_kinds_default_to_table_native_storage() {
     let iceberg = FolderProfile::new(
         "warehouse",
@@ -60,16 +76,16 @@ fn data_dir_defaults_to_object_first_dataset_processing() {
 }
 
 #[test]
-fn profile_serializes_to_agentfs_properties() {
+fn profile_serializes_to_lbfs_properties() {
     let profile = FolderProfile::new("warehouse", DirectoryKind::IcebergTable, None, None);
 
     let props = profile.properties();
-    let agentfs = &props["agentfs_profile"];
+    let lbfs = &props["lbfs_profile"];
 
-    assert_eq!(agentfs["folder"], "warehouse");
-    assert_eq!(agentfs["directory_kind"], "iceberg-table");
-    assert_eq!(agentfs["storage_policy"], "table-native");
-    assert_eq!(agentfs["processing_profile"], "iceberg");
+    assert_eq!(lbfs["folder"], "warehouse");
+    assert_eq!(lbfs["directory_kind"], "iceberg-table");
+    assert_eq!(lbfs["storage_policy"], "table-native");
+    assert_eq!(lbfs["processing_profile"], "iceberg");
 }
 
 #[test]
@@ -100,4 +116,16 @@ fn inspect_detects_lance_layout() {
     assert_eq!(recommendation.kind, DirectoryKind::LanceTable);
     assert!(recommendation.confidence >= 0.80);
     assert!(recommendation.reasons.iter().any(|r| r.contains("Lance")));
+}
+
+#[test]
+fn inspect_detects_opencode_layout() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(dir.path().join(".opencode")).unwrap();
+
+    let recommendation = inspect_path(dir.path()).unwrap();
+
+    assert_eq!(recommendation.kind, DirectoryKind::OpencodeHome);
+    assert!(recommendation.confidence >= 0.75);
+    assert!(recommendation.reasons.iter().any(|r| r.contains("opencode")));
 }
