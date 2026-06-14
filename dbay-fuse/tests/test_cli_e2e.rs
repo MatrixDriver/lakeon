@@ -27,6 +27,17 @@ fn sync_help_exposes_watch_mode() {
 }
 
 #[test]
+fn mount_help_defaults_to_no_startup_pull_and_exposes_opt_in_pull() {
+    let output = Command::new(bin()).arg("mount").arg("--help").output().unwrap();
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("--pull-on-startup"));
+    assert!(stdout.contains("Pull remote LakebaseFS state before mounting"));
+    assert!(!stdout.contains("--skip-pull"));
+}
+
+#[test]
 fn inspect_cli_recommends_iceberg_table_for_iceberg_layout() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(dir.path().join("metadata")).unwrap();

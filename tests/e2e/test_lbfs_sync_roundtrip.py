@@ -250,7 +250,6 @@ def test_mount_mode_writes_reach_lbfs_with_profile_and_auto_job(e2e_client, tmp_
             "data-dir",
             "--state",
             str(state_dir),
-            "--skip-pull",
             "--foreground",
         ],
         stdout=log,

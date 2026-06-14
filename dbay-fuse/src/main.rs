@@ -72,9 +72,10 @@ enum Cmd {
         /// Default false: keep proven disk-passthrough + outbox model.
         #[arg(long)]
         in_memory: bool,
-        /// Skip the automatic remote→local pull on startup.
+        /// Pull remote LakebaseFS state before mounting. Disabled by default
+        /// so mounts become locally usable quickly and sync in the background.
         #[arg(long)]
-        skip_pull: bool,
+        pull_on_startup: bool,
     },
     /// Unmount
     Umount {
@@ -267,7 +268,7 @@ fn main() -> Result<()> {
             processing,
             foreground: _,
             in_memory,
-            skip_pull,
+            pull_on_startup,
         } => {
             let mount_hint = mount.as_deref().or(mount_dir.as_deref());
             let folder = folder_name(folder, agent, mount_hint);
@@ -291,7 +292,7 @@ fn main() -> Result<()> {
                 std::fs::create_dir_all(&state)?;
                 std::fs::create_dir_all(&outbox_dir)?;
 
-                if !skip_pull {
+                if pull_on_startup {
                     match dbay_api::DbayClient::for_agent_no_base(&folder)? {
                         Some(cli) => {
                             let ledger_path = ledger_path(&folder)?;
@@ -300,7 +301,7 @@ fn main() -> Result<()> {
                             }
                             match etag_ledger::Ledger::open(&ledger_path) {
                                 Ok(ledger) => {
-                                    tracing::info!("running startup pull (skip with --skip-pull)");
+                                    tracing::info!("running startup pull");
                                     match pull::pull(&cli, &ledger, &state, "/", false, false) {
                                         Ok(s) => tracing::info!(
                                             synced = s.synced,
