@@ -16,6 +16,7 @@ import subprocess
 import time
 
 from conftest import poll_until
+from dbay_cli.client import DbayApiError
 
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -41,16 +42,38 @@ def _terminate(proc: subprocess.Popen):
         proc.wait(timeout=10)
 
 
+def _unmount(mount_dir):
+    commands = [
+        ["diskutil", "unmount", "force", str(mount_dir)],
+        ["umount", str(mount_dir)],
+    ]
+    for cmd in commands:
+        try:
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            continue
+        if res.returncode == 0:
+            return
+
+
 def _path_param(path: str) -> str:
     return base64.urlsafe_b64encode(path.encode()).decode().rstrip("=")
 
 
 def _lbfs_entries(client, prefix: str):
-    resp = client._request(
-        "GET",
-        "/lbfs/list",
-        params={"prefix": _path_param(prefix), "recursive": "true"},
-    )
+    try:
+        resp = client._request(
+            "GET",
+            "/lbfs/list",
+            params={"prefix": _path_param(prefix), "recursive": "true"},
+        )
+    except DbayApiError as e:
+        if e.status_code == 500 and (
+            "LakebaseFS database not READY" in str(e)
+            or "LakebaseFS database still provisioning" in str(e)
+        ):
+            return []
+        raise
     return resp.get("entries", [])
 
 
@@ -189,6 +212,109 @@ def test_sync_drain_pull_roundtrip_for_existing_data_dir(e2e_client, tmp_path):
         and job.get("profile") == "dataset"
         for job in jobs
     )
+
+
+def test_mount_mode_writes_reach_lbfs_with_profile_and_auto_job(e2e_client, tmp_path):
+    endpoint, key = e2e_client.endpoint, e2e_client.api_key
+    folder = f"e2e-lbfs-mount-{int(time.time() * 1000)}"
+
+    home = tmp_path / "home"
+    mount_dir = tmp_path / "mnt"
+    state_dir = tmp_path / "state"
+    log_path = tmp_path / "mount.log"
+    (home / ".dbay").mkdir(parents=True)
+    mount_dir.mkdir()
+    state_dir.mkdir()
+    (state_dir / ".lbfs-ready").write_text(folder)
+    (home / ".dbay" / "config.json").write_text(
+        json.dumps({"endpoint": endpoint, "api_key": key})
+    )
+
+    env = {
+        **os.environ,
+        "HOME": str(home),
+        "NO_PROXY": "*",
+        "no_proxy": "*",
+        "RUST_LOG": "info",
+    }
+
+    log = log_path.open("w")
+    proc = subprocess.Popen(
+        [
+            DBAY_FUSE_BIN,
+            "mount",
+            str(mount_dir),
+            "--folder",
+            folder,
+            "--kind",
+            "data-dir",
+            "--state",
+            str(state_dir),
+            "--skip-pull",
+            "--foreground",
+        ],
+        stdout=log,
+        stderr=subprocess.STDOUT,
+        text=True,
+        env=env,
+    )
+    try:
+        poll_until(
+            lambda: (
+                proc.poll(),
+                (mount_dir / ".lbfs-ready").read_text() if (mount_dir / ".lbfs-ready").exists() else None,
+                log_path.read_text(errors="replace"),
+            ),
+            lambda state: state[0] is None and state[1] == folder,
+            timeout=30,
+            interval=1,
+        )
+
+        nested = mount_dir / "datasets"
+        nested.mkdir()
+        report = nested / "mount-events.csv"
+        report.write_text(f"id,name\n1,{folder}\n")
+        report.open("a").write("2,after-open\n")
+
+        poll_until(
+            lambda: (
+                (state_dir / "datasets" / "mount-events.csv").read_text()
+                if (state_dir / "datasets" / "mount-events.csv").exists()
+                else None
+            ),
+            lambda content: content == f"id,name\n1,{folder}\n2,after-open\n",
+            timeout=30,
+            interval=1,
+        )
+
+        entries = poll_until(
+            lambda: _lbfs_entries(e2e_client, "/datasets/"),
+            lambda rows: any(e.get("path") == "/datasets/mount-events.csv" for e in rows),
+            timeout=180,
+            interval=5,
+        )
+        _assert_profile(
+            _entry(entries, "/datasets/mount-events.csv"),
+            folder=folder,
+            kind="data-dir",
+            storage="object-first",
+            processing="dataset",
+        )
+        jobs = _wait_for_auto_job(
+            e2e_client,
+            folder,
+            path_suffix="/datasets/mount-events.csv",
+            profile="dataset",
+        )
+        assert any(
+            job.get("source_path") == "/datasets/mount-events.csv"
+            and job.get("profile") == "dataset"
+            for job in jobs
+        )
+    finally:
+        _unmount(mount_dir)
+        _terminate(proc)
+        log.close()
 
 
 def test_table_kind_profiles_reach_lbfs_server_model(e2e_client, tmp_path):
