@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import client from '../api/client'
-import { createLBFSFolder, listLBFSFolders, listLBFSProcessingJobs } from '../api/lbfs'
+import { createLBFSFolder, listLBFSFolders, listLBFSAutoJobs } from '../api/lbfs'
 
 vi.mock('../api/client', () => ({
   default: {
@@ -85,10 +85,10 @@ describe('LakebaseFS folder API', () => {
     expect(result.data.processing_profile).toBe('agent-home')
   })
 
-  it('lists processing jobs for a folder', async () => {
+  it('lists auto jobs for a folder', async () => {
     vi.mocked(client.get).mockResolvedValue({
       data: {
-        jobs: [
+        auto_jobs: [
           {
             id: 'job_1',
             folder_id: 'fld_1',
@@ -102,10 +102,10 @@ describe('LakebaseFS folder API', () => {
       },
     })
 
-    const result = await listLBFSProcessingJobs('fld_1')
+    const result = await listLBFSAutoJobs('fld_1')
 
-    expect(client.get).toHaveBeenCalledWith('/lbfs/folders/fld_1/jobs')
-    expect(result.data.jobs[0].source_path).toBe('/datasets/orders.csv')
-    expect(result.data.jobs[0].status).toBe('running')
+    expect(client.get).toHaveBeenCalledWith('/lbfs/folders/fld_1/auto-jobs')
+    expect(result.data.auto_jobs[0].source_path).toBe('/datasets/orders.csv')
+    expect(result.data.auto_jobs[0].status).toBe('running')
   })
 })

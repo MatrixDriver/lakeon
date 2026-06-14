@@ -116,9 +116,9 @@ LakebaseFS API and workers:
 - Create `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSAgentHomeWorker.java`.
 - Create `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSDatasetWorker.java`.
 - Create `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSTableWorker.java`.
-- Create `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSProcessingJobEntity.java`.
-- Create `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSProcessingJobRepository.java`.
-- Create `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSProcessingJobController.java`.
+- Create `lakeon-api/src/main/java/com/lakeon/agentfs/LBFSAutoJobEntity.java`.
+- Create `lakeon-api/src/main/java/com/lakeon/agentfs/LBFSAutoJobRepository.java`.
+- Create `lakeon-api/src/main/java/com/lakeon/agentfs/LBFSAutoJobController.java`.
 - Test `lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSFolderProfileTest.java`.
 - Test `lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSEventForwarderTest.java`.
 - Test `lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSProcessingWorkerTest.java`.
@@ -687,13 +687,13 @@ git commit -m "feat(lbfs): route file events through processing workers"
 ### Task 6: Add LakebaseFS Processing Job State
 
 **Files:**
-- Create: `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSProcessingJobEntity.java`
-- Create: `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSProcessingJobRepository.java`
-- Create: `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSProcessingJobController.java`
+- Create: `lakeon-api/src/main/java/com/lakeon/agentfs/LBFSAutoJobEntity.java`
+- Create: `lakeon-api/src/main/java/com/lakeon/agentfs/LBFSAutoJobRepository.java`
+- Create: `lakeon-api/src/main/java/com/lakeon/agentfs/LBFSAutoJobController.java`
 - Modify: `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSProcessingWorker.java`
 - Modify: `lakeon-console/src/api/lbfs.ts`
 - Modify: `lakeon-console/src/views/lbfs/LakebaseFSBrowse.vue`
-- Test: `lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSProcessingJobControllerTest.java`
+- Test: `lakeon-api/src/test/java/com/lakeon/agentfs/LBFSAutoJobControllerTest.java`
 - Test: `lakeon-console/src/__tests__/lbfs-api.test.ts`
 
 - [ ] **Step 1: Add API test**
@@ -703,12 +703,12 @@ Test response shape:
 ```java
 @Test
 void listsProcessingJobsForFolder() throws Exception {
-    mockMvc.perform(get("/api/v1/lbfs/folders/%s/jobs".formatted(folderId))
+    mockMvc.perform(get("/api/v1/lbfs/folders/%s/auto-jobs".formatted(folderId))
             .header("X-Tenant-Id", tenantId))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.jobs[0].folder_id").value(folderId))
-        .andExpect(jsonPath("$.jobs[0].profile").value("dataset"))
-        .andExpect(jsonPath("$.jobs[0].status").value("running"));
+        .andExpect(jsonPath("$.auto_jobs[0].folder_id").value(folderId))
+        .andExpect(jsonPath("$.auto_jobs[0].profile").value("dataset"))
+        .andExpect(jsonPath("$.auto_jobs[0].status").value("running"));
 }
 ```
 
@@ -717,7 +717,7 @@ void listsProcessingJobsForFolder() throws Exception {
 Use this status vocabulary:
 
 ```java
-public enum AgentFSProcessingJobStatus {
+public enum LBFSAutoJobStatus {
     PENDING,
     RUNNING,
     SUCCEEDED,
@@ -738,7 +738,7 @@ status, attempts, lastError, startedAt, finishedAt, createdAt, updatedAt
 Expose:
 
 ```text
-GET /api/v1/lbfs/folders/{folderId}/jobs
+GET /api/v1/lbfs/folders/{folderId}/auto-jobs
 ```
 
 Return:
@@ -764,7 +764,7 @@ Return:
 In `lakeon-console/src/api/lbfs.ts`:
 
 ```ts
-export interface LBFSProcessingJob {
+export interface LBFSAutoJob {
   id: string
   folder_id: string
   source_path: string
@@ -774,8 +774,8 @@ export interface LBFSProcessingJob {
   last_error?: string | null
 }
 
-export function listLBFSProcessingJobs(folderId: string) {
-  return api.get<{ jobs: LBFSProcessingJob[] }>(`/lbfs/folders/${folderId}/jobs`)
+export function listLBFSAutoJobs(folderId: string) {
+  return api.get<{ auto_jobs: LBFSAutoJob[] }>(`/lbfs/folders/${folderId}/auto-jobs`)
 }
 ```
 
@@ -788,7 +788,7 @@ In `LakebaseFSBrowse.vue`, add a compact jobs section for the selected folder. U
 Run:
 
 ```bash
-cd /Users/jacky/code/lakeon/lakeon-api && mvn test -Dtest=AgentFSProcessingJobControllerTest
+cd /Users/jacky/code/lakeon/lakeon-api && mvn test -Dtest=LBFSAutoJobControllerTest
 cd /Users/jacky/code/lakeon/lakeon-console && npm run test -- lbfs-api.test.ts
 ```
 
@@ -798,10 +798,10 @@ Expected: pass.
 
 ```bash
 git add lakeon-api/src/main/java/com/lakeon/agentfs \
-  lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSProcessingJobControllerTest.java \
+  lakeon-api/src/test/java/com/lakeon/agentfs/LBFSAutoJobControllerTest.java \
   lakeon-console/src/api/lbfs.ts lakeon-console/src/views/lbfs/LakebaseFSBrowse.vue \
   lakeon-console/src/__tests__/lbfs-api.test.ts
-git commit -m "feat(lbfs): expose processing job status"
+git commit -m "feat(lbfs): expose lbfs_auto_job status"
 ```
 
 ### Task 7: Implement Dataset and Table Workers

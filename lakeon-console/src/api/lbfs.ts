@@ -46,7 +46,7 @@ export interface LBFSFolderCreate {
   processing_profile?: LBFSProcessingProfile
 }
 
-export interface LBFSProcessingJob {
+export interface LBFSAutoJob {
   id: string
   folder_id: string
   source_path: string
@@ -74,8 +74,8 @@ export function createLBFSFolder(payload: LBFSFolderCreate) {
   return api.post<LBFSFolder>('/lbfs/folders', payload)
 }
 
-export function listLBFSProcessingJobs(folderId: string) {
-  return api.get<{ jobs: LBFSProcessingJob[] }>(`/lbfs/folders/${folderId}/jobs`)
+export function listLBFSAutoJobs(folderId: string) {
+  return api.get<{ auto_jobs: LBFSAutoJob[] }>(`/lbfs/folders/${folderId}/auto-jobs`)
 }
 
 export function getLBFSStats() {
