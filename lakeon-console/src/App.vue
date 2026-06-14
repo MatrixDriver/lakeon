@@ -1,10 +1,10 @@
 <template>
-  <AgentFSPendingBanner />
+  <LBFSPendingBanner />
   <router-view />
   <ToastNotification />
 </template>
 
 <script setup lang="ts">
 import ToastNotification from './components/ToastNotification.vue'
-import AgentFSPendingBanner from './components/memory/AgentFSPendingBanner.vue'
+import LBFSPendingBanner from './components/memory/LBFSPendingBanner.vue'
 </script>

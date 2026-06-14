@@ -35,11 +35,11 @@ public class StuckTaskQueryService {
                       AND started_at < NOW() - (:threshold_minutes || ' minutes')::interval
                     ORDER BY started_at ASC
                     """),
-            new TableSpec("agentfs_jobs",
+            new TableSpec("lbfs_jobs",
                     """
                     SELECT id, NULL::text AS kb_id, job_type AS task_type, status, started_at,
                            EXTRACT(EPOCH FROM (NOW() - started_at))::int AS age_sec
-                    FROM agentfs_jobs
+                    FROM lbfs_jobs
                     WHERE status = 'in_progress'
                       AND started_at < NOW() - (:threshold_minutes || ' minutes')::interval
                     ORDER BY started_at ASC

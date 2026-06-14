@@ -1,5 +1,5 @@
 <template>
-  <div class="agent-state-page">
+  <div class="page-container agent-state-page">
     <div class="page-header">
       <div>
         <h1 class="page-title">智能体数据平台</h1>
@@ -199,101 +199,93 @@ function appStatusLabel(value?: string | null) {
 
 <style scoped>
 .agent-state-page {
-  padding: 32px;
-  color: #24364a;
-}
-
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 18px;
-}
-
-.page-title {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 750;
-}
-
-.page-subtitle {
-  margin: 6px 0 0;
-  color: #718094;
+  color: var(--c-text);
 }
 
 .agent-tabs {
   display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
 }
 
 .agent-tab {
   height: 32px;
-  padding: 0 13px;
-  border: 1px solid #dfe5ec;
+  padding: 0 var(--space-lg);
+  border: 1px solid var(--c-border);
   border-radius: 4px;
   background: #fff;
-  color: #566477;
-  font-weight: 650;
+  color: var(--c-text-2);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
 }
 
 .agent-tab.active {
   color: #fff;
-  background: #1d2f42;
-  border-color: #1d2f42;
+  background: var(--c-primary);
+  border-color: var(--c-primary);
 }
 
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
 }
 
 .kpi,
 .section-panel {
-  border: 1px solid #e2e7ee;
+  border: 1px solid var(--c-border-light);
   border-radius: 6px;
   background: #fff;
 }
 
 .kpi {
-  padding: 13px 14px;
+  padding: var(--space-md) var(--space-lg);
 }
 
 .kpi span,
 .muted {
-  color: #758397;
+  color: var(--c-text-3);
   font-size: 12px;
 }
 
 .kpi strong {
   display: block;
-  margin-top: 5px;
-  font-size: 22px;
+  margin-top: var(--space-xs);
+  color: var(--c-text);
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .apps-panel {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg);
 }
 
 .panel-header {
   min-height: 44px;
-  padding: 0 14px;
+  padding: 0 var(--space-lg);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #edf0f4;
+  border-bottom: 1px solid var(--c-border-light);
 }
 
 .panel-header h2 {
   margin: 0;
-  font-size: 15px;
+  color: var(--c-text);
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 500;
 }
 
 .panel-subtitle {
-  margin: 3px 0 0;
-  color: #758397;
+  margin: var(--space-xs) 0 0;
+  color: var(--c-text-3);
   font-size: 12px;
 }
 
@@ -306,29 +298,29 @@ function appStatusLabel(value?: string | null) {
 .task-row {
   display: grid;
   align-items: center;
-  border-bottom: 1px solid #edf0f4;
+  border-bottom: 1px solid var(--c-border-light);
 }
 
 .app-row {
   grid-template-columns: 1fr 1.5fr auto;
-  gap: 14px;
-  padding: 12px 14px;
+  gap: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
 }
 
 .app-name,
 .detail-title {
-  color: #a75710;
-  font-weight: 700;
+  color: var(--c-accent-text);
+  font-weight: 600;
 }
 
 .task-name {
-  color: #25364a;
-  font-weight: 700;
+  color: var(--c-text);
+  font-weight: 600;
 }
 
 .stage-preview {
   display: flex;
-  gap: 6px;
+  gap: var(--space-sm);
   flex-wrap: wrap;
 }
 
@@ -338,42 +330,42 @@ function appStatusLabel(value?: string | null) {
   align-items: center;
   min-height: 22px;
   padding: 0 8px;
-  border: 1px solid #dfe6ee;
-  border-radius: 999px;
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
   font-size: 12px;
-  color: #526173;
-  background: #f8fafc;
+  color: var(--c-text-2);
+  background: var(--c-bg-alt);
 }
 
 .stage-pill.pending,
 .status-pill.running {
-  color: #8a5c00;
-  background: #fff7e3;
-  border-color: #f0d89b;
+  color: var(--c-accent-text);
+  background: color-mix(in oklch, var(--c-accent) 10%, #fff);
+  border-color: color-mix(in oklch, var(--c-accent) 24%, #fff);
 }
 
 .status-pill.active,
 .status-pill.done {
-  color: #19733b;
-  background: #ecf8ef;
-  border-color: #c9ead2;
+  color: #386b47;
+  background: color-mix(in oklch, var(--c-success) 10%, #fff);
+  border-color: color-mix(in oklch, var(--c-success) 22%, #fff);
 }
 
 .status-pill.blocked {
-  color: #a83939;
-  background: #fff0f0;
-  border-color: #f1cccc;
+  color: var(--cs-severe);
+  background: color-mix(in oklch, var(--cs-severe) 8%, #fff);
+  border-color: color-mix(in oklch, var(--cs-severe) 20%, #fff);
 }
 
 .empty-state {
-  padding: 18px 14px;
-  color: #758397;
+  padding: var(--space-2xl) var(--space-lg);
+  color: var(--c-text-3);
 }
 
 .task-workbench {
   display: grid;
   grid-template-columns: minmax(420px, .95fr) minmax(0, 1.35fr);
-  gap: 16px;
+  gap: var(--space-lg);
   align-items: start;
 }
 
@@ -400,17 +392,17 @@ function appStatusLabel(value?: string | null) {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-lg);
 }
 
 .task-row {
   width: 100%;
   grid-template-columns: minmax(0, 1fr) auto minmax(96px, .45fr) 58px 72px;
-  gap: 12px;
+  gap: var(--space-md);
   min-height: 72px;
-  padding: 10px 14px;
+  padding: var(--space-md) var(--space-lg);
   border: 0;
-  border-bottom: 1px solid #edf0f4;
+  border-bottom: 1px solid var(--c-border-light);
   background: #fff;
   color: inherit;
   font: inherit;
@@ -420,12 +412,11 @@ function appStatusLabel(value?: string | null) {
 }
 
 .task-row:hover {
-  background: #f9fbfd;
+  background: var(--c-hover);
 }
 
 .task-row.selected {
-  background: #fffaf4;
-  box-shadow: inset 3px 0 0 #f08d2f;
+  background: var(--c-accent-light);
 }
 
 .task-main {

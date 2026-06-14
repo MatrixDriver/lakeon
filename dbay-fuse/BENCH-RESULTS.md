@@ -2,7 +2,7 @@
 
 测试条件：
 - 平台：macOS (Apple Silicon)，macFUSE
-- 后端：DBay AgentFS @ api.dbay.cloud:8443（实际网络）
+- 后端：DBay LakebaseFS @ api.dbay.cloud:8443（实际网络）
 - 每个 op 跑 N=30 次
 - 客户端版本：B + fsync_lite + HTTP batch + truncate fix（commit ~`<待补>`）
 - 服务端版本：lakeon-api 0.9.227
@@ -63,7 +63,7 @@
 
 1. **macOS F_FULLFSYNC**：Rust `sync_all/sync_data` 默认走 F_FULLFSYNC (~11ms)，换成 `libc::fsync` 后 ~0.05ms
 2. **macFUSE O_APPEND quirk**：append 模式下 FUSE 收到 offset=0 而非文件末尾，改为 `seek SeekFrom::End(0)`
-3. **Server batch endpoint 缺 append op**：补 `case "append"` 到 AgentFSController.batch
+3. **Server batch endpoint 缺 append op**：补 `case "append"` 到 LakebaseFSController.batch
 4. **Server batch delete 不幂等**：catch NotFoundException 改为 `ok_absent`，rm -f 语义
 5. **Truncate 不刷云**：close 触发 watchdog::Closed 立即清状态导致 idle-flush 永不触发；改 flush_fh 总是询问 plan_flush 而不只看 fh.dirty
 

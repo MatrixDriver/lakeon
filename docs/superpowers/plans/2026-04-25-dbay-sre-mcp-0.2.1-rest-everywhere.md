@@ -573,7 +573,7 @@ class StuckTaskQueryServiceTest {
     void undefinedTableHandledGracefully() {
         when(query.getResultList())
                 .thenReturn(List.of())   // wiki_run_logs
-                .thenReturn(List.of())   // agentfs_jobs
+                .thenReturn(List.of())   // lbfs_jobs
                 .thenThrow(new PersistenceException("relation does not exist"));  // kb_processing_tasks
         Map<String, Object> result = service.run(10, null);
         assertThat(result.get("count")).isEqualTo(0);
@@ -634,11 +634,11 @@ public class StuckTaskQueryService {
                       AND started_at < NOW() - (:threshold_minutes || ' minutes')::interval
                     ORDER BY started_at ASC
                     """),
-            new TableSpec("agentfs_jobs",
+            new TableSpec("lbfs_jobs",
                     """
                     SELECT id, NULL::text AS kb_id, job_type AS task_type, status, started_at,
                            EXTRACT(EPOCH FROM (NOW() - started_at))::int AS age_sec
-                    FROM agentfs_jobs
+                    FROM lbfs_jobs
                     WHERE status = 'in_progress'
                       AND started_at < NOW() - (:threshold_minutes || ' minutes')::interval
                     ORDER BY started_at ASC
@@ -1157,7 +1157,7 @@ def test_stuck_tasks_passthrough():
         "tasks": [
             {"task_id": "t1", "task_type": "WIKI_UPDATE", "source": "wiki_run_logs",
              "status": "in_progress", "age_sec": 700},
-            {"task_id": "t2", "task_type": "FUSE_BACKFILL", "source": "agentfs_jobs",
+            {"task_id": "t2", "task_type": "FUSE_BACKFILL", "source": "lbfs_jobs",
              "status": "in_progress", "age_sec": 800},
         ],
     })

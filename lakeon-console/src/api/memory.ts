@@ -21,7 +21,7 @@ export interface MemoryBase {
   error: string | null
   created_at: string
   updated_at: string
-  is_agentfs_target?: boolean
+  is_lbfs_target?: boolean
   auto_created?: boolean
 }
 

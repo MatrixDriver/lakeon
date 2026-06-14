@@ -1395,7 +1395,7 @@ git commit -m "feat(sre-mcp): data_consistency_check + 4 built-in invariant rule
 - Create: `lakeon/dbay-sre-mcp/tests/test_stuck_task_query.py`
 - Modify: `server.py` + `tool_descriptions.yaml`
 
-**Architecture:** queries lakeon-api PG (LAKEON_DB_DSN) for in_progress async tasks. Three task tables expected: `wiki_run_logs`, `agentfs_jobs`, `kb_processing_tasks`. If a table doesn't exist in your DB, the query handles `relation does not exist` gracefully and returns 0 from that source.
+**Architecture:** queries lakeon-api PG (LAKEON_DB_DSN) for in_progress async tasks. Three task tables expected: `wiki_run_logs`, `lbfs_jobs`, `kb_processing_tasks`. If a table doesn't exist in your DB, the query handles `relation does not exist` gracefully and returns 0 from that source.
 
 - [ ] **Step 6.1: Write failing test**
 
@@ -1432,7 +1432,7 @@ def _fake_pg_with_results(per_table: dict[str, list[tuple]]):
 
 
 def test_no_stuck_tasks():
-    fake = _fake_pg_with_results({"wiki_run_logs": [], "agentfs_jobs": [], "kb_processing_tasks": []})
+    fake = _fake_pg_with_results({"wiki_run_logs": [], "lbfs_jobs": [], "kb_processing_tasks": []})
     with patch("dbay_sre_mcp.tools.stuck_task_query.connect", return_value=fake):
         out = json.loads(stuck_task_query_impl(threshold_minutes=10))
     assert out["count"] == 0
@@ -1443,7 +1443,7 @@ def test_stuck_wiki_task():
     fake = _fake_pg_with_results({
         "wiki_run_logs": [("task_42", "kb_abc", "WIKI_UPDATE", "in_progress",
                            "2026-04-24T10:00:00Z", 700)],
-        "agentfs_jobs": [],
+        "lbfs_jobs": [],
         "kb_processing_tasks": [],
     })
     with patch("dbay_sre_mcp.tools.stuck_task_query.connect", return_value=fake):
@@ -1456,7 +1456,7 @@ def test_stuck_wiki_task():
 def test_filter_by_type():
     fake = _fake_pg_with_results({
         "wiki_run_logs": [("t_a", "kb_a", "WIKI_UPDATE", "in_progress", "2026-04-24T10:00:00Z", 700)],
-        "agentfs_jobs": [("t_b", None, "FUSE_BACKFILL", "in_progress", "2026-04-24T10:00:00Z", 700)],
+        "lbfs_jobs": [("t_b", None, "FUSE_BACKFILL", "in_progress", "2026-04-24T10:00:00Z", 700)],
         "kb_processing_tasks": [],
     })
     with patch("dbay_sre_mcp.tools.stuck_task_query.connect", return_value=fake):
@@ -1521,11 +1521,11 @@ _SOURCES = [
         "columns": ["task_id", "kb_id", "task_type", "status", "started_at", "age_sec"],
     },
     {
-        "table": "agentfs_jobs",
+        "table": "lbfs_jobs",
         "sql": """
             SELECT id, NULL AS kb_id, job_type AS task_type, status, started_at,
                    EXTRACT(EPOCH FROM (NOW() - started_at))::int AS age_sec
-            FROM agentfs_jobs
+            FROM lbfs_jobs
             WHERE status = 'in_progress'
               AND started_at < NOW() - INTERVAL '%(threshold_minutes)s minutes'
             ORDER BY started_at ASC
@@ -1596,7 +1596,7 @@ Expected: 4 passed.
 stuck_task_query:
   description: |
     Find async tasks stuck in_progress beyond a threshold across known task tables
-    (wiki_run_logs, agentfs_jobs, kb_processing_tasks).
+    (wiki_run_logs, lbfs_jobs, kb_processing_tasks).
 
     USE WHEN:
     - Investigating "task X never completes"
@@ -1633,7 +1633,7 @@ git add dbay-sre-mcp/src/dbay_sre_mcp/tools/stuck_task_query.py \
         dbay-sre-mcp/src/dbay_sre_mcp/server.py \
         dbay-sre-mcp/src/dbay_sre_mcp/tool_descriptions.yaml \
         dbay-sre-mcp/tests/test_stuck_task_query.py
-git commit -m "feat(sre-mcp): stuck_task_query across wiki/agentfs/kb task tables"
+git commit -m "feat(sre-mcp): stuck_task_query across wiki/lbfs/kb task tables"
 ```
 
 ---
@@ -1826,7 +1826,7 @@ git commit -m "feat(sre-mcp): pod_create_failures with category aggregation"
 
 ### Task 8: `multi_tenant_blast_radius` — single fault domain affecting multiple tenants
 
-**Why:** Bug `agentfs A4` 是典型 "一个 tenant 失败拖死所有"。该工具检测：短窗口内多 tenant 同症状错误飙升 → 单一根因。
+**Why:** Bug `lakebasefs A4` 是典型 "一个 tenant 失败拖死所有"。该工具检测：短窗口内多 tenant 同症状错误飙升 → 单一根因。
 
 **Files:**
 - Create: `lakeon/dbay-sre-mcp/src/dbay_sre_mcp/tools/multi_tenant_blast_radius.py`
@@ -1866,7 +1866,7 @@ def test_no_blast():
 
 def test_detects_cross_tenant_pattern():
     fake = _fake_pg([
-        ("agentfs", "MemorySvcClient connection refused", 5, 47),  # 5 tenants, 47 occurrences
+        ("lakebasefs", "MemorySvcClient connection refused", 5, 47),  # 5 tenants, 47 occurrences
         ("compute", "InvalidName must consist of lower case", 4, 8),
     ])
     with patch("dbay_sre_mcp.tools.multi_tenant_blast_radius.log_db_connect", return_value=fake):
@@ -1878,7 +1878,7 @@ def test_detects_cross_tenant_pattern():
 
 def test_threshold_filters_low_blast():
     fake = _fake_pg([
-        ("agentfs", "common error", 2, 100),  # only 2 tenants
+        ("lakebasefs", "common error", 2, 100),  # only 2 tenants
     ])
     with patch("dbay_sre_mcp.tools.multi_tenant_blast_radius.log_db_connect", return_value=fake):
         out = json.loads(multi_tenant_blast_radius_impl(window="15m", min_tenant_count=3))
@@ -1983,7 +1983,7 @@ multi_tenant_blast_radius:
     USE WHEN:
     - "All tenants suddenly broken" / "many tenants unhappy"
     - Periodic sweep (every 5-15 min) for cross-tenant blast events
-    - Verifying suspected single-point-of-failure (e.g. agentfs A4 bug 98a29218)
+    - Verifying suspected single-point-of-failure (e.g. lakebasefs A4 bug 98a29218)
 
     DO NOT USE WHEN:
     - Single tenant problem — use log_search filtered by tenant_id
@@ -2295,7 +2295,7 @@ git commit -m "docs(phase1): dbay-sre-mcp 0.2.0 done; watchers + briefings next"
 
 1. **`/admin/databases` query parameter shape unknown** — Task 1.5 / 3.x assumes `?search=name` works for fuzzy match. If lakeon-api uses a different param name (e.g. `?name_contains=`), update `LakeonAdminClient.list_databases` accordingly. Fix in-place; no plan revision needed.
 2. **`/admin/operations` payload shape** — Task 7 assumes events have `type`, `outcome`, `error`, `tenant_id` fields. If the actual shape differs, Task 7 implementation needs to map. Run a real call against staging to confirm before commit.
-3. **`kb_write_queue`, `wiki_run_logs`, `agentfs_jobs`, `kb_processing_tasks` table names** — assumed in Tasks 5/6. If actual table names differ, the consistency rules + stuck task queries will fail at runtime (not test time, because tests use mocks). Run them against a staging PG before considering production-ready. The `psycopg2.errors.UndefinedTable` graceful-skip in Task 6 will at least not crash.
+3. **`kb_write_queue`, `wiki_run_logs`, `lbfs_jobs`, `kb_processing_tasks` table names** — assumed in Tasks 5/6. If actual table names differ, the consistency rules + stuck task queries will fail at runtime (not test time, because tests use mocks). Run them against a staging PG before considering production-ready. The `psycopg2.errors.UndefinedTable` graceful-skip in Task 6 will at least not crash.
 4. **PyPI publish credentials** — Task 10.1 assumes PyPI token is set up. If not, fall back to `python -m twine upload` with explicit `--username __token__ --password $PYPI_TOKEN`.
 5. **Admin token security** — `LAKEON_ADMIN_TOKEN` grants full admin rights. The plan does NOT enforce a read-only scope. Phase 1 acceptable; flag for Phase 2 to introduce a read-only token role on lakeon-api side.
 6. **Existing `tool_descriptions.yaml` may use a different YAML key shape** — Task 9.2 assumes one description per tool key. If it uses nested `description` + `args` shape (some fastmcp versions do), adjust accordingly. Read existing file first before writing new entries.

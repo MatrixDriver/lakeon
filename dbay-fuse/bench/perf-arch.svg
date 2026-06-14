@@ -26,7 +26,7 @@
   </style>
 
   <!-- title -->
-  <text x="40" y="36" class="h1">DBay AgentFS · 单次 append 40B 的端到端时延（B 实现 · append-delta upload）</text>
+  <text x="40" y="36" class="h1">DBay LakebaseFS · 单次 append 40B 的端到端时延（B 实现 · append-delta upload）</text>
   <text x="40" y="55" class="small">用户态 CC 写入 → FUSE → outbox → uplink → DBay Postgres 持久化。所有时间单位 ms。</text>
 
   <!-- ========== Left swim lane: USER-VISIBLE PATH (synchronous) ========== -->
@@ -111,7 +111,7 @@
 
   <rect x="400" y="465" width="120" height="50" rx="4" class="box"/>
   <text x="460" y="488" text-anchor="middle" class="label">HTTPS POST</text>
-  <text x="460" y="503" text-anchor="middle" class="small">/agentfs/files/append</text>
+  <text x="460" y="503" text-anchor="middle" class="small">/lbfs/files/append</text>
 
   <rect x="540" y="465" width="120" height="50" rx="4" class="box"/>
   <text x="600" y="488" text-anchor="middle" class="label">DBay Java</text>
@@ -200,12 +200,12 @@
   <text x="720" y="506" class="latslow">1. 本地 fsync × 2：~10 ms</text>
   <text x="720" y="522" class="small">   write_blob (SHA256 file + rename) + outbox sync</text>
   <text x="720" y="544" class="latslow">2. HTTP 串行 + TLS：~50 ms / op</text>
-  <text x="720" y="560" class="small">   /agentfs/batch 端点存在但客户端未用</text>
+  <text x="720" y="560" class="small">   /lbfs/batch 端点存在但客户端未用</text>
   <text x="720" y="582" class="latslow">3. FUSE 4 次内核穿越：~4 ms</text>
   <text x="720" y="598" class="small">   open + write + flush + release</text>
 
   <text x="720" y="630" class="h2">下一步优化（B+）</text>
   <text x="720" y="650" class="small">• 小 delta 内联到 pending.log（省 blob fsync）</text>
   <text x="720" y="666" class="small">• Group fsync per N writes（牺牲 crash 窗口）</text>
-  <text x="720" y="682" class="small">• 改用 /agentfs/batch 一次 HTTP 多 op</text>
+  <text x="720" y="682" class="small">• 改用 /lbfs/batch 一次 HTTP 多 op</text>
 </svg>

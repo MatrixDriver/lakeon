@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Add idx_memories_source_idempotent UNIQUE index on every existing
-# memory_base DB. Enables INSERT ON CONFLICT DO NOTHING for AgentFS
+# memory_base DB. Enables INSERT ON CONFLICT DO NOTHING for LakebaseFS
 # derivation flow. Idempotent via IF NOT EXISTS.
 #
 # Usage:

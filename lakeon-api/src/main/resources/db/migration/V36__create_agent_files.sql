@@ -1,4 +1,4 @@
--- AgentFS: POSIX-like file store for AI agent working directories.
+-- LakebaseFS: POSIX-like file store for AI agent working directories.
 --
 -- One store per tenant (implicit). Paths are absolute within the store
 -- (e.g. "/CLAUDE.md", "/memory/user.md", "/projects/X/session.jsonl").

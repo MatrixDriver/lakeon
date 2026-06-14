@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CC-flavored workload on AgentFS (via FUSE) vs plain local FS.
+"""CC-flavored workload on LakebaseFS (via FUSE) vs plain local FS.
 
 Measures USER-VISIBLE latency (what CC sees when it writes a file).
 Uplink to cloud is async — not on this hot path, so the FUSE column
@@ -11,7 +11,7 @@ Workload per backend (N iters each):
   read_back     : cat the CLAUDE.md-like file (4KB)
   rewrite       : full overwrite of a 4KB CLAUDE.md-like file
 
-After the run on AgentFS, we wait for outbox to drain and report how
+After the run on LakebaseFS, we wait for outbox to drain and report how
 long that took — useful for "when does it actually hit the cloud".
 """
 import json
@@ -129,7 +129,7 @@ def measure_uplink_drain():
 
 
 def main():
-    print(f"dbay-fuse  native-vs-AgentFS  N={N}")
+    print(f"dbay-fuse  native-vs-LakebaseFS  N={N}")
 
     if not NATIVE_ROOT.parent.exists():
         NATIVE_ROOT.parent.mkdir(parents=True)
@@ -139,7 +139,7 @@ def main():
         print("\n[skipped] FUSE mount not ready — is daemon running?", file=sys.stderr)
         sys.exit(1)
     # Put our bench dir under memory/ so it's on the FUSE path
-    bench("AgentFS FUSE", FUSE_ROOT / "memory")
+    bench("LakebaseFS FUSE", FUSE_ROOT / "memory")
 
     # Now watch the outbox empty (shows async upload cost)
     measure_uplink_drain()

@@ -21,7 +21,7 @@
 | 现状 | 问题 |
 |---|---|
 | 用户在 CC、openclaw、hermes 之间切换工作 | 记忆/skill/上下文不互通；同一件事每家 Agent 重新讲一遍 |
-| dbay 云端有完整 memory_ingest/recall/list/delete + AgentFS Phase 2 钩子 + 加密体系 | 强依赖云；客户/同事 demo 不便；客户离线场景受阻 |
+| dbay 云端有完整 memory_ingest/recall/list/delete + LakebaseFS Phase 2 钩子 + 加密体系 | 强依赖云；客户/同事 demo 不便；客户离线场景受阻 |
 | 想让本地小模型（gemma + qwen3-embedding）做衍生物提取 | 现有 dbay pipeline 与云 PG schema 紧耦合，剥本地版有工程量 |
 | 想验证"echomem 用记忆预测 LLM 输出长度"对 MaaS 调度的价值 | 假设未验证；做法侵入 agent；做错代价大 |
 
@@ -74,7 +74,7 @@ echomem 解上面 4 类问题：单机自给的本地中枢、统一接入、跨
 | **B. Dashboard** | Vue 3 + Vite，daemon serve；呈现记忆/衍生物/会话；解释 "为什么有这条衍生物"（来源链） |
 | **C. 衍生物 Pipeline** | 4 种组织方式：1 时间流 + 2 树 + 3 图 + 4 程序性。**4 程序性 MVP 仅支持 `import`**（导入外部 skill 文件如 `superpowers / impeccable`），`extract`（从会话萃取）留 P1 |
 | **D. Onboarding** | 一条 `curl ... \| sh` 安装 echomem 单二进制，自动注册 MCP 到三家 Agent，启 Dashboard，提示拉模型 |
-| **F. Context API** | `add_url / ls / read / write / mv`，从 dbay AgentFS 抽出本地版；原始文件存 FS by sha256 |
+| **F. Context API** | `add_url / ls / read / write / mv`，从 dbay LakebaseFS 抽出本地版；原始文件存 FS by sha256 |
 | **I. 讨论网站** | Next.js + Tailwind，基于 agent-memory-oss-research-website 扩展，部署 Vercel |
 
 ### 5.2 P1 — MVP 后第二阶段
@@ -209,7 +209,7 @@ flowchart TD
 | API | 端点示例 | 来源 |
 |---|---|---|
 | Memory | `POST /memory/ingest`、`GET /memory/recall?q=...&k=10`、`GET /memory/list`、`DELETE /memory/{id}`、`GET /memory/{id}` | 抄 `dbay_mcp/server.py:467-629` |
-| Context | `POST /context/add_url`、`GET /context/ls?prefix=...`、`GET /context/read?path=...`、`POST /context/write`、`POST /context/mv` | 抄 dbay AgentFS 本地抽出 |
+| Context | `POST /context/add_url`、`GET /context/ls?prefix=...`、`GET /context/read?path=...`、`POST /context/write`、`POST /context/mv` | 抄 dbay LakebaseFS 本地抽出 |
 | Sessions | `POST /sessions/append`（P1）、`GET /sessions/{id}`、`GET /sessions` | 新写 |
 | Skill | `GET /skill/surface?context=...`（基于程序性衍生物）、`POST /skill/import` | 新写 |
 | Dashboard | `GET /derivatives/query`、`GET /memory/timeline`、`GET /memory/graph`、`WS /events` | 新写 |
@@ -603,7 +603,7 @@ lakeon/
 
 - MVP 阶段：抄 `dbay-mcp/server.py:467-629` 的 memory_* 实现到 `echomem/api/memory.py`
 - MVP 阶段：抄 `dbay-cli mem` 7 个子命令到 `echomem/cli.py`
-- MVP 阶段：抄 `memory/service/main.py:agentfs_derive` 到 `echomem/workers/derive.py`
+- MVP 阶段：抄 `memory/service/main.py:lbfs_derive` 到 `echomem/workers/derive.py`
 - Phase 2 评估：把云端 dbay-mcp / memory-service 与 echomem 共同部分抽出 `dbay-core` Python 包（lakeon-api 也用）
 
 ### 14.3 发布

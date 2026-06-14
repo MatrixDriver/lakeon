@@ -188,7 +188,7 @@ def test_pod_create_failures(monkeypatch):
 def test_multi_tenant_blast_radius(monkeypatch):
     import main
     def fake(window="15m", min_tenant_count=3):
-        return json.dumps({"count": 1, "incidents": [{"component": "agentfs", "distinct_tenant_count": 5}]})
+        return json.dumps({"count": 1, "incidents": [{"component": "lakebasefs", "distinct_tenant_count": 5}]})
     monkeypatch.setattr("dbay_sre_mcp.server.multi_tenant_blast_radius", fake, raising=False)
     out = main.SREMCPAdapter().multi_tenant_blast_radius(window="10m")
     assert out["incidents"][0]["distinct_tenant_count"] == 5
@@ -853,7 +853,7 @@ Expected: 3 passed.
 ```markdown
 ---
 name: stuck_task_watcher
-description: Detect async tasks stuck in_progress beyond threshold (wiki/agentfs/kb). Every 5 min.
+description: Detect async tasks stuck in_progress beyond threshold (wiki/lbfs/kb). Every 5 min.
 version: v0.1
 triggers:
   cron: "*/5 * * * *"
@@ -902,7 +902,7 @@ def test_stuck_tasks_open_one_incident(tmp_log_root):
         "tasks": [
             {"task_id": "t1", "task_type": "WIKI_UPDATE", "source": "wiki_run_logs", "age_sec": 700},
             {"task_id": "t2", "task_type": "WIKI_INGEST", "source": "wiki_run_logs", "age_sec": 900},
-            {"task_id": "t3", "task_type": "FUSE_BACKFILL", "source": "agentfs_jobs", "age_sec": 1100},
+            {"task_id": "t3", "task_type": "FUSE_BACKFILL", "source": "lbfs_jobs", "age_sec": 1100},
         ],
     }))
     sids = w.scan_once()
@@ -917,7 +917,7 @@ def test_dedupe_when_count_stable(tmp_log_root):
         "count": 2,
         "tasks": [
             {"task_id": "t1", "task_type": "WIKI_UPDATE", "source": "wiki_run_logs", "age_sec": 700},
-            {"task_id": "t2", "task_type": "FUSE_BACKFILL", "source": "agentfs_jobs", "age_sec": 700},
+            {"task_id": "t2", "task_type": "FUSE_BACKFILL", "source": "lbfs_jobs", "age_sec": 700},
         ],
     }), dedupe_window_sec=600)
     first = w.scan_once()
@@ -930,7 +930,7 @@ def test_dedupe_when_count_stable(tmp_log_root):
 
 ```python
 # lakeon/sre-agent/skills/sre/stuck_task_watcher/watcher.py
-"""Stuck task watcher — reports stuck async tasks (wiki/agentfs/kb) grouped."""
+"""Stuck task watcher — reports stuck async tasks (wiki/lbfs/kb) grouped."""
 from __future__ import annotations
 
 from collections import Counter
@@ -1334,7 +1334,7 @@ def test_one_blast_opens_one_incident(tmp_log_root):
         mcp=_fake_mcp({
             "count": 1, "window": "15m",
             "incidents": [{
-                "component": "agentfs",
+                "component": "lakebasefs",
                 "error_signature": "MemorySvcClient connection refused",
                 "distinct_tenant_count": 5,
                 "total_occurrences": 47,
@@ -1356,7 +1356,7 @@ def test_dedupes_same_signature(tmp_log_root):
         mcp=_fake_mcp({
             "count": 1, "window": "15m",
             "incidents": [{
-                "component": "agentfs",
+                "component": "lakebasefs",
                 "error_signature": "connection refused",
                 "distinct_tenant_count": 5,
                 "total_occurrences": 47,
@@ -1570,7 +1570,7 @@ Tenant (租户, 人类可读名如 "perf-team")
 
 | 症状 | 工具 |
 |---|---|
-| wiki/agentfs/kb 任务 in_progress 超时 | `stuck_task_query(threshold_minutes=10)` |
+| wiki/lbfs/kb 任务 in_progress 超时 | `stuck_task_query(threshold_minutes=10)` |
 | 特定类型任务 | `stuck_task_query(type="WIKI_UPDATE")` |
 
 ## Cost / Usage 异常

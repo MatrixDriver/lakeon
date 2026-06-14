@@ -104,7 +104,7 @@
             <artifactId>caffeine</artifactId>
         </dependency>
 
-        <!-- Jackson YAML (for Agent-FS frontmatter parsing) -->
+        <!-- Jackson YAML (for LakebaseFS frontmatter parsing) -->
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>

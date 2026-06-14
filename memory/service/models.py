@@ -123,9 +123,9 @@ class DigestExtractedRequest(BaseModel):
 
 
 class DeriveRequest(BaseModel):
-    """Request body for POST /agentfs/derive.
+    """Request body for POST /lbfs/derive.
 
-    Caller (lakeon-api AgentFSEventForwarder) provides the target base
+    Caller (lakeon-api LakebaseFSEventForwarder) provides the target base
     connstr via x-database-connstr header; this body specifies what to
     do to that base's memories table.
     """
