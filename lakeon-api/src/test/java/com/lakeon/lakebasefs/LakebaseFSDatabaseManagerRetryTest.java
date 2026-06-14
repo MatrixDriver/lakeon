@@ -40,6 +40,12 @@ class LakebaseFSDatabaseManagerRetryTest {
     }
 
     @Test
+    void detects_compute_host_not_yet_available() {
+        assertTrue(LakebaseFSDatabaseManager.isStaleHostError(
+                new SQLException("compute host not available for db lbfs-12345678")));
+    }
+
+    @Test
     void rejects_generic_sql_error() {
         assertFalse(LakebaseFSDatabaseManager.isStaleHostError(
                 new SQLException("constraint violation")));

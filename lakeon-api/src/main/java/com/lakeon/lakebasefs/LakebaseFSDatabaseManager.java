@@ -250,24 +250,29 @@ public class LakebaseFSDatabaseManager {
 
     /** Single connect attempt against the current entity state — no retry. */
     private Connection openAdminDirect(DatabaseEntity entity) throws SQLException {
-        String internalProxyHost = props.getProxy().getInternalHost();
-        if (internalProxyHost != null && !internalProxyHost.isBlank()) {
-            int port = props.getProxy().getInternalPort();
-            String database = enc(entity.getName());
-            String endpoint = enc(entity.getName());
-            String jdbcUrl = "jdbc:postgresql://" + internalProxyHost + ":" + port + "/" + database
-                    + "?sslmode=require&options=endpoint%3D" + endpoint;
-            return DriverManager.getConnection(jdbcUrl, adminJdbcUser(), adminJdbcPassword());
-        }
-
         String host = entity.getComputeHost();
-        if (host == null) {
+        if (host == null || host.isBlank()) {
             throw new SQLException("compute host not available for db " + entity.getName()
                     + " (status=" + entity.getStatus() + ")");
         }
         int port = entity.getComputePort() != null ? entity.getComputePort() : 55433;
         String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + entity.getName() + "?sslmode=disable";
-        return DriverManager.getConnection(jdbcUrl, "cloud_admin", "cloud-admin-internal");
+        return DriverManager.getConnection(jdbcUrl, adminJdbcUser(), adminJdbcPassword());
+    }
+
+    /** Proxy path kept for future use; LBFS admin operations prefer direct compute pod IP. */
+    @SuppressWarnings("unused")
+    private Connection openAdminViaProxy(DatabaseEntity entity) throws SQLException {
+        String internalProxyHost = props.getProxy().getInternalHost();
+        if (internalProxyHost == null || internalProxyHost.isBlank()) {
+            throw new SQLException("internal proxy host not configured for db " + entity.getName());
+        }
+        int port = props.getProxy().getInternalPort();
+        String database = enc(entity.getName());
+        String endpoint = enc(entity.getName());
+        String jdbcUrl = "jdbc:postgresql://" + internalProxyHost + ":" + port + "/" + database
+                + "?sslmode=require&options=endpoint%3D" + endpoint;
+        return DriverManager.getConnection(jdbcUrl, adminJdbcUser(), adminJdbcPassword());
     }
 
     /** Heuristic: does this SQLException look like a stale compute host?
@@ -277,7 +282,8 @@ public class LakebaseFSDatabaseManager {
         return msg.contains("does not exist")
                 || msg.contains("connection refused")
                 || msg.contains("could not translate")
-                || msg.contains("no route to host");
+                || msg.contains("no route to host")
+                || msg.contains("compute host not available");
     }
 
     static String adminJdbcUser() {
