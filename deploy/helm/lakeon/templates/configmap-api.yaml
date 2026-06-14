@@ -160,6 +160,9 @@ data:
   {{- if .Values.api.jobNamespace }}
   LAKEON_JOB_NAMESPACE: {{ .Values.api.jobNamespace | quote }}
   {{- end }}
+  {{- if hasKey .Values.api "jobUseCci" }}
+  LAKEON_JOB_USE_CCI: {{ .Values.api.jobUseCci | quote }}
+  {{- end }}
   {{- with .Values.datalake }}
   LAKEON_DATALAKE_CCI_NS_PREFIX: {{ .cciNamespacePrefix | quote }}
   LAKEON_DATALAKE_VK_NODE_SELECTOR_KEY: {{ .vkNodeSelectorKey | quote }}

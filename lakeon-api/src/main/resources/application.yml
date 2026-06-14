@@ -124,6 +124,7 @@ lakeon:
     orphan-check-interval-ms: ${LAKEON_JOB_ORPHAN_CHECK_INTERVAL_MS:60000}
     callback-base-url: ${LAKEON_JOB_CALLBACK_BASE_URL:}
     namespace: ${LAKEON_JOB_NAMESPACE:}
+    use-cci: ${LAKEON_JOB_USE_CCI:true}
     types:
       document-parse:
         image: ${LAKEON_JOB_IMAGE_DOCUMENT_PARSE:swr.cn-north-4.myhuaweicloud.com/flex/lakeon-knowledge-job:0.2.1}

@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -27,6 +28,9 @@ public class JobPodManager {
 
     @Value("${lakeon.job.namespace:}")
     private String jobNamespace;
+
+    @Value("${lakeon.job.use-cci:true}")
+    private boolean useCci;
 
     public JobPodManager(KubernetesClient k8sClient, LakeonProperties props, ObsStsService obsStsService) {
         this.k8sClient = k8sClient;
@@ -88,6 +92,19 @@ public class JobPodManager {
         // Get STS credentials for the tenant
         ObsStsService.StsCredentials stsCreds = obsStsService.getCredentials(job.getTenantId());
 
+        Map<String, String> annotations = useCci
+            ? Map.of("virtual-kubelet.io/burst-to-cci", "enforce")
+            : Map.of();
+        Map<String, String> nodeSelector = useCci
+            ? Map.of("type", "virtual-kubelet")
+            : Map.of();
+        List<Toleration> tolerations = useCci
+            ? List.of(new TolerationBuilder()
+                .withKey("virtual-kubelet.io/provider")
+                .withOperator("Exists")
+                .build())
+            : List.of();
+
         // Create the job Pod
         Pod pod = new PodBuilder()
             .withNewMetadata()
@@ -99,9 +116,7 @@ public class JobPodManager {
                     "lakeon.io/tenant-id", job.getTenantId(),
                     "lakeon.io/job-type", typeKey
                 ))
-                .withAnnotations(Map.of(
-                    "virtual-kubelet.io/burst-to-cci", "enforce"
-                ))
+                .withAnnotations(annotations)
             .endMetadata()
             .withNewSpec()
                 .withImagePullSecrets(
@@ -111,14 +126,9 @@ public class JobPodManager {
                         .toList()
                 )
                 .withRestartPolicy("Never")
-                .withNodeSelector(Map.of("type", "virtual-kubelet"))
-                .withTolerations(new io.fabric8.kubernetes.api.model.TolerationBuilder()
-                    .withKey("virtual-kubelet.io/provider")
-                    .withOperator("Exists")
-                    .build())
+                .withNodeSelector(nodeSelector)
+                .withTolerations(tolerations)
                 .withAutomountServiceAccountToken(false)
-                // Note: CCI pods cannot resolve cluster DNS, so services must be
-                // referenced by ClusterIP in job params (e.g. embedding_api_url)
                 .addNewContainer()
                     .withName("job")
                     .withImage(image)
