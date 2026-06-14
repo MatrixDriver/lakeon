@@ -5,7 +5,7 @@
       <div class="page-header-actions" v-if="stats.total > 0">
         <ViewToggle v-model="viewMode" />
         <router-link to="/docs" class="page-header-link">使用指南</router-link>
-        <button class="btn btn-primary" @click="showCreateDialog = true" :disabled="authStore.isTrial" :title="authStore.isTrial ? '注册后可用' : ''">创建数据库</button>
+        <button class="btn btn-primary" @click="showCreateDialog = true">创建数据库</button>
       </div>
     </div>
 
@@ -29,8 +29,8 @@
         <h2 class="welcome-title">欢迎来到 DBay 数据港湾</h2>
         <p class="welcome-desc">Serverless PostgreSQL 云数据库，几秒即可创建，不使用时自动休眠，零闲置费用。</p>
         <div class="welcome-actions">
-          <button class="btn btn-primary btn-lg" @click="showCreateDialog = true" :disabled="authStore.isTrial" :title="authStore.isTrial ? '注册后可用' : ''">创建第一个数据库</button>
-          <router-link v-if="!authStore.isTrial" to="/import" class="btn btn-outline btn-lg">导入已有数据库</router-link>
+          <button class="btn btn-primary btn-lg" @click="showCreateDialog = true">创建第一个数据库</button>
+          <router-link to="/import" class="btn btn-outline btn-lg">导入已有数据库</router-link>
         </div>
       </div>
 
@@ -164,7 +164,7 @@
               </div>
             </template>
           </ResourceCard>
-          <div class="card-create" @click="showCreateDialog = true" v-if="!authStore.isTrial">
+          <div class="card-create" @click="showCreateDialog = true">
             + 创建数据库
           </div>
           <div v-if="filteredDatabases.length === 0" class="empty-state" style="grid-column: 1 / -1;">
@@ -378,10 +378,8 @@ import TableFooter from '../../components/TableFooter.vue'
 import ViewToggle from '../../components/ViewToggle.vue'
 import ResourceCard from '../../components/ResourceCard.vue'
 import CardMenu from '../../components/CardMenu.vue'
-import { useAuthStore } from '../../stores/auth'
 
 const toast = useToast()
-const authStore = useAuthStore()
 
 const OP_LABELS: Record<string, string> = {
   CREATE: '创建',

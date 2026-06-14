@@ -351,10 +351,6 @@ datalake:
     ray: "swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data"
     rayGpu: "swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data"
 
-# ── Demo 租户 (体验模式) ──────────────────────────────────────────
-demo:
-  tenantId: "demo"
-
 # Warm pool: maintain N idle compute pods on CCI (virtual-kubelet burst) to skip
 # cold-start. Idle pods run with Replica mode against a mock tenant; on user
 # wake, ComputeLifecycleService claims one and POST /configure swaps to real spec.

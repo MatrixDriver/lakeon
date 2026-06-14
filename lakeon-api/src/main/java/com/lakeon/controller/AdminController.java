@@ -215,16 +215,8 @@ public class AdminController {
         List<String> deleted = new ArrayList<>();
         List<Map<String, String>> errors = new ArrayList<>();
 
-        // Protect demo tenant from deletion
-        String demoTenantId = props.getDemo().getTenantId();
-
         for (String id : ids) {
             try {
-                if (demoTenantId != null && !demoTenantId.isBlank() && demoTenantId.equals(id)) {
-                    errors.add(Map.of("id", id, "error", "Cannot delete demo tenant — it is protected"));
-                    continue;
-                }
-
                 TenantEntity tenant = tenantRepository.findById(id).orElse(null);
                 if (tenant == null) {
                     errors.add(Map.of("id", id, "error", "Tenant not found"));

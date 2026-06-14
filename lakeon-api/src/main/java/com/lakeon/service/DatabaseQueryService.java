@@ -36,11 +36,6 @@ public class DatabaseQueryService {
         "\\b(DROP\\s+DATABASE|REASSIGN\\s+OWNER|ALTER\\s+SYSTEM|CREATE\\s+EXTENSION|COPY\\s+.*\\bTO\\b|COPY\\s+.*\\bFROM\\b.*\\bPROGRAM\\b)\\b",
         Pattern.CASE_INSENSITIVE
     );
-    private static final Pattern WRITE_SQL = Pattern.compile(
-        "^\\s*(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|TRUNCATE|GRANT|REVOKE)\\b",
-        Pattern.CASE_INSENSITIVE
-    );
-
     private final DatabaseRepository databaseRepository;
     private final DatabaseService databaseService;
     private final SchemaCacheRepository schemaCacheRepository;
@@ -543,10 +538,6 @@ public class DatabaseQueryService {
         if (DANGEROUS_SQL.matcher(sql).find()) {
             throw new ServiceException("SQL contains prohibited statements");
         }
-        if (Boolean.TRUE.equals(tenant.getTrial()) && WRITE_SQL.matcher(sql).find()) {
-            throw new BadRequestException("体验模式仅支持 SELECT 查询，注册账号后可执行写操作");
-        }
-
         DatabaseEntity db = findDatabase(tenant, dbId);
         try (Connection conn = getConnection(db)) {
             long start = System.currentTimeMillis();

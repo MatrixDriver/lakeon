@@ -8,8 +8,6 @@ export const useAuthStore = defineStore('auth', () => {
   const tenantId = ref(localStorage.getItem('lakeon_tenant_id') || '')
   const tenantName = ref(localStorage.getItem('lakeon_tenant_name') || '')
   const username = ref(localStorage.getItem('lakeon_username') || '')
-  const isTrial = ref(localStorage.getItem('lakeon_is_trial') === 'true')
-  const trialExpiresAt = ref(localStorage.getItem('lakeon_trial_expires_at') || '')
 
   async function login(loginUsername: string, password: string): Promise<{ ok: boolean; error?: string }> {
     try {
@@ -27,7 +25,6 @@ export const useAuthStore = defineStore('auth', () => {
         username.value = tenant.username
         localStorage.setItem('lakeon_username', tenant.username)
       }
-      setTrialState(false)
       return { ok: true }
     } catch (e: any) {
       if (e.response?.status === 401) {
@@ -53,7 +50,6 @@ export const useAuthStore = defineStore('auth', () => {
         username.value = tenant.username
         localStorage.setItem('lakeon_username', tenant.username)
       }
-      setTrialState(false)
       return { ok: true }
     } catch (e: any) {
       if (e.response?.status === 401) {
@@ -70,32 +66,16 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('lakeon_tenant_name', name)
   }
 
-  function setTrialState(trial: boolean, expiresAt?: string) {
-    isTrial.value = trial
-    trialExpiresAt.value = expiresAt || ''
-    if (trial) {
-      localStorage.setItem('lakeon_is_trial', 'true')
-      if (expiresAt) localStorage.setItem('lakeon_trial_expires_at', expiresAt)
-    } else {
-      localStorage.removeItem('lakeon_is_trial')
-      localStorage.removeItem('lakeon_trial_expires_at')
-    }
-  }
-
   function logout() {
     apiKey.value = ''
     tenantId.value = ''
     tenantName.value = ''
-    isTrial.value = false
-    trialExpiresAt.value = ''
     username.value = ''
     localStorage.removeItem('lakeon_api_key')
     localStorage.removeItem('lakeon_tenant_id')
     localStorage.removeItem('lakeon_tenant_name')
     localStorage.removeItem('lakeon_username')
-    localStorage.removeItem('lakeon_is_trial')
-    localStorage.removeItem('lakeon_trial_expires_at')
   }
 
-  return { apiKey, tenantId, tenantName, username, isTrial, trialExpiresAt, login, loginWithOAuthCode, setTenant, setTrialState, logout }
+  return { apiKey, tenantId, tenantName, username, login, loginWithOAuthCode, setTenant, logout }
 })

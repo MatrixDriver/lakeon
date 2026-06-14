@@ -30,18 +30,6 @@
       </div>
     </header>
 
-    <!-- Trial Banner -->
-    <div v-if="authStore.isTrial" class="trial-banner">
-      <div class="trial-banner-content">
-        <span class="trial-banner-text">
-          体验模式 — 只读演示环境<template v-if="trialTimeLeft">，剩余 {{ trialTimeLeft }}</template>
-        </span>
-        <router-link to="/login" class="trial-banner-cta" @click="authStore.logout()">
-          注册账号，解锁全部功能
-        </router-link>
-      </div>
-    </div>
-
     <div class="console-body">
       <!-- Mobile sidebar overlay -->
       <div v-if="sidebarOpen" class="sidebar-overlay" @click="sidebarOpen = false"></div>
@@ -127,10 +115,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { tenantApi } from '../api/tenant'
 import CommandPalette from '../components/CommandPalette.vue'
 
 const router = useRouter()
@@ -325,51 +312,6 @@ function scrollToHashTarget(to: string) {
   }, 80)
 }
 
-// Trial countdown
-const trialTimeLeft = ref('')
-let trialTimer: ReturnType<typeof setInterval> | null = null
-
-function updateTrialCountdown() {
-  if (!authStore.isTrial || !authStore.trialExpiresAt) {
-    trialTimeLeft.value = ''
-    return
-  }
-  const diff = new Date(authStore.trialExpiresAt).getTime() - Date.now()
-  if (diff <= 0) {
-    trialTimeLeft.value = '已过期'
-    return
-  }
-  const h = Math.floor(diff / 3600000)
-  const m = Math.floor((diff % 3600000) / 60000)
-  trialTimeLeft.value = `${h}h ${m}m`
-}
-
-onMounted(async () => {
-  // Refresh trial state from server
-  if (authStore.apiKey) {
-    try {
-      const res = await tenantApi.me()
-      const t = res.data
-      if (t.trial) {
-        authStore.setTrialState(true, t.expires_at)
-      } else {
-        authStore.setTrialState(false)
-      }
-    } catch {
-      // ignore — will use cached state
-    }
-  }
-
-  // Trial countdown timer
-  if (authStore.isTrial) {
-    updateTrialCountdown()
-    trialTimer = setInterval(updateTrialCountdown, 60000)
-  }
-})
-
-onUnmounted(() => {
-  if (trialTimer) clearInterval(trialTimer)
-})
 </script>
 
 <style scoped>
@@ -838,34 +780,4 @@ onUnmounted(() => {
   }
 }
 
-.trial-banner {
-  background: color-mix(in oklch, var(--c-accent) 7%, #fff);
-  border-bottom: 1px solid color-mix(in oklch, var(--c-accent) 25%, var(--c-border-light));
-  padding: 6px var(--space-xl);
-  text-align: center;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  color: var(--c-accent-text);
-  z-index: 100;
-}
-.trial-banner-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-lg);
-}
-.trial-banner-text {
-  letter-spacing: 0.02em;
-}
-.trial-banner-cta {
-  color: var(--c-accent-text);
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  white-space: nowrap;
-  transition: color 160ms ease-out;
-}
-.trial-banner-cta:hover {
-  color: var(--c-accent-hover);
-}
 </style>

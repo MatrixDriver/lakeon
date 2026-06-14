@@ -48,8 +48,6 @@ onMounted(() => {
     authStore.username = username
     localStorage.setItem('lakeon_username', username)
   }
-  authStore.setTrialState(false)
-
   // Clear hash fragment from URL
   window.history.replaceState(null, '', window.location.pathname)
   router.push('/dashboard')

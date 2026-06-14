@@ -29,7 +29,6 @@ public class LakeonProperties {
     private KnowledgeConfig knowledge = new KnowledgeConfig();
     private DatalakeConfig datalake = new DatalakeConfig();
     private MemoryConfig memory = new MemoryConfig();
-    private DemoConfig demo = new DemoConfig();
     private HwcloudConfig hwcloud = new HwcloudConfig();
     private WikiConfig wiki = new WikiConfig();
     private OAuthConfig oauth = new OAuthConfig();
@@ -74,8 +73,6 @@ public class LakeonProperties {
     public void setDatalake(DatalakeConfig datalake) { this.datalake = datalake; }
     public MemoryConfig getMemory() { return memory; }
     public void setMemory(MemoryConfig memory) { this.memory = memory; }
-    public DemoConfig getDemo() { return demo; }
-    public void setDemo(DemoConfig demo) { this.demo = demo; }
     public HwcloudConfig getHwcloud() { return hwcloud; }
     public void setHwcloud(HwcloudConfig hwcloud) { this.hwcloud = hwcloud; }
     public WikiConfig getWiki() { return wiki; }
@@ -436,13 +433,6 @@ public class LakeonProperties {
 
         public String getServiceUrl() { return serviceUrl; }
         public void setServiceUrl(String serviceUrl) { this.serviceUrl = serviceUrl; }
-    }
-
-    public static class DemoConfig {
-        private String tenantId;
-
-        public String getTenantId() { return tenantId; }
-        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
     }
 
     public static class HwcloudConfig {

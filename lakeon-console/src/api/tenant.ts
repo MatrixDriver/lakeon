@@ -6,8 +6,6 @@ export interface Tenant {
   username?: string
   api_key?: string
   created_at: string
-  trial?: boolean
-  expires_at?: string
 }
 
 export interface ApiKeyItem {

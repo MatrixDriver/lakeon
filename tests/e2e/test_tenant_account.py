@@ -1,6 +1,6 @@
 """
 Tenant & account management E2E tests — covers console login, account settings,
-API key management, and trial creation.
+and API key management.
 
 These map to the console's Login, Account Settings, and API Key pages.
 """
@@ -174,20 +174,3 @@ class TestApiKeyManagement:
         new_client = DbayClient(endpoint=ENDPOINT, api_key=raw_key)
         dbs = new_client.list_databases()
         assert isinstance(dbs, list)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  Trial (Landing page "立即体验" button)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class TestTrial:
-    """Tests for trial account creation — landing page one-click experience."""
-
-    def test_create_trial(self):
-        """POST /trial should create a temporary account with a database."""
-        client = DbayClient(endpoint=ENDPOINT)
-        result = client._request("POST", "/trial")
-        # Trial should return api_key and database info
-        assert result.get("api_key") is not None or result.get("apiKey") is not None
-        # May also return database_id and connection_uri
-        assert result.get("database_id") is not None or result.get("databaseId") is not None or result.get("database") is not None
