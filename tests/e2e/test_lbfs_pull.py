@@ -1,4 +1,4 @@
-"""E2E: dbay-fuse pull downloads missing files from remote AgentFS.
+"""E2E: dbay-fuse pull downloads missing files from remote LakebaseFS.
 
 Spawns the dbay-fuse binary in a subprocess against a temp HOME and state dir
 populated from the per-session e2e_client. Each test PUTs files server-side
@@ -31,7 +31,7 @@ def _put(endpoint, key, path, data, retries=20, delay=6):
     for _ in range(retries):
         try:
             r = requests.post(
-                f"{endpoint}/api/v1/agentfs/files/put",
+                f"{endpoint}/api/v1/lbfs/files/put",
                 json={"path": path, "data_base64": _b64(data)},
                 headers={"Authorization": f"Bearer {key}"},
                 verify=False, timeout=30,

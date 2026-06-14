@@ -26,7 +26,7 @@ export type LBFSDirectoryKind =
   | 'files'
 
 export type LBFSStoragePolicy = 'auto' | 'inline-only' | 'object-first' | 'object-only' | 'table-native'
-export type LBFSProcessingProfile = 'none' | 'agent-home' | 'dataset' | 'iceberg' | 'lance' | 'small-file-memory'
+export type LBFSProcessingProfile = 'none' | 'agent-home' | 'dataset' | 'iceberg' | 'lance'
 
 export interface LBFSFolder {
   id: string

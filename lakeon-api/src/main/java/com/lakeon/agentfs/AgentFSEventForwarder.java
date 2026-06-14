@@ -327,8 +327,7 @@ public class AgentFSEventForwarder {
         if (processingProfile == null || processingProfile.isBlank()) {
             return true;
         }
-        return AgentFSFolderProfile.PROCESSING_AGENT_HOME.equals(processingProfile)
-                || AgentFSFolderProfile.PROCESSING_SMALL_FILE_MEMORY.equals(processingProfile);
+        return AgentFSFolderProfile.PROCESSING_AGENT_HOME.equals(processingProfile);
     }
 
     static AgentFSFolderEntity folderForProcessingProfile(
@@ -342,7 +341,7 @@ public class AgentFSEventForwarder {
         folder.setStoragePolicy(AgentFSFolderProfile.STORAGE_AUTO);
         folder.setProcessingProfile(
                 processingProfile == null || processingProfile.isBlank()
-                        ? AgentFSFolderProfile.PROCESSING_SMALL_FILE_MEMORY
+                        ? AgentFSFolderProfile.PROCESSING_NONE
                         : processingProfile);
         return folder;
     }

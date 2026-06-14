@@ -59,7 +59,6 @@ pub enum ProcessingProfile {
     Dataset,
     Iceberg,
     Lance,
-    SmallFileMemory,
 }
 
 impl std::fmt::Display for ProcessingProfile {
@@ -70,7 +69,6 @@ impl std::fmt::Display for ProcessingProfile {
             Self::Dataset => "dataset",
             Self::Iceberg => "iceberg",
             Self::Lance => "lance",
-            Self::SmallFileMemory => "small-file-memory",
         };
         f.write_str(s)
     }

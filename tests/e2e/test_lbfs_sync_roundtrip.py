@@ -1,9 +1,9 @@
-"""E2E: sync an existing local directory to DBay AgentFS, then pull it back.
+"""E2E: sync an existing local directory to DBay LakebaseFS, then pull it back.
 
 This exercises the new general-folder flow without mounting FUSE:
 
   existing local dir -> dbay-fuse sync -> sync outbox
-  -> dbay-fuse outbox-drain -> DBay AgentFS
+  -> dbay-fuse outbox-drain -> DBay LakebaseFS
   -> dbay-fuse pull -> fresh local state dir
 
 NOTE: requires the dbay-fuse binary to be built (cargo build --release).
@@ -31,10 +31,10 @@ def _path_param(path: str) -> str:
     return base64.urlsafe_b64encode(path.encode()).decode().rstrip("=")
 
 
-def _agentfs_entries(client, prefix: str):
+def _lbfs_entries(client, prefix: str):
     resp = client._request(
         "GET",
-        "/agentfs/list",
+        "/lbfs/list",
         params={"prefix": _path_param(prefix), "recursive": "true"},
     )
     return resp.get("entries", [])
@@ -42,12 +42,12 @@ def _agentfs_entries(client, prefix: str):
 
 def _entry(entries, path: str):
     matches = [e for e in entries if e.get("path") == path]
-    assert matches, f"missing AgentFS entry {path}; entries={entries}"
+    assert matches, f"missing LakebaseFS entry {path}; entries={entries}"
     return matches[0]
 
 
 def _assert_profile(entry, *, folder, kind, storage, processing):
-    profile = entry.get("properties", {}).get("agentfs_profile")
+    profile = entry.get("properties", {}).get("lbfs_profile")
     assert profile == {
         "folder": folder,
         "directory_kind": kind,
@@ -58,8 +58,8 @@ def _assert_profile(entry, *, folder, kind, storage, processing):
 
 def test_sync_drain_pull_roundtrip_for_existing_data_dir(e2e_client, tmp_path):
     endpoint, key = e2e_client.endpoint, e2e_client.api_key
-    folder = f"e2e-agentfs-sync-{int(time.time() * 1000)}"
-    remote = f"/e2e-agentfs-sync/{folder}"
+    folder = f"e2e-lbfs-sync-{int(time.time() * 1000)}"
+    remote = f"/e2e-lbfs-sync/{folder}"
 
     home = tmp_path / "home"
     src = tmp_path / "src"
@@ -118,12 +118,12 @@ def test_sync_drain_pull_roundtrip_for_existing_data_dir(e2e_client, tmp_path):
         timeout=240,
     )
     assert "pull complete:" in pull.stdout
-    assert (pull_state / "e2e-agentfs-sync" / folder / "nested" / "a.md").read_text() == (
+    assert (pull_state / "e2e-lbfs-sync" / folder / "nested" / "a.md").read_text() == (
         f"hello from {folder}\n"
     )
-    assert folder in (pull_state / "e2e-agentfs-sync" / folder / "events.csv").read_text()
+    assert folder in (pull_state / "e2e-lbfs-sync" / folder / "events.csv").read_text()
 
-    entries = _agentfs_entries(e2e_client, remote + "/")
+    entries = _lbfs_entries(e2e_client, remote + "/")
     _assert_profile(
         _entry(entries, f"{remote}/events.csv"),
         folder=folder,
@@ -133,7 +133,7 @@ def test_sync_drain_pull_roundtrip_for_existing_data_dir(e2e_client, tmp_path):
     )
 
 
-def test_table_kind_profiles_reach_agentfs_server_model(e2e_client, tmp_path):
+def test_table_kind_profiles_reach_lbfs_server_model(e2e_client, tmp_path):
     endpoint, key = e2e_client.endpoint, e2e_client.api_key
     home = tmp_path / "home"
     (home / ".dbay").mkdir(parents=True)
@@ -154,8 +154,8 @@ def test_table_kind_profiles_reach_agentfs_server_model(e2e_client, tmp_path):
     ts = int(time.time() * 1000)
 
     for kind, processing, rel_path, payload in cases:
-        folder = f"e2e-agentfs-{kind}-{ts}"
-        remote = f"/e2e-agentfs-profiles/{folder}"
+        folder = f"e2e-lbfs-{kind}-{ts}"
+        remote = f"/e2e-lbfs-profiles/{folder}"
         src = tmp_path / folder
         (src / os.path.dirname(rel_path)).mkdir(parents=True)
         (src / rel_path).write_bytes(payload)
@@ -182,7 +182,7 @@ def test_table_kind_profiles_reach_agentfs_server_model(e2e_client, tmp_path):
         drain = _run([DBAY_FUSE_BIN, "outbox-drain", "--folder", folder], env)
         assert "outbox drain complete:" in drain.stdout
 
-        entries = _agentfs_entries(e2e_client, remote + "/")
+        entries = _lbfs_entries(e2e_client, remote + "/")
         _assert_profile(
             _entry(entries, f"{remote}/{rel_path}"),
             folder=folder,

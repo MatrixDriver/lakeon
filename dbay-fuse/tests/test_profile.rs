@@ -54,17 +54,17 @@ fn table_kinds_default_to_table_native_storage() {
 }
 
 #[test]
-fn small_files_inline_is_a_storage_policy_not_a_directory_kind() {
+fn files_inline_is_storage_only_and_keeps_no_processing() {
     let profile = FolderProfile::new(
         "notes",
         DirectoryKind::Files,
         Some(StoragePolicy::InlineOnly),
-        Some(ProcessingProfile::SmallFileMemory),
+        None,
     );
 
     assert_eq!(profile.directory_kind, DirectoryKind::Files);
     assert_eq!(profile.storage_policy, StoragePolicy::InlineOnly);
-    assert_eq!(profile.processing_profile, ProcessingProfile::SmallFileMemory);
+    assert_eq!(profile.processing_profile, ProcessingProfile::None);
 }
 
 #[test]

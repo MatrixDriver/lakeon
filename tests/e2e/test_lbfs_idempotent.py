@@ -1,4 +1,4 @@
-"""Regression tests for AgentFS PUT idempotency.
+"""Regression tests for LakebaseFS PUT idempotency.
 
 Motivation: Phase 2 will consume agent_files change events to derive
 memory_items. If PUT with unchanged content still bumps mtime_ns /
@@ -15,13 +15,13 @@ def _b64url(path: str) -> str:
     return base64.urlsafe_b64encode(path.encode()).rstrip(b"=").decode()
 
 
-def _agentfs_put(endpoint, api_key, path, data: bytes, retries=10, delay=4):
+def _lbfs_put(endpoint, api_key, path, data: bytes, retries=10, delay=4):
     """POST /files/put with retry — first call on a new tenant triggers
-    AgentFS database provisioning and may return 500 'not READY yet'."""
+    LakebaseFS database provisioning and may return 500 'not READY yet'."""
     last_err = None
     for _ in range(retries):
         r = requests.post(
-            f"{endpoint}/api/v1/agentfs/files/put",
+            f"{endpoint}/api/v1/lbfs/files/put",
             json={"path": path, "data_base64": base64.b64encode(data).decode()},
             headers={"Authorization": f"Bearer {api_key}"},
             verify=False,
@@ -34,9 +34,9 @@ def _agentfs_put(endpoint, api_key, path, data: bytes, retries=10, delay=4):
     raise RuntimeError(f"PUT never succeeded: {last_err}")
 
 
-def _agentfs_head(endpoint, api_key, path):
+def _lbfs_head(endpoint, api_key, path):
     r = requests.get(
-        f"{endpoint}/api/v1/agentfs/files/head",
+        f"{endpoint}/api/v1/lbfs/files/head",
         params={"path": _b64url(path)},
         headers={"Authorization": f"Bearer {api_key}"},
         verify=False,
@@ -59,14 +59,14 @@ def test_put_with_same_content_is_idempotent(e2e_client):
     data = b"deterministic content for idempotency check"
 
     # First write + readback (absorbs provisioning delay).
-    _agentfs_put(endpoint, api_key, path, data)
-    mt1 = _agentfs_head(endpoint, api_key, path)["mtime_ns"]
+    _lbfs_put(endpoint, api_key, path, data)
+    mt1 = _lbfs_head(endpoint, api_key, path)["mtime_ns"]
 
     # Ensure wall clock has moved so unconditional UPDATE would be visible.
     time.sleep(0.25)
 
-    _agentfs_put(endpoint, api_key, path, data)
-    mt2 = _agentfs_head(endpoint, api_key, path)["mtime_ns"]
+    _lbfs_put(endpoint, api_key, path, data)
+    mt2 = _lbfs_head(endpoint, api_key, path)["mtime_ns"]
 
     assert mt1 == mt2, (
         f"PUT with unchanged content must not bump mtime_ns: "
@@ -81,14 +81,14 @@ def test_put_with_changed_content_updates_mtime(e2e_client):
     api_key = e2e_client.api_key
     path = f"/change-test-{int(time.time()*1000)}.txt"
 
-    _agentfs_put(endpoint, api_key, path, b"initial")
-    first = _agentfs_head(endpoint, api_key, path)
+    _lbfs_put(endpoint, api_key, path, b"initial")
+    first = _lbfs_head(endpoint, api_key, path)
     mt1 = first["mtime_ns"]
     etag1 = first["etag"]
 
     time.sleep(0.25)
 
-    _agentfs_put(endpoint, api_key, path, b"modified")
-    second = _agentfs_head(endpoint, api_key, path)
+    _lbfs_put(endpoint, api_key, path, b"modified")
+    second = _lbfs_head(endpoint, api_key, path)
     assert second["etag"] != etag1
     assert second["mtime_ns"] > mt1

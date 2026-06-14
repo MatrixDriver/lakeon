@@ -11,11 +11,11 @@ class AgentFSProcessingRouterTest {
 
     @Test
     void dispatches_events_to_matching_processing_worker_only() {
-        RecordingWorker memory = new RecordingWorker("small-file-memory");
+        RecordingWorker memory = new RecordingWorker("agent-home");
         RecordingWorker dataset = new RecordingWorker("dataset");
         AgentFSProcessingRouter router = new AgentFSProcessingRouter(List.of(memory, dataset));
         AgentFSFolderEntity folder = new AgentFSFolderEntity();
-        folder.setProcessingProfile("small-file-memory");
+        folder.setProcessingProfile("agent-home");
 
         AgentFSProcessingResult result = router.dispatch(
                 folder,
@@ -29,7 +29,7 @@ class AgentFSProcessingRouterTest {
 
     @Test
     void none_processing_profile_does_not_dispatch() {
-        RecordingWorker memory = new RecordingWorker("small-file-memory");
+        RecordingWorker memory = new RecordingWorker("agent-home");
         AgentFSProcessingRouter router = new AgentFSProcessingRouter(List.of(memory));
         AgentFSFolderEntity folder = new AgentFSFolderEntity();
         folder.setProcessingProfile("none");

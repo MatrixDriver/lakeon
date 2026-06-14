@@ -1,4 +1,4 @@
-"""AgentFS Phase 2 quality E2E tests — real-corpus ground truth.
+"""LakebaseFS Phase 2 quality E2E tests — real-corpus ground truth.
 
 Uses the project maintainer's ~42 real memory md files from
 ~/.claude/projects/-Users-jacky-code-lakeon/memory as input.
@@ -7,8 +7,8 @@ Sensitive tokens (lk_*, sk-*) are redacted before upload.
 All 10 tests must PASS for Phase 2 to be considered shippable
 per CLAUDE.md E2E discipline.
 
-NOTE: These tests require Phase F deploy (AgentFS forwarder +
-/agentfs/derive endpoint) to be live. On an undeployed environment
+NOTE: These tests require Phase F deploy (LakebaseFS forwarder +
+/lbfs/derive endpoint) to be live. On an undeployed environment
 the seeded_base fixture will time out waiting for derivation.
 """
 import base64
@@ -22,7 +22,7 @@ import requests
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-from tests.e2e.conftest import poll_until
+from conftest import poll_until
 
 
 # --- Fixtures ----------------------------------------------------------
@@ -61,7 +61,7 @@ def real_memory_corpus():
 
 def _put(ep, key, path, data):
     r = requests.post(
-        f"{ep}/api/v1/agentfs/files/put",
+        f"{ep}/api/v1/lbfs/files/put",
         json={"path": path, "data_base64": base64.b64encode(data).decode()},
         headers={"Authorization": f"Bearer {key}"},
         verify=False, timeout=60,
@@ -72,7 +72,7 @@ def _put(ep, key, path, data):
 
 def _delete(ep, key, path):
     r = requests.post(
-        f"{ep}/api/v1/agentfs/files/delete",
+        f"{ep}/api/v1/lbfs/files/delete",
         json={"path": path},
         headers={"Authorization": f"Bearer {key}"},
         verify=False, timeout=60,
@@ -81,7 +81,7 @@ def _delete(ep, key, path):
 
 
 def _target(ep, key):
-    r = requests.get(f"{ep}/api/v1/agentfs/memory-target",
+    r = requests.get(f"{ep}/api/v1/lbfs/memory-target",
                      headers={"Authorization": f"Bearer {key}"},
                      verify=False, timeout=30)
     r.raise_for_status()
@@ -115,7 +115,7 @@ def _warm_up(ep, key):
             return
         except Exception:
             time.sleep(5)
-    raise RuntimeError("agentfs warmup failed")
+    raise RuntimeError("lbfs warmup failed")
 
 
 def _wait_target(ep, key, timeout=180):
@@ -158,10 +158,10 @@ def seeded_base(e2e_client, real_memory_corpus):
 def test_full_corpus_derives_all(e2e_client, seeded_base, real_memory_corpus):
     ep, key = e2e_client.endpoint, e2e_client.api_key
     rows = _list(ep, key, seeded_base["base_id"])
-    agentfs_rows = [r for r in rows
-                    if r.get("metadata", {}).get("source_system") == "agentfs"]
-    assert len(agentfs_rows) == len(real_memory_corpus), \
-        f"expected {len(real_memory_corpus)} derived, got {len(agentfs_rows)}"
+    lbfs_rows = [r for r in rows
+                    if r.get("metadata", {}).get("source_system") == "lbfs"]
+    assert len(lbfs_rows) == len(real_memory_corpus), \
+        f"expected {len(real_memory_corpus)} derived, got {len(lbfs_rows)}"
 
 
 def test_corpus_type_mapping(e2e_client, seeded_base):
@@ -256,11 +256,11 @@ def test_corpus_metadata_source_fields_preserved(e2e_client, seeded_base):
     ep, key = e2e_client.endpoint, e2e_client.api_key
     rows = _list(ep, key, seeded_base["base_id"])
     samples = [r for r in rows
-               if r.get("metadata", {}).get("source_system") == "agentfs"][:5]
-    assert len(samples) == 5, "need 5 agentfs-sourced rows to sample"
+               if r.get("metadata", {}).get("source_system") == "lbfs"][:5]
+    assert len(samples) == 5, "need 5 lbfs-sourced rows to sample"
     for r in samples:
         md = r["metadata"]
-        assert md.get("source_system") == "agentfs"
+        assert md.get("source_system") == "lbfs"
         assert md.get("source_path", "").startswith("/memory/") or \
                md.get("source_path", "").startswith("/projects/")
         etag = md.get("source_etag", "")
@@ -297,7 +297,7 @@ def test_corpus_delete_removes_from_recall(e2e_client, seeded_base, real_memory_
 
 def test_no_recall_pollution(e2e_client, seeded_base):
     """Established query top-3 lists should remain stable (Kendall tau >= 0.5)
-    after adding more AgentFS noise in the same base.
+    after adding more LakebaseFS noise in the same base.
 
     Note: we rely on the corpus already loaded in seeded_base; we don't
     load additional synthetic memories (that would require /memory/ingest
@@ -346,7 +346,7 @@ def test_concurrent_forwarder_no_duplicate_derive(e2e_client, seeded_base, real_
     by_path = {}
     for r in rows:
         p = r.get("metadata", {}).get("source_path", "")
-        if p.startswith("/memory/") and r.get("metadata", {}).get("source_system") == "agentfs":
+        if p.startswith("/memory/") and r.get("metadata", {}).get("source_system") == "lbfs":
             by_path.setdefault(p, 0)
             by_path[p] += 1
     dupes = {p: n for p, n in by_path.items() if n > 1}

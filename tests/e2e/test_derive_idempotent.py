@@ -1,11 +1,11 @@
-"""AgentFS Phase 2 derive idempotency regression.
+"""LakebaseFS Phase 2 derive idempotency regression.
 
 Direct property: duplicate PUTs of same content produce exactly 1
 memories row (guarded by UNIQUE (source_path, source_etag) index
 on per-base memories tables).
 
 Indirect E2E path:
-  lakeon-api /agentfs/put (idempotent via WHERE etag DISTINCT FROM)
+  lakeon-api /lbfs/put (idempotent via WHERE etag DISTINCT FROM)
   -> agent_files unchanged -> events_trigger fires once -> forwarder
   forwards once -> ingest_idempotent -> memories row unique.
 
@@ -20,14 +20,14 @@ import requests
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-from tests.e2e.conftest import poll_until
+from conftest import poll_until
 
 
 DERIVE_TIMEOUT = 180
 
 
 def _put(ep, key, path, data):
-    r = requests.post(f"{ep}/api/v1/agentfs/files/put",
+    r = requests.post(f"{ep}/api/v1/lbfs/files/put",
         json={"path": path, "data_base64": base64.b64encode(data).decode()},
         headers={"Authorization": f"Bearer {key}"},
         verify=False, timeout=60)
@@ -35,7 +35,7 @@ def _put(ep, key, path, data):
 
 
 def _target(ep, key):
-    r = requests.get(f"{ep}/api/v1/agentfs/memory-target",
+    r = requests.get(f"{ep}/api/v1/lbfs/memory-target",
                       headers={"Authorization": f"Bearer {key}"},
                       verify=False, timeout=30)
     r.raise_for_status()
@@ -60,16 +60,16 @@ def _warm_up(ep, key):
             return
         except Exception:
             time.sleep(5)
-    raise RuntimeError("agentfs warmup failed")
+    raise RuntimeError("lbfs warmup failed")
 
 
 def test_duplicate_puts_yield_single_memory_row(e2e_client):
     """PUT same (path, content) 5 times -> exactly 1 memory row derived.
 
     This exercises:
-      - server-side AgentFS PUT idempotency (no spurious events)
+      - server-side LakebaseFS PUT idempotency (no spurious events)
       - forwarder retry safety (UNIQUE index dedupes)
-      - memory-svc /agentfs/derive on-conflict-do-nothing
+      - memory-svc /lbfs/derive on-conflict-do-nothing
     """
     ep, key = e2e_client.endpoint, e2e_client.api_key
     _warm_up(ep, key)

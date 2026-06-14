@@ -382,7 +382,7 @@ function kindLabel(kind: LBFSDirectoryKind): string {
 
 function processingClass(profile: string): string {
   if (profile === 'none') return 'tag-gray'
-  if (profile === 'agent-home' || profile === 'small-file-memory') return 'tag-orange'
+  if (profile === 'agent-home') return 'tag-orange'
   if (profile === 'dataset') return 'tag-blue'
   return 'tag-green'
 }
