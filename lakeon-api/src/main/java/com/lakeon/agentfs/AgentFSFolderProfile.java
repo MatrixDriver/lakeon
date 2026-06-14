@@ -105,17 +105,40 @@ public record AgentFSFolderProfile(
     }
 
     public static String processingProfileFromProperties(String propertiesJson) {
+        JsonNode profile = lbfsProfileNode(propertiesJson);
+        if (profile == null) {
+            return null;
+        }
+        JsonNode processing = profile.path("processing_profile");
+        if (processing.isMissingNode() || processing.isNull() || processing.asText().isBlank()) {
+            return null;
+        }
+        return processing.asText().trim().toLowerCase();
+    }
+
+    public static String folderFromProperties(String propertiesJson) {
+        JsonNode profile = lbfsProfileNode(propertiesJson);
+        if (profile == null) {
+            return null;
+        }
+        JsonNode folder = profile.path("folder");
+        if (folder.isMissingNode() || folder.isNull() || folder.asText().isBlank()) {
+            return null;
+        }
+        return folder.asText().trim();
+    }
+
+    private static JsonNode lbfsProfileNode(String propertiesJson) {
         if (propertiesJson == null || propertiesJson.isBlank()) {
             return null;
         }
         try {
             JsonNode root = OBJECT_MAPPER.readTree(propertiesJson);
             JsonNode profile = root.path("lbfs_profile");
-            JsonNode processing = profile.path("processing_profile");
-            if (processing.isMissingNode() || processing.isNull() || processing.asText().isBlank()) {
+            if (profile.isMissingNode() || profile.isNull()) {
                 return null;
             }
-            return processing.asText().trim().toLowerCase();
+            return profile;
         } catch (Exception ignored) {
             return null;
         }

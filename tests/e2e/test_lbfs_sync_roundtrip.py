@@ -14,6 +14,8 @@ import base64
 import subprocess
 import time
 
+from conftest import poll_until
+
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DBAY_FUSE_BIN = os.path.join(REPO_ROOT, "dbay-fuse", "target", "release", "dbay-fuse")
@@ -38,6 +40,39 @@ def _lbfs_entries(client, prefix: str):
         params={"prefix": _path_param(prefix), "recursive": "true"},
     )
     return resp.get("entries", [])
+
+
+def _lbfs_folders(client):
+    return client._request("GET", "/lbfs/folders").get("folders", [])
+
+
+def _folder_by_name(client, name: str):
+    matches = [folder for folder in _lbfs_folders(client) if folder.get("display_name") == name]
+    return matches[0] if matches else None
+
+
+def _lbfs_auto_jobs(client, folder_id: str):
+    return client._request("GET", f"/lbfs/folders/{folder_id}/auto-jobs").get("auto_jobs", [])
+
+
+def _wait_for_auto_job(client, folder: str, *, path_suffix: str, profile: str):
+    registered = poll_until(
+        lambda: _folder_by_name(client, folder),
+        lambda candidate: candidate is not None,
+        timeout=60,
+        interval=5,
+    )
+    return poll_until(
+        lambda: _lbfs_auto_jobs(client, registered["id"]),
+        lambda jobs: any(
+            job.get("source_path", "").endswith(path_suffix)
+            and job.get("profile") == profile
+            and job.get("status") in ("running", "succeeded", "retrying")
+            for job in jobs
+        ),
+        timeout=180,
+        interval=10,
+    )
 
 
 def _entry(entries, path: str):
@@ -131,6 +166,17 @@ def test_sync_drain_pull_roundtrip_for_existing_data_dir(e2e_client, tmp_path):
         storage="object-first",
         processing="dataset",
     )
+    jobs = _wait_for_auto_job(
+        e2e_client,
+        folder,
+        path_suffix="/events.csv",
+        profile="dataset",
+    )
+    assert any(
+        job.get("source_path") == f"{remote}/events.csv"
+        and job.get("profile") == "dataset"
+        for job in jobs
+    )
 
 
 def test_table_kind_profiles_reach_lbfs_server_model(e2e_client, tmp_path):
@@ -189,4 +235,15 @@ def test_table_kind_profiles_reach_lbfs_server_model(e2e_client, tmp_path):
             kind=kind,
             storage="table-native",
             processing=processing,
+        )
+        jobs = _wait_for_auto_job(
+            e2e_client,
+            folder,
+            path_suffix="/" + rel_path,
+            profile=processing,
+        )
+        assert any(
+            job.get("source_path") == f"{remote}/{rel_path}"
+            and job.get("profile") == processing
+            for job in jobs
         )
