@@ -284,6 +284,7 @@ class BackupServiceTest {
             assertThat(result.getName()).isEqualTo("restored-db");
             assertThat(result.getNeonTimelineId()).isEqualTo("neon-timeline-restored");
             assertThat(result.getConnectionUri()).contains("/my-db?options=endpoint%3Drestored-db");
+            assertThat(result.isRecoveredFromPitr()).isTrue();
             assertThat(result.getStatus()).isEqualTo(DatabaseStatus.SUSPENDED);
             verify(neonApiClient).createTimeline(eq("neon-tenant-abc"), any());
             verify(databaseService).buildConnectionUri("cloud_admin", "my-db", "restored-db");

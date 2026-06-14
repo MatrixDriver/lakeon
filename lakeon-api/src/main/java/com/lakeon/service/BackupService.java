@@ -212,6 +212,7 @@ public class BackupService {
             // endpoint name is the restored DB name, but the URI path must stay sourceDb.name.
             restoredDb.setConnectionUri(databaseService.buildConnectionUri(
                 sourceDb.getDbUser(), sourceDb.getName(), req.name()));
+            restoredDb.setRecoveredFromPitr(true);
 
             restoredDb = databaseRepository.save(restoredDb);
 
