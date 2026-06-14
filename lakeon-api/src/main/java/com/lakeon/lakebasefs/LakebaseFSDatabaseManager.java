@@ -29,7 +29,7 @@ import java.util.UUID;
  * Provisions and routes per-tenant LakebaseFS databases.
  *
  * <p>First time a tenant uses LakebaseFS, we:
- *   1) create a new Lakebase database (name like lbfs_xxxxxxxx),
+ *   1) create a new Lakebase database (name like lbfs-xxxxxxxx),
  *   2) wait for it to be READY,
  *   3) connect with admin creds and create the `files` table,
  *   4) record (tenant_id → database_id) in lbfs_assignments.
@@ -156,7 +156,7 @@ public class LakebaseFSDatabaseManager {
         }
 
         // First time — kick off provisioning.
-        String slug = "lbfs_" + UUID.randomUUID().toString().substring(0, 8);
+        String slug = newDatabaseSlug();
         log.info("provisioning LakebaseFS database {} for tenant {}", slug, tenant.getId());
         DatabaseResponse resp = databaseService.create(tenant, new CreateDatabaseRequest(slug, null, null, null));
 
@@ -189,6 +189,10 @@ public class LakebaseFSDatabaseManager {
             try { Thread.sleep(1000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
         }
         return databaseRepository.findById(dbId).orElseThrow();
+    }
+
+    static String newDatabaseSlug() {
+        return "lbfs-" + UUID.randomUUID().toString().substring(0, 8);
     }
 
     private void initSchemaAndMarkReady(LakebaseFSAssignmentEntity asg, DatabaseEntity db) {

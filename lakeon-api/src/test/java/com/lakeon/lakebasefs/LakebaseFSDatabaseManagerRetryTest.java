@@ -49,4 +49,11 @@ class LakebaseFSDatabaseManagerRetryTest {
     void null_message_safe() {
         assertFalse(LakebaseFSDatabaseManager.isStaleHostError(new SQLException()));
     }
+
+    @Test
+    void generated_lbfs_database_slug_is_compute_project_name_safe() {
+        String slug = LakebaseFSDatabaseManager.newDatabaseSlug();
+
+        assertTrue(slug.matches("lbfs-[a-f0-9]{8}"), slug);
+    }
 }
