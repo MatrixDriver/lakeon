@@ -5,8 +5,8 @@
 //!   2. The outbox — async upload queue to DBay LakebaseFS
 //!
 //! The outbox enqueue happens at "flush triggers":
-//!   · release (close)            — handled here
-//!   · fsync                      — handled here
+//!   · release/FUSE flush (close) — queued to the background watchdog
+//!   · fsync                      — synchronous, for explicit durability
 //!   · watchdog idle-500ms / dirty-1MB — handled by flush_watchdog via
 //!     this module's `flush_dirty()` entry point.
 //!
@@ -45,8 +45,18 @@ pub fn mount(
     let outbox = Arc::new(Outbox::open(outbox_dir)?);
     let append_map = append_state::new_map();
 
+    // Trigger a mount-start rescan so files written to state but not yet
+    // flushed before a previous daemon exit are reconstructed into outbox ops.
+    crate::state_scan::write_rescan_trigger(outbox_dir)?;
+
     // Start uplink worker (reads outbox, POSTs to LakebaseFS)
-    crate::uplink_worker::spawn(agent, outbox.clone(), state_dir, outbox_dir)?;
+    crate::uplink_worker::spawn(
+        agent,
+        outbox.clone(),
+        state_dir,
+        outbox_dir,
+        Some(profile.properties()),
+    )?;
 
     // Start flush watchdog (idle + size triggers)
     let watchdog = FlushWatchdog::spawn();
@@ -549,8 +559,10 @@ impl Filesystem for PassthroughFS {
         _lock_owner: u64,
         reply: ReplyEmpty,
     ) {
-        if let Err(e) = self.flush_fh(fh) {
-            tracing::warn!(?e, "flush enqueue failed");
+        if let Some(f) = self.files.get(&fh) {
+            if let Some(rel) = relative_to_root(&self.root, &f.real_path) {
+                let _ = self.flush_tx.send(FlushCmd::Closed { path: rel });
+            }
         }
         reply.ok();
     }
@@ -582,7 +594,6 @@ impl Filesystem for PassthroughFS {
         _flush: bool,
         reply: ReplyEmpty,
     ) {
-        let _ = self.flush_fh(fh);
         if let Some(f) = self.files.remove(&fh) {
             if let Some(rel) = relative_to_root(&self.root, &f.real_path) {
                 let _ = self.flush_tx.send(FlushCmd::Closed { path: rel });

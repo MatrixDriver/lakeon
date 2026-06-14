@@ -114,11 +114,20 @@ pub fn consume_rescan_trigger(
     outbox: &Outbox,
     trigger_path: &Path,
 ) -> Result<usize> {
+    consume_rescan_trigger_with_properties(state_root, outbox, trigger_path, None)
+}
+
+pub fn consume_rescan_trigger_with_properties(
+    state_root: &Path,
+    outbox: &Outbox,
+    trigger_path: &Path,
+    properties: Option<&serde_json::Value>,
+) -> Result<usize> {
     if !trigger_path.exists() {
         return Ok(0);
     }
     let entries = walk(state_root);
-    let n = enqueue_scan(&entries, state_root, outbox)?;
+    let n = enqueue_scan_with_properties(&entries, state_root, outbox, properties)?;
     // Remove AFTER enqueue so a crash mid-scan leaves the trigger in
     // place and the next poll retries. Re-enqueueing identical Puts is
     // absorbed by the server-side etag idempotency.
@@ -135,6 +144,15 @@ pub fn consume_rescan_trigger(
 /// idempotent (skips UPDATE when etag unchanged), so re-uploading the
 /// same content is a cheap no-op on the DB side.
 pub fn enqueue_scan(entries: &[ScanEntry], state_root: &Path, outbox: &Outbox) -> Result<usize> {
+    enqueue_scan_with_properties(entries, state_root, outbox, None)
+}
+
+pub fn enqueue_scan_with_properties(
+    entries: &[ScanEntry],
+    state_root: &Path,
+    outbox: &Outbox,
+    properties: Option<&serde_json::Value>,
+) -> Result<usize> {
     let blobs = outbox.blobs_dir();
     let mut count = 0;
     for e in entries {
@@ -143,7 +161,7 @@ pub fn enqueue_scan(entries: &[ScanEntry], state_root: &Path, outbox: &Outbox) -
             Kind::Dir => {
                 outbox.enqueue(Op::Mkdir {
                     path: virt,
-                    properties: None,
+                    properties: properties.cloned(),
                 })?;
                 count += 1;
             }
@@ -152,7 +170,7 @@ pub fn enqueue_scan(entries: &[ScanEntry], state_root: &Path, outbox: &Outbox) -
                 let data = std::fs::read(&real)
                     .with_context(|| format!("read {}", real.display()))?;
                 let sha = outbox::write_blob(&blobs, &data)?;
-                outbox.enqueue(Op::Put { path: virt, blob: sha, properties: None })?;
+                outbox.enqueue(Op::Put { path: virt, blob: sha, properties: properties.cloned() })?;
                 count += 1;
             }
         }
@@ -248,6 +266,43 @@ mod tests {
                 assert_eq!(data, b"hello");
             }
             other => panic!("expected Put at index 1, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn enqueue_scan_can_attach_profile_properties() {
+        let tmp_state = tempdir().unwrap();
+        let tmp_outbox = tempdir().unwrap();
+
+        fs::create_dir_all(tmp_state.path().join("datasets")).unwrap();
+        fs::write(tmp_state.path().join("datasets/orders.csv"), b"id\n1\n").unwrap();
+
+        let outbox = Outbox::open(tmp_outbox.path()).unwrap();
+        let entries = walk(tmp_state.path());
+        let properties = serde_json::json!({
+            "lbfs_profile": {
+                "folder": "bench",
+                "directory_kind": "data-dir",
+                "storage_policy": "object-first",
+                "processing_profile": "dataset"
+            }
+        });
+        let count = enqueue_scan_with_properties(
+            &entries,
+            tmp_state.path(),
+            &outbox,
+            Some(&properties),
+        )
+        .unwrap();
+        assert_eq!(count, 2);
+
+        for entry in outbox.pending() {
+            match entry.op {
+                Op::Mkdir { properties: Some(p), .. } | Op::Put { properties: Some(p), .. } => {
+                    assert_eq!(p, properties);
+                }
+                other => panic!("expected properties on scan op, got {:?}", other),
+            }
         }
     }
 

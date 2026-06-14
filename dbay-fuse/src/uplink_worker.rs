@@ -27,7 +27,13 @@ const MAX_BATCH: usize = 50;
 const DRAIN_RETRIES: usize = 5;
 const DRAIN_RETRY_SLEEP: Duration = Duration::from_secs(10);
 
-pub fn spawn(agent: &str, outbox: Arc<Outbox>, state_dir: &Path, outbox_dir: &Path) -> Result<()> {
+pub fn spawn(
+    agent: &str,
+    outbox: Arc<Outbox>,
+    state_dir: &Path,
+    outbox_dir: &Path,
+    rescan_properties: Option<serde_json::Value>,
+) -> Result<()> {
     let agent = agent.to_string();
     let state_dir = state_dir.to_path_buf();
     let outbox_dir = outbox_dir.to_path_buf();
@@ -42,7 +48,7 @@ pub fn spawn(agent: &str, outbox: Arc<Outbox>, state_dir: &Path, outbox_dir: &Pa
     let ledger = Ledger::open(&ledger_path)
         .with_context(|| format!("open ledger {}", ledger_path.display()))?;
     thread::spawn(move || {
-        if let Err(e) = run(agent, outbox, client, state_dir, outbox_dir, ledger) {
+        if let Err(e) = run(agent, outbox, client, state_dir, outbox_dir, ledger, rescan_properties) {
             tracing::error!(?e, "uplink worker crashed");
         }
     });
@@ -110,6 +116,7 @@ fn run(
     state_dir: PathBuf,
     outbox_dir: PathBuf,
     ledger: Ledger,
+    rescan_properties: Option<serde_json::Value>,
 ) -> Result<()> {
     tracing::info!(has_client = client.is_some(), "uplink worker started");
     let trigger_path = state_scan::rescan_trigger_path(&outbox_dir);
@@ -117,7 +124,12 @@ fn run(
         // Folder tools can signal a rescan by creating the trigger file.
         // Consume before the pending
         // check so the new ops join this iteration's batch.
-        match state_scan::consume_rescan_trigger(&state_dir, &outbox, &trigger_path) {
+        match state_scan::consume_rescan_trigger_with_properties(
+            &state_dir,
+            &outbox,
+            &trigger_path,
+            rescan_properties.as_ref(),
+        ) {
             Ok(0) => {}
             Ok(n) => tracing::info!(enqueued = n, "rescan trigger consumed"),
             Err(e) => tracing::warn!(?e, "rescan trigger consumption failed, will retry"),
