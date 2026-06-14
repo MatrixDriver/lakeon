@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Full POSIX op benchmark: AgentFS (FUSE) vs Native FS.
+"""Full POSIX op benchmark: LakebaseFS (FUSE) vs Native FS.
 
 Each op runs N times on each backend; we report mean / p50 / p95 in ms.
-For AgentFS write-side ops, "user_ms" is what CC sees (release returns
+For LakebaseFS write-side ops, "user_ms" is what CC sees (release returns
 data fully written to local state + appended to outbox).
 
 Workloads:
@@ -197,7 +197,7 @@ def main():
     if not (FUSE_ROOT.parent.parent).exists():
         print("FUSE mount not ready", file=sys.stderr); sys.exit(1)
     nat = bench_all("native", NATIVE_ROOT)
-    fus = bench_all("AgentFS", FUSE_ROOT)
+    fus = bench_all("LakebaseFS", FUSE_ROOT)
     print()
     print(f"=== summary (mean ms, ratio = FUSE / native) ===")
     for op in ['create_small', 'create_large_64K', 'append_small', 'overwrite_small',

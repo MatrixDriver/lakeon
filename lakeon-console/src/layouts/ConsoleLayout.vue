@@ -64,6 +64,11 @@
                 <path d="M8 18h10" />
                 <path d="M9 8h6" />
               </template>
+              <template v-else-if="mode.icon === 'lbfs'">
+                <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H10l2 2h5.5A2.5 2.5 0 0 1 20 9.5v7A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-9Z" />
+                <path d="M8 12h8" />
+                <path d="M8 15h5" />
+              </template>
               <template v-else-if="mode.icon === 'memory'">
                 <path d="M8 15a6 6 0 1 1 8 0c-.94.78-1.5 1.75-1.5 3h-5c0-1.25-.56-2.22-1.5-3Z" />
                 <path d="M9.5 21h5" />
@@ -139,10 +144,10 @@ type NavGroup = {
 }
 
 type WorkspaceMode = {
-  id: 'database' | 'agent' | 'knowledge' | 'memory' | 'ops'
+  id: 'database' | 'agent' | 'knowledge' | 'lbfs' | 'memory' | 'ops'
   label: string
   shortLabel: string
-  icon: 'database' | 'agent' | 'knowledge' | 'memory' | 'ops'
+  icon: 'database' | 'agent' | 'knowledge' | 'lbfs' | 'memory' | 'ops'
   description: string
   to: string
   match: string[]
@@ -193,18 +198,12 @@ const workspaceModes: WorkspaceMode[] = [
     icon: 'agent',
     description: '任务、证据与治理审计',
     to: '/agent-state',
-    match: ['/agent-state', '/agentfs'],
+    match: ['/agent-state'],
     groups: [
       {
         title: '工作状态',
         items: [
           { label: '任务运行', to: '/agent-state', icon: '▢' },
-        ],
-      },
-      {
-        title: '智能体文件',
-        items: [
-          { label: '浏览文件', to: '/agentfs', icon: '□' },
         ],
       },
     ],
@@ -224,6 +223,23 @@ const workspaceModes: WorkspaceMode[] = [
           { label: '知识库', to: '/knowledge', icon: '▤' },
           { label: '原文搜索', to: '/knowledge/search', icon: '⌕' },
           { label: 'Wiki 对话', to: '/knowledge/chat', icon: '□' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'lbfs',
+    label: 'LakebaseFS',
+    shortLabel: 'LakebaseFS',
+    icon: 'lbfs',
+    description: '本地目录、文件与同步',
+    to: '/lbfs',
+    match: ['/lbfs'],
+    groups: [
+      {
+        title: '文件系统',
+        items: [
+          { label: '浏览文件', to: '/lbfs', icon: '□' },
         ],
       },
     ],

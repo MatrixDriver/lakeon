@@ -1,10 +1,10 @@
 //! State-dir scan: walk the passthrough state directory and produce
-//! the ordered sequence of ops needed to replicate it to AgentFS.
+//! the ordered sequence of ops needed to replicate it to LakebaseFS.
 //!
 //! Used by folder import/sync flows and by mount-mode rescans. Server-side
 //! idempotency absorbs re-uploading unchanged content.
 //!
-//! Server-side idempotency (AgentFSService.upsertFile WHERE etag IS
+//! Server-side idempotency (LakebaseFSService.upsertFile WHERE etag IS
 //! DISTINCT FROM ...) absorbs the cost of re-uploading unchanged
 //! content, so this module has no local ledger — the server is the
 //! source of truth for "already synced".
@@ -58,7 +58,7 @@ fn walk_inner(real_root: &Path, rel: &Path, out: &mut Vec<ScanEntry>) {
         } else if ft.is_file() {
             out.push(ScanEntry { rel: child_rel, kind: Kind::File });
         }
-        // symlinks / sockets / fifos are ignored — AgentFS schema has
+        // symlinks / sockets / fifos are ignored — LakebaseFS schema has
         // no representation for them.
     }
 }
@@ -68,7 +68,7 @@ fn should_skip(name: &std::ffi::OsStr) -> bool {
     matches!(s.as_ref(), ".DS_Store" | "Thumbs.db" | ".git")
 }
 
-/// Convert a state-relative path to the virtual AgentFS path.
+/// Convert a state-relative path to the virtual LakebaseFS path.
 /// Mirrors passthrough::to_virt_path.
 fn to_virt_path(rel: &Path) -> String {
     let s = rel.to_string_lossy();

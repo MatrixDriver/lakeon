@@ -17,7 +17,7 @@ public class AsyncConfig {
         // 2026-04-23: bumped from 2/4/10 after Phase 2 auto-provisioning
         // stress exposed provisioning queue contention when E2E spins up
         // multiple disposable tenants in parallel (each tenant triggers
-        // at least 2 DB provisionings: its AgentFS store + its memory
+        // at least 2 DB provisionings: its LakebaseFS store + its memory
         // base). 4/8/20 gives enough headroom without pressuring the
         // Neon pageserver too hard.
         executor.setCorePoolSize(4);

@@ -199,7 +199,7 @@
             <th>记忆数</th>
             <th>特征数</th>
             <th>状态</th>
-            <th>AgentFS 目标</th>
+            <th>LakebaseFS 目标</th>
             <th>创建时间</th>
             <th>操作</th>
           </tr>
@@ -209,9 +209,9 @@
             <td style="font-weight: 500; color: #9a5b25;">
               {{ item.name }}
               <span
-                v-if="item.is_agentfs_target && item.auto_created"
+                v-if="item.is_lbfs_target && item.auto_created"
                 class="badge-auto"
-                title="系统自动创建（AgentFS 派生库）"
+                title="系统自动创建（LakebaseFS 派生库）"
               >[auto]</span>
               <span v-if="item.scene" style="font-size: 11px; padding: 1px 6px; border-radius: 3px; margin-left: 8px;"
                     :style="item.scene === 'DEVELOPER_TOOL' ? 'background:#e8f5e9;color:#2e7d32' : 'background:#fdf5ed;color:#1565c0'">
@@ -235,7 +235,7 @@
               </span>
             </td>
             <td @click.stop>
-              <AgentFSTargetToggle
+              <LBFSTargetToggle
                 :base-id="item.id"
                 :current-target-base-id="currentTargetId"
                 @changed="onTargetChanged"
@@ -282,7 +282,7 @@ import { listMemoryBases, createMemoryBase, deleteMemoryBase, type MemoryBase } 
 import ViewToggle from '../../components/ViewToggle.vue'
 import ResourceCard from '../../components/ResourceCard.vue'
 import CardMenu from '../../components/CardMenu.vue'
-import AgentFSTargetToggle from '../../components/memory/AgentFSTargetToggle.vue'
+import LBFSTargetToggle from '../../components/memory/LBFSTargetToggle.vue'
 
 const router = useRouter()
 const viewMode = ref<'card' | 'table'>('card')
@@ -308,7 +308,7 @@ const createForm = ref({
 })
 
 const currentTargetId = computed(() => {
-  const match = memoryBases.value.find(b => b.is_agentfs_target)
+  const match = memoryBases.value.find(b => b.is_lbfs_target)
   return match ? match.id : null
 })
 

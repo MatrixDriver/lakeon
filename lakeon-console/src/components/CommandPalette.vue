@@ -74,6 +74,7 @@ const allGroups: CmdGroup[] = [
       { label: 'SQL 编辑器', icon: '⟩', route: '/sql' },
       { label: '知识库', icon: '◇', route: '/knowledge' },
       { label: '原文搜索', icon: '⊘', route: '/knowledge/search' },
+      { label: 'LakebaseFS', icon: 'FS', route: '/lbfs' },
       { label: '记忆库', icon: '◎', route: '/memory' },
       { label: '记忆浏览', icon: '◉', route: '/memory/browse' },
       { label: '数据集', icon: '▤', route: '/datalake/datasets' },

@@ -67,8 +67,8 @@ async def ingest_idempotent(connstr: str, content: str, memory_type: str,
 async def delete_by_source_path(connstr: str, source_path: str) -> int:
     """Delete memories whose metadata->>'source_path' matches.
 
-    Returns the count of rows deleted. Used by /agentfs/derive op=delete
-    to propagate AgentFS file deletions into the memories table.
+    Returns the count of rows deleted. Used by /lbfs/derive op=delete
+    to propagate LakebaseFS file deletions into the memories table.
     """
     conn = _connect(connstr)
     try:

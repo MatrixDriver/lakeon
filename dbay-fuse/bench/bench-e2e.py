@@ -3,12 +3,12 @@
 
 Compares:
   A. Native FS           (/tmp/bench_native_v4)
-  B. AgentFS via FUSE    (~/.dbay/mnt/claude/memory/bench-e2e)
+  B. LakebaseFS via FUSE    (~/.dbay/mnt/claude/memory/bench-e2e)
 
 For each op we report two metrics:
   - user_ms  : what CC sees (syscall return)
   - e2e_ms   : wall time until the file is readable from DBay
-               (polls GET /agentfs/files until HTTP 200 with matching etag)
+               (polls GET /lbfs/files until HTTP 200 with matching etag)
 """
 import base64, json, pathlib, shutil, statistics, subprocess, sys, time
 import urllib.request, urllib.error
@@ -42,8 +42,8 @@ def b64url(s: str) -> str:
 
 
 def cloud_read(path: str):
-    """GET /agentfs/files; return (status, body_bytes)."""
-    url = f"{BASE_URL}/agentfs/files?path={b64url(path)}"
+    """GET /lbfs/files; return (status, body_bytes)."""
+    url = f"{BASE_URL}/lbfs/files?path={b64url(path)}"
     try:
         with urllib.request.urlopen(urllib.request.Request(url, headers=H), timeout=10) as r:
             return r.status, r.read()
@@ -119,18 +119,18 @@ def main():
     print()
     print("op 1: append 40B JSON line × N  (session.jsonl growing)")
     u_n, _ = bench("native FS",    NATIVE_ROOT, is_fuse=False)
-    u_f, e_f = bench("AgentFS",    FUSE_ROOT,   is_fuse=True)
+    u_f, e_f = bench("LakebaseFS",    FUSE_ROOT,   is_fuse=True)
     print()
     fmt("native FS", "append",  u_n, {"mean":0,"p50":0,"p95":0,"max":0})
-    fmt("AgentFS",   "append",  u_f, e_f)
+    fmt("LakebaseFS",   "append",  u_f, e_f)
 
     print()
     print("op 2: create 2KB md file × N")
     u_n2, _ = bench_create("native FS",    NATIVE_ROOT, is_fuse=False)
-    u_f2, e_f2 = bench_create("AgentFS",   FUSE_ROOT,   is_fuse=True)
+    u_f2, e_f2 = bench_create("LakebaseFS",   FUSE_ROOT,   is_fuse=True)
     print()
     fmt("native FS", "create_md", u_n2, {"mean":0,"p50":0,"p95":0,"max":0})
-    fmt("AgentFS",   "create_md", u_f2, e_f2)
+    fmt("LakebaseFS",   "create_md", u_f2, e_f2)
 
     print()
     print("=== Interpretation ===")

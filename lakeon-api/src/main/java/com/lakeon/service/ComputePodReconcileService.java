@@ -24,7 +24,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *   - if pod is missing -> mark status=SUSPENDED so next ensureRunning re-provisions cold
  *
  * Complements the on-call L1 reconcile (in DatabaseService warm paths) and
- * the reactive L2 retry (AgentFSDatabaseManager.openAdmin). L3 gives SRE
+ * the reactive L2 retry (LakebaseFSDatabaseManager.openAdmin). L3 gives SRE
  * visibility into drift rate and catches slow corner cases.
  */
 @Component

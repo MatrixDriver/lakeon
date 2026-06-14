@@ -28,8 +28,8 @@ LARGE = b"x" * 65536              # 64KB
 def b64url(s): return base64.urlsafe_b64encode(s.encode()).rstrip(b"=").decode()
 
 def cloud_head(path):
-    """GET /agentfs/files/head — returns dict or None if 404."""
-    url = f"{BASE_URL}/agentfs/files/head?path={b64url(path)}"
+    """GET /lbfs/files/head — returns dict or None if 404."""
+    url = f"{BASE_URL}/lbfs/files/head?path={b64url(path)}"
     try:
         with urllib.request.urlopen(urllib.request.Request(url, headers=H), timeout=10) as r:
             return json.loads(r.read())
@@ -40,7 +40,7 @@ def cloud_head(path):
         return None
 
 def cloud_list(prefix):
-    url = f"{BASE_URL}/agentfs/list?prefix={b64url(prefix)}&recursive=true"
+    url = f"{BASE_URL}/lbfs/list?prefix={b64url(prefix)}&recursive=true"
     try:
         with urllib.request.urlopen(urllib.request.Request(url, headers=H), timeout=10) as r:
             return json.loads(r.read()).get("entries", [])
@@ -48,7 +48,7 @@ def cloud_list(prefix):
         return []
 
 def cloud_read(path):
-    url = f"{BASE_URL}/agentfs/files?path={b64url(path)}"
+    url = f"{BASE_URL}/lbfs/files?path={b64url(path)}"
     try:
         with urllib.request.urlopen(urllib.request.Request(url, headers=H), timeout=10) as r:
             return r.read()

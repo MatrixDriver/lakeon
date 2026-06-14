@@ -115,6 +115,8 @@ const routes = [
       { path: 'knowledge/chat', name: 'KnowledgeChat', component: () => import('../views/knowledge/KnowledgeChatPage.vue') },
       { path: 'knowledge/:kbId', name: 'KnowledgeBaseDetail', component: () => import('../views/knowledge/KnowledgeBaseDetail.vue') },
       { path: 'knowledge/:kbId/documents/:docId', name: 'DocumentDetail', component: () => import('../views/knowledge/DocumentDetail.vue') },
+      // LakebaseFS — generic file system
+      { path: 'lbfs', name: 'LakebaseFSBrowse', component: () => import('../views/lbfs/LakebaseFSBrowse.vue') },
       // Memory — static routes MUST come before :memId
       { path: 'memory', name: 'MemoryBases', component: () => import('../views/memory/MemoryBases.vue') },
       { path: 'memory/browse', name: 'MemoryBrowse', component: () => import('../views/memory/MemoryBrowse.vue') },
@@ -122,8 +124,6 @@ const routes = [
       { path: 'memory/messages', redirect: '/memory' },
       { path: 'memory/stats', redirect: '/memory' },
       { path: 'memory/:memId', name: 'MemoryBaseDetail', component: () => import('../views/memory/MemoryBaseDetail.vue') },
-      // Agent 文件 (AgentFS)
-      { path: 'agentfs', name: 'AgentFSBrowse', component: () => import('../views/agentfs/AgentFSBrowse.vue') },
     ],
   },
 ]

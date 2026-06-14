@@ -54,7 +54,7 @@ public class ComputePodManager {
      * saves the entity, returning true. If already matches, returns true.
      *
      * Addresses the "stale compute_host after pod restart" class of failures
-     * observed 2026-04-23 when AgentFS PUT started returning "database does
+     * observed 2026-04-23 when LakebaseFS PUT started returning "database does
      * not exist" because the recorded host was pointed at a different pod.
      */
     public boolean reconcileComputeHost(DatabaseEntity entity) {

@@ -1,4 +1,4 @@
-"""Integration tests for POST /agentfs/derive endpoint."""
+"""Integration tests for POST /lbfs/derive endpoint."""
 import sys, os, pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -52,7 +52,7 @@ def _req(op, path, **kw):
 
 
 def test_derive_create_returns_200(test_connstr):
-    r = client.post("/agentfs/derive",
+    r = client.post("/lbfs/derive",
         headers={"x-database-connstr": test_connstr},
         json=_req("create", "/memory/foo.md", content="body", memory_type="procedural"))
     assert r.status_code == 200
@@ -63,8 +63,8 @@ def test_derive_create_returns_200(test_connstr):
 
 def test_derive_duplicate_is_idempotent_noop(test_connstr):
     req = _req("create", "/memory/dup.md", content="body", memory_type="procedural")
-    r1 = client.post("/agentfs/derive", headers={"x-database-connstr": test_connstr}, json=req)
-    r2 = client.post("/agentfs/derive", headers={"x-database-connstr": test_connstr}, json=req)
+    r1 = client.post("/lbfs/derive", headers={"x-database-connstr": test_connstr}, json=req)
+    r2 = client.post("/lbfs/derive", headers={"x-database-connstr": test_connstr}, json=req)
     assert r1.status_code == 200 and r1.json()["status"] == "ingested"
     assert r2.status_code == 200 and r2.json()["status"] == "idempotent_noop"
     # only one row
@@ -78,10 +78,10 @@ def test_derive_duplicate_is_idempotent_noop(test_connstr):
 
 def test_derive_delete_removes_row(test_connstr):
     # seed
-    client.post("/agentfs/derive", headers={"x-database-connstr": test_connstr},
+    client.post("/lbfs/derive", headers={"x-database-connstr": test_connstr},
       json=_req("create", "/memory/rm.md", content="b", memory_type="procedural"))
     # delete
-    r = client.post("/agentfs/derive", headers={"x-database-connstr": test_connstr},
+    r = client.post("/lbfs/derive", headers={"x-database-connstr": test_connstr},
       json=_req("delete", "/memory/rm.md"))
     assert r.status_code == 200
     assert r.json()["status"] == "deleted"
@@ -94,7 +94,7 @@ def test_derive_delete_removes_row(test_connstr):
 
 
 def test_derive_create_without_content_returns_400(test_connstr):
-    r = client.post("/agentfs/derive",
+    r = client.post("/lbfs/derive",
         headers={"x-database-connstr": test_connstr},
         json=_req("create", "/memory/missing.md"))  # no content / memory_type
     assert r.status_code == 400
@@ -104,7 +104,7 @@ def test_derive_metadata_includes_source_fields(test_connstr):
     req = _req("create", "/memory/mf.md",
                content="c", memory_type="fact",
                source_frontmatter={"type": "feedback", "name": "x"})
-    r = client.post("/agentfs/derive",
+    r = client.post("/lbfs/derive",
         headers={"x-database-connstr": test_connstr}, json=req)
     assert r.status_code == 200
     import psycopg2, json as js
@@ -112,7 +112,7 @@ def test_derive_metadata_includes_source_fields(test_connstr):
     with conn.cursor() as cur:
         cur.execute("SELECT metadata FROM memories WHERE metadata->>'source_path'='/memory/mf.md'")
         md = cur.fetchone()[0]
-    assert md["source_system"] == "agentfs"
+    assert md["source_system"] == "lbfs"
     assert md["source_path"] == "/memory/mf.md"
     assert md["source_etag"] == "e1"
     assert md["source_agent"] == "claude"

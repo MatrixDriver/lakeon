@@ -72,7 +72,7 @@ class StuckTaskQueryServiceTest {
     void undefinedTableHandledGracefully() {
         when(query.getResultList())
                 .thenReturn(List.of())   // wiki_run_logs
-                .thenReturn(List.of())   // agentfs_jobs
+                .thenReturn(List.of())   // lbfs_jobs
                 .thenThrow(new PersistenceException("relation does not exist"));  // kb_processing_tasks
         Map<String, Object> result = service.run(10, null);
         assertThat(result.get("count")).isEqualTo(0);

@@ -53,7 +53,7 @@ LakebaseFS already has:
 - Backend public routes under `/api/v1/lbfs`.
 - Rust client commands for `mount`, `sync`, `import`, `pull`, and `outbox-drain`.
 - Directory profile concepts in `dbay-fuse/src/profile.rs`: `codex-home`, `claude-home`, `openclaw-home`, `iceberg-table`, `lance-table`, `data-dir`, `files`.
-- A Java processing router abstraction in `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSProcessingRouter.java`.
+- A Java processing router abstraction in `lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSProcessingRouter.java`.
 - Memory derive forwarding for small files through `memory/service/main.py` `/lbfs/derive`.
 
 LakebaseFS still needs:
@@ -86,7 +86,7 @@ opencode DataAgent still needs:
 External directory
   -> dbay-fuse mount or sync
   -> /api/v1/lbfs files and folder registry
-  -> tenant agentfs_events
+  -> tenant lbfs_events
   -> LakebaseFS processing router
   -> profile-specific async worker
   -> LakebaseFS metadata, DBay data source registry, memory derive, or table metadata
@@ -109,18 +109,18 @@ LakebaseFS client:
 
 LakebaseFS API and workers:
 
-- Modify `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSFolderProfile.java`: add `opencode-home` and profile defaults.
-- Modify `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSEventForwarder.java`: dispatch through `AgentFSProcessingRouter`.
-- Modify `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSProcessingWorker.java`: return structured processing results.
-- Create `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSAgentHomeWorker.java`.
-- Create `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSDatasetWorker.java`.
-- Create `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSTableWorker.java`.
-- Create `lakeon-api/src/main/java/com/lakeon/agentfs/LBFSAutoJobEntity.java`.
-- Create `lakeon-api/src/main/java/com/lakeon/agentfs/LBFSAutoJobRepository.java`.
-- Create `lakeon-api/src/main/java/com/lakeon/agentfs/LBFSAutoJobController.java`.
-- Test `lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSFolderProfileTest.java`.
-- Test `lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSEventForwarderTest.java`.
-- Test `lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSProcessingWorkerTest.java`.
+- Modify `lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSFolderProfile.java`: add `opencode-home` and profile defaults.
+- Modify `lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSEventForwarder.java`: dispatch through `LakebaseFSProcessingRouter`.
+- Modify `lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSProcessingWorker.java`: return structured processing results.
+- Create `lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSAgentHomeWorker.java`.
+- Create `lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSDatasetWorker.java`.
+- Create `lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSTableWorker.java`.
+- Create `lakeon-api/src/main/java/com/lakeon/lbfs/LBFSAutoJobEntity.java`.
+- Create `lakeon-api/src/main/java/com/lakeon/lbfs/LBFSAutoJobRepository.java`.
+- Create `lakeon-api/src/main/java/com/lakeon/lbfs/LBFSAutoJobController.java`.
+- Test `lakeon-api/src/test/java/com/lakeon/lbfs/LakebaseFSFolderProfileTest.java`.
+- Test `lakeon-api/src/test/java/com/lakeon/lbfs/LakebaseFSEventForwarderTest.java`.
+- Test `lakeon-api/src/test/java/com/lakeon/lbfs/LakebaseFSProcessingWorkerTest.java`.
 
 DBay DataAgent API:
 
@@ -211,11 +211,11 @@ No commit for this task unless documentation is updated during execution.
 
 **Files:**
 - Modify: `dbay-fuse/src/profile.rs`
-- Modify: `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSFolderProfile.java`
+- Modify: `lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSFolderProfile.java`
 - Modify: `lakeon-console/src/api/lbfs.ts`
 - Modify: `lakeon-console/src/views/lbfs/LakebaseFSBrowse.vue`
 - Test: `dbay-fuse/tests/test_profile.rs`
-- Test: `lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSFolderProfileTest.java`
+- Test: `lakeon-api/src/test/java/com/lakeon/lbfs/LakebaseFSFolderProfileTest.java`
 - Test: `lakeon-console/src/__tests__/lbfs-api.test.ts`
 
 - [ ] **Step 1: Write Rust profile tests**
@@ -300,12 +300,12 @@ if path.join(".opencode").exists()
 
 - [ ] **Step 4: Add Java profile test**
 
-Add to `lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSFolderProfileTest.java`:
+Add to `lakeon-api/src/test/java/com/lakeon/lbfs/LakebaseFSFolderProfileTest.java`:
 
 ```java
 @Test
 void opencodeHomeDefaultsToAgentHomeProcessing() {
-    AgentFSFolderProfile profile = AgentFSFolderProfile.fromRequest(
+    LakebaseFSFolderProfile profile = LakebaseFSFolderProfile.fromRequest(
             "/agents/opencode",
             "opencode-home",
             null,
@@ -319,7 +319,7 @@ void opencodeHomeDefaultsToAgentHomeProcessing() {
 
 - [ ] **Step 5: Implement Java profile kind**
 
-In `AgentFSFolderProfile.java`, add `opencode-home` wherever `codex-home`, `claude-home`, and `openclaw-home` are accepted and mapped to `agent-home`.
+In `LakebaseFSFolderProfile.java`, add `opencode-home` wherever `codex-home`, `claude-home`, and `openclaw-home` are accepted and mapped to `agent-home`.
 
 - [ ] **Step 6: Add console type option**
 
@@ -345,7 +345,7 @@ Run:
 
 ```bash
 cd /Users/jacky/code/lakeon/dbay-fuse && cargo test test_profile
-cd /Users/jacky/code/lakeon/lakeon-api && mvn test -Dtest=AgentFSFolderProfileTest
+cd /Users/jacky/code/lakeon/lakeon-api && mvn test -Dtest=LakebaseFSFolderProfileTest
 cd /Users/jacky/code/lakeon/lakeon-console && npm run test -- lbfs-api.test.ts
 ```
 
@@ -355,8 +355,8 @@ Expected: all commands pass.
 
 ```bash
 git add dbay-fuse/src/profile.rs dbay-fuse/tests/test_profile.rs \
-  lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSFolderProfile.java \
-  lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSFolderProfileTest.java \
+  lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSFolderProfile.java \
+  lakeon-api/src/test/java/com/lakeon/lbfs/LakebaseFSFolderProfileTest.java \
   lakeon-console/src/api/lbfs.ts \
   lakeon-console/src/views/lbfs/LakebaseFSBrowse.vue \
   lakeon-console/src/__tests__/lbfs-api.test.ts
@@ -557,12 +557,12 @@ git commit -m "feat(lbfs): add continuous sync mode"
 ### Task 5: Wire LakebaseFS Event Forwarding into Profile Workers
 
 **Files:**
-- Modify: `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSProcessingWorker.java`
-- Modify: `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSProcessingRouter.java`
-- Modify: `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSEventForwarder.java`
-- Create: `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSAgentHomeWorker.java`
-- Test: `lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSEventForwarderTest.java`
-- Test: `lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSProcessingRouterTest.java`
+- Modify: `lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSProcessingWorker.java`
+- Modify: `lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSProcessingRouter.java`
+- Modify: `lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSEventForwarder.java`
+- Create: `lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSAgentHomeWorker.java`
+- Test: `lakeon-api/src/test/java/com/lakeon/lbfs/LakebaseFSEventForwarderTest.java`
+- Test: `lakeon-api/src/test/java/com/lakeon/lbfs/LakebaseFSProcessingRouterTest.java`
 
 - [ ] **Step 1: Add forwarding test**
 
@@ -571,12 +571,12 @@ Create a test that verifies a dataset-profile file no longer gets marked done wi
 ```java
 @Test
 void dispatchesNonMemoryProfilesThroughProcessingRouter() {
-    AgentFSFolderEntity folder = new AgentFSFolderEntity();
+    LakebaseFSFolderEntity folder = new LakebaseFSFolderEntity();
     folder.setFolder("/datasets");
     folder.setProcessingProfile("dataset");
-    AgentFSProcessingEvent event = new AgentFSProcessingEvent("tn_1", "/datasets/orders.csv", "e1", "put");
+    LakebaseFSProcessingEvent event = new LakebaseFSProcessingEvent("tn_1", "/datasets/orders.csv", "e1", "put");
     RecordingWorker worker = new RecordingWorker("dataset");
-    AgentFSProcessingRouter router = new AgentFSProcessingRouter(List.of(worker));
+    LakebaseFSProcessingRouter router = new LakebaseFSProcessingRouter(List.of(worker));
 
     router.dispatch(folder, event);
 
@@ -586,55 +586,55 @@ void dispatchesNonMemoryProfilesThroughProcessingRouter() {
 
 - [ ] **Step 2: Change worker result contract**
 
-Update `AgentFSProcessingWorker` to return a result:
+Update `LakebaseFSProcessingWorker` to return a result:
 
 ```java
-public interface AgentFSProcessingWorker {
+public interface LakebaseFSProcessingWorker {
     String processingProfile();
-    AgentFSProcessingResult process(AgentFSFolderEntity folder, AgentFSProcessingEvent event);
+    LakebaseFSProcessingResult process(LakebaseFSFolderEntity folder, LakebaseFSProcessingEvent event);
 }
 ```
 
-Create `AgentFSProcessingResult`:
+Create `LakebaseFSProcessingResult`:
 
 ```java
-public record AgentFSProcessingResult(boolean accepted, boolean retryable, String message) {
-    public static AgentFSProcessingResult done(String message) {
-        return new AgentFSProcessingResult(true, false, message);
+public record LakebaseFSProcessingResult(boolean accepted, boolean retryable, String message) {
+    public static LakebaseFSProcessingResult done(String message) {
+        return new LakebaseFSProcessingResult(true, false, message);
     }
 
-    public static AgentFSProcessingResult retry(String message) {
-        return new AgentFSProcessingResult(false, true, message);
+    public static LakebaseFSProcessingResult retry(String message) {
+        return new LakebaseFSProcessingResult(false, true, message);
     }
 }
 ```
 
 - [ ] **Step 3: Update router**
 
-Make router return `AgentFSProcessingResult.done("no worker")` when profile is `none`, and `AgentFSProcessingResult.retry("missing worker: " + profile)` when a folder references a worker that is not registered.
+Make router return `LakebaseFSProcessingResult.done("no worker")` when profile is `none`, and `LakebaseFSProcessingResult.retry("missing worker: " + profile)` when a folder references a worker that is not registered.
 
-- [ ] **Step 4: Extract agent-home memory derive into `AgentFSAgentHomeWorker`**
+- [ ] **Step 4: Extract agent-home memory derive into `LakebaseFSAgentHomeWorker`**
 
-Move the existing `forwardOne(...)` memory derive behavior from `AgentFSEventForwarder` into a worker with:
+Move the existing `forwardOne(...)` memory derive behavior from `LakebaseFSEventForwarder` into a worker with:
 
 ```java
 @Component
-public class AgentFSAgentHomeWorker implements AgentFSProcessingWorker {
+public class LakebaseFSAgentHomeWorker implements LakebaseFSProcessingWorker {
     @Override
     public String processingProfile() {
-        return AgentFSFolderProfile.PROCESSING_AGENT_HOME;
+        return LakebaseFSFolderProfile.PROCESSING_AGENT_HOME;
     }
 
     @Override
-    public AgentFSProcessingResult process(AgentFSFolderEntity folder, AgentFSProcessingEvent event) {
-        // Build the same /lbfs/derive payload currently built in AgentFSEventForwarder.
+    public LakebaseFSProcessingResult process(LakebaseFSFolderEntity folder, LakebaseFSProcessingEvent event) {
+        // Build the same /lbfs/derive payload currently built in LakebaseFSEventForwarder.
     }
 }
 ```
 
 Keep tenant connection and file-content reads explicit in method parameters or a small context object; do not hide them behind static globals.
 
-- [ ] **Step 5: Update `AgentFSEventForwarder`**
+- [ ] **Step 5: Update `LakebaseFSEventForwarder`**
 
 Replace the current branch:
 
@@ -649,8 +649,8 @@ if (!routesToMemoryWorker(c, e.path)) {
 with folder lookup plus router dispatch:
 
 ```java
-AgentFSFolderEntity folder = resolveFolderForPath(tenant.getId(), e.path);
-AgentFSProcessingResult result = processingRouter.dispatch(folder, toProcessingEvent(tenant, e));
+LakebaseFSFolderEntity folder = resolveFolderForPath(tenant.getId(), e.path);
+LakebaseFSProcessingResult result = processingRouter.dispatch(folder, toProcessingEvent(tenant, e));
 if (result.accepted()) {
     markDone(c, e.id);
     maxId = Math.max(maxId, e.id);
@@ -669,7 +669,7 @@ Run:
 
 ```bash
 cd /Users/jacky/code/lakeon/lakeon-api
-mvn test -Dtest=AgentFSProcessingRouterTest,AgentFSEventForwarderTest
+mvn test -Dtest=LakebaseFSProcessingRouterTest,LakebaseFSEventForwarderTest
 ```
 
 Expected: pass.
@@ -677,22 +677,22 @@ Expected: pass.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add lakeon-api/src/main/java/com/lakeon/agentfs \
-  lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSProcessingRouterTest.java \
-  lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSEventForwarderTest.java
+git add lakeon-api/src/main/java/com/lakeon/lbfs \
+  lakeon-api/src/test/java/com/lakeon/lbfs/LakebaseFSProcessingRouterTest.java \
+  lakeon-api/src/test/java/com/lakeon/lbfs/LakebaseFSEventForwarderTest.java
 git commit -m "feat(lbfs): route file events through processing workers"
 ```
 
 ### Task 6: Add LakebaseFS Processing Job State
 
 **Files:**
-- Create: `lakeon-api/src/main/java/com/lakeon/agentfs/LBFSAutoJobEntity.java`
-- Create: `lakeon-api/src/main/java/com/lakeon/agentfs/LBFSAutoJobRepository.java`
-- Create: `lakeon-api/src/main/java/com/lakeon/agentfs/LBFSAutoJobController.java`
-- Modify: `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSProcessingWorker.java`
+- Create: `lakeon-api/src/main/java/com/lakeon/lbfs/LBFSAutoJobEntity.java`
+- Create: `lakeon-api/src/main/java/com/lakeon/lbfs/LBFSAutoJobRepository.java`
+- Create: `lakeon-api/src/main/java/com/lakeon/lbfs/LBFSAutoJobController.java`
+- Modify: `lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSProcessingWorker.java`
 - Modify: `lakeon-console/src/api/lbfs.ts`
 - Modify: `lakeon-console/src/views/lbfs/LakebaseFSBrowse.vue`
-- Test: `lakeon-api/src/test/java/com/lakeon/agentfs/LBFSAutoJobControllerTest.java`
+- Test: `lakeon-api/src/test/java/com/lakeon/lbfs/LBFSAutoJobControllerTest.java`
 - Test: `lakeon-console/src/__tests__/lbfs-api.test.ts`
 
 - [ ] **Step 1: Add API test**
@@ -796,8 +796,8 @@ Expected: pass.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add lakeon-api/src/main/java/com/lakeon/agentfs \
-  lakeon-api/src/test/java/com/lakeon/agentfs/LBFSAutoJobControllerTest.java \
+git add lakeon-api/src/main/java/com/lakeon/lbfs \
+  lakeon-api/src/test/java/com/lakeon/lbfs/LBFSAutoJobControllerTest.java \
   lakeon-console/src/api/lbfs.ts lakeon-console/src/views/lbfs/LakebaseFSBrowse.vue \
   lakeon-console/src/__tests__/lbfs-api.test.ts
 git commit -m "feat(lbfs): expose lbfs_auto_job status"
@@ -806,11 +806,11 @@ git commit -m "feat(lbfs): expose lbfs_auto_job status"
 ### Task 7: Implement Dataset and Table Workers
 
 **Files:**
-- Create: `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSDatasetWorker.java`
-- Create: `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSTableWorker.java`
-- Create: `lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSDataProfile.java`
-- Test: `lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSDatasetWorkerTest.java`
-- Test: `lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSTableWorkerTest.java`
+- Create: `lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSDatasetWorker.java`
+- Create: `lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSTableWorker.java`
+- Create: `lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSDataProfile.java`
+- Test: `lakeon-api/src/test/java/com/lakeon/lbfs/LakebaseFSDatasetWorkerTest.java`
+- Test: `lakeon-api/src/test/java/com/lakeon/lbfs/LakebaseFSTableWorkerTest.java`
 
 - [ ] **Step 1: Add dataset worker tests**
 
@@ -821,7 +821,7 @@ Test CSV profiling:
 void profilesCsvHeaderAndSampleRows() {
     byte[] csv = "order_id,amount\\no1,12.5\\no2,9.0\\n".getBytes(StandardCharsets.UTF_8);
 
-    AgentFSDataProfile profile = AgentFSDatasetWorker.profileCsv("/datasets/orders.csv", csv);
+    LakebaseFSDataProfile profile = LakebaseFSDatasetWorker.profileCsv("/datasets/orders.csv", csv);
 
     assertEquals(List.of("order_id", "amount"), profile.columns());
     assertEquals(2, profile.sampleRowCount());
@@ -836,25 +836,25 @@ Test Iceberg detection:
 ```java
 @Test
 void detectsIcebergMetadataFiles() {
-    AgentFSProcessingEvent event = new AgentFSProcessingEvent(
+    LakebaseFSProcessingEvent event = new LakebaseFSProcessingEvent(
             "tn_1",
             "/tables/orders/metadata/v1.metadata.json",
             "etag-1",
             "put");
 
-    AgentFSProcessingResult result = worker.process(folder("iceberg"), event);
+    LakebaseFSProcessingResult result = worker.process(folder("iceberg"), event);
 
     assertTrue(result.accepted());
     assertTrue(result.message().contains("iceberg"));
 }
 ```
 
-- [ ] **Step 3: Implement `AgentFSDataProfile`**
+- [ ] **Step 3: Implement `LakebaseFSDataProfile`**
 
 Use a compact record:
 
 ```java
-public record AgentFSDataProfile(
+public record LakebaseFSDataProfile(
         String path,
         String format,
         List<String> columns,
@@ -865,20 +865,20 @@ public record AgentFSDataProfile(
 
 - [ ] **Step 4: Implement CSV profile first**
 
-In `AgentFSDatasetWorker`, support `csv`, `tsv`, `jsonl`, and `ndjson` in the first pass. For `xlsx`, `parquet`, and `orc`, create accepted jobs with message `"metadata queued for external profiler"` so the worker contract is stable without claiming unsupported parsing.
+In `LakebaseFSDatasetWorker`, support `csv`, `tsv`, `jsonl`, and `ndjson` in the first pass. For `xlsx`, `parquet`, and `orc`, create accepted jobs with message `"metadata queued for external profiler"` so the worker contract is stable without claiming unsupported parsing.
 
 - [ ] **Step 5: Implement table metadata worker**
 
-In `AgentFSTableWorker`, route:
+In `LakebaseFSTableWorker`, route:
 
 ```java
 if ("iceberg".equals(folder.getProcessingProfile())) {
-    return AgentFSProcessingResult.done("iceberg metadata observed: " + event.path());
+    return LakebaseFSProcessingResult.done("iceberg metadata observed: " + event.path());
 }
 if ("lance".equals(folder.getProcessingProfile())) {
-    return AgentFSProcessingResult.done("lance metadata observed: " + event.path());
+    return LakebaseFSProcessingResult.done("lance metadata observed: " + event.path());
 }
-return AgentFSProcessingResult.retry("unsupported table profile: " + folder.getProcessingProfile());
+return LakebaseFSProcessingResult.retry("unsupported table profile: " + folder.getProcessingProfile());
 ```
 
 - [ ] **Step 6: Verify**
@@ -887,7 +887,7 @@ Run:
 
 ```bash
 cd /Users/jacky/code/lakeon/lakeon-api
-mvn test -Dtest=AgentFSDatasetWorkerTest,AgentFSTableWorkerTest
+mvn test -Dtest=LakebaseFSDatasetWorkerTest,LakebaseFSTableWorkerTest
 ```
 
 Expected: pass.
@@ -895,11 +895,11 @@ Expected: pass.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSDatasetWorker.java \
-  lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSTableWorker.java \
-  lakeon-api/src/main/java/com/lakeon/agentfs/AgentFSDataProfile.java \
-  lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSDatasetWorkerTest.java \
-  lakeon-api/src/test/java/com/lakeon/agentfs/AgentFSTableWorkerTest.java
+git add lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSDatasetWorker.java \
+  lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSTableWorker.java \
+  lakeon-api/src/main/java/com/lakeon/lbfs/LakebaseFSDataProfile.java \
+  lakeon-api/src/test/java/com/lakeon/lbfs/LakebaseFSDatasetWorkerTest.java \
+  lakeon-api/src/test/java/com/lakeon/lbfs/LakebaseFSTableWorkerTest.java
 git commit -m "feat(lbfs): process dataset and table folder events"
 ```
 
@@ -1358,7 +1358,7 @@ git commit -m "docs(data-agent): define lbfs home restore contract"
 **Files:**
 - Create: `tests/e2e/test_lbfs_data_agent.py`
 - Create: `lakeon-console/tests/e2e/data-agent.spec.ts`
-- Modify: `tests/e2e/test_agentfs_sync_roundtrip.py` if endpoint names remain stale.
+- Modify: `tests/e2e/test_lbfs_sync_roundtrip.py` if endpoint names remain stale.
 
 - [ ] **Step 1: Add API E2E for file sync to DataAgent source**
 

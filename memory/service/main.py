@@ -39,15 +39,15 @@ async def ingest(req: IngestRequest, x_database_connstr: str = Header(...),
         return {"message_id": message_id, "status": "extracting"}
 
 
-@app.post("/agentfs/derive")
-async def agentfs_derive(req: DeriveRequest,
+@app.post("/lbfs/derive")
+async def lbfs_derive(req: DeriveRequest,
                           x_database_connstr: str = Header(...)):
-    """Phase 2 hook: lakeon-api AgentFSEventForwarder forwards per-tenant
+    """Phase 2 hook: lakeon-api LakebaseFSEventForwarder forwards per-tenant
     events here. Idempotent via ingest_idempotent on (source_path, source_etag)
     UNIQUE index; delete via delete_by_source_path.
     """
     metadata = {
-        "source_system": "agentfs",
+        "source_system": "lbfs",
         "source_path": req.path,
         "source_etag": req.source_etag,
         "source_agent": req.source_agent,
