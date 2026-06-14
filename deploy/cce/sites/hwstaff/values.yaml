@@ -51,7 +51,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "split-b10b265e-control-public-6f579d49-crosscce-20260613-2346-b67ca7cc"
+    tag: "split-b10b265e-control-public-6f579d49-crosscce-20260613-2346-e5ea1ff8"
   jobCallbackBaseUrl: "http://192.168.0.182:8088"  # CCI job pods use control-plane private ELB, not CCE ClusterIP
   jobNamespace: "lakeon-jobs"
   jobUseCci: false  # CCI 当前 ENI/端口资源不足；knowledge jobs 先跑数据面 CCE 节点池
