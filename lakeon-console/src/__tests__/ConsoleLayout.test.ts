@@ -13,6 +13,9 @@ function makeRouter(initialPath: string) {
         component: ConsoleLayout,
         children: [
           { path: 'dashboard', component: { template: '<div>dashboard</div>' } },
+          { path: 'timetravel', component: { template: '<div>timetravel</div>' } },
+          { path: 'sql', component: { template: '<div>sql</div>' } },
+          { path: 'import', component: { template: '<div>import</div>' } },
           { path: 'agent-state', component: { template: '<div>agent</div>' } },
           { path: 'lbfs', component: { template: '<div>lbfs</div>' } },
           { path: 'knowledge', component: { template: '<div>knowledge</div>' } },
@@ -31,9 +34,9 @@ describe('ConsoleLayout', () => {
     localStorage.clear()
   })
 
-  it('promotes LakebaseFS to a top-level workspace above memory', async () => {
-    const router = makeRouter('/lbfs')
-    await router.push('/lbfs')
+  it('narrows the console rail to Lakebase data, FS, and operations', async () => {
+    const router = makeRouter('/dashboard')
+    await router.push('/dashboard')
     const wrapper = mount(ConsoleLayout, {
       global: {
         plugins: [router],
@@ -46,9 +49,10 @@ describe('ConsoleLayout', () => {
       .find('.workspace-rail')
       .findAll('.rail-label')
       .map((node) => node.text())
-    expect(railLabels).toEqual(['数据库', 'Agent', '知识库', 'LakebaseFS', '记忆库', '运维'])
-    expect(railLabels.indexOf('LakebaseFS')).toBeLessThan(railLabels.indexOf('记忆库'))
-    expect(wrapper.find('.side-title').text()).toContain('LakebaseFS')
-    expect(wrapper.find('.sidebar-nav').text()).toContain('文件系统')
+    expect(railLabels).toEqual(['数据', 'FS', '运维'])
+    expect(wrapper.find('.side-title').text()).toContain('数据')
+    expect(wrapper.find('.sidebar-nav').text()).toContain('数据目录')
+    expect(wrapper.find('.sidebar-nav').text()).toContain('数据库')
+    expect(wrapper.find('.sidebar-nav').text()).not.toContain('数据湖')
   })
 })

@@ -15,18 +15,24 @@ def _b64url(path: str) -> str:
     return base64.urlsafe_b64encode(path.encode()).rstrip(b"=").decode()
 
 
-def _lbfs_put(endpoint, api_key, path, data: bytes, retries=10, delay=4):
+def _lbfs_put(endpoint, api_key, path, data: bytes, retries=30, delay=6):
     """POST /files/put with retry — first call on a new tenant triggers
-    LakebaseFS database provisioning and may return 500 'not READY yet'."""
+    LakebaseFS database provisioning and may return 5xx or time out while
+    the backing database and compute become ready."""
     last_err = None
     for _ in range(retries):
-        r = requests.post(
-            f"{endpoint}/api/v1/lbfs/files/put",
-            json={"path": path, "data_base64": base64.b64encode(data).decode()},
-            headers={"Authorization": f"Bearer {api_key}"},
-            verify=False,
-            timeout=120,
-        )
+        try:
+            r = requests.post(
+                f"{endpoint}/api/v1/lbfs/files/put",
+                json={"path": path, "data_base64": base64.b64encode(data).decode()},
+                headers={"Authorization": f"Bearer {api_key}"},
+                verify=False,
+                timeout=180,
+            )
+        except (requests.ReadTimeout, requests.ConnectionError) as e:
+            last_err = ("network", str(e)[:200])
+            time.sleep(delay)
+            continue
         if r.status_code == 200:
             return r.json()
         last_err = (r.status_code, r.text[:200])
