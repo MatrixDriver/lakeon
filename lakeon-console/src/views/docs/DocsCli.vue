@@ -13,8 +13,8 @@
 
         <p class="dp-lede">
           {{ t(
-            '一个命令装上，一个命令登录，之后数据库、知识、记忆、秘钥都能从终端管。CLI 同时把 MCP 服务带进来，所以任何装过 dbay-cli 的机器，都能直接给 Agent 接上。',
-            'One command to install, one to log in, and from then on databases, knowledge, memory, and secrets all live at your prompt. The CLI also ships with the MCP server — any machine that has dbay-cli can immediately front a DBay-backed agent.'
+            '一个命令装上，一个命令登录，之后数据库、branch、version 和用户管理都能从终端管。',
+            'One command to install, one to log in, and from then on databases, branches, versions, and users all live at your prompt.'
           ) }}
         </p>
       </div>
@@ -33,17 +33,7 @@ dbay login</code></pre>
               'dbay-cli 默认把配置写进',
               'dbay-cli stores its config in'
             ) }}
-            <code>~/.dbay/config.json</code>{{ t('，包括 endpoint、API key、默认记忆库和知识库。', ' — endpoint, API key, default memory base and knowledge base.') }}
-          </p>
-          <p class="dcli-note">
-            {{ t(
-              'MCP 服务',
-              'The MCP server'
-            ) }}
-            (<code>dbay-mcp</code>){{ t(
-              ' 作为依赖一起装上，不需要单独安装。',
-              ' comes along for the ride — no separate install.'
-            ) }}
+            <code>~/.dbay/config.json</code>{{ t('，包括 endpoint 和 API key。', ' — endpoint and API key.') }}
           </p>
         </div>
       </div>
@@ -86,41 +76,13 @@ dbay db branch my-project --from main --name experiment</code></pre>
             <div class="dcli-row-num">03</div>
             <div class="dcli-row-body">
               <h3 class="dcli-row-title">
-                <code>dbay kb</code>
-                <span class="dcli-row-sub">{{ t('知识库', 'Knowledge') }}</span>
+                <code>dbay branch / version / user</code>
+                <span class="dcli-row-sub">{{ t('分支、版本和用户', 'Branches, versions, and users') }}</span>
               </h3>
-              <p>{{ t('上传文档、触发 wiki 生成、搜索条目、导出。支持按目录批量上传。',
-                'Upload documents, trigger wiki generation, search entries, export. Batch upload by directory is supported.') }}</p>
-              <pre class="dcli-code"><code>dbay kb upload ./docs --recursive
-dbay kb wiki generate
-dbay kb search "deploy procedure"</code></pre>
-            </div>
-          </div>
-
-          <div class="dcli-row">
-            <div class="dcli-row-num">04</div>
-            <div class="dcli-row-body">
-              <h3 class="dcli-row-title">
-                <code>dbay memory</code>
-                <span class="dcli-row-sub">{{ t('记忆库', 'Memory') }}</span>
-              </h3>
-              <p>{{ t('写入记忆、按类型浏览、反思洞察、导出。密码通过交互输入派生密钥，CLI 不会留底。',
-                'Write memories, browse by type, inspect reflections, export. Passwords are entered interactively and the derived key never lands on disk.') }}</p>
-              <pre class="dcli-code"><code>dbay memory ingest "I prefer TypeScript strict mode"
-dbay memory list --type convention
-dbay memory recall "OOM"</code></pre>
-            </div>
-          </div>
-
-          <div class="dcli-row">
-            <div class="dcli-row-num">05</div>
-            <div class="dcli-row-body">
-              <h3 class="dcli-row-title">
-                <code>dbay export</code>
-                <span class="dcli-row-sub">{{ t('数据可携带', 'Data portability') }}</span>
-              </h3>
-              <p>{{ t('把你的知识、wiki、记忆全部导出到本地文件。这是"在你这边"的具体形式——任何时候你都能把东西带走。',
-                'Export everything — knowledge, wiki, memory — to local files. This is what "on your side" actually means: you can take your data away whenever you want.') }}</p>
+              <p>{{ t('管理数据库分支、时间点版本和数据库用户。', 'Manage database branches, point-in-time versions, and database users.') }}</p>
+              <pre class="dcli-code"><code>dbay branch list my-project
+dbay version create my-project main v1
+dbay user create my-project app_user</code></pre>
             </div>
           </div>
         </div>
@@ -131,12 +93,6 @@ dbay memory recall "OOM"</code></pre>
     <section class="ppage-section">
       <div class="ppage-inner dp-inner">
         <div class="dp-footer-cards">
-          <router-link to="/docs/mcp" class="dp-card">
-            <div class="dp-card-num">{{ t('接下来', 'Next') }}</div>
-            <h3 class="dp-card-title">{{ t('MCP 工具', 'MCP tools') }}</h3>
-            <p class="dp-card-claim">{{ t('让 Agent 直接调用这些能力。', 'Let your agent call these capabilities directly.') }}</p>
-            <span class="dp-card-more">{{ t('打开', 'Open') }} →</span>
-          </router-link>
           <router-link to="/docs/python-sdk" class="dp-card">
             <div class="dp-card-num">{{ t('或者', 'Or') }}</div>
             <h3 class="dp-card-title">Python SDK</h3>

@@ -55,7 +55,7 @@ def _lbfs_head(endpoint, api_key, path):
 def test_put_with_same_content_is_idempotent(e2e_client):
     """Two PUTs with identical content must leave mtime_ns unchanged.
 
-    This guards the Phase 2 CDC pipeline against false-positive change
+    This guards the Phase 2 change capture path against false-positive change
     events. Without the idempotency fix, each PUT re-stamps mtime_ns
     to nowNs() regardless of content.
     """

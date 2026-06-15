@@ -18,63 +18,34 @@
         <!-- Step 1: Connection -->
         <div v-if="step === 0">
           <div class="form-group">
-            <label class="form-label">连接方式</label>
-            <div class="radio-group">
-              <label class="radio-item" :class="{ disabled: postgresConnectors.length === 0 }">
-                <input data-test="source-mode-connector" type="radio" v-model="sourceMode" value="CONNECTOR" :disabled="postgresConnectors.length === 0" /> 选择连接器
-              </label>
-              <label class="radio-item">
-                <input data-test="source-mode-temporary" type="radio" v-model="sourceMode" value="TEMPORARY" /> 临时连接
-              </label>
+            <label class="form-label">主机地址 <span class="required">*</span></label>
+            <input data-test="manual-host" v-model="form.host" class="form-input" placeholder="例如: 192.168.0.100" />
+          </div>
+          <div class="form-row">
+            <div class="form-group form-half">
+              <label class="form-label">端口 <span class="required">*</span></label>
+              <input data-test="manual-port" v-model.number="form.port" type="number" class="form-input" />
             </div>
-            <div v-if="connectorsLoading" class="loading-text">正在加载连接器...</div>
-            <div v-else-if="postgresConnectors.length === 0" class="hint-text">
-              暂无可用的 PostgreSQL 连接器，可使用临时连接填写一次性源库信息。
+            <div class="form-group form-half">
+              <label class="form-label">数据库名 <span class="required">*</span></label>
+              <input data-test="manual-dbname" v-model="form.dbname" class="form-input" placeholder="postgres" />
             </div>
           </div>
-
-          <div v-if="sourceMode === 'CONNECTOR'">
-            <div class="form-group">
-              <label class="form-label">PostgreSQL 连接器 <span class="required">*</span></label>
-              <select data-test="connector-select" v-model="selectedConnectorId" class="form-input">
-                <option v-for="connector in postgresConnectors" :key="connector.id" :value="connector.id">
-                  {{ connector.name }}<template v-if="connector.target_summary"> - {{ connector.target_summary }}</template>
-                </option>
-              </select>
+          <div class="form-row">
+            <div class="form-group form-half">
+              <label class="form-label">用户名 <span class="required">*</span></label>
+              <input data-test="manual-user" v-model="form.user" class="form-input" placeholder="postgres" />
+            </div>
+            <div class="form-group form-half">
+              <label class="form-label">密码 <span class="required">*</span></label>
+              <input data-test="manual-password" v-model="form.password" type="password" class="form-input" />
             </div>
           </div>
-
-          <div v-else>
-            <div class="form-group">
-              <label class="form-label">主机地址 <span class="required">*</span></label>
-              <input data-test="manual-host" v-model="form.host" class="form-input" placeholder="例如: 192.168.0.100" />
-            </div>
-            <div class="form-row">
-              <div class="form-group form-half">
-                <label class="form-label">端口 <span class="required">*</span></label>
-                <input data-test="manual-port" v-model.number="form.port" type="number" class="form-input" />
-              </div>
-              <div class="form-group form-half">
-                <label class="form-label">数据库名 <span class="required">*</span></label>
-                <input data-test="manual-dbname" v-model="form.dbname" class="form-input" placeholder="postgres" />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group form-half">
-                <label class="form-label">用户名 <span class="required">*</span></label>
-                <input data-test="manual-user" v-model="form.user" class="form-input" placeholder="postgres" />
-              </div>
-              <div class="form-group form-half">
-                <label class="form-label">密码 <span class="required">*</span></label>
-                <input data-test="manual-password" v-model="form.password" type="password" class="form-input" />
-              </div>
-            </div>
-            <div class="test-conn-row" style="margin-top: 12px;">
-              <button data-test="test-connection" class="btn btn-default btn-small" :disabled="!connFormValid || testingConn" @click="handleTestConn">
-                {{ testingConn ? '测试中...' : '测试连接' }}
-              </button>
-              <span v-if="connTestResult === true" class="text-success">✓ 连接成功<span v-if="connVersion" class="conn-version"> ({{ connVersion }})</span><span v-if="walLevelInfo" class="conn-version"> | wal_level={{ walLevelInfo }}<template v-if="hasReplication"> ✓ replication</template><template v-else> ✗ no replication</template></span></span>
-            </div>
+          <div class="test-conn-row" style="margin-top: 12px;">
+            <button data-test="test-connection" class="btn btn-default btn-small" :disabled="!connFormValid || testingConn" @click="handleTestConn">
+              {{ testingConn ? '测试中...' : '测试连接' }}
+            </button>
+            <span v-if="connTestResult === true" class="text-success">✓ 连接成功<span v-if="connVersion" class="conn-version"> ({{ connVersion }})</span><span v-if="walLevelInfo" class="conn-version"> | wal_level={{ walLevelInfo }}<template v-if="hasReplication"> ✓ replication</template><template v-else> ✗ no replication</template></span></span>
           </div>
 
           <div v-if="connError" data-test="connection-error" class="text-error" style="margin-top: 12px;">✗ {{ connError }}</div>
@@ -96,10 +67,7 @@
                 <input data-test="import-mode-sync" type="radio" v-model="form.mode" value="SYNC" :disabled="!syncAvailable" /> 持续同步
               </label>
             </div>
-            <div v-if="sourceMode === 'CONNECTOR' && !syncAvailable" class="hint-text">
-              连接器导入当前支持整库导入和按表选择；持续同步需连接器测试元数据确认后启用。
-            </div>
-            <div v-else-if="!syncAvailable && walLevelInfo" class="hint-text">
+            <div v-if="!syncAvailable && walLevelInfo" class="hint-text">
               持续同步需要源库 wal_level=logical 且具有 replication 权限
             </div>
           </div>
@@ -192,14 +160,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { importApi, type SourceTableInfo } from '../../api/import'
-import { connectorsApi, type Connector } from '../../api/connectors'
 
 const props = defineProps<{ dbId: string; visible: boolean }>()
 const emit = defineEmits<{ close: []; created: [task: any] }>()
 
 const steps = ['连接信息', '选择表', '确认导入']
 const step = ref(0)
-const sourceMode = ref<'CONNECTOR' | 'TEMPORARY'>('TEMPORARY')
 
 const form = ref({
   host: '',
@@ -212,9 +178,6 @@ const form = ref({
   selectedTables: [] as string[],
 })
 
-const connectorsLoading = ref(false)
-const postgresConnectors = ref<Connector[]>([])
-const selectedConnectorId = ref('')
 const sourceTables = ref<SourceTableInfo[]>([])
 const tablesLoading = ref(false)
 const creating = ref(false)
@@ -240,19 +203,10 @@ const tableCount = computed(() => {
 })
 
 const syncAvailable = computed(() =>
-  sourceMode.value === 'TEMPORARY' && walLevelInfo.value === 'logical' && hasReplication.value
-)
-
-const selectedConnector = computed(() =>
-  postgresConnectors.value.find(c => c.id === selectedConnectorId.value) || null
+  walLevelInfo.value === 'logical' && hasReplication.value
 )
 
 const sourceSummary = computed(() => {
-  if (sourceMode.value === 'CONNECTOR' && selectedConnector.value) {
-    return selectedConnector.value.target_summary
-      ? `${selectedConnector.value.name} (${selectedConnector.value.target_summary})`
-      : selectedConnector.value.name
-  }
   return `${form.value.host}:${form.value.port}/${form.value.dbname}`
 })
 
@@ -264,7 +218,7 @@ const modeLabel = computed(() => {
 
 const canNext = computed(() => {
   if (step.value === 0) {
-    return sourceMode.value === 'CONNECTOR' ? !!selectedConnectorId.value : connFormValid.value
+    return connFormValid.value
   }
   if (step.value === 1) {
     if (form.value.mode === 'SYNC' && !syncAvailable.value) return false
@@ -280,29 +234,12 @@ const canCreate = computed(() =>
 watch(() => props.visible, (v) => {
   if (v) {
     resetWizard()
-    loadConnectors()
   }
 }, { immediate: true })
-
-watch(sourceMode, () => {
-  sourceTables.value = []
-  form.value.selectedTables = []
-  clearConnectionTestMetadata()
-  if (sourceMode.value === 'CONNECTOR' && form.value.mode === 'SYNC') {
-    form.value.mode = 'FULL'
-  }
-})
-
-watch(selectedConnectorId, () => {
-  sourceTables.value = []
-  form.value.selectedTables = []
-  connError.value = ''
-})
 
 watch(
   () => [form.value.host, form.value.port, form.value.dbname, form.value.user, form.value.password],
   () => {
-    if (sourceMode.value !== 'TEMPORARY') return
     sourceTables.value = []
     form.value.selectedTables = []
     clearConnectionTestMetadata()
@@ -314,7 +251,6 @@ watch(
 
 function resetWizard() {
   step.value = 0
-  sourceMode.value = 'TEMPORARY'
   form.value = {
     host: '',
     port: 5432,
@@ -325,8 +261,6 @@ function resetWizard() {
     conflictStrategy: 'APPEND',
     selectedTables: [],
   }
-  postgresConnectors.value = []
-  selectedConnectorId.value = ''
   sourceTables.value = []
   clearConnectionTestMetadata()
   createError.value = ''
@@ -338,29 +272,6 @@ function clearConnectionTestMetadata() {
   connVersion.value = ''
   walLevelInfo.value = ''
   hasReplication.value = false
-}
-
-async function loadConnectors() {
-  connectorsLoading.value = true
-  try {
-    const res = await connectorsApi.list()
-    postgresConnectors.value = res.data.filter(c => c.type === 'POSTGRESQL')
-    const firstConnector = postgresConnectors.value[0]
-    if (firstConnector) {
-      sourceMode.value = 'CONNECTOR'
-      selectedConnectorId.value = firstConnector.id
-    } else {
-      sourceMode.value = 'TEMPORARY'
-      selectedConnectorId.value = ''
-    }
-  } catch (e) {
-    console.error('Failed to load connectors', e)
-    postgresConnectors.value = []
-    sourceMode.value = 'TEMPORARY'
-    selectedConnectorId.value = ''
-  } finally {
-    connectorsLoading.value = false
-  }
 }
 
 async function handleTestConn() {
@@ -392,11 +303,6 @@ async function loadSourceTables() {
   tablesLoading.value = true
   connError.value = ''
   try {
-    if (sourceMode.value === 'CONNECTOR') {
-      const res = await connectorsApi.listPostgresTables(selectedConnectorId.value)
-      sourceTables.value = res.data
-      return true
-    }
     const res = await importApi.listSourceTables({
       host: form.value.host, port: form.value.port,
       dbname: form.value.dbname, user: form.value.user, password: form.value.password,
@@ -442,19 +348,14 @@ async function handleCreate() {
       conflictStrategy: form.value.conflictStrategy,
       tables: (form.value.mode === 'SELECTIVE' || form.value.mode === 'SYNC') ? form.value.selectedTables : undefined,
     }
-    const payload = sourceMode.value === 'CONNECTOR'
-      ? {
-          connectorId: selectedConnectorId.value,
-          ...commonPayload,
-        }
-      : {
-          sourceHost: form.value.host,
-          sourcePort: form.value.port,
-          sourceDbname: form.value.dbname,
-          sourceUser: form.value.user,
-          sourcePassword: form.value.password,
-          ...commonPayload,
-        }
+    const payload = {
+      sourceHost: form.value.host,
+      sourcePort: form.value.port,
+      sourceDbname: form.value.dbname,
+      sourceUser: form.value.user,
+      sourcePassword: form.value.password,
+      ...commonPayload,
+    }
     const res = await importApi.create(props.dbId, payload)
     emit('created', res.data)
   } catch (e: any) {

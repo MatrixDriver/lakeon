@@ -11,7 +11,7 @@
         <h1 class="ppage-manifesto-title">
           <span class="lb-title-line-1">PostgreSQL，</span>
           <span class="lb-title-line-2">{{ t('加 BM25 内核，', 'with a BM25 kernel,') }}</span>
-          <span class="lb-title-line-3">{{ t('长在数据湖上。', 'on top of a data lake.') }}</span>
+          <span class="lb-title-line-3">{{ t('运行在云原生存储上。', 'on cloud-native storage.') }}</span>
         </h1>
 
         <p class="ppage-manifesto-lede">
@@ -235,17 +235,17 @@ my-app-db=> CREATE INDEX ON docs USING bm25 (content);</code>
       <div class="ppage-footer-inner">
         <h3 class="ppage-footer-title">{{ t('继续了解', 'Keep reading') }}</h3>
         <div class="ppage-footer-grid">
-          <router-link to="/product/knowledge" class="ppage-footer-card">
-            <div class="ppage-footer-card-name">Knowledge</div>
-            <div class="ppage-footer-card-tag">{{ t('Agent 自己维护的活 wiki', 'A living wiki the agent maintains') }}</div>
+          <router-link to="/lbfs" class="ppage-footer-card">
+            <div class="ppage-footer-card-name">LakebaseFS</div>
+            <div class="ppage-footer-card-tag">{{ t('数据库旁边的应用文件目录', 'Application file directories beside the database') }}</div>
           </router-link>
-          <router-link to="/product/memory" class="ppage-footer-card">
-            <div class="ppage-footer-card-name">Memory</div>
-            <div class="ppage-footer-card-tag">{{ t('Agent 长期记忆，会自己反思', 'Long-term memory that reflects on you') }}</div>
+          <router-link to="/docs" class="ppage-footer-card">
+            <div class="ppage-footer-card-name">{{ t('文档', 'Docs') }}</div>
+            <div class="ppage-footer-card-tag">{{ t('快速开始 · REST API · Python SDK', 'Quick start · REST API · Python SDK') }}</div>
           </router-link>
-          <router-link to="/product/datalake" class="ppage-footer-card">
-            <div class="ppage-footer-card-name">Datalake</div>
-            <div class="ppage-footer-card-tag">{{ t('多模态算子 · DAG · zero-copy', 'Multi-modal operators · DAG · zero-copy') }}</div>
+          <router-link to="/login?register=1" class="ppage-footer-card">
+            <div class="ppage-footer-card-name">{{ t('开始使用', 'Get started') }}</div>
+            <div class="ppage-footer-card-tag">{{ t('30 秒创建你的第一个数据库', 'Spin up your first database in 30 seconds') }}</div>
           </router-link>
         </div>
       </div>

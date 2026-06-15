@@ -1,1 +1,0 @@
-import{d as s,o,i as t,K as r,w as n,J as c,_ as d}from"./index-COowpAsY.js";const _=s({__name:"Card",props:{as:{}},setup(a){return(e,p)=>(o(),t(r(a.as??"div"),{class:"card"},{default:n(()=>[c(e.$slots,"default",{},void 0,!0)]),_:3}))}}),l=d(_,[["__scopeId","data-v-3955ad2f"]]);export{l as C};

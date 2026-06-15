@@ -1,6 +1,6 @@
 import api from './client'
 
-export interface AgentFileEntry {
+export interface LBFSFileEntry {
   path: string
   kind: 'file' | 'dir'
   size: number
@@ -84,26 +84,18 @@ export function getLBFSStats() {
 
 export function listLBFSFiles(prefix: string = '/', recursive: boolean = false) {
   const p = toB64Url(prefix)
-  return api.get<{ entries: AgentFileEntry[]; next_cursor: string | null }>(
+  return api.get<{ entries: LBFSFileEntry[]; next_cursor: string | null }>(
     `/lbfs/list?prefix=${p}&recursive=${recursive}`
   )
 }
 
 export function headLBFSFile(path: string) {
   const p = toB64Url(path)
-  return api.get<AgentFileEntry>(`/lbfs/files/head?path=${p}`)
+  return api.get<LBFSFileEntry>(`/lbfs/files/head?path=${p}`)
 }
 
 export async function readLBFSFile(path: string): Promise<string> {
   const p = toB64Url(path)
   const resp = await api.get(`/lbfs/files?path=${p}`, { responseType: 'text' })
   return resp.data as string
-}
-
-export interface LBFSMemoryTarget {
-  base_id: string | null
-}
-
-export function setLBFSMemoryTarget(baseId: string) {
-  return api.post<LBFSMemoryTarget>('/lbfs/memory-target', { base_id: baseId })
 }

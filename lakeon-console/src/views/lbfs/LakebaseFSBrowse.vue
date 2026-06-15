@@ -191,7 +191,7 @@ import {
   listLBFSFiles,
   listLBFSFolders,
   readLBFSFile,
-  type AgentFileEntry,
+  type LBFSFileEntry,
   type LBFSStats,
   type LBFSDirectoryKind,
   type LBFSFolder,
@@ -204,10 +204,10 @@ const folders = ref<LBFSFolder[]>([])
 const foldersLoading = ref(false)
 const creatingFolder = ref(false)
 const folderError = ref('')
-const entries = ref<AgentFileEntry[]>([])
+const entries = ref<LBFSFileEntry[]>([])
 const loading = ref(false)
 const currentPath = ref('/')
-const previewFile = ref<AgentFileEntry | null>(null)
+const previewFile = ref<LBFSFileEntry | null>(null)
 const previewContent = ref<string | null>(null)
 const sortKey = ref<SortKey>('name')
 const sortDir = ref<'asc' | 'desc'>('asc')
@@ -216,10 +216,10 @@ let listSeq = 0
 const directoryKinds: Array<{ value: LBFSDirectoryKind; label: string }> = [
   { value: 'files', label: '通用文件' },
   { value: 'data-dir', label: '数据目录' },
-  { value: 'codex-home', label: 'Codex 用户目录' },
-  { value: 'claude-home', label: 'Claude Code 用户目录' },
-  { value: 'openclaw-home', label: 'OpenClaw 用户目录' },
-  { value: 'opencode-home', label: 'opencode 用户目录' },
+  { value: 'codex-home', label: '开发工具用户目录' },
+  { value: 'claude-home', label: 'AI 工具用户目录' },
+  { value: 'openclaw-home', label: '工作区用户目录' },
+  { value: 'opencode-home', label: '代码工具用户目录' },
   { value: 'iceberg-table', label: 'Iceberg 表目录' },
   { value: 'lance-table', label: 'Lance 表目录' },
 ]
@@ -397,7 +397,7 @@ function goTo(path: string) {
   loadList(path)
 }
 
-async function onRowClick(e: AgentFileEntry) {
+async function onRowClick(e: LBFSFileEntry) {
   if (e.kind === 'dir') {
     goTo(e.path)
   } else {

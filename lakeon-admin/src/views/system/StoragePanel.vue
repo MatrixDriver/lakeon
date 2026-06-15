@@ -12,7 +12,7 @@
       </div>
       <div class="summary-card green">
         <div class="summary-value">{{ formatBytes(summary?.totalKbDocBytes ?? 0) }}</div>
-        <div class="summary-label">知识库文档</div>
+        <div class="summary-label">FS / OBS 对象</div>
       </div>
       <div class="summary-card red" v-if="summary && summary.orphanBytes > 0">
         <div class="summary-value">{{ formatBytes(summary.orphanBytes) }}</div>
@@ -40,8 +40,8 @@
               <th style="width: 32px;"></th>
               <th>租户</th>
               <th>数据库</th>
-              <th>知识库</th>
-              <th>记忆库</th>
+              <th>FS / OBS</th>
+              <th>预留</th>
               <th>总量</th>
               <th>状态</th>
             </tr>
@@ -300,7 +300,7 @@ function formatTime(iso: string): string {
 }
 
 function typeLabel(type: string): string {
-  const map: Record<string, string> = { database: '数据库', knowledge_base: '知识库', memory_base: '记忆库' }
+  const map: Record<string, string> = { database: '数据库', knowledge_base: 'FS 对象', memory_base: '预留对象' }
   return map[type] ?? type
 }
 

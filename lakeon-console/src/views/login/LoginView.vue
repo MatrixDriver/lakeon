@@ -7,8 +7,8 @@
         <p class="brand-name">数据港湾</p>
       </router-link>
       <h2 class="brand-headline">
-        <span class="brand-headline-lede">为 Agent 时代而造的</span>
-        <span class="brand-headline-body">数据基础设施</span>
+        <span class="brand-headline-lede">Serverless PostgreSQL</span>
+        <span class="brand-headline-body">与应用文件系统</span>
       </h2>
       <div class="brand-features">
         <div class="brand-feature">
@@ -21,15 +21,15 @@
         <div class="brand-feature">
           <span class="feature-mark"></span>
           <div>
-            <div class="feature-title">记忆库 + 知识库</div>
-            <div class="feature-desc">MCP 一键接入，AI Agent 即刻获得长期记忆</div>
+            <div class="feature-title">LakebaseFS</div>
+            <div class="feature-desc">目录、对象和处理状态统一管理</div>
           </div>
         </div>
         <div class="brand-feature">
           <span class="feature-mark"></span>
           <div>
-            <div class="feature-title">数据湖</div>
-            <div class="feature-desc">Python · Ray · 微调，Serverless 算力</div>
+            <div class="feature-title">控制面分离</div>
+            <div class="feature-desc">控制面与 Neon 数据面独立部署</div>
           </div>
         </div>
       </div>

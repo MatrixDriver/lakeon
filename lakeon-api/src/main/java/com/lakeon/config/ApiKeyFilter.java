@@ -78,28 +78,8 @@ public class ApiKeyFilter implements Filter {
             return;
         }
 
-        // Internal wiki tool endpoints — called by lakeon-wiki-agent only
-        if (path.startsWith("/api/v1/internal/wiki/")) {
-            String internalToken = props.getWiki().getAgent().getInternalToken();
-            if (internalToken == null || internalToken.isBlank()) {
-                response.setStatus(503);
-                response.setContentType("application/json");
-                response.getWriter().write("{\"error\":{\"code\":\"UNAVAILABLE\",\"message\":\"Wiki agent integration not configured\"}}");
-                return;
-            }
-            String authHeader = request.getHeader("Authorization");
-            if (authHeader == null || !authHeader.equals("Bearer " + internalToken)) {
-                response.setStatus(403);
-                response.setContentType("application/json");
-                response.getWriter().write("{\"error\":{\"code\":\"FORBIDDEN\",\"message\":\"Invalid wiki agent token\"}}");
-                return;
-            }
-            chain.doFilter(req, res);
-            return;
-        }
-
         // Admin API endpoints require admin token
-        if (path.startsWith("/api/v1/admin/") || path.contains("/admin/wiki/")) {
+        if (path.startsWith("/api/v1/admin/")) {
             String adminToken = props.getAdmin().getToken();
             if (adminToken == null || adminToken.isBlank()) {
                 response.setStatus(403);
@@ -134,12 +114,6 @@ public class ApiKeyFilter implements Filter {
 
         // OAuth endpoints (public, no auth)
         if (path.startsWith("/api/v1/auth/oauth/")) {
-            chain.doFilter(req, res);
-            return;
-        }
-
-        // MCP descriptions (public, no auth)
-        if ("GET".equals(request.getMethod()) && "/api/v1/mcp/descriptions".equals(path)) {
             chain.doFilter(req, res);
             return;
         }

@@ -10,7 +10,6 @@
             <router-link to="/docs" class="docs-nav-link" exact-active-class="is-active">{{ t('概览', 'Overview') }}</router-link>
             <router-link to="/docs/console" class="docs-nav-link" active-class="is-active">{{ t('Console 简介', 'Console') }}</router-link>
             <router-link to="/docs/cli" class="docs-nav-link" active-class="is-active">{{ t('CLI 简介', 'CLI') }}</router-link>
-            <router-link to="/docs/mcp" class="docs-nav-link" active-class="is-active">{{ t('MCP 工具', 'MCP Tools') }}</router-link>
           </div>
           <div class="docs-nav-group">
             <span class="docs-nav-title">{{ t('参考文档', 'Reference') }}</span>

@@ -15,7 +15,7 @@ client.interceptors.request.use((config) => {
 
 // Use localStorage directly instead of Pinia store to avoid circular dependency
 // (auth store imports client, client cannot import auth store)
-const PUBLIC_PATH_PREFIXES = ['/login', '/ext-login', '/ext-callback', '/oauth', '/integrations', '/blog', '/docs', '/product']
+const PUBLIC_PATH_PREFIXES = ['/login', '/ext-login', '/ext-callback', '/oauth', '/docs', '/product']
 
 client.interceptors.response.use(
   (response) => response,

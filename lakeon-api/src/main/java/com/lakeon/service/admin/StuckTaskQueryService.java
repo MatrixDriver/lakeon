@@ -11,8 +11,7 @@ import java.util.*;
 
 /**
  * Read-only stuck task query across known async task tables.
- * Mirrors the dbay-sre-mcp 0.2.0 stuck_task_query Python tool;
- * graceful UndefinedTable handling preserves robustness.
+ * Graceful UndefinedTable handling preserves robustness.
  */
 @Service
 public class StuckTaskQueryService {

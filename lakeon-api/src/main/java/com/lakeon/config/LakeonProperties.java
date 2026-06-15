@@ -26,11 +26,7 @@ public class LakeonProperties {
     private BackupConfig backup = new BackupConfig();
     private SyncConfig sync = new SyncConfig();
     private JobConfig job = new JobConfig();
-    private KnowledgeConfig knowledge = new KnowledgeConfig();
-    private DatalakeConfig datalake = new DatalakeConfig();
-    private MemoryConfig memory = new MemoryConfig();
     private HwcloudConfig hwcloud = new HwcloudConfig();
-    private WikiConfig wiki = new WikiConfig();
     private OAuthConfig oauth = new OAuthConfig();
     private ComputeJwtConfig computeJwt = new ComputeJwtConfig();
     private ComputeWarmPoolConfig computeWarmPool = new ComputeWarmPoolConfig();
@@ -67,16 +63,8 @@ public class LakeonProperties {
     public void setSync(SyncConfig sync) { this.sync = sync; }
     public JobConfig getJob() { return job; }
     public void setJob(JobConfig job) { this.job = job; }
-    public KnowledgeConfig getKnowledge() { return knowledge; }
-    public void setKnowledge(KnowledgeConfig knowledge) { this.knowledge = knowledge; }
-    public DatalakeConfig getDatalake() { return datalake; }
-    public void setDatalake(DatalakeConfig datalake) { this.datalake = datalake; }
-    public MemoryConfig getMemory() { return memory; }
-    public void setMemory(MemoryConfig memory) { this.memory = memory; }
     public HwcloudConfig getHwcloud() { return hwcloud; }
     public void setHwcloud(HwcloudConfig hwcloud) { this.hwcloud = hwcloud; }
-    public WikiConfig getWiki() { return wiki; }
-    public void setWiki(WikiConfig wiki) { this.wiki = wiki; }
     public OAuthConfig getOauth() { return oauth; }
     public void setOauth(OAuthConfig oauth) { this.oauth = oauth; }
     public ComputeJwtConfig getComputeJwt() { return computeJwt; }
@@ -392,49 +380,6 @@ public class LakeonProperties {
         public void setMemory(String memory) { this.memory = memory; }
     }
 
-    public static class KnowledgeConfig {
-        private String embeddingApiUrl = "http://embedding-svc:8000/v1/embeddings";
-        private String embeddingApiKey = "";
-        private String embeddingModel = "BAAI/bge-m3";
-        private int presignExpireSeconds = 900;
-        private long maxFileSizeBytes = 104857600;
-        private int maxConcurrentJobs = 2;
-        private RerankConfig rerank = new RerankConfig();
-
-        public String getEmbeddingApiUrl() { return embeddingApiUrl; }
-        public void setEmbeddingApiUrl(String embeddingApiUrl) { this.embeddingApiUrl = embeddingApiUrl; }
-        public String getEmbeddingApiKey() { return embeddingApiKey; }
-        public void setEmbeddingApiKey(String embeddingApiKey) { this.embeddingApiKey = embeddingApiKey; }
-        public String getEmbeddingModel() { return embeddingModel; }
-        public void setEmbeddingModel(String embeddingModel) { this.embeddingModel = embeddingModel; }
-        public int getPresignExpireSeconds() { return presignExpireSeconds; }
-        public void setPresignExpireSeconds(int presignExpireSeconds) { this.presignExpireSeconds = presignExpireSeconds; }
-        public long getMaxFileSizeBytes() { return maxFileSizeBytes; }
-        public void setMaxFileSizeBytes(long maxFileSizeBytes) { this.maxFileSizeBytes = maxFileSizeBytes; }
-        public int getMaxConcurrentJobs() { return maxConcurrentJobs; }
-        public void setMaxConcurrentJobs(int maxConcurrentJobs) { this.maxConcurrentJobs = maxConcurrentJobs; }
-        public RerankConfig getRerank() { return rerank; }
-        public void setRerank(RerankConfig rerank) { this.rerank = rerank; }
-    }
-
-    public static class RerankConfig {
-        private boolean enabled = true;
-        private String url = "http://embedding-service:8000/rerank";
-
-        public boolean isEnabled() { return enabled; }
-        public void setEnabled(boolean enabled) { this.enabled = enabled; }
-        public String getUrl() { return url; }
-        public void setUrl(String url) { this.url = url; }
-    }
-
-
-    public static class MemoryConfig {
-        private String serviceUrl = "http://memory-svc:8001";
-
-        public String getServiceUrl() { return serviceUrl; }
-        public void setServiceUrl(String serviceUrl) { this.serviceUrl = serviceUrl; }
-    }
-
     public static class HwcloudConfig {
         private String accountId = "";
         private String accountName = "";
@@ -443,45 +388,6 @@ public class LakeonProperties {
         public void setAccountId(String accountId) { this.accountId = accountId; }
         public String getAccountName() { return accountName; }
         public void setAccountName(String accountName) { this.accountName = accountName; }
-    }
-
-    public static class WikiConfig {
-        private String apiKey = "";
-        private String baseUrl = "https://api.modelarts-maas.com/openai/v1";
-        private String model = "";
-        private String chatRoutingPrompt = "";
-        private String chatAnswerPrompt = "";
-        private WikiAgentConfig agent = new WikiAgentConfig();
-
-        public String getApiKey() { return apiKey; }
-        public void setApiKey(String apiKey) { this.apiKey = apiKey; }
-        public String getBaseUrl() { return baseUrl; }
-        public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
-        public String getModel() { return model; }
-        public void setModel(String model) { this.model = model; }
-        public String getChatRoutingPrompt() { return chatRoutingPrompt; }
-        public void setChatRoutingPrompt(String chatRoutingPrompt) { this.chatRoutingPrompt = chatRoutingPrompt; }
-        public String getChatAnswerPrompt() { return chatAnswerPrompt; }
-        public void setChatAnswerPrompt(String chatAnswerPrompt) { this.chatAnswerPrompt = chatAnswerPrompt; }
-        public WikiAgentConfig getAgent() { return agent; }
-        public void setAgent(WikiAgentConfig agent) { this.agent = agent; }
-    }
-
-    public static class WikiAgentConfig {
-        private String url;
-        private String internalToken;
-        /**
-         * HTTP read timeout for calls to the wiki agent service.
-         * Defaults to 300 seconds because LLM-driven agent runs can legitimately take several minutes.
-         */
-        private int timeoutSeconds = 300;
-
-        public String getUrl() { return url; }
-        public void setUrl(String url) { this.url = url; }
-        public String getInternalToken() { return internalToken; }
-        public void setInternalToken(String internalToken) { this.internalToken = internalToken; }
-        public int getTimeoutSeconds() { return timeoutSeconds; }
-        public void setTimeoutSeconds(int timeoutSeconds) { this.timeoutSeconds = timeoutSeconds; }
     }
 
     public static class OAuthConfig {
@@ -597,42 +503,4 @@ public class LakeonProperties {
         public void setUseCciBurst(boolean v) { this.useCciBurst = v; }
     }
 
-    public static class DatalakeConfig {
-        private String cciNamespacePrefix = "datalake-";
-        private String vkNodeSelectorKey = "type";
-        private String vkNodeSelectorValue = "virtual-kubelet";
-        private long pollIntervalMs = 10000;
-        private boolean warmPoolEnabled = true;
-        private int warmPoolSize = 2;
-        private String warmPoolNamespace = "datalake-pool";
-        private String warmPoolImage = "swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data";
-        private int warmPoolIdleTimeoutMinutes = 30;
-        private Map<String, String> presetImages = new HashMap<>(Map.of(
-            "python-slim", "swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-slim",
-            "python-data",  "swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-data",
-            "ray",          "swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311",
-            "ray-gpu",      "swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311-gpu"
-        ));
-
-        public String getCciNamespacePrefix() { return cciNamespacePrefix; }
-        public void setCciNamespacePrefix(String cciNamespacePrefix) { this.cciNamespacePrefix = cciNamespacePrefix; }
-        public String getVkNodeSelectorKey() { return vkNodeSelectorKey; }
-        public void setVkNodeSelectorKey(String vkNodeSelectorKey) { this.vkNodeSelectorKey = vkNodeSelectorKey; }
-        public String getVkNodeSelectorValue() { return vkNodeSelectorValue; }
-        public void setVkNodeSelectorValue(String vkNodeSelectorValue) { this.vkNodeSelectorValue = vkNodeSelectorValue; }
-        public long getPollIntervalMs() { return pollIntervalMs; }
-        public void setPollIntervalMs(long pollIntervalMs) { this.pollIntervalMs = pollIntervalMs; }
-        public Map<String, String> getPresetImages() { return presetImages; }
-        public void setPresetImages(Map<String, String> presetImages) { this.presetImages = presetImages; }
-        public boolean isWarmPoolEnabled() { return warmPoolEnabled; }
-        public void setWarmPoolEnabled(boolean warmPoolEnabled) { this.warmPoolEnabled = warmPoolEnabled; }
-        public int getWarmPoolSize() { return warmPoolSize; }
-        public void setWarmPoolSize(int warmPoolSize) { this.warmPoolSize = warmPoolSize; }
-        public String getWarmPoolNamespace() { return warmPoolNamespace; }
-        public void setWarmPoolNamespace(String warmPoolNamespace) { this.warmPoolNamespace = warmPoolNamespace; }
-        public String getWarmPoolImage() { return warmPoolImage; }
-        public void setWarmPoolImage(String warmPoolImage) { this.warmPoolImage = warmPoolImage; }
-        public int getWarmPoolIdleTimeoutMinutes() { return warmPoolIdleTimeoutMinutes; }
-        public void setWarmPoolIdleTimeoutMinutes(int warmPoolIdleTimeoutMinutes) { this.warmPoolIdleTimeoutMinutes = warmPoolIdleTimeoutMinutes; }
-    }
 }

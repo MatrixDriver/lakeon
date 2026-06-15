@@ -13,8 +13,8 @@
 
         <p class="dp-lede">
           {{ t(
-            'Console 是 DBay 的图形界面。创建数据库、浏览知识库、看记忆里的反思洞察、跑数据湖流水线、管理 API Key——全部在一个地方。',
-            'The Console is the graphical front door to DBay. Create databases, browse knowledge, inspect the reflections in your memory, run datalake pipelines, manage API keys — all in one place.'
+            'Console 是 DBay 的图形界面。创建数据库、管理 LakebaseFS 文件目录、查看备份和日志、管理 API Key——全部在一个地方。',
+            'The Console is the graphical front door to DBay. Create databases, manage LakebaseFS directories, inspect backups and logs, and manage API keys — all in one place.'
           ) }}
         </p>
       </div>
@@ -40,10 +40,10 @@
           <div class="dc-row">
             <div class="dc-row-num">02</div>
             <div class="dc-row-body">
-              <h3 class="dc-row-title">{{ t('知识 · Wiki', 'Knowledge · Wiki') }}</h3>
+              <h3 class="dc-row-title">LakebaseFS</h3>
               <p>{{ t(
-                '上传文档，DBay 在后台生成结构化 wiki 条目和条目之间的知识链接。Console 里可以逐条读、搜索、分享给团队——也可以导出你所有的文档和 wiki。',
-                'Upload documents and DBay distills them into structured wiki entries with cross-links. The Console lets you read entry by entry, search, share with teammates — and export everything you put in.'
+                '按 folder type 管理应用文件目录。小对象可以直接进入 Lakebase，大对象进入 OBS，处理状态在 Console 中可见。',
+                'Manage application file directories by folder type. Small objects can live directly in Lakebase, large objects go to OBS, and processing status is visible in the Console.'
               ) }}</p>
             </div>
           </div>
@@ -51,10 +51,10 @@
           <div class="dc-row">
             <div class="dc-row-num">03</div>
             <div class="dc-row-body">
-              <h3 class="dc-row-title">{{ t('记忆 · 反思洞察', 'Memory · Reflections') }}</h3>
+              <h3 class="dc-row-title">{{ t('备份 · 审计 · 日志', 'Backups · audit · logs') }}</h3>
               <p>{{ t(
-                '每晚 DBay 会反刍你的对话，提炼出你的思维方式。在 Memory 面板里可以看到这些反思洞察，按类型筛选（fact · decision · convention · procedural…），也可以手动写入或删除。API Key 和其他秘钥通过加密通道直接写入，服务器只看到密文。',
-                "Every night DBay digests your conversations and distills how you think. The Memory panel shows these reflections, filterable by type (fact · decision · convention · procedural…), and lets you write or delete entries directly. API keys and other secrets enter through an encrypted channel — the server only sees ciphertext."
+                '创建和恢复备份，查看审计日志、操作日志和组件健康状态。SRE 控制台负责更底层的集群与云资源视图。',
+                'Create and restore backups, inspect audit logs, operation logs, and component health. The SRE console owns lower-level cluster and cloud resource views.'
               ) }}</p>
             </div>
           </div>
@@ -62,10 +62,10 @@
           <div class="dc-row">
             <div class="dc-row-num">04</div>
             <div class="dc-row-body">
-              <h3 class="dc-row-title">{{ t('数据湖 · 流水线', 'Datalake · Pipelines') }}</h3>
+              <h3 class="dc-row-title">API Key</h3>
               <p>{{ t(
-                '多模态批处理在 Console 里是一张 DAG 图：文本 / 图像 / 音频 / 视频 / 文档算子拖拽拼接，一次 run 生成分布式 Python 程序跑起来。Ray 热池启动，大约 13 秒冷启。',
-                "Multi-modal batch processing is a DAG in the Console: drag and drop text / image / audio / video / document operators. One run compiles the DAG to a distributed Python program. Ray warm pool keeps cold start under about 13 seconds."
+                '创建和回收 API Key、查看用量，并用同一套凭据调用 REST API 或 CLI。',
+                'Create and revoke API keys, inspect usage, and use the same credentials from the REST API or CLI.'
               ) }}</p>
             </div>
           </div>
@@ -73,10 +73,10 @@
           <div class="dc-row">
             <div class="dc-row-num">05</div>
             <div class="dc-row-body">
-              <h3 class="dc-row-title">{{ t('API Key · 租户 · 用量', 'API keys · tenants · usage') }}</h3>
+              <h3 class="dc-row-title">{{ t('数据导入', 'Data import') }}</h3>
               <p>{{ t(
-                '创建和回收 API Key、管理团队成员、看调用和资源用量。分享一份知识库给团队需要的是一次点击，不是一次集成。',
-                'Create and revoke API keys, manage teammates, inspect usage. Sharing a knowledge base with your team is a click, not an integration.'
+                '从外部 PostgreSQL 临时连接导入数据，支持整库、选表和满足条件时的持续同步。',
+                'Import data from an external PostgreSQL temporary connection, with full import, selected tables, and continuous sync when prerequisites are met.'
               ) }}</p>
             </div>
           </div>
@@ -94,10 +94,10 @@
             <p class="dp-card-claim">{{ t('终端里做同样的事。', 'The same things from your terminal.') }}</p>
             <span class="dp-card-more">{{ t('打开', 'Open') }} →</span>
           </router-link>
-          <router-link to="/docs/mcp" class="dp-card dp-card-ref">
+          <router-link to="/docs/rest-api" class="dp-card dp-card-ref">
             <div class="dp-card-num">{{ t('或者', 'Or') }}</div>
-            <h3 class="dp-card-title">{{ t('MCP 工具', 'MCP tools') }}</h3>
-            <p class="dp-card-claim">{{ t('让你的 Agent 直接调用。', 'Let your agent call these directly.') }}</p>
+            <h3 class="dp-card-title">REST API</h3>
+            <p class="dp-card-claim">{{ t('从服务端直接调用 Lakebase 能力。', 'Call Lakebase capabilities directly from your service.') }}</p>
             <span class="dp-card-more">{{ t('打开', 'Open') }} →</span>
           </router-link>
         </div>

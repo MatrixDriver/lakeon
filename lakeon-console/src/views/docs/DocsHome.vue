@@ -12,8 +12,8 @@
 
         <p class="dp-lede">
           {{ t(
-            'DBay 给你三种使用方式：浏览器里的 Console、终端里的 CLI、Agent 内的 MCP 工具。参考文档包含 REST API 和 Python SDK。选一个开始，或者随你的工作方式切换——数据始终在同一个地方。',
-            "DBay gives you three ways to use it: a Console in the browser, a CLI in your terminal, and MCP tools inside your agent. Reference docs cover the REST API and the Python SDK. Pick one to start — or switch between them freely. Your data is always in the same place."
+            'DBay 给你两种使用方式：浏览器里的 Console 和终端里的 CLI。参考文档包含 REST API 和 Python SDK。选一个开始，或者随你的工作方式切换。',
+            'DBay gives you two ways to use it: a Console in the browser and a CLI in your terminal. Reference docs cover the REST API and the Python SDK. Pick one to start, or switch between them freely.'
           ) }}
         </p>
       </div>
@@ -22,17 +22,17 @@
     <!-- 使用方式 · three cards -->
     <section class="ppage-section">
       <div class="ppage-inner dp-inner">
-        <h2 class="ppage-section-title">{{ t('三种使用方式', 'Three ways to use it') }}</h2>
+        <h2 class="ppage-section-title">{{ t('两种使用方式', 'Two ways to use it') }}</h2>
 
-        <div class="dp-grid dp-grid-3">
+        <div class="dp-grid dp-grid-2">
           <router-link to="/docs/console" class="dp-card">
             <div class="dp-card-num">01</div>
             <h3 class="dp-card-title">Console</h3>
-            <p class="dp-card-claim">{{ t('浏览器里管理数据库、知识、记忆、数据湖流水线。', 'Manage databases, knowledge, memory, and datalake pipelines from the browser.') }}</p>
+            <p class="dp-card-claim">{{ t('浏览器里管理数据库、FS、备份、日志和 API Key。', 'Manage databases, FS, backups, logs, and API keys from the browser.') }}</p>
             <ul class="dp-card-list">
               <li>{{ t('数据库 Dashboard · 连接 · 存储 · 资源趋势', 'Database dashboard · connections · storage · resource trends') }}</li>
-              <li>{{ t('知识 · 记忆 · 数据湖流水线一体化', 'Knowledge · memory · datalake pipelines in one place') }}</li>
-              <li>{{ t('API Key 管理 · 用量 · 团队分享', 'API keys · usage · team sharing') }}</li>
+              <li>{{ t('LakebaseFS 文件目录和对象管理', 'LakebaseFS file directories and object management') }}</li>
+              <li>{{ t('API Key 管理 · 用量 · 操作日志', 'API keys · usage · operation logs') }}</li>
             </ul>
             <span class="dp-card-more">{{ t('读 Console 文档', 'Open Console docs') }} →</span>
           </router-link>
@@ -42,23 +42,11 @@
             <h3 class="dp-card-title">CLI</h3>
             <p class="dp-card-claim">{{ t('终端里的 DBay。一行命令搞定大多数事。', 'DBay in your terminal. Most things in a single command.') }}</p>
             <ul class="dp-card-list">
-              <li>{{ t('登录 · 数据库 · 知识 · 记忆 · 秘钥', 'Login · databases · knowledge · memory · secrets') }}</li>
-              <li>{{ t('导入 / 导出 · 数据可携带', 'Import / export · take your data with you') }}</li>
-              <li>{{ t('MCP 服务随 dbay-cli 一起安装', 'The MCP server ships with dbay-cli') }}</li>
+              <li>{{ t('登录 · 数据库 · branch · version · 用户', 'Login · databases · branches · versions · users') }}</li>
+              <li>{{ t('导入数据 · 管理连接 · 查询状态', 'Import data · manage connections · inspect status') }}</li>
+              <li>{{ t('面向 Lakebase core 的自动化入口', 'Automation entry point for Lakebase core') }}</li>
             </ul>
             <span class="dp-card-more">{{ t('读 CLI 文档', 'Open CLI docs') }} →</span>
-          </router-link>
-
-          <router-link to="/docs/mcp" class="dp-card">
-            <div class="dp-card-num">03</div>
-            <h3 class="dp-card-title">MCP {{ t('工具', 'tools') }}</h3>
-            <p class="dp-card-claim">{{ t('Agent 能直接调用的一组工具。你的 Agent 变成 DBay 的入口。', 'A set of tools your agent can call directly. Turn any agent into a DBay front end.') }}</p>
-            <ul class="dp-card-list">
-              <li>{{ t('知识：search / list / upload / ingest', 'Knowledge: search / list / upload / ingest') }}</li>
-              <li>{{ t('记忆：ingest / recall / list / delete', 'Memory: ingest / recall / list / delete') }}</li>
-              <li>{{ t('接入方式看集成指引', 'Wiring instructions live on the Integrations page') }}</li>
-            </ul>
-            <span class="dp-card-more">{{ t('看有哪些工具', 'See available tools') }} →</span>
           </router-link>
         </div>
       </div>

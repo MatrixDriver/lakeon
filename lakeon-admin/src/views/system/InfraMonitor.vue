@@ -401,7 +401,7 @@
     <!-- Tab: CCI Pod -->
     <div v-if="activeTab === 'cci'">
       <div class="section-card">
-        <div class="section-header"><h3>Job Pod（知识库/数据湖任务）</h3></div>
+        <div class="section-header"><h3>Job Pod（数据导入任务）</h3></div>
         <div v-if="!jobPods.length" class="empty-text">当前无运行中的 Job Pod</div>
         <div class="table-wrapper" v-else>
           <table class="data-table">

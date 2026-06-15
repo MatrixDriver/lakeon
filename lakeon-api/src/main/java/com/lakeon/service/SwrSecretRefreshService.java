@@ -89,7 +89,7 @@ public class SwrSecretRefreshService {
                 }
             }
 
-            // Refresh in lakeon-jobs namespace (for KB pipeline job pods)
+            // Refresh in lakeon-jobs namespace for import/sync job pods.
             String jobNs = "lakeon-jobs";
             try {
                 updateK8sSecret(jobNs, dockerConfigJson);

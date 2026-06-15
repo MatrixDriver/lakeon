@@ -34,8 +34,8 @@ public class ComputeLifecycleService {
     private static final Logger log = LoggerFactory.getLogger(ComputeLifecycleService.class);
     private static final long DEFAULT_WAKE_TIMEOUT_MS = 360_000L;
     private final ReentrantLock suspendLock = new ReentrantLock();
-    // Per-DB lock so concurrent callers (lakebasefs/memory/knowledge MCP all hitting the
-    // same database) serialize on wake. The second caller will see status=RUNNING +
+    // Per-DB lock so concurrent callers hitting the same database serialize on wake.
+    // The second caller will see status=RUNNING +
     // pod ready and return immediately instead of logging a duplicate cold start.
     private final ConcurrentMap<String, ReentrantLock> wakeLocks = new ConcurrentHashMap<>();
 

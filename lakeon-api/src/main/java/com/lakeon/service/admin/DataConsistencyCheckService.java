@@ -9,8 +9,8 @@ import java.util.*;
 
 /**
  * Read-only invariant checks against lakeon-api production DB.
- * Mirrors the rules originally implemented in dbay-sre-mcp 0.2.0
- * Python tool. Returned shape adds {@code severity}, {@code self_healable}
+ * Mirrors the production SRE consistency rules. Returned shape adds
+ * {@code severity}, {@code self_healable}
  * and {@code max_age_seconds} so downstream watchers can suppress noisy
  * transient violations (e.g. cold-start windows that L3 reconcilers will fix).
  */

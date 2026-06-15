@@ -7,9 +7,6 @@
       <router-link to="/product" class="mobile-nav-link" @click="$emit('close')">
         {{ t('方案', 'Solution') }}
       </router-link>
-      <router-link to="/integrations" class="mobile-nav-link" @click="$emit('close')">
-        {{ t('集成', 'Integrations') }}
-      </router-link>
       <router-link to="/docs" class="mobile-nav-link" @click="$emit('close')">
         {{ t('文档', 'Docs') }}
       </router-link>

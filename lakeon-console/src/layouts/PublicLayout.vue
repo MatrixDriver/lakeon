@@ -11,7 +11,6 @@
         <!-- Desktop nav -->
         <div class="pub-nav-links">
           <router-link to="/product" class="pub-nav-link">{{ t('方案', 'Solution') }}</router-link>
-          <router-link to="/integrations" class="pub-nav-link">{{ t('集成', 'Integrations') }}</router-link>
           <router-link to="/docs" class="pub-nav-link">{{ t('文档', 'Docs') }}</router-link>
         </div>
 
@@ -36,8 +35,8 @@
     <div class="pub-signature">
       <div class="pub-signature-inner">
         <span class="pub-signature-mark" aria-hidden="true"></span>
-        <span class="pub-signature-refrain">{{ t('在你这边。', 'On your side.') }}</span>
-        <span class="pub-signature-sub">{{ t('你的记忆，你的知识，你的选择。', 'Your memory. Your knowledge. Yours.') }}</span>
+        <span class="pub-signature-refrain">{{ t('数据底座，在你这边。', 'A data foundation on your side.') }}</span>
+        <span class="pub-signature-sub">{{ t('你的数据库，你的文件，你的控制权。', 'Your database. Your files. Your control.') }}</span>
       </div>
     </div>
   </div>

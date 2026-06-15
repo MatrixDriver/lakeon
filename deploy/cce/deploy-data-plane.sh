@@ -43,8 +43,5 @@ kubectl rollout status deployment/pageserver -n lakeon --timeout=180s
 kubectl rollout status statefulset/safekeeper -n lakeon --timeout=180s
 kubectl rollout status deployment/storage-broker -n lakeon --timeout=180s
 kubectl rollout status deployment/proxy -n lakeon --timeout=180s
-if kubectl get deployment/memory-svc -n lakeon >/dev/null 2>&1; then
-  kubectl rollout status deployment/memory-svc -n lakeon --timeout=180s
-fi
 
 echo "Data plane deployed."

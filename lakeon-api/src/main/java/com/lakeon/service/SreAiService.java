@@ -98,7 +98,7 @@ public class SreAiService {
         tool("log_search", "搜索结构化日志（按组件、级别、租户、关键词筛选）",
             Map.of("type", "object",
                 "properties", Map.of(
-                    "component", Map.of("type", "string", "description", "组件名称：lakeon-api, knowledge-pipeline, pageserver 等"),
+                    "component", Map.of("type", "string", "description", "组件名称：lakeon-api, pageserver, proxy 等"),
                     "level", Map.of("type", "string", "enum", List.of("ERROR", "WARN", "INFO", "DEBUG"), "description", "日志级别"),
                     "keyword", Map.of("type", "string", "description", "关键词（全文搜索）"),
                     "tenant_id", Map.of("type", "string", "description", "租户ID"),

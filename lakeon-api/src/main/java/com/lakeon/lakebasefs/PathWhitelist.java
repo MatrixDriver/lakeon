@@ -19,8 +19,8 @@ public class PathWhitelist {
     }
 
     public static String frontmatterTypeToMemoryType(String frontmatterType) {
-        // memories.memory_type ∈ {fact, episode, procedural, decision, rejection, convention}
-        // (V32 CHECK constraint in memory-svc schema)
+        // Reserved frontmatter type mapping kept for compatibility with existing
+        // LakebaseFS memory-style folders.
         //
         // feedback_*.md — user preferences and conventions ("don't use emoji",
         //   "deploy via hwstaff") → convention

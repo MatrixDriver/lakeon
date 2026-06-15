@@ -213,26 +213,6 @@ admin:
       cpu: "200m"
       memory: "256Mi"
 
-# MIGRATION NOTE:
-# Datalake and intelligence workers are moving to the dbay-agent repo.
-# Keep these values only until dbay-agent CCE deployment is live and E2E passes.
-datalake:
-  cciNamespacePrefix: "datalake-"
-  vkNodeSelectorKey: "type"
-  vkNodeSelectorValue: "virtual-kubelet"
-  pollIntervalMs: "10000"
-  warmPool:
-    enabled: false
-    size: 2
-    namespace: "datalake-pool"
-    image: "swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data"
-    idleTimeoutMinutes: 30
-  images:
-    pythonSlim: "swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-slim"
-    pythonData: "swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-data"
-    ray: "swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311"
-    rayGpu: "swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311-gpu"
-
 # Node init DaemonSet — fixes containerd core ulimit for Neon compute_ctl
 # See: doc/neon-modifications.md (问题 1)
 nodeInit:
@@ -256,30 +236,7 @@ console:
       cpu: "200m"
       memory: "256Mi"
 
-# MIGRATION NOTE:
-# Memory is moving to the dbay-agent repo.
-# Keep these values only until dbay-agent CCE deployment is live and E2E passes.
-memory:
-  enabled: false
-  image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.1.0
-  serviceType: ClusterIP
-  serviceUrl: ""
-  elb:
-    id: ""
-    class: "union"
-    autocreate: ""
-  cpu: 500m
-  memorySize: 512Mi
-
 llm:
-  enabled: false
-
-embedding:
-  enabled: false
-
-# MIGRATION NOTE:
-# Orchestrator is moving to the dbay-agent repo with DataAgent/Datalake workloads.
-orchestrator:
   enabled: false
 
 fluentbit:
@@ -313,25 +270,3 @@ computeWarmPool:
   # When true, warm pool idle pods burst to Huawei CCI via virtual-kubelet
   # instead of consuming the dedicated compute node pool.
   useCciBurst: true
-
-wikiAgent:
-  enabled: true
-  replicas: 1
-  image:
-    repository: lakeon/lakeon-wiki-agent
-    tag: "0.1.0"
-    pullPolicy: IfNotPresent
-  lakeonApiUrl: "http://lakeon-api.lakeon.svc:8080"
-  llm:
-    baseUrl: "https://api.modelarts-maas.com/openai/v1"
-    model: "deepseek-v3.2"
-  maxToolRounds: 20
-  maxConcurrentAgents: 8
-  logLevel: "INFO"
-  resources:
-    requests:
-      cpu: "200m"
-      memory: "512Mi"
-    limits:
-      cpu: "1000m"
-      memory: "2Gi"

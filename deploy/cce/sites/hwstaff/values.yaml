@@ -72,11 +72,7 @@ api:
   # Compute Pod 调度到专用数据库弹性节点池 dbay-db-pool (min=1 max=5)
   computeNodeSelector:
     lakeon/pool: database
-  computeMemory: "1Gi"  # 允许多个KB并发创建（弹性节点4C/8G）
-  kbWriteCpu: "500m"   # 降低以便和compute pod共存于同一个弹性节点(4C)
-  kbWriteMemory: "1Gi"
-
-knowledgeJobImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-knowledge-job:0.2.13"
+  computeMemory: "1Gi"
 
 # ── Neon 组件（单副本开发模式，最小资源请求）─────────────────────
 pageserver:
@@ -139,43 +135,6 @@ metadataDb:
   name: "lakeon"
   user: "lakeon"
   password: ""      # --set metadataDb.password=$RDS_PASSWORD
-
-# ── Pipeline Orchestrator ──────────────────────────────────────
-orchestrator:
-  enabled: true
-  image:
-    repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-orchestrator
-    tag: "0.1.6"
-  replicas: 1
-  resources:
-    requests:
-      cpu: "100m"
-      memory: "256Mi"
-    limits:
-      cpu: "1000m"
-      memory: "512Mi"
-
-# ── Wiki Agent (Karpathy-style agentic wiki compiler) ─────────
-wikiAgent:
-  enabled: true
-  replicas: 1
-  image:
-    repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-wiki-agent
-    tag: "0.1.1"
-  lakeonApiUrl: "http://lakeon-api.lakeon.svc:8088"
-  llm:
-    baseUrl: "https://api.deepseek.com/v1"
-    model: "deepseek-chat"
-  maxToolRounds: 20
-  maxConcurrentAgents: 8
-  logLevel: "INFO"
-  resources:
-    requests:
-      cpu: "200m"
-      memory: "512Mi"
-    limits:
-      cpu: "1000m"
-      memory: "2Gi"
 
 # ── SRE 运维控制台（已部署到 Railway）───────────────────────────
 admin:
@@ -261,8 +220,8 @@ cloud:
 #    规格: c9.xlarge.2 (4C/8G)
 #    弹性伸缩: min=1, max=5
 #    节点标签: lakeon/role=compute
-#    运行: lakeon-api, pageserver, safekeeper, proxy, memory-svc,
-#          orchestrator, kuberay, log-collector, storage-broker
+#    运行: lakeon-api, pageserver, safekeeper, proxy,
+#          log-collector, storage-broker
 #
 # 2) dbay-db-pool (待创建) — 数据库 compute pods 专用
 #    规格: c9.xlarge.2 (4C/8G)
@@ -270,10 +229,6 @@ cloud:
 #    节点标签: lakeon/pool=database
 #    运行: compute pods (PostgreSQL 17 实例)
 #    目的: compute 冷启动稳定 ~3s，不受管控面影响
-#
-# 3) GPU 节点 (p2sne.2xlarge.8) — AI 推理
-#    节点标签: lakeon/role=gpu
-#    运行: embedding-svc, llm-svc
 #
 # node-init DaemonSet 自动在新节点修复 containerd core ulimit。
 
@@ -286,37 +241,10 @@ nodeInit:
 networkPolicy:
   enabled: true
 
-embedding:
-  enabled: true
-  image: vllm/vllm-openai:latest
-  serviceType: LoadBalancer
-  elb:
-    id: "018d2a1e-68ad-4841-980b-4e6f1a09ff29"
-    class: "performance"
-  gpu: "1"
-  cpu: "2"
-  memory: "8Gi"
-  modelPath: "/models/bge-m3"
-  maxModelLen: "8192"
-  gpuMemoryUtilization: "0.3"
-  apiUrl: "http://192.168.0.175:8000/v1/embeddings"
-  model: "BAAI/bge-m3"
-
 llm:
   enabled: false
   apiUrl: "https://api.deepseek.com/v1"
   model: "deepseek-chat"
-
-memory:
-  enabled: true
-  image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.2.8-6f579d49-dirty
-  serviceType: LoadBalancer
-  serviceUrl: "http://192.168.0.175:8001"
-  elb:
-    id: "018d2a1e-68ad-4841-980b-4e6f1a09ff29"
-    class: "performance"
-  chatApiUrl: "https://api.deepseek.com/v1"
-  chatModel: "deepseek-chat"
 
 minio:
   enabled: false
@@ -337,24 +265,6 @@ logCollector:
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/log-collector
     tag: "0.1.1"
-
-# ── 数据湖任务配置 ─────────────────────────────────────────────
-datalake:
-  cciNamespacePrefix: "datalake-"
-  vkNodeSelectorKey: "type"
-  vkNodeSelectorValue: "virtual-kubelet"
-  pollIntervalMs: "10000"
-  warmPool:
-    enabled: false
-    size: 2
-    namespace: "datalake-pool"
-    image: "swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data"
-    idleTimeoutMinutes: 30
-  images:
-    pythonSlim: "swr.cn-north-4.myhuaweicloud.com/flex/python:3.11-slim"
-    pythonData: "swr.cn-north-4.myhuaweicloud.com/flex/python:3.11-data"
-    ray: "swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data"
-    rayGpu: "swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data"
 
 # Warm pool: maintain N idle compute pods on CCI (virtual-kubelet burst) to skip
 # cold-start. Idle pods run with Replica mode against a mock tenant; on user

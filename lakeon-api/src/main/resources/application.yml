@@ -87,11 +87,6 @@ lakeon:
     api-key: ${LAKEON_AI_API_KEY:}
     base-url: ${LAKEON_AI_BASE_URL:https://api.modelarts-maas.com/openai/v1}
     model: ${LAKEON_AI_MODEL:deepseek-v3.2}
-  wiki:
-    agent:
-      url: ${WIKI_AGENT_URL:http://localhost:8090}
-      internal-token: ${WIKI_AGENT_INTERNAL_TOKEN:lakeon-wiki-agent-2026}
-      timeout-seconds: ${WIKI_AGENT_TIMEOUT_SECONDS:300}
   invite-required: ${LAKEON_INVITE_REQUIRED:false}
   suspend:
     pod-retain-minutes: ${LAKEON_SUSPEND_POD_RETAIN_MINUTES:30}
@@ -107,15 +102,6 @@ lakeon:
     account-id: ${LAKEON_HWCLOUD_ACCOUNT_ID:}
   connector:
     secret-key: ${CONNECTOR_SECRET_KEY}
-  knowledge:
-    embedding-api-url: ${LAKEON_EMBEDDING_API_URL:http://embedding-svc:8000/v1/embeddings}
-    embedding-api-key: ${LAKEON_EMBEDDING_API_KEY:${LAKEON_AI_API_KEY:}}
-    embedding-model: ${LAKEON_EMBEDDING_MODEL:BAAI/bge-m3}
-    presign-expire-seconds: ${LAKEON_KNOWLEDGE_PRESIGN_EXPIRE:900}
-    max-file-size-bytes: ${LAKEON_KNOWLEDGE_MAX_FILE_SIZE:104857600}
-    rerank:
-      enabled: ${LAKEON_RERANK_ENABLED:true}
-      url: ${LAKEON_RERANK_URL:http://embedding-service:8000/rerank}
   job:
     timeout-minutes: ${LAKEON_JOB_TIMEOUT_MINUTES:30}
     pending-timeout-minutes: ${LAKEON_JOB_PENDING_TIMEOUT_MINUTES:5}
@@ -140,29 +126,6 @@ lakeon:
         image: ${LAKEON_JOB_IMAGE_TRAINING:rayproject/ray:2.44.1-py312}
         cpu: "4"
         memory: "8Gi"
-  kb-write:
-    idle-timeout-minutes: ${LAKEON_KB_WRITE_IDLE_TIMEOUT_MINUTES:5}
-    cpu: ${LAKEON_KB_WRITE_CPU:250m}
-    memory: ${LAKEON_KB_WRITE_MEMORY:512Mi}
-  memory:
-    service-url: ${LAKEON_MEMORY_SERVICE_URL:http://memory-svc:8001}
-  orchestrator:
-    url: ${LAKEON_ORCHESTRATOR_URL:http://pipeline-orchestrator:8090}
-  datalake:
-    cci-namespace-prefix: "${LAKEON_DATALAKE_CCI_NS_PREFIX:datalake-}"
-    vk-node-selector-key: "${LAKEON_DATALAKE_VK_NODE_SELECTOR_KEY:type}"
-    vk-node-selector-value: "${LAKEON_DATALAKE_VK_NODE_SELECTOR_VALUE:virtual-kubelet}"
-    poll-interval-ms: "${LAKEON_DATALAKE_POLL_INTERVAL_MS:10000}"
-    preset-images:
-      python-slim: "${LAKEON_DATALAKE_IMAGE_PYTHON_SLIM:swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-slim}"
-      python-data: "${LAKEON_DATALAKE_IMAGE_PYTHON_DATA:swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-data}"
-      ray: "${LAKEON_DATALAKE_IMAGE_RAY:swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311}"
-      ray-gpu: "${LAKEON_DATALAKE_IMAGE_RAY_GPU:swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311-gpu}"
-  warm-pool-enabled: "${LAKEON_DATALAKE_WARM_POOL_ENABLED:true}"
-  warm-pool-size: "${LAKEON_DATALAKE_WARM_POOL_SIZE:2}"
-  warm-pool-namespace: "${LAKEON_DATALAKE_WARM_POOL_NS:datalake-pool}"
-  warm-pool-image: "${LAKEON_DATALAKE_WARM_POOL_IMAGE:swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data}"
-  warm-pool-idle-timeout-minutes: "${LAKEON_DATALAKE_WARM_POOL_IDLE_TIMEOUT:30}"
   log:
     db-dsn: "${LOG_DB_DSN:}"
   compute-jwt:

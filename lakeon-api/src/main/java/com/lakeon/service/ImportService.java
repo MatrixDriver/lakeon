@@ -1,8 +1,6 @@
 package com.lakeon.service;
 
 import com.lakeon.config.LakeonProperties;
-import com.lakeon.connector.ConnectorDtos.PostgresConnectionSnapshot;
-import com.lakeon.connector.ConnectorService;
 import com.lakeon.k8s.ComputePodManager;
 import com.lakeon.k8s.ImportJobPodManager;
 import com.lakeon.model.dto.*;
@@ -49,7 +47,6 @@ public class ImportService {
     private final DatabaseService databaseService;
     private final OperationLogService operationLogService;
     private final LakeonProperties props;
-    private final ConnectorService connectorService;
     private final ExecutorService importExecutor = Executors.newFixedThreadPool(2);
 
     public ImportService(ImportTaskRepository importTaskRepository,
@@ -59,8 +56,7 @@ public class ImportService {
                          ComputePodManager computePodManager,
                          DatabaseService databaseService,
                          OperationLogService operationLogService,
-                         LakeonProperties props,
-                         ConnectorService connectorService) {
+                         LakeonProperties props) {
         this.importTaskRepository = importTaskRepository;
         this.importTableTaskRepository = importTableTaskRepository;
         this.databaseRepository = databaseRepository;
@@ -69,7 +65,6 @@ public class ImportService {
         this.databaseService = databaseService;
         this.operationLogService = operationLogService;
         this.props = props;
-        this.connectorService = connectorService;
     }
 
     public Map<String, Object> testConnection(TestConnectionRequest req) {
@@ -157,8 +152,10 @@ public class ImportService {
 
     @Transactional
     public ImportTaskResponse createImport(TenantEntity tenant, String dbId, CreateImportRequest req) {
-        PostgresConnectionSnapshot connectorSnapshot = resolveConnectorSnapshot(tenant.getId(), req.connectorId());
-        CreateImportRequest effectiveReq = effectiveImportRequest(req, connectorSnapshot);
+        if (req.connectorId() != null && !req.connectorId().isBlank()) {
+            throw new IllegalStateException("Connector-backed imports moved to dbay-agent");
+        }
+        CreateImportRequest effectiveReq = req;
 
         // Validate database exists and belongs to tenant
         DatabaseEntity database = databaseRepository.findByIdAndTenantId(dbId, tenant.getId())
@@ -240,34 +237,7 @@ public class ImportService {
             }
         });
 
-        return toResponse(task, null, connectorSnapshot == null ? null : connectorSnapshot.connectorName());
-    }
-
-    private PostgresConnectionSnapshot resolveConnectorSnapshot(String tenantId, String connectorId) {
-        if (connectorId == null || connectorId.isBlank()) {
-            return null;
-        }
-        if (connectorService == null) {
-            throw new IllegalStateException("Connector service is not available");
-        }
-        return connectorService.resolvePostgres(tenantId, connectorId);
-    }
-
-    private CreateImportRequest effectiveImportRequest(CreateImportRequest req, PostgresConnectionSnapshot snapshot) {
-        if (snapshot == null) {
-            return req;
-        }
-        return new CreateImportRequest(
-            snapshot.connectorId(),
-            snapshot.host(),
-            snapshot.port(),
-            snapshot.dbname(),
-            snapshot.user(),
-            snapshot.password(),
-            req.mode(),
-            req.conflictStrategy(),
-            req.tables()
-        );
+        return toResponse(task, null, null);
     }
 
     private void prepareAndLaunchImport(String taskId, String tenantId, String dbId,

@@ -27,10 +27,6 @@ const routes = [
       { path: 'cost', name: 'CostView', component: () => import('../views/cost/CostView.vue') },
       { path: 'cloud', name: 'CloudView', component: () => import('../views/cloud/CloudView.vue') },
       { path: 'audit', name: 'AuditLogs', component: () => import('../views/AuditLogs.vue') },
-      { path: 'knowledge', name: 'KnowledgeAdmin', component: () => import('../views/knowledge/KnowledgeList.vue') },
-      { path: 'wiki-agent', name: 'WikiAgentAdmin', component: () => import('../views/knowledge/WikiAgentAdmin.vue') },
-      { path: 'memory', name: 'MemoryAdmin', component: () => import('../views/memory/MemoryList.vue') },
-      { path: 'datalake', name: 'DatalakeAdmin', component: () => import('../views/datalake/DatalakeAdmin.vue') },
     ],
   },
 ]
