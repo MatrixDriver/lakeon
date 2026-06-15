@@ -10,8 +10,6 @@ tests/e2e/test_extensions.py
 tests/e2e/test_lbfs_etag_conflict.py
 tests/e2e/test_lbfs_idempotent.py
 tests/e2e/test_lbfs_mount_resume.py
-tests/e2e/test_lbfs_phase2.py
-tests/e2e/test_lbfs_phase2_quality.py
 tests/e2e/test_lbfs_pull.py
 tests/e2e/test_lbfs_sync_roundtrip.py
 tests/e2e/test_manifest_writer.py

@@ -3,6 +3,7 @@
 Lakebase Core tests remain in this repo:
 
 ```bash
+cargo build --release --manifest-path dbay-fuse/Cargo.toml
 xargs python3 -m pytest -v -s < tests/e2e/lakebase_core.txt
 ```
 
@@ -13,4 +14,3 @@ cat tests/e2e/dbay_agent_migration.txt
 ```
 
 Do not mark failing tests as skipped to hide failures. During migration, move each test with the module it validates.
-
