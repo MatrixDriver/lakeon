@@ -52,26 +52,10 @@
                 <path d="M5 5v6c0 1.66 3.13 3 7 3s7-1.34 7-3V5" />
                 <path d="M5 11v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6" />
               </template>
-              <template v-else-if="mode.icon === 'agent'">
-                <rect x="7" y="8" width="10" height="10" rx="2" />
-                <path d="M12 4v4" />
-                <path d="M8 4h8" />
-                <path d="M4 12h3" />
-                <path d="M17 12h3" />
-              </template>
-              <template v-else-if="mode.icon === 'knowledge'">
-                <path d="M6 4h10a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2V4Z" />
-                <path d="M8 18h10" />
-                <path d="M9 8h6" />
-              </template>
               <template v-else-if="mode.icon === 'lbfs'">
                 <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H10l2 2h5.5A2.5 2.5 0 0 1 20 9.5v7A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-9Z" />
                 <path d="M8 12h8" />
                 <path d="M8 15h5" />
-              </template>
-              <template v-else-if="mode.icon === 'memory'">
-                <path d="M8 15a6 6 0 1 1 8 0c-.94.78-1.5 1.75-1.5 3h-5c0-1.25-.56-2.22-1.5-3Z" />
-                <path d="M9.5 21h5" />
               </template>
               <template v-else>
                 <circle cx="12" cy="12" r="3" />
@@ -144,10 +128,10 @@ type NavGroup = {
 }
 
 type WorkspaceMode = {
-  id: 'database' | 'agent' | 'knowledge' | 'lbfs' | 'memory' | 'ops'
+  id: 'data' | 'lbfs' | 'ops'
   label: string
   shortLabel: string
-  icon: 'database' | 'agent' | 'knowledge' | 'lbfs' | 'memory' | 'ops'
+  icon: 'database' | 'lbfs' | 'ops'
   description: string
   to: string
   match: string[]
@@ -156,14 +140,20 @@ type WorkspaceMode = {
 
 const workspaceModes: WorkspaceMode[] = [
   {
-    id: 'database',
-    label: '数据库工作台',
-    shortLabel: '数据库',
+    id: 'data',
+    label: '数据',
+    shortLabel: '数据',
     icon: 'database',
-    description: '实例、分支、SQL 与迁移',
+    description: 'Lakebase 数据库工作台',
     to: '/dashboard',
-    match: ['/dashboard', '/databases', '/timetravel', '/sql', '/import', '/connectors', '/datalake'],
+    match: ['/dashboard', '/databases', '/timetravel', '/sql', '/import'],
     groups: [
+      {
+        title: '数据目录',
+        items: [
+          { label: '数据总览', to: '/dashboard', icon: '▣' },
+        ],
+      },
       {
         title: '数据库',
         items: [
@@ -173,66 +163,14 @@ const workspaceModes: WorkspaceMode[] = [
           { label: '数据迁移', to: '/import', icon: '⇩' },
         ],
       },
-      {
-        title: '数据湖',
-        items: [
-          { label: '生产线', to: '/datalake/pipelines', icon: '≡' },
-          { label: '组件库', to: '/datalake/components', icon: '▦' },
-          { label: '数据集', to: '/datalake/datasets', icon: '▤' },
-          { label: '作业管理', to: '/datalake/jobs', icon: '▶' },
-          { label: 'Notebook', to: '/datalake/notebook', icon: '▧' },
-        ],
-      },
-      {
-        title: '数据源',
-        items: [
-          { label: '连接器', to: '/connectors', icon: '◇' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'agent',
-    label: '智能体数据平台',
-    shortLabel: 'Agent',
-    icon: 'agent',
-    description: '任务、证据与治理审计',
-    to: '/agent-state',
-    match: ['/agent-state'],
-    groups: [
-      {
-        title: '工作状态',
-        items: [
-          { label: '任务运行', to: '/agent-state', icon: '▢' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'knowledge',
-    label: '知识库',
-    shortLabel: '知识库',
-    icon: 'knowledge',
-    description: '文档、检索与对话',
-    to: '/knowledge',
-    match: ['/knowledge'],
-    groups: [
-      {
-        title: '知识库',
-        items: [
-          { label: '知识库', to: '/knowledge', icon: '▤' },
-          { label: '原文搜索', to: '/knowledge/search', icon: '⌕' },
-          { label: 'Wiki 对话', to: '/knowledge/chat', icon: '□' },
-        ],
-      },
     ],
   },
   {
     id: 'lbfs',
-    label: 'LakebaseFS',
-    shortLabel: 'LakebaseFS',
+    label: 'FS',
+    shortLabel: 'FS',
     icon: 'lbfs',
-    description: '本地目录、文件与同步',
+    description: 'LakebaseFS 文件与目录',
     to: '/lbfs',
     match: ['/lbfs'],
     groups: [
@@ -240,24 +178,6 @@ const workspaceModes: WorkspaceMode[] = [
         title: '文件系统',
         items: [
           { label: '浏览文件', to: '/lbfs', icon: '□' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'memory',
-    label: '记忆库',
-    shortLabel: '记忆库',
-    icon: 'memory',
-    description: '记忆库与结构化浏览',
-    to: '/memory',
-    match: ['/memory'],
-    groups: [
-      {
-        title: '记忆库',
-        items: [
-          { label: '记忆库', to: '/memory', icon: '◎' },
-          { label: '记忆浏览', to: '/memory/browse', icon: '▦' },
         ],
       },
     ],
