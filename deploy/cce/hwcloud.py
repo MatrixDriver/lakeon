@@ -117,7 +117,10 @@ def _get_cluster_eip():
     kc = os.environ.get("KUBECONFIG", os.path.expanduser("~/.kube/cce-lakeon-config"))
     try:
         with open(kc, encoding='utf-8') as f:
-            m = re.search(r'server:\s*https?://([0-9.]+)', f.read())
+            text = f.read()
+            m = re.search(r'server:\s*https?://([0-9.]+)', text)
+            if not m:
+                m = re.search(r'"server"\s*:\s*"https?://([0-9.]+)', text)
             return m.group(1) if m else None
     except: return None
 

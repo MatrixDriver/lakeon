@@ -31,7 +31,6 @@ from hwcloud import (
 KEEP_CIDRS = {
     "192.168.0.0/24",   # CCE VPC 内部
     "192.168.0.0/16",   # 兜底 VPC 兼容
-    "34.214.255.115/32",  # 当前本机代理出口，kubectl 默认环境会走这个 IP
 }
 
 PORT = 5443
@@ -174,8 +173,10 @@ def main() -> int:
     existing = list_5443_ingress(ak, sk, pid, sg_id)
     print(f"\n  当前 5443/{PROTO} ingress: {len(existing)} 条")
     for r in existing:
-        cidr = r.get("remote_ip_prefix") or f"sg:{r.get('remote_group_id', '')[:8]}"
-        print(f"    - {cidr} (id={r.get('id')[:8]})")
+        remote_group = (r.get("remote_group_id") or "")[:8]
+        cidr = r.get("remote_ip_prefix") or f"sg:{remote_group or 'self'}"
+        rule_id = (r.get("id") or "")[:8] or "-"
+        print(f"    - {cidr} (id={rule_id})")
 
     # 5. 决策：要加什么、删什么
     have_target = any(r.get("remote_ip_prefix") == target_cidr for r in existing)
