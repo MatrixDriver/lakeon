@@ -96,6 +96,7 @@ rules:
     verbs: ["get", "patch"]
 ---
 {{- end }}
+{{- if .Values.datalake.enabled }}
 ---
 # ClusterRole for datalake: namespace creation + job management across datalake-* namespaces
 apiVersion: rbac.authorization.k8s.io/v1
@@ -150,7 +151,9 @@ subjects:
   - kind: ServiceAccount
     name: lakeon-api
     namespace: {{ .Values.global.namespace }}
+{{- end }}
 ---
+{{- if .Values.orchestrator.enabled }}
 # Pipeline Orchestrator — ServiceAccount + RBAC for RayJob CRD management
 apiVersion: v1
 kind: ServiceAccount
@@ -197,6 +200,7 @@ subjects:
   - kind: ServiceAccount
     name: pipeline-orchestrator
     namespace: {{ .Values.global.namespace }}
+{{- end }}
 ---
 {{- if include "lakeon.dataPlaneEnabled" . }}
 apiVersion: rbac.authorization.k8s.io/v1

@@ -141,7 +141,7 @@ metadataDb:
 
 # ── Pipeline Orchestrator ──────────────────────────────────────
 orchestrator:
-  enabled: true
+  enabled: false
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-orchestrator
     tag: "0.1.6"
@@ -156,7 +156,7 @@ orchestrator:
 
 # ── Wiki Agent (Karpathy-style agentic wiki compiler) ─────────
 wikiAgent:
-  enabled: true
+  enabled: false
   replicas: 1
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-wiki-agent
@@ -260,8 +260,8 @@ cloud:
 #    规格: c9.xlarge.2 (4C/8G)
 #    弹性伸缩: min=1, max=5
 #    节点标签: lakeon/role=compute
-#    运行: lakeon-api, pageserver, safekeeper, proxy, memory-svc,
-#          orchestrator, kuberay, log-collector, storage-broker
+#    运行: lakeon-api, pageserver, safekeeper, proxy,
+#          log-collector, storage-broker
 #
 # 2) dbay-db-pool (待创建) — 数据库 compute pods 专用
 #    规格: c9.xlarge.2 (4C/8G)
@@ -270,9 +270,7 @@ cloud:
 #    运行: compute pods (PostgreSQL 17 实例)
 #    目的: compute 冷启动稳定 ~3s，不受管控面影响
 #
-# 3) GPU 节点 (p2sne.2xlarge.8) — AI 推理
-#    节点标签: lakeon/role=gpu
-#    运行: embedding-svc, llm-svc
+# 3) AI / Ray / Notebook workloads are managed by dbay-agent, not lakeon.
 #
 # node-init DaemonSet 自动在新节点修复 containerd core ulimit。
 
@@ -286,7 +284,7 @@ networkPolicy:
   enabled: true
 
 embedding:
-  enabled: true
+  enabled: false
   image: vllm/vllm-openai:latest
   gpu: "1"
   cpu: "2"
@@ -303,7 +301,7 @@ llm:
   model: "deepseek-chat"
 
 memory:
-  enabled: true
+  enabled: false
   image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.2.8-6f579d49-dirty
   serviceType: LoadBalancer
   serviceUrl: "http://192.168.0.175:8001"
@@ -335,6 +333,7 @@ logCollector:
 
 # ── 数据湖任务配置 ─────────────────────────────────────────────
 datalake:
+  enabled: false
   cciNamespacePrefix: "datalake-"
   vkNodeSelectorKey: "type"
   vkNodeSelectorValue: "virtual-kubelet"

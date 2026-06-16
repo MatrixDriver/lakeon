@@ -56,7 +56,7 @@ data:
   {{- if .Values.proxy.internalPort }}
   LAKEON_PROXY_INTERNAL_PORT: {{ .Values.proxy.internalPort | quote }}
   {{- end }}
-  {{- if .Values.memory.serviceUrl }}
+  {{- if and .Values.memory.enabled .Values.memory.serviceUrl }}
   LAKEON_MEMORY_SERVICE_URL: {{ .Values.memory.serviceUrl | quote }}
   {{- end }}
   {{- if .Values.global.imagePullSecrets }}
@@ -149,7 +149,7 @@ data:
   LAKEON_ALERT_SMN_REGION: {{ .smnRegion | default "cn-north-4" | quote }}
   {{- end }}
   {{- end }}
-  {{- if .Values.knowledgeJobImage }}
+  {{- if and .Values.datalake.enabled .Values.knowledgeJobImage }}
   LAKEON_JOB_IMAGE_DOCUMENT_PARSE: {{ .Values.knowledgeJobImage | quote }}
   LAKEON_JOB_IMAGE_EMBEDDING: {{ .Values.knowledgeJobImage | quote }}
   LAKEON_JOB_IMAGE_EXPORT_PARQUET: {{ .Values.knowledgeJobImage | quote }}
@@ -160,6 +160,7 @@ data:
   {{- if .Values.api.jobNamespace }}
   LAKEON_JOB_NAMESPACE: {{ .Values.api.jobNamespace | quote }}
   {{- end }}
+  {{- if .Values.datalake.enabled }}
   {{- with .Values.datalake }}
   LAKEON_DATALAKE_CCI_NS_PREFIX: {{ .cciNamespacePrefix | quote }}
   LAKEON_DATALAKE_VK_NODE_SELECTOR_KEY: {{ .vkNodeSelectorKey | quote }}
@@ -176,6 +177,7 @@ data:
   LAKEON_DATALAKE_IMAGE_PYTHON_DATA: {{ .images.pythonData | quote }}
   LAKEON_DATALAKE_IMAGE_RAY: {{ .images.ray | quote }}
   LAKEON_DATALAKE_IMAGE_RAY_GPU: {{ .images.rayGpu | quote }}
+  {{- end }}
   {{- end }}
   {{- if .Values.api.logDbDsn }}
   LOG_DB_DSN: {{ .Values.api.logDbDsn | quote }}

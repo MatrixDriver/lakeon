@@ -213,10 +213,8 @@ admin:
       cpu: "200m"
       memory: "256Mi"
 
-# MIGRATION NOTE:
-# Datalake and intelligence workers are moving to the dbay-agent repo.
-# Keep these values only until dbay-agent CCE deployment is live and E2E passes.
 datalake:
+  enabled: false
   cciNamespacePrefix: "datalake-"
   vkNodeSelectorKey: "type"
   vkNodeSelectorValue: "virtual-kubelet"
@@ -256,9 +254,6 @@ console:
       cpu: "200m"
       memory: "256Mi"
 
-# MIGRATION NOTE:
-# Memory is moving to the dbay-agent repo.
-# Keep these values only until dbay-agent CCE deployment is live and E2E passes.
 memory:
   enabled: false
   image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.1.0
@@ -277,8 +272,6 @@ llm:
 embedding:
   enabled: false
 
-# MIGRATION NOTE:
-# Orchestrator is moving to the dbay-agent repo with DataAgent/Datalake workloads.
 orchestrator:
   enabled: false
 
@@ -315,7 +308,7 @@ computeWarmPool:
   useCciBurst: true
 
 wikiAgent:
-  enabled: true
+  enabled: false
   replicas: 1
   image:
     repository: lakeon/lakeon-wiki-agent

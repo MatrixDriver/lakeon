@@ -83,6 +83,7 @@ spec:
                   name: api-credentials
                   key: data-plane-kube-token
                   optional: true
+            {{- if $root.Values.wikiAgent.enabled }}
             - name: LAKEON_WIKI_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -99,7 +100,8 @@ spec:
                   name: wiki-agent-secrets
                   key: internal-token
                   optional: true
-            {{- if $root.Values.embedding.apiUrl }}
+            {{- end }}
+            {{- if and $root.Values.embedding.enabled $root.Values.embedding.apiUrl }}
             - name: LAKEON_EMBEDDING_API_URL
               value: {{ $root.Values.embedding.apiUrl | quote }}
             {{- end }}

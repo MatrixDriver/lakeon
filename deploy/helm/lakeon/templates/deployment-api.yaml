@@ -76,6 +76,7 @@ spec:
                   name: api-credentials
                   key: data-plane-kube-token
                   optional: true
+            {{- if .Values.wikiAgent.enabled }}
             - name: LAKEON_WIKI_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -92,7 +93,8 @@ spec:
                   name: wiki-agent-secrets
                   key: internal-token
                   optional: true
-            {{- if .Values.embedding.apiUrl }}
+            {{- end }}
+            {{- if and .Values.embedding.enabled .Values.embedding.apiUrl }}
             - name: LAKEON_EMBEDDING_API_URL
               value: {{ .Values.embedding.apiUrl | quote }}
             {{- end }}
