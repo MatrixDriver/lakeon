@@ -148,16 +148,16 @@ lakeon:
   orchestrator:
     url: ${LAKEON_ORCHESTRATOR_URL:http://pipeline-orchestrator:8090}
   datalake:
-    cci-namespace-prefix: "${LAKEON_DATALAKE_CCI_NS_PREFIX:datalake-}"
-    vk-node-selector-key: "${LAKEON_DATALAKE_VK_NODE_SELECTOR_KEY:type}"
-    vk-node-selector-value: "${LAKEON_DATALAKE_VK_NODE_SELECTOR_VALUE:virtual-kubelet}"
+    cci-namespace-prefix: "${LAKEON_DATALAKE_CCI_NS_PREFIX:}"
+    vk-node-selector-key: "${LAKEON_DATALAKE_VK_NODE_SELECTOR_KEY:}"
+    vk-node-selector-value: "${LAKEON_DATALAKE_VK_NODE_SELECTOR_VALUE:}"
     poll-interval-ms: "${LAKEON_DATALAKE_POLL_INTERVAL_MS:10000}"
     preset-images:
       python-slim: "${LAKEON_DATALAKE_IMAGE_PYTHON_SLIM:swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-slim}"
       python-data: "${LAKEON_DATALAKE_IMAGE_PYTHON_DATA:swr.cn-north-4.myhuaweicloud.com/lakeon/python:3.11-data}"
       ray: "${LAKEON_DATALAKE_IMAGE_RAY:swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311}"
       ray-gpu: "${LAKEON_DATALAKE_IMAGE_RAY_GPU:swr.cn-north-4.myhuaweicloud.com/lakeon/ray:2.10-py311-gpu}"
-  warm-pool-enabled: "${LAKEON_DATALAKE_WARM_POOL_ENABLED:true}"
+  warm-pool-enabled: "${LAKEON_DATALAKE_WARM_POOL_ENABLED:false}"
   warm-pool-size: "${LAKEON_DATALAKE_WARM_POOL_SIZE:2}"
   warm-pool-namespace: "${LAKEON_DATALAKE_WARM_POOL_NS:datalake-pool}"
   warm-pool-image: "${LAKEON_DATALAKE_WARM_POOL_IMAGE:swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data}"
@@ -177,7 +177,6 @@ lakeon:
     image: ${COMPUTE_WARM_POOL_IMAGE:}
     reconfigure-timeout-ms: 5000
     compute-ctl-port: 3080
-    use-cci-burst: ${COMPUTE_WARM_POOL_USE_CCI:true}
   oauth:
     callback-base-url: ${LAKEON_OAUTH_CALLBACK_BASE_URL:http://localhost:8080}
     relay-base-url: ${LAKEON_OAUTH_RELAY_BASE_URL:}

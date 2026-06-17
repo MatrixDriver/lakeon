@@ -10,7 +10,6 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.PodStatus;
-import io.fabric8.kubernetes.api.model.Toleration;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -668,108 +667,19 @@ class ComputeWarmPoolManagerTest {
         assertThat(meterRegistry.find("lakeon_warm_pool_size").gauge().value()).isEqualTo(3.0);
     }
 
-    // ── 20. withCciBurst adds virtual-kubelet nodeSelector + tolerations ──
+    // ── 20. createIdlePod keeps regular CCE scheduling ────────────────────
     @Test
-    void withCciBurst_replacesExistingNodeSelectorWithVirtualKubelet() {
-        // Realistic case: ComputePodManager.buildPodSpec sets a base nodeSelector
-        // like {lakeon/pool: database}. virtual-kubelet nodes don't have that
-        // label so withCciBurst must drop it (full replace, not merge).
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void reconcileNow_keepsBaseComputePodScheduling() {
+        props.getComputeWarmPool().setSize(1);
+        when(podsFiltered.list()).thenReturn(new PodList());
+
         Pod base = new PodBuilder()
-            .withNewMetadata().withName("p").endMetadata()
+            .withNewMetadata().withName("warm-pool-x").endMetadata()
             .withNewSpec()
                 .withNodeSelector(Map.of("lakeon/pool", "database"))
             .endSpec()
             .build();
-
-        Pod result = ComputeWarmPoolManager.withCciBurst(base);
-
-        // nodeSelector is exactly {type: virtual-kubelet} — the lakeon/pool
-        // selector is intentionally dropped because the CCI virtual-kubelet
-        // node has no lakeon/pool label.
-        assertThat(result.getSpec().getNodeSelector())
-            .containsEntry("type", "virtual-kubelet")
-            .doesNotContainKey("lakeon/pool");
-    }
-
-    @Test
-    void withCciBurst_addsVirtualKubeletNodeSelectorAndTolerations() {
-        Pod base = new PodBuilder()
-            .withNewMetadata().withName("p").endMetadata()
-            .withNewSpec().endSpec()
-            .build();
-
-        Pod result = ComputeWarmPoolManager.withCciBurst(base);
-
-        // nodeSelector contains type=virtual-kubelet
-        assertThat(result.getSpec().getNodeSelector()).containsEntry("type", "virtual-kubelet");
-
-        // tolerations: virtual-kubelet.io/provider=huawei:NoSchedule
-        //              virtual-kubelet.io/huawei=cci:PreferNoSchedule
-        List<Toleration> tols = result.getSpec().getTolerations();
-        assertThat(tols).hasSize(2);
-        assertThat(tols).anySatisfy(t -> {
-            assertThat(t.getKey()).isEqualTo("virtual-kubelet.io/provider");
-            assertThat(t.getValue()).isEqualTo("huawei");
-            assertThat(t.getEffect()).isEqualTo("NoSchedule");
-            assertThat(t.getOperator()).isEqualTo("Equal");
-        });
-        assertThat(tols).anySatisfy(t -> {
-            assertThat(t.getKey()).isEqualTo("virtual-kubelet.io/huawei");
-            assertThat(t.getValue()).isEqualTo("cci");
-            assertThat(t.getEffect()).isEqualTo("PreferNoSchedule");
-            assertThat(t.getOperator()).isEqualTo("Equal");
-        });
-    }
-
-    // ── 21. createIdlePod applies CCI burst when useCciBurst=true ─────────
-    @Test
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    void reconcileNow_appliesCciBurstWhenEnabled() {
-        // Pool empty + size=1 → exactly one createIdlePod call which should
-        // run the pod spec through withCciBurst before submitting it.
-        props.getComputeWarmPool().setSize(1);
-        props.getComputeWarmPool().setUseCciBurst(true);
-        when(podsFiltered.list()).thenReturn(new PodList());
-
-        // Return a real Pod from buildPodSpec so withCciBurst has something to
-        // mutate; capture what actually gets submitted to k8s.
-        Pod base = new PodBuilder()
-            .withNewMetadata().withName("warm-pool-x").endMetadata()
-            .withNewSpec().endSpec()
-            .build();
-        when(computePodManager.buildPodSpec(any(), anyString(), any(), anyString(), anyInt(), any()))
-            .thenReturn(base);
-
-        PodResource podRes = mock(PodResource.class);
-        ArgumentCaptor<Pod> submitted = ArgumentCaptor.forClass(Pod.class);
-        when(podsNs.resource(submitted.capture())).thenReturn(podRes);
-        when(podRes.create()).thenReturn(null);
-        Resource cmRes = mock(Resource.class);
-        when(cmNs.resource(any(ConfigMap.class))).thenReturn(cmRes);
-        when(cmRes.serverSideApply()).thenReturn(null);
-
-        manager.reconcileNow();
-
-        // Submitted pod must carry the CCI burst decoration
-        Pod actual = submitted.getValue();
-        assertThat(actual.getSpec().getNodeSelector()).containsEntry("type", "virtual-kubelet");
-        assertThat(actual.getSpec().getTolerations())
-            .extracting(Toleration::getKey)
-            .contains("virtual-kubelet.io/provider", "virtual-kubelet.io/huawei");
-    }
-
-    // ── 22. createIdlePod skips CCI burst when disabled ────────────────────
-    @Test
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    void reconcileNow_skipsCciBurstWhenDisabled() {
-        props.getComputeWarmPool().setSize(1);
-        props.getComputeWarmPool().setUseCciBurst(false);
-        when(podsFiltered.list()).thenReturn(new PodList());
-
-        Pod base = new PodBuilder()
-            .withNewMetadata().withName("warm-pool-x").endMetadata()
-            .withNewSpec().endSpec()
-            .build();
         when(computePodManager.buildPodSpec(any(), anyString(), any(), anyString(), anyInt(), any()))
             .thenReturn(base);
 
@@ -784,16 +694,9 @@ class ComputeWarmPoolManagerTest {
         manager.reconcileNow();
 
         Pod actual = submitted.getValue();
-        // No virtual-kubelet decoration when feature is off — pod schedules
-        // to the regular compute node pool via the upstream buildPodSpec defaults.
-        Map<String, String> ns = actual.getSpec().getNodeSelector();
-        assertThat(ns == null || !ns.containsKey("type")).isTrue();
-        List<Toleration> tols = actual.getSpec().getTolerations();
-        if (tols != null) {
-            assertThat(tols)
-                .extracting(Toleration::getKey)
-                .doesNotContain("virtual-kubelet.io/provider", "virtual-kubelet.io/huawei");
-        }
+        assertThat(actual.getSpec().getNodeSelector()).containsEntry("lakeon/pool", "database");
+        assertThat(actual.getSpec().getNodeSelector()).doesNotContainEntry("type", "virtual-kubelet");
+        assertThat(actual.getSpec().getTolerations()).isNullOrEmpty();
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

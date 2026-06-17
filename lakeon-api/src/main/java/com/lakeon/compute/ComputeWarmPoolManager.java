@@ -415,16 +415,6 @@ public class ComputeWarmPoolManager {
         Pod pod = computePodManager.buildPodSpec(
             proxy, podName, poolLabels, image, IDLE_SUSPEND_TIMEOUT_SECONDS, ComputeSize.CU_1);
 
-        // Burst idle pods to Huawei CCI via virtual-kubelet when configured.
-        // The CCE cluster has a virtual-kubelet node labeled type=virtual-kubelet
-        // and tainted with virtual-kubelet.io/provider=huawei (NoSchedule) and
-        // virtual-kubelet.io/huawei=cci (PreferNoSchedule). Adding the matching
-        // nodeSelector + tolerations is the standard CCI-burst pattern (same
-        // approach as the datalake warm pool).
-        if (cfg.isUseCciBurst()) {
-            pod = withCciBurst(pod);
-        }
-
         try {
             k8sClient.configMaps().inNamespace(NAMESPACE).resource(configMap).serverSideApply();
             k8sClient.pods().inNamespace(NAMESPACE).resource(pod).create();
@@ -438,42 +428,6 @@ public class ComputeWarmPoolManager {
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
-
-    /**
-     * Decorate a Pod spec with the virtual-kubelet nodeSelector + tolerations
-     * required for Huawei CCI burst scheduling. Visible-for-test.
-     *
-     * The CCE virtual-kubelet provider taints its synthetic node so that only
-     * pods explicitly tolerating it land there; this lets warm pool capacity
-     * scale onto CCI without competing with the real-tenant compute pool.
-     */
-    static Pod withCciBurst(Pod pod) {
-        // Replace nodeSelector entirely with {type: virtual-kubelet}. The base
-        // ComputePodManager.buildPodSpec sets {lakeon/pool: database} which is
-        // a CCE-pool selector — virtual-kubelet nodes don't have that label, so
-        // keeping it would prevent scheduling to CCI. fabric8's addToNodeSelector
-        // empirically merged but the merge didn't end up in the rendered Pod
-        // spec; using withNewNodeSelector replace is reliable.
-        java.util.Map<String, String> nodeSelector = new java.util.LinkedHashMap<>();
-        nodeSelector.put("type", "virtual-kubelet");
-        return new PodBuilder(pod)
-            .editSpec()
-                .withNodeSelector(nodeSelector)
-                .addNewToleration()
-                    .withKey("virtual-kubelet.io/provider")
-                    .withOperator("Equal")
-                    .withValue("huawei")
-                    .withEffect("NoSchedule")
-                .endToleration()
-                .addNewToleration()
-                    .withKey("virtual-kubelet.io/huawei")
-                    .withOperator("Equal")
-                    .withValue("cci")
-                    .withEffect("PreferNoSchedule")
-                .endToleration()
-            .endSpec()
-            .build();
-    }
 
     private List<Pod> listPoolPods() {
         return k8sClient.pods().inNamespace(NAMESPACE)

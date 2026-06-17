@@ -59,7 +59,7 @@ public class JobPodManager {
         String cpu = typeConfig.getCpu() != null ? typeConfig.getCpu() : "2";
         String memory = typeConfig.getMemory() != null ? typeConfig.getMemory() : "4Gi";
 
-        // Build callback URL — use configured base URL (for CCI) or internal service
+        // Build callback URL — use configured base URL or internal service.
         String callbackUrl;
         if (callbackBaseUrl != null && !callbackBaseUrl.isBlank()) {
             callbackUrl = callbackBaseUrl + "/api/v1/jobs/" + job.getId() + "/callback";
@@ -99,9 +99,6 @@ public class JobPodManager {
                     "lakeon.io/tenant-id", job.getTenantId(),
                     "lakeon.io/job-type", typeKey
                 ))
-                .withAnnotations(Map.of(
-                    "virtual-kubelet.io/burst-to-cci", "enforce"
-                ))
             .endMetadata()
             .withNewSpec()
                 .withImagePullSecrets(
@@ -111,14 +108,7 @@ public class JobPodManager {
                         .toList()
                 )
                 .withRestartPolicy("Never")
-                .withNodeSelector(Map.of("type", "virtual-kubelet"))
-                .withTolerations(new io.fabric8.kubernetes.api.model.TolerationBuilder()
-                    .withKey("virtual-kubelet.io/provider")
-                    .withOperator("Exists")
-                    .build())
                 .withAutomountServiceAccountToken(false)
-                // Note: CCI pods cannot resolve cluster DNS, so services must be
-                // referenced by ClusterIP in job params (e.g. embedding_api_url)
                 .addNewContainer()
                     .withName("job")
                     .withImage(image)
@@ -228,9 +218,6 @@ public class JobPodManager {
         try {
             Pod pod = k8sClient.pods().inNamespace(namespace).withName(podName).get();
             if (pod == null) {
-                // Pod not found — could be CCI (name prefix differs) or not yet registered.
-                // Return false to avoid killing running CCI jobs.
-                // Stuck task timeout will catch truly lost pods.
                 return false;
             }
             String phase = pod.getStatus() != null ? pod.getStatus().getPhase() : null;

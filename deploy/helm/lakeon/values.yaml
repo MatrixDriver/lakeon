@@ -215,9 +215,9 @@ admin:
 
 datalake:
   enabled: false
-  cciNamespacePrefix: "datalake-"
-  vkNodeSelectorKey: "type"
-  vkNodeSelectorValue: "virtual-kubelet"
+  cciNamespacePrefix: ""
+  vkNodeSelectorKey: ""
+  vkNodeSelectorValue: ""
   pollIntervalMs: "10000"
   warmPool:
     enabled: false
@@ -303,9 +303,6 @@ computeWarmPool:
   mockTenantId: ""
   mockTimelineId: ""
   image: ""
-  # When true, warm pool idle pods burst to Huawei CCI via virtual-kubelet
-  # instead of consuming the dedicated compute node pool.
-  useCciBurst: true
 
 wikiAgent:
   enabled: false

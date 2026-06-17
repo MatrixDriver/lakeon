@@ -566,17 +566,6 @@ public class LakeonProperties {
          * local HttpServer mock on a random port.
          */
         private int computeCtlPort = 3080;
-        /**
-         * When true (default), warm-pool idle pods get virtual-kubelet
-         * nodeSelector + tolerations so the CCE scheduler bursts them onto
-         * Huawei CCI elastic capacity instead of consuming the dedicated
-         * compute node pool. Saves CCE node-pool capacity for cold-path
-         * pods and lets the pool scale without provisioning new nodes.
-         * Set false in non-CCE environments (kind, local) where no
-         * virtual-kubelet provider exists.
-         */
-        private boolean useCciBurst = true;
-
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
         public int getSize() { return size; }
@@ -593,14 +582,12 @@ public class LakeonProperties {
         public void setReconfigureTimeoutMs(int v) { this.reconfigureTimeoutMs = v; }
         public int getComputeCtlPort() { return computeCtlPort; }
         public void setComputeCtlPort(int v) { this.computeCtlPort = v; }
-        public boolean isUseCciBurst() { return useCciBurst; }
-        public void setUseCciBurst(boolean v) { this.useCciBurst = v; }
     }
 
     public static class DatalakeConfig {
-        private String cciNamespacePrefix = "datalake-";
+        private String cciNamespacePrefix = "";
         private String vkNodeSelectorKey = "type";
-        private String vkNodeSelectorValue = "virtual-kubelet";
+        private String vkNodeSelectorValue = "";
         private long pollIntervalMs = 10000;
         private boolean warmPoolEnabled = true;
         private int warmPoolSize = 2;
