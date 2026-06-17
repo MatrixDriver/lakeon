@@ -16,6 +16,7 @@
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 mod append_state;
 mod config;
@@ -72,7 +73,12 @@ enum Cmd {
         /// Default false: keep proven disk-passthrough + outbox model.
         #[arg(long)]
         in_memory: bool,
-        /// Skip the automatic remote→local pull on startup.
+        /// Pull remote LakebaseFS state before mounting.
+        #[arg(long = "pull-on-startup")]
+        pull_on_startup: bool,
+        /// Deprecated compatibility alias for older scripts. Mount now skips
+        /// startup pull by default, so this flag is only kept for callers that
+        /// still pass it.
         #[arg(long)]
         skip_pull: bool,
     },
@@ -267,21 +273,15 @@ fn main() -> Result<()> {
             processing,
             foreground: _,
             in_memory,
-            skip_pull,
+            pull_on_startup,
+            skip_pull: _skip_pull,
         } => {
             let mount_hint = mount.as_deref().or(mount_dir.as_deref());
             let folder = folder_name(folder, agent, mount_hint);
             let profile = FolderProfile::new(&folder, kind, storage, processing);
             let mount = mount.or(mount_dir).unwrap_or(default_mount(&folder)?);
             std::fs::create_dir_all(&mount)?;
-            match register_folder_if_configured(&folder, &profile)? {
-                RegistrationStatus::Registered => {
-                    tracing::info!(folder = %profile.folder, "registered LakebaseFS folder profile");
-                }
-                RegistrationStatus::Skipped => {
-                    tracing::warn!("DBay not configured — skipping folder profile registration");
-                }
-            }
+            spawn_folder_registration(&folder, profile.clone());
             if in_memory {
                 tracing::info!(?profile, ?mount, "mounting (in-memory backend)");
                 inmem::mount(&folder, &mount)?;
@@ -291,7 +291,7 @@ fn main() -> Result<()> {
                 std::fs::create_dir_all(&state)?;
                 std::fs::create_dir_all(&outbox_dir)?;
 
-                if !skip_pull {
+                if pull_on_startup {
                     match dbay_api::DbayClient::for_agent_no_base(&folder)? {
                         Some(cli) => {
                             let ledger_path = ledger_path(&folder)?;
@@ -300,7 +300,7 @@ fn main() -> Result<()> {
                             }
                             match etag_ledger::Ledger::open(&ledger_path) {
                                 Ok(ledger) => {
-                                    tracing::info!("running startup pull (skip with --skip-pull)");
+                                    tracing::info!("running startup pull (enable with --pull-on-startup)");
                                     match pull::pull(&cli, &ledger, &state, "/", false, false) {
                                         Ok(s) => tracing::info!(
                                             synced = s.synced,
@@ -514,6 +514,11 @@ fn run_sync_like(
     Ok(())
 }
 
+fn spawn_folder_registration(folder: &str, profile: FolderProfile) {
+    let folder = folder.to_string();
+    std::thread::spawn(move || run_folder_registration_retry(&folder, &profile));
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RegistrationStatus {
     Registered,
@@ -529,6 +534,60 @@ fn register_folder_if_configured(
     };
     client.register_folder(profile)?;
     Ok(RegistrationStatus::Registered)
+}
+
+fn run_folder_registration_retry(folder: &str, profile: &FolderProfile) {
+    let mut attempt: u32 = 0;
+    loop {
+        match register_folder_if_configured(folder, profile) {
+            Ok(RegistrationStatus::Registered) => {
+                tracing::info!(folder = %profile.folder, attempts = attempt + 1, "registered LakebaseFS folder profile");
+                return;
+            }
+            Ok(RegistrationStatus::Skipped) => {
+                let delay = registration_retry_delay(attempt);
+                tracing::warn!(
+                    folder = %profile.folder,
+                    attempts = attempt + 1,
+                    delay_ms = delay.as_millis(),
+                    "DBay not configured yet; retrying folder profile registration"
+                );
+                std::thread::sleep(delay);
+            }
+            Err(e) => {
+                let delay = registration_retry_delay(attempt);
+                tracing::warn!(
+                    folder = %profile.folder,
+                    attempts = attempt + 1,
+                    delay_ms = delay.as_millis(),
+                    error = %e,
+                    "folder profile registration failed; retrying"
+                );
+                std::thread::sleep(delay);
+            }
+        }
+        attempt = attempt.saturating_add(1);
+    }
+}
+
+fn registration_retry_delay(attempt: u32) -> Duration {
+    let capped = attempt.min(5);
+    Duration::from_secs(1u64 << capped)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::registration_retry_delay;
+    use std::time::Duration;
+
+    #[test]
+    fn registration_retry_delay_exponentially_backs_off_and_caps() {
+        assert_eq!(registration_retry_delay(0), Duration::from_secs(1));
+        assert_eq!(registration_retry_delay(1), Duration::from_secs(2));
+        assert_eq!(registration_retry_delay(2), Duration::from_secs(4));
+        assert_eq!(registration_retry_delay(5), Duration::from_secs(32));
+        assert_eq!(registration_retry_delay(8), Duration::from_secs(32));
+    }
 }
 
 fn umount(mount: &Path) -> Result<()> {
