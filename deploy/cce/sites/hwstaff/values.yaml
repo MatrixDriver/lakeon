@@ -52,9 +52,9 @@ api:
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
     tag: "split-b10b265e-control-public-6f579d49-crosscce-20260613-2346-9605bbcd"
-  jobCallbackBaseUrl: "http://192.168.0.182:8088"  # CCI job pods use control-plane private ELB, not CCE ClusterIP
+  jobCallbackBaseUrl: ""
   jobNamespace: "lakeon-jobs"
-  jobUseCci: false  # CCI 当前 ENI/端口资源不足；knowledge jobs 先跑数据面 CCE 节点池
+  jobUseCci: false
   resources:
     requests:
       cpu: "200m"
@@ -266,7 +266,7 @@ logCollector:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/log-collector
     tag: "0.1.1"
 
-# Warm pool: maintain N idle compute pods on CCI (virtual-kubelet burst) to skip
+# Warm pool: maintain N idle compute pods on the CCE compute node pool to skip
 # cold-start. Idle pods run with Replica mode against a mock tenant; on user
 # wake, ComputeLifecycleService claims one and POST /configure swaps to real spec.
 # Mock tenant must exist on pageserver (db_9016ab57, tenant tn_31b044ae).
@@ -275,4 +275,3 @@ computeWarmPool:
   size: 1
   mockTenantId: "c91d2a8be488a6c07fe98234b47e57bd"
   mockTimelineId: "a3219680414c3e639631257219365324"
-  useCciBurst: true

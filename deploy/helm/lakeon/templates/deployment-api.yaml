@@ -112,8 +112,6 @@ spec:
               value: {{ .Values.computeWarmPool.mockTimelineId | quote }}
             - name: COMPUTE_WARM_POOL_IMAGE
               value: {{ .Values.computeWarmPool.image | quote }}
-            - name: COMPUTE_WARM_POOL_USE_CCI
-              value: {{ .Values.computeWarmPool.useCciBurst | default true | quote }}
           volumeMounts:
             - name: cloud-resources
               mountPath: /app/data/cloud-resources.json

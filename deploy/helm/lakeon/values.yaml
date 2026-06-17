@@ -267,6 +267,3 @@ computeWarmPool:
   mockTenantId: ""
   mockTimelineId: ""
   image: ""
-  # When true, warm pool idle pods burst to Huawei CCI via virtual-kubelet
-  # instead of consuming the dedicated compute node pool.
-  useCciBurst: true
