@@ -72,47 +72,12 @@ spec:
                 secretKeyRef:
                   name: api-credentials
                   key: ai-api-key
-            - name: CONNECTOR_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: api-credentials
-                  key: connector-secret-key
             - name: LAKEON_DATA_PLANE_KUBE_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: api-credentials
                   key: data-plane-kube-token
                   optional: true
-            {{- if $root.Values.wikiAgent.enabled }}
-            - name: LAKEON_WIKI_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: api-credentials
-                  key: wiki-api-key
-                  optional: true
-            - name: LAKEON_WIKI_BASE_URL
-              value: "https://api.modelarts-maas.com/openai/v1"
-            - name: WIKI_AGENT_URL
-              value: {{ $root.Values.wikiAgent.url | default "http://lakeon-wiki-agent.lakeon.svc:8090" | quote }}
-            - name: WIKI_AGENT_INTERNAL_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: wiki-agent-secrets
-                  key: internal-token
-                  optional: true
-            {{- end }}
-            {{- if and $root.Values.embedding.enabled $root.Values.embedding.apiUrl }}
-            - name: LAKEON_EMBEDDING_API_URL
-              value: {{ $root.Values.embedding.apiUrl | quote }}
-            {{- end }}
-            {{- if $root.Values.llm.apiUrl }}
-            - name: LAKEON_AI_BASE_URL
-              value: {{ $root.Values.llm.apiUrl | quote }}
-            {{- end }}
-            {{- if $root.Values.llm.model }}
-            - name: LAKEON_AI_MODEL
-              value: {{ $root.Values.llm.model | quote }}
-            {{- end }}
             {{- if $root.Values.obs.accessKey }}
             - name: LAKEON_OBS_ACCESS_KEY
               valueFrom:

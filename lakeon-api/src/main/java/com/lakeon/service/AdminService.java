@@ -1,11 +1,6 @@
 package com.lakeon.service;
 
 import com.lakeon.config.LakeonProperties;
-import com.lakeon.knowledge.DocumentRepository;
-import com.lakeon.knowledge.KnowledgeBaseEntity;
-import com.lakeon.knowledge.KnowledgeBaseRepository;
-import com.lakeon.memory.MemoryBaseEntity;
-import com.lakeon.memory.MemoryBaseRepository;
 import com.lakeon.model.dto.TenantUsageSummary;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.OperationLogEntity;
@@ -64,9 +59,6 @@ public class AdminService {
     private final MeterRegistry meterRegistry;
     private final KubernetesClient k8sClient;
     private final CbcBillingService cbcBillingService;
-    private final KnowledgeBaseRepository knowledgeBaseRepository;
-    private final DocumentRepository documentRepository;
-    private final MemoryBaseRepository memoryBaseRepository;
 
 
     public AdminService(TenantRepository tenantRepository,
@@ -79,10 +71,7 @@ public class AdminService {
                         UsageMeteringService usageMeteringService,
                         MeterRegistry meterRegistry,
                         KubernetesClient k8sClient,
-                        CbcBillingService cbcBillingService,
-                        KnowledgeBaseRepository knowledgeBaseRepository,
-                        DocumentRepository documentRepository,
-                        MemoryBaseRepository memoryBaseRepository) {
+                        CbcBillingService cbcBillingService) {
         this.tenantRepository = tenantRepository;
         this.databaseRepository = databaseRepository;
         this.branchRepository = branchRepository;
@@ -94,9 +83,6 @@ public class AdminService {
         this.meterRegistry = meterRegistry;
         this.k8sClient = k8sClient;
         this.cbcBillingService = cbcBillingService;
-        this.knowledgeBaseRepository = knowledgeBaseRepository;
-        this.documentRepository = documentRepository;
-        this.memoryBaseRepository = memoryBaseRepository;
 
         Gauge.builder("lakeon_tenants_total", tenantRepository, TenantRepository::count)
             .description("Total number of tenants")
@@ -982,61 +968,6 @@ public class AdminService {
         return sizes;
     }
 
-    public Map<String, Object> getWarmPoolStatus() {
-        Map<String, Object> result = new LinkedHashMap<>();
-        LakeonProperties.DatalakeConfig dl = props.getDatalake();
-
-        result.put("enabled", dl.isWarmPoolEnabled());
-        result.put("target_size", dl.getWarmPoolSize());
-        result.put("namespace", dl.getWarmPoolNamespace());
-        result.put("image", dl.getWarmPoolImage());
-        result.put("idle_timeout_minutes", dl.getWarmPoolIdleTimeoutMinutes());
-
-        if (!dl.isWarmPoolEnabled()) {
-            return result;
-        }
-
-        String ns = dl.getWarmPoolNamespace();
-        try {
-            var allPoolPods = k8sClient.pods().inNamespace(ns)
-                    .withLabel("lakeon.io/pool", "warm")
-                    .list().getItems();
-
-            int idle = 0, claimed = 0, pending = 0;
-            List<Map<String, Object>> pods = new ArrayList<>();
-
-            for (var pod : allPoolPods) {
-                String status = pod.getMetadata().getLabels().getOrDefault("lakeon.io/status", "unknown");
-                String phase = pod.getStatus() != null ? pod.getStatus().getPhase() : "Unknown";
-
-                switch (status) {
-                    case "idle" -> { if ("Running".equals(phase)) idle++; else pending++; }
-                    case "claimed" -> claimed++;
-                    default -> pending++;
-                }
-
-                Map<String, Object> p = new LinkedHashMap<>();
-                p.put("name", pod.getMetadata().getName());
-                p.put("phase", phase);
-                p.put("pool_status", status);
-                p.put("ip", pod.getStatus() != null ? pod.getStatus().getPodIP() : null);
-                p.put("created_at", pod.getMetadata().getCreationTimestamp());
-                p.put("tenant_id", pod.getMetadata().getLabels().get("lakeon.io/tenant-id"));
-                p.put("session_id", pod.getMetadata().getLabels().get("lakeon.io/session-id"));
-                pods.add(p);
-            }
-
-            result.put("idle", idle);
-            result.put("claimed", claimed);
-            result.put("pending", pending);
-            result.put("total", allPoolPods.size());
-            result.put("pods", pods);
-        } catch (Exception e) {
-            result.put("error", e.getMessage());
-        }
-        return result;
-    }
-
     public List<Map<String, Object>> getInfraPods() {
         List<Map<String, Object>> pods = new ArrayList<>();
         try {
@@ -1636,19 +1567,15 @@ public class AdminService {
 
     // ── Storage Management ──────────────────────────────────────────
 
-    private static final List<String> OBS_PREFIXES = List.of(
-            "datasets/", "knowledge/", "tenant-", "datalake-logs/", "datasources/");
+    private static final List<String> OBS_PREFIXES = List.of("tenant-");
 
     /**
-     * Returns storage usage summary per tenant, including database logical size,
-     * knowledge base document OBS size, and memory base database size.
+     * Returns Lakebase storage usage summary per tenant.
      */
     public Map<String, Object> getStorageSummary() {
         List<TenantEntity> tenants = tenantRepository.findAll();
         List<Map<String, Object>> tenantSummaries = new ArrayList<>();
         long totalDbSize = 0;
-        long totalDocSize = 0;
-        long totalMemSize = 0;
 
         for (TenantEntity tenant : tenants) {
             String tid = tenant.getId();
@@ -1684,55 +1611,7 @@ public class AdminService {
             ts.put("db_total_size", tenantDbSize);
             totalDbSize += tenantDbSize;
 
-            // Knowledge base document OBS sizes
-            List<KnowledgeBaseEntity> kbs = knowledgeBaseRepository.findAllByTenantIdOrderByCreatedAtDesc(tid);
-            long tenantDocSize = 0;
-            List<Map<String, Object>> kbDetails = new ArrayList<>();
-            for (KnowledgeBaseEntity kb : kbs) {
-                long obsSize = documentRepository.sumObsSizeByKbId(kb.getId());
-                tenantDocSize += obsSize;
-                Map<String, Object> kbMap = new LinkedHashMap<>();
-                kbMap.put("id", kb.getId());
-                kbMap.put("name", kb.getName());
-                kbMap.put("obs_size", obsSize);
-                kbDetails.add(kbMap);
-            }
-            ts.put("knowledge_bases", kbDetails);
-            ts.put("kb_total_obs_size", tenantDocSize);
-            totalDocSize += tenantDocSize;
-
-            // Memory base sizes (from associated database logical size)
-            List<MemoryBaseEntity> mbs = memoryBaseRepository.findByTenantIdOrderByCreatedAtDesc(tid);
-            long tenantMemSize = 0;
-            List<Map<String, Object>> mbDetails = new ArrayList<>();
-            for (MemoryBaseEntity mb : mbs) {
-                long memDbSize = 0;
-                if (mb.getDatabaseId() != null) {
-                    var memDb = databaseRepository.findById(mb.getDatabaseId()).orElse(null);
-                    if (memDb != null && memDb.getStatus() != DatabaseStatus.DELETING
-                            && memDb.getNeonTenantId() != null && memDb.getNeonTimelineId() != null) {
-                        try {
-                            var timeline = neonApiClient.getTimeline(memDb.getNeonTenantId(), memDb.getNeonTimelineId());
-                            if (timeline != null && timeline.getCurrentLogicalSize() != null) {
-                                memDbSize = timeline.getCurrentLogicalSize();
-                            }
-                        } catch (Exception e) {
-                            log.warn("Failed to get logical size for memory db {} (tenant {}): {}", mb.getDatabaseId(), tid, e.getMessage());
-                        }
-                    }
-                }
-                tenantMemSize += memDbSize;
-                Map<String, Object> mbMap = new LinkedHashMap<>();
-                mbMap.put("id", mb.getId());
-                mbMap.put("name", mb.getName());
-                mbMap.put("db_logical_size", memDbSize);
-                mbDetails.add(mbMap);
-            }
-            ts.put("memory_bases", mbDetails);
-            ts.put("mem_total_size", tenantMemSize);
-            totalMemSize += tenantMemSize;
-
-            ts.put("total_size", tenantDbSize + tenantDocSize + tenantMemSize);
+            ts.put("total_size", tenantDbSize);
             tenantSummaries.add(ts);
         }
 
@@ -1742,9 +1621,7 @@ public class AdminService {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("tenant_count", tenants.size());
         result.put("total_db_size", totalDbSize);
-        result.put("total_doc_obs_size", totalDocSize);
-        result.put("total_mem_size", totalMemSize);
-        result.put("total_size", totalDbSize + totalDocSize + totalMemSize);
+        result.put("total_size", totalDbSize);
         result.put("tenants", tenantSummaries);
         return result;
     }

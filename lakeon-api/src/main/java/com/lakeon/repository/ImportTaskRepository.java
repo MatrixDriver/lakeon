@@ -10,5 +10,4 @@ public interface ImportTaskRepository extends JpaRepository<ImportTaskEntity, St
     List<ImportTaskEntity> findAllByDatabaseIdAndTenantIdOrderByCreatedAtDesc(String databaseId, String tenantId);
     Optional<ImportTaskEntity> findByIdAndTenantId(String id, String tenantId);
     List<ImportTaskEntity> findAllByStatus(ImportTaskStatus status);
-    long countByConnectorIdAndTenantId(String connectorId, String tenantId);
 }

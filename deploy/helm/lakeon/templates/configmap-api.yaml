@@ -56,9 +56,6 @@ data:
   {{- if .Values.proxy.internalPort }}
   LAKEON_PROXY_INTERNAL_PORT: {{ .Values.proxy.internalPort | quote }}
   {{- end }}
-  {{- if and .Values.memory.enabled .Values.memory.serviceUrl }}
-  LAKEON_MEMORY_SERVICE_URL: {{ .Values.memory.serviceUrl | quote }}
-  {{- end }}
   {{- if .Values.global.imagePullSecrets }}
   LAKEON_IMAGE_PULL_SECRETS: {{ range $i, $s := .Values.global.imagePullSecrets }}{{ if $i }},{{ end }}{{ $s.name }}{{ end }}
   {{- end }}
@@ -148,12 +145,6 @@ data:
   {{- if .smnRegion }}
   LAKEON_ALERT_SMN_REGION: {{ .smnRegion | default "cn-north-4" | quote }}
   {{- end }}
-  {{- end }}
-  {{- if .Values.api.jobCallbackBaseUrl }}
-  LAKEON_JOB_CALLBACK_BASE_URL: {{ .Values.api.jobCallbackBaseUrl | quote }}
-  {{- end }}
-  {{- if .Values.api.jobNamespace }}
-  LAKEON_JOB_NAMESPACE: {{ .Values.api.jobNamespace | quote }}
   {{- end }}
   {{- if .Values.api.logDbDsn }}
   LOG_DB_DSN: {{ .Values.api.logDbDsn | quote }}

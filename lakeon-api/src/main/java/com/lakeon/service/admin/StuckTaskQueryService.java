@@ -10,8 +10,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 
 /**
- * Read-only stuck task query across known async task tables.
- * Mirrors the dbay-sre-mcp 0.2.0 stuck_task_query Python tool;
+ * Read-only stuck task query across known Lakebase async task tables.
+ * Mirrors the dbay-sre-mcp stuck_task_query tool;
  * graceful UndefinedTable handling preserves robustness.
  */
 @Service
@@ -26,15 +26,6 @@ public class StuckTaskQueryService {
     private record TableSpec(String tableName, String sql) {}
 
     private static final List<TableSpec> SOURCES = List.of(
-            new TableSpec("wiki_run_logs",
-                    """
-                    SELECT id, kb_id, task_type, status, started_at,
-                           EXTRACT(EPOCH FROM (NOW() - started_at))::int AS age_sec
-                    FROM wiki_run_logs
-                    WHERE status = 'in_progress'
-                      AND started_at < NOW() - (:threshold_minutes || ' minutes')::interval
-                    ORDER BY started_at ASC
-                    """),
             new TableSpec("lbfs_jobs",
                     """
                     SELECT id, NULL::text AS kb_id, job_type AS task_type, status, started_at,
@@ -42,16 +33,6 @@ public class StuckTaskQueryService {
                     FROM lbfs_jobs
                     WHERE status = 'in_progress'
                       AND started_at < NOW() - (:threshold_minutes || ' minutes')::interval
-                    ORDER BY started_at ASC
-                    """),
-            new TableSpec("kb_processing_tasks",
-                    """
-                    SELECT id, kb_id, task_type, status, started_at,
-                           EXTRACT(EPOCH FROM (NOW() - started_at))::int AS age_sec
-                    FROM kb_processing_tasks
-                    WHERE status = 'in_progress'
-                      AND started_at < NOW() - (:threshold_minutes || ' minutes')::interval
-                    ORDER BY started_at ASC
                     """));
 
     private static final List<String> COLUMNS =

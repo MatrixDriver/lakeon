@@ -235,17 +235,13 @@ my-app-db=> CREATE INDEX ON docs USING bm25 (content);</code>
       <div class="ppage-footer-inner">
         <h3 class="ppage-footer-title">{{ t('继续了解', 'Keep reading') }}</h3>
         <div class="ppage-footer-grid">
-          <router-link to="/product/knowledge" class="ppage-footer-card">
-            <div class="ppage-footer-card-name">Knowledge</div>
-            <div class="ppage-footer-card-tag">{{ t('Agent 自己维护的活 wiki', 'A living wiki the agent maintains') }}</div>
+          <router-link to="/docs" class="ppage-footer-card">
+            <div class="ppage-footer-card-name">{{ t('文档', 'Docs') }}</div>
+            <div class="ppage-footer-card-tag">{{ t('Console · CLI · REST API', 'Console · CLI · REST API') }}</div>
           </router-link>
-          <router-link to="/product/memory" class="ppage-footer-card">
-            <div class="ppage-footer-card-name">Memory</div>
-            <div class="ppage-footer-card-tag">{{ t('Agent 长期记忆，会自己反思', 'Long-term memory that reflects on you') }}</div>
-          </router-link>
-          <router-link to="/product/datalake" class="ppage-footer-card">
-            <div class="ppage-footer-card-name">Datalake</div>
-            <div class="ppage-footer-card-tag">{{ t('多模态算子 · DAG · zero-copy', 'Multi-modal operators · DAG · zero-copy') }}</div>
+          <router-link to="/login?register=1" class="ppage-footer-card">
+            <div class="ppage-footer-card-name">{{ t('开始使用', 'Get started') }}</div>
+            <div class="ppage-footer-card-tag">{{ t('创建你的第一个 Lakebase 数据库', 'Create your first Lakebase database') }}</div>
           </router-link>
         </div>
       </div>

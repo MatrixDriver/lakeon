@@ -1,6 +1,6 @@
 # Lakeon
 
-基于 [Neon](https://github.com/neondatabase/neon) 存储引擎的自托管 Serverless PostgreSQL 平台，提供 AI 知识库管理和 Serverless 数据湖计算。
+基于 [Neon](https://github.com/neondatabase/neon) 存储引擎的自托管 Serverless PostgreSQL 平台，提供 Lakebase 数据库和 LakebaseFS 文件空间。
 
 Lakeon 将 Neon 的存算分离架构封装为一套可私有部署的 Kubernetes 原生方案，支持按需创建数据库、自动挂起/唤醒计算节点、多租户隔离和对象存储持久化。
 
@@ -10,12 +10,11 @@ Lakeon 将 Neon 的存算分离架构封装为一套可私有部署的 Kubernete
 
 - **Serverless 数据库**: 按需创建 PG 实例，自动挂起/唤醒，存算分离 (Neon)
 - **数据库分支**: 类 Git 的 copy-on-write 分支，版本管理和时间旅行
-- **AI 知识库**: 文档上传 → 解析 → 切片 → 向量化 → 混合检索 (pgvector + tsvector RRF)，切片管理与全文高亮
-- **AI 记忆库**: 对话记忆存储/检索/摘要，支持类型筛选和特征分析
-- **Serverless 数据湖**: Python/Ray/微调任务，CCI Kata VM 隔离
-- **Notebook 交互式开发**: CodeMirror 代码编辑，Ray 分布式计算，热池秒级启动
+- **LakebaseFS**: 租户隔离文件空间，支持 API 读写、同步和挂载场景
 - **多租户隔离**: API Key 认证，租户间数据完全隔离
 - **弹性扩缩容**: Compute Pod 弹性节点池，min=1 max=5 自动扩缩
+
+Knowledge、Memory、Datalake、Pipeline、Ray、Notebook 和 DataAgent 已迁移到独立的 `dbay-agent` 仓库与运行时；该仓库通过 DBay/Lakebase API 使用数据库底座。
 
 ## 项目结构
 
@@ -25,23 +24,16 @@ lakeon/
 │   ├── src/main/java/com/lakeon/
 │   │   ├── auth/        # 认证 (API Key + 用户名密码)
 │   │   ├── database/    # 数据库管理 (CRUD, 分支, 版本)
-│   │   ├── knowledge/   # 知识库 (KB CRUD, 文档上传, 搜索)
-│   │   ├── datalake/    # 数据湖 (Python/Ray/微调任务)
-│   │   ├── job/         # 通用 Job 框架
 │   │   ├── service/     # 核心服务 (Compute, Neon, Database)
+│   │   ├── lakebasefs/  # LakebaseFS API
 │   │   └── admin/       # SRE 管理 API
 │   └── src/test/        # 单元测试
 ├── lakeon-console/      # Web 控制台 (Vue 3 + TinyVue, 港湾暖色调)
 ├── lakeon-admin/        # SRE 运维控制台 (Vue 3, 港湾暖色调)
-├── memory/              # 记忆服务 (Python FastAPI + pgvector)
 ├── dbay-cli/            # DBay CLI (Python, E2E 测试客户端)
 │   └── dbay_cli/
-│       └── commands/    # db, branch, version, user, kb, datalake
-├── dbay-mcp/            # MCP Server (knowledge_search/upload/list)
-├── knowledge/
-│   ├── job/             # Knowledge Pipeline (parse → chunk → embed → write)
-│   └── embedding-service/ # BGE-M3 + BGE-Reranker (FastAPI)
-├── tests/e2e/           # E2E 测试 (pytest, 48+ test cases)
+│       └── commands/    # db, branch, version, user
+├── tests/e2e/           # Lakebase / LakebaseFS E2E 测试
 ├── deploy/
 │   ├── helm/lakeon/     # Helm Chart
 │   ├── local/           # 本地部署

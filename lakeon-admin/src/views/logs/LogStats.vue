@@ -125,7 +125,6 @@ function formatTs(ts: string): string {
 
 function componentColor(c: string): string {
   if (c === 'lakeon-api') return '#2a4d6a'
-  if (c === 'knowledge-pipeline') return '#3a7d5c'
   if (c === 'pageserver') return '#8b6914'
   return '#666'
 }

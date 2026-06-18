@@ -28,12 +28,6 @@ pageserver:
     class: "performance"
     autocreate: '{"type":"inner","name":"dbay-pageserver-inner-elb","l4_flavor_id":"ec6df27e-8ae9-45e3-828f-a6de45e3e109","available_zone":["cn-north-4a","cn-north-4c"]}'
 
-orchestrator:
-  enabled: false
-
-wikiAgent:
-  enabled: false
-
 admin:
   enabled: false
 

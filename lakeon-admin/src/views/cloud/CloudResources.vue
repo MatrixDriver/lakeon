@@ -46,9 +46,9 @@
               <div class="arch-box-label">CCE 集群</div>
               <div class="arch-box-value">{{ topology.cce.name }}</div>
               <div class="arch-box-pods">
-                lakeon-api &middot; orchestrator &middot; proxy &middot; memory-svc<br>
+                control-plane api &middot; proxy<br>
                 pageserver &middot; safekeeper &middot; storage-broker<br>
-                kuberay-operator &middot; log-collector &middot; fluentbit
+                log-collector &middot; fluentbit
               </div>
             </a>
             <div class="arch-nodes">
@@ -72,27 +72,14 @@
               </div>
             </div>
           </div>
-          <!-- GPU -->
-          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-            <div class="arch-box arch-box-gpu">
-              <div class="arch-box-label">GPU 节点 (V100)</div>
-              <div class="arch-box-value">AI 推理服务</div>
-              <div class="arch-box-pods">
-                <b>embedding-svc</b>: BGE-M3 (1024维)<br>
-                <b>llm-svc</b>: Qwen3.5-9B (vLLM)
-              </div>
-            </div>
-          </div>
-          <!-- CCI -->
+          <!-- Compute pool -->
           <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
             <div class="arch-box arch-box-cci">
-              <div class="arch-box-label">CCI (Serverless)</div>
-              <div class="arch-box-value">virtual-kubelet 调度</div>
+              <div class="arch-box-label">CCE 弹性节点池</div>
+              <div class="arch-box-value">lakeon-compute</div>
               <div class="arch-box-pods">
-                <b>KB Job</b>: 文档解析 job pods (lakeon-jobs)<br>
-                <b>Notebook</b>: Ray head + worker pods<br>
-                <b>数据湖/生产线</b>: Python &middot; Ray<br>
-                <b>热池</b>: warm-ray-head (预热)
+                Neon compute pods<br>
+                每个 DB / branch 按需启动
               </div>
             </div>
           </div>
@@ -119,7 +106,7 @@
           <div class="arch-box arch-box-storage">
             <div class="arch-box-label">SWR 镜像仓库</div>
             <div class="arch-box-value">flex</div>
-            <div class="arch-box-pods">API &middot; Orchestrator &middot; KB Job &middot; Memory &middot; Embedding &middot; Ray &middot; Python</div>
+            <div class="arch-box-pods">lakeon-api &middot; proxy &middot; pageserver &middot; safekeeper &middot; compute</div>
           </div>
         </div>
       </div>

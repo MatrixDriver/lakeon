@@ -73,10 +73,6 @@ dataPlane:
   kubeToken: ""
   kubeCaB64: ""
 
-datalake:
-  warmPool:
-    enabled: false
-
 proxy:
   replicas: 0
 
@@ -89,23 +85,8 @@ safekeeper:
 storageBroker:
   replicas: 0
 
-orchestrator:
-  enabled: false
-
-wikiAgent:
-  enabled: false
-
 admin:
   enabled: false
 
 console:
-  enabled: false
-
-memory:
-  enabled: false
-
-embedding:
-  enabled: false
-
-llm:
   enabled: false

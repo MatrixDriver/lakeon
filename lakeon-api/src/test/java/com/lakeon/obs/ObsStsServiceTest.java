@@ -48,11 +48,7 @@ class ObsStsServiceTest {
         );
         @SuppressWarnings("unchecked")
         List<String> resources = (List<String>) objectStatement.get("Resource");
-        assertThat(resources).anyMatch(r -> r.contains("/datasets/tn_abc123/"));
-        assertThat(resources).anyMatch(r -> r.contains("/knowledge/tn_abc123/"));
         assertThat(resources).anyMatch(r -> r.contains("/tenant-tn_abc123/"));
-        assertThat(resources).anyMatch(r -> r.contains("/datalake-logs/tn_abc123/"));
-        assertThat(resources).anyMatch(r -> r.contains("/datasources/tn_abc123/"));
         assertThat(resources).allMatch(r -> r.contains("lakeon-storage"));
         assertThat(resources).allMatch(r -> r.startsWith("obs:*:*:object:"));
 
@@ -75,11 +71,7 @@ class ObsStsServiceTest {
         @SuppressWarnings("unchecked")
         List<String> prefixes = (List<String>) stringLike.get("obs:prefix");
         assertThat(prefixes).contains(
-                "datasets/tn_abc123/",
-                "knowledge/tn_abc123/",
-                "tenant-tn_abc123/",
-                "datalake-logs/tn_abc123/",
-                "datasources/tn_abc123/"
+                "tenant-tn_abc123/"
         );
     }
 
@@ -134,7 +126,7 @@ class ObsStsServiceTest {
         List<Map<String, Object>> statements = (List<Map<String, Object>>) iam.lastPolicy.get("Statement");
         @SuppressWarnings("unchecked")
         List<String> resources = (List<String>) statements.get(0).get("Resource");
-        assertThat(resources).anyMatch(r -> r.contains("/datasets/tn_abc123/"));
+        assertThat(resources).anyMatch(r -> r.contains("/tenant-tn_abc123/"));
     }
 
     private static class RecordingIamCredentialClient implements HuaweiIamCredentialClient {

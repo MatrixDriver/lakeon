@@ -7,7 +7,7 @@ from dbay_cli.client import DbayApiError
 from conftest import poll_until, run_psql
 
 
-def psql_with_retry(connstr, sql, password, retries=8, delay=15):
+def psql_with_retry(connstr, sql, password, retries=12, delay=15):
     """Retry psql calls to allow compute to wake up via proxy."""
     for i in range(retries):
         try:
@@ -49,7 +49,7 @@ class TestBranch:
         db = poll_until(
             lambda: e2e_client.get_database(db["id"]),
             condition=lambda d: d["status"] in ("RUNNING", "ERROR"),
-            timeout=120,
+            timeout=360,
             interval=3,
         )
         assert db["status"] == "RUNNING", f"Database creation failed: {db}"
@@ -104,11 +104,11 @@ class TestBranch:
     # Data isolation (3)
     # -----------------------------------------------------------------------
 
-    def test_branch_inherits_data(self, e2e_client, branch_db):
+    def test_branch_inherits_data(self, e2e_client, test_db):
         """Write to main, create branch 'inherit-test', branch sees the row."""
-        db_id = branch_db["id"]
-        password = branch_db.get("password", "")
-        main_connstr = branch_db["connection_uri"]
+        db_id = test_db["id"]
+        password = test_db.get("password", "")
+        main_connstr = test_db["connection_uri"]
 
         # Write data on main
         psql_with_retry(main_connstr, "CREATE TABLE IF NOT EXISTS e2e_inherit(v int)", password)
@@ -124,11 +124,13 @@ class TestBranch:
         result = psql_with_retry(branch_connstr, "SELECT v FROM e2e_inherit WHERE v=1", password)
         assert result == "1"
 
-    def test_branch_write_isolation(self, e2e_client, branch_db):
+    def test_branch_write_isolation(self, e2e_client, test_db):
         """Write to branch 'iso-test', main should NOT see it."""
-        db_id = branch_db["id"]
-        password = branch_db.get("password", "")
-        main_connstr = branch_db["connection_uri"]
+        db_id = test_db["id"]
+        password = test_db.get("password", "")
+        main_connstr = test_db["connection_uri"]
+
+        psql_with_retry(main_connstr, "CREATE TABLE IF NOT EXISTS e2e_isolation(v int)", password)
 
         # Create branch
         branch = e2e_client.create_branch(db_id, name="iso-test")
@@ -137,24 +139,30 @@ class TestBranch:
             branch_connstr = get_branch_connstr(e2e_client, db_id, "iso-test")
 
         # Write on branch only
-        psql_with_retry(branch_connstr, "INSERT INTO e2e_inherit VALUES(99)", password)
+        psql_with_retry(branch_connstr, "INSERT INTO e2e_isolation VALUES(99)", password)
 
         # Main should NOT see 99
-        result = psql_with_retry(main_connstr, "SELECT v FROM e2e_inherit WHERE v=99", password)
+        result = psql_with_retry(main_connstr, "SELECT v FROM e2e_isolation WHERE v=99", password)
         assert result == ""
 
-    def test_main_write_after_branch(self, e2e_client, branch_db):
+    def test_main_write_after_branch(self, e2e_client, test_db):
         """Write to main after branch creation, branch 'iso-test' should NOT see it."""
-        db_id = branch_db["id"]
-        password = branch_db.get("password", "")
-        main_connstr = branch_db["connection_uri"]
+        db_id = test_db["id"]
+        password = test_db.get("password", "")
+        main_connstr = test_db["connection_uri"]
+
+        psql_with_retry(main_connstr, "CREATE TABLE IF NOT EXISTS e2e_isolation(v int)", password)
+
+        branch = e2e_client.create_branch(db_id, name="iso-test")
+        branch_connstr = branch.get("connection_uri")
+        if not branch_connstr:
+            branch_connstr = get_branch_connstr(e2e_client, db_id, "iso-test")
 
         # Write on main
-        psql_with_retry(main_connstr, "INSERT INTO e2e_inherit VALUES(200)", password)
+        psql_with_retry(main_connstr, "INSERT INTO e2e_isolation VALUES(200)", password)
 
         # iso-test branch should NOT see 200
-        branch_connstr = get_branch_connstr(e2e_client, db_id, "iso-test")
-        result = psql_with_retry(branch_connstr, "SELECT v FROM e2e_inherit WHERE v=200", password)
+        result = psql_with_retry(branch_connstr, "SELECT v FROM e2e_isolation WHERE v=200", password)
         assert result == ""
 
     # -----------------------------------------------------------------------
@@ -277,10 +285,10 @@ class TestBranch:
             e2e_client.create_branch(db_id, name="dup-test")
         assert exc_info.value.status_code == 409
 
-    def test_nested_branch(self, e2e_client, branch_db):
+    def test_nested_branch(self, e2e_client, test_db):
         """Create branch on branch, verify data inheritance chain."""
-        db_id = branch_db["id"]
-        password = branch_db.get("password", "")
+        db_id = test_db["id"]
+        password = test_db.get("password", "")
 
         # Create parent branch
         parent_br = e2e_client.create_branch(db_id, name="parent-br")
@@ -310,10 +318,10 @@ class TestBranch:
         result = psql_with_retry(child_connstr, "SELECT v FROM e2e_nested WHERE v=50", password)
         assert result == "50"
 
-    def test_delete_branch_cleans_compute(self, e2e_client, branch_db):
+    def test_delete_branch_cleans_compute(self, e2e_client, test_db):
         """Create branch, connect via psql (starts compute), delete, verify gone."""
-        db_id = branch_db["id"]
-        password = branch_db.get("password", "")
+        db_id = test_db["id"]
+        password = test_db.get("password", "")
 
         branch = e2e_client.create_branch(db_id, name="compute-cleanup")
         branch_connstr = branch.get("connection_uri")

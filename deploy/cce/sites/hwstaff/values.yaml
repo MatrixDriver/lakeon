@@ -52,8 +52,6 @@ api:
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
     tag: "split-b10b265e-control-public-6f579d49-crosscce-20260613-2346"
-  jobCallbackBaseUrl: ""
-  jobNamespace: "lakeon-jobs"
   resources:
     requests:
       cpu: "200m"
@@ -136,43 +134,6 @@ metadataDb:
   name: "lakeon"
   user: "lakeon"
   password: ""      # --set metadataDb.password=$RDS_PASSWORD
-
-# ── Pipeline Orchestrator ──────────────────────────────────────
-orchestrator:
-  enabled: false
-  image:
-    repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-orchestrator
-    tag: "0.1.6"
-  replicas: 1
-  resources:
-    requests:
-      cpu: "100m"
-      memory: "256Mi"
-    limits:
-      cpu: "1000m"
-      memory: "512Mi"
-
-# ── Wiki Agent (Karpathy-style agentic wiki compiler) ─────────
-wikiAgent:
-  enabled: false
-  replicas: 1
-  image:
-    repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-wiki-agent
-    tag: "0.1.1"
-  lakeonApiUrl: "http://lakeon-api.lakeon.svc:8088"
-  llm:
-    baseUrl: "https://api.deepseek.com/v1"
-    model: "deepseek-chat"
-  maxToolRounds: 20
-  maxConcurrentAgents: 8
-  logLevel: "INFO"
-  resources:
-    requests:
-      cpu: "200m"
-      memory: "512Mi"
-    limits:
-      cpu: "1000m"
-      memory: "2Gi"
 
 # ── SRE 运维控制台（已部署到 Railway）───────────────────────────
 admin:
@@ -277,37 +238,9 @@ nodeInit:
   enabled: true
   image: "swr.cn-north-4.myhuaweicloud.com/flex/busybox:1.36"
 
-# ── 禁用集群内组件 ─────────────────────────────────────────────
+# ── 集群策略 ───────────────────────────────────────────────────
 networkPolicy:
   enabled: true
-
-embedding:
-  enabled: false
-  image: vllm/vllm-openai:latest
-  gpu: "1"
-  cpu: "2"
-  memory: "8Gi"
-  modelPath: "/models/bge-m3"
-  maxModelLen: "8192"
-  gpuMemoryUtilization: "0.3"
-  apiUrl: "http://embedding-svc:8000/v1/embeddings"
-  model: "BAAI/bge-m3"
-
-llm:
-  enabled: false
-  apiUrl: "https://api.deepseek.com/v1"
-  model: "deepseek-chat"
-
-memory:
-  enabled: false
-  image: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-memory:0.2.8-6f579d49-dirty
-  serviceType: LoadBalancer
-  serviceUrl: "http://192.168.0.175:8001"
-  elb:
-    id: "018d2a1e-68ad-4841-980b-4e6f1a09ff29"
-    class: "performance"
-  chatApiUrl: "https://api.deepseek.com/v1"
-  chatModel: "deepseek-chat"
 
 minio:
   enabled: false
@@ -328,25 +261,6 @@ logCollector:
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/log-collector
     tag: "0.1.1"
-
-# ── 数据湖任务配置 ─────────────────────────────────────────────
-datalake:
-  enabled: false
-  cciNamespacePrefix: ""
-  vkNodeSelectorKey: ""
-  vkNodeSelectorValue: ""
-  pollIntervalMs: "10000"
-  warmPool:
-    enabled: false
-    size: 2
-    namespace: "datalake-pool"
-    image: "swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data"
-    idleTimeoutMinutes: 30
-  images:
-    pythonSlim: "swr.cn-north-4.myhuaweicloud.com/flex/python:3.11-slim"
-    pythonData: "swr.cn-north-4.myhuaweicloud.com/flex/python:3.11-data"
-    ray: "swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data"
-    rayGpu: "swr.cn-north-4.myhuaweicloud.com/flex/ray:2.44-py311-data"
 
 # Warm pool: maintain N idle compute pods on the CCE compute node pool to skip
 # cold-start. Idle pods run with Replica mode against a mock tenant; on user

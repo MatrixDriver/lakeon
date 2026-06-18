@@ -12,7 +12,6 @@
       <button class="infra-tab" :class="{ active: activeTab === 'control' }" @click="activeTab = 'control'">管控面</button>
       <button class="infra-tab" :class="{ active: activeTab === 'neon' }" @click="activeTab = 'neon'">Neon 数据层</button>
       <button class="infra-tab" :class="{ active: activeTab === 'cce' }" @click="activeTab = 'cce'">CCE 弹性节点池</button>
-      <button class="infra-tab" :class="{ active: activeTab === 'cci' }" @click="activeTab = 'cci'">CCI Pod</button>
       <button class="infra-tab" :class="{ active: activeTab === 'storage' }" @click="activeTab = 'storage'">存储</button>
     </div>
 
@@ -387,29 +386,6 @@
               <tr v-for="pod in neonPods" :key="pod.name + pod.namespace">
                 <td class="pod-name">{{ pod.name }}</td>
                 <td><span class="ns-tag">{{ neonComponentLabel(pod.name) }}</span></td>
-                <td><span class="phase-badge" :class="phaseBadgeClass(pod.phase, pod.ready)">{{ pod.phase }}</span></td>
-                <td :class="pod.restarts > 0 ? 'restarts-warn' : ''">{{ pod.restarts }}</td>
-                <td>{{ pod.cpu_cores ?? '—' }}</td>
-                <td>{{ pod.mem_mb ?? '—' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab: CCI Pod -->
-    <div v-if="activeTab === 'cci'">
-      <div class="section-card">
-        <div class="section-header"><h3>Job Pod（知识库/数据湖任务）</h3></div>
-        <div v-if="!jobPods.length" class="empty-text">当前无运行中的 Job Pod</div>
-        <div class="table-wrapper" v-else>
-          <table class="data-table">
-            <thead><tr><th>Pod 名称</th><th>命名空间</th><th>状态</th><th>重启次数</th><th>CPU (cores)</th><th>内存 (MB)</th></tr></thead>
-            <tbody>
-              <tr v-for="pod in jobPods" :key="pod.name + pod.namespace">
-                <td class="pod-name">{{ pod.name }}</td>
-                <td><span class="ns-tag">{{ pod.namespace }}</span></td>
                 <td><span class="phase-badge" :class="phaseBadgeClass(pod.phase, pod.ready)">{{ pod.phase }}</span></td>
                 <td :class="pod.restarts > 0 ? 'restarts-warn' : ''">{{ pod.restarts }}</td>
                 <td>{{ pod.cpu_cores ?? '—' }}</td>
@@ -817,16 +793,11 @@ const NEON_COMPONENTS = ['pageserver', 'safekeeper', 'storage-broker']
 const controlPlanePods = computed(() => {
   return pods.value.filter(p =>
     p.namespace !== 'lakeon-compute'
-    && !NEON_COMPONENTS.some(c => p.name.startsWith(c))
-    && p.namespace !== 'lakeon-jobs')
+    && !NEON_COMPONENTS.some(c => p.name.startsWith(c)))
 })
 
 const neonPods = computed(() => {
   return pods.value.filter(p => NEON_COMPONENTS.some(c => p.name.startsWith(c)))
-})
-
-const jobPods = computed(() => {
-  return pods.value.filter(p => p.namespace === 'lakeon-jobs')
 })
 
 function neonComponentLabel(podName: string): string {

@@ -23,7 +23,6 @@
       <select class="form-select" v-model="component" @change="load">
         <option value="">全部组件</option>
         <option value="lakeon-api">lakeon-api</option>
-        <option value="knowledge-pipeline">knowledge-pipeline</option>
         <option value="pageserver">pageserver</option>
         <option value="safekeeper">safekeeper</option>
         <option value="proxy">proxy</option>
@@ -136,7 +135,6 @@ function formatTs(ts: string): string {
 
 function componentColor(c: string): string {
   if (c === 'lakeon-api') return '#2a4d6a'
-  if (c === 'knowledge-pipeline') return '#3a7d5c'
   if (c === 'pageserver') return '#8b6914'
   return '#666'
 }

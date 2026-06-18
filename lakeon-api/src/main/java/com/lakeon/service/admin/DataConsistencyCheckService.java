@@ -9,8 +9,7 @@ import java.util.*;
 
 /**
  * Read-only invariant checks against lakeon-api production DB.
- * Mirrors the rules originally implemented in dbay-sre-mcp 0.2.0
- * Python tool. Returned shape adds {@code severity}, {@code self_healable}
+ * Returned shape adds {@code severity}, {@code self_healable}
  * and {@code max_age_seconds} so downstream watchers can suppress noisy
  * transient violations (e.g. cold-start windows that L3 reconcilers will fix).
  */
@@ -33,29 +32,6 @@ public class DataConsistencyCheckService {
                             String ageColumn, boolean selfHealable) {}
 
     private static final Map<String, RuleSpec> RULES = Map.of(
-            "kb_implies_db_id", new RuleSpec(
-                    "Knowledge bases marked READY but with NULL database_id (event timing bug)",
-                    """
-                    SELECT id, name, tenant_id, database_id
-                    FROM knowledge_bases
-                    WHERE status = 'READY' AND database_id IS NULL
-                    """,
-                    List.of("kb_id", "name", "tenant_id", "db_id"),
-                    List.of(),
-                    null, false),
-            "enqueued_implies_drained", new RuleSpec(
-                    "kb_write_tasks queued/running beyond threshold (tx commit ordering or worker stall)",
-                    """
-                    SELECT id, kb_id, status, created_at,
-                           EXTRACT(EPOCH FROM (NOW() - created_at))::int AS age_sec
-                    FROM kb_write_tasks
-                    WHERE status IN ('QUEUED', 'RUNNING')
-                      AND created_at < NOW() - (:threshold_minutes || ' minutes')::interval
-                    ORDER BY created_at ASC
-                    """,
-                    List.of("write_id", "kb_id", "status", "created_at", "age_sec"),
-                    List.of("threshold_minutes"),
-                    "age_sec", false),
             // Filter `updated_at < NOW() - 7 minutes` excludes:
             //   - young pods inside ComputePodReconcileService 420s protection (cold-start in flight)
             //   - L3 60s scan-interval gap right after a pod IP drift
@@ -75,9 +51,6 @@ public class DataConsistencyCheckService {
                     List.of("db_id", "name", "tenant_id", "status", "compute_host", "age_sec"),
                     List.of(),
                     "age_sec", true));
-    // Note: the original 'schema_seeded' rule was dropped — wiki seed pages live in OBS,
-    // not in a SQL table, so there is no pure-SQL invariant to check. `WikiSchemaSeeder`
-    // failures show up in lakeon-api logs (search for "schema seeder" / "wiki seed").
 
     public List<String> availableRules() {
         return new ArrayList<>(RULES.keySet());

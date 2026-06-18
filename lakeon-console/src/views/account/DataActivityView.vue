@@ -6,8 +6,8 @@
 
     <p class="page-desc">
       {{ t(
-        '你的 DBay 数据近期的读写时间线。DBay 相信"在你这边"不只是一句话——所以每一次写入、读取、反思都留痕，你随时可以翻看。',
-        "A timeline of recent reads and writes on your DBay data. \"On your side\" isn't just a slogan — every ingest, recall, and reflection leaves a trace that you can inspect."
+        '你的 Lakebase 数据近期的读写和管理活动会逐步汇总在这里。知识、记忆和数据湖活动已迁移到 dbay-agent。',
+        'Recent Lakebase reads, writes, and management activity will be summarized here. Knowledge, memory, and datalake activity has moved to dbay-agent.'
       ) }}
     </p>
 
@@ -15,33 +15,32 @@
     <div class="activity-stats">
       <div class="stat-card">
         <div class="stat-val">{{ stats.ingests }}</div>
-        <div class="stat-label">{{ t('30 天写入', '30-day writes') }}</div>
-        <div class="stat-sub">{{ t('新记忆条目', 'new memory entries') }}</div>
+        <div class="stat-label">{{ t('30 天操作', '30-day operations') }}</div>
+        <div class="stat-sub">{{ t('数据库创建、恢复、导入等', 'database create, restore, import, and more') }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-val">{{ stats.recalls }}</div>
-        <div class="stat-label">{{ t('30 天召回', '30-day recalls') }}</div>
-        <div class="stat-sub">{{ t('按 last_accessed 统计，不是实际请求数', 'based on last_accessed, not raw request count') }}</div>
+        <div class="stat-label">{{ t('审计事件', 'Audit events') }}</div>
+        <div class="stat-sub">{{ t('SQL 审计开启后统计', 'counted when SQL audit is enabled') }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-val">{{ stats.traits }}</div>
-        <div class="stat-label">{{ t('反思洞察', 'Reflection insights') }}</div>
-        <div class="stat-sub">{{ t('从你的对话里提炼出的 trait', 'traits distilled from your conversations') }}</div>
+        <div class="stat-label">{{ t('导入任务', 'Import tasks') }}</div>
+        <div class="stat-sub">{{ t('PostgreSQL 迁移任务', 'PostgreSQL migration tasks') }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-val">{{ stats.bases }}</div>
-        <div class="stat-label">{{ t('活跃记忆库', 'Active memory bases') }}</div>
-        <div class="stat-sub">{{ t('其中', 'of which') }} {{ stats.encryptedBases }} {{ t('个为私密', 'are private') }}</div>
+        <div class="stat-label">{{ t('活跃数据库', 'Active databases') }}</div>
+        <div class="stat-sub">{{ t('来自 Lakebase 元数据', 'from Lakebase metadata') }}</div>
       </div>
     </div>
 
-    <div v-if="loading" class="activity-empty">{{ t('加载中…', 'Loading…') }}</div>
-    <div v-else-if="grouped.length === 0" class="activity-empty">
-      {{ t('没有可显示的活动。创建一个记忆库，让 Agent 写一条记忆试试。', "No activity yet. Create a memory base and have your agent write something to start.") }}
+    <div class="activity-empty">
+      {{ t('Lakebase 活动聚合正在收口到 operation log 和 audit log。当前请在“日志管理”和“用量”页面查看明细。', 'Lakebase activity aggregation is being consolidated around operation logs and audit logs. For now, use Logs and Usage for details.') }}
     </div>
 
     <!-- Timeline -->
-    <div v-else class="activity-timeline">
+    <div v-if="grouped.length > 0" class="activity-timeline">
       <div v-for="group in grouped" :key="group.day" class="activity-day">
         <div class="day-header">
           <span class="day-date">{{ formatDay(group.day) }}</span>
@@ -66,15 +65,15 @@
       <p>
         <strong>{{ t('这里显示的是什么', 'What this page shows') }}：</strong>
         {{ t(
-          '当前从你自己的记忆和知识元数据里聚合——写入来自每条记忆的 created_at，召回来自 last_accessed_at。',
-          "Today this is aggregated from your own memory and knowledge metadata: writes come from each entry's created_at, recalls from last_accessed_at."
+          '后续这里会只聚合 Lakebase 数据库、LakebaseFS、导入、备份、恢复和审计相关活动。',
+          'This page will aggregate Lakebase database, LakebaseFS, import, backup, restore, and audit activity.'
         ) }}
       </p>
       <p>
         <strong>{{ t('还没包含（正在做）', 'Not yet included (in progress)') }}：</strong>
         {{ t(
-          'Digest / wiki 生成每次运行的时间戳；MCP 调用每次的 trace；API Key 用量的逐条记录；knowledge 文档 access。',
-          "Per-run timestamps of digest and wiki generation; MCP call traces; per-request API key usage; knowledge document access events."
+          '精确的 SQL 级读写统计、API Key 用量逐条记录、FS 文件级访问事件。',
+          'Exact SQL-level read/write counts, per-request API key usage, and file-level FS access events.'
         ) }}
       </p>
     </div>
@@ -82,9 +81,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useLocale } from '../../stores/locale'
-import { listMemoryBases, listMemories, listTraits, type MemoryItem } from '../../api/memory'
 
 const { t } = useLocale()
 
@@ -104,79 +102,8 @@ interface DayGroup {
   events: ActivityEvent[]
 }
 
-const loading = ref(true)
 const events = ref<ActivityEvent[]>([])
-const stats = ref({ ingests: 0, recalls: 0, traits: 0, bases: 0, encryptedBases: 0 })
-
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
-
-function _recent(ts: string | null): boolean {
-  if (!ts) return false
-  return Date.now() - new Date(ts).getTime() <= THIRTY_DAYS_MS
-}
-
-async function load() {
-  loading.value = true
-  try {
-    const res = await listMemoryBases()
-    const bases = Array.isArray(res.data) ? res.data : []
-    const ready = bases.filter((b: any) => b.status === 'READY')
-    stats.value.bases = ready.length
-    stats.value.encryptedBases = ready.filter((b: any) => b.encrypted).length
-
-    let ingests = 0
-    let recalls = 0
-    let traitCount = 0
-    const collected: ActivityEvent[] = []
-
-    for (const base of ready) {
-      try {
-        const page = await listMemories(base.id, { limit: 200 })
-        const items: MemoryItem[] = page.data?.memories ?? []
-        for (const m of items) {
-          if (_recent(m.created_at)) ingests++
-          collected.push({
-            key: `in-${base.id}-${m.id}`,
-            ts: m.created_at,
-            type: 'ingest',
-            base: base.name,
-            detail: m.memory_type,
-            source: String(m.metadata?.source ?? ''),
-          })
-          if (m.last_accessed_at && m.last_accessed_at !== m.created_at) {
-            if (_recent(m.last_accessed_at)) recalls++
-            collected.push({
-              key: `rc-${base.id}-${m.id}`,
-              ts: m.last_accessed_at,
-              type: 'recall',
-              base: base.name,
-              detail: `${m.memory_type} · ${m.access_count || 1}×`,
-              source: '',
-            })
-          }
-        }
-
-        try {
-          const tr = await listTraits(base.id)
-          traitCount += Array.isArray(tr.data) ? tr.data.length : 0
-        } catch {
-          // traits optional
-        }
-      } catch {
-        // single base failure shouldn't block the whole page
-      }
-    }
-
-    // sort descending
-    collected.sort((a, b) => (a.ts < b.ts ? 1 : a.ts > b.ts ? -1 : 0))
-    events.value = collected
-    stats.value.ingests = ingests
-    stats.value.recalls = recalls
-    stats.value.traits = traitCount
-  } finally {
-    loading.value = false
-  }
-}
+const stats = ref({ ingests: 0, recalls: 0, traits: 0, bases: 0 })
 
 const grouped = computed<DayGroup[]>(() => {
   const byDay = new Map<string, ActivityEvent[]>()
@@ -200,10 +127,8 @@ function formatTime(ts: string): string {
 }
 
 function opLabel(op: EventType): string {
-  return op === 'ingest' ? t('写入', 'ingest') : t('召回', 'recall')
+  return op === 'ingest' ? t('写入', 'write') : t('读取', 'read')
 }
-
-onMounted(load)
 </script>
 
 <style scoped>

@@ -11,8 +11,8 @@
         <div class="summary-label">数据库存储</div>
       </div>
       <div class="summary-card green">
-        <div class="summary-value">{{ formatBytes(summary?.totalKbDocBytes ?? 0) }}</div>
-        <div class="summary-label">知识库文档</div>
+        <div class="summary-value">{{ tenants.length }}</div>
+        <div class="summary-label">租户数</div>
       </div>
       <div class="summary-card red" v-if="summary && summary.orphanBytes > 0">
         <div class="summary-value">{{ formatBytes(summary.orphanBytes) }}</div>
@@ -40,8 +40,6 @@
               <th style="width: 32px;"></th>
               <th>租户</th>
               <th>数据库</th>
-              <th>知识库</th>
-              <th>记忆库</th>
               <th>总量</th>
               <th>状态</th>
             </tr>
@@ -55,8 +53,6 @@
                 </td>
                 <td class="tenant-name">{{ t.tenantName || t.tenantId }}</td>
                 <td>{{ formatBytes(t.dbBytes) }}</td>
-                <td>{{ formatBytes(t.kbDocBytes) }}</td>
-                <td>{{ formatBytes(t.memoryBytes) }}</td>
                 <td class="total-cell">{{ formatBytes(t.totalBytes) }}</td>
                 <td><span class="status-tag" :class="t.status">{{ t.status }}</span></td>
               </tr>
@@ -69,9 +65,7 @@
                     {{ item.name || item.id }}
                   </td>
                   <td>{{ formatBytes(item.dbBytes) }}</td>
-                  <td>{{ formatBytes(item.kbDocBytes) }}</td>
-                  <td>{{ formatBytes(item.memoryBytes) }}</td>
-                  <td>{{ formatBytes((item.dbBytes ?? 0) + (item.kbDocBytes ?? 0) + (item.memoryBytes ?? 0)) }}</td>
+                  <td>{{ formatBytes(item.dbBytes ?? 0) }}</td>
                   <td><span class="status-tag" :class="item.status">{{ item.status }}</span></td>
                 </tr>
               </template>
@@ -84,7 +78,7 @@
                 {{ o.tenantId }}
                 <span class="deleted-tag">已删除</span>
               </td>
-              <td colspan="3">--</td>
+              <td>--</td>
               <td class="total-cell">{{ formatBytes(o.bytes) }}</td>
               <td>
                 <button class="cleanup-btn" :disabled="cleaningUp === o.tenantId" @click.stop="startCleanup(o.tenantId)">
@@ -131,8 +125,6 @@ interface StorageItem {
   name: string
   status: string
   dbBytes: number
-  kbDocBytes: number
-  memoryBytes: number
 }
 
 interface TenantStorage {
@@ -140,8 +132,6 @@ interface TenantStorage {
   tenantName: string
   status: string
   dbBytes: number
-  kbDocBytes: number
-  memoryBytes: number
   totalBytes: number
   items: StorageItem[]
 }
@@ -154,7 +144,6 @@ interface OrphanEntry {
 interface StorageSummary {
   totalObsBytes: number
   totalDbBytes: number
-  totalKbDocBytes: number
   orphanBytes: number
   tenants: TenantStorage[]
   orphans: OrphanEntry[]
@@ -176,21 +165,7 @@ function normalizeTenant(t: any): TenantStorage {
     items.push({
       type: 'database', id: db.id, name: db.name,
       status: db.status ?? '-',
-      dbBytes: db.logical_size ?? 0, kbDocBytes: 0, memoryBytes: 0,
-    })
-  }
-  for (const kb of t.knowledge_bases ?? []) {
-    items.push({
-      type: 'knowledge', id: kb.id, name: kb.name,
-      status: kb.status ?? '-',
-      dbBytes: 0, kbDocBytes: kb.obs_size ?? 0, memoryBytes: 0,
-    })
-  }
-  for (const mb of t.memory_bases ?? []) {
-    items.push({
-      type: 'memory', id: mb.id, name: mb.name,
-      status: mb.status ?? '-',
-      dbBytes: 0, kbDocBytes: 0, memoryBytes: mb.db_logical_size ?? 0,
+      dbBytes: db.logical_size ?? 0,
     })
   }
   return {
@@ -198,8 +173,6 @@ function normalizeTenant(t: any): TenantStorage {
     tenantName: t.tenant_name,
     status: t.status ?? 'active',
     dbBytes: t.db_total_size ?? 0,
-    kbDocBytes: t.kb_total_obs_size ?? 0,
-    memoryBytes: t.mem_total_size ?? 0,
     totalBytes: t.total_size ?? 0,
     items,
   }
@@ -212,8 +185,7 @@ async function loadData() {
     const raw = res.data as any
     summary.value = {
       totalObsBytes: raw.total_doc_obs_size ?? 0,
-      totalDbBytes: (raw.total_db_size ?? 0) + (raw.total_mem_size ?? 0),
-      totalKbDocBytes: raw.total_doc_obs_size ?? 0,
+      totalDbBytes: raw.total_db_size ?? 0,
       orphanBytes: raw.orphan_bytes ?? 0,
       tenants: [],
       orphans: raw.orphans ?? [],
@@ -300,7 +272,7 @@ function formatTime(iso: string): string {
 }
 
 function typeLabel(type: string): string {
-  const map: Record<string, string> = { database: '数据库', knowledge_base: '知识库', memory_base: '记忆库' }
+  const map: Record<string, string> = { database: '数据库' }
   return map[type] ?? type
 }
 
@@ -453,8 +425,6 @@ onMounted(loadData)
   margin-right: 6px;
 }
 .type-badge.database { background: #7eb8da22; color: #7eb8da; }
-.type-badge.knowledge_base { background: #a8d5a222; color: #a8d5a2; }
-.type-badge.memory_base { background: #d4a8d522; color: #d4a8d5; }
 
 .status-tag {
   display: inline-block;

@@ -1,4 +1,0 @@
-ALTER TABLE memory_bases ADD COLUMN IF NOT EXISTS encrypted BOOLEAN DEFAULT false;
-ALTER TABLE memory_bases ADD COLUMN IF NOT EXISTS encrypted_dek TEXT;
-ALTER TABLE memory_bases ADD COLUMN IF NOT EXISTS kdf_salt TEXT;
-ALTER TABLE memory_bases ADD COLUMN IF NOT EXISTS embedding_dim INT;

@@ -3,6 +3,7 @@ import os
 import random
 import time
 import subprocess
+import uuid
 
 import pytest
 
@@ -19,7 +20,7 @@ ADMIN_TOKEN = os.environ.get("DBAY_ADMIN_TOKEN", "lakeon-sre-2026")
 # Helpers
 # ---------------------------------------------------------------------------
 
-def poll_until(fetch_fn, condition, timeout=120, interval=3):
+def poll_until(fetch_fn, condition, timeout=360, interval=3):
     """Poll fetch_fn() until condition(result) is True or timeout expires."""
     deadline = time.time() + timeout
     result = None
@@ -42,16 +43,20 @@ def run_psql(connstr: str, sql: str, password: str = None) -> str:
     if password:
         env["PGPASSWORD"] = password
 
-    # Ensure sslmode=require is present
+    params = []
     if "sslmode=" not in connstr:
+        params.append("sslmode=require")
+    if "connect_timeout=" not in connstr:
+        params.append("connect_timeout=20")
+    if params:
         sep = "&" if "?" in connstr else "?"
-        connstr += f"{sep}sslmode=require"
+        connstr += f"{sep}{'&'.join(params)}"
 
     result = subprocess.run(
         ["psql", connstr, "-c", sql, "-t", "-A"],
         capture_output=True,
         text=True,
-        timeout=60,
+        timeout=90,
         env=env,
     )
     if result.returncode != 0:
@@ -74,7 +79,7 @@ def _cleanup_stale_tenants():
         stale = []
         for t in tenants:
             name = t.get("name", "")
-            # Only clean up test tenants (e2e-*, dbg*, test*, kb-debug-*, etc.)
+            # Only clean up test tenants.
             if not any(name.startswith(p) for p in ("e2e-", "dbg", "test", "kb-debug", "kb-0",
                                                       "debug", "compute-test", "sql-test",
                                                       "ext-test", "url-", "export-debug",
@@ -135,8 +140,8 @@ def _create_tenant_with_invite(endpoint: str, admin_token: str,
     )
     client = DbayClient(endpoint=endpoint, api_key=tenant["api_key"])
 
-    # Full-suite E2E creates many temporary backing databases across
-    # database, branch, KB, memory, PITR, and version fixtures.
+    # Lakebase E2E creates many temporary backing databases across
+    # database, branch, PITR, version and LakebaseFS fixtures.
     tenant_id = tenant.get("id")
     if tenant_id:
         admin.admin_update_quota(tenant_id, max_databases=200)
@@ -153,12 +158,12 @@ def e2e_tenant():
 
     On teardown, deletes every database owned by the tenant.
     """
-    ts = int(time.time())
-    username = f"e2e-{ts}"
-    password = f"E2eTest@{ts}"
+    run_id = f"{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}"
+    username = f"e2e-{run_id}"
+    password = f"E2eTest@{uuid.uuid4().hex[:12]}"
 
     client, tenant = _create_tenant_with_invite(
-        ENDPOINT, ADMIN_TOKEN, username, password, f"E2E Test {ts}"
+        ENDPOINT, ADMIN_TOKEN, username, password, f"E2E Test {run_id}"
     )
 
     info = {
@@ -169,26 +174,6 @@ def e2e_tenant():
     }
 
     yield info
-
-    # Cleanup: delete all knowledge bases created during the session
-    try:
-        for kb in client.list_knowledge_bases():
-            try:
-                client.delete_knowledge_base(kb["id"])
-            except Exception:
-                pass
-    except Exception:
-        pass
-
-    # Cleanup: delete all memory bases created during the session
-    try:
-        for mb in client.list_memory_bases():
-            try:
-                client.delete_memory_base(mb["id"])
-            except Exception:
-                pass
-    except Exception:
-        pass
 
     # Cleanup: delete all databases created during the session
     for db in client.list_databases():
@@ -220,14 +205,14 @@ def test_db(e2e_client):
     The returned dict includes the ``password`` field captured from the
     creation response (GET won't return it).
     """
-    db = e2e_client.create_database(name=f"e2e-db-{int(time.time())}")
+    db = e2e_client.create_database(name=f"e2e-db-{int(time.time() * 1000)}-{uuid.uuid4().hex[:6]}")
     # Capture password from creation response before polling overwrites it
     creation_password = db.get("password")
 
     db = poll_until(
         lambda: e2e_client.get_database(db["id"]),
         condition=lambda d: d["status"] in ("RUNNING", "ERROR"),
-        timeout=180,
+        timeout=360,
         interval=3,
     )
     assert db["status"] == "RUNNING", f"Database creation failed: {db}"

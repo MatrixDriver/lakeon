@@ -60,11 +60,7 @@ public class ObsStsService {
     Map<String, Object> buildPolicy(String tenantId) {
         String bucket = props.getObs().getBucket();
         List<String> tenantPrefixes = List.of(
-                "datasets/" + tenantId + "/",
-                "knowledge/" + tenantId + "/",
-                "tenant-" + tenantId + "/",
-                "datalake-logs/" + tenantId + "/",
-                "datasources/" + tenantId + "/"
+                "tenant-" + tenantId + "/"
         );
         List<String> resources = tenantPrefixes.stream()
                 .map(p -> "obs:*:*:object:" + bucket + "/" + p + "*")

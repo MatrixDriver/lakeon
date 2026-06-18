@@ -37,7 +37,7 @@
       <div class="pub-signature-inner">
         <span class="pub-signature-mark" aria-hidden="true"></span>
         <span class="pub-signature-refrain">{{ t('在你这边。', 'On your side.') }}</span>
-        <span class="pub-signature-sub">{{ t('你的记忆，你的知识，你的选择。', 'Your memory. Your knowledge. Yours.') }}</span>
+        <span class="pub-signature-sub">{{ t('你的数据库，你的文件，你的边界。', 'Your database. Your files. Your boundary.') }}</span>
       </div>
     </div>
   </div>

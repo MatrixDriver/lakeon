@@ -25,13 +25,6 @@
             >
               <span class="table-type-icon" :class="t.type === 'VIEW' ? 'type-view' : 'type-table'">{{ t.type === 'VIEW' ? 'V' : 'T' }}</span>
               <span class="tree-label">{{ t.name }}</span>
-              <router-link
-                v-if="t.type !== 'VIEW'"
-                :to="`/datalake/datasets/new?database_id=${props.dbId}&table=${t.name}`"
-                class="table-export-link"
-                title="导出到数据集"
-                @click.stop
-              >导出</router-link>
             </div>
             <div v-if="getTables(schema.name).length === 0" class="tree-empty">无表</div>
           </template>

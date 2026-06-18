@@ -92,8 +92,7 @@ class ImportServiceSyncTest {
             computePodManager,
             databaseService,
             operationLogService,
-            props,
-            null
+            props
         );
 
         // Initialize transaction synchronization for tests that call createImport

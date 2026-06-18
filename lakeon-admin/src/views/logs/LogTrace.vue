@@ -83,13 +83,11 @@ function deltaMs(prevTs: string, curTs: string): number | null {
 
 function componentDotColor(c: string): string {
   if (c === 'lakeon-api') return '#2a4d6a'
-  if (c === 'knowledge-pipeline') return '#3a7d5c'
   return '#aaa'
 }
 
 function componentColor(c: string): string {
   if (c === 'lakeon-api') return '#2a4d6a'
-  if (c === 'knowledge-pipeline') return '#3a7d5c'
   if (c === 'pageserver') return '#8b6914'
   return '#666'
 }

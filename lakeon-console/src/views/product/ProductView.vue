@@ -7,23 +7,23 @@
         <div class="ppage-eyebrow">{{ t('产品介绍', 'Products') }}</div>
 
         <h1 class="ppage-manifesto-title">
-          <span class="po-title-a">{{ t('四件事，一套底座。', 'Four things, one foundation.') }}</span>
-          <span class="po-title-b">{{ t('全部属于你自己。', 'All of it yours.') }}</span>
+          <span class="po-title-a">{{ t('Lakebase 与 FS。', 'Lakebase and FS.') }}</span>
+          <span class="po-title-b">{{ t('一个干净的数据底座。', 'A clean data foundation.') }}</span>
         </h1>
 
         <p class="ppage-manifesto-lede">
           {{ t(
-            'DBay 是 Agent 工作态和学习态的数据底座。运行时读写事务、召回记忆、搜索知识；学习时提炼对话、跑批处理、沉淀新知。这四件事长在同一套底座上——而这套底座属于你，不属于任何一家 Agent 厂家。',
-            "DBay is the data foundation for both the agent runtime and the learning phase. At runtime your agent reads transactions, recalls memory, searches knowledge. Between runs it digests conversations, runs batch jobs, and settles new knowledge. All four on the same foundation — and that foundation belongs to you, not to any agent vendor."
+            'dbay.cloud 第一阶段只提供 Lakebase 数据库和 LakebaseFS：兼容 PostgreSQL 的 serverless 数据库、分支/时间旅行，以及面向应用和 Agent 的文件系统。',
+            'dbay.cloud now focuses on Lakebase and LakebaseFS: serverless PostgreSQL-compatible databases, branching, time travel, and an application/agent-facing file system.'
           ) }}
         </p>
       </div>
     </section>
 
-    <!-- 02 · Four capability cards -->
+    <!-- 02 · Capability cards -->
     <section class="ppage-section">
       <div class="ppage-inner">
-        <h2 class="ppage-section-title">{{ t('四种能力，同一底座', 'Four capabilities, one foundation') }}</h2>
+        <h2 class="ppage-section-title">{{ t('两种核心能力', 'Two core capabilities') }}</h2>
 
         <div class="po-grid">
           <router-link to="/product/lakebase" class="po-card">
@@ -40,46 +40,18 @@
             <span class="po-card-more">{{ t('继续读 Lakebase', 'Read more') }} →</span>
           </router-link>
 
-          <router-link to="/product/knowledge" class="po-card">
-            <div class="po-card-eyebrow">02 · {{ t('知识库', 'Knowledge') }}</div>
-            <h3 class="po-card-name">Knowledge</h3>
+          <router-link to="/lbfs" class="po-card">
+            <div class="po-card-eyebrow">02 · {{ t('文件系统', 'File System') }}</div>
+            <h3 class="po-card-name">LakebaseFS</h3>
             <p class="po-card-claim">
-              {{ t('不是 RAG。是 Agent 自己在维护的一本 wiki。', "Not RAG. A wiki the agent maintains itself.") }}
+              {{ t('面向数据库、应用和 Agent 的统一文件目录。', 'A unified file directory for databases, applications, and agents.') }}
             </p>
             <ul class="po-card-list">
-              <li>{{ t('LLM 从源文档自动生成结构化 wiki 条目', 'LLM distills source docs into structured wiki entries') }}</li>
-              <li>{{ t('Agent 读条目不读 chunk · 幻觉降', 'Agents read entries, not chunks — hallucinations drop') }}</li>
-              <li>{{ t('新问题反哺 wiki · 知识持续沉淀', 'New questions feed the wiki — knowledge compounds') }}</li>
+              <li>{{ t('目录和文件 API · 与租户数据库绑定', 'Directory and file APIs bound to each tenant database') }}</li>
+              <li>{{ t('小文件入库 · 大对象入 OBS', 'Small files in database, large objects in OBS') }}</li>
+              <li>{{ t('同一套权限和审计边界', 'Same permission and audit boundary') }}</li>
             </ul>
-            <span class="po-card-more">{{ t('继续读 Knowledge', 'Read more') }} →</span>
-          </router-link>
-
-          <router-link to="/product/memory" class="po-card">
-            <div class="po-card-eyebrow">03 · {{ t('记忆库', 'Memory') }}</div>
-            <h3 class="po-card-name">Memory</h3>
-            <p class="po-card-claim">
-              {{ t('Agent 的长期记忆，会自己反思你是谁。', "Long-term memory — it thinks about who you are.") }}
-            </p>
-            <ul class="po-card-list">
-              <li>{{ t('每晚 digest 抽 traits · 三天后出反思洞察', 'Nightly digest · insights surface within days') }}</li>
-              <li>{{ t('跨 Agent · 跨 session · 跨项目', 'Shared across agents, sessions, projects') }}</li>
-              <li>{{ t('本地加密 · PBKDF2 三因素密钥', 'Locally encrypted · PBKDF2 three-factor keys') }}</li>
-            </ul>
-            <span class="po-card-more">{{ t('继续读 Memory', 'Read more') }} →</span>
-          </router-link>
-
-          <router-link to="/product/datalake" class="po-card">
-            <div class="po-card-eyebrow">04 · {{ t('数据湖', 'Datalake') }}</div>
-            <h3 class="po-card-name">Datalake</h3>
-            <p class="po-card-claim">
-              {{ t('多模态算子，DAG 编排，算子间 zero-copy。', 'Multi-modal operators, DAG orchestration, zero-copy in between.') }}
-            </p>
-            <ul class="po-card-list">
-              <li>{{ t('内置文本/图像/音频/视频/文档多模态算子', 'Built-in text/image/audio/video/doc operators') }}</li>
-              <li>{{ t('DAG 编译成分布式 Python · shared memory', 'DAG compiles to distributed Python · shared memory') }}</li>
-              <li>{{ t('Ray 热池 · ~13s 冷启动 · CCI Kata 隔离', 'Ray warm pool · ~13s cold start · CCI Kata isolation') }}</li>
-            </ul>
-            <span class="po-card-more">{{ t('继续读 Datalake', 'Read more') }} →</span>
+            <span class="po-card-more">{{ t('打开 FS', 'Open FS') }} →</span>
           </router-link>
         </div>
       </div>
@@ -92,19 +64,13 @@
 
         <div class="po-prose">
           <p>
-            {{ t('Agent 执行任务时，走的是', 'When the agent runs, it goes through the') }}
-            <strong>{{ t('工作态', 'working state') }}</strong>
-            {{ t('：从 Lakebase 读写事务、从 Memory 召回相关记忆、从 Knowledge 搜索私有知识。这三件事共享同一套融合检索内核，结果在一次查询里打分。', ': reads and writes transactions on Lakebase, recalls matching memories from Memory, searches private knowledge in Knowledge. All three share the same fusion retrieval kernel — a single query, a single ranking.') }}
+            {{ t('Lakebase 承载结构化数据和 PostgreSQL 生态访问，LakebaseFS 承载文件、目录和对象存储映射。', 'Lakebase carries structured data and PostgreSQL ecosystem access; LakebaseFS carries files, directories, and object storage mappings.') }}
           </p>
           <p>
-            {{ t('任务完成后，走的是', 'Between runs it moves into the') }}
-            <strong>{{ t('学习态', 'learning state') }}</strong>
-            {{ t('：Memory 每晚 digest 反刍当天对话抽出 traits；Datalake 跑多模态批处理沉淀数据集；Knowledge 自己维护 wiki 并把新问答变成新条目。这些处理完后再注入回工作态，下一次 Agent 运行时就能用。', ': Memory\'s nightly digest walks the day\'s conversations for new traits. Datalake processes multi-modal batches into datasets. Knowledge curates its wiki and turns new Q&As into new entries. All of that flows back into the working state for the next run.') }}
+            {{ t('知识、记忆、数据湖、Pipeline、Ray 和 Notebook 已迁移到 dbay-agent，它们通过 API 使用 dbay.cloud 提供的 Lakebase 数据底座。', 'Knowledge, memory, datalake, pipeline, Ray, and notebook now live in dbay-agent. They use dbay.cloud as the Lakebase data foundation through APIs.') }}
           </p>
           <p>
-            {{ t('同一套底座让工作态和学习态可以', 'Sitting on one foundation lets working and learning state hand off to each other ') }}
-            <strong>{{ t('无缝切换', 'seamlessly') }}</strong>
-            {{ t('。不需要自己做 ETL，不需要跨系统对账，不需要维护胶水代码。', '. No ETL, no cross-system reconciliation, no glue code to maintain.') }}
+            {{ t('这种边界让 dbay.cloud 更稳定、更清晰：它只负责数据库和 FS，智能体与数据分析工作负载在独立系统中伸缩。', 'This boundary keeps dbay.cloud stable and clear: it owns database and FS, while agent and analytics workloads scale in a separate system.') }}
           </p>
         </div>
       </div>
