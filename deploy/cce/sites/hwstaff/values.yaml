@@ -40,12 +40,18 @@ neon:
 api:
   replicas: 2
   port: 8090               # API HTTPS 端口
-  serviceType: LoadBalancer
+  serviceType: ClusterIP
   adminToken: "lakeon-sre-2026"
   elb:
-    id: "46b20c38-5c54-4781-9f00-d25d8c1717a8"
+    id: ""
     class: "performance"
     port: 8443       # ELB 监听端口，供 Railway 前端反代
+  publicElb:
+    enabled: true
+    id: "46b20c38-5c54-4781-9f00-d25d8c1717a8"
+    class: "performance"
+    port: 8443
+    internalPort: 8088
   ssl:
     enabled: true
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
