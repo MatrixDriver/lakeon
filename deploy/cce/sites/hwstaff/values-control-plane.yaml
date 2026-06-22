@@ -90,6 +90,3 @@ admin:
 
 console:
   enabled: false
-
-llm:
-  enabled: false

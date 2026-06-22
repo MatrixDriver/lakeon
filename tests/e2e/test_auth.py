@@ -1,7 +1,7 @@
 import pytest
 
 from dbay_cli.client import DbayClient, DbayApiError
-from conftest import ENDPOINT
+from conftest import ADMIN_TOKEN, ENDPOINT
 
 
 def test_invalid_api_key():
@@ -20,6 +20,18 @@ def test_missing_auth():
     assert exc_info.value.status_code == 401
 
 
-def test_disabled_tenant(e2e_client):
-    """Disabled tenant should receive 403. Requires admin API to disable."""
-    pytest.skip("Requires admin API to disable tenant")
+def test_disabled_tenant(e2e_tenant):
+    """Disabled tenant should receive 403, then recover after re-enable."""
+    admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+    tenant_id = e2e_tenant["id"]
+    client = e2e_tenant["client"]
+
+    try:
+        admin._request("POST", f"/admin/tenants/{tenant_id}/disable")
+        with pytest.raises(DbayApiError) as exc_info:
+            client.list_databases()
+        assert exc_info.value.status_code == 403
+    finally:
+        admin._request("POST", f"/admin/tenants/{tenant_id}/enable")
+
+    assert isinstance(client.list_databases(), list)

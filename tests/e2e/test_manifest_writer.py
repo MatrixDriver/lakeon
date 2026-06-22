@@ -79,7 +79,11 @@ def obs_client():
         endpoint_url=_endpoint_url(),
         aws_access_key_id=OBS_AK,
         aws_secret_access_key=OBS_SK,
-        config=Config(signature_version="s3v4", retries={"max_attempts": 3}),
+        config=Config(
+            signature_version="s3v4",
+            retries={"max_attempts": 3},
+            s3={"addressing_style": "virtual"},
+        ),
         region_name=os.environ.get("LAKEON_OBS_REGION", "cn-north-4"),
     )
 
@@ -214,10 +218,15 @@ class TestManifestWriter:
         email = e2e_tenant.get("email")
 
         if not email:
-            pytest.skip(
-                "e2e_tenant has no email set (regular /tenants register flow); "
-                "owners.idx is only written for tenants with an email column."
+            # Regular /tenants registration has no email column. In that case
+            # ManifestWriter must not invent an owners.idx entry.
+            manifest = _wait_for_manifest(
+                obs_client,
+                f"tenants/{tenant_id}/_manifest.json",
+                timeout=30,
             )
+            assert not manifest.get("owner_email"), manifest
+            return
 
         shard = _email_shard(email)
         key = f"_global/owners/{shard}.idx"

@@ -130,12 +130,6 @@ public class ApiKeyFilter implements Filter {
             return;
         }
 
-        // Job callback and connstr refresh from Job Pods (token-authenticated internally)
-        if (path.matches("/api/v1/jobs/[^/]+/callback") || path.matches("/api/v1/jobs/[^/]+/connstr")) {
-            chain.doFilter(req, res);
-            return;
-        }
-
         // Extract API Key
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {

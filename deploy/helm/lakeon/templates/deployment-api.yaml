@@ -76,14 +76,6 @@ spec:
                   name: api-credentials
                   key: data-plane-kube-token
                   optional: true
-            {{- if .Values.llm.apiUrl }}
-            - name: LAKEON_AI_BASE_URL
-              value: {{ .Values.llm.apiUrl | quote }}
-            {{- end }}
-            {{- if .Values.llm.model }}
-            - name: LAKEON_AI_MODEL
-              value: {{ .Values.llm.model | quote }}
-            {{- end }}
             {{- if .Values.obs.accessKey }}
             - name: LAKEON_OBS_ACCESS_KEY
               valueFrom:

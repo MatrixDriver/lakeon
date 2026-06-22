@@ -46,21 +46,6 @@ export interface LBFSFolderCreate {
   processing_profile?: LBFSProcessingProfile
 }
 
-export interface LBFSAutoJob {
-  id: string
-  folder_id: string
-  source_path: string
-  source_etag?: string | null
-  profile: LBFSProcessingProfile
-  status: 'pending' | 'running' | 'succeeded' | 'retrying' | 'failed'
-  attempts: number
-  last_error?: string | null
-  started_at?: string | null
-  finished_at?: string | null
-  created_at?: string | null
-  updated_at?: string | null
-}
-
 function toB64Url(s: string): string {
   const b64 = btoa(unescape(encodeURIComponent(s)))
   return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
@@ -72,10 +57,6 @@ export function listLBFSFolders() {
 
 export function createLBFSFolder(payload: LBFSFolderCreate) {
   return api.post<LBFSFolder>('/lbfs/folders', payload)
-}
-
-export function listLBFSAutoJobs(folderId: string) {
-  return api.get<{ auto_jobs: LBFSAutoJob[] }>(`/lbfs/folders/${folderId}/auto-jobs`)
 }
 
 export function getLBFSStats() {

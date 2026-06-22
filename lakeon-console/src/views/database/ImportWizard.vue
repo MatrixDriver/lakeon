@@ -18,34 +18,43 @@
         <!-- Step 1: Connection -->
         <div v-if="step === 0">
           <div class="form-group">
-            <label class="form-label">主机地址 <span class="required">*</span></label>
-            <input data-test="manual-host" v-model="form.host" class="form-input" placeholder="例如: 192.168.0.100" />
-          </div>
-          <div class="form-row">
-            <div class="form-group form-half">
-              <label class="form-label">端口 <span class="required">*</span></label>
-              <input data-test="manual-port" v-model.number="form.port" type="number" class="form-input" />
-            </div>
-            <div class="form-group form-half">
-              <label class="form-label">数据库名 <span class="required">*</span></label>
-              <input data-test="manual-dbname" v-model="form.dbname" class="form-input" placeholder="postgres" />
+            <label class="form-label">连接方式</label>
+            <div class="hint-text">
+              填写一次性 PostgreSQL 源库连接信息。数据源目录和长期连接管理已迁移到 dbay-agent。
             </div>
           </div>
-          <div class="form-row">
-            <div class="form-group form-half">
-              <label class="form-label">用户名 <span class="required">*</span></label>
-              <input data-test="manual-user" v-model="form.user" class="form-input" placeholder="postgres" />
+
+          <div>
+            <div class="form-group">
+              <label class="form-label">主机地址 <span class="required">*</span></label>
+              <input data-test="manual-host" v-model="form.host" class="form-input" placeholder="例如: 192.168.0.100" />
             </div>
-            <div class="form-group form-half">
-              <label class="form-label">密码 <span class="required">*</span></label>
-              <input data-test="manual-password" v-model="form.password" type="password" class="form-input" />
+            <div class="form-row">
+              <div class="form-group form-half">
+                <label class="form-label">端口 <span class="required">*</span></label>
+                <input data-test="manual-port" v-model.number="form.port" type="number" class="form-input" />
+              </div>
+              <div class="form-group form-half">
+                <label class="form-label">数据库名 <span class="required">*</span></label>
+                <input data-test="manual-dbname" v-model="form.dbname" class="form-input" placeholder="postgres" />
+              </div>
             </div>
-          </div>
-          <div class="test-conn-row" style="margin-top: 12px;">
-            <button data-test="test-connection" class="btn btn-default btn-small" :disabled="!connFormValid || testingConn" @click="handleTestConn">
-              {{ testingConn ? '测试中...' : '测试连接' }}
-            </button>
-            <span v-if="connTestResult === true" class="text-success">✓ 连接成功<span v-if="connVersion" class="conn-version"> ({{ connVersion }})</span><span v-if="walLevelInfo" class="conn-version"> | wal_level={{ walLevelInfo }}<template v-if="hasReplication"> ✓ replication</template><template v-else> ✗ no replication</template></span></span>
+            <div class="form-row">
+              <div class="form-group form-half">
+                <label class="form-label">用户名 <span class="required">*</span></label>
+                <input data-test="manual-user" v-model="form.user" class="form-input" placeholder="postgres" />
+              </div>
+              <div class="form-group form-half">
+                <label class="form-label">密码 <span class="required">*</span></label>
+                <input data-test="manual-password" v-model="form.password" type="password" class="form-input" />
+              </div>
+            </div>
+            <div class="test-conn-row" style="margin-top: 12px;">
+              <button data-test="test-connection" class="btn btn-default btn-small" :disabled="!connFormValid || testingConn" @click="handleTestConn">
+                {{ testingConn ? '测试中...' : '测试连接' }}
+              </button>
+              <span v-if="connTestResult === true" class="text-success">✓ 连接成功<span v-if="connVersion" class="conn-version"> ({{ connVersion }})</span><span v-if="walLevelInfo" class="conn-version"> | wal_level={{ walLevelInfo }}<template v-if="hasReplication"> ✓ replication</template><template v-else> ✗ no replication</template></span></span>
+            </div>
           </div>
 
           <div v-if="connError" data-test="connection-error" class="text-error" style="margin-top: 12px;">✗ {{ connError }}</div>

@@ -6,7 +6,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/site.sh"
 
-for var in HWCLOUD_AK HWCLOUD_SK RDS_PRIVATE_IP RDS_PASSWORD LOG_DB_DSN CONNECTOR_SECRET_KEY COMPUTE_JWT_PRIVATE_KEY COMPUTE_JWT_PUBLIC_JWK DATA_PLANE_PAGESERVER_URL; do
+for var in HWCLOUD_AK HWCLOUD_SK RDS_PRIVATE_IP RDS_PASSWORD LOG_DB_DSN COMPUTE_JWT_PRIVATE_KEY COMPUTE_JWT_PUBLIC_JWK DATA_PLANE_PAGESERVER_URL; do
   if [ -z "${!var:-}" ]; then
     echo "ERROR: environment variable $var is not set; check $SITE_DIR/.env or export it before running"
     exit 1
@@ -126,7 +126,6 @@ helm upgrade --install lakeon-control "$SCRIPT_DIR/../helm/lakeon" \
   --set metadataDb.host="$RDS_PRIVATE_IP" \
   --set metadataDb.password="$RDS_PASSWORD" \
   --set-string api.logDbDsn="$LOG_DB_DSN" \
-  --set-string api.connectorSecretKey="$CONNECTOR_SECRET_KEY" \
   --set-string dataPlane.pageserverUrl="$DATA_PLANE_PAGESERVER_URL" \
   --set-string dataPlane.kubeApiServer="$DATA_PLANE_KUBE_API_SERVER" \
   --set-string dataPlane.kubeToken="$DATA_PLANE_KUBE_TOKEN" \
