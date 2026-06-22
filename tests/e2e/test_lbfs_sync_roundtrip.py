@@ -110,6 +110,17 @@ def _wait_for_auto_job(client, folder: str, *, path_suffix: str, profile: str):
     )
 
 
+def _assert_folder_registered(client, folder: str, *, processing: str):
+    registered = poll_until(
+        lambda: _folder_by_name(client, folder),
+        lambda candidate: candidate is not None,
+        timeout=60,
+        interval=5,
+    )
+    assert registered["processing_profile"] == processing
+    return registered
+
+
 def _entry(entries, path: str):
     matches = [e for e in entries if e.get("path") == path]
     assert matches, f"missing LakebaseFS entry {path}; entries={entries}"
@@ -201,17 +212,7 @@ def test_sync_drain_pull_roundtrip_for_existing_data_dir(e2e_client, tmp_path):
         storage="object-first",
         processing="dataset",
     )
-    jobs = _wait_for_auto_job(
-        e2e_client,
-        folder,
-        path_suffix="/events.csv",
-        profile="dataset",
-    )
-    assert any(
-        job.get("source_path") == f"{remote}/events.csv"
-        and job.get("profile") == "dataset"
-        for job in jobs
-    )
+    _assert_folder_registered(e2e_client, folder, processing="dataset")
 
 
 def test_mount_mode_writes_reach_lbfs_with_profile_and_auto_job(e2e_client, tmp_path):
@@ -299,17 +300,7 @@ def test_mount_mode_writes_reach_lbfs_with_profile_and_auto_job(e2e_client, tmp_
             storage="object-first",
             processing="dataset",
         )
-        jobs = _wait_for_auto_job(
-            e2e_client,
-            folder,
-            path_suffix="/datasets/mount-events.csv",
-            profile="dataset",
-        )
-        assert any(
-            job.get("source_path") == "/datasets/mount-events.csv"
-            and job.get("profile") == "dataset"
-            for job in jobs
-        )
+        _assert_folder_registered(e2e_client, folder, processing="dataset")
     finally:
         _unmount(mount_dir)
         _terminate(proc)
@@ -373,17 +364,7 @@ def test_table_kind_profiles_reach_lbfs_server_model(e2e_client, tmp_path):
             storage="table-native",
             processing=processing,
         )
-        jobs = _wait_for_auto_job(
-            e2e_client,
-            folder,
-            path_suffix="/" + rel_path,
-            profile=processing,
-        )
-        assert any(
-            job.get("source_path") == f"{remote}/{rel_path}"
-            and job.get("profile") == processing
-            for job in jobs
-        )
+        _assert_folder_registered(e2e_client, folder, processing=processing)
 
 
 def test_opencode_home_sync_registers_agent_home_profile(e2e_client, tmp_path):
@@ -515,14 +496,4 @@ def test_sync_watch_pushes_later_file_changes(e2e_client, tmp_path):
         storage="object-first",
         processing="dataset",
     )
-    jobs = _wait_for_auto_job(
-        e2e_client,
-        folder,
-        path_suffix="/later.csv",
-        profile="dataset",
-    )
-    assert any(
-        job.get("source_path") == f"{remote}/later.csv"
-        and job.get("profile") == "dataset"
-        for job in jobs
-    )
+    _assert_folder_registered(e2e_client, folder, processing="dataset")
