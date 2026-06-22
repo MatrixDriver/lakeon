@@ -100,8 +100,6 @@ lakeon:
     storage-limit-gb: ${LAKEON_DEFAULT_STORAGE_LIMIT:10}
   hwcloud:
     account-id: ${LAKEON_HWCLOUD_ACCOUNT_ID:}
-  connector:
-    secret-key: ${CONNECTOR_SECRET_KEY}
   job:
     timeout-minutes: ${LAKEON_JOB_TIMEOUT_MINUTES:30}
     pending-timeout-minutes: ${LAKEON_JOB_PENDING_TIMEOUT_MINUTES:5}
