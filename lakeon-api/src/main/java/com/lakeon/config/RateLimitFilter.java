@@ -4,6 +4,7 @@ import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -26,6 +27,11 @@ public class RateLimitFilter implements Filter {
     private final ConcurrentHashMap<String, SlidingWindow> windows = new ConcurrentHashMap<>();
     private static final long CLEANUP_INTERVAL_MS = 60_000;
     private volatile long lastCleanup = System.currentTimeMillis();
+    private final Environment environment;
+
+    public RateLimitFilter(Environment environment) {
+        this.environment = environment;
+    }
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -35,6 +41,11 @@ public class RateLimitFilter implements Filter {
 
         String method = req.getMethod();
         String path = req.getRequestURI();
+
+        if ("POST".equals(method) && path.startsWith("/api/v1/tenants") && isAdminBearer(req)) {
+            chain.doFilter(request, response);
+            return;
+        }
 
         // Determine rate limit rule
         RateRule rule = resolveRule(method, path);
@@ -106,6 +117,14 @@ public class RateLimitFilter implements Filter {
             return xff.split(",")[0].trim();
         }
         return req.getRemoteAddr();
+    }
+
+    private boolean isAdminBearer(HttpServletRequest req) {
+        String adminToken = environment.getProperty("lakeon.admin.token");
+        if (adminToken == null || adminToken.isBlank()) {
+            return false;
+        }
+        return ("Bearer " + adminToken).equals(req.getHeader("Authorization"));
     }
 
     private void cleanupExpired(long now) {
