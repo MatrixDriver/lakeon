@@ -6,7 +6,6 @@
 lakeon-console/    # Vue 3 + Vite 前端控制台
 lakeon-admin/      # Vue 3 + Vite SRE 运维控制台
 lakeon-api/        # Spring Boot 3.3.5 (Java 17) 后端 API
-lakeon-orchestrator/ # Python 3.11+ FastAPI 生产线编排引擎
 dbay-cli/          # Python Typer CLI 工具
 tests/e2e/         # pytest API E2E 测试
 deploy/            # Helm + CCE 部署脚本
@@ -16,7 +15,6 @@ deploy/            # Helm + CCE 部署脚本
 
 - **Frontend**: Vue 3, TypeScript 5.9, Vite, Pinia, Vue Flow, CodeMirror
 - **Backend**: Spring Boot 3.3.5, Java 17, JPA, PostgreSQL
-- **Orchestrator**: Python 3.11+, FastAPI, Ray, SQLAlchemy
 - **CLI**: Python 3.11+, Typer, httpx
 - **Testing**: Vitest (unit), Playwright (browser E2E), pytest (API E2E)
 
@@ -31,7 +29,7 @@ npm run test         # vitest 单元测试
 npm run test:e2e     # Playwright 浏览器 E2E (自动启动 dev server)
 
 # API E2E
-python3 -m pytest tests/e2e/test_pipeline.py -v
+python3 -m pytest tests/e2e -v
 
 # Type check (push 前自动执行)
 cd lakeon-console && npx vue-tsc -b --noEmit
@@ -55,7 +53,7 @@ KUBECONFIG=~/.kube/cce-lakeon-config kubectl rollout restart deployment/lakeon-a
 
 ## Commit Convention
 
-`type(scope): description`，如：`feat(console): add pipeline list page`、`fix(api): handle null data_type`
+`type(scope): description`，如：`feat(console): add database list page`、`fix(api): handle null data_type`
 
 ## Key Conventions
 
