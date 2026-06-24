@@ -27,8 +27,8 @@ spec:
       {{- end }}
       containers:
         - name: proxy
-          image: "{{ .Values.neon.image.repository }}:{{ .Values.neon.image.tag }}"
-          imagePullPolicy: {{ .Values.neon.image.pullPolicy }}
+          image: "{{ .Values.proxy.image.repository | default .Values.neon.image.repository }}:{{ .Values.proxy.image.tag | default .Values.neon.image.tag }}"
+          imagePullPolicy: {{ .Values.proxy.image.pullPolicy | default .Values.neon.image.pullPolicy }}
           command: ["proxy"]
           args:
             - "--proxy=0.0.0.0:{{ .Values.proxy.listenPort }}"
@@ -36,8 +36,14 @@ spec:
             - "--auth-endpoint={{ .Values.proxy.authEndpoint | default (printf "http://lakeon-api:%v/proxy" (.Values.api.internalPort | default 8088)) }}"
             - "--wss=0.0.0.0:{{ .Values.proxy.httpPort }}"
             - "--mgmt=127.0.0.1:{{ .Values.proxy.mgmtPort }}"
+            {{- if .Values.proxy.lakeonDataProxy.enabled }}
+            - "--lakeon-data-proxy=true"
+            {{- end }}
             {{- if .Values.proxy.projectInfoCache }}
             - "--project-info-cache={{ .Values.proxy.projectInfoCache }}"
+            {{- end }}
+            {{- if .Values.proxy.wakeComputeCache }}
+            - "--wake-compute-cache={{ .Values.proxy.wakeComputeCache }}"
             {{- end }}
             {{- if .Values.proxy.tls.enabled }}
             - "--tls-key=/tls/tls.key"

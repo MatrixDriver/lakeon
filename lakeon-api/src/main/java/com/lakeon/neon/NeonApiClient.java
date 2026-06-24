@@ -207,14 +207,12 @@ public class NeonApiClient {
      */
     public NeonTimeline createTimeline(String tenantId, CreateTimelineRequest request) {
         try {
-            String body = objectMapper.writeValueAsString(request);
-            HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrlForTenant(tenantId) + "/v1/tenant/" + encodePathSegment(tenantId) + "/timeline"))
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .header("Content-Type", "application/json")
-                .timeout(REQUEST_TIMEOUT)
-                .build();
-            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = postTimeline(tenantId, request);
+            if (response.statusCode() == 404) {
+                log.warn("Tenant {} not found while creating timeline, re-attaching and retrying", tenantId);
+                reattachTenant(tenantId);
+                response = postTimeline(tenantId, request);
+            }
             if (response.statusCode() >= 400) {
                 throw new NeonApiException("Failed to create timeline: HTTP " + response.statusCode(), response.statusCode());
             }
@@ -226,6 +224,17 @@ public class NeonApiClient {
         } catch (Exception e) {
             throw new NeonApiException("Failed to create timeline: " + e.getMessage(), e);
         }
+    }
+
+    private HttpResponse<String> postTimeline(String tenantId, CreateTimelineRequest request) throws Exception {
+        String body = objectMapper.writeValueAsString(request);
+        HttpRequest httpRequest = HttpRequest.newBuilder()
+            .uri(URI.create(baseUrlForTenant(tenantId) + "/v1/tenant/" + encodePathSegment(tenantId) + "/timeline"))
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .header("Content-Type", "application/json")
+            .timeout(REQUEST_TIMEOUT)
+            .build();
+        return httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
     }
 
     /**

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.pageserver.PageserverPlacementService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -23,6 +24,7 @@ public class ComputeSpecBuilder {
     private final ObjectMapper objectMapper;
     private final PageserverPlacementService placementService;
 
+    @Autowired
     public ComputeSpecBuilder(LakeonProperties props, ObjectMapper objectMapper) {
         this(props, objectMapper, new PageserverPlacementService(props));
     }

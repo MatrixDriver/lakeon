@@ -58,13 +58,17 @@ public class ProxyAdapterController {
             @RequestParam(value = "session_id", required = false) String sessionId,
             @RequestParam(value = "application_name", required = false) String applicationName) {
 
+        EndpointRoute route = parseEndpointRoute(endpointish);
+
         // endpointish format: "db_name" or "db_name--branch_name"
-        String dbName = endpointish.contains("--") ? endpointish.split("--", 2)[0] : endpointish;
+        String dbName = route.normalized().contains("--")
+            ? route.normalized().split("--", 2)[0]
+            : route.normalized();
 
         DatabaseEntity db = dbRepo.findByName(dbName)
             .orElseThrow(() -> new RuntimeException("Database not found: " + dbName));
 
-        BranchEntity branch = resolveBranch(db, endpointish);
+        BranchEntity branch = resolveBranch(db, route.normalized());
 
         String address;
         String coldStartInfo;
@@ -121,6 +125,7 @@ public class ProxyAdapterController {
         aux.put("branch_id", branch.getId());
         aux.put("compute_id", branch.getComputePodName() != null ? branch.getComputePodName() : "");
         aux.put("cold_start_info", coldStartInfo);
+        aux.put("pooler_mode", route.pooled() ? "PROXY_POOLED" : "DIRECT");
 
         Map<String, Object> result = new HashMap<>();
         result.put("address", address);
@@ -139,13 +144,16 @@ public class ProxyAdapterController {
             @RequestParam("role") String role,
             @RequestParam(value = "session_id", required = false) String sessionId) {
 
-        String dbName = endpointish.contains("--") ? endpointish.split("--")[0] : endpointish;
+        EndpointRoute route = parseEndpointRoute(endpointish);
+        String dbName = route.normalized().contains("--")
+            ? route.normalized().split("--", 2)[0]
+            : route.normalized();
 
         DatabaseEntity db = dbRepo.findByName(dbName)
             .orElseThrow(() -> new RuntimeException("Database not found: " + dbName));
 
         // Resolve branch to validate it exists (but password comes from database)
-        resolveBranch(db, endpointish);
+        resolveBranch(db, route.normalized());
 
         Map<String, Object> result = new HashMap<>();
         result.put("role_secret", db.getDbPassword());
@@ -158,6 +166,20 @@ public class ProxyAdapterController {
             result.put("allowed_ips", new Object[0]);
         }
         return result;
+    }
+
+    private record EndpointRoute(String raw, String normalized, boolean pooled) {}
+
+    private EndpointRoute parseEndpointRoute(String endpointish) {
+        String suffix = "-pooler";
+        if (endpointish.endsWith(suffix)) {
+            return new EndpointRoute(
+                endpointish,
+                endpointish.substring(0, endpointish.length() - suffix.length()),
+                true
+            );
+        }
+        return new EndpointRoute(endpointish, endpointish, false);
     }
 
     /**

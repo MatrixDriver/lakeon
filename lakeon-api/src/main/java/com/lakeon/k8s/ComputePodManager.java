@@ -377,6 +377,32 @@ public class ComputePodManager {
     }
 
     /**
+     * Delete only the running compute Pod and keep its ConfigMap.
+     * Used when the config was just updated and the next cold start must
+     * reuse it, for example after a password reset.
+     */
+    public void deleteComputePodKeepConfig(String podName, boolean waitForDeletion) {
+        String namespace = props.getK8s().getNamespace();
+        k8sClient.pods().inNamespace(namespace).withName(podName).delete();
+        log.info("Deleted compute Pod without deleting ConfigMap: {}/{}", namespace, podName);
+
+        if (waitForDeletion) {
+            for (int i = 0; i < 30; i++) {
+                var pod = k8sClient.pods().inNamespace(namespace).withName(podName).get();
+                if (pod == null) {
+                    log.info("Pod {}/{} fully deleted", namespace, podName);
+                    return;
+                }
+                try { Thread.sleep(1000); } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+            log.warn("Pod {}/{} still exists after 30s wait", namespace, podName);
+        }
+    }
+
+    /**
      * Check if a Pod is ready.
      */
     /**
