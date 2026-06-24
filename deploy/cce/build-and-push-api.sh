@@ -87,8 +87,8 @@ if [[ -z "$JAR" ]]; then
 fi
 echo "  JAR: $JAR"
 
-# 2. Docker 构建（使用预编译 jar，跳过容器内 Maven 下载）
-echo "[2/3] Docker 构建..."
+# 2. Docker 构建（使用 Spring Boot layered jar，避免每次推送 100MB fat-jar 单层）
+echo "[2/3] Docker 分层构建..."
 
 # 优先使用本地已有的 JRE 基础镜像，避免从 Docker Hub 拉取超时
 BASE_IMAGE="eclipse-temurin:17-jre"
@@ -104,22 +104,65 @@ if ! docker image inspect "$BASE_IMAGE" &>/dev/null; then
     fi
 fi
 
-TMPFILE=$(mktemp "$API_DIR/Dockerfile.lakeon-api.XXXXXX")
+LAYERS_DIR="$API_DIR/target/lakeon-api-layers"
+EXTRACT_ROOT="$LAYERS_DIR/extracted"
+rm -rf "$LAYERS_DIR"
+mkdir -p "$EXTRACT_ROOT"
+(
+  cd "$EXTRACT_ROOT"
+  java -Djarmode=tools -jar "$API_DIR/$JAR" extract --layers --launcher >/dev/null
+)
+EXTRACTED_APP_DIR="$(find "$EXTRACT_ROOT" -mindepth 1 -maxdepth 1 -type d | head -1)"
+if [[ -z "$EXTRACTED_APP_DIR" ]]; then
+  echo "ERROR: layered jar 解包失败" >&2
+  exit 1
+fi
+
+# SWR 对 100MB 级 fat-jar blob 偶发提交超时；把 dependencies 再切成小层。
+DEPS_LIB_DIR="$EXTRACTED_APP_DIR/dependencies/BOOT-INF/lib"
+CHUNKS_DIR="$LAYERS_DIR/dependency-chunks"
+mkdir -p "$CHUNKS_DIR"
+chunk=0
+chunk_bytes=0
+chunk_limit=$((20 * 1024 * 1024))
+if compgen -G "$DEPS_LIB_DIR/*.jar" >/dev/null; then
+  for dep in "$DEPS_LIB_DIR"/*.jar; do
+    dep_bytes=$(wc -c < "$dep")
+    if (( chunk_bytes > 0 && chunk_bytes + dep_bytes > chunk_limit )); then
+      chunk=$((chunk + 1))
+      chunk_bytes=0
+    fi
+    chunk_dir="$CHUNKS_DIR/$(printf '%02d' "$chunk")/BOOT-INF/lib"
+    mkdir -p "$chunk_dir"
+    mv "$dep" "$chunk_dir/"
+    chunk_bytes=$((chunk_bytes + dep_bytes))
+  done
+fi
+
+TMPFILE=$(mktemp "$LAYERS_DIR/Dockerfile.lakeon-api.XXXXXX")
 trap "rm -f $TMPFILE" EXIT
 cat > "$TMPFILE" <<DOCKERFILE
 FROM ${BASE_IMAGE}
 WORKDIR /app
-COPY *.jar app.jar
+COPY extracted/$(basename "$EXTRACTED_APP_DIR")/spring-boot-loader/ ./
+DOCKERFILE
+for chunk_dir in "$CHUNKS_DIR"/*; do
+  if [[ -d "$chunk_dir" ]]; then
+    echo "COPY dependency-chunks/$(basename "$chunk_dir")/ ./" >> "$TMPFILE"
+  fi
+done
+cat >> "$TMPFILE" <<DOCKERFILE
+COPY extracted/$(basename "$EXTRACTED_APP_DIR")/snapshot-dependencies/ ./
+COPY extracted/$(basename "$EXTRACTED_APP_DIR")/application/ ./
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
 DOCKERFILE
 
-docker build -t "$IMAGE" -f "$TMPFILE" "$(dirname "$JAR")/"
-echo "  构建完成"
+echo "  分层目录: $LAYERS_DIR"
 
 # 3. 推送
-echo "[3/3] 推送到 SWR..."
-docker push "$IMAGE"
+echo "[3/3] BuildKit 构建并推送到 SWR..."
+docker buildx build --platform linux/amd64 --push -t "$IMAGE" -f "$TMPFILE" "$LAYERS_DIR"
 
 # 4. 写回 SITE_VALUES 让 deploy.sh 自动用新 tag（避免人工同步漏掉）
 if [ -n "${SITE_VALUES:-}" ] && [ -f "$SITE_VALUES" ]; then
