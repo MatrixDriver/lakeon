@@ -57,7 +57,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "d3794cc1-ac2c55ef"
+    tag: "d3794cc1-9d277413"
   jobCallbackBaseUrl: ""
   jobNamespace: "lakeon-jobs"
   jobUseCci: false
