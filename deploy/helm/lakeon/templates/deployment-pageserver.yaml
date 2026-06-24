@@ -1,6 +1,6 @@
 {{- if include "lakeon.dataPlaneEnabled" . }}
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: pageserver
   namespace: {{ .Values.global.namespace }}
@@ -8,6 +8,7 @@ metadata:
     app: pageserver
     {{- include "lakeon.labels" . | nindent 4 }}
 spec:
+  serviceName: pageserver-headless
   replicas: {{ .Values.pageserver.replicas }}
   selector:
     matchLabels:
@@ -33,7 +34,9 @@ spec:
             - -c
             - |
               cp /config-ro/pageserver.toml /data/pageserver.toml
-              cp /config-ro/identity.toml /data/identity.toml
+              ordinal="${HOSTNAME##*-}"
+              id=$((ordinal + 1))
+              printf 'id = %s\n' "$id" > /data/identity.toml
           volumeMounts:
             - name: config
               mountPath: /config-ro

@@ -22,6 +22,7 @@ spring:
 lakeon:
   neon:
     pageserver-url: ${LAKEON_NEON_PAGESERVER_URL:http://localhost:9898}
+    pageserver-nodes-raw: ${LAKEON_NEON_PAGESERVER_NODES_RAW:}
     safekeeper-urls: ${LAKEON_NEON_SAFEKEEPER_URLS:safekeeper1:5454,safekeeper2:5454,safekeeper3:5454}
     storage-broker-url: ${LAKEON_NEON_STORAGE_BROKER_URL:http://localhost:50051}
   obs:

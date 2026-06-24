@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.pageserver.PageserverPlacementService;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ComputeSpecBuilderJwksTest {
@@ -76,5 +78,35 @@ class ComputeSpecBuilderJwksTest {
 
         assertThat(builder.buildPageserverPgConnstring())
             .isEqualTo("postgresql://pageserver.lakeon.svc.cluster.local:6400");
+    }
+
+    @Test
+    void generateComputeConfig_usesTenantPlacementPageserverConnstring() throws Exception {
+        LakeonProperties props = newProps();
+        props.getNeon().setPageserverNodes(List.of(
+            new LakeonProperties.PageserverNodeConfig("ps-0", "http://pageserver-0:9898", "pageserver-0", 6400),
+            new LakeonProperties.PageserverNodeConfig("ps-1", "http://pageserver-1:9898", "pageserver-1", 6400),
+            new LakeonProperties.PageserverNodeConfig("ps-2", "http://pageserver-2:9898", "pageserver-2", 6400)
+        ));
+        ObjectMapper om = new ObjectMapper();
+        ComputeSpecBuilder builder = new ComputeSpecBuilder(props, om, new PageserverPlacementService(props));
+        DatabaseEntity e = new DatabaseEntity();
+        e.setId("db_test");
+        e.setName("test");
+        e.setNeonTenantId("tenant-a");
+        e.setNeonTimelineId("timeline-a");
+
+        String json = builder.generateComputeConfig(e, 0);
+        String conn = om.readTree(json).path("spec").path("pageserver_connstring").asText();
+        String settingConn = om.readTree(json).path("spec").path("cluster").path("settings").findValues("value")
+            .stream()
+            .map(JsonNode::asText)
+            .filter(v -> v.startsWith("postgresql://pageserver-"))
+            .findFirst()
+            .orElse("");
+
+        assertThat(conn).startsWith("postgresql://pageserver-");
+        assertThat(conn).endsWith(".lakeon.svc.cluster.local:6400");
+        assertThat(settingConn).isEqualTo(conn);
     }
 }

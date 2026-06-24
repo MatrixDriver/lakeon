@@ -76,6 +76,8 @@ public class LakeonProperties {
         private String pageserverUrl;
         private String safekeeperUrls;
         private String storageBrokerUrl;
+        private List<PageserverNodeConfig> pageserverNodes = List.of();
+        private String pageserverNodesRaw;
 
         public String getPageserverUrl() { return pageserverUrl; }
         public void setPageserverUrl(String pageserverUrl) { this.pageserverUrl = pageserverUrl; }
@@ -83,6 +85,65 @@ public class LakeonProperties {
         public void setSafekeeperUrls(String safekeeperUrls) { this.safekeeperUrls = safekeeperUrls; }
         public String getStorageBrokerUrl() { return storageBrokerUrl; }
         public void setStorageBrokerUrl(String storageBrokerUrl) { this.storageBrokerUrl = storageBrokerUrl; }
+        public List<PageserverNodeConfig> getPageserverNodes() { return pageserverNodes; }
+        public void setPageserverNodes(List<PageserverNodeConfig> pageserverNodes) {
+            this.pageserverNodes = pageserverNodes != null ? pageserverNodes : List.of();
+        }
+        public String getPageserverNodesRaw() { return pageserverNodesRaw; }
+        public void setPageserverNodesRaw(String pageserverNodesRaw) {
+            this.pageserverNodesRaw = pageserverNodesRaw;
+            if (pageserverNodesRaw == null || pageserverNodesRaw.isBlank()) {
+                return;
+            }
+            this.pageserverNodes = pageserverNodesRaw.lines()
+                .flatMap(line -> List.of(line.split(",")).stream())
+                .map(String::trim)
+                .filter(entry -> !entry.isEmpty())
+                .map(PageserverNodeConfig::parse)
+                .toList();
+        }
+    }
+
+    public static class PageserverNodeConfig {
+        private String id;
+        private String httpUrl;
+        private String pgHost;
+        private int pgPort = 6400;
+
+        public PageserverNodeConfig() {}
+
+        public PageserverNodeConfig(String id, String httpUrl, String pgHost, int pgPort) {
+            this.id = id;
+            this.httpUrl = httpUrl;
+            this.pgHost = pgHost;
+            this.pgPort = pgPort;
+        }
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getHttpUrl() { return httpUrl; }
+        public void setHttpUrl(String httpUrl) { this.httpUrl = httpUrl; }
+        public String getPgHost() { return pgHost; }
+        public void setPgHost(String pgHost) { this.pgHost = pgHost; }
+        public int getPgPort() { return pgPort; }
+        public void setPgPort(int pgPort) { this.pgPort = pgPort; }
+
+        static PageserverNodeConfig parse(String value) {
+            String[] idAndRest = value.split("=", 2);
+            if (idAndRest.length != 2) {
+                throw new IllegalArgumentException("pageserver node must be id=httpUrl|pgHost|pgPort: " + value);
+            }
+            String[] parts = idAndRest[1].split("\\|", -1);
+            if (parts.length != 3) {
+                throw new IllegalArgumentException("pageserver node must be id=httpUrl|pgHost|pgPort: " + value);
+            }
+            return new PageserverNodeConfig(
+                idAndRest[0].trim(),
+                parts[0].trim(),
+                parts[1].trim(),
+                Integer.parseInt(parts[2].trim())
+            );
+        }
     }
 
     public static class ObsConfig {

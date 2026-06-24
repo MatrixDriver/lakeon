@@ -58,7 +58,7 @@ else
 fi
 
 # 4. Pageserver 健康
-PS_STATUS=$(kubectl exec -n lakeon deploy/pageserver -- curl -s http://localhost:9898/v1/status 2>/dev/null | grep -o '"id"' || echo "")
+PS_STATUS=$(kubectl exec -n lakeon pod/pageserver-0 -- curl -s http://localhost:9898/v1/status 2>/dev/null | grep -o '"id"' || echo "")
 if [ -n "$PS_STATUS" ]; then
   check "Pageserver 健康" "ok"
 else

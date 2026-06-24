@@ -40,6 +40,7 @@ done
 echo ""
 echo "── Helm 部署 ──"
 
+kubectl delete deployment/pageserver -n lakeon --ignore-not-found=true
 helm upgrade --install lakeon "$SCRIPT_DIR/../helm/lakeon" \
   -f "$SITE_VALUES" \
   --set obs.accessKey=$HWCLOUD_AK --set obs.secretKey=$HWCLOUD_SK \
@@ -49,10 +50,10 @@ helm upgrade --install lakeon "$SCRIPT_DIR/../helm/lakeon" \
 echo ""
 echo "── 等待服务就绪 ──"
 
-for deploy in safekeeper; do
-  kubectl rollout status statefulset/$deploy -n lakeon --timeout=180s 2>/dev/null || true
+for sts in pageserver safekeeper; do
+  kubectl rollout status statefulset/$sts -n lakeon --timeout=180s 2>/dev/null || true
 done
-for deploy in pageserver storage-broker lakeon-api proxy; do
+for deploy in storage-broker lakeon-api proxy; do
   kubectl rollout status deployment/$deploy -n lakeon --timeout=180s 2>/dev/null || true
 done
 

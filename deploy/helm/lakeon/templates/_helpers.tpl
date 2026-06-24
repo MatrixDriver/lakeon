@@ -63,3 +63,20 @@ Safekeeper 连接串列表，用于 compute 配置
 {{- end -}}
 {{- join "," $result -}}
 {{- end }}
+
+{{/*
+Pageserver stable node descriptors for lakeon-api placement.
+Format: id=httpUrl|pgHost|pgPort,id=...
+*/}}
+{{- define "lakeon.pageserverNodesRaw" -}}
+{{- $ns := .Values.dataPlane.namespace | default .Values.global.namespace -}}
+{{- $httpPort := .Values.pageserver.httpPort | int -}}
+{{- $pgPort := .Values.pageserver.pgPort | int -}}
+{{- $replicas := .Values.dataPlane.pageserverReplicas | default .Values.pageserver.replicas | int -}}
+{{- $result := list -}}
+{{- range $i := until $replicas -}}
+{{- $host := printf "pageserver-%d.pageserver-headless.%s.svc.cluster.local" $i $ns -}}
+{{- $result = append $result (printf "ps-%d=http://%s:%d|%s|%d" $i $host $httpPort $host $pgPort) -}}
+{{- end -}}
+{{- join "," $result -}}
+{{- end }}

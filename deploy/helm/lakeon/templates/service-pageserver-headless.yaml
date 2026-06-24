@@ -1,0 +1,22 @@
+{{- if include "lakeon.dataPlaneEnabled" . }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: pageserver-headless
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: pageserver
+    {{- include "lakeon.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: pageserver
+  ports:
+    - name: http
+      port: {{ .Values.pageserver.httpPort }}
+      targetPort: http
+    - name: pg
+      port: {{ .Values.pageserver.pgPort }}
+      targetPort: pg
+{{- end }}

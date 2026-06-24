@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.pageserver.PageserverPlacementService;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -20,10 +21,17 @@ public class ComputeSpecBuilder {
 
     private final LakeonProperties props;
     private final ObjectMapper objectMapper;
+    private final PageserverPlacementService placementService;
 
     public ComputeSpecBuilder(LakeonProperties props, ObjectMapper objectMapper) {
+        this(props, objectMapper, new PageserverPlacementService(props));
+    }
+
+    public ComputeSpecBuilder(LakeonProperties props, ObjectMapper objectMapper,
+                              PageserverPlacementService placementService) {
         this.props = props;
         this.objectMapper = objectMapper;
+        this.placementService = placementService;
     }
 
     /**
@@ -48,7 +56,7 @@ public class ComputeSpecBuilder {
         spec.put("operation_uuid", UUID.randomUUID().toString());
         spec.put("tenant_id", entity.getNeonTenantId());
         spec.put("timeline_id", entity.getNeonTimelineId());
-        spec.put("pageserver_connstring", buildPageserverPgConnstring());
+        spec.put("pageserver_connstring", buildPageserverPgConnstring(entity));
         spec.put("safekeeper_connstrings", parseSafekeeperUrls());
         spec.put("mode", mode);
         spec.put("suspend_timeout_seconds", suspendTimeoutSeconds);
@@ -108,7 +116,7 @@ public class ComputeSpecBuilder {
         settings.add(Map.of("name", "max_connections", "value", "100", "vartype", "integer"));
         settings.add(Map.of("name", "listen_addresses", "value", "0.0.0.0", "vartype", "string"));
         settings.add(Map.of("name", "neon.pageserver_connstring", "value",
-                buildPageserverPgConnstring(), "vartype", "string"));
+                buildPageserverPgConnstring(entity), "vartype", "string"));
         settings.add(Map.of("name", "neon.safekeepers", "value",
                 props.getNeon().getSafekeeperUrls(), "vartype", "string"));
         settings.add(Map.of("name", "neon.tenant_id", "value",
@@ -119,7 +127,14 @@ public class ComputeSpecBuilder {
     }
 
     String buildPageserverPgConnstring() {
-        return "postgresql://" + resolvePageserverPgHost() + ":6400";
+        return placementService.defaultNode().pgConnstring();
+    }
+
+    String buildPageserverPgConnstring(DatabaseEntity entity) {
+        if (entity != null && entity.getNeonTenantId() != null && !entity.getNeonTenantId().isBlank()) {
+            return placementService.resolve(entity.getNeonTenantId(), 0).node().pgConnstring();
+        }
+        return buildPageserverPgConnstring();
     }
 
     String resolvePageserverPgHost() {

@@ -14,6 +14,7 @@ dataPlane:
   kubeCaB64: ""
   namespace: lakeon
   computeNamespace: lakeon-compute
+  pageserverReplicas: 3
   pageserverUrl: "http://pageserver.lakeon.svc.cluster.local:9898"
   safekeeperUrls: "safekeeper-0.safekeeper.lakeon.svc.cluster.local:5454,safekeeper-1.safekeeper.lakeon.svc.cluster.local:5454,safekeeper-2.safekeeper.lakeon.svc.cluster.local:5454"
   storageBrokerUrl: "http://storage-broker.lakeon.svc.cluster.local:50051"
@@ -30,7 +31,7 @@ neon:
     tag: latest
 
 pageserver:
-  replicas: 1
+  replicas: 3
   serviceType: ClusterIP
   httpPort: 9898
   pgPort: 6400

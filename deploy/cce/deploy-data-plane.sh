@@ -22,6 +22,7 @@ fi
 export KUBECONFIG="$DATA_KUBECONFIG"
 
 echo "Deploying data plane to $KUBECONFIG"
+kubectl delete deployment/pageserver -n lakeon --ignore-not-found=true
 helm upgrade --install lakeon-data "$SCRIPT_DIR/../helm/lakeon" \
   -f "$SITE_VALUES" \
   -f "$SITE_DATA_VALUES" \
@@ -39,7 +40,7 @@ helm upgrade --install lakeon-data "$SCRIPT_DIR/../helm/lakeon" \
   --server-side=false \
   -n lakeon --create-namespace --timeout 5m --no-hooks
 
-kubectl rollout status deployment/pageserver -n lakeon --timeout=180s
+kubectl rollout status statefulset/pageserver -n lakeon --timeout=180s
 kubectl rollout status statefulset/safekeeper -n lakeon --timeout=180s
 kubectl rollout status deployment/storage-broker -n lakeon --timeout=180s
 kubectl rollout status deployment/proxy -n lakeon --timeout=180s

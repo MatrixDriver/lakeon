@@ -10,6 +10,7 @@ import com.lakeon.neon.dto.CreateTimelineRequest;
 import com.lakeon.neon.dto.NeonTenant;
 import com.lakeon.neon.dto.NeonTimeline;
 import com.lakeon.neon.exception.NeonApiException;
+import com.lakeon.pageserver.PageserverPlacementService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,18 +35,24 @@ public class NeonApiClient {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final String baseUrl;
+    private final PageserverPlacementService placementService;
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
     private static final int MAX_RETRIES = 2;
 
     @Autowired
-    public NeonApiClient(LakeonProperties props) {
-        this(props.getNeon().getPageserverUrl());
+    public NeonApiClient(LakeonProperties props, PageserverPlacementService placementService) {
+        this(props.getNeon().getPageserverUrl(), placementService);
     }
 
     // Package-private constructor for testing with direct URL
     NeonApiClient(String baseUrl) {
+        this(baseUrl, null);
+    }
+
+    private NeonApiClient(String baseUrl, PageserverPlacementService placementService) {
         this.baseUrl = baseUrl;
+        this.placementService = placementService;
         this.objectMapper = new ObjectMapper();
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
@@ -56,6 +63,14 @@ public class NeonApiClient {
         return URLEncoder.encode(segment, StandardCharsets.UTF_8);
     }
 
+    private String defaultBaseUrl() {
+        return placementService == null ? baseUrl : placementService.defaultNode().httpUrl();
+    }
+
+    private String baseUrlForTenant(String tenantId) {
+        return placementService == null ? baseUrl : placementService.resolve(tenantId, 0).node().httpUrl();
+    }
+
     /**
      * Create a Neon tenant via location_config API.
      * PUT /v1/tenant/{tenant_id}/location_config
@@ -64,7 +79,7 @@ public class NeonApiClient {
         try {
             String body = objectMapper.writeValueAsString(request);
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/v1/tenant"))
+                .uri(URI.create(defaultBaseUrl() + "/v1/tenant"))
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .header("Content-Type", "application/json")
                 .timeout(Duration.ofSeconds(15))
@@ -95,7 +110,7 @@ public class NeonApiClient {
                 "tenant_conf", Map.of()
             ));
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/v1/tenant/" + encodePathSegment(tenantId) + "/location_config"))
+                .uri(URI.create(baseUrlForTenant(tenantId) + "/v1/tenant/" + encodePathSegment(tenantId) + "/location_config"))
                 .PUT(HttpRequest.BodyPublishers.ofString(body))
                 .header("Content-Type", "application/json")
                 .timeout(REQUEST_TIMEOUT)
@@ -125,7 +140,7 @@ public class NeonApiClient {
         while (System.currentTimeMillis() < deadline) {
             try {
                 HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl + "/v1/tenant/" + encodePathSegment(tenantId)))
+                    .uri(URI.create(baseUrlForTenant(tenantId) + "/v1/tenant/" + encodePathSegment(tenantId)))
                     .GET()
                     .timeout(Duration.ofSeconds(10))
                     .build();
@@ -170,7 +185,7 @@ public class NeonApiClient {
                 "tenant_conf", Map.of()
             ));
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/v1/tenant/" + encodePathSegment(tenantId) + "/location_config"))
+                .uri(URI.create(baseUrlForTenant(tenantId) + "/v1/tenant/" + encodePathSegment(tenantId) + "/location_config"))
                 .PUT(HttpRequest.BodyPublishers.ofString(body))
                 .header("Content-Type", "application/json")
                 .timeout(REQUEST_TIMEOUT)
@@ -194,7 +209,7 @@ public class NeonApiClient {
         try {
             String body = objectMapper.writeValueAsString(request);
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/v1/tenant/" + encodePathSegment(tenantId) + "/timeline"))
+                .uri(URI.create(baseUrlForTenant(tenantId) + "/v1/tenant/" + encodePathSegment(tenantId) + "/timeline"))
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .header("Content-Type", "application/json")
                 .timeout(REQUEST_TIMEOUT)
@@ -259,7 +274,7 @@ public class NeonApiClient {
     public void deleteTenant(String tenantId) {
         try {
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/v1/tenant/" + encodePathSegment(tenantId)))
+                .uri(URI.create(baseUrlForTenant(tenantId) + "/v1/tenant/" + encodePathSegment(tenantId)))
                 .DELETE()
                 .timeout(REQUEST_TIMEOUT)
                 .build();
@@ -283,7 +298,7 @@ public class NeonApiClient {
     public NeonTimeline getTimeline(String tenantId, String timelineId) {
         try {
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/v1/tenant/" + encodePathSegment(tenantId) + "/timeline/" + encodePathSegment(timelineId)))
+                .uri(URI.create(baseUrlForTenant(tenantId) + "/v1/tenant/" + encodePathSegment(tenantId) + "/timeline/" + encodePathSegment(timelineId)))
                 .GET()
                 .timeout(REQUEST_TIMEOUT)
                 .build();
@@ -306,7 +321,7 @@ public class NeonApiClient {
     public void deleteTimeline(String tenantId, String timelineId) {
         try {
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/v1/tenant/" + encodePathSegment(tenantId) + "/timeline/" + encodePathSegment(timelineId)))
+                .uri(URI.create(baseUrlForTenant(tenantId) + "/v1/tenant/" + encodePathSegment(tenantId) + "/timeline/" + encodePathSegment(timelineId)))
                 .DELETE()
                 .timeout(REQUEST_TIMEOUT)
                 .build();
@@ -329,7 +344,7 @@ public class NeonApiClient {
     public List<NeonTimeline> listTimelines(String tenantId) {
         try {
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/v1/tenant/" + encodePathSegment(tenantId) + "/timeline"))
+                .uri(URI.create(baseUrlForTenant(tenantId) + "/v1/tenant/" + encodePathSegment(tenantId) + "/timeline"))
                 .GET()
                 .timeout(REQUEST_TIMEOUT)
                 .build();
@@ -352,7 +367,7 @@ public class NeonApiClient {
     public List<Map<String, Object>> listTenants() {
         try {
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/v1/tenant"))
+                .uri(URI.create(defaultBaseUrl() + "/v1/tenant"))
                 .GET()
                 .timeout(Duration.ofSeconds(15))
                 .build();
@@ -375,7 +390,7 @@ public class NeonApiClient {
     public Map<String, Object> getStatus() {
         try {
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/v1/status"))
+                .uri(URI.create(defaultBaseUrl() + "/v1/status"))
                 .GET()
                 .timeout(Duration.ofSeconds(5))
                 .build();
@@ -405,7 +420,7 @@ public class NeonApiClient {
         try {
             String iso = DateTimeFormatter.ISO_INSTANT.format(timestamp);
             String encodedIso = URLEncoder.encode(iso, StandardCharsets.UTF_8);
-            String url = baseUrl
+            String url = baseUrlForTenant(tenantId)
                 + "/v1/tenant/" + encodePathSegment(tenantId)
                 + "/timeline/" + encodePathSegment(timelineId)
                 + "/get_lsn_by_timestamp?timestamp=" + encodedIso;
@@ -457,7 +472,7 @@ public class NeonApiClient {
     public TimelineInfo getTimelineInfo(String tenantId, String timelineId) {
         try {
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/v1/tenant/" + encodePathSegment(tenantId) + "/timeline/" + encodePathSegment(timelineId)))
+                .uri(URI.create(baseUrlForTenant(tenantId) + "/v1/tenant/" + encodePathSegment(tenantId) + "/timeline/" + encodePathSegment(timelineId)))
                 .GET()
                 .timeout(REQUEST_TIMEOUT)
                 .build();
@@ -476,7 +491,7 @@ public class NeonApiClient {
     public NeonTenant getTenant(String tenantId) {
         try {
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/v1/tenant/" + encodePathSegment(tenantId)))
+                .uri(URI.create(baseUrlForTenant(tenantId) + "/v1/tenant/" + encodePathSegment(tenantId)))
                 .GET()
                 .timeout(REQUEST_TIMEOUT)
                 .build();

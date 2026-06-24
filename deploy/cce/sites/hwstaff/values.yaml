@@ -82,7 +82,7 @@ api:
 
 # ── Neon 组件（单副本开发模式，最小资源请求）─────────────────────
 pageserver:
-  replicas: 1
+  replicas: 3
   resources:
     requests:
       cpu: "100m"
