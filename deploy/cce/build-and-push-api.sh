@@ -141,7 +141,8 @@ CHUNKS_DIR="$LAYERS_DIR/dependency-chunks"
 mkdir -p "$CHUNKS_DIR"
 chunk=0
 chunk_bytes=0
-chunk_limit=$((20 * 1024 * 1024))
+DEPENDENCY_CHUNK_MB="${DEPENDENCY_CHUNK_MB:-5}"
+chunk_limit=$((DEPENDENCY_CHUNK_MB * 1024 * 1024))
 if compgen -G "$DEPS_LIB_DIR/*.jar" >/dev/null; then
   for dep in "$DEPS_LIB_DIR"/*.jar; do
     dep_bytes=$(wc -c < "$dep")

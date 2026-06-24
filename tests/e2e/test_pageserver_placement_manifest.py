@@ -48,3 +48,17 @@ def test_data_plane_renders_pageserver_statefulset_and_headless_service():
     assert "replicas: 3" in manifest
     assert "ordinal=\"${HOSTNAME##*-}\"" in manifest
     assert "printf 'id = %s\\n' \"$id\" > /data/identity.toml" in manifest
+
+
+def test_control_plane_renders_dicer_assigner_and_api_endpoint():
+    manifest = helm_template(HWSTAFF_VALUES, HWSTAFF_CONTROL_VALUES)
+
+    assert "kind: Deployment\nmetadata:\n  name: dicer-assigner" in manifest
+    assert "kind: Service\nmetadata:\n  name: dicer-assigner" in manifest
+    assert "image: \"swr.cn-north-4.myhuaweicloud.com/flex/dicer-assigner:5cce7985\"" in manifest
+    assert "containerPort: 24500" in manifest
+    assert "containerPort: 7777" in manifest
+    assert "name: LOCATION" in manifest
+    assert "kubernetes-cluster:prod/huawei/public/cn-north-4/control/01" in manifest
+    assert 'LAKEON_DICER_ENABLED: "true"' in manifest
+    assert 'LAKEON_DICER_ENDPOINT: "http://dicer-assigner.lakeon.svc.cluster.local:24500"' in manifest

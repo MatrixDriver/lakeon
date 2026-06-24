@@ -74,6 +74,22 @@ dataPlane:
   kubeToken: ""
   kubeCaB64: ""
 
+dicer:
+  enabled: true
+  image:
+    repository: swr.cn-north-4.myhuaweicloud.com/flex/dicer-assigner
+    tag: "5cce7985"
+    pullPolicy: IfNotPresent
+  location:
+    kubernetesClusterUri: "kubernetes-cluster:prod/huawei/public/cn-north-4/control/01"
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+
 proxy:
   replicas: 0
 

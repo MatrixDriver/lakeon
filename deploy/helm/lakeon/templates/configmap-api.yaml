@@ -11,6 +11,16 @@ data:
   LAKEON_DB_USER: {{ .Values.metadataDb.user | quote }}
   LAKEON_NEON_PAGESERVER_URL: {{ .Values.dataPlane.pageserverUrl | default (printf "http://pageserver:%v" .Values.pageserver.httpPort) | quote }}
   LAKEON_NEON_PAGESERVER_NODES_RAW: {{ include "lakeon.pageserverNodesRaw" . | quote }}
+  LAKEON_DICER_ENABLED: {{ ternary "true" "false" .Values.dicer.enabled | quote }}
+  {{- if .Values.dicer.enabled }}
+  LAKEON_DICER_ENDPOINT: {{ printf "http://%s.%s.svc.cluster.local:%v" .Values.dicer.service.name .Values.global.namespace .Values.dicer.service.port | quote }}
+  {{- if .Values.dicer.nodeLoadsRaw }}
+  LAKEON_DICER_NODE_LOADS_RAW: {{ .Values.dicer.nodeLoadsRaw | quote }}
+  {{- end }}
+  {{- if .Values.dicer.unavailableNodesRaw }}
+  LAKEON_DICER_UNAVAILABLE_NODES_RAW: {{ .Values.dicer.unavailableNodesRaw | quote }}
+  {{- end }}
+  {{- end }}
   LAKEON_NEON_SAFEKEEPER_URLS: {{ .Values.dataPlane.safekeeperUrls | default (include "lakeon.safekeeperConnstrings" .) | quote }}
   LAKEON_NEON_STORAGE_BROKER_URL: {{ .Values.dataPlane.storageBrokerUrl | default (printf "http://storage-broker:%v" .Values.storageBroker.port) | quote }}
   LAKEON_COMPUTE_IMAGE: "{{ .Values.neon.computeImage.repository }}:{{ .Values.neon.computeImage.tag }}"

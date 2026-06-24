@@ -43,6 +43,32 @@ pageserver:
       cpu: "4"
       memory: "8Gi"
 
+dicer:
+  enabled: false
+  replicas: 1
+  image:
+    repository: dicer-assigner
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    name: dicer-assigner
+    port: 24500
+    infoPort: 7777
+  location:
+    kubernetesClusterUri: "kubernetes-cluster:prod/huawei/public/cn-north-4/control/01"
+  config:
+    targetConfigDirectory: /app/config/target_config
+    advancedTargetConfigDirectory: /app/config/advanced_config
+  nodeLoadsRaw: ""
+  unavailableNodesRaw: ""
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+
 safekeeper:
   replicas: 3
   pgPort: 5454

@@ -30,6 +30,7 @@ public class LakeonProperties {
     private OAuthConfig oauth = new OAuthConfig();
     private ComputeJwtConfig computeJwt = new ComputeJwtConfig();
     private ComputeWarmPoolConfig computeWarmPool = new ComputeWarmPoolConfig();
+    private DicerConfig dicer = new DicerConfig();
 
     public NeonConfig getNeon() { return neon; }
     public void setNeon(NeonConfig neon) { this.neon = neon; }
@@ -71,6 +72,8 @@ public class LakeonProperties {
     public void setComputeJwt(ComputeJwtConfig computeJwt) { this.computeJwt = computeJwt; }
     public ComputeWarmPoolConfig getComputeWarmPool() { return computeWarmPool; }
     public void setComputeWarmPool(ComputeWarmPoolConfig v) { this.computeWarmPool = v; }
+    public DicerConfig getDicer() { return dicer; }
+    public void setDicer(DicerConfig dicer) { this.dicer = dicer; }
 
     public static class NeonConfig {
         private String pageserverUrl;
@@ -144,6 +147,22 @@ public class LakeonProperties {
                 Integer.parseInt(parts[2].trim())
             );
         }
+    }
+
+    public static class DicerConfig {
+        private boolean enabled = false;
+        private String endpoint;
+        private String nodeLoadsRaw;
+        private String unavailableNodesRaw;
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public String getEndpoint() { return endpoint; }
+        public void setEndpoint(String endpoint) { this.endpoint = endpoint; }
+        public String getNodeLoadsRaw() { return nodeLoadsRaw; }
+        public void setNodeLoadsRaw(String nodeLoadsRaw) { this.nodeLoadsRaw = nodeLoadsRaw; }
+        public String getUnavailableNodesRaw() { return unavailableNodesRaw; }
+        public void setUnavailableNodesRaw(String unavailableNodesRaw) { this.unavailableNodesRaw = unavailableNodesRaw; }
     }
 
     public static class ObsConfig {

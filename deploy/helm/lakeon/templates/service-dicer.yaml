@@ -1,0 +1,23 @@
+{{- if and (include "lakeon.controlPlaneEnabled" .) .Values.dicer.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.dicer.service.name }}
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+    app: {{ .Values.dicer.service.name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.dicer.service.name }}
+  ports:
+    - name: grpc
+      port: {{ .Values.dicer.service.port }}
+      targetPort: grpc
+      protocol: TCP
+    - name: info
+      port: {{ .Values.dicer.service.infoPort }}
+      targetPort: info
+      protocol: TCP
+{{- end }}

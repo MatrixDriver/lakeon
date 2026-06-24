@@ -5,6 +5,7 @@ import com.lakeon.model.dto.UpdateQuotaRequest;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.InviteCodeEntity;
 import com.lakeon.model.entity.TenantEntity;
+import com.lakeon.pageserver.PageserverPlacementService;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.InviteCodeRepository;
 import com.lakeon.repository.TenantRepository;
@@ -30,19 +31,22 @@ public class AdminController {
     private final DatabaseService databaseService;
     private final AdminService adminService;
     private final InviteCodeRepository inviteCodeRepository;
+    private final PageserverPlacementService pageserverPlacementService;
 
     public AdminController(TenantService tenantService,
                            TenantRepository tenantRepository,
                            DatabaseRepository databaseRepository,
                            DatabaseService databaseService,
                            AdminService adminService,
-                           InviteCodeRepository inviteCodeRepository) {
+                           InviteCodeRepository inviteCodeRepository,
+                           PageserverPlacementService pageserverPlacementService) {
         this.tenantService = tenantService;
         this.tenantRepository = tenantRepository;
         this.databaseRepository = databaseRepository;
         this.databaseService = databaseService;
         this.adminService = adminService;
         this.inviteCodeRepository = inviteCodeRepository;
+        this.pageserverPlacementService = pageserverPlacementService;
     }
 
     @GetMapping("/dashboard")
@@ -120,6 +124,58 @@ public class AdminController {
                 .orElseThrow(() -> new NotFoundException("Database not found: " + databaseId)));
     }
 
+    @GetMapping("/pageserver/topology")
+    public Map<String, Object> getPageserverTopology() {
+        return Map.of(
+            "nodes", pageserverPlacementService.nodeStatuses().stream().map(status -> {
+                Map<String, Object> out = new LinkedHashMap<>();
+                out.put("id", status.node().id());
+                out.put("http_url", status.node().httpUrl());
+                out.put("pg_connstring", status.node().pgConnstring());
+                out.put("healthy", status.healthy());
+                out.put("load_score", status.loadScore());
+                out.put("source", status.source());
+                return out;
+            }).toList(),
+            "placements", pageserverPlacementService.placements().stream().map(this::placementToMap).toList()
+        );
+    }
+
+    @GetMapping("/pageserver/placements/{tenantId}")
+    public List<Map<String, Object>> getTenantPageserverPlacements(@PathVariable String tenantId) {
+        return pageserverPlacementService.placementsForTenant(tenantId).stream()
+            .map(this::placementToMap)
+            .toList();
+    }
+
+    @PostMapping("/pageserver/placements/{tenantId}/resolve")
+    public Map<String, Object> resolvePageserverPlacement(@PathVariable String tenantId,
+                                                          @RequestBody(required = false) Map<String, Object> body) {
+        int shardId = 0;
+        if (body != null && body.get("shard_id") instanceof Number number) {
+            shardId = number.intValue();
+        }
+        return placementToMap(pageserverPlacementService.resolve(tenantId, shardId));
+    }
+
+    @PostMapping("/pageserver/rebalance/dry-run")
+    public Map<String, Object> dryRunPageserverRebalance() {
+        var plan = pageserverPlacementService.rebalanceDryRun();
+        return Map.of(
+            "dry_run", plan.dryRun(),
+            "moves", plan.moves().stream().map(this::moveToMap).toList()
+        );
+    }
+
+    @PostMapping("/pageserver/nodes/{nodeId}/failover")
+    public Map<String, Object> failoverPageserverNode(@PathVariable String nodeId) {
+        var plan = pageserverPlacementService.failoverNode(nodeId);
+        return Map.of(
+            "dry_run", plan.dryRun(),
+            "moves", plan.moves().stream().map(this::moveToMap).toList()
+        );
+    }
+
     @DeleteMapping("/databases/{databaseId}/purge")
     public Map<String, Object> purgeDatabase(@PathVariable String databaseId) {
         databaseService.purge(databaseId);
@@ -171,6 +227,29 @@ public class AdminController {
         out.put("expires_at", e.getExpiresAt());
         out.put("valid", e.isValid());
         out.put("server_time", Instant.now());
+        return out;
+    }
+
+    private Map<String, Object> placementToMap(com.lakeon.pageserver.PageserverPlacement placement) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("tenant_id", placement.tenantId());
+        out.put("shard_id", placement.shardId());
+        out.put("node_id", placement.node().id());
+        out.put("http_url", placement.node().httpUrl());
+        out.put("pg_connstring", placement.node().pgConnstring());
+        out.put("epoch", placement.epoch());
+        out.put("source", placement.source());
+        return out;
+    }
+
+    private Map<String, Object> moveToMap(com.lakeon.pageserver.PageserverRebalancePlan.Move move) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("tenant_id", move.tenantId());
+        out.put("shard_id", move.shardId());
+        out.put("from_node_id", move.fromNodeId());
+        out.put("to_node_id", move.toNodeId());
+        out.put("next_epoch", move.nextEpoch());
+        out.put("reason", move.reason());
         return out;
     }
 }

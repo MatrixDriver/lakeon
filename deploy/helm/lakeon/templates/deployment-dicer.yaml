@@ -1,0 +1,69 @@
+{{- if and (include "lakeon.controlPlaneEnabled" .) .Values.dicer.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.dicer.service.name }}
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+    app: {{ .Values.dicer.service.name }}
+spec:
+  replicas: {{ .Values.dicer.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.dicer.service.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.dicer.service.name }}
+        {{- include "lakeon.labels" . | nindent 8 }}
+    spec:
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: assigner
+          image: "{{ .Values.dicer.image.repository }}:{{ .Values.dicer.image.tag }}"
+          imagePullPolicy: {{ .Values.dicer.image.pullPolicy }}
+          env:
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: LOCATION
+              value: >-
+                {"kubernetes_cluster_uri":"{{ .Values.dicer.location.kubernetesClusterUri }}"}
+            - name: DB_CONF
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.dicer.service.name }}-config
+                  key: config.json
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.dicer.service.port }}
+              protocol: TCP
+            - name: info
+              containerPort: {{ .Values.dicer.service.infoPort }}
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 90
+            periodSeconds: 5
+            timeoutSeconds: 1
+            failureThreshold: 10
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            timeoutSeconds: 1
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.dicer.resources | nindent 12 }}
+{{- end }}

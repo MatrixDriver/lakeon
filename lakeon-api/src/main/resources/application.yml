@@ -25,6 +25,11 @@ lakeon:
     pageserver-nodes-raw: ${LAKEON_NEON_PAGESERVER_NODES_RAW:}
     safekeeper-urls: ${LAKEON_NEON_SAFEKEEPER_URLS:safekeeper1:5454,safekeeper2:5454,safekeeper3:5454}
     storage-broker-url: ${LAKEON_NEON_STORAGE_BROKER_URL:http://localhost:50051}
+  dicer:
+    enabled: ${LAKEON_DICER_ENABLED:false}
+    endpoint: ${LAKEON_DICER_ENDPOINT:}
+    node-loads-raw: ${LAKEON_DICER_NODE_LOADS_RAW:}
+    unavailable-nodes-raw: ${LAKEON_DICER_UNAVAILABLE_NODES_RAW:}
   obs:
     endpoint: ${LAKEON_OBS_ENDPOINT:}
     bucket: ${LAKEON_OBS_BUCKET:neon}

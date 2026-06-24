@@ -1,0 +1,16 @@
+{{- if and (include "lakeon.controlPlaneEnabled" .) .Values.dicer.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.dicer.service.name }}-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+    app: {{ .Values.dicer.service.name }}
+data:
+  config.json: |
+    {
+      "databricks.dicer.assigner.targetConfigDirectory": "{{ .Values.dicer.config.targetConfigDirectory }}",
+      "databricks.dicer.assigner.advancedTargetConfigDirectory": "{{ .Values.dicer.config.advancedTargetConfigDirectory }}"
+    }
+{{- end }}

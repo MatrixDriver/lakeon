@@ -4,8 +4,13 @@ import com.lakeon.config.LakeonProperties;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class PageserverPlacementServiceTest {
 
@@ -76,5 +81,79 @@ class PageserverPlacementServiceTest {
 
         assertThat(nodes).extracting(PageserverNode::id).containsExactly("ps-0", "ps-1");
         assertThat(nodes.get(1).httpUrl()).isEqualTo("http://pageserver-1.pageserver-headless.lakeon.svc.cluster.local:9898");
+    }
+
+    @Test
+    void dicerEnabledChoosesLowestLoadHealthyNodeAndPersistsAssignment() {
+        LakeonProperties props = placementProps();
+        props.getDicer().setEnabled(true);
+        props.getDicer().setNodeLoadsRaw("ps-0=0.9,ps-1=0.1,ps-2=0.5");
+        PageserverAssignmentRepository repo = mock(PageserverAssignmentRepository.class);
+        when(repo.findById("tenant-a:0")).thenReturn(Optional.empty());
+        PageserverPlacementService service = new PageserverPlacementService(props, repo);
+
+        PageserverPlacement placement = service.resolve("tenant-a", 0);
+
+        assertThat(placement.node().id()).isEqualTo("ps-1");
+        assertThat(placement.source()).isEqualTo("dicer-load-aware");
+        verify(repo).save(any(PageserverAssignmentEntity.class));
+    }
+
+    @Test
+    void existingAssignmentIsStableWhileNodeIsHealthy() {
+        LakeonProperties props = placementProps();
+        props.getDicer().setEnabled(true);
+        props.getDicer().setNodeLoadsRaw("ps-0=0.9,ps-1=0.1,ps-2=0.5");
+        PageserverAssignmentEntity assignment = assignment("tenant-a", 0, "ps-0", 7L, "dicer-load-aware");
+        PageserverAssignmentRepository repo = mock(PageserverAssignmentRepository.class);
+        when(repo.findById("tenant-a:0")).thenReturn(Optional.of(assignment));
+        PageserverPlacementService service = new PageserverPlacementService(props, repo);
+
+        PageserverPlacement placement = service.resolve("tenant-a", 0);
+
+        assertThat(placement.node().id()).isEqualTo("ps-0");
+        assertThat(placement.epoch()).isEqualTo(7L);
+    }
+
+    @Test
+    void failoverMovesAssignmentsOffUnavailableNode() {
+        LakeonProperties props = placementProps();
+        props.getDicer().setEnabled(true);
+        props.getDicer().setNodeLoadsRaw("ps-0=0.1,ps-1=0.2,ps-2=0.3");
+        PageserverAssignmentEntity assignment = assignment("tenant-a", 0, "ps-0", 3L, "dicer-load-aware");
+        PageserverAssignmentRepository repo = mock(PageserverAssignmentRepository.class);
+        when(repo.findAll()).thenReturn(List.of(assignment));
+        when(repo.findById("tenant-a:0")).thenReturn(Optional.of(assignment));
+        PageserverPlacementService service = new PageserverPlacementService(props, repo);
+
+        PageserverRebalancePlan plan = service.failoverNode("ps-0");
+
+        assertThat(plan.dryRun()).isFalse();
+        assertThat(plan.moves()).hasSize(1);
+        assertThat(plan.moves().get(0).fromNodeId()).isEqualTo("ps-0");
+        assertThat(plan.moves().get(0).toNodeId()).isEqualTo("ps-1");
+        assertThat(plan.moves().get(0).nextEpoch()).isEqualTo(4L);
+    }
+
+    private LakeonProperties placementProps() {
+        LakeonProperties props = new LakeonProperties();
+        props.getNeon().setPageserverNodes(List.of(
+            new LakeonProperties.PageserverNodeConfig("ps-0", "http://pageserver-0:9898", "pageserver-0", 6400),
+            new LakeonProperties.PageserverNodeConfig("ps-1", "http://pageserver-1:9898", "pageserver-1", 6400),
+            new LakeonProperties.PageserverNodeConfig("ps-2", "http://pageserver-2:9898", "pageserver-2", 6400)
+        ));
+        return props;
+    }
+
+    private PageserverAssignmentEntity assignment(String tenantId, int shardId, String nodeId, long epoch, String source) {
+        PageserverAssignmentEntity entity = new PageserverAssignmentEntity();
+        entity.setId(PageserverAssignmentEntity.id(tenantId, shardId));
+        entity.setTenantId(tenantId);
+        entity.setShardId(shardId);
+        entity.setNodeId(nodeId);
+        entity.setEpoch(epoch);
+        entity.setSource(source);
+        entity.setStatus("ACTIVE");
+        return entity;
     }
 }
