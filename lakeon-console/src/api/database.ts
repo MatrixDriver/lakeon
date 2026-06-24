@@ -6,6 +6,7 @@ export interface Database {
   status: string
   status_message?: string | null
   connection_uri: string
+  pooled_connection_uri?: string | null
   password?: string
   compute_size: string
   suspend_timeout: string

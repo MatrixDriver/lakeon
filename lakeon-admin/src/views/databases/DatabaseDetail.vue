@@ -56,8 +56,12 @@
           <dd class="mono">{{ db.compute_pod_name || '—' }}</dd>
         </div>
         <div class="detail-row detail-row-wide">
-          <dt>连接地址</dt>
+          <dt>Direct 连接</dt>
           <dd class="mono mono-sm">{{ db.connection_uri || '—' }}</dd>
+        </div>
+        <div class="detail-row detail-row-wide" v-if="db.pooled_connection_uri">
+          <dt>Pooled 连接</dt>
+          <dd class="mono mono-sm">{{ db.pooled_connection_uri }}</dd>
         </div>
         <div class="detail-row">
           <dt>最后活跃</dt>
@@ -93,6 +97,7 @@ interface DatabaseInfo {
   storage_limit_gb?: number
   compute_pod_name?: string
   connection_uri?: string
+  pooled_connection_uri?: string
   last_active_at?: string
   created_at: string
 }
