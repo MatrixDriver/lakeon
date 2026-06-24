@@ -15,6 +15,9 @@ public class DatabaseResponse {
     private String statusMessage;
     @JsonProperty("connection_uri")
     private String connectionUri;
+    @JsonProperty("pooled_connection_uri")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String pooledConnectionUri;
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private String password;  // Only returned on creation, null otherwise
     @JsonProperty("compute_size")
@@ -67,6 +70,8 @@ public class DatabaseResponse {
     public void setStatusMessage(String statusMessage) { this.statusMessage = statusMessage; }
     public String getConnectionUri() { return connectionUri; }
     public void setConnectionUri(String connectionUri) { this.connectionUri = connectionUri; }
+    public String getPooledConnectionUri() { return pooledConnectionUri; }
+    public void setPooledConnectionUri(String pooledConnectionUri) { this.pooledConnectionUri = pooledConnectionUri; }
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
     public String getComputeSize() { return computeSize; }
@@ -151,6 +156,7 @@ public class DatabaseResponse {
         private DatabaseStatus status;
         private String statusMessage;
         private String connectionUri;
+        private String pooledConnectionUri;
         private String computeSize;
         private String suspendTimeout;
         private Integer storageLimitGb;
@@ -166,6 +172,7 @@ public class DatabaseResponse {
         public Builder status(DatabaseStatus status) { this.status = status; return this; }
         public Builder statusMessage(String statusMessage) { this.statusMessage = statusMessage; return this; }
         public Builder connectionUri(String connectionUri) { this.connectionUri = connectionUri; return this; }
+        public Builder pooledConnectionUri(String pooledConnectionUri) { this.pooledConnectionUri = pooledConnectionUri; return this; }
         public Builder computeSize(String computeSize) { this.computeSize = computeSize; return this; }
         public Builder suspendTimeout(String suspendTimeout) { this.suspendTimeout = suspendTimeout; return this; }
         public Builder storageLimitGb(Integer storageLimitGb) { this.storageLimitGb = storageLimitGb; return this; }
@@ -179,6 +186,7 @@ public class DatabaseResponse {
         public DatabaseResponse build() {
             DatabaseResponse r = new DatabaseResponse(id, name, status, connectionUri, computeSize,
                 suspendTimeout, storageLimitGb, storageUsedGb, branches, createdAt);
+            r.setPooledConnectionUri(pooledConnectionUri);
             r.setActiveConnections(activeConnections);
             r.setNeonTimelineId(neonTimelineId);
             r.setStatusMessage(statusMessage);

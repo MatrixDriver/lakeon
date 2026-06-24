@@ -826,6 +826,7 @@ public class DatabaseService {
             .status(entity.getStatus())
             .statusMessage(entity.getStatusMessage())
             .connectionUri(entity.getConnectionUri())
+            .pooledConnectionUri(buildPooledConnectionUri(entity.getConnectionUri()))
             .computeSize(entity.getComputeSize())
             .suspendTimeout(entity.getSuspendTimeout())
             .storageLimitGb(entity.getStorageLimitGb())
@@ -999,6 +1000,39 @@ public class DatabaseService {
 
     public String buildConnectionUri(String dbUser, String dbName) {
         return buildConnectionUri(dbUser, dbName, dbName);
+    }
+
+    String buildPooledConnectionUri(String connectionUri) {
+        if (connectionUri == null || connectionUri.isBlank()) {
+            return null;
+        }
+        String encodedMarker = "options=endpoint%3D";
+        int encodedIdx = connectionUri.indexOf(encodedMarker);
+        if (encodedIdx >= 0) {
+            return appendPoolerSuffix(connectionUri, encodedIdx + encodedMarker.length());
+        }
+
+        String plainMarker = "options=endpoint=";
+        int plainIdx = connectionUri.indexOf(plainMarker);
+        if (plainIdx >= 0) {
+            return appendPoolerSuffix(connectionUri, plainIdx + plainMarker.length());
+        }
+
+        return null;
+    }
+
+    private String appendPoolerSuffix(String uri, int endpointStart) {
+        int endpointEnd = findParamValueEnd(uri, endpointStart);
+        String endpoint = uri.substring(endpointStart, endpointEnd);
+        if (endpoint.isBlank() || endpoint.endsWith("-pooler")) {
+            return uri;
+        }
+        return uri.substring(0, endpointEnd) + "-pooler" + uri.substring(endpointEnd);
+    }
+
+    private int findParamValueEnd(String uri, int start) {
+        int amp = uri.indexOf('&', start);
+        return amp >= 0 ? amp : uri.length();
     }
 
     /** Build connection URI when PG database name differs from Neon endpoint name (PITR case). */

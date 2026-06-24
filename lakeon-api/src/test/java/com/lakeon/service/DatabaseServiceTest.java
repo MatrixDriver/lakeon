@@ -343,6 +343,25 @@ class DatabaseServiceTest {
         }
 
         @Test
+        @DisplayName("UT-SVC-DB-007b: 查询实例详情 — 返回主动选择用的 pooled 连接串")
+        void getDatabase_returnsPooledConnectionUri() {
+            // Given
+            var dbEntity = createTestDatabaseEntity("db_get_pool", "my-db", DatabaseStatus.RUNNING);
+            dbEntity.setConnectionUri("postgres://user:pass@proxy.lakeon.example.com/my-db?options=endpoint%3Dmy-db");
+            when(databaseRepository.findByIdAndTenantId("db_get_pool", testTenant.getId()))
+                    .thenReturn(Optional.of(dbEntity));
+
+            // When
+            var result = databaseService.get(testTenant, "db_get_pool");
+
+            // Then
+            assertThat(result.getConnectionUri())
+                    .isEqualTo("postgres://user:pass@proxy.lakeon.example.com/my-db?options=endpoint%3Dmy-db");
+            assertThat(result.getPooledConnectionUri())
+                    .isEqualTo("postgres://user:pass@proxy.lakeon.example.com/my-db?options=endpoint%3Dmy-db-pooler");
+        }
+
+        @Test
         @DisplayName("UT-SVC-DB-008: 列出实例 — 仅返回当前租户的非 DELETED 实例")
         void listDatabases_tenantIsolation() {
             // Given — list() excludes DELETED (those live in the recycle bin via listDeleted())

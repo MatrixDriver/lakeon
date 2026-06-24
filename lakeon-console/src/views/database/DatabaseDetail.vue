@@ -56,15 +56,23 @@
 
       <div class="summary-bottom">
         <div class="summary-field">
-          <span class="field-label">连接地址</span>
-          <div class="field-value-row">
-            <code class="uri-text">{{ database.connection_uri || '-' }}</code>
-            <button
-              v-if="database.connection_uri"
-              class="copy-btn"
-              :class="{ 'copy-btn-ok': copiedField === 'uri' }"
-              @click="handleCopy(database.connection_uri, 'uri')"
-            >{{ copiedField === 'uri' ? '已复制 ✓' : '复制' }}</button>
+          <span class="field-label">连接方式</span>
+          <div class="connection-choice-list">
+            <div v-for="option in connectionOptions" :key="option.key" class="connection-choice">
+              <div class="connection-choice-head">
+                <span class="connection-choice-name">{{ option.label }}</span>
+                <span class="connection-choice-desc">{{ option.desc }}</span>
+              </div>
+              <div class="field-value-row">
+                <code class="uri-text">{{ option.uri }}</code>
+                <button
+                  class="copy-btn"
+                  :class="{ 'copy-btn-ok': copiedField === option.key }"
+                  @click="handleCopy(option.uri, option.key)"
+                >{{ copiedField === option.key ? '已复制' : '复制' }}</button>
+              </div>
+            </div>
+            <div v-if="connectionOptions.length === 0" class="field-value">-</div>
           </div>
         </div>
         <div class="summary-field">
@@ -90,6 +98,9 @@
       <div v-if="activeTab === 'info'" class="tab-content">
         <div class="info-card">
           <h4 class="info-title">连接信息</h4>
+          <p v-if="database.pooled_connection_uri" class="tab-tip">
+            Direct 适合长事务和依赖会话状态的客户端；Pooled 适合大量短连接、API 服务和 Serverless 函数。
+          </p>
           <div class="info-grid">
             <div class="info-row" v-for="field in connectionFields" :key="field.label">
               <span class="info-label">{{ field.label }}</span>
@@ -718,19 +729,46 @@ const updatingRole = ref(false)
 const resetUserPasswordResult = ref('')
 
 // Connection info parsing
+const connectionOptions = computed(() => {
+  const directUri = database.value?.connection_uri || ''
+  const pooledUri = database.value?.pooled_connection_uri || ''
+  const options: { key: string; label: string; desc: string; uri: string }[] = []
+  if (directUri) {
+    options.push({
+      key: 'direct-uri',
+      label: 'Direct',
+      desc: '默认连接',
+      uri: directUri,
+    })
+  }
+  if (pooledUri) {
+    options.push({
+      key: 'pooled-uri',
+      label: 'Pooled',
+      desc: '短连接池',
+      uri: pooledUri,
+    })
+  }
+  return options
+})
+
 const connectionFields = computed(() => {
   const uri = database.value?.connection_uri || ''
   if (!uri) return []
 
   try {
     const url = new URL(uri)
-    return [
+    const fields = [
       { label: '主机', value: url.hostname },
       { label: '端口', value: url.port || '5432' },
       { label: '用户名', value: decodeURIComponent(url.username) },
       { label: '数据库', value: url.pathname.replace(/^\//, '') || 'postgres' },
-      { label: '连接字符串', value: uri },
+      { label: 'Direct 连接字符串', value: uri },
     ]
+    if (database.value?.pooled_connection_uri) {
+      fields.push({ label: 'Pooled 连接字符串', value: database.value.pooled_connection_uri })
+    }
+    return fields
   } catch {
     return [{ label: '连接字符串', value: uri }]
   }
@@ -1177,6 +1215,38 @@ onUnmounted(() => {
   gap: 8px;
   flex: 1;
   min-width: 0;
+}
+
+.connection-choice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.connection-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.connection-choice-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.connection-choice-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.connection-choice-desc {
+  font-size: 12px;
+  color: var(--c-text-3);
 }
 
 .uri-text {
