@@ -62,3 +62,7 @@ def test_control_plane_renders_dicer_assigner_and_api_endpoint():
     assert "kubernetes-cluster:prod/huawei/public/cn-north-4/control/01" in manifest
     assert 'LAKEON_DICER_ENABLED: "true"' in manifest
     assert 'LAKEON_DICER_ENDPOINT: "http://dicer-assigner.lakeon.svc.cluster.local:24500"' in manifest
+    assert 'LAKEON_DICER_LIVE_LOAD_ENABLED: "true"' in manifest
+    assert 'LAKEON_DICER_LIVE_LOAD_POLL_INTERVAL_MS: "10000"' in manifest
+    assert 'LAKEON_DICER_METRICS_TIMEOUT_MS: "1500"' in manifest
+    assert 'LAKEON_DICER_SNAPSHOT_TTL_MS: "30000"' in manifest

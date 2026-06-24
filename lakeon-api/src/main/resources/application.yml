@@ -30,6 +30,11 @@ lakeon:
     endpoint: ${LAKEON_DICER_ENDPOINT:}
     node-loads-raw: ${LAKEON_DICER_NODE_LOADS_RAW:}
     unavailable-nodes-raw: ${LAKEON_DICER_UNAVAILABLE_NODES_RAW:}
+    live-load-enabled: ${LAKEON_DICER_LIVE_LOAD_ENABLED:false}
+    live-load-poll-interval-ms: ${LAKEON_DICER_LIVE_LOAD_POLL_INTERVAL_MS:10000}
+    live-load-initial-delay-ms: ${LAKEON_DICER_LIVE_LOAD_INITIAL_DELAY_MS:5000}
+    metrics-timeout-ms: ${LAKEON_DICER_METRICS_TIMEOUT_MS:1000}
+    snapshot-ttl-ms: ${LAKEON_DICER_SNAPSHOT_TTL_MS:30000}
   obs:
     endpoint: ${LAKEON_OBS_ENDPOINT:}
     bucket: ${LAKEON_OBS_BUCKET:neon}

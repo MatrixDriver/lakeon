@@ -76,6 +76,11 @@ dataPlane:
 
 dicer:
   enabled: true
+  liveLoadEnabled: true
+  liveLoadPollIntervalMs: 10000
+  liveLoadInitialDelayMs: 5000
+  metricsTimeoutMs: 1500
+  snapshotTtlMs: 30000
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/dicer-assigner
     tag: "5cce7985"

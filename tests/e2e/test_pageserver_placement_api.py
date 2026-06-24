@@ -11,6 +11,8 @@ def test_admin_pageserver_topology_exposes_three_nodes():
     assert len(nodes) >= 3
     assert {node["id"] for node in nodes} >= {"ps-0", "ps-1", "ps-2"}
     assert all(node["pg_connstring"].startswith("postgresql://") for node in nodes)
+    assert all(isinstance(node["load_score"], (int, float)) for node in nodes)
+    assert {node["source"] for node in nodes} <= {"configured", "dicer", "dicer-live"}
 
 
 def test_admin_pageserver_resolve_persists_assignment(e2e_tenant):

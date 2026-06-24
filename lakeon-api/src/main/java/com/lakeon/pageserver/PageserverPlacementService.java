@@ -27,6 +27,7 @@ public class PageserverPlacementService {
 
     private final LakeonProperties props;
     private final PageserverAssignmentRepository assignments;
+    private final PageserverLoadProvider loadProvider;
 
     public PageserverPlacementService(LakeonProperties props) {
         this(props, (PageserverAssignmentRepository) null);
@@ -34,13 +35,21 @@ public class PageserverPlacementService {
 
     @Autowired
     public PageserverPlacementService(LakeonProperties props,
-                                      ObjectProvider<PageserverAssignmentRepository> assignmentsProvider) {
-        this(props, assignmentsProvider.getIfAvailable());
+                                      ObjectProvider<PageserverAssignmentRepository> assignmentsProvider,
+                                      ObjectProvider<PageserverLoadProvider> loadProvider) {
+        this(props, assignmentsProvider.getIfAvailable(), loadProvider.getIfAvailable());
     }
 
     public PageserverPlacementService(LakeonProperties props, PageserverAssignmentRepository assignments) {
+        this(props, assignments, null);
+    }
+
+    public PageserverPlacementService(LakeonProperties props,
+                                      PageserverAssignmentRepository assignments,
+                                      PageserverLoadProvider loadProvider) {
         this.props = props;
         this.assignments = assignments;
+        this.loadProvider = loadProvider;
     }
 
     @Transactional
@@ -63,7 +72,7 @@ public class PageserverPlacementService {
 
         PageserverNode selected = selectNode(tenantId, shardId, nodes, unavailable);
         long epoch = current.map(PageserverAssignmentEntity::getEpoch).orElse(0L) + 1L;
-        String source = props.getDicer().isEnabled() ? "dicer-load-aware" : "static-hash";
+        String source = placementSource();
         saveAssignment(tenantId, shardId, selected.id(), epoch, source, "resolve");
         return new PageserverPlacement(tenantId, shardId, selected, epoch, source);
     }
@@ -83,12 +92,13 @@ public class PageserverPlacementService {
     public List<PageserverNodeStatus> nodeStatuses() {
         Map<String, Double> loads = loadScores();
         Set<String> unavailable = unavailableNodeIds();
+        String source = statusSource();
         return configuredNodes().stream()
             .map(node -> new PageserverNodeStatus(
                 node,
                 !unavailable.contains(node.id()),
                 loads.getOrDefault(node.id(), 0.0d),
-                props.getDicer().isEnabled() ? "dicer" : "configured"))
+                source))
             .toList();
     }
 
@@ -234,6 +244,10 @@ public class PageserverPlacementService {
     }
 
     private Map<String, Double> loadScores() {
+        PageserverLoadSnapshot live = liveSnapshot();
+        if (live.isFresh()) {
+            return live.loadScores();
+        }
         String raw = props.getDicer().getNodeLoadsRaw();
         Map<String, Double> scores = new HashMap<>();
         if (raw == null || raw.isBlank()) {
@@ -253,8 +267,12 @@ public class PageserverPlacementService {
     }
 
     private Set<String> unavailableNodeIds() {
-        String raw = props.getDicer().getUnavailableNodesRaw();
         Set<String> ids = new HashSet<>();
+        PageserverLoadSnapshot live = liveSnapshot();
+        if (live.isFresh()) {
+            ids.addAll(live.unavailableNodeIds());
+        }
+        String raw = props.getDicer().getUnavailableNodesRaw();
         if (raw == null || raw.isBlank()) {
             return ids;
         }
@@ -265,6 +283,30 @@ public class PageserverPlacementService {
             }
         }
         return ids;
+    }
+
+    private PageserverLoadSnapshot liveSnapshot() {
+        if (!props.getDicer().isEnabled() || loadProvider == null) {
+            return PageserverLoadSnapshot.empty();
+        }
+        PageserverLoadSnapshot snapshot = loadProvider.snapshot();
+        return snapshot == null ? PageserverLoadSnapshot.empty() : snapshot;
+    }
+
+    private String placementSource() {
+        PageserverLoadSnapshot live = liveSnapshot();
+        if (live.isFresh()) {
+            return live.source();
+        }
+        return props.getDicer().isEnabled() ? "dicer-load-aware" : "static-hash";
+    }
+
+    private String statusSource() {
+        PageserverLoadSnapshot live = liveSnapshot();
+        if (live.isFresh()) {
+            return live.source();
+        }
+        return props.getDicer().isEnabled() ? "dicer" : "configured";
     }
 
     private PageserverNode legacyDefaultNode() {

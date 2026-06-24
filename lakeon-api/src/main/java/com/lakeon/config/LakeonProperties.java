@@ -154,6 +154,11 @@ public class LakeonProperties {
         private String endpoint;
         private String nodeLoadsRaw;
         private String unavailableNodesRaw;
+        private boolean liveLoadEnabled = false;
+        private long liveLoadPollIntervalMs = 10000L;
+        private long liveLoadInitialDelayMs = 5000L;
+        private long metricsTimeoutMs = 1000L;
+        private long snapshotTtlMs = 30000L;
 
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -163,6 +168,16 @@ public class LakeonProperties {
         public void setNodeLoadsRaw(String nodeLoadsRaw) { this.nodeLoadsRaw = nodeLoadsRaw; }
         public String getUnavailableNodesRaw() { return unavailableNodesRaw; }
         public void setUnavailableNodesRaw(String unavailableNodesRaw) { this.unavailableNodesRaw = unavailableNodesRaw; }
+        public boolean isLiveLoadEnabled() { return liveLoadEnabled; }
+        public void setLiveLoadEnabled(boolean liveLoadEnabled) { this.liveLoadEnabled = liveLoadEnabled; }
+        public long getLiveLoadPollIntervalMs() { return liveLoadPollIntervalMs; }
+        public void setLiveLoadPollIntervalMs(long liveLoadPollIntervalMs) { this.liveLoadPollIntervalMs = liveLoadPollIntervalMs; }
+        public long getLiveLoadInitialDelayMs() { return liveLoadInitialDelayMs; }
+        public void setLiveLoadInitialDelayMs(long liveLoadInitialDelayMs) { this.liveLoadInitialDelayMs = liveLoadInitialDelayMs; }
+        public long getMetricsTimeoutMs() { return metricsTimeoutMs; }
+        public void setMetricsTimeoutMs(long metricsTimeoutMs) { this.metricsTimeoutMs = metricsTimeoutMs; }
+        public long getSnapshotTtlMs() { return snapshotTtlMs; }
+        public void setSnapshotTtlMs(long snapshotTtlMs) { this.snapshotTtlMs = snapshotTtlMs; }
     }
 
     public static class ObsConfig {

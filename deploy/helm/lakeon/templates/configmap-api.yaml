@@ -20,6 +20,11 @@ data:
   {{- if .Values.dicer.unavailableNodesRaw }}
   LAKEON_DICER_UNAVAILABLE_NODES_RAW: {{ .Values.dicer.unavailableNodesRaw | quote }}
   {{- end }}
+  LAKEON_DICER_LIVE_LOAD_ENABLED: {{ ternary "true" "false" .Values.dicer.liveLoadEnabled | quote }}
+  LAKEON_DICER_LIVE_LOAD_POLL_INTERVAL_MS: {{ .Values.dicer.liveLoadPollIntervalMs | default 10000 | quote }}
+  LAKEON_DICER_LIVE_LOAD_INITIAL_DELAY_MS: {{ .Values.dicer.liveLoadInitialDelayMs | default 5000 | quote }}
+  LAKEON_DICER_METRICS_TIMEOUT_MS: {{ .Values.dicer.metricsTimeoutMs | default 1000 | quote }}
+  LAKEON_DICER_SNAPSHOT_TTL_MS: {{ .Values.dicer.snapshotTtlMs | default 30000 | quote }}
   {{- end }}
   LAKEON_NEON_SAFEKEEPER_URLS: {{ .Values.dataPlane.safekeeperUrls | default (include "lakeon.safekeeperConnstrings" .) | quote }}
   LAKEON_NEON_STORAGE_BROKER_URL: {{ .Values.dataPlane.storageBrokerUrl | default (printf "http://storage-broker:%v" .Values.storageBroker.port) | quote }}
