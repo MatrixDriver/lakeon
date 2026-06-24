@@ -90,17 +90,34 @@ echo "  JAR: $JAR"
 # 2. Docker 构建（使用 Spring Boot layered jar，避免每次推送 100MB fat-jar 单层）
 echo "[2/3] Docker 分层构建..."
 
-# 优先使用本地已有的 JRE 基础镜像，避免从 Docker Hub 拉取超时
-BASE_IMAGE="eclipse-temurin:17-jre"
+# 优先使用当前线上 lakeon-api 镜像作为 base，复用 SWR 中已有 JRE/依赖层。
+CURRENT_API_IMAGE=""
+if [ -n "${SITE_VALUES:-}" ] && [ -f "$SITE_VALUES" ]; then
+  CURRENT_API_IMAGE=$(awk '
+    /^api:/        { in_api=1; next }
+    in_api && /^[a-z]/ && !/^  / { in_api=0 }
+    in_api && /repository:.*lakeon-api/ { repo=$2; next }
+    repo && /tag:/ {
+      gsub(/[" ]/, "", $2); print repo ":" $2; exit
+    }
+  ' "$SITE_VALUES")
+fi
+BASE_IMAGE="${LAKEON_API_BASE_IMAGE:-${CURRENT_API_IMAGE:-eclipse-temurin:17-jre}}"
 if ! docker image inspect "$BASE_IMAGE" &>/dev/null; then
-    echo "  本地无 ${BASE_IMAGE}，尝试从 SWR 拉取..."
-    SWR_BASE="swr.${SWR_REGION}.myhuaweicloud.com/${SWR_ORG}/eclipse-temurin:17-jre"
-    if docker pull "$SWR_BASE" 2>/dev/null; then
-        docker tag "$SWR_BASE" "$BASE_IMAGE"
-        echo "  已从 SWR 拉取基础镜像"
-    else
-        echo "  SWR 上无基础镜像，尝试从 Docker Hub 拉取（可能较慢）..."
-        docker pull "$BASE_IMAGE"
+    echo "  本地无 ${BASE_IMAGE}，尝试拉取..."
+    if ! docker pull "$BASE_IMAGE"; then
+        if [ "$BASE_IMAGE" != "eclipse-temurin:17-jre" ]; then
+            echo "ERROR: 无法拉取 base image: $BASE_IMAGE" >&2
+            exit 1
+        fi
+        SWR_BASE="swr.${SWR_REGION}.myhuaweicloud.com/${SWR_ORG}/eclipse-temurin:17-jre"
+        if docker pull "$SWR_BASE" 2>/dev/null; then
+            docker tag "$SWR_BASE" "$BASE_IMAGE"
+            echo "  已从 SWR 拉取基础镜像"
+        else
+            echo "  SWR 上无基础镜像，尝试从 Docker Hub 拉取（可能较慢）..."
+            docker pull "$BASE_IMAGE"
+        fi
     fi
 fi
 
