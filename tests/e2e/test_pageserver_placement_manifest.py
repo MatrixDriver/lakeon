@@ -32,9 +32,9 @@ def test_control_plane_injects_three_stable_pageserver_nodes():
     nodes = match.group(1).split(",")
     assert len(nodes) == 3
     assert nodes == [
-        "ps-0=http://pageserver-0.pageserver-headless.lakeon.svc.cluster.local:9898|pageserver-0.pageserver-headless.lakeon.svc.cluster.local|6400",
-        "ps-1=http://pageserver-1.pageserver-headless.lakeon.svc.cluster.local:9898|pageserver-1.pageserver-headless.lakeon.svc.cluster.local|6400",
-        "ps-2=http://pageserver-2.pageserver-headless.lakeon.svc.cluster.local:9898|pageserver-2.pageserver-headless.lakeon.svc.cluster.local|6400",
+        "ps-0=http://192.168.0.21:9898|pageserver-0.pageserver-headless.lakeon.svc.cluster.local|6400",
+        "ps-1=http://192.168.0.202:9898|pageserver-1.pageserver-headless.lakeon.svc.cluster.local|6400",
+        "ps-2=http://192.168.0.81:9898|pageserver-2.pageserver-headless.lakeon.svc.cluster.local|6400",
     ]
 
 

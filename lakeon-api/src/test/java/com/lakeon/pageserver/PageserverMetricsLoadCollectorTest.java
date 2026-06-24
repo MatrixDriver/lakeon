@@ -44,7 +44,7 @@ class PageserverMetricsLoadCollectorTest {
     }
 
     @Test
-    void refreshMarksNodeUnavailableWhenMetricsFetchFails() throws Exception {
+    void refreshDoesNotPublishSnapshotWhenAllMetricsFetchesFail() throws Exception {
         int port = startServer(503, "down");
         LakeonProperties props = propsFor("http://127.0.0.1:" + port);
         PageserverMetricsLoadCollector collector = new PageserverMetricsLoadCollector(props);
@@ -52,9 +52,9 @@ class PageserverMetricsLoadCollectorTest {
         collector.refresh();
 
         PageserverLoadSnapshot snapshot = collector.snapshot();
-        assertThat(snapshot.isFresh()).isTrue();
-        assertThat(snapshot.loadScores()).doesNotContainKey("ps-0");
-        assertThat(snapshot.unavailableNodeIds()).containsExactly("ps-0");
+        assertThat(snapshot.isFresh()).isFalse();
+        assertThat(snapshot.loadScores()).isEmpty();
+        assertThat(snapshot.unavailableNodeIds()).isEmpty();
     }
 
     private int startServer(int status, String body) throws IOException {

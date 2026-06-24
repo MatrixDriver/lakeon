@@ -75,6 +75,10 @@ public class PageserverMetricsLoadCollector implements PageserverLoadProvider {
                     node.id(), node.httpUrl(), e.getMessage());
             }
         }
+        if (scores.isEmpty() && !unavailable.isEmpty()) {
+            current.set(PageserverLoadSnapshot.empty());
+            return;
+        }
         current.set(PageserverLoadSnapshot.fresh(scores, unavailable, Instant.now(), "dicer-live"));
     }
 
