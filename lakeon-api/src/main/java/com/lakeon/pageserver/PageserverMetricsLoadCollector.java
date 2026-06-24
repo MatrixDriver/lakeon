@@ -3,6 +3,7 @@ package com.lakeon.pageserver;
 import com.lakeon.config.LakeonProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +28,7 @@ public class PageserverMetricsLoadCollector implements PageserverLoadProvider {
     private final HttpClient httpClient;
     private final AtomicReference<PageserverLoadSnapshot> current = new AtomicReference<>(PageserverLoadSnapshot.empty());
 
+    @Autowired
     public PageserverMetricsLoadCollector(LakeonProperties props) {
         this(props, HttpClient.newBuilder().connectTimeout(Duration.ofMillis(props.getDicer().getMetricsTimeoutMs())).build());
     }
