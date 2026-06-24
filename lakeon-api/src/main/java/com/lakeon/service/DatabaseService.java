@@ -904,15 +904,24 @@ public class DatabaseService {
         databaseRepository.save(entity);
 
         // Sync password to running compute pod
-        if (entity.getComputePodName() != null) {
-            computePodManager.syncPassword(entity.getComputePodName(), entity.getDbUser(), scramHash);
+        String originalPodName = entity.getComputePodName();
+        if (originalPodName != null) {
+            computePodManager.syncPassword(originalPodName, entity.getDbUser(), scramHash);
+            computePodManager.deleteComputePodKeepConfig(originalPodName, true);
+            entity.setStatus(DatabaseStatus.SUSPENDED);
+            entity.setSuspendedAt(Instant.now());
+            entity.setComputeHost(null);
+            entity.setComputePort(null);
+            entity.setComputePodName(null);
         }
         for (BranchEntity branch : branchRepository.findAllByDatabaseId(entity.getId())) {
             String branchPodName = branch.getComputePodName();
-            if (branchPodName != null && !branchPodName.equals(entity.getComputePodName())) {
+            if (branchPodName != null && !branchPodName.equals(originalPodName)) {
                 computePodManager.syncPassword(branchPodName, entity.getDbUser(), scramHash);
+                computePodManager.deleteComputePodKeepConfig(branchPodName, true);
             }
         }
+        databaseRepository.save(entity);
 
         return Map.of("password", rawPassword);
     }

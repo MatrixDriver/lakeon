@@ -26,6 +26,7 @@ lakeon-cli/.venv/
 
 # Patched binaries built outside this repo (built from neon fork)
 deploy/docker/compute_ctl-dbay
+deploy/docker/proxy
 
 # Frontend
 lakeon-console/node_modules/

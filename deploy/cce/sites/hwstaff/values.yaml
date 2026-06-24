@@ -106,6 +106,14 @@ storageBroker:
 
 proxy:
   replicas: 1
+  image:
+    repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-proxy
+    tag: "0.1.0-5a90da0b-linux1"
+    pullPolicy: IfNotPresent
+  lakeonDataProxy:
+    enabled: true
+  projectInfoCache: "size=0,max_roles=0,gc_interval=60m"
+  wakeComputeCache: "size=0"
   externalHost: "pg.dbay.cloud"
   internalHost: "192.168.0.53"
   internalPort: 4432
