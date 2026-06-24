@@ -2,6 +2,8 @@ package com.lakeon.neon;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
+import com.lakeon.neon.dto.CreateTimelineRequest;
+import com.lakeon.neon.dto.NeonTimeline;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,6 +17,8 @@ import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.put;
+import static com.github.tomakehurst.wiremock.client.WireMock.putRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
@@ -65,6 +69,42 @@ class NeonApiClientTest {
                 .withRequestBody(matchingJsonPath("$.ancestor_timeline_id", equalTo("tl1")))
                 .withRequestBody(matchingJsonPath("$.ancestor_start_lsn", equalTo("0/A1B2C3D0")))
                 .withRequestBody(matchingJsonPath("$.new_timeline_id", equalTo("new-tl-2"))));
+    }
+
+    @Test
+    @DisplayName("createTimeline 遇到 tenant 404 时 reattach 后重试")
+    void createTimeline_reattachesTenantOnNotFound() {
+        // Given - pageserver has lost the tenant attachment before timeline creation
+        stubFor(post(urlPathEqualTo("/v1/tenant/tn1/timeline"))
+                .inScenario("reattach")
+                .whenScenarioStateIs(com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED)
+                .willReturn(aResponse().withStatus(404))
+                .willSetStateTo("reattached"));
+        stubFor(put(urlPathEqualTo("/v1/tenant/tn1/location_config"))
+                .willReturn(aResponse().withStatus(200)));
+        stubFor(post(urlPathEqualTo("/v1/tenant/tn1/timeline"))
+                .inScenario("reattach")
+                .whenScenarioStateIs("reattached")
+                .willReturn(aResponse()
+                        .withStatus(201)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {
+                                  "timeline_id": "tl1",
+                                  "tenant_id": "tn1",
+                                  "last_record_lsn": "0/10"
+                                }
+                                """)));
+
+        // When
+        NeonTimeline timeline = neonApiClient.createTimeline("tn1",
+                CreateTimelineRequest.forNewTimeline("tl1", 17));
+
+        // Then
+        assertThat(timeline.getTimelineId()).isEqualTo("tl1");
+        verify(putRequestedFor(urlEqualTo("/v1/tenant/tn1/location_config"))
+                .withRequestBody(matchingJsonPath("$.mode", equalTo("AttachedSingle"))));
+        verify(2, postRequestedFor(urlEqualTo("/v1/tenant/tn1/timeline")));
     }
 
     @Test

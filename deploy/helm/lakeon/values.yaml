@@ -87,6 +87,12 @@ storageBroker:
 
 proxy:
   replicas: 2
+  image:
+    repository: ""
+    tag: ""
+    pullPolicy: IfNotPresent
+  lakeonDataProxy:
+    enabled: false
   listenPort: 4432
   httpPort: 7100
   mgmtPort: 7000
@@ -95,6 +101,9 @@ proxy:
   # Cache for proxy project_info / role secrets. Disable with size=0 when
   # password resets must take effect immediately across proxy replicas.
   projectInfoCache: ""
+  # Cache for wake_compute node info. Disable with size=0 when compute pods can
+  # be rolled during password reset and stale pod addresses must be avoided.
+  wakeComputeCache: ""
   autoscaling:
     enabled: false
     minReplicas: 2

@@ -22,8 +22,20 @@ set -uo pipefail
 PROXY_HOST="${PROXY_HOST:-114.116.210.49}"
 PROXY_PORT="${PROXY_PORT:-4432}"
 API_URL="${API_URL:-http://${PROXY_HOST}}"
-export no_proxy="${PROXY_HOST},localhost,127.0.0.1"
-export NO_PROXY="${PROXY_HOST},localhost,127.0.0.1"
+ADMIN_TOKEN="${ADMIN_TOKEN:-lakeon-sre-2026}"
+CURL_INSECURE="${CURL_INSECURE:-false}"
+DISABLE_TEST_PROXY="${DISABLE_TEST_PROXY:-true}"
+KUBE_API_HOST="$(kubectl config view --raw -o jsonpath='{.clusters[0].cluster.server}' 2>/dev/null \
+    | sed -E 's#^https?://([^:/]+).*#\1#' || true)"
+NO_PROXY_ENTRIES="${PROXY_HOST},${KUBE_API_HOST},api.dbay.cloud,pg.dbay.cloud,localhost,127.0.0.1"
+if [[ -n "${NO_PROXY:-}" ]]; then
+    NO_PROXY_ENTRIES="${NO_PROXY_ENTRIES},${NO_PROXY}"
+fi
+export no_proxy="${NO_PROXY_ENTRIES}"
+export NO_PROXY="${NO_PROXY_ENTRIES}"
+if [[ "$DISABLE_TEST_PROXY" == "true" ]]; then
+    unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+fi
 NAMESPACE="lakeon"
 COMPUTE_NS="lakeon-compute"
 CONTROL_KUBECONFIG="${CONTROL_KUBECONFIG:-${KUBECONFIG:-}}"
@@ -54,6 +66,13 @@ log()  { echo -e "${CYAN}[INFO]${NC} $*"; }
 pass() { echo -e "${GREEN}[PASS]${NC} $*"; PASS=$((PASS + 1)); TOTAL=$((TOTAL + 1)); }
 fail() { echo -e "${RED}[FAIL]${NC} $*"; FAIL=$((FAIL + 1)); TOTAL=$((TOTAL + 1)); }
 warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+curl() {
+    local args=()
+    if [[ "$CURL_INSECURE" == "true" ]]; then
+        args+=("-k")
+    fi
+    command curl "${args[@]}" "$@"
+}
 
 cleanup() {
     log "Cleaning up..."
@@ -69,9 +88,15 @@ cleanup() {
 
     sleep 3
 
-    # Clean up leftover compute pods
-    kubectl delete pods -n "$COMPUTE_NS" --all --wait=false 2>/dev/null || true
-    kubectl delete configmaps -n "$COMPUTE_NS" -l app=lakeon-compute --wait=false 2>/dev/null || true
+    if ((${#TENANT_IDS[@]} > 0)); then
+        log "  Deleting test tenants..."
+        local ids_json
+        ids_json=$(printf '%s\n' "${TENANT_IDS[@]}" | jq -R . | jq -s '{ids: .}')
+        curl -s -X DELETE "${API_URL}/api/v1/admin/tenants/batch" \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "${ids_json}" > /dev/null 2>&1 || true
+    fi
 
     log "Cleanup complete."
 }
@@ -84,10 +109,30 @@ create_tenant() {
     username="$(echo "${name}-${RUN_ID}" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9-')"
     local xff_octet
     xff_octet=$(( (RANDOM % 200) + 20 ))
+    local invite_resp invite_code tenant_resp tenant_id
+    invite_resp=$(curl -s -X POST "${API_URL}/api/v1/admin/invite-codes" \
+        -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -d '{"max_uses": 1}')
+    invite_code=$(echo "$invite_resp" | jq -r '.code')
+    if [[ -z "$invite_code" || "$invite_code" == "null" ]]; then
+        echo "$invite_resp"
+        return 0
+    fi
+    tenant_resp=$(
     curl -s -X POST "${API_URL}/api/v1/tenants" \
         -H "X-Forwarded-For: 10.230.${xff_octet}.$((RANDOM % 250 + 1))" \
         -H "Content-Type: application/json" \
-        -d "{\"username\": \"${username}\", \"password\": \"Test123456!\"}"
+            -d "{\"username\": \"${username}\", \"password\": \"Test123456!\", \"name\": \"${name}\", \"inviteCode\": \"${invite_code}\"}"
+    )
+    tenant_id=$(echo "$tenant_resp" | jq -r '.id')
+    if [[ -n "$tenant_id" && "$tenant_id" != "null" ]]; then
+        curl -s -X PUT "${API_URL}/api/v1/admin/tenants/${tenant_id}/quota" \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"max_databases": 200}' > /dev/null 2>&1 || true
+    fi
+    echo "$tenant_resp"
 }
 
 create_database() {
@@ -168,13 +213,14 @@ run_sql() {
     local db_user="$2"
     local db_password="$3"
     local sql="$4"
+    local endpoint="${5:-$db_name}"
     python3 -c "
 import psycopg2, sys
 try:
     conn = psycopg2.connect(
         host='${PROXY_HOST}', port=${PROXY_PORT},
         dbname='${db_name}', user='${db_user}', password='${db_password}',
-        options='endpoint=${db_name}', sslmode='require',
+        options='endpoint=${endpoint}', sslmode='require',
         connect_timeout=15
     )
     conn.autocommit = True
@@ -192,6 +238,28 @@ except Exception as e:
 " 2>&1
 }
 
+run_sql_retry() {
+    local db_name="$1"
+    local db_user="$2"
+    local db_password="$3"
+    local sql="$4"
+    local timeout="${5:-30}"
+    local endpoint="${6:-$db_name}"
+    local elapsed=0
+    local result=""
+    while (( elapsed <= timeout )); do
+        result=$(run_sql "$db_name" "$db_user" "$db_password" "$sql" "$endpoint")
+        if [[ "$result" != ERROR:* ]]; then
+            echo "$result"
+            return 0
+        fi
+        sleep 2
+        elapsed=$((elapsed + 2))
+    done
+    echo "$result"
+    return 1
+}
+
 # Parse username from connection_uri
 parse_user_from_uri() {
     local uri="$1"
@@ -203,11 +271,12 @@ wait_connection_uri() {
     local db_id="$2"
     local timeout="${3:-60}"
     local elapsed=0
-    local resp uri
+    local resp uri branch_id
     while [[ $elapsed -lt $timeout ]]; do
         resp=$(get_database "$api_key" "$db_id")
         uri=$(echo "$resp" | jq -r '.connection_uri')
-        if [[ "$uri" == *"options=endpoint"* ]]; then
+        branch_id=$(echo "$resp" | jq -r '.branches[]? | select(.is_default == true) | .id' | head -1)
+        if [[ "$uri" == *"options=endpoint"* && -n "$branch_id" && "$branch_id" != "null" ]]; then
             echo "$uri"
             return 0
         fi
@@ -216,6 +285,19 @@ wait_connection_uri() {
     done
     echo "${uri:-null}"
     return 1
+}
+
+default_compute_pod_name() {
+    local api_key="$1"
+    local db_id="$2"
+    local resp branch_id
+    resp=$(get_database "$api_key" "$db_id")
+    branch_id=$(echo "$resp" | jq -r '.branches[]? | select(.is_default == true) | .id' | head -1)
+    if [[ -n "$branch_id" && "$branch_id" != "null" ]]; then
+        echo "compute-${branch_id//_/-}"
+    else
+        echo "compute-${db_id//_/-}"
+    fi
 }
 
 # ─── Precondition Checks ────────────────────────────────────────────────────
@@ -370,6 +452,16 @@ test_single_tenant() {
         fail "IT-CCE-003c: Expected 3 rows, got: '${count}'"
     fi
 
+    local pooled_ok
+    pooled_ok=$(run_sql "$db_name" "$db_user" "$password" "SELECT 1 AS ok;" "${db_name}-pooler")
+    pooled_ok=$(echo "$pooled_ok" | tr -d '[:space:]')
+    if [[ "$pooled_ok" == "1" ]]; then
+        pass "IT-CCE-003d: Connected via shared proxy pooler endpoint"
+    else
+        fail "IT-CCE-003d: Pooled endpoint connection failed: ${pooled_ok}"
+        return 1
+    fi
+
     # ── IT-CCE-004: Get Database ──────────────────────────────────────
     log "IT-CCE-004: Get database details"
     local get_resp get_status get_password
@@ -423,11 +515,12 @@ test_single_tenant() {
 
     # New password should work
     local new_pw_result
-    new_pw_result=$(run_sql "$db_name" "$db_user" "$new_password" "SELECT 1 AS ok;")
+    new_pw_result=$(run_sql_retry "$db_name" "$db_user" "$new_password" "SELECT 1 AS ok;" 30)
     if [[ "$new_pw_result" == "1" ]]; then
         pass "IT-CCE-006c: New password works via proxy"
         password="$new_password"
         DB_PASSWORDS[0]="$new_password"
+        compute_pod=$(default_compute_pod_name "$api_key" "$db_id")
     else
         fail "IT-CCE-006c: New password connection failed: ${new_pw_result}"
     fi
@@ -466,7 +559,7 @@ test_single_tenant() {
     fi
 
     # Verify data persisted via proxy
-    count=$(run_sql "$db_name" "$db_user" "$password" "SELECT COUNT(*) FROM test_items;")
+    count=$(run_sql_retry "$db_name" "$db_user" "$password" "SELECT COUNT(*) FROM test_items;" 30)
     count=$(echo "$count" | tr -d '[:space:]')
     if [[ "$count" == "3" ]]; then
         pass "IT-CCE-008b: Data persisted across suspend/resume (3 rows via proxy)"
@@ -743,11 +836,6 @@ main() {
     echo ""
 
     check_prerequisites
-
-    # Clean up leftover compute pods
-    kubectl delete pods -n "$COMPUTE_NS" --all --wait=false 2>/dev/null || true
-    kubectl delete configmaps -n "$COMPUTE_NS" -l app=lakeon-compute --wait=false 2>/dev/null || true
-    sleep 2
 
     test_single_tenant
     test_multi_tenant
