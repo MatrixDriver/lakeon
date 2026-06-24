@@ -28,6 +28,7 @@ public class PageserverPlacementService {
     private final LakeonProperties props;
     private final PageserverAssignmentRepository assignments;
     private final PageserverLoadProvider loadProvider;
+    private final PageserverNodeProvider nodeProvider;
 
     public PageserverPlacementService(LakeonProperties props) {
         this(props, (PageserverAssignmentRepository) null);
@@ -36,20 +37,29 @@ public class PageserverPlacementService {
     @Autowired
     public PageserverPlacementService(LakeonProperties props,
                                       ObjectProvider<PageserverAssignmentRepository> assignmentsProvider,
-                                      ObjectProvider<PageserverLoadProvider> loadProvider) {
-        this(props, assignmentsProvider.getIfAvailable(), loadProvider.getIfAvailable());
+                                      ObjectProvider<PageserverLoadProvider> loadProvider,
+                                      ObjectProvider<PageserverNodeProvider> nodeProvider) {
+        this(props, assignmentsProvider.getIfAvailable(), loadProvider.getIfAvailable(), nodeProvider.getIfAvailable());
     }
 
     public PageserverPlacementService(LakeonProperties props, PageserverAssignmentRepository assignments) {
-        this(props, assignments, null);
+        this(props, assignments, null, null);
     }
 
     public PageserverPlacementService(LakeonProperties props,
                                       PageserverAssignmentRepository assignments,
                                       PageserverLoadProvider loadProvider) {
+        this(props, assignments, loadProvider, null);
+    }
+
+    public PageserverPlacementService(LakeonProperties props,
+                                      PageserverAssignmentRepository assignments,
+                                      PageserverLoadProvider loadProvider,
+                                      PageserverNodeProvider nodeProvider) {
         this.props = props;
         this.assignments = assignments;
         this.loadProvider = loadProvider;
+        this.nodeProvider = nodeProvider;
     }
 
     @Transactional
@@ -83,8 +93,25 @@ public class PageserverPlacementService {
     }
 
     public List<PageserverNode> configuredNodes() {
+        List<PageserverNode> dynamicNodes = dynamicNodes();
+        if (!dynamicNodes.isEmpty()) {
+            return dynamicNodes;
+        }
         return props.getNeon().getPageserverNodes().stream()
             .map(this::toNode)
+            .sorted(Comparator.comparing(PageserverNode::id))
+            .toList();
+    }
+
+    private List<PageserverNode> dynamicNodes() {
+        if (nodeProvider == null) {
+            return List.of();
+        }
+        List<PageserverNode> nodes = nodeProvider.nodes();
+        if (nodes == null || nodes.isEmpty()) {
+            return List.of();
+        }
+        return nodes.stream()
             .sorted(Comparator.comparing(PageserverNode::id))
             .toList();
     }

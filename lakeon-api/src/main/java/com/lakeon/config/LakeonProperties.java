@@ -81,6 +81,12 @@ public class LakeonProperties {
         private String storageBrokerUrl;
         private List<PageserverNodeConfig> pageserverNodes = List.of();
         private String pageserverNodesRaw;
+        private boolean pageserverDiscoveryEnabled = false;
+        private String pageserverDiscoveryNamespace;
+        private String pageserverDiscoveryLabelSelector = "app=pageserver";
+        private String pageserverDiscoveryHeadlessService = "pageserver-headless";
+        private int pageserverDiscoveryHttpPort = 9898;
+        private int pageserverDiscoveryPgPort = 6400;
 
         public String getPageserverUrl() { return pageserverUrl; }
         public void setPageserverUrl(String pageserverUrl) { this.pageserverUrl = pageserverUrl; }
@@ -105,6 +111,18 @@ public class LakeonProperties {
                 .map(PageserverNodeConfig::parse)
                 .toList();
         }
+        public boolean isPageserverDiscoveryEnabled() { return pageserverDiscoveryEnabled; }
+        public void setPageserverDiscoveryEnabled(boolean pageserverDiscoveryEnabled) { this.pageserverDiscoveryEnabled = pageserverDiscoveryEnabled; }
+        public String getPageserverDiscoveryNamespace() { return pageserverDiscoveryNamespace; }
+        public void setPageserverDiscoveryNamespace(String pageserverDiscoveryNamespace) { this.pageserverDiscoveryNamespace = pageserverDiscoveryNamespace; }
+        public String getPageserverDiscoveryLabelSelector() { return pageserverDiscoveryLabelSelector; }
+        public void setPageserverDiscoveryLabelSelector(String pageserverDiscoveryLabelSelector) { this.pageserverDiscoveryLabelSelector = pageserverDiscoveryLabelSelector; }
+        public String getPageserverDiscoveryHeadlessService() { return pageserverDiscoveryHeadlessService; }
+        public void setPageserverDiscoveryHeadlessService(String pageserverDiscoveryHeadlessService) { this.pageserverDiscoveryHeadlessService = pageserverDiscoveryHeadlessService; }
+        public int getPageserverDiscoveryHttpPort() { return pageserverDiscoveryHttpPort; }
+        public void setPageserverDiscoveryHttpPort(int pageserverDiscoveryHttpPort) { this.pageserverDiscoveryHttpPort = pageserverDiscoveryHttpPort; }
+        public int getPageserverDiscoveryPgPort() { return pageserverDiscoveryPgPort; }
+        public void setPageserverDiscoveryPgPort(int pageserverDiscoveryPgPort) { this.pageserverDiscoveryPgPort = pageserverDiscoveryPgPort; }
     }
 
     public static class PageserverNodeConfig {

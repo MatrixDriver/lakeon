@@ -4,6 +4,7 @@ import com.lakeon.config.LakeonProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -26,16 +27,39 @@ public class PageserverMetricsLoadCollector implements PageserverLoadProvider {
 
     private final LakeonProperties props;
     private final HttpClient httpClient;
+    private final PageserverNodeProvider nodeProvider;
     private final AtomicReference<PageserverLoadSnapshot> current = new AtomicReference<>(PageserverLoadSnapshot.empty());
 
     @Autowired
-    public PageserverMetricsLoadCollector(LakeonProperties props) {
-        this(props, HttpClient.newBuilder().connectTimeout(Duration.ofMillis(props.getDicer().getMetricsTimeoutMs())).build());
+    public PageserverMetricsLoadCollector(LakeonProperties props, ObjectProvider<PageserverNodeProvider> nodeProvider) {
+        this(
+            props,
+            HttpClient.newBuilder().connectTimeout(Duration.ofMillis(props.getDicer().getMetricsTimeoutMs())).build(),
+            nodeProvider.getIfAvailable());
+    }
+
+    PageserverMetricsLoadCollector(LakeonProperties props) {
+        this(
+            props,
+            HttpClient.newBuilder().connectTimeout(Duration.ofMillis(props.getDicer().getMetricsTimeoutMs())).build(),
+            null);
+    }
+
+    PageserverMetricsLoadCollector(LakeonProperties props, PageserverNodeProvider nodeProvider) {
+        this(
+            props,
+            HttpClient.newBuilder().connectTimeout(Duration.ofMillis(props.getDicer().getMetricsTimeoutMs())).build(),
+            nodeProvider);
     }
 
     PageserverMetricsLoadCollector(LakeonProperties props, HttpClient httpClient) {
+        this(props, httpClient, null);
+    }
+
+    PageserverMetricsLoadCollector(LakeonProperties props, HttpClient httpClient, PageserverNodeProvider nodeProvider) {
         this.props = props;
         this.httpClient = httpClient;
+        this.nodeProvider = nodeProvider;
     }
 
     @Override
@@ -138,6 +162,12 @@ public class PageserverMetricsLoadCollector implements PageserverLoadProvider {
     }
 
     private java.util.List<PageserverNode> configuredNodes() {
+        if (nodeProvider != null) {
+            java.util.List<PageserverNode> dynamicNodes = nodeProvider.nodes();
+            if (dynamicNodes != null && !dynamicNodes.isEmpty()) {
+                return dynamicNodes;
+            }
+        }
         return props.getNeon().getPageserverNodes().stream()
             .map(config -> {
                 String httpUrl = config.getHttpUrl();

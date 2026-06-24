@@ -44,6 +44,24 @@ class PageserverMetricsLoadCollectorTest {
     }
 
     @Test
+    void refreshCollectsMetricsFromDynamicMembership() throws Exception {
+        String body = "pageserver_resident_physical_size 1024\n";
+        int port = startServer(200, body);
+        LakeonProperties props = propsFor("http://static-pageserver:9898");
+        PageserverNodeProvider dynamicNodes = () -> java.util.List.of(
+            new PageserverNode("ps-dynamic", "http://127.0.0.1:" + port, "pageserver-0.pageserver-headless.lakeon.svc.cluster.local", 6400)
+        );
+        PageserverMetricsLoadCollector collector = new PageserverMetricsLoadCollector(props, dynamicNodes);
+
+        collector.refresh();
+
+        PageserverLoadSnapshot snapshot = collector.snapshot();
+        assertThat(snapshot.isFresh()).isTrue();
+        assertThat(snapshot.loadScores()).containsEntry("ps-dynamic", 1024.0d);
+        assertThat(snapshot.loadScores()).doesNotContainKey("ps-0");
+    }
+
+    @Test
     void refreshDoesNotPublishSnapshotWhenAllMetricsFetchesFail() throws Exception {
         int port = startServer(503, "down");
         LakeonProperties props = propsFor("http://127.0.0.1:" + port);

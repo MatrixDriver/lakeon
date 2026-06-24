@@ -24,7 +24,7 @@ def helm_template(*values_files: Path) -> str:
     return result.stdout
 
 
-def test_control_plane_injects_three_stable_pageserver_nodes():
+def test_control_plane_enables_pageserver_discovery_with_static_dns_fallback():
     manifest = helm_template(HWSTAFF_VALUES, HWSTAFF_CONTROL_VALUES)
 
     match = re.search(r"LAKEON_NEON_PAGESERVER_NODES_RAW: \"([^\"]+)\"", manifest)
@@ -32,10 +32,15 @@ def test_control_plane_injects_three_stable_pageserver_nodes():
     nodes = match.group(1).split(",")
     assert len(nodes) == 3
     assert nodes == [
-        "ps-0=http://192.168.0.21:9898|pageserver-0.pageserver-headless.lakeon.svc.cluster.local|6400",
-        "ps-1=http://192.168.0.202:9898|pageserver-1.pageserver-headless.lakeon.svc.cluster.local|6400",
-        "ps-2=http://192.168.0.81:9898|pageserver-2.pageserver-headless.lakeon.svc.cluster.local|6400",
+        "ps-0=http://pageserver-0.pageserver-headless.lakeon.svc.cluster.local:9898|pageserver-0.pageserver-headless.lakeon.svc.cluster.local|6400",
+        "ps-1=http://pageserver-1.pageserver-headless.lakeon.svc.cluster.local:9898|pageserver-1.pageserver-headless.lakeon.svc.cluster.local|6400",
+        "ps-2=http://pageserver-2.pageserver-headless.lakeon.svc.cluster.local:9898|pageserver-2.pageserver-headless.lakeon.svc.cluster.local|6400",
     ]
+    assert 'LAKEON_NEON_PAGESERVER_DISCOVERY_ENABLED: "true"' in manifest
+    assert 'LAKEON_NEON_PAGESERVER_DISCOVERY_NAMESPACE: "lakeon"' in manifest
+    assert 'LAKEON_NEON_PAGESERVER_DISCOVERY_LABEL_SELECTOR: "app=pageserver"' in manifest
+    assert 'LAKEON_NEON_PAGESERVER_DISCOVERY_HEADLESS_SERVICE: "pageserver-headless"' in manifest
+    assert "http://192.168.0." not in match.group(1)
 
 
 def test_data_plane_renders_pageserver_statefulset_and_headless_service():

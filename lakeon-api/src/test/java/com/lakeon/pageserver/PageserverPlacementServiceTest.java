@@ -87,6 +87,34 @@ class PageserverPlacementServiceTest {
     }
 
     @Test
+    void dynamicMembershipOverridesStaticNodesWhenAvailable() {
+        LakeonProperties props = placementProps();
+        PageserverNodeProvider dynamicNodes = () -> List.of(
+            new PageserverNode("ps-0", "http://10.0.0.10:9898", "pageserver-0.pageserver-headless.lakeon.svc.cluster.local", 6400),
+            new PageserverNode("ps-1", "http://10.0.0.11:9898", "pageserver-1.pageserver-headless.lakeon.svc.cluster.local", 6400)
+        );
+        PageserverPlacementService service = new PageserverPlacementService(props, null, null, dynamicNodes);
+
+        List<PageserverNode> nodes = service.configuredNodes();
+
+        assertThat(nodes).extracting(PageserverNode::id).containsExactly("ps-0", "ps-1");
+        assertThat(nodes.get(0).httpUrl()).isEqualTo("http://10.0.0.10:9898");
+        assertThat(nodes.get(0).pgHost()).isEqualTo("pageserver-0.pageserver-headless.lakeon.svc.cluster.local");
+    }
+
+    @Test
+    void dynamicMembershipFallsBackToStaticNodesWhenEmpty() {
+        LakeonProperties props = placementProps();
+        PageserverNodeProvider dynamicNodes = List::of;
+        PageserverPlacementService service = new PageserverPlacementService(props, null, null, dynamicNodes);
+
+        List<PageserverNode> nodes = service.configuredNodes();
+
+        assertThat(nodes).extracting(PageserverNode::id).containsExactly("ps-0", "ps-1", "ps-2");
+        assertThat(nodes.get(0).httpUrl()).isEqualTo("http://pageserver-0:9898");
+    }
+
+    @Test
     void dicerEnabledChoosesLowestLoadHealthyNodeAndPersistsAssignment() {
         LakeonProperties props = placementProps();
         props.getDicer().setEnabled(true);

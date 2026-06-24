@@ -11,6 +11,12 @@ data:
   LAKEON_DB_USER: {{ .Values.metadataDb.user | quote }}
   LAKEON_NEON_PAGESERVER_URL: {{ .Values.dataPlane.pageserverUrl | default (printf "http://pageserver:%v" .Values.pageserver.httpPort) | quote }}
   LAKEON_NEON_PAGESERVER_NODES_RAW: {{ include "lakeon.pageserverNodesRaw" . | quote }}
+  LAKEON_NEON_PAGESERVER_DISCOVERY_ENABLED: {{ ternary "true" "false" .Values.dataPlane.pageserverDiscovery.enabled | quote }}
+  LAKEON_NEON_PAGESERVER_DISCOVERY_NAMESPACE: {{ .Values.dataPlane.pageserverDiscovery.namespace | default .Values.dataPlane.namespace | default .Values.global.namespace | quote }}
+  LAKEON_NEON_PAGESERVER_DISCOVERY_LABEL_SELECTOR: {{ .Values.dataPlane.pageserverDiscovery.labelSelector | default "app=pageserver" | quote }}
+  LAKEON_NEON_PAGESERVER_DISCOVERY_HEADLESS_SERVICE: {{ .Values.dataPlane.pageserverDiscovery.headlessService | default "pageserver-headless" | quote }}
+  LAKEON_NEON_PAGESERVER_DISCOVERY_HTTP_PORT: {{ .Values.dataPlane.pageserverDiscovery.httpPort | default .Values.pageserver.httpPort | quote }}
+  LAKEON_NEON_PAGESERVER_DISCOVERY_PG_PORT: {{ .Values.dataPlane.pageserverDiscovery.pgPort | default .Values.pageserver.pgPort | quote }}
   LAKEON_DICER_ENABLED: {{ ternary "true" "false" .Values.dicer.enabled | quote }}
   {{- if .Values.dicer.enabled }}
   LAKEON_DICER_ENDPOINT: {{ printf "http://%s.%s.svc.cluster.local:%v" .Values.dicer.service.name .Values.global.namespace .Values.dicer.service.port | quote }}

@@ -67,7 +67,13 @@ dataPlane:
   namespace: lakeon
   computeNamespace: lakeon-compute
   pageserverReplicas: 3
-  pageserverNodesRawOverride: "ps-0=http://192.168.0.21:9898|pageserver-0.pageserver-headless.lakeon.svc.cluster.local|6400,ps-1=http://192.168.0.202:9898|pageserver-1.pageserver-headless.lakeon.svc.cluster.local|6400,ps-2=http://192.168.0.81:9898|pageserver-2.pageserver-headless.lakeon.svc.cluster.local|6400"
+  pageserverDiscovery:
+    enabled: true
+    namespace: lakeon
+    labelSelector: "app=pageserver"
+    headlessService: "pageserver-headless"
+    httpPort: 9898
+    pgPort: 6400
   pageserverUrl: "http://pageserver.lakeon.svc.cluster.local:9898"
   safekeeperUrls: "safekeeper-0.safekeeper.lakeon.svc.cluster.local:5454,safekeeper-1.safekeeper.lakeon.svc.cluster.local:5454,safekeeper-2.safekeeper.lakeon.svc.cluster.local:5454"
   storageBrokerUrl: "http://storage-broker.lakeon.svc.cluster.local:50051"
