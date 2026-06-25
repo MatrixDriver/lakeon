@@ -9,6 +9,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
@@ -121,6 +122,7 @@ class ComputePodManagerReconcileTest {
         assertEquals(1, publicConstructors.size());
         assertTrue(Arrays.asList(publicConstructors.get(0).getParameterTypes())
             .contains(PageserverPlacementService.class));
+        assertTrue(publicConstructors.get(0).isAnnotationPresent(Autowired.class));
     }
 
     @Test
