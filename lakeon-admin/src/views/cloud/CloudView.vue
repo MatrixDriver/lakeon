@@ -9,74 +9,66 @@
       <div v-if="loading" class="empty-text">加载中...</div>
       <div v-else-if="!topology" class="empty-text">暂无拓扑数据</div>
       <div class="arch-diagram" v-else>
-        <div class="arch-map">
-          <div class="arch-column">
-            <div class="column-title">入口</div>
-            <ArchBox v-if="node('console')" :node="node('console')!" tone="access" />
-            <ArchBox v-if="node('pg-client')" :node="node('pg-client')!" tone="access" />
-            <ArchBox v-if="node('pg-client-pooled')" :node="node('pg-client-pooled')!" tone="access" />
-          </div>
-
-          <div class="arch-flow-column">
-            <FlowArrow :label="edgeLabel('console', 'api-elb')" />
-            <FlowArrow :label="edgeLabel('pg-client', 'pg-elb')" />
-            <FlowArrow :label="edgeLabel('pg-client-pooled', 'pg-elb')" />
-          </div>
-
-          <div class="arch-column">
-            <div class="column-title">公网 ELB</div>
-            <ArchBox v-if="node('api-elb')" :node="node('api-elb')!" tone="network" />
-            <ArchBox v-if="node('pg-elb')" :node="node('pg-elb')!" tone="network" />
-            <ArchBox v-if="node('pooler-route')" :node="node('pooler-route')!" tone="network" />
-          </div>
-
-          <div class="arch-flow-column">
-            <FlowArrow :label="edgeLabel('api-elb', 'api-gateway')" />
-            <FlowArrow :label="edgeLabel('pg-elb', 'data-proxy')" />
-            <FlowArrow :label="edgeLabel('pooler-route', 'data-proxy')" />
-          </div>
-
-          <div class="arch-column arch-column-main">
-            <div class="column-title">控制面 / 数据面</div>
-            <ArchBox v-if="node('control-cce')" :node="node('control-cce')!" tone="control" wide />
-            <ArchBox v-if="node('data-proxy')" :node="node('data-proxy')!" tone="data" wide />
-            <ArchBox v-if="node('compute-pool')" :node="node('compute-pool')!" tone="compute" wide />
-          </div>
+        <div class="client-row">
+          <ArchBox v-if="node('console')" :node="node('console')!" tone="access" compact />
+          <ArchBox v-if="node('pg-client')" :node="node('pg-client')!" tone="access" compact />
+          <ArchBox v-if="node('pg-client-pooled')" :node="node('pg-client-pooled')!" tone="access" compact />
         </div>
 
-        <div class="infra-band control">
-          <div class="band-heading">
-            <span>控制面内部</span>
-            <small>API 按路径拆分，Dicer 读取 pageserver 负载做 placement</small>
-          </div>
-          <ArchBox v-if="node('api-gateway')" :node="node('api-gateway')!" tone="network" />
-          <ArchBox v-if="node('split-api')" :node="node('split-api')!" tone="control" />
-          <ArchBox v-if="node('dicer')" :node="node('dicer')!" tone="control" />
+        <div class="down-link">
+          <span>公网入口</span>
+        </div>
+
+        <div class="edge-row">
+          <ArchBox v-if="node('api-elb')" :node="node('api-elb')!" tone="network" compact />
+          <ArchBox v-if="node('pg-elb')" :node="node('pg-elb')!" tone="network" compact />
+        </div>
+
+        <div class="down-link split">
+          <span>API / PG 分流</span>
+        </div>
+
+        <div class="cluster-row">
+          <section class="cluster-panel control">
+            <div class="cluster-title">
+              <span>控制面 CCE</span>
+              <small>dbay-control-cce</small>
+            </div>
+            <div class="cluster-grid control-grid">
+              <ArchBox v-if="node('api-gateway')" :node="node('api-gateway')!" tone="network" compact />
+              <ArchBox v-if="node('admin-api')" :node="node('admin-api')!" tone="control" compact />
+              <ArchBox v-if="node('serving-api')" :node="node('serving-api')!" tone="control" compact />
+              <ArchBox v-if="node('dicer')" :node="node('dicer')!" tone="control" compact />
+            </div>
+            <div class="cluster-note">admin / serving API 与 Dicer 都是集群内组件</div>
+          </section>
+
+          <section class="cluster-panel data">
+            <div class="cluster-title">
+              <span>数据面 CCE</span>
+              <small>dbay-cce</small>
+            </div>
+            <div class="cluster-grid data-grid">
+              <ArchBox v-if="node('data-proxy')" :node="node('data-proxy')!" tone="data" compact />
+              <ArchBox v-if="node('compute-pool')" :node="node('compute-pool')!" tone="compute" compact />
+              <ArchBox v-if="node('pageserver')" :node="node('pageserver')!" tone="storage" compact />
+              <ArchBox v-if="node('safekeeper')" :node="node('safekeeper')!" tone="storage" compact />
+              <ArchBox v-if="node('storage-broker')" :node="node('storage-broker')!" tone="storage" compact />
+            </div>
+            <div class="cluster-note">proxy 承接 PG；pageserver/safekeeper 提供 Neon 存储</div>
+          </section>
         </div>
 
         <div class="private-link">
           <span>{{ edgeLabel('control-cce', 'data-cce') }}</span>
         </div>
 
-        <div class="infra-band">
-          <div class="band-heading">
-            <span>Neon 数据面</span>
-            <small>同 VPC 内部服务；compute 按 DB / branch 弹性启动</small>
-          </div>
-          <ArchBox v-if="node('storage-plane')" :node="node('storage-plane')!" tone="storage" />
-          <ArchBox v-if="node('data-cce')" :node="node('data-cce')!" tone="data" />
-        </div>
-
-        <div class="infra-band shared">
-          <div class="band-heading">
-            <span>共享云服务</span>
-            <small>控制面状态、对象存储、观测和镜像分发</small>
-          </div>
-          <ArchBox v-if="node('rds')" :node="node('rds')!" tone="storage" />
-          <ArchBox v-if="node('obs')" :node="node('obs')!" tone="storage" />
-          <ArchBox v-if="node('aom')" :node="node('aom')!" tone="observability" />
-          <ArchBox v-if="node('lts')" :node="node('lts')!" tone="observability" />
-          <ArchBox v-if="node('swr')" :node="node('swr')!" tone="storage" />
+        <div class="shared-row">
+          <ArchBox v-if="node('rds')" :node="node('rds')!" tone="storage" compact />
+          <ArchBox v-if="node('obs')" :node="node('obs')!" tone="storage" compact />
+          <ArchBox v-if="node('aom')" :node="node('aom')!" tone="observability" compact />
+          <ArchBox v-if="node('lts')" :node="node('lts')!" tone="observability" compact />
+          <ArchBox v-if="node('swr')" :node="node('swr')!" tone="storage" compact />
         </div>
       </div>
     </div>
@@ -158,38 +150,43 @@ interface Resource {
 
 const latestTopology: Topology = {
   nodes: [
-    { id: 'console', label: 'Console / Admin', sublabel: 'Railway · dbay.cloud', desc: '用户控制台与 SRE 控制台；浏览器只访问控制面 API', type: 'access' },
-    { id: 'pg-client', label: 'PG Direct', sublabel: 'endpoint=<db>', desc: '长事务、会话状态、迁移任务默认使用 direct 连接', type: 'access' },
-    { id: 'pg-client-pooled', label: 'PG Pooled', sublabel: 'endpoint=<db>-pooler', desc: '短连接、API 服务、Serverless 函数主动选择 pooled 连接', type: 'access' },
-    { id: 'api-elb', label: 'api.dbay.cloud', sublabel: '公网 ELB :8443', desc: 'HTTPS API 入口，转发到控制面 CCE 的 API Gateway', type: 'network' },
-    { id: 'pg-elb', label: 'pg.dbay.cloud', sublabel: '公网 ELB :4432', desc: 'PG wire protocol 入口，转发到数据面 proxy', type: 'network' },
-    { id: 'pooler-route', label: '同一 PG 入口', sublabel: 'suffix: -pooler', desc: '不新增公网入口；proxy 根据 endpoint 后缀切换 direct / pooled', type: 'network' },
-    { id: 'control-cce', label: '控制面 CCE', sublabel: 'dbay-control-cce', desc: 'api-gateway · admin-api · serving-api · dicer-assigner · HPA', type: 'control' },
-    { id: 'api-gateway', label: 'API Gateway', sublabel: 'api.dbay.cloud :8443', desc: '按路径分流：SRE 请求到 admin-api，业务请求到 serving-api', type: 'control' },
-    { id: 'split-api', label: 'Split API', sublabel: 'admin-api · serving-api', desc: 'admin-api 只服务 /api/v1/admin；serving-api 服务业务 API 与 proxy 授权', type: 'control' },
-    { id: 'dicer', label: 'Dicer Assigner', sublabel: 'load-aware placement', desc: '消费 pageserver 实时负载，给租户与 shard 选择承载节点', type: 'control' },
-    { id: 'data-proxy', label: 'Shared proxy / pooler gateway', sublabel: 'data-plane proxy 2/2', desc: '统一处理认证、wake compute、direct 路由、PROXY_POOLED 连接复用', type: 'data' },
-    { id: 'compute-pool', label: 'Neon compute pods', sublabel: 'dbay-compute-pool', desc: '每个 DB / branch 一个 compute pod；控制面按需创建、挂起和恢复', type: 'compute' },
-    { id: 'data-cce', label: '数据面 CCE', sublabel: 'dbay-cce', desc: 'proxy、compute pods、3 pageserver、3 safekeeper、storage-broker/controller', type: 'data' },
-    { id: 'storage-plane', label: 'Neon 存储层', sublabel: 'pageserver · safekeeper · broker', desc: 'safekeeper 常驻；pageserver 本地缓存，远端对象存储保存 durable 数据', type: 'storage' },
-    { id: 'rds', label: 'RDS PostgreSQL', sublabel: '元数据库', desc: '租户、DB、branch、Placement、审计和操作状态', type: 'storage' },
-    { id: 'obs', label: 'OBS 对象存储', sublabel: 'dbay-mainstore', desc: '数据页文件、索引文件、WAL 归档、备份快照', type: 'storage' },
-    { id: 'aom', label: 'AOM / Prometheus', sublabel: 'metrics', desc: '数据面写入指标；控制面读取健康和容量信号', type: 'observability' },
-    { id: 'lts', label: 'LTS 日志服务', sublabel: 'logs', desc: '控制面与数据面写入应用日志、审计日志', type: 'observability' },
-    { id: 'swr', label: 'SWR 镜像仓库', sublabel: 'flex', desc: '控制面、数据面和 compute pod 镜像', type: 'storage' },
+    { id: 'console', label: 'Console / Admin', sublabel: 'Railway', desc: 'Web UI', type: 'access' },
+    { id: 'pg-client', label: 'PG Direct', sublabel: '<db>', desc: '长连接', type: 'access' },
+    { id: 'pg-client-pooled', label: 'PG Pooled', sublabel: '<db>-pooler', desc: '短连接', type: 'access' },
+    { id: 'api-elb', label: 'api.dbay.cloud', sublabel: 'ELB :8443', desc: 'HTTPS', type: 'network' },
+    { id: 'pg-elb', label: 'pg.dbay.cloud', sublabel: 'ELB :4432', desc: 'PG wire', type: 'network' },
+    { id: 'pooler-route', label: 'Pooled Route', sublabel: '-pooler', desc: 'PG suffix', type: 'network' },
+    { id: 'control-cce', label: '控制面 CCE', sublabel: 'dbay-control-cce', desc: 'API + Dicer', type: 'control' },
+    { id: 'api-gateway', label: 'api-gateway', sublabel: 'nginx 2/2', desc: ':8443', type: 'control' },
+    { id: 'admin-api', label: 'admin-api', sublabel: 'pod 1/1', desc: '/api/v1/admin', type: 'control' },
+    { id: 'serving-api', label: 'serving-api', sublabel: 'pod 1/1', desc: '/api/v1', type: 'control' },
+    { id: 'split-api', label: 'Split API', sublabel: 'admin + serving', desc: '同镜像不同角色', type: 'control' },
+    { id: 'dicer', label: 'dicer-assigner', sublabel: 'pod 1/1', desc: 'placement', type: 'control' },
+    { id: 'data-proxy', label: 'proxy / pooler', sublabel: 'pod 2/2', desc: 'PG route', type: 'data' },
+    { id: 'compute-pool', label: 'compute pods', sublabel: '按 DB 启动', desc: 'serverless PG', type: 'compute' },
+    { id: 'data-cce', label: '数据面 CCE', sublabel: 'dbay-cce', desc: 'Neon data plane', type: 'data' },
+    { id: 'storage-plane', label: 'Neon 存储', sublabel: 'page/WAL', desc: 'durable data', type: 'storage' },
+    { id: 'pageserver', label: 'pageserver', sublabel: 'statefulset 3', desc: 'page cache', type: 'storage' },
+    { id: 'safekeeper', label: 'safekeeper', sublabel: 'statefulset 3', desc: 'WAL quorum', type: 'storage' },
+    { id: 'storage-broker', label: 'storage-broker', sublabel: 'service', desc: 'membership', type: 'storage' },
+    { id: 'rds', label: 'RDS', sublabel: 'PostgreSQL', desc: 'metadata', type: 'storage' },
+    { id: 'obs', label: 'OBS', sublabel: 'mainstore', desc: 'pages / WAL', type: 'storage' },
+    { id: 'aom', label: 'AOM', sublabel: 'metrics', desc: 'monitoring', type: 'observability' },
+    { id: 'lts', label: 'LTS', sublabel: 'logs', desc: 'diagnostics', type: 'observability' },
+    { id: 'swr', label: 'SWR', sublabel: 'images', desc: 'registry', type: 'storage' },
   ],
   edges: [
     { from: 'console', to: 'api-elb', label: 'HTTPS API' },
     { from: 'api-elb', to: 'api-gateway', label: 'TCP TLS :8443' },
-    { from: 'api-gateway', to: 'split-api', label: 'Path routing' },
-    { from: 'split-api', to: 'control-cce', label: 'K8s service' },
-    { from: 'split-api', to: 'dicer', label: 'placement / load' },
+    { from: 'api-gateway', to: 'admin-api', label: 'admin path' },
+    { from: 'api-gateway', to: 'serving-api', label: 'serving path' },
+    { from: 'serving-api', to: 'dicer', label: 'placement / load' },
     { from: 'pg-client', to: 'pg-elb', label: 'Direct PG' },
     { from: 'pg-client-pooled', to: 'pg-elb', label: 'Pooled PG' },
     { from: 'pg-elb', to: 'data-proxy', label: 'Service LB' },
     { from: 'pooler-route', to: 'data-proxy', label: 'endpoint route' },
-    { from: 'dicer', to: 'data-cce', label: 'pageserver metrics' },
-    { from: 'control-cce', to: 'data-cce', label: '私网 kube API / 内网 ELB' },
+    { from: 'dicer', to: 'data-cce', label: 'pageserver load / membership' },
+    { from: 'control-cce', to: 'data-cce', label: '私网 kube API · Dicer 读取 pageserver 负载' },
     { from: 'data-proxy', to: 'compute-pool', label: 'wake / route' },
     { from: 'compute-pool', to: 'storage-plane', label: 'Neon page/WAL' },
     { from: 'control-cce', to: 'rds', label: '元数据读写' },
@@ -357,7 +354,16 @@ function edgeLabel(from: string, to: string) {
 }
 
 function normalizeTopology(data: Topology | null | undefined) {
-  if (data?.nodes?.some(item => item.id === 'data-proxy') && data.nodes.some(item => item.id === 'pg-client-pooled')) {
+  if (!data) {
+    return latestTopology
+  }
+  const nodeIds = new Set(data?.nodes?.map(item => item.id) || [])
+  if (
+    nodeIds.has('admin-api') &&
+    nodeIds.has('serving-api') &&
+    nodeIds.has('pageserver') &&
+    nodeIds.has('safekeeper')
+  ) {
     return data
   }
   return latestTopology
@@ -376,24 +382,13 @@ const ArchBox = defineComponent({
     node: { type: Object as PropType<TopologyNode>, required: true },
     tone: { type: String, default: 'default' },
     wide: { type: Boolean, default: false },
+    compact: { type: Boolean, default: false },
   },
   setup(props) {
-    return () => h('div', { class: ['arch-box', `tone-${props.tone}`, { wide: props.wide }] }, [
+    return () => h('div', { class: ['arch-box', `tone-${props.tone}`, { wide: props.wide, compact: props.compact }] }, [
       h('div', { class: 'arch-box-label' }, props.node.label),
       h('div', { class: 'arch-box-value' }, props.node.sublabel),
       h('div', { class: 'arch-box-desc' }, props.node.desc),
-    ])
-  },
-})
-
-const FlowArrow = defineComponent({
-  name: 'FlowArrow',
-  props: {
-    label: { type: String, required: true },
-  },
-  setup(props) {
-    return () => h('div', { class: 'flow-arrow' }, [
-      h('span', props.label),
     ])
   },
 })
@@ -425,69 +420,122 @@ onMounted(async () => {
 .console-link { color: var(--c-accent-text); text-decoration: none; font-size: 13px; }
 .console-link:hover { color: var(--c-accent-hover); text-decoration: underline; text-underline-offset: 3px; }
 .arch-diagram {
-  padding: var(--space-lg);
+  padding: 14px 16px 16px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
-  background:
-    linear-gradient(180deg, color-mix(in oklch, var(--c-bg-alt) 82%, #fff), #fff 72%);
+  gap: 8px;
+  background: color-mix(in oklch, var(--c-bg-alt) 76%, #fff);
 }
-.arch-map {
+.client-row,
+.edge-row,
+.shared-row {
   display: grid;
-  grid-template-columns: minmax(190px, 0.9fr) 92px minmax(190px, 0.9fr) 92px minmax(300px, 1.35fr);
-  gap: var(--space-sm);
-  align-items: stretch;
+  gap: 8px;
 }
-.arch-column {
+.client-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.edge-row {
+  align-self: center;
+  width: min(620px, 100%);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.shared-row {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.cluster-row {
   display: grid;
-  grid-template-rows: auto repeat(3, minmax(122px, 1fr));
-  gap: var(--space-sm);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.18fr);
+  gap: 10px;
 }
-.arch-column-main {
-  grid-template-rows: auto minmax(122px, 1fr) minmax(122px, 1fr) minmax(122px, 1fr);
+.cluster-panel {
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  min-width: 0;
 }
-.arch-flow-column {
-  display: grid;
-  grid-template-rows: auto repeat(3, minmax(122px, 1fr));
-  gap: var(--space-sm);
-  padding-top: 29px;
+.cluster-panel.control {
+  border-color: color-mix(in oklch, var(--c-primary) 32%, var(--c-border));
 }
-.column-title {
-  color: var(--c-text-3);
+.cluster-panel.data {
+  border-color: color-mix(in oklch, var(--c-accent) 28%, var(--c-border));
+}
+.cluster-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+  color: var(--c-text);
+}
+.cluster-title span {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+}
+.cluster-title small,
+.cluster-note {
+  color: var(--c-text-2);
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: uppercase;
+}
+.cluster-note {
+  margin-top: 8px;
+  line-height: 1.35;
+}
+.cluster-grid {
+  display: grid;
+  gap: 8px;
+}
+.control-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.data-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .arch-box {
   border: 1px solid var(--c-border);
   background: color-mix(in oklch, #fff 88%, var(--c-bg-alt));
-  border-radius: 8px;
-  padding: var(--space-md);
-  min-height: 122px;
+  border-radius: 7px;
+  padding: 9px 10px;
+  min-height: 68px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  box-shadow: 0 1px 0 rgba(42, 77, 106, 0.04), 0 10px 28px rgba(42, 77, 106, 0.04);
+  box-shadow: 0 1px 0 rgba(42, 77, 106, 0.04);
+  min-width: 0;
 }
 .arch-box.wide { min-width: 0; }
+.arch-box.compact {
+  min-height: 56px;
+  padding: 7px 9px;
+}
 .arch-box-label {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 16px;
+  font-size: 13px;
   color: var(--c-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .arch-box-value {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--c-text-2);
-  margin-top: 4px;
+  margin-top: 2px;
   font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .arch-box-desc {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--c-text-2);
-  margin-top: 8px;
-  line-height: 1.45;
+  margin-top: 3px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .tone-access { border-color: color-mix(in oklch, var(--c-primary) 20%, var(--c-border)); }
 .tone-network { border-color: color-mix(in oklch, var(--c-accent) 38%, var(--c-border)); }
@@ -508,114 +556,70 @@ onMounted(async () => {
   border-color: color-mix(in oklch, var(--c-accent) 24%, var(--c-border));
   background: color-mix(in oklch, var(--c-accent-light) 24%, #fff);
 }
-.flow-arrow {
+.down-link {
+  align-self: center;
+  width: min(360px, 80%);
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--c-text-2);
   font-size: 11px;
-  text-align: center;
   position: relative;
-  min-height: 122px;
 }
-.flow-arrow::before {
+.down-link::before {
   content: "";
   position: absolute;
-  left: 4px;
-  right: 16px;
-  top: 50%;
-  border-top: 1px solid color-mix(in oklch, var(--c-text-3) 65%, transparent);
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  border-left: 1px solid color-mix(in oklch, var(--c-text-3) 68%, transparent);
 }
-.flow-arrow::after {
+.down-link::after {
   content: "";
   position: absolute;
-  right: 7px;
-  top: calc(50% - 4px);
+  bottom: 1px;
+  left: calc(50% - 4px);
   width: 8px;
   height: 8px;
-  border-top: 1px solid color-mix(in oklch, var(--c-text-3) 65%, transparent);
-  border-right: 1px solid color-mix(in oklch, var(--c-text-3) 65%, transparent);
+  border-right: 1px solid color-mix(in oklch, var(--c-text-3) 68%, transparent);
+  border-bottom: 1px solid color-mix(in oklch, var(--c-text-3) 68%, transparent);
   transform: rotate(45deg);
 }
-.flow-arrow span {
+.down-link span {
   position: relative;
   z-index: 1;
-  background: color-mix(in oklch, var(--c-bg-alt) 82%, #fff);
-  padding: 2px 6px;
-  border-radius: 999px;
+  background: color-mix(in oklch, var(--c-bg-alt) 86%, #fff);
+  padding: 0 8px;
 }
 .private-link {
   align-self: center;
-  width: min(680px, 100%);
+  width: min(620px, 100%);
   border: 1px dashed color-mix(in oklch, var(--c-primary) 38%, var(--c-border));
-  border-radius: 999px;
-  padding: 7px 14px;
+  border-radius: 8px;
+  padding: 5px 12px;
   text-align: center;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--c-primary);
   background: #fff;
 }
-.infra-band {
-  border: 1px solid var(--c-border);
-  border-radius: 8px;
-  padding: var(--space-md);
-  display: grid;
-  grid-template-columns: minmax(170px, 0.55fr) repeat(2, minmax(220px, 1fr));
-  gap: var(--space-sm);
-  align-items: stretch;
-  background: rgba(255, 255, 255, 0.64);
-}
-.infra-band.control {
-  grid-template-columns: minmax(190px, 0.7fr) repeat(3, minmax(180px, 1fr));
-}
-.infra-band.shared {
-  grid-template-columns: minmax(170px, 0.7fr) repeat(5, minmax(140px, 1fr));
-}
-.band-heading {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-weight: 600;
-  color: var(--c-text);
-  align-self: center;
-}
-.band-heading small {
-  font-weight: 400;
-  color: var(--c-text-2);
-  line-height: 1.45;
-}
 
 @media (max-width: 1180px) {
-  .arch-map,
-  .infra-band,
-  .infra-band.control,
-  .infra-band.shared {
+  .cluster-row {
     grid-template-columns: 1fr;
   }
-  .arch-column,
-  .arch-column-main,
-  .arch-flow-column {
-    grid-template-rows: auto;
+  .shared-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  .arch-flow-column {
-    padding-top: 0;
-  }
-  .flow-arrow {
-    min-height: 42px;
-  }
-  .flow-arrow::before {
-    left: 50%;
-    right: auto;
-    top: 5px;
-    bottom: 13px;
-    border-top: 0;
-    border-left: 1px solid color-mix(in oklch, var(--c-text-3) 65%, transparent);
-  }
-  .flow-arrow::after {
-    right: calc(50% - 4px);
-    top: auto;
-    bottom: 7px;
-    transform: rotate(135deg);
+}
+
+@media (max-width: 760px) {
+  .client-row,
+  .edge-row,
+  .control-grid,
+  .data-grid,
+  .shared-row {
+    grid-template-columns: 1fr;
   }
 }
 </style>
