@@ -20,7 +20,6 @@ import com.lakeon.service.exception.NotFoundException;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -180,30 +179,6 @@ public class AdminController {
             }).toList(),
             "placements", pageserverPlacementService.placements().stream().map(this::placementToMap).toList()
         );
-    }
-
-    @GetMapping("/compute/cold-start")
-    public Map<String, Object> coldStartAnalysis(@RequestParam(defaultValue = "7") int days,
-                                                 @RequestParam(required = false) Instant now) {
-        Instant reference = now != null ? now : Instant.now();
-        Instant after = reference.minusSeconds(Math.max(days, 1) * 24L * 60L * 60L);
-        List<OperationLogEntity> logs = operationLogRepository.findByOperationTypeAndStatusAndStartedAtAfter(
-                OperationType.RESUME, OperationStatus.SUCCESS, after);
-        List<OperationLogEntity> cold = logs.stream().filter(this::isColdResume).toList();
-        List<OperationLogEntity> warm = logs.stream().filter(this::isWarmResume).toList();
-
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("cold", resumeStats(cold));
-        out.put("warm", resumeStats(warm));
-        out.put("trend", coldStartTrend(cold));
-        out.put("by_database", coldStartByDatabase(cold));
-        out.put("recent", cold.stream()
-                .sorted(Comparator.comparing(OperationLogEntity::getStartedAt,
-                        Comparator.nullsLast(Comparator.reverseOrder())))
-                .limit(20)
-                .map(this::recentColdStart)
-                .toList());
-        return out;
     }
 
     @GetMapping("/pageserver/placements/{tenantId}")
@@ -388,77 +363,4 @@ public class AdminController {
         return out;
     }
 
-    private boolean isColdResume(OperationLogEntity log) {
-        return "COLD".equalsIgnoreCase(log.getResumeType());
-    }
-
-    private boolean isWarmResume(OperationLogEntity log) {
-        return "WARM".equalsIgnoreCase(log.getResumeType());
-    }
-
-    private Map<String, Object> resumeStats(List<OperationLogEntity> logs) {
-        List<Long> durations = logs.stream()
-                .map(OperationLogEntity::getDurationMs)
-                .filter(value -> value != null)
-                .sorted()
-                .toList();
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("count", durations.size());
-        out.put("avg_ms", durations.isEmpty() ? 0.0 :
-                durations.stream().mapToLong(Long::longValue).average().orElse(0.0));
-        out.put("p50_ms", percentile(durations, 0.50));
-        out.put("p90_ms", percentile(durations, 0.90));
-        out.put("p99_ms", percentile(durations, 0.99));
-        return out;
-    }
-
-    private long percentile(List<Long> sortedDurations, double percentile) {
-        if (sortedDurations.isEmpty()) {
-            return 0L;
-        }
-        int index = (int) Math.ceil(sortedDurations.size() * percentile) - 1;
-        index = Math.max(0, Math.min(index, sortedDurations.size() - 1));
-        return sortedDurations.get(index);
-    }
-
-    private List<Map<String, Object>> coldStartTrend(List<OperationLogEntity> coldLogs) {
-        return coldLogs.stream()
-                .filter(log -> log.getStartedAt() != null)
-                .collect(Collectors.groupingBy(
-                        log -> LocalDate.ofInstant(log.getStartedAt(), ZoneOffset.UTC),
-                        Collectors.counting()))
-                .entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(entry -> {
-                    Map<String, Object> out = new LinkedHashMap<>();
-                    out.put("date", entry.getKey().toString());
-                    out.put("count", entry.getValue());
-                    return out;
-                })
-                .toList();
-    }
-
-    private List<Map<String, Object>> coldStartByDatabase(List<OperationLogEntity> coldLogs) {
-        return coldLogs.stream()
-                .collect(Collectors.groupingBy(OperationLogEntity::getDatabaseName, Collectors.counting()))
-                .entrySet().stream()
-                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
-                .map(entry -> {
-                    Map<String, Object> out = new LinkedHashMap<>();
-                    out.put("database", entry.getKey());
-                    out.put("count", entry.getValue());
-                    return out;
-                })
-                .toList();
-    }
-
-    private Map<String, Object> recentColdStart(OperationLogEntity log) {
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("id", log.getId());
-        out.put("database_id", log.getDatabaseId());
-        out.put("database_name", log.getDatabaseName());
-        out.put("started_at", log.getStartedAt());
-        out.put("duration_ms", log.getDurationMs());
-        return out;
-    }
 }

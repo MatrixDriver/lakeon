@@ -59,8 +59,6 @@ class AdminPageserverControllerTest {
     @MockBean
     private PageserverPlacementService pageserverPlacementService;
     @MockBean
-    private OperationLogRepository operationLogRepository;
-    @MockBean
     private LakeonProperties lakeonProperties;
 
     private final LakeonProperties.AdminConfig adminConfig = new LakeonProperties.AdminConfig();
