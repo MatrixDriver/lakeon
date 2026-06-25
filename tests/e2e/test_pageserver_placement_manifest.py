@@ -94,3 +94,4 @@ def test_control_plane_split_uses_gateway_and_does_not_render_legacy_lakeon_api(
     assert public_service, manifest
     assert "app: api-gateway" in public_service.group(0)
     assert "targetPort: https" in public_service.group(0)
+    assert "name: http-internal" not in public_service.group(0)

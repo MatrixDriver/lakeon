@@ -151,7 +151,7 @@ api:
     tag: "0.1.0"
   gateway:
     replicas: 2
-    image: "nginx:1.27-alpine"
+    image: "nginx:1.27"
     resources:
       requests:
         cpu: "50m"

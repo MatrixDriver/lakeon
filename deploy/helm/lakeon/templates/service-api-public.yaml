@@ -19,7 +19,9 @@ spec:
     - name: https
       port: {{ .Values.api.publicElb.port | default 8443 }}
       targetPort: {{ ternary "https" "http" .Values.api.split.enabled }}
+    {{- if not .Values.api.split.enabled }}
     - name: http-internal
       port: {{ .Values.api.publicElb.internalPort | default 8088 }}
       targetPort: http-internal
+    {{- end }}
 {{- end }}
