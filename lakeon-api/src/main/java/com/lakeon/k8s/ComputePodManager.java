@@ -17,6 +17,7 @@ import io.fabric8.kubernetes.client.dsl.ExecWatch;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.io.ByteArrayOutputStream;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -34,17 +35,29 @@ public class ComputePodManager {
     private final ComputeSpecBuilder specBuilder;
     private final DatabaseRepository databaseRepository;
 
+    @Autowired
     public ComputePodManager(KubernetesClient k8sClient, LakeonProperties props, ObjectMapper objectMapper,
-                             MeterRegistry meterRegistry, DatabaseRepository databaseRepository) {
+                             MeterRegistry meterRegistry, ComputeSpecBuilder specBuilder,
+                             DatabaseRepository databaseRepository) {
         this.k8sClient = k8sClient;
         this.props = props;
         this.objectMapper = objectMapper;
         this.meterRegistry = meterRegistry;
-        this.specBuilder = new ComputeSpecBuilder(props, objectMapper);
+        this.specBuilder = specBuilder;
         this.databaseRepository = databaseRepository;
         Gauge.builder("lakeon_compute_pods_active", this, ComputePodManager::countActivePods)
             .description("Number of active compute pods")
             .register(meterRegistry);
+    }
+
+    public ComputePodManager(KubernetesClient k8sClient, LakeonProperties props, ObjectMapper objectMapper,
+                             MeterRegistry meterRegistry, DatabaseRepository databaseRepository) {
+        this(k8sClient, props, objectMapper, meterRegistry,
+            new ComputeSpecBuilder(props, objectMapper), databaseRepository);
+    }
+
+    ComputeSpecBuilder specBuilderForTests() {
+        return specBuilder;
     }
 
     /**

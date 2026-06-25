@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.put;
 import static com.github.tomakehurst.wiremock.client.WireMock.putRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
@@ -54,6 +56,35 @@ class NeonApiClientPlacementTest {
             .filter(server -> server != expected)
             .mapToInt(server -> server.findAllUnmatchedRequests().size() + server.getAllServeEvents().size())
             .sum()).isEqualTo(0);
+    }
+
+    @Test
+    void listTenantsAggregatesAllConfiguredPageservers() {
+        ps0.start();
+        ps1.start();
+        ps2.start();
+        LakeonProperties props = new LakeonProperties();
+        props.getNeon().setPageserverUrl(ps0.baseUrl());
+        props.getNeon().setPageserverNodes(List.of(
+            new LakeonProperties.PageserverNodeConfig("ps-0", ps0.baseUrl(), "pageserver-0", 6400),
+            new LakeonProperties.PageserverNodeConfig("ps-1", ps1.baseUrl(), "pageserver-1", 6400),
+            new LakeonProperties.PageserverNodeConfig("ps-2", ps2.baseUrl(), "pageserver-2", 6400)
+        ));
+        ps0.stubFor(get(urlEqualTo("/v1/tenant"))
+            .willReturn(aResponse().withStatus(200).withBody("[{\"id\":\"tenant-0\"}]")));
+        ps1.stubFor(get(urlEqualTo("/v1/tenant"))
+            .willReturn(aResponse().withStatus(200).withBody("[{\"id\":\"tenant-1\"}]")));
+        ps2.stubFor(get(urlEqualTo("/v1/tenant"))
+            .willReturn(aResponse().withStatus(200).withBody("[{\"id\":\"tenant-2\"}]")));
+
+        NeonApiClient client = new NeonApiClient(props, new PageserverPlacementService(props));
+
+        assertThat(client.listTenants())
+            .extracting(tenant -> tenant.get("id"))
+            .containsExactlyInAnyOrder("tenant-0", "tenant-1", "tenant-2");
+        ps0.verify(getRequestedFor(urlEqualTo("/v1/tenant")));
+        ps1.verify(getRequestedFor(urlEqualTo("/v1/tenant")));
+        ps2.verify(getRequestedFor(urlEqualTo("/v1/tenant")));
     }
 
     private WireMockServer serverFor(String nodeId) {

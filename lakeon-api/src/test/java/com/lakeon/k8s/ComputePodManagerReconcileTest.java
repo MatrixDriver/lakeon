@@ -95,6 +95,20 @@ class ComputePodManagerReconcileTest {
     }
 
     @Test
+    void constructor_uses_injected_compute_spec_builder() {
+        KubernetesClient k8s = mock(KubernetesClient.class);
+        LakeonProperties props = new LakeonProperties();
+        ObjectMapper om = new ObjectMapper();
+        SimpleMeterRegistry reg = new SimpleMeterRegistry();
+        DatabaseRepository repository = mock(DatabaseRepository.class);
+        ComputeSpecBuilder specBuilder = mock(ComputeSpecBuilder.class);
+
+        ComputePodManager manager = new ComputePodManager(k8s, props, om, reg, specBuilder, repository);
+
+        assertSame(specBuilder, manager.specBuilderForTests());
+    }
+
+    @Test
     void updatePasswordInComputeConfig_updatesRoleRegardlessOfFieldOrder() throws Exception {
         String config = """
             {"spec":{"cluster":{"roles":[

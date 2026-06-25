@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -374,21 +375,38 @@ public class NeonApiClient {
      * GET /v1/tenant
      */
     public List<Map<String, Object>> listTenants() {
+        if (placementService != null && !placementService.configuredNodes().isEmpty()) {
+            Map<String, Map<String, Object>> tenantsById = new LinkedHashMap<>();
+            for (var node : placementService.configuredNodes()) {
+                for (Map<String, Object> tenant : listTenantsFrom(node.httpUrl())) {
+                    Object id = tenant.get("id");
+                    if (id != null) {
+                        tenantsById.put(id.toString(), tenant);
+                    }
+                }
+            }
+            return List.copyOf(tenantsById.values());
+        }
+        return listTenantsFrom(defaultBaseUrl());
+    }
+
+    private List<Map<String, Object>> listTenantsFrom(String pageserverBaseUrl) {
         try {
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(defaultBaseUrl() + "/v1/tenant"))
+                .uri(URI.create(pageserverBaseUrl + "/v1/tenant"))
                 .GET()
                 .timeout(Duration.ofSeconds(15))
                 .build();
             HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() >= 400) {
-                throw new NeonApiException("Failed to list tenants: HTTP " + response.statusCode(), response.statusCode());
+                throw new NeonApiException("Failed to list tenants from " + pageserverBaseUrl
+                    + ": HTTP " + response.statusCode(), response.statusCode());
             }
             return objectMapper.readValue(response.body(), new TypeReference<>() {});
         } catch (NeonApiException e) {
             throw e;
         } catch (Exception e) {
-            throw new NeonApiException("Failed to list tenants: " + e.getMessage(), e);
+            throw new NeonApiException("Failed to list tenants from " + pageserverBaseUrl + ": " + e.getMessage(), e);
         }
     }
 
