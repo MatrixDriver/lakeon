@@ -6,6 +6,7 @@ import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.enums.BranchStatus;
 import com.lakeon.model.enums.ComputeStatus;
 import com.lakeon.model.enums.DatabaseStatus;
+import com.lakeon.neon.NeonApiClient;
 import com.lakeon.repository.BranchRepository;
 import com.lakeon.repository.DatabaseRepository;
 import org.slf4j.Logger;
@@ -26,19 +27,22 @@ public class DatabaseProvisioningService {
     private final OperationLogService operationLogService;
     private final DatabaseService databaseService;
     private final TransactionTemplate txTemplate;
+    private final NeonApiClient neonApiClient;
 
     public DatabaseProvisioningService(DatabaseRepository databaseRepository,
                                         BranchRepository branchRepository,
                                         ComputePodManager computePodManager,
                                         OperationLogService operationLogService,
                                         @org.springframework.context.annotation.Lazy DatabaseService databaseService,
-                                        TransactionTemplate txTemplate) {
+                                        TransactionTemplate txTemplate,
+                                        NeonApiClient neonApiClient) {
         this.databaseRepository = databaseRepository;
         this.branchRepository = branchRepository;
         this.computePodManager = computePodManager;
         this.operationLogService = operationLogService;
         this.databaseService = databaseService;
         this.txTemplate = txTemplate;
+        this.neonApiClient = neonApiClient;
     }
 
     @Async("databaseCreateExecutor")
@@ -48,6 +52,11 @@ public class DatabaseProvisioningService {
             // Step 1: Create compute pod
             updateStatusMessage(databaseId, "正在启动计算节点（如需扩容节点可能需要1~2分钟）...");
             DatabaseEntity entity = databaseRepository.findById(databaseId).orElseThrow();
+            if (entity.getNeonTenantId() != null) {
+                log.info("Ensuring tenant {} is active on pageserver before database provisioning compute start",
+                    entity.getNeonTenantId());
+                neonApiClient.waitForTenantActive(entity.getNeonTenantId(), 30);
+            }
             computePodManager.createComputePod(entity);
             // Persist compute info (podName/host/port) immediately so other paths can find it
             databaseRepository.save(entity);

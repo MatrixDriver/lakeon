@@ -154,6 +154,12 @@ public class ComputeSpecBuilder {
 
     String buildPageserverPgConnstring(DatabaseEntity entity) {
         if (entity != null && entity.getNeonTenantId() != null && !entity.getNeonTenantId().isBlank()) {
+            Optional<String> attached = findAttachedTenantPageserver(entity.getNeonTenantId());
+            if (attached.isPresent()) {
+                log.info("Compute spec using attached pageserver for tenant {}: {}",
+                    entity.getNeonTenantId(), attached.get());
+                return attached.get();
+            }
             Optional<String> assigned = placementService.placementsForTenant(entity.getNeonTenantId()).stream()
                 .filter(placement -> placement.shardId() == 0)
                 .findFirst()
@@ -162,12 +168,6 @@ public class ComputeSpecBuilder {
                 log.info("Compute spec using assigned pageserver for tenant {}: {}",
                     entity.getNeonTenantId(), assigned.get());
                 return assigned.get();
-            }
-            Optional<String> attached = findAttachedTenantPageserver(entity.getNeonTenantId());
-            if (attached.isPresent()) {
-                log.info("Compute spec using attached pageserver for tenant {}: {}",
-                    entity.getNeonTenantId(), attached.get());
-                return attached.get();
             }
             String resolved = placementService.resolve(entity.getNeonTenantId(), 0).node().pgConnstring();
             log.info("Compute spec using resolved pageserver for tenant {}: {}",

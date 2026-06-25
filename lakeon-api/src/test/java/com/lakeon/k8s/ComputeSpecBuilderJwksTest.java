@@ -4,15 +4,20 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.pageserver.PageserverAssignmentEntity;
+import com.lakeon.pageserver.PageserverAssignmentRepository;
 import com.lakeon.pageserver.PageserverPlacementService;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ComputeSpecBuilderJwksTest {
     private static LakeonProperties newProps() {
@@ -166,6 +171,58 @@ class ComputeSpecBuilderJwksTest {
             ));
             ObjectMapper om = new ObjectMapper();
             ComputeSpecBuilder builder = new ComputeSpecBuilder(props, om, new PageserverPlacementService(props));
+            DatabaseEntity e = new DatabaseEntity();
+            e.setId("db_test");
+            e.setName("test");
+            e.setNeonTenantId("tenant-a");
+            e.setNeonTimelineId("timeline-a");
+
+            String json = builder.generateComputeConfig(e, 0);
+            JsonNode root = om.readTree(json);
+
+            assertThat(root.path("spec").path("pageserver_connstring").asText())
+                .isEqualTo("postgresql://pageserver-1.lakeon.svc.cluster.local:6400");
+            assertThat(root.path("spec").path("cluster").path("settings").findValues("value").stream()
+                .map(JsonNode::asText)
+                .filter("postgresql://pageserver-1.lakeon.svc.cluster.local:6400"::equals)
+                .count()).isEqualTo(1);
+        } finally {
+            ps0.stop();
+            ps1.stop();
+        }
+    }
+
+    @Test
+    void generateComputeConfig_prefersAttachedPageserverOverStaleAssignment() throws Exception {
+        WireMockServer ps0 = new WireMockServer(0);
+        WireMockServer ps1 = new WireMockServer(0);
+        ps0.start();
+        ps1.start();
+        try {
+            ps0.stubFor(get(urlEqualTo("/v1/tenant/tenant-a"))
+                .willReturn(aResponse().withStatus(404)));
+            ps1.stubFor(get(urlEqualTo("/v1/tenant/tenant-a"))
+                .willReturn(aResponse().withStatus(200).withBody("{\"id\":\"tenant-a\"}")));
+
+            LakeonProperties props = newProps();
+            props.getNeon().setPageserverNodes(List.of(
+                new LakeonProperties.PageserverNodeConfig("ps-0", ps0.baseUrl(), "pageserver-0", 6400),
+                new LakeonProperties.PageserverNodeConfig("ps-1", ps1.baseUrl(), "pageserver-1", 6400)
+            ));
+            PageserverAssignmentEntity stale = new PageserverAssignmentEntity();
+            stale.setId(PageserverAssignmentEntity.id("tenant-a", 0));
+            stale.setTenantId("tenant-a");
+            stale.setShardId(0);
+            stale.setNodeId("ps-0");
+            stale.setEpoch(1L);
+            stale.setSource("dicer-live");
+            stale.setStatus("ACTIVE");
+            PageserverAssignmentRepository repo = mock(PageserverAssignmentRepository.class);
+            when(repo.findAllByTenantId("tenant-a")).thenReturn(List.of(stale));
+            when(repo.findById("tenant-a:0")).thenReturn(Optional.of(stale));
+
+            ObjectMapper om = new ObjectMapper();
+            ComputeSpecBuilder builder = new ComputeSpecBuilder(props, om, new PageserverPlacementService(props, repo));
             DatabaseEntity e = new DatabaseEntity();
             e.setId("db_test");
             e.setName("test");
