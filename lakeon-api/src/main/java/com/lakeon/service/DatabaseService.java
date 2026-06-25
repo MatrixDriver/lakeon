@@ -1002,7 +1002,7 @@ public class DatabaseService {
         return buildConnectionUri(dbUser, dbName, dbName);
     }
 
-    String buildPooledConnectionUri(String connectionUri) {
+    public String buildPooledConnectionUri(String connectionUri) {
         if (connectionUri == null || connectionUri.isBlank()) {
             return null;
         }

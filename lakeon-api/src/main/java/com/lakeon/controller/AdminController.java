@@ -214,6 +214,8 @@ public class AdminController {
         out.put("created_at", db.getCreatedAt());
         out.put("updated_at", db.getUpdatedAt());
         out.put("compute_pod_name", db.getComputePodName());
+        out.put("connection_uri", db.getConnectionUri());
+        out.put("pooled_connection_uri", databaseService.buildPooledConnectionUri(db.getConnectionUri()));
         out.put("storage_limit_gb", db.getStorageLimitGb());
         return out;
     }
