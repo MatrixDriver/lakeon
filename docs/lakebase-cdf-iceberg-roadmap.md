@@ -1,5 +1,26 @@
 # Lakebase CDF and Lakeon-managed Iceberg Roadmap
 
+## Implementation Status (2026-06-25)
+
+Current stage: Phase 1 MVP is usable, and the first versions of Phase 2 server-side planning and Phase 3 lazy export are implemented and deployed for `hwstaff`.
+
+Validated paths:
+
+- A user can create a CDF stream for a Lakebase table, resume it, and get an initial backfill snapshot.
+- Inserts, updates, and deletes after resume are captured by a Lakebase trigger into `_lakeon_iceberg.cdf_change_events`.
+- A background poller drains captured events into Lakeon-managed Iceberg snapshots and Parquet data files.
+- Lakeon Iceberg REST Catalog can load the managed table and return the current snapshot.
+- Lakeon server-side planning can return file scan tasks from tenant Lakebase metadata without reading OBS manifests in the hot path.
+- Lazy standard Iceberg export can materialize metadata and manifest files on demand.
+- Public API focused E2E passed through `https://api.dbay.cloud:8443`.
+- Console CDF page build and Playwright E2E passed.
+
+Important implementation note:
+
+- The current incremental capture is trigger-based, not PostgreSQL logical decoding. It is suitable for the MVP and validates the Lakebase-backed Iceberg metadata path, but it is not the final high-throughput CDC implementation.
+- The proper logical decoding path remains a hardening item before large production workloads.
+- The current change representation captures the post-image for insert/update and the old row for delete. It does not yet expose before/after update pairs.
+
 ## Core Clarification
 
 Lakeon will not provide automatic query path selection in the first implementation.
@@ -32,11 +53,13 @@ Success criteria:
 
 Goal: users can turn on CDF for a Lakebase table and get a readable managed lakehouse table.
 
+Status: MVP implemented with trigger-based incremental capture. Logical decoding remains a hardening follow-up.
+
 Deliverables:
 
 - API to enable CDF for a Lakebase table.
 - Consistent initial backfill snapshot.
-- Logical decoding from the captured backfill LSN.
+- Incremental capture from the backfill point. MVP uses table triggers and `_lakeon_iceberg.cdf_change_events`; final production CDC should move to logical decoding from the captured backfill LSN.
 - OBS Parquet data files.
 - `_lakeon_iceberg` tables for catalog state, snapshots, data files, and CDF offsets.
 - Basic Lakeon Iceberg REST Catalog load endpoint.
@@ -52,11 +75,13 @@ Success criteria:
 - Open CDF on `public.orders`.
 - Backfill creates a complete initial snapshot.
 - Inserts, updates, and deletes after the backfill LSN appear in later snapshots.
-- dbay-agent Python jobs can read the table through Iceberg/PyIceberg-compatible configuration.
+- dbay-agent Python jobs can read the exported table through Iceberg/PyIceberg-compatible configuration.
 
 ## Phase 2: Lakebase-backed Metadata And Planning Optimization
 
 Goal: reduce Iceberg metadata latency without changing standard clients.
+
+Status: first server-side planning path implemented for Lakeon Catalog clients. Writer keep-warm and compaction are not implemented yet.
 
 Deliverables:
 
@@ -80,6 +105,8 @@ Success criteria:
 ## Phase 3: Lazy Iceberg Export
 
 Goal: keep Lakeon-managed tables fast by default while preserving compatibility, recovery, and audit.
+
+Status: on-demand local metadata and manifest materialization is implemented for the current managed table path. OBS-backed export storage and retry/error lifecycle need production hardening.
 
 Deliverables:
 
