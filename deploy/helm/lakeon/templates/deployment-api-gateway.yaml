@@ -1,0 +1,64 @@
+{{- if and (include "lakeon.controlPlaneEnabled" .) .Values.api.split.enabled .Values.api.publicElb.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: api-gateway
+    {{- include "lakeon.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.api.gateway.replicas | default 2 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+        - name: nginx
+          image: {{ .Values.api.gateway.image | default "nginx:1.27-alpine" | quote }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+                -subj "/CN=api.dbay.cloud" \
+                -keyout /tmp/api-gateway.key \
+                -out /tmp/api-gateway.crt
+              exec nginx -g 'daemon off;'
+          ports:
+            - containerPort: {{ .Values.api.port }}
+              name: https
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: https
+              scheme: HTTPS
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: https
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.api.gateway.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: api-gateway-config
+{{- end }}

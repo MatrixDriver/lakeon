@@ -149,6 +149,16 @@ api:
   image:
     repository: lakeon/lakeon-api
     tag: "0.1.0"
+  gateway:
+    replicas: 2
+    image: "nginx:1.27-alpine"
+    resources:
+      requests:
+        cpu: "50m"
+        memory: "64Mi"
+      limits:
+        cpu: "200m"
+        memory: "128Mi"
   resources:
     requests:
       cpu: "1"

@@ -71,3 +71,26 @@ def test_control_plane_renders_dicer_assigner_and_api_endpoint():
     assert 'LAKEON_DICER_LIVE_LOAD_POLL_INTERVAL_MS: "10000"' in manifest
     assert 'LAKEON_DICER_METRICS_TIMEOUT_MS: "1500"' in manifest
     assert 'LAKEON_DICER_SNAPSHOT_TTL_MS: "30000"' in manifest
+
+
+def test_control_plane_split_uses_gateway_and_does_not_render_legacy_lakeon_api():
+    manifest = helm_template(HWSTAFF_VALUES, HWSTAFF_CONTROL_VALUES)
+
+    assert "kind: Deployment\nmetadata:\n  name: admin-api" in manifest
+    assert "kind: Deployment\nmetadata:\n  name: serving-api" in manifest
+    assert "kind: Deployment\nmetadata:\n  name: api-gateway" in manifest
+    assert "kind: Deployment\nmetadata:\n  name: lakeon-api" not in manifest
+    assert "kind: Service\nmetadata:\n  name: lakeon-api\n" not in manifest
+    assert "name: LAKEON_API_ROLE\n              value: \"admin\"" in manifest
+    assert "name: LAKEON_API_ROLE\n              value: \"serving\"" in manifest
+    assert "proxy_pass http://admin-api:8088" in manifest
+    assert "proxy_pass http://serving-api:8088" in manifest
+
+    public_service = re.search(
+        r"kind: Service\nmetadata:\n  name: lakeon-api-public.*?(?=\n---|\Z)",
+        manifest,
+        re.S,
+    )
+    assert public_service, manifest
+    assert "app: api-gateway" in public_service.group(0)
+    assert "targetPort: https" in public_service.group(0)

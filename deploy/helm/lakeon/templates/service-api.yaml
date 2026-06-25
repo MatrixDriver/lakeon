@@ -1,4 +1,4 @@
-{{- if include "lakeon.controlPlaneEnabled" . }}
+{{- if and (include "lakeon.controlPlaneEnabled" .) (not .Values.api.split.enabled) }}
 apiVersion: v1
 kind: Service
 metadata:

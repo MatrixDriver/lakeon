@@ -21,6 +21,13 @@
           <ArchBox v-if="node('control-cce')" :node="node('control-cce')!" tone="control" wide />
         </div>
 
+        <div class="arch-band control">
+          <div class="band-title">控制面内部</div>
+          <ArchBox v-if="node('api-gateway')" :node="node('api-gateway')!" tone="network" />
+          <ArchBox v-if="node('split-api')" :node="node('split-api')!" tone="control" wide />
+          <ArchBox v-if="node('dicer')" :node="node('dicer')!" tone="control" />
+        </div>
+
         <div class="arch-lane">
           <ArchBox v-if="node('pg-client')" :node="node('pg-client')!" tone="access" />
           <div class="arch-arrow">
@@ -144,8 +151,11 @@ const latestTopology: Topology = {
     { id: 'pg-client', label: 'PG Client', sublabel: 'PostgreSQL 生态', desc: 'psql / JDBC / 现有 PG 应用', type: 'access' },
     { id: 'api-elb', label: 'api.dbay.cloud', sublabel: '公网 ELB :8443', desc: 'HTTPS API 入口，转发到控制面 CCE', type: 'network' },
     { id: 'pg-elb', label: 'pg.dbay.cloud', sublabel: '公网 ELB :4432', desc: 'PG 协议入口，转发到数据面 proxy', type: 'network' },
-    { id: 'control-cce', label: '控制面 CCE', sublabel: 'dbay-control-cce', desc: 'lakeon-api · serving-api · admin-api · HPA', type: 'control' },
-    { id: 'data-cce', label: '数据面 CCE', sublabel: 'dbay-cce', desc: 'proxy · Neon compute pods · pageserver · safekeeper', type: 'data' },
+    { id: 'control-cce', label: '控制面 CCE', sublabel: 'dbay-control-cce', desc: 'api-gateway · admin-api · serving-api · dicer-assigner', type: 'control' },
+    { id: 'api-gateway', label: 'API Gateway', sublabel: 'api.dbay.cloud :8443', desc: '按路径分流：SRE 请求到 admin-api，业务请求到 serving-api', type: 'control' },
+    { id: 'split-api', label: 'Split API', sublabel: 'admin-api · serving-api', desc: 'admin-api 只服务 /api/v1/admin；serving-api 服务业务 API 与 proxy 授权', type: 'control' },
+    { id: 'dicer', label: 'Dicer Assigner', sublabel: 'load-aware placement', desc: '消费 pageserver 实时负载，给租户与 shard 选择承载节点', type: 'control' },
+    { id: 'data-cce', label: '数据面 CCE', sublabel: 'dbay-cce', desc: 'proxy · Neon compute pods · 3 pageserver · 3 safekeeper', type: 'data' },
     { id: 'compute-pool', label: 'CCE 弹性节点池', sublabel: 'dbay-compute-pool', desc: '每个 DB / branch 的 Neon compute pod 按需扩缩', type: 'data' },
     { id: 'storage-plane', label: 'Neon 存储层', sublabel: 'pageserver · safekeeper · broker', desc: 'safekeeper 常驻；pageserver 本地缓存，可从 OBS 恢复', type: 'data' },
     { id: 'rds', label: 'RDS PostgreSQL', sublabel: '元数据库', desc: '租户、DB、branch、Placement、审计状态', type: 'storage' },
@@ -156,9 +166,13 @@ const latestTopology: Topology = {
   ],
   edges: [
     { from: 'console', to: 'api-elb', label: 'HTTPS API' },
-    { from: 'api-elb', to: 'control-cce', label: 'Service LoadBalancer' },
+    { from: 'api-elb', to: 'api-gateway', label: 'TCP TLS :8443' },
+    { from: 'api-gateway', to: 'split-api', label: 'Path routing' },
+    { from: 'split-api', to: 'control-cce', label: 'K8s service' },
+    { from: 'split-api', to: 'dicer', label: 'placement / load' },
     { from: 'pg-client', to: 'pg-elb', label: 'PG wire protocol' },
     { from: 'pg-elb', to: 'data-cce', label: 'Service LoadBalancer' },
+    { from: 'dicer', to: 'data-cce', label: 'pageserver metrics' },
     { from: 'control-cce', to: 'data-cce', label: 'CCE 间私网 / 内网 ELB' },
     { from: 'data-cce', to: 'compute-pool', label: 'Kubernetes 调度' },
     { from: 'data-cce', to: 'storage-plane', label: 'Neon 热路径' },
@@ -182,7 +196,17 @@ const latestResources: Resource[] = [
     type: '容器集群',
     status: 'ACTIVE',
     consoleUrl: 'https://console.huaweicloud.com/cce2.0/?region=cn-north-4#/app/cluster/detail?id=377df1d7-663c-11f1-b0ad-0255ac100240',
-    description: '运行 lakeon-api、serving-api、admin-api；无状态副本，状态写入 RDS。',
+    description: '运行 api-gateway、admin-api、serving-api、dicer-assigner；无状态副本，状态写入 RDS。',
+  },
+  {
+    name: 'Dicer Assigner',
+    resourceId: 'deployment/dicer-assigner',
+    region: 'cn-north-4',
+    service: 'CCE',
+    type: 'Deployment',
+    status: 'ACTIVE',
+    consoleUrl: 'https://console.huaweicloud.com/cce2.0/?region=cn-north-4#/app/cluster/detail/workload?clusterId=377df1d7-663c-11f1-b0ad-0255ac100240&namespace=lakeon&workloadType=Deployment&workloadName=dicer-assigner',
+    description: 'Databricks Dicer 负载感知 assigner，提供 pageserver placement 决策输入。',
   },
   {
     name: '数据面 CCE dbay-cce',
