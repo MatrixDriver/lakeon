@@ -14,9 +14,6 @@ api:
 proxy:
   replicas: 2
   authEndpoint: ""
-  lakeonDataProxy:
-    enabled: true
-    maxBackendsPerKey: 10
   projectInfoCache: "size=0,ttl=0s,max_roles=0,gc_interval=60m"
   autoscaling:
     enabled: true

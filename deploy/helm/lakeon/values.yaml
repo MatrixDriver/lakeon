@@ -106,7 +106,6 @@ proxy:
     pullPolicy: IfNotPresent
   lakeonDataProxy:
     enabled: false
-    maxBackendsPerKey: 20
   listenPort: 4432
   httpPort: 7100
   mgmtPort: 7000

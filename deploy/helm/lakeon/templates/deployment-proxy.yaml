@@ -38,7 +38,6 @@ spec:
             - "--mgmt=127.0.0.1:{{ .Values.proxy.mgmtPort }}"
             {{- if .Values.proxy.lakeonDataProxy.enabled }}
             - "--lakeon-data-proxy=true"
-            - "--lakeon-pooler-max-backends-per-key={{ .Values.proxy.lakeonDataProxy.maxBackendsPerKey | default 20 }}"
             {{- end }}
             {{- if .Values.proxy.projectInfoCache }}
             - "--project-info-cache={{ .Values.proxy.projectInfoCache }}"

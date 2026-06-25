@@ -122,7 +122,6 @@ proxy:
     pullPolicy: IfNotPresent
   lakeonDataProxy:
     enabled: true
-    maxBackendsPerKey: 10
   projectInfoCache: "size=0,max_roles=0,gc_interval=60m"
   wakeComputeCache: "size=0"
   externalHost: "pg.dbay.cloud"
