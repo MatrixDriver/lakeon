@@ -38,14 +38,12 @@ public class LakebaseCdfService {
 
     @Autowired
     public LakebaseCdfService(LakebaseCdfStreamRepository repository,
-                              ObjectProvider<LakebaseBranchConnectionProvider> branchConnectionProvider,
+                              LakebaseBranchConnectionProvider branchConnectionProvider,
                               ObjectProvider<LakebaseBackfillService> backfillService,
                               IcebergExportMaterializer exportMaterializer) {
         this(
                 repository,
-                branchConnectionProvider.getIfAvailable(() -> (tenant, databaseId, branchId) -> {
-                    throw new SQLException("Lakebase branch connection provider is not implemented yet");
-                }),
+                branchConnectionProvider,
                 new IcebergTenantSchemaManager(),
                 backfillService.getIfAvailable(LakebaseCdfService::unconfiguredBackfillService),
                 exportMaterializer);

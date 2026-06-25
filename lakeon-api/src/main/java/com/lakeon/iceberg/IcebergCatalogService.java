@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.sql.Connection;
@@ -37,12 +36,10 @@ public class IcebergCatalogService {
     private final ObjectMapper objectMapper;
     private final IcebergPlanningService planningService;
 
-    public IcebergCatalogService(ObjectProvider<LakebaseBranchConnectionProvider> connectionProvider,
+    public IcebergCatalogService(LakebaseBranchConnectionProvider connectionProvider,
                                  ObjectMapper objectMapper,
                                  IcebergPlanningService planningService) {
-        this.connectionProvider = connectionProvider.getIfAvailable(() -> (tenant, databaseId, branchId) -> {
-            throw new SQLException("Lakebase branch connection provider is not implemented yet");
-        });
+        this.connectionProvider = connectionProvider;
         this.objectMapper = objectMapper;
         this.planningService = planningService;
     }

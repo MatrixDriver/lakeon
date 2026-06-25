@@ -6,7 +6,6 @@ import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.service.exception.BadRequestException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -33,18 +32,13 @@ class IcebergPlanningServiceTest {
             """;
 
     private final LakebaseBranchConnectionProvider connectionProvider = mock(LakebaseBranchConnectionProvider.class);
-    @SuppressWarnings("unchecked")
-    private final ObjectProvider<LakebaseBranchConnectionProvider> connectionProviderObjectProvider =
-            mock(ObjectProvider.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final TenantEntity tenant = new TenantEntity();
     private IcebergPlanningService service;
 
     @BeforeEach
     void setUp() {
-        when(connectionProviderObjectProvider.getIfAvailable(org.mockito.ArgumentMatchers.any()))
-                .thenReturn(connectionProvider);
-        service = new IcebergPlanningService(connectionProviderObjectProvider, objectMapper);
+        service = new IcebergPlanningService(connectionProvider, objectMapper);
     }
 
     @Test

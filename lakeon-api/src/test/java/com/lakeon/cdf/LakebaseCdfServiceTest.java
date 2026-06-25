@@ -10,14 +10,12 @@ import com.lakeon.iceberg.LakebaseBranchConnectionProvider;
 import com.lakeon.iceberg.IcebergTenantSchemaManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -38,21 +36,14 @@ class LakebaseCdfServiceTest {
     private final LakebaseBranchConnectionProvider branchConnectionProvider = mock(LakebaseBranchConnectionProvider.class);
     private final LakebaseBackfillService backfillService = mock(LakebaseBackfillService.class);
     private final IcebergExportMaterializer exportMaterializer = mock(IcebergExportMaterializer.class);
-    @SuppressWarnings("unchecked")
-    private final ObjectProvider<LakebaseBranchConnectionProvider> branchConnectionProviderObjectProvider = mock(ObjectProvider.class);
-    @SuppressWarnings("unchecked")
-    private final ObjectProvider<LakebaseBackfillService> backfillServiceObjectProvider = mock(ObjectProvider.class);
     private final TenantEntity tenant = new TenantEntity();
     private LakebaseCdfService service;
 
     @BeforeEach
-    @SuppressWarnings("unchecked")
     void setUp() {
         tenant.setId("tn_123");
-        when(branchConnectionProviderObjectProvider.getIfAvailable(any(Supplier.class))).thenReturn(branchConnectionProvider);
-        when(backfillServiceObjectProvider.getIfAvailable(any(Supplier.class))).thenReturn(backfillService);
         service = new LakebaseCdfService(
-                repository, branchConnectionProviderObjectProvider, backfillServiceObjectProvider, exportMaterializer);
+                repository, branchConnectionProvider, new IcebergTenantSchemaManager(), backfillService, exportMaterializer);
         when(repository.save(any(LakebaseCdfStreamEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }

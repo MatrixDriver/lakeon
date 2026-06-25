@@ -7,7 +7,6 @@ import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mock.web.MockHttpServletRequest;
 
 import java.sql.Connection;
@@ -28,9 +27,6 @@ import static org.mockito.Mockito.when;
 class IcebergCatalogServiceTest {
 
     private final LakebaseBranchConnectionProvider connectionProvider = mock(LakebaseBranchConnectionProvider.class);
-    @SuppressWarnings("unchecked")
-    private final ObjectProvider<LakebaseBranchConnectionProvider> connectionProviderObjectProvider =
-            mock(ObjectProvider.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final IcebergPlanningService planningService = mock(IcebergPlanningService.class);
     private final TenantEntity tenant = new TenantEntity();
@@ -38,9 +34,7 @@ class IcebergCatalogServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(connectionProviderObjectProvider.getIfAvailable(org.mockito.ArgumentMatchers.any()))
-                .thenReturn(connectionProvider);
-        service = new IcebergCatalogService(connectionProviderObjectProvider, objectMapper, planningService);
+        service = new IcebergCatalogService(connectionProvider, objectMapper, planningService);
     }
 
 
