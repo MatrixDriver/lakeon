@@ -3,6 +3,7 @@ package com.lakeon.cdf;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.iceberg.IcebergTenantSchemaManager;
 import com.lakeon.iceberg.IcebergExportMaterializer;
+import com.lakeon.iceberg.IcebergTableBootstrapService;
 import com.lakeon.iceberg.LakebaseBranchConnectionProvider;
 import com.lakeon.model.entity.LakebaseCdfStreamEntity;
 import com.lakeon.model.entity.TenantEntity;
@@ -11,7 +12,6 @@ import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.ConflictException;
 import com.lakeon.service.exception.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.sql.Connection;
@@ -33,44 +33,39 @@ public class LakebaseCdfService {
     private final LakebaseCdfStreamRepository repository;
     private final LakebaseBranchConnectionProvider branchConnectionProvider;
     private final IcebergTenantSchemaManager schemaManager;
+    private final IcebergTableBootstrapService tableBootstrapService;
     private final LakebaseBackfillService backfillService;
     private final IcebergExportMaterializer exportMaterializer;
 
     @Autowired
     public LakebaseCdfService(LakebaseCdfStreamRepository repository,
                               LakebaseBranchConnectionProvider branchConnectionProvider,
-                              ObjectProvider<LakebaseBackfillService> backfillService,
+                              IcebergTableBootstrapService tableBootstrapService,
+                              LakebaseBackfillService backfillService,
                               IcebergExportMaterializer exportMaterializer) {
         this(
                 repository,
                 branchConnectionProvider,
                 new IcebergTenantSchemaManager(),
-                backfillService.getIfAvailable(LakebaseCdfService::unconfiguredBackfillService),
+                tableBootstrapService,
+                backfillService,
                 exportMaterializer);
     }
 
     LakebaseCdfService(LakebaseCdfStreamRepository repository,
                        LakebaseBranchConnectionProvider branchConnectionProvider,
                        IcebergTenantSchemaManager schemaManager,
+                       IcebergTableBootstrapService tableBootstrapService,
                        LakebaseBackfillService backfillService,
                        IcebergExportMaterializer exportMaterializer) {
         this.repository = repository;
         this.branchConnectionProvider = branchConnectionProvider;
         this.schemaManager = schemaManager;
+        this.tableBootstrapService = tableBootstrapService;
         this.backfillService = backfillService;
         this.exportMaterializer = exportMaterializer == null
                 ? new IcebergExportMaterializer(new ObjectMapper())
                 : exportMaterializer;
-    }
-
-    private static LakebaseBackfillService unconfiguredBackfillService() {
-        return new LakebaseBackfillService(batch -> {
-        }) {
-            @Override
-            public BackfillResult runBackfill(Connection connection, LakebaseCdfStreamEntity stream) {
-                throw new BadRequestException("initial backfill service is not configured");
-            }
-        };
     }
 
     public LakebaseCdfController.CdfStreamResponse create(TenantEntity tenant,
@@ -134,6 +129,7 @@ public class LakebaseCdfService {
         LakebaseCdfStreamEntity stream = findStream(tenant, databaseId, streamId);
         try (Connection connection = branchConnectionProvider.open(tenant, databaseId, stream.getBranchId())) {
             schemaManager.ensureSchema(connection);
+            tableBootstrapService.ensureTable(connection, stream);
             try (Statement statement = connection.createStatement()) {
                 for (String sql : setupSql(stream)) {
                     statement.execute(sql);

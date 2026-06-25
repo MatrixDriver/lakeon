@@ -148,12 +148,10 @@ public class CdfParquetWriter {
             return FieldType.STRING;
         }
         if (value instanceof BigDecimal) {
-            throw new IllegalArgumentException(
-                    "field '" + fieldName + "' contains unsupported BigDecimal value; decimal schema mapping is not implemented");
+            return FieldType.STRING;
         }
         if (value instanceof BigInteger) {
-            throw new IllegalArgumentException(
-                    "field '" + fieldName + "' contains unsupported BigInteger value; integer overflow-safe mapping is not implemented");
+            return FieldType.STRING;
         }
         throw new IllegalArgumentException(
                 "field '" + fieldName + "' contains unsupported value type " + value.getClass().getName());
@@ -172,6 +170,12 @@ public class CdfParquetWriter {
         if (value instanceof LocalDate || value instanceof LocalDateTime || value instanceof OffsetDateTime
                 || value instanceof Instant) {
             return value.toString();
+        }
+        if (value instanceof BigDecimal decimal) {
+            return decimal.toPlainString();
+        }
+        if (value instanceof BigInteger integer) {
+            return integer.toString();
         }
         return value;
     }
@@ -218,9 +222,11 @@ public class CdfParquetWriter {
                 || value instanceof Instant) {
             return value.toString();
         }
-        if (value instanceof BigInteger || value instanceof BigDecimal) {
-            throw new IllegalArgumentException("field '" + fieldName + "' contains unsupported value type "
-                    + value.getClass().getSimpleName());
+        if (value instanceof BigDecimal decimal) {
+            return decimal.toPlainString();
+        }
+        if (value instanceof BigInteger integer) {
+            return integer.toString();
         }
         return null;
     }

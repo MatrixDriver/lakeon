@@ -24,6 +24,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 
 class LakebaseBackfillServiceTest {
@@ -73,7 +74,7 @@ class LakebaseBackfillServiceTest {
         assertThat(stream.getStatus()).isEqualTo("RUNNING");
 
         var batchCaptor = forClass(CdfBatch.class);
-        verify(committer).commitBatch(batchCaptor.capture());
+        verify(committer).commitBatch(org.mockito.Mockito.same(stream), batchCaptor.capture());
         CdfBatch batch = batchCaptor.getValue();
         assertThat(batch.streamId()).isEqualTo("cdf_abcd1234");
         assertThat(batch.branchId()).isEqualTo("main");
@@ -93,7 +94,7 @@ class LakebaseBackfillServiceTest {
         inOrder.verify(connection).createStatement();
         inOrder.verify(scanStatement).setFetchSize(1000);
         inOrder.verify(scanStatement).executeQuery("SELECT * FROM \"sales\".\"orders\" ORDER BY \"id\"");
-        inOrder.verify(committer).commitBatch(batch);
+        inOrder.verify(committer).commitBatch(stream, batch);
         verify(connection).commit();
         verify(connection).setAutoCommit(true);
         verify(connection).setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
@@ -115,7 +116,7 @@ class LakebaseBackfillServiceTest {
         assertThat(result.snapshotId()).isEqualTo(1L);
         assertThat(result.rowCount()).isZero();
         verify(connection, never()).createStatement();
-        verify(committer, never()).commitBatch(org.mockito.Mockito.any());
+        verify(committer, never()).commitBatch(any(LakebaseCdfStreamEntity.class), any(CdfBatch.class));
     }
 
     @Test
@@ -150,7 +151,7 @@ class LakebaseBackfillServiceTest {
         when(rowsResultSet.next()).thenReturn(true, false);
         when(rowsResultSet.getObject(1)).thenReturn(101L);
         org.mockito.Mockito.doThrow(new SQLException("iceberg commit failed"))
-                .when(committer).commitBatch(org.mockito.Mockito.any());
+                .when(committer).commitBatch(any(LakebaseCdfStreamEntity.class), any(CdfBatch.class));
 
         assertThatThrownBy(() -> service.runBackfill(connection, stream))
                 .isInstanceOf(BadRequestException.class)
@@ -225,7 +226,7 @@ class LakebaseBackfillServiceTest {
         verify(scanStatement).executeQuery("SELECT * FROM \"sales\".\"orders\" ORDER BY \"id\", \"total\"");
         verify(columnsStatement).setString(1, "sales");
         verify(columnsStatement).setString(2, "orders");
-        verify(committer, never()).commitBatch(org.mockito.Mockito.any());
+        verify(committer, never()).commitBatch(any(LakebaseCdfStreamEntity.class), any(CdfBatch.class));
     }
 
     @Test
@@ -265,7 +266,7 @@ class LakebaseBackfillServiceTest {
         assertThat(result.rowCount()).isEqualTo(2L);
         verify(scanStatement).setFetchSize(1);
         var batchCaptor = forClass(CdfBatch.class);
-        verify(committer, times(2)).commitBatch(batchCaptor.capture());
+        verify(committer, times(2)).commitBatch(org.mockito.Mockito.same(stream), batchCaptor.capture());
         assertThat(batchCaptor.getAllValues().get(0).rows()).containsExactly(Map.of("id", 101L));
         assertThat(batchCaptor.getAllValues().get(1).rows()).containsExactly(Map.of("id", 102L));
     }

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.model.entity.LakebaseCdfStreamEntity;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.util.LsnUtil;
+import org.springframework.stereotype.Component;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+@Component
 public class LakebaseCdfWorker {
     private static final String NOT_MATERIALIZED = "NOT_MATERIALIZED";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();

@@ -6,6 +6,7 @@ import com.lakeon.repository.LakebaseCdfStreamRepository;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.ConflictException;
 import com.lakeon.iceberg.IcebergExportMaterializer;
+import com.lakeon.iceberg.IcebergTableBootstrapService;
 import com.lakeon.iceberg.LakebaseBranchConnectionProvider;
 import com.lakeon.iceberg.IcebergTenantSchemaManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +35,7 @@ class LakebaseCdfServiceTest {
 
     private final LakebaseCdfStreamRepository repository = mock(LakebaseCdfStreamRepository.class);
     private final LakebaseBranchConnectionProvider branchConnectionProvider = mock(LakebaseBranchConnectionProvider.class);
+    private final IcebergTableBootstrapService tableBootstrapService = mock(IcebergTableBootstrapService.class);
     private final LakebaseBackfillService backfillService = mock(LakebaseBackfillService.class);
     private final IcebergExportMaterializer exportMaterializer = mock(IcebergExportMaterializer.class);
     private final TenantEntity tenant = new TenantEntity();
@@ -43,7 +45,8 @@ class LakebaseCdfServiceTest {
     void setUp() {
         tenant.setId("tn_123");
         service = new LakebaseCdfService(
-                repository, branchConnectionProvider, new IcebergTenantSchemaManager(), backfillService, exportMaterializer);
+                repository, branchConnectionProvider, new IcebergTenantSchemaManager(),
+                tableBootstrapService, backfillService, exportMaterializer);
         when(repository.save(any(LakebaseCdfStreamEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }

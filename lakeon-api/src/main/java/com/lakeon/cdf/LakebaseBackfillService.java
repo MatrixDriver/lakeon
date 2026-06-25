@@ -2,6 +2,8 @@ package com.lakeon.cdf;
 
 import com.lakeon.model.entity.LakebaseCdfStreamEntity;
 import com.lakeon.service.exception.BadRequestException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -15,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@Service
 public class LakebaseBackfillService {
 
     private static final long INITIAL_SNAPSHOT_ID = 1L;
@@ -27,6 +30,7 @@ public class LakebaseBackfillService {
     private final BackfillBatchCommitter committer;
     private final int batchSize;
 
+    @Autowired
     public LakebaseBackfillService(BackfillBatchCommitter committer) {
         this(committer, DEFAULT_BATCH_SIZE);
     }
@@ -116,7 +120,7 @@ public class LakebaseBackfillService {
 
     private void commitRows(LakebaseCdfStreamEntity stream, String backfillLsn, List<Map<String, Object>> rows)
             throws SQLException {
-        committer.commitBatch(new CdfBatch(
+        committer.commitBatch(stream, new CdfBatch(
                 stream.getId(),
                 stream.getBranchId(),
                 backfillLsn,
