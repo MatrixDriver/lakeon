@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
@@ -21,7 +22,7 @@ import java.util.Map;
 public class IcebergCatalogService {
 
     private static final String LOAD_TABLE_SQL = """
-            SELECT current_metadata_location, current_metadata_json
+            SELECT current_metadata_location, current_metadata_json, current_snapshot_id
             FROM _lakeon_iceberg.tables
             WHERE database_id = ? AND branch_id = ? AND namespace = ? AND table_name = ?
             """;
@@ -75,6 +76,10 @@ public class IcebergCatalogService {
                 }
 
                 JsonNode metadata = parseMetadataJson(rs.getString("current_metadata_json"), namespace, table);
+                long currentSnapshotId = rs.getLong("current_snapshot_id");
+                if (!rs.wasNull() && metadata instanceof ObjectNode objectMetadata) {
+                    objectMetadata.put("current-snapshot-id", currentSnapshotId);
+                }
                 Map<String, Object> out = new LinkedHashMap<>();
                 out.put("metadata-location", rs.getString("current_metadata_location"));
                 out.put("metadata", metadata);

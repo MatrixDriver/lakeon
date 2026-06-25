@@ -58,7 +58,7 @@ class IcebergCatalogServiceTest {
         ResultSet resultSet = mock(ResultSet.class);
         when(connectionProvider.open(tenant, "db_123", "br_main")).thenReturn(connection);
         when(connection.prepareStatement("""
-                SELECT current_metadata_location, current_metadata_json
+                SELECT current_metadata_location, current_metadata_json, current_snapshot_id
                 FROM _lakeon_iceberg.tables
                 WHERE database_id = ? AND branch_id = ? AND namespace = ? AND table_name = ?
                 """)).thenReturn(statement);
@@ -66,6 +66,8 @@ class IcebergCatalogServiceTest {
         when(resultSet.next()).thenReturn(true);
         when(resultSet.getString("current_metadata_location")).thenReturn("obs://lakeon-managed/metadata/v1.json");
         when(resultSet.getString("current_metadata_json")).thenReturn("{\"format-version\":2,\"table-uuid\":\"tbl-1\"}");
+        when(resultSet.getLong("current_snapshot_id")).thenReturn(42L);
+        when(resultSet.wasNull()).thenReturn(false);
 
         Map<String, Object> result = service.loadTable(tenant, "db_123", "br_main", "sales", "orders");
         Map<?, ?> config = (Map<?, ?>) result.get("config");
@@ -74,6 +76,7 @@ class IcebergCatalogServiceTest {
         assertThat(result.get("metadata")).isInstanceOf(JsonNode.class);
         assertThat(((JsonNode) result.get("metadata")).isObject()).isTrue();
         assertThat(((JsonNode) result.get("metadata")).get("table-uuid").asText()).isEqualTo("tbl-1");
+        assertThat(((JsonNode) result.get("metadata")).get("current-snapshot-id").asLong()).isEqualTo(42L);
         assertThat(config.get("warehouse")).isEqualTo("obs://lakeon-managed/iceberg/db_123/br_main");
         assertThat(config.get("scan-planning-mode")).isEqualTo("server");
         verify(statement).setString(1, "db_123");
@@ -92,7 +95,7 @@ class IcebergCatalogServiceTest {
         ResultSet resultSet = mock(ResultSet.class);
         when(connectionProvider.open(tenant, "db_123", "br_main")).thenReturn(connection);
         when(connection.prepareStatement("""
-                SELECT current_metadata_location, current_metadata_json
+                SELECT current_metadata_location, current_metadata_json, current_snapshot_id
                 FROM _lakeon_iceberg.tables
                 WHERE database_id = ? AND branch_id = ? AND namespace = ? AND table_name = ?
                 """)).thenReturn(statement);
@@ -111,7 +114,7 @@ class IcebergCatalogServiceTest {
         ResultSet resultSet = mock(ResultSet.class);
         when(connectionProvider.open(tenant, "db_123", "br_main")).thenReturn(connection);
         when(connection.prepareStatement("""
-                SELECT current_metadata_location, current_metadata_json
+                SELECT current_metadata_location, current_metadata_json, current_snapshot_id
                 FROM _lakeon_iceberg.tables
                 WHERE database_id = ? AND branch_id = ? AND namespace = ? AND table_name = ?
                 """)).thenReturn(statement);
