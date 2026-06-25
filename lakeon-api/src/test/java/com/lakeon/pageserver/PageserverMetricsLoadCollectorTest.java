@@ -41,6 +41,10 @@ class PageserverMetricsLoadCollectorTest {
         assertThat(snapshot.source()).isEqualTo("dicer-live");
         assertThat(snapshot.unavailableNodeIds()).isEmpty();
         assertThat(snapshot.loadScores()).containsEntry("ps-0", 14336.0d);
+        assertThat(snapshot.loadBreakdownByNode().get("ps-0"))
+            .containsEntry("resident_physical_size", 2048.0d)
+            .containsEntry("current_logical_size", 4096.0d)
+            .containsEntry("remote_physical_size", 8192.0d);
     }
 
     @Test

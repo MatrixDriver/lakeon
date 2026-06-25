@@ -24,6 +24,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -77,6 +78,9 @@ class AdminPageserverControllerTest {
         when(pageserverPlacementService.nodeStatuses()).thenReturn(List.of(
             new PageserverNodeStatus(node, true, 0.12d, "dicer")
         ));
+        when(pageserverPlacementService.loadBreakdown()).thenReturn(Map.of(
+            "ps-0", Map.of("http_requests", 100.0d, "io_operations", 20.0d)
+        ));
         when(pageserverPlacementService.placements()).thenReturn(List.of(
             new PageserverPlacement("tenant-a", 0, node, 2L, "dicer-load-aware")
         ));
@@ -87,6 +91,8 @@ class AdminPageserverControllerTest {
             .andExpect(jsonPath("$.nodes", hasSize(1)))
             .andExpect(jsonPath("$.nodes[0].id").value("ps-0"))
             .andExpect(jsonPath("$.nodes[0].healthy").value(true))
+            .andExpect(jsonPath("$.nodes[0].load_breakdown.http_requests").value(100.0d))
+            .andExpect(jsonPath("$.nodes[0].load_breakdown.io_operations").value(20.0d))
             .andExpect(jsonPath("$.placements[0].tenant_id").value("tenant-a"))
             .andExpect(jsonPath("$.placements[0].epoch").value(2));
     }

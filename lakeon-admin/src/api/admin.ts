@@ -59,6 +59,9 @@ export const adminApi = {
   // Metrics
   metricsSummary: () => client.get('/metrics/summary'),
   pageserverMetrics: () => client.get('/pageserver/metrics'),
+  pageserverTopology: () => client.get('/pageserver/topology'),
+  pageserverRebalanceDryRun: () => client.post('/pageserver/rebalance/dry-run'),
+  failoverPageserverNode: (nodeId: string) => client.post(`/pageserver/nodes/${nodeId}/failover`),
   tenantHealth: () => client.get('/pageserver/tenant-health'),
   triggerReconcile: () => client.post('/pageserver/tenant-reconcile'),
 

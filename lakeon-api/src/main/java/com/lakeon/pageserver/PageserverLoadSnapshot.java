@@ -9,10 +9,11 @@ public record PageserverLoadSnapshot(
     Set<String> unavailableNodeIds,
     Instant observedAt,
     String source,
-    boolean fresh
+    boolean fresh,
+    Map<String, Map<String, Double>> loadBreakdownByNode
 ) {
     public static PageserverLoadSnapshot empty() {
-        return new PageserverLoadSnapshot(Map.of(), Set.of(), null, "static", false);
+        return new PageserverLoadSnapshot(Map.of(), Set.of(), null, "static", false, Map.of());
     }
 
     public static PageserverLoadSnapshot fresh(
@@ -21,15 +22,36 @@ public record PageserverLoadSnapshot(
         Instant observedAt,
         String source
     ) {
+        return fresh(loadScores, unavailableNodeIds, observedAt, source, Map.of());
+    }
+
+    public static PageserverLoadSnapshot fresh(
+        Map<String, Double> loadScores,
+        Set<String> unavailableNodeIds,
+        Instant observedAt,
+        String source,
+        Map<String, Map<String, Double>> loadBreakdownByNode
+    ) {
         return new PageserverLoadSnapshot(
             Map.copyOf(loadScores),
             Set.copyOf(unavailableNodeIds),
             observedAt,
             source,
-            true);
+            true,
+            copyBreakdown(loadBreakdownByNode));
     }
 
     public boolean isFresh() {
         return fresh;
+    }
+
+    private static Map<String, Map<String, Double>> copyBreakdown(Map<String, Map<String, Double>> input) {
+        if (input == null || input.isEmpty()) {
+            return Map.of();
+        }
+        return input.entrySet().stream()
+            .collect(java.util.stream.Collectors.toUnmodifiableMap(
+                Map.Entry::getKey,
+                entry -> Map.copyOf(entry.getValue())));
     }
 }

@@ -322,6 +322,106 @@
         </div>
       </div>
 
+      <!-- Dicer 调度管理 -->
+      <div class="section-card" style="margin-bottom: 16px;">
+        <div class="section-header">
+          <h3>Dicer 调度管理</h3>
+          <div class="header-actions">
+            <button class="action-btn" :disabled="dicerLoading || !!dicerActionLoading" @click="loadDicerTopology">
+              刷新
+            </button>
+            <button class="action-btn" :disabled="!!dicerActionLoading" @click="dryRunDicerRebalance">
+              {{ dicerActionLoading === 'rebalance' ? '分析中...' : 'Rebalance dry-run' }}
+            </button>
+          </div>
+        </div>
+        <div v-if="dicerLoading" class="empty-text">加载中...</div>
+        <template v-else-if="pageserverTopology">
+          <div class="stats-row" style="margin-bottom: 12px;">
+            <div class="stat-card">
+              <div class="stat-value" :style="{ color: dicerUnhealthyCount > 0 ? 'var(--cs-severe)' : 'var(--cs-normal)' }">
+                {{ dicerUnhealthyCount > 0 ? '降级' : '正常' }}
+              </div>
+              <div class="stat-label">Dicer placement</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">{{ dicerNodes.length }}</div>
+              <div class="stat-label">Pageserver 节点</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">{{ pageserverTopology.placements.length }}</div>
+              <div class="stat-label">已记录 placement</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">{{ dicerSources.join(' / ') || '-' }}</div>
+              <div class="stat-label">决策来源</div>
+            </div>
+          </div>
+
+          <div class="table-wrapper" style="margin-bottom: 12px;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>节点</th>
+                  <th>状态</th>
+                  <th>Load score</th>
+                  <th>Resident</th>
+                  <th>Logical</th>
+                  <th>Remote</th>
+                  <th>HTTP</th>
+                  <th>IO</th>
+                  <th>Placement</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="node in dicerNodes" :key="node.id">
+                  <td class="pod-name">{{ node.id }}</td>
+                  <td>
+                    <span class="phase-badge" :class="node.healthy ? 'phase-running' : 'phase-failed'">
+                      {{ node.healthy ? 'healthy' : 'unavailable' }}
+                    </span>
+                  </td>
+                  <td>{{ formatLoad(node.load_score) }}</td>
+                  <td>{{ formatLoad(node.load_breakdown?.resident_physical_size) }}</td>
+                  <td>{{ formatLoad(node.load_breakdown?.current_logical_size) }}</td>
+                  <td>{{ formatLoad(node.load_breakdown?.remote_physical_size) }}</td>
+                  <td>{{ formatLoad(node.load_breakdown?.http_requests) }}</td>
+                  <td>{{ formatLoad(node.load_breakdown?.io_operations) }}</td>
+                  <td>{{ placementCountByNode[node.id] || 0 }}</td>
+                  <td>
+                    <button class="link-btn danger" :disabled="dicerActionLoading === node.id" @click="failoverDicerNode(node.id)">
+                      {{ dicerActionLoading === node.id ? '处理中...' : 'Failover' }}
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-if="dicerDryRunPlan" class="rebalance-plan">
+            <div class="plan-title">Dry-run moves: {{ dicerDryRunPlan.moves.length }}</div>
+            <div v-if="!dicerDryRunPlan.moves.length" class="empty-text compact">当前无需迁移</div>
+            <div v-else class="table-wrapper">
+              <table class="data-table compact-table">
+                <thead><tr><th>Tenant</th><th>Shard</th><th>From</th><th>To</th><th>Epoch</th><th>Reason</th></tr></thead>
+                <tbody>
+                  <tr v-for="move in dicerDryRunPlan.moves" :key="`${move.tenant_id}:${move.shard_id}:${move.next_epoch}`">
+                    <td class="pod-name">{{ truncate(move.tenant_id, 18) }}</td>
+                    <td>{{ move.shard_id }}</td>
+                    <td>{{ move.from_node_id }}</td>
+                    <td>{{ move.to_node_id }}</td>
+                    <td>{{ move.next_epoch }}</td>
+                    <td>{{ move.reason }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </template>
+        <div v-else class="empty-text">暂无 Dicer topology 数据</div>
+      </div>
+
       <!-- Tenant 挂靠健康 -->
       <div class="section-card" style="margin-bottom: 16px;">
         <div class="section-header">
@@ -699,6 +799,43 @@ interface AutoscaleSummary {
   last_scale_down: string | null
 }
 
+interface PageserverTopologyNode {
+  id: string
+  http_url: string
+  pg_connstring: string
+  healthy: boolean
+  load_score: number
+  load_breakdown?: Record<string, number>
+  source: string
+}
+
+interface PageserverPlacement {
+  tenant_id: string
+  shard_id: number
+  node_id: string
+  epoch: number
+  source: string
+}
+
+interface PageserverMove {
+  tenant_id: string
+  shard_id: number
+  from_node_id: string
+  to_node_id: string
+  next_epoch: number
+  reason: string
+}
+
+interface PageserverRebalancePlan {
+  dry_run: boolean
+  moves: PageserverMove[]
+}
+
+interface PageserverTopology {
+  nodes: PageserverTopologyNode[]
+  placements: PageserverPlacement[]
+}
+
 const route = useRoute()
 const activeTab = ref((route.query.tab as string) || 'control')
 const cceSubTab = ref('nodes')
@@ -718,11 +855,29 @@ const cleanupLoading = ref(false)
 const restartingPod = ref<string | null>(null)
 const metrics = ref<any>(null)
 const psMetrics = ref<any>(null)
+const pageserverTopology = ref<PageserverTopology | null>(null)
+const dicerLoading = ref(false)
+const dicerActionLoading = ref<string | null>(null)
+const dicerDryRunPlan = ref<PageserverRebalancePlan | null>(null)
 const psCachePercent = computed(() => {
   if (!psMetrics.value?.cache) return 0
   const { current_bytes, max_bytes } = psMetrics.value.cache
   if (!max_bytes) return 0
   return Math.round(current_bytes / max_bytes * 100)
+})
+
+const dicerNodes = computed(() => pageserverTopology.value?.nodes || [])
+const dicerUnhealthyCount = computed(() => dicerNodes.value.filter(node => !node.healthy).length)
+const dicerSources = computed(() => Array.from(new Set([
+  ...dicerNodes.value.map(node => node.source),
+  ...(pageserverTopology.value?.placements || []).map(item => item.source),
+])).filter(Boolean))
+const placementCountByNode = computed<Record<string, number>>(() => {
+  const counts: Record<string, number> = {}
+  for (const placement of pageserverTopology.value?.placements || []) {
+    counts[placement.node_id] = (counts[placement.node_id] || 0) + 1
+  }
+  return counts
 })
 interface TenantHealthData {
   health: 'HEALTHY' | 'DEGRADED' | 'UNREACHABLE'
@@ -770,6 +925,57 @@ async function triggerReconcile() {
   }
 }
 
+async function loadDicerTopology() {
+  dicerLoading.value = true
+  try {
+    const res = await adminApi.pageserverTopology()
+    pageserverTopology.value = res.data
+  } catch (e) {
+    console.error('Failed to load Dicer topology', e)
+  } finally {
+    dicerLoading.value = false
+  }
+}
+
+async function dryRunDicerRebalance() {
+  dicerActionLoading.value = 'rebalance'
+  try {
+    const res = await adminApi.pageserverRebalanceDryRun()
+    dicerDryRunPlan.value = res.data
+    await loadDicerTopology()
+  } catch (e) {
+    alert('Rebalance dry-run 失败')
+    console.error(e)
+  } finally {
+    dicerActionLoading.value = null
+  }
+}
+
+async function failoverDicerNode(nodeId: string) {
+  if (!confirm(`确定对 ${nodeId} 触发 failover？\n该节点上的 placement 会迁移到其它 pageserver。`)) return
+  dicerActionLoading.value = nodeId
+  try {
+    const res = await adminApi.failoverPageserverNode(nodeId)
+    const plan = res.data as PageserverRebalancePlan
+    alert(`Failover 完成：迁移 ${plan.moves.length} 个 placement`)
+    dicerDryRunPlan.value = plan
+    await loadDicerTopology()
+  } catch (e) {
+    alert('Failover 请求失败')
+    console.error(e)
+  } finally {
+    dicerActionLoading.value = null
+  }
+}
+
+function formatLoad(value: number | undefined): string {
+  if (value == null || Number.isNaN(value)) return '-'
+  if (value >= 1024 * 1024 * 1024) return `${(value / 1024 / 1024 / 1024).toFixed(1)}G`
+  if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)}M`
+  if (value >= 1024) return `${(value / 1024).toFixed(1)}K`
+  return value.toLocaleString(undefined, { maximumFractionDigits: 1 })
+}
+
 function progressColorVal(pct: number): string {
   if (pct < 60) return '#2a4d6a'
   if (pct < 80) return '#9a5b25'
@@ -803,7 +1009,7 @@ function recordSnapshot() {
 }
 
 async function pollData() {
-  await Promise.allSettled([loadData(), loadComputeSummary(), loadTenantHealth()])
+  await Promise.allSettled([loadData(), loadComputeSummary(), loadTenantHealth(), loadDicerTopology()])
   recordSnapshot()
 }
 
@@ -992,7 +1198,7 @@ async function loadMetrics() {
 }
 
 onMounted(async () => {
-  await Promise.allSettled([loadData(), loadComputeSummary(), loadMetrics(), loadTenantHealth()])
+  await Promise.allSettled([loadData(), loadComputeSummary(), loadMetrics(), loadTenantHealth(), loadDicerTopology()])
   recordSnapshot()
   pollTimer = setInterval(pollData, 30000)
 })
@@ -1759,6 +1965,64 @@ onUnmounted(() => {
   color: var(--c-accent-hover);
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+.header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-btn,
+.link-btn {
+  border: 1px solid var(--c-border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--c-primary);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 7px 10px;
+}
+
+.link-btn {
+  border-color: transparent;
+  padding-inline: 0;
+}
+
+.link-btn.danger {
+  color: var(--cs-severe);
+}
+
+.action-btn:disabled,
+.link-btn:disabled {
+  color: var(--c-text-3);
+  cursor: not-allowed;
+}
+
+.rebalance-plan {
+  border: 1px dashed var(--c-border);
+  border-radius: 8px;
+  padding: 10px;
+  background: color-mix(in oklch, var(--c-bg-alt) 72%, #fff);
+}
+
+.plan-title {
+  color: var(--c-text);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.empty-text.compact {
+  padding: 8px;
+}
+
+.compact-table th,
+.compact-table td {
+  padding-block: 7px;
 }
 
 @media (max-width: 768px) {

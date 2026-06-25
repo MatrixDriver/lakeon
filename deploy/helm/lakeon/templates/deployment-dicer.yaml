@@ -22,6 +22,15 @@ spec:
       imagePullSecrets:
         {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
       {{- end }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: {{ .Values.dicer.service.name }}
+                topologyKey: kubernetes.io/hostname
       containers:
         - name: assigner
           image: "{{ .Values.dicer.image.repository }}:{{ .Values.dicer.image.tag }}"

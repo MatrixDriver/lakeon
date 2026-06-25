@@ -177,6 +177,8 @@ public class LakeonProperties {
         private long liveLoadInitialDelayMs = 5000L;
         private long metricsTimeoutMs = 1000L;
         private long snapshotTtlMs = 30000L;
+        private boolean autoFailoverEnabled = false;
+        private long autoFailoverPollIntervalMs = 15000L;
 
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -196,6 +198,10 @@ public class LakeonProperties {
         public void setMetricsTimeoutMs(long metricsTimeoutMs) { this.metricsTimeoutMs = metricsTimeoutMs; }
         public long getSnapshotTtlMs() { return snapshotTtlMs; }
         public void setSnapshotTtlMs(long snapshotTtlMs) { this.snapshotTtlMs = snapshotTtlMs; }
+        public boolean isAutoFailoverEnabled() { return autoFailoverEnabled; }
+        public void setAutoFailoverEnabled(boolean autoFailoverEnabled) { this.autoFailoverEnabled = autoFailoverEnabled; }
+        public long getAutoFailoverPollIntervalMs() { return autoFailoverPollIntervalMs; }
+        public void setAutoFailoverPollIntervalMs(long autoFailoverPollIntervalMs) { this.autoFailoverPollIntervalMs = autoFailoverPollIntervalMs; }
     }
 
     public static class ObsConfig {

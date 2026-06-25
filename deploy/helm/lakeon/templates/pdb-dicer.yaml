@@ -1,0 +1,15 @@
+{{- if and (include "lakeon.controlPlaneEnabled" .) .Values.dicer.enabled .Values.dicer.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Values.dicer.service.name }}
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "lakeon.labels" . | nindent 4 }}
+    app: {{ .Values.dicer.service.name }}
+spec:
+  minAvailable: {{ .Values.dicer.podDisruptionBudget.minAvailable | default 1 }}
+  selector:
+    matchLabels:
+      app: {{ .Values.dicer.service.name }}
+{{- end }}

@@ -190,6 +190,31 @@ class PageserverPlacementServiceTest {
         assertThat(plan.moves().get(0).nextEpoch()).isEqualTo(4L);
     }
 
+    @Test
+    void autoFailoverMovesAssignmentsOffLiveUnavailableNodes() {
+        LakeonProperties props = placementProps();
+        props.getDicer().setEnabled(true);
+        PageserverAssignmentEntity assignment = assignment("tenant-a", 0, "ps-0", 3L, "dicer-live");
+        PageserverAssignmentRepository repo = mock(PageserverAssignmentRepository.class);
+        when(repo.findAll()).thenReturn(List.of(assignment));
+        when(repo.findById("tenant-a:0")).thenReturn(Optional.of(assignment));
+        PageserverLoadProvider liveLoads = () -> PageserverLoadSnapshot.fresh(
+            Map.of("ps-1", 0.2d, "ps-2", 0.4d),
+            Set.of("ps-0"),
+            Instant.parse("2026-06-24T00:00:00Z"),
+            "dicer-live",
+            Map.of());
+        PageserverPlacementService service = new PageserverPlacementService(props, repo, liveLoads);
+
+        PageserverRebalancePlan plan = service.failoverUnavailableNodes();
+
+        assertThat(plan.dryRun()).isFalse();
+        assertThat(plan.moves()).hasSize(1);
+        assertThat(plan.moves().get(0).fromNodeId()).isEqualTo("ps-0");
+        assertThat(plan.moves().get(0).toNodeId()).isEqualTo("ps-1");
+        verify(repo).save(any(PageserverAssignmentEntity.class));
+    }
+
     private LakeonProperties placementProps() {
         LakeonProperties props = new LakeonProperties();
         props.getNeon().setPageserverNodes(List.of(

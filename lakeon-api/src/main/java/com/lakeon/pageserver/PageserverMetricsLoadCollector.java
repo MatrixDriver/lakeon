@@ -85,11 +85,14 @@ public class PageserverMetricsLoadCollector implements PageserverLoadProvider {
         }
 
         Map<String, Double> scores = new HashMap<>();
+        Map<String, Map<String, Double>> breakdown = new HashMap<>();
         Set<String> unavailable = new HashSet<>();
         for (PageserverNode node : configuredNodes()) {
             try {
                 String metrics = fetchMetrics(node);
-                scores.put(node.id(), parseLoadScore(metrics));
+                Map<String, Double> nodeBreakdown = parseLoadBreakdown(metrics);
+                breakdown.put(node.id(), nodeBreakdown);
+                scores.put(node.id(), nodeBreakdown.values().stream().mapToDouble(Double::doubleValue).sum());
             } catch (IOException | InterruptedException | IllegalArgumentException e) {
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();
@@ -103,7 +106,7 @@ public class PageserverMetricsLoadCollector implements PageserverLoadProvider {
             current.set(PageserverLoadSnapshot.empty());
             return;
         }
-        current.set(PageserverLoadSnapshot.fresh(scores, unavailable, Instant.now(), "dicer-live"));
+        current.set(PageserverLoadSnapshot.fresh(scores, unavailable, Instant.now(), "dicer-live", breakdown));
     }
 
     private String fetchMetrics(PageserverNode node) throws IOException, InterruptedException {
@@ -120,7 +123,11 @@ public class PageserverMetricsLoadCollector implements PageserverLoadProvider {
     }
 
     double parseLoadScore(String metrics) {
-        double score = 0.0d;
+        return parseLoadBreakdown(metrics).values().stream().mapToDouble(Double::doubleValue).sum();
+    }
+
+    Map<String, Double> parseLoadBreakdown(String metrics) {
+        Map<String, Double> breakdown = new HashMap<>();
         for (String line : metrics.lines().toList()) {
             String trimmed = line.trim();
             if (trimmed.isEmpty() || trimmed.startsWith("#")) {
@@ -128,10 +135,11 @@ public class PageserverMetricsLoadCollector implements PageserverLoadProvider {
             }
             String metricName = metricName(trimmed);
             if (isLoadMetric(metricName)) {
-                score += parseMetricValue(trimmed);
+                String key = loadMetricKey(metricName);
+                breakdown.merge(key, parseMetricValue(trimmed), Double::sum);
             }
         }
-        return score;
+        return breakdown;
     }
 
     private boolean isLoadMetric(String metricName) {
@@ -140,6 +148,17 @@ public class PageserverMetricsLoadCollector implements PageserverLoadProvider {
             || metricName.equals("pageserver_remote_physical_size")
             || metricName.equals("pageserver_io_operations_total")
             || metricName.equals("pageserver_http_requests_total");
+    }
+
+    private String loadMetricKey(String metricName) {
+        return switch (metricName) {
+            case "pageserver_resident_physical_size" -> "resident_physical_size";
+            case "pageserver_current_logical_size" -> "current_logical_size";
+            case "pageserver_remote_physical_size" -> "remote_physical_size";
+            case "pageserver_io_operations_total" -> "io_operations";
+            case "pageserver_http_requests_total" -> "http_requests";
+            default -> metricName;
+        };
     }
 
     private double parseMetricValue(String line) {

@@ -60,6 +60,10 @@ def test_control_plane_renders_dicer_assigner_and_api_endpoint():
 
     assert "kind: Deployment\nmetadata:\n  name: dicer-assigner" in manifest
     assert "kind: Service\nmetadata:\n  name: dicer-assigner" in manifest
+    assert "kind: PodDisruptionBudget\nmetadata:\n  name: dicer-assigner" in manifest
+    assert "replicas: 2" in manifest
+    assert "podAntiAffinity:" in manifest
+    assert "app: dicer-assigner" in manifest
     assert "image: \"swr.cn-north-4.myhuaweicloud.com/flex/dicer-assigner:5cce7985\"" in manifest
     assert "containerPort: 24500" in manifest
     assert "containerPort: 7777" in manifest
@@ -71,6 +75,8 @@ def test_control_plane_renders_dicer_assigner_and_api_endpoint():
     assert 'LAKEON_DICER_LIVE_LOAD_POLL_INTERVAL_MS: "10000"' in manifest
     assert 'LAKEON_DICER_METRICS_TIMEOUT_MS: "1500"' in manifest
     assert 'LAKEON_DICER_SNAPSHOT_TTL_MS: "30000"' in manifest
+    assert 'LAKEON_DICER_AUTO_FAILOVER_ENABLED: "true"' in manifest
+    assert 'LAKEON_DICER_AUTO_FAILOVER_POLL_INTERVAL_MS: "15000"' in manifest
 
 
 def test_control_plane_split_uses_gateway_and_does_not_render_legacy_lakeon_api():

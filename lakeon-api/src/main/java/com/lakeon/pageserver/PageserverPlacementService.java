@@ -3,6 +3,7 @@ package com.lakeon.pageserver;
 import com.lakeon.config.LakeonProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -172,6 +173,37 @@ public class PageserverPlacementService {
     @Transactional
     public PageserverRebalancePlan failoverNode(String nodeId) {
         return rebalance(false, Set.of(nodeId), "node-unavailable:" + nodeId);
+    }
+
+    @Transactional
+    public PageserverRebalancePlan failoverUnavailableNodes() {
+        Set<String> unavailable = unavailableNodeIds();
+        if (unavailable.isEmpty()) {
+            return new PageserverRebalancePlan(false, List.of());
+        }
+        return rebalance(false, unavailable, "auto-unavailable:" + String.join(",", unavailable));
+    }
+
+    @Scheduled(
+        initialDelayString = "${lakeon.dicer.live-load-initial-delay-ms:5000}",
+        fixedDelayString = "${lakeon.dicer.auto-failover-poll-interval-ms:15000}")
+    @Transactional
+    public void autoFailoverUnavailableNodes() {
+        if (!props.getDicer().isEnabled() || !props.getDicer().isAutoFailoverEnabled()) {
+            return;
+        }
+        Set<String> unavailable = unavailableNodeIds();
+        if (!unavailable.isEmpty()) {
+            rebalance(false, unavailable, "auto-unavailable:" + String.join(",", unavailable));
+        }
+    }
+
+    public Map<String, Map<String, Double>> loadBreakdown() {
+        PageserverLoadSnapshot live = liveSnapshot();
+        if (live.isFresh()) {
+            return live.loadBreakdownByNode();
+        }
+        return Map.of();
     }
 
     private PageserverRebalancePlan rebalance(boolean dryRun, Set<String> forcedUnavailable, String reason) {

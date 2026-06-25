@@ -166,6 +166,7 @@ public class AdminController {
 
     @GetMapping("/pageserver/topology")
     public Map<String, Object> getPageserverTopology() {
+        Map<String, Map<String, Double>> loadBreakdown = pageserverPlacementService.loadBreakdown();
         return Map.of(
             "nodes", pageserverPlacementService.nodeStatuses().stream().map(status -> {
                 Map<String, Object> out = new LinkedHashMap<>();
@@ -174,6 +175,7 @@ public class AdminController {
                 out.put("pg_connstring", status.node().pgConnstring());
                 out.put("healthy", status.healthy());
                 out.put("load_score", status.loadScore());
+                out.put("load_breakdown", loadBreakdown.getOrDefault(status.node().id(), Map.of()));
                 out.put("source", status.source());
                 return out;
             }).toList(),

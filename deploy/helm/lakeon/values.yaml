@@ -74,6 +74,11 @@ dicer:
   liveLoadInitialDelayMs: 5000
   metricsTimeoutMs: 1000
   snapshotTtlMs: 30000
+  autoFailoverEnabled: false
+  autoFailoverPollIntervalMs: 15000
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
   resources:
     requests:
       cpu: "500m"
