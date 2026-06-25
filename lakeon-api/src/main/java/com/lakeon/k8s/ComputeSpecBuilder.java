@@ -14,8 +14,8 @@ import java.util.*;
  * Shared utility for generating Neon compute_ctl config JSON.
  *
  * Registered as a {@link Component} so warm-pool code can inject it
- * directly; {@code ComputePodManager} still constructs one inline for
- * backwards compatibility (the constructor is unchanged).
+ * directly. Compute pod creation constructs it with the same
+ * placement service used for Neon tenant/timeline APIs.
  */
 @Component
 public class ComputeSpecBuilder {

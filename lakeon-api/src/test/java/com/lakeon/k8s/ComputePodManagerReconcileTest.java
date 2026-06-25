@@ -2,12 +2,16 @@ package com.lakeon.k8s;
 
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.pageserver.PageserverPlacementService;
 import com.lakeon.repository.DatabaseRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -35,7 +39,7 @@ class ComputePodManagerReconcileTest {
         repo = mock(DatabaseRepository.class);
 
         // Subclass to stub getPodIp — avoids full k8sClient wiring
-        mgr = new ComputePodManager(k8s, props, om, reg, repo) {
+        mgr = new ComputePodManager(k8s, props, om, reg, new ComputeSpecBuilder(props, om), repo) {
             @Override
             public String getPodIp(String podName) {
                 return switch (podName) {
@@ -95,7 +99,7 @@ class ComputePodManagerReconcileTest {
     }
 
     @Test
-    void constructor_uses_injected_compute_spec_builder() {
+    void constructor_uses_supplied_compute_spec_builder() {
         KubernetesClient k8s = mock(KubernetesClient.class);
         LakeonProperties props = new LakeonProperties();
         ObjectMapper om = new ObjectMapper();
@@ -106,6 +110,17 @@ class ComputePodManagerReconcileTest {
         ComputePodManager manager = new ComputePodManager(k8s, props, om, reg, specBuilder, repository);
 
         assertSame(specBuilder, manager.specBuilderForTests());
+    }
+
+    @Test
+    void production_constructor_requires_pageserver_placement_service() {
+        var publicConstructors = Arrays.stream(ComputePodManager.class.getConstructors())
+            .filter(constructor -> Modifier.isPublic(constructor.getModifiers()))
+            .toList();
+
+        assertEquals(1, publicConstructors.size());
+        assertTrue(Arrays.asList(publicConstructors.get(0).getParameterTypes())
+            .contains(PageserverPlacementService.class));
     }
 
     @Test
