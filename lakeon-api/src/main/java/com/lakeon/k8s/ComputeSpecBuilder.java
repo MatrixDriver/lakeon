@@ -4,10 +4,18 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.pageserver.PageserverNode;
 import com.lakeon.pageserver.PageserverPlacementService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.*;
 
 /**
@@ -23,6 +31,7 @@ public class ComputeSpecBuilder {
     private final LakeonProperties props;
     private final ObjectMapper objectMapper;
     private final PageserverPlacementService placementService;
+    private final HttpClient httpClient;
 
     public ComputeSpecBuilder(LakeonProperties props, ObjectMapper objectMapper) {
         this(props, objectMapper, new PageserverPlacementService(props));
@@ -34,6 +43,9 @@ public class ComputeSpecBuilder {
         this.props = props;
         this.objectMapper = objectMapper;
         this.placementService = placementService;
+        this.httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(1))
+            .build();
     }
 
     /**
@@ -134,9 +146,32 @@ public class ComputeSpecBuilder {
 
     String buildPageserverPgConnstring(DatabaseEntity entity) {
         if (entity != null && entity.getNeonTenantId() != null && !entity.getNeonTenantId().isBlank()) {
+            Optional<String> attached = findAttachedTenantPageserver(entity.getNeonTenantId());
+            if (attached.isPresent()) {
+                return attached.get();
+            }
             return placementService.resolve(entity.getNeonTenantId(), 0).node().pgConnstring();
         }
         return buildPageserverPgConnstring();
+    }
+
+    private Optional<String> findAttachedTenantPageserver(String tenantId) {
+        for (PageserverNode node : placementService.configuredNodes()) {
+            try {
+                HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(node.httpUrl() + "/v1/tenant/" + URLEncoder.encode(tenantId, StandardCharsets.UTF_8)))
+                    .GET()
+                    .timeout(Duration.ofSeconds(2))
+                    .build();
+                HttpResponse<Void> response = httpClient.send(request, HttpResponse.BodyHandlers.discarding());
+                if (response.statusCode() == 200) {
+                    return Optional.of(node.pgConnstring());
+                }
+            } catch (Exception ignored) {
+                // Fall back to catalog placement when a pageserver probe is unavailable.
+            }
+        }
+        return Optional.empty();
     }
 
     String resolvePageserverPgHost() {
