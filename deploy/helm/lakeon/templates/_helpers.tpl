@@ -69,6 +69,9 @@ Pageserver stable node descriptors for lakeon-api placement.
 Format: id=httpUrl|pgHost|pgPort,id=...
 */}}
 {{- define "lakeon.pageserverNodesRaw" -}}
+{{- if .Values.dataPlane.pageserverNodesRawOverride -}}
+{{- .Values.dataPlane.pageserverNodesRawOverride -}}
+{{- else -}}
 {{- $ns := .Values.dataPlane.namespace | default .Values.global.namespace -}}
 {{- $httpPort := .Values.pageserver.httpPort | int -}}
 {{- $pgPort := .Values.pageserver.pgPort | int -}}
@@ -79,4 +82,5 @@ Format: id=httpUrl|pgHost|pgPort,id=...
 {{- $result = append $result (printf "ps-%d=http://%s:%d|%s|%d" $i $host $httpPort $host $pgPort) -}}
 {{- end -}}
 {{- join "," $result -}}
+{{- end }}
 {{- end }}

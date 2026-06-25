@@ -23,6 +23,12 @@ lakeon:
   neon:
     pageserver-url: ${LAKEON_NEON_PAGESERVER_URL:http://localhost:9898}
     pageserver-nodes-raw: ${LAKEON_NEON_PAGESERVER_NODES_RAW:}
+    pageserver-discovery-enabled: ${LAKEON_NEON_PAGESERVER_DISCOVERY_ENABLED:false}
+    pageserver-discovery-namespace: ${LAKEON_NEON_PAGESERVER_DISCOVERY_NAMESPACE:}
+    pageserver-discovery-label-selector: ${LAKEON_NEON_PAGESERVER_DISCOVERY_LABEL_SELECTOR:app=pageserver}
+    pageserver-discovery-headless-service: ${LAKEON_NEON_PAGESERVER_DISCOVERY_HEADLESS_SERVICE:pageserver-headless}
+    pageserver-discovery-http-port: ${LAKEON_NEON_PAGESERVER_DISCOVERY_HTTP_PORT:9898}
+    pageserver-discovery-pg-port: ${LAKEON_NEON_PAGESERVER_DISCOVERY_PG_PORT:6400}
     safekeeper-urls: ${LAKEON_NEON_SAFEKEEPER_URLS:safekeeper1:5454,safekeeper2:5454,safekeeper3:5454}
     storage-broker-url: ${LAKEON_NEON_STORAGE_BROKER_URL:http://localhost:50051}
   dicer:
@@ -30,6 +36,11 @@ lakeon:
     endpoint: ${LAKEON_DICER_ENDPOINT:}
     node-loads-raw: ${LAKEON_DICER_NODE_LOADS_RAW:}
     unavailable-nodes-raw: ${LAKEON_DICER_UNAVAILABLE_NODES_RAW:}
+    live-load-enabled: ${LAKEON_DICER_LIVE_LOAD_ENABLED:false}
+    live-load-poll-interval-ms: ${LAKEON_DICER_LIVE_LOAD_POLL_INTERVAL_MS:10000}
+    live-load-initial-delay-ms: ${LAKEON_DICER_LIVE_LOAD_INITIAL_DELAY_MS:5000}
+    metrics-timeout-ms: ${LAKEON_DICER_METRICS_TIMEOUT_MS:1000}
+    snapshot-ttl-ms: ${LAKEON_DICER_SNAPSHOT_TTL_MS:30000}
   obs:
     endpoint: ${LAKEON_OBS_ENDPOINT:}
     bucket: ${LAKEON_OBS_BUCKET:neon}

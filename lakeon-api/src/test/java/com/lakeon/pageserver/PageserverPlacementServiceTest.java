@@ -3,8 +3,11 @@ package com.lakeon.pageserver;
 import com.lakeon.config.LakeonProperties;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -84,6 +87,34 @@ class PageserverPlacementServiceTest {
     }
 
     @Test
+    void dynamicMembershipOverridesStaticNodesWhenAvailable() {
+        LakeonProperties props = placementProps();
+        PageserverNodeProvider dynamicNodes = () -> List.of(
+            new PageserverNode("ps-0", "http://10.0.0.10:9898", "pageserver-0.pageserver-headless.lakeon.svc.cluster.local", 6400),
+            new PageserverNode("ps-1", "http://10.0.0.11:9898", "pageserver-1.pageserver-headless.lakeon.svc.cluster.local", 6400)
+        );
+        PageserverPlacementService service = new PageserverPlacementService(props, null, null, dynamicNodes);
+
+        List<PageserverNode> nodes = service.configuredNodes();
+
+        assertThat(nodes).extracting(PageserverNode::id).containsExactly("ps-0", "ps-1");
+        assertThat(nodes.get(0).httpUrl()).isEqualTo("http://10.0.0.10:9898");
+        assertThat(nodes.get(0).pgHost()).isEqualTo("pageserver-0.pageserver-headless.lakeon.svc.cluster.local");
+    }
+
+    @Test
+    void dynamicMembershipFallsBackToStaticNodesWhenEmpty() {
+        LakeonProperties props = placementProps();
+        PageserverNodeProvider dynamicNodes = List::of;
+        PageserverPlacementService service = new PageserverPlacementService(props, null, null, dynamicNodes);
+
+        List<PageserverNode> nodes = service.configuredNodes();
+
+        assertThat(nodes).extracting(PageserverNode::id).containsExactly("ps-0", "ps-1", "ps-2");
+        assertThat(nodes.get(0).httpUrl()).isEqualTo("http://pageserver-0:9898");
+    }
+
+    @Test
     void dicerEnabledChoosesLowestLoadHealthyNodeAndPersistsAssignment() {
         LakeonProperties props = placementProps();
         props.getDicer().setEnabled(true);
@@ -97,6 +128,30 @@ class PageserverPlacementServiceTest {
         assertThat(placement.node().id()).isEqualTo("ps-1");
         assertThat(placement.source()).isEqualTo("dicer-load-aware");
         verify(repo).save(any(PageserverAssignmentEntity.class));
+    }
+
+    @Test
+    void dicerLiveSnapshotOverridesStaticLoadsAndUnavailableNodes() {
+        LakeonProperties props = placementProps();
+        props.getDicer().setEnabled(true);
+        props.getDicer().setNodeLoadsRaw("ps-0=0.0,ps-1=0.9,ps-2=0.8");
+        PageserverLoadProvider liveLoads = () -> PageserverLoadSnapshot.fresh(
+            Map.of("ps-0", 0.01d, "ps-1", 0.4d, "ps-2", 0.2d),
+            Set.of("ps-0"),
+            Instant.parse("2026-06-24T00:00:00Z"),
+            "dicer-live");
+        PageserverPlacementService service = new PageserverPlacementService(props, null, liveLoads);
+
+        PageserverPlacement placement = service.resolve("tenant-a", 0);
+        List<PageserverNodeStatus> statuses = service.nodeStatuses();
+
+        assertThat(placement.node().id()).isEqualTo("ps-2");
+        assertThat(placement.source()).isEqualTo("dicer-live");
+        assertThat(statuses).extracting(PageserverNodeStatus::source).containsOnly("dicer-live");
+        assertThat(statuses)
+            .filteredOn(status -> status.node().id().equals("ps-0"))
+            .singleElement()
+            .satisfies(status -> assertThat(status.healthy()).isFalse());
     }
 
     @Test

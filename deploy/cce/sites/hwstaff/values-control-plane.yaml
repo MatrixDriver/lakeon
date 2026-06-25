@@ -67,6 +67,13 @@ dataPlane:
   namespace: lakeon
   computeNamespace: lakeon-compute
   pageserverReplicas: 3
+  pageserverDiscovery:
+    enabled: true
+    namespace: lakeon
+    labelSelector: "app=pageserver"
+    headlessService: "pageserver-headless"
+    httpPort: 9898
+    pgPort: 6400
   pageserverUrl: "http://pageserver.lakeon.svc.cluster.local:9898"
   safekeeperUrls: "safekeeper-0.safekeeper.lakeon.svc.cluster.local:5454,safekeeper-1.safekeeper.lakeon.svc.cluster.local:5454,safekeeper-2.safekeeper.lakeon.svc.cluster.local:5454"
   storageBrokerUrl: "http://storage-broker.lakeon.svc.cluster.local:50051"
@@ -76,6 +83,11 @@ dataPlane:
 
 dicer:
   enabled: true
+  liveLoadEnabled: true
+  liveLoadPollIntervalMs: 10000
+  liveLoadInitialDelayMs: 5000
+  metricsTimeoutMs: 1500
+  snapshotTtlMs: 30000
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/dicer-assigner
     tag: "5cce7985"

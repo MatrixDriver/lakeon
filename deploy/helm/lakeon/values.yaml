@@ -15,6 +15,14 @@ dataPlane:
   namespace: lakeon
   computeNamespace: lakeon-compute
   pageserverReplicas: 3
+  pageserverNodesRawOverride: ""
+  pageserverDiscovery:
+    enabled: false
+    namespace: ""
+    labelSelector: "app=pageserver"
+    headlessService: "pageserver-headless"
+    httpPort: 9898
+    pgPort: 6400
   pageserverUrl: "http://pageserver.lakeon.svc.cluster.local:9898"
   safekeeperUrls: "safekeeper-0.safekeeper.lakeon.svc.cluster.local:5454,safekeeper-1.safekeeper.lakeon.svc.cluster.local:5454,safekeeper-2.safekeeper.lakeon.svc.cluster.local:5454"
   storageBrokerUrl: "http://storage-broker.lakeon.svc.cluster.local:50051"
@@ -61,6 +69,11 @@ dicer:
     advancedTargetConfigDirectory: /app/config/advanced_config
   nodeLoadsRaw: ""
   unavailableNodesRaw: ""
+  liveLoadEnabled: false
+  liveLoadPollIntervalMs: 10000
+  liveLoadInitialDelayMs: 5000
+  metricsTimeoutMs: 1000
+  snapshotTtlMs: 30000
   resources:
     requests:
       cpu: "500m"
@@ -136,6 +149,16 @@ api:
   image:
     repository: lakeon/lakeon-api
     tag: "0.1.0"
+  gateway:
+    replicas: 2
+    image: "nginx:1.27"
+    resources:
+      requests:
+        cpu: "50m"
+        memory: "64Mi"
+      limits:
+        cpu: "200m"
+        memory: "128Mi"
   resources:
     requests:
       cpu: "1"

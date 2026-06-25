@@ -138,7 +138,9 @@ helm upgrade --install lakeon-control "$SCRIPT_DIR/../helm/lakeon" \
   --server-side=false \
   -n lakeon --create-namespace --timeout 5m --no-hooks
 
-for deploy in lakeon-api serving-api admin-api; do
+kubectl delete deployment/lakeon-api service/lakeon-api hpa/lakeon-api -n lakeon --ignore-not-found=true
+
+for deploy in api-gateway serving-api admin-api dicer-assigner; do
   kubectl rollout status "deployment/$deploy" -n lakeon --timeout=180s
 done
 

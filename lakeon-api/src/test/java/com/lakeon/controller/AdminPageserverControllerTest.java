@@ -2,6 +2,8 @@ package com.lakeon.controller;
 
 import com.lakeon.config.ApiKeyFilter;
 import com.lakeon.config.LakeonProperties;
+import com.lakeon.model.entity.DatabaseEntity;
+import com.lakeon.model.enums.DatabaseStatus;
 import com.lakeon.pageserver.PageserverNode;
 import com.lakeon.pageserver.PageserverNodeStatus;
 import com.lakeon.pageserver.PageserverPlacement;
@@ -22,6 +24,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -56,6 +59,8 @@ class AdminPageserverControllerTest {
     @MockBean
     private PageserverPlacementService pageserverPlacementService;
     @MockBean
+    private OperationLogRepository operationLogRepository;
+    @MockBean
     private LakeonProperties lakeonProperties;
 
     private final LakeonProperties.AdminConfig adminConfig = new LakeonProperties.AdminConfig();
@@ -86,6 +91,27 @@ class AdminPageserverControllerTest {
             .andExpect(jsonPath("$.nodes[0].healthy").value(true))
             .andExpect(jsonPath("$.placements[0].tenant_id").value("tenant-a"))
             .andExpect(jsonPath("$.placements[0].epoch").value(2));
+    }
+
+    @Test
+    void databaseDetailReturnsDirectAndPooledConnectionUris() throws Exception {
+        DatabaseEntity db = new DatabaseEntity();
+        db.setId("db_pool");
+        db.setTenantId("tn_pool");
+        db.setName("app-db");
+        db.setStatus(DatabaseStatus.RUNNING);
+        db.setConnectionUri("postgres://user@pg.dbay.cloud:4432/app-db?options=endpoint%3Dapp-db");
+        db.setStorageLimitGb(10);
+
+        when(databaseRepository.findById("db_pool")).thenReturn(Optional.of(db));
+        when(databaseService.buildPooledConnectionUri(db.getConnectionUri()))
+            .thenReturn("postgres://user@pg.dbay.cloud:4432/app-db?options=endpoint%3Dapp-db-pooler");
+
+        mockMvc.perform(get("/api/v1/admin/databases/db_pool")
+                .header("Authorization", "Bearer test-admin-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.connection_uri").value("postgres://user@pg.dbay.cloud:4432/app-db?options=endpoint%3Dapp-db"))
+            .andExpect(jsonPath("$.pooled_connection_uri").value("postgres://user@pg.dbay.cloud:4432/app-db?options=endpoint%3Dapp-db-pooler"));
     }
 
     @Test

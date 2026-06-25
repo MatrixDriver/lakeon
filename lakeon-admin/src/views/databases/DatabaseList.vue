@@ -99,6 +99,16 @@
         </div>
       </div>
 
+      <!-- Error hero: stats API unavailable -->
+      <div class="cs-hero-empty cs-hero-error" v-else-if="!loadingCs && csError">
+        <div class="cs-empty-dash">!</div>
+        <div class="cs-empty-text">冷启动统计接口不可用</div>
+        <div class="cs-empty-sub">{{ csError }}</div>
+        <div class="cs-hero-window cs-hero-window--empty">
+          <button class="db-btn db-btn-primary" @click="loadColdStart">重试</button>
+        </div>
+      </div>
+
       <!-- Empty hero: no cold start data -->
       <div class="cs-hero-empty" v-else-if="!loadingCs">
         <div class="cs-empty-dash">—</div>
@@ -486,6 +496,7 @@ const tenantFilter = ref('')
 const csData = ref<ColdStartData | null>(null)
 const csDays = ref(7)
 const loadingCs = ref(false)
+const csError = ref('')
 
 function setTab(tab: 'coldstart' | 'list') {
   activeTab.value = tab
@@ -500,15 +511,26 @@ function diagnose(db: Database) {
 
 async function loadColdStart() {
   loadingCs.value = true
+  csError.value = ''
   try {
     const res = await adminApi.coldStartAnalysis(csDays.value)
     csData.value = res.data
   } catch (e) {
     console.error('Failed to load cold start data', e)
     csData.value = null
+    csError.value = errorMessage(e)
   } finally {
     loadingCs.value = false
   }
+}
+
+function errorMessage(e: unknown): string {
+  if (e instanceof Error && e.message) return e.message
+  if (typeof e === 'object' && e && 'response' in e) {
+    const response = (e as { response?: { data?: { error?: { message?: string } } } }).response
+    return response?.data?.error?.message || '请稍后重试，或检查 lakeon-api 是否已部署最新版本。'
+  }
+  return '请稍后重试，或检查 lakeon-api 是否已部署最新版本。'
 }
 
 function csFormatMs(ms: number | null | undefined): string {

@@ -324,12 +324,22 @@ check_prerequisites() {
         exit 1
     fi
 
-    # Check lakeon-api pod running. In split control/data-plane deployments,
-    # API pods live in CONTROL_KUBECONFIG while compute/proxy remain in KUBECONFIG.
-    local api_ready
-    api_ready=$(KUBECONFIG="$CONTROL_KUBECONFIG" kubectl get pods -n "$NAMESPACE" -l app=lakeon-api -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "")
-    if [[ "$api_ready" != "True" ]]; then
-        echo "ERROR: lakeon-api pod not ready in namespace ${NAMESPACE} (CONTROL_KUBECONFIG=${CONTROL_KUBECONFIG:-unset})" >&2
+    # Check split API components. In control/data-plane deployments, API pods
+    # live in CONTROL_KUBECONFIG while compute/proxy remain in KUBECONFIG.
+    local component ready_replicas
+    for component in api-gateway admin-api serving-api; do
+        ready_replicas=$(KUBECONFIG="$CONTROL_KUBECONFIG" kubectl get deployment "$component" -n "$NAMESPACE" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "")
+        if [[ -z "$ready_replicas" || "$ready_replicas" == "0" ]]; then
+            echo "ERROR: ${component} deployment not ready in namespace ${NAMESPACE} (CONTROL_KUBECONFIG=${CONTROL_KUBECONFIG:-unset})" >&2
+            exit 1
+        fi
+    done
+
+    local public_selector public_port
+    public_selector=$(KUBECONFIG="$CONTROL_KUBECONFIG" kubectl get service lakeon-api-public -n "$NAMESPACE" -o jsonpath='{.spec.selector.app}' 2>/dev/null || echo "")
+    public_port=$(KUBECONFIG="$CONTROL_KUBECONFIG" kubectl get service lakeon-api-public -n "$NAMESPACE" -o jsonpath='{.spec.ports[?(@.name=="https")].targetPort}' 2>/dev/null || echo "")
+    if [[ "$public_selector" != "api-gateway" || "$public_port" != "https" ]]; then
+        echo "ERROR: lakeon-api-public must route 8443 to api-gateway/https, got selector=${public_selector:-unset} targetPort=${public_port:-unset}" >&2
         exit 1
     fi
 
@@ -339,7 +349,7 @@ check_prerequisites() {
     if [[ "$health_code" == "401" || "$health_code" == "200" ]]; then
         log "API reachable at ${API_URL} (HTTP ${health_code})"
     else
-        echo "ERROR: Cannot reach lakeon-api at ${API_URL} (HTTP ${health_code})" >&2
+        echo "ERROR: Cannot reach split API gateway at ${API_URL} (HTTP ${health_code})" >&2
         exit 1
     fi
 

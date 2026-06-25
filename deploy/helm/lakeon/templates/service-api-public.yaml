@@ -5,7 +5,7 @@ metadata:
   name: lakeon-api-public
   namespace: {{ .Values.global.namespace }}
   labels:
-    app: lakeon-api
+    app: {{ ternary "api-gateway" "lakeon-api" .Values.api.split.enabled }}
     app.kubernetes.io/component: api-public
     {{- include "lakeon.labels" . | nindent 4 }}
   annotations:
@@ -14,12 +14,14 @@ metadata:
 spec:
   type: LoadBalancer
   selector:
-    app: lakeon-api
+    app: {{ ternary "api-gateway" "lakeon-api" .Values.api.split.enabled }}
   ports:
     - name: https
       port: {{ .Values.api.publicElb.port | default 8443 }}
-      targetPort: http
+      targetPort: {{ ternary "https" "http" .Values.api.split.enabled }}
+    {{- if not .Values.api.split.enabled }}
     - name: http-internal
       port: {{ .Values.api.publicElb.internalPort | default 8088 }}
       targetPort: http-internal
+    {{- end }}
 {{- end }}
