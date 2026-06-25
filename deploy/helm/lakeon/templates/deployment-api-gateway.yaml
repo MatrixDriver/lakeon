@@ -19,6 +19,8 @@ spec:
       app: api-gateway
   template:
     metadata:
+      annotations:
+        checksum/api-gateway-config: {{ include (print $.Template.BasePath "/configmap-api-gateway.yaml") . | sha256sum }}
       labels:
         app: api-gateway
     spec:

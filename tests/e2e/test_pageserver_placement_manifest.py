@@ -79,6 +79,7 @@ def test_control_plane_split_uses_gateway_and_does_not_render_legacy_lakeon_api(
     assert "kind: Deployment\nmetadata:\n  name: admin-api" in manifest
     assert "kind: Deployment\nmetadata:\n  name: serving-api" in manifest
     assert "kind: Deployment\nmetadata:\n  name: api-gateway" in manifest
+    assert "checksum/api-gateway-config:" in manifest
     assert "kind: Deployment\nmetadata:\n  name: lakeon-api" not in manifest
     assert "kind: Service\nmetadata:\n  name: lakeon-api\n" not in manifest
     assert "name: LAKEON_API_ROLE\n              value: \"admin\"" in manifest
