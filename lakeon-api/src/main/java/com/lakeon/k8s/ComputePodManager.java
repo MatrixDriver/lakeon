@@ -113,6 +113,7 @@ public class ComputePodManager {
         ComputeSize size = ComputeSize.fromLabel(entity.getComputeSize());
 
         String configJson = specBuilder.generateComputeConfig(entity, 600);
+        logComputeConfigTarget(entity, podName, configJson);
 
         // Create ConfigMap with compute spec (safe: no shell interpretation)
         ConfigMap configMap = buildPodConfigMap(entity, podName, configJson, Map.of());
@@ -168,6 +169,23 @@ public class ComputePodManager {
         entity.setComputePort(55433);
 
         return (podIp != null ? podIp : podName + "." + namespace) + ":55433";
+    }
+
+    private void logComputeConfigTarget(DatabaseEntity entity, String podName, String configJson) {
+        try {
+            JsonNode spec = objectMapper.readTree(configJson).path("spec");
+            log.info(
+                "Compute config target db={} pod={} tenant={} timeline={} pageserver={}",
+                entity.getId(),
+                podName,
+                spec.path("tenant_id").asText(""),
+                spec.path("timeline_id").asText(""),
+                spec.path("pageserver_connstring").asText("")
+            );
+        } catch (Exception e) {
+            log.warn("Failed to inspect compute config target for db {} pod {}: {}",
+                entity.getId(), podName, e.getMessage());
+        }
     }
 
     /**

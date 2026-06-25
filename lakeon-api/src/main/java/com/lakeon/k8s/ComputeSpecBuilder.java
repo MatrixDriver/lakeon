@@ -68,12 +68,13 @@ public class ComputeSpecBuilder {
      *             ComputeMode enum — see libs/compute_api/src/spec.rs upstream.
      */
     public String generateComputeConfig(DatabaseEntity entity, int suspendTimeoutSeconds, String mode) {
+        String pageserverConnstring = buildPageserverPgConnstring(entity);
         Map<String, Object> spec = new LinkedHashMap<>();
         spec.put("format_version", 2);
         spec.put("operation_uuid", UUID.randomUUID().toString());
         spec.put("tenant_id", entity.getNeonTenantId());
         spec.put("timeline_id", entity.getNeonTimelineId());
-        spec.put("pageserver_connstring", buildPageserverPgConnstring(entity));
+        spec.put("pageserver_connstring", pageserverConnstring);
         spec.put("safekeeper_connstrings", parseSafekeeperUrls());
         spec.put("mode", mode);
         spec.put("suspend_timeout_seconds", suspendTimeoutSeconds);
@@ -96,7 +97,7 @@ public class ComputeSpecBuilder {
             "name", entity.getName(),
             "owner", entity.getDbUser() != null ? entity.getDbUser() : "lakeon"
         )));
-        cluster.put("settings", getDefaultPgSettings(entity));
+        cluster.put("settings", getDefaultPgSettings(entity, pageserverConnstring));
         spec.put("cluster", cluster);
 
         List<Map<String, Object>> jwksKeys = new ArrayList<>();
@@ -122,6 +123,10 @@ public class ComputeSpecBuilder {
     }
 
     public List<Map<String, String>> getDefaultPgSettings(DatabaseEntity entity) {
+        return getDefaultPgSettings(entity, buildPageserverPgConnstring(entity));
+    }
+
+    private List<Map<String, String>> getDefaultPgSettings(DatabaseEntity entity, String pageserverConnstring) {
         List<Map<String, String>> settings = new ArrayList<>();
         settings.add(Map.of("name", "shared_preload_libraries", "value", "neon", "vartype", "string"));
         settings.add(Map.of("name", "fsync", "value", "off", "vartype", "bool"));
@@ -133,7 +138,7 @@ public class ComputeSpecBuilder {
         settings.add(Map.of("name", "max_connections", "value", "100", "vartype", "integer"));
         settings.add(Map.of("name", "listen_addresses", "value", "0.0.0.0", "vartype", "string"));
         settings.add(Map.of("name", "neon.pageserver_connstring", "value",
-                buildPageserverPgConnstring(entity), "vartype", "string"));
+                pageserverConnstring, "vartype", "string"));
         settings.add(Map.of("name", "neon.safekeepers", "value",
                 props.getNeon().getSafekeeperUrls(), "vartype", "string"));
         settings.add(Map.of("name", "neon.tenant_id", "value",

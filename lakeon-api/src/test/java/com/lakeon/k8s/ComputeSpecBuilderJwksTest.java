@@ -8,6 +8,7 @@ import com.lakeon.pageserver.PageserverPlacementService;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
@@ -111,6 +112,38 @@ class ComputeSpecBuilderJwksTest {
 
         assertThat(conn).startsWith("postgresql://pageserver-");
         assertThat(conn).endsWith(".lakeon.svc.cluster.local:6400");
+        assertThat(settingConn).isEqualTo(conn);
+    }
+
+    @Test
+    void generateComputeConfig_resolvesPageserverConnstringOnlyOncePerConfig() throws Exception {
+        LakeonProperties props = newProps();
+        ObjectMapper om = new ObjectMapper();
+        AtomicInteger calls = new AtomicInteger();
+        ComputeSpecBuilder builder = new ComputeSpecBuilder(props, om) {
+            @Override
+            String buildPageserverPgConnstring(DatabaseEntity entity) {
+                return calls.incrementAndGet() == 1
+                    ? "postgresql://pageserver-2.lakeon.svc.cluster.local:6400"
+                    : "postgresql://pageserver-0.lakeon.svc.cluster.local:6400";
+            }
+        };
+        DatabaseEntity e = new DatabaseEntity();
+        e.setId("db_test");
+        e.setName("test");
+        e.setNeonTenantId("tenant-a");
+        e.setNeonTimelineId("timeline-a");
+
+        JsonNode root = om.readTree(builder.generateComputeConfig(e, 0));
+        String conn = root.path("spec").path("pageserver_connstring").asText();
+        String settingConn = root.path("spec").path("cluster").path("settings").findValues("value")
+            .stream()
+            .map(JsonNode::asText)
+            .filter(v -> v.startsWith("postgresql://pageserver-"))
+            .findFirst()
+            .orElse("");
+
+        assertThat(calls).hasValue(1);
         assertThat(settingConn).isEqualTo(conn);
     }
 
