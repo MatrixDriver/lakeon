@@ -10,6 +10,7 @@ import com.lakeon.repository.LakebaseCdfStreamRepository;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.ConflictException;
 import com.lakeon.service.exception.NotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
@@ -35,6 +36,7 @@ public class LakebaseCdfService {
     private final LakebaseBackfillService backfillService;
     private final IcebergExportMaterializer exportMaterializer;
 
+    @Autowired
     public LakebaseCdfService(LakebaseCdfStreamRepository repository,
                               ObjectProvider<LakebaseBranchConnectionProvider> branchConnectionProvider,
                               ObjectProvider<LakebaseBackfillService> backfillService,
