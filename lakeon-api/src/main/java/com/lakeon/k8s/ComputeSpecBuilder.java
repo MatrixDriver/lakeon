@@ -7,6 +7,8 @@ import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.pageserver.PageserverNode;
 import com.lakeon.pageserver.PageserverPlacementService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
@@ -27,6 +29,7 @@ import java.util.*;
  */
 @Component
 public class ComputeSpecBuilder {
+    private static final Logger log = LoggerFactory.getLogger(ComputeSpecBuilder.class);
 
     private final LakeonProperties props;
     private final ObjectMapper objectMapper;
@@ -146,11 +149,25 @@ public class ComputeSpecBuilder {
 
     String buildPageserverPgConnstring(DatabaseEntity entity) {
         if (entity != null && entity.getNeonTenantId() != null && !entity.getNeonTenantId().isBlank()) {
+            Optional<String> assigned = placementService.placementsForTenant(entity.getNeonTenantId()).stream()
+                .filter(placement -> placement.shardId() == 0)
+                .findFirst()
+                .map(placement -> placement.node().pgConnstring());
+            if (assigned.isPresent()) {
+                log.info("Compute spec using assigned pageserver for tenant {}: {}",
+                    entity.getNeonTenantId(), assigned.get());
+                return assigned.get();
+            }
             Optional<String> attached = findAttachedTenantPageserver(entity.getNeonTenantId());
             if (attached.isPresent()) {
+                log.info("Compute spec using attached pageserver for tenant {}: {}",
+                    entity.getNeonTenantId(), attached.get());
                 return attached.get();
             }
-            return placementService.resolve(entity.getNeonTenantId(), 0).node().pgConnstring();
+            String resolved = placementService.resolve(entity.getNeonTenantId(), 0).node().pgConnstring();
+            log.info("Compute spec using resolved pageserver for tenant {}: {}",
+                entity.getNeonTenantId(), resolved);
+            return resolved;
         }
         return buildPageserverPgConnstring();
     }
@@ -167,7 +184,9 @@ public class ComputeSpecBuilder {
                 if (response.statusCode() == 200) {
                     return Optional.of(node.pgConnstring());
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                log.warn("Compute spec failed to probe tenant {} on pageserver {} ({}): {}",
+                    tenantId, node.id(), node.httpUrl(), e.getMessage());
                 // Fall back to catalog placement when a pageserver probe is unavailable.
             }
         }
