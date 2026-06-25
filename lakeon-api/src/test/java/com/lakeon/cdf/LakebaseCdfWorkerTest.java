@@ -16,6 +16,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -237,6 +239,7 @@ class LakebaseCdfWorkerTest {
         verify(insertSnapshot).setLong(4, 7L);
         verify(insertSnapshot).setLong(5, 8L);
         verify(insertSnapshot).setString(6, "insert");
+        verify(insertSnapshot).setString(eq(7), contains("\"record-count\":\"1\""));
         verify(insertSnapshot).executeUpdate();
         verify(insertDataFile).setString(1, "sales.orders_cdf");
         verify(insertDataFile).setString(2, "main");

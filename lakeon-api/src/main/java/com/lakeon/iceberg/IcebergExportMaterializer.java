@@ -586,13 +586,29 @@ public class IcebergExportMaterializer {
                 snapshot.put("parent-snapshot-id", row.parentSnapshotId());
             }
             snapshot.put("timestamp-ms", row.timestampMs());
-            ObjectNode summary = row.summary().deepCopy();
+            ObjectNode summary = stringSummary(row.summary());
             summary.put("operation", row.operation());
             snapshot.set("summary", summary);
             snapshot.put("manifest-list", manifestLists.get(row.snapshotId()));
             nodes.add(snapshot);
         }
         return nodes;
+    }
+
+    private ObjectNode stringSummary(ObjectNode rawSummary) {
+        ObjectNode summary = objectMapper.createObjectNode();
+        rawSummary.fields().forEachRemaining(entry -> {
+            JsonNode value = entry.getValue();
+            if (value == null || value.isNull()) {
+                return;
+            }
+            if (value.isTextual()) {
+                summary.put(entry.getKey(), value.asText());
+            } else {
+                summary.put(entry.getKey(), value.asText());
+            }
+        });
+        return summary;
     }
 
     private ArrayNode snapshotLog(List<SnapshotRow> snapshots) {

@@ -244,7 +244,7 @@ public class LakebaseCdfWorker {
             statement.setString(6, normalizeOperation(batch.operation()));
             statement.setString(7, toJson(Map.of(
                     "operation", normalizeOperation(batch.operation()),
-                    "record-count", batch.rows().size(),
+                    "record-count", String.valueOf(batch.rows().size()),
                     "start-lsn", batch.startLsn(),
                     "end-lsn", batch.endLsn())));
             statement.executeUpdate();

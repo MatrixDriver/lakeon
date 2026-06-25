@@ -116,7 +116,7 @@ class IcebergExportMaterializerTest {
         when(snapshotRows.getLong("sequence_number")).thenReturn(12L, 13L);
         when(snapshotRows.getString("operation")).thenReturn("append");
         when(snapshotRows.getLong("committed_at_ms")).thenReturn(1_782_000_000_000L);
-        when(snapshotRows.getString("summary_json")).thenReturn("{\"added-records\":\"2\"}", "{\"added-records\":\"3\"}");
+        when(snapshotRows.getString("summary_json")).thenReturn("{\"record-count\":2}", "{\"added-records\":\"3\"}");
 
         when(connection.prepareStatement("""
                 SELECT snapshot_id, file_path, content_type, partition_json, record_count, file_size_bytes,
@@ -180,6 +180,8 @@ class IcebergExportMaterializerTest {
         assertThat(metadata.has("lakeon-export")).isFalse();
         assertThat(metadata.path("snapshots").get(0).path("operation").isMissingNode()).isTrue();
         assertThat(metadata.path("snapshots").get(0).path("summary").path("operation").asText()).isEqualTo("append");
+        assertThat(metadata.path("snapshots").get(0).path("summary").path("record-count").isTextual()).isTrue();
+        assertThat(metadata.path("snapshots").get(0).path("summary").path("record-count").asText()).isEqualTo("2");
 
         ManifestFile manifest = readSingleManifest(export.manifest_list_location());
         assertThat(manifest.path()).endsWith(".manifest.avro");
