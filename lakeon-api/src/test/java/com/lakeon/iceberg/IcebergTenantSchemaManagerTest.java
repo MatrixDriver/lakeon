@@ -35,6 +35,7 @@ class IcebergTenantSchemaManagerTest {
         assertThat(sql).contains("CREATE TABLE IF NOT EXISTS _lakeon_iceberg.delete_files");
         assertThat(sql).contains("CREATE TABLE IF NOT EXISTS _lakeon_iceberg.cdf_streams");
         assertThat(sql).contains("CREATE TABLE IF NOT EXISTS _lakeon_iceberg.cdf_offsets");
+        assertThat(sql).contains("CREATE TABLE IF NOT EXISTS _lakeon_iceberg.cdf_change_events");
         assertThat(sql).contains("current_metadata_json JSONB NOT NULL");
         assertThat(sql).contains("lower_bounds_json JSONB");
         assertThat(sql).contains("upper_bounds_json JSONB");
@@ -75,6 +76,7 @@ class IcebergTenantSchemaManagerTest {
             assertThat(tableExists(connection, "delete_files")).isTrue();
             assertThat(tableExists(connection, "cdf_streams")).isTrue();
             assertThat(tableExists(connection, "cdf_offsets")).isTrue();
+            assertThat(tableExists(connection, "cdf_change_events")).isTrue();
             assertThat(indexExists(connection, "idx_lakeon_iceberg_data_files_table_branch_snapshot")).isTrue();
         }
     }

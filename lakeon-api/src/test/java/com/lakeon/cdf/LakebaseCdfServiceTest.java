@@ -152,7 +152,7 @@ class LakebaseCdfServiceTest {
 
         List<String> sql = service.setupSql(stream);
 
-        assertThat(sql).hasSize(2);
+        assertThat(sql).hasSize(5);
         assertThat(sql.get(0))
                 .contains("IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'lakeon_cdf_pub_abcd1234')")
                 .contains("EXECUTE format('CREATE PUBLICATION %I FOR TABLE %I.%I', 'lakeon_cdf_pub_abcd1234', 'public', 'orders')");
@@ -164,6 +164,14 @@ class LakebaseCdfServiceTest {
                 .contains("PERFORM pg_create_logical_replication_slot('lakeon_cdf_slot_abcd1234', 'pgoutput')")
                 .contains("existing_slot_type <> 'logical' OR existing_plugin IS DISTINCT FROM 'pgoutput'");
         assertThat(sql.get(1)).doesNotContain("DECLARE existing_plugin");
+        assertThat(sql.get(2))
+                .contains("CREATE OR REPLACE FUNCTION _lakeon_iceberg.\"lakeon_cdf_capture_cdf_abcd1234\"()")
+                .contains("INSERT INTO _lakeon_iceberg.cdf_change_events")
+                .contains("VALUES ('cdf_abcd1234', 'main', TG_OP");
+        assertThat(sql.get(3))
+                .isEqualTo("DROP TRIGGER IF EXISTS \"lakeon_cdf_trg_cdf_abcd1234\" ON \"public\".\"orders\"");
+        assertThat(sql.get(4))
+                .isEqualTo("CREATE TRIGGER \"lakeon_cdf_trg_cdf_abcd1234\" AFTER INSERT OR UPDATE OR DELETE ON \"public\".\"orders\" FOR EACH ROW EXECUTE FUNCTION _lakeon_iceberg.\"lakeon_cdf_capture_cdf_abcd1234\"()");
     }
 
     @Test

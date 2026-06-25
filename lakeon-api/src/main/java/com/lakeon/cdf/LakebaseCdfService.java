@@ -199,6 +199,11 @@ public class LakebaseCdfService {
         String sourceSchema = quoteLiteral(stream.getSourceSchema());
         String sourceTable = quoteLiteral(stream.getSourceTable());
         String slotName = quoteLiteral(stream.getSlotName());
+        String streamId = quoteLiteral(stream.getId());
+        String branchId = quoteLiteral(stream.getBranchId());
+        String triggerFunction = quoteIdentifier("lakeon_cdf_capture_" + stream.getId());
+        String triggerName = quoteIdentifier("lakeon_cdf_trg_" + stream.getId());
+        String sourceTableQualified = quoteIdentifier(stream.getSourceSchema()) + "." + quoteIdentifier(stream.getSourceTable());
         return List.of(
                 """
                 DO $$
@@ -225,7 +230,28 @@ public class LakebaseCdfService {
                             %s, existing_slot_type, existing_plugin;
                     END IF;
                 END
-                $$""".formatted(slotName, slotName, slotName));
+                $$""".formatted(slotName, slotName, slotName),
+                """
+                CREATE OR REPLACE FUNCTION _lakeon_iceberg.%s()
+                RETURNS trigger
+                LANGUAGE plpgsql
+                AS $$
+                BEGIN
+                    IF TG_OP = 'DELETE' THEN
+                        INSERT INTO _lakeon_iceberg.cdf_change_events(stream_id, branch_id, op, row_json)
+                        VALUES (%s, %s, TG_OP, to_jsonb(OLD));
+                        RETURN OLD;
+                    END IF;
+
+                    INSERT INTO _lakeon_iceberg.cdf_change_events(stream_id, branch_id, op, row_json)
+                    VALUES (%s, %s, TG_OP, to_jsonb(NEW));
+                    RETURN NEW;
+                END
+                $$""".formatted(triggerFunction, streamId, branchId, streamId, branchId),
+                "DROP TRIGGER IF EXISTS " + triggerName + " ON " + sourceTableQualified,
+                "CREATE TRIGGER " + triggerName
+                        + " AFTER INSERT OR UPDATE OR DELETE ON " + sourceTableQualified
+                        + " FOR EACH ROW EXECUTE FUNCTION _lakeon_iceberg." + triggerFunction + "()");
     }
 
     public List<String> teardownSql(LakebaseCdfStreamEntity stream) {

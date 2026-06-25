@@ -102,12 +102,23 @@ public class IcebergTenantSchemaManager {
                 PRIMARY KEY (stream_id, branch_id)
             );
 
+            CREATE TABLE IF NOT EXISTS _lakeon_iceberg.cdf_change_events (
+                event_id BIGSERIAL PRIMARY KEY,
+                stream_id TEXT NOT NULL,
+                branch_id TEXT NOT NULL,
+                op TEXT NOT NULL,
+                row_json JSONB NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            );
+
             CREATE INDEX IF NOT EXISTS idx_lakeon_iceberg_data_files_table_branch_snapshot
                 ON _lakeon_iceberg.data_files(table_id, branch_id, snapshot_id);
             CREATE INDEX IF NOT EXISTS idx_lakeon_iceberg_data_files_partition
                 ON _lakeon_iceberg.data_files USING gin(partition_json);
             CREATE INDEX IF NOT EXISTS idx_lakeon_iceberg_snapshots_table_branch
                 ON _lakeon_iceberg.snapshots(table_id, branch_id, sequence_number);
+            CREATE INDEX IF NOT EXISTS idx_lakeon_iceberg_cdf_change_events_stream
+                ON _lakeon_iceberg.cdf_change_events(stream_id, branch_id, event_id);
             """;
 
     public static String schemaSql() {

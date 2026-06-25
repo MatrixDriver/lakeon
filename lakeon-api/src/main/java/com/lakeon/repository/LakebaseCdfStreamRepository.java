@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface LakebaseCdfStreamRepository extends JpaRepository<LakebaseCdfStreamEntity, String> {
     List<LakebaseCdfStreamEntity> findByTenantIdAndDatabaseId(String tenantId, String databaseId);
+    List<LakebaseCdfStreamEntity> findByStatusAndBackfillStatus(String status, String backfillStatus);
     Optional<LakebaseCdfStreamEntity> findByIdAndTenantIdAndDatabaseId(
             String id, String tenantId, String databaseId);
     Optional<LakebaseCdfStreamEntity> findByTenantIdAndDatabaseIdAndBranchIdAndTargetNamespaceAndTargetTable(
