@@ -85,6 +85,7 @@ def test_control_plane_split_uses_gateway_and_does_not_render_legacy_lakeon_api(
     assert "name: LAKEON_API_ROLE\n              value: \"serving\"" in manifest
     assert "proxy_pass http://admin-api:8088" in manifest
     assert "proxy_pass http://serving-api:8088" in manifest
+    assert "add_header X-Lakeon-Api-Gateway split always;" in manifest
 
     public_service = re.search(
         r"kind: Service\nmetadata:\n  name: lakeon-api-public.*?(?=\n---|\Z)",

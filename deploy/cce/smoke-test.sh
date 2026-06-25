@@ -28,11 +28,23 @@ check() {
 }
 
 # 1. API Pod Running
-API_STATUS=$(kubectl get pods -n lakeon -l app=lakeon-api -o jsonpath='{.items[0].status.phase}' 2>/dev/null)
-if [ "$API_STATUS" = "Running" ]; then
-  check "API Pod 运行中" "ok"
+CONTROL_KUBECONFIG="${CONTROL_KUBECONFIG:-${KUBECONFIG:-}}"
+API_COMPONENTS_OK=ok
+for component in api-gateway admin-api serving-api; do
+  READY_REPLICAS=$(KUBECONFIG="$CONTROL_KUBECONFIG" kubectl get deployment "$component" -n lakeon -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "")
+  if [ -z "$READY_REPLICAS" ] || [ "$READY_REPLICAS" = "0" ]; then
+    API_COMPONENTS_OK="$component readyReplicas=${READY_REPLICAS:-0}"
+    break
+  fi
+done
+check "Split API 组件运行中" "$API_COMPONENTS_OK"
+
+PUBLIC_SELECTOR=$(KUBECONFIG="$CONTROL_KUBECONFIG" kubectl get service lakeon-api-public -n lakeon -o jsonpath='{.spec.selector.app}' 2>/dev/null || echo "")
+PUBLIC_TARGET_PORT=$(KUBECONFIG="$CONTROL_KUBECONFIG" kubectl get service lakeon-api-public -n lakeon -o jsonpath='{.spec.ports[?(@.name=="https")].targetPort}' 2>/dev/null || echo "")
+if [ "$PUBLIC_SELECTOR" = "api-gateway" ] && [ "$PUBLIC_TARGET_PORT" = "https" ]; then
+  check "公网 API 路由到 api-gateway" "ok"
 else
-  check "API Pod 运行中" "status=$API_STATUS"
+  check "公网 API 路由到 api-gateway" "selector=${PUBLIC_SELECTOR:-unset} targetPort=${PUBLIC_TARGET_PORT:-unset}"
 fi
 
 # 2. API HTTPS 可达
