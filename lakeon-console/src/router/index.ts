@@ -65,6 +65,7 @@ const routes = [
       { path: 'timetravel', name: 'TimeTravel', component: () => import('../views/timetravel/TimeTravelView.vue') },
       { path: 'sql', name: 'SqlEditor', component: () => import('../views/sql/SqlEditorEntry.vue') },
       { path: 'import', name: 'Import', component: () => import('../views/import/ImportEntry.vue') },
+      { path: 'cdf', name: 'LakebaseCdf', component: () => import('../views/cdf/LakebaseCdfList.vue') },
       { path: 'monitor', name: 'Monitor', component: () => import('../views/monitor/MonitorView.vue') },
       { path: 'logs', name: 'LogManagement', component: () => import('../views/log-management/LogManagement.vue') },
       { path: 'backups', name: 'BackupManagement', component: () => import('../views/backup/BackupManagement.vue') },

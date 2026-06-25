@@ -16,6 +16,7 @@ function makeRouter(initialPath: string) {
           { path: 'timetravel', component: { template: '<div>timetravel</div>' } },
           { path: 'sql', component: { template: '<div>sql</div>' } },
           { path: 'import', component: { template: '<div>import</div>' } },
+          { path: 'cdf', component: { template: '<div>cdf</div>' } },
           { path: 'lbfs', component: { template: '<div>lbfs</div>' } },
           { path: 'monitor', component: { template: '<div>ops</div>' } },
           { path: 'docs', component: { template: '<div>docs</div>' } },
@@ -50,6 +51,7 @@ describe('ConsoleLayout', () => {
     expect(wrapper.find('.side-title').text()).toContain('数据')
     expect(wrapper.find('.sidebar-nav').text()).toContain('数据目录')
     expect(wrapper.find('.sidebar-nav').text()).toContain('数据库')
+    expect(wrapper.find('.sidebar-nav').text()).toContain('CDF')
     expect(wrapper.find('.sidebar-nav').text()).not.toContain('数据湖')
   })
 })

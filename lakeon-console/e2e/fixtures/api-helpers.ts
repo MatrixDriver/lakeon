@@ -1,6 +1,8 @@
 const API_BASE = 'https://api.dbay.cloud:8443/api/v1'
 const ADMIN_TOKEN = process.env.DBAY_ADMIN_TOKEN || 'lakeon-sre-2026'
 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = process.env.NODE_TLS_REJECT_UNAUTHORIZED || '0'
+
 async function apiRequest(method: string, path: string, body?: unknown, token?: string) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`

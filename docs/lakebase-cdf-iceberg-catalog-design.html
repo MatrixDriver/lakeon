@@ -1,0 +1,880 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lakebase CDF 与 Lakeon-managed Iceberg Catalog 方案</title>
+  <style>
+    :root {
+      --bg: #faf8f5;
+      --paper: #fffdfa;
+      --ink: #263746;
+      --muted: #65717d;
+      --line: #e8e4df;
+      --blue: #2a4d6a;
+      --blue-2: #1e3a52;
+      --orange: #c67d3a;
+      --orange-soft: #fdf5ed;
+      --green: #4f7b61;
+      --red: #a34f43;
+      --shadow: 0 18px 48px rgba(42, 77, 106, 0.10);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.62;
+    }
+
+    main {
+      width: min(1180px, calc(100vw - 48px));
+      margin: 0 auto;
+      padding: 46px 0 72px;
+    }
+
+    header {
+      padding: 0 0 28px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 30px;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--orange);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+      line-height: 1.18;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      max-width: 900px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 42px;
+      font-weight: 600;
+      color: var(--blue-2);
+    }
+
+    h2 {
+      margin-top: 42px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 28px;
+      color: var(--blue-2);
+    }
+
+    h3 {
+      margin-top: 26px;
+      font-size: 17px;
+      color: var(--blue);
+    }
+
+    p {
+      margin: 12px 0 0;
+    }
+
+    .lead {
+      max-width: 880px;
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin: 26px 0 8px;
+    }
+
+    .metric {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .metric strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--blue-2);
+      font-size: 15px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .section {
+      margin-top: 28px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .diagram-wrap {
+      overflow-x: auto;
+      margin-top: 18px;
+      padding: 14px;
+      background: #fffaf3;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    svg {
+      display: block;
+      min-width: 980px;
+      width: 100%;
+      height: auto;
+    }
+
+    .box {
+      fill: #fffdfa;
+      stroke: #d9d1c8;
+      stroke-width: 1.2;
+      rx: 8;
+    }
+
+    .box-blue {
+      fill: #f3f7f9;
+      stroke: #9fb5c4;
+    }
+
+    .box-orange {
+      fill: #fdf5ed;
+      stroke: #e3bc91;
+    }
+
+    .box-green {
+      fill: #f1f7f3;
+      stroke: #a9c0b0;
+    }
+
+    .label {
+      fill: var(--ink);
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .small {
+      fill: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .arrow {
+      stroke: #8d9aa5;
+      stroke-width: 1.7;
+      fill: none;
+      marker-end: url(#arrow);
+    }
+
+    .arrow-accent {
+      stroke: var(--orange);
+      stroke-width: 2;
+      fill: none;
+      marker-end: url(#arrow-accent);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      color: var(--blue-2);
+      font-size: 13px;
+      font-weight: 700;
+      background: #fbf7f1;
+    }
+
+    td {
+      color: #344756;
+    }
+
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.92em;
+      color: #1f4058;
+      background: #f4eee7;
+      border: 1px solid #e6ddd3;
+      border-radius: 5px;
+      padding: 1px 5px;
+    }
+
+    pre {
+      margin: 16px 0 0;
+      overflow-x: auto;
+      background: #223442;
+      color: #f6efe5;
+      border-radius: 8px;
+      padding: 16px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    pre code {
+      color: inherit;
+      background: transparent;
+      border: 0;
+      padding: 0;
+    }
+
+    ul {
+      margin: 12px 0 0;
+      padding-left: 20px;
+    }
+
+    li {
+      margin: 7px 0;
+    }
+
+    .callout {
+      margin-top: 16px;
+      padding: 15px 16px;
+      border: 1px solid #e7cfb6;
+      border-radius: 8px;
+      background: var(--orange-soft);
+      color: #593d27;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .mini {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: #fffefa;
+    }
+
+    .mini h3 {
+      margin-top: 0;
+    }
+
+    .tag {
+      display: inline-block;
+      margin: 0 6px 6px 0;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #eef3f6;
+      color: var(--blue-2);
+      border: 1px solid #d8e3ea;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .decision {
+      border-color: #cad9ce;
+      background: #f3f8f4;
+      color: #2f523d;
+    }
+
+    .risk {
+      border-color: #e0c2bb;
+      background: #fff5f2;
+      color: #6a332d;
+    }
+
+    @media (max-width: 840px) {
+      main {
+        width: min(100vw - 28px, 1180px);
+        padding-top: 28px;
+      }
+
+      h1 {
+        font-size: 32px;
+      }
+
+      .summary-grid,
+      .two-col {
+        grid-template-columns: 1fr;
+      }
+
+      .section {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">Lakebase CDF · Lakeon-managed Iceberg · 方案讨论稿</p>
+    <h1>用用户 Lakebase 承载 Iceberg Catalog 事务，用 OBS 承载开放表格式</h1>
+    <p class="lead">
+      本文整理 Lakeon 在 Lakebase Core 内实现 CDF 写 Lakeon-managed lakehouse table 的方案：用户业务写 Lakebase/Postgres，Lakeon 捕获变更并写成可由 Iceberg REST Catalog 访问的表。默认热路径以用户 Lakebase 中的 catalog、planning index 和事务状态为准，OBS 主要保存 Parquet data/delete files；标准 Iceberg metadata/manifest 可在用户需要兼容、恢复、审计或导出时按需物化。
+    </p>
+    <div class="summary-grid">
+      <div class="metric">
+        <strong>实时性目标</strong>
+        <span>MVP 10-30 秒；优化后 3-10 秒；不承诺 sub-second Iceberg。</span>
+      </div>
+      <div class="metric">
+        <strong>客户端兼容</strong>
+        <span>使用标准 Iceberg REST Catalog；用户不需要换 PyIceberg、Spark、DuckDB 客户端。</span>
+      </div>
+      <div class="metric">
+        <strong>核心绑定点</strong>
+        <span>绑定 Lakeon Catalog，不开放直接 OBS metadata 路径作为接口。</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="section">
+    <h2>1. 设计目标</h2>
+    <p>
+      目标不是把 Lakebase 伪装成一个普通对象存储 Iceberg 表，而是构建一种 Lakebase-native 的近实时 lakehouse 能力：
+      Lakebase 负责事务、权限、branch、低延迟 Catalog load 和 scan planning；OBS 负责 Parquet data/delete files、长期存储，以及按需物化后的标准 Iceberg metadata/manifest。
+    </p>
+    <div>
+      <span class="tag">Lakebase CDF</span>
+      <span class="tag">Iceberg REST Catalog</span>
+      <span class="tag">用户 Lakebase 元数据</span>
+      <span class="tag">OBS 标准文件</span>
+      <span class="tag">Lakebase branch</span>
+      <span class="tag">dbay-agent Python 作业</span>
+    </div>
+    <div class="callout decision">
+      关键决策：这些表定义为 <strong>Lakeon-managed lakehouse tables</strong>。用户通过标准 Iceberg 客户端连接 Lakeon REST Catalog 读写；直接读取 OBS 上的 metadata.json、manifest 或 data files 不作为受支持接口。默认不是“裸 Iceberg 表”，而是 Lakebase-backed catalog + planning index + OBS Parquet 的托管表。
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>2. 总体架构</h2>
+    <p>
+      Lakeon API 同时承担 Lakebase 控制面、CDF 管理、Iceberg REST Catalog 和 server-side scan planning。Catalog 的 authoritative row 与 planning index 存在用户 Lakebase 的系统 schema 中；OBS 默认保存 Parquet data/delete files，并在需要时物化标准 Iceberg metadata/manifest；dbay-agent 只通过稳定 HTTP/API 和标准 Iceberg Catalog 访问，不共享 Lakeon RDS 表。
+    </p>
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 1120 620" role="img" aria-label="Lakebase CDF and Iceberg Catalog architecture diagram">
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,6 L9,3 z" fill="#8d9aa5"></path>
+          </marker>
+          <marker id="arrow-accent" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,6 L9,3 z" fill="#c67d3a"></path>
+          </marker>
+        </defs>
+
+        <rect class="box box-blue" x="36" y="54" width="210" height="94"></rect>
+        <text class="label" x="58" y="88">应用 / OLTP 写入</text>
+        <text class="small" x="58" y="115">Postgres driver</text>
+        <text class="small" x="58" y="134">写入用户 Lakebase 表</text>
+
+        <rect class="box box-blue" x="336" y="38" width="244" height="128"></rect>
+        <text class="label" x="358" y="74">用户 Lakebase / Neon</text>
+        <text class="small" x="358" y="101">业务表：public.orders</text>
+        <text class="small" x="358" y="121">系统表：_lakeon_iceberg.*</text>
+        <text class="small" x="358" y="141">branch-scoped catalog state</text>
+
+        <rect class="box box-orange" x="678" y="46" width="210" height="110"></rect>
+        <text class="label" x="700" y="80">Lakebase CDF Worker</text>
+        <text class="small" x="700" y="107">logical decoding / WAL</text>
+        <text class="small" x="700" y="127">micro-batch writer</text>
+        <text class="small" x="700" y="147">offset + commit 事务绑定</text>
+
+        <rect class="box box-green" x="674" y="228" width="232" height="132"></rect>
+        <text class="label" x="696" y="262">Lakeon REST Catalog</text>
+        <text class="small" x="696" y="289">标准 Iceberg REST API</text>
+        <text class="small" x="696" y="309">load table 返回 metadata JSON</text>
+        <text class="small" x="696" y="329">commit requirements + CAS</text>
+
+        <rect class="box" x="336" y="236" width="244" height="132"></rect>
+        <text class="label" x="358" y="270">_lakeon_iceberg.tables</text>
+        <text class="small" x="358" y="297">current metadata / refs</text>
+        <text class="small" x="358" y="317">data_files / stats index</text>
+        <text class="small" x="358" y="337">metadata_hash / commit_lsn</text>
+
+        <rect class="box" x="336" y="430" width="244" height="104"></rect>
+        <text class="label" x="358" y="464">_lakeon_iceberg.cdf_offsets</text>
+        <text class="small" x="358" y="491">slot / lsn / txid / batch id</text>
+        <text class="small" x="358" y="511">与 Iceberg snapshot 原子记录</text>
+
+        <rect class="box box-orange" x="966" y="198" width="130" height="198"></rect>
+        <text class="label" x="988" y="232">OBS Warehouse</text>
+        <text class="small" x="988" y="260">data/*.parquet</text>
+        <text class="small" x="988" y="282">delete files</text>
+        <text class="small" x="988" y="304">lazy metadata/*.json</text>
+        <text class="small" x="988" y="326">lazy manifest</text>
+        <text class="small" x="988" y="358">按需标准化副本</text>
+
+        <rect class="box box-blue" x="36" y="250" width="226" height="118"></rect>
+        <text class="label" x="58" y="284">dbay-agent / Python 作业</text>
+        <text class="small" x="58" y="311">PyIceberg / DuckDB / Spark</text>
+        <text class="small" x="58" y="331">catalog.uri = Lakeon API</text>
+        <text class="small" x="58" y="351">不直接读 Lakeon RDS</text>
+
+        <rect class="box box-blue" x="36" y="446" width="226" height="88"></rect>
+        <text class="label" x="58" y="480">Console / CLI</text>
+        <text class="small" x="58" y="507">只展示 Lakebase branch</text>
+        <text class="small" x="58" y="527">CDF 状态 / 表状态 / 延迟</text>
+
+        <path class="arrow" d="M246 102 C280 102, 300 102, 336 102"></path>
+        <path class="arrow-accent" d="M580 103 C622 103, 638 103, 678 103"></path>
+        <path class="arrow-accent" d="M780 156 C780 184, 780 202, 780 228"></path>
+        <path class="arrow" d="M674 294 C640 294, 614 294, 580 294"></path>
+        <path class="arrow" d="M458 368 C458 392, 458 406, 458 430"></path>
+        <path class="arrow-accent" d="M906 294 C928 294, 944 294, 966 294"></path>
+        <path class="arrow" d="M262 306 C300 306, 316 306, 336 306"></path>
+        <path class="arrow" d="M262 489 C356 489, 578 422, 674 328"></path>
+        <path class="arrow" d="M906 330 C934 362, 940 410, 902 454 C838 528, 648 506, 580 489"></path>
+
+        <text class="small" x="274" y="86">SQL 写入</text>
+        <text class="small" x="606" y="88">捕获变更</text>
+        <text class="small" x="916" y="276">写 Parquet / lazy export</text>
+        <text class="small" x="282" y="289">load / commit</text>
+      </svg>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>3. CDF 到 Iceberg 的数据流</h2>
+    <table>
+      <thead>
+      <tr>
+        <th>步骤</th>
+        <th>动作</th>
+        <th>事务边界</th>
+        <th>可见性</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+        <td>1</td>
+        <td>应用写入 Lakebase/Postgres 业务表。</td>
+        <td>用户 OLTP 事务。</td>
+        <td>立即对 Lakebase 查询可见。</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>用户打开 CDF 后，Lakeon 先执行 initial backfill，把源表当前快照写成第一批 Parquet 和 planning index。</td>
+        <td>捕获 backfill LSN，作为后续增量消费边界。</td>
+        <td>backfill snapshot commit 后，Iceberg 客户端可读到完整初始表。</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>CDF Worker 从 backfill LSN 之后通过 logical decoding / WAL 读取增量变更。</td>
+        <td>按 LSN 顺序消费，记录 batch 边界。</td>
+        <td>增量尚未对 Iceberg 可见。</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Worker 将变更写成 Parquet data/delete files，并生成 Lakebase planning index 变更。</td>
+        <td>OBS 数据文件先写入未提交状态；manifest 默认不立即生成。</td>
+        <td>直接 OBS 路径不是支持接口。</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>Worker 调 Lakeon REST Catalog commit。</td>
+        <td>用户 Lakebase 中 CAS 更新 catalog row，同时记录 CDF offset。</td>
+        <td>CAS 成功后 Iceberg snapshot 对 catalog 客户端可见。</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>dbay-agent 或外部引擎 load table / scan。</td>
+        <td>load table 从用户 Lakebase 读取热 metadata；支持 server-side planning 的客户端从 Lakebase planning index 获取 FileScanTask，再读取 OBS Parquet。</td>
+        <td>看到 branch 当前 catalog pointer 指向的 Iceberg snapshot。</td>
+      </tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      实时性建议：打开 CDF 后先完成 initial backfill，目标表才标记为可读；backfill 后增量 CDF 第一版目标 10-30 秒端到端延迟，优化后可压到 3-10 秒。
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>4. 中间元数据方案</h2>
+    <p>
+      最小 pointer 方案性能收益不够；全量复制 Iceberg metadata 又会制造双真相。推荐中间方案升级为：用户 Lakebase 存当前 metadata 的热副本、catalog 事务状态和 scan planning index；OBS 默认保存 Parquet data/delete files，标准 Iceberg metadata/manifest 作为按需物化副本。
+    </p>
+    <table>
+      <thead>
+      <tr>
+        <th>位置</th>
+        <th>保存内容</th>
+        <th>是否 authoritative</th>
+        <th>原因</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+        <td>用户 Lakebase <code>_lakeon_iceberg.tables</code></td>
+        <td><code>current_metadata_location</code>、<code>current_metadata_json</code>、<code>metadata_hash</code>、<code>commit_lsn</code>、branch scope、export 状态。</td>
+        <td>当前可见版本和 Catalog 事务以这里为准。</td>
+        <td>低延迟 load table、CAS commit、权限、审计、branch 隔离。</td>
+      </tr>
+      <tr>
+        <td>用户 Lakebase planning index</td>
+        <td><code>snapshots</code>、<code>data_files</code>、<code>delete_files</code>、partition values、column bounds、record count、file size。</td>
+        <td>Lakeon 默认 scan planning 以这里为准。</td>
+        <td>避免客户端热路径读取 OBS manifest；用 Lakebase 索引做文件裁剪和权限控制。</td>
+      </tr>
+      <tr>
+        <td>OBS Parquet data/delete files</td>
+        <td>实际数据文件和删除文件。</td>
+        <td>真实数据内容以这里为准。</td>
+        <td>保持列式分析存储、对象存储成本和跨引擎扫描基础。</td>
+      </tr>
+      <tr>
+        <td>OBS lazy Iceberg metadata / manifest</td>
+        <td>按需生成的 <code>metadata/*.metadata.json</code>、manifest-list、manifest。</td>
+        <td>标准兼容、恢复、审计和导出副本。</td>
+        <td>只有用户需要外部 Iceberg 生态或恢复审计时物化，避免每次 commit 增加 OBS 小文件和延迟。</td>
+      </tr>
+      <tr>
+        <td>Lakeon API 内存缓存</td>
+        <td>table pointer、metadata hash、权限结果、短 TTL table summary。</td>
+        <td>非 authoritative。</td>
+        <td>降低 REST Catalog 热路径延迟。</td>
+      </tr>
+      </tbody>
+    </table>
+    <pre><code>-- 用户 Lakebase 中的核心 catalog row，示意
+UPDATE _lakeon_iceberg.tables
+SET current_metadata_location = :new_metadata_location,
+    current_metadata_json = :new_metadata_json,
+    metadata_hash = :new_metadata_hash,
+    current_snapshot_id = :new_snapshot_id,
+    metadata_version = metadata_version + 1,
+    last_commit_lsn = :end_lsn,
+    export_status = 'NOT_MATERIALIZED',
+    updated_at = now()
+WHERE table_id = :table_id
+  AND branch_id = :branch_id
+  AND current_metadata_location = :expected_old_metadata_location;</code></pre>
+  </section>
+
+  <section class="section">
+    <h2>5. Lazy Iceberg Manifest Materialization</h2>
+    <p>
+      默认热路径不要求每次 commit 都写 OBS 上的 Iceberg metadata/manifest。Lakeon 可以先把 commit 记录、snapshot、data file index 写入用户 Lakebase，并把 Parquet data/delete files 写入 OBS；当用户需要标准 Iceberg 兼容、审计导出、外部引擎直读或灾难恢复时，再把 Lakebase planning index 物化成标准 Iceberg metadata 和 manifest。
+    </p>
+    <table>
+      <thead>
+      <tr>
+        <th>模式</th>
+        <th>默认访问</th>
+        <th>OBS manifest 状态</th>
+        <th>适用场景</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+        <td><code>managed_only</code></td>
+        <td>只支持 Lakeon REST Catalog；scan planning 由 Lakebase planning index 完成。</td>
+        <td>不保证每个 snapshot 立即有标准 manifest。</td>
+        <td>默认模式，最低 commit 延迟，绑定 Lakeon 增强能力。</td>
+      </tr>
+      <tr>
+        <td><code>iceberg_exported</code></td>
+        <td>Lakeon REST Catalog 仍是主入口；也可以交付标准 Iceberg metadata/manifest 给外部生态。</td>
+        <td>后台物化标准 metadata.json、manifest-list、manifest。</td>
+        <td>外部 Spark/Trino/Databricks 接入、审计、离线恢复、客户交付。</td>
+      </tr>
+      </tbody>
+    </table>
+    <div class="callout risk">
+      取舍：lazy manifest 会让默认表不再是“随时可绕过 Catalog 直读的裸 Iceberg 表”。这是有意的产品边界。Lakeon-managed 表必须通过 Lakeon REST Catalog 获得事务、权限、branch、planning index 和 GC 能力。
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>6. Query Path Guidance，不是第一期自动路由</h2>
+    <p>
+      第一版不做透明的 automatic query path selection。Iceberg 客户端通过 Lakeon REST Catalog 读 Lakeon-managed table，最终仍然扫描 OBS 上的 Parquet data files；PostgreSQL 客户端继续读 Lakebase 原表。PG 客户端只有在未来启用 Lakebase serving projection，或直接查询源表时，才能得到 Lakebase row-store 的低延迟好处。
+    </p>
+    <table>
+      <thead>
+      <tr>
+        <th>客户端 / 场景</th>
+        <th>第一期路径</th>
+        <th>能得到的好处</th>
+        <th>不能承诺的能力</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+        <td>Iceberg 客户端 / 分析扫描</td>
+        <td>Lakeon REST Catalog + OBS Parquet。</td>
+        <td>Catalog load、权限、branch、CDF snapshot、lazy export；支持 REST scan planning 的客户端还可减少 manifest planning 时延。</td>
+        <td>不能保证所有标准 Iceberg 客户端都不读 manifest；也不能避免实际 Parquet 数据扫描。</td>
+      </tr>
+      <tr>
+        <td>PG 客户端 / 点查</td>
+        <td>Lakebase 原表。</td>
+        <td>普通 PostgreSQL driver 即可获得 Lakebase 低延迟索引访问。</td>
+        <td>PG 客户端不会自动查询 Iceberg Parquet；Lakeon 也不会在第一期伪装成 PG 查询引擎。</td>
+      </tr>
+      <tr>
+        <td>PG 客户端 / 未来服务化结果</td>
+        <td>未来 Lakebase serving projection。</td>
+        <td>模型特征、画像、风控分等 current-state 结果可用普通 PG 查询。</td>
+        <td>这是独立大特性，需要投影表、幂等 apply、schema evolution、delete/tombstone 和延迟 SLA。</td>
+      </tr>
+      </tbody>
+    </table>
+    <div class="callout risk">
+      如果要让 PG 或 SQL-over-HTTP 客户端直接查询 Iceberg 表，Lakeon 必须内置或集成一个面向 Parquet/OBS 的查询引擎，并实现成本控制、并发、缓存、spill 和 planner。这不属于第一期 CDF/Catalog 计划，应放到未来阶段。
+    </div>
+    <pre><code>-- 查询路径示意
+SELECT * FROM orders_current WHERE order_id = 'o_123'
+-- -> 第一版：Lakebase source OLTP table
+-- -> 未来：Lakebase serving projection
+
+SELECT region, count(*), sum(amount)
+FROM orders_cdf
+GROUP BY region
+-- -> Iceberg engine -> Lakeon REST Catalog -> OBS Parquet</code></pre>
+  </section>
+
+  <section class="section">
+    <h2>7. Branch 模型</h2>
+    <p>
+      用户只感知 Lakebase branch。Iceberg branch/tag 作为标准 metadata 能力保留，但不作为第一版产品主心智暴露。
+    </p>
+    <div class="two-col">
+      <div class="mini">
+        <h3>用户看到的 branch</h3>
+        <ul>
+          <li><code>database = app_prod</code></li>
+          <li><code>branch = main / experiment / replay</code></li>
+          <li>每个 branch 下有自己的 Iceberg catalog pointer。</li>
+          <li>dbay-agent 按 branch 连接 Lakeon REST Catalog。</li>
+        </ul>
+      </div>
+      <div class="mini">
+        <h3>系统内部的 branch</h3>
+        <ul>
+          <li>Lakebase branch 隔离 <code>_lakeon_iceberg.*</code> catalog rows。</li>
+          <li>OBS metadata/data 文件按引用共享，不复制全量文件。</li>
+          <li>Iceberg <code>refs</code> 保持标准格式，用于兼容高级引擎语义。</li>
+          <li>GC 需要综合所有 Lakebase branches 和 Iceberg snapshots。</li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout decision">
+      产品表达：不是“Lakebase branch + Iceberg branch 两套概念”，而是“Lakebase branch 下的 Iceberg 表自动跟随分支”。Iceberg refs 只有在用户显式使用高级 Iceberg 能力时才出现。
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>8. dbay-agent 如何访问</h2>
+    <p>
+      dbay-agent 不直连 Lakeon 元数据库，也不共享 JPA 表。它通过 Lakeon API 获取 catalog 配置，并使用标准 Python / SQL 引擎访问 Iceberg 表。
+    </p>
+    <pre><code># PyIceberg 示例，具体参数由 Lakeon API 下发
+from pyiceberg.catalog import load_catalog
+
+catalog = load_catalog(
+    "dbay",
+    uri="https://api.dbay.cloud:8443/api/v1/iceberg/catalog/app_prod/main",
+    warehouse="obs://dbay-mainstore/iceberg/tenant/app_prod",
+    token="service-or-user-token",
+)
+
+table = catalog.load_table("public.orders_cdf")
+scan = table.scan().to_arrow()</code></pre>
+    <p>
+      对 DuckDB、Spark、Ray 作业也遵循同一原则：客户端保持标准，Catalog URI 指向 Lakeon，OBS 凭证由 Lakeon REST Catalog 按需下发或签名。
+    </p>
+  </section>
+
+  <section class="section">
+    <h2>9. 优点</h2>
+    <table>
+      <thead>
+      <tr>
+        <th>优点</th>
+        <th>说明</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+        <td>低延迟 Catalog load</td>
+        <td>标准 REST Catalog 响应可以直接返回 <code>metadata</code> JSON；Lakeon 从用户 Lakebase 读取热副本，避免每次从 OBS 拉 metadata JSON。</td>
+      </tr>
+      <tr>
+        <td>低延迟 scan planning</td>
+        <td>支持 REST server-side scan planning 的客户端可以让 Lakeon 用 Lakebase planning index 返回 FileScanTask，避免客户端读取 OBS manifest。</td>
+      </tr>
+      <tr>
+        <td>事务能力强</td>
+        <td>Iceberg commit requirements 映射到用户 Lakebase/Postgres CAS 和事务，CDF offset 与 Iceberg snapshot 可原子绑定。</td>
+      </tr>
+      <tr>
+        <td>branch 能力自然</td>
+        <td>Lakebase branch 隔离 catalog pointer 和热 metadata，用户只理解 Lakebase branch，不需要学习两套 branch。</td>
+      </tr>
+      <tr>
+        <td>客户端生态兼容</td>
+        <td>不 fork Iceberg 客户端，不改 Iceberg 文件格式；PyIceberg、Spark、DuckDB 等标准客户端只需配置 Lakeon REST Catalog。</td>
+      </tr>
+      <tr>
+        <td>成本归属清楚</td>
+        <td>Catalog 热元数据和 planning index 占用户 Lakebase 容量；Parquet data/delete files 占 OBS；标准 metadata/manifest 可按需物化；Lakeon RDS 只保存最小控制面索引。</td>
+      </tr>
+      <tr>
+        <td>查询路径边界清楚</td>
+        <td>Iceberg 客户端走 Catalog + Parquet；PG 客户端走 Lakebase 原表，未来可走 serving projection。第一期不承诺透明自动路由。</td>
+      </tr>
+      <tr>
+        <td>形成产品绑定</td>
+        <td>增强能力在 Lakeon Catalog 层：权限、审计、branch、GC、compaction、CDF offset。用户绑定的是服务能力，不是客户端私有协议。</td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="section">
+    <h2>10. 缺点与应对</h2>
+    <table>
+      <thead>
+      <tr>
+        <th>问题</th>
+        <th>影响</th>
+        <th>应对</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+        <td>默认不是裸 Iceberg 表</td>
+        <td>如果不立即物化 manifest，用户不能绕过 Lakeon Catalog 直接读 OBS 表。</td>
+        <td>产品定义为 Lakeon-managed table；需要外部兼容时进入 <code>iceberg_exported</code> 模式。</td>
+      </tr>
+      <tr>
+        <td>元数据重复更多</td>
+        <td>Lakebase 中除了当前 metadata，还会保存 data_files / stats planning index。</td>
+        <td>这是换取低延迟 planning 的核心成本；用分区、压缩、retention 和 GC 控制膨胀。</td>
+      </tr>
+      <tr>
+        <td>commit 变重</td>
+        <td>每次 CDF commit 需要写 Parquet，并更新 Lakebase planning index。</td>
+        <td>按 micro-batch 提交；data file index 批量 upsert；小文件由 compaction 后台处理。</td>
+      </tr>
+      <tr>
+        <td>Catalog compute 冷启动</td>
+        <td>用户 Lakebase compute 休眠时，commit/load 可能需要唤醒。</td>
+        <td>写入作业期间 keep-warm；读路径使用 Lakeon 短 TTL cache；生产 SLA 按 warm/cold 分开展示。</td>
+      </tr>
+      <tr>
+        <td>GC 复杂</td>
+        <td>需要考虑所有 Lakebase branches、Iceberg snapshots、未完成 commit 和 active query lease。</td>
+        <td>GC 是 Lakeon 内部职责，不暴露给用户；后台先 mark reachable，再延迟删除 OBS 文件。</td>
+      </tr>
+      <tr>
+        <td>必须收口所有写入</td>
+        <td>如果外部引擎绕过 Lakeon Catalog 直接写 OBS，Lakebase catalog 和 planning index 会失效。</td>
+        <td>产品定义为 Lakeon-managed Iceberg tables；OBS 路径不是支持接口；凭证和权限只通过 Lakeon Catalog 下发。</td>
+      </tr>
+      <tr>
+        <td>Serving table 是额外副本</td>
+        <td>如果为分析产物或跨表 current-state 维护 Lakebase serving table，会增加 row-store 存储和 apply 工作。</td>
+        <td>放到未来 PG Serving 阶段；只对用户声明的低延迟查询或物化结果启用；源 OLTP 表本身可直接承担点查。</td>
+      </tr>
+      <tr>
+        <td>PG 查询 Iceberg 需要查询引擎</td>
+        <td>普通 PG driver 不能直接扫描 OBS Parquet，也不会自动使用 Iceberg Catalog。</td>
+        <td>如果产品需要这个体验，规划为 Lakeon Query Engine 阶段，不纳入第一期 CDF/Catalog。</td>
+      </tr>
+      <tr>
+        <td>不是开放裸表模式</td>
+        <td>用户不能把 OBS path 当成完整产品接口。</td>
+        <td>这是有意的竞争力边界：开放客户端协议，绑定 Catalog 服务能力。</td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="section">
+    <h2>11. 推荐分阶段</h2>
+    <p>
+      详细路线图见 <code>docs/lakebase-cdf-iceberg-roadmap.md</code>。下面只保留用于评审的阶段摘要。
+    </p>
+    <table>
+      <thead>
+      <tr>
+        <th>阶段</th>
+        <th>交付</th>
+        <th>成功标准</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+        <td>MVP</td>
+        <td>Lakeon REST Catalog、用户 Lakebase catalog tables、initial backfill、CDF append changelog、OBS Parquet data files、基础 PyIceberg load。</td>
+        <td>打开 CDF 后先生成完整初始 snapshot；backfill 后 10-30 秒内从 Lakebase 增量写入到 Lakeon-managed table 可见。</td>
+      </tr>
+      <tr>
+        <td>性能版</td>
+        <td>metadata 热缓存、Lakebase planning index、REST server-side scan planning、writer keep-warm、并发表 writer、小文件 compaction、Console 状态页。</td>
+        <td>常规负载 3-10 秒可见；Catalog load 和 scan planning 不依赖客户端读取 OBS metadata/manifest。</td>
+      </tr>
+      <tr>
+        <td>Lazy Export 版</td>
+        <td>按需物化标准 Iceberg metadata/manifest，支持 <code>managed_only</code> 和 <code>iceberg_exported</code> 两种状态。</td>
+        <td>默认 commit 不写 manifest；用户需要兼容、审计、恢复时可生成标准 Iceberg 文件。</td>
+      </tr>
+      <tr>
+        <td>Branch 版</td>
+        <td>Lakebase branch 下的 catalog pointer 和 planning index 自动隔离；branch-aware GC。</td>
+        <td>同一张 Lakeon-managed table 在不同 Lakebase branch 可独立提交和读取。</td>
+      </tr>
+      <tr>
+        <td>PG Serving 版</td>
+        <td>为声明的 current-state / gold 结果维护 Lakebase serving projection。</td>
+        <td>PG 客户端用普通 PostgreSQL driver 点查低延迟结果；这不是自动查询路由。</td>
+      </tr>
+      <tr>
+        <td>Lakeon Query Engine 版</td>
+        <td>内置或集成 Iceberg/Parquet 查询引擎，提供 SQL API 或 PG-compatible gateway。</td>
+        <td>Lakeon 才能真正自动选择 Lakebase source、serving projection 或 OBS Parquet 执行；这是未来大阶段。</td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="section">
+    <h2>12. 需要进一步确认的问题</h2>
+    <ul>
+      <li>第一版 CDF 表是只做 append changelog，还是同时维护 current-state planning index。</li>
+      <li>Initial backfill 对大表的分页策略、进度展示、失败重试和 backfill LSN 捕获方式。</li>
+      <li>OBS 凭证下发方式：REST Catalog vended credentials、短期 STS，还是 Lakeon 内部代理写入。</li>
+      <li>是否第一版就支持 DELETE files 和 MERGE-on-read，还是先用 append changelog 简化。</li>
+      <li>Catalog 热 metadata JSON 与 planning index 在 Lakebase 中的压缩、分区、大小限制和迁移策略。</li>
+      <li>哪些客户端/引擎优先验证 REST server-side scan planning。</li>
+      <li>lazy manifest 的触发条件：手动导出、外部引擎接入、审计快照、周期性 materialization，还是按表策略。</li>
+      <li>Lakebase serving table 的启用条件：只为分析产物，还是也为源表 current-state 生成独立副本。</li>
+      <li>GC 的最短保留期、active query lease、跨 branch reachability 算法。</li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>

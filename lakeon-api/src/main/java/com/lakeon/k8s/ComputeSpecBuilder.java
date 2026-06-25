@@ -24,7 +24,6 @@ public class ComputeSpecBuilder {
     private final ObjectMapper objectMapper;
     private final PageserverPlacementService placementService;
 
-    @Autowired
     public ComputeSpecBuilder(LakeonProperties props, ObjectMapper objectMapper) {
         this(props, objectMapper, new PageserverPlacementService(props));
     }
