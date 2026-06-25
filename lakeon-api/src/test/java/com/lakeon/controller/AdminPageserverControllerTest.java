@@ -11,6 +11,7 @@ import com.lakeon.pageserver.PageserverPlacementService;
 import com.lakeon.pageserver.PageserverRebalancePlan;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.InviteCodeRepository;
+import com.lakeon.repository.OperationLogRepository;
 import com.lakeon.repository.TenantRepository;
 import com.lakeon.service.AdminService;
 import com.lakeon.service.DatabaseService;
@@ -55,6 +56,8 @@ class AdminPageserverControllerTest {
     private InviteCodeRepository inviteCodeRepository;
     @MockBean
     private PageserverPlacementService pageserverPlacementService;
+    @MockBean
+    private OperationLogRepository operationLogRepository;
     @MockBean
     private LakeonProperties lakeonProperties;
 

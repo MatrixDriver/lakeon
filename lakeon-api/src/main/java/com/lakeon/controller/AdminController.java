@@ -4,10 +4,14 @@ import com.lakeon.model.dto.TenantResponse;
 import com.lakeon.model.dto.UpdateQuotaRequest;
 import com.lakeon.model.entity.DatabaseEntity;
 import com.lakeon.model.entity.InviteCodeEntity;
+import com.lakeon.model.entity.OperationLogEntity;
+import com.lakeon.model.enums.OperationStatus;
+import com.lakeon.model.enums.OperationType;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.pageserver.PageserverPlacementService;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.InviteCodeRepository;
+import com.lakeon.repository.OperationLogRepository;
 import com.lakeon.repository.TenantRepository;
 import com.lakeon.service.AdminService;
 import com.lakeon.service.DatabaseService;
@@ -16,10 +20,13 @@ import com.lakeon.service.exception.NotFoundException;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/admin")
@@ -32,6 +39,7 @@ public class AdminController {
     private final AdminService adminService;
     private final InviteCodeRepository inviteCodeRepository;
     private final PageserverPlacementService pageserverPlacementService;
+    private final OperationLogRepository operationLogRepository;
 
     public AdminController(TenantService tenantService,
                            TenantRepository tenantRepository,
@@ -39,7 +47,8 @@ public class AdminController {
                            DatabaseService databaseService,
                            AdminService adminService,
                            InviteCodeRepository inviteCodeRepository,
-                           PageserverPlacementService pageserverPlacementService) {
+                           PageserverPlacementService pageserverPlacementService,
+                           OperationLogRepository operationLogRepository) {
         this.tenantService = tenantService;
         this.tenantRepository = tenantRepository;
         this.databaseRepository = databaseRepository;
@@ -47,6 +56,7 @@ public class AdminController {
         this.adminService = adminService;
         this.inviteCodeRepository = inviteCodeRepository;
         this.pageserverPlacementService = pageserverPlacementService;
+        this.operationLogRepository = operationLogRepository;
     }
 
     @GetMapping("/dashboard")
@@ -122,6 +132,36 @@ public class AdminController {
     public Map<String, Object> getDatabase(@PathVariable String databaseId) {
         return databaseToMap(databaseRepository.findById(databaseId)
                 .orElseThrow(() -> new NotFoundException("Database not found: " + databaseId)));
+    }
+
+    @GetMapping("/compute/cold-start")
+    public Map<String, Object> getColdStartAnalysis(@RequestParam(defaultValue = "7") int days,
+                                                    @RequestParam(required = false) Instant now) {
+        int windowDays = Math.max(1, Math.min(days, 90));
+        Instant end = now != null ? now : Instant.now();
+        Instant since = end.minusSeconds(windowDays * 24L * 60L * 60L);
+        List<OperationLogEntity> logs = operationLogRepository.findByOperationTypeAndStatusAndStartedAtAfter(
+                OperationType.RESUME, OperationStatus.SUCCESS, since).stream()
+            .filter(op -> op.getDurationMs() != null)
+            .toList();
+        List<OperationLogEntity> cold = logs.stream()
+            .filter(op -> "COLD".equalsIgnoreCase(op.getResumeType())
+                || "POOL_MISS".equalsIgnoreCase(op.getResumeType()))
+            .sorted(Comparator.comparing(OperationLogEntity::getStartedAt).reversed())
+            .toList();
+        List<OperationLogEntity> warm = logs.stream()
+            .filter(op -> "WARM".equalsIgnoreCase(op.getResumeType()))
+            .toList();
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("window_days", windowDays);
+        out.put("since", since);
+        out.put("cold", latencySummary(cold));
+        out.put("warm", latencySummary(warm));
+        out.put("trend", coldStartTrend(cold));
+        out.put("by_database", coldStartByDatabase(cold));
+        out.put("recent", cold.stream().limit(20).map(this::coldStartRecentToMap).toList());
+        return out;
     }
 
     @GetMapping("/pageserver/topology")
@@ -229,6 +269,74 @@ public class AdminController {
         out.put("expires_at", e.getExpiresAt());
         out.put("valid", e.isValid());
         out.put("server_time", Instant.now());
+        return out;
+    }
+
+    private Map<String, Object> latencySummary(List<OperationLogEntity> logs) {
+        List<Long> durations = logs.stream()
+            .map(OperationLogEntity::getDurationMs)
+            .filter(v -> v != null && v >= 0)
+            .sorted()
+            .toList();
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("count", durations.size());
+        out.put("avg_ms", durations.isEmpty() ? null :
+            durations.stream().mapToLong(Long::longValue).average().orElse(0));
+        out.put("p50_ms", percentile(durations, 50));
+        out.put("p90_ms", percentile(durations, 90));
+        out.put("p99_ms", percentile(durations, 99));
+        out.put("max_ms", durations.isEmpty() ? null : durations.get(durations.size() - 1));
+        return out;
+    }
+
+    private Long percentile(List<Long> sorted, int percentile) {
+        if (sorted.isEmpty()) {
+            return null;
+        }
+        int idx = (int) Math.ceil((percentile / 100.0) * sorted.size()) - 1;
+        return sorted.get(Math.max(0, Math.min(idx, sorted.size() - 1)));
+    }
+
+    private List<Map<String, Object>> coldStartTrend(List<OperationLogEntity> cold) {
+        return cold.stream()
+            .collect(Collectors.groupingBy(
+                op -> op.getStartedAt().atZone(ZoneOffset.UTC).toLocalDate(),
+                java.util.TreeMap::new,
+                Collectors.toList()))
+            .entrySet().stream()
+            .map(entry -> {
+                Map<String, Object> out = latencySummary(entry.getValue());
+                out.put("date", entry.getKey().toString());
+                return out;
+            })
+            .toList();
+    }
+
+    private List<Map<String, Object>> coldStartByDatabase(List<OperationLogEntity> cold) {
+        return cold.stream()
+            .collect(Collectors.groupingBy(OperationLogEntity::getDatabaseId))
+            .values().stream()
+            .map(group -> {
+                Map<String, Object> out = latencySummary(group);
+                OperationLogEntity first = group.get(0);
+                out.put("database_id", first.getDatabaseId());
+                out.put("database", first.getDatabaseName());
+                return out;
+            })
+            .sorted(Comparator.comparingInt(row -> -((Number) row.get("count")).intValue()))
+            .limit(20)
+            .toList();
+    }
+
+    private Map<String, Object> coldStartRecentToMap(OperationLogEntity op) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", op.getId());
+        out.put("database_id", op.getDatabaseId());
+        out.put("database_name", op.getDatabaseName());
+        out.put("tenant_id", op.getTenantId());
+        out.put("started_at", op.getStartedAt());
+        out.put("duration_ms", op.getDurationMs());
+        out.put("resume_type", op.getResumeType());
         return out;
     }
 
