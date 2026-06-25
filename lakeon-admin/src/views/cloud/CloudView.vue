@@ -9,63 +9,74 @@
       <div v-if="loading" class="empty-text">加载中...</div>
       <div v-else-if="!topology" class="empty-text">暂无拓扑数据</div>
       <div class="arch-diagram" v-else>
-        <div class="arch-lane">
-          <ArchBox v-if="node('console')" :node="node('console')!" tone="access" />
-          <div class="arch-arrow">
-            <span>{{ edgeLabel('console', 'api-elb') }}</span>
+        <div class="arch-map">
+          <div class="arch-column">
+            <div class="column-title">入口</div>
+            <ArchBox v-if="node('console')" :node="node('console')!" tone="access" />
+            <ArchBox v-if="node('pg-client')" :node="node('pg-client')!" tone="access" />
+            <ArchBox v-if="node('pg-client-pooled')" :node="node('pg-client-pooled')!" tone="access" />
           </div>
-          <ArchBox v-if="node('api-elb')" :node="node('api-elb')!" tone="network" />
-          <div class="arch-arrow">
-            <span>{{ edgeLabel('api-elb', 'control-cce') }}</span>
+
+          <div class="arch-flow-column">
+            <FlowArrow :label="edgeLabel('console', 'api-elb')" />
+            <FlowArrow :label="edgeLabel('pg-client', 'pg-elb')" />
+            <FlowArrow :label="edgeLabel('pg-client-pooled', 'pg-elb')" />
           </div>
-          <ArchBox v-if="node('control-cce')" :node="node('control-cce')!" tone="control" wide />
+
+          <div class="arch-column">
+            <div class="column-title">公网 ELB</div>
+            <ArchBox v-if="node('api-elb')" :node="node('api-elb')!" tone="network" />
+            <ArchBox v-if="node('pg-elb')" :node="node('pg-elb')!" tone="network" />
+            <ArchBox v-if="node('pooler-route')" :node="node('pooler-route')!" tone="network" />
+          </div>
+
+          <div class="arch-flow-column">
+            <FlowArrow :label="edgeLabel('api-elb', 'api-gateway')" />
+            <FlowArrow :label="edgeLabel('pg-elb', 'data-proxy')" />
+            <FlowArrow :label="edgeLabel('pooler-route', 'data-proxy')" />
+          </div>
+
+          <div class="arch-column arch-column-main">
+            <div class="column-title">控制面 / 数据面</div>
+            <ArchBox v-if="node('control-cce')" :node="node('control-cce')!" tone="control" wide />
+            <ArchBox v-if="node('data-proxy')" :node="node('data-proxy')!" tone="data" wide />
+            <ArchBox v-if="node('compute-pool')" :node="node('compute-pool')!" tone="compute" wide />
+          </div>
         </div>
 
-        <div class="arch-band control">
-          <div class="band-title">控制面内部</div>
+        <div class="infra-band control">
+          <div class="band-heading">
+            <span>控制面内部</span>
+            <small>API 按路径拆分，Dicer 读取 pageserver 负载做 placement</small>
+          </div>
           <ArchBox v-if="node('api-gateway')" :node="node('api-gateway')!" tone="network" />
-          <ArchBox v-if="node('split-api')" :node="node('split-api')!" tone="control" wide />
+          <ArchBox v-if="node('split-api')" :node="node('split-api')!" tone="control" />
           <ArchBox v-if="node('dicer')" :node="node('dicer')!" tone="control" />
-        </div>
-
-        <div class="arch-lane">
-          <ArchBox v-if="node('pg-client')" :node="node('pg-client')!" tone="access" />
-          <div class="arch-arrow">
-            <span>{{ edgeLabel('pg-client', 'pg-elb') }}</span>
-          </div>
-          <ArchBox v-if="node('pg-elb')" :node="node('pg-elb')!" tone="network" />
-          <div class="arch-arrow">
-            <span>{{ edgeLabel('pg-elb', 'data-cce') }}</span>
-          </div>
-          <ArchBox v-if="node('data-cce')" :node="node('data-cce')!" tone="data" wide />
         </div>
 
         <div class="private-link">
           <span>{{ edgeLabel('control-cce', 'data-cce') }}</span>
         </div>
 
-        <div class="arch-band">
-          <div class="band-title">数据面内部</div>
-          <ArchBox v-if="node('compute-pool')" :node="node('compute-pool')!" tone="data" />
-          <ArchBox v-if="node('storage-plane')" :node="node('storage-plane')!" tone="data" />
+        <div class="infra-band">
+          <div class="band-heading">
+            <span>Neon 数据面</span>
+            <small>同 VPC 内部服务；compute 按 DB / branch 弹性启动</small>
+          </div>
+          <ArchBox v-if="node('storage-plane')" :node="node('storage-plane')!" tone="storage" />
+          <ArchBox v-if="node('data-cce')" :node="node('data-cce')!" tone="data" />
         </div>
 
-        <div class="arch-band shared">
-          <div class="band-title">同 VPC 共享云服务</div>
+        <div class="infra-band shared">
+          <div class="band-heading">
+            <span>共享云服务</span>
+            <small>控制面状态、对象存储、观测和镜像分发</small>
+          </div>
           <ArchBox v-if="node('rds')" :node="node('rds')!" tone="storage" />
-          <ArchBox v-if="node('obs')" :node="node('obs')!" tone="storage" wide />
+          <ArchBox v-if="node('obs')" :node="node('obs')!" tone="storage" />
           <ArchBox v-if="node('aom')" :node="node('aom')!" tone="observability" />
           <ArchBox v-if="node('lts')" :node="node('lts')!" tone="observability" />
           <ArchBox v-if="node('swr')" :node="node('swr')!" tone="storage" />
-        </div>
-
-        <div class="edge-list">
-          <div v-for="edge in topology.edges" :key="`${edge.from}-${edge.to}`" class="edge-item">
-            <span class="edge-from">{{ labelOf(edge.from) }}</span>
-            <span class="edge-line"></span>
-            <span class="edge-to">{{ labelOf(edge.to) }}</span>
-            <span class="edge-label">{{ edge.label }}</span>
-          </div>
         </div>
       </div>
     </div>
@@ -147,20 +158,23 @@ interface Resource {
 
 const latestTopology: Topology = {
   nodes: [
-    { id: 'console', label: 'Console / SRE', sublabel: 'Railway', desc: '用户控制台与 SRE 控制台', type: 'access' },
-    { id: 'pg-client', label: 'PG Client', sublabel: 'PostgreSQL 生态', desc: 'psql / JDBC / 现有 PG 应用', type: 'access' },
-    { id: 'api-elb', label: 'api.dbay.cloud', sublabel: '公网 ELB :8443', desc: 'HTTPS API 入口，转发到控制面 CCE', type: 'network' },
-    { id: 'pg-elb', label: 'pg.dbay.cloud', sublabel: '公网 ELB :4432', desc: 'PG 协议入口，转发到数据面 proxy', type: 'network' },
-    { id: 'control-cce', label: '控制面 CCE', sublabel: 'dbay-control-cce', desc: 'api-gateway · admin-api · serving-api · dicer-assigner', type: 'control' },
+    { id: 'console', label: 'Console / Admin', sublabel: 'Railway · dbay.cloud', desc: '用户控制台与 SRE 控制台；浏览器只访问控制面 API', type: 'access' },
+    { id: 'pg-client', label: 'PG Direct', sublabel: 'endpoint=<db>', desc: '长事务、会话状态、迁移任务默认使用 direct 连接', type: 'access' },
+    { id: 'pg-client-pooled', label: 'PG Pooled', sublabel: 'endpoint=<db>-pooler', desc: '短连接、API 服务、Serverless 函数主动选择 pooled 连接', type: 'access' },
+    { id: 'api-elb', label: 'api.dbay.cloud', sublabel: '公网 ELB :8443', desc: 'HTTPS API 入口，转发到控制面 CCE 的 API Gateway', type: 'network' },
+    { id: 'pg-elb', label: 'pg.dbay.cloud', sublabel: '公网 ELB :4432', desc: 'PG wire protocol 入口，转发到数据面 proxy', type: 'network' },
+    { id: 'pooler-route', label: '同一 PG 入口', sublabel: 'suffix: -pooler', desc: '不新增公网入口；proxy 根据 endpoint 后缀切换 direct / pooled', type: 'network' },
+    { id: 'control-cce', label: '控制面 CCE', sublabel: 'dbay-control-cce', desc: 'api-gateway · admin-api · serving-api · dicer-assigner · HPA', type: 'control' },
     { id: 'api-gateway', label: 'API Gateway', sublabel: 'api.dbay.cloud :8443', desc: '按路径分流：SRE 请求到 admin-api，业务请求到 serving-api', type: 'control' },
     { id: 'split-api', label: 'Split API', sublabel: 'admin-api · serving-api', desc: 'admin-api 只服务 /api/v1/admin；serving-api 服务业务 API 与 proxy 授权', type: 'control' },
     { id: 'dicer', label: 'Dicer Assigner', sublabel: 'load-aware placement', desc: '消费 pageserver 实时负载，给租户与 shard 选择承载节点', type: 'control' },
-    { id: 'data-cce', label: '数据面 CCE', sublabel: 'dbay-cce', desc: 'proxy · Neon compute pods · 3 pageserver · 3 safekeeper', type: 'data' },
-    { id: 'compute-pool', label: 'CCE 弹性节点池', sublabel: 'dbay-compute-pool', desc: '每个 DB / branch 的 Neon compute pod 按需扩缩', type: 'data' },
-    { id: 'storage-plane', label: 'Neon 存储层', sublabel: 'pageserver · safekeeper · broker', desc: 'safekeeper 常驻；pageserver 本地缓存，可从 OBS 恢复', type: 'data' },
-    { id: 'rds', label: 'RDS PostgreSQL', sublabel: '元数据库', desc: '租户、DB、branch、Placement、审计状态', type: 'storage' },
+    { id: 'data-proxy', label: 'Shared proxy / pooler gateway', sublabel: 'data-plane proxy 2/2', desc: '统一处理认证、wake compute、direct 路由、PROXY_POOLED 连接复用', type: 'data' },
+    { id: 'compute-pool', label: 'Neon compute pods', sublabel: 'dbay-compute-pool', desc: '每个 DB / branch 一个 compute pod；控制面按需创建、挂起和恢复', type: 'compute' },
+    { id: 'data-cce', label: '数据面 CCE', sublabel: 'dbay-cce', desc: 'proxy、compute pods、3 pageserver、3 safekeeper、storage-broker/controller', type: 'data' },
+    { id: 'storage-plane', label: 'Neon 存储层', sublabel: 'pageserver · safekeeper · broker', desc: 'safekeeper 常驻；pageserver 本地缓存，远端对象存储保存 durable 数据', type: 'storage' },
+    { id: 'rds', label: 'RDS PostgreSQL', sublabel: '元数据库', desc: '租户、DB、branch、Placement、审计和操作状态', type: 'storage' },
     { id: 'obs', label: 'OBS 对象存储', sublabel: 'dbay-mainstore', desc: '数据页文件、索引文件、WAL 归档、备份快照', type: 'storage' },
-    { id: 'aom', label: 'AOM / Prometheus', sublabel: 'metrics', desc: '数据面写入指标；控制面读取并驱动 Scale Controller', type: 'observability' },
+    { id: 'aom', label: 'AOM / Prometheus', sublabel: 'metrics', desc: '数据面写入指标；控制面读取健康和容量信号', type: 'observability' },
     { id: 'lts', label: 'LTS 日志服务', sublabel: 'logs', desc: '控制面与数据面写入应用日志、审计日志', type: 'observability' },
     { id: 'swr', label: 'SWR 镜像仓库', sublabel: 'flex', desc: '控制面、数据面和 compute pod 镜像', type: 'storage' },
   ],
@@ -170,12 +184,14 @@ const latestTopology: Topology = {
     { from: 'api-gateway', to: 'split-api', label: 'Path routing' },
     { from: 'split-api', to: 'control-cce', label: 'K8s service' },
     { from: 'split-api', to: 'dicer', label: 'placement / load' },
-    { from: 'pg-client', to: 'pg-elb', label: 'PG wire protocol' },
-    { from: 'pg-elb', to: 'data-cce', label: 'Service LoadBalancer' },
+    { from: 'pg-client', to: 'pg-elb', label: 'Direct PG' },
+    { from: 'pg-client-pooled', to: 'pg-elb', label: 'Pooled PG' },
+    { from: 'pg-elb', to: 'data-proxy', label: 'Service LB' },
+    { from: 'pooler-route', to: 'data-proxy', label: 'endpoint route' },
     { from: 'dicer', to: 'data-cce', label: 'pageserver metrics' },
-    { from: 'control-cce', to: 'data-cce', label: 'CCE 间私网 / 内网 ELB' },
-    { from: 'data-cce', to: 'compute-pool', label: 'Kubernetes 调度' },
-    { from: 'data-cce', to: 'storage-plane', label: 'Neon 热路径' },
+    { from: 'control-cce', to: 'data-cce', label: '私网 kube API / 内网 ELB' },
+    { from: 'data-proxy', to: 'compute-pool', label: 'wake / route' },
+    { from: 'compute-pool', to: 'storage-plane', label: 'Neon page/WAL' },
     { from: 'control-cce', to: 'rds', label: '元数据读写' },
     { from: 'data-cce', to: 'obs', label: '远端存储' },
     { from: 'data-cce', to: 'aom', label: 'metrics 写入' },
@@ -336,16 +352,12 @@ function node(id: string) {
   return nodeMap.value.get(id)
 }
 
-function labelOf(id: string) {
-  return node(id)?.label || id
-}
-
 function edgeLabel(from: string, to: string) {
   return topology.value?.edges.find(edge => edge.from === from && edge.to === to)?.label || ''
 }
 
 function normalizeTopology(data: Topology | null | undefined) {
-  if (data?.nodes?.some(item => item.id === 'control-cce') && data.nodes.some(item => item.id === 'data-cce')) {
+  if (data?.nodes?.some(item => item.id === 'data-proxy') && data.nodes.some(item => item.id === 'pg-client-pooled')) {
     return data
   }
   return latestTopology
@@ -370,6 +382,18 @@ const ArchBox = defineComponent({
       h('div', { class: 'arch-box-label' }, props.node.label),
       h('div', { class: 'arch-box-value' }, props.node.sublabel),
       h('div', { class: 'arch-box-desc' }, props.node.desc),
+    ])
+  },
+})
+
+const FlowArrow = defineComponent({
+  name: 'FlowArrow',
+  props: {
+    label: { type: String, required: true },
+  },
+  setup(props) {
+    return () => h('div', { class: 'flow-arrow' }, [
+      h('span', props.label),
     ])
   },
 })
@@ -404,25 +428,47 @@ onMounted(async () => {
   padding: var(--space-lg);
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
-  background: color-mix(in oklch, var(--c-bg-alt) 78%, #fff);
+  gap: var(--space-lg);
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--c-bg-alt) 82%, #fff), #fff 72%);
 }
-.arch-lane {
+.arch-map {
   display: grid;
-  grid-template-columns: minmax(170px, 1fr) minmax(92px, 0.55fr) minmax(170px, 1fr) minmax(92px, 0.55fr) minmax(260px, 1.35fr);
+  grid-template-columns: minmax(190px, 0.9fr) 92px minmax(190px, 0.9fr) 92px minmax(300px, 1.35fr);
   gap: var(--space-sm);
   align-items: stretch;
 }
+.arch-column {
+  display: grid;
+  grid-template-rows: auto repeat(3, minmax(122px, 1fr));
+  gap: var(--space-sm);
+}
+.arch-column-main {
+  grid-template-rows: auto minmax(122px, 1fr) minmax(122px, 1fr) minmax(122px, 1fr);
+}
+.arch-flow-column {
+  display: grid;
+  grid-template-rows: auto repeat(3, minmax(122px, 1fr));
+  gap: var(--space-sm);
+  padding-top: 29px;
+}
+.column-title {
+  color: var(--c-text-3);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
 .arch-box {
   border: 1px solid var(--c-border);
-  background: #fff;
-  border-radius: 6px;
+  background: color-mix(in oklch, #fff 88%, var(--c-bg-alt));
+  border-radius: 8px;
   padding: var(--space-md);
-  min-height: 112px;
+  min-height: 122px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  box-shadow: 0 1px 0 rgba(42, 77, 106, 0.03);
+  box-shadow: 0 1px 0 rgba(42, 77, 106, 0.04), 0 10px 28px rgba(42, 77, 106, 0.04);
 }
 .arch-box.wide { min-width: 0; }
 .arch-box-label {
@@ -443,13 +489,26 @@ onMounted(async () => {
   margin-top: 8px;
   line-height: 1.45;
 }
-.tone-access { border-color: color-mix(in oklch, var(--cs-warn) 30%, var(--c-border)); }
-.tone-network { border-color: color-mix(in oklch, var(--c-accent) 35%, var(--c-border)); }
-.tone-control { border-color: color-mix(in oklch, var(--c-primary) 38%, var(--c-border)); background: color-mix(in oklch, var(--c-primary) 4%, #fff); }
-.tone-data { border-color: color-mix(in oklch, var(--c-primary) 30%, var(--c-border)); background: color-mix(in oklch, var(--c-bg-alt) 55%, #fff); }
+.tone-access { border-color: color-mix(in oklch, var(--c-primary) 20%, var(--c-border)); }
+.tone-network { border-color: color-mix(in oklch, var(--c-accent) 38%, var(--c-border)); }
+.tone-control {
+  border-color: color-mix(in oklch, var(--c-primary) 38%, var(--c-border));
+  background: color-mix(in oklch, var(--c-primary) 5%, #fff);
+}
+.tone-data {
+  border-color: color-mix(in oklch, var(--c-primary) 30%, var(--c-border));
+  background: color-mix(in oklch, var(--c-bg-alt) 58%, #fff);
+}
+.tone-compute {
+  border-color: color-mix(in oklch, var(--c-accent) 32%, var(--c-border));
+  background: color-mix(in oklch, var(--c-accent-light) 34%, #fff);
+}
 .tone-storage { border-color: color-mix(in oklch, var(--c-success) 30%, var(--c-border)); }
-.tone-observability { border-color: color-mix(in oklch, var(--c-accent) 28%, var(--c-border)); background: color-mix(in oklch, var(--c-accent-light) 34%, #fff); }
-.arch-arrow {
+.tone-observability {
+  border-color: color-mix(in oklch, var(--c-accent) 24%, var(--c-border));
+  background: color-mix(in oklch, var(--c-accent-light) 24%, #fff);
+}
+.flow-arrow {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -457,20 +516,20 @@ onMounted(async () => {
   font-size: 11px;
   text-align: center;
   position: relative;
-  min-height: 112px;
+  min-height: 122px;
 }
-.arch-arrow::before {
+.flow-arrow::before {
   content: "";
   position: absolute;
-  left: 6px;
+  left: 4px;
   right: 16px;
   top: 50%;
   border-top: 1px solid color-mix(in oklch, var(--c-text-3) 65%, transparent);
 }
-.arch-arrow::after {
+.flow-arrow::after {
   content: "";
   position: absolute;
-  right: 8px;
+  right: 7px;
   top: calc(50% - 4px);
   width: 8px;
   height: 8px;
@@ -478,15 +537,16 @@ onMounted(async () => {
   border-right: 1px solid color-mix(in oklch, var(--c-text-3) 65%, transparent);
   transform: rotate(45deg);
 }
-.arch-arrow span {
+.flow-arrow span {
   position: relative;
   z-index: 1;
-  background: color-mix(in oklch, var(--c-bg-alt) 78%, #fff);
+  background: color-mix(in oklch, var(--c-bg-alt) 82%, #fff);
   padding: 2px 6px;
+  border-radius: 999px;
 }
 .private-link {
   align-self: center;
-  width: min(560px, 100%);
+  width: min(680px, 100%);
   border: 1px dashed color-mix(in oklch, var(--c-primary) 38%, var(--c-border));
   border-radius: 999px;
   padding: 7px 14px;
@@ -495,62 +555,55 @@ onMounted(async () => {
   color: var(--c-primary);
   background: #fff;
 }
-.arch-band {
+.infra-band {
   border: 1px solid var(--c-border);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: var(--space-md);
   display: grid;
-  grid-template-columns: 150px repeat(2, minmax(220px, 1fr));
+  grid-template-columns: minmax(170px, 0.55fr) repeat(2, minmax(220px, 1fr));
   gap: var(--space-sm);
   align-items: stretch;
   background: rgba(255, 255, 255, 0.64);
 }
-.arch-band.shared {
-  grid-template-columns: 150px repeat(5, minmax(150px, 1fr));
+.infra-band.control {
+  grid-template-columns: minmax(190px, 0.7fr) repeat(3, minmax(180px, 1fr));
 }
-.band-title {
+.infra-band.shared {
+  grid-template-columns: minmax(170px, 0.7fr) repeat(5, minmax(140px, 1fr));
+}
+.band-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   font-weight: 600;
   color: var(--c-text);
   align-self: center;
 }
-.edge-list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-xs);
-  padding-top: var(--space-xs);
-}
-.edge-item {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 6px;
-  align-items: center;
-  padding: 6px 8px;
-  border: 1px solid var(--c-border);
-  border-radius: 6px;
-  background: #fff;
-  font-size: 11px;
+.band-heading small {
+  font-weight: 400;
   color: var(--c-text-2);
-}
-.edge-line { border-top: 1px solid var(--c-border); min-width: 20px; }
-.edge-label { grid-column: 1 / -1; color: var(--c-text-3); }
-.edge-from,
-.edge-to {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.45;
 }
 
 @media (max-width: 1180px) {
-  .arch-lane,
-  .arch-band,
-  .arch-band.shared,
-  .edge-list {
+  .arch-map,
+  .infra-band,
+  .infra-band.control,
+  .infra-band.shared {
     grid-template-columns: 1fr;
   }
-  .arch-arrow {
+  .arch-column,
+  .arch-column-main,
+  .arch-flow-column {
+    grid-template-rows: auto;
+  }
+  .arch-flow-column {
+    padding-top: 0;
+  }
+  .flow-arrow {
     min-height: 42px;
   }
-  .arch-arrow::before {
+  .flow-arrow::before {
     left: 50%;
     right: auto;
     top: 5px;
@@ -558,7 +611,7 @@ onMounted(async () => {
     border-top: 0;
     border-left: 1px solid color-mix(in oklch, var(--c-text-3) 65%, transparent);
   }
-  .arch-arrow::after {
+  .flow-arrow::after {
     right: calc(50% - 4px);
     top: auto;
     bottom: 7px;
