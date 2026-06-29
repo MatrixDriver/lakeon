@@ -57,7 +57,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "d3794cc1-full5887-48dce854"
+    tag: "d3794cc1-full5887-80bf7fab"
   gateway:
     image: "swr.cn-north-4.myhuaweicloud.com/flex/nginx:1.27"
     replicas: 2
