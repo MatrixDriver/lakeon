@@ -1,7 +1,7 @@
 import client from './client'
 
 export type CdfStreamStatus = 'PAUSED' | 'RUNNING' | 'FAILED'
-export type CdfBackfillStatus = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED'
+export type CdfBackfillStatus = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'BACKFILL_FAILED'
 export type CdfExportStatus = 'NOT_MATERIALIZED' | 'MATERIALIZING' | 'MATERIALIZED' | 'FAILED'
 export type CdfMode = 'APPEND_CHANGELOG'
 
@@ -21,6 +21,7 @@ export interface CdfStream {
   last_snapshot_id?: number | null
   export_status: CdfExportStatus
   observed_lag_ms?: number | null
+  last_error?: string | null
   readable?: boolean
   created_at?: string
   updated_at?: string

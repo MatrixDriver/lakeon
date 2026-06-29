@@ -23,7 +23,7 @@ const database = {
   ],
 }
 
-function stream(status = 'RUNNING', exportStatus = 'NOT_MATERIALIZED') {
+function stream(status = 'RUNNING', exportStatus = 'NOT_MATERIALIZED', overrides = {}) {
   return {
     id: 'cdf_1',
     database_id: 'db_cdf_1',
@@ -40,13 +40,24 @@ function stream(status = 'RUNNING', exportStatus = 'NOT_MATERIALIZED') {
     last_snapshot_id: 42,
     export_status: exportStatus,
     observed_lag_ms: 850,
+    last_error: null,
     readable: true,
+    ...overrides,
   }
 }
 
 test.describe('CDF console page', () => {
   test('lists, creates, controls, and exports CDF streams', async ({ page }) => {
-    let streams = [stream()]
+    let streams = [
+      stream(),
+      stream('FAILED', 'FAILED', {
+        id: 'cdf_failed',
+        source_table: 'shipments',
+        target_table: 'shipments_cdf',
+        last_error: 'failed to commit CDF batch: writer failed',
+        observed_lag_ms: 2300,
+      }),
+    ]
 
     await page.route('**/api/v1/databases', async (route) => {
       if (route.request().method() === 'GET') {
@@ -105,7 +116,10 @@ test.describe('CDF console page', () => {
     await expect(page.getByLabel('数据库')).toHaveValue('db_cdf_1')
     await expect(page.getByText('public.orders', { exact: true })).toBeVisible()
     await expect(page.getByText('public.orders_cdf', { exact: true })).toBeVisible()
-    await expect(page.getByText('0/2000')).toBeVisible()
+    const ordersRow = page.getByRole('row', { name: /public\.orders/ })
+    await expect(ordersRow.getByText('0/2000')).toBeVisible()
+    await expect(ordersRow.getByText('850 ms')).toBeVisible()
+    await expect(page.getByRole('row', { name: /public\.shipments/ }).getByText('failed to commit CDF batch: writer failed')).toBeVisible()
 
     await page.getByLabel('源 Table').fill('payments')
     await expect(page.getByLabel('目标 Table')).toHaveValue('payments_cdf')

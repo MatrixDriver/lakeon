@@ -92,6 +92,10 @@ public class LakebaseCdfController {
             String slot_name,
             String publication_name,
             String export_status,
+            String last_commit_lsn,
+            Long last_snapshot_id,
+            Long observed_lag_ms,
+            String last_error,
             boolean readable) {
     }
 

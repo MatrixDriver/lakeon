@@ -17,6 +17,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,7 +31,7 @@ public class LakebaseCdfIncrementalPoller {
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
     };
     private static final String SELECT_EVENTS_SQL = """
-            SELECT event_id, op, row_json::text AS row_json
+            SELECT event_id, op, row_json::text AS row_json, created_at
             FROM _lakeon_iceberg.cdf_change_events
             WHERE stream_id = ?
               AND branch_id = ?
@@ -67,6 +69,7 @@ public class LakebaseCdfIncrementalPoller {
                 drainStream(stream);
             } catch (RuntimeException e) {
                 log.warn("CDF incremental poll failed for stream {}: {}", stream.getId(), e.getMessage());
+                markFailed(stream, e);
             }
         }
     }
@@ -84,7 +87,7 @@ public class LakebaseCdfIncrementalPoller {
             for (EventRow event : events) {
                 rows.add(event.toCdfRow());
             }
-            worker.commitBatch(connection, stream, new CdfBatch(
+            LakebaseCdfWorker.CommitResult result = worker.commitBatch(connection, stream, new CdfBatch(
                     stream.getId(),
                     stream.getBranchId(),
                     commitLsn,
@@ -93,6 +96,7 @@ public class LakebaseCdfIncrementalPoller {
                     rows,
                     0L));
             deleteEvents(connection, stream, events.get(events.size() - 1).eventId());
+            markSucceeded(stream, result, events);
         } catch (SQLException e) {
             throw new BadRequestException("failed to drain CDF incremental events: " + e.getMessage());
         }
@@ -109,7 +113,8 @@ public class LakebaseCdfIncrementalPoller {
                     events.add(new EventRow(
                             rs.getLong("event_id"),
                             rs.getString("op"),
-                            parseRow(rs.getString("row_json"))));
+                            parseRow(rs.getString("row_json")),
+                            rs.getObject("created_at", java.time.OffsetDateTime.class).toInstant()));
                 }
                 return events;
             }
@@ -144,7 +149,40 @@ public class LakebaseCdfIncrementalPoller {
         }
     }
 
-    private record EventRow(long eventId, String op, Map<String, Object> row) {
+    private void markSucceeded(
+            LakebaseCdfStreamEntity stream,
+            LakebaseCdfWorker.CommitResult result,
+            List<EventRow> events) {
+        stream.setStatus("RUNNING");
+        stream.setLastCommitLsn(result.endLsn());
+        stream.setLastSnapshotId(result.snapshotId());
+        stream.setObservedLagMs(observedLagMs(events));
+        stream.setLastError(null);
+        repository.save(stream);
+    }
+
+    private void markFailed(LakebaseCdfStreamEntity stream, RuntimeException error) {
+        stream.setStatus("FAILED");
+        stream.setLastError(truncateError(error.getMessage()));
+        repository.save(stream);
+    }
+
+    private Long observedLagMs(List<EventRow> events) {
+        if (events.isEmpty()) {
+            return null;
+        }
+        Instant newest = events.get(events.size() - 1).createdAt();
+        return Math.max(0L, Duration.between(newest, Instant.now()).toMillis());
+    }
+
+    private String truncateError(String message) {
+        if (message == null || message.isBlank()) {
+            return "CDF incremental poll failed";
+        }
+        return message.length() > 2000 ? message.substring(0, 2000) : message;
+    }
+
+    private record EventRow(long eventId, String op, Map<String, Object> row, Instant createdAt) {
         Map<String, Object> toCdfRow() {
             Map<String, Object> out = new LinkedHashMap<>(row);
             out.put("_lakeon_cdf_op", op == null ? "UNKNOWN" : op.toLowerCase());

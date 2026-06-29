@@ -138,12 +138,20 @@ class LakebaseCdfServiceTest {
     void succeededBackfillMapsToReadableResponse() {
         LakebaseCdfStreamEntity stream = stream("cdf_abcd1234", "PAUSED");
         stream.setBackfillStatus("SUCCEEDED");
+        stream.setLastCommitLsn("0/2000");
+        stream.setLastSnapshotId(42L);
+        stream.setObservedLagMs(850L);
+        stream.setLastError("previous transient failure");
         when(repository.findByTenantIdAndDatabaseId("tn_123", "db_123")).thenReturn(List.of(stream));
 
         List<LakebaseCdfController.CdfStreamResponse> responses = service.list(tenant, "db_123");
 
         assertThat(responses).hasSize(1);
         assertThat(responses.get(0).readable()).isTrue();
+        assertThat(responses.get(0).last_commit_lsn()).isEqualTo("0/2000");
+        assertThat(responses.get(0).last_snapshot_id()).isEqualTo(42L);
+        assertThat(responses.get(0).observed_lag_ms()).isEqualTo(850L);
+        assertThat(responses.get(0).last_error()).isEqualTo("previous transient failure");
     }
 
     @Test
@@ -297,7 +305,7 @@ class LakebaseCdfServiceTest {
     }
 
     @Test
-    void resumeSetupSqlExceptionThrowsBadRequestAndDoesNotSaveRunning() throws SQLException {
+    void resumeSetupSqlExceptionPersistsLastErrorWithoutSavingRunning() throws SQLException {
         LakebaseCdfStreamEntity stream = stream("cdf_abcd1234", "PAUSED");
         Connection connection = mock(Connection.class);
         Statement statement = mock(Statement.class);
@@ -314,7 +322,10 @@ class LakebaseCdfServiceTest {
                 .hasMessageContaining("publication failed");
 
         assertThat(stream.getStatus()).isEqualTo("PAUSED");
-        verify(repository, never()).save(stream);
+        assertThat(stream.getLastError())
+                .contains("failed to setup CDF stream resume resources")
+                .contains("publication failed");
+        verify(repository).save(stream);
     }
 
     @Test
@@ -356,6 +367,25 @@ class LakebaseCdfServiceTest {
         assertThat(stream.getExportStatus()).isEqualTo("MATERIALIZED");
         verify(repository).save(stream);
         verify(exportMaterializer).materialize(connection, "db_123", "main", "public", "orders_cdf");
+    }
+
+    @Test
+    void exportFailureMarksStreamFailedAndPersistsLastError() throws Exception {
+        LakebaseCdfStreamEntity stream = stream("cdf_abcd1234", "RUNNING");
+        Connection connection = mock(Connection.class);
+        when(repository.findByIdAndTenantIdAndDatabaseId("cdf_abcd1234", "tn_123", "db_123"))
+                .thenReturn(Optional.of(stream));
+        when(branchConnectionProvider.open(tenant, "db_123", "main")).thenReturn(connection);
+        when(exportMaterializer.materialize(connection, "db_123", "main", "public", "orders_cdf"))
+                .thenThrow(new BadRequestException("failed to materialize Iceberg export: manifest writer failed"));
+
+        assertThatThrownBy(() -> service.export(tenant, "db_123", "cdf_abcd1234"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("manifest writer failed");
+
+        assertThat(stream.getExportStatus()).isEqualTo("FAILED");
+        assertThat(stream.getLastError()).contains("manifest writer failed");
+        verify(repository).save(stream);
     }
 
     @Test

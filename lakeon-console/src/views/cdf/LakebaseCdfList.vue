@@ -125,7 +125,10 @@
               <td>{{ stream.target_namespace }}.{{ stream.target_table }}</td>
               <td><span class="code-chip">{{ stream.mode }}</span></td>
               <td><span class="status-tag" :class="statusClass(stream.status)">{{ stream.status }}</span></td>
-              <td><span class="status-tag" :class="backfillClass(stream.backfill_status)">{{ stream.backfill_status }}</span></td>
+              <td>
+                <span class="status-tag" :class="backfillClass(stream.backfill_status)">{{ stream.backfill_status }}</span>
+                <small v-if="stream.last_error" class="stream-error">{{ stream.last_error }}</small>
+              </td>
               <td class="lsn-cell">
                 <span>{{ stream.last_commit_lsn || '-' }}</span>
                 <small>{{ stream.backfill_lsn || '-' }}</small>
@@ -437,6 +440,16 @@ function errorMessage(err: unknown, fallback: string) {
   color: var(--c-text-muted);
   font-family: var(--font-mono);
   font-size: 11px;
+}
+
+.stream-error {
+  display: block;
+  max-width: 260px;
+  margin-top: 4px;
+  color: var(--c-danger);
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .code-chip {

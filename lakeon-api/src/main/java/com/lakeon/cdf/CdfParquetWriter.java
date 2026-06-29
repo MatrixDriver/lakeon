@@ -148,10 +148,10 @@ public class CdfParquetWriter {
             return FieldType.STRING;
         }
         if (value instanceof BigDecimal) {
-            return FieldType.STRING;
+            throw new IllegalArgumentException("field '" + fieldName + "' contains unsupported BigDecimal value");
         }
         if (value instanceof BigInteger) {
-            return FieldType.STRING;
+            throw new IllegalArgumentException("field '" + fieldName + "' contains unsupported BigInteger value");
         }
         throw new IllegalArgumentException(
                 "field '" + fieldName + "' contains unsupported value type " + value.getClass().getName());
@@ -170,12 +170,6 @@ public class CdfParquetWriter {
         if (value instanceof LocalDate || value instanceof LocalDateTime || value instanceof OffsetDateTime
                 || value instanceof Instant) {
             return value.toString();
-        }
-        if (value instanceof BigDecimal decimal) {
-            return decimal.toPlainString();
-        }
-        if (value instanceof BigInteger integer) {
-            return integer.toString();
         }
         return value;
     }
@@ -221,12 +215,6 @@ public class CdfParquetWriter {
         if (value instanceof LocalDate || value instanceof LocalDateTime || value instanceof OffsetDateTime
                 || value instanceof Instant) {
             return value.toString();
-        }
-        if (value instanceof BigDecimal decimal) {
-            return decimal.toPlainString();
-        }
-        if (value instanceof BigInteger integer) {
-            return integer.toString();
         }
         return null;
     }

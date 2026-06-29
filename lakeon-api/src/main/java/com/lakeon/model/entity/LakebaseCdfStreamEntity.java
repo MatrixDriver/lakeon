@@ -61,6 +61,15 @@ public class LakebaseCdfStreamEntity {
     @Column(name = "backfill_lsn", length = 128)
     private String backfillLsn;
 
+    @Column(name = "last_commit_lsn", length = 128)
+    private String lastCommitLsn;
+
+    @Column(name = "last_snapshot_id")
+    private Long lastSnapshotId;
+
+    @Column(name = "observed_lag_ms")
+    private Long observedLagMs;
+
     @Column(name = "last_error", columnDefinition = "TEXT")
     private String lastError;
 
@@ -218,6 +227,30 @@ public class LakebaseCdfStreamEntity {
 
     public void setBackfillLsn(String backfillLsn) {
         this.backfillLsn = backfillLsn;
+    }
+
+    public String getLastCommitLsn() {
+        return lastCommitLsn;
+    }
+
+    public void setLastCommitLsn(String lastCommitLsn) {
+        this.lastCommitLsn = lastCommitLsn;
+    }
+
+    public Long getLastSnapshotId() {
+        return lastSnapshotId;
+    }
+
+    public void setLastSnapshotId(Long lastSnapshotId) {
+        this.lastSnapshotId = lastSnapshotId;
+    }
+
+    public Long getObservedLagMs() {
+        return observedLagMs;
+    }
+
+    public void setObservedLagMs(Long observedLagMs) {
+        this.observedLagMs = observedLagMs;
     }
 
     public String getLastError() {

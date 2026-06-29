@@ -144,9 +144,12 @@ public class LakebaseCdfService {
                 }
             }
         } catch (SQLException e) {
+            stream.setLastError("failed to setup CDF stream resume resources: " + e.getMessage());
+            repository.save(stream);
             throw new BadRequestException("failed to setup CDF stream resume resources: " + e.getMessage());
         }
         stream.setStatus("RUNNING");
+        stream.setLastError(null);
         return toResponse(repository.save(stream));
     }
 
@@ -170,10 +173,19 @@ public class LakebaseCdfService {
                     stream.getTargetNamespace(),
                     stream.getTargetTable());
             stream.setExportStatus(export.status());
+            stream.setLastError(null);
             repository.save(stream);
             return new LakebaseCdfController.ExportResponse(export.status(), export.metadata_location());
         } catch (SQLException e) {
+            stream.setExportStatus("FAILED");
+            stream.setLastError("failed to materialize CDF export: " + e.getMessage());
+            repository.save(stream);
             throw new BadRequestException("failed to materialize CDF export: " + e.getMessage());
+        } catch (RuntimeException e) {
+            stream.setExportStatus("FAILED");
+            stream.setLastError("failed to materialize CDF export: " + e.getMessage());
+            repository.save(stream);
+            throw e;
         }
     }
 
@@ -282,6 +294,10 @@ public class LakebaseCdfService {
                 stream.getSlotName(),
                 stream.getPublicationName(),
                 stream.getExportStatus(),
+                stream.getLastCommitLsn(),
+                stream.getLastSnapshotId(),
+                stream.getObservedLagMs(),
+                stream.getLastError(),
                 "SUCCEEDED".equals(stream.getBackfillStatus()));
     }
 

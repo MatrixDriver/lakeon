@@ -245,6 +245,12 @@ class TestLakebaseCdfIceberg:
                 interval=5,
             )
             assert incremental_plan["status"] == "completed"
+            stream_after_incremental = get_cdf_stream(e2e_client, db["id"], stream["id"])
+            assert stream_after_incremental["status"] == "RUNNING", stream_after_incremental
+            assert stream_after_incremental["last_commit_lsn"], stream_after_incremental
+            assert stream_after_incremental["last_snapshot_id"] is not None, stream_after_incremental
+            assert stream_after_incremental["observed_lag_ms"] is not None, stream_after_incremental
+            assert stream_after_incremental.get("last_error") in (None, ""), stream_after_incremental
 
             stage("materializing standard Iceberg export")
             export = e2e_client._request(
