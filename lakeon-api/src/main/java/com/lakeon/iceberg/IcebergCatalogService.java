@@ -5,9 +5,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.service.exception.NotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.sql.Connection;
@@ -36,22 +38,40 @@ public class IcebergCatalogService {
     private final LakebaseBranchConnectionProvider connectionProvider;
     private final ObjectMapper objectMapper;
     private final IcebergPlanningService planningService;
+    private final String obsBucket;
 
     public IcebergCatalogService(LakebaseBranchConnectionProvider connectionProvider,
                                  ObjectMapper objectMapper,
                                  IcebergPlanningService planningService) {
+        this(connectionProvider, objectMapper, planningService, "lakeon-managed");
+    }
+
+    @Autowired
+    public IcebergCatalogService(LakebaseBranchConnectionProvider connectionProvider,
+                                 ObjectMapper objectMapper,
+                                 IcebergPlanningService planningService,
+                                 LakeonProperties properties) {
+        this(connectionProvider, objectMapper, planningService, defaultBucket(properties));
+    }
+
+    private IcebergCatalogService(LakebaseBranchConnectionProvider connectionProvider,
+                                  ObjectMapper objectMapper,
+                                  IcebergPlanningService planningService,
+                                  String obsBucket) {
         this.connectionProvider = connectionProvider;
         this.objectMapper = objectMapper;
         this.planningService = planningService;
+        this.obsBucket = obsBucket;
     }
 
     public Map<String, Object> config(TenantEntity tenant, String databaseId, String branchId) {
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("warehouse", warehouse(databaseId, branchId));
+        out.put("warehouse", warehouse(tenant, databaseId, branchId));
         out.put("defaults", Map.of("scan-planning-mode", "server"));
-        out.put("endpoints", Map.of(
-                "load-table", catalogBasePath(databaseId, branchId) + "/namespaces/{namespace}/tables/{table}",
-                "commit-table", catalogBasePath(databaseId, branchId) + "/namespaces/{namespace}/tables/{table}"
+        out.put("endpoints", List.of(
+                "GET /v1/{prefix}/namespaces/{namespace}/tables/{table}",
+                "POST /v1/{prefix}/namespaces/{namespace}/tables/{table}",
+                "POST /v1/{prefix}/namespaces/{namespace}/tables/{table}/plan"
         ));
         return out;
     }
@@ -84,7 +104,7 @@ public class IcebergCatalogService {
                 out.put("metadata-location", rs.getString("current_metadata_location"));
                 out.put("metadata", metadata);
                 out.put("config", Map.of(
-                        "warehouse", warehouse(databaseId, branchId),
+                        "warehouse", warehouse(tenant, databaseId, branchId),
                         "scan-planning-mode", "server"
                 ));
                 return out;
@@ -166,12 +186,17 @@ public class IcebergCatalogService {
         }
     }
 
-    private static String warehouse(String databaseId, String branchId) {
-        return "obs://lakeon-managed/iceberg/" + databaseId + "/" + branchId;
+    private String warehouse(TenantEntity tenant, String databaseId, String branchId) {
+        return "obs://" + obsBucket + "/lakeon-managed/iceberg/" + tenant.getId() + "/" + databaseId + "/" + branchId;
     }
 
-    private static String catalogBasePath(String databaseId, String branchId) {
-        return "/api/v1/iceberg/catalog/" + databaseId + "/" + branchId + "/v1";
+    private static String defaultBucket(LakeonProperties properties) {
+        if (properties == null || properties.getObs() == null
+                || properties.getObs().getBucket() == null
+                || properties.getObs().getBucket().isBlank()) {
+            return "lakeon-managed";
+        }
+        return properties.getObs().getBucket();
     }
 
     public record FetchPlanTasksRequest(

@@ -3,7 +3,9 @@ package com.lakeon.iceberg;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.entity.LakebaseCdfStreamEntity;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -34,9 +36,20 @@ public class IcebergTableBootstrapService {
             """;
 
     private final ObjectMapper objectMapper;
+    private final String obsBucket;
 
     public IcebergTableBootstrapService(ObjectMapper objectMapper) {
+        this(objectMapper, "lakeon-managed");
+    }
+
+    @Autowired
+    public IcebergTableBootstrapService(ObjectMapper objectMapper, LakeonProperties properties) {
+        this(objectMapper, defaultBucket(properties));
+    }
+
+    private IcebergTableBootstrapService(ObjectMapper objectMapper, String obsBucket) {
         this.objectMapper = objectMapper;
+        this.obsBucket = obsBucket;
     }
 
     public void ensureTable(Connection connection, LakebaseCdfStreamEntity stream) throws SQLException {
@@ -133,8 +146,17 @@ public class IcebergTableBootstrapService {
     }
 
     private String tableLocation(LakebaseCdfStreamEntity stream) {
-        return "/tmp/lakeon-iceberg/" + stream.getTenantId() + "/" + stream.getDatabaseId()
+        return "obs://" + obsBucket + "/lakeon-managed/iceberg/" + stream.getTenantId() + "/" + stream.getDatabaseId()
                 + "/" + stream.getBranchId() + "/" + stream.getTargetNamespace() + "/" + stream.getTargetTable();
+    }
+
+    private static String defaultBucket(LakeonProperties properties) {
+        if (properties == null || properties.getObs() == null
+                || properties.getObs().getBucket() == null
+                || properties.getObs().getBucket().isBlank()) {
+            return "lakeon-managed";
+        }
+        return properties.getObs().getBucket();
     }
 
     private String sha256(String value) {

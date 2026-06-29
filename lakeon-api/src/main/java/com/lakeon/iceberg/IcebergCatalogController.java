@@ -75,7 +75,8 @@ public class IcebergCatalogController {
                                            @PathVariable String branchId,
                                            @PathVariable String namespace,
                                            @PathVariable String table) {
-        throw new BadRequestException("Iceberg commit endpoint is not implemented yet");
+        throw new BadRequestException(
+                "Lakeon-managed Iceberg tables are read-only for external Iceberg clients; write through Lakebase CDF");
     }
 
     private static TenantEntity getTenant(HttpServletRequest request) {

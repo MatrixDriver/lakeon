@@ -1,5 +1,6 @@
 package com.lakeon.cdf;
 
+import com.lakeon.obs.LakeonObsClient;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.hadoop.ParquetReader;
@@ -18,6 +19,10 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 class CdfParquetWriterTest {
 
@@ -137,6 +142,31 @@ class CdfParquetWriterTest {
         assertThat(file.recordCount()).isEqualTo(2L);
         assertThat(file.fileSizeBytes()).isEqualTo(Files.size(path)).isPositive();
         assertThat(readRecords(path)).hasSize(2);
+    }
+
+    @Test
+    void obsWarehouseUploadsParquetAndReturnsObsUri() {
+        LakeonObsClient obs = mock(LakeonObsClient.class);
+        org.mockito.Mockito.when(obs.bucket()).thenReturn("lakeon-test");
+        CdfParquetWriter writer = new CdfParquetWriter(obs);
+
+        List<CdfParquetWriter.WrittenDataFile> files = writer.write(
+                "obs://lakeon-test/lakeon-managed/iceberg/tn_1/db_123/br_main/public/orders_cdf",
+                "orders_cdf",
+                42L,
+                batch(List.of(row("id", 101L, "name", "alfa"))));
+
+        assertThat(files).hasSize(1);
+        CdfParquetWriter.WrittenDataFile file = files.get(0);
+        assertThat(file.path())
+                .startsWith("obs://lakeon-test/lakeon-managed/iceberg/tn_1/db_123/br_main/public/orders_cdf/data/orders_cdf/42/part-")
+                .endsWith(".parquet");
+        assertThat(file.recordCount()).isEqualTo(1L);
+        assertThat(file.fileSizeBytes()).isPositive();
+        verify(obs).putObjectBytes(
+                eq(file.path().substring("obs://lakeon-test/".length())),
+                any(byte[].class),
+                eq("application/vnd.apache.parquet"));
     }
 
     @Test

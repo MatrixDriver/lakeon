@@ -81,6 +81,14 @@ def file_count(plan):
     return len(plan.get("file-scan-tasks") or [])
 
 
+def file_paths(plan):
+    return [
+        task.get("file-path")
+        for task in (plan.get("file-scan-tasks") or [])
+        if task.get("file-path")
+    ]
+
+
 def wait_database_running(client, database_id):
     db = poll_until(
         lambda: client.get_database(database_id),
@@ -194,13 +202,24 @@ class TestLakebaseCdfIceberg:
             assert stream["backfill_status"] == "SUCCEEDED", stream
             assert stream["readable"] is True
 
+            stage("checking REST catalog config")
+            config = e2e_client._request(
+                "GET",
+                f"/iceberg/catalog/{db['id']}/{branch_id}/v1/config",
+            )
+            assert "GET /v1/{prefix}/namespaces/{namespace}/tables/{table}" in config["endpoints"]
+            assert "POST /v1/{prefix}/namespaces/{namespace}/tables/{table}" in config["endpoints"]
+            assert "POST /v1/{prefix}/namespaces/{namespace}/tables/{table}/plan" in config["endpoints"]
+            assert config["warehouse"].startswith("obs://")
+            assert f"/lakeon-managed/iceberg/" in config["warehouse"]
+
             stage("loading Iceberg table")
             load = e2e_client._request(
                 "GET",
                 f"/iceberg/catalog/{db['id']}/{branch_id}/v1/namespaces/public/tables/orders_cdf",
             )
             assert load["metadata"]["current-snapshot-id"] is not None
-            assert load["metadata-location"]
+            assert load["metadata-location"].startswith("obs://")
 
             stage("planning initial scan")
             initial_plan = plan_table(
@@ -213,6 +232,16 @@ class TestLakebaseCdfIceberg:
             )
             assert initial_plan["status"] == "completed"
             assert file_count(initial_plan) >= 1
+            assert file_paths(initial_plan)
+            assert all(path.startswith("obs://") for path in file_paths(initial_plan))
+
+            stage("checking external Iceberg writes are explicitly read-only")
+            commit_response = e2e_client.post(
+                f"/iceberg/catalog/{db['id']}/{branch_id}/v1/namespaces/public/tables/orders_cdf",
+                json={},
+            )
+            assert commit_response.status_code == 400
+            assert "Lakeon-managed Iceberg tables are read-only" in commit_response.text
 
             stage("writing incremental source changes")
             psql_with_retry(

@@ -102,6 +102,26 @@ public class LakeonObsClient {
         return stripQuotes(etag);
     }
 
+    public String putObjectBytes(String key, byte[] body, String contentType) {
+        ensureClient();
+        ObjectMetadata meta = new ObjectMetadata();
+        meta.setContentLength((long) body.length);
+        if (contentType != null && !contentType.isBlank()) {
+            meta.setContentType(contentType);
+        }
+
+        PutObjectRequest req = new PutObjectRequest();
+        req.setBucketName(bucket);
+        req.setObjectKey(key);
+        req.setInput(new ByteArrayInputStream(body));
+        req.setMetadata(meta);
+
+        PutObjectResult result = obs.putObject(req);
+        String etag = result.getEtag();
+        log.debug("LakeonObsClient.putBytes: bucket={} key={} size={} etag={}", bucket, key, body.length, etag);
+        return stripQuotes(etag);
+    }
+
     /**
      * Read the object as UTF-8 string. Caller is responsible for any JSON parsing.
      * Throws {@link ObsException} on 404 / network errors.

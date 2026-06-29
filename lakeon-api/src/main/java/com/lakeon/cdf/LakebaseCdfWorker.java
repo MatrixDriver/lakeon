@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lakeon.model.entity.LakebaseCdfStreamEntity;
 import com.lakeon.service.exception.BadRequestException;
 import com.lakeon.util.LsnUtil;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.sql.Connection;
@@ -79,6 +80,7 @@ public class LakebaseCdfWorker {
         this(new CdfParquetWriter());
     }
 
+    @Autowired
     LakebaseCdfWorker(CdfParquetWriter parquetWriter) {
         this.parquetWriter = Objects.requireNonNull(parquetWriter, "parquetWriter must not be null");
     }

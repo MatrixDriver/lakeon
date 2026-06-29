@@ -1,5 +1,6 @@
 package com.lakeon.cdf;
 
+import com.lakeon.obs.LakeonObsClient;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
@@ -7,10 +8,14 @@ import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.io.LocalOutputFile;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -27,7 +32,24 @@ import java.util.Objects;
 import java.util.TreeSet;
 import java.util.UUID;
 
+@Component
 public class CdfParquetWriter {
+    private static final String PARQUET_CONTENT_TYPE = "application/vnd.apache.parquet";
+
+    private final LakeonObsClient obsClient;
+
+    public CdfParquetWriter() {
+        this((LakeonObsClient) null);
+    }
+
+    @Autowired
+    public CdfParquetWriter(ObjectProvider<LakeonObsClient> obsClientProvider) {
+        this(obsClientProvider.getIfAvailable());
+    }
+
+    CdfParquetWriter(LakeonObsClient obsClient) {
+        this.obsClient = obsClient;
+    }
 
     public List<WrittenDataFile> write(String warehousePrefix, String tableId, long snapshotId, CdfBatch batch) {
         Objects.requireNonNull(warehousePrefix, "warehousePrefix must not be null");
@@ -41,19 +63,24 @@ public class CdfParquetWriter {
         validateTableId(tableId);
         Map<String, FieldType> fieldTypes = inferFieldTypes(rows);
         Schema schema = inferSchema(tableId, fieldTypes);
+        if (warehousePrefix.startsWith("obs://")) {
+            return writeObs(warehousePrefix, tableId, snapshotId, rows, schema);
+        }
+        return writeLocal(warehousePrefix, tableId, snapshotId, rows, schema);
+    }
+
+    private List<WrittenDataFile> writeLocal(
+            String warehousePrefix,
+            String tableId,
+            long snapshotId,
+            List<Map<String, Object>> rows,
+            Schema schema) {
         Path outputDir = Path.of(warehousePrefix).resolve("data").resolve(tableId).resolve(Long.toString(snapshotId));
         Path outputFile = outputDir.resolve("part-" + UUID.randomUUID() + ".parquet");
 
         try {
             Files.createDirectories(outputDir);
-            try (ParquetWriter<GenericRecord> writer = AvroParquetWriter.<GenericRecord>builder(new LocalOutputFile(outputFile))
-                    .withSchema(schema)
-                    .withCompressionCodec(CompressionCodecName.SNAPPY)
-                    .build()) {
-                for (Map<String, Object> row : rows) {
-                    writer.write(toRecord(schema, row));
-                }
-            }
+            writeParquet(outputFile, schema, rows);
             return List.of(new WrittenDataFile(
                     outputFile.toString(),
                     rows.size(),
@@ -63,6 +90,84 @@ public class CdfParquetWriter {
                     computeBounds(rows, false)));
         } catch (IOException e) {
             throw new IllegalStateException("failed to write CDF Parquet data file: " + e.getMessage(), e);
+        }
+    }
+
+    private List<WrittenDataFile> writeObs(
+            String warehousePrefix,
+            String tableId,
+            long snapshotId,
+            List<Map<String, Object>> rows,
+            Schema schema) {
+        if (obsClient == null) {
+            throw new IllegalStateException("OBS client not configured; cannot write CDF Parquet data file to " + warehousePrefix);
+        }
+        URI warehouseUri = URI.create(warehousePrefix);
+        String bucket = warehouseUri.getHost();
+        if (bucket == null || bucket.isBlank()) {
+            throw new IllegalArgumentException("OBS warehouse URI must include bucket: " + warehousePrefix);
+        }
+        if (!bucket.equals(obsClient.bucket())) {
+            throw new IllegalArgumentException("OBS warehouse bucket '" + bucket
+                    + "' does not match configured bucket '" + obsClient.bucket() + "'");
+        }
+
+        String relativePath = "data/" + tableId + "/" + snapshotId + "/part-" + UUID.randomUUID() + ".parquet";
+        String baseKey = stripLeadingSlash(warehouseUri.getPath());
+        String objectKey = baseKey.isBlank() ? relativePath : baseKey + "/" + relativePath;
+        String objectUri = "obs://" + bucket + "/" + objectKey;
+        Path tempDir = null;
+        Path tempFile = null;
+        try {
+            tempDir = Files.createTempDirectory("lakeon-cdf-parquet-");
+            tempFile = tempDir.resolve("part.parquet");
+            writeParquet(tempFile, schema, rows);
+            byte[] body = Files.readAllBytes(tempFile);
+            obsClient.putObjectBytes(objectKey, body, PARQUET_CONTENT_TYPE);
+            return List.of(new WrittenDataFile(
+                    objectUri,
+                    rows.size(),
+                    body.length,
+                    Map.of(),
+                    computeBounds(rows, true),
+                    computeBounds(rows, false)));
+        } catch (IOException e) {
+            throw new IllegalStateException("failed to write CDF Parquet data file: " + e.getMessage(), e);
+        } finally {
+            deleteQuietly(tempFile);
+            deleteQuietly(tempDir);
+        }
+    }
+
+    private static void writeParquet(Path outputFile, Schema schema, List<Map<String, Object>> rows) throws IOException {
+        try (ParquetWriter<GenericRecord> writer = AvroParquetWriter.<GenericRecord>builder(new LocalOutputFile(outputFile))
+                .withSchema(schema)
+                .withCompressionCodec(CompressionCodecName.SNAPPY)
+                .build()) {
+            for (Map<String, Object> row : rows) {
+                writer.write(toRecord(schema, row));
+            }
+        }
+    }
+
+    private static String stripLeadingSlash(String path) {
+        if (path == null) {
+            return "";
+        }
+        String out = path;
+        while (out.startsWith("/")) {
+            out = out.substring(1);
+        }
+        return out;
+    }
+
+    private static void deleteQuietly(Path path) {
+        if (path == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException ignored) {
         }
     }
 

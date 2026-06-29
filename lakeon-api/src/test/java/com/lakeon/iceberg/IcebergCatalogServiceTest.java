@@ -34,6 +34,7 @@ class IcebergCatalogServiceTest {
 
     @BeforeEach
     void setUp() {
+        tenant.setId("tenant_123");
         service = new IcebergCatalogService(connectionProvider, objectMapper, planningService);
     }
 
@@ -43,12 +44,15 @@ class IcebergCatalogServiceTest {
         Map<String, Object> result = service.config(tenant, "db_123", "br_main");
 
         Map<?, ?> defaults = (Map<?, ?>) result.get("defaults");
-        Map<?, ?> endpoints = (Map<?, ?>) result.get("endpoints");
+        @SuppressWarnings("unchecked")
+        List<String> endpoints = (List<String>) result.get("endpoints");
 
-        assertThat(result).containsEntry("warehouse", "obs://lakeon-managed/iceberg/db_123/br_main");
+        assertThat(result).containsEntry("warehouse", "obs://lakeon-managed/lakeon-managed/iceberg/tenant_123/db_123/br_main");
         assertThat(defaults.get("scan-planning-mode")).isEqualTo("server");
-        assertThat(endpoints.get("load-table")).isEqualTo("/api/v1/iceberg/catalog/db_123/br_main/v1/namespaces/{namespace}/tables/{table}");
-        assertThat(endpoints.get("commit-table")).isEqualTo("/api/v1/iceberg/catalog/db_123/br_main/v1/namespaces/{namespace}/tables/{table}");
+        assertThat(endpoints).contains(
+                "GET /v1/{prefix}/namespaces/{namespace}/tables/{table}",
+                "POST /v1/{prefix}/namespaces/{namespace}/tables/{table}",
+                "POST /v1/{prefix}/namespaces/{namespace}/tables/{table}/plan");
     }
 
     @Test
@@ -77,7 +81,7 @@ class IcebergCatalogServiceTest {
         assertThat(((JsonNode) result.get("metadata")).isObject()).isTrue();
         assertThat(((JsonNode) result.get("metadata")).get("table-uuid").asText()).isEqualTo("tbl-1");
         assertThat(((JsonNode) result.get("metadata")).get("current-snapshot-id").asLong()).isEqualTo(42L);
-        assertThat(config.get("warehouse")).isEqualTo("obs://lakeon-managed/iceberg/db_123/br_main");
+        assertThat(config.get("warehouse")).isEqualTo("obs://lakeon-managed/lakeon-managed/iceberg/tenant_123/db_123/br_main");
         assertThat(config.get("scan-planning-mode")).isEqualTo("server");
         verify(statement).setString(1, "db_123");
         verify(statement).setString(2, "br_main");
@@ -365,6 +369,18 @@ class IcebergCatalogServiceTest {
 
         assertThat(response).isSameAs(expected);
         verify(catalogService).getPlan(tenant, "db_123", "br_main", "sales", "orders", "sync-20260624-0001");
+    }
+
+    @Test
+    void controllerCommitEndpointRejectsExternalWritesAsLakeonManagedReadOnly() {
+        IcebergCatalogService catalogService = mock(IcebergCatalogService.class);
+        IcebergCatalogController controller = new IcebergCatalogController(catalogService);
+        MockHttpServletRequest request = authenticatedRequest();
+
+        assertThatThrownBy(() -> controller.commitTable(request, "db_123", "br_main", "sales", "orders"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Lakeon-managed Iceberg tables are read-only")
+                .hasMessageContaining("Lakebase CDF");
     }
 
     private MockHttpServletRequest authenticatedRequest() {
