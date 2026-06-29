@@ -36,6 +36,8 @@ def test_control_plane_enables_pageserver_discovery_with_static_dns_fallback():
         "ps-1=http://pageserver-1.pageserver-headless.lakeon.svc.cluster.local:9898|pageserver-1.pageserver-headless.lakeon.svc.cluster.local|6400",
         "ps-2=http://pageserver-2.pageserver-headless.lakeon.svc.cluster.local:9898|pageserver-2.pageserver-headless.lakeon.svc.cluster.local|6400",
     ]
+    assert 'LAKEON_NEON_PAGESERVER_URL: "http://pageserver-0.pageserver-headless.lakeon.svc.cluster.local:9898"' in manifest
+    assert 'LAKEON_NEON_PAGESERVER_URL: "http://pageserver.lakeon.svc.cluster.local:9898"' not in manifest
     assert 'LAKEON_NEON_PAGESERVER_DISCOVERY_ENABLED: "true"' in manifest
     assert 'LAKEON_NEON_PAGESERVER_DISCOVERY_NAMESPACE: "lakeon"' in manifest
     assert 'LAKEON_NEON_PAGESERVER_DISCOVERY_LABEL_SELECTOR: "app=pageserver"' in manifest
@@ -72,11 +74,11 @@ def test_control_plane_renders_dicer_assigner_and_api_endpoint():
     assert 'LAKEON_DICER_ENABLED: "true"' in manifest
     assert 'LAKEON_DICER_ENDPOINT: "http://dicer-assigner.lakeon.svc.cluster.local:24500"' in manifest
     assert 'LAKEON_DICER_LIVE_LOAD_ENABLED: "true"' in manifest
-    assert 'LAKEON_DICER_LIVE_LOAD_POLL_INTERVAL_MS: "10000"' in manifest
-    assert 'LAKEON_DICER_METRICS_TIMEOUT_MS: "1500"' in manifest
+    assert 'LAKEON_DICER_LIVE_LOAD_POLL_INTERVAL_MS: "2000"' in manifest
+    assert 'LAKEON_DICER_METRICS_TIMEOUT_MS: "800"' in manifest
     assert 'LAKEON_DICER_SNAPSHOT_TTL_MS: "30000"' in manifest
     assert 'LAKEON_DICER_AUTO_FAILOVER_ENABLED: "true"' in manifest
-    assert 'LAKEON_DICER_AUTO_FAILOVER_POLL_INTERVAL_MS: "15000"' in manifest
+    assert 'LAKEON_DICER_AUTO_FAILOVER_POLL_INTERVAL_MS: "3000"' in manifest
 
 
 def test_control_plane_split_uses_gateway_and_does_not_render_legacy_lakeon_api():

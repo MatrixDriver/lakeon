@@ -6,7 +6,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/site.sh"
 
-for var in HWCLOUD_AK HWCLOUD_SK RDS_PRIVATE_IP RDS_PASSWORD LOG_DB_DSN COMPUTE_JWT_PRIVATE_KEY COMPUTE_JWT_PUBLIC_JWK DATA_PLANE_PAGESERVER_URL; do
+for var in HWCLOUD_AK HWCLOUD_SK RDS_PRIVATE_IP RDS_PASSWORD LOG_DB_DSN COMPUTE_JWT_PRIVATE_KEY COMPUTE_JWT_PUBLIC_JWK; do
   if [ -z "${!var:-}" ]; then
     echo "ERROR: environment variable $var is not set; check $SITE_DIR/.env or export it before running"
     exit 1
@@ -118,6 +118,10 @@ fi
 export KUBECONFIG="$CONTROL_KUBECONFIG"
 
 echo "Deploying control plane to $KUBECONFIG"
+EXTRA_HELM_ARGS=()
+if [ -n "${DATA_PLANE_PAGESERVER_URL:-}" ]; then
+  EXTRA_HELM_ARGS+=(--set-string "dataPlane.pageserverUrl=$DATA_PLANE_PAGESERVER_URL")
+fi
 helm upgrade --install lakeon-control "$SCRIPT_DIR/../helm/lakeon" \
   -f "$SITE_VALUES" \
   -f "$SITE_CONTROL_VALUES" \
@@ -126,7 +130,6 @@ helm upgrade --install lakeon-control "$SCRIPT_DIR/../helm/lakeon" \
   --set metadataDb.host="$RDS_PRIVATE_IP" \
   --set metadataDb.password="$RDS_PASSWORD" \
   --set-string api.logDbDsn="$LOG_DB_DSN" \
-  --set-string dataPlane.pageserverUrl="$DATA_PLANE_PAGESERVER_URL" \
   --set-string dataPlane.kubeApiServer="$DATA_PLANE_KUBE_API_SERVER" \
   --set-string dataPlane.kubeToken="$DATA_PLANE_KUBE_TOKEN" \
   --set-string dataPlane.kubeCaB64="$DATA_PLANE_KUBE_CA_B64" \
@@ -134,6 +137,7 @@ helm upgrade --install lakeon-control "$SCRIPT_DIR/../helm/lakeon" \
   --set-file computeJwt.publicJwk=<(printf '%s' "$COMPUTE_JWT_PUBLIC_JWK") \
   ${COMPUTE_JWT_KID:+--set} ${COMPUTE_JWT_KID:+computeJwt.kid=$COMPUTE_JWT_KID} \
   ${AI_API_KEY:+--set} ${AI_API_KEY:+api.aiApiKey=$AI_API_KEY} \
+  ${EXTRA_HELM_ARGS[@]+"${EXTRA_HELM_ARGS[@]}"} \
   --take-ownership \
   --server-side=false \
   -n lakeon --create-namespace --timeout 5m --no-hooks

@@ -57,7 +57,7 @@ api:
   importImage: "swr.cn-north-4.myhuaweicloud.com/flex/lakeon-import:0.2.0"
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/lakeon-api
-    tag: "d3794cc1-full5887-85289082"
+    tag: "d3794cc1-full5887-dff9fbe6-dicer-routing-1"
   gateway:
     image: "swr.cn-north-4.myhuaweicloud.com/flex/nginx:1.27"
     replicas: 2
@@ -155,7 +155,7 @@ dataPlane:
     headlessService: "pageserver-headless"
     httpPort: 9898
     pgPort: 6400
-  pageserverUrl: "http://pageserver.lakeon.svc.cluster.local:9898"
+  pageserverUrl: "http://pageserver-0.pageserver-headless.lakeon.svc.cluster.local:9898"
   safekeeperUrls: "safekeeper-0.safekeeper.lakeon.svc.cluster.local:5454,safekeeper-1.safekeeper.lakeon.svc.cluster.local:5454,safekeeper-2.safekeeper.lakeon.svc.cluster.local:5454"
   storageBrokerUrl: "http://storage-broker.lakeon.svc.cluster.local:50051"
 

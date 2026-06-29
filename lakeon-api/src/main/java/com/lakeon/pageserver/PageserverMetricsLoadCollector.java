@@ -87,7 +87,11 @@ public class PageserverMetricsLoadCollector implements PageserverLoadProvider {
         Map<String, Double> scores = new HashMap<>();
         Map<String, Map<String, Double>> breakdown = new HashMap<>();
         Set<String> unavailable = new HashSet<>();
-        for (PageserverNode node : configuredNodes()) {
+        java.util.List<PageserverNode> nodes = configuredNodes();
+        for (String missingNodeId : missingExpectedNodeIds(nodes)) {
+            unavailable.add(missingNodeId);
+        }
+        for (PageserverNode node : nodes) {
             try {
                 String metrics = fetchMetrics(node);
                 Map<String, Double> nodeBreakdown = parseLoadBreakdown(metrics);
@@ -107,6 +111,23 @@ public class PageserverMetricsLoadCollector implements PageserverLoadProvider {
             return;
         }
         current.set(PageserverLoadSnapshot.fresh(scores, unavailable, Instant.now(), "dicer-live", breakdown));
+    }
+
+    private Set<String> missingExpectedNodeIds(java.util.List<PageserverNode> observedNodes) {
+        if (nodeProvider == null || observedNodes.isEmpty()) {
+            return Set.of();
+        }
+        Set<String> observedIds = new HashSet<>();
+        for (PageserverNode node : observedNodes) {
+            observedIds.add(node.id());
+        }
+        Set<String> missing = new HashSet<>();
+        for (PageserverNode expected : staticNodes()) {
+            if (!observedIds.contains(expected.id())) {
+                missing.add(expected.id());
+            }
+        }
+        return missing;
     }
 
     private String fetchMetrics(PageserverNode node) throws IOException, InterruptedException {
@@ -187,6 +208,10 @@ public class PageserverMetricsLoadCollector implements PageserverLoadProvider {
                 return dynamicNodes;
             }
         }
+        return staticNodes();
+    }
+
+    private java.util.List<PageserverNode> staticNodes() {
         return props.getNeon().getPageserverNodes().stream()
             .map(config -> {
                 String httpUrl = config.getHttpUrl();

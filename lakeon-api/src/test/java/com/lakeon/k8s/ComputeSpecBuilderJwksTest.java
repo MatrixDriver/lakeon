@@ -193,33 +193,33 @@ class ComputeSpecBuilderJwksTest {
     }
 
     @Test
-    void generateComputeConfig_prefersAttachedPageserverOverStaleAssignment() throws Exception {
+    void generateComputeConfig_prefersDicerAssignmentOverAttachedPageserver() throws Exception {
         WireMockServer ps0 = new WireMockServer(0);
         WireMockServer ps1 = new WireMockServer(0);
         ps0.start();
         ps1.start();
         try {
             ps0.stubFor(get(urlEqualTo("/v1/tenant/tenant-a"))
-                .willReturn(aResponse().withStatus(404)));
-            ps1.stubFor(get(urlEqualTo("/v1/tenant/tenant-a"))
                 .willReturn(aResponse().withStatus(200).withBody("{\"id\":\"tenant-a\"}")));
+            ps1.stubFor(get(urlEqualTo("/v1/tenant/tenant-a"))
+                .willReturn(aResponse().withStatus(404)));
 
             LakeonProperties props = newProps();
             props.getNeon().setPageserverNodes(List.of(
                 new LakeonProperties.PageserverNodeConfig("ps-0", ps0.baseUrl(), "pageserver-0", 6400),
                 new LakeonProperties.PageserverNodeConfig("ps-1", ps1.baseUrl(), "pageserver-1", 6400)
             ));
-            PageserverAssignmentEntity stale = new PageserverAssignmentEntity();
-            stale.setId(PageserverAssignmentEntity.id("tenant-a", 0));
-            stale.setTenantId("tenant-a");
-            stale.setShardId(0);
-            stale.setNodeId("ps-0");
-            stale.setEpoch(1L);
-            stale.setSource("dicer-live");
-            stale.setStatus("ACTIVE");
+            PageserverAssignmentEntity assignment = new PageserverAssignmentEntity();
+            assignment.setId(PageserverAssignmentEntity.id("tenant-a", 0));
+            assignment.setTenantId("tenant-a");
+            assignment.setShardId(0);
+            assignment.setNodeId("ps-1");
+            assignment.setEpoch(2L);
+            assignment.setSource("failover");
+            assignment.setStatus("ACTIVE");
             PageserverAssignmentRepository repo = mock(PageserverAssignmentRepository.class);
-            when(repo.findAllByTenantId("tenant-a")).thenReturn(List.of(stale));
-            when(repo.findById("tenant-a:0")).thenReturn(Optional.of(stale));
+            when(repo.findAllByTenantId("tenant-a")).thenReturn(List.of(assignment));
+            when(repo.findById("tenant-a:0")).thenReturn(Optional.of(assignment));
 
             ObjectMapper om = new ObjectMapper();
             ComputeSpecBuilder builder = new ComputeSpecBuilder(props, om, new PageserverPlacementService(props, repo));

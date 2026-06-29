@@ -66,6 +66,28 @@ class PageserverMetricsLoadCollectorTest {
     }
 
     @Test
+    void refreshMarksExpectedNodesMissingFromDynamicMembershipUnavailable() throws Exception {
+        String body = "pageserver_resident_physical_size 1024\n";
+        int port = startServer(200, body);
+        LakeonProperties props = propsFor("http://pageserver-0:9898");
+        props.getNeon().setPageserverNodes(java.util.List.of(
+            new LakeonProperties.PageserverNodeConfig("ps-0", "http://pageserver-0:9898", "pageserver-0", 6400),
+            new LakeonProperties.PageserverNodeConfig("ps-1", "http://pageserver-1:9898", "pageserver-1", 6400)
+        ));
+        PageserverNodeProvider dynamicNodes = () -> java.util.List.of(
+            new PageserverNode("ps-1", "http://127.0.0.1:" + port, "pageserver-1.pageserver-headless.lakeon.svc.cluster.local", 6400)
+        );
+        PageserverMetricsLoadCollector collector = new PageserverMetricsLoadCollector(props, dynamicNodes);
+
+        collector.refresh();
+
+        PageserverLoadSnapshot snapshot = collector.snapshot();
+        assertThat(snapshot.isFresh()).isTrue();
+        assertThat(snapshot.loadScores()).containsOnlyKeys("ps-1");
+        assertThat(snapshot.unavailableNodeIds()).containsExactly("ps-0");
+    }
+
+    @Test
     void refreshDoesNotPublishSnapshotWhenAllMetricsFetchesFail() throws Exception {
         int port = startServer(503, "down");
         LakeonProperties props = propsFor("http://127.0.0.1:" + port);
