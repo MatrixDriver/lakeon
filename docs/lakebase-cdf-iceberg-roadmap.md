@@ -28,9 +28,53 @@ Lakeon will not provide automatic query path selection in the first implementati
 Client behavior is explicit:
 
 - Iceberg clients read Lakeon-managed Iceberg tables through the Lakeon Iceberg REST Catalog and ultimately scan Parquet data files in OBS.
+- Spark is treated as an external Iceberg engine. It reads Lakeon-managed Iceberg tables through the Lakeon Iceberg REST Catalog, or through exported standard Iceberg metadata when that engine requires metadata and manifest files in OBS.
 - PostgreSQL clients read Lakebase tables. They do not automatically read Iceberg Parquet files.
 - PG clients get low-latency benefits when they query the original Lakebase source table, or in a future phase, a Lakebase serving projection maintained by Lakeon.
 - A transparent SQL layer over Iceberg for PG or SQL-over-HTTP clients requires a Lakeon-managed query engine. That is a separate future product phase.
+
+## Product Capability Target Before Phase 6
+
+When Phase 1 through Phase 5 are complete, Lakeon should provide a complete managed lakehouse workflow without owning general SQL query execution.
+
+Console capabilities:
+
+- Enable CDF on a selected Lakebase table and create a Lakeon-managed Iceberg table.
+- Configure source schema/table, target namespace/table, initial backfill, and branch scope.
+- Monitor backfill status, incremental apply status, last applied LSN/snapshot, lag, recent errors, and retry state.
+- Browse managed Iceberg table state: schema, current snapshot, snapshot history, data files, metadata location, export status, and branch visibility.
+- Trigger, retry, and inspect lazy standard Iceberg export.
+- Configure Catalog permissions, branch visibility, audit policy, and GC safety boundaries.
+- Configure PG serving projections for selected tables, including target `_lakeon_serving` table name, primary key, update/delete policy, rebuild, pause, resume, and lag monitoring.
+
+PostgreSQL client capabilities:
+
+- Continue querying the original Lakebase source table through normal PostgreSQL drivers.
+- Query Lakeon-maintained serving projections through normal PostgreSQL drivers, for example `_lakeon_serving.orders_current`.
+- Use serving tables for low-latency point lookup and current-state application reads.
+- PostgreSQL clients do not directly query Iceberg Parquet data before Phase 6.
+
+Spark and Iceberg client capabilities:
+
+- Use Lakeon Iceberg REST Catalog to discover and load managed Iceberg tables.
+- Scan Parquet data files in OBS using Spark/Iceberg credentials or Lakeon-issued temporary credentials.
+- Select a Lakebase branch through the Lakeon Catalog branch mapping.
+- Use Lakeon server-side planning where the client supports the relevant REST planning flow.
+- Use lazy standard Iceberg export when Spark or another external engine requires metadata and manifest files in OBS.
+- Spark remains an external query engine; Lakeon does not execute Spark SQL or transparently rewrite Spark queries before Phase 6.
+
+dbay-agent Python job capabilities:
+
+- Use PostgreSQL clients for low-latency reads from Lakebase source tables or `_lakeon_serving` projections.
+- Use PyIceberg, Spark, or another Iceberg-compatible engine against Lakeon REST Catalog for analytical scans.
+- Use exported standard Iceberg metadata for engines that cannot use Lakeon-managed hot metadata directly.
+
+Explicit non-goals before Phase 6:
+
+- No automatic query path selection.
+- No Lakeon-owned general SQL engine over Parquet.
+- No PG-compatible gateway that transparently queries Iceberg Parquet.
+- No automatic conversion of arbitrary PG SQL into serving-table or Parquet execution plans.
 
 ## Phase 0: Design Lock
 
