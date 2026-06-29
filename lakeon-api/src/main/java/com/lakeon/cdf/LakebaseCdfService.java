@@ -283,6 +283,15 @@ public class LakebaseCdfService {
     }
 
     private LakebaseCdfController.CdfStreamResponse toResponse(LakebaseCdfStreamEntity stream) {
+        boolean readable = "SUCCEEDED".equals(stream.getBackfillStatus());
+        String lastCommitLsn = stream.getLastCommitLsn();
+        Long lastSnapshotId = stream.getLastSnapshotId();
+        Long observedLagMs = stream.getObservedLagMs();
+        if (readable && lastCommitLsn == null && stream.getBackfillLsn() != null) {
+            lastCommitLsn = stream.getBackfillLsn();
+            lastSnapshotId = lastSnapshotId == null ? 1L : lastSnapshotId;
+            observedLagMs = observedLagMs == null ? 0L : observedLagMs;
+        }
         return new LakebaseCdfController.CdfStreamResponse(
                 stream.getId(),
                 stream.getDatabaseId(),
@@ -298,11 +307,11 @@ public class LakebaseCdfService {
                 stream.getSlotName(),
                 stream.getPublicationName(),
                 stream.getExportStatus(),
-                stream.getLastCommitLsn(),
-                stream.getLastSnapshotId(),
-                stream.getObservedLagMs(),
+                lastCommitLsn,
+                lastSnapshotId,
+                observedLagMs,
                 stream.getLastError(),
-                "SUCCEEDED".equals(stream.getBackfillStatus()));
+                readable);
     }
 
     private static String defaultString(String value, String fallback) {

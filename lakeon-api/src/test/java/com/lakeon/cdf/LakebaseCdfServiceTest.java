@@ -155,6 +155,22 @@ class LakebaseCdfServiceTest {
     }
 
     @Test
+    void succeededBackfillFallsBackToBackfillWatermarkWhenStreamObservabilityIsEmpty() {
+        LakebaseCdfStreamEntity stream = stream("cdf_abcd1234", "PAUSED");
+        stream.setBackfillStatus("SUCCEEDED");
+        stream.setBackfillLsn("0/16B6C50");
+        when(repository.findByTenantIdAndDatabaseId("tn_123", "db_123")).thenReturn(List.of(stream));
+
+        List<LakebaseCdfController.CdfStreamResponse> responses = service.list(tenant, "db_123");
+
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).readable()).isTrue();
+        assertThat(responses.get(0).last_commit_lsn()).isEqualTo("0/16B6C50");
+        assertThat(responses.get(0).last_snapshot_id()).isEqualTo(1L);
+        assertThat(responses.get(0).observed_lag_ms()).isZero();
+    }
+
+    @Test
     void setupSqlQuotesIdentifiersAndCreatesPublicationAndSlotSql() {
         LakebaseCdfStreamEntity stream = stream("cdf_abcd1234", "PAUSED");
 
