@@ -143,11 +143,9 @@ chunk=0
 chunk_bytes=0
 DEPENDENCY_CHUNK_MB="${DEPENDENCY_CHUNK_MB:-5}"
 chunk_limit=$((DEPENDENCY_CHUNK_MB * 1024 * 1024))
-while true; do
-    dep="$(find "$DEPS_LIB_DIR" -maxdepth 1 -type f -name '*.jar' | sort | head -1)"
-    if [[ -z "$dep" ]]; then
-      break
-    fi
+while IFS= read -r dep; do
+    [[ -n "$dep" ]] || continue
+    [[ -f "$dep" ]] || continue
     dep_bytes=$(wc -c < "$dep")
     if (( chunk_bytes > 0 && chunk_bytes + dep_bytes > chunk_limit )); then
       chunk=$((chunk + 1))
@@ -159,7 +157,7 @@ while true; do
     cp "$dep" "$target"
     rm -f "$dep"
     chunk_bytes=$((chunk_bytes + dep_bytes))
-done
+done < <(find "$DEPS_LIB_DIR" -maxdepth 1 -type f -name '*.jar' | sort)
 
 TMPFILE=$(mktemp "$LAYERS_DIR/Dockerfile.lakeon-api.XXXXXX")
 trap "rm -f $TMPFILE" EXIT
