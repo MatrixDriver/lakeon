@@ -154,7 +154,7 @@ while IFS= read -r dep; do
     chunk_dir="$CHUNKS_DIR/$(printf '%02d' "$chunk")/BOOT-INF/lib"
     target="$chunk_dir/$(basename "$dep")"
     mkdir -p "$(dirname "$target")"
-    cp -f "$dep" "$target"
+    mv "$dep" "$target"
     chunk_bytes=$((chunk_bytes + dep_bytes))
 done < <(find "$DEPS_LIB_DIR" -maxdepth 1 -type f -name '*.jar' | sort)
 
