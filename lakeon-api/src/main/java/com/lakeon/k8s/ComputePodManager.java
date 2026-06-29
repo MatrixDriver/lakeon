@@ -14,6 +14,7 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetrics;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.ExecWatch;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -145,8 +146,15 @@ public class ComputePodManager {
 
         Pod pod = buildPodSpec(entity, podName, Map.of(), props.getK8s().getComputeImage(), 600, size);
 
-        k8sClient.pods().inNamespace(namespace).resource(pod).create();
-        log.info("Created compute Pod: {}/{}", namespace, podName);
+        try {
+            k8sClient.pods().inNamespace(namespace).resource(pod).create();
+            log.info("Created compute Pod: {}/{}", namespace, podName);
+        } catch (KubernetesClientException e) {
+            if (e.getCode() != 409) {
+                throw e;
+            }
+            log.info("Compute Pod {}/{} already exists after create race, reusing", namespace, podName);
+        }
 
         // Pod IP is typically assigned by CNI within 100-300ms after PodScheduled.
         // Cap at 200ms: enough headroom for normal CCE CNI; on the rare miss the
