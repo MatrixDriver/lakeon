@@ -156,7 +156,8 @@ while true; do
     chunk_dir="$CHUNKS_DIR/$(printf '%02d' "$chunk")/BOOT-INF/lib"
     target="$chunk_dir/$(basename "$dep")"
     mkdir -p "$(dirname "$target")"
-    mv "$dep" "$target"
+    cp "$dep" "$target"
+    rm -f "$dep"
     chunk_bytes=$((chunk_bytes + dep_bytes))
 done
 
