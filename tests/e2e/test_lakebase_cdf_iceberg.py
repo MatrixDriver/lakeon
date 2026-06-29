@@ -83,9 +83,9 @@ def file_count(plan):
 
 def file_paths(plan):
     return [
-        task.get("file-path")
+        (task.get("data-file") or {}).get("file-path") or task.get("file-path")
         for task in (plan.get("file-scan-tasks") or [])
-        if task.get("file-path")
+        if ((task.get("data-file") or {}).get("file-path") or task.get("file-path"))
     ]
 
 
