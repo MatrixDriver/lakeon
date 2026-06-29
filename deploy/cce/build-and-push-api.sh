@@ -143,19 +143,22 @@ chunk=0
 chunk_bytes=0
 DEPENDENCY_CHUNK_MB="${DEPENDENCY_CHUNK_MB:-5}"
 chunk_limit=$((DEPENDENCY_CHUNK_MB * 1024 * 1024))
-if compgen -G "$DEPS_LIB_DIR/*.jar" >/dev/null; then
-  for dep in "$DEPS_LIB_DIR"/*.jar; do
+while true; do
+    dep="$(find "$DEPS_LIB_DIR" -maxdepth 1 -type f -name '*.jar' | sort | head -1)"
+    if [[ -z "$dep" ]]; then
+      break
+    fi
     dep_bytes=$(wc -c < "$dep")
     if (( chunk_bytes > 0 && chunk_bytes + dep_bytes > chunk_limit )); then
       chunk=$((chunk + 1))
       chunk_bytes=0
     fi
     chunk_dir="$CHUNKS_DIR/$(printf '%02d' "$chunk")/BOOT-INF/lib"
-    mkdir -p "$chunk_dir"
-    mv "$dep" "$chunk_dir/"
+    target="$chunk_dir/$(basename "$dep")"
+    mkdir -p "$(dirname "$target")"
+    mv "$dep" "$target"
     chunk_bytes=$((chunk_bytes + dep_bytes))
-  done
-fi
+done
 
 TMPFILE=$(mktemp "$LAYERS_DIR/Dockerfile.lakeon-api.XXXXXX")
 trap "rm -f $TMPFILE" EXIT
