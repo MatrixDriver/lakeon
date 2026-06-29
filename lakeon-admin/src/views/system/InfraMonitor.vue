@@ -418,6 +418,41 @@
               </table>
             </div>
           </div>
+
+          <div class="rebalance-events">
+            <div class="plan-title">最近操作</div>
+            <div v-if="!dicerEvents.length" class="empty-text compact">暂无操作记录</div>
+            <div v-else class="table-wrapper">
+              <table class="data-table compact-table">
+                <thead>
+                  <tr>
+                    <th>时间</th>
+                    <th>操作</th>
+                    <th>来源</th>
+                    <th>目标</th>
+                    <th>状态</th>
+                    <th>Moves</th>
+                    <th>原因</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="event in dicerEvents" :key="event.id">
+                    <td class="pod-name">{{ formatTime(event.created_at) }}</td>
+                    <td>{{ formatDicerAction(event.action) }}</td>
+                    <td>{{ event.trigger_type }}</td>
+                    <td>{{ event.target_node_id || '-' }}</td>
+                    <td>
+                      <span class="phase-badge" :class="dicerEventStatusClass(event.status)">
+                        {{ event.status }}
+                      </span>
+                    </td>
+                    <td>{{ event.move_count }}</td>
+                    <td>{{ event.reason || '-' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </template>
         <div v-else class="empty-text">暂无 Dicer topology 数据</div>
       </div>
@@ -836,6 +871,20 @@ interface PageserverTopology {
   placements: PageserverPlacement[]
 }
 
+interface PageserverRebalanceEvent {
+  id: string
+  created_at: string
+  action: string
+  trigger_type: string
+  actor: string
+  target_node_id?: string | null
+  dry_run: boolean
+  status: string
+  move_count: number
+  reason?: string | null
+  moves: PageserverMove[]
+}
+
 const route = useRoute()
 const activeTab = ref((route.query.tab as string) || 'control')
 const cceSubTab = ref('nodes')
@@ -859,6 +908,7 @@ const pageserverTopology = ref<PageserverTopology | null>(null)
 const dicerLoading = ref(false)
 const dicerActionLoading = ref<string | null>(null)
 const dicerDryRunPlan = ref<PageserverRebalancePlan | null>(null)
+const dicerEvents = ref<PageserverRebalanceEvent[]>([])
 const psCachePercent = computed(() => {
   if (!psMetrics.value?.cache) return 0
   const { current_bytes, max_bytes } = psMetrics.value.cache
@@ -928,8 +978,12 @@ async function triggerReconcile() {
 async function loadDicerTopology() {
   dicerLoading.value = true
   try {
-    const res = await adminApi.pageserverTopology()
-    pageserverTopology.value = res.data
+    const [topology, events] = await Promise.all([
+      adminApi.pageserverTopology(),
+      adminApi.pageserverRebalanceEvents(12),
+    ])
+    pageserverTopology.value = topology.data
+    dicerEvents.value = events.data
   } catch (e) {
     console.error('Failed to load Dicer topology', e)
   } finally {
@@ -974,6 +1028,19 @@ function formatLoad(value: number | undefined): string {
   if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)}M`
   if (value >= 1024) return `${(value / 1024).toFixed(1)}K`
   return value.toLocaleString(undefined, { maximumFractionDigits: 1 })
+}
+
+function formatDicerAction(action: string): string {
+  if (action === 'REBALANCE_DRY_RUN') return 'Dry-run'
+  if (action === 'FAILOVER_NODE') return 'Failover'
+  if (action === 'AUTO_FAILOVER') return 'Auto failover'
+  return action
+}
+
+function dicerEventStatusClass(status: string): string {
+  if (status === 'APPLIED' || status === 'PLANNED') return 'phase-running'
+  if (status === 'NOOP') return 'phase-pending'
+  return 'phase-unknown'
 }
 
 function progressColorVal(pct: number): string {
@@ -2007,6 +2074,10 @@ onUnmounted(() => {
   border-radius: 8px;
   padding: 10px;
   background: color-mix(in oklch, var(--c-bg-alt) 72%, #fff);
+}
+
+.rebalance-events {
+  margin-top: 12px;
 }
 
 .plan-title {

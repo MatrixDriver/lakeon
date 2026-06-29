@@ -9,6 +9,8 @@ import com.lakeon.model.entity.TenantEntity;
 import com.lakeon.model.enums.OperationStatus;
 import com.lakeon.model.enums.OperationType;
 import com.lakeon.pageserver.PageserverPlacementService;
+import com.lakeon.pageserver.PageserverRebalanceEventEntity;
+import com.lakeon.pageserver.PageserverRebalanceEventService;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.InviteCodeRepository;
 import com.lakeon.repository.OperationLogRepository;
@@ -39,6 +41,7 @@ public class AdminController {
     private final AdminService adminService;
     private final InviteCodeRepository inviteCodeRepository;
     private final PageserverPlacementService pageserverPlacementService;
+    private final PageserverRebalanceEventService pageserverRebalanceEventService;
     private final OperationLogRepository operationLogRepository;
 
     public AdminController(TenantService tenantService,
@@ -48,6 +51,7 @@ public class AdminController {
                            AdminService adminService,
                            InviteCodeRepository inviteCodeRepository,
                            PageserverPlacementService pageserverPlacementService,
+                           PageserverRebalanceEventService pageserverRebalanceEventService,
                            OperationLogRepository operationLogRepository) {
         this.tenantService = tenantService;
         this.tenantRepository = tenantRepository;
@@ -56,6 +60,7 @@ public class AdminController {
         this.adminService = adminService;
         this.inviteCodeRepository = inviteCodeRepository;
         this.pageserverPlacementService = pageserverPlacementService;
+        this.pageserverRebalanceEventService = pageserverRebalanceEventService;
         this.operationLogRepository = operationLogRepository;
     }
 
@@ -218,6 +223,14 @@ public class AdminController {
         );
     }
 
+    @GetMapping("/pageserver/rebalance/events")
+    public List<Map<String, Object>> listPageserverRebalanceEvents(
+            @RequestParam(defaultValue = "20") int limit) {
+        return pageserverRebalanceEventService.recent(limit).stream()
+            .map(this::rebalanceEventToMap)
+            .toList();
+    }
+
     @DeleteMapping("/databases/{databaseId}/purge")
     public Map<String, Object> purgeDatabase(@PathVariable String databaseId) {
         databaseService.purge(databaseId);
@@ -362,6 +375,22 @@ public class AdminController {
         out.put("to_node_id", move.toNodeId());
         out.put("next_epoch", move.nextEpoch());
         out.put("reason", move.reason());
+        return out;
+    }
+
+    private Map<String, Object> rebalanceEventToMap(PageserverRebalanceEventEntity event) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", event.getId());
+        out.put("created_at", event.getCreatedAt());
+        out.put("action", event.getAction());
+        out.put("trigger_type", event.getTriggerType());
+        out.put("actor", event.getActor());
+        out.put("target_node_id", event.getTargetNodeId());
+        out.put("dry_run", event.isDryRun());
+        out.put("status", event.getStatus());
+        out.put("move_count", event.getMoveCount());
+        out.put("reason", event.getReason());
+        out.put("moves", pageserverRebalanceEventService.parseMoves(event));
         return out;
     }
 

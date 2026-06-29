@@ -11,6 +11,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -177,9 +178,10 @@ class PageserverPlacementServiceTest {
         props.getDicer().setNodeLoadsRaw("ps-0=0.1,ps-1=0.2,ps-2=0.3");
         PageserverAssignmentEntity assignment = assignment("tenant-a", 0, "ps-0", 3L, "dicer-load-aware");
         PageserverAssignmentRepository repo = mock(PageserverAssignmentRepository.class);
+        PageserverRebalanceEventService eventService = mock(PageserverRebalanceEventService.class);
         when(repo.findAll()).thenReturn(List.of(assignment));
         when(repo.findById("tenant-a:0")).thenReturn(Optional.of(assignment));
-        PageserverPlacementService service = new PageserverPlacementService(props, repo);
+        PageserverPlacementService service = new PageserverPlacementService(props, repo, null, null, eventService);
 
         PageserverRebalancePlan plan = service.failoverNode("ps-0");
 
@@ -188,6 +190,13 @@ class PageserverPlacementServiceTest {
         assertThat(plan.moves().get(0).fromNodeId()).isEqualTo("ps-0");
         assertThat(plan.moves().get(0).toNodeId()).isEqualTo("ps-1");
         assertThat(plan.moves().get(0).nextEpoch()).isEqualTo(4L);
+        verify(eventService).record(
+            eq("FAILOVER_NODE"),
+            eq("ADMIN"),
+            eq("admin-api"),
+            eq("ps-0"),
+            eq(plan),
+            eq("node-unavailable:ps-0"));
     }
 
     @Test
@@ -196,6 +205,7 @@ class PageserverPlacementServiceTest {
         props.getDicer().setEnabled(true);
         PageserverAssignmentEntity assignment = assignment("tenant-a", 0, "ps-0", 3L, "dicer-live");
         PageserverAssignmentRepository repo = mock(PageserverAssignmentRepository.class);
+        PageserverRebalanceEventService eventService = mock(PageserverRebalanceEventService.class);
         when(repo.findAll()).thenReturn(List.of(assignment));
         when(repo.findById("tenant-a:0")).thenReturn(Optional.of(assignment));
         PageserverLoadProvider liveLoads = () -> PageserverLoadSnapshot.fresh(
@@ -204,7 +214,7 @@ class PageserverPlacementServiceTest {
             Instant.parse("2026-06-24T00:00:00Z"),
             "dicer-live",
             Map.of());
-        PageserverPlacementService service = new PageserverPlacementService(props, repo, liveLoads);
+        PageserverPlacementService service = new PageserverPlacementService(props, repo, liveLoads, null, eventService);
 
         PageserverRebalancePlan plan = service.failoverUnavailableNodes();
 
@@ -213,6 +223,37 @@ class PageserverPlacementServiceTest {
         assertThat(plan.moves().get(0).fromNodeId()).isEqualTo("ps-0");
         assertThat(plan.moves().get(0).toNodeId()).isEqualTo("ps-1");
         verify(repo).save(any(PageserverAssignmentEntity.class));
+        verify(eventService).record(
+            eq("AUTO_FAILOVER"),
+            eq("SCHEDULER"),
+            eq("auto-failover"),
+            eq("ps-0"),
+            eq(plan),
+            eq("auto-unavailable:ps-0"));
+    }
+
+    @Test
+    void dryRunRecordsPlannedRebalanceEvent() {
+        LakeonProperties props = placementProps();
+        props.getDicer().setEnabled(true);
+        props.getDicer().setNodeLoadsRaw("ps-0=0.9,ps-1=0.1,ps-2=0.2");
+        PageserverAssignmentEntity assignment = assignment("tenant-a", 0, "ps-0", 1L, "dicer-load-aware");
+        PageserverAssignmentRepository repo = mock(PageserverAssignmentRepository.class);
+        PageserverRebalanceEventService eventService = mock(PageserverRebalanceEventService.class);
+        when(repo.findAll()).thenReturn(List.of(assignment));
+        PageserverPlacementService service = new PageserverPlacementService(props, repo, null, null, eventService);
+
+        PageserverRebalancePlan plan = service.rebalanceDryRun();
+
+        assertThat(plan.dryRun()).isTrue();
+        assertThat(plan.moves()).hasSize(1);
+        verify(eventService).record(
+            eq("REBALANCE_DRY_RUN"),
+            eq("ADMIN"),
+            eq("admin-api"),
+            eq(null),
+            eq(plan),
+            eq("rebalance-dry-run"));
     }
 
     private LakeonProperties placementProps() {

@@ -6,6 +6,7 @@ import com.lakeon.model.entity.OperationLogEntity;
 import com.lakeon.model.enums.OperationStatus;
 import com.lakeon.model.enums.OperationType;
 import com.lakeon.pageserver.PageserverPlacementService;
+import com.lakeon.pageserver.PageserverRebalanceEventService;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.InviteCodeRepository;
 import com.lakeon.repository.OperationLogRepository;
@@ -51,6 +52,8 @@ class AdminComputeControllerTest {
     private InviteCodeRepository inviteCodeRepository;
     @MockBean
     private PageserverPlacementService pageserverPlacementService;
+    @MockBean
+    private PageserverRebalanceEventService pageserverRebalanceEventService;
     @MockBean
     private OperationLogRepository operationLogRepository;
     @MockBean

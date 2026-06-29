@@ -30,6 +30,7 @@ public class PageserverPlacementService {
     private final PageserverAssignmentRepository assignments;
     private final PageserverLoadProvider loadProvider;
     private final PageserverNodeProvider nodeProvider;
+    private final PageserverRebalanceEventService eventService;
 
     public PageserverPlacementService(LakeonProperties props) {
         this(props, (PageserverAssignmentRepository) null);
@@ -39,8 +40,14 @@ public class PageserverPlacementService {
     public PageserverPlacementService(LakeonProperties props,
                                       ObjectProvider<PageserverAssignmentRepository> assignmentsProvider,
                                       ObjectProvider<PageserverLoadProvider> loadProvider,
-                                      ObjectProvider<PageserverNodeProvider> nodeProvider) {
-        this(props, assignmentsProvider.getIfAvailable(), loadProvider.getIfAvailable(), nodeProvider.getIfAvailable());
+                                      ObjectProvider<PageserverNodeProvider> nodeProvider,
+                                      ObjectProvider<PageserverRebalanceEventService> eventService) {
+        this(
+            props,
+            assignmentsProvider.getIfAvailable(),
+            loadProvider.getIfAvailable(),
+            nodeProvider.getIfAvailable(),
+            eventService.getIfAvailable());
     }
 
     public PageserverPlacementService(LakeonProperties props, PageserverAssignmentRepository assignments) {
@@ -57,10 +64,19 @@ public class PageserverPlacementService {
                                       PageserverAssignmentRepository assignments,
                                       PageserverLoadProvider loadProvider,
                                       PageserverNodeProvider nodeProvider) {
+        this(props, assignments, loadProvider, nodeProvider, null);
+    }
+
+    public PageserverPlacementService(LakeonProperties props,
+                                      PageserverAssignmentRepository assignments,
+                                      PageserverLoadProvider loadProvider,
+                                      PageserverNodeProvider nodeProvider,
+                                      PageserverRebalanceEventService eventService) {
         this.props = props;
         this.assignments = assignments;
         this.loadProvider = loadProvider;
         this.nodeProvider = nodeProvider;
+        this.eventService = eventService;
     }
 
     @Transactional
@@ -167,12 +183,17 @@ public class PageserverPlacementService {
 
     @Transactional
     public PageserverRebalancePlan rebalanceDryRun() {
-        return rebalance(true, Set.of(), "rebalance-dry-run");
+        PageserverRebalancePlan plan = rebalance(true, Set.of(), "rebalance-dry-run");
+        recordEvent("REBALANCE_DRY_RUN", "ADMIN", "admin-api", null, plan, "rebalance-dry-run");
+        return plan;
     }
 
     @Transactional
     public PageserverRebalancePlan failoverNode(String nodeId) {
-        return rebalance(false, Set.of(nodeId), "node-unavailable:" + nodeId);
+        String reason = "node-unavailable:" + nodeId;
+        PageserverRebalancePlan plan = rebalance(false, Set.of(nodeId), reason);
+        recordEvent("FAILOVER_NODE", "ADMIN", "admin-api", nodeId, plan, reason);
+        return plan;
     }
 
     @Transactional
@@ -181,7 +202,10 @@ public class PageserverPlacementService {
         if (unavailable.isEmpty()) {
             return new PageserverRebalancePlan(false, List.of());
         }
-        return rebalance(false, unavailable, "auto-unavailable:" + String.join(",", unavailable));
+        String reason = "auto-unavailable:" + String.join(",", unavailable);
+        PageserverRebalancePlan plan = rebalance(false, unavailable, reason);
+        recordEvent("AUTO_FAILOVER", "SCHEDULER", "auto-failover", String.join(",", unavailable), plan, reason);
+        return plan;
     }
 
     @Scheduled(
@@ -194,7 +218,9 @@ public class PageserverPlacementService {
         }
         Set<String> unavailable = unavailableNodeIds();
         if (!unavailable.isEmpty()) {
-            rebalance(false, unavailable, "auto-unavailable:" + String.join(",", unavailable));
+            String reason = "auto-unavailable:" + String.join(",", unavailable);
+            PageserverRebalancePlan plan = rebalance(false, unavailable, reason);
+            recordEvent("AUTO_FAILOVER", "SCHEDULER", "auto-failover", String.join(",", unavailable), plan, reason);
         }
     }
 
@@ -237,6 +263,17 @@ public class PageserverPlacementService {
             }
         }
         return new PageserverRebalancePlan(dryRun, moves);
+    }
+
+    private void recordEvent(String action,
+                             String triggerType,
+                             String actor,
+                             String targetNodeId,
+                             PageserverRebalancePlan plan,
+                             String reason) {
+        if (eventService != null) {
+            eventService.record(action, triggerType, actor, targetNodeId, plan, reason);
+        }
     }
 
     private PageserverNode toNode(LakeonProperties.PageserverNodeConfig config) {

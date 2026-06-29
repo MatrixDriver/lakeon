@@ -42,3 +42,23 @@ def test_admin_pageserver_rebalance_dry_run_contract():
         assert move["to_node_id"]
         assert move["from_node_id"] != move["to_node_id"]
         assert move["next_epoch"] >= 1
+
+
+def test_admin_pageserver_rebalance_dry_run_is_audited():
+    admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+
+    before = admin._request("GET", "/admin/pageserver/rebalance/events?limit=1")
+    plan = admin._request("POST", "/admin/pageserver/rebalance/dry-run")
+    after = admin._request("GET", "/admin/pageserver/rebalance/events?limit=5")
+
+    assert isinstance(before, list)
+    assert isinstance(after, list)
+    assert after, "dry-run should create a Dicer operation history row"
+    latest = after[0]
+    assert latest["action"] == "REBALANCE_DRY_RUN"
+    assert latest["trigger_type"] == "ADMIN"
+    assert latest["actor"] == "admin-api"
+    assert latest["dry_run"] is True
+    assert latest["status"] in {"PLANNED", "NOOP"}
+    assert latest["move_count"] == len(plan["moves"])
+    assert isinstance(latest["moves"], list)

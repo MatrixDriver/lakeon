@@ -8,6 +8,8 @@ import com.lakeon.pageserver.PageserverNode;
 import com.lakeon.pageserver.PageserverNodeStatus;
 import com.lakeon.pageserver.PageserverPlacement;
 import com.lakeon.pageserver.PageserverPlacementService;
+import com.lakeon.pageserver.PageserverRebalanceEventEntity;
+import com.lakeon.pageserver.PageserverRebalanceEventService;
 import com.lakeon.pageserver.PageserverRebalancePlan;
 import com.lakeon.repository.DatabaseRepository;
 import com.lakeon.repository.InviteCodeRepository;
@@ -26,6 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.time.Instant;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -59,6 +62,8 @@ class AdminPageserverControllerTest {
     private OperationLogRepository operationLogRepository;
     @MockBean
     private PageserverPlacementService pageserverPlacementService;
+    @MockBean
+    private PageserverRebalanceEventService pageserverRebalanceEventService;
     @MockBean
     private LakeonProperties lakeonProperties;
 
@@ -132,5 +137,42 @@ class AdminPageserverControllerTest {
             .andExpect(jsonPath("$.moves[0].from_node_id").value("ps-0"))
             .andExpect(jsonPath("$.moves[0].to_node_id").value("ps-1"))
             .andExpect(jsonPath("$.moves[0].next_epoch").value(4));
+    }
+
+    @Test
+    void rebalanceEventsEndpointReturnsRecentDicerOperations() throws Exception {
+        PageserverRebalanceEventEntity event = new PageserverRebalanceEventEntity();
+        event.setId("pre_abc123");
+        event.setCreatedAt(Instant.parse("2026-06-29T08:00:00Z"));
+        event.setAction("FAILOVER_NODE");
+        event.setTriggerType("ADMIN");
+        event.setActor("admin-api");
+        event.setTargetNodeId("ps-0");
+        event.setDryRun(false);
+        event.setStatus("APPLIED");
+        event.setMoveCount(1);
+        event.setReason("node-unavailable:ps-0");
+
+        when(pageserverRebalanceEventService.recent(5)).thenReturn(List.of(event));
+        when(pageserverRebalanceEventService.parseMoves(event)).thenReturn(List.of(Map.of(
+            "tenant_id", "tenant-a",
+            "shard_id", 0,
+            "from_node_id", "ps-0",
+            "to_node_id", "ps-1",
+            "next_epoch", 4,
+            "reason", "node-unavailable:ps-0"
+        )));
+
+        mockMvc.perform(get("/api/v1/admin/pageserver/rebalance/events?limit=5")
+                .header("Authorization", "Bearer test-admin-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$", hasSize(1)))
+            .andExpect(jsonPath("$[0].action").value("FAILOVER_NODE"))
+            .andExpect(jsonPath("$[0].trigger_type").value("ADMIN"))
+            .andExpect(jsonPath("$[0].target_node_id").value("ps-0"))
+            .andExpect(jsonPath("$[0].status").value("APPLIED"))
+            .andExpect(jsonPath("$[0].move_count").value(1))
+            .andExpect(jsonPath("$[0].moves[0].from_node_id").value("ps-0"))
+            .andExpect(jsonPath("$[0].moves[0].to_node_id").value("ps-1"));
     }
 }
