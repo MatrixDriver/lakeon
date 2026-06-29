@@ -82,28 +82,24 @@ class CdfParquetWriterTest {
     }
 
     @Test
-    void bigDecimalAndBigIntegerValuesAreRejectedAndDoNotWriteFiles() {
+    void bigDecimalAndBigIntegerValuesAreWrittenAsStrings() throws IOException {
         CdfParquetWriter writer = new CdfParquetWriter();
 
-        assertThatThrownBy(() -> writer.write(
+        CdfParquetWriter.WrittenDataFile file = writer.write(
                 warehouse.toString(),
                 "orders",
                 42L,
-                batch(List.of(row("amount", new BigDecimal("12.34"))))))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("BigDecimal")
-                .hasMessageContaining("amount");
+                batch(List.of(row(
+                        "amount", new BigDecimal("12.34"),
+                        "id", new BigInteger("9223372036854775808")))))
+                .get(0);
 
-        assertThatThrownBy(() -> writer.write(
-                warehouse.toString(),
-                "orders",
-                42L,
-                batch(List.of(row("id", new BigInteger("9223372036854775808"))))))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("BigInteger")
-                .hasMessageContaining("id");
-
-        assertThat(warehouse.resolve("data")).doesNotExist();
+        GenericRecord record = readRecords(java.nio.file.Path.of(file.path())).get(0);
+        assertThat(record.get("amount").toString()).isEqualTo("12.34");
+        assertThat(record.get("id").toString()).isEqualTo("9223372036854775808");
+        assertThat(file.lowerBounds())
+                .containsEntry("amount", "12.34")
+                .containsEntry("id", "9223372036854775808");
     }
 
     @Test
