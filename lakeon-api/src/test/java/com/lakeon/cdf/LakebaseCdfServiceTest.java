@@ -266,13 +266,16 @@ class LakebaseCdfServiceTest {
             backfilled.setBackfillStatus("SUCCEEDED");
             backfilled.setBackfillLsn("0/16B6C50");
             backfilled.setStatus("RUNNING");
-            return new LakebaseBackfillService.BackfillResult("SUCCEEDED", "0/16B6C50", 1L, 0L);
+            return new LakebaseBackfillService.BackfillResult("SUCCEEDED", "0/16B6C50", 2L, 2L, "0/16B6C50");
         }).when(backfillService).runBackfill(connection, stream);
 
         LakebaseCdfController.CdfStreamResponse resumed = service.resume(tenant, "db_123", "cdf_abcd1234");
 
         assertThat(resumed.status()).isEqualTo("RUNNING");
         assertThat(resumed.backfill_status()).isEqualTo("SUCCEEDED");
+        assertThat(resumed.last_commit_lsn()).isEqualTo("0/16B6C50");
+        assertThat(resumed.last_snapshot_id()).isEqualTo(2L);
+        assertThat(resumed.observed_lag_ms()).isZero();
         var inOrder = inOrder(statement, backfillService, repository);
         inOrder.verify(statement).execute(service.setupSql(stream).get(0));
         inOrder.verify(statement).execute(service.setupSql(stream).get(1));

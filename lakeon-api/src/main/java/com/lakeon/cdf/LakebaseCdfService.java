@@ -137,7 +137,11 @@ public class LakebaseCdfService {
             }
             if (!"SUCCEEDED".equals(stream.getBackfillStatus())) {
                 try {
-                    backfillService.runBackfill(connection, stream);
+                    LakebaseBackfillService.BackfillResult result = backfillService.runBackfill(connection, stream);
+                    stream.setLastCommitLsn(result.lastCommitLsn());
+                    stream.setLastSnapshotId(result.snapshotId());
+                    stream.setObservedLagMs(0L);
+                    stream.setLastError(null);
                 } catch (BadRequestException e) {
                     repository.save(stream);
                     throw e;

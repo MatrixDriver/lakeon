@@ -20,11 +20,12 @@ public class LakebaseCdfBackfillBatchCommitter implements BackfillBatchCommitter
     }
 
     @Override
-    public void commitBatch(LakebaseCdfStreamEntity stream, CdfBatch batch) throws SQLException {
+    public LakebaseCdfWorker.CommitResult commitBatch(LakebaseCdfStreamEntity stream, CdfBatch batch)
+            throws SQLException {
         TenantEntity tenant = new TenantEntity();
         tenant.setId(stream.getTenantId());
         try (Connection connection = connectionProvider.open(tenant, stream.getDatabaseId(), stream.getBranchId())) {
-            worker.commitBatch(connection, stream, batch);
+            return worker.commitBatch(connection, stream, batch);
         }
     }
 }

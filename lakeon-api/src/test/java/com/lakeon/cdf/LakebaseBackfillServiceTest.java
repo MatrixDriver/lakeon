@@ -62,13 +62,16 @@ class LakebaseBackfillServiceTest {
         when(rowsResultSet.next()).thenReturn(true, true, false);
         when(rowsResultSet.getObject(1)).thenReturn(101L, 102L);
         when(rowsResultSet.getObject(2)).thenReturn("19.95", "24.50");
+        when(committer.commitBatch(any(LakebaseCdfStreamEntity.class), any(CdfBatch.class)))
+                .thenReturn(new LakebaseCdfWorker.CommitResult("COMMITTED", 7L, "0/16B6C50"));
 
         LakebaseBackfillService.BackfillResult result = service.runBackfill(connection, stream);
 
         assertThat(result.status()).isEqualTo("SUCCEEDED");
         assertThat(result.backfillLsn()).isEqualTo("0/16B6C50");
-        assertThat(result.snapshotId()).isEqualTo(1L);
+        assertThat(result.snapshotId()).isEqualTo(7L);
         assertThat(result.rowCount()).isEqualTo(2L);
+        assertThat(result.lastCommitLsn()).isEqualTo("0/16B6C50");
         assertThat(stream.getBackfillStatus()).isEqualTo("SUCCEEDED");
         assertThat(stream.getBackfillLsn()).isEqualTo("0/16B6C50");
         assertThat(stream.getStatus()).isEqualTo("RUNNING");
@@ -107,14 +110,17 @@ class LakebaseBackfillServiceTest {
         LakebaseCdfStreamEntity stream = stream();
         stream.setBackfillStatus("SUCCEEDED");
         stream.setBackfillLsn("0/OLD");
+        stream.setLastCommitLsn("0/OLD");
+        stream.setLastSnapshotId(9L);
         Connection connection = mock(Connection.class);
 
         LakebaseBackfillService.BackfillResult result = service.runBackfill(connection, stream);
 
         assertThat(result.status()).isEqualTo("SUCCEEDED");
         assertThat(result.backfillLsn()).isEqualTo("0/OLD");
-        assertThat(result.snapshotId()).isEqualTo(1L);
+        assertThat(result.snapshotId()).isEqualTo(9L);
         assertThat(result.rowCount()).isZero();
+        assertThat(result.lastCommitLsn()).isEqualTo("0/OLD");
         verify(connection, never()).createStatement();
         verify(committer, never()).commitBatch(any(LakebaseCdfStreamEntity.class), any(CdfBatch.class));
     }
@@ -260,10 +266,16 @@ class LakebaseBackfillServiceTest {
         when(metaData.getColumnLabel(1)).thenReturn("id");
         when(rowsResultSet.next()).thenReturn(true, true, false);
         when(rowsResultSet.getObject(1)).thenReturn(101L, 102L);
+        when(committer.commitBatch(any(LakebaseCdfStreamEntity.class), any(CdfBatch.class)))
+                .thenReturn(
+                        new LakebaseCdfWorker.CommitResult("COMMITTED", 1L, "0/16B6C50"),
+                        new LakebaseCdfWorker.CommitResult("COMMITTED", 2L, "0/16B6C50"));
 
         LakebaseBackfillService.BackfillResult result = service.runBackfill(connection, stream);
 
         assertThat(result.rowCount()).isEqualTo(2L);
+        assertThat(result.snapshotId()).isEqualTo(2L);
+        assertThat(result.lastCommitLsn()).isEqualTo("0/16B6C50");
         verify(scanStatement).setFetchSize(1);
         var batchCaptor = forClass(CdfBatch.class);
         verify(committer, times(2)).commitBatch(org.mockito.Mockito.same(stream), batchCaptor.capture());

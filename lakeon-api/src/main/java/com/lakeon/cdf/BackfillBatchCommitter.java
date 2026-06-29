@@ -5,5 +5,5 @@ import com.lakeon.model.entity.LakebaseCdfStreamEntity;
 import java.sql.SQLException;
 
 public interface BackfillBatchCommitter {
-    void commitBatch(LakebaseCdfStreamEntity stream, CdfBatch batch) throws SQLException;
+    LakebaseCdfWorker.CommitResult commitBatch(LakebaseCdfStreamEntity stream, CdfBatch batch) throws SQLException;
 }

@@ -42,7 +42,12 @@ public class LakebaseBackfillService {
 
     public BackfillResult runBackfill(Connection connection, LakebaseCdfStreamEntity stream) {
         if (SUCCEEDED.equals(stream.getBackfillStatus())) {
-            return new BackfillResult(SUCCEEDED, stream.getBackfillLsn(), INITIAL_SNAPSHOT_ID, 0L);
+            return new BackfillResult(
+                    SUCCEEDED,
+                    stream.getBackfillLsn(),
+                    stream.getLastSnapshotId() == null ? INITIAL_SNAPSHOT_ID : stream.getLastSnapshotId(),
+                    0L,
+                    stream.getLastCommitLsn() == null ? stream.getBackfillLsn() : stream.getLastCommitLsn());
         }
 
         boolean capturedConnectionState = false;
@@ -56,13 +61,15 @@ public class LakebaseBackfillService {
             connection.setAutoCommit(false);
 
             String backfillLsn = captureBackfillLsn(connection);
-            long rowCount = scanAndCommitBatches(connection, stream, backfillLsn);
+            BackfillScanResult scan = scanAndCommitBatches(connection, stream, backfillLsn);
             connection.commit();
 
             stream.setBackfillStatus(SUCCEEDED);
             stream.setBackfillLsn(backfillLsn);
             stream.setStatus(RUNNING);
-            return new BackfillResult(SUCCEEDED, backfillLsn, INITIAL_SNAPSHOT_ID, rowCount);
+            long snapshotId = scan.lastCommit() == null ? INITIAL_SNAPSHOT_ID : scan.lastCommit().snapshotId();
+            String lastCommitLsn = scan.lastCommit() == null ? backfillLsn : scan.lastCommit().endLsn();
+            return new BackfillResult(SUCCEEDED, backfillLsn, snapshotId, scan.rowCount(), lastCommitLsn);
         } catch (SQLException | RuntimeException e) {
             rollbackQuietly(connection);
             stream.setBackfillStatus(BACKFILL_FAILED);
@@ -84,7 +91,7 @@ public class LakebaseBackfillService {
         }
     }
 
-    private long scanAndCommitBatches(Connection connection, LakebaseCdfStreamEntity stream, String backfillLsn)
+    private BackfillScanResult scanAndCommitBatches(Connection connection, LakebaseCdfStreamEntity stream, String backfillLsn)
             throws SQLException {
         try (Statement statement = connection.createStatement()) {
             statement.setFetchSize(batchSize);
@@ -94,12 +101,13 @@ public class LakebaseBackfillService {
         }
     }
 
-    private long readRowsAndCommitBatches(ResultSet resultSet, LakebaseCdfStreamEntity stream, String backfillLsn)
+    private BackfillScanResult readRowsAndCommitBatches(ResultSet resultSet, LakebaseCdfStreamEntity stream, String backfillLsn)
             throws SQLException {
         ResultSetMetaData metaData = resultSet.getMetaData();
         int columnCount = metaData.getColumnCount();
         List<Map<String, Object>> batchRows = new ArrayList<>(batchSize);
         long rowCount = 0;
+        LakebaseCdfWorker.CommitResult lastCommit = null;
         while (resultSet.next()) {
             Map<String, Object> row = new LinkedHashMap<>();
             for (int column = 1; column <= columnCount; column++) {
@@ -108,19 +116,22 @@ public class LakebaseBackfillService {
             batchRows.add(row);
             rowCount++;
             if (batchRows.size() >= batchSize) {
-                commitRows(stream, backfillLsn, batchRows);
+                lastCommit = commitRows(stream, backfillLsn, batchRows);
                 batchRows.clear();
             }
         }
         if (!batchRows.isEmpty()) {
-            commitRows(stream, backfillLsn, batchRows);
+            lastCommit = commitRows(stream, backfillLsn, batchRows);
         }
-        return rowCount;
+        return new BackfillScanResult(rowCount, lastCommit);
     }
 
-    private void commitRows(LakebaseCdfStreamEntity stream, String backfillLsn, List<Map<String, Object>> rows)
+    private LakebaseCdfWorker.CommitResult commitRows(
+            LakebaseCdfStreamEntity stream,
+            String backfillLsn,
+            List<Map<String, Object>> rows)
             throws SQLException {
-        committer.commitBatch(stream, new CdfBatch(
+        return committer.commitBatch(stream, new CdfBatch(
                 stream.getId(),
                 stream.getBranchId(),
                 backfillLsn,
@@ -228,6 +239,14 @@ public class LakebaseBackfillService {
     private record PrimaryKeyColumn(short keySeq, String columnName) {
     }
 
-    public record BackfillResult(String status, String backfillLsn, long snapshotId, long rowCount) {
+    private record BackfillScanResult(long rowCount, LakebaseCdfWorker.CommitResult lastCommit) {
+    }
+
+    public record BackfillResult(
+            String status,
+            String backfillLsn,
+            long snapshotId,
+            long rowCount,
+            String lastCommitLsn) {
     }
 }
