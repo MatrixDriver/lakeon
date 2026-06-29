@@ -216,26 +216,72 @@ Success criteria:
 - Projection lag is visible and bounded by the configured SLA.
 - Failed projection apply pauses safely without advancing the committed offset.
 
-## Phase 6: Lakeon Query Engine
+## Phase 6: Unified Query Entry Through Lakeon Data Proxy
 
 Goal: provide a Lakeon-owned SQL path over managed Iceberg data when product demand justifies it.
 
+Direction: use the Lakeon-modified Neon proxy as the unified PostgreSQL wire entry point, and route Iceberg/lakehouse queries to a separate Lakeon Query Service. The proxy owns connection identity, tenant/database/branch context, authorization context, SQL routing, and PG wire result delivery. It should not become the Parquet or Iceberg execution engine itself.
+
+Target architecture:
+
+```text
+PG client / BI / agent
+        |
+        v
+Lakeon data proxy, based on Neon proxy
+        |
+        |-- normal PostgreSQL SQL
+        |      -> Lakebase / Neon compute
+        |
+        |-- serving projection point lookup
+        |      -> Lakebase / Neon compute
+        |
+        |-- managed Iceberg / lakehouse analytical SQL
+               -> Lakeon Query Service
+                    -> Lakeon Iceberg REST Catalog
+                    -> tenant Lakebase `_lakeon_iceberg` planning index
+                    -> OBS Parquet data files
+```
+
 Deliverables:
 
-- Embedded or integrated query engine for Parquet over OBS.
-- Lakeon SQL API or PG-compatible gateway decision.
+- Lakeon Query Service for Parquet over OBS, backed by DataFusion, DuckDB, or another columnar execution engine.
+- PG wire query routing in the Lakeon data proxy.
+- Explicit SQL entry forms for the first rollout, for example `lakeon_iceberg_scan(...)` or a reserved `iceberg` schema.
+- Later transparent table routing after schema/catalog lookup and SQL planning are mature.
 - Cost controls, concurrency limits, result caching, and spill policy.
 - Query planner integration with `_lakeon_iceberg` planning index.
+- Result-size policy: small results can be streamed back through PG wire; large results should use Arrow/object-storage result handles instead of forcing all data through the proxy.
+- Failure isolation so long analytical scans cannot block ordinary PostgreSQL sessions on the proxy.
 
 Client behavior:
 
-- PG or SQL-over-HTTP clients can query managed lakehouse tables through Lakeon.
-- Lakeon chooses whether a query uses Lakebase serving tables, Lakebase source tables, or Parquet execution.
+- Users keep one PostgreSQL endpoint such as `pg.dbay.cloud`.
+- Normal OLTP SQL continues to route to Lakebase compute.
+- Serving projection point lookups route to Lakebase compute.
+- Managed Iceberg/lakehouse analytical SQL routes from the proxy to Lakeon Query Service.
+- Lakeon chooses whether a supported query uses Lakebase serving tables, Lakebase source tables, or Parquet execution.
+- External Spark/Trino/PyIceberg clients can still use the Iceberg REST Catalog directly; Phase 6 adds a Lakeon-owned SQL path, not a replacement for standard Iceberg access.
+
+Suggested sub-phases:
+
+- Phase 6A: explicit PG entry point. Support a function or reserved schema that makes Iceberg routing unambiguous, then return results through PG wire.
+- Phase 6B: Lakeon Query Service. Execute projection/filter/limit scans over managed Iceberg tables using the Lakeon Catalog and planning index.
+- Phase 6C: transparent table routing. Allow normal-looking SQL over registered lakehouse tables after the proxy can safely identify table ownership, infer result schema, and preserve session semantics.
+- Phase 6D: automatic query path selection. Route point lookups to serving/source tables and analytical scans to Parquet based on table statistics, predicates, limits, and resource policy.
+
+Non-goals:
+
+- Do not put Iceberg metadata planning, Parquet scanning, joins, aggregation, spill, or large result buffering inside the proxy process.
+- Do not silently route arbitrary PostgreSQL SQL to a different engine until transaction semantics, errors, result types, and permissions are well defined.
+- Do not let query-engine resource exhaustion affect normal Lakebase OLTP connectivity.
 
 Success criteria:
 
 - Users can submit SQL against managed lakehouse tables without configuring an external Iceberg engine.
 - The engine can route simple point lookups to serving/source tables and analytical scans to Parquet.
+- The same tenant/database/branch identity used by the PG connection is enforced for Lakeon Query Service calls.
+- Proxy routing is observable: route decision, target engine, query id, bytes scanned, duration, and error are visible in Console/Admin.
 - This phase is explicitly outside the first CDF/Catalog implementation.
 
 ## Recommended Execution Order
