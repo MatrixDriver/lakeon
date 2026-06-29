@@ -17,6 +17,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.HexFormat;
+import java.util.UUID;
 
 @Service
 public class IcebergTableBootstrapService {
@@ -80,7 +81,7 @@ public class IcebergTableBootstrapService {
                                 String tableLocation) throws SQLException {
         ObjectNode metadata = objectMapper.createObjectNode();
         metadata.put("format-version", 2);
-        metadata.put("table-uuid", tableId);
+        metadata.put("table-uuid", stableTableUuid(tableId));
         metadata.put("location", tableLocation);
         metadata.put("last-sequence-number", 0);
         metadata.put("last-updated-ms", System.currentTimeMillis());
@@ -143,6 +144,10 @@ public class IcebergTableBootstrapService {
     private String tableId(LakebaseCdfStreamEntity stream) {
         return stream.getDatabaseId() + "_" + stream.getBranchId() + "_"
                 + stream.getTargetNamespace() + "_" + stream.getTargetTable();
+    }
+
+    private String stableTableUuid(String tableId) {
+        return UUID.nameUUIDFromBytes(tableId.getBytes(StandardCharsets.UTF_8)).toString();
     }
 
     private String tableLocation(LakebaseCdfStreamEntity stream) {

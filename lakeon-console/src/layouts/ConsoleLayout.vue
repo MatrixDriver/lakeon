@@ -149,19 +149,13 @@ const workspaceModes: WorkspaceMode[] = [
     match: ['/dashboard', '/databases', '/timetravel', '/sql', '/import', '/cdf'],
     groups: [
       {
-        title: '数据目录',
-        items: [
-          { label: '数据总览', to: '/dashboard', icon: '▣' },
-        ],
-      },
-      {
-        title: '数据库',
+        title: 'Lakebase',
         items: [
           { label: '数据库', to: '/dashboard', icon: '▣' },
           { label: '时间旅行', to: '/timetravel', icon: '◷' },
           { label: 'SQL 编辑器', to: '/sql', icon: '<>' },
           { label: '数据迁移', to: '/import', icon: '⇩' },
-          { label: 'CDF', to: '/cdf', icon: '~' },
+          { label: '实时表同步', to: '/cdf', icon: '~' },
         ],
       },
     ],

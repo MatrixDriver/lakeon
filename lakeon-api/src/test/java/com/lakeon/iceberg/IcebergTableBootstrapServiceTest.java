@@ -44,6 +44,9 @@ class IcebergTableBootstrapServiceTest {
         ArgumentCaptor<String> metadataJson = ArgumentCaptor.forClass(String.class);
         verify(insert).setString(org.mockito.ArgumentMatchers.eq(8), metadataJson.capture());
         assertThat(metadataJson.getValue()).contains("\"location\":\"" + expectedLocation + "\"");
+        assertThat(metadataJson.getValue())
+                .containsPattern("\"table-uuid\":\"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\"")
+                .doesNotContain("\"table-uuid\":\"db_123_br_main_public_orders_cdf\"");
         verify(insert).setNull(10, Types.BIGINT);
         verify(insert).executeUpdate();
     }

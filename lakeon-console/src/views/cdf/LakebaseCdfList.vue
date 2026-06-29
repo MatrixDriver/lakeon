@@ -2,9 +2,9 @@
   <div class="page-container cdf-page">
     <div class="page-header cdf-header">
       <div>
-        <h1 class="page-title">CDF Streams</h1>
+        <h1 class="page-title">实时表同步</h1>
         <p class="page-subtitle">
-          将 Lakebase 表的变更流写入 DBay 管理的 Iceberg 表，供 Lakeon REST Catalog 和后续导出流程读取。
+          将 Lakebase 表的新增和变更持续写入 DBay 管理的 Iceberg 表，供外部计算引擎和后续导出流程读取。
         </p>
       </div>
       <button class="btn btn-primary" :disabled="loadingDatabases" @click="refreshAll">
@@ -47,7 +47,7 @@
 
     <form class="section-card create-stream-panel" @submit.prevent="createStream">
       <div class="section-header">
-        <h3>创建 Stream</h3>
+        <h3>创建同步任务</h3>
         <span class="section-meta">{{ selectedBranchId || '等待选择数据库' }}</span>
       </div>
       <div class="create-grid">
@@ -86,7 +86,7 @@
     <div class="section-card stream-table-panel">
       <div v-if="loadingStreams" class="loading-bar" aria-hidden="true"></div>
       <div class="section-header">
-        <h3>Streams</h3>
+        <h3>同步任务</h3>
         <span class="section-meta">{{ selectedDatabase ? selectedDatabase.name : '未选择数据库' }}</span>
       </div>
       <div class="table-wrapper cdf-table-wrapper">
@@ -110,10 +110,10 @@
               <td colspan="10" class="empty-cell">加载中...</td>
             </tr>
             <tr v-else-if="!selectedDatabaseId">
-              <td colspan="10" class="empty-cell">选择一个数据库后查看 CDF streams。</td>
+              <td colspan="10" class="empty-cell">选择一个数据库后查看实时表同步任务。</td>
             </tr>
             <tr v-else-if="!loadingStreams && streams.length === 0">
-              <td colspan="10" class="empty-cell">当前数据库还没有 CDF stream。</td>
+              <td colspan="10" class="empty-cell">当前数据库还没有实时表同步任务。</td>
             </tr>
             <tr v-for="stream in streams" :key="stream.id">
               <td>
@@ -253,7 +253,7 @@ async function loadStreams() {
     const response = await cdfApi.listStreams(selectedDatabaseId.value)
     streams.value = response.data
   } catch (err) {
-    error.value = errorMessage(err, 'CDF streams 加载失败')
+    error.value = errorMessage(err, '实时表同步任务加载失败')
   } finally {
     loadingStreams.value = false
   }
@@ -278,7 +278,7 @@ async function createStream() {
     createForm.target_table = ''
     await loadStreams()
   } catch (err) {
-    error.value = errorMessage(err, 'CDF stream 创建失败')
+    error.value = errorMessage(err, '实时表同步任务创建失败')
   } finally {
     creating.value = false
   }
