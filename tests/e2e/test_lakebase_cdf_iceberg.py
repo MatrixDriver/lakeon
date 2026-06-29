@@ -285,21 +285,20 @@ class TestLakebaseCdfIceberg:
             assert stream_after_incremental.get("observed_lag_ms") is not None, stream_after_incremental
             assert stream_after_incremental.get("last_error") in (None, ""), stream_after_incremental
 
-            stage("materializing standard Iceberg export")
-            export = e2e_client._request(
-                "POST",
+            stage("checking standard Iceberg manifest export is deferred for OBS-backed tables")
+            export_response = e2e_client.post(
                 f"/databases/{db['id']}/cdf-streams/{stream['id']}/export",
             )
-            assert export["status"] == "MATERIALIZED"
-            assert export["metadata_location"]
+            assert export_response.status_code == 400
+            assert "local or file:// table location" in export_response.text
 
-            stage("checking export status")
+            stage("checking export status remains not materialized")
             export_status = e2e_client._request(
                 "GET",
                 f"/databases/{db['id']}/cdf-streams/{stream['id']}/export",
             )
-            assert export_status["status"] == "MATERIALIZED"
-            assert export_status["metadata_location"] == export["metadata_location"]
+            assert export_status["status"] in ("NOT_MATERIALIZED", "FAILED")
+            assert export_status["status"] != "MATERIALIZED"
         finally:
             try:
                 stage(f"deleting database: {db['id']}")
