@@ -11,6 +11,7 @@ metadata:
   annotations:
     kubernetes.io/elb.id: {{ required "api.publicElb.id must be set when api.publicElb.enabled=true" .Values.api.publicElb.id | quote }}
     kubernetes.io/elb.class: {{ .Values.api.publicElb.class | default "performance" | quote }}
+    kubernetes.io/elb.port: {{ .Values.api.publicElb.port | default 8443 | quote }}
 spec:
   type: LoadBalancer
   selector:
