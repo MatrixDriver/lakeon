@@ -41,6 +41,11 @@ lakeon:
     live-load-initial-delay-ms: ${LAKEON_DICER_LIVE_LOAD_INITIAL_DELAY_MS:5000}
     metrics-timeout-ms: ${LAKEON_DICER_METRICS_TIMEOUT_MS:1000}
     snapshot-ttl-ms: ${LAKEON_DICER_SNAPSHOT_TTL_MS:30000}
+    auto-failover-enabled: ${LAKEON_DICER_AUTO_FAILOVER_ENABLED:false}
+    auto-failover-poll-interval-ms: ${LAKEON_DICER_AUTO_FAILOVER_POLL_INTERVAL_MS:15000}
+    auto-rebalance-enabled: ${LAKEON_DICER_AUTO_REBALANCE_ENABLED:false}
+    auto-rebalance-poll-interval-ms: ${LAKEON_DICER_AUTO_REBALANCE_POLL_INTERVAL_MS:60000}
+    auto-rebalance-min-moves: ${LAKEON_DICER_AUTO_REBALANCE_MIN_MOVES:10}
   obs:
     endpoint: ${LAKEON_OBS_ENDPOINT:}
     bucket: ${LAKEON_OBS_BUCKET:neon}

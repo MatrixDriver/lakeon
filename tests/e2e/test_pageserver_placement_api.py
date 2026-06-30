@@ -13,6 +13,12 @@ def test_admin_pageserver_topology_exposes_three_nodes():
     assert all(node["pg_connstring"].startswith("postgresql://") for node in nodes)
     assert all(isinstance(node["load_score"], (int, float)) for node in nodes)
     assert {node["source"] for node in nodes} <= {"configured", "dicer", "dicer-live"}
+    decision_engine = topology["decision_engine"]
+    assert decision_engine["mode"] in {"dicer-assisted-placement", "static-placement"}
+    assert decision_engine["transport"] == "grpc"
+    assert decision_engine["live_load_enabled"] is True
+    assert decision_engine["auto_failover_enabled"] is True
+    assert decision_engine["auto_rebalance_enabled"] is True
 
 
 def test_admin_pageserver_resolve_persists_assignment(e2e_tenant):
@@ -35,6 +41,21 @@ def test_admin_pageserver_rebalance_dry_run_contract():
     plan = admin._request("POST", "/admin/pageserver/rebalance/dry-run")
 
     assert plan["dry_run"] is True
+    assert isinstance(plan["moves"], list)
+    for move in plan["moves"]:
+        assert move["tenant_id"]
+        assert move["from_node_id"]
+        assert move["to_node_id"]
+        assert move["from_node_id"] != move["to_node_id"]
+        assert move["next_epoch"] >= 1
+
+
+def test_admin_pageserver_rebalance_apply_contract():
+    admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+
+    plan = admin._request("POST", "/admin/pageserver/rebalance/apply")
+
+    assert plan["dry_run"] is False
     assert isinstance(plan["moves"], list)
     for move in plan["moves"]:
         assert move["tenant_id"]

@@ -189,6 +189,13 @@ public class PageserverPlacementService {
     }
 
     @Transactional
+    public PageserverRebalancePlan rebalanceApply() {
+        PageserverRebalancePlan plan = rebalance(false, Set.of(), "rebalance-apply");
+        recordEvent("REBALANCE_APPLY", "ADMIN", "admin-api", null, plan, "rebalance-apply");
+        return plan;
+    }
+
+    @Transactional
     public PageserverRebalancePlan failoverNode(String nodeId) {
         String reason = "node-unavailable:" + nodeId;
         PageserverRebalancePlan plan = rebalance(false, Set.of(nodeId), reason);
@@ -224,6 +231,30 @@ public class PageserverPlacementService {
         }
     }
 
+    @Scheduled(
+        initialDelayString = "${lakeon.dicer.live-load-initial-delay-ms:5000}",
+        fixedDelayString = "${lakeon.dicer.auto-rebalance-poll-interval-ms:60000}")
+    @Transactional
+    public void autoRebalanceIfNeeded() {
+        if (!props.getDicer().isEnabled() || !props.getDicer().isAutoRebalanceEnabled()) {
+            return;
+        }
+        PageserverRebalancePlan dryRun = rebalance(true, Set.of(), "auto-rebalance-dry-run");
+        int minMoves = Math.max(1, props.getDicer().getAutoRebalanceMinMoves());
+        if (dryRun.moves().size() < minMoves) {
+            recordEvent(
+                "AUTO_REBALANCE",
+                "SCHEDULER",
+                "auto-rebalance",
+                null,
+                dryRun,
+                "auto-rebalance-skipped:min-moves");
+            return;
+        }
+        PageserverRebalancePlan applied = rebalance(false, Set.of(), "auto-rebalance");
+        recordEvent("AUTO_REBALANCE", "SCHEDULER", "auto-rebalance", null, applied, "auto-rebalance");
+    }
+
     public Map<String, Map<String, Double>> loadBreakdown() {
         PageserverLoadSnapshot live = liveSnapshot();
         if (live.isFresh()) {
@@ -257,12 +288,25 @@ public class PageserverPlacementService {
                         assignment.getShardId(),
                         target.id(),
                         nextEpoch,
-                        forcedUnavailable.isEmpty() ? "dicer-rebalance" : "failover",
+                        sourceForRebalance(forcedUnavailable, reason),
                         reason);
                 }
             }
         }
         return new PageserverRebalancePlan(dryRun, moves);
+    }
+
+    private String sourceForRebalance(Set<String> forcedUnavailable, String reason) {
+        if (!forcedUnavailable.isEmpty()) {
+            return "failover";
+        }
+        if (reason != null && reason.startsWith("auto-rebalance")) {
+            return "auto-rebalance";
+        }
+        if ("rebalance-apply".equals(reason)) {
+            return "rebalance-apply";
+        }
+        return "dicer-rebalance";
     }
 
     private void recordEvent(String action,

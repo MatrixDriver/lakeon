@@ -91,6 +91,9 @@ dicer:
   snapshotTtlMs: 30000
   autoFailoverEnabled: true
   autoFailoverPollIntervalMs: 3000
+  autoRebalanceEnabled: true
+  autoRebalancePollIntervalMs: 60000
+  autoRebalanceMinMoves: 25
   image:
     repository: swr.cn-north-4.myhuaweicloud.com/flex/dicer-assigner
     tag: "5cce7985"

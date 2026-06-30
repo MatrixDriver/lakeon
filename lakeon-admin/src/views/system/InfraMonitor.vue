@@ -333,6 +333,9 @@
             <button class="action-btn" :disabled="!!dicerActionLoading" @click="dryRunDicerRebalance">
               {{ dicerActionLoading === 'rebalance' ? '分析中...' : 'Rebalance dry-run' }}
             </button>
+            <button class="action-btn action-warn" :disabled="!!dicerActionLoading" @click="applyDicerRebalance">
+              {{ dicerActionLoading === 'apply-rebalance' ? '迁移中...' : 'Apply rebalance' }}
+            </button>
           </div>
         </div>
         <div v-if="dicerLoading" class="empty-text">加载中...</div>
@@ -355,6 +358,10 @@
             <div class="stat-card">
               <div class="stat-value">{{ dicerSources.join(' / ') || '-' }}</div>
               <div class="stat-label">决策来源</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">{{ pageserverTopology.decision_engine?.auto_rebalance_enabled ? '开启' : '关闭' }}</div>
+              <div class="stat-label">自动 rebalance</div>
             </div>
           </div>
 
@@ -869,6 +876,16 @@ interface PageserverRebalancePlan {
 interface PageserverTopology {
   nodes: PageserverTopologyNode[]
   placements: PageserverPlacement[]
+  decision_engine?: {
+    mode: string
+    endpoint?: string
+    transport?: string
+    live_load_enabled: boolean
+    auto_failover_enabled: boolean
+    auto_rebalance_enabled: boolean
+    auto_rebalance_min_moves?: number
+    clerk_slicelet_integrated?: boolean
+  }
 }
 
 interface PageserverRebalanceEvent {
@@ -1005,6 +1022,23 @@ async function dryRunDicerRebalance() {
   }
 }
 
+async function applyDicerRebalance() {
+  if (!confirm('确定应用当前 Dicer rebalance 计划？\n会把 placement 迁移到负载更低的 pageserver。')) return
+  dicerActionLoading.value = 'apply-rebalance'
+  try {
+    const res = await adminApi.pageserverRebalanceApply()
+    const plan = res.data as PageserverRebalancePlan
+    alert(`Rebalance 完成：迁移 ${plan.moves.length} 个 placement`)
+    dicerDryRunPlan.value = plan
+    await loadDicerTopology()
+  } catch (e) {
+    alert('Rebalance apply 失败')
+    console.error(e)
+  } finally {
+    dicerActionLoading.value = null
+  }
+}
+
 async function failoverDicerNode(nodeId: string) {
   if (!confirm(`确定对 ${nodeId} 触发 failover？\n该节点上的 placement 会迁移到其它 pageserver。`)) return
   dicerActionLoading.value = nodeId
@@ -1032,8 +1066,10 @@ function formatLoad(value: number | undefined): string {
 
 function formatDicerAction(action: string): string {
   if (action === 'REBALANCE_DRY_RUN') return 'Dry-run'
+  if (action === 'REBALANCE_APPLY') return 'Rebalance'
   if (action === 'FAILOVER_NODE') return 'Failover'
   if (action === 'AUTO_FAILOVER') return 'Auto failover'
+  if (action === 'AUTO_REBALANCE') return 'Auto rebalance'
   return action
 }
 
@@ -2061,6 +2097,11 @@ onUnmounted(() => {
 
 .link-btn.danger {
   color: var(--cs-severe);
+}
+
+.action-btn.action-warn {
+  border-color: color-mix(in oklch, var(--c-accent) 42%, var(--c-border));
+  color: var(--c-accent-text);
 }
 
 .action-btn:disabled,

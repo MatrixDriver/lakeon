@@ -55,6 +55,22 @@
           <dt>Compute Pod</dt>
           <dd class="mono">{{ db.compute_pod_name || '—' }}</dd>
         </div>
+        <div class="detail-row">
+          <dt>Pageserver</dt>
+          <dd class="mono">{{ db.pageserver_placement?.node_id || '—' }}</dd>
+        </div>
+        <div class="detail-row">
+          <dt>Placement Epoch</dt>
+          <dd class="mono">{{ db.pageserver_placement?.epoch ?? '—' }}</dd>
+        </div>
+        <div class="detail-row detail-row-wide">
+          <dt>Neon Tenant</dt>
+          <dd class="mono mono-sm">{{ db.neon_tenant_id || '—' }}</dd>
+        </div>
+        <div class="detail-row detail-row-wide">
+          <dt>Neon Timeline</dt>
+          <dd class="mono mono-sm">{{ db.neon_timeline_id || '—' }}</dd>
+        </div>
         <div class="detail-row detail-row-wide">
           <dt>Direct 连接</dt>
           <dd class="mono mono-sm">{{ db.connection_uri || '—' }}</dd>
@@ -96,6 +112,15 @@ interface DatabaseInfo {
   compute_size?: string
   storage_limit_gb?: number
   compute_pod_name?: string
+  neon_tenant_id?: string
+  neon_timeline_id?: string
+  pageserver_placement?: {
+    tenant_id: string
+    shard_id: number
+    node_id: string
+    epoch: number
+    source: string
+  } | null
   connection_uri?: string
   pooled_connection_uri?: string
   last_active_at?: string

@@ -256,6 +256,59 @@ class PageserverPlacementServiceTest {
             eq("rebalance-dry-run"));
     }
 
+    @Test
+    void rebalanceApplyMovesAssignmentsAndRecordsAppliedEvent() {
+        LakeonProperties props = placementProps();
+        props.getDicer().setEnabled(true);
+        props.getDicer().setNodeLoadsRaw("ps-0=0.1,ps-1=0.9,ps-2=0.8");
+        PageserverAssignmentEntity assignment = assignment("tenant-a", 0, "ps-1", 7L, "dicer-live");
+        PageserverAssignmentRepository repo = mock(PageserverAssignmentRepository.class);
+        PageserverRebalanceEventService eventService = mock(PageserverRebalanceEventService.class);
+        when(repo.findAll()).thenReturn(List.of(assignment));
+        when(repo.findById("tenant-a:0")).thenReturn(Optional.of(assignment));
+        PageserverPlacementService service = new PageserverPlacementService(props, repo, null, null, eventService);
+
+        PageserverRebalancePlan plan = service.rebalanceApply();
+
+        assertThat(plan.dryRun()).isFalse();
+        assertThat(plan.moves()).hasSize(1);
+        assertThat(plan.moves().get(0).fromNodeId()).isEqualTo("ps-1");
+        assertThat(plan.moves().get(0).toNodeId()).isEqualTo("ps-0");
+        assertThat(plan.moves().get(0).reason()).isEqualTo("rebalance-apply");
+        verify(repo).save(any(PageserverAssignmentEntity.class));
+        verify(eventService).record(
+            eq("REBALANCE_APPLY"),
+            eq("ADMIN"),
+            eq("admin-api"),
+            eq(null),
+            eq(plan),
+            eq("rebalance-apply"));
+    }
+
+    @Test
+    void autoRebalanceAppliesOnlyWhenMoveCountMeetsThreshold() {
+        LakeonProperties props = placementProps();
+        props.getDicer().setEnabled(true);
+        props.getDicer().setAutoRebalanceEnabled(true);
+        props.getDicer().setAutoRebalanceMinMoves(2);
+        props.getDicer().setNodeLoadsRaw("ps-0=0.1,ps-1=0.9,ps-2=0.8");
+        PageserverAssignmentEntity assignment = assignment("tenant-a", 0, "ps-1", 7L, "dicer-live");
+        PageserverAssignmentRepository repo = mock(PageserverAssignmentRepository.class);
+        PageserverRebalanceEventService eventService = mock(PageserverRebalanceEventService.class);
+        when(repo.findAll()).thenReturn(List.of(assignment));
+        PageserverPlacementService service = new PageserverPlacementService(props, repo, null, null, eventService);
+
+        service.autoRebalanceIfNeeded();
+
+        verify(eventService).record(
+            eq("AUTO_REBALANCE"),
+            eq("SCHEDULER"),
+            eq("auto-rebalance"),
+            eq(null),
+            any(PageserverRebalancePlan.class),
+            eq("auto-rebalance-skipped:min-moves"));
+    }
+
     private LakeonProperties placementProps() {
         LakeonProperties props = new LakeonProperties();
         props.getNeon().setPageserverNodes(List.of(

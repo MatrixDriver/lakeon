@@ -76,6 +76,9 @@ dicer:
   snapshotTtlMs: 30000
   autoFailoverEnabled: false
   autoFailoverPollIntervalMs: 15000
+  autoRebalanceEnabled: false
+  autoRebalancePollIntervalMs: 60000
+  autoRebalanceMinMoves: 10
   podDisruptionBudget:
     enabled: true
     minAvailable: 1

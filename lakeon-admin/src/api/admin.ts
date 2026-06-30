@@ -61,6 +61,7 @@ export const adminApi = {
   pageserverMetrics: () => client.get('/pageserver/metrics'),
   pageserverTopology: () => client.get('/pageserver/topology'),
   pageserverRebalanceDryRun: () => client.post('/pageserver/rebalance/dry-run'),
+  pageserverRebalanceApply: () => client.post('/pageserver/rebalance/apply'),
   pageserverRebalanceEvents: (limit = 20) => client.get('/pageserver/rebalance/events', { params: { limit } }),
   failoverPageserverNode: (nodeId: string) => client.post(`/pageserver/nodes/${nodeId}/failover`),
   tenantHealth: () => client.get('/pageserver/tenant-health'),

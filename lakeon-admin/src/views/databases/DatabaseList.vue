@@ -326,6 +326,7 @@
               <th>状态信息</th>
               <th>规格</th>
               <th>存储</th>
+              <th>Pageserver</th>
               <th>Compute Pod</th>
               <th>创建于</th>
               <th class="th-actions"></th>
@@ -367,6 +368,7 @@
               >{{ db.status_message || '—' }}</td>
               <td class="td-compact">{{ db.compute_size || '—' }}</td>
               <td class="td-compact">{{ db.storage_limit_gb ? db.storage_limit_gb + ' GB' : '—' }}</td>
+              <td class="td-mono" :title="placementTitle(db)">{{ db.pageserver_placement?.node_id || '—' }}</td>
               <td class="td-mono" :title="db.compute_pod_name || ''">{{ db.compute_pod_name || '—' }}</td>
               <td class="td-date">{{ fmtRelDate(db.created_at) }}</td>
               <td class="td-actions">
@@ -384,7 +386,7 @@
               </td>
             </tr>
             <tr v-if="databases.length === 0">
-              <td colspan="10" class="empty-row">
+              <td colspan="11" class="empty-row">
                 <div class="empty-title">集群里还没有数据库</div>
                 <div class="empty-sub">等待第一个租户创建</div>
               </td>
@@ -445,6 +447,15 @@ interface Database {
   compute_size?: string
   storage_limit_gb?: number
   compute_pod_name?: string
+  neon_tenant_id?: string
+  neon_timeline_id?: string
+  pageserver_placement?: {
+    tenant_id: string
+    shard_id: number
+    node_id: string
+    epoch: number
+    source: string
+  } | null
   last_active_at?: string
   created_at: string
 }
@@ -646,6 +657,12 @@ function statCount(status: string): number {
 
 function isAlert(db: Database): boolean {
   return db.status === 'FAILED' || db.status === 'ERROR'
+}
+
+function placementTitle(db: Database): string {
+  const placement = db.pageserver_placement
+  if (!placement) return ''
+  return `${placement.tenant_id} shard ${placement.shard_id} epoch ${placement.epoch} · ${placement.source}`
 }
 
 function toggleAll() {

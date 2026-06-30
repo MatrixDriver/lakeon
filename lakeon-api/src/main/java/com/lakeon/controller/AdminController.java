@@ -1,5 +1,6 @@
 package com.lakeon.controller;
 
+import com.lakeon.config.LakeonProperties;
 import com.lakeon.model.dto.TenantResponse;
 import com.lakeon.model.dto.UpdateQuotaRequest;
 import com.lakeon.model.entity.DatabaseEntity;
@@ -43,6 +44,7 @@ public class AdminController {
     private final PageserverPlacementService pageserverPlacementService;
     private final PageserverRebalanceEventService pageserverRebalanceEventService;
     private final OperationLogRepository operationLogRepository;
+    private final LakeonProperties lakeonProperties;
 
     public AdminController(TenantService tenantService,
                            TenantRepository tenantRepository,
@@ -52,7 +54,8 @@ public class AdminController {
                            InviteCodeRepository inviteCodeRepository,
                            PageserverPlacementService pageserverPlacementService,
                            PageserverRebalanceEventService pageserverRebalanceEventService,
-                           OperationLogRepository operationLogRepository) {
+                           OperationLogRepository operationLogRepository,
+                           LakeonProperties lakeonProperties) {
         this.tenantService = tenantService;
         this.tenantRepository = tenantRepository;
         this.databaseRepository = databaseRepository;
@@ -62,6 +65,7 @@ public class AdminController {
         this.pageserverPlacementService = pageserverPlacementService;
         this.pageserverRebalanceEventService = pageserverRebalanceEventService;
         this.operationLogRepository = operationLogRepository;
+        this.lakeonProperties = lakeonProperties;
     }
 
     @GetMapping("/dashboard")
@@ -184,7 +188,8 @@ public class AdminController {
                 out.put("source", status.source());
                 return out;
             }).toList(),
-            "placements", pageserverPlacementService.placements().stream().map(this::placementToMap).toList()
+            "placements", pageserverPlacementService.placements().stream().map(this::placementToMap).toList(),
+            "decision_engine", dicerDecisionEngineToMap()
         );
     }
 
@@ -208,6 +213,15 @@ public class AdminController {
     @PostMapping("/pageserver/rebalance/dry-run")
     public Map<String, Object> dryRunPageserverRebalance() {
         var plan = pageserverPlacementService.rebalanceDryRun();
+        return Map.of(
+            "dry_run", plan.dryRun(),
+            "moves", plan.moves().stream().map(this::moveToMap).toList()
+        );
+    }
+
+    @PostMapping("/pageserver/rebalance/apply")
+    public Map<String, Object> applyPageserverRebalance() {
+        var plan = pageserverPlacementService.rebalanceApply();
         return Map.of(
             "dry_run", plan.dryRun(),
             "moves", plan.moves().stream().map(this::moveToMap).toList()
@@ -269,10 +283,24 @@ public class AdminController {
         out.put("created_at", db.getCreatedAt());
         out.put("updated_at", db.getUpdatedAt());
         out.put("compute_pod_name", db.getComputePodName());
+        out.put("neon_tenant_id", db.getNeonTenantId());
+        out.put("neon_timeline_id", db.getNeonTimelineId());
+        out.put("pageserver_placement", pageserverPlacementToMap(db.getNeonTenantId()));
         out.put("connection_uri", db.getConnectionUri());
         out.put("pooled_connection_uri", databaseService.buildPooledConnectionUri(db.getConnectionUri()));
         out.put("storage_limit_gb", db.getStorageLimitGb());
         return out;
+    }
+
+    private Map<String, Object> pageserverPlacementToMap(String neonTenantId) {
+        if (neonTenantId == null || neonTenantId.isBlank()) {
+            return null;
+        }
+        return pageserverPlacementService.placementsForTenant(neonTenantId).stream()
+            .filter(placement -> placement.shardId() == 0)
+            .findFirst()
+            .map(this::placementToMap)
+            .orElse(null);
     }
 
     private Map<String, Object> inviteCodeToMap(InviteCodeEntity e) {
@@ -364,6 +392,20 @@ public class AdminController {
         out.put("pg_connstring", placement.node().pgConnstring());
         out.put("epoch", placement.epoch());
         out.put("source", placement.source());
+        return out;
+    }
+
+    private Map<String, Object> dicerDecisionEngineToMap() {
+        LakeonProperties.DicerConfig dicer = lakeonProperties.getDicer();
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("mode", dicer.isEnabled() ? "dicer-assisted-placement" : "static-placement");
+        out.put("endpoint", dicer.getEndpoint());
+        out.put("transport", "grpc");
+        out.put("live_load_enabled", dicer.isLiveLoadEnabled());
+        out.put("auto_failover_enabled", dicer.isAutoFailoverEnabled());
+        out.put("auto_rebalance_enabled", dicer.isAutoRebalanceEnabled());
+        out.put("auto_rebalance_min_moves", dicer.getAutoRebalanceMinMoves());
+        out.put("clerk_slicelet_integrated", false);
         return out;
     }
 

@@ -179,6 +179,9 @@ public class LakeonProperties {
         private long snapshotTtlMs = 30000L;
         private boolean autoFailoverEnabled = false;
         private long autoFailoverPollIntervalMs = 15000L;
+        private boolean autoRebalanceEnabled = false;
+        private long autoRebalancePollIntervalMs = 60000L;
+        private int autoRebalanceMinMoves = 10;
 
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -202,6 +205,12 @@ public class LakeonProperties {
         public void setAutoFailoverEnabled(boolean autoFailoverEnabled) { this.autoFailoverEnabled = autoFailoverEnabled; }
         public long getAutoFailoverPollIntervalMs() { return autoFailoverPollIntervalMs; }
         public void setAutoFailoverPollIntervalMs(long autoFailoverPollIntervalMs) { this.autoFailoverPollIntervalMs = autoFailoverPollIntervalMs; }
+        public boolean isAutoRebalanceEnabled() { return autoRebalanceEnabled; }
+        public void setAutoRebalanceEnabled(boolean autoRebalanceEnabled) { this.autoRebalanceEnabled = autoRebalanceEnabled; }
+        public long getAutoRebalancePollIntervalMs() { return autoRebalancePollIntervalMs; }
+        public void setAutoRebalancePollIntervalMs(long autoRebalancePollIntervalMs) { this.autoRebalancePollIntervalMs = autoRebalancePollIntervalMs; }
+        public int getAutoRebalanceMinMoves() { return autoRebalanceMinMoves; }
+        public void setAutoRebalanceMinMoves(int autoRebalanceMinMoves) { this.autoRebalanceMinMoves = autoRebalanceMinMoves; }
     }
 
     public static class ObsConfig {

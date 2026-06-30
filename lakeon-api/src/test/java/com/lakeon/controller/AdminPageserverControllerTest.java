@@ -69,12 +69,19 @@ class AdminPageserverControllerTest {
 
     private final LakeonProperties.AdminConfig adminConfig = new LakeonProperties.AdminConfig();
     private final LakeonProperties.ProxyConfig proxyConfig = new LakeonProperties.ProxyConfig();
+    private final LakeonProperties.DicerConfig dicerConfig = new LakeonProperties.DicerConfig();
 
     @BeforeEach
     void setUp() {
         adminConfig.setToken("test-admin-token");
+        dicerConfig.setEnabled(true);
+        dicerConfig.setEndpoint("dicer-assigner:24500");
+        dicerConfig.setLiveLoadEnabled(true);
+        dicerConfig.setAutoFailoverEnabled(true);
+        dicerConfig.setAutoRebalanceEnabled(true);
         when(lakeonProperties.getAdmin()).thenReturn(adminConfig);
         when(lakeonProperties.getProxy()).thenReturn(proxyConfig);
+        when(lakeonProperties.getDicer()).thenReturn(dicerConfig);
     }
 
     @Test
@@ -99,20 +106,30 @@ class AdminPageserverControllerTest {
             .andExpect(jsonPath("$.nodes[0].load_breakdown.http_requests").value(100.0d))
             .andExpect(jsonPath("$.nodes[0].load_breakdown.io_operations").value(20.0d))
             .andExpect(jsonPath("$.placements[0].tenant_id").value("tenant-a"))
-            .andExpect(jsonPath("$.placements[0].epoch").value(2));
+            .andExpect(jsonPath("$.placements[0].epoch").value(2))
+            .andExpect(jsonPath("$.decision_engine.mode").value("dicer-assisted-placement"))
+            .andExpect(jsonPath("$.decision_engine.endpoint").value("dicer-assigner:24500"))
+            .andExpect(jsonPath("$.decision_engine.live_load_enabled").value(true))
+            .andExpect(jsonPath("$.decision_engine.auto_failover_enabled").value(true))
+            .andExpect(jsonPath("$.decision_engine.auto_rebalance_enabled").value(true));
     }
 
     @Test
     void databaseDetailReturnsDirectAndPooledConnectionUris() throws Exception {
+        PageserverNode node = new PageserverNode("ps-1", "http://pageserver-1:9898", "pageserver-1", 6400);
         DatabaseEntity db = new DatabaseEntity();
         db.setId("db_pool");
         db.setTenantId("tn_pool");
         db.setName("app-db");
         db.setStatus(DatabaseStatus.RUNNING);
+        db.setNeonTenantId("neon-tenant-a");
         db.setConnectionUri("postgres://user@pg.dbay.cloud:4432/app-db?options=endpoint%3Dapp-db");
         db.setStorageLimitGb(10);
 
         when(databaseRepository.findById("db_pool")).thenReturn(Optional.of(db));
+        when(pageserverPlacementService.placementsForTenant("neon-tenant-a")).thenReturn(List.of(
+            new PageserverPlacement("neon-tenant-a", 0, node, 7L, "dicer-live")
+        ));
         when(databaseService.buildPooledConnectionUri(db.getConnectionUri()))
             .thenReturn("postgres://user@pg.dbay.cloud:4432/app-db?options=endpoint%3Dapp-db-pooler");
 
@@ -120,7 +137,10 @@ class AdminPageserverControllerTest {
                 .header("Authorization", "Bearer test-admin-token"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.connection_uri").value("postgres://user@pg.dbay.cloud:4432/app-db?options=endpoint%3Dapp-db"))
-            .andExpect(jsonPath("$.pooled_connection_uri").value("postgres://user@pg.dbay.cloud:4432/app-db?options=endpoint%3Dapp-db-pooler"));
+            .andExpect(jsonPath("$.pooled_connection_uri").value("postgres://user@pg.dbay.cloud:4432/app-db?options=endpoint%3Dapp-db-pooler"))
+            .andExpect(jsonPath("$.neon_tenant_id").value("neon-tenant-a"))
+            .andExpect(jsonPath("$.pageserver_placement.node_id").value("ps-1"))
+            .andExpect(jsonPath("$.pageserver_placement.epoch").value(7));
     }
 
     @Test
@@ -137,6 +157,22 @@ class AdminPageserverControllerTest {
             .andExpect(jsonPath("$.moves[0].from_node_id").value("ps-0"))
             .andExpect(jsonPath("$.moves[0].to_node_id").value("ps-1"))
             .andExpect(jsonPath("$.moves[0].next_epoch").value(4));
+    }
+
+    @Test
+    void rebalanceApplyEndpointAppliesPlannedMoves() throws Exception {
+        when(pageserverPlacementService.rebalanceApply()).thenReturn(new PageserverRebalancePlan(false, List.of(
+            new PageserverRebalancePlan.Move("tenant-a", 0, "ps-1", "ps-0", 8L, "rebalance-apply")
+        )));
+
+        mockMvc.perform(post("/api/v1/admin/pageserver/rebalance/apply")
+                .header("Authorization", "Bearer test-admin-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.dry_run").value(false))
+            .andExpect(jsonPath("$.moves", hasSize(1)))
+            .andExpect(jsonPath("$.moves[0].from_node_id").value("ps-1"))
+            .andExpect(jsonPath("$.moves[0].to_node_id").value("ps-0"))
+            .andExpect(jsonPath("$.moves[0].reason").value("rebalance-apply"));
     }
 
     @Test
