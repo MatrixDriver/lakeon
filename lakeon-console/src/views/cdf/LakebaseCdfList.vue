@@ -57,7 +57,7 @@
         </div>
         <div class="form-group">
           <label class="form-label" for="cdf-source-table">源 Table</label>
-          <input id="cdf-source-table" v-model="createForm.source_table" class="form-input" placeholder="orders" />
+          <input id="cdf-source-table" v-model="createForm.source_table" class="form-input" placeholder="输入源表名" />
         </div>
         <div class="form-group">
           <label class="form-label" for="cdf-target-namespace">目标 Namespace</label>
@@ -65,7 +65,7 @@
         </div>
         <div class="form-group">
           <label class="form-label" for="cdf-target-table">目标 Table</label>
-          <input id="cdf-target-table" v-model="createForm.target_table" class="form-input" placeholder="orders_cdf" />
+          <input id="cdf-target-table" v-model="createForm.target_table" class="form-input" placeholder="自动生成或输入目标表名" />
         </div>
         <div class="form-group">
           <label class="form-label" for="cdf-mode">Mode</label>
@@ -78,7 +78,7 @@
           <span>Initial backfill</span>
         </label>
         <button class="btn btn-primary create-submit" type="submit" :disabled="!canCreate || creating">
-          {{ creating ? '创建中...' : '创建' }}
+          {{ createButtonText }}
         </button>
       </div>
     </form>
@@ -203,6 +203,15 @@ const canCreate = computed(() =>
     && createForm.target_namespace.trim()
     && createForm.target_table.trim())
 )
+const createButtonText = computed(() => {
+  if (creating.value) return '创建中...'
+  if (!selectedDatabaseId.value || !selectedBranchId.value) return '选择数据库后创建'
+  if (!createForm.source_schema.trim()) return '填写源 Schema 后创建'
+  if (!createForm.source_table.trim()) return '填写源表后创建'
+  if (!createForm.target_namespace.trim()) return '填写目标 Namespace 后创建'
+  if (!createForm.target_table.trim()) return '填写目标表后创建'
+  return '创建'
+})
 
 watch(selectedDatabaseId, () => {
   streams.value = []
