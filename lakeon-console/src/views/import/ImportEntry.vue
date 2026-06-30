@@ -293,6 +293,27 @@ watch(selectedDb, (db) => {
   else importTasks.value = []
 })
 
+async function loadImportCounts() {
+  const entries = await Promise.allSettled(
+    databases.value.map(async (db) => {
+      const taskRes = await importApi.list(db.id)
+      if (taskRes.data.length === 0) return null
+      const counts: Record<string, number> = {}
+      for (const t of taskRes.data) {
+        counts[t.status] = (counts[t.status] || 0) + 1
+      }
+      return [db.id, counts] as const
+    })
+  )
+
+  for (const entry of entries) {
+    if (entry.status === 'fulfilled' && entry.value) {
+      const [dbId, counts] = entry.value
+      dbImportCounts.value[dbId] = counts
+    }
+  }
+}
+
 onMounted(async () => {
   try {
     const res = await databaseApi.list()
@@ -303,19 +324,7 @@ onMounted(async () => {
       const match = databases.value.find(d => d.id === dbParam)
       if (match) selectedDb.value = match
     }
-    // Load import task counts for each database
-    for (const db of databases.value) {
-      try {
-        const taskRes = await importApi.list(db.id)
-        if (taskRes.data.length > 0) {
-          const counts: Record<string, number> = {}
-          for (const t of taskRes.data) {
-            counts[t.status] = (counts[t.status] || 0) + 1
-          }
-          dbImportCounts.value[db.id] = counts
-        }
-      } catch { /* ignore */ }
-    }
+    void loadImportCounts()
   } catch (e) {
     console.error('Failed to load databases', e)
   } finally {
