@@ -13,27 +13,22 @@
     <!-- Database selector -->
     <div v-else-if="!loading" class="select-section">
       <div class="select-prompt">选择数据库后进入编辑器</div>
-      <div class="db-card-grid">
-        <div
+      <div class="card-grid db-selector-grid">
+        <ResourceCard
           v-for="db in databases"
           :key="db.id"
-          class="db-card"
+          :name="db.name"
+          :status="db.status"
+          :status-label="statusText(db.status)"
+          :meta="[db.compute_size, `${db.storage_used_gb.toFixed(1)} / ${db.storage_limit_gb} GB`]"
+          class="db-selector-card"
           :class="{ 'db-card-disabled': db.status !== 'RUNNING' && db.status !== 'SUSPENDED' }"
           @click="openEditor(db)"
         >
-          <div class="db-card-header">
-            <span class="status-dot" :class="statusClass(db.status)"></span>
-            <span class="db-card-name">{{ db.name }}</span>
-          </div>
-          <div class="db-card-meta">
-            <span>{{ statusText(db.status) }}</span>
-            <span>{{ db.compute_size }}</span>
-            <span>{{ db.storage_used_gb.toFixed(1) }} / {{ db.storage_limit_gb }} GB</span>
-          </div>
-          <div class="db-card-action">
+          <template #actions>
             <span class="open-link">打开编辑器 &rarr;</span>
-          </div>
-        </div>
+          </template>
+        </ResourceCard>
       </div>
     </div>
 
@@ -45,20 +40,12 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { databaseApi, type Database } from '../../api/database'
+import ResourceCard from '../../components/ResourceCard.vue'
 
 const route = useRoute()
 const router = useRouter()
 const databases = ref<Database[]>([])
 const loading = ref(true)
-
-function statusClass(status: string): string {
-  switch (status) {
-    case 'RUNNING': return 'dot-green'
-    case 'SUSPENDED': return 'dot-gray'
-    case 'CREATING': return 'dot-blue'
-    default: return 'dot-red'
-  }
-}
 
 function statusText(status: string): string {
   switch (status) {
@@ -99,23 +86,12 @@ onMounted(async () => {
   margin-bottom: 16px;
 }
 
-.db-card-grid {
+.db-selector-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-}
-
-.db-card {
-  border: 1px solid #ebebeb;
-  border-radius: 8px;
-  padding: 20px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.db-card:hover {
-  border-color: #c67d3a;
-  box-shadow: 0 2px 8px rgba(0, 115, 230, 0.08);
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+  padding: 0;
 }
 
 .db-card-disabled {
@@ -124,39 +100,14 @@ onMounted(async () => {
 }
 
 .db-card-disabled:hover {
-  border-color: #ebebeb;
   box-shadow: none;
 }
 
-.db-card-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.db-card-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: #2c3e50;
-}
-
-.db-card-meta {
-  display: flex;
-  gap: 12px;
-  font-size: 13px;
-  color: #8a8e99;
-  margin-bottom: 12px;
-}
-
-.db-card-action {
-  border-top: 1px solid #f5f5f5;
-  padding-top: 12px;
-}
-
 .open-link {
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 500;
   color: #9a5b25;
+  white-space: nowrap;
 }
 
 .empty-hero {

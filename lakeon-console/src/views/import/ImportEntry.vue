@@ -15,35 +15,31 @@
       <!-- Select target database -->
       <div class="select-section">
         <div class="select-prompt">选择目标数据库，从外部 PostgreSQL 导入或同步数据</div>
-        <div class="db-card-grid">
-          <div
+        <div class="card-grid db-selector-grid">
+          <ResourceCard
             v-for="db in databases"
             :key="db.id"
-            class="db-card"
+            :name="db.name"
+            :status="db.status"
+            :status-label="statusText(db.status)"
+            class="db-selector-card"
             :class="{
               'db-card-disabled': db.status !== 'RUNNING' && db.status !== 'SUSPENDED',
               'db-card-selected': selectedDb?.id === db.id
             }"
             @click="selectDb(db)"
           >
-            <div class="db-card-header">
-              <span class="status-dot" :class="statusClass(db.status)"></span>
-              <span class="db-card-name">{{ db.name }}</span>
-            </div>
-            <div class="db-card-meta">
-              <span>{{ statusText(db.status) }}</span>
+            <template #meta>
               <span>{{ db.compute_size }}</span>
               <span>{{ db.storage_used_gb.toFixed(1) }} / {{ db.storage_limit_gb }} GB</span>
-            </div>
-            <div class="db-card-tasks" v-if="dbImportCounts[db.id]">
               <span
                 v-for="(count, status) in dbImportCounts[db.id]"
                 :key="status"
                 class="task-status-chip"
                 :class="taskStatusClass(status as string)"
               >{{ count }} {{ taskStatusText(status as string) }}</span>
-            </div>
-          </div>
+            </template>
+          </ResourceCard>
         </div>
       </div>
 
@@ -146,6 +142,7 @@ import { importApi } from '../../api/import'
 import { formatDate } from '../../utils/format'
 import ImportWizard from '../database/ImportWizard.vue'
 import ImportTaskDetail from '../database/ImportTaskDetail.vue'
+import ResourceCard from '../../components/ResourceCard.vue'
 
 // Use ImportTask from import API
 import type { ImportTask } from '../../api/import'
@@ -160,15 +157,6 @@ const showWizard = ref(false)
 const selectedTaskId = ref<string | null>(null)
 const dbImportCounts = ref<Record<string, Record<string, number>>>({})
 const actionLoading = ref(false)
-
-function statusClass(status: string): string {
-  switch (status) {
-    case 'RUNNING': return 'dot-green'
-    case 'SUSPENDED': return 'dot-gray'
-    case 'CREATING': return 'dot-blue'
-    default: return 'dot-red'
-  }
-}
 
 function statusText(status: string): string {
   switch (status) {
@@ -340,28 +328,17 @@ onMounted(async () => {
   margin-bottom: 16px;
 }
 
-.db-card-grid {
+.db-selector-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-}
-
-.db-card {
-  border: 1px solid #ebebeb;
-  border-radius: 8px;
-  padding: 20px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.db-card:hover {
-  border-color: #c67d3a;
-  box-shadow: 0 2px 8px rgba(0, 115, 230, 0.08);
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+  padding: 0;
 }
 
 .db-card-selected {
-  border-color: #c67d3a;
-  background: #f0f7ff;
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
 }
 
 .db-card-disabled {
@@ -370,35 +347,7 @@ onMounted(async () => {
 }
 
 .db-card-disabled:hover {
-  border-color: #ebebeb;
   box-shadow: none;
-}
-
-.db-card-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.db-card-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: #2c3e50;
-}
-
-.db-card-meta {
-  display: flex;
-  gap: 12px;
-  font-size: 13px;
-  color: #8a8e99;
-}
-
-.db-card-tasks {
-  margin-top: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
 }
 
 .task-status-chip {
@@ -519,7 +468,7 @@ onMounted(async () => {
 }
 
 @media (max-width: 768px) {
-  .db-card-grid {
+  .db-selector-grid {
     grid-template-columns: 1fr;
   }
 }
