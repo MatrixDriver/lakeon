@@ -340,6 +340,36 @@
         </div>
         <div v-if="dicerLoading" class="empty-text">加载中...</div>
         <template v-else-if="pageserverTopology">
+          <div v-if="pageserverSummary" class="dicer-summary-row">
+            <div class="dicer-summary-card">
+              <div class="summary-value" :class="riskClass(pageserverSummary.risk_level)">
+                {{ formatHealthStatus(pageserverSummary.health_status) }}
+              </div>
+              <div class="summary-label">调度健康</div>
+            </div>
+            <div class="dicer-summary-card">
+              <div class="summary-value">{{ pageserverSummary.node_counts.healthy }}/{{ pageserverSummary.node_counts.total }}</div>
+              <div class="summary-label">可用 pageserver</div>
+            </div>
+            <div class="dicer-summary-card">
+              <div class="summary-value" :class="pageserverSummary.node_counts.cooling_down > 0 ? 'risk-warning' : ''">
+                {{ pageserverSummary.node_counts.cooling_down }}
+              </div>
+              <div class="summary-label">Cooldown 节点</div>
+            </div>
+            <div class="dicer-summary-card">
+              <div class="summary-value">{{ topPlacementShare }}</div>
+              <div class="summary-label">最大 placement 占比</div>
+            </div>
+            <div class="dicer-summary-card">
+              <div class="summary-value">{{ latestDicerAction }}</div>
+              <div class="summary-label">最近操作</div>
+            </div>
+          </div>
+          <div v-if="pageserverSummary?.recommendations?.length" class="dicer-recommendations">
+            <span v-for="item in pageserverSummary.recommendations" :key="item">{{ item }}</span>
+          </div>
+
           <div class="stats-row" style="margin-bottom: 12px;">
             <div class="stat-card">
               <div class="stat-value" :style="{ color: dicerUnhealthyCount > 0 ? 'var(--cs-severe)' : 'var(--cs-normal)' }">
@@ -402,7 +432,7 @@
                   <td>{{ formatLoad(node.load_breakdown?.remote_physical_size) }}</td>
                   <td>{{ formatLoad(node.load_breakdown?.http_requests) }}</td>
                   <td>{{ formatLoad(node.load_breakdown?.io_operations) }}</td>
-                  <td>{{ placementCountByNode[node.id] || 0 }}</td>
+                  <td>{{ node.placement_count ?? placementCountByNode[node.id] ?? 0 }}</td>
                   <td>
                     <button class="link-btn danger" :disabled="dicerActionLoading === node.id" @click="failoverDicerNode(node.id)">
                       {{ dicerActionLoading === node.id ? '处理中...' : 'Failover' }}
@@ -859,6 +889,7 @@ interface PageserverTopologyNode {
   instance_id?: string
   failover_cooling_down?: boolean
   failover_cooldown_until?: string
+  placement_count?: number
 }
 
 interface PageserverPlacement {
@@ -881,6 +912,31 @@ interface PageserverMove {
 interface PageserverRebalancePlan {
   dry_run: boolean
   moves: PageserverMove[]
+}
+
+interface PageserverNodeCounts {
+  total: number
+  healthy: number
+  unhealthy: number
+  cooling_down: number
+}
+
+interface PageserverDistributionItem {
+  node_id: string
+  placement_count: number
+  share: number
+  healthy: boolean
+  failover_cooling_down: boolean
+}
+
+interface PageserverSummary {
+  health_status: 'healthy' | 'degraded' | 'critical' | 'disabled'
+  risk_level: 'normal' | 'warning' | 'critical'
+  node_counts: PageserverNodeCounts
+  placement_distribution: PageserverDistributionItem[]
+  decision_engine?: PageserverTopology['decision_engine']
+  recent_events: PageserverRebalanceEvent[]
+  recommendations: string[]
 }
 
 interface PageserverTopology {
@@ -933,6 +989,7 @@ const restartingPod = ref<string | null>(null)
 const metrics = ref<any>(null)
 const psMetrics = ref<any>(null)
 const pageserverTopology = ref<PageserverTopology | null>(null)
+const pageserverSummary = ref<PageserverSummary | null>(null)
 const dicerLoading = ref(false)
 const dicerActionLoading = ref<string | null>(null)
 const dicerDryRunPlan = ref<PageserverRebalancePlan | null>(null)
@@ -956,6 +1013,15 @@ const placementCountByNode = computed<Record<string, number>>(() => {
     counts[placement.node_id] = (counts[placement.node_id] || 0) + 1
   }
   return counts
+})
+const topPlacementShare = computed(() => {
+  const first = pageserverSummary.value?.placement_distribution?.[0]
+  if (!first) return '-'
+  return `${Math.round(first.share * 100)}%`
+})
+const latestDicerAction = computed(() => {
+  const latest = pageserverSummary.value?.recent_events?.[0] || dicerEvents.value[0]
+  return latest ? formatDicerAction(latest.action) : '-'
 })
 interface TenantHealthData {
   health: 'HEALTHY' | 'DEGRADED' | 'UNREACHABLE'
@@ -1006,11 +1072,13 @@ async function triggerReconcile() {
 async function loadDicerTopology() {
   dicerLoading.value = true
   try {
-    const [topology, events] = await Promise.all([
+    const [topology, summary, events] = await Promise.all([
       adminApi.pageserverTopology(),
+      adminApi.pageserverSummary(),
       adminApi.pageserverRebalanceEvents(12),
     ])
     pageserverTopology.value = topology.data
+    pageserverSummary.value = summary.data
     dicerEvents.value = events.data
   } catch (e) {
     console.error('Failed to load Dicer topology', e)
@@ -1083,6 +1151,19 @@ function formatDurationMs(value: number | undefined): string {
 
 function shortId(value: string): string {
   return value.length > 12 ? value.slice(0, 12) : value
+}
+
+function formatHealthStatus(status: PageserverSummary['health_status']): string {
+  if (status === 'healthy') return '正常'
+  if (status === 'degraded') return '降级'
+  if (status === 'critical') return '严重'
+  return '关闭'
+}
+
+function riskClass(level: PageserverSummary['risk_level']): string {
+  if (level === 'critical') return 'risk-critical'
+  if (level === 'warning') return 'risk-warning'
+  return 'risk-normal'
 }
 
 function formatDicerAction(action: string): string {
@@ -2131,6 +2212,62 @@ onUnmounted(() => {
   cursor: not-allowed;
 }
 
+.dicer-summary-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  margin-bottom: 10px;
+}
+
+.dicer-summary-card {
+  background: color-mix(in oklch, var(--c-bg-alt) 72%, #fff);
+  border: 1px solid var(--c-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.summary-value {
+  color: var(--c-text);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.summary-label {
+  color: var(--c-text-2);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.risk-normal {
+  color: var(--cs-normal);
+}
+
+.risk-warning {
+  color: var(--cs-warning);
+}
+
+.risk-critical {
+  color: var(--cs-severe);
+}
+
+.dicer-recommendations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.dicer-recommendations span {
+  background: color-mix(in oklch, var(--c-accent-light) 64%, #fff);
+  border: 1px solid color-mix(in oklch, var(--c-accent) 28%, var(--c-border));
+  border-radius: 6px;
+  color: var(--c-accent-text);
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
 .rebalance-plan {
   border: 1px dashed var(--c-border);
   border-radius: 8px;
@@ -2159,6 +2296,7 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
+  .dicer-summary-row,
   .node-grid,
   .pool-node-grid {
     grid-template-columns: 1fr;

@@ -60,6 +60,7 @@ export const adminApi = {
   metricsSummary: () => client.get('/metrics/summary'),
   pageserverMetrics: () => client.get('/pageserver/metrics'),
   pageserverTopology: () => client.get('/pageserver/topology'),
+  pageserverSummary: () => client.get('/pageserver/summary'),
   pageserverRebalanceDryRun: () => client.post('/pageserver/rebalance/dry-run'),
   pageserverRebalanceApply: () => client.post('/pageserver/rebalance/apply'),
   pageserverRebalanceEvents: (limit = 20) => client.get('/pageserver/rebalance/events', { params: { limit } }),

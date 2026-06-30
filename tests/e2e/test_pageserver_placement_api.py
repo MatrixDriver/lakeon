@@ -12,6 +12,7 @@ def test_admin_pageserver_topology_exposes_three_nodes():
     assert {node["id"] for node in nodes} >= {"ps-0", "ps-1", "ps-2"}
     assert all(node["pg_connstring"].startswith("postgresql://") for node in nodes)
     assert all(isinstance(node["load_score"], (int, float)) for node in nodes)
+    assert all(isinstance(node["placement_count"], int) for node in nodes)
     assert {node["source"] for node in nodes} <= {"configured", "dicer", "dicer-live"}
     decision_engine = topology["decision_engine"]
     assert decision_engine["mode"] in {"dicer-assisted-placement", "static-placement"}
@@ -19,6 +20,27 @@ def test_admin_pageserver_topology_exposes_three_nodes():
     assert decision_engine["live_load_enabled"] is True
     assert decision_engine["auto_failover_enabled"] is True
     assert decision_engine["auto_rebalance_enabled"] is True
+
+
+def test_admin_pageserver_summary_exposes_operational_diagnostics():
+    admin = DbayClient(endpoint=ENDPOINT, api_key=ADMIN_TOKEN)
+
+    summary = admin._request("GET", "/admin/pageserver/summary")
+
+    assert summary["health_status"] in {"healthy", "degraded", "critical", "disabled"}
+    assert summary["risk_level"] in {"normal", "warning", "critical"}
+    assert summary["node_counts"]["total"] >= 3
+    assert summary["node_counts"]["healthy"] >= 0
+    assert summary["node_counts"]["unhealthy"] >= 0
+    assert summary["node_counts"]["cooling_down"] >= 0
+    assert isinstance(summary["placement_distribution"], list)
+    for item in summary["placement_distribution"]:
+        assert item["node_id"]
+        assert isinstance(item["placement_count"], int)
+        assert isinstance(item["share"], (int, float))
+    assert isinstance(summary["recent_events"], list)
+    assert isinstance(summary["recommendations"], list)
+    assert summary["decision_engine"]["auto_failover_enabled"] is True
 
 
 def test_admin_pageserver_resolve_persists_assignment(e2e_tenant):

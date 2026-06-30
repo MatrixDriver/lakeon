@@ -105,6 +105,7 @@ class AdminPageserverControllerTest {
             .andExpect(jsonPath("$.nodes[0].healthy").value(true))
             .andExpect(jsonPath("$.nodes[0].load_breakdown.http_requests").value(100.0d))
             .andExpect(jsonPath("$.nodes[0].load_breakdown.io_operations").value(20.0d))
+            .andExpect(jsonPath("$.nodes[0].placement_count").value(1))
             .andExpect(jsonPath("$.placements[0].tenant_id").value("tenant-a"))
             .andExpect(jsonPath("$.placements[0].epoch").value(2))
             .andExpect(jsonPath("$.decision_engine.mode").value("dicer-assisted-placement"))
@@ -112,6 +113,69 @@ class AdminPageserverControllerTest {
             .andExpect(jsonPath("$.decision_engine.live_load_enabled").value(true))
             .andExpect(jsonPath("$.decision_engine.auto_failover_enabled").value(true))
             .andExpect(jsonPath("$.decision_engine.auto_rebalance_enabled").value(true));
+    }
+
+    @Test
+    void summaryReturnsOperationalDiagnostics() throws Exception {
+        PageserverNode ps0 = new PageserverNode(
+            "ps-0",
+            "http://pageserver-0:9898",
+            "pageserver-0",
+            6400,
+            "uid-ps0");
+        PageserverNode ps1 = new PageserverNode(
+            "ps-1",
+            "http://pageserver-1:9898",
+            "pageserver-1",
+            6400,
+            "uid-ps1");
+        PageserverRebalanceEventEntity event = new PageserverRebalanceEventEntity();
+        event.setId("pre_failover");
+        event.setCreatedAt(Instant.parse("2026-06-30T05:12:00Z"));
+        event.setAction("AUTO_FAILOVER");
+        event.setTriggerType("SCHEDULER");
+        event.setActor("auto-failover");
+        event.setTargetNodeId("ps-0");
+        event.setDryRun(false);
+        event.setStatus("APPLIED");
+        event.setMoveCount(2);
+        event.setReason("auto-unavailable:ps-0");
+
+        when(pageserverPlacementService.nodeStatuses()).thenReturn(List.of(
+            new PageserverNodeStatus(ps0, false, 0.0d, "dicer-live", "uid-ps0", true,
+                Instant.parse("2026-06-30T05:17:00Z")),
+            new PageserverNodeStatus(ps1, true, 12.0d, "dicer-live", "uid-ps1", false, null)
+        ));
+        when(pageserverPlacementService.placements()).thenReturn(List.of(
+            new PageserverPlacement("tenant-a", 0, ps1, 2L, "failover"),
+            new PageserverPlacement("tenant-b", 0, ps1, 3L, "failover")
+        ));
+        when(pageserverRebalanceEventService.recent(5)).thenReturn(List.of(event));
+        when(pageserverRebalanceEventService.parseMoves(event)).thenReturn(List.of(Map.of(
+            "tenant_id", "tenant-a",
+            "shard_id", 0,
+            "from_node_id", "ps-0",
+            "to_node_id", "ps-1",
+            "next_epoch", 2,
+            "reason", "auto-unavailable:ps-0"
+        )));
+
+        mockMvc.perform(get("/api/v1/admin/pageserver/summary")
+                .header("Authorization", "Bearer test-admin-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.health_status").value("degraded"))
+            .andExpect(jsonPath("$.risk_level").value("warning"))
+            .andExpect(jsonPath("$.node_counts.total").value(2))
+            .andExpect(jsonPath("$.node_counts.healthy").value(1))
+            .andExpect(jsonPath("$.node_counts.unhealthy").value(1))
+            .andExpect(jsonPath("$.node_counts.cooling_down").value(1))
+            .andExpect(jsonPath("$.placement_distribution", hasSize(2)))
+            .andExpect(jsonPath("$.placement_distribution[0].node_id").value("ps-1"))
+            .andExpect(jsonPath("$.placement_distribution[0].placement_count").value(2))
+            .andExpect(jsonPath("$.placement_distribution[0].share").value(1.0d))
+            .andExpect(jsonPath("$.recent_events", hasSize(1)))
+            .andExpect(jsonPath("$.recent_events[0].action").value("AUTO_FAILOVER"))
+            .andExpect(jsonPath("$.recommendations[0]").value("1 pageserver node is in failover cooldown."));
     }
 
     @Test

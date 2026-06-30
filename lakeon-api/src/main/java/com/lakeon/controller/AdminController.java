@@ -176,6 +176,8 @@ public class AdminController {
     @GetMapping("/pageserver/topology")
     public Map<String, Object> getPageserverTopology() {
         Map<String, Map<String, Double>> loadBreakdown = pageserverPlacementService.loadBreakdown();
+        var placements = pageserverPlacementService.placements();
+        Map<String, Long> placementCounts = placementCountsByNode(placements);
         return Map.of(
             "nodes", pageserverPlacementService.nodeStatuses().stream().map(status -> {
                 Map<String, Object> out = new LinkedHashMap<>();
@@ -189,11 +191,29 @@ public class AdminController {
                 out.put("instance_id", status.instanceId());
                 out.put("failover_cooling_down", status.failoverCoolingDown());
                 out.put("failover_cooldown_until", status.failoverCooldownUntil());
+                out.put("placement_count", placementCounts.getOrDefault(status.node().id(), 0L).intValue());
                 return out;
             }).toList(),
-            "placements", pageserverPlacementService.placements().stream().map(this::placementToMap).toList(),
+            "placements", placements.stream().map(this::placementToMap).toList(),
             "decision_engine", dicerDecisionEngineToMap()
         );
+    }
+
+    @GetMapping("/pageserver/summary")
+    public Map<String, Object> getPageserverSummary() {
+        var statuses = pageserverPlacementService.nodeStatuses();
+        var placements = pageserverPlacementService.placements();
+        var recentEvents = pageserverRebalanceEventService.recent(5);
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("health_status", pageserverHealthStatus(statuses));
+        out.put("risk_level", pageserverRiskLevel(statuses, placements));
+        out.put("node_counts", nodeCountsToMap(statuses));
+        out.put("placement_distribution", placementDistribution(statuses, placements));
+        out.put("decision_engine", dicerDecisionEngineToMap());
+        out.put("recent_events", recentEvents.stream().map(this::rebalanceEventToMap).toList());
+        out.put("recommendations", pageserverRecommendations(statuses, placements));
+        return out;
     }
 
     @GetMapping("/pageserver/placements/{tenantId}")
@@ -411,6 +431,96 @@ public class AdminController {
         out.put("auto_rebalance_min_moves", dicer.getAutoRebalanceMinMoves());
         out.put("clerk_slicelet_integrated", false);
         return out;
+    }
+
+    private Map<String, Long> placementCountsByNode(List<com.lakeon.pageserver.PageserverPlacement> placements) {
+        return placements.stream().collect(Collectors.groupingBy(
+            placement -> placement.node().id(),
+            LinkedHashMap::new,
+            Collectors.counting()));
+    }
+
+    private Map<String, Object> nodeCountsToMap(List<com.lakeon.pageserver.PageserverNodeStatus> statuses) {
+        long total = statuses.size();
+        long healthy = statuses.stream().filter(com.lakeon.pageserver.PageserverNodeStatus::healthy).count();
+        long coolingDown = statuses.stream().filter(com.lakeon.pageserver.PageserverNodeStatus::failoverCoolingDown).count();
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("total", total);
+        out.put("healthy", healthy);
+        out.put("unhealthy", total - healthy);
+        out.put("cooling_down", coolingDown);
+        return out;
+    }
+
+    private List<Map<String, Object>> placementDistribution(
+            List<com.lakeon.pageserver.PageserverNodeStatus> statuses,
+            List<com.lakeon.pageserver.PageserverPlacement> placements) {
+        Map<String, Long> counts = placementCountsByNode(placements);
+        long total = placements.size();
+        return statuses.stream()
+            .map(status -> {
+                long count = counts.getOrDefault(status.node().id(), 0L);
+                Map<String, Object> out = new LinkedHashMap<>();
+                out.put("node_id", status.node().id());
+                out.put("placement_count", count);
+                out.put("share", total == 0 ? 0.0d : (double) count / (double) total);
+                out.put("healthy", status.healthy());
+                out.put("failover_cooling_down", status.failoverCoolingDown());
+                return out;
+            })
+            .sorted(Comparator
+                .<Map<String, Object>>comparingLong(item -> -((Number) item.get("placement_count")).longValue())
+                .thenComparing(item -> item.get("node_id").toString()))
+            .toList();
+    }
+
+    private String pageserverHealthStatus(List<com.lakeon.pageserver.PageserverNodeStatus> statuses) {
+        if (!lakeonProperties.getDicer().isEnabled()) {
+            return "disabled";
+        }
+        if (statuses.isEmpty() || statuses.stream().noneMatch(com.lakeon.pageserver.PageserverNodeStatus::healthy)) {
+            return "critical";
+        }
+        boolean degraded = statuses.stream().anyMatch(status -> !status.healthy() || status.failoverCoolingDown());
+        return degraded ? "degraded" : "healthy";
+    }
+
+    private String pageserverRiskLevel(
+            List<com.lakeon.pageserver.PageserverNodeStatus> statuses,
+            List<com.lakeon.pageserver.PageserverPlacement> placements) {
+        if (statuses.isEmpty() || statuses.stream().noneMatch(com.lakeon.pageserver.PageserverNodeStatus::healthy)) {
+            return "critical";
+        }
+        boolean degraded = statuses.stream().anyMatch(status -> !status.healthy() || status.failoverCoolingDown());
+        if (degraded) {
+            return "warning";
+        }
+        long maxPlacements = placementCountsByNode(placements).values().stream().mapToLong(Long::longValue).max().orElse(0L);
+        if (placements.size() >= 10 && maxPlacements > Math.ceil(placements.size() * 0.8d)) {
+            return "warning";
+        }
+        return "normal";
+    }
+
+    private List<String> pageserverRecommendations(
+            List<com.lakeon.pageserver.PageserverNodeStatus> statuses,
+            List<com.lakeon.pageserver.PageserverPlacement> placements) {
+        List<String> recommendations = new ArrayList<>();
+        long coolingDown = statuses.stream().filter(com.lakeon.pageserver.PageserverNodeStatus::failoverCoolingDown).count();
+        long unhealthy = statuses.stream().filter(status -> !status.healthy()).count();
+        if (coolingDown > 0) {
+            recommendations.add(coolingDown + " pageserver node " + (coolingDown == 1 ? "is" : "are") + " in failover cooldown.");
+        } else if (unhealthy > 0) {
+            recommendations.add(unhealthy + " pageserver node " + (unhealthy == 1 ? "is" : "are") + " unavailable; run failover if placements remain there.");
+        }
+        long maxPlacements = placementCountsByNode(placements).values().stream().mapToLong(Long::longValue).max().orElse(0L);
+        if (placements.size() >= 10 && maxPlacements > Math.ceil(placements.size() * 0.8d)) {
+            recommendations.add("Placement distribution is skewed; run rebalance dry-run before applying moves.");
+        }
+        if (recommendations.isEmpty()) {
+            recommendations.add("Pageserver placement is healthy.");
+        }
+        return recommendations;
     }
 
     private Map<String, Object> moveToMap(com.lakeon.pageserver.PageserverRebalancePlan.Move move) {
