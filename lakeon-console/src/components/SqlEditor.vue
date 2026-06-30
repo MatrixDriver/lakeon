@@ -141,6 +141,10 @@ const props = defineProps<{
   schema?: Record<string, string[]>
 }>()
 
+const emit = defineEmits<{
+  'result-state-change': [hasResult: boolean]
+}>()
+
 const editorContainer = ref<HTMLElement | null>(null)
 const executing = ref(false)
 const result = ref<QueryResult | null>(null)
@@ -355,12 +359,14 @@ async function executeQuery() {
   try {
     const res = await databaseApi.executeQuery(props.dbId, query)
     result.value = res.data
+    emit('result-state-change', true)
     // History auto-saved by server on executeQuery
     if (showHistory.value) fetchHistory()
   } catch (e: any) {
     const data = e?.response?.data
     const msg = data?.error?.message || data?.message || e?.message || '执行失败'
     resultError.value = msg.replace(/^SQL execution failed:\s*/, '')
+    emit('result-state-change', true)
     if (showHistory.value) fetchHistory()
   } finally {
     executing.value = false
@@ -400,6 +406,7 @@ function clearEditor() {
 function clearResult() {
   result.value = null
   resultError.value = ''
+  emit('result-state-change', false)
 }
 
 onMounted(createEditor)
@@ -485,7 +492,7 @@ defineExpose({ executeQuery })
   border-top: 1px solid #e8e8e8;
   display: flex;
   flex-direction: column;
-  max-height: 50%;
+  max-height: 70%;
   min-height: 80px;
   min-width: 0;
   overflow: hidden;

@@ -18,7 +18,7 @@
       <div class="manager-content">
         <!-- Top: SQL Editor -->
         <div class="content-top" :style="{ height: editorHeight + 'px' }">
-          <SqlEditor :db-id="dbId" :schema="schemaMap" />
+          <SqlEditor :db-id="dbId" :schema="schemaMap" @result-state-change="handleSqlResultStateChange" />
         </div>
         <!-- Resize Handle -->
         <div class="resize-handle" @mousedown="startResize">
@@ -57,6 +57,8 @@ const selectedSchema = ref('')
 const selectedTable = ref('')
 const schemaMap = ref<Record<string, string[]>>({})
 const editorHeight = ref(280)
+const defaultEditorHeight = 280
+const resultEditorHeight = 560
 
 function handleSelectTable(schema: string, table: string) {
   selectedSchema.value = schema
@@ -65,6 +67,19 @@ function handleSelectTable(schema: string, table: string) {
 
 function handleSchemaLoaded(data: Record<string, string[]>) {
   schemaMap.value = data
+}
+
+function handleSqlResultStateChange(hasResult: boolean) {
+  if (hasResult) {
+    editorHeight.value = Math.min(
+      Math.max(editorHeight.value, resultEditorHeight),
+      Math.max(resultEditorHeight, window.innerHeight - 180)
+    )
+  } else if (editorHeight.value > resultEditorHeight) {
+    editorHeight.value = resultEditorHeight
+  } else if (editorHeight.value === resultEditorHeight) {
+    editorHeight.value = defaultEditorHeight
+  }
 }
 
 // Resize logic
