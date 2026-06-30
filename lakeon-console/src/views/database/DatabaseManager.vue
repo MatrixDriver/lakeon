@@ -18,22 +18,103 @@
       <div class="manager-content">
         <!-- Top: SQL Editor -->
         <div class="content-top" :style="{ height: editorHeight + 'px' }">
-          <SqlEditor :db-id="dbId" :schema="schemaMap" @result-state-change="handleSqlResultStateChange" />
+          <SqlEditor :db-id="dbId" :schema="schemaMap" @query-result="handleQueryResult" />
         </div>
         <!-- Resize Handle -->
         <div class="resize-handle" @mousedown="startResize">
           <div class="resize-grip"></div>
         </div>
-        <!-- Bottom: Table Structure -->
+        <!-- Bottom: query result, preview, and schema workspace -->
         <div class="content-bottom">
-          <StructureView
-            v-if="selectedTable"
-            :db-id="dbId"
-            :schema="selectedSchema"
-            :table="selectedTable"
-          />
-          <div v-else class="empty-hint">
-            <p>在左侧选择表查看结构和数据，在上方编写 SQL 查询</p>
+          <div class="workspace-tabs">
+            <button
+              class="tab-button"
+              :class="{ active: activeWorkspaceTab === 'result' }"
+              @click="activeWorkspaceTab = 'result'"
+            >查询结果</button>
+            <button
+              class="tab-button"
+              :class="{ active: activeWorkspaceTab === 'preview' }"
+              @click="activeWorkspaceTab = 'preview'"
+            >表数据预览</button>
+            <button
+              class="tab-button"
+              :class="{ active: activeWorkspaceTab === 'schema' }"
+              @click="activeWorkspaceTab = 'schema'"
+            >表结构</button>
+            <span class="workspace-context">{{ workspaceContext }}</span>
+          </div>
+
+          <div class="workspace-body">
+            <div v-if="activeWorkspaceTab === 'result'" class="workspace-pane">
+              <div v-if="queryResult || queryError" class="query-result-panel">
+                <div class="query-status-strip">
+                  <span v-if="queryResult" class="result-info">
+                    {{ queryResult.is_select ? `${queryResult.row_count} 行` : `影响 ${queryResult.row_count} 行` }}
+                    · {{ queryResult.execution_time_ms }}ms
+                  </span>
+                  <span v-if="queryError" class="result-error-text">{{ queryError }}</span>
+                  <button class="toolbar-btn" @click="clearQueryResult" title="关闭">✕</button>
+                </div>
+
+                <div v-if="queryResult && queryResult.is_select && queryResult.columns.length > 0" class="result-table-wrapper">
+                  <table class="result-table">
+                    <thead>
+                      <tr>
+                        <th v-for="col in queryResult.columns" :key="col">{{ col }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="(row, i) in pagedQueryRows" :key="i">
+                        <td v-for="(cell, j) in row" :key="j">{{ formatCell(cell) }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <TableFooter
+                  v-if="queryResult && queryResult.is_select && queryResult.rows.length > 0"
+                  :total="queryResult.rows.length"
+                  v-model:pageSize="queryPageSize"
+                  v-model:currentPage="queryCurrentPage"
+                  :pageSizeOptions="[20, 50, 100]"
+                  style="flex-shrink: 0;"
+                />
+
+                <div v-else-if="queryResult && !queryResult.is_select" class="result-message">
+                  语句执行成功，影响 {{ queryResult.row_count }} 行
+                </div>
+              </div>
+              <div v-else class="empty-hint">
+                <p>执行 SQL 后在这里查看查询结果。</p>
+              </div>
+            </div>
+
+            <div v-else-if="activeWorkspaceTab === 'preview'" class="workspace-pane">
+              <StructureView
+                v-if="selectedTable"
+                :db-id="dbId"
+                :schema="selectedSchema"
+                :table="selectedTable"
+                mode="preview"
+              />
+              <div v-else class="empty-hint">
+                <p>在左侧选择表查看数据预览。</p>
+              </div>
+            </div>
+
+            <div v-else class="workspace-pane">
+              <StructureView
+                v-if="selectedTable"
+                :db-id="dbId"
+                :schema="selectedSchema"
+                :table="selectedTable"
+                mode="schema"
+              />
+              <div v-else class="empty-hint">
+                <p>在左侧选择表查看结构。</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -44,10 +125,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { databaseApi } from '../../api/database'
+import { databaseApi, type QueryResult } from '../../api/database'
 import ObjectTree from '../../components/ObjectTree.vue'
 import StructureView from '../../components/StructureView.vue'
 import SqlEditor from '../../components/SqlEditor.vue'
+import TableFooter from '../../components/TableFooter.vue'
 
 const route = useRoute()
 const dbId = computed(() => route.params.id as string)
@@ -56,30 +138,59 @@ const dbName = ref('')
 const selectedSchema = ref('')
 const selectedTable = ref('')
 const schemaMap = ref<Record<string, string[]>>({})
-const editorHeight = ref(280)
-const defaultEditorHeight = 280
-const resultEditorHeight = 560
+const editorHeight = ref(220)
+const activeWorkspaceTab = ref<'result' | 'preview' | 'schema'>('preview')
+const queryResult = ref<QueryResult | null>(null)
+const queryError = ref('')
+const queryPageSize = ref(20)
+const queryCurrentPage = ref(1)
+
+const workspaceContext = computed(() => {
+  if (activeWorkspaceTab.value === 'result') {
+    return queryResult.value || queryError.value ? '当前 SQL 查询' : '等待查询'
+  }
+  if (selectedTable.value) return `${selectedSchema.value}.${selectedTable.value}`
+  return '未选择表'
+})
+
+const pagedQueryRows = computed(() => {
+  if (!queryResult.value) return []
+  const start = (queryCurrentPage.value - 1) * queryPageSize.value
+  return queryResult.value.rows.slice(start, start + queryPageSize.value)
+})
 
 function handleSelectTable(schema: string, table: string) {
   selectedSchema.value = schema
   selectedTable.value = table
+  if (activeWorkspaceTab.value === 'result' && !queryResult.value && !queryError.value) {
+    activeWorkspaceTab.value = 'preview'
+  } else if (activeWorkspaceTab.value !== 'schema') {
+    activeWorkspaceTab.value = 'preview'
+  }
 }
 
 function handleSchemaLoaded(data: Record<string, string[]>) {
   schemaMap.value = data
 }
 
-function handleSqlResultStateChange(hasResult: boolean) {
-  if (hasResult) {
-    editorHeight.value = Math.min(
-      Math.max(editorHeight.value, resultEditorHeight),
-      Math.max(resultEditorHeight, window.innerHeight - 180)
-    )
-  } else if (editorHeight.value > resultEditorHeight) {
-    editorHeight.value = resultEditorHeight
-  } else if (editorHeight.value === resultEditorHeight) {
-    editorHeight.value = defaultEditorHeight
+function handleQueryResult(payload: { result: QueryResult | null; error: string }) {
+  queryResult.value = payload.result
+  queryError.value = payload.error
+  queryCurrentPage.value = 1
+  if (payload.result || payload.error) {
+    activeWorkspaceTab.value = 'result'
   }
+}
+
+function clearQueryResult() {
+  queryResult.value = null
+  queryError.value = ''
+}
+
+function formatCell(cell: unknown): string {
+  if (cell === null || cell === undefined) return 'NULL'
+  if (typeof cell === 'object') return JSON.stringify(cell)
+  return String(cell)
 }
 
 // Resize logic
@@ -100,7 +211,7 @@ function startResize(e: MouseEvent) {
 function onResize(e: MouseEvent) {
   if (!resizing) return
   const delta = e.clientY - startY
-  editorHeight.value = Math.max(120, Math.min(startHeight + delta, window.innerHeight - 200))
+  editorHeight.value = Math.max(150, Math.min(startHeight + delta, 420))
 }
 
 function stopResize() {
@@ -184,7 +295,7 @@ onMounted(async () => {
   flex-shrink: 0;
   overflow: hidden;
   display: flex;
-  min-height: 120px;
+  min-height: 150px;
 }
 
 .content-top > * {
@@ -216,8 +327,138 @@ onMounted(async () => {
 
 .content-bottom {
   flex: 1;
-  min-height: 100px;
+  min-height: 240px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.workspace-tabs {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+  background: #fffdf9;
+  border-bottom: 1px solid #e8e4df;
+  flex-shrink: 0;
+}
+
+.tab-button {
+  border: 0;
+  border-radius: 6px;
+  padding: 7px 11px;
+  background: transparent;
+  color: #708096;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tab-button:hover,
+.tab-button.active {
+  background: #fdf5ed;
+  color: #9a5b25;
+}
+
+.workspace-context {
+  margin-left: auto;
+  color: #8a8e99;
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.workspace-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace-pane,
+.query-result-panel {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.query-status-strip {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px;
+  background: #faf8f5;
+  border-bottom: 1px solid #e8e4df;
+  flex-shrink: 0;
+}
+
+.result-info {
+  font-size: 13px;
+  color: #358a43;
+  font-weight: 600;
+}
+
+.result-error-text {
+  font-size: 13px;
+  color: #e6393d;
+}
+
+.result-table-wrapper {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
+}
+
+.result-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.result-table th {
+  position: sticky;
+  top: 0;
+  background: #f8f5f1;
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 1px solid #e8e8e8;
+  white-space: nowrap;
+}
+
+.result-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #f0f0f0;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #333;
+}
+
+.result-table tbody tr:hover {
+  background: #fffaf3;
+}
+
+.result-message {
+  padding: 16px;
+  font-size: 14px;
+  color: #358a43;
+}
+
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  color: #333;
 }
 
 .empty-hint {
@@ -251,6 +492,14 @@ onMounted(async () => {
   .content-top {
     min-height: 200px !important;
     height: 250px !important;
+  }
+
+  .workspace-tabs {
+    overflow-x: auto;
+  }
+
+  .workspace-context {
+    display: none;
   }
 }
 </style>

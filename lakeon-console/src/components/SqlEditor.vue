@@ -87,41 +87,6 @@
       </div>
     </div>
     <div ref="editorContainer" class="editor-container"></div>
-    <div class="result-panel" v-if="result || resultError">
-      <div class="result-header">
-        <span v-if="result" class="result-info">
-          {{ result.is_select ? `${result.row_count} 行` : `影响 ${result.row_count} 行` }}
-          · {{ result.execution_time_ms }}ms
-        </span>
-        <span v-if="resultError" class="result-error-text">{{ resultError }}</span>
-        <button class="toolbar-btn" @click="clearResult" title="关闭">✕</button>
-      </div>
-      <div v-if="result && result.is_select && result.columns.length > 0" class="result-table-wrapper">
-        <table class="result-table">
-          <thead>
-            <tr>
-              <th v-for="col in result.columns" :key="col">{{ col }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(row, i) in pagedResultRows" :key="i">
-              <td v-for="(cell, j) in row" :key="j">{{ formatCell(cell) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <TableFooter
-        v-if="result && result.is_select && result.rows.length > 0"
-        :total="result.rows.length"
-        v-model:pageSize="resultPageSize"
-        v-model:currentPage="resultCurrentPage"
-        :pageSizeOptions="[20, 50, 100]"
-        style="flex-shrink: 0;"
-      />
-      <div v-else-if="result && !result.is_select" class="result-message">
-        语句执行成功，影响 {{ result.row_count }} 行
-      </div>
-    </div>
   </div>
 </template>
 
@@ -134,7 +99,6 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { autocompletion } from '@codemirror/autocomplete'
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching } from '@codemirror/language'
 import { databaseApi, type QueryResult, type QueryHistoryItem, type AiModel } from '../api/database'
-import TableFooter from './TableFooter.vue'
 
 const props = defineProps<{
   dbId: string
@@ -142,15 +106,11 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'result-state-change': [hasResult: boolean]
+  'query-result': [payload: { result: QueryResult | null; error: string }]
 }>()
 
 const editorContainer = ref<HTMLElement | null>(null)
 const executing = ref(false)
-const result = ref<QueryResult | null>(null)
-const resultError = ref('')
-const resultPageSize = ref(20)
-const resultCurrentPage = ref(1)
 
 // ── AI SQL Assistant ──
 const showAi = ref(false)
@@ -269,12 +229,6 @@ function formatHistoryDate(ts: string): string {
     d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 }
 
-const pagedResultRows = computed(() => {
-  if (!result.value) return []
-  const start = (resultCurrentPage.value - 1) * resultPageSize.value
-  return result.value.rows.slice(start, start + resultPageSize.value)
-})
-
 let editorView: EditorView | null = null
 
 function buildSchema(): Record<string, string[]> {
@@ -352,31 +306,21 @@ async function executeQuery() {
   if (!query) return
 
   executing.value = true
-  result.value = null
-  resultError.value = ''
-  resultCurrentPage.value = 1
+  emit('query-result', { result: null, error: '' })
 
   try {
     const res = await databaseApi.executeQuery(props.dbId, query)
-    result.value = res.data
-    emit('result-state-change', true)
+    emit('query-result', { result: res.data, error: '' })
     // History auto-saved by server on executeQuery
     if (showHistory.value) fetchHistory()
   } catch (e: any) {
     const data = e?.response?.data
     const msg = data?.error?.message || data?.message || e?.message || '执行失败'
-    resultError.value = msg.replace(/^SQL execution failed:\s*/, '')
-    emit('result-state-change', true)
+    emit('query-result', { result: null, error: msg.replace(/^SQL execution failed:\s*/, '') })
     if (showHistory.value) fetchHistory()
   } finally {
     executing.value = false
   }
-}
-
-function formatCell(cell: unknown): string {
-  if (cell === null || cell === undefined) return 'NULL'
-  if (typeof cell === 'object') return JSON.stringify(cell)
-  return String(cell)
 }
 
 function formatSql() {
@@ -400,13 +344,7 @@ function clearEditor() {
   editorView.dispatch({
     changes: { from: 0, to: editorView.state.doc.length, insert: '' },
   })
-  clearResult()
-}
-
-function clearResult() {
-  result.value = null
-  resultError.value = ''
-  emit('result-state-change', false)
+  emit('query-result', { result: null, error: '' })
 }
 
 onMounted(createEditor)
@@ -488,80 +426,6 @@ defineExpose({ executeQuery })
   overflow: hidden;
 }
 
-.result-panel {
-  border-top: 1px solid #e8e8e8;
-  display: flex;
-  flex-direction: column;
-  max-height: 70%;
-  min-height: 80px;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.result-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 10px;
-  background: #fafafa;
-  border-bottom: 1px solid #e8e8e8;
-  flex-shrink: 0;
-}
-
-.result-info {
-  font-size: 13px;
-  color: #52c41a;
-  font-weight: 500;
-}
-
-.result-error-text {
-  font-size: 13px;
-  color: #e6393d;
-}
-
-.result-table-wrapper {
-  flex: 1;
-  overflow: auto;
-}
-
-.result-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.result-table th {
-  position: sticky;
-  top: 0;
-  background: #f8f5f1;
-  padding: 6px 10px;
-  text-align: left;
-  font-weight: 600;
-  color: #333;
-  border-bottom: 1px solid #e8e8e8;
-  white-space: nowrap;
-}
-
-.result-table td {
-  padding: 5px 10px;
-  border-bottom: 1px solid #f0f0f0;
-  max-width: 300px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: #333;
-}
-
-.result-table tbody tr:hover {
-  background: #f5f8ff;
-}
-
-.result-message {
-  padding: 16px;
-  font-size: 14px;
-  color: #52c41a;
-}
-
 .spinner {
   display: inline-block;
   width: 12px;
@@ -626,7 +490,6 @@ defineExpose({ executeQuery })
 }
 
 .sql-editor.ai-open .editor-container,
-.sql-editor.ai-open .result-panel,
 .sql-editor.ai-open .history-panel {
   margin-right: 300px;
 }

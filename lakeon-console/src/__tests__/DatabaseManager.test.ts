@@ -29,7 +29,7 @@ describe('DatabaseManager', () => {
     })
   })
 
-  it('expands the SQL editor area when query results are shown', async () => {
+  it('keeps the SQL editor compact and moves query results into the bottom workspace', async () => {
     const wrapper = mount(DatabaseManager, {
       global: {
         stubs: {
@@ -37,11 +37,28 @@ describe('DatabaseManager', () => {
             props: ['to'],
             template: '<a><slot /></a>',
           },
-          ObjectTree: true,
+          ObjectTree: {
+            emits: ['select', 'schema-loaded'],
+            template: '<button class="emit-select" @click="$emit(\'select\', \'public\', \'customer\')">select table</button>',
+          },
           StructureView: true,
           SqlEditor: {
-            emits: ['result-state-change'],
-            template: '<button class="emit-result" @click="$emit(\'result-state-change\', true)">show result</button>',
+            emits: ['query-result'],
+            template: `
+              <button
+                class="emit-result"
+                @click="$emit('query-result', {
+                  result: {
+                    columns: ['count'],
+                    rows: [[15000]],
+                    row_count: 1,
+                    execution_time_ms: 1,
+                    is_select: true
+                  },
+                  error: ''
+                })"
+              >show result</button>
+            `,
           },
         },
       },
@@ -49,10 +66,20 @@ describe('DatabaseManager', () => {
     await flushPromises()
 
     const top = wrapper.get('.content-top')
-    expect(top.attributes('style')).toContain('height: 280px')
+    expect(top.attributes('style')).toContain('height: 220px')
+    expect(wrapper.text()).toContain('查询结果')
+    expect(wrapper.text()).toContain('表数据预览')
+    expect(wrapper.text()).toContain('表结构')
 
     await wrapper.get('.emit-result').trigger('click')
 
-    expect(top.attributes('style')).toContain('height: 560px')
+    expect(top.attributes('style')).toContain('height: 220px')
+    expect(wrapper.find('.tab-button.active').text()).toBe('查询结果')
+    expect(wrapper.text()).toContain('15000')
+
+    await wrapper.get('.emit-select').trigger('click')
+
+    expect(wrapper.find('.tab-button.active').text()).toBe('表数据预览')
+    expect(wrapper.text()).toContain('public.customer')
   })
 })

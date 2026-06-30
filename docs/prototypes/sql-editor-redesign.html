@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DBay SQL 编辑器重设计原型</title>
+  <style>
+    :root {
+      --c-primary: #2a4d6a;
+      --c-accent: #c67d3a;
+      --c-accent-text: #9a5b25;
+      --c-accent-light: #fdf5ed;
+      --c-bg: #f7f4ef;
+      --c-surface: #fffdf9;
+      --c-surface-2: #faf8f5;
+      --c-border: #e8e4df;
+      --c-border-strong: #d8d1ca;
+      --c-text: #2c3e50;
+      --c-muted: #708096;
+      --c-soft: #95a1b3;
+      --c-success: #358a43;
+      --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-serif: Georgia, "Times New Roman", serif;
+      --font-mono: "SFMono-Regular", Menlo, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--c-text);
+      background: var(--c-bg);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+    }
+
+    button,
+    select {
+      font: inherit;
+    }
+
+    .prototype-shell {
+      min-height: 100vh;
+      padding: 28px 32px 32px;
+    }
+
+    .prototype-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-end;
+      margin-bottom: 20px;
+    }
+
+    .eyebrow {
+      color: var(--c-accent-text);
+      font-size: 13px;
+      font-weight: 650;
+      letter-spacing: 0.03em;
+    }
+
+    h1 {
+      margin: 2px 0 4px;
+      color: #17344d;
+      font-family: var(--font-serif);
+      font-size: 36px;
+      font-weight: 600;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      max-width: 760px;
+      margin: 0;
+      color: var(--c-muted);
+      font-size: 15px;
+    }
+
+    .mode-switch {
+      display: inline-flex;
+      padding: 3px;
+      border: 1px solid var(--c-border);
+      border-radius: 8px;
+      background: var(--c-surface);
+      box-shadow: 0 1px 2px rgba(42, 77, 106, 0.04);
+    }
+
+    .mode-switch button {
+      border: 0;
+      border-radius: 6px;
+      padding: 7px 12px;
+      background: transparent;
+      color: var(--c-muted);
+      cursor: pointer;
+    }
+
+    .mode-switch button.active {
+      background: var(--c-accent-light);
+      color: var(--c-accent-text);
+      font-weight: 650;
+    }
+
+    .sql-workbench {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      height: calc(100vh - 132px);
+      min-height: 620px;
+      border: 1px solid var(--c-border-strong);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--c-surface);
+      box-shadow: 0 16px 36px rgba(42, 77, 106, 0.08);
+    }
+
+    .object-panel {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      border-right: 1px solid var(--c-border);
+      background: #fffefb;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 48px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--c-border);
+      color: #20354a;
+      font-weight: 700;
+    }
+
+    .refresh {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--c-border);
+      border-radius: 6px;
+      background: var(--c-surface);
+      color: var(--c-muted);
+      cursor: pointer;
+    }
+
+    .schema-tree {
+      overflow: auto;
+      padding: 14px 12px 24px;
+    }
+
+    .schema-row,
+    .table-row {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-height: 34px;
+      border-radius: 6px;
+      color: #2f4056;
+    }
+
+    .schema-row {
+      padding: 0 8px;
+      font-weight: 650;
+    }
+
+    .table-row {
+      width: 100%;
+      border: 0;
+      padding: 0 10px 0 34px;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .table-row:hover {
+      background: var(--c-surface-2);
+    }
+
+    .table-row.active {
+      background: color-mix(in srgb, var(--c-accent-light) 72%, #fff);
+      color: var(--c-accent-text);
+      font-weight: 650;
+    }
+
+    .schema-count {
+      margin-left: auto;
+      color: var(--c-soft);
+      font-weight: 500;
+    }
+
+    .table-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      background: #eef6fb;
+      color: var(--c-accent-text);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .work-area {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: auto minmax(150px, 220px) 10px minmax(0, 1fr);
+      background: var(--c-surface);
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 50px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--c-border);
+      background: #fffefb;
+    }
+
+    .toolbar-left,
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .run-button {
+      border: 1px solid #995d28;
+      border-radius: 7px;
+      padding: 8px 15px;
+      background: var(--c-accent-text);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .run-button:hover {
+      background: #874f21;
+    }
+
+    .hint {
+      color: var(--c-soft);
+      font-size: 13px;
+    }
+
+    .ghost-button {
+      border: 1px solid var(--c-border-strong);
+      border-radius: 7px;
+      padding: 7px 12px;
+      background: #fff;
+      color: #394b61;
+      cursor: pointer;
+    }
+
+    .ghost-button:hover,
+    .ghost-button.active {
+      border-color: var(--c-accent);
+      color: var(--c-accent-text);
+      background: var(--c-accent-light);
+    }
+
+    .editor-pane {
+      min-height: 0;
+      overflow: auto;
+      padding: 18px 20px;
+      background: #fff;
+      font-family: var(--font-mono);
+      font-size: 15px;
+      line-height: 1.75;
+      white-space: pre;
+      color: #2a3442;
+    }
+
+    .kw {
+      color: #8b2395;
+      font-weight: 650;
+    }
+
+    .fn {
+      color: #245f90;
+    }
+
+    .tbl {
+      color: #7b4a22;
+    }
+
+    .resize-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-top: 1px solid var(--c-border);
+      border-bottom: 1px solid var(--c-border);
+      background: var(--c-surface-2);
+      cursor: row-resize;
+    }
+
+    .resize-bar::after {
+      content: "";
+      display: block;
+      width: 44px;
+      height: 3px;
+      border-radius: 2px;
+      background: #c9c4be;
+    }
+
+    .bottom-workspace {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+    }
+
+    .workspace-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 48px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--c-border);
+      background: #fffefb;
+    }
+
+    .tabs {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .tab-button {
+      border: 0;
+      border-radius: 6px;
+      padding: 8px 12px;
+      background: transparent;
+      color: var(--c-muted);
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .tab-button.active {
+      background: var(--c-accent-light);
+      color: var(--c-accent-text);
+    }
+
+    .context-line {
+      color: var(--c-soft);
+      font-size: 13px;
+    }
+
+    .workspace-body {
+      min-height: 0;
+      flex: 1;
+      overflow: auto;
+    }
+
+    .status-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 44px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--c-border);
+      color: var(--c-success);
+      font-weight: 650;
+    }
+
+    .status-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--c-muted);
+      font-weight: 500;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .data-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--c-border);
+      background: var(--c-surface-2);
+      color: #2a3442;
+      text-align: left;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .data-table td {
+      padding: 9px 12px;
+      border-bottom: 1px solid #eee9e3;
+      color: #2f4056;
+      white-space: nowrap;
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .data-table tbody tr:hover {
+      background: #fffaf3;
+    }
+
+    .footer-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 48px;
+      padding: 0 16px;
+      border-top: 1px solid var(--c-border);
+      background: #fffefb;
+      color: var(--c-muted);
+      font-size: 13px;
+    }
+
+    .pager {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mini-select,
+    .pager button {
+      border: 1px solid var(--c-border-strong);
+      border-radius: 6px;
+      background: #fff;
+      color: #394b61;
+      padding: 6px 9px;
+    }
+
+    .schema-card {
+      padding: 18px 20px 28px;
+    }
+
+    .schema-title {
+      margin: 0 0 12px;
+      color: #20354a;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .schema-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .schema-metric {
+      border: 1px solid var(--c-border);
+      border-radius: 8px;
+      padding: 12px;
+      background: var(--c-surface-2);
+    }
+
+    .schema-metric span {
+      display: block;
+      color: var(--c-muted);
+      font-size: 12px;
+    }
+
+    .schema-metric strong {
+      display: block;
+      margin-top: 4px;
+      color: #20354a;
+      font-size: 18px;
+    }
+
+    .empty-note {
+      padding: 48px 20px;
+      color: var(--c-muted);
+      text-align: center;
+    }
+
+    @media (max-width: 900px) {
+      .prototype-shell {
+        padding: 16px;
+      }
+
+      .prototype-header {
+        display: block;
+      }
+
+      .mode-switch {
+        margin-top: 14px;
+      }
+
+      .sql-workbench {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+
+      .object-panel {
+        max-height: 240px;
+        border-right: 0;
+        border-bottom: 1px solid var(--c-border);
+      }
+
+      .work-area {
+        min-height: 720px;
+      }
+
+      .toolbar,
+      .workspace-head {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 10px 12px;
+        gap: 10px;
+      }
+
+      .schema-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="prototype-shell">
+    <header class="prototype-header">
+      <div>
+        <div class="eyebrow">DBay Console prototype</div>
+        <h1>SQL 编辑器工作区</h1>
+        <p class="subtitle">
+          原型把 SQL 输入区、查询结果、表数据预览、表结构重新分层：输入区保持紧凑，底部结果工作区用 tabs 承载所有阅读型内容。
+        </p>
+      </div>
+      <div class="mode-switch" aria-label="原型状态切换">
+        <button class="active" data-mode="query">执行查询</button>
+        <button data-mode="table">选中表</button>
+      </div>
+    </header>
+
+    <main class="sql-workbench">
+      <aside class="object-panel">
+        <div class="panel-head">
+          <span>表</span>
+          <button class="refresh" title="刷新">↻</button>
+        </div>
+        <div class="schema-tree">
+          <div class="schema-row">
+            <span>▸</span>
+            <span>paradedb</span>
+            <span class="schema-count">0</span>
+          </div>
+          <div class="schema-row">
+            <span>▸</span>
+            <span>pdb</span>
+            <span class="schema-count">0</span>
+          </div>
+          <div class="schema-row">
+            <span>▾</span>
+            <span>public</span>
+            <span class="schema-count">9</span>
+          </div>
+          <button class="table-row" data-table="benchmark_results">
+            <span class="table-mark">T</span>
+            <span>benchmark_results</span>
+          </button>
+          <button class="table-row active" data-table="customer">
+            <span class="table-mark">T</span>
+            <span>customer</span>
+          </button>
+          <button class="table-row" data-table="lineitem">
+            <span class="table-mark">T</span>
+            <span>lineitem</span>
+          </button>
+          <button class="table-row" data-table="nation">
+            <span class="table-mark">T</span>
+            <span>nation</span>
+          </button>
+          <button class="table-row" data-table="orders">
+            <span class="table-mark">T</span>
+            <span>orders</span>
+          </button>
+          <button class="table-row" data-table="part">
+            <span class="table-mark">T</span>
+            <span>part</span>
+          </button>
+          <button class="table-row" data-table="partsupp">
+            <span class="table-mark">T</span>
+            <span>partsupp</span>
+          </button>
+          <button class="table-row" data-table="region">
+            <span class="table-mark">T</span>
+            <span>region</span>
+          </button>
+          <button class="table-row" data-table="supplier">
+            <span class="table-mark">T</span>
+            <span>supplier</span>
+          </button>
+        </div>
+      </aside>
+
+      <section class="work-area">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <button class="run-button" id="runButton">▶ 执行</button>
+            <span class="hint">Ctrl+Enter 执行</span>
+          </div>
+          <div class="toolbar-right">
+            <button class="ghost-button">AI</button>
+            <button class="ghost-button">历史</button>
+            <button class="ghost-button">格式化</button>
+            <button class="ghost-button">清空</button>
+          </div>
+        </div>
+
+        <div class="editor-pane" contenteditable="true" spellcheck="false"><span class="kw">SELECT</span> <span class="fn">count</span>(*) <span class="kw">FROM</span> <span class="tbl">customer</span>;</div>
+        <div class="resize-bar" title="拖拽调整 SQL 输入区"></div>
+
+        <section class="bottom-workspace">
+          <div class="workspace-head">
+            <div class="tabs" role="tablist">
+              <button class="tab-button active" data-tab="result">查询结果</button>
+              <button class="tab-button" data-tab="preview">表数据预览</button>
+              <button class="tab-button" data-tab="schema">表结构</button>
+            </div>
+            <div class="context-line" id="contextLine">当前结果来自 public.customer</div>
+          </div>
+
+          <div class="workspace-body">
+            <div class="tab-panel" data-panel="result">
+              <div class="status-strip">
+                <span>1 行 · 1ms</span>
+                <div class="status-actions">
+                  <span>只读结果</span>
+                  <button class="ghost-button">关闭结果</button>
+                </div>
+              </div>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>15000</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="footer-row">
+                <span>总条数: 1</span>
+                <div class="pager">
+                  <select class="mini-select">
+                    <option>20</option>
+                    <option>50</option>
+                    <option>100</option>
+                  </select>
+                  <button disabled>&lt;</button>
+                  <button>1</button>
+                  <button disabled>&gt;</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-panel" data-panel="preview" hidden>
+              <div class="status-strip">
+                <span>public.customer · 前 100 行</span>
+                <div class="status-actions">
+                  <span>15,000 rows estimated</span>
+                  <button class="ghost-button">刷新</button>
+                </div>
+              </div>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>c_custkey</th>
+                    <th>c_name</th>
+                    <th>c_address</th>
+                    <th>c_nationkey</th>
+                    <th>c_phone</th>
+                    <th>c_acctbal</th>
+                    <th>c_mktsegment</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1</td>
+                    <td>Customer#000000001</td>
+                    <td>IVhzIApeRb ot,c,E</td>
+                    <td>15</td>
+                    <td>25-989-741-2988</td>
+                    <td>711.56</td>
+                    <td>BUILDING</td>
+                  </tr>
+                  <tr>
+                    <td>2</td>
+                    <td>Customer#000000002</td>
+                    <td>XSTf4,NCwDVaWNe6tEgvwfmRchLXak</td>
+                    <td>13</td>
+                    <td>23-768-687-3665</td>
+                    <td>121.65</td>
+                    <td>AUTOMOBILE</td>
+                  </tr>
+                  <tr>
+                    <td>3</td>
+                    <td>Customer#000000003</td>
+                    <td>MG9kdTD2WBHm</td>
+                    <td>1</td>
+                    <td>11-719-748-3364</td>
+                    <td>7498.12</td>
+                    <td>AUTOMOBILE</td>
+                  </tr>
+                  <tr>
+                    <td>4</td>
+                    <td>Customer#000000004</td>
+                    <td>XxVSJsLAGtn</td>
+                    <td>4</td>
+                    <td>14-128-190-5944</td>
+                    <td>2866.83</td>
+                    <td>MACHINERY</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="footer-row">
+                <span>当前页: 1 / 5</span>
+                <div class="pager">
+                  <select class="mini-select">
+                    <option>20</option>
+                    <option>50</option>
+                  </select>
+                  <button>&lt;</button>
+                  <button>1</button>
+                  <button>&gt;</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-panel" data-panel="schema" hidden>
+              <div class="schema-card">
+                <div class="schema-grid">
+                  <div class="schema-metric">
+                    <span>Schema</span>
+                    <strong>public</strong>
+                  </div>
+                  <div class="schema-metric">
+                    <span>Table</span>
+                    <strong id="metricTable">customer</strong>
+                  </div>
+                  <div class="schema-metric">
+                    <span>Columns</span>
+                    <strong>8</strong>
+                  </div>
+                  <div class="schema-metric">
+                    <span>Nullable</span>
+                    <strong>1</strong>
+                  </div>
+                </div>
+                <h3 class="schema-title">列定义</h3>
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>列名</th>
+                      <th>类型</th>
+                      <th>可空</th>
+                      <th>默认值</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>1</td>
+                      <td>c_custkey</td>
+                      <td>integer</td>
+                      <td>NO</td>
+                      <td>-</td>
+                    </tr>
+                    <tr>
+                      <td>2</td>
+                      <td>c_name</td>
+                      <td>character varying(25)</td>
+                      <td>NO</td>
+                      <td>-</td>
+                    </tr>
+                    <tr>
+                      <td>3</td>
+                      <td>c_address</td>
+                      <td>character varying(40)</td>
+                      <td>NO</td>
+                      <td>-</td>
+                    </tr>
+                    <tr>
+                      <td>4</td>
+                      <td>c_nationkey</td>
+                      <td>integer</td>
+                      <td>NO</td>
+                      <td>-</td>
+                    </tr>
+                    <tr>
+                      <td>8</td>
+                      <td>c_comment</td>
+                      <td>character varying(117)</td>
+                      <td>YES</td>
+                      <td>-</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const tabs = document.querySelectorAll('.tab-button');
+    const panels = document.querySelectorAll('.tab-panel');
+    const contextLine = document.getElementById('contextLine');
+    const metricTable = document.getElementById('metricTable');
+
+    function activateTab(tabName) {
+      tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === tabName));
+      panels.forEach((panel) => {
+        panel.hidden = panel.dataset.panel !== tabName;
+      });
+    }
+
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        activateTab(tab.dataset.tab);
+      });
+    });
+
+    document.getElementById('runButton').addEventListener('click', () => {
+      activateTab('result');
+      contextLine.textContent = '当前结果来自 SQL 查询';
+    });
+
+    document.querySelectorAll('.table-row').forEach((row) => {
+      row.addEventListener('click', () => {
+        document.querySelectorAll('.table-row').forEach((item) => item.classList.remove('active'));
+        row.classList.add('active');
+        const table = row.dataset.table;
+        contextLine.textContent = `当前选中 public.${table}`;
+        metricTable.textContent = table;
+        activateTab('preview');
+      });
+    });
+
+    document.querySelectorAll('.mode-switch button').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.mode-switch button').forEach((item) => item.classList.remove('active'));
+        button.classList.add('active');
+        if (button.dataset.mode === 'query') {
+          document.getElementById('runButton').click();
+        } else {
+          document.querySelector('[data-table="orders"]').click();
+        }
+      });
+    });
+  </script>
+</body>
+</html>

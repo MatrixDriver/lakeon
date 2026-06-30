@@ -7,7 +7,7 @@
         <span class="struct-schema">{{ schema }}</span>.<span class="struct-table-name">{{ table }}</span>
       </div>
       <!-- Columns -->
-      <div class="struct-section">
+      <div v-if="mode !== 'preview'" class="struct-section">
         <h4 class="struct-title">列 ({{ columns.length }})</h4>
         <table class="data-table" v-if="columns.length > 0">
           <thead>
@@ -34,7 +34,7 @@
         </table>
       </div>
       <!-- Data Preview -->
-      <div class="struct-section">
+      <div v-if="mode !== 'schema'" class="struct-section">
         <h4 class="struct-title">
           数据预览
           <button class="refresh-btn" @click="loadDataPreview" :disabled="dataLoading" title="刷新数据">↻</button>
@@ -84,7 +84,10 @@ const props = defineProps<{
   dbId: string
   schema: string
   table: string
+  mode?: 'all' | 'schema' | 'preview'
 }>()
+
+const mode = computed(() => props.mode || 'all')
 
 const columns = ref<ColumnInfo[]>([])
 const loading = ref(false)
@@ -128,10 +131,13 @@ async function loadStructure() {
   if (!props.schema || !props.table) return
   loading.value = true
   try {
-    // Load columns first (may trigger compute wakeup), then data preview
-    const colRes = await databaseApi.listColumns(props.dbId, props.schema, props.table)
-    columns.value = colRes.data
-    await loadDataPreview()
+    if (mode.value !== 'preview') {
+      const colRes = await databaseApi.listColumns(props.dbId, props.schema, props.table)
+      columns.value = colRes.data
+    }
+    if (mode.value !== 'schema') {
+      await loadDataPreview()
+    }
   } catch (e) {
     console.error('Failed to load structure', e)
   } finally {
