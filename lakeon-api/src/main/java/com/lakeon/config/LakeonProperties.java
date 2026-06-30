@@ -179,6 +179,7 @@ public class LakeonProperties {
         private long snapshotTtlMs = 30000L;
         private boolean autoFailoverEnabled = false;
         private long autoFailoverPollIntervalMs = 15000L;
+        private long failoverNodeCooldownMs = 300000L;
         private boolean autoRebalanceEnabled = false;
         private long autoRebalancePollIntervalMs = 60000L;
         private int autoRebalanceMinMoves = 10;
@@ -205,6 +206,8 @@ public class LakeonProperties {
         public void setAutoFailoverEnabled(boolean autoFailoverEnabled) { this.autoFailoverEnabled = autoFailoverEnabled; }
         public long getAutoFailoverPollIntervalMs() { return autoFailoverPollIntervalMs; }
         public void setAutoFailoverPollIntervalMs(long autoFailoverPollIntervalMs) { this.autoFailoverPollIntervalMs = autoFailoverPollIntervalMs; }
+        public long getFailoverNodeCooldownMs() { return failoverNodeCooldownMs; }
+        public void setFailoverNodeCooldownMs(long failoverNodeCooldownMs) { this.failoverNodeCooldownMs = failoverNodeCooldownMs; }
         public boolean isAutoRebalanceEnabled() { return autoRebalanceEnabled; }
         public void setAutoRebalanceEnabled(boolean autoRebalanceEnabled) { this.autoRebalanceEnabled = autoRebalanceEnabled; }
         public long getAutoRebalancePollIntervalMs() { return autoRebalancePollIntervalMs; }

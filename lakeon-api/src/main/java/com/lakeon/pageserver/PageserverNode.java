@@ -1,6 +1,10 @@
 package com.lakeon.pageserver;
 
-public record PageserverNode(String id, String httpUrl, String pgHost, int pgPort) {
+public record PageserverNode(String id, String httpUrl, String pgHost, int pgPort, String instanceId) {
+
+    public PageserverNode(String id, String httpUrl, String pgHost, int pgPort) {
+        this(id, httpUrl, pgHost, pgPort, null);
+    }
 
     public PageserverNode {
         if (id == null || id.isBlank()) {
@@ -14,6 +18,9 @@ public record PageserverNode(String id, String httpUrl, String pgHost, int pgPor
         }
         if (pgPort <= 0) {
             throw new IllegalArgumentException("pageserver pgPort must be positive");
+        }
+        if (instanceId != null && instanceId.isBlank()) {
+            instanceId = null;
         }
     }
 

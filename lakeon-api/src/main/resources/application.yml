@@ -43,6 +43,7 @@ lakeon:
     snapshot-ttl-ms: ${LAKEON_DICER_SNAPSHOT_TTL_MS:30000}
     auto-failover-enabled: ${LAKEON_DICER_AUTO_FAILOVER_ENABLED:false}
     auto-failover-poll-interval-ms: ${LAKEON_DICER_AUTO_FAILOVER_POLL_INTERVAL_MS:15000}
+    failover-node-cooldown-ms: ${LAKEON_DICER_FAILOVER_NODE_COOLDOWN_MS:300000}
     auto-rebalance-enabled: ${LAKEON_DICER_AUTO_REBALANCE_ENABLED:false}
     auto-rebalance-poll-interval-ms: ${LAKEON_DICER_AUTO_REBALANCE_POLL_INTERVAL_MS:60000}
     auto-rebalance-min-moves: ${LAKEON_DICER_AUTO_REBALANCE_MIN_MOVES:10}

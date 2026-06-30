@@ -33,6 +33,7 @@ data:
   LAKEON_DICER_SNAPSHOT_TTL_MS: {{ .Values.dicer.snapshotTtlMs | default 30000 | quote }}
   LAKEON_DICER_AUTO_FAILOVER_ENABLED: {{ ternary "true" "false" .Values.dicer.autoFailoverEnabled | quote }}
   LAKEON_DICER_AUTO_FAILOVER_POLL_INTERVAL_MS: {{ .Values.dicer.autoFailoverPollIntervalMs | default 15000 | quote }}
+  LAKEON_DICER_FAILOVER_NODE_COOLDOWN_MS: {{ .Values.dicer.failoverNodeCooldownMs | default 300000 | quote }}
   LAKEON_DICER_AUTO_REBALANCE_ENABLED: {{ ternary "true" "false" .Values.dicer.autoRebalanceEnabled | quote }}
   LAKEON_DICER_AUTO_REBALANCE_POLL_INTERVAL_MS: {{ .Values.dicer.autoRebalancePollIntervalMs | default 60000 | quote }}
   LAKEON_DICER_AUTO_REBALANCE_MIN_MOVES: {{ .Values.dicer.autoRebalanceMinMoves | default 10 | quote }}

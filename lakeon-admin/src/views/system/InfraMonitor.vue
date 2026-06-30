@@ -363,6 +363,10 @@
               <div class="stat-value">{{ pageserverTopology.decision_engine?.auto_rebalance_enabled ? '开启' : '关闭' }}</div>
               <div class="stat-label">自动 rebalance</div>
             </div>
+            <div class="stat-card">
+              <div class="stat-value">{{ formatDurationMs(pageserverTopology.decision_engine?.failover_node_cooldown_ms) }}</div>
+              <div class="stat-label">Failover cooldown</div>
+            </div>
           </div>
 
           <div class="table-wrapper" style="margin-bottom: 12px;">
@@ -383,10 +387,13 @@
               </thead>
               <tbody>
                 <tr v-for="node in dicerNodes" :key="node.id">
-                  <td class="pod-name">{{ node.id }}</td>
+                  <td class="pod-name">
+                    <div>{{ node.id }}</div>
+                    <div v-if="node.instance_id" class="muted mono" :title="node.instance_id">{{ shortId(node.instance_id) }}</div>
+                  </td>
                   <td>
                     <span class="phase-badge" :class="node.healthy ? 'phase-running' : 'phase-failed'">
-                      {{ node.healthy ? 'healthy' : 'unavailable' }}
+                      {{ node.failover_cooling_down ? 'cooldown' : (node.healthy ? 'healthy' : 'unavailable') }}
                     </span>
                   </td>
                   <td>{{ formatLoad(node.load_score) }}</td>
@@ -849,6 +856,9 @@ interface PageserverTopologyNode {
   load_score: number
   load_breakdown?: Record<string, number>
   source: string
+  instance_id?: string
+  failover_cooling_down?: boolean
+  failover_cooldown_until?: string
 }
 
 interface PageserverPlacement {
@@ -882,6 +892,7 @@ interface PageserverTopology {
     transport?: string
     live_load_enabled: boolean
     auto_failover_enabled: boolean
+    failover_node_cooldown_ms?: number
     auto_rebalance_enabled: boolean
     auto_rebalance_min_moves?: number
     clerk_slicelet_integrated?: boolean
@@ -1062,6 +1073,16 @@ function formatLoad(value: number | undefined): string {
   if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)}M`
   if (value >= 1024) return `${(value / 1024).toFixed(1)}K`
   return value.toLocaleString(undefined, { maximumFractionDigits: 1 })
+}
+
+function formatDurationMs(value: number | undefined): string {
+  if (value == null || Number.isNaN(value)) return '-'
+  if (value >= 60000) return `${Math.round(value / 60000)}m`
+  return `${Math.round(value / 1000)}s`
+}
+
+function shortId(value: string): string {
+  return value.length > 12 ? value.slice(0, 12) : value
 }
 
 function formatDicerAction(action: string): string {

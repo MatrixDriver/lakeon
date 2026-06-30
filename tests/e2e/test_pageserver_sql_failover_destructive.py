@@ -1,5 +1,6 @@
 import os
 import base64
+import re
 import subprocess
 import time
 import uuid
@@ -29,7 +30,8 @@ COMPUTE_NAMESPACE = os.environ.get("DBAY_COMPUTE_NAMESPACE", "lakeon-compute")
 
 
 def _run(cmd: list[str], *, timeout: int = 120) -> str:
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    env = {**os.environ, "NO_PROXY": "*", "no_proxy": "*"}
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env)
     if result.returncode != 0:
         raise RuntimeError(
             f"command failed ({result.returncode}): {' '.join(cmd)}\n"
@@ -42,7 +44,22 @@ def _kubectl(kubeconfig: str, args: list[str], *, timeout: int = 120) -> str:
     return _run(["kubectl", "--kubeconfig", kubeconfig, *args], timeout=timeout)
 
 
-def _metadata_dsn() -> str:
+def _config_value(name: str) -> str:
+    return _kubectl(
+        CONTROL_KUBECONFIG,
+        [
+            "-n",
+            NAMESPACE,
+            "get",
+            "configmap",
+            "lakeon-api-config",
+            "-o",
+            f"jsonpath={{.data.{name}}}",
+        ],
+    )
+
+
+def _secret_value_b64(name: str) -> str:
     return _kubectl(
         CONTROL_KUBECONFIG,
         [
@@ -52,14 +69,28 @@ def _metadata_dsn() -> str:
             "secret",
             "api-credentials",
             "-o",
-            "jsonpath={.data.metadata-db-url}",
+            f"jsonpath={{.data.{name}}}",
         ],
     )
 
 
+def _metadata_connection() -> dict[str, str]:
+    dsn = _config_value("LAKEON_DB_DSN")
+    match = re.match(r"jdbc:postgresql://([^:/]+)(?::(\d+))?/([^?]+)", dsn)
+    if not match:
+        raise RuntimeError(f"Unsupported LAKEON_DB_DSN: {dsn}")
+    return {
+        "host": match.group(1),
+        "port": match.group(2) or "5432",
+        "database": match.group(3),
+        "user": _config_value("LAKEON_DB_USER"),
+        "password_b64": _secret_value_b64("db-password"),
+    }
+
+
 def _psql_metadata(sql: str) -> str:
     pod = f"psql-e2e-{uuid.uuid4().hex[:8]}"
-    dsn_b64 = _metadata_dsn()
+    conn = _metadata_connection()
     sql_b64 = base64.b64encode(sql.encode()).decode()
     return _kubectl(
         CONTROL_KUBECONFIG,
@@ -73,13 +104,23 @@ def _psql_metadata(sql: str) -> str:
             "--restart=Never",
             "--image=postgres:16-alpine",
             "--env",
-            f"METADATA_DB_URL_B64={dsn_b64}",
+            f"PGHOST={conn['host']}",
+            "--env",
+            f"PGPORT={conn['port']}",
+            "--env",
+            f"PGDATABASE={conn['database']}",
+            "--env",
+            f"PGUSER={conn['user']}",
+            "--env",
+            f"PGPASSWORD_B64={conn['password_b64']}",
             "--env",
             f"SQL_B64={sql_b64}",
             "--",
             "sh",
             "-c",
-            "psql \"$(printf '%s' \"$METADATA_DB_URL_B64\" | base64 -d)\" -tA -v ON_ERROR_STOP=1 -c \"$(printf '%s' \"$SQL_B64\" | base64 -d)\"",
+            "PGPASSWORD=\"$(printf '%s' \"$PGPASSWORD_B64\" | base64 -d)\" "
+            "psql -h \"$PGHOST\" -p \"$PGPORT\" -U \"$PGUSER\" -d \"$PGDATABASE\" "
+            "-tA -v ON_ERROR_STOP=1 -c \"$(printf '%s' \"$SQL_B64\" | base64 -d)\"",
         ],
         timeout=180,
     )
@@ -153,11 +194,21 @@ def _delete_compute_pod_if_present(admin: DbayClient, database_id: str):
 
 
 def _delete_pageserver_0():
-    _kubectl(DATA_KUBECONFIG, ["-n", NAMESPACE, "delete", "pod", "pageserver-0"], timeout=120)
-    _kubectl(
+    old_uid = _kubectl(
         DATA_KUBECONFIG,
-        ["-n", NAMESPACE, "wait", "--for=delete", "pod/pageserver-0", "--timeout=120s"],
-        timeout=150,
+        ["-n", NAMESPACE, "get", "pod", "pageserver-0", "-o", "jsonpath={.metadata.uid}"],
+        timeout=60,
+    )
+    _kubectl(DATA_KUBECONFIG, ["-n", NAMESPACE, "delete", "pod", "pageserver-0", "--wait=false"], timeout=120)
+    poll_until(
+        lambda: _kubectl(
+            DATA_KUBECONFIG,
+            ["-n", NAMESPACE, "get", "pod", "pageserver-0", "-o", "jsonpath={.metadata.uid}"],
+            timeout=30,
+        ),
+        condition=lambda uid: uid and uid != old_uid,
+        timeout=180,
+        interval=3,
     )
 
 

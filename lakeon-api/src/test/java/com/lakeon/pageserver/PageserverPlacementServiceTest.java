@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -222,6 +223,63 @@ class PageserverPlacementServiceTest {
         assertThat(plan.moves()).hasSize(1);
         assertThat(plan.moves().get(0).fromNodeId()).isEqualTo("ps-0");
         assertThat(plan.moves().get(0).toNodeId()).isEqualTo("ps-1");
+        verify(repo).save(any(PageserverAssignmentEntity.class));
+        verify(eventService).record(
+            eq("AUTO_FAILOVER"),
+            eq("SCHEDULER"),
+            eq("auto-failover"),
+            eq("ps-0"),
+            eq(plan),
+            eq("auto-unavailable:ps-0"));
+    }
+
+    @Test
+    void podUidChangeMarksNodeUnavailableDuringFailoverCooldown() {
+        LakeonProperties props = placementProps();
+        props.getDicer().setEnabled(true);
+        props.getDicer().setAutoFailoverEnabled(true);
+        props.getDicer().setFailoverNodeCooldownMs(300000);
+        props.getDicer().setNodeLoadsRaw("ps-0=0.1,ps-1=0.2,ps-2=0.3");
+        AtomicReference<List<PageserverNode>> dynamicNodes = new AtomicReference<>(List.of(
+            new PageserverNode("ps-0", "http://10.0.0.10:9898", "pageserver-0.pageserver-headless.lakeon.svc.cluster.local", 6400, "uid-a"),
+            new PageserverNode("ps-1", "http://10.0.0.11:9898", "pageserver-1.pageserver-headless.lakeon.svc.cluster.local", 6400, "uid-stable")
+        ));
+        PageserverNodeProvider nodeProvider = dynamicNodes::get;
+        PageserverAssignmentEntity assignment = assignment("tenant-a", 0, "ps-0", 3L, "dicer-live");
+        PageserverAssignmentRepository repo = mock(PageserverAssignmentRepository.class);
+        PageserverRebalanceEventService eventService = mock(PageserverRebalanceEventService.class);
+        when(repo.findAll()).thenReturn(List.of(assignment));
+        when(repo.findById("tenant-a:0")).thenReturn(Optional.of(assignment));
+        PageserverPlacementService service = new PageserverPlacementService(props, repo, null, nodeProvider, eventService);
+
+        assertThat(service.nodeStatuses())
+            .filteredOn(status -> status.node().id().equals("ps-0"))
+            .singleElement()
+            .satisfies(status -> {
+                assertThat(status.healthy()).isTrue();
+                assertThat(status.failoverCoolingDown()).isFalse();
+            });
+
+        dynamicNodes.set(List.of(
+            new PageserverNode("ps-0", "http://10.0.0.20:9898", "pageserver-0.pageserver-headless.lakeon.svc.cluster.local", 6400, "uid-b"),
+            new PageserverNode("ps-1", "http://10.0.0.11:9898", "pageserver-1.pageserver-headless.lakeon.svc.cluster.local", 6400, "uid-stable")
+        ));
+
+        PageserverRebalancePlan plan = service.failoverUnavailableNodes();
+
+        assertThat(plan.dryRun()).isFalse();
+        assertThat(plan.moves()).hasSize(1);
+        assertThat(plan.moves().get(0).fromNodeId()).isEqualTo("ps-0");
+        assertThat(plan.moves().get(0).toNodeId()).isEqualTo("ps-1");
+        assertThat(service.nodeStatuses())
+            .filteredOn(status -> status.node().id().equals("ps-0"))
+            .singleElement()
+            .satisfies(status -> {
+                assertThat(status.healthy()).isFalse();
+                assertThat(status.failoverCoolingDown()).isTrue();
+                assertThat(status.instanceId()).isEqualTo("uid-b");
+                assertThat(status.failoverCooldownUntil()).isNotNull();
+            });
         verify(repo).save(any(PageserverAssignmentEntity.class));
         verify(eventService).record(
             eq("AUTO_FAILOVER"),

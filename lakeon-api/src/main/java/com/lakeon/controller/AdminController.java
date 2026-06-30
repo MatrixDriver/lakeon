@@ -186,6 +186,9 @@ public class AdminController {
                 out.put("load_score", status.loadScore());
                 out.put("load_breakdown", loadBreakdown.getOrDefault(status.node().id(), Map.of()));
                 out.put("source", status.source());
+                out.put("instance_id", status.instanceId());
+                out.put("failover_cooling_down", status.failoverCoolingDown());
+                out.put("failover_cooldown_until", status.failoverCooldownUntil());
                 return out;
             }).toList(),
             "placements", pageserverPlacementService.placements().stream().map(this::placementToMap).toList(),
@@ -403,6 +406,7 @@ public class AdminController {
         out.put("transport", "grpc");
         out.put("live_load_enabled", dicer.isLiveLoadEnabled());
         out.put("auto_failover_enabled", dicer.isAutoFailoverEnabled());
+        out.put("failover_node_cooldown_ms", dicer.getFailoverNodeCooldownMs());
         out.put("auto_rebalance_enabled", dicer.isAutoRebalanceEnabled());
         out.put("auto_rebalance_min_moves", dicer.getAutoRebalanceMinMoves());
         out.put("clerk_slicelet_integrated", false);

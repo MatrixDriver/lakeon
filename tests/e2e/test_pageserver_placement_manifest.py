@@ -79,6 +79,7 @@ def test_control_plane_renders_dicer_assigner_and_api_endpoint():
     assert 'LAKEON_DICER_SNAPSHOT_TTL_MS: "30000"' in manifest
     assert 'LAKEON_DICER_AUTO_FAILOVER_ENABLED: "true"' in manifest
     assert 'LAKEON_DICER_AUTO_FAILOVER_POLL_INTERVAL_MS: "3000"' in manifest
+    assert 'LAKEON_DICER_FAILOVER_NODE_COOLDOWN_MS: "300000"' in manifest
     assert 'LAKEON_DICER_AUTO_REBALANCE_ENABLED: "true"' in manifest
     assert 'LAKEON_DICER_AUTO_REBALANCE_POLL_INTERVAL_MS: "60000"' in manifest
     assert 'LAKEON_DICER_AUTO_REBALANCE_MIN_MOVES: "25"' in manifest

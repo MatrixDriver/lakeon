@@ -62,7 +62,8 @@ public class PageserverKubernetesNodeProvider implements PageserverNodeProvider 
         String headless = props.getNeon().getPageserverDiscoveryHeadlessService();
         String pgHost = podName + "." + headless + "." + namespace + ".svc.cluster.local";
         String httpUrl = "http://" + pod.getStatus().getPodIP() + ":" + props.getNeon().getPageserverDiscoveryHttpPort();
-        return new PageserverNode(id, httpUrl, pgHost, props.getNeon().getPageserverDiscoveryPgPort());
+        return new PageserverNode(id, httpUrl, pgHost, props.getNeon().getPageserverDiscoveryPgPort(),
+            pod.getMetadata().getUid());
     }
 
     private boolean isReady(Pod pod) {

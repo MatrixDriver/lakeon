@@ -169,6 +169,7 @@ dicer:
   snapshotTtlMs: 30000
   autoFailoverEnabled: true
   autoFailoverPollIntervalMs: 3000
+  failoverNodeCooldownMs: 300000
   autoRebalanceEnabled: true
   autoRebalancePollIntervalMs: 60000
   autoRebalanceMinMoves: 25

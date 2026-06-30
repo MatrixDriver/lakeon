@@ -12,6 +12,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class PageserverPlacementService {
@@ -31,6 +33,8 @@ public class PageserverPlacementService {
     private final PageserverLoadProvider loadProvider;
     private final PageserverNodeProvider nodeProvider;
     private final PageserverRebalanceEventService eventService;
+    private final Map<String, String> observedNodeInstances = new ConcurrentHashMap<>();
+    private final Map<String, Instant> failoverCooldownUntil = new ConcurrentHashMap<>();
 
     public PageserverPlacementService(LakeonProperties props) {
         this(props, (PageserverAssignmentRepository) null);
@@ -112,12 +116,15 @@ public class PageserverPlacementService {
     public List<PageserverNode> configuredNodes() {
         List<PageserverNode> dynamicNodes = dynamicNodes();
         if (!dynamicNodes.isEmpty()) {
+            observeNodeInstances(dynamicNodes);
             return dynamicNodes;
         }
-        return props.getNeon().getPageserverNodes().stream()
+        List<PageserverNode> staticNodes = props.getNeon().getPageserverNodes().stream()
             .map(this::toNode)
             .sorted(Comparator.comparing(PageserverNode::id))
             .toList();
+        observeNodeInstances(staticNodes);
+        return staticNodes;
     }
 
     private List<PageserverNode> dynamicNodes() {
@@ -134,15 +141,19 @@ public class PageserverPlacementService {
     }
 
     public List<PageserverNodeStatus> nodeStatuses() {
+        List<PageserverNode> nodes = configuredNodes();
         Map<String, Double> loads = loadScores();
         Set<String> unavailable = unavailableNodeIds();
         String source = statusSource();
-        return configuredNodes().stream()
+        return nodes.stream()
             .map(node -> new PageserverNodeStatus(
                 node,
                 !unavailable.contains(node.id()),
                 loads.getOrDefault(node.id(), 0.0d),
-                source))
+                source,
+                node.instanceId(),
+                isFailoverCoolingDown(node.id()),
+                failoverCooldownUntil(node.id())))
             .toList();
     }
 
@@ -205,6 +216,7 @@ public class PageserverPlacementService {
 
     @Transactional
     public PageserverRebalancePlan failoverUnavailableNodes() {
+        configuredNodes();
         Set<String> unavailable = unavailableNodeIds();
         if (unavailable.isEmpty()) {
             return new PageserverRebalancePlan(false, List.of());
@@ -223,6 +235,7 @@ public class PageserverPlacementService {
         if (!props.getDicer().isEnabled() || !props.getDicer().isAutoFailoverEnabled()) {
             return;
         }
+        configuredNodes();
         Set<String> unavailable = unavailableNodeIds();
         if (!unavailable.isEmpty()) {
             String reason = "auto-unavailable:" + String.join(",", unavailable);
@@ -408,6 +421,7 @@ public class PageserverPlacementService {
 
     private Set<String> unavailableNodeIds() {
         Set<String> ids = new HashSet<>();
+        ids.addAll(failoverCoolingDownNodeIds());
         PageserverLoadSnapshot live = liveSnapshot();
         if (live.isFresh()) {
             ids.addAll(live.unavailableNodeIds());
@@ -423,6 +437,59 @@ public class PageserverPlacementService {
             }
         }
         return ids;
+    }
+
+    private void observeNodeInstances(List<PageserverNode> nodes) {
+        if (!props.getDicer().isEnabled() || !props.getDicer().isAutoFailoverEnabled()) {
+            return;
+        }
+        Instant now = Instant.now();
+        pruneExpiredCooldowns(now);
+        for (PageserverNode node : nodes) {
+            String instanceId = node.instanceId();
+            if (instanceId == null || instanceId.isBlank()) {
+                continue;
+            }
+            String previous = observedNodeInstances.put(node.id(), instanceId);
+            if (previous != null && !previous.equals(instanceId)) {
+                failoverCooldownUntil.put(node.id(), now.plusMillis(failoverNodeCooldownMs()));
+            }
+        }
+    }
+
+    private Set<String> failoverCoolingDownNodeIds() {
+        Instant now = Instant.now();
+        pruneExpiredCooldowns(now);
+        Set<String> ids = new HashSet<>();
+        failoverCooldownUntil.forEach((nodeId, until) -> {
+            if (until.isAfter(now)) {
+                ids.add(nodeId);
+            }
+        });
+        return ids;
+    }
+
+    private boolean isFailoverCoolingDown(String nodeId) {
+        Instant until = failoverCooldownUntil(nodeId);
+        return until != null && until.isAfter(Instant.now());
+    }
+
+    private Instant failoverCooldownUntil(String nodeId) {
+        Instant now = Instant.now();
+        pruneExpiredCooldowns(now);
+        Instant until = failoverCooldownUntil.get(nodeId);
+        if (until == null || !until.isAfter(now)) {
+            return null;
+        }
+        return until;
+    }
+
+    private void pruneExpiredCooldowns(Instant now) {
+        failoverCooldownUntil.entrySet().removeIf(entry -> !entry.getValue().isAfter(now));
+    }
+
+    private long failoverNodeCooldownMs() {
+        return Math.max(0L, props.getDicer().getFailoverNodeCooldownMs());
     }
 
     private PageserverLoadSnapshot liveSnapshot() {
